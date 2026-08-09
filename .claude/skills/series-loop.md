@@ -757,6 +757,28 @@ CI reads workflows and scripts from the branch it checks,
 so this is what puts a fix into effect —
 never park a tooling change to wait for a forward.
 
+**Every ref of the series owes that identity, `<S>-build` included.**
+A workflow fires from the branch it sits on,
+so a ref nobody ports runs the tooling of the day it was seeded,
+and a push filter written back then decides what fires today.
+The buffer takes no *ports* — its line is upstream commits
+and the glue they need — but its **tooling is synced**,
+and `series-port.sh` does it in the same run:
+one commit appended to `<S>-build` when its tooling differs from `main`'s.
+This is not a precaution. `v1.4-andium-build` still carried a
+2026-03-26 `R-CMD-check.yaml` whose release pattern matches
+the buffer's own name, so pushes to it started the template check
+and `R-CMD-check-status.yaml` stamped an `rcc` status
+on a commit no `each-rcc` leg had decided —
+a status with no record, on a ref the model calls untested.
+
+The sync commit vendors nothing,
+so the consumption anchor and the vendored-SHA scans look past it
+by subject, and stage 5 replays it onto `-dev` like any buffer commit,
+where it drops as empty because `-dev` already carries that tooling.
+Where `main` moved between the two syncs it conflicts instead;
+resolve toward `main`'s tooling, which is what both refs converge on.
+
 ```sh
 scripts/series-port.sh <S>                  # list candidates + identity check
 scripts/series-port.sh <S> --apply          # cherry-pick all, sync, push

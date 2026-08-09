@@ -44,6 +44,19 @@ so there is never a "no green yet" state.
 The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
 ([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
+
+**Untested is a property of the tooling on the ref, not of the ref's name.**
+A workflow fires from the branch it sits on,
+so what keeps the buffer quiet is that the workflows it carries
+match no branch it is called —
+and a buffer carrying the copies it was seeded with
+is judged by that day's filters instead.
+`v1.4-andium-build` was: a 2026-03-26 `R-CMD-check.yaml`
+whose release pattern matches the buffer's own name
+put an `rcc` status on a commit no per-commit leg had decided.
+So the port stage syncs the buffer's tooling too
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
+and the model's "no CI" holds because something maintains it.
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.

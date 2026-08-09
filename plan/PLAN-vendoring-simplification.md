@@ -494,6 +494,23 @@ and a commit that cannot work against the series' engine
 is excluded by applying an explicit subset
 and fixed on `main` instead.
 
+*Widened since:* the identity goal covers **every ref of the series**,
+not `<S>-dev` alone.
+`<S>-build` takes no ports — its line is upstream commits and their glue —
+but it does take the sync,
+because a workflow fires from the branch it sits on:
+a ref nobody ports runs the tooling of the day it was seeded,
+and a push filter written back then decides what fires today.
+`v1.4-andium-build` was carrying a 2026-03-26 `R-CMD-check.yaml`
+whose release pattern matches the buffer's own name,
+so pushes to it started the template check
+and `R-CMD-check-status.yaml` stamped an `rcc` status
+on a commit no `each-rcc` leg had decided —
+a status with no record, on the one ref the model calls untested.
+Which also says what "untested" was resting on:
+not the ref's name, but the tooling the ref happens to carry,
+and nothing was maintaining that.
+
 **The vendor-strand exclusion, and an unresolved contradiction.**
 Vendor-strand commits are listed and never auto-picked —
 `main`'s engine is not this series' engine.
