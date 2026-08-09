@@ -40,6 +40,10 @@ the directory keeps the method so that is possible.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-07-altrep-error-path/`](2026-08-07-altrep-error-path/) —
+  which R code runs when an ALTREP method raises an error, what it
+  costs in C stack, and what #1797's guard changes; supports
+  [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md).
 * [`2026-08-08-altrep-scan-threads/`](2026-08-08-altrep-scan-threads/) —
   what a scan returned when it reached a registered ALTREP data frame's
   packed column itself, per thread count and field type, before and
