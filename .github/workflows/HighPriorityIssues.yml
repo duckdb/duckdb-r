@@ -14,7 +14,7 @@ env:
 jobs:
   create_or_label_issue:
     if: github.event.label.name == 'High Priority'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Get mirror issue number
         run: |
