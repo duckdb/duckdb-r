@@ -19,9 +19,8 @@ This is the recommended method for recent R versions on Windows or macOS which h
 install.packages("duckdb")
 ```
 
-For Linux or older R versions, this installs from source, which compiles the bundled DuckDB engine and may take up to an hour.
-Nothing downloads a prebuilt engine on your behalf, so if you do not want that wait, install a binary of the package instead:
-the [Posit Public Package Manager](https://p3m.dev/) serves the CRAN release for many platforms including Linux (next section), and [r-universe](https://duckdb.r-universe.dev) serves development versions.
+For Linux or older R versions, installing the package from source may take up to an hour.
+Consider the [Posit Public Package Manager](https://p3m.dev/) or [r-universe](https://duckdb.r-universe.dev) for binary installs (see the next sections).
 
 ## Installation from the Posit Public Package Manager
 
@@ -114,21 +113,10 @@ Then, install:
 ~duckdb-r: R CMD INSTALL .
 ```
 
-That compiles the bundled DuckDB engine and takes tens of minutes.
-On Linux and macOS you can skip it: install the prebuilt engine matching the vendored sources, and only the R bindings are compiled.
-
-``` sh
-~duckdb-r: scripts/install-libduckdb.sh
-~duckdb-r: export DUCKDB_R_USE_SYSTEM_LIB=1
-~duckdb-r: export MAKEFLAGS="-j$(nproc)"
-~duckdb-r: R CMD INSTALL . --no-byte-compile
-```
-
-The script needs no privileges — it installs under `~/.local`, where `configure` looks — and it has to be re-run after every vendoring bump, because the library must come from the same upstream commit as the vendored headers.
-This is for development only, and there is no equivalent on Windows, where the published engine library cannot be linked by R's toolchain.
-
-Otherwise, set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds, and configure `ccache` for faster repeated builds.
-Those knobs, the guard that keeps the prebuilt engine honest, and the rest of the build are described in the handbook under
+Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
+Configure `ccache` for faster repeated builds.
+A build that links a prebuilt engine and finishes in seconds,
+and other details, are described in the handbook under
 [`build/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/build/README.md).
 
 ## Vendoring
