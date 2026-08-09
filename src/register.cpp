@@ -124,8 +124,8 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 
 class RArrowTabularStreamFactory {
 public:
-	RArrowTabularStreamFactory(SEXP export_fun_p, SEXP arrow_scannable_p, ClientProperties config)
-	    : arrow_scannable(arrow_scannable_p), export_fun(export_fun_p), config(config) {};
+	RArrowTabularStreamFactory(SEXP export_fun_p, SEXP arrow_scannable_p, ClientProperties config_)
+	    : arrow_scannable(arrow_scannable_p), export_fun(export_fun_p), config(std::move(config_)) {};
 
 	static unique_ptr<ArrowArrayStreamWrapper> Produce(uintptr_t factory_p, ArrowStreamParameters &parameters) {
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
