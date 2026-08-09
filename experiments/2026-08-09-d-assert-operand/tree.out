@@ -1,0 +1,17 @@
+$ scripts/warnings.sh all      # D_ASSERT = ((void)sizeof((condition) ? 1 : 0)),
+                               # patches 0036 and 0037 reverted
+
+== glue: 15 translation units
+-- 464 warnings in files another scope owns:
+       13  cpp11
+      451  vendored
+-- glue: clean
+== vendored: 341 translation units
+-- vendored warnings (3):
+   duckdb/src/include/duckdb/common/lru_cache.hpp:151:47: warning: comparison of unsigned expression in '>= 0' is always true [-Wtype-limits]
+   duckdb/src/include/duckdb/execution/index/art/iterator.hpp:108:32: warning: comparison of unsigned expression in '>= 0' is always true [-Wtype-limits]
+   duckdb/src/include/duckdb/execution/index/art/iterator.hpp:74:41: warning: comparison of unsigned expression in '>= 0' is always true [-Wtype-limits]
+-- vendored: not clean.
+
+# No errors: all 341 translation units compiled. The three warnings are new --
+# they are in assert operands the status quo never parses.

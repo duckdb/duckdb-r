@@ -147,8 +147,8 @@ private:
 	using EntryMap = unordered_map<Key, Entry, KeyHash, KeyEqual>;
 
 	void DeleteImpl(typename EntryMap::iterator iter) {
+		D_ASSERT(current_total_weight >= iter->second.payload_weight);
 		current_total_weight -= iter->second.payload_weight;
-		D_ASSERT(current_total_weight >= 0);
 		lru_list.erase(iter->second.lru_iterator);
 		entry_map.erase(iter);
 	}

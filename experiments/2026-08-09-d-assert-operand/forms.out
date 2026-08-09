@@ -1,0 +1,23 @@
+$ for f in 0 1 2 3; do for cc in g++ clang++; do
+    $cc -std=gnu++17 -DNDEBUG -DFORM=$f -O2 -Wall -Wextra -fsyntax-only forms.cpp; done; done
+
+FORM=0  g++      warning: unused variable 'entries' [-Wunused-variable]
+FORM=0  clang++  warning: unused variable 'entries' [-Wunused-variable]
+FORM=0  clang++  warning: unused function 'IsOk' [-Wunused-function]
+
+FORM=1  g++      error: could not convert 'n' from 'NotBool' to 'bool'
+FORM=1  clang++  error: value of type 'NotBool' is not contextually convertible to 'bool'
+
+FORM=2  g++      warning: left operand of comma operator has no effect [-Wunused-value]  (x4)
+FORM=2  g++      error: invalid application of 'sizeof' to a bit-field
+FORM=2  clang++  error: invalid application of 'sizeof' to bit-field
+
+FORM=3  g++      error: could not convert 'n' from 'NotBool' to 'bool'
+FORM=3  clang++  error: value of type 'NotBool' is not contextually convertible to 'bool'
+
+# With the deliberately non-boolean case (d) removed, at -O0, warning counts:
+FORM=0  g++ 2   clang++ 3
+FORM=1  g++ 0   clang++ 1   # clang: -Wunneeded-internal-declaration on IsOk
+FORM=3  g++ 0   clang++ 1   # identical to FORM=1
+
+# -Wunneeded-internal-declaration is enabled by clang's -Wall, not only -Wextra.

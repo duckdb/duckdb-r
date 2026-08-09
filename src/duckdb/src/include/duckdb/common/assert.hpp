@@ -24,7 +24,15 @@
 //! On most builds, NDEBUG is defined, turning the assert call into a NO-OP
 //! Only the 'else' condition is supposed to check the assertions
 #include <assert.h>
-#define D_ASSERT assert
+//! assert() discards its operand unparsed under NDEBUG, so a binding or helper
+//! that exists only for an assert is unused in a release build, and a condition
+//! that is not even a condition compiles. Name the operand without evaluating
+//! it: sizeof is unevaluated, so this costs nothing at run time, while the
+//! names inside stay used and the condition stays type-checked.
+//! The `? 1 : 0` is load-bearing twice -- it makes a bit-field operand an
+//! rvalue, which sizeof cannot take directly, and it keeps a comma operator out
+//! of the expansion, which GCC reports under -Wall.
+#define D_ASSERT(condition) ((void)sizeof((condition) ? 1 : 0))
 namespace duckdb {
 DUCKDB_API void DuckDBAssertInternal(bool condition, const char *condition_name, const char *file, int linenr);
 }

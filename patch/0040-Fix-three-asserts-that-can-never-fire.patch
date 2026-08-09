@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Fix three asserts that can never fire
+
+All three compare an unsigned value >= 0, which 0039 is what makes
+visible -- the operand was never parsed before. Two are harmlessly
+always true. The third is not: SharedLruCache::DeleteImpl() subtracts
+and then asserts the result did not go below zero, which an idx_t
+cannot do; assert what it meant, before the subtraction.
+---
+  src/duckdb/src/include/duckdb/common/lru_cache.hpp             | 2 +-
+  src/duckdb/src/include/duckdb/execution/index/art/iterator.hpp | 4 ++--
+  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/lru_cache.hpp b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
+index 5b29982..9e2c368 100644
+--- a/src/duckdb/src/include/duckdb/common/lru_cache.hpp
++++ b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
+@@ -147,8 +147,8 @@ private:
+ 	using EntryMap = unordered_map<Key, Entry, KeyHash, KeyEqual>;
+ 
+ 	void DeleteImpl(typename EntryMap::iterator iter) {
++		D_ASSERT(current_total_weight >= iter->second.payload_weight);
+ 		current_total_weight -= iter->second.payload_weight;
+-		D_ASSERT(current_total_weight >= 0);
+ 		lru_list.erase(iter->second.lru_iterator);
+ 		entry_map.erase(iter);
+ 	}
+diff --git a/src/duckdb/src/include/duckdb/execution/index/art/iterator.hpp b/src/duckdb/src/include/duckdb/execution/index/art/iterator.hpp
+index 46a933e..90a8d31 100644
+--- a/src/duckdb/src/include/duckdb/execution/index/art/iterator.hpp
++++ b/src/duckdb/src/include/duckdb/execution/index/art/iterator.hpp
+@@ -71,7 +71,7 @@ struct RowIdSetOutput {
+ 	}
+ 
+ 	bool IsFull() const {
+-		D_ASSERT(row_ids.size() >= 0 && row_ids.size() <= capacity);
++		D_ASSERT(row_ids.size() <= capacity);
+ 		return row_ids.size() >= capacity;
+ 	}
+ 	void SetKey(const IteratorKey &, const idx_t) {
+@@ -105,7 +105,7 @@ struct KeyRowIdOutput {
+ 		arena.Reset();
+ 	}
+ 	bool IsFull() const {
+-		D_ASSERT(count >= 0 && count <= capacity);
++		D_ASSERT(count <= capacity);
+ 		return count >= capacity;
+ 	}
+ 	void SetKey(const IteratorKey &current_key, const idx_t column_key_len) {
+-- 
+2.43.0
