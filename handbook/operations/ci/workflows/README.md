@@ -20,7 +20,7 @@ which is the part of this a reader can check from the tree.
 | [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags | the check against r-universe dev builds of each dependency, one job per dependency |
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
-| [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) | half-hourly cron | harvests run records onto the `rcc2` branch |
+| [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) | dispatch; push when its own files change | backstop harvest onto the `rcc2` branch, for a commit no leg published ([`per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)) |
 | [`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml) | dispatch | rewrites the `rcc2` branch (dry run by default) |
 | [`fledge.yaml`](/.github/workflows/fledge.yaml) | daily cron; dispatch; push only when this file changes | version bump and `NEWS.md` via fledge ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)) |
 | [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml) | `pull_request_target` | posts formatting suggestions; treats fork code strictly as data |
@@ -28,6 +28,7 @@ which is the part of this a reader can check from the tree.
 | [`pkgdown.yaml`](/.github/workflows/pkgdown.yaml) | push to `docs*`, `cran-*`; dispatch | builds the site (main is covered by `rcc`) |
 | [`rhub.yaml`](/.github/workflows/rhub.yaml) | push to `cran-*`; dispatch | R-hub checks ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
+| [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | the same comparison sharded across runners, dealt by measured check cost |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
 | [`copilot-setup-steps.yaml`](/.github/workflows/copilot-setup-steps.yaml) | changes to itself | environment bootstrap for coding agents |
 
