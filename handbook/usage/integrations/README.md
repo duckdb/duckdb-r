@@ -29,20 +29,6 @@ the boundaries users keep hitting:
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
   [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)).
-  The gap is expressiveness, not speed: over 20M rows and 8.6M groups,
-  single-threaded, the window plan answers in 3.5 s and `DISTINCT ON`
-  in 6.2 s for the same determined row;
-  `DISTINCT ON` is faster (2.6 s) only when no ordering is given at
-  all, which picks an arbitrary row per group and is not what the verb
-  promises.
-  A user who wants the clause today writes it against the rendered
-  query — `remote_con()`, `sql_render()`, `ident()`, `escape()`, `sql()`
-  are all exported, so nothing here reaches into dbplyr —
-  and may register that as their own `distinct()` method for
-  `tbl_duckdb_connection`.
-  What they give up is the lazy history: the wrapper starts a new
-  `tbl()` over the rendered SQL, so grouping and ordering tracked
-  upstream do not carry.
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
