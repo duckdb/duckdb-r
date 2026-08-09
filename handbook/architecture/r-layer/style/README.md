@@ -30,8 +30,6 @@ on for R: without it that job formats the C++ and leaves the R alone.
 `R/` and `tests/` match what air prints, so `air format .` before
 pushing is the whole of the layout question —
 a change no longer has to match a file that had drifted from it.
-The one thing the config says is `skip = ["tribble"]`,
-which leaves the rows of a `tribble()` call where they were written.
 
 **An error message is a contract, not a sentence.**
 The guide's [error chapter](https://style.tidyverse.org/errors.html)
