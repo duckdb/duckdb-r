@@ -168,7 +168,6 @@ duckdb <- function(
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
 
-
   # Decide once, past the driver-cache reuse above, whether this driver may load
   # DuckDB extensions (argument > `duckdb.allow_extensions` option >
   # `DUCKDB_R_ALLOW_EXTENSIONS` env var > auto). The resolved flag is plumbed
