@@ -190,9 +190,19 @@ engine workers ──► streaming buffer ──► pump thread ──► chunk 
 * While the queue is empty and the stream not done,
   the R thread waits in slices
   (`wait_for` ~100 ms, then `cpp11::check_user_interrupt()`);
-  on interrupt it calls `ClientContext::Interrupt()`,
-  which unblocks the pump wherever it is,
-  then joins and rethrows as the usual interrupt condition.
+  on interrupt it calls `ClientContext::Interrupt()` and gives the
+  pump a bounded grace: a parked or task-executing pump exits within
+  it (the engine reads the flag between tasks), the R thread joins
+  and rethrows as the usual interrupt condition.
+  A pump inside a wait that never returns to a flag read —
+  the network shape
+  [`PLAN-query-cancellation.md`](PLAN-query-cancellation.md)
+  measures — is *detached* instead of joined:
+  the result is condemned, the connection marked unusable rather
+  than closed (closing means joining that thread, which still holds
+  the context lock), and the pump reaped when its wait finally ends.
+  Route 2 of that plan reaches the same provision for the same
+  reason.
   This replaces `ScopedInterruptHandler` for the pumped path —
   no signal handler swapping, same observable behavior.
 * The SIGINT handler stops being a hot potato.
@@ -232,11 +242,20 @@ engine workers ──► streaming buffer ──► pump thread ──► chunk 
     folklore, and owning SIGINT at the prompt is exactly the
     behavior we fault extensions for.
   * **Opt out.** `options(duckdb.interrupt_handler = FALSE)`:
-    never install ours, leave SIGINT to whoever owns it —
-    for sessions where the foreign handler is the wanted one
-    ([#202](https://github.com/duckdb/duckdb-r/issues/202)'s
-    MotherDuck auth is the live case).
-    The pump is what makes this offerable at all:
+    never install ours, leave SIGINT to whoever owns it.
+    No extension installs a handler under R today —
+    MotherDuck arranges its sign-in cancellation for the CLI client
+    only, which is what
+    [#202](https://github.com/duckdb/duckdb-r/issues/202)
+    turned out to be
+    ([`PLAN-query-cancellation.md`](PLAN-query-cancellation.md),
+    measured in
+    [`experiments/2026-08-08-interrupt-reach/`](/experiments/2026-08-08-interrupt-reach/README.md)) —
+    but one of the two closures that plan names as MotherDuck's,
+    installing its handler for *every* client,
+    would put a foreign SIGINT handler inside R sessions,
+    and this policy is the preparation for that day.
+    The pump is what makes the opt-out offerable at all:
     with the handler opted out, a synchronous query cannot be
     cancelled until it returns, but a pumped fetch still cancels
     promptly — its cancellation never depended on SIGINT ownership
@@ -249,11 +268,13 @@ engine workers ──► streaming buffer ──► pump thread ──► chunk 
   and it becomes a stated convention in
   [`architecture/glue/`](/handbook/architecture/glue/README.md).
 * Lifecycle: created lazily by the first `dbFetch()` on an eligible
-  streaming result; stopped (interrupt + join) by drain, error,
+  streaming result; stopped by drain, error,
   `dbBind()`, `dbClearResult()`, the externalptr finalizer,
   and connection shutdown.
-  Every stop path is bounded because `Interrupt()` reaches
-  a parked or fetching pump promptly.
+  Every stop path is bounded the way the interrupt is:
+  `Interrupt()`, grace, join — or detach when the pump sits in a
+  flag-blind wait, condemning the connection rather than hanging
+  the R thread.
 
 The protocol between the two threads, enumerated.
 Five message kinds flow down (pump to R thread), two flow up:
@@ -548,14 +569,15 @@ T6 independent after T1; T7 last.
   buffer on the R thread — binding may evaluate R
   (replacement scans), so moving the *open* off-thread needs a
   bind-complete barrier. Deliberately not in this plan.
-  The same shape is the eventual answer to
-  [#202](https://github.com/duckdb/duckdb-r/issues/202)-class hangs:
-  a blocking `ATTACH` whose extension never checks `Interrupt()`
-  holds the R thread captive today, and no signal-handler policy can
-  fix that — run on a pump-like thread instead, the R thread keeps
-  its prompt even when the engine call cannot be cancelled.
-  Named here so the pump's machinery
-  (queue, stop protocol, wait slices) is built reusable for it.
+  That project now has its own plan:
+  [`PLAN-query-cancellation.md`](PLAN-query-cancellation.md)'s
+  Route 2 — the engine call on a worker thread, the R thread in an
+  interrupt-checking wait — whose cost is marshalling the engine's
+  R callbacks back to the main thread.
+  The pump is Route 2 restricted to the case that needs no
+  marshalling (the guards refuse exactly the plans that would),
+  so its machinery — queue, stop-or-detach protocol, wait slices —
+  should be built reusable for the full route.
 * **Where `n`-row fairness lives.**
   The pump transfers whole chunks; a tiny `dbFetch(n = 10)` against a
   huge buffered queue still converts only what it needs —
@@ -630,8 +652,10 @@ For [`architecture/glue/`](/handbook/architecture/glue/README.md):
 > (`ScopedInterruptHandler`); a pumped fetch cancels through R's own
 > pending-interrupt check plus `Interrupt()`, needing no handler —
 > which is why `options(duckdb.interrupt_handler = FALSE)` can cede
-> SIGINT to an extension that insists on owning it (#202)
+> SIGINT to an extension that installs its own handler
 > without giving up prompt cancellation on pumped results.
+> How far Ctrl+C reaches today is
+> [`usage/interactive/`](/handbook/usage/interactive/README.md)'s.
 
 For [`architecture/engine/`](/handbook/architecture/engine/README.md):
 
