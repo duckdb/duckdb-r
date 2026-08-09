@@ -12,7 +12,9 @@ What is settled:
   ([`contributors/workflow/`](/handbook/contributors/workflow/README.md)).
 * A review checks the change against the owning leaves of this
   handbook — the invariants, the flavor seam, the no-suppression
-  policy — and that snapshots changed only where the diff explains
+  policy, the tidyverse rules R answers to
+  ([`architecture/r-layer/style/`](/handbook/architecture/r-layer/style/README.md))
+  — and that snapshots changed only where the diff explains
   them ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
 * The author drives CI to green.
 * An agent may be asked to watch a pull request — CI, review comments,

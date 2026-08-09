@@ -16,6 +16,20 @@ fi
 
 cd "$(dirname "$0")/src"
 
+# There is no fast path on Windows, so say so rather than building the
+# vendored sources as if the variable had not been set. DuckDB publishes
+# libduckdb-windows-amd64.zip, but it is built with MSVC while R's Windows
+# toolchain is the Rtools MinGW-w64 GCC: the glue calls DuckDB C++
+# internals, and the two compilers mangle those names differently, so the
+# linker resolves none of them. Measured in
+# experiments/2026-08-09-windows-fast-path/; see
+# handbook/build/fast-paths/README.md.
+if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "true" ]; then
+  echo "NOTE: DUCKDB_R_USE_SYSTEM_LIB is set but has no effect on Windows;"
+  echo "      the published libduckdb is MSVC-built and cannot be linked by"
+  echo "      R's MinGW toolchain. Compiling the vendored sources instead."
+fi
+
 r_4_2=$(Rscript --vanilla -e 'writeLines(format(getRversion() >= "4.2"))')
 
 # Kludge for R < 4.2, which does not have librstrtmgr.a included

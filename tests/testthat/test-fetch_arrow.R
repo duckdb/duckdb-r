@@ -2,17 +2,30 @@ skip_on_cran()
 skip_on_os("windows")
 skip_if_not_installed("arrow", "5.0.0")
 # Skip if parquet is not a capability as an indicator that Arrow is fully installed.
-skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not fully featured, skipping Arrow integration tests")
+skip_if_not(
+  arrow::arrow_with_parquet(),
+  message = "The installed Arrow is not fully featured, skipping Arrow integration tests"
+)
 
 test_that("duckdb_fetch_arrow() test table over vector size", {
   con <- local_con()
 
-  dbExecute(con, paste0("CREATE table test as select range a from range(10000);"))
+  dbExecute(
+    con,
+    paste0("CREATE table test as select range a from range(10000);")
+  )
   dbExecute(con, "INSERT INTO  test VALUES(NULL);")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -22,10 +35,17 @@ test_that("duckdb_fetch_arrow() empty table", {
 
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
 
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -36,10 +56,17 @@ test_that("duckdb_fetch_arrow() table with only nulls", {
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
 
   dbExecute(con, "INSERT INTO  test VALUES(NULL);")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -52,10 +79,17 @@ test_that("duckdb_fetch_arrow() table with prepared statement", {
   for (value in 1:1500) {
     dbExecute(con, sprintf("EXECUTE s1 (%d, %d);", value, value * 2))
   }
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -105,7 +139,10 @@ test_that("record_batch_reader and table error", {
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
   expect_error(duckdb_fetch_record_batch(res, 0))
-  expect_error(duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE), 0))
+  expect_error(duckdb_fetch_arrow(
+    dbSendQuery(con, "SELECT * FROM test", arrow = TRUE),
+    0
+  ))
 })
 
 
