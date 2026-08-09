@@ -349,7 +349,10 @@ test_that("non-interactive reminder is bounded by a count, interactive by time",
   withr::local_options(rlang_interactive = TRUE)
   storage_message_state[["storage_location"]] <- NULL
   local_mocked_bindings(now_seconds = function() 0)
-  expect_message(maybe_storage_location_message(resolved), "temporary directory")
+  expect_message(
+    maybe_storage_location_message(resolved),
+    "temporary directory"
+  )
   expect_silent(maybe_storage_location_message(resolved))
 })
 
@@ -397,5 +400,9 @@ test_that("a cancelled prompt aborts with a stable error", {
     session_temp_dir = function() "/tmp/Rtmpxx",
     consent_to_create_home = function(path) NA
   )
-  expect_snapshot(resolve_storage_home(), error = TRUE, transform = transform_package_name)
+  expect_snapshot(
+    resolve_storage_home(),
+    error = TRUE,
+    transform = transform_package_name
+  )
 })

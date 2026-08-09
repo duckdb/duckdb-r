@@ -14,10 +14,12 @@
 # `arg` names the argument in the message and defaults to the expression the
 # caller passed, which is the caller's own argument name at every call site
 # here.
-check_unsupported_arg <- function(x,
-                                  allowed = NULL,
-                                  allow_null = FALSE,
-                                  arg = deparse(substitute(x))) {
+check_unsupported_arg <- function(
+  x,
+  allowed = NULL,
+  allow_null = FALSE,
+  arg = deparse(substitute(x))
+) {
   if (missing(x)) {
     return(invisible())
   }
@@ -38,7 +40,11 @@ check_unsupported_arg <- function(x,
       paste0("It must be ", fmt_arg_value(allowed), " instead.")
     }
     msg <- paste0(
-      "`", arg, " = ", fmt_arg_value(x), "` isn't supported on database backends.\n",
+      "`",
+      arg,
+      " = ",
+      fmt_arg_value(x),
+      "` isn't supported on database backends.\n",
       detail
     )
   }
