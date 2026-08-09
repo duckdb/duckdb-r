@@ -29,7 +29,6 @@ which is the part of this a reader can check from the tree.
 | [`rhub.yaml`](/.github/workflows/rhub.yaml) | push to `cran-*`; dispatch | R-hub checks ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
-| [`HighPriorityIssues.yml`](/.github/workflows/HighPriorityIssues.yml) | issue labeled | mirrors High-Priority issues internally |
 | [`copilot-setup-steps.yaml`](/.github/workflows/copilot-setup-steps.yaml) | changes to itself | environment bootstrap for coding agents |
 
 *To deepen: cover the composite actions beside these files —
