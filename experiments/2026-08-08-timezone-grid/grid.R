@@ -17,11 +17,14 @@ cell <- function(local_tz, tz_out, tz_conv, session) {
       dbExecute(con, "LOAD icu")
       dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
     }
-    res <- dbGetQuery(con, "
+    res <- dbGetQuery(
+      con,
+      "
       SELECT
         TIMESTAMP '2024-01-10 13:03:12' AS ts,
         TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS tstz
-    ")
+    "
+    )
     fmt <- function(x) {
       tz <- attr(x, "tzone")
       data.frame(
@@ -31,7 +34,12 @@ cell <- function(local_tz, tz_out, tz_conv, session) {
       )
     }
     cbind(
-      data.frame(local = local_tz, tz_out = tz_out, conv = tz_conv, session = session),
+      data.frame(
+        local = local_tz,
+        tz_out = tz_out,
+        conv = tz_conv,
+        session = session
+      ),
       setNames(fmt(res$ts), paste0("ts_", names(fmt(res$ts)))),
       setNames(fmt(res$tstz), paste0("tstz_", names(fmt(res$tstz))))
     )
@@ -46,12 +54,17 @@ grid <- expand.grid(
   stringsAsFactors = FALSE
 )
 
-out <- do.call(rbind, Map(cell, grid$local_tz, grid$tz_out, grid$tz_conv, grid$session))
+out <- do.call(
+  rbind,
+  Map(cell, grid$local_tz, grid$tz_out, grid$tz_conv, grid$session)
+)
 rownames(out) <- NULL
 
 cat(
-  "duckdb", as.character(packageVersion("duckdb")),
-  "| DuckDB", duckdb:::get_duckdb_version(),
+  "duckdb",
+  as.character(packageVersion("duckdb")),
+  "| DuckDB",
+  duckdb:::get_duckdb_version(),
   "| vendored build, icu from the extension store\n"
 )
 print(out, right = FALSE)

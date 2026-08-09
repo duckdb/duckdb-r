@@ -260,7 +260,7 @@ this list is the sources-and-glue side it drives):
 
    `flavor.sh` needs GNU sed, and the `cpp11` and `decor` R packages for its
    `cpp11::cpp_register()` step — the `cpp11` being `krlmlr/cpp11`
-   ([`handbook/architecture/glue/`](/handbook/architecture/glue/README.md)).
+   ([`handbook/architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
    On macOS, GNU sed means `gsed`, from Homebrew.
    A missing or wrong one costs a rerun and nothing else:
    the script refuses a dirty tree, prepares the whole rename before it

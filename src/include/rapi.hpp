@@ -163,8 +163,8 @@ typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts)
-	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts_)
+	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts_)) {
 	}
 	duckdb::shared_ptr<Relation> rel;
 	const ConvertOpts convert_opts;

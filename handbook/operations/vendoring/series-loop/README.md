@@ -47,6 +47,25 @@ to do, and they run in this order:
 * **Extend `<S>-dev`** — consume the buffer in bounded chunks,
   at most 100 commits per firing
   ([`scripts/series-advance.sh`](/scripts/series-advance.sh)).
+  On a forward series this is also where the base series' fixes are
+  folded back in, matched by vendored SHA
+  ([#2594](https://github.com/duckdb/duckdb-r/pull/2594)):
+  `-build` holds what the code needs to *compile*, that being what the
+  vendor gate checks, and `-dev` holds everything CI demanded after
+  that — glue included, where a test rather than the compiler asked for
+  it. A forward inherits only the first from the replay. What carries is
+  the difference against the twin's own `-build` commit, less the
+  buffer's strand (`src/duckdb/`, `patch/`) and what vendoring
+  regenerates — more commits fall to those exclusions than are carried,
+  which is why it is a filtered difference and not the twin's diff
+  replayed. Rare per commit and expensive where it happens: 10 of the
+  802 commits `main-fwd` still has buffered carry one, three of them
+  glue, each otherwise a red costing a repair plus a replay of
+  everything above it
+  ([`experiments/2026-08-09-series-carry-scope/`](/experiments/2026-08-09-series-carry-scope/README.md)).
+  This stage is **attended**: a carry the series has moved out from
+  under stops the run with the conflict in a worktree it keeps, writes
+  no ref, and resumes with `--continue` or is discarded with `--abort`.
 * **Suggest a cutover** — a caught-up `-fwd` counterpart is *reported*
   with the command, never executed; that move is a human's.
 * **Report what the tooling got wrong** — a firing that had to work
