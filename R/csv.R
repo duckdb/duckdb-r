@@ -78,7 +78,7 @@ duckdb_read_csv <- function(
     warning("Arguments passed to ... are currently not used")
   }
   if (length(na.strings) > 1) {
-    stop("na.strings must be of length 1")
+    abort("na.strings must be of length 1")
   }
   if (!missing(sep)) {
     delim <- sep
@@ -97,17 +97,19 @@ duckdb_read_csv <- function(
   if (length(files) > 1) {
     nn <- sapply(headers, ncol)
     if (!all(nn == nn[1])) {
-      stop("Files have different numbers of columns")
+      abort("Files have different numbers of columns")
     }
     nms <- sapply(headers, names)
     if (!all(nms == nms[, 1])) {
-      stop("Files have different variable names or order")
+      abort("Files have different variable names or order")
     }
     if (is.null(col.types)) {
       types <- sapply(headers, function(df) {
         sapply(df, dbDataType, dbObj = conn)
       })
-      if (!all(types == types[, 1])) stop("Files have different variable types")
+      if (!all(types == types[, 1])) {
+        abort("Files have different variable types")
+      }
     }
   }
 
@@ -180,26 +182,26 @@ set_csv_fields <- function(found, col.names, col.types) {
 
   if (!is.null(col.types)) {
     if (length(col.types) != ncol(found)) {
-      stop(
+      abort(paste0(
         "You supplied ",
         length(col.types),
         " values to `col.names`, but file has ",
         ncol(found),
         " columns."
-      )
+      ))
     }
 
     if (!is.null(names(col.types))) {
       return(col.types)
     } else {
       if (length(col.types) != ncol(found)) {
-        stop(
+        abort(paste0(
           "You supplied ",
           length(col.types),
           " values to `col.types`, but file has ",
           ncol(found),
           " columns."
-        )
+        ))
       }
       fields <- col.types
       names(fields) <- col.names

@@ -22,6 +22,7 @@
 
   if (requireNamespace("rlang", quietly = TRUE)) {
     is_interactive <<- rlang::is_interactive
+    abort <<- rlang::abort
     rapi_error <<- rapi_error_rlang
     check_dots_empty0 <<- rlang::check_dots_empty0
     inform <<- rlang::inform
