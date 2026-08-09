@@ -69,6 +69,12 @@ the directory keeps the method so that is possible.
   fires, and what a warning raised from one can do to the load it
   interrupts; supports
   [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-08-09-rel-from-df-posixct/`](2026-08-09-rel-from-df-posixct/) —
+  which `POSIXct` columns `rel_from_df()` accepts once `posixct`
+  defaults to `TIMESTAMPTZ`, and whether what it accepts comes back
+  with the same `tzone`, for the shipped policy and the three
+  alternatives to it; supports
+  [`usage/relational/`](/handbook/usage/relational/README.md).
 * [`2026-08-09-series-carry-scope/`](2026-08-09-series-carry-scope/) —
   how many of a buffer's vendor commits have a fix waiting on the base
   series' `-dev`, what kind, and how much of the raw difference is not a

@@ -6,7 +6,7 @@ duckdb_convert_opts <- function(
   array = "none",
   geometry = "blob",
   map = "data.frame",
-  posixct = "timestamp"
+  posixct = "timestamptz"
 ) {
   tz_out_convert <- match.arg(tz_out_convert)
   timezone_out <- check_tz(timezone_out)

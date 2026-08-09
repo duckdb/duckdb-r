@@ -44,18 +44,21 @@
 #'   to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
 #'   and lets scans accept named-list cells as MAP entries.
 #' @param posixct The DuckDB type `POSIXct` columns are sent as.
-#'   There are two options: `"timestamp"` and `"timestamptz"`.
-#'   If `"timestamp"` is selected (the default), a `POSIXct` column becomes a
-#'   `TIMESTAMP` column holding the UTC rendering of each instant, and its
-#'   time zone is lost.
-#'   If `"timestamptz"` is selected, it becomes a `TIMESTAMPTZ` column holding
-#'   the instant itself, which is what a `POSIXct` value means
-#'   ([#184](https://github.com/duckdb/duckdb-r/issues/184)).
+#'   There are two options: `"timestamptz"` and `"timestamp"`.
+#'   If `"timestamptz"` is selected (the default), a `POSIXct` column becomes a
+#'   `TIMESTAMPTZ` column holding the instant itself, which is what a `POSIXct`
+#'   value means ([#184](https://github.com/duckdb/duckdb-r/issues/184)).
 #'   Reading such a column back labels it with the session `TimeZone`,
 #'   not with the zone it was written from.
+#'   If `"timestamp"` is selected, it becomes a `TIMESTAMP` column holding the
+#'   UTC rendering of each instant, and its time zone is lost.
+#'   This is the mapping earlier versions used, and the way back to it.
 #'   The setting reaches [dbWriteTable()], [dbAppendTable()],
 #'   [duckdb_register()], bound parameters, [dbDataType()] and
 #'   [dbQuoteLiteral()].
+#'   It does not reach a data frame picked up by name under
+#'   `duckdb(environment_scan = TRUE)`, nor the relational API behind
+#'   \pkg{duckplyr}, which both stay on `TIMESTAMP`.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -93,7 +96,7 @@ dbConnect__duckdb_driver <- function(
   array = "none",
   geometry = "blob",
   map = "data.frame",
-  posixct = "timestamp"
+  posixct = "timestamptz"
 ) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)

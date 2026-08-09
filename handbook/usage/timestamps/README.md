@@ -47,23 +47,34 @@ the wider type mapping is
   as the display zone for `"with"`,
   as the target zone for `"force"` —
   both spelled `timezone_out = ""`.
-* **Which DuckDB type a `POSIXct` becomes is `posixct`'s to choose.**
-  The default `"timestamp"` sends the UTC rendering of each instant
-  into a `TIMESTAMP` column and drops the R-side zone;
-  `dbConnect(posixct = "timestamptz")` sends the instant itself,
-  which is what a `POSIXct` value means, into a `TIMESTAMPTZ` column
+* **A `POSIXct` crosses as `TIMESTAMPTZ`, the instant it names.**
+  That is what the R value means, and
+  `dbConnect(posixct = "timestamp")` is the way back to the older
+  mapping, which sent the UTC rendering into a naive `TIMESTAMP`
+  column and dropped the R-side zone
   ([#184](https://github.com/duckdb/duckdb-r/issues/184)).
-  The setting reaches every path that hands R values to the engine —
-  `dbWriteTable()`, `dbAppendTable()`, `duckdb_register()`,
-  `rel_from_df()`, bound parameters, `dbDataType()` and
+  The setting reaches `dbWriteTable()`, `dbAppendTable()`,
+  `duckdb_register()`, bound parameters, `dbDataType()` and
   `dbQuoteLiteral()` — nested columns included.
+* **Two paths stay on `TIMESTAMP` whatever the setting says.**
+  A data frame picked up by name under
+  `duckdb(environment_scan = TRUE)` scans with the table function's
+  own defaults, because the replacement scan has the database and
+  not the connection whose options these are.
+  `rel_from_df()` declines the setting rather than misses it:
+  a relation promises the data frame back unchanged, which a
+  `TIMESTAMPTZ` column cannot keep, and what each candidate policy
+  costs is measured in
+  [`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md).
+  A caller who wants the setting there passes `convert_opts` —
+  the rest is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **A zone survives the round trip only through `TIMESTAMPTZ`,
   and only the session's.**
-  Write under `posixct = "timestamptz"` with the session `TimeZone`
-  set to the column's zone, and the data frame comes back identical;
-  set to any other zone, the instant still comes back exact
-  and the label is the session's.
-  The default mapping has no zone to read back at all,
+  Set the session `TimeZone` to the column's zone and the data frame
+  comes back identical;
+  set it to any other zone and the instant still comes back exact,
+  labeled with the session's.
+  `posixct = "timestamp"` has no zone to read back at all,
   because the column it writes carries none.
 * **In a dbplyr pipeline, `posixct` reaches only the escaped value.**
   `!!` escapes R-side through `dbQuoteLiteral()`, so the literal is
@@ -82,5 +93,5 @@ the wider type mapping is
 
 *To deepen: extend
 [`experiments/2026-08-08-timezone-grid/`](/experiments/2026-08-08-timezone-grid/README.md)
-over the writing direction, so `posixct` is measured
-rather than argued.*
+over the writing direction, so the paths `posixct` does reach
+are measured across their settings too.*

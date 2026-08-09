@@ -391,18 +391,8 @@ test_that("tz_out_convert = force handles invalid timestamps during DST transiti
   expect_equal(res2[[1]], expected2)
 })
 
-test_that("POSIXct columns are sent as TIMESTAMP by default (#184)", {
+test_that("POSIXct columns are sent as TIMESTAMPTZ by default (#184)", {
   con <- local_con()
-
-  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
-  duckdb_register(con, "df", df)
-
-  expect_equal(dbGetQuery(con, "DESCRIBE FROM df")$column_type, "TIMESTAMP")
-  expect_equal(dbDataType(con, df$a), "TIMESTAMP")
-})
-
-test_that("posixct = 'timestamptz' sends POSIXct columns as TIMESTAMPTZ (#2574)", {
-  con <- local_con(posixct = "timestamptz")
 
   df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
   duckdb_register(con, "df", df)
@@ -416,8 +406,18 @@ test_that("posixct = 'timestamptz' sends POSIXct columns as TIMESTAMPTZ (#2574)"
   expect_equal(dbGetQuery(con, "FROM df")$a, df$a, ignore_attr = TRUE)
 })
 
-test_that("posixct = 'timestamptz' reaches dbWriteTable() and dbAppendTable() (#2574)", {
-  con <- local_con(posixct = "timestamptz")
+test_that("posixct = 'timestamp' is the way back to the naive mapping (#2574)", {
+  con <- local_con(posixct = "timestamp")
+
+  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  duckdb_register(con, "df", df)
+
+  expect_equal(dbGetQuery(con, "DESCRIBE FROM df")$column_type, "TIMESTAMP")
+  expect_equal(dbDataType(con, df$a), "TIMESTAMP")
+})
+
+test_that("the default reaches dbWriteTable() and dbAppendTable() (#2574)", {
+  con <- local_con()
 
   df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
   dbWriteTable(con, "t", df)
@@ -431,8 +431,8 @@ test_that("posixct = 'timestamptz' reaches dbWriteTable() and dbAppendTable() (#
   expect_equal(dbReadTable(con, "t")$a, rep(df$a, 2), ignore_attr = TRUE)
 })
 
-test_that("posixct = 'timestamptz' reaches nested columns (#2574)", {
-  con <- local_con(posixct = "timestamptz")
+test_that("the default reaches nested columns (#2574)", {
+  con <- local_con()
 
   instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
   df <- data.frame(row = 1L)
@@ -451,11 +451,25 @@ test_that("posixct = 'timestamptz' reaches nested columns (#2574)", {
   )
 })
 
-test_that("posixct = 'timestamptz' reaches rel_from_df() (#2574)", {
-  con <- local_con(posixct = "timestamptz")
+# A relation promises the data frame back unchanged, which TIMESTAMPTZ cannot
+# keep: it comes back labeled with the session zone. Measured in
+# experiments/2026-08-09-rel-from-df-posixct/README.md.
+test_that("rel_from_df() stays on TIMESTAMP under the default (#2574)", {
+  con <- local_con()
 
   df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
   rel <- rel_from_df(con, df)
+  rel_to_table(rel, "main", "t", FALSE)
+
+  expect_equal(dbGetQuery(con, "DESCRIBE t")$column_type, "TIMESTAMP")
+  expect_equal(rel_to_altrep(rel), df)
+})
+
+test_that("rel_from_df() follows `convert_opts` when the caller passes it (#2574)", {
+  con <- local_con()
+
+  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  rel <- rel_from_df(con, df, convert_opts = con@convert_opts)
   rel_to_table(rel, "main", "t", FALSE)
 
   expect_equal(
@@ -465,8 +479,8 @@ test_that("posixct = 'timestamptz' reaches rel_from_df() (#2574)", {
   expect_equal(as.data.frame(rel)$a, df$a, ignore_attr = TRUE)
 })
 
-test_that("posixct = 'timestamptz' reaches bound parameters and literals (#2574)", {
-  con <- local_con(posixct = "timestamptz")
+test_that("the default reaches bound parameters and literals (#2574)", {
+  con <- local_con()
 
   instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
   dbExecute(con, "CREATE TABLE t (a TIMESTAMPTZ)")
@@ -483,10 +497,10 @@ test_that("posixct = 'timestamptz' reaches bound parameters and literals (#2574)
   )
 })
 
-test_that("posixct = 'timestamptz' round-trips the zone via the session TimeZone (#184)", {
+test_that("the default round-trips the zone via the session TimeZone (#184)", {
   skip_if_no_icu()
 
-  con <- local_con(posixct = "timestamptz")
+  con <- local_con()
 
   dbExecute(con, "INSTALL icu")
   dbExecute(con, "LOAD icu")
@@ -504,7 +518,7 @@ test_that("posixct = 'timestamptz' round-trips the zone via the session TimeZone
 test_that("a bound POSIXct compares equal to a TIMESTAMPTZ column under a non-UTC session zone (#2574)", {
   skip_if_no_icu()
 
-  con <- local_con(posixct = "timestamptz")
+  con <- local_con()
 
   dbExecute(con, "INSTALL icu")
   dbExecute(con, "LOAD icu")
@@ -522,4 +536,15 @@ test_that("dbConnect() rejects an unknown posixct value (#2574)", {
   on.exit(duckdb_shutdown(drv))
 
   expect_error(dbConnect(drv, posixct = "nope"), "posixct")
+})
+
+test_that("expr_constant() stays on TIMESTAMP with the relational path (#2574)", {
+  con <- local_con()
+
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+  rel <- rel_from_df(con, data.frame(a = 1L))
+  rel <- rel_project(rel, list(expr_constant(instant, alias = "t", con = con)))
+  rel_to_table(rel, "main", "t", FALSE)
+
+  expect_equal(dbGetQuery(con, "DESCRIBE t")$column_type, "TIMESTAMP")
 })
