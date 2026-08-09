@@ -16,8 +16,16 @@ The harness is [`bench.R`](bench.R): one file, DBI + duckdb only.
   installed, otherwise a deterministic synthetic `lineitem` with the
   same schema and column widths — the harness runs offline.
 * Isolation: every scenario × query cell runs in a fresh R subprocess;
-  peak RSS is `VmHWM` reset per cell (Linux),
   R allocation is the `gc()` max-used delta.
+* Peak RSS is measured per platform and the method travels in the
+  CSV (`rss_method`):
+  on Linux the exact `VmHWM` high-water mark, reset per cell;
+  on macOS (and other POSIX systems) a background sampler polling
+  `ps -o rss=` every 50 ms — approximate, same delta semantics.
+  `BENCH_RSS_METHOD` forces a method, so the sampler can be checked
+  against the exact reading on Linux.
+  CSVs recorded before the sampler existed lack the `rss_method`
+  column; those runs are Linux `VmHWM`.
 * Scenarios:
   `materialize` (`dbGetQuery()`),
   `materialize_chunked` (`dbSendQuery()` + `dbFetch(n)` loop),

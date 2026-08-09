@@ -14,8 +14,11 @@
 #                   [--scenarios=a,b,...] [--queries=a,b,...]
 #
 # Environment:
-#   DUCKDB_LIB  optional R library path to load duckdb from
-#               (e.g. a library holding a dev build; workers inherit it).
+#   DUCKDB_LIB        optional R library path to load duckdb from
+#                     (e.g. a library holding a dev build; workers inherit it).
+#   BENCH_RSS_METHOD  force the peak-RSS method: vmhwm (Linux exact),
+#                     ps-sample (macOS and other POSIX; 50 ms sampler),
+#                     none. Auto-detected when unset.
 #
 # The orchestrator creates the TPC-H database once (tpch extension if it can
 # be installed, otherwise a deterministic synthetic lineitem with the same
@@ -144,22 +147,101 @@ has_stream_arg <- function() {
   !is.null(fml) && "stream" %in% names(fml)
 }
 
-peak_rss_mb <- function() {
-  status <- tryCatch(readLines("/proc/self/status"), error = function(e) NULL)
-  if (is.null(status)) {
+# Peak RSS, per platform. Linux reads the exact VmHWM high-water mark,
+# reset per cell through /proc/self/clear_refs. macOS exposes no
+# resettable high-water mark to a live process, so there a shell sampler
+# polls `ps -o rss=` every 50 ms — approximate (spikes shorter than a
+# poll are missed) but the same delta-vs-baseline semantics; BSD and GNU
+# ps agree on this invocation, so the sampler itself is portable.
+# The method used travels in the CSV, making results self-describing.
+# BENCH_RSS_METHOD forces vmhwm / ps-sample / none, mainly so the
+# sampler can be exercised on Linux against the exact reading.
+
+ps_rss_kb <- function(pid) {
+  out <- tryCatch(
+    suppressWarnings(
+      system2("ps", c("-o", "rss=", "-p", pid), stdout = TRUE, stderr = FALSE)
+    ),
+    error = function(e) character()
+  )
+  if (length(out) == 0) {
     return(NA_real_)
   }
+  suppressWarnings(as.numeric(trimws(out[[1]])))
+}
+
+vmhwm_kb <- function() {
+  status <- tryCatch(readLines("/proc/self/status"), error = function(e) character())
   line <- grep("^VmHWM:", status, value = TRUE)
   if (length(line) == 0) {
     return(NA_real_)
   }
-  as.numeric(gsub("[^0-9]", "", line)) / 1024
+  as.numeric(gsub("[^0-9]", "", line))
 }
 
-reset_peak_rss <- function() {
-  # Linux: writing 5 to clear_refs resets the VmHWM high-water mark.
-  tryCatch(writeLines("5", "/proc/self/clear_refs"), error = function(e) NULL)
-  invisible()
+rss_method <- function() {
+  forced <- Sys.getenv("BENCH_RSS_METHOD", "")
+  if (nzchar(forced)) {
+    return(forced)
+  }
+  if (file.exists("/proc/self/status")) {
+    return("vmhwm")
+  }
+  if (!is.na(ps_rss_kb(Sys.getpid()))) {
+    return("ps-sample")
+  }
+  "none"
+}
+
+rss_begin <- function(method) {
+  if (method == "vmhwm") {
+    tryCatch(writeLines("5", "/proc/self/clear_refs"), error = function(e) NULL)
+    return(list(method = method, baseline_kb = vmhwm_kb()))
+  }
+  if (method == "ps-sample") {
+    pid <- Sys.getpid()
+    baseline <- ps_rss_kb(pid)
+    if (is.na(baseline)) {
+      return(list(method = "none"))
+    }
+    samples <- tempfile("rss-samples-")
+    stopfile <- paste0(samples, ".stop")
+    loop <- sprintf(
+      "while [ ! -e %s ] && kill -0 %d 2>/dev/null; do ps -o rss= -p %d; sleep 0.05; done > %s",
+      shQuote(stopfile), pid, pid, shQuote(samples)
+    )
+    system2("sh", c("-c", shQuote(loop)), wait = FALSE)
+    return(list(
+      method = method, baseline_kb = baseline,
+      samples = samples, stopfile = stopfile
+    ))
+  }
+  list(method = "none")
+}
+
+rss_end_mb <- function(state) {
+  if (state$method == "vmhwm") {
+    return((vmhwm_kb() - state$baseline_kb) / 1024)
+  }
+  if (state$method == "ps-sample") {
+    # One synchronous sample so a sub-50 ms cell still measures something,
+    # then stop the sampler and collect its lines.
+    final <- ps_rss_kb(Sys.getpid())
+    file.create(state$stopfile)
+    Sys.sleep(0.15)
+    vals <- tryCatch(
+      suppressWarnings(as.numeric(readLines(state$samples, warn = FALSE))),
+      error = function(e) numeric()
+    )
+    unlink(c(state$samples, state$stopfile))
+    vals <- c(vals[!is.na(vals)], final)
+    vals <- vals[!is.na(vals)]
+    if (length(vals) == 0) {
+      return(NA_real_)
+    }
+    return((max(vals) - state$baseline_kb) / 1024)
+  }
+  NA_real_
 }
 
 # ---------------------------------------------------------------------------
@@ -193,9 +275,9 @@ run_worker <- function() {
   rows <- NA_real_
   note <- "ok"
 
+  method <- rss_method()
   gc(reset = TRUE)
-  reset_peak_rss()
-  rss_before <- peak_rss_mb()
+  rss_state <- rss_begin(method)
 
   elapsed <- system.time(tryCatch(
     switch(scenario,
@@ -263,7 +345,7 @@ run_worker <- function() {
     }
   ))[["elapsed"]]
 
-  rss_after <- peak_rss_mb()
+  peak_rss_mb <- rss_end_mb(rss_state)
   gc_stats <- gc()
   r_alloc_mb <- sum(gc_stats[, "max used"] * c(56, 8)) / 2^20
   engine_mem_mb <- tryCatch(
@@ -276,9 +358,9 @@ run_worker <- function() {
   )
 
   cat(sprintf(
-    "%s,%s,%.0f,%.3f,%.1f,%.1f,%.1f,%s\n",
+    "%s,%s,%.0f,%.3f,%.1f,%s,%.1f,%.1f,%s\n",
     scenario, query_name, rows, elapsed,
-    rss_after - rss_before, r_alloc_mb, engine_mem_mb, note
+    peak_rss_mb, rss_state$method, r_alloc_mb, engine_mem_mb, note
   ))
 }
 
@@ -361,8 +443,8 @@ run_orchestrator <- function() {
         )
         line <- tail(line[nzchar(line)], 1)
         fields <- strsplit(line, ",", fixed = TRUE)[[1]]
-        if (length(fields) < 8) {
-          fields <- c(fields, rep("", 8 - length(fields)))
+        if (length(fields) < 9) {
+          fields <- c(fields, rep("", 9 - length(fields)))
         }
         results[[length(results) + 1]] <- data.frame(
           duckdb = as.character(packageVersion("duckdb")),
@@ -374,15 +456,16 @@ run_orchestrator <- function() {
           rows = as.numeric(fields[[3]]),
           elapsed_s = as.numeric(fields[[4]]),
           peak_rss_mb = as.numeric(fields[[5]]),
-          r_alloc_mb = as.numeric(fields[[6]]),
-          engine_mem_mb = as.numeric(fields[[7]]),
-          note = fields[[8]] %||% ""
+          rss_method = fields[[6]],
+          r_alloc_mb = as.numeric(fields[[7]]),
+          engine_mem_mb = as.numeric(fields[[8]]),
+          note = fields[[9]] %||% ""
         )
         message(sprintf(
-          "%-20s %-8s rep %d: %6.2fs  rss %7.1f MB  ralloc %7.1f MB  rows %s",
+          "%-20s %-8s rep %d: %6.2fs  rss %7.1f MB (%s)  ralloc %7.1f MB  rows %s",
           scenario, query_name, rep,
-          as.numeric(fields[[4]]), as.numeric(fields[[5]]),
-          as.numeric(fields[[6]]), fields[[3]]
+          as.numeric(fields[[4]]), as.numeric(fields[[5]]), fields[[6]],
+          as.numeric(fields[[7]]), fields[[3]]
         ))
       }
     }
