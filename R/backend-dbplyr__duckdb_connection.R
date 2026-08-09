@@ -34,14 +34,14 @@
 NULL
 
 # Declare which version of dbplyr API is being called.
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name dbplyr_edition
 dbplyr_edition.duckdb_connection <- function(con) {
   2L
 }
 
 # Description of the database connection
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name db_connection_describe
 # @return
 # String consisting of DuckDB version, user login name, operating system, R version and the name of database
@@ -143,7 +143,7 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
 }
 
 # Customized translation functions for DuckDB SQL
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name sql_translation
 sql_translation.duckdb_connection <- function(con) {
   sql_variant <- pkg_method("sql_variant", "dbplyr")
@@ -606,7 +606,7 @@ sql_translation.duckdb_connection <- function(con) {
 
 
 # Customized translation for comparing to objects in DuckDB SQL
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @param x First object to be compared
 # @param y Second object to be compared
 # @name sql_expr_matches
@@ -617,7 +617,7 @@ sql_expr_matches.duckdb_connection <- function(con, x, y) {
 }
 
 # Customized escape translation for date objects
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @param x Date object to be escaped
 # @name sql_escape_date
 sql_escape_date.duckdb_connection <- function(con, x) {
@@ -627,7 +627,7 @@ sql_escape_date.duckdb_connection <- function(con, x) {
 }
 
 # Customized escape translation for datetime objects
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @param x Datetime object to be escaped
 # @name sql_escape_datetime
 sql_escape_datetime.duckdb_connection <- function(con, x) {
@@ -636,7 +636,7 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
 }
 
 # Customized handling for tbl() to allow the use of replacement scans
-# @param src .con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param src .con A [dbConnect()] object, as returned by `dbConnect()`
 # @param from Table or parquet/csv -files to be registered
 # @param cache Enable object cache for parquet files
 tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
