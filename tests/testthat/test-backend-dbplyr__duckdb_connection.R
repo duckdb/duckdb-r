@@ -141,10 +141,19 @@ test_that("custom clock functions translated correctly", {
                                             precision = "day")),
                sql(r"{DATEDIFF('day', start, end)}"))
 
+  expect_equal(translate(date_build(y, m, d)), sql(r"{MAKE_DATE(y, m, d)}"))
+  expect_equal(translate(date_build(2000L, 8L, 8L)), sql(r"{MAKE_DATE(2000, 8, 8)}"))
+  # A bare number is a double, and `MAKE_DATE(2000.0, ...)` does not bind.
+  expect_equal(translate(date_build(2000)), sql(r"{MAKE_DATE(2000, 1, 1)}"))
+  expect_equal(translate(date_build(2000, 8, 8)), sql(r"{MAKE_DATE(2000, 8, 8)}"))
+
   test_data <- data.frame(
     person = 1L,
     date_1 = as.Date("2000-01-01"),
-    date_2 = as.Date("2000-01-30")
+    date_2 = as.Date("2000-01-30"),
+    y = 2001L,
+    m = 2L,
+    d = 3L
   )
   db_test_data <- dbplyr::copy_inline(con, test_data)
 
@@ -157,7 +166,9 @@ test_that("custom clock functions translated correctly", {
            month = clock::get_month(date_1),
            year = clock::get_year(date_1),
            diff = clock::date_count_between(date_1, date_2, "day"),
-           diff2 = clock::date_count_between(date_2, date_1, "day")
+           diff2 = clock::date_count_between(date_2, date_1, "day"),
+           built = clock::date_build(y, m, d),
+           built_year_only = clock::date_build(y)
            )
   db_test_data <- db_test_data %>%
     dplyr::mutate(date_plus_two_days  = as.Date(clock::add_days(date_1, 2)),
@@ -168,7 +179,9 @@ test_that("custom clock functions translated correctly", {
            month = clock::get_month(date_1),
            year = clock::get_year(date_1),
            diff = clock::date_count_between(date_1, date_2, "day"),
-           diff2 = clock::date_count_between(date_2, date_1, "day")) %>%
+           diff2 = clock::date_count_between(date_2, date_1, "day"),
+           built = clock::date_build(y, m, d),
+           built_year_only = clock::date_build(y)) %>%
     dplyr::collect()
 
   expect_equal(unclass(test_data), unclass(db_test_data))
@@ -181,7 +194,42 @@ test_that("custom clock functions translated correctly", {
                                             end = "end",
                                             precision = "day",
                                             n = 5)))
+  expect_error(translate(date_build(2000L, invalid = "previous")))
+  expect_error(translate(date_build(2000L, 8L, 8L, "overflow")))
+  expect_error(translate(date_build(2000.5)))
 
+})
+
+# base date functions
+
+test_that("difftime() translated correctly", {
+  skip_if_not_installed("dbplyr")
+  con <- local_con()
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  # `difftime()` subtracts its second argument from its first, DATEDIFF() the
+  # other way round, so the arguments swap.
+  expect_equal(translate(difftime(x, y)), sql(r"{DATEDIFF('day', y, x)}"))
+  expect_equal(translate(difftime(x, y, units = "days")), sql(r"{DATEDIFF('day', y, x)}"))
+
+  test_data <- data.frame(
+    date_1 = as.Date("2000-01-01"),
+    date_2 = as.Date("2000-01-30")
+  )
+  db_test_data <- dbplyr::copy_inline(con, test_data)
+
+  test_data <- test_data %>%
+    dplyr::mutate(diff = as.numeric(difftime(date_2, date_1)))
+  db_test_data <- db_test_data %>%
+    dplyr::mutate(diff = difftime(date_2, date_1)) %>%
+    dplyr::collect()
+
+  expect_equal(unclass(test_data), unclass(db_test_data))
+
+  # errors for unsupported arguments
+  expect_error(translate(difftime(x, y, units = "secs")))
+  expect_error(translate(difftime(x, y, tz = "UTC")))
 })
 
 # stringr functions
@@ -685,6 +733,10 @@ test_that("these should give errors", {
     translate(quarter(x, fiscal_start = 2)) # Not supported - error
     #    translate(str_c(x, collapse = "")) # Skip because of changing rlang_error (sql_paste())
     translate(str_pad(x, width = 10, side = "other")) # Error
+    translate(date_build(2000L, invalid = "previous")) # No DuckDB equivalent
+    translate(date_build(2000.5)) # Not a whole year
+    translate(difftime(x, y, units = "secs")) # Only whole days
+    translate(difftime(x, y, tz = "UTC")) # Subtraction happens in the database
   })
 })
 
