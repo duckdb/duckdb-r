@@ -11,7 +11,7 @@
 #' @param read_only Set to `TRUE` for read-only operation.
 #'   For file-based databases, this is only applied when the database file is opened for the first time.
 #'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path)
-#'   cannot apply it, and warn that they are ignoring it.
+#'   cannot apply it, and fail rather than ignoring it.
 #' @param timezone_out The time zone in which plain `TIMESTAMP` columns
 #'   (without time zone) are returned to R, defaults to `"UTC"`.
 #'   If you want to display datetime values in the local timezone,
@@ -25,7 +25,7 @@
 #' @param config Named list with DuckDB configuration flags, see
 #'   <https://duckdb.org/docs/configuration/overview#configuration-reference> for the possible options.
 #'   These flags are only applied when the database object is instantiated.
-#'   Subsequent connections cannot apply them, and warn that they are ignoring them.
+#'   Subsequent connections cannot apply them, and fail rather than ignoring them.
 #' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
@@ -94,16 +94,17 @@ dbConnect__duckdb_driver <- function(
     # driver that owns a *file* has anything to lose: the throwaway instance
     # behind `dbConnect(duckdb(), "my.db")` is the documented idiom.
     if (drv@dbdir != DBDIR_MEMORY && dbdir != drv@dbdir) {
-      warning(
-        "`dbdir` overrides the database file the driver was built with.\n",
-        "Connecting to `",
-        dbdir,
-        "`, while the driver keeps `",
-        drv@dbdir,
-        "` open. ",
-        "Pass `dbdir` to `duckdb()` instead, one driver per database.",
-        call. = FALSE
-      )
+      abort(c(
+        "`dbdir` can't override the database file the driver was built with.",
+        paste0(
+          "The driver holds `",
+          drv@dbdir,
+          "`, and `dbdir` asks for `",
+          dbdir,
+          "`."
+        ),
+        "Pass `dbdir` to `duckdb()` instead, one driver per database."
+      ))
     }
   }
 

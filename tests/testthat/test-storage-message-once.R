@@ -46,13 +46,10 @@ test_that("reusing a cached on-disk driver does not record a storage choice", {
   # First creation resolves storage (a tempdir); no explicit choice yet.
   drv <- duckdb(dbdir = dbfile)
 
-  # A second call for the same path reuses the cached driver and reports that
-  # it is ignoring shared_home. That ignored argument must NOT record a choice.
-  expect_warning(
-    drv2 <- duckdb(dbdir = dbfile, shared_home = TRUE),
-    "shared_home"
-  )
-  expect_true(identical(drv, drv2))
+  # A second call for the same path finds the instance and refuses the
+  # shared_home it cannot apply. That refused argument must NOT record a choice.
+  expect_error(duckdb(dbdir = dbfile, shared_home = TRUE), "shared_home")
+  expect_true(identical(drv, duckdb(dbdir = dbfile)))
   expect_false(storage_choice_made())
   duckdb_shutdown(drv)
 

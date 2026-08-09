@@ -10,9 +10,9 @@ test_that("reusing an instance is silent when nothing collides", {
   withr::defer(dbDisconnect(con))
 
   # Same settings again, and `bigint`, which `dbConnect()` does pick up.
-  expect_no_warning(duckdb(path))
-  expect_no_warning(duckdb(path, bigint = "integer64"))
-  expect_no_warning(dbDisconnect(dbConnect(drv)))
+  expect_no_error(duckdb(path))
+  expect_no_error(duckdb(path, bigint = "integer64"))
+  expect_no_error(dbDisconnect(dbConnect(drv)))
 })
 
 test_that("a `read_only` that the instance cannot honor is reported", {
@@ -23,9 +23,9 @@ test_that("a `read_only` that the instance cannot honor is reported", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  expect_warning(ro <- duckdb(path, read_only = TRUE), "read_only")
-  # The setting is dropped, not applied: the instance is still the writable one.
-  expect_identical(ro@database_ref, drv@database_ref)
+  expect_error(duckdb(path, read_only = TRUE), "read_only")
+  # Refused, not applied: the writable instance is untouched and still reachable.
+  expect_identical(duckdb(path)@database_ref, drv@database_ref)
 })
 
 test_that("a `config` entry that the instance cannot honor is reported", {
@@ -37,8 +37,8 @@ test_that("a `config` entry that the instance cannot honor is reported", {
   withr::defer(dbDisconnect(con))
 
   # Repeating what the instance already has is not a collision.
-  expect_no_warning(duckdb(path, config = list(default_order = "DESC")))
-  expect_warning(
+  expect_no_error(duckdb(path, config = list(default_order = "DESC")))
+  expect_error(
     duckdb(path, config = list(default_order = "ASC")),
     "config$default_order",
     fixed = TRUE
@@ -53,7 +53,7 @@ test_that("storage arguments are reported when the instance already exists", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  expect_warning(duckdb(path, shared_home = FALSE), "shared_home")
+  expect_error(duckdb(path, shared_home = FALSE), "shared_home")
 })
 
 test_that("a `dbdir` that overrides a file driver's own is reported", {
@@ -64,11 +64,10 @@ test_that("a `dbdir` that overrides a file driver's own is reported", {
   drv <- duckdb(own)
   withr::defer(duckdb_shutdown(drv))
 
-  expect_warning(con <- dbConnect(drv, other), "overrides the database file")
-  withr::defer(dbDisconnect(con))
+  expect_error(dbConnect(drv, other), "can't override")
 
-  # The warning is about a real substitution: the connection is on `other`.
-  expect_equal(dbGetInfo(con)$dbname, path_normalize(other))
+  # Refused outright: no connection, and the driver still holds its own.
+  expect_equal(drv@dbdir, path_normalize(own))
 })
 
 test_that("the in-memory driver idiom stays silent", {
@@ -76,7 +75,7 @@ test_that("the in-memory driver idiom stays silent", {
   # own database is a throwaway in-memory one, so nothing is displaced.
   path <- file.path(withr::local_tempdir(), "db.duckdb")
 
-  expect_no_warning(con <- dbConnect(duckdb(), path))
+  expect_no_error(con <- dbConnect(duckdb(), path))
   withr::defer(dbDisconnect(con, shutdown = TRUE))
 })
 

@@ -108,10 +108,9 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#' A call that reuses an existing instance cannot apply them,
-#' and warns about each setting it is ignoring.
-#' Passing `dbdir` to `dbConnect()` warns too when the driver owns a database file of its own:
-#' the connection is opened on `dbdir` while the driver keeps its own database open.
+#' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+#' Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
+#' because the connection would go to `dbdir` while the driver kept its own database open.
 #' To apply different values to a file-based database --
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
@@ -424,7 +423,13 @@ check_tz <- function(timezone) {
 # the driver's own values, and repeating a setting the instance already has is
 # not a collision. Explained in handbook/usage/connections/README.md;
 # duckdb/duckdb-r#2560 asks for the noise, duckdb/duckdb-r#126 for the removal.
-warn_instance_settings_ignored <- function(drv, read_only, config, supplied) {
+warn_instance_settings_ignored <- function(
+  drv,
+  read_only,
+  config,
+  supplied,
+  call = parent.frame()
+) {
   ignored <- supplied
 
   if (!identical(read_only, drv@read_only)) {
@@ -444,15 +449,18 @@ warn_instance_settings_ignored <- function(drv, read_only, config, supplied) {
     return(invisible())
   }
 
-  warning(
-    paste0("`", ignored, "`", collapse = ", "),
-    " can't be applied to the database instance for `",
-    drv@dbdir,
-    "`, which already exists.\n",
-    "These settings take effect only when the instance is created. ",
-    "Release it with `duckdb_shutdown()` first, ",
-    "or pass them to the `duckdb()` call that creates it.",
-    call. = FALSE
+  abort(
+    c(
+      paste0(
+        paste0("`", ignored, "`", collapse = ", "),
+        " can't be applied to the database instance for `",
+        drv@dbdir,
+        "`, which already exists."
+      ),
+      "These settings take effect only when the instance is created.",
+      "Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it."
+    ),
+    call = call
   )
 }
 
