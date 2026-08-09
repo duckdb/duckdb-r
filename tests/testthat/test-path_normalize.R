@@ -26,7 +26,10 @@ test_that("spellings of one database collapse to one key", {
   path <- file.path(dir, "db.duckdb")
   expected <- path_normalize(path)
 
-  expect_equal(path_normalize(file.path(dir, "..", basename(dir), "db.duckdb")), expected)
+  expect_equal(
+    path_normalize(file.path(dir, "..", basename(dir), "db.duckdb")),
+    expected
+  )
   expect_equal(path_normalize(paste0(dir, "//db.duckdb")), expected)
 
   withr::local_dir(dir)
@@ -38,7 +41,10 @@ test_that("a symlinked database resolves to its target", {
   target <- file.path(dir, "real.duckdb")
   file.create(target)
   link <- file.path(dir, "link.duckdb")
-  skip_if_not(suppressWarnings(file.symlink(target, link)), "symlinks unavailable")
+  skip_if_not(
+    suppressWarnings(file.symlink(target, link)),
+    "symlinks unavailable"
+  )
 
   expect_equal(path_normalize(link), path_normalize(target))
 })

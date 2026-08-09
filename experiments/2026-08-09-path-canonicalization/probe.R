@@ -90,8 +90,17 @@ compare <- function(label, input) {
 # Do several spellings of one database collapse to a single key?
 collapses <- function(label, paths) {
   keys <- vapply(paths, duckdb_path, character(1), USE.NAMES = FALSE)
-  note(label, ": ", length(unique(keys)), " distinct key(s) from ", length(keys), " spelling(s)")
-  for (k in unique(keys)) note("    ", k)
+  note(
+    label,
+    ": ",
+    length(unique(keys)),
+    " distinct key(s) from ",
+    length(keys),
+    " spelling(s)"
+  )
+  for (k in unique(keys)) {
+    note("    ", k)
+  }
   invisible(keys)
 }
 
@@ -159,7 +168,11 @@ d3 <- file.path(root, "s3")
 dir.create(d3, showWarnings = FALSE)
 
 link_dir <- file.path(root, "s3-link")
-made <- tryCatch(file.symlink(d3, link_dir), error = function(e) FALSE, warning = function(w) FALSE)
+made <- tryCatch(
+  file.symlink(d3, link_dir),
+  error = function(e) FALSE,
+  warning = function(w) FALSE
+)
 if (isTRUE(made)) {
   compare("through symlinked dir", file.path(link_dir, "h.duckdb"))
 } else {
@@ -169,10 +182,17 @@ if (isTRUE(made)) {
 real <- file.path(d3, "real.duckdb")
 invisible(duckdb_path(real))
 link_file <- file.path(d3, "link.duckdb")
-made <- tryCatch(file.symlink(real, link_file), error = function(e) FALSE, warning = function(w) FALSE)
+made <- tryCatch(
+  file.symlink(real, link_file),
+  error = function(e) FALSE,
+  warning = function(w) FALSE
+)
 if (isTRUE(made)) {
   compare("symlinked file", link_file)
-  note("resolves to the target? ", identical(duckdb_path(link_file), duckdb_path(real)))
+  note(
+    "resolves to the target? ",
+    identical(duckdb_path(link_file), duckdb_path(real))
+  )
 } else {
   note("symlinked file: unavailable on this runner (no privilege)")
 }
@@ -248,14 +268,22 @@ round6 <- function(label) {
 }
 
 if (!windows) {
-  note("euid: ", try_chr(paste(system2("id", "-u", stdout = TRUE), collapse = "")))
+  note(
+    "euid: ",
+    try_chr(paste(system2("id", "-u", stdout = TRUE), collapse = ""))
+  )
 }
 round6("baseline, unrestricted")
 
 if (windows) {
   user <- Sys.getenv("USERNAME")
   icacls <- function(...) {
-    out <- try_chr(system2("icacls", c(shQuote(mid), ...), stdout = TRUE, stderr = TRUE))
+    out <- try_chr(system2(
+      "icacls",
+      c(shQuote(mid), ...),
+      stdout = TRUE,
+      stderr = TRUE
+    ))
     note("  icacls: ", paste(out, collapse = " | "))
   }
 
@@ -289,17 +317,25 @@ invisible(duckdb_path(p7))
 
 globbed <- function(x) {
   try_chr({
-    got <- dbGetQuery(con, sprintf("SELECT file FROM glob('%s')", sql_string(x)))$file
+    got <- dbGetQuery(
+      con,
+      sprintf("SELECT file FROM glob('%s')", sql_string(x))
+    )$file
     if (length(got) == 0) "<no rows>" else got
   })
 }
 note("glob, plain:    ", globbed(p7))
 note("glob, dot-dot:  ", globbed(file.path(d7, "..", "s7", "p.duckdb")))
 note("glob, missing:  ", globbed(file.path(d7, "nope.duckdb")))
-note("parse_path:     ", try_chr(paste(
-  dbGetQuery(con, sprintf("SELECT parse_path('%s') AS p", sql_string(p7)))$p[[1]],
-  collapse = " | "
-)))
+note(
+  "parse_path:     ",
+  try_chr(paste(
+    dbGetQuery(con, sprintf("SELECT parse_path('%s') AS p", sql_string(p7)))$p[[
+      1
+    ]],
+    collapse = " | "
+  ))
+)
 
 # ------------------------------------------------------------- 8. read-only
 
@@ -323,27 +359,51 @@ d9 <- file.path(root, "s9")
 dir.create(d9, showWarnings = FALSE)
 
 n <- 10L
-t_engine <- system.time(for (i in seq_len(n)) {
-  cc <- connect()
-  dbExecute(cc, sprintf("ATTACH '%s' AS probe", sql_string(file.path(d9, sprintf("e%d.duckdb", i)))))
-  dbExecute(cc, "DETACH probe")
-  dbDisconnect(cc, shutdown = TRUE)
-})[["elapsed"]]
+t_engine <- system.time(
+  for (i in seq_len(n)) {
+    cc <- connect()
+    dbExecute(
+      cc,
+      sprintf(
+        "ATTACH '%s' AS probe",
+        sql_string(file.path(d9, sprintf("e%d.duckdb", i)))
+      )
+    )
+    dbExecute(cc, "DETACH probe")
+    dbDisconnect(cc, shutdown = TRUE)
+  }
+)[["elapsed"]]
 
-t_attach <- system.time(for (i in seq_len(n)) {
-  duckdb_path(file.path(d9, sprintf("a%d.duckdb", i)))
-})[["elapsed"]]
+t_attach <- system.time(
+  for (i in seq_len(n)) {
+    duckdb_path(file.path(d9, sprintf("a%d.duckdb", i)))
+  }
+)[["elapsed"]]
 
-t_file <- system.time(for (i in seq_len(n)) {
-  f <- file.path(d9, sprintf("f%d.duckdb", i))
-  file.create(f)
-  normalizePath(f, mustWork = FALSE)
-  unlink(f)
-})[["elapsed"]]
+t_file <- system.time(
+  for (i in seq_len(n)) {
+    f <- file.path(d9, sprintf("f%d.duckdb", i))
+    file.create(f)
+    normalizePath(f, mustWork = FALSE)
+    unlink(f)
+  }
+)[["elapsed"]]
 
-note("throwaway instance + ATTACH + DETACH: ", round(1000 * t_engine / n, 1), " ms/call")
-note("ATTACH + DETACH on an open connection: ", round(1000 * t_attach / n, 1), " ms/call")
-note("file.create + normalizePath + unlink:  ", round(1000 * t_file / n, 3), " ms/call")
+note(
+  "throwaway instance + ATTACH + DETACH: ",
+  round(1000 * t_engine / n, 1),
+  " ms/call"
+)
+note(
+  "ATTACH + DETACH on an open connection: ",
+  round(1000 * t_attach / n, 1),
+  " ms/call"
+)
+note(
+  "file.create + normalizePath + unlink:  ",
+  round(1000 * t_file / n, 3),
+  " ms/call"
+)
 
 dbDisconnect(con, shutdown = TRUE)
 cat("\n\ndone\n")
