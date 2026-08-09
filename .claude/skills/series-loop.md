@@ -470,6 +470,16 @@ are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
 
+**Stage 5 now carries the test-side half by itself**
+(duckdb/duckdb-r#2594),
+so what reaches this stage is what it could not:
+a carry that conflicted and was resolved by hand,
+and the compile-side half it deliberately leaves alone.
+A commit that already carries a `Carried from` trailer
+has the base series' fix in it,
+so a red on that commit is something else —
+check the trailer before mining anything.
+
 **Read the whole set before carrying any one of it across.**
 `scripts/series-glue.sh <S>` prints every glue adaptation the series holds,
 oldest first, with the upstream SHA each answered
@@ -915,6 +925,66 @@ Exception: a series with a **live** forward counterpart
 (`<S>-fwd-build` exists and is not cutover litter)
 is being replaced —
 verify and promote it, but do not extend it.
+
+**On a forward series, the base's fixes are folded in here.**
+`<S>-fwd-build` was replayed out of `<S>-build`,
+which holds what the code needs to **compile** —
+that being what the vendor gate checks at every commit —
+and nothing of what CI demanded after that.
+Those live on the base `<S>-dev`,
+folded into the commit for the same upstream SHA,
+and without this every one of them would be rediscovered
+as a red commit costing a repair
+and a replay of everything above it.
+So as each buffer commit is consumed,
+`series-advance.sh` looks its base twin up by vendored SHA
+and folds into the same commit
+whatever that twin touched and its own `-build` commit did not,
+with the twin's message and a `Carried from` trailer.
+
+**The carry is a difference, not a list of directories,
+and `src/` is not compile-only territory.**
+The buffer already compiles,
+so glue the `-dev` twin has *on top* of it
+was demanded by something later than the compiler —
+a test, a check, a platform r-universe reached and the gate never did —
+and holding it back would strand exactly the fixes this exists to move.
+The difference is also what stops the glue the buffer already carries
+from being applied twice.
+Two kinds stay behind, neither of them a judgement about the fix:
+the buffer's own strand — `src/duckdb/` and `patch/`,
+since a forward regenerates the tree from its own patches —
+and what vendoring regenerates:
+`R/version.R`, `src/include/sources.mk`, the Makevars, the logos,
+which differ between any two vendor runs of the same SHA
+and are noise wearing the shape of a fix.
+
+Carried glue is **named as it goes**.
+Glue the base `<S>-dev` has and the base `<S>-build` lacks
+is buffer drift: a fix folded during a repair
+and never mirrored onto the buffer,
+so the next tree regenerated there still wants it.
+The carry unblocks the forward; mirroring it onto `<S>-build`
+is the repair the line is asking for.
+
+**A conflicting carry stops the stage, and it is meant to.**
+The commit is picked and the fix will not apply,
+because this series has moved the code out from under it —
+which is judgement, and guessing costs a wrong commit
+on a chain CI is about to judge.
+The worktree is kept with the conflict in it, no ref is written, and:
+
+```sh
+cd <the worktree it names>          # resolve, then git add
+scripts/series-advance.sh <S> --continue     # or --abort to discard
+```
+
+`--continue` finishes that commit with the twin's message
+and completes the rest of the chunk;
+`--abort` throws the worktree away and leaves every ref untouched,
+so the next firing simply reaches the same stop.
+Starting a fresh run beside a stopped one is refused,
+because it would replay over a resolution somebody made.
 The push triggers one `each-rcc` run for the commits it added,
 and every verdict that run reaches is readable from it
 as soon as the leg has written it —

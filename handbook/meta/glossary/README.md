@@ -21,6 +21,7 @@ one line, so the register stays greppable and diffs per term.
 * **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **duckplyr** — the dplyr-native downstream package: it drives the relational API rather than generating SQL, and is the closest reverse dependency ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **engine** — the DuckDB database engine embedded in `src/duckdb/` ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
+* **entry** — what one change lands on a page: the shortest statement of its fact that is still correct ([`meta/authoring/`](/handbook/meta/authoring/README.md)).
 * **fast path** — linking a prebuilt engine library instead of compiling the vendored sources ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **flavor** — a mechanical rename publishing the one source tree under another package name ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 * **flavor-name guard** — the scan for the package name hard-coded where the rename cannot reach ([`testing/guards/`](/handbook/testing/guards/README.md)).

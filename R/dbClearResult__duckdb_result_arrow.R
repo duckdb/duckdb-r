@@ -14,4 +14,8 @@ dbClearResult__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbClearResult", "duckdb_result_arrow", dbClearResult__duckdb_result_arrow)
+setMethod(
+  "dbClearResult",
+  "duckdb_result_arrow",
+  dbClearResult__duckdb_result_arrow
+)

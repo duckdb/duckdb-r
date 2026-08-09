@@ -101,7 +101,7 @@ has exactly one place in this tree.
 
 ## Growing a leaf
 
-The tree deepens one leaf per change, by four moves.
+The tree deepens one leaf per change, by five moves.
 Any of them is a complete, mergeable pull request:
 
 1. **Close an issue into its leaf.**
@@ -131,6 +131,17 @@ Any of them is a complete, mergeable pull request:
    The node above it gains a child-list entry, and a scope sentence too
    narrow to admit the new leaf is widened in the same change —
    otherwise the next topic of that kind falls out again.
+5. **Split a fact that has outgrown the page citing it.**
+   Detail too large for the leaf that carries it
+   becomes a leaf of its own beside that one, under the same node,
+   and the page it leaves keeps the shortest statement and the link
+   ([`meta/authoring/`](/handbook/meta/authoring/README.md) says how
+   short).
+   In every other respect it is a new leaf:
+   the node above gains its line in the child list,
+   and the links pointing at the fact move with it.
+   A page left holding nothing but pointers to what it gave away
+   has become an internal node, and is written as one.
 
 Whichever move, the same protocol:
 

@@ -121,14 +121,21 @@ extensions_published <- function(platform = duckdb_platform()) {
 resolve_allow_extensions <- function(allow_extensions) {
   if (!is.null(allow_extensions)) {
     check_flag(allow_extensions)
-    return(list(allow = allow_extensions, source = "argument", announce = FALSE))
+    return(list(
+      allow = allow_extensions,
+      source = "argument",
+      announce = FALSE
+    ))
   }
   opt <- getOption("duckdb.allow_extensions")
   if (!is.null(opt)) {
     if (is.logical(opt) && length(opt) == 1L && !is.na(opt)) {
       return(list(allow = opt, source = "option", announce = FALSE))
     }
-    warning("`duckdb.allow_extensions` option must be TRUE, FALSE, or NULL.", call. = FALSE)
+    warning(
+      "`duckdb.allow_extensions` option must be TRUE, FALSE, or NULL.",
+      call. = FALSE
+    )
     options(duckdb.allow_extensions = NULL)
   }
   env_allow <- as.logical(Sys.getenv("DUCKDB_R_ALLOW_EXTENSIONS", unset = ""))
@@ -144,7 +151,11 @@ resolve_allow_extensions <- function(allow_extensions) {
 # "*"/"i" for bullets, like the storage-location message.
 extensions_disabled_message <- function() {
   c(
-    paste0("duckdb was built with ", compiled_cxx_stdlib(), " (not libstdc++) on Linux, so DuckDB extensions are disabled:"),
+    paste0(
+      "duckdb was built with ",
+      compiled_cxx_stdlib(),
+      " (not libstdc++) on Linux, so DuckDB extensions are disabled:"
+    ),
     "*" = "Loading a prebuilt (libstdc++) extension could crash R (https://github.com/duckdb/duckdb-r/issues/1107).",
     "*" = "INSTALL/LOAD of an extension will error, and automatic extension loading is off.",
     "i" = "Pass duckdb(allow_extensions = FALSE) to accept this and silence this message.",

@@ -48,16 +48,37 @@ dbplyr_edition.duckdb_connection <- function(con) {
 db_connection_describe.duckdb_connection <- function(con) {
   info <- DBI::dbGetInfo(con)
   paste0(
-    "DuckDB ", info$db.version, " [", Sys.info()["login"], "@",
-    paste(Sys.info()[c("sysname", "release")], collapse = " "), ":",
-    "R ", R.version$major, ".", R.version$minor, "/", info$dbname, "]"
+    "DuckDB ",
+    info$db.version,
+    " [",
+    Sys.info()["login"],
+    "@",
+    paste(Sys.info()[c("sysname", "release")], collapse = " "),
+    ":",
+    "R ",
+    R.version$major,
+    ".",
+    R.version$minor,
+    "/",
+    info$dbname,
+    "]"
   )
 }
 
-duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = FALSE, useBytes = FALSE) {
+duckdb_grepl <- function(
+  pattern,
+  x,
+  ignore.case = FALSE,
+  perl = FALSE,
+  fixed = FALSE,
+  useBytes = FALSE
+) {
   # https://duckdb.org/docs/sql/functions/patternmatching
   if (any(c(perl, fixed, useBytes))) {
-    stop("Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend", call. = FALSE)
+    stop(
+      "Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend",
+      call. = FALSE
+    )
   }
 
   sql_expr <- pkg_method("sql_expr", "dbplyr")
@@ -70,13 +91,31 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
   }
 }
 
+# `MAKE_DATE()` takes integers, and DuckDB does not narrow a DOUBLE to one
+# implicitly: the bare `2000` a caller writes arrives here as a double and would
+# escape as `2000.0`, which fails to bind. clock accepts a whole double for a
+# year, month or day, so send the integer it names. Anything that is not a
+# double -- a column reference, a SQL fragment, an integer already -- passes
+# through untouched, so a column keeps whatever type the table gave it.
+duckdb_integerish <- function(x, arg = deparse(substitute(x))) {
+  if (!is.double(x)) {
+    return(x)
+  }
+
+  int <- suppressWarnings(as.integer(x))
+  if (!identical(as.double(int), as.double(x))) {
+    stop("`", arg, "` must be a whole number.", call. = FALSE)
+  }
+
+  int
+}
+
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
-  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
-  sql_current_con <- pkg_method("sql_current_con", "dbplyr")
+  # `sql_glue()` reads the active connection itself, and `{...}` renders the
+  # dots comma-separated, the way `{.col {list(...)}*}` did before dbplyr 2.6.0.
+  sql_glue <- pkg_method("sql_glue", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
-
-  con <- sql_current_con()
 
   if (missing(...)) {
     stop("`...` is absent, but must be supplied.")
@@ -87,19 +126,19 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   if (!identical(na.rm, FALSE)) {
     if (length(list(...)) == 1L) {
       # in case of only one column fall back to the "simple" version
-      return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+      return(sql_glue("COUNT(DISTINCT {...})"))
     } else {
       str_null_check <-
         sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
-      return(glue_sql2(
-        con,
-        "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
-        str_null_check, ")"
-      ))
+      return(sql_glue(paste0(
+        "COUNT(DISTINCT row({...})) FILTER (",
+        str_null_check,
+        ")"
+      )))
     }
   } else {
-    return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
+    return(sql_glue("COUNT(DISTINCT row({...}))"))
   }
 }
 
@@ -123,7 +162,6 @@ sql_translation.duckdb_connection <- function(con) {
   win_current_order <- pkg_method("win_current_order", "dbplyr")
   win_current_group <- pkg_method("win_current_group", "dbplyr")
 
-
   base_scalar <- pkg_method("base_scalar", "dbplyr")
   base_agg <- pkg_method("base_agg", "dbplyr")
   base_win <- pkg_method("base_win", "dbplyr")
@@ -145,12 +183,22 @@ sql_translation.duckdb_connection <- function(con) {
       `%%` = function(a, b) sql_expr(FMOD(!!a, !!b)),
       `%/%` = function(a, b) sql_expr(FDIV(!!a, !!b)),
       `^` = sql_prefix("POW", 2),
-      bitwOr = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) | (CAST((!!b) %AS% INTEGER))),
-      bitwAnd = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) & (CAST((!!b) %AS% INTEGER))),
-      bitwXor = function(a, b) sql_expr(XOR((CAST((!!a) %AS% INTEGER)), (CAST((!!b) %AS% INTEGER)))),
+      bitwOr = function(a, b) {
+        sql_expr((CAST((!!a) %AS% INTEGER)) | (CAST((!!b) %AS% INTEGER)))
+      },
+      bitwAnd = function(a, b) {
+        sql_expr((CAST((!!a) %AS% INTEGER)) & (CAST((!!b) %AS% INTEGER)))
+      },
+      bitwXor = function(a, b) {
+        sql_expr(XOR((CAST((!!a) %AS% INTEGER)), (CAST((!!b) %AS% INTEGER))))
+      },
       bitwNot = function(a) sql_expr(~ (CAST((!!a) %AS% INTEGER))),
-      bitwShiftL = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) %<<% (CAST((!!b) %AS% INTEGER))),
-      bitwShiftR = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) %>>% (CAST((!!b) %AS% INTEGER))),
+      bitwShiftL = function(a, b) {
+        sql_expr((CAST((!!a) %AS% INTEGER)) %<<% (CAST((!!b) %AS% INTEGER)))
+      },
+      bitwShiftR = function(a, b) {
+        sql_expr((CAST((!!a) %AS% INTEGER)) %>>% (CAST((!!b) %AS% INTEGER)))
+      },
       log = function(x, base = exp(1)) {
         if (isTRUE(all.equal(base, exp(1)))) {
           sql_expr(LN(!!x))
@@ -174,16 +222,46 @@ sql_translation.duckdb_connection <- function(con) {
       # is.na() 	    FALSE FALSE TRUE 	TRUE
       # https://github.com/duckdb/duckdb/issues/3019
       #      is.na = function(a) build_sql("(", a, " IS NULL OR PRINTF('%f', ", a, ") = 'nan')"),
-      is.nan = function(a) build_sql("(", a, " IS NOT NULL AND PRINTF('%f', ", a, ") = 'nan')"),
-      is.infinite = function(a) build_sql("(", a, " IS NOT NULL AND REGEXP_MATCHES(PRINTF('%f', ", a, "), 'inf'))"),
-      is.finite = function(a) build_sql("(NOT (", a, " IS NULL OR REGEXP_MATCHES(PRINTF('%f', ", a, "), 'inf|nan')))"),
+      is.nan = function(a) {
+        build_sql("(", a, " IS NOT NULL AND PRINTF('%f', ", a, ") = 'nan')")
+      },
+      is.infinite = function(a) {
+        build_sql(
+          "(",
+          a,
+          " IS NOT NULL AND REGEXP_MATCHES(PRINTF('%f', ",
+          a,
+          "), 'inf'))"
+        )
+      },
+      is.finite = function(a) {
+        build_sql(
+          "(NOT (",
+          a,
+          " IS NULL OR REGEXP_MATCHES(PRINTF('%f', ",
+          a,
+          "), 'inf|nan')))"
+        )
+      },
       grepl = duckdb_grepl,
 
       # Return index where the first match starts,-1 if no match
       regexpr = function(p, x) {
-        build_sql("(CASE WHEN REGEXP_MATCHES(", x, ", ", p, ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(", x, ", ", p, "), 0))+1) ELSE -1 END)")
+        build_sql(
+          "(CASE WHEN REGEXP_MATCHES(",
+          x,
+          ", ",
+          p,
+          ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(",
+          x,
+          ", ",
+          p,
+          "), 0))+1) ELSE -1 END)"
+        )
       },
-      round = function(x, digits = 0) sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER))),
+      round = function(x, digits = 0) {
+        sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER)))
+      },
 
       # lubridate functions
 
@@ -198,9 +276,17 @@ sql_translation.duckdb_connection <- function(con) {
           }
         }
       },
-      quarter = function(x, type = "quarter", fiscal_start = 1, with_year = identical(type, "year.quarter")) {
+      quarter = function(
+        x,
+        type = "quarter",
+        fiscal_start = 1,
+        with_year = identical(type, "year.quarter")
+      ) {
         if (fiscal_start != 1) {
-          stop("`fiscal_start` is not yet supported in DuckDB translation. Must be 1.", call. = FALSE)
+          stop(
+            "`fiscal_start` is not yet supported in DuckDB translation. Must be 1.",
+            call. = FALSE
+          )
         }
         if (is.logical(type)) {
           type <- if (type) {
@@ -212,28 +298,48 @@ sql_translation.duckdb_connection <- function(con) {
         if (with_year) {
           type <- "year.quarter"
         }
-        switch(type,
+        switch(
+          type,
           quarter = {
             sql_expr(EXTRACT(QUARTER %FROM% !!x))
           },
           year.quarter = {
-            sql_expr((EXTRACT(YEAR %FROM% !!x) || "." || EXTRACT(QUARTER %FROM% !!x)))
+            sql_expr(
+              (EXTRACT(YEAR %FROM% !!x) || "." || EXTRACT(QUARTER %FROM% !!x))
+            )
           },
           date_first = {
             sql_expr((CAST(DATE_TRUNC("QUARTER", !!x) %AS% DATE)))
           },
           date_last = {
-            sql_expr((CAST((DATE_TRUNC("QUARTER", !!x) + !!sql("INTERVAL '1 QUARTER'") - !!sql("INTERVAL '1 DAY'")) %AS% DATE)))
+            sql_expr(
+              (CAST(
+                (DATE_TRUNC("QUARTER", !!x) +
+                  !!sql("INTERVAL '1 QUARTER'") -
+                    !!sql("INTERVAL '1 DAY'")) %AS%
+                  DATE
+              ))
+            )
           },
           stop(paste("Unsupported type", type), call. = FALSE)
         )
       },
       qday = function(x) {
-        build_sql("DATE_DIFF('DAYS', DATE_TRUNC('QUARTER', CAST((", x, ") AS DATE)), (CAST((", x, ") AS DATE) + INTERVAL '1 DAY'))")
+        build_sql(
+          "DATE_DIFF('DAYS', DATE_TRUNC('QUARTER', CAST((",
+          x,
+          ") AS DATE)), (CAST((",
+          x,
+          ") AS DATE) + INTERVAL '1 DAY'))"
+        )
       },
       wday = function(x, label = FALSE, abbr = TRUE, week_start = NULL) {
         if (!label) {
-          week_start <- if (!is.null(week_start)) week_start else getOption("lubridate.week.start", 7)
+          week_start <- if (!is.null(week_start)) {
+            week_start
+          } else {
+            getOption("lubridate.week.start", 7)
+          }
           offset <- as.integer(7 - week_start)
           sql_expr(EXTRACT("dow" %FROM% CAST((!!x) %AS% DATE) + !!offset) + 1L)
         } else if (label && !abbr) {
@@ -274,12 +380,22 @@ sql_translation.duckdb_connection <- function(con) {
       # Week_start algorithm: https://github.com/tidyverse/lubridate/issues/509#issuecomment-287030620
       floor_date = function(x, unit = "seconds", week_start = NULL) {
         if (unit %in% c("week", "weeks")) {
-          week_start <- if (!is.null(week_start)) week_start else getOption("lubridate.week.start", 7)
+          week_start <- if (!is.null(week_start)) {
+            week_start
+          } else {
+            getOption("lubridate.week.start", 7)
+          }
           if (week_start == 1) {
             sql_expr(DATE_TRUNC(!!unit, !!x))
           } else {
             offset <- as.integer(7 - week_start)
-            sql_expr(CAST((!!x) %AS% DATE) - CAST(EXTRACT("dow" %FROM% CAST((!!x) %AS% DATE) + !!offset) %AS% INTEGER))
+            sql_expr(
+              CAST((!!x) %AS% DATE) -
+                CAST(
+                  EXTRACT("dow" %FROM% CAST((!!x) %AS% DATE) + !!offset) %AS%
+                    INTEGER
+                )
+            )
           }
         } else {
           sql_expr(DATE_TRUNC(!!unit, !!x))
@@ -289,15 +405,19 @@ sql_translation.duckdb_connection <- function(con) {
       paste0 = sql_paste(""),
 
       # https://duckdb.org/docs/sql/expressions/comparison_operators
-      is_distinct_from = function(x, y) build_sql("(", x, ") IS DISTINCT FROM (", y, ")"),
-      is_not_distinct_from = function(x, y) build_sql("(", x, ") IS NOT DISTINCT FROM (", y, ")"),
+      is_distinct_from = function(x, y) {
+        build_sql("(", x, ") IS DISTINCT FROM (", y, ")")
+      },
+      is_not_distinct_from = function(x, y) {
+        build_sql("(", x, ") IS NOT DISTINCT FROM (", y, ")")
+      },
 
       # clock
       add_days = function(x, n, ...) {
-        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n ,") day)")
+        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n, ") day)")
       },
       add_years = function(x, n, ...) {
-        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n ,") year)")
+        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n, ") year)")
       },
       get_year = function(x) {
         build_sql("DATE_PART('year', ", !!x, ")")
@@ -308,18 +428,42 @@ sql_translation.duckdb_connection <- function(con) {
       get_day = function(x) {
         build_sql("DATE_PART('day', ", !!x, ")")
       },
-      date_count_between = function(start, end, precision, ..., n = 1L){
-
+      date_count_between = function(start, end, precision, ..., n = 1L) {
         rlang::check_dots_empty()
         if (precision != "day") {
-          stop('The only supported value for `precision` on SQL backends is "day"')
+          stop(
+            'The only supported value for `precision` on SQL backends is "day"'
+          )
         }
         if (n != 1) {
           stop('The only supported value for `n` on SQL backends is "1"')
         }
 
-        build_sql("DATEDIFF('day', ", !!start, ", " ,!!end, ")")
+        build_sql("DATEDIFF('day', ", !!start, ", ", !!end, ")")
+      },
+      date_build = function(year, month = 1L, day = 1L, ..., invalid = NULL) {
+        # DuckDB resolves an invalid date its own way, so there is nothing to
+        # map clock's `invalid` strategies onto.
+        check_unsupported_arg(invalid, allow_null = TRUE)
+        rlang::check_dots_empty()
 
+        sql_expr(MAKE_DATE(
+          !!duckdb_integerish(year),
+          !!duckdb_integerish(month),
+          !!duckdb_integerish(day)
+        ))
+      },
+
+      # base R functions
+
+      # DATEDIFF() counts whole days, so that is the one `units` value
+      # translated; `tz` has no equivalent, because the subtraction happens in
+      # the database rather than on an R clock.
+      difftime = function(time1, time2, tz, units = "days") {
+        check_unsupported_arg(tz)
+        check_unsupported_arg(units, allowed = "days")
+
+        sql_expr(DATEDIFF("day", !!time2, !!time1))
       },
 
       # stringr functions
@@ -357,21 +501,55 @@ sql_translation.duckdb_connection <- function(con) {
       },
       # Respect OR (|) operator: https://github.com/tidyverse/stringr/pull/340
       str_starts = function(string, pattern) {
-        build_sql("REGEXP_MATCHES(", string, ", '^(?:' || ", pattern, " || ')')")
+        build_sql(
+          "REGEXP_MATCHES(",
+          string,
+          ", '^(?:' || ",
+          pattern,
+          " || ')')"
+        )
       },
       str_ends = function(string, pattern) {
-        build_sql("REGEXP_MATCHES(", string, ", '(?:' || ", pattern, " || ')$')")
+        build_sql(
+          "REGEXP_MATCHES(",
+          string,
+          ", '(?:' || ",
+          pattern,
+          " || ')$')"
+        )
       },
       # NOTE: GREATEST needed because DuckDB PAD-functions truncate the string if width < length of string
-      str_pad = function(string, width, side = "left", pad = " ", use_length = FALSE) {
+      str_pad = function(
+        string,
+        width,
+        side = "left",
+        pad = " ",
+        use_length = FALSE
+      ) {
         if (side %in% c("left")) {
-          sql_expr(LPAD(!!string, CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER), !!pad))
+          sql_expr(LPAD(
+            !!string,
+            CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER),
+            !!pad
+          ))
         } else if (side %in% c("right")) {
-          sql_expr(RPAD(!!string, CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER), !!pad))
+          sql_expr(RPAD(
+            !!string,
+            CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER),
+            !!pad
+          ))
         } else if (side %in% c("both")) {
-          sql_expr(RPAD(REPEAT(!!pad, (!!as.integer(width) - LENGTH(!!string)) / 2L) %||% !!string, CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER), !!pad))
+          sql_expr(RPAD(
+            REPEAT(!!pad, (!!as.integer(width) - LENGTH(!!string)) / 2L) %||%
+              !!string,
+            CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER),
+            !!pad
+          ))
         } else {
-          stop('Argument \'side\' should be "left", "right" or "both"', call. = FALSE)
+          stop(
+            'Argument \'side\' should be "left", "right" or "both"',
+            call. = FALSE
+          )
         }
       }
     ),
@@ -410,13 +588,12 @@ sql_translation.duckdb_connection <- function(con) {
           order = win_current_order()
         )
       },
-      n_distinct =
-        function(..., na.rm = FALSE) {
-          win_over(
-            duckdb_n_distinct(..., na.rm = na.rm),
-            partition = win_current_group()
-          )
-        },
+      n_distinct = function(..., na.rm = FALSE) {
+        win_over(
+          duckdb_n_distinct(..., na.rm = na.rm),
+          partition = win_current_group()
+        )
+      },
       quantile = function(x, probs, na.rm = FALSE) {
         win_over(
           sql_expr(QUANTILE_CONT(!!x, !!probs)),
@@ -466,7 +643,9 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
   if (!inherits(from, "sql") && !DBI::dbExistsTable(src, from)) {
     from <- dbplyr::sql(paste0("FROM ", from))
   }
-  if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
+  if (cache) {
+    DBI::dbExecute(src, "PRAGMA enable_object_cache")
+  }
   NextMethod("tbl")
 }
 
@@ -486,7 +665,12 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
     stop("... must be empty.", call. = FALSE)
   }
   if (grepl("'", path)) {
-    stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
+    stop(
+      "File '",
+      path,
+      "' contains a single quote, this is not supported",
+      call. = FALSE
+    )
   }
   if (is.null(src)) {
     src <- default_conn()
@@ -509,7 +693,9 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
 #' @export
 #' @rdname backend-duckdb
 tbl_function <- function(src, query, ..., cache = FALSE) {
-  if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
+  if (cache) {
+    DBI::dbExecute(src, "PRAGMA enable_object_cache")
+  }
   table <- dplyr::sql(paste0("FROM ", query))
   dplyr::tbl(src, table)
 }
@@ -542,4 +728,56 @@ simulate_duckdb <- function(...) {
 
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-utils::globalVariables(c("REGEXP_MATCHES", "CAST", "TRY_CAST", "%AS%", "%ILIKE%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))
+utils::globalVariables(c(
+  "REGEXP_MATCHES",
+  "CAST",
+  "TRY_CAST",
+  "%AS%",
+  "%ILIKE%",
+  "INTEGER",
+  "XOR",
+  "%<<%",
+  "%>>%",
+  "LN",
+  "LOG",
+  "ROUND",
+  "ROUND_EVEN",
+  "EXTRACT",
+  "%FROM%",
+  "MONTH",
+  "STRFTIME",
+  "QUARTER",
+  "YEAR",
+  "DATE_TRUNC",
+  "DATE",
+  "DATEDIFF",
+  "MAKE_DATE",
+  "DOY",
+  "TO_SECONDS",
+  "BIGINT",
+  "TO_MINUTES",
+  "TO_HOURS",
+  "TO_DAYS",
+  "TO_WEEKS",
+  "TO_MONTHS",
+  "TO_YEARS",
+  "STRPOS",
+  "NOT",
+  "REGEXP_REPLACE",
+  "TRIM",
+  "LPAD",
+  "RPAD",
+  "%||%",
+  "REPEAT",
+  "LENGTH",
+  "STRING_AGG",
+  "GREATEST",
+  "LIST_EXTRACT",
+  "LOG10",
+  "LOG2",
+  "STRING_SPLIT_REGEX",
+  "FLOOR",
+  "FMOD",
+  "FDIV",
+  "QUANTILE_CONT"
+))
