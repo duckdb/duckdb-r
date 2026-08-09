@@ -133,7 +133,12 @@ prepare_compile() {
   # plans the package's own objects whatever file it is handed, and make prints
   # nothing at all once those objects are up to date. That is exactly the state
   # this gate runs in under CI, one step after `R CMD INSTALL`.
-  cxx=$(R CMD config CXX17)
+  # CI's compiler is usually newer than a development box's, and a newer GCC
+  # finds more -- `-Wextra-semi` on a stray `;` after a namespace, say, is
+  # GCC 15's, and the runners have it while Ubuntu 24.04 stops at 14. Point
+  # this at another compiler to reproduce what CI saw:
+  #   DUCKDB_R_WARNINGS_CXX=g++-14 scripts/warnings.sh glue
+  cxx=${DUCKDB_R_WARNINGS_CXX:-$(R CMD config CXX17)}
   base_flags="$(R CMD config CXX17STD) $(R CMD config --cppflags) -DNDEBUG"
   base_flags="$base_flags $(R CMD config CPPFLAGS)"
   base_flags="$base_flags $(sed -n 's/^PKG_CPPFLAGS *= *//p' src/Makevars |

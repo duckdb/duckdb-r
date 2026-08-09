@@ -102,6 +102,23 @@ Clang names some of these differently and finds a different set;
 running it is welcome, wiring a second flag list into the gate is not,
 until someone has read what it says.
 
+**Which GCC matters**, and CI's is newer than a development box's.
+The runners carry GCC 15; Ubuntu 24.04 packages 13 and 14.
+`-Wextra-semi` learned about a stray `;` after a namespace somewhere
+between 14 and 15, so the gate failed on CI over two of them while a
+local run under both 13 and 14 stayed clean
+([#2645](https://github.com/duckdb/duckdb-r/pull/2645)).
+`DUCKDB_R_WARNINGS_CXX` points the run at another compiler —
+`DUCKDB_R_WARNINGS_CXX=g++-14 scripts/warnings.sh glue` — which is how
+a CI failure is reproduced when the compiler can be installed at all.
+Nothing else about the run changes: the rest of the flags still come
+from R, so this is the compiler swapped, not the build.
+
+So a green local run is evidence, not proof,
+and the gate can still fail on CI for a warning no local compiler emits.
+`clang++` is the cheap second opinion when that happens —
+it found these two, and named the same two GCC 15 did.
+
 ## Where it runs
 
 * **Locally**, `make warnings`, or `scripts/warnings.sh glue` for the
