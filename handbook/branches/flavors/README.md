@@ -44,7 +44,7 @@ and `README.md` and `.github/README.md` are written from it
 so the rename is spelled once rather than in three files kept in step
 by hand.
 Everywhere else the package asks for its name at run time
-([`architecture/r-layer/`](/handbook/architecture/r-layer/README.md));
+([`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md));
 the scan that keeps it that way is
 [`testing/guards/`](/handbook/testing/guards/README.md)'s.
 

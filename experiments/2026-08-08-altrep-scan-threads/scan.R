@@ -9,26 +9,27 @@ n_rows <- as.numeric(Sys.getenv("N_ROWS", "5000000"))
 threads <- Sys.getenv("THREADS", "4")
 field <- Sys.getenv("FIELD", "int")
 
-sql <- switch(field,
+sql <- switch(
+  field,
   int = sprintf(
-    "SELECT i, {'a': i, 'b': i * 2} AS s FROM range(%.0f) t(i)", n_rows
+    "SELECT i, {'a': i, 'b': i * 2} AS s FROM range(%.0f) t(i)",
+    n_rows
   ),
   str = sprintf(
-    "SELECT i, {'a': i, 't': 'row-' || i} AS s FROM range(%.0f) t(i)", n_rows
+    "SELECT i, {'a': i, 't': 'row-' || i} AS s FROM range(%.0f) t(i)",
+    n_rows
   ),
   stop("FIELD must be int or str")
 )
-agg <- switch(field,
-  int = "sum(s.a)",
-  str = "sum(length(s.t))"
-)
+agg <- switch(field, int = "sum(s.a)", str = "sum(length(s.t))")
 
 con_src <- DBI::dbConnect(duckdb(shared_home = FALSE))
 rel <- duckdb:::rel_from_sql(con_src, sql)
 
 # The truth, straight out of the engine, before R holds any of it
 expected <- DBI::dbGetQuery(
-  con_src, sprintf("SELECT %s AS v FROM (%s)", agg, sql)
+  con_src,
+  sprintf("SELECT %s AS v FROM (%s)", agg, sql)
 )$v
 
 df <- duckdb:::rel_to_altrep(rel)
@@ -45,10 +46,17 @@ duckdb_register(con_scan, "packed", df)
 
 # Scanning `packed` reaches into `s` from DataFrameScanFunc(), on whichever
 # thread DuckDB runs the scan task on
-actual <- DBI::dbGetQuery(con_scan, sprintf("SELECT %s AS v FROM packed", agg))$v
+actual <- DBI::dbGetQuery(
+  con_scan,
+  sprintf("SELECT %s AS v FROM packed", agg)
+)$v
 
 cat(sprintf(
   "n=%.0f threads=%s field=%s expected=%.0f actual=%.0f %s\n",
-  n_rows, threads, field, expected, actual,
+  n_rows,
+  threads,
+  field,
+  expected,
+  actual,
   if (isTRUE(all.equal(expected, actual))) "MATCH" else "MISMATCH"
 ))

@@ -36,7 +36,11 @@ skip_if_builtin_icu <- function(con) {
     con,
     "SELECT loaded, install_mode FROM duckdb_extensions() WHERE extension_name = 'icu'"
   )
-  if (nrow(icu) > 0 && (isTRUE(icu$loaded[[1]]) || identical(icu$install_mode[[1]], "STATICALLY_LINKED"))) {
+  if (
+    nrow(icu) > 0 &&
+      (isTRUE(icu$loaded[[1]]) ||
+        identical(icu$install_mode[[1]], "STATICALLY_LINKED"))
+  ) {
     skip("icu is built into this binary")
   }
 }
@@ -50,6 +54,12 @@ skip_if_builtin_icu <- function(con) {
 skip_if_no_icu <- function() {
   skip_on_dev_version()
   skip_on_cran_except_r_universe()
-  skip_if_not(extensions_supported(), "DuckDB extensions disabled on this build (duckdb/duckdb-r#1107)")
-  skip_if_not(extensions_published(), "No extension binaries published for this platform")
+  skip_if_not(
+    extensions_supported(),
+    "DuckDB extensions disabled on this build (duckdb/duckdb-r#1107)"
+  )
+  skip_if_not(
+    extensions_published(),
+    "No extension binaries published for this platform"
+  )
 }

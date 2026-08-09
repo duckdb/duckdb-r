@@ -167,7 +167,7 @@ groups <- list(
     globs = c("warnings.sh")
   ),
   list(
-    owner = "handbook/architecture/r-layer",
+    owner = "handbook/architecture/r-layer/conventions",
     globs = c("rethrow.R")
   ),
   list(

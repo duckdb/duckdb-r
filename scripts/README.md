@@ -19,7 +19,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`format.py`](format.py) | Format the source directory; driven by the Makefile's format-* targets. |
 | [`python_helpers.py`](python_helpers.py) | Shared file helpers for the Python scripts in this directory (imported by format.py). |
 
-## [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md)
+## [`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md)
 
 | File | Purpose |
 |---|---|
