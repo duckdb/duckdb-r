@@ -48,7 +48,10 @@ test_that("dbGetRowsAffected() executes a bound pending statement", {
   expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM x")$n, 1)
 
   # dbExecute() with params goes through the same path
-  expect_equal(dbExecute(con, "INSERT INTO x VALUES (?) RETURNING (a)", params = list(1L)), 1)
+  expect_equal(
+    dbExecute(con, "INSERT INTO x VALUES (?) RETURNING (a)", params = list(1L)),
+    1
+  )
   expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM x")$n, 2)
 })
 
