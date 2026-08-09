@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 21:00:00 +0200
+Subject: [PATCH] Bound the instance cache's shutdown wait
+
+DBInstanceCache::GetInstanceInternal() finds a cache entry whose DuckDB
+handle is gone and concludes that a shutdown is in flight on another
+thread, so it busy-spins until the entry expires. ~DatabaseInstance
+releases the entry on its last line, so that is usually right and takes
+microseconds.
+
+It is not the only way to reach that state. A DatabaseInstance can
+outlive the DuckDB handle that pointed at it: a ClientContext holds a
+DatabaseInstance, and an unfinished result holds a ClientContext. Drop
+the last DuckDB reference while a result is still open and the entry
+stays alive with a null handle forever, with no shutdown running to
+finish. The spin then never terminates. In a single-threaded embedding
+such as R that wedges the host at 100% CPU with no interrupt check to
+break out of, from an ordinary sequence: open a database, send a query,
+release the driver without clearing the result, reopen the same path.
+
+Bound the wait and raise instead. Reporting rather than falling through
+to CreateInstance is deliberate: the file lock does not fire within one
+process, so creating would succeed and leave two instances writing one
+file, each blind to what the other commits.
+---
+ src/duckdb/src/main/db_instance_cache.cpp | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/src/duckdb/src/main/db_instance_cache.cpp b/src/duckdb/src/main/db_instance_cache.cpp
+index c774ba8..554898f 100644
+--- a/src/duckdb/src/main/db_instance_cache.cpp
++++ b/src/duckdb/src/main/db_instance_cache.cpp
+@@ -1,9 +1,14 @@
+ #include "duckdb/main/db_instance_cache.hpp"
+ #include "duckdb/main/extension_helper.hpp"
+ #include "duckdb/main/database_file_path_manager.hpp"
++#include "duckdb/common/types/interval.hpp"
++#include "duckdb/common/types/timestamp.hpp"
+ 
+ namespace duckdb {
+ 
++//! How long to wait for an in-flight shutdown to finish before reporting that the database is still in use
++static constexpr int64_t SHUTDOWN_WAIT_MICROS = 5 * Interval::MICROS_PER_SEC;
++
+ DatabaseCacheEntry::DatabaseCacheEntry() {
+ }
+ 
+@@ -81,8 +86,26 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database,
+ 		// if the database does not exist, but the cache entry still exists, the database is being shut down
+ 		// we need to wait until the database is fully shut down to safely proceed
+ 		// we do this here using a busy spin
++		//
++		// a shutdown that is really in flight finishes in microseconds, but this is not the only way to reach
++		// here: a DatabaseInstance can outlive the DuckDB handle that pointed at it, because a ClientContext
++		// holds one and an unfinished result holds a ClientContext. the entry is released on the last line of
++		// ~DatabaseInstance, so in that state no shutdown is running and the entry never expires. an unbounded
++		// spin makes that a hang - in a single-threaded embedding, one that cannot even be interrupted - so
++		// bound the wait and report instead
++		//
++		// reporting rather than falling through to CreateInstance is deliberate: the file lock does not fire
++		// within one process, so creating would succeed and leave two instances writing one file
+ 		cache_entry.reset();
++		auto deadline = Timestamp::GetCurrentTimestamp().value + SHUTDOWN_WAIT_MICROS;
+ 		while (!weak_cache_entry.expired()) {
++			if (Timestamp::GetCurrentTimestamp().value > deadline) {
++				throw ConnectionException(
++				    "Database \"%s\" is still in use: an earlier instance has been released but something is "
++				    "still holding it open, such as an unfinished query result or a connection. Release it "
++				    "before opening the database again.",
++				    database);
++			}
+ 		}
+ 		D_ASSERT(!cache_entry);
+ 		// the cache entry has now been deleted - clear it from the set of database instances and return
+-- 
+2.51.0
+

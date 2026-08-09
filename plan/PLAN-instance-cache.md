@@ -193,10 +193,35 @@ exactly what belongs there, and the discarded `replacement_scans` are
 never retained.
 The approach is sound; the engine is not ready to carry it.
 
+## The patch
+
+[`patch/0039-Bound-the-instance-cache-shutdown-wait.patch`](/patch/0039-Bound-the-instance-cache-shutdown-wait.patch)
+bounds the spin: it keeps waiting while an entry that is genuinely
+shutting down expires, and raises once a deadline passes instead of
+looping forever.
+Twenty-three added lines, nothing upstream removed or reordered, so a
+re-vendoring reapplies it without conflict.
+
+Raising rather than falling through to `CreateInstance()` is the load-
+bearing half.
+The file lock does not fire within one process, so a create would
+*succeed* and leave two instances writing one file — the exact
+data-integrity bug the cache exists to prevent.
+A clear error is the only safe answer.
+
+The patch fixes the source build, which is what CRAN ships.
+It does **not** fix the fast path
+([`build/fast-paths/`](/handbook/build/fast-paths/README.md)), which
+links a released `libduckdb` and cannot see a vendored change — so a
+developer build with `DUCKDB_R_USE_SYSTEM_LIB=1` still hangs until the
+fix is upstream and released.
+That asymmetry is the reason to send it upstream rather than carry it.
+
 ## Staging
 
-0. Get the busy-spin bounded upstream. Nothing below is safe until it
-   is: `DBInstanceCache` is unusable from a single-threaded host.
+0. Get the busy-spin bounded. Carried as patch 0039 for the source
+   build, and to be sent upstream — the fast path cannot see a vendored
+   change, so only a released fix closes it everywhere.
 1. Settle the linkage question. Done for Linux — the symbol resolves
    from the released `libduckdb` v1.5.5 and a probe links and runs
    against it — macOS unverified.
