@@ -1,7 +1,8 @@
 # Timestamps and time zones
 
-How a timestamp crosses to R:
-which zone labels it, when an instant can change,
+How a timestamp crosses between R and the engine:
+which zone labels it on the way out, which DuckDB type carries it on the
+way in, when an instant can change,
 and what the session `TimeZone` setting is.
 The behaviour is pinned by
 [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R)
@@ -46,10 +47,29 @@ the wider type mapping is
   as the display zone for `"with"`,
   as the target zone for `"force"` —
   both spelled `timezone_out = ""`.
-* **Going the other way, in a dbplyr pipeline, the zone is dbplyr's
-  to apply — and it applies one only when the value is escaped.**
-  `!!` sends the instant as a UTC-naive literal;
-  an inline `as.POSIXct("…")` is translated and casts the string as written.
+* **Which DuckDB type a `POSIXct` becomes is `posixct`'s to choose.**
+  The default `"timestamp"` sends the UTC rendering of each instant
+  into a `TIMESTAMP` column and drops the R-side zone;
+  `dbConnect(posixct = "timestamptz")` sends the instant itself,
+  which is what a `POSIXct` value means, into a `TIMESTAMPTZ` column
+  ([#184](https://github.com/duckdb/duckdb-r/issues/184)).
+  The setting reaches every path that hands R values to the engine —
+  `dbWriteTable()`, `dbAppendTable()`, `duckdb_register()`,
+  `rel_from_df()`, bound parameters, `dbDataType()` and
+  `dbQuoteLiteral()` — nested columns included.
+* **A zone survives the round trip only through `TIMESTAMPTZ`,
+  and only the session's.**
+  Write under `posixct = "timestamptz"` with the session `TimeZone`
+  set to the column's zone, and the data frame comes back identical;
+  set to any other zone, the instant still comes back exact
+  and the label is the session's.
+  The default mapping has no zone to read back at all,
+  because the column it writes carries none.
+* **In a dbplyr pipeline, `posixct` reaches only the escaped value.**
+  `!!` escapes R-side through `dbQuoteLiteral()`, so the literal is
+  typed the way the setting says;
+  an inline `as.POSIXct("…")` is translated instead
+  and casts the string as written, out of the setting's reach.
   The mechanics and the workaround are
   [`integrations/`](/handbook/usage/integrations/README.md)'s
   ([#1064](https://github.com/duckdb/duckdb-r/issues/1064)).
@@ -60,6 +80,7 @@ the wider type mapping is
   [`plan/history/2026-05-timestamptz-icu.md`](/plan/history/2026-05-timestamptz-icu.md),
   carries that scenario and the rest of the history.
 
-*To deepen: state the writing direction —
-what `dbWriteTable()` and `duckdb_register()` pick for a `POSIXct`,
-and the round-trip that loses the input zone.*
+*To deepen: extend
+[`experiments/2026-08-08-timezone-grid/`](/experiments/2026-08-08-timezone-grid/README.md)
+over the writing direction, so `posixct` is measured
+rather than argued.*

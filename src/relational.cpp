@@ -153,7 +153,8 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		stop("expr_constant: Need value of length one");
 	}
 	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
-	auto const_value = RApiTypes::SexpToValue(val, 0, false);
+	auto const_value =
+	    RApiTypes::SexpToValue(val, 0, false, convert_opts.posixct == ConvertOpts::PosixctType::TIMESTAMPTZ);
 	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
@@ -304,6 +305,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 
 	named_parameter_map_t other_params;
+	other_params["timestamptz"] = convert_opts.posixct == ConvertOpts::PosixctType::TIMESTAMPTZ;
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
 	auto rel =

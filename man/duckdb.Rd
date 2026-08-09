@@ -39,7 +39,8 @@ duckdb_adbc()
   bigint = "numeric",
   array = "none",
   geometry = "blob",
-  map = "data.frame"
+  map = "data.frame",
+  posixct = "timestamp"
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -157,6 +158,20 @@ If \code{"list_of"} is selected, \code{MAP} columns are returned as a \code{\lin
 \verb{data.frame(key = <K>, value = <V>)} that records the SQL key/value types. This enables MAP columns
 to round-trip through \code{\link[DBI:dbWriteTable]{dbWriteTable()}} / \code{\link[DBI:dbCreateTable]{dbCreateTable()}} without specifying \code{field.types},
 and lets scans accept named-list cells as MAP entries.}
+
+\item{posixct}{The DuckDB type \code{POSIXct} columns are sent as.
+There are two options: \code{"timestamp"} and \code{"timestamptz"}.
+If \code{"timestamp"} is selected (the default), a \code{POSIXct} column becomes a
+\code{TIMESTAMP} column holding the UTC rendering of each instant, and its
+time zone is lost.
+If \code{"timestamptz"} is selected, it becomes a \code{TIMESTAMPTZ} column holding
+the instant itself, which is what a \code{POSIXct} value means
+(\href{https://github.com/duckdb/duckdb-r/issues/184}{#184}).
+Reading such a column back labels it with the session \code{TimeZone},
+not with the zone it was written from.
+The setting reaches \code{\link[DBI:dbWriteTable]{dbWriteTable()}}, \code{\link[DBI:dbAppendTable]{dbAppendTable()}},
+\code{\link[=duckdb_register]{duckdb_register()}}, bound parameters, \code{\link[DBI:dbDataType]{dbDataType()}} and
+\code{\link[DBI:dbQuoteLiteral]{dbQuoteLiteral()}}.}
 
 \item{conn}{A \code{duckdb_connection} object}
 

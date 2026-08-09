@@ -107,9 +107,9 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 	return aux_;
 }
 
-RType RApiTypes::DetectRType(SEXP v, bool integer64) {
+RType RApiTypes::DetectRType(SEXP v, bool integer64, bool timestamptz) {
 	if (TYPEOF(v) == REALSXP && Rf_inherits(v, "POSIXct")) {
-		return RType::TIMESTAMP;
+		return timestamptz ? RType::TIMESTAMP_TZ : RType::TIMESTAMP;
 	} else if (TYPEOF(v) == REALSXP && Rf_inherits(v, "Date")) {
 		return RType::DATE;
 	} else if (TYPEOF(v) == INTSXP && Rf_inherits(v, "Date")) {
@@ -193,7 +193,7 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 
 			cpp11::strings names = GET_NAMES(v);
 			for (R_xlen_t i = 0; i < ncol; ++i) {
-				RType child = DetectRType(VECTOR_ELT(v, i), integer64);
+				RType child = DetectRType(VECTOR_ELT(v, i), integer64, timestamptz);
 				if (child == RType::UNKNOWN) {
 					return (RType::UNKNOWN);
 				}
@@ -209,7 +209,7 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 			for (; i < len; ++i) {
 				auto elt = VECTOR_ELT(v, i);
 				if (elt != R_NilValue) {
-					type = DetectRType(elt, integer64);
+					type = DetectRType(elt, integer64, timestamptz);
 					break;
 				}
 			}
@@ -221,7 +221,7 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 			for (; i < len; ++i) {
 				auto elt = VECTOR_ELT(v, i);
 				if (elt != R_NilValue) {
-					auto new_type = DetectRType(elt, integer64);
+					auto new_type = DetectRType(elt, integer64, timestamptz);
 					if (new_type != type) {
 						return RType::UNKNOWN;
 					}
@@ -261,6 +261,8 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		break;
 	case RType::TIMESTAMP:
 		return LogicalType::TIMESTAMP;
+	case RType::TIMESTAMP_TZ:
+		return LogicalType::TIMESTAMP_TZ;
 	case RType::INTERVAL_SECONDS:
 	case RType::INTERVAL_MINUTES:
 	case RType::INTERVAL_HOURS:

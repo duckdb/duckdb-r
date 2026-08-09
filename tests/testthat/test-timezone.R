@@ -390,3 +390,136 @@ test_that("tz_out_convert = force handles invalid timestamps during DST transiti
   )
   expect_equal(res2[[1]], expected2)
 })
+
+test_that("POSIXct columns are sent as TIMESTAMP by default (#184)", {
+  con <- local_con()
+
+  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  duckdb_register(con, "df", df)
+
+  expect_equal(dbGetQuery(con, "DESCRIBE FROM df")$column_type, "TIMESTAMP")
+  expect_equal(dbDataType(con, df$a), "TIMESTAMP")
+})
+
+test_that("posixct = 'timestamptz' sends POSIXct columns as TIMESTAMPTZ (#2574)", {
+  con <- local_con(posixct = "timestamptz")
+
+  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  duckdb_register(con, "df", df)
+
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE FROM df")$column_type,
+    "TIMESTAMP WITH TIME ZONE"
+  )
+  expect_equal(dbDataType(con, df$a), "TIMESTAMPTZ")
+  # The instant survives, whatever zone labels it on the way back
+  expect_equal(dbGetQuery(con, "FROM df")$a, df$a, ignore_attr = TRUE)
+})
+
+test_that("posixct = 'timestamptz' reaches dbWriteTable() and dbAppendTable() (#2574)", {
+  con <- local_con(posixct = "timestamptz")
+
+  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  dbWriteTable(con, "t", df)
+
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    "TIMESTAMP WITH TIME ZONE"
+  )
+
+  dbAppendTable(con, "t", df)
+  expect_equal(dbReadTable(con, "t")$a, rep(df$a, 2), ignore_attr = TRUE)
+})
+
+test_that("posixct = 'timestamptz' reaches nested columns (#2574)", {
+  con <- local_con(posixct = "timestamptz")
+
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+  df <- data.frame(row = 1L)
+  df$l <- list(instant)
+  df$s <- data.frame(t = instant)
+  duckdb_register(con, "df", df)
+
+  types <- dbGetQuery(con, "DESCRIBE FROM df")$column_type
+  expect_equal(
+    types,
+    c(
+      "INTEGER",
+      "TIMESTAMP WITH TIME ZONE[]",
+      "STRUCT(t TIMESTAMP WITH TIME ZONE)"
+    )
+  )
+})
+
+test_that("posixct = 'timestamptz' reaches rel_from_df() (#2574)", {
+  con <- local_con(posixct = "timestamptz")
+
+  df <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  rel <- rel_from_df(con, df)
+  rel_to_table(rel, "main", "t", FALSE)
+
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    "TIMESTAMP WITH TIME ZONE"
+  )
+  expect_equal(as.data.frame(rel)$a, df$a, ignore_attr = TRUE)
+})
+
+test_that("posixct = 'timestamptz' reaches bound parameters and literals (#2574)", {
+  con <- local_con(posixct = "timestamptz")
+
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+  dbExecute(con, "CREATE TABLE t (a TIMESTAMPTZ)")
+  dbExecute(con, "INSERT INTO t VALUES (?)", params = list(instant))
+
+  expect_equal(dbReadTable(con, "t")$a, instant, ignore_attr = TRUE)
+
+  literal <- dbQuoteLiteral(con, instant)
+  expect_match(as.character(literal), "::timestamptz$")
+  expect_equal(
+    dbGetQuery(con, paste0("SELECT ", literal, " AS a"))$a,
+    instant,
+    ignore_attr = TRUE
+  )
+})
+
+test_that("posixct = 'timestamptz' round-trips the zone via the session TimeZone (#184)", {
+  skip_if_no_icu()
+
+  con <- local_con(posixct = "timestamptz")
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/New_York'")
+
+  df <- data.frame(
+    a = as.POSIXct("2000-01-01 12:13:14", tz = "America/New_York")
+  )
+  dbWriteTable(con, "t", df)
+
+  # Instant *and* label survive, which the TIMESTAMP mapping cannot do
+  expect_equal(dbReadTable(con, "t"), df)
+})
+
+test_that("a bound POSIXct compares equal to a TIMESTAMPTZ column under a non-UTC session zone (#2574)", {
+  skip_if_no_icu()
+
+  con <- local_con(posixct = "timestamptz")
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/New_York'")
+
+  instant <- as.POSIXct("2000-01-01 12:13:14", tz = "America/New_York")
+  dbWriteTable(con, "t", data.frame(a = instant))
+
+  res <- dbGetQuery(con, "SELECT * FROM t WHERE a = ?", params = list(instant))
+  expect_equal(nrow(res), 1L)
+})
+
+test_that("dbConnect() rejects an unknown posixct value (#2574)", {
+  drv <- duckdb()
+  on.exit(duckdb_shutdown(drv))
+
+  expect_error(dbConnect(drv, posixct = "nope"), "posixct")
+})

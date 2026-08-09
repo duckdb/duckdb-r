@@ -151,8 +151,8 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 	return GetVecSize(rtype, coldata);
 }
 
-Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null, bool timestamptz) {
+	auto rtype = RApiTypes::DetectRType(valsexp, false, timestamptz); // TODO
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -195,6 +195,15 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 			return Value::TIMESTAMP(RTimestampType::Convert(ts_val));
 		} else {
 			return Value(LogicalType::TIMESTAMP);
+		}
+	}
+	case RType::TIMESTAMP_TZ: {
+		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
+		bool is_null = RTimestampType::IsNull(ts_val);
+		if (!is_null) {
+			return Value::TIMESTAMPTZ(timestamp_tz_t(RTimestampType::Convert(ts_val).value));
+		} else {
+			return Value(LogicalType::TIMESTAMP_TZ);
 		}
 	}
 	case RType::DATE: {
