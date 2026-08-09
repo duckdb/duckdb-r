@@ -432,4 +432,25 @@
     Condition
       Error:
       ! Argument 'side' should be "left", "right" or "both"
+    Code
+      translate(date_build(2000L, invalid = "previous"))
+    Condition
+      Error:
+      ! Argument `invalid` isn't supported on database backends.
+    Code
+      translate(date_build(2000.5))
+    Condition
+      Error:
+      ! `year` must be a whole number.
+    Code
+      translate(difftime(x, y, units = "secs"))
+    Condition
+      Error:
+      ! `units = "secs"` isn't supported on database backends.
+      It must be "days" instead.
+    Code
+      translate(difftime(x, y, tz = "UTC"))
+    Condition
+      Error:
+      ! Argument `tz` isn't supported on database backends.
 

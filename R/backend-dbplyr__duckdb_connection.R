@@ -70,6 +70,25 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
   }
 }
 
+# `MAKE_DATE()` takes integers, and DuckDB does not narrow a DOUBLE to one
+# implicitly: the bare `2000` a caller writes arrives here as a double and would
+# escape as `2000.0`, which fails to bind. clock accepts a whole double for a
+# year, month or day, so send the integer it names. Anything that is not a
+# double -- a column reference, a SQL fragment, an integer already -- passes
+# through untouched, so a column keeps whatever type the table gave it.
+duckdb_integerish <- function(x, arg = deparse(substitute(x))) {
+  if (!is.double(x)) {
+    return(x)
+  }
+
+  int <- suppressWarnings(as.integer(x))
+  if (!identical(as.double(int), as.double(x))) {
+    stop("`", arg, "` must be a whole number.", call. = FALSE)
+  }
+
+  int
+}
+
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
   glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
@@ -321,6 +340,30 @@ sql_translation.duckdb_connection <- function(con) {
         build_sql("DATEDIFF('day', ", !!start, ", " ,!!end, ")")
 
       },
+      date_build = function(year, month = 1L, day = 1L, ..., invalid = NULL) {
+        # DuckDB resolves an invalid date its own way, so there is nothing to
+        # map clock's `invalid` strategies onto.
+        check_unsupported_arg(invalid, allow_null = TRUE)
+        rlang::check_dots_empty()
+
+        sql_expr(MAKE_DATE(
+          !!duckdb_integerish(year),
+          !!duckdb_integerish(month),
+          !!duckdb_integerish(day)
+        ))
+      },
+
+      # base R functions
+
+      # DATEDIFF() counts whole days, so that is the one `units` value
+      # translated; `tz` has no equivalent, because the subtraction happens in
+      # the database rather than on an R clock.
+      difftime = function(time1, time2, tz, units = "days") {
+        check_unsupported_arg(tz)
+        check_unsupported_arg(units, allowed = "days")
+
+        sql_expr(DATEDIFF("day", !!time2, !!time1))
+      },
 
       # stringr functions
       str_c = sql_paste(""),
@@ -542,4 +585,4 @@ simulate_duckdb <- function(...) {
 
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-utils::globalVariables(c("REGEXP_MATCHES", "CAST", "TRY_CAST", "%AS%", "%ILIKE%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))
+utils::globalVariables(c("REGEXP_MATCHES", "CAST", "TRY_CAST", "%AS%", "%ILIKE%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DATEDIFF", "MAKE_DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))
