@@ -88,7 +88,7 @@ git clean -f -- "*.orig"
 # underscores -- but only the fork replaces every one of them, so a flavor
 # carrying two comes out of CRAN's cpp11 as `_duckdb_1.5.dev_rapi_connect`.
 # The compiler is the next thing that would see it.
-# handbook/architecture/glue/README.md says which cpp11 to install.
+# handbook/architecture/glue/conventions/README.md says which cpp11 to install.
 if grep -qE '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp; then
   echo "$0: cpp11::cpp_register() wrote entry points that are not C identifiers:" >&2
   grep -E '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp | head -n 3 >&2

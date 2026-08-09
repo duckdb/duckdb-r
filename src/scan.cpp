@@ -3,6 +3,8 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+// Handbook: handbook/architecture/glue/threading/README.md
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -61,6 +63,44 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	default:
 		rapi_error_with_context("GetColDataPtr", "Unsupported column type for bind");
 	}
+}
+
+// Materialize `coldata` and everything the scan can reach through it, so that
+// the scan dereferences plain memory. GetColDataPtr() stops at the packed
+// types -- a struct column, a matrix, the cells of a list -- and what reaches
+// inside those runs on a task thread, where the R API is out of bounds.
+// Deliberately covers more than the scan reads; the leaf says why.
+static void TouchColumn(SEXP coldata) {
+	switch (TYPEOF(coldata)) {
+	case LGLSXP:
+		(void)LOGICAL_POINTER(coldata);
+		break;
+	case INTSXP:
+		(void)INTEGER_POINTER(coldata);
+		break;
+	case REALSXP:
+		(void)NUMERIC_POINTER(coldata);
+		break;
+	case CPLXSXP:
+	case RAWSXP:
+	case STRSXP:
+		(void)DATAPTR_RO(coldata);
+		break;
+	case VECSXP: {
+		(void)DATAPTR_RO(coldata);
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			TouchColumn(VECTOR_ELT(coldata, cell_idx));
+		}
+		break;
+	}
+	default:
+		// Not a vector the scan reads; it reports that where it meets it
+		return;
+	}
+
+	// The `map_list_of` shape reads the names of a cell with STRING_ELT()
+	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
 }
 
 struct DedupPointerEnumType {
@@ -562,6 +602,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
+		TouchColumn(coldata);
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 
 		bool is_named_list_map = false;

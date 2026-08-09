@@ -77,6 +77,14 @@ has exactly one place in this tree.
   in the roxygen source under `R/` —
   `man/*.Rd` is generated and never edited.
   A secondary document without a backreference is an orphan.
+* **A comment says what the code does; the leaf says why.**
+  A source comment that argues a design, weighs a trade-off,
+  or recounts what went wrong before is a second copy of a leaf,
+  and it is the copy nobody edits when the reasoning moves on.
+  Keep it to what a reader of that line needs in order to read it,
+  name the leaf, and let the leaf carry the rest —
+  the file's backreference is what makes that a pointer
+  rather than a loss.
 * **A leaf is born small and grows in place.**
   Three depths are legitimate published states.
   A **reference** leaf states its scope

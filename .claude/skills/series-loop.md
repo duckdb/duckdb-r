@@ -664,7 +664,7 @@ that stops the next firing diagnosing it from scratch.
 
 **What a fix may be is the handbook's rule, not this skill's.**
 A compiler-warning fix is bound by
-[`architecture/glue/`](/handbook/architecture/glue/README.md),
+[`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md),
 which owns the tree's position on suppression;
 read it before writing one.
 The shapes listed below are shapes, never permission.

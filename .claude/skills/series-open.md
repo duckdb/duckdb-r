@@ -46,7 +46,7 @@ This skill is the release branch's birth certificate.
    `flavor.sh` runs `cpp11::cpp_register()`,
    whose symbol names come from the installed cpp11 rather than from the
    vendored headers
-   ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+   ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
    The script refuses the result when it is wrong
    and restores the tree, so a missing fork costs a rerun and nothing
    else — but it costs the whole run, and `cpp_register()` is the last
