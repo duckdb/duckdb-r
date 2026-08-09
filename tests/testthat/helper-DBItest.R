@@ -1,3 +1,14 @@
+# The context the DBI conformance suite runs against: a driver, and the tweaks
+# that say how DuckDB answers wherever the standard leaves a choice.
+# `test-DBItest.R` runs the suite; everything it needs to know about this
+# backend is here, so a suite failure is read as either a tweak that misstates
+# the backend or a genuine deviation from DBI.
+#
+# The driver is on disk rather than in memory, so the suite exercises the file
+# backend; the finalizer removes that file once the database reference is
+# collected. It is created here because the context is, and the context is
+# created here because it must be -- see below.
+
 drv <- duckdb(tempfile(fileext = ".duckdb"))
 reg.finalizer(drv@database_ref, function(x) {
   unlink(drv@dbdir, force = TRUE)
