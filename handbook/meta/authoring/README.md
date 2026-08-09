@@ -45,7 +45,9 @@ the rest move the fact somewhere better than a paragraph.
    and a finding too expensive to re-derive becomes an experiment
    ([`experiments/`](/experiments/README.md)) that the leaf links.
    A one-off derivation stays in the pull request.
-6. **Then write it, and leave a breadcrumb where the reader stands.**
+6. **Then write it — as short as it can be and stay correct
+   ([below](#how-long-an-entry-is)) —
+   and leave a breadcrumb where the reader stands.**
    When detail moves into a leaf,
    the source it came from — a document, a script header,
    an inline comment — keeps its essentials
@@ -108,6 +110,51 @@ the series invariants are enforced by nothing
 ([`branches/invariants/`](/handbook/branches/invariants/README.md)),
 which is why they are written out in full, in one place, and cited from
 everywhere that depends on them.
+
+## How long an entry is
+
+An **entry** — what one change lands on a page —
+is the shortest statement of its fact that is still correct.
+Length is not thoroughness:
+three sentences where one would do
+leave the reader to find the one,
+and every later edit carries the other two.
+Write the fact, what it means for the reader,
+and the link that supports it; then stop.
+Short is not less true —
+what the entry leaves out stays reachable,
+in the source it links or the leaf it splits into,
+and an edit that loses a fact is a regression however short it reads.
+
+**What supports a fact is not part of the fact,**
+and the pull to write the support out is strongest
+where the work was hardest.
+Each source keeps what it is for:
+
+* An **experiment** keeps the method, the full grid,
+  and the day it was true of;
+  the entry takes the finding and links the directory.
+  A grid copied out of one is a second copy of a record that ages,
+  and the leaf is the copy nobody re-runs.
+* An **issue** keeps the report, the reproduction, and the discussion;
+  the entry takes the answer.
+  How the answer was reached is not part of it,
+  and a limitation is one sentence
+  and the issue that will remove it.
+* A **plan** keeps the design, its alternatives, and its sequencing;
+  the entry takes what is true today,
+  and links the plan for the rest.
+
+**Detail that survives all of that is a leaf, not a longer section.**
+A fact needing more than a paragraph or two
+has outgrown the page that cites it,
+and splitting it out is a growth move of its own
+([`meta/handbook/`](/handbook/meta/handbook/README.md)).
+The page that keeps the sentence and the link stays about one thing,
+which is what its scope sentence claims;
+a page that absorbed three such facts instead
+can no longer say what it is about,
+and that — not the length — is the defect.
 
 ## Writing the sentence
 
