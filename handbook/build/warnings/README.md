@@ -97,6 +97,29 @@ These are a gate's flags, applied from outside the package —
 which is also why an `-Wno-` here is not a suppression:
 it says a category is not enforced, not that a warning is hidden.
 
+**Outside the package is not outside `R CMD check`.**
+A build the gate rides rather than drives is R's,
+so R takes the flags from the user Makevars —
+and `R CMD check --as-cran` reads that same file,
+reports every `-Wno-*` in it as a non-portable flag suppressing warnings,
+and fails the check over it.
+So the ride-along set enables and never suppresses:
+`scripts/warnings.sh flags <scope>` drops the `-Wno-*`,
+and `scan` drops the categories they name
+from the log instead of never raising them.
+The list stays single —
+one `-Wno-` written once, read by the compile and by the scan —
+so the two routes cannot come to different verdicts.
+The flags also stay next to the install they are for
+rather than in a step that runs earlier
+([`.github/workflows/custom/after-install/action.yml`](/.github/workflows/custom/after-install/action.yml)):
+a user Makevars is read by every build that follows it in a job,
+and from `before-install` these reached
+`R CMD check`'s build and the per-commit builds of
+[`each.yaml`](/.github/workflows/each.yaml),
+neither of which the gate looks at
+([#2651](https://github.com/duckdb/duckdb-r/pull/2651)).
+
 The gate is GCC's.
 Clang names some of these differently and finds a different set;
 running it is welcome, wiring a second flag list into the gate is not,

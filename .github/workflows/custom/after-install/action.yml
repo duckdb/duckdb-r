@@ -51,6 +51,32 @@ runs:
         max-size: 200M
         verbose: 1
 
+    # The vendored half of the compiler-warning gate
+    # (handbook/build/warnings/README.md). It rides the build that is already
+    # happening rather than compiling the engine a second time: the flags go on
+    # the install below, and the scan step after it judges that install's log.
+    # Only where the vendored sources are actually compiled -- under
+    # DUCKDB_R_USE_SYSTEM_LIB the engine is linked, not built, and there would be
+    # nothing to read.
+    #
+    # Here rather than in before-install, because ~/.R/Makevars is read by every
+    # build that follows, not only by the one being scanned: from before-install
+    # the flags also reached `R CMD check`'s build, and reached each.yaml's
+    # per-commit builds, which run before-install without this action at all.
+    # Written next to the install it belongs to, the flags cover it and nothing
+    # else in the job that matters to the gate.
+    #
+    # CPPFLAGS rather than CXX17FLAGS, because R appends CPPFLAGS to the
+    # package's own and replaces CXX17FLAGS -- which would drop the platform's
+    # optimisation settings. The vendored tree has no C sources, so a C++-only
+    # flag never reaches a C compile.
+    - name: Put the vendored warning flags on this build
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
+      run: |
+        mkdir -p ~/.R
+        echo "CPPFLAGS += $(scripts/warnings.sh flags vendored)" | tee -a ~/.R/Makevars
+      shell: bash
+
     - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
       run: |
         set -o pipefail

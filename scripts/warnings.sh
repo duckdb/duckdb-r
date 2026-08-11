@@ -8,13 +8,19 @@
 #   scripts/warnings.sh all           # both, glue first
 #   scripts/warnings.sh <scope> --all # ... and list what other scopes own, too
 #
-#   scripts/warnings.sh flags <scope>       # print the scope's warning flags
+#   scripts/warnings.sh flags <scope>       # print the scope's ride-along flags
 #   scripts/warnings.sh scan <scope> <log>  # judge a build log compiled with them
 #
 # `flags` and `scan` are the halves of the same check for a build that is
 # happening anyway: put the flags on it, keep its output, judge that. The
 # vendored scope is checked that way in CI, because compiling the engine twice
 # to read it a second time costs an hour and proves nothing new.
+#
+# A ride-along build is R's, so R takes the flags from the user Makevars -- and
+# `R CMD check --as-cran` reads that file too, reporting every -Wno-* in it as a
+# non-portable flag suppressing warnings and failing the check over it. So
+# `flags` enables and never suppresses, and `scan` drops the categories the
+# -Wno-* name instead. Both routes reach the same verdict from the same list.
 #
 # A warning is attributed to the file it points at, not to the translation unit
 # that raised it: a glue file including an engine header is not answerable for
@@ -55,6 +61,24 @@ warnings_of() {
   echo $w
 }
 
+# The same set, minus what suppresses, for a build this script does not drive
+# (the header says why). Everything that stays is a flag R CMD check accepts.
+ride_along_flags_of() {
+  local w
+  w=$(warnings_of "$1") || return
+  # shellcheck disable=SC2086
+  echo $(printf '%s\n' $w | grep -v '^-Wno-')
+}
+
+# What the dropped flags would have silenced, spelled the way GCC closes a
+# warning line with it: `… [-Wunused-parameter]`.
+suppressed_categories_of() {
+  local w
+  w=$(warnings_of "$1") || return
+  # shellcheck disable=SC2086
+  printf '%s\n' $w | sed -n 's/^-Wno-\(.*\)$/[-W\1]/p'
+}
+
 # Which scope owns the file a diagnostic points at. Paths arrive three ways --
 # relative to src/ (our own compile), absolute (an R CMD INSTALL log), and
 # relative to the *engine's* own root, where a `#line` in a generated file
@@ -91,6 +115,10 @@ scan() {
   local scope=$1 log=$2 all mine theirs
   all=$(grep -E '^[^ ].*:[0-9]+:[0-9]+: warning:' "$log" | sed 's/^ *//' | sort -u |
     awk -F: "$classify"'scope_of($1) != "generated"' || true)
+  # A compile this script drives never raises the suppressed categories; a
+  # ride-along build does, because its flags may not suppress. Drop them here so
+  # the two agree.
+  all=$(echo "$all" | grep -F -v -f <(suppressed_categories_of "$scope") || true)
   mine=$(echo "$all" | grep . | awk -F: -v want="$scope" "$classify"'
     scope_of($1) == want' || true)
   theirs=$(echo "$all" | grep . | awk -F: -v want="$scope" "$classify"'
@@ -206,7 +234,7 @@ run_scope() {
 
 case "${1:-all}" in
   flags)
-    warnings_of "${2:?usage: scripts/warnings.sh flags <scope>}"
+    ride_along_flags_of "${2:?usage: scripts/warnings.sh flags <scope>}"
     exit
     ;;
   scan)
