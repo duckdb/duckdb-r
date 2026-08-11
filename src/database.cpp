@@ -46,7 +46,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		std::string key = *it;
 		std::string val = cpp11::as_cpp<std::string>(configsexp[key]);
 		try {
-			config.SetOptionByName(key, Value(val));
+			config.SetOptionByName(Identifier(key), Value(val));
 		} catch (std::exception &e) {
 			rapi_error_with_context("rapi_startup", ErrorData(e));
 		}
