@@ -10,6 +10,8 @@
 
 #include "src/function/scalar/variant/variant_extract.cpp"
 
+#include "src/function/scalar/variant/variant_extract_string.cpp"
+
 #include "src/function/scalar/variant/variant_keys.cpp"
 
 #include "src/function/scalar/variant/variant_normalize.cpp"
