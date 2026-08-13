@@ -1,5 +1,7 @@
 #include "src/function/aggregate_function.cpp"
 
+#include "src/function/aggregate_state_serialization.cpp"
+
 #include "src/function/built_in_functions.cpp"
 
 #include "src/function/cast_rules.cpp"
