@@ -34,6 +34,14 @@ The failure classes, and what each needs:
 * **The glue gate stops `vendor-one.sh`** —
   the fresh headers broke the glue;
   fix the glue and fold it into that vendor commit.
+  The gate names the files it could not compile,
+  and only that banner (`GLUE BROKEN`, exit 3) implicates the commit at HEAD.
+* **The glue gate could not run** (`GLUE CHECK COULD NOT RUN`, exit 6) —
+  the compile flags come from `R CMD SHLIB -n`,
+  which needs the `src/Makevars.rstrtmgr` only `./configure` writes,
+  so this says `./configure` failed and nothing was compiled.
+  It is a local setup problem: run `./configure` and read its output.
+  The vendor commit is not implicated, and amending it fixes nothing.
 * **A patch stopped applying** — if it reverses cleanly the run
   retires it and continues; if it neither applies nor reverses the run
   stops, and the patch needs a hand rebase against the regenerated tree
@@ -128,7 +136,7 @@ way, so applying there is no evidence it belongs there.
 Landing one whose subject `main`'s engine does not carry adds a
 suppression with nothing to suppress —
 against the rule that nothing is suppressed at all
-([`architecture/glue/`](/handbook/architecture/glue/README.md)) —
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)) —
 and it is the series' until `main`'s engine reaches the code.
 
 The buffer is where the choice is load-bearing.

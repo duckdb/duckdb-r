@@ -15,30 +15,38 @@ test_that("multiple statements can be used in one call", {
     sep = "\n"
   )
   expect_identical(DBI::dbGetQuery(con, query), data.frame(i = 0:9))
-  expect_snapshot(DBI::dbGetQuery(con, paste("DROP TABLE IF EXISTS integers;", query)))
+  expect_snapshot(DBI::dbGetQuery(
+    con,
+    paste("DROP TABLE IF EXISTS integers;", query)
+  ))
 })
 
 test_that("statements can be splitted apart correctly", {
   con <- local_con()
-  expect_snapshot(DBI::dbGetQuery(con, a <- paste(
-    "--Multistatement testing; testing",
-    "/*  test;   ",
-    "--test;",
-    ";test */",
-    "create table temp_test as ",
-    "select",
-    "'testing_temp;' as temp_col",
-    ";",
-    "select * from temp_test;",
-    sep = "\n"
-  )))
+  expect_snapshot(DBI::dbGetQuery(
+    con,
+    a <- paste(
+      "--Multistatement testing; testing",
+      "/*  test;   ",
+      "--test;",
+      ";test */",
+      "create table temp_test as ",
+      "select",
+      "'testing_temp;' as temp_col",
+      ";",
+      "select * from temp_test;",
+      sep = "\n"
+    )
+  ))
 })
 
 test_that("export/import database works", {
   skip_if_not(TEST_RE2)
 
   export_location <- file.path(tempdir(), "duckdb_test_export")
-  if (!file.exists(export_location)) dir.create(export_location)
+  if (!file.exists(export_location)) {
+    dir.create(export_location)
+  }
 
   con <- local_con()
   DBI::dbExecute(con, "CREATE TABLE integers(i integer)")
@@ -51,8 +59,16 @@ test_that("export/import database works", {
   con <- local_con()
 
   DBI::dbExecute(con, paste0("IMPORT DATABASE '", export_location, "'"))
-  if (file.exists(export_location)) unlink(export_location, recursive = TRUE)
+  if (file.exists(export_location)) {
+    unlink(export_location, recursive = TRUE)
+  }
 
-  expect_identical(DBI::dbGetQuery(con, "select * from integers"), data.frame(i = 0:9))
-  expect_identical(DBI::dbGetQuery(con, "select * from integers2"), data.frame(i = c(1L, 5L, 7L, 1928L)))
+  expect_identical(
+    DBI::dbGetQuery(con, "select * from integers"),
+    data.frame(i = 0:9)
+  )
+  expect_identical(
+    DBI::dbGetQuery(con, "select * from integers2"),
+    data.frame(i = c(1L, 5L, 7L, 1928L))
+  )
 })

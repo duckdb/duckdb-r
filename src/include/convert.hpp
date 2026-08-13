@@ -37,6 +37,12 @@ struct ConvertOpts {
 	ExperimentalFeatures experimental = ExperimentalFeatures::DISABLED;
 	StrictRelational strict_relational = StrictRelational::ENABLED;
 
+	// Session-derived timezone used to display TIMESTAMP WITH TIME ZONE values.
+	// Populated from `result.client_properties.time_zone` at result materialization
+	// time, so explicit `SET TimeZone = ...` (e.g. via the ICU extension) is
+	// respected. Empty string means "fall back to `timezone_out`".
+	string session_time_zone = "";
+
 	// Constructor with defaults
 	ConvertOpts() = default;
 

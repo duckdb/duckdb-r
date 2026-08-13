@@ -3,7 +3,7 @@
 #' @usage NULL
 dbColumnInfo__duckdb_result_arrow <- function(res, ...) {
   if (!res@env$open) {
-    stop("result has already been cleared")
+    abort("result has already been cleared")
   }
   data.frame(
     name = res@stmt_lst$names,
@@ -14,4 +14,8 @@ dbColumnInfo__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbColumnInfo", "duckdb_result_arrow", dbColumnInfo__duckdb_result_arrow)
+setMethod(
+  "dbColumnInfo",
+  "duckdb_result_arrow",
+  dbColumnInfo__duckdb_result_arrow
+)

@@ -52,19 +52,29 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   `dbConnect(map = "list_of")`; the default is `"data.frame"`,
   set in
   [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
-  Columns with unit or other attribute classes arrive as their
-  storage type — `units` becomes plain `DOUBLE`
+* **Attribute classes do not cross, in either direction.**
+  A `units` column becomes plain `DOUBLE` going in — through
+  `dbWriteTable()`, through `duckdb_register()`, as a bound parameter —
+  and comes back plain `numeric`:
+  the value survives, the class does not, and nothing warns
   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
+  Re-applying it on the way out (`units::set_units()`) is the caller's.
+  The same holds for a column that reaches the engine through Arrow:
+  `arrow` carries `[m^2]` in its schema as an extension type,
+  and DuckDB reads the storage underneath it.
 * **Arrow results are not R vectors at all** —
   they stay in the stream, and what consumes them is
   [`integrations/`](/handbook/usage/integrations/README.md)'s
   ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-* **Timestamps** come back as `POSIXct` in the zone
-  `dbConnect(timezone_out = )` names, `"UTC"` by default
-  ([`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R));
-  adopting the session `TimeZone` for `TIMESTAMPTZ` is in flight
-  ([#184](https://github.com/duckdb/duckdb-r/issues/184),
-  [#2401](https://github.com/duckdb/duckdb-r/pull/2401)).
+* **Timestamps** come back as `POSIXct`;
+  which zone labels them — `timezone_out` for plain `TIMESTAMP`,
+  the session `TimeZone` for `TIMESTAMPTZ` —
+  and when an instant can change is
+  [`timestamps/`](/handbook/usage/timestamps/README.md)'s.
+* **Not every column lifts into the relational path** (duckplyr's):
+  `rel_from_df()` refuses rather than converts —
+  which columns, and what duckplyr does about a refusal, is
+  [`relational/`](/handbook/usage/relational/README.md)'s.
 
 *To deepen: write the full mapping table from `src/types.cpp`,
 verified on a vendored build.

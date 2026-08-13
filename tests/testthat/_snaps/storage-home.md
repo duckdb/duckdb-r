@@ -64,7 +64,7 @@
     Code
       resolve_storage_home()
     Condition
-      Error:
+      Error in `resolve_storage_home()`:
       ! duckdb keeps downloaded extensions and secrets in a temporary directory:
       /tmp/Rtmpxx/duckdb
       This is removed when the R session ends.

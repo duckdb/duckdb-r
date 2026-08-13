@@ -47,7 +47,11 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
     value <- round(as.numeric(x) * 1000000)
     value[!is.finite(x)] <- NA
 
-    out <- paste0("to_microseconds(", formatC(value, format = "f", digits = 0), ")")
+    out <- paste0(
+      "to_microseconds(",
+      formatC(value, format = "f", digits = 0),
+      ")"
+    )
     out[is.na(value)] <- "NULL"
     return(SQL(out))
   }
@@ -61,7 +65,7 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
         } else if (is.raw(x)) {
           paste0("'", paste0("\\x", format(x), collapse = ""), "'")
         } else {
-          stop("Lists must contain raw vectors or NULL", call. = FALSE)
+          abort("Lists must contain raw vectors or NULL")
         }
       },
       character(1)
@@ -76,4 +80,8 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
 
 #' @rdname duckdb_connection-class
 #' @export
-setMethod("dbQuoteLiteral", signature("duckdb_connection"), dbQuoteLiteral__duckdb_connection)
+setMethod(
+  "dbQuoteLiteral",
+  signature("duckdb_connection"),
+  dbQuoteLiteral__duckdb_connection
+)

@@ -88,6 +88,19 @@ elif [ "$upstream_basedir" != "$upstream_dir" ]; then
     "$(git -C "$upstream_basedir" rev-parse --verify HEAD)"
 fi
 
+# Make the vendored tree depend on the upstream commit and nothing else.
+# `DUCKDB_SOURCE_ID` in pragma_version.cpp comes from upstream's
+# `git describe --tags --long`, run inside this clone, and git auto-sizes that
+# abbreviation from the number of objects the repository holds -- so the same
+# commit vendored twice, from clones that have grown apart, writes two different
+# strings and two different trees, and re-vendoring a commit to reproduce a
+# failure does not reproduce the tree. Set on every run, not only on the clone,
+# because the clone may be one someone else made (CI checks upstream out here).
+# Ten is DuckDB's own length: its CMake truncates the id to ten characters in
+# the built library, which is what ./configure's commit-match guard compares
+# against.
+git -C "$upstream_dir" config core.abbrev 10
+
 if [ -n "$(git status --porcelain)" ]; then
   echo "Error: working directory not clean"
   exit 1
@@ -109,11 +122,20 @@ glue_compile_flags() {
     sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
 }
 
+# The glue files that failed to compile, one per line. Written only by the run
+# that got as far as compiling, and read only after that run reported 1 -- so
+# the list a banner prints is always the list this check produced, never one an
+# earlier run in the same container left behind.
+glue_failures=/tmp/vendor-one-glue-failures.txt
+
+# 0 the glue compiles, 1 some file does not, 2 the check could not run. The
+# three are distinct because the caller acts differently on each: only 1 says
+# anything about the commit at HEAD.
 glue_compiles() {
   local flags
   flags=$(glue_compile_flags)
   if [ -z "$flags" ]; then
-    echo "Error: could not derive glue compile flags (R CMD SHLIB -n)"
+    echo "Error: could not derive glue compile flags (R CMD SHLIB -n)" >&2
     return 2
   fi
   # `eval` because R quotes its include path (-I"/usr/share/R/include"); plain
@@ -121,7 +143,7 @@ glue_compiles() {
   # and every glue file looks broken.
   (cd src && ls *.cpp | FLAGS="$flags" xargs -P 4 -I{} \
     sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee /tmp/vendor-one-glue-failures.txt |
+    tee "$glue_failures" |
     { ! grep -q .; }
 }
 
@@ -209,8 +231,12 @@ while [ $commits_vendored -lt $num_commits ]; do
       exit 1
     }
 
-    rm -rf ${vendor_dir}
-
+    # The tree is not deleted here: rconfigure.py moves it aside itself and puts
+    # back the inode of every regenerated file that did not change, so a file
+    # whose content is the same keeps its stat cache entry and every later git
+    # command over ~3550 files stays cheap -- which this loop pays twice per
+    # candidate, kept or skipped. Files upstream dropped still go: they are in
+    # the tree that was moved aside, and never come back from it.
     echo "R: configure"
     DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
       echo "Error: Failed to configure"
@@ -318,14 +344,32 @@ while [ $commits_vendored -lt $num_commits ]; do
 
   echo "Successfully vendored commit $commits_vendored"
 
-  if [ "$check_glue" = true ] && ! glue_compiles; then
-    echo ""
-    echo "=== GLUE BROKEN by $(git rev-parse --short HEAD) (upstream ${commit}) ==="
-    echo "Files: $(tr '\n' ' ' < /tmp/vendor-one-glue-failures.txt)"
-    echo "The breaking vendor commit is at HEAD and the upstream clone is kept."
-    echo "Fix the glue, run clang-format, amend into HEAD appending an"
-    echo "'R-side fix' section to the message, then rerun this script."
-    exit 3
+  if [ "$check_glue" = true ]; then
+    # Not `! glue_compiles`, which would collapse "the check could not run" into
+    # "the glue is broken" and send the operator to fix code that compiles.
+    glue_status=0
+    glue_compiles || glue_status=$?
+    if [ "$glue_status" = 2 ]; then
+      echo ""
+      echo "=== GLUE CHECK COULD NOT RUN at $(git rev-parse --short HEAD) (upstream ${commit}) ==="
+      echo "Deriving the compile flags needs src/Makevars.rstrtmgr, which only"
+      echo "./configure writes; reaching this means ./configure failed. Nothing"
+      echo "was compiled, so this says nothing about the glue or about the commit"
+      echo "at HEAD -- do not amend it."
+      echo "Run ./configure and read its output, then rerun this script;"
+      echo "--no-check-glue skips the check altogether."
+      # Its own code, below the ones already spoken for: 3 is broken glue, 4 a
+      # broken patch, 5 the wrong upstream line.
+      exit 6
+    elif [ "$glue_status" != 0 ]; then
+      echo ""
+      echo "=== GLUE BROKEN by $(git rev-parse --short HEAD) (upstream ${commit}) ==="
+      echo "Files: $(tr '\n' ' ' < "$glue_failures")"
+      echo "The breaking vendor commit is at HEAD and the upstream clone is kept."
+      echo "Fix the glue, run clang-format, amend into HEAD appending an"
+      echo "'R-side fix' section to the message, then rerun this script."
+      exit 3
+    fi
   fi
 
   if [ -n "${is_tag}" ]; then

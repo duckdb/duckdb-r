@@ -12,12 +12,32 @@ so snapshots drift whenever a vendored DuckDB changes its output,
 and snapshot repair is a routine part of vendoring
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
+**Record the output where the output is the assertion.**
+Generated text a reader has to approve — a translated query,
+a printed relational expression, the wording of a message,
+warning or error — belongs in `_snaps/`,
+because a recorded file puts the whole of it in the diff,
+where a regex goes on matching wording nobody would ship.
+An expectation that names one value stays one.
+
 A snapshot must never record the package's own name:
 [`scripts/flavor.patch`](/scripts/flavor.patch) does not rewrite
 `_snaps/`, so one recorded file has to serve every flavor.
 Pass `transform = transform_package_name`
 (`tests/testthat/helper-snapshot.R`) to any expectation whose
 output can carry the name.
+
+**A skip in a snapshot file goes inside `test_that()`.**
+testthat rewrites `_snaps/<file>.md` from the snapshots the run actually
+took, and restores a skipped one only when the skip is recorded against a
+named test.
+A skip at the top of the file aborts before any test starts,
+so nothing is recorded, every snapshot in the file counts as unused,
+and the whole `.md` is deleted —
+which the `update-snapshots` action then publishes as a deletion
+proposed by whichever platform skipped.
+Put `skip_on_os()` and friends in each `test_that()` body instead;
+a file-level skip is safe only in a file that takes no snapshots.
 
 **Accepting a changed snapshot.**
 Every route ends in `testthat::snapshot_accept()`:

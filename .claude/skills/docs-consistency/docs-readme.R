@@ -159,11 +159,15 @@ groups <- list(
     globs = c("setup-makeflags.R")
   ),
   list(
-    owner = "handbook/architecture/glue",
+    owner = "handbook/architecture/glue/conventions",
     globs = c("format.py", "python_helpers.py")
   ),
   list(
-    owner = "handbook/architecture/r-layer",
+    owner = "handbook/build/warnings",
+    globs = c("warnings.sh")
+  ),
+  list(
+    owner = "handbook/architecture/r-layer/conventions",
     globs = c("rethrow.R")
   ),
   list(

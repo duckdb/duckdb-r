@@ -2,10 +2,9 @@
 # Publish a staging directory to the verdict store on the orphan `rcc2` branch.
 #
 # This is the only writer every producer goes through -- the matrix leg
-# publishing one commit's verdict as it decides it (scripts/each-shard.sh), the
-# run's fan-in reconciling what a dead leg could not (scripts/each-harvest.sh),
-# and the scheduled backstop (scripts/rcc-logs.sh). They differ in what they
-# stage, not in how it lands.
+# publishing one commit's verdict as it decides it (scripts/each-shard.sh), and
+# the dispatched backstop (scripts/rcc-logs.sh). They differ in what they stage,
+# not in how it lands.
 #
 # One writer is possible because the store is one file per commit and nothing
 # else (scripts/rcc-lib.sh): two producers recording different commits stage

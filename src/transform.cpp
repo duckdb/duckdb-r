@@ -18,7 +18,7 @@ static void VectorToR(const Vector &src_vec, size_t count, void *dest, uint64_t 
 	auto &mask = FlatVector::Validity(src_vec);
 	auto dest_ptr = ((DEST *)dest) + dest_offset;
 	for (size_t row_idx = 0; row_idx < count; row_idx++) {
-		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? na_val : src_ptr[row_idx];
+		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? na_val : static_cast<DEST>(src_ptr[row_idx]);
 	}
 }
 
@@ -268,7 +268,6 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::TIMESTAMP_SEC:
 	case LogicalTypeId::TIMESTAMP_MS:
 	case LogicalTypeId::TIMESTAMP:
-	case LogicalTypeId::TIMESTAMP_TZ:
 	case LogicalTypeId::TIMESTAMP_NS:
 		SET_CLASS(dest, RStrings::get().POSIXct_POSIXt_str);
 		if (convert_opts.tz_out_convert == ConvertOpts::TzOutConvert::WITH) {
@@ -278,6 +277,24 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 			}
 		} else {
 			// Conversion happens in the R layer
+			Rf_setAttrib(dest, RStrings::get().tzone_sym, RStrings::get().UTC_str);
+		}
+		break;
+	case LogicalTypeId::TIMESTAMP_TZ:
+		// TIMESTAMP WITH TIME ZONE stores microseconds since the UTC epoch.
+		// Prefer the session's TimeZone (settable via `SET TimeZone = ...` with
+		// the ICU extension) so the displayed clock matches DuckDB's own
+		// rendering, and only fall back to `timezone_out` on paths that
+		// decorate without a captured session timezone (e.g. value-at-a-time
+		// conversion through RApiTypes::ValueToSexp()).
+		SET_CLASS(dest, RStrings::get().POSIXct_POSIXt_str);
+		if (convert_opts.tz_out_convert == ConvertOpts::TzOutConvert::WITH) {
+			const string &tz =
+			    convert_opts.session_time_zone != "" ? convert_opts.session_time_zone : convert_opts.timezone_out;
+			if (tz != "") {
+				Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({tz}));
+			}
+		} else {
 			Rf_setAttrib(dest, RStrings::get().tzone_sym, RStrings::get().UTC_str);
 		}
 		break;
@@ -409,7 +426,7 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n,
                         const duckdb::ConvertOpts &convert_opts, const string &name) {
 	if (src_vec.GetType().GetAlias() == R_STRING_TYPE_NAME) {
-		ptrdiff_t sexp_header_size = (data_ptr_t)DATAPTR_RO(R_BlankString) - (data_ptr_t)R_BlankString;
+		ptrdiff_t sexp_header_size = (const_data_ptr_t)DATAPTR_RO(R_BlankString) - (const_data_ptr_t)R_BlankString;
 
 		auto child_ptr = FlatVector::GetData<uintptr_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);

@@ -52,7 +52,7 @@ data is kept in RAM.}
 \item{read_only}{Set to \code{TRUE} for read-only operation.
 For file-based databases, this is only applied when the database file is opened for the first time.
 Subsequent connections (via the same \code{drv} object or a \code{drv} object pointing to the same path)
-will silently ignore this flag.}
+cannot apply it, and fail rather than ignoring it.}
 
 \item{bigint}{How 64-bit integers should be returned. There are two options: \code{"numeric"} and \code{"integer64"}.
 If \code{"numeric"} is selected, bigint integers will be treated as double/numeric.
@@ -61,7 +61,7 @@ If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding
 \item{config}{Named list with DuckDB configuration flags, see
 \url{https://duckdb.org/docs/configuration/overview#configuration-reference} for the possible options.
 These flags are only applied when the database object is instantiated.
-Subsequent connections will silently ignore these flags.}
+Subsequent connections cannot apply them, and fail rather than ignoring them.}
 
 \item{...}{These dots are for future extensions and must be empty.}
 
@@ -129,10 +129,11 @@ The default of this setting may change in a future version.}
 
 \item{debug}{Print additional debug information, such as queries.}
 
-\item{timezone_out}{The time zone returned to R, defaults to \code{"UTC"}, which
-is currently the only timezone supported by duckdb.
+\item{timezone_out}{The time zone in which plain \code{TIMESTAMP} columns
+(without time zone) are returned to R, defaults to \code{"UTC"}.
 If you want to display datetime values in the local timezone,
-set to \code{\link[=Sys.timezone]{Sys.timezone()}} or \code{""}.}
+set to \code{\link[=Sys.timezone]{Sys.timezone()}} or \code{""}.
+\code{TIMESTAMPTZ} columns follow the session's \code{TimeZone} setting instead.}
 
 \item{tz_out_convert}{How to convert timestamp columns to the timezone specified
 in \code{timezone_out}. There are two options: \code{"with"}, and \code{"force"}. If \code{"with"}
@@ -210,7 +211,9 @@ every \code{duckdb()} call creates a fresh, isolated instance.
 
 Because the instance is created once per database file,
 \code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation.
-A call that reuses an existing instance ignores them.
+A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+Passing \code{dbdir} to \code{dbConnect()} fails too when the driver owns a database file of its own,
+because the connection would go to \code{dbdir} while the driver kept its own database open.
 To apply different values to a file-based database --
 for example to reopen it read-only, or to send extensions and secrets elsewhere --
 first release the instance with \code{\link[=duckdb_shutdown]{duckdb_shutdown()}}, which also drops it from the cache,

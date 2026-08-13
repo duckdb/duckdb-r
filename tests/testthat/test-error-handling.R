@@ -16,6 +16,12 @@ test_that("rapi_error functions accept additional parameters", {
     rapi_error("test_context", "test message", "PARSER", "raw message")
   })
   expect_snapshot(error = TRUE, {
-    rapi_error("test_context", "test message", "PARSER", "raw message", list(key = "value"))
+    rapi_error(
+      "test_context",
+      "test message",
+      "PARSER",
+      "raw message",
+      list(key = "value")
+    )
   })
 })

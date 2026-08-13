@@ -158,8 +158,8 @@ typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts)
-	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts_)
+	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts_)) {
 	}
 	duckdb::shared_ptr<Relation> rel;
 	const ConvertOpts convert_opts;
@@ -300,14 +300,14 @@ void duckdb_r_transform(const duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t 
 SEXP get_attrib(SEXP vec, SEXP name);
 
 template <typename T, typename... ARGS>
-cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
+cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&...args) {
 	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...));
 	((cpp11::sexp)extptr).attr("class") = rclass;
 	return extptr;
 }
 
 template <typename T, typename... ARGS>
-cpp11::external_pointer<T> make_external_prot(const std::string &rclass, SEXP prot, ARGS &&... args) {
+cpp11::external_pointer<T> make_external_prot(const std::string &rclass, SEXP prot, ARGS &&...args) {
 	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
 	((cpp11::sexp)extptr).attr("class") = rclass;
 	return extptr;

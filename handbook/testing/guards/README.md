@@ -47,3 +47,34 @@ or teach `scripts/flavor.patch` the rename.
 The scan covers what ships;
 `handbook/` is outside it and is written for the mainline flavor
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+
+**Two companion scans, for what reading file contents cannot see.**
+The rename runs *once*, when a series is seeded,
+so anything that arrives on a flavored branch afterwards —
+a commit ported from `main`
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md))
+— brings the mainline name with it and nothing rewrites it.
+Both scans are empty on the mainline flavor, where that name is the right one.
+
+* `flavor_unflavored_paths()` catches a file the patch *renames*
+  arriving under its mainline name.
+  Such a file carries the name in its name rather than its contents,
+  so the content scan looks straight past it —
+  and the file is then simply not read.
+  `src/duckdb-win.def` on a `duckdb.dev` build
+  is not the export list R's `share/make/winshlib.mk` looks for,
+  so the Windows link generates one from every object
+  and overruns the PE export table.
+* `flavor_mainline_readme_offenders()` catches an install call
+  naming the mainline package in `README.md` or `.github/README.md`.
+  Those two are *generated* from `README.Rmd`,
+  which is what the content scan reads in their place;
+  they pass whether or not their source was flavored,
+  so a ported README lands mainline text on a flavored branch unseen.
+  `.github/README.md` is the front page GitHub renders for the branch,
+  which makes it the likeliest of the three to be read by a user.
+
+All three run in the same `rcc-smoke` step
+(`.github/workflows/custom/after-install/action.yml`)
+and are wrapped for the suite by
+`tests/testthat/test-flavor-package-name.R`.

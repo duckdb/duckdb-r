@@ -28,6 +28,20 @@ Expressions are built separately (`expr_reference()`, `expr_constant()`,
 so a caller assembles a tree rather than splicing text,
 and the engine never parses a string the caller built.
 
+**What lifts, and what is refused.**
+`rel_from_df()` refuses a column rather than converting it lossily:
+matrix/array columns, S4 columns, `integer64` columns,
+and any class beyond the built-in ones in the default strict mode
+(the checks are [`src/relational.cpp`](/src/relational.cpp)'s,
+pinned in
+[`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R)
+and [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R)).
+Factors lift and come back as factors.
+duckplyr surfaces these refusals as errors on an explicit
+`as_duckdb_tibble()`, not as silent fallbacks.
+What a value becomes once it has crossed is
+[`types/`](/handbook/usage/types/README.md)'s.
+
 **Untyped `NULL` constants.**
 `expr_constant(NA)` builds an untyped `NULL`
 ([#143](https://github.com/duckdb/duckdb-r/pull/143)),
@@ -46,10 +60,16 @@ and duckplyr casts a typed `NULL` where it needs one.
 nothing runs until R touches the values, materialization is budgeted by
 `n_rows` and `n_cells`, and an execution error is stored and re-raised at
 every later access.
+The session `TimeZone` that labels `TIMESTAMPTZ` columns is captured
+here, when the data frame is built, not at materialization:
+change the setting in between,
+and the label keeps the zone of `rel_to_altrep()` time
+([`timestamps/`](/handbook/usage/timestamps/README.md)
+owns the labeling rules).
 `rel_from_altrep_df()` is the way back.
 The C++ side of that, and its known weak point around raising an R error
 from inside an ALTREP method, is
-[`architecture/glue/`](/handbook/architecture/glue/README.md)'s.
+[`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s.
 `rel_to_parquet()`, `rel_to_csv()`, `rel_to_table()` and `rel_to_view()`
 execute to a destination instead.
 
@@ -57,14 +77,17 @@ execute to a destination instead.
 The API grew to serve duckplyr — `NEWS.md` records rounds of "internal
 changes to support the duckplyr package" — and being internal does not
 make it free to change:
-`rel_to_altrep()` still carries
-`# FIXME: Move dots after `rel` for duckplyr >= 1.1.0`,
-a signature held in place by a downstream version.
+`rel_to_altrep()` kept an `allow_materialization` argument that duckplyr
+had stopped passing in 1.1.0,
+and only once no duckplyr in the field still named it was it removed and
+`...` moved directly after `rel`,
+so that a budget is spelled out in full or refused
+rather than matched positionally
+([#1052](https://github.com/duckdb/duckdb-r/issues/1052)).
 So a change here is negotiated with duckplyr rather than merely reviewed,
 and duckplyr is the reverse dependency a behaviour change is checked
 against first
 ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
 
 *To deepen: state which verbs duckplyr actually calls, so a change can be
-scoped against real use rather than the whole surface;
-drain the `rel_to_altrep()` signature FIXME when duckplyr's floor allows.*
+scoped against real use rather than the whole surface.*

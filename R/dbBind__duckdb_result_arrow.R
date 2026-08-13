@@ -3,7 +3,7 @@
 #' @usage NULL
 dbBind__duckdb_result_arrow <- function(res, params, ...) {
   if (!res@env$open) {
-    stop("result has already been cleared")
+    abort("result has already been cleared")
   }
   res@env$completed <- FALSE
   res@env$arrow_schema <- NULL
@@ -12,7 +12,7 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
 
   params <- as.list(params)
   if (!is.null(names(params))) {
-    stop("`params` must not be named")
+    abort("`params` must not be named")
   }
 
   params <- encode_values(params)
@@ -20,7 +20,11 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
   out <- rethrow_rapi_bind(
     res@stmt_lst$ref,
     params,
-    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE, streaming = TRUE)
+    duckdb_convert_opts_impl(
+      res@connection@convert_opts,
+      arrow = TRUE,
+      streaming = TRUE
+    )
   )
   if (length(out) == 0L) {
     # Zero-length bind: no executions; result is immediately drained.
@@ -43,7 +47,9 @@ setMethod("dbBind", "duckdb_result_arrow", dbBind__duckdb_result_arrow)
 #' @usage NULL
 dbBindArrow__duckdb_result_arrow <- function(res, params, ...) {
   require_nanoarrow("dbBindArrow()")
-  param_list <- as.list(as.data.frame(nanoarrow::as_nanoarrow_array_stream(params)))
+  param_list <- as.list(as.data.frame(nanoarrow::as_nanoarrow_array_stream(
+    params
+  )))
   if (length(param_list) > 0 && all(names(param_list) == "")) {
     names(param_list) <- NULL
   }
@@ -52,4 +58,8 @@ dbBindArrow__duckdb_result_arrow <- function(res, params, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbBindArrow", "duckdb_result_arrow", dbBindArrow__duckdb_result_arrow)
+setMethod(
+  "dbBindArrow",
+  "duckdb_result_arrow",
+  dbBindArrow__duckdb_result_arrow
+)

@@ -69,12 +69,16 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
 
   # Resolve libduckdb directory.
   # Precedence: DUCKDB_R_LIB_DIR -> pkg-config duckdb -> standard system paths.
+  # ${HOME}/.local/lib leads the fallbacks because it is where
+  # scripts/install-libduckdb.sh writes by default, so it is the copy most
+  # likely to match the vendored commit; a system one that does not match is
+  # rejected by the check below either way.
   duckdb_lib_dir="${DUCKDB_R_LIB_DIR}"
   if [ -z "${duckdb_lib_dir}" ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exists duckdb 2>/dev/null; then
     duckdb_lib_dir=$(pkg-config --variable=libdir duckdb 2>/dev/null)
   fi
   if [ -z "${duckdb_lib_dir}" ]; then
-    for candidate in /usr/local/lib /opt/homebrew/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib; do
+    for candidate in "${HOME:-/nonexistent}/.local/lib" /usr/local/lib /opt/homebrew/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib; do
       if [ -f "${candidate}/libduckdb.${lib_ext}" ]; then
         duckdb_lib_dir="${candidate}"
         break
@@ -112,6 +116,10 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
   # commit hash to 10 chars in the binary (CMake SUBSTRING 0 10), while the
   # vendored pragma_version.cpp sometimes carries 11. Both abbreviate the
   # same SHA, so we compare on the shared 10-char prefix.
+  #
+  # Newly vendored trees carry 10, because the vendor scripts pin core.abbrev
+  # in the upstream clone; the prefix comparison stays for the trees vendored
+  # before that, which a branch keeps until its next vendor commit.
   version_file=duckdb/src/function/table/version/pragma_version.cpp
   if [ -f "${version_file}" ]; then
     vendored_version=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "${version_file}")
