@@ -9,10 +9,26 @@ test_that("reusing an instance is silent when nothing collides", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  # Same settings again, and `bigint`, which `dbConnect()` does pick up.
+  # Same settings again.
   expect_no_error(duckdb(path))
-  expect_no_error(duckdb(path, bigint = "integer64"))
   expect_no_error(dbDisconnect(dbConnect(drv)))
+})
+
+test_that("a differing `bigint` is not a collision", {
+  # `bigint` is a connection setting that `dbConnect()` picks up, not one the
+  # instance binds -- so asking for another one is not a collision. Its own case
+  # because `bigint = "integer64"` needs bit64, and the rest of the file does
+  # not (handbook/operations/ci/matrix/README.md).
+  skip_if_not_installed("bit64")
+
+  path <- file.path(withr::local_tempdir(), "db.duckdb")
+
+  drv <- duckdb(path)
+  withr::defer(duckdb_shutdown(drv))
+  con <- dbConnect(drv)
+  withr::defer(dbDisconnect(con))
+
+  expect_no_error(duckdb(path, bigint = "integer64"))
 })
 
 test_that("a `read_only` that the instance cannot honor is reported", {
