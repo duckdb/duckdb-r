@@ -73,11 +73,29 @@ Now it means re-reading the tip and re-staging the same files.
 |---|---|---|
 | an `each-rcc` leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
 | `rcc-logs.yaml` | on dispatch | records for commits it finds undecided |
+| [`rcc-drop.sh`](/scripts/rcc-drop.sh) | by hand | removes the records and logs it is named |
 | [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | by hand | **all of it** |
 
 Nobody rewrites anything that is not their own commit's —
 except a verdict they are overturning, below —
 and that is what makes the concurrency work without a lock.
+
+`rcc-drop.sh` is the one writer that only ever removes,
+and it removes so that something else can decide again:
+work selection reads presence
+([`rcc-decided.sh`](/scripts/rcc-decided.sh)),
+so a commit whose record is gone is planned like one never built.
+What it is for is a verdict the *job* decided rather than the tree —
+the composite actions come from the branch tip that triggered the run,
+not from the commit under test,
+so a bad workflow turns commits red that had nothing to do with it.
+It writes through `rcc-publish.sh`'s `.remove` staging,
+which is why it needs no race protocol of its own.
+Two things it deliberately leaves alone are worth knowing before reaching
+for it: the commit's `rcc` status, which stays red until the rebuild
+writes a fresh one, and `rcc-logs.yaml`, which must *not* be dispatched
+behind a drop — it derives records for undecided commits from exactly
+those stale statuses, and would put back what the drop removed.
 
 ## Retention is one window
 
