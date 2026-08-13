@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 14 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Throw past the exhaustive DatePart specifier switches
+
+The two DatePartSpecifier dispatchers added in #24573 enumerate every
+specifier and end there, so GCC reports -Wreturn-type on both: an enum
+value outside the enumerators falls off the end of a non-void function.
+The templated helpers just above them do not, because their default
+label makes the switch exhaustive to the compiler.
+
+Restating the switch's own NotImplementedException after it is the
+spelling the rest of the tree uses for that shape, and it keeps -Wswitch
+reporting a specifier a later change forgets to handle.
+---
+diff --git a/src/duckdb/extension/core_functions/scalar/date/date_part.cpp b/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
+index 1b9808481..9d768b473 100644
+--- a/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
++++ b/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
+@@ -1932,6 +1932,7 @@ static scalar_function_t DatePartUnaryCallback(DatePartSpecifier part_code, Logi
+ 	case DatePartSpecifier::INVALID:
+ 		throw NotImplementedException("Specifier type not implemented for DATEPART");
+ 	}
++	throw NotImplementedException("Specifier type not implemented for DATEPART");
+ }
+ 
+ template <typename OP>
+@@ -2011,6 +2012,7 @@ static function_statistics_t DatePartUnaryStatistics(DatePartSpecifier part_code
+ 	case DatePartSpecifier::INVALID:
+ 		throw NotImplementedException("Specifier type not implemented for DATEPART");
+ 	}
++	throw NotImplementedException("Specifier type not implemented for DATEPART");
+ }
+ 
+ unique_ptr<FunctionData> DatePartBind(BindScalarFunctionInput &input) {
+-- 
+2.54.0
