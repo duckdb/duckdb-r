@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 20:41:24 +0000
+Subject: [PATCH] Drop the unused interval specialization of the epoch statistics
+
+DatePartUnaryStatistics() wires PropagateStatistics up for the
+timestamp, date and time types only, so the explicit specialization
+of DatePart::EpochOperator::PropagateStatistics for interval_t, which
+returned no statistics, is never referenced, and inside the file's
+anonymous namespace -Wunused-function reports it as defined but not
+used. It goes, with the comment that explained why it returned
+nullptr: the interval epoch has no statistics propagation to opt out
+of.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/extension/core_functions/scalar/date/date_part.cpp | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/src/duckdb/extension/core_functions/scalar/date/date_part.cpp b/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
+index 7c4b4823aa..dbf07fd03f 100644
+--- a/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
++++ b/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
+@@ -1484,13 +1484,6 @@ double DatePart::EpochOperator::Operation(interval_t input) {
+ 	return double(interval_epoch) + double(input.micros) / double(Interval::MICROS_PER_SEC);
+ }
+ 
+-//	TODO: We can't propagate interval statistics because we can't easily compare interval_t for order.
+-template <>
+-unique_ptr<BaseStatistics> DatePart::EpochOperator::PropagateStatistics<interval_t>(ClientContext &context,
+-                                                                                    FunctionStatisticsInput &input) {
+-	return nullptr;
+-}
+-
+ template <>
+ double DatePart::EpochOperator::Operation(dtime_t input) {
+ 	return double(input.value) / double(Interval::MICROS_PER_SEC);
