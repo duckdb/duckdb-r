@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9013</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9014</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,182 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9014" id="duckdb-1559014">duckdb 1.5.5.9014<a class="anchor" aria-label="anchor" href="#duckdb-1559014"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9014">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9014"></a></h3>
+<div class="section level4">
+<h4 id="testing-1-5-5-9014">testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5-9014"></a></h4>
+<ul><li>Read a double-digit patch release as a release, and say that air runs here (<a href="https://github.com/duckdb/duckdb-r/issues/2638" class="external-link">#2638</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014"></a></h4>
+<ul><li>Drop the semicolon after two namespace closings (<a href="https://github.com/duckdb/duckdb-r/issues/2645" class="external-link">#2645</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="patch-1-5-5-9014">patch<a class="anchor" aria-label="anchor" href="#patch-1-5-5-9014"></a></h4>
+<ul><li>Make the vendored tree compile without warnings (<a href="https://github.com/duckdb/duckdb-r/issues/2617" class="external-link">#2617</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="vendoring-1-5-5-9014">vendoring<a class="anchor" aria-label="anchor" href="#vendoring-1-5-5-9014"></a></h4>
+<ul><li>Pin the upstream clone’s abbreviation, so a vendored tree is reproducible (<a href="https://github.com/duckdb/duckdb-r/issues/2489" class="external-link">#2489</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2631" class="external-link">#2631</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="vendoring-1-5-5-9014-1">vendoring<a class="anchor" aria-label="anchor" href="#vendoring-1-5-5-9014-1"></a></h4>
+<ul><li>Say when the glue check could not run, instead of blaming the glue (<a href="https://github.com/duckdb/duckdb-r/issues/2513" class="external-link">#2513</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2629" class="external-link">#2629</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="scripts-1-5-5-9014">scripts<a class="anchor" aria-label="anchor" href="#scripts-1-5-5-9014"></a></h4>
+<ul><li>Let <code>BASE_SCAN_DEPTH</code> raise the base scan in all four scanners (<a href="https://github.com/duckdb/duckdb-r/issues/2512" class="external-link">#2512</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2628" class="external-link">#2628</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="rfuns-1-5-5-9014">rfuns<a class="anchor" aria-label="anchor" href="#rfuns-1-5-5-9014"></a></h4>
+<ul><li>Unshadow two locals (<a href="https://github.com/duckdb/duckdb-r/issues/2612" class="external-link">#2612</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="dbplyr-1-5-5-9014">dbplyr<a class="anchor" aria-label="anchor" href="#dbplyr-1-5-5-9014"></a></h4>
+<ul><li>Render <code><a href="https://dplyr.tidyverse.org/reference/n_distinct.html" class="external-link">n_distinct()</a></code> through the exported <code>sql_glue()</code>, and warn on an older dbplyr (<a href="https://github.com/duckdb/duckdb-r/issues/1982" class="external-link">#1982</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2605" class="external-link">#2605</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014-1">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014-1"></a></h4>
+<ul><li>Drop a stray semicolon after a constructor body (<a href="https://github.com/duckdb/duckdb-r/issues/2610" class="external-link">#2610</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014-2">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014-2"></a></h4>
+<ul><li>Suffix the one shadowing parameter left in a header (<a href="https://github.com/duckdb/duckdb-r/issues/2618" class="external-link">#2618</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014-3">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014-3"></a></h4>
+<ul><li>Build a <code>string_t</code> from R’s <code>const char*</code> without a cast (<a href="https://github.com/duckdb/duckdb-r/issues/2619" class="external-link">#2619</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014-4">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014-4"></a></h4>
+<ul><li>Widen to R’s double explicitly when copying a column out (<a href="https://github.com/duckdb/duckdb-r/issues/2611" class="external-link">#2611</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014-5">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014-5"></a></h4>
+<ul><li>Stop casting away <code>const</code> on R’s read-only data pointers (<a href="https://github.com/duckdb/duckdb-r/issues/2609" class="external-link">#2609</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="glue-1-5-5-9014-6">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9014-6"></a></h4>
+<ul><li>Suffix constructor parameters that shadow their member (<a href="https://github.com/duckdb/duckdb-r/issues/2608" class="external-link">#2608</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="ci-1-5-5-9014">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-5-9014"></a></h4>
+<ul><li>Read wrapped Config/gha/extra-packages values, bump auxiliary workflows to ubuntu-26.04 (<a href="https://github.com/duckdb/duckdb-r/issues/2603" class="external-link">#2603</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9014">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9014"></a></h4>
+<ul><li>Keep stage 5 alive when the buffer is longer than the chunk (<a href="https://github.com/duckdb/duckdb-r/issues/2602" class="external-link">#2602</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="scan-1-5-5-9014">scan<a class="anchor" aria-label="anchor" href="#scan-1-5-5-9014"></a></h4>
+<ul><li>Materialize packed columns on R’s thread, not on the scan’s (<a href="https://github.com/duckdb/duckdb-r/issues/2582" class="external-link">#2582</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="signal-1-5-5-9014">signal<a class="anchor" aria-label="anchor" href="#signal-1-5-5-9014"></a></h4>
+<ul><li>State the interrupt handler’s invariants where they are used (<a href="https://github.com/duckdb/duckdb-r/issues/2598" class="external-link">#2598</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="features-1-5-5-9014">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5-9014"></a></h3>
+<div class="section level4">
+<h4 id="build-1-5-5-9014">build<a class="anchor" aria-label="anchor" href="#build-1-5-5-9014"></a></h4>
+<ul><li>Gate the compiler warnings each scope answers for (<a href="https://github.com/duckdb/duckdb-r/issues/1829" class="external-link">#1829</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2620" class="external-link">#2620</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="relational-1-5-5-9014">relational<a class="anchor" aria-label="anchor" href="#relational-1-5-5-9014"></a></h4>
+<ul><li>Remove <code>allow_materialization</code> from <code>rel_to_altrep()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1052" class="external-link">#1052</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2643" class="external-link">#2643</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="connections-1-5-5-9014">connections<a class="anchor" aria-label="anchor" href="#connections-1-5-5-9014"></a></h4>
+<ul><li>Report instance settings a reused database cannot apply, and avoids treating URL-like paths like files (<a href="https://github.com/duckdb/duckdb-r/issues/2560" class="external-link">#2560</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2641" class="external-link">#2641</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="build-1-5-5-9014-1">build<a class="anchor" aria-label="anchor" href="#build-1-5-5-9014-1"></a></h4>
+<ul><li>Make the prebuilt-engine setup work without privileges (<a href="https://github.com/duckdb/duckdb-r/issues/22" class="external-link">#22</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2622" class="external-link">#2622</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="dbplyr-1-5-5-9014-1">dbplyr<a class="anchor" aria-label="anchor" href="#dbplyr-1-5-5-9014-1"></a></h4>
+<ul><li>Translate <code><a href="https://clock.r-lib.org/reference/date_build.html" class="external-link">clock::date_build()</a></code> and <code><a href="https://rdrr.io/r/base/difftime.html" class="external-link">difftime()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2621" class="external-link">#2621</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9014-1">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9014-1"></a></h4>
+<ul><li>Fold the base series’ test-side fixes in as stage 5 consumes the buffer (<a href="https://github.com/duckdb/duckdb-r/issues/2594" class="external-link">#2594</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="chore-1-5-5-9014">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-5-9014"></a></h3>
+<ul><li>Format with air.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9014">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9014"></a></h3>
+<div class="section level4">
+<h4 id="build-1-5-5-9014-2">build<a class="anchor" aria-label="anchor" href="#build-1-5-5-9014-2"></a></h4>
+<ul><li>Say that a vendored edit does not rebuild itself (<a href="https://github.com/duckdb/duckdb-r/issues/2648" class="external-link">#2648</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="testing-1-5-5-9014-1">testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5-9014-1"></a></h4>
+<ul><li>Give the two undocumented testthat helpers a header (<a href="https://github.com/duckdb/duckdb-r/issues/2502" class="external-link">#2502</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2634" class="external-link">#2634</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="branches-1-5-5-9014">branches<a class="anchor" aria-label="anchor" href="#branches-1-5-5-9014"></a></h4>
+<ul><li><p>Point the invariants’ deepen line at what is missing, not at notes <code>BRANCHES.md</code> lacks (<a href="https://github.com/duckdb/duckdb-r/issues/2516" class="external-link">#2516</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2633" class="external-link">#2633</a>).</p></li>
+<li><p>Convert the stray Rd spellings in roxygen to Markdown (<a href="https://github.com/duckdb/duckdb-r/issues/2616" class="external-link">#2616</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2635" class="external-link">#2635</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="style-1-5-5-9014">style<a class="anchor" aria-label="anchor" href="#style-1-5-5-9014"></a></h4>
+<ul><li>Spell out the tidyverse rules R here answers to, and the deviations (<a href="https://github.com/duckdb/duckdb-r/issues/2613" class="external-link">#2613</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="testing-1-5-5-9014-2">testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5-9014-2"></a></h4>
+<ul><li>Say when a snapshot is the right tool, not only how to accept one (<a href="https://github.com/duckdb/duckdb-r/issues/2624" class="external-link">#2624</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="interop-1-5-5-9014">interop<a class="anchor" aria-label="anchor" href="#interop-1-5-5-9014"></a></h4>
+<ul><li>Say what two limits cost a caller, and pin them (<a href="https://github.com/duckdb/duckdb-r/issues/590" class="external-link">#590</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1064" class="external-link">#1064</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2600" class="external-link">#2600</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="authoring-1-5-5-9014">authoring<a class="anchor" aria-label="anchor" href="#authoring-1-5-5-9014"></a></h4>
+<ul><li>Cut an entry to the shortest correct statement, and split the rest into a leaf (<a href="https://github.com/duckdb/duckdb-r/issues/2604" class="external-link">#2604</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="dbplyr-1-5-5-9014-2">dbplyr<a class="anchor" aria-label="anchor" href="#dbplyr-1-5-5-9014-2"></a></h4>
+<ul><li>Measure what <code>DISTINCT ON</code> would buy, and hand it over anyway (<a href="https://github.com/duckdb/duckdb-r/issues/384" class="external-link">#384</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2601" class="external-link">#2601</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="handbook-1-5-5-9014">handbook<a class="anchor" aria-label="anchor" href="#handbook-1-5-5-9014"></a></h4>
+<ul><li>Close the last three days’ issues into their leaves (<a href="https://github.com/duckdb/duckdb-r/issues/2595" class="external-link">#2595</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="plan-1-5-5-9014">plan<a class="anchor" aria-label="anchor" href="#plan-1-5-5-9014"></a></h4>
+<ul><li>Design a producer thread for streaming results, with a TPC-H fetch benchmark (<a href="https://github.com/duckdb/duckdb-r/issues/2583" class="external-link">#2583</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="code-style-1-5-5-9014">Code style<a class="anchor" aria-label="anchor" href="#code-style-1-5-5-9014"></a></h3>
+<div class="section level4">
+<h4 id="clang-format-1-5-5-9014">clang-format<a class="anchor" aria-label="anchor" href="#clang-format-1-5-5-9014"></a></h4>
+<ul><li>Never reorder includes (<a href="https://github.com/duckdb/duckdb-r/issues/2642" class="external-link">#2642</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="refactoring-1-5-5-9014">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-1-5-5-9014"></a></h3>
+<ul><li><p>Raise every error through <code>abort()</code>, so it points at the caller (<a href="https://github.com/duckdb/duckdb-r/issues/2615" class="external-link">#2615</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2637" class="external-link">#2637</a>).</p></li>
+<li><p>Extract result data-frame allocation into a helper (<a href="https://github.com/duckdb/duckdb-r/issues/2585" class="external-link">#2585</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-1-5-5-9014">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-5-9014"></a></h3>
+<div class="section level4">
+<h4 id="vendoring-1-5-5-9014-2">vendoring<a class="anchor" aria-label="anchor" href="#vendoring-1-5-5-9014-2"></a></h4>
+<ul><li>Keep git’s stat cache valid across a regeneration of the vendored tree (<a href="https://github.com/duckdb/duckdb-r/issues/2490" class="external-link">#2490</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2632" class="external-link">#2632</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="uncategorized-1-5-5-9014">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-5-9014"></a></h3>
+<ul><li>Docs(interactive): Give the interrupt its leaf, and answer <a href="https://github.com/duckdb/duckdb-r/issues/202" class="external-link">#202</a> down to the client name (<a href="https://github.com/duckdb/duckdb-r/issues/2596" class="external-link">#2596</a>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9013" id="duckdb-1559013">duckdb 1.5.5.9013<a class="anchor" aria-label="anchor" href="#duckdb-1559013"></a></h2>
 <div class="section level3">

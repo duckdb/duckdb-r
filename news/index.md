@@ -1,5 +1,244 @@
 # Changelog
 
+## duckdb 1.5.5.9014
+
+### Bug fixes
+
+#### testing
+
+- Read a double-digit patch release as a release, and say that air runs
+  here ([\#2638](https://github.com/duckdb/duckdb-r/issues/2638)).
+
+#### glue
+
+- Drop the semicolon after two namespace closings
+  ([\#2645](https://github.com/duckdb/duckdb-r/issues/2645)).
+
+#### patch
+
+- Make the vendored tree compile without warnings
+  ([\#2617](https://github.com/duckdb/duckdb-r/issues/2617)).
+
+#### vendoring
+
+- Pin the upstream clone’s abbreviation, so a vendored tree is
+  reproducible
+  ([\#2489](https://github.com/duckdb/duckdb-r/issues/2489),
+  [\#2631](https://github.com/duckdb/duckdb-r/issues/2631)).
+
+#### vendoring
+
+- Say when the glue check could not run, instead of blaming the glue
+  ([\#2513](https://github.com/duckdb/duckdb-r/issues/2513),
+  [\#2629](https://github.com/duckdb/duckdb-r/issues/2629)).
+
+#### scripts
+
+- Let `BASE_SCAN_DEPTH` raise the base scan in all four scanners
+  ([\#2512](https://github.com/duckdb/duckdb-r/issues/2512),
+  [\#2628](https://github.com/duckdb/duckdb-r/issues/2628)).
+
+#### rfuns
+
+- Unshadow two locals
+  ([\#2612](https://github.com/duckdb/duckdb-r/issues/2612)).
+
+#### dbplyr
+
+- Render
+  [`n_distinct()`](https://dplyr.tidyverse.org/reference/n_distinct.html)
+  through the exported `sql_glue()`, and warn on an older dbplyr
+  ([\#1982](https://github.com/duckdb/duckdb-r/issues/1982),
+  [\#2605](https://github.com/duckdb/duckdb-r/issues/2605)).
+
+#### glue
+
+- Drop a stray semicolon after a constructor body
+  ([\#2610](https://github.com/duckdb/duckdb-r/issues/2610)).
+
+#### glue
+
+- Suffix the one shadowing parameter left in a header
+  ([\#2618](https://github.com/duckdb/duckdb-r/issues/2618)).
+
+#### glue
+
+- Build a `string_t` from R’s `const char*` without a cast
+  ([\#2619](https://github.com/duckdb/duckdb-r/issues/2619)).
+
+#### glue
+
+- Widen to R’s double explicitly when copying a column out
+  ([\#2611](https://github.com/duckdb/duckdb-r/issues/2611)).
+
+#### glue
+
+- Stop casting away `const` on R’s read-only data pointers
+  ([\#2609](https://github.com/duckdb/duckdb-r/issues/2609)).
+
+#### glue
+
+- Suffix constructor parameters that shadow their member
+  ([\#2608](https://github.com/duckdb/duckdb-r/issues/2608)).
+
+#### ci
+
+- Read wrapped Config/gha/extra-packages values, bump auxiliary
+  workflows to ubuntu-26.04
+  ([\#2603](https://github.com/duckdb/duckdb-r/issues/2603)).
+
+#### series
+
+- Keep stage 5 alive when the buffer is longer than the chunk
+  ([\#2602](https://github.com/duckdb/duckdb-r/issues/2602)).
+
+#### scan
+
+- Materialize packed columns on R’s thread, not on the scan’s
+  ([\#2582](https://github.com/duckdb/duckdb-r/issues/2582)).
+
+#### signal
+
+- State the interrupt handler’s invariants where they are used
+  ([\#2598](https://github.com/duckdb/duckdb-r/issues/2598)).
+
+### Features
+
+#### build
+
+- Gate the compiler warnings each scope answers for
+  ([\#1829](https://github.com/duckdb/duckdb-r/issues/1829),
+  [\#2620](https://github.com/duckdb/duckdb-r/issues/2620)).
+
+#### relational
+
+- Remove `allow_materialization` from `rel_to_altrep()`
+  ([\#1052](https://github.com/duckdb/duckdb-r/issues/1052),
+  [\#2643](https://github.com/duckdb/duckdb-r/issues/2643)).
+
+#### connections
+
+- Report instance settings a reused database cannot apply, and avoids
+  treating URL-like paths like files
+  ([\#2560](https://github.com/duckdb/duckdb-r/issues/2560),
+  [\#2641](https://github.com/duckdb/duckdb-r/issues/2641)).
+
+#### build
+
+- Make the prebuilt-engine setup work without privileges
+  ([\#22](https://github.com/duckdb/duckdb-r/issues/22),
+  [\#2622](https://github.com/duckdb/duckdb-r/issues/2622)).
+
+#### dbplyr
+
+- Translate
+  [`clock::date_build()`](https://clock.r-lib.org/reference/date_build.html)
+  and [`difftime()`](https://rdrr.io/r/base/difftime.html)
+  ([\#2621](https://github.com/duckdb/duckdb-r/issues/2621)).
+
+#### series
+
+- Fold the base series’ test-side fixes in as stage 5 consumes the
+  buffer ([\#2594](https://github.com/duckdb/duckdb-r/issues/2594)).
+
+### Chore
+
+- Format with air.
+
+### Documentation
+
+#### build
+
+- Say that a vendored edit does not rebuild itself
+  ([\#2648](https://github.com/duckdb/duckdb-r/issues/2648)).
+
+#### testing
+
+- Give the two undocumented testthat helpers a header
+  ([\#2502](https://github.com/duckdb/duckdb-r/issues/2502),
+  [\#2634](https://github.com/duckdb/duckdb-r/issues/2634)).
+
+#### branches
+
+- Point the invariants’ deepen line at what is missing, not at notes
+  `BRANCHES.md` lacks
+  ([\#2516](https://github.com/duckdb/duckdb-r/issues/2516),
+  [\#2633](https://github.com/duckdb/duckdb-r/issues/2633)).
+
+- Convert the stray Rd spellings in roxygen to Markdown
+  ([\#2616](https://github.com/duckdb/duckdb-r/issues/2616),
+  [\#2635](https://github.com/duckdb/duckdb-r/issues/2635)).
+
+#### style
+
+- Spell out the tidyverse rules R here answers to, and the deviations
+  ([\#2613](https://github.com/duckdb/duckdb-r/issues/2613)).
+
+#### testing
+
+- Say when a snapshot is the right tool, not only how to accept one
+  ([\#2624](https://github.com/duckdb/duckdb-r/issues/2624)).
+
+#### interop
+
+- Say what two limits cost a caller, and pin them
+  ([\#590](https://github.com/duckdb/duckdb-r/issues/590),
+  [\#1064](https://github.com/duckdb/duckdb-r/issues/1064),
+  [\#2600](https://github.com/duckdb/duckdb-r/issues/2600)).
+
+#### authoring
+
+- Cut an entry to the shortest correct statement, and split the rest
+  into a leaf
+  ([\#2604](https://github.com/duckdb/duckdb-r/issues/2604)).
+
+#### dbplyr
+
+- Measure what `DISTINCT ON` would buy, and hand it over anyway
+  ([\#384](https://github.com/duckdb/duckdb-r/issues/384),
+  [\#2601](https://github.com/duckdb/duckdb-r/issues/2601)).
+
+#### handbook
+
+- Close the last three days’ issues into their leaves
+  ([\#2595](https://github.com/duckdb/duckdb-r/issues/2595)).
+
+#### plan
+
+- Design a producer thread for streaming results, with a TPC-H fetch
+  benchmark ([\#2583](https://github.com/duckdb/duckdb-r/issues/2583)).
+
+### Code style
+
+#### clang-format
+
+- Never reorder includes
+  ([\#2642](https://github.com/duckdb/duckdb-r/issues/2642)).
+
+### Refactoring
+
+- Raise every error through `abort()`, so it points at the caller
+  ([\#2615](https://github.com/duckdb/duckdb-r/issues/2615),
+  [\#2637](https://github.com/duckdb/duckdb-r/issues/2637)).
+
+- Extract result data-frame allocation into a helper
+  ([\#2585](https://github.com/duckdb/duckdb-r/issues/2585)).
+
+### Performance
+
+#### vendoring
+
+- Keep git’s stat cache valid across a regeneration of the vendored tree
+  ([\#2490](https://github.com/duckdb/duckdb-r/issues/2490),
+  [\#2632](https://github.com/duckdb/duckdb-r/issues/2632)).
+
+### Uncategorized
+
+- Docs(interactive): Give the interrupt its leaf, and answer
+  [\#202](https://github.com/duckdb/duckdb-r/issues/202) down to the
+  client name
+  ([\#2596](https://github.com/duckdb/duckdb-r/issues/2596)).
+
 ## duckdb 1.5.5.9013
 
 ### Continuous integration
