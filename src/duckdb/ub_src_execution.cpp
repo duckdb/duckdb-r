@@ -2,6 +2,8 @@
 
 #include "src/execution/aggregate_hashtable.cpp"
 
+#include "src/execution/aggregate_state_spilling.cpp"
+
 #include "src/execution/base_aggregate_hashtable.cpp"
 
 #include "src/execution/column_binding_resolver.cpp"
