@@ -138,9 +138,7 @@ RStrings::RStrings() {
 }
 
 LogicalType RStringsType::Get() {
-	LogicalType r_string_type(LogicalTypeId::POINTER);
-	r_string_type.SetAlias(R_STRING_TYPE_NAME);
-	return r_string_type;
+	return LogicalType(LogicalTypeId::POINTER).WithAlias(R_STRING_TYPE_NAME);
 }
 
 template <class SRC, class DST, class RTYPE>
