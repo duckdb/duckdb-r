@@ -51,28 +51,29 @@ runs:
         max-size: 200M
         verbose: 1
 
-    - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
-      run: |
-        set -o pipefail
-        mkdir ../lib
-        R CMD INSTALL --library=$(dirname $(pwd))/lib -d --no-byte-compile . 2>&1 |
-          tee "${RUNNER_TEMP}/install.log"
-      shell: bash
-
     # The vendored half of the compiler-warning gate
-    # (handbook/build/warnings/README.md): judge the log of the build that just
-    # ran, which before-install put the vendored warning flags on. Nothing is
-    # compiled twice.
+    # (handbook/build/warnings/README.md) rides this install rather than
+    # compiling the engine a second time: `warnings.sh ride` puts the vendored
+    # warning flags on this one command and judges the log it produces, so
+    # nothing is compiled twice and no other build in the job is affected.
+    # Where the engine is linked rather than built -- DUCKDB_R_USE_SYSTEM_LIB --
+    # there is nothing to read, so the install runs unridden.
     #
-    # It reads what this entry actually compiled. Objects restored from
+    # The gate reads what this entry actually compiled. Objects restored from
     # DUCKDB_R_PREBUILT_ARCHIVE are not recompiled and so raise nothing -- but
     # that cache is keyed on hashFiles('src/duckdb/**'), so a vendored tree that
     # changed is always built afresh, which is the tree this gate is for.
     # ccache, by contrast, replays a cached compile's diagnostics, so it hides
     # nothing.
-    - name: Check that the vendored sources compiled without warnings
-      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
-      run: scripts/warnings.sh scan vendored "${RUNNER_TEMP}/install.log"
+    - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
+      run: |
+        mkdir ../lib
+        install=(R CMD INSTALL --library="$(dirname "$(pwd)")/lib" -d --no-byte-compile .)
+        if [ "${DUCKDB_R_USE_SYSTEM_LIB:-}" = "1" ]; then
+          "${install[@]}"
+        else
+          scripts/warnings.sh ride vendored "${RUNNER_TEMP}/install.log" -- "${install[@]}"
+        fi
       shell: bash
 
     - name: Show ccache stats

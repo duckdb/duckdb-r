@@ -101,27 +101,12 @@ runs:
         fi
       shell: bash
 
-    # The vendored half of the compiler-warning gate
-    # (handbook/build/warnings/README.md). It rides the build that is already
-    # happening rather than compiling the engine a second time: put the warning
-    # flags on this entry's build here, and the scan step in after-install
-    # judges its log. Only where the vendored sources are actually compiled --
-    # under DUCKDB_R_USE_SYSTEM_LIB the engine is linked, not built, and there
-    # would be nothing to read.
-    #
-    # This must come after the two steps above that decide the build mode:
-    # a GITHUB_ENV write is visible to later steps, not to the one that made it.
-    #
-    # CPPFLAGS rather than CXX17FLAGS, because R appends CPPFLAGS to the
-    # package's own and replaces CXX17FLAGS -- which would drop the platform's
-    # optimisation settings. The vendored tree has no C sources, so a C++-only
-    # flag never reaches a C compile.
-    - name: Put the vendored warning flags on this build
-      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
-      run: |
-        mkdir -p ~/.R
-        echo "CPPFLAGS += $(scripts/warnings.sh flags vendored)" | tee -a ~/.R/Makevars
-      shell: bash
+    # The vendored half of the compiler-warning gate used to append its flags to
+    # ~/.R/Makevars here. It now carries them itself, on the one install it
+    # rides, in after-install (handbook/build/warnings/README.md): that file is
+    # read by every later build in the job -- `R CMD check`'s among them, which
+    # fails over the flags -- and each.yaml runs this action without
+    # after-install, so from here they reached builds the gate never looks at.
 
     # Create the shared DuckDB home (~/.duckdb) so CI exercises the "shared"
     # storage-resolution path. The package only treats ~/.duckdb as the home for
