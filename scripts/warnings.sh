@@ -8,13 +8,21 @@
 #   scripts/warnings.sh all           # both, glue first
 #   scripts/warnings.sh <scope> --all # ... and list what other scopes own, too
 #
+#   scripts/warnings.sh ride <scope> <log> -- <command>...
+#                                           # run a build with the scope's flags
+#                                           # on it, keep <log>, and judge that
 #   scripts/warnings.sh flags <scope>       # print the scope's warning flags
 #   scripts/warnings.sh scan <scope> <log>  # judge a build log compiled with them
 #
-# `flags` and `scan` are the halves of the same check for a build that is
-# happening anyway: put the flags on it, keep its output, judge that. The
-# vendored scope is checked that way in CI, because compiling the engine twice
-# to read it a second time costs an hour and proves nothing new.
+# `ride` is the check for a build that is happening anyway: put the flags on it,
+# keep its output, judge that. The vendored scope is checked that way in CI,
+# because compiling the engine twice to read it a second time costs an hour and
+# proves nothing new.
+#
+# The flags reach that build in a Makevars written for the one command `ride`
+# runs, and not in ~/.R/Makevars, which is the job's: every later build reads
+# that file, `R CMD check` among them, and it fails over these flags. The
+# handbook page says which checks and why.
 #
 # A warning is attributed to the file it points at, not to the translation unit
 # that raised it: a glue file including an engine header is not answerable for
@@ -118,6 +126,88 @@ scan() {
   echo "-- $scope: clean"
 }
 
+# --- riding a build this script does not drive ------------------------------
+
+# The user Makevars R would read on its own, or nothing. Asked of R rather than
+# guessed at, because the rule has several candidates -- R_MAKEVARS_USER, a
+# platform-suffixed file, the plain one -- and R reads whichever comes first.
+# The fallback covers an R that cannot answer: dropping this file silently is
+# what a lost ccache wrapper or a missing tripwire -D looks like, and both are
+# worth a guess.
+user_makevars() {
+  local f
+  f=$(Rscript --vanilla -e 'cat(tools:::makevars_user())' 2>/dev/null) || f=
+  if [ -z "$f" ]; then
+    for f in "${R_MAKEVARS_USER:-}" "$HOME/.R/Makevars"; do
+      [ -n "$f" ] && [ -f "$f" ] && break
+      f=
+    done
+  fi
+  echo "$f"
+}
+
+# R on Windows is a native program, and mktemp hands out a path only MSYS
+# understands. R_MAKEVARS_USER is read through file.exists(), which simply says
+# no to such a path -- and then R falls back to nothing at all rather than to
+# the file it would otherwise have read. That is how the flags would go missing
+# without a word, so translate here rather than hope.
+r_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$1"
+  else
+    echo "$1"
+  fi
+}
+
+# Run a build with the scope's flags on it, keep its output in <log>, and judge
+# that.
+#
+# R_MAKEVARS_USER replaces the user Makevars rather than adding to it, so what
+# was already there is carried in by an `include` -- in CI, ccache's compiler
+# wrappers, the job's MAKEFLAGS, and the engine tripwire's -D.
+#
+# CPPFLAGS rather than CXX17FLAGS, because R appends CPPFLAGS to the package's
+# own and replaces CXX17FLAGS, which would drop the platform's optimisation
+# settings. The vendored tree has no C sources, so a C++-only flag never
+# reaches a C compile.
+ride() {
+  local scope=$1 log=$2
+  shift 2
+  [ "${1:-}" = "--" ] && shift
+  if [ $# -eq 0 ]; then
+    echo "usage: scripts/warnings.sh ride <scope> <log> -- <command>..." >&2
+    return 2
+  fi
+
+  # Before anything is built, so an unknown scope costs a second and not an hour.
+  local flags
+  flags=$(warnings_of "$scope") || return 2
+
+  local dir makevars inherited status
+  dir=$(mktemp -d)
+  makevars=$dir/Makevars
+  inherited=$(user_makevars)
+  if [ -n "$inherited" ]; then
+    printf 'include %s\n' "$inherited" >"$makevars"
+  fi
+  printf 'CPPFLAGS += %s\n' "$flags" >>"$makevars"
+
+  echo "== $scope: riding \`$*\` with $flags"
+  set +e
+  R_MAKEVARS_USER=$(r_path "$makevars") "$@" 2>&1 | tee "$log"
+  status=${PIPESTATUS[0]}
+  set -e
+  rm -rf "$dir"
+
+  # A build that failed says nothing about warnings, and its log is a list of
+  # what did not happen. Report the build, and leave the log for reading.
+  if [ "$status" -ne 0 ]; then
+    echo "-- the build failed (exit $status); $log is not judged."
+    return "$status"
+  fi
+  scan "$scope" "$log"
+}
+
 # --- compiling a scope ourselves --------------------------------------------
 
 prepare_compile() {
@@ -214,9 +304,16 @@ case "${1:-all}" in
       "${3:?usage: scripts/warnings.sh scan <scope> <log>}"
     exit
     ;;
+  ride)
+    ride "${2:?usage: scripts/warnings.sh ride <scope> <log> -- <command>...}" \
+      "${3:?usage: scripts/warnings.sh ride <scope> <log> -- <command>...}" \
+      "${@:4}"
+    exit
+    ;;
   glue | vendored | all) scope=${1:-all} ;;
   *)
     echo "usage: scripts/warnings.sh [glue|vendored|all] [--all]" >&2
+    echo "       scripts/warnings.sh ride <scope> <log> -- <command>..." >&2
     echo "       scripts/warnings.sh flags <scope>" >&2
     echo "       scripts/warnings.sh scan <scope> <log>" >&2
     exit 2

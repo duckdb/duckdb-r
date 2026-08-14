@@ -97,6 +97,40 @@ These are a gate's flags, applied from outside the package —
 which is also why an `-Wno-` here is not a suppression:
 it says a category is not enforced, not that a warning is hidden.
 
+**Outside the package is not `~/.R/Makevars`, either.**
+A build the gate rides rather than drives is R's,
+so the flags have to reach it the way R takes extra flags —
+from the user Makevars.
+That file is the job's, not the command's:
+every later build reads it too,
+and `R CMD check` is one of those builds.
+It failed there twice over,
+each failure enough to fail the check on its own:
+`-Wno-redundant-move` and `-Wno-unused-parameter`
+are reported under `checking compilation flags used`
+as non-portable flags that suppress warnings,
+and `-Wall -Wextra` turned an engine diagnostic
+into a *significant warning* under
+`checking whether package … can be installed`.
+Written from `before-install` the flags also reached
+[`each.yaml`](/.github/workflows/each.yaml)'s per-commit builds,
+which run that action without `after-install` and so scan nothing —
+red on six series at once, and the whole vendoring loop with it
+([#2652](https://github.com/duckdb/duckdb-r/pull/2652)).
+
+So the gate carries its flags itself, for one command:
+`scripts/warnings.sh ride` writes a Makevars,
+points `R_MAKEVARS_USER` at it for the build it is judging,
+and nothing else in the job ever sees it.
+R reads exactly one user Makevars —
+`R_MAKEVARS_USER` replaces the default rather than adding to it —
+so that file `include`s whatever was already there:
+in CI, ccache's compiler wrappers and the job's `MAKEFLAGS`,
+and the engine tripwire's `-D` in the poisoning entry
+([`testing/guards/`](/handbook/testing/guards/README.md)).
+Dropping those would be a cold serial rebuild of the engine,
+or a guard with a hole in it and nothing to say so.
+
 The gate is GCC's.
 Clang names some of these differently and finds a different set;
 running it is welcome, wiring a second flag list into the gate is not,
@@ -132,8 +166,9 @@ it found these two, and named the same two GCC 15 did.
   The answer is the same in every matrix entry, so it runs in one.
 * **On the entry that builds from source**, the `vendored` scope —
   and it compiles nothing extra.
-  `scripts/warnings.sh flags vendored` puts the flags on that build,
-  `scripts/warnings.sh scan vendored` judges its log:
+  `scripts/warnings.sh ride vendored <log> -- R CMD INSTALL …`
+  puts the flags on the install that entry runs anyway
+  and judges the log it produces:
   reading a build that already takes an hour beats running a second one.
 
 That last split is what keeps newly vendored code honest without

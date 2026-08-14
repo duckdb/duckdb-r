@@ -23,6 +23,12 @@ test_that("the loaded version is read from the namespace, not the library", {
 })
 
 test_that("an old dbplyr warns, a current one is silent", {
+  # Every version here is mocked, and the package is still needed: the check
+  # returns early unless dbplyr's namespace is *loaded*, which is the one thing
+  # `local_mocked_bindings()` cannot arrange. `skip_if_not_installed()` loads it
+  # as a side effect of asking, so this is also what puts it there.
+  skip_if_not_installed("dbplyr")
+
   local_mocked_bindings(loaded_dbplyr_version = function() {
     package_version("2.5.0")
   })
@@ -45,6 +51,8 @@ test_that("an old dbplyr warns, a current one is silent", {
 # --- message wording (snapshot) ----------------------------------------------
 
 test_that("the warning wording is stable", {
+  skip_if_not_installed("dbplyr")
+
   # The wording carries the package name, so it goes through the flavor
   # normalisation every snapshot that can name the package uses.
   local_mocked_bindings(loaded_dbplyr_version = function() {
@@ -58,6 +66,8 @@ test_that("the warning wording is stable", {
 })
 
 test_that("the warning names this package through the flavor seam", {
+  skip_if_not_installed("dbplyr")
+
   local_mocked_bindings(
     loaded_dbplyr_version = function() package_version("2.5.0"),
     get_package_name = function() "someflavor"
@@ -67,6 +77,10 @@ test_that("the warning names this package through the flavor seam", {
 })
 
 test_that("a dbplyr loading later is caught by a hook", {
+  # The other hooks registered there resolve `dbplyr::` when called, so calling
+  # them below is an error rather than a skip when dbplyr is absent.
+  skip_if_not_installed("dbplyr")
+
   hooks <- getHook(packageEvent("dbplyr", "onLoad"))
   expect_gt(length(hooks), 0L)
 
@@ -96,6 +110,10 @@ test_that("a dbplyr loading later is caught by a hook", {
 })
 
 test_that("attaching does not load dbplyr just to check its version", {
+  # An absent dbplyr passes this for the wrong reason: nothing could have loaded
+  # it either way.
+  skip_if_not_installed("dbplyr")
+
   loaded <- callr::r(
     function(pkg) {
       library(pkg, character.only = TRUE)
