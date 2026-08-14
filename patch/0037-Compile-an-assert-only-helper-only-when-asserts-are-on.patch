@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Compile an assert-only helper only when asserts are on
+
+IsVariantStringType() is called from one D_ASSERT and nowhere else, so
+a release build defines it and never calls it, which -Wunused-function
+reports. Guard it with D_ASSERT_IS_ENABLED, the way the engine already
+guards assert-only code elsewhere (e.g. tuple_data_segment.cpp).
+---
+  src/duckdb/src/function/variant/variant_shredding.cpp | 2 ++
+  1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/function/variant/variant_shredding.cpp b/src/duckdb/src/function/variant/variant_shredding.cpp
+index fd5252b..d7ab0a0 100644
+--- a/src/duckdb/src/function/variant/variant_shredding.cpp
++++ b/src/duckdb/src/function/variant/variant_shredding.cpp
+@@ -39,6 +39,7 @@ static void WriteShreddedDecimal(UnifiedVariantVectorData &variant, Vector &resu
+ 	}
+ }
+ 
++#ifdef D_ASSERT_IS_ENABLED
+ static bool IsVariantStringType(VariantLogicalType type_id) {
+ 	switch (type_id) {
+ 	case VariantLogicalType::GEOMETRY:
+@@ -51,6 +52,7 @@ static bool IsVariantStringType(VariantLogicalType type_id) {
+ 		return false;
+ 	}
+ }
++#endif
+ 
+ static void WriteShreddedString(UnifiedVariantVectorData &variant, Vector &result, const SelectionVector &sel,
+                                 const SelectionVector &value_index_sel, const SelectionVector &result_sel,
+-- 
+2.43.0
