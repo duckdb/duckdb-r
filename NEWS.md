@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9015
+
+## Bug fixes
+
+### ci
+
+- Give the warning gate its own flags, and skip what a dropped `Suggests` cannot support (#2652).
+
+
 # duckdb 1.5.5.9014
 
 ## Bug fixes
