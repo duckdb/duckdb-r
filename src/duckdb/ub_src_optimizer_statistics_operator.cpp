@@ -2,6 +2,8 @@
 
 #include "src/optimizer/statistics/operator/propagate_cross_product.cpp"
 
+#include "src/optimizer/statistics/operator/propagate_cte.cpp"
+
 #include "src/optimizer/statistics/operator/propagate_filter.cpp"
 
 #include "src/optimizer/statistics/operator/propagate_get.cpp"
