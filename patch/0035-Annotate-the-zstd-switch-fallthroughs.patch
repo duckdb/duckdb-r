@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Annotate the zstd switch fallthroughs
+
+ZSTD_FALLTHROUGH is what zstd writes at every deliberate fallthrough,
+but the vendored copy of compiler.h defines it as nothing, so ten of
+them read as accidents and -Wimplicit-fallthrough reports each one.
+Define it the way upstream zstd does. The vendored tree is compiled as
+C++17, so [[fallthrough]] is what it resolves to here.
+---
+  src/duckdb/third_party/zstd/include/zstd/common/compiler.h | 10 +++++++++-
+  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/third_party/zstd/include/zstd/common/compiler.h b/src/duckdb/third_party/zstd/include/zstd/common/compiler.h
+index f880f0b..5d36e2e 100644
+--- a/src/duckdb/third_party/zstd/include/zstd/common/compiler.h
++++ b/src/duckdb/third_party/zstd/include/zstd/common/compiler.h
+@@ -258,7 +258,15 @@
+  * - Else: __attribute__((__fallthrough__))
+  */
+ #ifndef ZSTD_FALLTHROUGH
+-# define ZSTD_FALLTHROUGH
++# if defined(__cplusplus) && __cplusplus >= 201703L
++#  define ZSTD_FALLTHROUGH [[fallthrough]]
++# elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
++#  define ZSTD_FALLTHROUGH [[fallthrough]]
++# elif defined(__GNUC__) && __GNUC__ >= 7
++#  define ZSTD_FALLTHROUGH __attribute__((__fallthrough__))
++# else
++#  define ZSTD_FALLTHROUGH
++# endif
+ #endif
+ 
+ /*-**************************************************************
+-- 
+2.43.0
