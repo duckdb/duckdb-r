@@ -1,0 +1,91 @@
+From 56f582c4a3fbd6ab7d6bd3f2bc836029909e1c52 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Wed, 1 May 2024 11:12:44 +0200
+Subject: [PATCH] Fix clang warnings in re2
+
+---
+ src/duckdb/third_party/re2/re2/prog.h       | 37 ++++++++++++++-----------
+ src/duckdb/third_party/re2/re2/walker-inl.h |  4 ++-
+ 2 files changed, 25 insertions(+), 16 deletions(-)
+
+diff --git a/src/duckdb/third_party/re2/re2/prog.h b/src/duckdb/third_party/re2/re2/prog.h
+index e385b59..8bcc9f0 100644
+--- a/src/duckdb/third_party/re2/re2/prog.h
++++ b/src/duckdb/third_party/re2/re2/prog.h
+@@ -130,6 +130,21 @@ class Prog {
+       out_opcode_ = (out<<4) | (last()<<3) | opcode;
+     }
+ 
++    // For CRAN: named and hoisted out of the anonymous union below, because
++    // ISO C++ does not allow types to be declared in an anonymous union
++    // (clang -pedantic: -Wnested-anon-types).
++    struct ByteRange {     // opcode == kInstByteRange
++      uint8_t lo_;         //   byte range is lo_-hi_ inclusive
++      uint8_t hi_;         //
++      uint16_t hint_foldcase_;  // 15 bits: hint, 1 (low) bit: foldcase
++                           //   hint to execution engines: the delta to the
++                           //   next instruction (in the current list) worth
++                           //   exploring iff this instruction matched; 0
++                           //   means there are no remaining possibilities,
++                           //   which is most likely for character classes.
++                           //   foldcase: A-Z -> a-z before checking range.
++    };
++
+     uint32_t out_opcode_;  // 28 bits: out, 1 bit: last, 3 (low) bits: opcode
+     union {                // additional instruction arguments:
+       uint32_t out1_;      // opcode == kInstAlt
+@@ -145,17 +160,7 @@ class Prog {
+       int32_t match_id_;   // opcode == kInstMatch
+                            //   Match ID to identify this match (for duckdb_re2::Set).
+ 
+-      struct {             // opcode == kInstByteRange
+-        uint8_t lo_;       //   byte range is lo_-hi_ inclusive
+-        uint8_t hi_;       //
+-        uint16_t hint_foldcase_;  // 15 bits: hint, 1 (low) bit: foldcase
+-                           //   hint to execution engines: the delta to the
+-                           //   next instruction (in the current list) worth
+-                           //   exploring iff this instruction matched; 0
+-                           //   means there are no remaining possibilities,
+-                           //   which is most likely for character classes.
+-                           //   foldcase: A-Z -> a-z before checking range.
+-      } byte_range;
++      ByteRange byte_range;  // opcode == kInstByteRange
+ 
+       EmptyOp empty_;       // opcode == kInstEmptyWidth
+                             //   empty_ is bitwise OR of kEmpty* flags above.
+@@ -421,12 +426,14 @@ class Prog {
+ 
+   bool prefix_foldcase_;    // whether prefix is case-insensitive
+   size_t prefix_size_;      // size of prefix (0 if no prefix)
++  // For CRAN: named and hoisted out of the anonymous union below, see above.
++  struct PrefixFrontBack {
++    int prefix_front_;      // first byte of prefix
++    int prefix_back_;       // last byte of prefix
++  };
+   union {
+     uint64_t* prefix_dfa_;  // "Shift DFA" for prefix
+-    struct {
+-      int prefix_front_;    // first byte of prefix
+-      int prefix_back_;     // last byte of prefix
+-    } prefix_front_back;
++    PrefixFrontBack prefix_front_back;
+   };
+ 
+   int list_count_;                  // count of lists (see above)
+diff --git a/src/duckdb/third_party/re2/re2/walker-inl.h b/src/duckdb/third_party/re2/re2/walker-inl.h
+index 1bbec1c..5adf859 100644
+--- a/src/duckdb/third_party/re2/re2/walker-inl.h
++++ b/src/duckdb/third_party/re2/re2/walker-inl.h
+@@ -137,7 +137,9 @@ template<typename T> Regexp::Walker<T>::Walker() {
+   stopped_early_ = false;
+ }
+ 
+-template<typename T> Regexp::Walker<T>::~Walker() {
++// For CRAN: the name after '::~' must be found in the same scope as the name
++// before it (clang: -Wdtor-name).
++template<typename T> Regexp::Walker<T>::Walker::~Walker() {
+   Reset();
+ }
+ 
+-- 
+2.43.0

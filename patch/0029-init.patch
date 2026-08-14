@@ -15,7 +15,7 @@ index ccb2775bc..1e107650a 100644
 +++ b/src/duckdb/src/main/connection.cpp
 @@ -19,7 +19,7 @@
  namespace duckdb {
-
+ 
  Connection::Connection(DatabaseInstance &database)
 -    : context(make_shared_ptr<ClientContext>(database.shared_from_this())) {
 +    : context(make_shared_ptr<ClientContext>(database.shared_from_this())), connection_id(-1) {
@@ -29,7 +29,7 @@ index 0c67bb9ca..ba4ec04ed 100644
 @@ -12,7 +12,7 @@ namespace duckdb {
  MetadataBlock::MetadataBlock() : block_id(INVALID_BLOCK), dirty(false) {
  }
-
+ 
 -MetadataBlock::MetadataBlock(MetadataBlock &&other) noexcept : dirty(false) {
 +MetadataBlock::MetadataBlock(MetadataBlock &&other) noexcept : block_id(INVALID_BLOCK), dirty(false) {
  	std::swap(block, other.block);
