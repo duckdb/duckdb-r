@@ -371,13 +371,27 @@ if [ -n "$CONTINUE" ] && [ ! -f "$STATE" ]; then
   exit 1
 fi
 
-# A live forward counterpart replaces this series; leftover -fwd refs whose
-# green is an ancestor of ours are cutover litter and do not block.
-if git rev-parse -q --verify "$remote/$S-fwd-build" >/dev/null &&
-   ! git merge-base --is-ancestor "$remote/$S-fwd-green" "$green" 2>/dev/null; then
-  echo "$S has a live forward counterpart — not extending"
-  exit 0
-fi
+# A live forward counterpart is not a reason to stop consuming, and this stage
+# used to treat it as one. The series being replaced kept its refs and stopped
+# moving, which cost twice:
+#
+#   * **The cutover became unverifiable.** A forward is the same series rebuilt
+#     on a newer `main`, so the thing that says it is safe to swap is that the
+#     two `-dev` branches carry the same package -- identical, or different only
+#     where the forwarding explains it (scripts/series-converge.sh). A base
+#     frozen where the forward went live can only be compared at the commit it
+#     stopped on, which is the one point the two are known to agree. Every
+#     commit the forward vendored afterwards had nothing to be checked against.
+#   * **It starved the carry below.** Stage 5 folds the base `-dev`'s test-side
+#     fixes into the forward as each buffer commit is consumed, matched by
+#     vendored SHA. Past the base's frontier there is no twin to match, so every
+#     fix the base had already proved was rediscovered as a red -- a repair plus
+#     a replay of everything above it -- or reached the forward by hand out of
+#     `-build`, which is what `main-fwd-dev` shows above `main-dev`'s frontier.
+#
+# So a base series consumes its buffer like any other, and the two lineages run
+# level until a human swaps them. It is more CI on a series about to be retired;
+# it is also the only thing that makes retiring it a check rather than a hope.
 # Pending work does not hold the buffer (.claude/skills/series-loop.md stage 5):
 # each.yaml plans every commit in green..tip that has no status, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does

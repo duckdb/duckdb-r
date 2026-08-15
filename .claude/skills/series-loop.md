@@ -80,7 +80,7 @@ every walk below is bounded by `<S>-green`, from the first firing on.
 
 Set up first, then work through the stages in order;
 each stage is skippable when it has nothing to do, the setup is not.
-Five scripts carry the mechanical parts:
+Six scripts carry the mechanical parts:
 `scripts/series-check.sh`
 (read-only — walks every series, classifies from the `rcc2` store,
 which is stage 2's fallback source, not its first one;
@@ -98,9 +98,12 @@ refuses on any failure, and on a `-green` that would not fast-forward),
 cherry-picks plus a tooling sync),
 `scripts/r-universe-check.sh`
 (read-only — what r-universe made of every published green, stage 3),
-and `scripts/series-glue.sh <S>`
+`scripts/series-glue.sh <S>`
 (read-only — every R-side glue adaptation a series carries, in one read;
-what stage 2 mines and what a forward replays).
+what stage 2 mines and what a forward replays),
+and `scripts/series-converge.sh <S>`
+(read-only — `<S>-dev` against `<S>-fwd-dev`, every difference sorted
+into what the forwarding explains and what it does not, stage 6).
 Judgement — repairs, review, vendoring — stays here.
 
 ### 0. Setup
@@ -872,9 +875,14 @@ What stays judgement:
 - an OTHER commit that cannot work against this series' engine —
   apply an explicit subset without it,
   fix it on `main` (a guard, a runtime seam),
-  and port the fixed commit instead;
-- a series with a live forward counterpart is being replaced —
-  port only what its remaining verification needs.
+  and port the fixed commit instead.
+
+A live forward counterpart changes nothing here.
+Both lineages are ported the same way, every firing,
+because the thing that says a cutover is safe
+is that the two `-dev` branches carry the same package —
+and a port that reached one of them and not the other
+is precisely a difference nobody can explain at the swap.
 
 Ported and sync commits are ordinary `-dev` commits:
 green per commit like everything else,
@@ -922,10 +930,26 @@ and the patch-stack fixes that edit `src/duckdb/` in place
 without vendoring anything —
 and the anchor is about how much of the buffer has been consumed,
 which only vendor commits record.
-Exception: a series with a **live** forward counterpart
-(`<S>-fwd-build` exists and is not cutover litter)
-is being replaced —
-verify and promote it, but do not extend it.
+
+**A live forward counterpart is not an exception, and used to be.**
+A series being replaced kept consuming nothing:
+its refs stayed where the forward went live,
+and the loop verified only what was already in flight.
+That froze the one branch a cutover is measured against.
+A forward is the same series rebuilt on a newer `main`,
+so what makes the swap safe is that the two `-dev` branches
+carry the same package (stage 6) —
+and a frozen base can be compared only at the commit it stopped on,
+which is the single point the two are already known to agree.
+It also starved the carry below:
+past the base's frontier there is no twin to match by vendored SHA,
+so every fix the base had proved
+was rediscovered on the forward as a red,
+costing a repair and a replay of everything above it.
+So a base series consumes its buffer like any other.
+The cost is real — CI on a lineage about to be retired, twice over —
+and it buys the only thing that makes retiring it a check
+rather than a hope.
 
 **On a forward series, the base's fixes are folded in here.**
 `<S>-fwd-build` was replayed out of `<S>-build`,
@@ -1006,9 +1030,49 @@ The store's own writer (the leg's publish;
 `rcc-logs.yaml` only when dispatched)
 just fills the fallback copy behind it.
 
-### 6. Suggest a cutover — never perform one
+### 6. Read the forwarding, and suggest a cutover — never perform one
 
-A forward series that has caught up is **reported, not swapped**.
+**Every series with a forward counterpart is read here, caught up or not.**
+The two lineages carry the same package or they do not,
+and the answer is worth having while there is still time to act on it:
+
+```sh
+scripts/series-converge.sh <S>
+```
+
+It diffs `<S>-dev` against `<S>-fwd-dev`
+and sorts every differing path into
+what the forwarding explains and what it does not —
+the version counter the replay renumbers,
+the release paperwork stage 4 never ports,
+and the vendored strand,
+only while the two still vendor different upstream commits.
+Everything else is a finding, and the stage carries it into the report.
+
+**The invariant is the reason the stage exists.**
+At the end of a forwarding,
+`<S>-dev` and `<S>-fwd-dev` are identical,
+or every difference between them is explicable —
+a statement about trees, never about ancestry,
+since the histories differ by construction.
+Both branches advancing is what makes it readable at the frontier
+rather than only at the commit a frozen base stopped on (stage 5).
+
+A finding here is not repaired by the swap; it is inherited by it.
+Fix it where it belongs —
+a missing carry is stage 5's, a missing port stage 4's,
+a fix folded on one branch and not the other is stage 2's —
+and say so in the commit message that answers it,
+which is where a later forward reads it.
+An explained difference still gets read, not skipped:
+an explanation can go stale,
+and a stale one reads exactly like a clean result.
+So the class list is deliberately short,
+and it grows only where a firing has shown a new class benign —
+never on the strength of another script excluding the same path,
+which it may well do for an unrelated reason.
+
+**A caught-up forward is reported, not swapped.**
 When `<S>-fwd-green` vendors the upstream commit `<S>-green` vendors,
 `series-check.sh` says so beside that series' verdict,
 and the firing carries the line into its summary:
@@ -1033,6 +1097,14 @@ Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
 and degrades to a warning without one,
 so an unattended firing would be authorizing the swap on a warning.
+Coverage is in any case only half the question —
+it asks how much upstream the forward reaches
+and nothing about what it carries —
+so `series-cutover.sh` prints the convergence report
+immediately before it asks for confirmation.
+It reports rather than refuses:
+whether a difference is explicable is exactly the judgement
+no script can make.
 Verification is mechanical, so the loop owns it;
 deciding that r-universe should build a different lineage today
 is not, so a human owns that.

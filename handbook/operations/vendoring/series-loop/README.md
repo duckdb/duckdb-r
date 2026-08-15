@@ -66,11 +66,37 @@ to do, and they run in this order:
   This stage is **attended**: a carry the series has moved out from
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
-* **Suggest a cutover** — a caught-up `-fwd` counterpart is *reported*
-  with the command, never executed; that move is a human's.
+  A live forward counterpart does **not** hold the base series back: it
+  consumes, ports and verifies at full speed until a human swaps the
+  refs, which costs CI on a lineage about to be retired and buys the
+  only thing that makes retiring it checkable rather than hopeful
+  (below).
+* **Read the forwarding, and suggest a cutover** — for every series
+  with a forward counterpart,
+  [`scripts/series-converge.sh`](/scripts/series-converge.sh) diffs
+  `<S>-dev` against `<S>-fwd-dev` and sorts each differing path into
+  what the forwarding explains and what it does not; the findings go
+  into the report and to the stage that should have moved them. A
+  caught-up counterpart is *reported* with the cutover command, never
+  executed; that move is a human's, and the script prints the same
+  comparison before it asks for confirmation.
 * **Report what the tooling got wrong** — a firing that had to work
   around a script opens a pull request against it,
   so the next firing does not have to.
+
+**A forwarding ends where the two lineages agree.**
+A forward series is the same series rebuilt on a newer `main`, so its
+history differs by construction and its content must not: at the end of
+a forwarding `<S>-dev` and `<S>-fwd-dev` are identical, or every
+difference between them is explicable
+([`branches/invariants/`](/handbook/branches/invariants/README.md)).
+That is why the base keeps consuming. A base frozen where the forward
+went live can be compared only at the commit it stopped on — the one
+point the two are already known to agree — so every commit the forward
+vendored afterwards had nothing to check against; and past that frontier
+stage 5 finds no twin to match by vendored SHA, so each fix the base had
+already proved came back as a red on the forward, at a repair plus a
+replay of everything above it.
 
 **A forward carries the vendor strand, and the rest is placed by hand.**
 `<S>-fwd-build` is replayed from the buffer's `vendor:` commits alone, so

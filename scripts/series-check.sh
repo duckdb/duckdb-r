@@ -306,5 +306,8 @@ for S in "${series[@]}"; do
   if [ -n "$cutover" ]; then
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
     echo "           scripts/series-cutover.sh $cutover $remote <upstream-clone>"
+    echo "           Coverage is only half of it; what the two branches carry is"
+    echo "           the other half, and the cutover prints it before it asks:"
+    echo "           scripts/series-converge.sh $cutover"
   fi
 done

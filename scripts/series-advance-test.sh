@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Ten
+# A forward series inherits only the first when its buffer is replayed. Eleven
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -34,6 +34,9 @@
 #      over the resolution; `--abort` discards it and writes no ref.
 #  10. The fifth version component still rises once per vendor commit, carry or
 #      no carry.
+#  11. A base series with a *live* forward counterpart consumes its buffer like
+#      any other. It used to be refused, which froze the branch a cutover is
+#      measured against and left the forward with no twin to mine.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -170,6 +173,14 @@ git commit -qm 'test: the forward series has its own types snapshot'
 git branch base-fwd-green base-fwd-dev
 git branch base-fwd-build-base base-fwd-build
 
+# --- the base series' own buffer, one commit past its -dev (claim 11) --------
+# Added after `base-fwd-build` was branched, so the forward's buffer stays at
+# five and only the base has something left to consume. `base-fwd-green` carries
+# a commit `base-green` does not, so the forward is live rather than cutover
+# litter -- which is the shape this stage used to refuse to extend over.
+git checkout -q base-build
+bvendor fff9999 1.0.0.9000.6 h.cpp
+
 # --- a series with no forward and no base to mine (claim 4) -----------------
 git checkout -q -b solo-dev base-seed
 git branch solo-green solo-dev
@@ -191,11 +202,21 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
 git fetch -q origin
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
+# Collected, then matched -- never piped straight into `grep -m1`. The grep
+# leaves as soon as it matches, and the SIGPIPE that hands `git log` surfaces
+# through `pipefail` as a failed command, aborting the whole run with 141
+# instead of failing a check. Whether it fires at all depends on how much the
+# log still had to write, so the same suite passes three times and dies on the
+# fourth. The same rule, for the same reason, as scripts/series-check.sh.
 at() { # <series> <upstream sha> -> the -dev commit vendoring it
-  git log --format='%H %s' "origin/$1-green..origin/$1-dev" | grep -m1 "duckdb@$2" | cut -d' ' -f1
+  local log
+  log=$(git log --format='%H %s' "origin/$1-green..origin/$1-dev")
+  grep -m1 "duckdb@$2" <<<"$log" | cut -d' ' -f1
 }
 wat() { # <upstream sha> -> the same, inside the kept worktree
-  git -C "$WT" log --format='%H %s' | grep -m1 "duckdb@$1" | cut -d' ' -f1
+  local log
+  log=$(git -C "$WT" log --format='%H %s')
+  grep -m1 "duckdb@$1" <<<"$log" | cut -d' ' -f1
 }
 
 # --- claims 1-3, 5, 8: extend the forward series ----------------------------
@@ -325,6 +346,25 @@ has   "and moves the ref"           "$out" 'dev ->'
 git fetch -q origin
 is "the dev tip is a buffer commit verbatim, not a replay" \
   "$(git rev-parse origin/solo-dev)" "$(git rev-parse origin/solo-build)"
+
+# --- claim 11: a base series with a live forward counterpart still consumes ---
+echo
+echo "== a base series whose forward counterpart is live"
+is "the forward is live, not cutover litter" \
+  "$(git merge-base --is-ancestor origin/base-fwd-green origin/base-green &&
+       echo litter || echo live)" live
+out=$(run base)
+hasnt "does not refuse over the counterpart" "$out" 'live forward counterpart'
+has   "and moves the ref"                    "$out" 'dev ->'
+hasnt "with nothing to mine, being a base"   "$out" 'carry a fix from'
+git fetch -q origin
+is "the buffered commit reached dev" \
+  "$(git rev-list --count origin/base-green..origin/base-dev)" 1
+F=$(at base fff9999)
+is "replayed onto the base's own tip, not the buffer's" \
+  "$(git rev-parse "$F^")" "$(git rev-parse origin/base-green)"
+is "and the counter rose once for it" \
+  "$(git show "$F:DESCRIPTION" | sed -n 's/^Version: //p')" 1.0.0.9000.6
 
 echo
 echo "$pass passed, $fail failed"

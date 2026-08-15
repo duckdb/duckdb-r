@@ -158,10 +158,12 @@ the replay then populates `<S>-fwd-build`.
 3. Nothing else is special:
    a forward series is a series,
    and the loop discovers and drives it like any other.
-   The base series stops consuming
-   (its stage 5 is skipped while a live `<S>-fwd-build` exists)
-   but keeps verifying and promoting what is already in flight —
+   **The base series keeps consuming too**, at full speed,
+   vendoring, repairing, porting and extending as if no forward existed;
    `<S>-green` still serves consumers, unchanged, on the old lineage.
+   The two run level until a human swaps them,
+   which is what the invariant below needs
+   and what the loop's stage 5 used to prevent.
 
 ## A WIP forward series is not pinned to its base
 
@@ -187,6 +189,66 @@ all four refs replayed as they stand, nothing rederived.
 A series that has cut over is no longer WIP:
 its green serves consumers,
 and moving it means a new forward series, not a rebase.
+
+## What a forwarding has to end up with
+
+A forward is the same series rebuilt on a newer `main`,
+so its history differs by construction
+and its content must not.
+That is the invariant:
+
+> At the end of a forwarding,
+> `<S>-dev` and `<S>-fwd-dev` are **identical**,
+> or every difference between them is **explicable**.
+
+Read it as a claim about trees, never about ancestry —
+the two share a seed generation and nothing below it,
+the version counters are renumbered,
+and the ported commits the replay leaves behind
+are content the new seed already carries.
+Ancestry says nothing here; the working trees say everything.
+
+```sh
+scripts/series-converge.sh <S>
+```
+
+prints the difference and sorts it into the two.
+What is explicable is a short, evidenced list —
+`DESCRIPTION`'s `Version:` line, which the replay renumbers;
+`NEWS.md`, the release paperwork stage 4 never ports;
+and the **vendored strand** —
+`src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`
+and the Makevars —
+*only while the two vendor different upstream commits*,
+where it is the gap and not a finding.
+Every file in that strand is a function of the upstream tree:
+`R/version.R` carries the engine's own version,
+the source list and the Makevars are generated from it,
+and `patch/` retires entries as upstream absorbs them.
+Once both sit on the same upstream SHA the whole strand must agree:
+a forward regenerates the vendored tree from its own patch stack,
+which is what step 1's tree check verifies at replay time.
+
+Everything else is a finding —
+glue, tests, R code, the READMEs, the tooling directories —
+and it belongs to whichever stage should have moved it:
+a carry stage 5 could not make,
+a port that reached one branch and not the other,
+a fix folded on one and not the other.
+The swap does not resolve a finding; it inherits it,
+onto the lineage r-universe builds from.
+
+**An explanation can go stale, and then it reads like a clean result.**
+So the class list stays short,
+and an explained difference is still printed with its line counts
+rather than filed away.
+A class is earned by evidence that the difference is benign —
+not by another script excluding the same path,
+which it may do for a reason that has nothing to do with this one.
+Stage 5's carry excludes the generated files
+so the twin's copy cannot overwrite what the buffer just regenerated;
+that says nothing about whether the two branches may differ there,
+and on the live series they do not.
 
 ## Cut over — by hand, always
 
