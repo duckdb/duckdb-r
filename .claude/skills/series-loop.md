@@ -745,6 +745,23 @@ and the commit that reaches `-dev` from it
 arrives broken again on exactly the platform the patch was for.
 Commit it onto `<S>-build` as well, in the same firing.
 
+**The entry a firing did not write is the one that goes missing.**
+Stage 4's port carries whole `main` commits onto `-dev`,
+`patch/` files included,
+so an entry born as a pull request against `main`
+reaches every `-dev` without any firing deciding to put it there —
+and reaches no buffer at all.
+The drift is quiet while upstream leaves the patched file alone,
+because the buffer is then internally consistent
+and its commits carry no delta for that file;
+it bites the first time upstream touches it,
+and the fix is reverted on `-dev`
+by a commit that looks like an ordinary vendor.
+`scripts/series-check.sh` prints a PATCH DRIFT line per series
+naming what the two stacks differ by, in both directions —
+a renamed entry is one of each — and closing it is stage 3's work
+like any patch this stage writes.
+
 ### 4. Port from `main`
 
 The goal is identity, not curation:
