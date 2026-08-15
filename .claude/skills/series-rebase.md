@@ -11,9 +11,10 @@ across lineages:
 `-fwd-build` is replayed out of the base series' buffer
 by `scripts/series-forward-build.sh`,
 which filters the `vendor:` commits out of a branch that also carries
-commits belonging to `main` and renumbers the fifth component;
+commits belonging to `main`, renumbers the fifth component,
+and folds in each commit's R-side fix from the base `-dev`;
 `-fwd-dev` starts empty at the seed
-for the loop to rederive, mining the base `-dev` for what it proved.
+for the loop to rederive on top of that.
 
 **Rebasing** — this skill — is `<S>-fwd` → `<S>-fwd`, one lineage.
 A `-fwd` branch has already been through that filter:
