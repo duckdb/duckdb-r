@@ -100,6 +100,26 @@ if [ -n "$old_up" ]; then
   fi
 fi
 
+# Convergence: the coverage gate above asks whether the forward has vendored far
+# enough, which is a statement about how much upstream it reaches and none at all
+# about what it carries. This asks the other half -- whether the two branches
+# still hold the same package -- and prints it here so the operator confirms with
+# it on screen. It reports rather than refuses: the invariant's second half is
+# *explicable*, and whether a difference is explicable is a judgement no script
+# can make -- which is why this prints and the human decides.
+echo
+rc=0
+"$(dirname "$0")/series-converge.sh" "$S" "$remote" --no-fetch || rc=$?
+# 1 is a divergence to read; 2 is the comparison not being available at all --
+# a series that started as `-fwd` has no `<S>-dev` to compare against, and the
+# script has already said so on its own.
+if [ "$rc" -eq 1 ]; then
+  echo
+  echo "  ^ read these before confirming. A swap does not resolve them: it makes"
+  echo "    them the serving branch's, on the lineage r-universe builds from."
+fi
+echo
+
 leases=()
 refspecs=()
 echo "refs to swap:"

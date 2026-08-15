@@ -29,6 +29,12 @@ The families, in one breath:
   born beside the vendor commit that forces it.
 * **CI / green** — a `-green` ref only ever fast-forwards to
   commits with recorded successful runs.
+* **Forward convergence** — at the end of a forwarding, `<S>-dev` and
+  `<S>-fwd-dev` are identical, or every difference between them is
+  explicable. A forward is the same series rebuilt on a newer `main`
+  ([`.claude/skills/series-forward.md`](/.claude/skills/series-forward.md)),
+  so the histories differ by construction and only the trees carry the
+  claim.
 * **Prerelease** — while a release stabilises, only `main` and the dev
   branches move, so an unfinished release is abandoned by walking away;
   what ships is an ancestor of what was revdep-tested;
@@ -49,6 +55,17 @@ it is confirmed to carry a version strictly above its parent's.
 `-build-base` is not a third: it is set rather than advanced,
 recomputed from the match each time and force-pushed,
 which is why nothing gates it.
+
+Forward convergence sits between the two families:
+it is **measured on every firing and enforced by nobody**.
+[`scripts/series-converge.sh`](/scripts/series-converge.sh) reports it,
+and [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) prints the
+same reading immediately before it asks to swap the refs —
+but neither refuses, because the invariant's second half is
+*explicable*, and whether a difference is explicable is a judgement no
+script can make. What the tooling can do, and does, is keep the list of
+differences it explains away short and evidenced, so that what is left
+is a work list rather than a verdict.
 The structural and flavor families hold **by construction** —
 the rename is one patch applied by
 [`scripts/flavor.sh`](/scripts/flavor.sh), which prepares and checks the
