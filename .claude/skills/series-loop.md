@@ -401,6 +401,7 @@ is reading; they are the same bytes:
 | `Error ('test-….R:N:M')` | real test failure | fix test/R code at origin |
 | the cause is in `src/duckdb/` itself and the next upstream commit fixes it | upstream was transiently broken | fold the pair into one; if the next one is red too, forward-port (below) |
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
+| `Error: R CMD check found WARNINGs` / `ERRORs`, with the `❯ checking …` headers above it naming which checks | `R CMD check --as-cran` is unhappy about the tree, or about the environment CI built it in | read the named checks; fix at origin, or on `main` when the cause is the job's own setup |
 | a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
 | none of the above and no test phase | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
 

@@ -175,6 +175,14 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
     echo "test|test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))"
   elif grep -q "Changes detected in workflow_dispatch build" <<<"$log"; then
     echo "style|style/roxygen drift"
+  elif grep -qE '^Error: R CMD check found (ERROR|WARNING|NOTE)' <<<"$log"; then
+    # The check gate's own verdict, and it is definite: `--as-cran` named the
+    # checks it is unhappy about, so a rerun buys the same answer. Ahead of the
+    # network rule for that reason, and behind the three above it because a
+    # snapshot, a test or a style diff says more precisely what to fix.
+    echo "check|$(grep -oE 'R CMD check found .*' <<<"$log" | head -1)" \
+      "($(grep -E '^❯ checking' <<<"$log" | sed 's/^❯ //; s/ \.\.\..*//' |
+        tr '\n' '\a' | sed 's/\a$//; s/\a/; /g'))"
   elif grep -qE "$net_re" <<<"$log"; then
     gate=$(failed_gate "$log")
     echo "transient|network failure in the ${gate:-unnamed} gate ($(grep -oE "$net_re" <<<"$log" | head -1))"
