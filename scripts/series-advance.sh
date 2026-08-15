@@ -78,6 +78,16 @@ if [ -n "$ABORT" ]; then
   exit 0
 fi
 
+# Every buffer commit stage 5 replays moves `Version:`, so the `ours-version`
+# merge driver decides DESCRIPTION on each pick. The name -> command mapping
+# lives in .git/config and cannot be committed, so a fresh clone has the
+# attribute (.gitattributes) and not the driver, and the replay stops on a
+# DESCRIPTION conflict indistinguishable from one a human has to resolve.
+# Refuse up front, as scripts/series-forward-build.sh already does. After the
+# --abort branch, so a stopped replay can always be discarded.
+git config --get merge.ours-version.driver >/dev/null ||
+  { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
+
 git fetch -q "$remote"
 green="$remote/$S-green"; dev="$remote/$S-dev"; build="$remote/$S-build"; base="$remote/$S-build-base"
 for r in "$green" "$dev" "$build" "$base"; do
