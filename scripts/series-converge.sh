@@ -46,6 +46,25 @@
 #     them. Once both sit on the same upstream SHA every one of them must agree:
 #     the forward regenerates the vendored tree from its own patch stack, and
 #     series-forward-build.sh verifies exactly that at replay time.
+#   * The **flavored docs** -- `README.md` and `.github/README.md`. These are
+#     per-branch by design: `.github/README.md` is the front page GitHub renders
+#     and scripts/series-port.sh excludes it from the tooling sync by name, for
+#     the reason #2517 and #2518 were filed, and `README.md` is in no ported
+#     path at all. So each branch carries the wording its seed was made with,
+#     and a forward -- whose seed is regenerated on today's `main` -- carries
+#     `main`'s current wording while the base carries its own seed's. Observed
+#     on all three live series, 2026-08-15, and the same difference on each:
+#     the base still described itself as "the LTS version 1.3 of DuckDB" where
+#     the forward names its flavor.
+#   * The **Windows export list**, `src/*-win.def` -- but only when the two
+#     differ by the flavor rename alone. Both the file name and the single
+#     symbol in it carry the package name, and scripts/flavor.patch rewrites
+#     both, so a base seeded before that flavoring holds `src/duckdb-win.def`
+#     exporting `R_init_duckdb` where its forward holds
+#     `src/duckdb.1.5.dev-win.def` exporting `R_init_duckdb_1_5_dev`
+#     (`v1.5-variegata`, 2026-08-15). The comment prose is compared verbatim and
+#     only the `R_init_` line is allowed to differ, so a real edit to the list
+#     is still a finding.
 #
 # Note what is *not* here. Stage 5's carry excludes the same generated files
 # (scripts/series-advance.sh), but for an unrelated reason -- so the twin's copy
@@ -56,9 +75,11 @@
 # from upstream at all, so a difference there is a finding like any other.
 #
 # Everything else is unexplained and printed as a finding -- glue under `src/`,
-# tests, R code, the READMEs, and the tooling directories, which stage 4 brings
-# to `main`'s state on both branches every firing and which therefore have no
-# reason to differ at all.
+# tests, R code, and the tooling directories, which stage 4 brings to `main`'s
+# state on both branches every firing and which therefore have no reason to
+# differ at all. The READMEs used to be listed here too, which was wrong twice
+# over: the port never carries them, so "no reason to differ" was never true of
+# them.
 #
 # The list is deliberately short. A class is added here only once something has
 # shown the difference to be benign, because a check that explains away what it
@@ -123,6 +144,22 @@ vendored_sha() {
   echo "$sha"
 }
 
+# True when the two branches' Windows export lists differ by the flavor rename
+# and nothing else. The rename means the file is present on one side under one
+# name and on the other under another, so the pair cannot be found by path --
+# it is found by suffix, one per branch, and their contents are then compared
+# with the flavored `R_init_` symbol taken out.
+def_renamed_only() {
+  local dev_def fwd_def
+  dev_def=$(git ls-tree -r --name-only "$dev" src/ | grep -- '-win\.def$' || true)
+  fwd_def=$(git ls-tree -r --name-only "$fwd" src/ | grep -- '-win\.def$' || true)
+  # One on each side, or there is no pair and the difference is not a rename.
+  [ "$(grep -c . <<<"$dev_def")" = 1 ] || return 1
+  [ "$(grep -c . <<<"$fwd_def")" = 1 ] || return 1
+  cmp -s <(git show "$dev:$dev_def" | grep -v '^R_init_') \
+         <(git show "$fwd:$fwd_def" | grep -v '^R_init_')
+}
+
 dev_up=$(vendored_sha "$dev")
 fwd_up=$(vendored_sha "$fwd")
 # An `if`, not an `&&` chain: as a bare statement the chain's own failure is
@@ -163,6 +200,23 @@ while IFS=$'\t' read -r add del f; do
       ;;
     NEWS.md)
       explained+=("$f|$add/$del|release paperwork; stage 4 never ports a VERSION commit")
+      ;;
+    README.md | .github/README.md)
+      explained+=("$f|$add/$del|flavored doc, never ported; each branch carries its seed's wording")
+      ;;
+    src/*-win.def)
+      # Only the flavor rename is explained. The file's own comment says the
+      # name and the symbol both carry the package name; everything above
+      # `EXPORTS` is prose that is the same on every flavor, so compare that
+      # verbatim and allow only the `R_init_` line to differ. A path that is
+      # present on one side alone diffs against the empty tree, and its prose
+      # then differs too -- which is exactly the rename, so pair the two by
+      # their suffix before comparing.
+      if def_renamed_only; then
+        explained+=("$f|$add/$del|Windows export list, flavor-renamed")
+      else
+        unexplained+=("$f|$add/$del|export list differs beyond its R_init_ symbol")
+      fi
       ;;
     src/duckdb/* | patch/* | R/version.R | src/include/sources.mk | \
     src/Makevars | src/Makevars.win | src/Makevars.in)
