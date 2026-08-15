@@ -110,6 +110,13 @@ vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
 # (series-open.md step 2, series-forward.md step 1).
 seed_re='^chore: Update flavor patch to '
 
+# A pick that moves `Version:` is decided by the `ours-version` merge driver,
+# whose name -> command mapping lives in .git/config and cannot be committed.
+# A fresh clone has the attribute and not the driver, so refuse here rather
+# than stop mid-sequence on a DESCRIPTION conflict nobody has to resolve.
+git config --get merge.ours-version.driver >/dev/null ||
+  { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
+
 git fetch -q "$remote"
 dev="$remote/$S-dev" main="$remote/main"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
