@@ -232,16 +232,27 @@ twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
   echo "${TWIN[$sha]:-}"
 }
 
-# What the twin folded in beyond vendoring: the paths its own diff touches that
-# its `-build` twin's does not, less the two kinds that are not a fix.
+# What the twin folded in beyond vendoring: the paths its own diff touches,
+# less the two kinds that are not a fix, and less those the buffer already ends
+# up with byte for byte.
 #
 # The difference is the load-bearing part, and it is what lets `src/` through.
 # The gate compiles the glue at every buffer commit, so whatever the buffer
 # holds there is already enough to build; anything the `-dev` twin has *on top*
 # of it in `src/` was demanded by something later than the compiler -- a test,
 # a check, a platform r-universe reached and the gate did not. Those are
-# legitimate and they carry. Taking the difference is also what stops the glue
-# the buffer already has from being applied twice.
+# legitimate and they carry. Comparing the resulting blobs is also what stops
+# the glue the buffer already has from being applied twice.
+#
+# **The difference is by content, never by filename.** Excluding every path the
+# buffer commit happened to touch drops the twin's further work in that same
+# file, and drops it silently: the vendor gate only syntax-checks the glue, so a
+# declaration carried without its definition compiles and then fails to link.
+# That is duckdb/duckdb-r#2657 -- `84370b8a3` on `main-fwd-dev` took the twin's
+# `src/include/rapi.hpp`, `src/connection.cpp` and `src/register.cpp` but not
+# its `src/statement.cpp`, because the buffer commit had moved three call sites
+# in that file, and the install failed with
+# `undefined symbol: duckdb::RCallbackScope::~RCallbackScope()`.
 #
 # Two kinds are excluded, and neither is a judgement about the fix:
 #
@@ -256,21 +267,36 @@ twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
 #
 # Tooling is stage 4's, ported from `main` rather than carried sideways.
 carry_paths() { # <buffer commit> <base -dev commit>
+  local c=$1 d=$2 f
+  { git show --format= --name-only --no-renames "$d" | sort -u |
+      grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
+      grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
+      true; } |
+    while IFS= read -r f; do
+      # Same blob on both sides: the buffer already carries exactly this, and
+      # re-applying it is the double application the difference exists to avoid.
+      if [ "$(git rev-parse --quiet --verify "$c:$f" 2>/dev/null)" \
+           = "$(git rev-parse --quiet --verify "$d:$f" 2>/dev/null)" ]; then
+        continue
+      fi
+      printf '%s\n' "$f"
+    done
+}
+
+# Glue the base `-dev` has and the base `-build` lacks *entirely* -- a fix
+# folded during a repair and never mirrored onto the buffer, so the next tree
+# regenerated there still wants it (.claude/skills/series-loop.md, stage 2).
+# Carried like the rest, but said out loud, because it is buffer drift.
+#
+# Deliberately the filename test rather than carry_paths': a file the buffer
+# also touched is one the buffer knows about, so the twin's further work in it
+# is an ordinary carry, not drift the buffer is missing.
+glue_paths() { # <buffer commit> <base -dev commit>
   comm -13 \
     <(git show --format= --name-only --no-renames "$1" | sort -u) \
     <(git show --format= --name-only --no-renames "$2" | sort -u) |
-    grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
-    grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
-    true
-}
-
-# Glue among the carried paths. Carried like the rest -- the series needs it to
-# go green -- but said out loud, because a glue fix the base `-dev` has and the
-# base `-build` lacks is buffer drift: the fix was folded during a repair and
-# never mirrored onto the buffer, so the next tree regenerated there still
-# wants it (.claude/skills/series-loop.md, stage 2).
-glue_paths() { # <buffer commit> <base -dev commit>
-  carry_paths "$1" "$2" | grep -E '^src/' || true
+    grep -E '^src/' | grep -vE '^src/duckdb/' |
+    grep -vxE 'src/include/sources\.mk|src/Makevars(\.win|\.in)?' || true
 }
 
 # Check the counter rather than assume it: a replay that silently froze it

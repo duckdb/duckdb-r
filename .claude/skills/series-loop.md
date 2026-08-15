@@ -939,7 +939,7 @@ and a replay of everything above it.
 So as each buffer commit is consumed,
 `series-advance.sh` looks its base twin up by vendored SHA
 and folds into the same commit
-whatever that twin touched and its own `-build` commit did not,
+whatever that twin's tree holds and its own `-build` commit's does not,
 with the twin's message and a `Carried from` trailer.
 
 **The carry is a difference, not a list of directories,
@@ -951,6 +951,18 @@ a test, a check, a platform r-universe reached and the gate never did —
 and holding it back would strand exactly the fixes this exists to move.
 The difference is also what stops the glue the buffer already carries
 from being applied twice.
+
+**The difference is by content, and a filename is not content.**
+A file the buffer commit touched is still a file the twin may have
+taken further, and skipping it because the name appears on both sides
+drops that further work without saying so.
+The vendor gate only syntax-checks the glue,
+so a declaration carried without its definition compiles
+and fails at the link, one whole CI cycle later
+(duckdb/duckdb-r#2657).
+Where the two genuinely diverge the three-way apply conflicts
+and the stage stops, which is the attended path below —
+a stop is the cost of the carry being complete.
 Two kinds stay behind, neither of them a judgement about the fix:
 the buffer's own strand — `src/duckdb/` and `patch/`,
 since a forward regenerates the tree from its own patches —
