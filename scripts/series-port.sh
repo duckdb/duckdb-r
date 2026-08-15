@@ -284,7 +284,17 @@ next=$(git -C "$wt" rev-parse HEAD)
 git worktree remove --force "$wt"
 if [ "$next" = "$(git rev-parse "$dev")" ]; then
   echo "nothing to port"
-  exit 0
+else
+  git push "$remote" "$next:refs/heads/$S-dev"
+  echo "dev -> $(git rev-parse --short "$next")"
 fi
-git push "$remote" "$next:refs/heads/$S-dev"
-echo "dev -> $(git rev-parse --short "$next")"
+
+# A port is how a `patch/` entry written against `main` reaches this series, and
+# `-dev` is not where it does anything: `vendor-one.sh` applies the *buffer's*
+# stack to every tree it regenerates. Carrying it on is part of porting, not a
+# separate errand somebody remembers -- so it runs here, on every --apply, and
+# whether or not this run had commits to pick. The carry decides by
+# test-applying against the buffer's own tree, because a buffer runs ahead of
+# `main` and an entry that does not fit its engine would break the next vendor
+# run rather than help it.
+"$(dirname "$0")/series-patch-sync.sh" "$S" --apply
