@@ -496,7 +496,7 @@ else
   # driver exists for; register it here as series-port.sh does, so only genuine
   # conflicts reach the judgement above.
   if [ -x "$(dirname "$0")/setup-git.sh" ]; then
-    "$(dirname "$0")/setup-git.sh" >/dev/null
+    VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
   fi
 
   # Where the run stops, and how it says so. The worktree is kept: it holds the

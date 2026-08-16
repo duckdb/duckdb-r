@@ -5,9 +5,26 @@
 #
 # The merge-driver *name -> command* mapping must live in .git/config; only the
 # `DESCRIPTION merge=ours-version` attribute itself is committed (.gitattributes).
+#
+# The checkout to configure, so a caller running `main`'s copy of this script
+# configures the clone it is operating on rather than the one the script came
+# from. The series loop invokes tooling from `main` against another checkout
+# (.claude/skills/series-loop.md stage 1), and without this the config lands in
+# the `main` checkout, the target clone keeps no driver at all, and the only
+# report is a success line naming neither. Same variable, and the same worktree
+# check, as scripts/vendor-one.sh: one export configures whichever clone the
+# firing is working in.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "${VENDOR_REPO:-$(dirname "$0")/..}"
+toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo "Error: $PWD is not a git worktree" >&2
+  exit 1
+}
+[ "$toplevel" -ef . ] || {
+  echo "Error: $PWD is not the root of its worktree ($toplevel)" >&2
+  exit 1
+}
 
 git config merge.ours-version.name   "Combine DESCRIPTION version counters (see scripts/merge-version.sh)"
 git config merge.ours-version.driver "scripts/merge-version.sh %O %A %B"
@@ -19,4 +36,4 @@ git config rerere.enabled true
 # patch/am backend bypasses them. Pin it so rebases honour the driver.
 git config rebase.backend merge
 
-echo "git configured: merge driver 'ours-version', rerere, rebase.backend=merge"
+echo "git configured in $toplevel: merge driver 'ours-version', rerere, rebase.backend=merge"
