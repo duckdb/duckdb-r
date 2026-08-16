@@ -1,5 +1,31 @@
 # Changelog
 
+## duckdb 1.5.5.9016
+
+### Bug fixes
+
+#### series
+
+- Refuse to replay when the `ours-version` merge driver is missing
+  ([\#2659](https://github.com/duckdb/duckdb-r/issues/2659)).
+
+#### series-check
+
+- Classify an `R CMD check` gate failure instead of giving up on it
+  ([\#2653](https://github.com/duckdb/duckdb-r/issues/2653)).
+
+#### series-advance
+
+- Carry the twin’s work in a file the buffer also touched
+  ([\#2657](https://github.com/duckdb/duckdb-r/issues/2657)).
+
+### Features
+
+#### series
+
+- Keep forwarding a base series with a live `-fwd`, and check the two
+  converge ([\#2658](https://github.com/duckdb/duckdb-r/issues/2658)).
+
 ## duckdb 1.5.5.9015
 
 ### Bug fixes
