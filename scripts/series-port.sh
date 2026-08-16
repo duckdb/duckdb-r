@@ -243,7 +243,7 @@ fi
 # keeps that line off the conflict list. Idempotent; .git/config is shared with
 # the worktree.
 if [ -x "$(dirname "$0")/setup-git.sh" ]; then
-  "$(dirname "$0")/setup-git.sh" >/dev/null
+  VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
 fi
 
 # The default fill is what a frozen series does not get: `--list --apply` shows

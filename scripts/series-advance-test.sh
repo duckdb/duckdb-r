@@ -86,6 +86,12 @@ cp "$HERE/series-advance.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scrip
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
 
+# The attribute is committed and the name -> command mapping is not, so a fresh
+# clone has the first and never the second -- which is what series-advance.sh
+# refuses on up front (duckdb/duckdb-r#2659). Register it here, as every real
+# clone does, or the suite fails at the refusal rather than at what it checks.
+scripts/setup-git.sh >/dev/null
+
 desc() { printf 'Package: duckdb\nVersion: %s\n' "$1" > DESCRIPTION; }
 verfile() { echo "duckdb_version <- \"$1\"" > R/version.R; }
 
