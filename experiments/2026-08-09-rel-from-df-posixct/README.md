@@ -143,12 +143,17 @@ where the shipped tree leaves it unlabeled. Matching what plain
 `TIMESTAMP` already does — no label at all when `timezone_out` is
 empty — would settle those.
 
-**What neither run covers.**
+**What neither run covers, and what asks it.**
 Whether the connect-time `SET` can be issued safely on a build without
 icu. The guard is to ask `duckdb_extensions()` first and skip when icu
 is not loaded, since `SET TimeZone` is an icu setting and asking for it
 otherwise attempts an autoload; on the fast path icu is linked in, so
-the skip branch is never exercised here.
+the skip branch cannot be reached from either run above.
+[`no-icu.R`](no-icu.R) is the probe for it, and needs a build the fast
+path cannot give it: the vendored engine compiled from source, which
+links `parquet` and `core_functions` and nothing else
+([`usage/extensions/`](/handbook/usage/extensions/README.md)).
+Its run is not recorded here yet.
 
 **What this run does not cover.**
 A build without icu, where `SET TimeZone` fails for every value and the
