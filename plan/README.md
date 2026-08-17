@@ -27,6 +27,7 @@ when the two disagree, the handbook leaf is right.
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
 | A producer thread for streaming results: overlapping engine production with R-side conversion, and spillable materialized results | [`PLAN-streaming-thread.md`](PLAN-streaming-thread.md) |
 | Making Ctrl+C reach a DuckDB call blocked in a network wait, and why the obvious escalation is refused | [`PLAN-query-cancellation.md`](PLAN-query-cancellation.md) |
+| Registering a Polars frame as a table, and the extension point that makes it possible | [`PLAN-polars-source.md`](PLAN-polars-source.md) |
 
 ## `done/` — plans that came true
 

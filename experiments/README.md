@@ -49,6 +49,10 @@ the directory keeps the method so that is possible.
   which running DuckDB work a Ctrl+C stops in R and in the DuckDB CLI,
   and what each host does when it stops nothing; supports
   [`usage/interactive/`](/handbook/usage/interactive/README.md).
+* [`2026-08-08-polars-source/`](2026-08-08-polars-source/) —
+  what it takes to scan a Polars frame from DuckDB, what the type
+  mapping does, and what pushing the filter into Polars is worth;
+  supports [`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
