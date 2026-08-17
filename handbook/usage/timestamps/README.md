@@ -32,6 +32,15 @@ the wider type mapping is
 * **The session `TimeZone` is the icu extension's setting.**
   `SET TimeZone` needs icu for any value, `'UTC'` included;
   where icu never loaded, results quietly fall back to a `UTC` label.
+  Where icu is *installed but not loaded* — what running `INSTALL icu`
+  once leaves behind — the fallback holds only until something touches
+  the setting: `SET TimeZone` and `current_setting('TimeZone')` both
+  autoload icu, and from then on the label is the machine's zone,
+  so the same query can return a differently labeled column later in
+  one session, with nothing announcing the switch
+  ([`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md)).
+  Asking `duckdb_extensions()` loads nothing, and is how to tell
+  which state a session is in.
   This package autoloads an *installed* icu but downloads nothing
   by itself ([`extensions/`](/handbook/usage/extensions/README.md)),
   and does not link icu statically —

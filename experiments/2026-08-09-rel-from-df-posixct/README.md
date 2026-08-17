@@ -143,21 +143,52 @@ where the shipped tree leaves it unlabeled. Matching what plain
 `TIMESTAMP` already does — no label at all when `timezone_out` is
 empty — would settle those.
 
-**What neither run covers, and what asks it.**
-Whether the connect-time `SET` can be issued safely on a build without
-icu. The guard is to ask `duckdb_extensions()` first and skip when icu
-is not loaded, since `SET TimeZone` is an icu setting and asking for it
-otherwise attempts an autoload; on the fast path icu is linked in, so
-the skip branch cannot be reached from either run above.
-[`no-icu.R`](no-icu.R) is the probe for it, and needs a build the fast
-path cannot give it: the vendored engine compiled from source, which
-links `parquet` and `core_functions` and nothing else
-([`usage/extensions/`](/handbook/usage/extensions/README.md)).
-Its run is not recorded here yet.
+## The build with no icu in it
 
-**What this run does not cover.**
-A build without icu, where `SET TimeZone` fails for every value and the
-session zone reads `"UTC"`: on the fast path icu is linked in and its
-absence cannot be produced. The grid reaches that zone by setting it
-(`session = UTC`), which is the same label, so only the inability to
-change it is missing.
+Neither run above can reach a session without icu: the fast path links
+a release `libduckdb`, which has it. [`run-no-icu.sh`](run-no-icu.sh)
+builds the vendored engine from source instead — `parquet` and
+`core_functions` and nothing else
+([`usage/extensions/`](/handbook/usage/extensions/README.md)) — and runs
+[`no-icu.R`](no-icu.R) against it, recorded in
+[`no-icu.md`](no-icu.md).
+
+**Without icu the writing default has no machine to follow.**
+`dbWriteTable()` still writes `TIMESTAMP WITH TIME ZONE`, the instant
+still round-trips, and the label is `"UTC"` under `TZ=UTC` and under
+`TZ=Europe/Zurich` alike — `GetClientProperties()` falls back to a
+hardcoded `"UTC"` when the setting does not exist. So the machine
+dependence measured above is not a property of the change; it is a
+property of having icu.
+
+**Asking about the zone in SQL is not free, and not safe.**
+`current_setting('TimeZone')` and `SET TimeZone` both reach for icu.
+With no icu installed, both raise an Extension Autoloading Error rather
+than blocking — `autoinstall_known_extensions` is `false`, so autoload
+loads a local extension but never downloads one, and the failure costs
+0.2s, not a network timeout. `duckdb_extensions()` is the safe way to
+ask: it reported icu without loading it in every cell.
+
+**The label is order-dependent within one session.**
+Where icu is installed but not loaded — which is what running
+`INSTALL icu` once leaves behind — a `TIMESTAMPTZ` column is labeled
+`"UTC"` until something touches the setting, and the machine's zone
+afterwards. On `TZ=Europe/Zurich`, `current_setting('TimeZone')`
+autoloads icu in 0.05s, and the same query that returned `"UTC"` before
+it returns `"Europe/Zurich"` after. Nothing announces the switch, and
+the toucher need not be the caller's own code.
+
+That last one is what decides the pin. Guarding it on "icu is already
+loaded" is *necessary* — an unguarded `SET` at connect raises on a
+build without icu — but it is also *ineffective exactly where the
+machine dependence lives*, because in the installed-but-not-loaded
+state the guard skips and the first later touch of the setting brings
+the machine's zone back. A pin that closed that hole would have to
+`LOAD icu` at connect for everyone who has it cached, which is a much
+larger change than a default.
+
+**What none of these runs covers.**
+Windows, where icu cannot be installed at all on the arm64 build
+([`usage/extensions/`](/handbook/usage/extensions/README.md)), and any
+platform where the extension exists but the machine zone is one R does
+not know.
