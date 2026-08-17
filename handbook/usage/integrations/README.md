@@ -112,7 +112,9 @@ so a dedicated writer per frame library
 The stream feeds one consumer, draining as it is read,
 so a second pass over the same object sees zero rows
 rather than the result again.
-Reach for the stream where the result should not be held twice.
+Reach for the stream where the result should not be held twice;
+what every route holds, and for how long, is
+[`memory/`](/handbook/usage/memory/README.md)'s.
 `nanoarrow::convert_array_stream(to = )` takes a prototype and builds
 that class directly instead of a data frame to convert afterwards,
 and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch

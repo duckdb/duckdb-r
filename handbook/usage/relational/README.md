@@ -67,6 +67,9 @@ and the label keeps the zone of `rel_to_altrep()` time
 ([`timestamps/`](/handbook/usage/timestamps/README.md)
 owns the labeling rules).
 `rel_from_altrep_df()` is the way back.
+What materialization allocates on either side of the boundary,
+and when each copy is freed, is
+[`memory/`](/handbook/usage/memory/README.md)'s.
 The C++ side of that, and its known weak point around raising an R error
 from inside an ALTREP method, is
 [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s.

@@ -15,9 +15,16 @@ so `R/` is the list
 A reader asking "does `dbAppendTable()` work here" answers it by
 finding the file, not by consulting an inventory that can go stale.
 
-The departures from that baseline are what this leaf owns.
-One so far:
+The departures from that baseline are what this leaf owns:
 
+* `dbSendQuery()` does not defer:
+  a statement executes at `dbSendQuery()` time —
+  at `dbBind()` time when it has parameters —
+  and the full result is fetched into R before `dbFetch()` is ever
+  called, so `dbFetch(n = )` limits what is returned, not what is held
+  ([#1997](https://github.com/duckdb/duckdb-r/issues/1997);
+  the memory consequences and the streaming work that will change
+  this are [`memory/`](/handbook/usage/memory/README.md)'s).
 * In a multi-statement string,
   everything before the final statement executes at prepare time,
   and `?` placeholders bind only in the last statement

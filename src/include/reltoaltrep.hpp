@@ -22,6 +22,8 @@ struct AltrepRelationWrapper {
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
+	// Kept for the data frame's whole lifetime, also once every column has
+	// been converted: handbook/usage/memory/README.md, #1027.
 	duckdb::unique_ptr<QueryResult> mat_result;
 	std::string mat_error;
 };
