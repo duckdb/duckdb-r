@@ -72,7 +72,7 @@ duckdb_execute_arrow <- function(res) {
     duckdb_convert_opts_impl(
       res@connection@convert_opts,
       arrow = TRUE,
-      streaming = TRUE
+      allow_stream_result = TRUE
     )
   )
 }
