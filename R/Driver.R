@@ -106,6 +106,15 @@ driver_registry <- new.env(parent = emptyenv())
 #' An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
 #' every `duckdb()` call creates a fresh, isolated instance.
 #'
+#' The key is the path as [normalizePath()] resolves it.
+#' A database file that does not exist yet is resolved through an empty placeholder
+#' that `duckdb()` creates and removes again,
+#' so a `dbdir` in a directory that cannot be written to fails here rather than in the engine.
+#' Creating that placeholder is the only step that has to succeed:
+#' a path `normalizePath()` cannot resolve --
+#' a network drive with parent directories the user may not read is the common case --
+#' is kept as it stands instead of raising an error.
+#'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
 #' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
@@ -487,11 +496,18 @@ path_normalize <- function(path) {
 
   out <- normalizePath(path, mustWork = FALSE)
 
-  # Stable results are only guaranteed if the file exists
+  # Stable results are only guaranteed if the file exists, so a database yet to
+  # be created is normalized through an empty placeholder. Creating that file is
+  # the only thing here that has to succeed: neither call asks `normalizePath()`
+  # to resolve the path, only to try.
   if (!file.exists(out)) {
+    if (!file.create(out, showWarnings = FALSE)) {
+      stop("Cannot create database file `", path, "`.", call. = FALSE)
+    }
+
     on.exit(unlink(out))
-    writeLines(character(), out)
-    out <- normalizePath(out, mustWork = TRUE)
+    out <- normalizePath(out, mustWork = FALSE)
   }
+
   out
 }
