@@ -270,8 +270,8 @@ takes no backreference; `man/*.Rd` is the only such case here.
 ## Enforcement
 
 Consistency is agent work.
-The checks — mechanical on shape, links and index freshness,
-judgment on mapping and headers —
+The checks — mechanical where a claim can be computed,
+judgment where it cannot —
 are the `docs-consistency` skill's
 (`.claude/skills/docs-consistency/`), which is the list;
 it runs when documentation is touched
