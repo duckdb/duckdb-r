@@ -19,7 +19,8 @@ and the tree holds every fact once.
   storage, integrations, the relational API, interactive use
 * [`architecture/`](architecture/) — the R layer, the C++ glue,
   the embedded engine, the `rfuns` extension
-* [`build/`](build/) — source build, fast paths, build knobs
+* [`build/`](build/) — source build, fast paths, build knobs,
+  compiler warnings
 * [`testing/`](testing/) — suite, snapshots, guards, revdep
 * [`branches/`](branches/) — series, mirrors, flavors, invariants
 * [`operations/`](operations/) — vendoring, triage, review,
