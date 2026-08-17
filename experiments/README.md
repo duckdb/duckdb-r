@@ -78,6 +78,12 @@ the directory keeps the method so that is possible.
   what the published Windows `libduckdb` exports, and how much of what
   the glue resolves from the engine is in there; supports
   [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+* [`2026-08-rcc2-read-path/`](2026-08-rcc2-read-path/) —
+  whether the `rcc2` verdict store can be retired: how often its gap has
+  been felt, whether the commit status D6 would read instead agrees with
+  the record it would replace, what the branch costs to keep, and who
+  else writes the `rcc` context; gathered for
+  [`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the

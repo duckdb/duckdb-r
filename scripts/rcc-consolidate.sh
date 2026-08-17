@@ -44,7 +44,7 @@
 #
 # Environment variables:
 #   OUT_DIR             - the `rcc2` worktree to consolidate (default: runs)
-#   RCC_RETENTION_DAYS  - keep records and logs at most this old (default: 30);
+#   RCC_RETENTION_DAYS  - keep records and logs at most this old (default: 180);
 #                         0 keeps everything, and then only the squash happens
 #   APPLY               - if non-empty, commit and force-push; otherwise report
 #                         what would change and leave the branch alone

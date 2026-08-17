@@ -9,7 +9,12 @@ this file is the proposal, and where the two disagree the leaf is right.
 Status: **in progress** (2026-07-30, branch `claude/vendoring-tooling-design-3swawc`;
 Phase 1 landed as #87, the README root as #88, Phase 3 as the fork
 move (#2534) — see §9;
-revised after a clean-context review of this document against `origin/main`).
+revised after a clean-context review of this document against `origin/main`;
+revised again 2026-08-09 — question 6 is settled, the verdict store is to be
+retired, and §3.3's D6 is the cut;
+revised the same day with D6's three measurements, which say *proceed after a
+cycle of notice* and move the shared-status wrinkle ahead of the cut
+([`experiments/2026-08-rcc2-read-path/`](/experiments/2026-08-rcc2-read-path/README.md))).
 Inputs: `BRANCHES.md`, `scripts/VENDORING.md`, `scripts/EACH.md`,
 `scripts/VENDORING-LOOP.md` (historical), the four skills in `.claude/skills/`,
 the loop scripts (`series-*.sh`, `each-*`, `rcc-*`, `vendor*`),
@@ -65,6 +70,11 @@ one layout on a new branch — `runs2.d/<xx>/<sha>.ndjson` and
 `logs2.d/<xx>/<sha>.log` on `rcc2`, written by three producers through one
 publisher, with `rcc` left behind whole. See
 [`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md).
+The writer count has come down twice more since:
+the per-run fan-in and the 30-minute sweep both went in #2578,
+leaving one automatic writer (the leg's own publish),
+one dispatched (`rcc-logs.yaml`) and one manual (consolidation).
+D6 takes the last of them.
 | Scripts | 26 shell/python executables + 3 data/jq files serve the loop |
 | Skills | 4 (`series-loop`, `series-forward`, `series-rebase`, `series-open`) |
 | Workflows | `each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` — the legacy dispatch path, which also spanned `cancel-rcc-dispatch.yaml`, is retired (D4). `R-CMD-check.yaml` (whose workflow *name* is `rcc`) and `R-CMD-check-status.yaml` stay: the ordinary push/PR check and the commit status branch protection reads, both core-set from `cynkra/cynkratemplate` |
@@ -289,6 +299,7 @@ as one checklist; this plan is analysis, not a routing node:
 | D3 | State `-build-base`'s contract: maintained and self-guarded by the loop, an input to no decision, consumed by humans (compare URLs and badges, §3.4) | the recurring temptation to treat it as coordination state — or to drop it and lose the only clean "buffered" range |
 | D4 | Retire the legacy dispatch path whole: `vendor-gate.sh`, `each-rcc.sh` + `each.yaml`'s dispatch mode, `cancel-rcc-dispatch.yaml`, ~~and `R-CMD-check-status.yaml`'s rcc role~~ (that last one was wrong — see the status note below). `R-CMD-check.yaml` itself stays — it is also the ordinary push/PR check — it only stops being dispatched per commit | four legacy surfaces that still have to be reasoned about on every change |
 | D5 | State the concurrency design in one place: per-series group + durable idempotent verdicts; **no pending markers, by design** | the recurring "did we lose the running marker" doubt (F3). The pieces exist in `each.yaml` and `EACH.md`; the one-place statement is what is missing |
+| D6 | Retire the verdict store: the three readers of a *state* — `each-plan.sh`, `each-shard.sh`'s resume check, `series-advance.sh`'s frontier walk — read the per-commit **commit status** in one batched query, `series-check.sh` reads a failure's log from the run that decided it, and the `rcc2` branch goes with its writers | the branch itself, `rcc-publish.sh`, `rcc-decided.sh`, `rcc-logs.{sh,yaml}`, `rcc-consolidate.{sh,yaml}`, `rcc-cutover.sh`, `rcc-store-test.sh`, `rcc-lib.sh` entire, the retention window and its two-way rule, and two handbook leaves |
 
 *Status of D4:* landed, minus one item this document had wrong.
 `vendor-gate.sh`, `each-rcc.sh`, `each.yaml`'s dispatch mode and
@@ -325,6 +336,150 @@ after the sweep, a range read is N 2-KB `git show`s,
 which is how the loop reads the range today anyway;
 the single-fetch convenience has no consumer left.
 Order matters only once: sweep, then readers, then the file.
+
+*D6 in full:* **this is not D1 reversed.**
+D1's defect was two stores reconciled against each other,
+not the store it picked;
+it picked records because the reader that mattered — a Claude firing —
+had git and no API.
+#2549 removed that constraint:
+a firing reads the deciding `each-rcc` run first
+and falls back to the branch.
+With the constraint gone, the one surviving store can be the one
+CI already writes for free, and the branch goes with its machinery.
+
+What selection reads instead is the `rcc` commit status the leg
+already POSTs in the same step as the verdict —
+which is what selection read *before* D1:
+`each-plan.sh` scanned statuses by GraphQL and `each-shard.sh`'s resume
+check by REST, so the read is recoverable from this repository's own
+history rather than code to invent.
+The batching question is therefore already answered;
+what has to be re-decided is only the REST resume check,
+which wants the same batched query rather than one call per commit.
+What does not come back is the reconciliation a *second* store needed:
+decided is `success` or `failure`, `pending` or absent is undecided,
+and no `PENDING_TTL_HOURS` returns with it —
+a commit mid-build reads as undecided under the record store too,
+and what prevents double work is the per-branch concurrency group,
+which is F3's finding and D5's statement.
+
+**Four readers, and only one of them is hard.**
+Three want a *state* and nothing else, so they follow selection onto the
+status: `each-plan.sh`, `each-shard.sh`'s resume check, and —
+the one easy to miss, because it is not selection and does not go
+through `rcc-decided.sh` — `series-advance.sh`'s `state_of()`,
+which `git show`s a record to decide what `-green` may pass over.
+Miss it and the ref-mover is the last thing reading a branch
+everything else has stopped writing.
+
+**The blocker is the fourth: logs, not verdicts.**
+`series-check.sh` classifies a failure by what its harvested log
+positively contains, and a status carries no log.
+Its replacement is the run that decided the commit —
+the `each-logs-*` artifact for 14 days, the job log for longer —
+which is the read the series loop already makes at stage 2.
+Porting `series-check.sh` off `git show` is the one piece of real work
+in D6; everything after it is deletion.
+
+**What D6 spends** is the property the branch was built for:
+a reader with git and nothing else.
+After D6 a firing with no API access has nothing to fall back to,
+where today it has a stale-but-readable copy.
+That is a trade to make on evidence rather than on this paragraph.
+#2549 does instrument it — every firing records which path served —
+but into its **report**, and a report has no durable home
+(question 5, still open).
+Checked on 2026-08-09: no firing's read path is recorded anywhere in
+this repository — not in `plan/`, `plan/history/`, `experiments/`, or
+the handbook; the only occurrences of the phrase are the instruction in
+`series-loop.md` and the request in this document.
+So D6's first step was not "read the evidence", because there was none to
+read. It was the three measurements below, which are better evidence
+anyway: they ask whether the *replacement* works, not whether the
+fallback happened to be used. They have been taken.
+
+*The evidence step, taken.*
+All three read durable state, all three are re-runnable,
+and all three needed access to `krlmlr/duckdb-r` — the fork is where the
+`each-rcc` runs, the series refs and the store itself live, so none of
+them could be taken from this repository.
+Measured there on 2026-08-09, script and full output in
+[`experiments/2026-08-rcc2-read-path/`](/experiments/2026-08-rcc2-read-path/README.md):
+
+1. **Has the store's gap ever been felt?** **No — over one day.**
+   `rcc-logs.yaml` has two `workflow_dispatch` runs in the fork, ever,
+   both by `krlmlr` and both *before* #2578 merged at
+   2026-08-08T14:46:49Z; the later of the two is the verification
+   dispatch that PR's own body names. Since the schedule stopped the
+   count is zero, and the schedule stopped exactly when it should have
+   (of 118 runs, 76 are `schedule`, none since #2578). But zero has
+   only been possible to observe for **1.1 days**, and question 6
+   asked for a cycle. The number is right and the window is not.
+2. **Would the replacement agree?** **Yes, everywhere it was asked.**
+   Over the 420 commits in flight across all six live series, no
+   status without a record, no record without a status, and no commit
+   where the two name a different state. That range is thin on its own
+   — bounded by `-green`, so only 25 of the 420 are decided at all —
+   so the same question went to the sample the range cannot give: the
+   store's 250 newest records, every one decided by construction, each
+   a chance for a record to exist where a status does not. 250 of 250
+   agree, states included. This is D6's go/no-go and it says go.
+3. **What is keeping it costing?** **223 MB and ~390 commits a day.**
+   `rcc2` holds 1563 commits, 8453 records and 4242 logs, at 223 MB
+   packed (2.65 GB uncompressed) — and the bulk is the logs, records
+   being ~2 KB each. `rcc-consolidate.yaml` has **never run**, so
+   nothing has been pruned since the cutover minted the branch on
+   2026-08-05. Nor would a dispatch help: the oldest surviving record
+   is 120 days old against a 180-day window, so retention is not what
+   is deferred — the squash is, and all it would buy today is 1563
+   commits collapsing to 2.
+
+**The verdict: proceed after a cycle of notice**, and start the work that
+does not depend on the answer.
+Measurement 2 clears the go/no-go, measurement 3 says the standing bill is
+real, dull and bounded — a reason to stop deferring rather than to rush —
+and measurement 1 is the only one not yet supporting *now*.
+It is also the cheapest of the three to re-run.
+So: keep the branch and the leg's publish for one full series cycle,
+re-run the experiment, and cut when the dispatch count is still zero.
+Nothing waits on that — porting `series-check.sh` off `git show` is the one
+piece of real work in D6, it is needed under every outcome, and it can land
+first.
+
+**The wrinkle is not hypothetical, and it goes first.**
+The `rcc` context is not the leg's alone:
+`R-CMD-check-status.yaml` writes the same context for the ordinary check,
+and branch protection reads it.
+On a `*-dev` branch that is still fine, and the measurement checked it
+rather than taking this document's word:
+all six `-dev` branches carry `main`'s push filter, which matches no series
+ref, and every one of the 73 `rcc` posts across the commits in flight —
+and every post across the 250 widened commits — reads `each-rcc / shard N`.
+
+But the claim is a ported commit deep, and it is **already false one ref
+over**. `R-CMD-check.yaml` runs from the branch it checks, and
+`v1.4-andium-build` still carries a copy from 2026-03-26 whose `v*.*-*`
+release-branch pattern matches its own name. Four pushes on 2026-08-06
+therefore started the template check on the buffer, and
+`R-CMD-check-status.yaml` stamped `rcc=failure` on `6e7dd75ce` — a status
+with no record, the exact class D6's read would misread, in the fork today.
+It is harmless for one reason, which the measurement confirms rather than
+assumes: a buffer commit is re-minted when it is consumed onto `-dev`
+(0 shared SHAs between `-build-base..-build` and `-green..-dev`, all six
+series), so its SHA never reaches selection.
+
+That is a property of the lineage, not of the context.
+The `-dev` copies are clean because the port stage keeps them level with
+`main`; the buffer is dirty because ports never touch it, which is F4's
+stated blind spot. A `-dev` branch regaining the glob — a series opened from
+an old buffer, a forward replaying onto a stale seed — would put a
+whole-branch matrix verdict straight into selection's range.
+So this is not "decide it with D6": give the per-commit verdict its own
+context (`each-rcc`) **before** the status read goes in. It costs one line
+in `each-shard.sh`, what it costs back is the commit list where one context
+is what a reader scans, and the alternative has already produced the failure
+once.
 
 ### 3.4 Human-facing lag: compare URLs and badges
 
@@ -666,13 +821,20 @@ of the kernel.
 | **0 (PR #86, this PR)** | this plan; router in `AGENTS.md`; badge semantics + pointers in `scripts/VENDORING.md` and `scripts/EACH.md` | none — docs only |
 | **1 — landed (#87)** | the port stage: `scripts/series-port.sh` plus the amended `series-loop` / `series-forward` / `series-rebase` skills | first real `--apply` still runs supervised |
 | **1a (follow-up)** | resolve the subject-vs-path contradiction (§4), in order: harden `vendor-one.sh` and `vendor.sh`'s subject scans to bounded-and-loud; relax `classify()` to subject-decided; rewrite the landed rationale in `series-port.sh`'s header and `series-loop.md` stage 4; stage 1 invokes `main`'s `vendor-one.sh` against the buffer worktree | wider than first scoped — two scanners, one classifier, two rationale blocks, one skill rule; each independently shippable |
-| **2** | single verdict store (D1: selection and resume by record; backstop stops writing, its schedule dispatches idle undecided work); one sweep, then drop the aggregate outright (D2); the fan-in stays (per-commit logs, §3.2) | verdicts are already dual-written today; rollback = read statuses again |
+| **2 — landed, and further than written** | single verdict store (D1: selection and resume by record; backstop stops writing, its schedule dispatches idle undecided work); one sweep, then drop the aggregate outright (D2); ~~the fan-in stays (per-commit logs, §3.2)~~ — it did not: the fan-in and the backstop's schedule both went in #2578, leaving the leg's own publish as the store's one automatic writer | verdicts are already dual-written today; rollback = read statuses again |
 | **3 — landed (#2534)** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own | one-time move; the replaced repository is kept as `krlmlr/duckdb-r-old` |
 | **4** | docs tree (§8): README root landed (#88); next the moves, then node rewrites (including `AGENTS.md`'s and `BRANCHES.md`'s stale rows); `docs-tree` skill | docs only |
 | **5** | kernel extraction + `rigraph` port (config file, generalized subject marker, igraph cost estimator or constant weight) | new repo consumed `@main`; rollback = vendored copy of the kernel |
+| **6** | retire the verdict store (D6), in five steps: ~~take the three measurements~~ (taken 2026-08-09, §3.3 — *proceed after a cycle of notice*); give the per-commit verdict its own `each-rcc` status context, which the measurement moved ahead of the cut; port `series-check.sh` to read the deciding run; re-run measurement 1 and, if the dispatch count is still zero, move the three state readers to a batched status query; delete the branch and its scripts | each step reverts on its own, and the branch is deleted last — once nothing reads it, deleting it is the cheapest step rather than the risky one |
 
-Phases 1a and 2 are independently shippable; the deletions concentrate in
-Phase 2.
+Phase 1a is independently shippable.
+The deletions concentrated in Phase 2, and the larger set is Phase 6's.
+That selection moves twice — onto records in D1, onto statuses in D6 —
+is worth stating rather than glossing:
+the first move is what makes the second one small,
+because it left one store to replace instead of two to reconcile.
+Doing them in the other order would have meant
+reconciling two stores in between, which is F1 exactly.
 
 ## 10. Open questions
 
@@ -681,9 +843,13 @@ Phase 2.
    dropping them automatically) or squash into one port commit per
    firing (fewer CI verdicts, but squashing breaks the patch-id match
    and with it the automatic drop)? Leaning individual.
-2. **Record-store scale.** One commit per record keeps `rcc` growing
-   (~1 commit/record; consolidation squashes). Is the current
-   consolidation cadence enough once statuses stop being a second copy?
+2. ~~**Record-store scale.**~~ *Absorbed by D6:* a store that is going
+   away does not need a cadence. One commit per record keeps `rcc2`
+   growing, consolidation is manual, and the retention window is 180
+   days — so nothing is dropped until an operator dispatches it, and
+   the branch grows by one small commit per verdict in the meantime.
+   That is the standing cost of keeping it, and it is bounded, dull,
+   and about to be moot.
 3. ~~**Fork migration depth (§6).**~~ *Settled by the move:* `rcc2`
    came across whole, and everything else — the retired `rcc`, the
    snapshot branches, the ref litter, the finished topic branches —
@@ -695,12 +861,22 @@ Phase 2.
 5. **Review artifacts.** Should routine-generated review digests
    (like `main-dev-review.md`) land under `plan/` by convention,
    or in PR comments only?
-6. **Does the store still earn its keep?** It exists because an agent
-   firing could not read CI logs; that is no longer true where the
-   firing has Actions access, so `series-loop.md` now reads the run
-   and falls back to `rcc2`. Every firing records which path served.
-   If the fallback goes unused across a full cycle, the question is
-   what the store is still *for* — CI-side selection reads it too
-   (D1), so retiring it means replacing that read as well, and the
-   answer may be "keep it, cheaply" rather than "delete it".
-   Decide on the evidence, not on this paragraph.
+6. ~~**Does the store still earn its keep?**~~ *Settled: it does not,
+   and §3.3's D6 is the cut.* The question asked to be decided on
+   evidence: the store exists because a firing could not read CI
+   logs, which stopped being true when `series-loop.md` began reading
+   the deciding run and falling back to `rcc2` (#2549), and every
+   firing since records which path served it. What settled it is the
+   goal that evidence was serving — the infrastructure around the
+   branch is to go, and the store is most of it. So the evidence
+   becomes D6's first step rather than its gate: it says whether the
+   git-only route can be dropped now or wants a cycle of notice
+   first. The question was right that CI-side selection has to be
+   replaced too, and wrong about which read costs — selection becomes
+   a status query, while `series-check.sh`'s log read is the work.
+   *Answered on the evidence, 2026-08-09
+   ([`experiments/2026-08-rcc2-read-path/`](/experiments/2026-08-rcc2-read-path/README.md)):
+   a cycle of notice.* The replacement agrees on every commit either
+   store was asked about, so the git-only route can go; but the
+   dispatch count has only been observable for a day, and one day is
+   not the cycle this question asked for.
