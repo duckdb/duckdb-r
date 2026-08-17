@@ -112,8 +112,13 @@ seed_re='^chore: Update flavor patch to '
 
 # A pick that moves `Version:` is decided by the `ours-version` merge driver,
 # whose name -> command mapping lives in .git/config and cannot be committed.
-# A fresh clone has the attribute and not the driver, so refuse here rather
-# than stop mid-sequence on a DESCRIPTION conflict nobody has to resolve.
+# A fresh clone has the attribute and not the driver, so register it here and
+# refuse only if it is still missing -- refusing first made every firing run
+# scripts/setup-git.sh by hand for a step this script already took under
+# --apply. Idempotent; .git/config is shared with the worktree.
+if [ -x "$(dirname "$0")/setup-git.sh" ]; then
+  VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
+fi
 git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
@@ -240,11 +245,8 @@ fi
 
 # A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a
 # forward-port that carries one -- and the ours-version merge driver is what
-# keeps that line off the conflict list. Idempotent; .git/config is shared with
-# the worktree.
-if [ -x "$(dirname "$0")/setup-git.sh" ]; then
-  VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
-fi
+# keeps that line off the conflict list. The gate at the top of this script has
+# registered it already.
 
 # The default fill is what a frozen series does not get: `--list --apply` shows
 # the walk and still ports nothing, because seeing the candidates is not the
