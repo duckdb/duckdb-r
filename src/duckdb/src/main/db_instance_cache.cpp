@@ -1,13 +1,13 @@
 #include "duckdb/main/db_instance_cache.hpp"
 #include "duckdb/main/extension_helper.hpp"
 #include "duckdb/main/database_file_path_manager.hpp"
-#include "duckdb/common/types/interval.hpp"
-#include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/common/chrono.hpp"
+#include "duckdb/common/thread.hpp"
 
 namespace duckdb {
 
 //! How long to wait for an in-flight shutdown to finish before reporting that the database is still in use
-static constexpr int64_t SHUTDOWN_WAIT_MICROS = 5 * Interval::MICROS_PER_SEC;
+static constexpr int64_t SHUTDOWN_WAIT_SECONDS = 5;
 
 DatabaseCacheEntry::DatabaseCacheEntry() {
 }
@@ -97,9 +97,14 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database, 
 		// reporting rather than falling through to CreateInstance is deliberate: the file lock does not fire
 		// within one process, so creating would succeed and leave two instances writing one file
 		cache_entry.reset();
-		auto deadline = Timestamp::GetCurrentTimestamp().value + SHUTDOWN_WAIT_MICROS;
+		// steady_clock, not the wall clock: a clock step backwards during the wait
+		// would restore the unbounded hang this exists to remove
+		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(SHUTDOWN_WAIT_SECONDS);
 		while (!weak_cache_entry.expired()) {
-			if (Timestamp::GetCurrentTimestamp().value > deadline) {
+			// yield rather than spin: the thread finishing the shutdown is the one
+			// this is waiting on, and on a single core it needs the CPU back
+			std::this_thread::yield();
+			if (std::chrono::steady_clock::now() > deadline) {
 				throw ConnectionException(
 				    "Database \"%s\" is still in use: an earlier instance has been released but something is "
 				    "still holding it open, such as an unfinished query result or a connection. Release it "

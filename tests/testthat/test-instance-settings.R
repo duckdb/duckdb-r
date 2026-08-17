@@ -83,12 +83,19 @@ test_that("the in-memory driver idiom stays silent", {
 
 test_that("a `dbdir` an extension answers is left alone", {
   # `md:` names a replacement open, not a file. The engine makes that
-  # distinction itself now, in `GetDBAbsolutePath()`, so the test is what a
-  # caller sees: the path reaches the engine as spelled, and nothing local is
-  # created for it. Opening fails here because the extension is absent.
+  # distinction itself, in `GetDBAbsolutePath()`, so the test is what a caller
+  # sees: the path reaches the engine as spelled, and nothing local is created.
+  #
+  # Extensions off and storage kept out of `~/.duckdb`: with them on, the
+  # engine installs the MotherDuck extension on demand -- 19 MB over the
+  # network, into the user's shared home -- before failing.
   withr::local_dir(withr::local_tempdir())
 
-  err <- expect_error(duckdb("md:mydb"))
-  expect_no_match(conditionMessage(err), getwd(), fixed = TRUE)
+  err <- expect_error(
+    duckdb("md:mydb", allow_extensions = FALSE, shared_home = FALSE)
+  )
+  # The refusal names the extension, which is only reachable if the prefix
+  # survived: a mangled path is a local file name and opens without error.
+  expect_match(conditionMessage(err), "md", fixed = TRUE)
   expect_equal(list.files(all.files = TRUE, no.. = TRUE), character())
 })

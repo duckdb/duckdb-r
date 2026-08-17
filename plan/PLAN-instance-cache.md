@@ -230,6 +230,45 @@ developer build with `DUCKDB_R_USE_SYSTEM_LIB=1` still hangs until the
 fix is upstream and released.
 That asymmetry is the reason to send it upstream rather than carry it.
 
+## What the second review found
+
+After the merge with `main`, and over the patch.
+
+**Two were mine, and are fixed.**
+The rewritten prefix test opened `md:mydb` with extensions on and the
+real `~/.duckdb`, so it installed the 19 MB MotherDuck extension over
+the network into the user's shared home before failing; and its
+`expect_no_match(msg, getwd())` could not fail in either direction.
+It now runs offline and asserts the refusal names the extension, which
+is only reachable if the prefix survived.
+The patch measured its deadline on the wall clock, which a backwards
+clock step would have turned back into the unbounded hang, and spun hot
+for the full wait; it now uses `steady_clock` and yields.
+
+**Open, and none of them small.**
+Deleting `path_normalize()` from `dbConnect()` while `duckdb()` stores
+the canonical path leaves the two incomparable: `dbConnect(drv, dbdir =
+"b.duckdb")` against a driver holding `/abs/b.duckdb` now *errors*,
+because #2641's refusal fires on what is the same database spelled
+differently — and `dbdir = ""`, documented as in-memory, opens a second
+database instead of reusing the driver's.
+`duckdb(":memory:name")` reports `drv@dbdir` as `:memory:`, losing the
+name the cache is keyed on.
+The engine's refusals reach the user as raw JSON, because
+`rapi_startup()`'s `catch` uses the `std::exception` overload of
+`rapi_error_with_context()` rather than the `ErrorData` one — which
+also swallows the patch's own message.
+`?duckdb` now states something false: `duckdb()` returns a *new* driver
+object sharing the instance, not the same driver.
+And in a single-threaded embedding the bounded wait is provably futile —
+the only thread that could let the entry expire is the one waiting — so
+every such call pays the full five seconds before erroring.
+
+Clean, and worth recording: no path spelling produces two instances,
+the patch's lock and container state on throw are correct, nothing
+dangles from the deleted functions, and the extension-prefix behaviour
+survives without the R-side guard.
+
 ## Staging
 
 0. Get the busy-spin bounded. Carried as patch 0039 for the source
