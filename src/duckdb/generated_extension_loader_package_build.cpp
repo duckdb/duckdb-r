@@ -14,26 +14,27 @@
 #endif
 #include "duckdb/main/extension/generated_extension_loader.hpp"
 #include "duckdb/main/extension_helper.hpp"
+#include "duckdb/main/config.hpp"
+#include "duckdb/main/database.hpp"
 
 
 namespace duckdb {
 
-//! Looks through the package_build.py-generated list of extensions that are linked into DuckDB currently to try load <extension>
-ExtensionLoadResult ExtensionHelper::LoadExtension(DuckDB &db, const std::string &extension) {
+//! Publishes the package_build.py-generated list of extensions linked into this binary onto the config, so that
+//! ExtensionHelper::LoadExtension can find them - including when it is called from code carrying its
+//! own copy of DuckDB, which links no generated loader of its own.
+void ExtensionHelper::RegisterLinkedExtensions(DBConfig &config) {
 #if DUCKDB_EXTENSION_PARQUET_LINKED
-    if (extension=="parquet") {
+    config.linked_extensions.push_back({"parquet", [](DuckDB &db) {
         db.LoadStaticExtension<ParquetExtension>();
-        return ExtensionLoadResult::LOADED_EXTENSION;
-    }
+    }});
 #endif
 #if DUCKDB_EXTENSION_CORE_FUNCTIONS_LINKED
-    if (extension=="core_functions") {
+    config.linked_extensions.push_back({"core_functions", [](DuckDB &db) {
         db.LoadStaticExtension<CoreFunctionsExtension>();
-        return ExtensionLoadResult::LOADED_EXTENSION;
-    }
+    }});
 #endif
 
-    return ExtensionLoadResult::NOT_LOADED;
 }
 
 vector<string> LinkedExtensions(){
@@ -46,12 +47,6 @@ vector<string> LinkedExtensions(){
 #endif
     };
     return VEC;
-}
-
-void ExtensionHelper::LoadAllExtensions(DuckDB &db) {
-    for (auto& ext_name : LinkedExtensions()) {
-        LoadExtension(db, ext_name);
-    }
 }
 
 vector<string> ExtensionHelper::LoadedExtensionTestPaths(){
