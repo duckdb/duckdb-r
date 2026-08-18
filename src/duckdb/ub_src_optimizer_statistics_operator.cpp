@@ -16,6 +16,8 @@
 
 #include "src/optimizer/statistics/operator/propagate_projection.cpp"
 
+#include "src/optimizer/statistics/operator/propagate_secure_view.cpp"
+
 #include "src/optimizer/statistics/operator/propagate_set_operation.cpp"
 
 #include "src/optimizer/statistics/operator/propagate_window.cpp"

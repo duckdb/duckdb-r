@@ -36,6 +36,8 @@
 
 #include "src/execution/operator/helper/physical_result_collector.cpp"
 
+#include "src/execution/operator/helper/physical_secure_view.cpp"
+
 #include "src/execution/operator/helper/physical_set.cpp"
 
 #include "src/execution/operator/helper/physical_set_variable.cpp"
