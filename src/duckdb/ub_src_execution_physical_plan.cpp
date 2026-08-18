@@ -88,6 +88,8 @@
 
 #include "src/execution/physical_plan/plan_sample.cpp"
 
+#include "src/execution/physical_plan/plan_secure_view.cpp"
+
 #include "src/execution/physical_plan/plan_set.cpp"
 
 #include "src/execution/physical_plan/plan_set_operation.cpp"
