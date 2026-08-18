@@ -28,3 +28,5 @@
 
 #include "src/parser/tableref.cpp"
 
+#include "src/parser/token_iterator.cpp"
+
