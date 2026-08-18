@@ -14,6 +14,8 @@
 
 #include "src/function/table/system/duckdb_dependencies.cpp"
 
+#include "src/function/table/system/duckdb_dialects.cpp"
+
 #include "src/function/table/system/duckdb_eviction_queues.cpp"
 
 #include "src/function/table/system/duckdb_extensions.cpp"
