@@ -1,6 +1,6 @@
 #include "src/parser/peg/autocomplete_core.cpp"
 
-#include "src/parser/peg/keyword_helper.cpp"
+#include "src/parser/peg/compiled_grammar.cpp"
 
 #include "src/parser/peg/keyword_map.cpp"
 
