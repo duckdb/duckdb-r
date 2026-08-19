@@ -201,9 +201,8 @@ it has the lifetime of the child list
 (a fact an ordinary commit could falsify has a leaf);
 and it names no particulars —
 no paths, scripts, variables, versions, counts, or commands.
-A node whose leaves share no such constraint gets no principle;
-where an area has a leaf whose topic is the area's own rules,
-the principles are that leaf's, and the node stays navigation-only.
+A node whose leaves share no such constraint gets no principle,
+and a node never restates a rule that a leaf under it owns.
 
 **A link that leaves its own directory is written from the repository
 root**, with a leading `/`;
