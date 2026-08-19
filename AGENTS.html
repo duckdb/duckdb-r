@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9016</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9017</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,29 +43,25 @@
 <p>Everything this project documents lives in <a href="/handbook/README.html"><code>handbook/</code></a>, the single source of truth. This page only routes there.</p>
 <div class="section level2">
 <h2 id="the-first-five-minutes">The first five minutes<a class="anchor" aria-label="anchor" href="#the-first-five-minutes"></a></h2>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>To</th>
-<th>Read</th>
-</tr></thead><tbody><tr><td>get a working environment, cold start</td>
-<td><a href="/handbook/contributors/setup/README.html"><code>contributors/setup/</code></a></td>
-</tr><tr><td>build in seconds instead of minutes</td>
-<td><a href="/handbook/build/fast-paths/README.html"><code>build/fast-paths/</code></a></td>
-</tr><tr><td>build from source, the way CRAN does</td>
-<td><a href="/handbook/build/source-build/README.html"><code>build/source-build/</code></a></td>
-</tr><tr><td>find the build knobs and what they cost</td>
-<td><a href="/handbook/build/configuration/README.html"><code>build/configuration/</code></a></td>
-</tr><tr><td>run the suite, or one test file</td>
-<td><a href="/handbook/testing/suite/README.html"><code>testing/suite/</code></a></td>
-</tr><tr><td>write R the way this package does, flavor seam included</td>
-<td><a href="/handbook/architecture/r-layer/conventions/README.html"><code>architecture/r-layer/conventions/</code></a></td>
-</tr><tr><td>know which tidyverse rules are enforced here, and where we deviate</td>
-<td><a href="/handbook/architecture/r-layer/style/README.html"><code>architecture/r-layer/style/</code></a></td>
-</tr><tr><td>write C++ glue the way this package does</td>
-<td><a href="/handbook/architecture/glue/README.html"><code>architecture/glue/</code></a></td>
-</tr><tr><td>operate the vendoring loop</td>
-<td>
-<a href="/handbook/operations/vendoring/series-loop/README.html"><code>operations/vendoring/series-loop/</code></a> and <code>.claude/skills/</code>
-</td>
-</tr></tbody></table></div>
+<ul><li>get a working environment, cold start: <a href="/handbook/contributors/setup/README.html"><code>contributors/setup/</code></a>
+</li>
+<li>build in seconds instead of minutes: <a href="/handbook/build/fast-paths/README.html"><code>build/fast-paths/</code></a>
+</li>
+<li>build from source, the way CRAN does: <a href="/handbook/build/source-build/README.html"><code>build/source-build/</code></a>
+</li>
+<li>find the build knobs and what they cost: <a href="/handbook/build/configuration/README.html"><code>build/configuration/</code></a>
+</li>
+<li>run the suite, or one test file: <a href="/handbook/testing/suite/README.html"><code>testing/suite/</code></a>
+</li>
+<li>write R the way this package does, flavor seam included: <a href="/handbook/architecture/r-layer/conventions/README.html"><code>architecture/r-layer/conventions/</code></a>
+</li>
+<li>know which tidyverse rules are enforced here, and where we deviate: <a href="/handbook/architecture/r-layer/style/README.html"><code>architecture/r-layer/style/</code></a>
+</li>
+<li>write C++ glue the way this package does: <a href="/handbook/architecture/glue/README.html"><code>architecture/glue/</code></a>
+</li>
+<li>operate the vendoring loop: <a href="/handbook/operations/vendoring/series-loop/README.html"><code>operations/vendoring/series-loop/</code></a> and <code>.claude/skills/</code>
+</li>
+</ul></div>
 <div class="section level2">
 <h2 id="everything-else">Everything else<a class="anchor" aria-label="anchor" href="#everything-else"></a></h2>
 <p>Anything not on this page is in the tree, and walking down from <a href="/handbook/README.html"><code>handbook/</code></a> is how you find it: internal nodes navigate, leaves explain, and every fact has exactly one leaf that owns it — including the limits, the declined requests, and the reasons (<a href="/handbook/meta/handbook/README.html">the rules</a>). Start at the root and follow the scope sentences; searching the tree is the slower path.</p>

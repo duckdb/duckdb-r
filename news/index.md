@@ -1,5 +1,21 @@
 # Changelog
 
+## duckdb 1.5.5.9017
+
+### Bug fixes
+
+#### series
+
+- Make the `ours-version` driver reach the clone that needs it
+  ([\#2663](https://github.com/duckdb/duckdb-r/issues/2663)).
+
+### Features
+
+#### series
+
+- Explain the flavor surface in the convergence check
+  ([\#2661](https://github.com/duckdb/duckdb-r/issues/2661)).
+
 ## duckdb 1.5.5.9016
 
 ### Bug fixes
