@@ -29,16 +29,16 @@ the rest move the fact somewhere better than a paragraph.
    all but the last are git's and the issues',
    and the last is [`plan/`](/plan/README.md)'s.
 2. **Is it true?**
-   Verify on a build that can show the claim —
+   Verify on a build that can show the claim:
    one the fast path's release library could distort needs a vendored
    build ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)),
    and for everything the two builds share, either will do.
    When a claim is contested or surprising, read the script or run the
    diff, and discuss before editing.
 3. **Does another leaf, a file header, or a reference page own it?**
-   Link it — never restate it, and never paraphrase it.
+   Link it: never restate it, and never paraphrase it.
 4. **Does an artifact already state it?**
-   Never re-enumerate what a file lists — the file is the list —
+   Never re-enumerate what a file lists (the file is the list),
    and never exhaustively enumerate facts another leaf owns:
    state the principle that locates them, and stop.
 5. **Could a check state it instead?**
@@ -52,12 +52,12 @@ the rest move the fact somewhere better than a paragraph.
    ([`meta/experiments/`](/handbook/meta/experiments/README.md))
    that the leaf links.
    A one-off derivation stays in the pull request.
-6. **Then write it — as short as it can be and stay correct
-   ([below](#how-long-an-entry-is)) —
+6. **Then write it, as short as it can be and stay correct
+   ([below](#how-long-an-entry-is)),
    and leave a breadcrumb where the reader stands.**
    When detail moves into a leaf,
-   the source it came from — a document, a script header,
-   an inline comment — keeps its essentials
+   the source it came from (a document, a script header,
+   an inline comment) keeps its essentials
    and links the leaf that now carries the rest,
    so a fact is edited in one place
    and found from the place it is about.
@@ -68,7 +68,7 @@ A fact can be true and still be one nobody should have to read,
 and no rung can tell which:
 nothing mechanical distinguishes a deliberate limitation from an unfixed
 one, because both are only what the code does.
-So it is a discussion, not a test —
+So it is a discussion, not a test:
 is the behaviour *desirable*, or is it a mere *limitation*?
 Desirable, and it is an ordinary fact, taking the ladder like any other.
 A limitation, and the two costs are weighed against each other.
@@ -76,8 +76,8 @@ A fix of one to three lines, with consequences obvious enough to approve
 at a glance, is cheaper than the paragraph and every later edit of it:
 make it, and write nothing.
 Anything larger is work carrying its own risk, review and timeline,
-so the limitation is real for as long as that takes —
-and the tree requires the leaf to state its limits,
+so the limitation is real for as long as that takes.
+The tree requires the leaf to state its limits,
 with the issue that will remove it, so the fact reads as provisional.
 Silence is the one answer never available:
 a limitation nobody wrote down is one the next reader rediscovers,
@@ -86,7 +86,7 @@ and pays for twice.
 ## Where the handbook stops
 
 The rungs asking after another owner, an artifact, and a check
-all ask the same question — is something else a better home for this? —
+all ask the same question (is something else a better home for this?),
 and the answer generalises.
 **The tree owns what the code cannot say about itself**, which is three
 things:
@@ -107,7 +107,7 @@ many, what the values are now, and what a mechanism does step by step.
 Prose that enumerates goes stale without anyone noticing,
 because nothing fails when it does.
 
-Which artifact that is differs by area, and the leaf is what says which —
+Which artifact that is differs by area, and the leaf is what says which:
 a script or workflow under `operations/`,
 a reference page under `usage/`, itself prose and shipped to readers
 who do not have this tree,
@@ -120,7 +120,7 @@ everywhere that depends on them.
 
 ## How long an entry is
 
-An **entry** — what one change lands on a page —
+An **entry** (what one change lands on a page)
 is the shortest statement of its fact that is still correct.
 Length is not thoroughness:
 three sentences where one would do
@@ -128,7 +128,7 @@ leave the reader to find the one,
 and every later edit carries the other two.
 Write the fact, what it means for the reader,
 and the link that supports it; then stop.
-Short is not less true —
+Short is not less true:
 what the entry leaves out stays reachable,
 in the source it links or the leaf it splits into,
 and an edit that loses a fact is a regression however short it reads.
@@ -161,7 +161,7 @@ The page that keeps the sentence and the link stays about one thing,
 which is what its scope sentence claims;
 a page that absorbed three such facts instead
 can no longer say what it is about,
-and that — not the length — is the defect.
+and that, not the length, is the defect.
 
 **A leaf past 120 lines owes an answer to why it is still one topic.**
 Semantic line breaks put a sentence on a line, so 120 of them is a long stretch on one subject.
@@ -201,38 +201,38 @@ Compressing to get under the number is the wrong move in both cases, because sen
   a two-column table whose second column is prose
   is a list wearing borders.
 * **State what stays true as the code moves:**
-  a number an ordinary commit invalidates is a hostage —
-  name the mechanism instead:
+  a number an ordinary commit invalidates is a hostage.
+  Name the mechanism instead:
   the file that lists the members is durable, the count is not.
   A list that names its members is safe where a tally is not.
   A measurement stays when the text says it is one, and against what;
   a count stays when it *is* the design, like the version counters
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **Treat a default as a fact:**
-  a default governs behaviour, so name the value *and* where it is set —
+  a default governs behaviour, so name the value *and* where it is set;
   the page stays useful when the two drift apart.
 * **Link a provisional fact to the issue or plan that will change it:**
   without the link a reader cannot tell
   "how it works" from "how it works for now";
   a behaviour that survives only because nobody has fixed it yet
   is documented as such, and stops being when the issue closes.
-* **Never refer by position — name the thing.**
+* **Never refer by position: name the thing.**
   "The first two" breaks silently when the list above is reordered.
-* **Illustrate with a placeholder or a named example — and label which.**
+* **Illustrate with a placeholder or a named example, and label which.**
   A placeholder never goes stale but makes every reader substitute;
   a named example reads fluently but ages into a snapshot.
   Both are legitimate, and the guardrails are the same either way.
   Declare a placeholder scheme once, where it starts,
-  and keep to one notation — a page running three is worse than either
-  choice made badly.
+  and keep to one notation:
+  a page running three is worse than either choice made badly.
   Say what a named example is a snapshot *of*,
   so a later reader treats it as history rather than as status;
   refreshing it is then an ordinary edit, not a correction.
   A live inventory is neither: it *is* the fact, so it must be current,
   and a dated snapshot is exactly wrong for it.
 * **Cite the claim, not its label.**
-  An identifier from another page's numbering — an invariant number,
-  a state number — means nothing where it is read,
+  An identifier from another page's numbering
+  (an invariant number, a state number) means nothing where it is read,
   and resolves only for someone holding that table:
   say what the invariant says, in the clause that depends on it.
 
@@ -243,8 +243,8 @@ and it is also the tree's only maintenance cost that grows with its size.
 Both halves of that matter.
 
 **Link a boundary once per page, and link the owner.**
-The load-bearing form is a page naming the boundary it does not own —
-"the engine underneath is `engine/`" — stated once, where the reader
+The load-bearing form is a page naming the boundary it does not own
+("the engine underneath is `engine/`"), stated once, where the reader
 first needs it.
 A second link to the same target on the same page adds no reachability
 and costs another edit when the target moves;
@@ -255,9 +255,9 @@ the node will look like an owner and collect citations its children
 deserve.
 
 **A fact that moves takes its inbound links with it.**
-Before changing where a fact lives — renaming a leaf, splitting one in
-two, moving a section — search the tree for what points at it and update
-those pages in the same change.
+Before changing where a fact lives
+(renaming a leaf, splitting one in two, moving a section),
+search the tree for what points at it and update those pages in the same change.
 The links are one-directional, so nothing else will catch a stale one;
 a leaf that has quietly become the wrong destination still resolves, and
 reads as if it were right, which is worse than a broken link.
