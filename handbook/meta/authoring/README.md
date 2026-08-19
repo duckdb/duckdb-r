@@ -49,7 +49,8 @@ the rest move the fact somewhere better than a paragraph.
    A behavioural claim lands with the test that pins it,
    a repo-shape claim graduates into the consistency checks,
    and a finding too expensive to re-derive becomes an experiment
-   ([`experiments/`](/experiments/README.md)) that the leaf links.
+   ([`meta/experiments/`](/handbook/meta/experiments/README.md))
+   that the leaf links.
    A one-off derivation stays in the pull request.
 6. **Then write it — as short as it can be and stay correct
    ([below](#how-long-an-entry-is)) —
