@@ -1,12 +1,18 @@
 # Authoring
 
-How the prose of a handbook page is written —
-the rules an author follows and a review enforces, owned here in full.
+How prose is written here: the rules an author follows and a review enforces, owned on this page in full.
+They cover every Markdown file this repository authors, the handbook included, and the comments and roxygen blocks under `R/` and `tests/`.
 The tree's structure, its growth moves, and their enforcement are
 [`meta/handbook/`](/handbook/meta/handbook/README.md)'s;
 extending the tree means following this page,
 and a rewrite that loses a fact is a regression, not an edit.
-A rule joins this page once a review has enforced it twice;
+
+They stop in two places.
+A GitHub issue or pull request body takes reflowed paragraphs instead, because a single newline renders there as a visible break.
+Text this repository does not author is nobody's to reformat: the vendored engine under `src/duckdb/`, and anything generated.
+Generated here is `man/*.Rd` and the two rendered `README.md` files whose source is [`README.Rmd`](/README.Rmd).
+
+A rule joins this page once a review has enforced it twice, or once the repository adopts it outright;
 until then it is a preference, and preferences are not enforced.
 
 ## Before writing a sentence
@@ -43,7 +49,8 @@ the rest move the fact somewhere better than a paragraph.
    A behavioural claim lands with the test that pins it,
    a repo-shape claim graduates into the consistency checks,
    and a finding too expensive to re-derive becomes an experiment
-   ([`experiments/`](/experiments/README.md)) that the leaf links.
+   ([`meta/experiments/`](/handbook/meta/experiments/README.md))
+   that the leaf links.
    A one-off derivation stays in the pull request.
 6. **Then write it — as short as it can be and stay correct
    ([below](#how-long-an-entry-is)) —
@@ -156,6 +163,14 @@ a page that absorbed three such facts instead
 can no longer say what it is about,
 and that — not the length — is the defect.
 
+**A leaf past 120 lines owes an answer to why it is still one topic.**
+Semantic line breaks put a sentence on a line, so 120 of them is a long stretch on one subject.
+A leaf that long has usually grown a section a reader would look for under its own name.
+The number asks the question rather than settling it.
+A leaf that is genuinely one topic stays whole however long it runs.
+One that is not splits at the heading that could stand alone, which is the growth move rather than an edit.
+Compressing to get under the number is the wrong move in both cases, because sentences cut to fit lose facts that a split keeps.
+
 ## Writing the sentence
 
 * **Break lines at meaning boundaries**
@@ -163,8 +178,21 @@ and that — not the length — is the defect.
   widen a line rather than split a phrase;
   never leave a one-word line,
   and never start a line with one word and a comma.
-  Aim under 80 characters, but meaning wins over length,
-  and a long link or code token may stand alone.
+* **Prose aims for 140 characters**, because a line much longer than that hides its own edits in a diff.
+  Meaning wins where it will not fit, so a longer line is tolerated rather than corrected.
+  A break moved to save characters is a break in the wrong place.
+  A URL too long to break stands alone.
+* **A comment takes the code's budget, not the prose budget.**
+  A comment and a roxygen line aim for the `line-width` that [`air.toml`](/air.toml) sets, which is air's default of 80 characters today.
+  A comment shares its file with code held to that width, and a reader who sized a window for the code reads the comment in the same one.
+  The number is a soft aim in exactly the way 140 is, and every other rule here holds there unchanged, the semantic break first of all.
+  Holding it is the author's job, because air formats the code around a comment and leaves the prose inside it alone.
+* **A line ends with a full stop**, and anything else wants a very good reason.
+  A heading, a bold run-in, a list marker, and a colon introducing a list are the reasons, and there are few others.
+  A line ending in a comma is the one to look at twice.
+  It says the sentence outran the line, and two sentences almost always beat one clause break.
+* **No em dashes**, here or in code, commit messages, or pull requests.
+  A comma, a colon, a semicolon, or a parenthesis says the same thing.
 * **Default to a bullet list; make a table earn its columns.**
   A list extends one line at a time and diffs the same way,
   so an enumeration is bullets, each item led by its name.
@@ -207,12 +235,6 @@ and that — not the length — is the defect.
   a state number — means nothing where it is read,
   and resolves only for someone holding that table:
   say what the invariant says, in the clause that depends on it.
-* **Write links that leave their directory from the repository root**,
-  with a leading `/` —
-  GitHub resolves them against the root on any branch or fork;
-  same-directory and downward links stay relative.
-  Such links do not resolve in a local preview;
-  the handbook is read on GitHub, and that is the trade taken.
 
 ## Linking between leaves
 

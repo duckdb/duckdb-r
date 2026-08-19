@@ -1,29 +1,14 @@
 # `experiments/` — measured evidence
 
-*Handbook: [`meta/plans/`](/handbook/meta/plans/README.md)
-explains this directory alongside `plan/`.*
+*Handbook: [`meta/experiments/`](/handbook/meta/experiments/README.md)
+owns this directory's conventions.*
 
 One directory per experiment, holding everything it needs:
 a `README.md` that says what was measured, when, on what,
 and which handbook page relies on it,
 plus whatever the run took — scripts, inputs, recorded output.
 
-An experiment is evidence, not a check.
-It does not re-run itself, and nothing here gates a build:
-what a test can pin is a test
-([`testing/suite/`](/handbook/testing/suite/README.md)),
-and what a scan can enforce is a check
-([`testing/guards/`](/handbook/testing/guards/README.md)).
-What lands here is the finding too expensive to re-derive on demand —
-a measurement, a survey, a build that takes an hour —
-kept so the leaf that cites it can be trusted
-without the reader repeating the work.
-
-A record ages rather than rots:
-it is true of the day it names,
-and a leaf that leans on it says so.
-Re-running is how it is refreshed;
-the directory keeps the method so that is possible.
+This file is what names the contents, so nothing here is an orphan.
 
 * [`2026-03-vendor-build-cost/`](2026-03-vendor-build-cost/) —
   churn per vendor commit, ccache hit rate on adjacent commits,
