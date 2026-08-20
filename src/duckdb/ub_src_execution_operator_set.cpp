@@ -2,6 +2,8 @@
 
 #include "src/execution/operator/set/physical_recursive_cte.cpp"
 
+#include "src/execution/operator/set/physical_recursive_cte_delta.cpp"
+
 #include "src/execution/operator/set/physical_recursive_cte_runtime.cpp"
 
 #include "src/execution/operator/set/physical_recursive_cte_state.cpp"
