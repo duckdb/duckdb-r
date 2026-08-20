@@ -8,6 +8,8 @@
 
 #include "src/parser/peg/matcher_factory.cpp"
 
+#include "src/parser/peg/parsed_grammar.cpp"
+
 #include "src/parser/peg/parser_packrat.cpp"
 
 #include "src/parser/peg/peg_parser.cpp"
