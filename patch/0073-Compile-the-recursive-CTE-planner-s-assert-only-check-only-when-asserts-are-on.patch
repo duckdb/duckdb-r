@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:14:23 +0000
+Subject: [PATCH] Compile the recursive CTE planner's assert-only check only when asserts are on
+
+The recursive CTE planner binds a value that only D_ASSERT() reads, so
+in a release build, where D_ASSERT() expands to nothing, the binding
+is unused and -Wunused-variable says so. The assert-only lines are
+compiled only when assertions are enabled, which is the shape upstream
+gives the site later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp b/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp
+index 9bcf87c54a..b42be9ef32 100644
+--- a/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp
++++ b/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp
+@@ -119,8 +119,12 @@ PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalRecursiveCTE &op) {
+ 			unique_ptr<Expression> current =
+ 			    make_uniq<BoundReferenceExpression>(payload_types[i], payload_types.size() + i);
+ 			const auto normalize_previous = ExpressionBinder::PushCollation(context, previous, payload_types[i]);
++#ifdef D_ASSERT_IS_ENABLED
+ 			const auto normalize_current = ExpressionBinder::PushCollation(context, current, payload_types[i]);
+ 			D_ASSERT(normalize_previous == normalize_current);
++#else
++			ExpressionBinder::PushCollation(context, current, payload_types[i]);
++#endif
+ 			if (normalize_previous) {
+ 				payload_comparisons.push_back(BoundComparisonExpression::Create(
+ 				    ExpressionType::COMPARE_DISTINCT_FROM, std::move(previous), std::move(current)));
