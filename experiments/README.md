@@ -34,6 +34,10 @@ This file is what names the contents, so nothing here is an orphan.
   which running DuckDB work a Ctrl+C stops in R and in the DuckDB CLI,
   and what each host does when it stops nothing; supports
   [`usage/interactive/`](/handbook/usage/interactive/README.md).
+* [`2026-08-08-rel-from-arrow/`](2026-08-08-rel-from-arrow/) —
+  what the relational API can already do with an Arrow or nanoarrow
+  source, and how the one route in binds, ages, and costs; supports
+  [`plan/PLAN-rel-from-arrow.md`](/plan/PLAN-rel-from-arrow.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
