@@ -158,7 +158,6 @@ Unless this changes fundamentally,
 handing these packages a data frame is good enough:
 any other reader in these packages would still have to build R vectors.
 
-
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain
 [#209](https://github.com/duckdb/duckdb-r/issues/209).*
