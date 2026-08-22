@@ -83,8 +83,16 @@ fi
 # lives in .git/config and cannot be committed, so a fresh clone has the
 # attribute (.gitattributes) and not the driver, and the replay stops on a
 # DESCRIPTION conflict indistinguishable from one a human has to resolve.
-# Refuse up front, as scripts/series-forward-build.sh already does. After the
-# --abort branch, so a stopped replay can always be discarded.
+#
+# Register it, then refuse if it is still missing. This script already knew how
+# to register it -- below, in the replay branch -- and a refusal reached first
+# made every firing run scripts/setup-git.sh by hand, because a firing runs in a
+# fresh clone. Idempotent, and .git/config is shared with the worktree the
+# replay uses. After the --abort branch, so a stopped replay can always be
+# discarded.
+if [ -x "$(dirname "$0")/setup-git.sh" ]; then
+  VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
+fi
 git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
@@ -493,11 +501,8 @@ else
   # Every buffer commit bumps DESCRIPTION's vendor counter, so a -dev that has
   # taken a fledge bump conflicts on the `Version:` line at the first replayed
   # commit and at every one after it. That line is what the ours-version merge
-  # driver exists for; register it here as series-port.sh does, so only genuine
-  # conflicts reach the judgement above.
-  if [ -x "$(dirname "$0")/setup-git.sh" ]; then
-    VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
-  fi
+  # driver exists for, and the gate at the top of this script has registered it
+  # already, so only genuine conflicts reach the judgement above.
 
   # Where the run stops, and how it says so. The worktree is kept: it holds the
   # conflict, and whoever resolves it needs somewhere to do that. Nothing has
