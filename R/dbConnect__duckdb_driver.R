@@ -88,7 +88,6 @@ dbConnect__duckdb_driver <- function(
   if (missing(dbdir)) {
     dbdir <- drv@dbdir
   } else {
-    dbdir <- path_normalize(dbdir)
     # `dbdir` wins over the driver's own, silently, and leaves the driver
     # holding a database nobody asked about (duckdb/duckdb-r#2560). Only a
     # driver that owns a *file* has anything to lose: the throwaway instance

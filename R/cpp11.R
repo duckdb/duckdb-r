@@ -16,6 +16,10 @@ rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, allow_ex
   .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp, environment_scan, allow_extensions)
 }
 
+rapi_database_path <- function(dual) {
+  .Call(`_duckdb_rapi_database_path`, dual)
+}
+
 rapi_lock <- function(dual) {
   .Call(`_duckdb_rapi_lock`, dual)
 }

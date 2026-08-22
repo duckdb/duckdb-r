@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 21:00:00 +0200
+Subject: [PATCH] Bound the instance cache's shutdown wait
+
+DBInstanceCache::GetInstanceInternal() finds a cache entry whose DuckDB
+handle is gone and concludes that a shutdown is in flight on another
+thread, so it busy-spins until the entry expires. ~DatabaseInstance
+releases the entry on its last line, so that is usually right and takes
+microseconds.
+
+It is not the only way to reach that state. A DatabaseInstance can
+outlive the DuckDB handle that pointed at it: a ClientContext holds a
+DatabaseInstance, and an unfinished result holds a ClientContext. Drop
+the last DuckDB reference while a result is still open and the entry
+stays alive with a null handle forever, with no shutdown running to
+finish. The spin then never terminates. In a single-threaded embedding
+such as R that wedges the host at 100% CPU with no interrupt check to
+break out of, from an ordinary sequence: open a database, send a query,
+release the driver without clearing the result, reopen the same path.
+
+Bound the wait and raise instead. Reporting rather than falling through
+to CreateInstance is deliberate: the file lock does not fire within one
+process, so creating would succeed and leave two instances writing one
+file, each blind to what the other commits.
+---
+ src/duckdb/src/main/db_instance_cache.cpp | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/duckdb/src/main/db_instance_cache.cpp b/src/duckdb/src/main/db_instance_cache.cpp
+index 554898f..a0ece67 100644
+--- a/src/duckdb/src/main/db_instance_cache.cpp
++++ b/src/duckdb/src/main/db_instance_cache.cpp
+@@ -1,13 +1,13 @@
+ #include "duckdb/main/db_instance_cache.hpp"
+ #include "duckdb/main/extension_helper.hpp"
+ #include "duckdb/main/database_file_path_manager.hpp"
+-#include "duckdb/common/types/interval.hpp"
+-#include "duckdb/common/types/timestamp.hpp"
++#include "duckdb/common/chrono.hpp"
++#include "duckdb/common/thread.hpp"
+ 
+ namespace duckdb {
+ 
+ //! How long to wait for an in-flight shutdown to finish before reporting that the database is still in use
+-static constexpr int64_t SHUTDOWN_WAIT_MICROS = 5 * Interval::MICROS_PER_SEC;
++static constexpr int64_t SHUTDOWN_WAIT_SECONDS = 5;
+ 
+ DatabaseCacheEntry::DatabaseCacheEntry() {
+ }
+@@ -97,9 +97,14 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database,
+ 		// reporting rather than falling through to CreateInstance is deliberate: the file lock does not fire
+ 		// within one process, so creating would succeed and leave two instances writing one file
+ 		cache_entry.reset();
+-		auto deadline = Timestamp::GetCurrentTimestamp().value + SHUTDOWN_WAIT_MICROS;
++		// steady_clock, not the wall clock: a clock step backwards during the wait
++		// would restore the unbounded hang this exists to remove
++		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(SHUTDOWN_WAIT_SECONDS);
+ 		while (!weak_cache_entry.expired()) {
+-			if (Timestamp::GetCurrentTimestamp().value > deadline) {
++			// yield rather than spin: the thread finishing the shutdown is the one
++			// this is waiting on, and on a single core it needs the CPU back
++			std::this_thread::yield();
++			if (std::chrono::steady_clock::now() > deadline) {
+ 				throw ConnectionException(
+ 				    "Database \"%s\" is still in use: an earlier instance has been released but something is "
+ 				    "still holding it open, such as an unfinished query result or a connection. Release it "
+-- 
+2.51.0
+
