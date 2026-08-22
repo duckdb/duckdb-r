@@ -1,5 +1,14 @@
 # Changelog
 
+## duckdb 1.5.5.9018
+
+### Documentation
+
+#### meta
+
+- Consolidate the authoring rules, and split recorded evidence into its
+  own leaf ([\#2672](https://github.com/duckdb/duckdb-r/issues/2672)).
+
 ## duckdb 1.5.5.9017
 
 ### Bug fixes
