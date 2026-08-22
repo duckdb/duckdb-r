@@ -6,6 +6,7 @@ duckdb_convert_opts <- function(
   array = "none",
   geometry = "blob",
   map = "data.frame",
+  posixct = "timestamptz",
   call = parent.frame()
 ) {
   tz_out_convert <- match.arg(tz_out_convert)
@@ -38,6 +39,10 @@ duckdb_convert_opts <- function(
     abort(paste0("Unsupported map configuration: ", map), call = call)
   }
 
+  if (!posixct %in% c("timestamp", "timestamptz")) {
+    abort(paste0("Unsupported posixct configuration: ", posixct), call = call)
+  }
+
   duckdb_convert_opts_impl(
     timezone_out = timezone_out,
     tz_out_convert = tz_out_convert,
@@ -45,6 +50,7 @@ duckdb_convert_opts <- function(
     array = array,
     geometry = geometry,
     map = map,
+    posixct = posixct,
     arrow = FALSE,
     streaming = FALSE,
     experimental = FALSE,
@@ -61,6 +67,7 @@ duckdb_convert_opts_impl <- function(
   array = NULL,
   geometry = NULL,
   map = NULL,
+  posixct = NULL,
   arrow = NULL,
   streaming = NULL,
   experimental = NULL,
@@ -83,6 +90,9 @@ duckdb_convert_opts_impl <- function(
   }
   if (!is.null(map)) {
     x$map <- map
+  }
+  if (!is.null(posixct)) {
+    x$posixct <- posixct
   }
   if (!is.null(arrow)) {
     x$arrow <- arrow

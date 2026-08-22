@@ -42,6 +42,25 @@ duckplyr surfaces these refusals as errors on an explicit
 What a value becomes once it has crossed is
 [`types/`](/handbook/usage/types/README.md)'s.
 
+**A `POSIXct` lifts as `TIMESTAMP` here, and only here.**
+Everything else that hands R values to the engine follows
+`dbConnect(posixct = )`, whose default sends the instant as
+`TIMESTAMPTZ` ([`timestamps/`](/handbook/usage/timestamps/README.md));
+`rel_from_df()` pins the older mapping instead
+([`R/relational.R`](/R/relational.R)),
+because a `TIMESTAMPTZ` column comes back labeled with the session
+`TimeZone` and a relation has to return the data frame it was given.
+The three ways of letting it follow the default all cost more than
+they pay — the strict check then guards a zone the column will not
+come back in, comparing against the session's refuses `"UTC"` on any
+build whose session zone spells that `"Etc/UTC"`, and dropping the
+check relabels 30 of 36 measured cells silently
+([`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md)).
+Passing `convert_opts` explicitly is the way in for a caller who wants
+`TIMESTAMPTZ` anyway, and a per-column zone on a result — which DuckDB
+does not have — is what would settle it
+([#2574](https://github.com/duckdb/duckdb-r/issues/2574)).
+
 **Untyped `NULL` constants.**
 `expr_constant(NA)` builds an untyped `NULL`
 ([#143](https://github.com/duckdb/duckdb-r/pull/143)),
