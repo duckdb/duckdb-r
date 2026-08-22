@@ -47,6 +47,8 @@
 #                           in <dir>/<stage>.log and its verdict appended to
 #                           <dir>/outcomes.tsv, so scripts/each-shard.sh can
 #                           quote the failing stage into the run summary
+#   CLANG_FORMAT          - the C++ formatter the style gate runs
+#                           (default: clang-format-21, what CI installs)
 #   RCMDCHECK_ERROR_ON    - passed through to rcmdcheck (default: note)
 #   EACH_TIMEOUT_<STAGE>  - seconds a stage may take before it is presumed stuck
 #                           and killed (see stage_budget below); 0 disables the
@@ -287,15 +289,34 @@ fi
 
 # Mirrors .github/workflows/style/action.yml. Tool installation is the caller's
 # job; this only runs the formatters.
+#
+# A formatter that is not installed is not a style violation, and it used to read
+# as one: `clang-format-21` absent leaves `git status --short` empty and still
+# returns 1, so the gate reports `style failure` about a tree it never looked at
+# (duckdb/duckdb-r#2669). Say which of the two it is.
+#
+# The name stays pinned. CI installs clang-format-21, different majors format
+# differently, and falling back to whatever `clang-format` resolves to would
+# trade a legible failure for a verdict that is not CI's -- either reformatting
+# code CI is happy with, or passing code CI will reject. `CLANG_FORMAT` is for a
+# host that has the right major under another name, not for using another major.
 gate_style() {
-  local rc=0
+  local rc=0 clang_format="${CLANG_FORMAT:-clang-format-21}"
   if [ -f air.toml ]; then
     air format . || rc=1
   fi
   if [ -f .clang-format ]; then
-    shopt -s nullglob
-    clang-format-21 -i src/*.{c,cc,cpp,h,hpp} || rc=1
-    shopt -u nullglob
+    if ! command -v "${clang_format}" >/dev/null 2>&1; then
+      echo "Error: ${clang_format} is not on PATH, so the C++ sources were not" \
+        "formatted -- this says nothing about the tree." >&2
+      echo "  Install it (see .github/workflows/style/action.yml), or set" \
+        "CLANG_FORMAT to a build of the same major." >&2
+      rc=1
+    else
+      shopt -s nullglob
+      "${clang_format}" -i src/*.{c,cc,cpp,h,hpp} || rc=1
+      shopt -u nullglob
+    fi
   fi
   git status --short
   return "${rc}"
