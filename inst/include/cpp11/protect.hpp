@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.3.9000
-// vendored on: 2026-01-27
+// cpp11 version: 0.5.5.9000
+// vendored on: 2026-08-09
 #pragma once
 
 #include <csetjmp>    // for longjmp, setjmp, jmp_buf
@@ -97,6 +97,52 @@ unwind_protect(Fun&& code) {
 
 namespace detail {
 
+// Tag types to force templated `struct closure` and `apply()` infrastructure shared
+// across `struct function` and `struct noreturn_function` to generate different
+// attribute specific `struct closure` and `apply()` variants.
+//
+// Consider:
+//
+// ```
+// cpp11::stop("error: %s", message)
+// cpp11::warning("warning: %s", message)
+// ```
+//
+// These both end up constructing the exact same templated `struct closure` and `apply()`
+// functions. The `args` for the underlying `Rf_errorcall()` and `Rf_warningcall()` are:
+// - `R_NilValue`
+// - `const char* fmt`
+// - `const char* message`
+//
+// The only difference is that `cpp11::stop()` is marked as `[[noreturn]]` because the
+// underlying `Rf_errorcall()` is also marked as `[[noreturn]]` /
+// `__attribute__((noreturn))`.
+//
+// But this causes issues! Due to C++'s ODR (One Definition Rule), only 1 variant of
+// `apply()` and `struct closure` can be created per template combination. If the
+// `cpp11::stop()` variant is linked in first, then some compilers use the `[[noreturn]]`
+// hint on `cpp11::stop()` and `operator()` of `noreturn_function` to assert that the
+// `apply()` function also cannot return, and returning is deemed unreachable. So then
+// when `cpp11::warning()` tries to return from its call to `apply()`, a crash occurs. We
+// see this output under ASAN: `execution reached an unreachable program point`.
+//
+// We've seen this issue on macOS and Linux under clang (gcc does not seem to reproduce
+// this). To reproduce, you must have `cpp11::stop()` and `cpp11::warning()` calls in
+// different translation units / files and the file containing `cpp11::stop()` must be
+// linked first. Putting it first alphabetically seems to be enough, which is why we have
+// `template-1-stop.cpp` and `template-2-warn.cpp` in our tests, along with
+// `test-template.R` to test this exact issue. You also need to compile with `-O0`,
+// otherwise you'll just get a hang rather than a crash.
+//
+// Adding the tag into the template definition forces `safe[fn]()` and
+// `safe.noreturn[fn]()` calls to generate different `apply()` variants, avoiding this
+// issue.
+//
+// https://github.com/r-lib/cpp11/issues/491
+// https://github.com/r-lib/cpp11/issues/295
+struct return_tag {};
+struct no_return_tag {};
+
 template <size_t...>
 struct index_sequence {
   using type = index_sequence;
@@ -115,29 +161,30 @@ struct make_index_sequence
 template <>
 struct make_index_sequence<0> : index_sequence<> {};
 
-template <typename F, typename... Aref, size_t... I>
+template <typename ReturnTag, typename F, typename... Aref, size_t... I>
 decltype(std::declval<F&&>()(std::declval<Aref>()...)) apply(
     F&& f, std::tuple<Aref...>&& a, const index_sequence<I...>&) {
   return std::forward<F>(f)(std::get<I>(std::move(a))...);
 }
 
-template <typename F, typename... Aref>
+template <typename ReturnTag, typename F, typename... Aref>
 decltype(std::declval<F&&>()(std::declval<Aref>()...)) apply(F&& f,
                                                              std::tuple<Aref...>&& a) {
-  return apply(std::forward<F>(f), std::move(a), make_index_sequence<sizeof...(Aref)>{});
+  return apply<ReturnTag>(std::forward<F>(f), std::move(a),
+                          make_index_sequence<sizeof...(Aref)>{});
 }
 
 // overload to silence a compiler warning that the (empty) tuple parameter is set but
 // unused
-template <typename F>
+template <typename ReturnTag, typename F>
 decltype(std::declval<F&&>()()) apply(F&& f, std::tuple<>&&) {
   return std::forward<F>(f)();
 }
 
-template <typename F, typename... Aref>
+template <typename ReturnTag, typename F, typename... Aref>
 struct closure {
   decltype(std::declval<F*>()(std::declval<Aref>()...)) operator()() && {
-    return apply(ptr_, std::move(arefs_));
+    return apply<ReturnTag>(ptr_, std::move(arefs_));
   }
   F* ptr_;
   std::tuple<Aref...> arefs_;
@@ -151,17 +198,13 @@ struct protect {
     template <typename... A>
     decltype(std::declval<F*>()(std::declval<A&&>()...)) operator()(A&&... a) const {
       // workaround to support gcc4.8, which can't capture a parameter pack
-      return unwind_protect(
-          detail::closure<F, A&&...>{ptr_, std::forward_as_tuple(std::forward<A>(a)...)});
+      return unwind_protect(detail::closure<detail::return_tag, F, A&&...>{
+          ptr_, std::forward_as_tuple(std::forward<A>(a)...)});
     }
 
     F* ptr_;
   };
 
-  /// May not be applied to a function bearing attributes, which interfere with linkage on
-  /// some compilers; use an appropriately attributed alternative. (For example, Rf_error
-  /// bears the [[noreturn]] attribute and must be protected with safe.noreturn rather
-  /// than safe.operator[]).
   template <typename F>
   constexpr function<F> operator[](F* raw) const {
     return {raw};
@@ -172,8 +215,8 @@ struct protect {
     template <typename... A>
     void operator() [[noreturn]] (A&&... a) const {
       // workaround to support gcc4.8, which can't capture a parameter pack
-      unwind_protect(
-          detail::closure<F, A&&...>{ptr_, std::forward_as_tuple(std::forward<A>(a)...)});
+      unwind_protect(detail::closure<detail::no_return_tag, F, A&&...>{
+          ptr_, std::forward_as_tuple(std::forward<A>(a)...)});
       // Compiler hint to allow [[noreturn]] attribute; this is never executed since
       // the above call will not return.
       throw std::runtime_error("[[noreturn]]");
@@ -181,6 +224,9 @@ struct protect {
     F* ptr_;
   };
 
+  // To be used when wrapping functions tagged with `[[noreturn]]`, such as
+  // `Rf_errorcall()`, to force generation of attribute specific `struct closure` and
+  // `apply()` variants, see `struct return_tag` documentation for more details.
   template <typename F>
   constexpr noreturn_function<F> noreturn(F* raw) const {
     return {raw};
@@ -193,21 +239,21 @@ inline void check_user_interrupt() { safe[R_CheckUserInterrupt](); }
 #ifdef CPP11_USE_FMT
 template <typename... Args>
 void stop [[noreturn]] (const char* fmt_arg, Args&&... args) {
-  std::string msg = fmt::format(fmt_arg, std::forward<Args>(args)...);
+  std::string msg = fmt::format(fmt::runtime(fmt_arg), std::forward<Args>(args)...);
   safe.noreturn(Rf_errorcall)(R_NilValue, "%s", msg.c_str());
 }
 
 template <typename... Args>
 void stop [[noreturn]] (const std::string& fmt_arg, Args&&... args) {
-  std::string msg = fmt::format(fmt_arg, std::forward<Args>(args)...);
+  std::string msg = fmt::format(fmt::runtime(fmt_arg), std::forward<Args>(args)...);
   safe.noreturn(Rf_errorcall)(R_NilValue, "%s", msg.c_str());
 }
 
-// Always making copy of string to avoid weird unwind behavior.
+// Always making a copy of the string to avoid weird unwind behavior.
 
 template <typename... Args>
 void warning(const std::string fmt_arg, Args&&... args) {
-  std::string msg = fmt::format(fmt_arg, std::forward<Args>(args)...);
+  std::string msg = fmt::format(fmt::runtime(fmt_arg), std::forward<Args>(args)...);
   safe[Rf_warningcall](R_NilValue, "%s", msg.c_str());
 }
 #else
@@ -221,7 +267,7 @@ void stop [[noreturn]] (const std::string& fmt, Args... args) {
   safe.noreturn(Rf_errorcall)(R_NilValue, fmt.c_str(), args...);
 }
 
-// Always making copy of string to avoid weird unwind behavior.
+// Always making a copy of the string to avoid weird unwind behavior.
 
 template <typename... Args>
 void warning(const std::string fmt, Args... args) {
