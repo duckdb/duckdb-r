@@ -608,7 +608,12 @@ It prints, per package, the version and the commit built —
 naming the local ref when this clone knows it,
 which is how a red is attributed to a series —
 then one line per target that is not OK, with the log URL.
-Three access facts it exists to encapsulate, each paid for once:
+Four access facts it exists to encapsulate, each paid for once:
+the greens are published in **more than one universe** —
+`duckdb.r-universe.dev` builds the base series' greens
+and `krlmlr.r-universe.dev` the forward ones —
+so a read of one of them answers for half the series
+and reports all-OK over a failing `-fwd-green`;
 the `/builds` dashboard answers 403 to some fetchers
 while `https://<universe>.r-universe.dev` answers a plain curl;
 the build logs live in the GitHub repository `r-universe/<universe>`,
