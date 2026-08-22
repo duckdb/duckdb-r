@@ -745,6 +745,46 @@ and the commit that reaches `-dev` from it
 arrives broken again on exactly the platform the patch was for.
 Commit it onto `<S>-build` as well, in the same firing.
 
+**The entry a firing did not write is carried by stage 4, not by hand.**
+Stage 4's port brings whole `main` commits onto `-dev`,
+`patch/` files included,
+so an entry born as a pull request against `main`
+reaches every `-dev` without any firing deciding to put it there —
+and used to reach no buffer at all.
+`scripts/series-port.sh --apply` now closes that as part of porting,
+through `scripts/series-patch-sync.sh <S>`,
+which is a read-only report on its own.
+The drift it exists to prevent is quiet
+while upstream leaves the patched file alone,
+because the buffer is then internally consistent
+and its commits carry no delta for that file;
+it bites the first time upstream touches it,
+and the fix is reverted on `-dev`
+by a commit that looks like an ordinary vendor.
+
+**The carry decides by test-applying, never by the file list.**
+A buffer runs ahead of `main`,
+so an entry `main` needs may not fit the engine the buffer has vendored,
+and committing it there regardless breaks the next vendor run
+(`vendor.sh`'s "patches moved" exit) rather than helping anything.
+Three answers, three situations:
+*carry* applies cleanly and is taken with its effect on the tree;
+*satisfied* reverse-applies, so only the entry is taken,
+to keep the two stacks named alike;
+*stale* is neither — upstream moved the code out from under it,
+and it reaches the buffer if and when the code it answers does.
+A candidate whose files an entry the buffer has and `-dev` lacks
+also touches is a **supersession** and is never carried:
+applying both is how the next vendor run breaks,
+and which of the two the buffer should end up with is judgement.
+
+`scripts/series-check.sh` still prints a PATCH DRIFT line per series,
+naming what the two stacks differ by in both directions —
+a renamed entry is one of each.
+It is the backstop, not the mechanism:
+what it reports after a port is what the carry deliberately declined,
+which is a stage 3 repair like any patch this stage writes.
+
 ### 4. Port from `main`
 
 The goal is identity, not curation:

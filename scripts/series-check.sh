@@ -16,6 +16,10 @@
 # gets a CUTOVER line: the command to run, for a human to run. The loop never
 # swaps a serving green itself (.claude/skills/series-loop.md).
 #
+# A series whose `-dev` carries `patch/` entries its `-build` lacks gets a
+# PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
+# an entry that never reached it is one the next vendor run will not apply.
+#
 # Classification is by positive evidence only (.claude/skills/series-loop.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
@@ -297,6 +301,48 @@ for S in "${series[@]}"; do
     echo "  IDLE   nothing in flight, buffer empty — vendor"
   else
     echo "  ADVANCE"
+  fi
+
+  # A `patch/` entry that only ever reached `-dev` is absent the next time the
+  # buffer vendors: `vendor-one.sh` applies the *buffer's* patch stack to every
+  # tree it regenerates (.claude/skills/series-loop.md stage 3). Stage 4's port
+  # is how such an entry arrives -- it carries whole `main` commits onto `-dev`,
+  # `patch/` files included -- and `-build` takes no ports by design, so nothing
+  # closes the gap by itself. The drift is quiet while upstream leaves the
+  # patched file alone, because the buffer is then internally consistent and its
+  # commits carry no delta for that file; it bites the first time upstream
+  # touches it, and the fix is reverted on `-dev` by a commit that looks like an
+  # ordinary vendor.
+  #
+  # Reported in both directions, because a renamed entry is one of each and
+  # neither half alone says so.
+  # Compared by blob, not by name: `main` also edits an entry in place, and the
+  # port brings the new content to `-dev` under a name the buffer already has,
+  # which a name-only comparison calls level.
+  only_dev=$(comm -23 \
+    <(git ls-tree --name-only "$dev" patch/ | sort) \
+    <(git ls-tree --name-only "$build" patch/ | sort))
+  only_build=$(comm -13 \
+    <(git ls-tree --name-only "$dev" patch/ | sort) \
+    <(git ls-tree --name-only "$build" patch/ | sort))
+  differs=$(for n in $(comm -12 \
+      <(git ls-tree --name-only "$dev" patch/ | sort) \
+      <(git ls-tree --name-only "$build" patch/ | sort)); do
+    [ "$(git rev-parse "$dev:$n")" = "$(git rev-parse "$build:$n")" ] || echo "$n"
+  done)
+  if [ -n "$only_dev$only_build$differs" ]; then
+    echo "  PATCH DRIFT  the two patch stacks of $S differ:"
+    if [ -n "$only_dev" ]; then
+      sed 's|^patch/|               -dev only:    |' <<<"$only_dev"
+    fi
+    if [ -n "$only_build" ]; then
+      sed 's|^patch/|               -build only:  |' <<<"$only_build"
+    fi
+    if [ -n "$differs" ]; then
+      sed 's|^patch/|               both, differ: |' <<<"$differs"
+    fi
+    echo "               scripts/series-patch-sync.sh $S says which of these it can carry;"
+    echo "               after a port, what is left is what it declined — stage 3 work"
   fi
 
   # Suggested, never done: a firing reports a ready cutover and stops
