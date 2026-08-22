@@ -1239,16 +1239,45 @@ The store applies the same newest-run-wins rule to its copy,
 so the leg *replaces* a record rather than appending —
 the one case where a decided commit legitimately changes state.
 
-**Dropping a result by hand is a store-side operation**,
-and only concerns a firing that is reading the store:
-remove `runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`,
-then dispatch `rcc-logs.yaml` to re-derive both from the fresh status,
-provided the commit is still inside the store's 30-day window.
-The removal alone no longer does anything:
-nothing sweeps on a schedule to notice the gap,
-so a deletion left unaccompanied is a record simply gone.
+**Dropping a result by hand is a store-side operation**:
+
+```sh
+scripts/rcc-drop.sh <sha>...          # or --stdin, one per line
+```
+
+It removes `runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`,
+which is what makes the commit undecided —
+work selection reads presence and nothing else (`rcc-decided.sh`) —
+so the next `each-rcc` run on the branch plans it
+like a commit that had never been built.
 A run's own results are immutable;
 there a newer run is the only thing that supersedes an older one.
+
+**Reach for it when the job decided the commit, not the tree.**
+The composite actions come from the branch tip that triggered the run,
+not from the commit under test,
+so a bad workflow turns commits red
+whose own trees have nothing to do with it,
+at the scale of everything the run touched:
+duckdb/duckdb-r#2620 put `-Wno-*` flags in `~/.R/Makevars`,
+where `R CMD check --as-cran` refused them as non-portable,
+and 166 commits across three series were red for it
+until duckdb/duckdb-r#2652 landed and the records were dropped.
+That is not `retry-<S>-dev`'s question:
+the retry replans one tip and runs the workflow from *that commit's* tree,
+where a drop asks for a verdict under the tooling the branch carries today.
+And it is not a repair either —
+dropping the record of a commit its own tree broke
+costs a rebuild to learn the same verdict
+and erases the log that said why.
+
+**Do not dispatch `rcc-logs.yaml` behind a drop.**
+The commit keeps its stale `rcc` status until the rebuild writes a fresh one,
+and that sweep derives records for undecided commits from exactly those,
+so it puts back what the drop removed.
+Where the sweep *is* what is wanted —
+a record the leg never published, from a run cancelled whole —
+there is nothing to drop first.
 
 **Both mechanisms live in the tree at the commit under retry.**
 `each.yaml` and its scripts are read from the retried ref, not from `main`,
