@@ -13,6 +13,9 @@
 
 #include <R_ext/Utils.h>
 
+// Handbook: handbook/usage/memory/README.md
+// (where a result's copies live per fetch path, and when each is freed)
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -436,6 +439,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
 	// FIXME: This is a memory leak, need better lifecycle management
+	// (documented as such in handbook/usage/memory/README.md)
 	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
 
 	cpp11::sexp stream_ptr_sexp(
