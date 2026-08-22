@@ -455,6 +455,13 @@ extern "C" SEXP _duckdb_rapi_cxx_stdlib() {
   END_CPP11
 }
 // utils.cpp
+cpp11::r_string rapi_canonicalize_path(std::string path);
+extern "C" SEXP _duckdb_rapi_canonicalize_path(SEXP path) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_canonicalize_path(cpp11::as_cpp<cpp11::decay_t<std::string>>(path)));
+  END_CPP11
+}
+// utils.cpp
 cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 extern "C" SEXP _duckdb_rapi_ptr_to_str(SEXP extptr) {
   BEGIN_CPP11
@@ -474,6 +481,7 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_adbc_init_func",          (DL_FUNC) &_duckdb_rapi_adbc_init_func,           0},
     {"_duckdb_rapi_bind",                    (DL_FUNC) &_duckdb_rapi_bind,                     3},
+    {"_duckdb_rapi_canonicalize_path",       (DL_FUNC) &_duckdb_rapi_canonicalize_path,        1},
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                  2},
     {"_duckdb_rapi_connection_valid",        (DL_FUNC) &_duckdb_rapi_connection_valid,         1},
     {"_duckdb_rapi_cxx_stdlib",              (DL_FUNC) &_duckdb_rapi_cxx_stdlib,               0},
