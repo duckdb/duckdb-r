@@ -54,3 +54,7 @@ A long one is bulk nobody reads, it ages the same as the page, and it buries the
 Some directories predate these rules, in their name or in their shape, and are left as they are.
 Renaming one breaks every inbound link for no gain,
 and reshaping a record to a convention younger than it gives a reader nothing they did not have.
+
+*To deepen: state what [`experiments/README.md`](/experiments/README.md) is,
+and what registering a new directory in it takes,
+which this page leaves to that file today.*

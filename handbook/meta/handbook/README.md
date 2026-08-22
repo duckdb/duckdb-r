@@ -63,6 +63,16 @@ has exactly one place in this tree.
   and each affected leaf links the plan that carries its intent.
   A plan that has become fact is documented as fact,
   in the leaf, with no trace of its having once been a proposal.
+* **Evidence lives outside the tree.**
+  A measurement too expensive to re-derive is recorded under
+  [`experiments/`](/experiments/README.md),
+  one directory per run, with the method that produced it.
+  The leaf that leans on it takes the finding and links the record;
+  [`meta/experiments/`](/handbook/meta/experiments/README.md) explains
+  that directory and the conventions that govern it.
+  A leaf states what is true,
+  which is not the same kind of writing
+  as a record of what was measured on one day.
 * **The tree is the single source of truth.**
   Everything outside it is secondary —
   user-facing surfaces (the root `README.md`, reference pages),
