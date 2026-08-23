@@ -32,7 +32,7 @@ How the to-do list is computed is
   A **run's conclusion is not a verdict**: a leg exits 0 whatever its commits
   did, deliberately, so that a red commit reads as a result rather than as a
   broken job.
-* **Gate applied per commit** — style, snapshots, roxygen, clean tree,
+* **Gate applied per commit** — flavor, style, snapshots, roxygen, clean tree,
   `R CMD check`, pkgdown. The *order* is the contract;
   the list is `rcc-one.sh`'s `ALL_GATES`.
   The copy that runs is the **commit's own**, not the branch tip's:
