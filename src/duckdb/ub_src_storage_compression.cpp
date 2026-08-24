@@ -4,6 +4,8 @@
 
 #include "src/storage/compression/bitpacking_hugeint.cpp"
 
+#include "src/storage/compression/compression_segment_reader.cpp"
+
 #include "src/storage/compression/dict_fsst.cpp"
 
 #include "src/storage/compression/dictionary_compression.cpp"
