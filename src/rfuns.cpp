@@ -221,7 +221,7 @@ ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
 		    auto variant = const_cast<ScalarFunctionSet &>(fn).GetFunctionByArguments(state.GetContext(), types);
 
 		    auto info = StringUtil::Format("lhs = %s, rhs = %s, signature = %s", EnumUtil::ToChars(types[0].id()),
-		                                   EnumUtil::ToChars(types[1].id()), variant.ToString().c_str());
+		                                   EnumUtil::ToChars(types[1].id()), variant->ToString().c_str());
 		    result.SetValue(0, info);
 	    }));
 	return set;
