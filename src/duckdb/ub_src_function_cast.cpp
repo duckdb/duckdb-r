@@ -8,6 +8,8 @@
 
 #include "src/function/cast/cast_function_set.cpp"
 
+#include "src/function/cast/cast_statistics.cpp"
+
 #include "src/function/cast/decimal_cast.cpp"
 
 #include "src/function/cast/default_casts.cpp"
