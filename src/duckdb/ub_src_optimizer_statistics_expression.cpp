@@ -4,8 +4,6 @@
 
 #include "src/optimizer/statistics/expression/propagate_case.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_cast.cpp"
-
 #include "src/optimizer/statistics/expression/propagate_columnref.cpp"
 
 #include "src/optimizer/statistics/expression/propagate_comparison.cpp"
