@@ -1,0 +1,91 @@
+measured at: 2026-08-09T17:11:14Z
+repository:  krlmlr/duckdb-r
+remote:      origin -> https://github.com/krlmlr/duckdb-r
+
+=== 1. dispatches of rcc-logs.yaml (the gap being felt) ===
+runs of any event: 118
+  push: 22
+  schedule: 76
+  workflow_dispatch: 2
+every workflow_dispatch run, oldest last:
+  total: 2   since 2026-08-08: 1
+  2026-08-08T09:58:23Z  run 31251750340  by krlmlr  success
+  2026-08-07T13:05:27Z  run 31181036396  by krlmlr  success
+
+=== 2. record vs status over every live series' <S>-green..<S>-dev ===
+  main: 0 in flight
+  main-fwd: 409 in flight
+  v1.4-andium: 0 in flight
+  v1.4-andium-fwd: 1 in flight
+  v1.5-variegata: 0 in flight
+  v1.5-variegata-fwd: 10 in flight
+  total: 420 commits
+  records in the store: 8453
+  status side:     372 none      23 pending      25 success 
+  decided by status: 25   by record: 25
+  disagreements:
+    (no lines above means the two answers agree on every commit in flight)
+  cross-check by the batched GraphQL query D6 would use:
+    unavailable: This GraphQL query is not enabled for this session — only the pinned set of PR-review operations is served. Use REST via `gh api repos/{owner}/{repo}/...` ins
+
+=== 2b. who writes the rcc context on these commits ===
+       73 rcc|github-actions[bot]|each-rcc / shard N
+
+  R-CMD-check.yaml runs from the branch it checks, so each series ref
+  carries its own push filter. A filter matching the branch's own name is
+  the template check firing there, and R-CMD-check-status.yaml writing rcc:
+    main-dev: [main master release next cran-*]
+    main-build: [main master release next cran-*]
+    main-fwd-dev: [main master release next cran-*]
+    main-fwd-build: [main master release next cran-*]
+    v1.4-andium-dev: [main master release next cran-*]
+    v1.4-andium-build: [main master release next cran-* v*.*-*]
+      FIRES ON ITSELF via 'v*.*-*' -- a second writer of the rcc context
+    v1.4-andium-fwd-dev: [main master release next cran-*]
+    v1.4-andium-fwd-build: [main master release next cran-* v*.*-* !*-dev !*-build !*-green !*-base]
+    v1.5-variegata-dev: [main master release next cran-*]
+    v1.5-variegata-build: [main master release next cran-*]
+    v1.5-variegata-fwd-dev: [main master release next cran-*]
+    v1.5-variegata-fwd-build: [main master release next cran-*]
+
+  and what the template check has actually written in this fork:
+    runs of the `rcc` workflow: 29
+    on a series ref: 2026-08-06T16:49:08Z  v1.4-andium-build-base  push  head=6e7dd75ce  failure
+    on a series ref: 2026-08-06T15:18:29Z  v1.4-andium-build-base  push  head=6e7dd75ce  failure
+    on a series ref: 2026-08-06T09:24:01Z  v1.4-andium-build-base  push  head=6e7dd75ce  failure
+    on a series ref: 2026-08-06T09:23:58Z  v1.4-andium-build  push  head=6e7dd75ce  failure
+    6e7dd75ce2fe15d3e707814edf0d3db5d26ed4c0
+      rcc statuses: 11, newest failure (rcc)
+      record on rcc2: NO
+      in a <S>-green..<S>-dev range now: no
+    SHAs shared between (<S>-build-base..<S>-build) and (<S>-green..<S>-dev):
+      main: 0
+      main-fwd: 0
+      v1.4-andium: 0
+      v1.4-andium-fwd: 0
+      v1.5-variegata: 0
+      v1.5-variegata-fwd: 0
+
+=== 2c. widening: the store's 250 newest records, each against its status ===
+  agree: 250   disagree: 0   (of 250)
+  writers seen here:
+    r-universe/krlmlr/duckdb.1.5.dev/deploy|r-universe[bot]|Deploy binaries to R-universe package server
+    rcc|github-actions[bot]|each-rcc / shard N
+
+=== 3. what the store costs to keep ===
+  tip:     cf4802b3564c485e13694018d66f3ba330a9c709  2026-08-09 16:07:31 +0000  each-rcc: b7a89ef50 (run 31312285769)
+  commits: 1563
+  root:    66a4230a01d807fa7fc713c8fb4f8b0cf193da7f  2026-08-05 17:44:51 +0200  Initial
+  records: 8453
+  logs:    4242
+  tree        7184 objects      23.4 MB  (1.2 MB packed)
+  blob       12700 objects    2627.5 MB  (221.5 MB packed)
+  commit      1563 objects       0.4 MB  (0.3 MB packed)
+  total      21447 objects    2651.3 MB  (223.0 MB packed)
+  oldest record: 2026-04-11T11:43:01Z ab70e43df19ef252f2598efb5493607eb2571174
+  newest record: 2026-08-09T16:07:30Z b7a89ef50a753a0e4fd0a1027371497013e9782f
+  retention window: RCC_RETENTION_DAYS=180 days
+  runs of rcc-consolidate.yaml (nothing is pruned without one):
+    total: 0
+
+output kept in /tmp/claude-0/-home-user/59c73ee3-c62a-5328-b2cd-850eb4ec1720/scratchpad/run2
