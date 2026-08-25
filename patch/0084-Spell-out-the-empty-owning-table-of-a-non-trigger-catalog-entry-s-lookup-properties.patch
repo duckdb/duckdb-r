@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 01:27:08 +0000
+Subject: [PATCH] Spell out the empty owning table of a non-trigger catalog entry's lookup properties
+
+CatalogEntryInfo gains a table member for triggers, and the lookup
+properties of every other entry still brace-initialize the first
+three members, so -Wmissing-field-initializers reports the site.
+Upstream later writes the empty identifier out; this is that text.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/catalog/dependency_manager.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/catalog/dependency_manager.cpp b/src/duckdb/src/catalog/dependency_manager.cpp
+index 05af92fbdb..4fe121cb5d 100644
+--- a/src/duckdb/src/catalog/dependency_manager.cpp
++++ b/src/duckdb/src/catalog/dependency_manager.cpp
+@@ -363,7 +363,7 @@ CatalogEntryInfo DependencyManager::GetLookupProperties(const CatalogEntry &entr
+ 		return CatalogEntryInfo {entry.type, GetSchemaPath(entry), entry.name,
+ 		                         trigger.base_table->GetQualifiedName().Name()};
+ 	}
+-	return CatalogEntryInfo {entry.type, GetSchemaPath(entry), entry.name};
++	return CatalogEntryInfo {entry.type, GetSchemaPath(entry), entry.name, Identifier()};
+ }
+ 
+ optional_ptr<SchemaCatalogEntry> DependencyManager::NavigateSchemaPath(CatalogTransaction transaction,
