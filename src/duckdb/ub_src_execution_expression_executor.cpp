@@ -8,6 +8,8 @@
 
 #include "src/execution/expression_executor/execute_function.cpp"
 
+#include "src/execution/expression_executor/execute_lambda.cpp"
+
 #include "src/execution/expression_executor/execute_operator.cpp"
 
 #include "src/execution/expression_executor/execute_parameter.cpp"
