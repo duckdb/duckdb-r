@@ -38,6 +38,8 @@
 
 #include "src/optimizer/filter_pushdown.cpp"
 
+#include "src/optimizer/filter_statistics.cpp"
+
 #include "src/optimizer/grouping_sets_optimizer.cpp"
 
 #include "src/optimizer/in_clause_rewriter.cpp"
