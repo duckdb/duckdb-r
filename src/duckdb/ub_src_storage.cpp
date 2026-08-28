@@ -16,6 +16,8 @@
 
 #include "src/storage/index.cpp"
 
+#include "src/storage/index_entry.cpp"
+
 #include "src/storage/local_storage.cpp"
 
 #include "src/storage/magic_bytes.cpp"
