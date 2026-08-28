@@ -18,6 +18,8 @@
 
 #include "src/function/table/system/duckdb_eviction_queues.cpp"
 
+#include "src/function/table/system/duckdb_extension_repositories.cpp"
+
 #include "src/function/table/system/duckdb_extensions.cpp"
 
 #include "src/function/table/system/duckdb_external_file_cache.cpp"
