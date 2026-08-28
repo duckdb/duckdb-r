@@ -52,5 +52,7 @@
 
 #include "src/optimizer/rule/string_prefix.cpp"
 
+#include "src/optimizer/rule/struct_extract_struct_pack_folding.cpp"
+
 #include "src/optimizer/rule/timestamp_comparison.cpp"
 
