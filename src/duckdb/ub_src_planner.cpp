@@ -34,6 +34,10 @@
 
 #include "src/planner/logical_operator_visitor.cpp"
 
+#include "src/planner/logical_plan_verification_result.cpp"
+
+#include "src/planner/logical_plan_verifier.cpp"
+
 #include "src/planner/planner.cpp"
 
 #include "src/planner/statement_preprocessor.cpp"
