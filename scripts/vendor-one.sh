@@ -264,7 +264,14 @@ while [ $commits_vendored -lt $num_commits ]; do
         echo "uncommitted, and the upstream clone is kept."
         echo "Rebase $f against them, keeping the rebased patch outside the tree,"
         echo "then 'git checkout -- .', put it back, and rerun this script."
-        echo "Delete it only after confirming its change is genuinely upstream."
+        echo "Delete it only after confirming its change is genuinely upstream --"
+        echo "the effect it had, however upstream reached it, not this diff."
+        echo "A deletion has to ride in the vendor commit for ${commit}, and this"
+        echo "script refuses to start on a dirty tree, so land it in three steps:"
+        echo "  git checkout -- . && git rm $f && git commit -m 'tmp: retire patch'"
+        echo "  $0 --commits 1 <upstream>"
+        echo "  git reset --soft HEAD~2 && git commit   # keep the vendor message,"
+        echo "                                          # add an 'R-side fix' section"
         exit 4
       fi
     done
