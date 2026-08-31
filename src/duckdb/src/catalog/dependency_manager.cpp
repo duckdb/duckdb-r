@@ -318,7 +318,7 @@ void DependencyManager::CreateDependencies(CatalogTransaction transaction, const
 	// backward compatibility for indexes: they differed from the default and were actually never blocking, so correct
 	// that legacy placeholder value for them specifically, for storage files that were written before we started
 	// serializing flags
-	static const DependencyDependentFlags legacy_marker = DependencyDependentFlags().SetBlocking();
+	const auto legacy_marker = DependencyDependentFlags().SetBlocking();
 	for (auto &dependency : dependencies.Set()) {
 		auto flags = dependency.flags;
 		if (object.type == CatalogType::INDEX_ENTRY && flags == legacy_marker) {
