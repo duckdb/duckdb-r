@@ -24,11 +24,16 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
 }
 
 # Binds `SELECT * FROM` the quoted name, which raises for a name that does not
-# resolve; inside a transaction, on an engine that invalidates it on any error,
-# with the transaction's policy relaxed so that a failure leaves it usable, and
-# put back as it was (handbook/usage/statements/README.md).
+# resolve; inside a transaction, from DuckDB 2.0, with the transaction's policy
+# relaxed so that a failure leaves it usable, and put back as it was
+# (handbook/usage/statements/README.md).
 probe_table <- function(conn, quoted) {
-  if (rethrow_rapi_connection_in_transaction(conn@conn_ref)) {
+  # Once main vendors DuckDB 2.0, the version check goes
+  # (https://github.com/duckdb/duckdb-r/issues/2895).
+  if (
+    numeric_version(sub("-.*", "", get_duckdb_version())) >= "2.0.0" &&
+      rethrow_rapi_connection_in_transaction(conn@conn_ref)
+  ) {
     previous <- rethrow_rapi_connection_set_invalidation_policy(
       conn@conn_ref,
       "SYNTACTIC_ERRORS_DO_NOT_INVALIDATE"
