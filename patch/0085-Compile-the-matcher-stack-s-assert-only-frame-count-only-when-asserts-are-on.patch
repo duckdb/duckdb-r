@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 01:27:17 +0000
+Subject: [PATCH] Compile the matcher stack's assert-only frame count only when asserts are on
+
+MatchStack::ExecuteInternal() keeps the frame count before a frame
+runs in a local that only D_ASSERT() reads, so in a release build,
+where D_ASSERT() expands to nothing, -Wunused-variable reports it. The
+guard keeps the local to the builds that assert; upstream later drops
+the local with the assertion.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/parser/peg/matcher_stack.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/parser/peg/matcher_stack.cpp b/src/duckdb/src/parser/peg/matcher_stack.cpp
+index 2b61728657..17519f9f0c 100644
+--- a/src/duckdb/src/parser/peg/matcher_stack.cpp
++++ b/src/duckdb/src/parser/peg/matcher_stack.cpp
+@@ -141,7 +141,9 @@ MatcherResult MatchStack::ExecuteInternal(const Matcher &matcher, MatchState &st
+ 	PushFrame(matcher, state);
+ 	while (!frames.empty()) {
+ 		auto &frame = *frames.back();
++#ifdef D_ASSERT_IS_ENABLED
+ 		auto frame_count = frames.size();
++#endif
+ 		ExecuteFrame(frame);
+ 		if (!frame.HasResult()) {
+ 			D_ASSERT(frames.size() > frame_count);
