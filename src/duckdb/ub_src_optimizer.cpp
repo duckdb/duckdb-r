@@ -80,6 +80,8 @@
 
 #include "src/optimizer/row_number_rewriter.cpp"
 
+#include "src/optimizer/runtime_filter_cast.cpp"
+
 #include "src/optimizer/sampling_pushdown.cpp"
 
 #include "src/optimizer/scalar_fn_pushdown.cpp"
