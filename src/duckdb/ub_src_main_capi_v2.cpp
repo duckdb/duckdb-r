@@ -2,6 +2,8 @@
 
 #include "src/main/capi/v2/capi_v2_arena.cpp"
 
+#include "src/main/capi/v2/capi_v2_column_data_collection.cpp"
+
 #include "src/main/capi/v2/capi_v2_connection.cpp"
 
 #include "src/main/capi/v2/capi_v2_data_chunk.cpp"
@@ -13,6 +15,14 @@
 #include "src/main/capi/v2/capi_v2_error.cpp"
 
 #include "src/main/capi/v2/capi_v2_extension.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_aggregate.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_properties.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_scalar.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_signature.cpp"
 
 #include "src/main/capi/v2/capi_v2_logging.cpp"
 
