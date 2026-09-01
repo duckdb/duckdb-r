@@ -54,6 +54,8 @@
 
 #include "src/common/gzip_file_system.cpp"
 
+#include "src/common/hash_functions.cpp"
+
 #include "src/common/hive_partitioning.cpp"
 
 #include "src/common/identifier.cpp"
