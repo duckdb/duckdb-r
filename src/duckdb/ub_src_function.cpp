@@ -38,5 +38,7 @@
 
 #include "src/function/table_macro_function.cpp"
 
+#include "src/function/type_constructor.cpp"
+
 #include "src/function/window_function.cpp"
 
