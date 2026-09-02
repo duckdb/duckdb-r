@@ -28,6 +28,8 @@
 
 #include "src/planner/expression_binder/returning_binder.cpp"
 
+#include "src/planner/expression_binder/scope_resolution.cpp"
+
 #include "src/planner/expression_binder/select_bind_state.cpp"
 
 #include "src/planner/expression_binder/select_binder.cpp"
