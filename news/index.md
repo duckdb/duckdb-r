@@ -1,5 +1,27 @@
 # Changelog
 
+## duckdb 1.5.5.9019
+
+### Bug fixes
+
+#### series
+
+- Register the `ours-version` driver before refusing over it
+  ([\#2665](https://github.com/duckdb/duckdb-r/issues/2665)).
+
+#### series
+
+- Read every universe that publishes a green, not just `duckdb`
+  ([\#2670](https://github.com/duckdb/duckdb-r/issues/2670)).
+
+### Documentation
+
+#### meta
+
+- Make `authoring/` obey itself, name evidence in the rules, and refresh
+  the `meta/` node
+  ([\#2673](https://github.com/duckdb/duckdb-r/issues/2673)).
+
 ## duckdb 1.5.5.9018
 
 ### Documentation
