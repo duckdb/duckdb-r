@@ -51,6 +51,9 @@
 #   CLANG_FORMAT          - the C++ formatter the style gate runs
 #                           (default: clang-format-21, what CI installs)
 #   RCMDCHECK_ERROR_ON    - passed through to rcmdcheck (default: note)
+#   DUCKDB_R_RUN_TESTS    - read by tests/testthat.R; the `check` gate defaults
+#                           it to true so the suite runs outside Actions too,
+#                           and never overrides a value the caller set
 #   EACH_TIMEOUT_<STAGE>  - seconds a stage may take before it is presumed stuck
 #                           and killed (see stage_budget below); 0 disables the
 #                           bound for that stage
@@ -485,6 +488,11 @@ gate_check() {
 # package is not on CRAN, so every commit picks up a "New submission" NOTE.
 if (Sys.getenv("_R_CHECK_FORCE_SUGGESTS_", "") == "") Sys.setenv("_R_CHECK_FORCE_SUGGESTS_" = "false")
 if (Sys.getenv("_R_CHECK_CRAN_INCOMING_", "") == "") Sys.setenv("_R_CHECK_CRAN_INCOMING_" = "false")
+# `tests/testthat.R` falls back to GITHUB_ACTIONS / MY_UNIVERSE when this is
+# unset, so the suite runs in CI and silently does not run anywhere else. Opt in
+# here, without overriding a value the caller already set: the versions matrix
+# forces it to `false` under engine poisoning.
+if (Sys.getenv("DUCKDB_R_RUN_TESTS", "") == "") Sys.setenv("DUCKDB_R_RUN_TESTS" = "true")
 rcmdcheck::rcmdcheck(
   args = c("--no-manual", "--as-cran", "--no-multiarch"),
   build_args = "--no-manual",
