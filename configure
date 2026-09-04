@@ -5,7 +5,19 @@ set -ex
 # Setup parallel compilation if MAKEFLAGS not already set
 cd "$(dirname "$0")"
 if [ -z "${MAKEFLAGS}" ]; then
-  makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
+  makeflags_value=$(Rscript tools/setup-makeflags.R 2>/dev/null || echo "")
+  # Rscript reports a file it cannot open on *stdout* and exits 2, so neither
+  # the redirect nor the `||` keeps that message out of the capture. Accept
+  # only the -jN the helper produces, so anything else leaves MAKEFLAGS unset.
+  case "${makeflags_value}" in
+    -j*)
+      makeflags_digits="${makeflags_value#-j}"
+      case "${makeflags_digits}" in
+        '' | *[!0-9]*) makeflags_value="" ;;
+      esac
+      ;;
+    *) makeflags_value="" ;;
+  esac
   if [ -n "${makeflags_value}" ]; then
     export MAKEFLAGS="${makeflags_value}"
     echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
