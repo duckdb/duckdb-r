@@ -36,11 +36,12 @@ and so it is the one part of cpp11 this repository cannot pin.
 It has to be the fork as well,
 because the flavor names it derives the `.Call` prefix from
 carry more dots than CRAN's cpp11 replaces.
-Install it from GitHub —
-`remotes::install_github("krlmlr/cpp11")` —
-beside `decor`, which `cpp_register()` also needs;
-`krlmlr.r-universe.dev` does not build cpp11,
-so naming that repository ahead of CRAN installs CRAN's.
+Install it from
+[`krlmlr.r-universe.dev`](https://krlmlr.r-universe.dev),
+which builds the fork and serves it as a binary —
+name that repository ahead of CRAN and `install.packages("cpp11")`
+picks up the fork, beside `decor`, which `cpp_register()` also needs.
+`remotes::install_github("krlmlr/cpp11")` does the same from source.
 [`scripts/flavor.sh`](/scripts/flavor.sh) refuses a generated binding
 whose entry points are not C identifiers, which is what a wrong cpp11
 produces.
@@ -83,14 +84,6 @@ and its `#undef TRUE` / `#undef FALSE` guards only work
 where they are written relative to the header that defines them.
 So the includes of a translation unit are the author's to order,
 and a review argues them the way it argues code.
-
-**One header is public.**
-[`inst/include/duckdb_types.hpp`](/inst/include/duckdb_types.hpp)
-is what a downstream R package compiles against;
-everything under `src/include/` is this package's own.
-Being public makes it part of the rename surface — it is installed
-under a name carrying the flavor
-([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
 *To deepen: absorb the per-unit responsibility table and the error
 rethrow path from the sources; drain

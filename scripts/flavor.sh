@@ -92,7 +92,7 @@ git clean -f -- "*.orig"
 if grep -qE '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp; then
   echo "$0: cpp11::cpp_register() wrote entry points that are not C identifiers:" >&2
   grep -E '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp | head -n 3 >&2
-  echo "  Install the fork -- R -q -e 'remotes::install_github(\"krlmlr/cpp11\")'" >&2
+  echo "  Install the fork -- R -q -e 'install.packages(\"cpp11\", repos = c(\"https://krlmlr.r-universe.dev\", getOption(\"repos\")))'" >&2
   exit 1
 fi
 

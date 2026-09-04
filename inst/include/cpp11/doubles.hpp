@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.3.9000
-// vendored on: 2026-01-27
+// cpp11 version: 0.5.5.9000
+// vendored on: 2026-08-09
 #pragma once
 
 #include <algorithm>         // for min, tranform
