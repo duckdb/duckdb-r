@@ -136,6 +136,8 @@ duckdb_post_execute <- function(res, out) {
     out <- tz_force(out, res@connection@convert_opts$timezone_out)
   }
 
+  # The whole result is stored here, whatever dbFetch() later asks for:
+  # handbook/usage/memory/README.md, #1997, #2587.
   res@env$resultset <- out
 
   out
