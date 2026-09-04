@@ -17,6 +17,8 @@ struct ConvertOpts {
 
 	enum class MapShape { DATA_FRAME, LIST_OF };
 
+	enum class PosixctType { TIMESTAMP, TIMESTAMPTZ };
+
 	enum class ArrowConversion { DISABLED, ENABLED };
 
 	enum class ResultStreaming { DISABLED, ENABLED };
@@ -32,6 +34,7 @@ struct ConvertOpts {
 	ArrayConversion array = ArrayConversion::NONE;
 	GeometryConversion geometry = GeometryConversion::BLOB;
 	MapShape map = MapShape::DATA_FRAME;
+	PosixctType posixct = PosixctType::TIMESTAMPTZ;
 	ArrowConversion arrow = ArrowConversion::DISABLED;
 	ResultStreaming streaming = ResultStreaming::DISABLED;
 	ExperimentalFeatures experimental = ExperimentalFeatures::DISABLED;
@@ -50,10 +53,10 @@ struct ConvertOpts {
 
 	// Constructor with parameters
 	ConvertOpts(std::string timezone_out_p, TzOutConvert tz_out_convert_p, BigIntType bigint_p, ArrayConversion array_p,
-	            GeometryConversion geometry_p, MapShape map_p, ArrowConversion arrow_p,
+	            GeometryConversion geometry_p, MapShape map_p, PosixctType posixct_p, ArrowConversion arrow_p,
 	            ExperimentalFeatures experimental_p, StrictRelational strict_relational_p)
 	    : timezone_out(std::move(timezone_out_p)), tz_out_convert(tz_out_convert_p), bigint(bigint_p), array(array_p),
-	      geometry(geometry_p), map(map_p), arrow(arrow_p), experimental(experimental_p),
+	      geometry(geometry_p), map(map_p), posixct(posixct_p), arrow(arrow_p), experimental(experimental_p),
 	      strict_relational(strict_relational_p) {
 	}
 };

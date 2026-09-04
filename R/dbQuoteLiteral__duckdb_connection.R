@@ -21,6 +21,17 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
       return(SQL(character()))
     }
 
+    # A `TIMESTAMPTZ` literal without an offset is read in the session zone,
+    # so spell the offset out; that much parses without the icu extension.
+    if (identical(conn@convert_opts$posixct, "timestamptz")) {
+      out <- dbQuoteString(
+        conn,
+        strftime(as.POSIXct(x), "%Y-%m-%d %H:%M:%S+00:00", tz = "UTC")
+      )
+
+      return(SQL(paste0(out, "::timestamptz")))
+    }
+
     out <- dbQuoteString(
       conn,
       strftime(as.POSIXct(x), "%Y-%m-%d %H:%M:%S", tz = "UTC")

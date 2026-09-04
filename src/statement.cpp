@@ -184,7 +184,8 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	for (idx_t row_idx = 0; row_idx < (size_t)n_rows; ++row_idx) {
 		for (idx_t param_idx = 0; param_idx < (idx_t)params.size(); param_idx++) {
 			SEXP valsexp = params[(size_t)param_idx];
-			auto val = RApiTypes::SexpToValue(valsexp, row_idx);
+			auto val = RApiTypes::SexpToValue(valsexp, row_idx, true,
+			                                  convert_opts.posixct == ConvertOpts::PosixctType::TIMESTAMPTZ);
 			stmt->parameters[param_idx] = val;
 		}
 
