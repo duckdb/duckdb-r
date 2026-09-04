@@ -34,6 +34,11 @@ This file is what names the contents, so nothing here is an orphan.
   which running DuckDB work a Ctrl+C stops in R and in the DuckDB CLI,
   and what each host does when it stops nothing; supports
   [`usage/interactive/`](/handbook/usage/interactive/README.md).
+* [`2026-08-08-nanoarrow-df-scan/`](2026-08-08-nanoarrow-df-scan/) —
+  what a data frame scan built only on nanoarrow answers correctly,
+  which R column types it keeps, and what the Arrow export costs;
+  supports
+  [`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
