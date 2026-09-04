@@ -56,15 +56,24 @@
 #     on all three live series, 2026-08-15, and the same difference on each:
 #     the base still described itself as "the LTS version 1.3 of DuckDB" where
 #     the forward names its flavor.
-#   * The **Windows export list**, `src/*-win.def` -- but only when the two
-#     differ by the flavor rename alone. Both the file name and the single
-#     symbol in it carry the package name, and scripts/flavor.patch rewrites
-#     both, so a base seeded before that flavoring holds `src/duckdb-win.def`
-#     exporting `R_init_duckdb` where its forward holds
-#     `src/duckdb.1.5.dev-win.def` exporting `R_init_duckdb_1_5_dev`
-#     (`v1.5-variegata`, 2026-08-15). The comment prose is compared verbatim and
-#     only the `R_init_` line is allowed to differ, so a real edit to the list
-#     is still a finding.
+#   * The **Windows export list**, `src/*-win.def` -- but only when each side
+#     carries the list its own package needs and the two then differ by the
+#     flavor rename alone. Both the file name and the single symbol in it are a
+#     function of `Package:`, so a base whose seed predates the file holds
+#     `src/duckdb.1.5.dev-win.def` exporting `R_init_duckdb_1_5_dev` once the
+#     commit adding it is ported and renamed, and its forward -- reseeded on
+#     today's `main` -- holds the same file under the same name. The comment
+#     prose is compared verbatim and only the `R_init_` line may differ, so a
+#     real edit to the list is still a finding.
+#
+#     This class read `v1.5-variegata` as explained from 2026-08-15 while the
+#     base carried `src/duckdb-win.def` exporting `R_init_duckdb` under
+#     `Package: duckdb.1.5.dev` -- a port of the `main` commit that added the
+#     file, never renamed, so R found no export list and generated one from
+#     every object. A side that is simply unrenamed and a side that is correctly
+#     renamed are indistinguishable to a comparison that only takes the
+#     `R_init_` line out, which is why each side is now checked against its own
+#     `Package:` before the two are compared at all.
 #
 # Note what is *not* here. Stage 5's carry excludes the same generated files
 # (scripts/series-advance.sh), but for an unrelated reason -- so the twin's copy
@@ -144,11 +153,33 @@ vendored_sha() {
   echo "$sha"
 }
 
-# True when the two branches' Windows export lists differ by the flavor rename
-# and nothing else. The rename means the file is present on one side under one
-# name and on the other under another, so the pair cannot be found by path --
-# it is found by suffix, one per branch, and their contents are then compared
-# with the flavored `R_init_` symbol taken out.
+# The name and symbol a branch's Windows export list must carry, printed as
+# "<path> <symbol>". R links against `<dll base>-win.def`, and the dll base is
+# the package name, so both are a function of that branch's `Package:` alone --
+# which is what makes this answerable per branch rather than by comparison.
+def_expected() {
+  local pkg
+  pkg=$(git show "$1:DESCRIPTION" | sed -n 's/^Package: *//p' | head -n 1)
+  echo "src/$pkg-win.def R_init_${pkg//./_}"
+}
+
+# True when each branch's Windows export list is the one its own package needs,
+# and the two differ by the flavor rename and nothing else.
+#
+# Comparing the two files to each other is not enough, and used to be all this
+# did. Both sides can be self-consistent and differ by the rename; so can a side
+# that simply never got renamed, and the two shapes are identical to a
+# comparison that only takes the `R_init_` line out. `v1.5-variegata-dev` held
+# `src/duckdb-win.def` exporting `R_init_duckdb` under `Package: duckdb.1.5.dev`
+# from 2026-08-05 -- a stage 4 port of a `main` commit that added the file,
+# carrying the mainline name because scripts/flavor.patch runs at seed time and
+# nothing rewrites a ported file afterwards. R then finds no export list at all
+# and falls back to generating one from every object, which is what the file
+# exists to prevent. This read called it CONVERGED every firing in between.
+#
+# So each side is checked against its own `Package:` first, and only then are
+# the two compared. The rename means the pair cannot be found by path -- it is
+# found by suffix, one per branch.
 def_renamed_only() {
   local dev_def fwd_def
   dev_def=$(git ls-tree -r --name-only "$dev" src/ | grep -- '-win\.def$' || true)
@@ -156,6 +187,11 @@ def_renamed_only() {
   # One on each side, or there is no pair and the difference is not a rename.
   [ "$(grep -c . <<<"$dev_def")" = 1 ] || return 1
   [ "$(grep -c . <<<"$fwd_def")" = 1 ] || return 1
+  # Each side's file named, and exporting, what its own package needs.
+  [ "$dev_def $(git show "$dev:$dev_def" | grep '^R_init_')" \
+      = "$(def_expected "$dev")" ] || return 1
+  [ "$fwd_def $(git show "$fwd:$fwd_def" | grep '^R_init_')" \
+      = "$(def_expected "$fwd")" ] || return 1
   cmp -s <(git show "$dev:$dev_def" | grep -v '^R_init_') \
          <(git show "$fwd:$fwd_def" | grep -v '^R_init_')
 }
@@ -205,17 +241,18 @@ while IFS=$'\t' read -r add del f; do
       explained+=("$f|$add/$del|flavored doc, never ported; each branch carries its seed's wording")
       ;;
     src/*-win.def)
-      # Only the flavor rename is explained. The file's own comment says the
-      # name and the symbol both carry the package name; everything above
-      # `EXPORTS` is prose that is the same on every flavor, so compare that
-      # verbatim and allow only the `R_init_` line to differ. A path that is
-      # present on one side alone diffs against the empty tree, and its prose
-      # then differs too -- which is exactly the rename, so pair the two by
-      # their suffix before comparing.
+      # Only the flavor rename is explained, and only between two sides that are
+      # each already correct for themselves. The file's own comment says the name
+      # and the symbol both carry the package name, so each side is checked
+      # against its own `Package:`; everything above `EXPORTS` is prose that is
+      # the same on every flavor, so compare that verbatim and allow only the
+      # `R_init_` line to differ. A path that is present on one side alone diffs
+      # against the empty tree, and its prose then differs too -- which is
+      # exactly the rename, so pair the two by their suffix before comparing.
       if def_renamed_only; then
         explained+=("$f|$add/$del|Windows export list, flavor-renamed")
       else
-        unexplained+=("$f|$add/$del|export list differs beyond its R_init_ symbol")
+        unexplained+=("$f|$add/$del|export list not named for its own package, or edited beyond its R_init_ symbol")
       fi
       ;;
     src/duckdb/* | patch/* | R/version.R | src/include/sources.mk | \
