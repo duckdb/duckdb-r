@@ -411,7 +411,7 @@ fi
 # level until a human swaps them. It is more CI on a series about to be retired;
 # it is also the only thing that makes retiring it a check rather than a hope.
 # Pending work does not hold the buffer (.claude/skills/series-loop.md stage 5):
-# each.yaml plans every commit in green..tip that has no status, so a longer tip
+# each.yaml plans every commit in green..tip that has no record, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does
 # hold it: stage 2 will fold a fix into that commit and replay everything above,
 # so anything appended now is minted only to be re-minted. The stage-3 walk above

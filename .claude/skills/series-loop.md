@@ -142,7 +142,7 @@ list the most recent `each-rcc` runs.
 If that answers, the firing is on the run path for every stage below.
 If it does not — no such access from this session at all —
 the firing falls back to the `rcc2` store,
-which still works, inside its 30-day window,
+which still works, inside its 180-day window,
 but is now an **emergency route** rather than a warm copy:
 `rcc-logs.yaml` is dispatch-only,
 so a firing that needs the store complete has to ask for it
@@ -315,9 +315,15 @@ or the run is there and its results are not
 (a leg that died before it uploaded anything).
 Nothing else in this stage changes; the bytes are the same either way.
 
-**The store is an emergency route, and it is not kept warm.**
+**The store is an emergency route *for a firing*, and it is not kept warm.**
 One writer is still automatic, and it covers almost all of it:
 a leg publishes its own verdict seconds after deciding a commit.
+That publish is not a copy kept for this stage's benefit:
+CI plans and resumes from the store and from nothing else
+(`scripts/rcc-decided.sh`),
+so the branch is load-bearing even in a cycle where no firing opens it,
+and a steady trickle of pushes to `rcc2` is the system working
+rather than a retired branch still ticking.
 Everything else has been retired in the loop's direction of travel —
 the per-run fan-in, which reconciled onto the branch
 whatever a leg could not publish,
@@ -759,6 +765,28 @@ are byte-identical to `main`'s.
 CI reads workflows and scripts from the branch it checks,
 so this is what puts a fix into effect —
 never park a tooling change to wait for a forward.
+
+**Every ref of the series owes that identity, `<S>-build` included.**
+A workflow fires from the branch it sits on,
+so a ref nobody ports runs the tooling of the day it was seeded,
+and a push filter written back then decides what fires today.
+The buffer takes no *ports* — its line is upstream commits
+and the glue they need — but its **tooling is synced**,
+and `series-port.sh` does it in the same run:
+one commit appended to `<S>-build` when its tooling differs from `main`'s.
+This is not a precaution. `v1.4-andium-build` still carried a
+2026-03-26 `R-CMD-check.yaml` whose release pattern matches
+the buffer's own name, so pushes to it started the template check
+and `R-CMD-check-status.yaml` stamped an `rcc` status
+on a commit no `each-rcc` leg had decided —
+a status with no record, on a ref the model calls untested.
+
+The sync commit vendors nothing,
+so the consumption anchor and the vendored-SHA scans look past it
+by subject, and stage 5 replays it onto `-dev` like any buffer commit,
+where it drops as empty because `-dev` already carries that tooling.
+Where `main` moved between the two syncs it conflicts instead;
+resolve toward `main`'s tooling, which is what both refs converge on.
 
 ```sh
 scripts/series-port.sh <S>                  # list candidates + identity check
@@ -1353,7 +1381,10 @@ is what carries the automatic path into a forward series.
   for a firing that cannot read the runs.
   Neither source may be *required*: a firing that has only one of them
   still finishes, and says in its report which one it had.
-  The fallback is an emergency route and is not kept warm:
+  The fallback is an emergency route *for the firing*, and is not kept warm:
   `rcc-logs.yaml` is dispatched, never scheduled,
   so a firing that needs the copy complete asks for it
   and reads the answer on a later pass — it never blocks on one.
+  On the CI side the store is nobody's fallback:
+  selection reads it and only it,
+  which is why the leg's per-commit publish stays automatic.

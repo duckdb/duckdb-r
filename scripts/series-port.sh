@@ -6,6 +6,25 @@
 # paths — .github/, scripts/, .claude/ — of <S>-dev are byte-identical to
 # `main`'s, and a tooling change never waits for a forward.
 #
+# **<S>-build owes the same identity, and is synced here too.** A workflow
+# fires from the branch it sits on, so a ref nobody ports runs the tooling of
+# the day it was seeded, and a push filter written back then decides what fires
+# today. The buffer takes no *ports* — its line is upstream commits and the glue
+# they need — but its tooling is brought level, by one commit appended when it
+# differs. Measured rather than feared: `v1.4-andium-build` still carried a
+# 2026-03-26 R-CMD-check.yaml whose release pattern matches the buffer's own
+# name, so pushes to it started the template check and R-CMD-check-status.yaml
+# stamped an `rcc` status on a commit no per-commit leg had decided — a status
+# with no record, which is exactly what breaks a reader trusting one against
+# the other.
+#
+# To every reader of the vendor strand the sync commit is invisible: it vendors
+# nothing, so the consumption anchor and the vendored-SHA scans look past it by
+# subject. Stage 5 replays it onto -dev like any other buffer commit, where
+# `cherry-pick --empty=drop` retires it because -dev already carries that
+# tooling. Where `main` moved between the two syncs it conflicts instead, and
+# the resolution is main's tooling — which is what both refs converge on.
+#
 # The script lists EVERY commit on `main` since the series' base that has no
 # patch-id equivalent on <S>-dev (`git cherry`), oldest first, classified by
 # what it touches: TOOLING (only tooling paths), MIXED (tooling and more),
@@ -241,6 +260,18 @@ else
   echo "tooling: differs from main —$(git diff --shortstat "$dev" "$main" -- "${tooling[@]}")"
 fi
 
+# The buffer's own answer to the same question. Reported even when it is
+# identical, because "nothing to say about -build" and "-build has no tooling
+# delta" are different sentences and only one of them is reassuring.
+buildref="$remote/$S-build"
+if ! git rev-parse -q --verify "$buildref" > /dev/null; then
+  echo "buffer tooling: no $S-build on $remote"
+elif git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
+  echo "buffer tooling: identical to main"
+else
+  echo "buffer tooling: differs from main —$(git diff --shortstat "$buildref" "$main" -- "${tooling[@]}")"
+fi
+
 [ -n "$apply" ] || exit 0
 
 # A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a
@@ -293,7 +324,34 @@ next=$(git -C "$wt" rev-parse HEAD)
 git worktree remove --force "$wt"
 if [ "$next" = "$(git rev-parse "$dev")" ]; then
   echo "nothing to port"
+else
+  git push "$remote" "$next:refs/heads/$S-dev"
+  echo "dev -> $(git rev-parse --short "$next")"
+fi
+
+# The buffer, brought level the same way and for the same reason (see the
+# header). An append, never a rewrite: `-build`'s force-push is reserved for
+# mirroring a fold, and nothing here touches an upstream commit.
+#
+# A series with no buffer -- one pending cutover -- has nothing to sync, and
+# that is an ordinary state rather than an error.
+git rev-parse -q --verify "$buildref" > /dev/null || exit 0
+if git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
   exit 0
 fi
-git push "$remote" "$next:refs/heads/$S-dev"
-echo "dev -> $(git rev-parse --short "$next")"
+
+bwt=$(mktemp -d)
+git worktree add --detach -q "$bwt" "$buildref"
+git -C "$bwt" rm -qr --ignore-unmatch -- "${tooling[@]}"
+git -C "$bwt" checkout "$main" -- "${tooling[@]}"
+git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
+  -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
+from this ref is main's rather than the seed's. Vendors nothing, so stage 5
+replays it onto -dev and drops it as empty."
+git -C "$bwt" diff --quiet "$main" -- "${tooling[@]}" ||
+  { echo "Error: buffer tooling still differs after sync; worktree kept at $bwt"; exit 1; }
+
+bnext=$(git -C "$bwt" rev-parse HEAD)
+git worktree remove --force "$bwt"
+git push "$remote" "$bnext:refs/heads/$S-build"
+echo "build -> $(git rev-parse --short "$bnext")"
