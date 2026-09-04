@@ -209,6 +209,13 @@ Reusing one instance instead lets any number of \code{dbConnect(duckdb(dbdir = "
 An in-memory database (\verb{:memory:}, the default) has no file to lock and is never cached:
 every \code{duckdb()} call creates a fresh, isolated instance.
 
+The key is the path as the \emph{engine} resolves it, not as \code{\link[=normalizePath]{normalizePath()}} does.
+DuckDB canonicalizes the longest part of the path that exists and appends the rest,
+so a database that does not exist yet gets the key it will keep once created,
+and two spellings of one database -- a relative path, a symlink, a different
+separator -- share an instance instead of colliding on its lock.
+A path that resolves no further is used as it stands rather than refused.
+
 Because the instance is created once per database file,
 \code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation.
 A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
