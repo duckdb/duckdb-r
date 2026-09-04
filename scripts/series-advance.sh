@@ -462,6 +462,13 @@ if [ "$ahead" -eq 0 ]; then
 fi
 n=$((ahead < chunk ? ahead : chunk))
 
+# What -dev is at before this stage writes anything, so the closing line can
+# report what the stage actually added rather than what it set out to add. The
+# replay drops a buffer commit whose content reached -dev by another route
+# (`--empty=drop` below), so the two differ, and `git push` moves the
+# remote-tracking ref this resolves -- read it once, here.
+dev_before=$(git rev-parse "$dev")
+
 # Which commits in this chunk have a test-side fix waiting on the base series.
 # Computed before anything is written, because it decides the route: a plain ref
 # move cannot carry content, so one carry in the chunk makes the whole chunk a
@@ -629,4 +636,4 @@ else
   rm -f "$STATE"
   git push "$remote" "$next:refs/heads/$S-dev"
 fi
-echo "dev -> $(git rev-parse --short "$next") (+$n)"
+echo "dev -> $(git rev-parse --short "$next") (+$(git rev-list --count "$dev_before..$next"))"
