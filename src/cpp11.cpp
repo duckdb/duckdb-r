@@ -35,6 +35,13 @@ extern "C" SEXP _duckdb_rapi_startup(SEXP dbdir, SEXP readonly, SEXP configsexp,
   END_CPP11
 }
 // database.cpp
+std::string rapi_database_path(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_rapi_database_path(SEXP dual) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_database_path(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual)));
+  END_CPP11
+}
+// database.cpp
 bool rapi_lock(duckdb::db_eptr_t dual);
 extern "C" SEXP _duckdb_rapi_lock(SEXP dual) {
   BEGIN_CPP11
@@ -477,6 +484,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                  2},
     {"_duckdb_rapi_connection_valid",        (DL_FUNC) &_duckdb_rapi_connection_valid,         1},
     {"_duckdb_rapi_cxx_stdlib",              (DL_FUNC) &_duckdb_rapi_cxx_stdlib,               0},
+    {"_duckdb_rapi_database_path",           (DL_FUNC) &_duckdb_rapi_database_path,            1},
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,               1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                  2},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,            2},
