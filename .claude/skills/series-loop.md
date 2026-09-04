@@ -133,6 +133,12 @@ and every one of those meets the graft boundary
 and answers wrong or refuses.
 Tags are not optional either:
 `vendor-one.sh` reads `git describe --tags` for the version it stamps.
+A clone that cannot reach a versioning tag used to stamp `v0.0.0`
+and vendor on without a word,
+which reaches CI as a test failure looking like the engine's —
+every extension download 404s on `extensions.duckdb.org/v0.0.0/`.
+The script now refuses such a clone before it vendors anything;
+treat that refusal as the answer and fetch the tags.
 
 **Establish how this firing reads results, once.**
 Verdicts and logs come from the `each-rcc` runs that produced them (stage 2),
