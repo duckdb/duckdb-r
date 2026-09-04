@@ -53,8 +53,8 @@ A reference carries pak parameters,
 so `<package>=?ignore-build-errors` demotes a failed source build
 of that one package to a warning
 and drops it from the installation plan.
-This package says that about `adbcdrivermanager`,
-which does not compile against Rtools45;
+This package says that about `adbcdrivermanager` and `arrow`,
+which do not compile against Rtools45;
 the field's `Config/comment/…` twin records why.
 
 The condition is the build, not the platform,

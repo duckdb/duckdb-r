@@ -73,5 +73,4 @@ The load-bearing facts:
   or the session ends.
 
 *To deepen: absorb the instance and caching section of `?duckdb`;
-drain [#172](https://github.com/duckdb/duckdb-r/issues/172),
-[#455](https://github.com/duckdb/duckdb-r/issues/455).*
+drain [#455](https://github.com/duckdb/duckdb-r/issues/455).*
