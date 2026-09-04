@@ -91,6 +91,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc2` branch: drop everything past the retention window, and squash the whole history to two commits. |
 | [`rcc-cutover.sh`](rcc-cutover.sh) | One-shot: build the `rcc2` verdict store from what the old `rcc` branch holds. |
+| [`rcc-drop.sh`](rcc-drop.sh) | Drop named commits' verdicts from the store on the orphan `rcc2` branch. |
 | [`rcc-lib.sh`](rcc-lib.sh) | Shared helpers for the verdict store on the orphan `rcc2` branch. |
 | [`rcc-logs.sh`](rcc-logs.sh) | Collect rcc results and failure logs for commits the verdict store has no record for, and stage them for publication to the orphan `rcc2` branch. |
 | [`rcc-publish.sh`](rcc-publish.sh) | Publish a staging directory to the verdict store on the orphan `rcc2` branch. |
