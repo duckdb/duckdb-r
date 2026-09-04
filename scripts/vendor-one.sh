@@ -101,6 +101,42 @@ fi
 # against.
 git -C "$upstream_dir" config core.abbrev 10
 
+# The version stamp comes from the same clone, and a clone without versioning
+# tags stamps a placeholder instead of failing. Upstream's
+# `package_build.get_git_describe()` -- which rconfigure.py reaches through
+# `build_package()` -- catches the `git describe` failure and answers
+# `v0.0.0-0-gdeadbeeff`, so `DUCKDB_VERSION` becomes `v0.0.0` and the tree
+# builds, installs and passes the glue gate. What it does not do is load an
+# extension: every download then asks
+# extensions.duckdb.org/v0.0.0/<platform>/<name>.duckdb_extension.gz and gets
+# an HTTP 404, which surfaces a whole CI cycle later as a test failure that
+# looks like the engine's.
+#
+# Ask upstream's own resolver rather than reimplementing its tag match, which
+# depends on MAIN_BRANCH_VERSIONING and is upstream's to change.
+#
+# The probe is allowed to fail -- upstream owns that file and may move it --
+# and says so rather than refusing, because only the placeholder is evidence.
+upstream_describe=$(cd "$upstream_dir" && python3 -c \
+  'import sys; sys.path.insert(0, "scripts"); from package_build import get_git_describe; print(get_git_describe())' \
+  2>/dev/null) || upstream_describe=
+if [ -z "$upstream_describe" ]; then
+  echo "Warning: could not read the version $upstream_dir would stamp" >&2
+fi
+if [ "$upstream_describe" = "v0.0.0-0-gdeadbeeff" ]; then
+  echo ""
+  echo "=== NO VERSION IN THE UPSTREAM CLONE ==="
+  echo "$upstream_dir, cloned from $upstream_basedir, has no versioning tag that"
+  echo "'git describe' can reach, so every commit vendored from it would carry"
+  echo "DUCKDB_VERSION \"v0.0.0\" and fail to install any extension."
+  echo "A shallow clone, or one fetched without tags, is the usual cause:"
+  echo "  git -C $upstream_basedir fetch --unshallow origin"
+  echo "  git -C $upstream_basedir fetch --tags origin"
+  echo "Then rerun this script."
+  rm -rf "$upstream_dir"
+  exit 6
+fi
+
 if [ -n "$(git status --porcelain)" ]; then
   echo "Error: working directory not clean"
   exit 1
