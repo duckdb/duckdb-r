@@ -43,6 +43,16 @@
 #include "duckdb/main/settings.hpp"
 #include <algorithm>
 
+// For CRAN
+// The deprecated Catalog::GetEntry() compatibility overloads defined below
+// delegate to one another, which GCC reports as a significant warning during
+// R CMD check.  The delegation is upstream's own.
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+// For CRAN
+
 namespace duckdb {
 
 Catalog::Catalog(AttachedDatabase &db) : db(db) {
@@ -1338,3 +1348,9 @@ bool Catalog::HasConflictingAttachOptions(const string &path, const AttachOption
 }
 
 } // namespace duckdb
+
+// For CRAN
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#endif
+// For CRAN

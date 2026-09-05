@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 31 Jul 2026 00:00:00 +0000
+Subject: [PATCH] Silence deprecated Catalog::GetEntry() self-delegation
+
+duckdb/duckdb@6d4f5328 deprecated the schema- and catalog/schema-qualified
+Catalog::GetEntry() overloads in favour of folding the qualification into
+EntryLookupInfo, but kept the old overloads as compatibility shims that
+delegate to one another. GCC warns on every one of those internal calls,
+even though the caller is itself deprecated (clang does not), and R CMD
+check reports them as significant warnings:
+
+  duckdb/src/catalog/catalog.cpp:1154:24: warning: '...GetEntry(...)' is
+  deprecated: Fold the schema into the EntryLookupInfo and use
+  GetEntry(retriever, EntryLookupInfo) [-Wdeprecated-declarations]
+
+Scope the diagnostic off for the one translation unit that holds the
+shims. Rewriting them to avoid the delegation would mean duplicating the
+private lookup logic in the vendored tree, and the deprecation is advisory
+only -- upstream keeps the overloads working.
+
+---
+ src/duckdb/src/catalog/catalog.cpp | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/duckdb/src/catalog/catalog.cpp b/src/duckdb/src/catalog/catalog.cpp
+index 1cd024735..a91cc7a8a 100644
+--- a/src/duckdb/src/catalog/catalog.cpp
++++ b/src/duckdb/src/catalog/catalog.cpp
+@@ -43,6 +43,16 @@
+ #include "duckdb/main/settings.hpp"
+ #include <algorithm>
+ 
++// For CRAN
++// The deprecated Catalog::GetEntry() compatibility overloads defined below
++// delegate to one another, which GCC reports as a significant warning during
++// R CMD check.  The delegation is upstream's own.
++#ifdef __GNUC__
++#  pragma GCC diagnostic push
++#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
++#endif
++// For CRAN
++
+ namespace duckdb {
+ 
+ Catalog::Catalog(AttachedDatabase &db) : db(db) {
+@@ -1396,3 +1406,9 @@ bool Catalog::HasConflictingAttachOptions(const string &path, const AttachOption
+ }
+ 
+ } // namespace duckdb
++
++// For CRAN
++#ifdef __GNUC__
++#  pragma GCC diagnostic pop
++#endif
++// For CRAN
+-- 
+2.54.0
