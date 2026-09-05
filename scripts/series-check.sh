@@ -86,6 +86,38 @@ vendored_sha() {
   echo "$sha"
 }
 
+# How many commits of a buffer range are still work for stage 5.
+#
+# series-advance.sh replays them with `cherry-pick --empty=drop`, so a commit
+# whose every path `-dev` already carries at that commit's post-image produces
+# nothing and is dropped. Counting one leaves the series reading ADVANCE for
+# ever: the firing runs the advance, is told `dev -> … (+0)`, and reads the
+# same verdict again next time. Only a new vendor commit on the buffer would
+# clear it, by moving the anchor past the whole run.
+#
+# Observed on v1.4-andium since 2026-08-06 (f52ed130b). A buffer takes no ports
+# by design, so its `.github/` predates the removal of the `v*.*-*` push filter
+# from R-CMD-check.yaml, and a series ref move still triggers `rcc` there; its
+# auto-update step committed a `Config/roxygen2/version` bump onto `-build`
+# that `-dev` already carried.
+#
+# The comparison is by content and not by patch-id: `git cherry` reports such a
+# commit as unmerged, because the same post-image was reached on `-dev` by a
+# different diff.
+consumable_count() { # <range> <dev> -> commits of <range> that are not no-ops on <dev>
+  local range=$1 dev=$2 n=0 c f
+  while IFS= read -r c; do
+    while IFS= read -r -d '' f; do
+      if [ "$(git rev-parse -q --verify "$c:$f" || true)" \
+        != "$(git rev-parse -q --verify "$dev:$f" || true)" ]; then
+        n=$((n + 1))
+        break
+      fi
+    done < <(git diff-tree --no-commit-id --name-only -r -z "$c")
+  done < <(git rev-list "$range")
+  echo "$n"
+}
+
 # The store's record for a commit: one small blob, published by the matrix leg
 # seconds after it decided the commit. One read for every question below, so they
 # cannot disagree about which verdict they are describing — which they could
@@ -240,15 +272,17 @@ for S in "${series[@]}"; do
   # the buffer counts from -dev's consumption anchor on -build: the -dev tip
   # while it sits on -build's line, otherwise the -build commit equivalent to
   # -dev's newest vendor commit — the identical rule, and the identical reasons,
-  # as the anchor in scripts/series-advance.sh.
+  # as the anchor in scripts/series-advance.sh. It counts what that stage would
+  # actually mint, which is why a commit it would drop as empty is not buffered
+  # work (consumable_count above).
   mb=$(git merge-base "$dev" "$build")
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
-    buffered=$(git rev-list --count "$dev..$build")
+    buffered=$(consumable_count "$dev..$build" "$dev")
   else
     dev_up=$(vendored_sha "$dev")
     anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
     if [ -n "$anchor" ]; then
-      buffered=$(git rev-list --count "$anchor..$build")
+      buffered=$(consumable_count "$anchor..$build" "$dev")
     else
       buffered="?"
     fi
