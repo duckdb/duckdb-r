@@ -2,11 +2,15 @@
 
 #include "src/parser/peg/compiled_grammar.cpp"
 
+#include "src/parser/peg/grammar_change.cpp"
+
 #include "src/parser/peg/keyword_map.cpp"
 
 #include "src/parser/peg/matcher.cpp"
 
 #include "src/parser/peg/matcher_factory.cpp"
+
+#include "src/parser/peg/matcher_process.cpp"
 
 #include "src/parser/peg/matcher_stack.cpp"
 
