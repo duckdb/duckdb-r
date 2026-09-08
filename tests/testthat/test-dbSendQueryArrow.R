@@ -97,7 +97,6 @@ test_that("a read that fails fails again on the next read, rather than ending th
 })
 
 test_that("a SELECT that writes runs to completion, so ending its stream early keeps its transaction", {
-  skip_if_engine_before("2.1.0-dev83997", "fork point stops writes early")
   con <- local_con()
   dbExecute(con, "CREATE TABLE t (x INTEGER)")
   dbExecute(con, "CREATE SEQUENCE s")
