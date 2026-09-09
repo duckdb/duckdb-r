@@ -686,6 +686,17 @@ an extension repository with nothing published for a platform —
 write it anyway, on the next `-dev` commit the stage produces:
 a finding with no repair is still the thing
 that stops the next firing diagnosing it from scratch.
+That commit is minted and pushed by stage 5,
+so hand the text to the run that mints it
+rather than amending after the fact:
+
+```sh
+scripts/series-advance.sh <S> --dev-note <file>
+```
+
+The note is appended to the newest commit of the chunk before the push.
+Writing it afterwards costs an amend, a force-push,
+and one `each-rcc` run spent on a commit about to be re-minted.
 
 **What a fix may be is the handbook's rule, not this skill's.**
 A compiler-warning fix is bound by

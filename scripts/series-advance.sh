@@ -40,24 +40,45 @@
 # `--continue` picks the run up where it stopped; `--abort` throws the worktree
 # away and leaves the refs untouched.
 #
-# Usage: series-advance.sh <series> [chunk-size]     # chunk default 100
-#        series-advance.sh <series> --continue       # after resolving a stop
+# **`--dev-note` writes a stage-3 finding into the commit this stage mints.** An
+# r-universe failure has no per-commit record anywhere and no commit of its own,
+# so the series keeps it in the message of the next `-dev` commit
+# (.claude/skills/series-loop.md stage 3). This stage is the one that mints that
+# commit and pushes it in the same breath, so a firing that writes the finding
+# afterwards pays an amend, a force-push, and one each-rcc run spent on a commit
+# it is about to re-mint. The note is appended to the newest minted commit's
+# message before the push instead. A note forces the replay route below, because
+# the plain ref move has no commit of its own to carry it, and it is an error to
+# ask for one when the chunk minted nothing.
+#
+# Usage: series-advance.sh <series> [chunk-size] [--dev-note <file>]
+#        series-advance.sh <series> --continue [--dev-note <file>]
 #        series-advance.sh <series> --abort          # discard a stopped replay
 
 set -euo pipefail
 
-usage='usage: series-advance.sh <series> [chunk-size | --continue | --abort]'
+usage='usage: series-advance.sh <series> [chunk-size] [--dev-note <file>]
+       series-advance.sh <series> --continue [--dev-note <file>]
+       series-advance.sh <series> --abort'
 S=${1:?$usage}
+shift
 CONTINUE=
 ABORT=
+DEV_NOTE=
 chunk=100
-case "${2:-}" in
-  '') ;;
-  --continue) CONTINUE=1 ;;
-  --abort) ABORT=1 ;;
-  -*) echo "$usage" >&2; exit 1 ;;
-  *) chunk=$2 ;;
-esac
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --continue) CONTINUE=1; shift ;;
+    --abort) ABORT=1; shift ;;
+    --dev-note) DEV_NOTE=${2:?$usage}; shift 2 ;;
+    -*) echo "$usage" >&2; exit 1 ;;
+    *) chunk=$1; shift ;;
+  esac
+done
+if [ -n "$DEV_NOTE" ] && [ ! -s "$DEV_NOTE" ]; then
+  echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
+  exit 1
+fi
 remote=origin
 rcc=${RCC_BRANCH:-rcc2}
 
@@ -498,7 +519,10 @@ if [ -n "$base_dev" ]; then
   fi
 fi
 
-if [ "$anchor" = "$(git rev-parse "$dev")" ] && [ "$carries" -eq 0 ] && [ -z "$CONTINUE" ]; then
+# A note takes the replay route: the fast path pushes the buffer's own commits
+# unchanged, so there is nothing of this stage's making to write the finding on.
+if [ "$anchor" = "$(git rev-parse "$dev")" ] && [ "$carries" -eq 0 ] &&
+   [ -z "$CONTINUE" ] && [ -z "$DEV_NOTE" ]; then
   next=$(git rev-list --reverse "$anchor..$build" | sed -n "${n}p")
   git push "$remote" "$next:refs/heads/$S-dev"
 else
@@ -627,6 +651,22 @@ else
     restamp "$wt" "$c"
     [ -n "${CARRY[$c]:-}" ] && apply_carry "$wt" "$c" "${CARRY[$c]}"
   done
+  # The stage-3 finding, onto the newest commit this chunk minted. Appended
+  # rather than folded in anywhere else: the commit already carries the vendor
+  # message the finding is about, and the readers of these findings --
+  # series-glue.sh, and stage 2's mining step -- read exactly this message.
+  if [ -n "$DEV_NOTE" ]; then
+    if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ]; then
+      git worktree remove --force "$wt"
+      echo "Error: $S — the chunk minted nothing, so --dev-note has no commit" >&2
+      echo "  to write the finding on. Record it on the next chunk instead." >&2
+      exit 1
+    fi
+    { git -C "$wt" log -1 --format=%B; echo; cat "$DEV_NOTE"; } > "$wt/.series-advance-note"
+    git -C "$wt" commit -q --amend --no-verify -F "$wt/.series-advance-note"
+    rm -f "$wt/.series-advance-note"
+  fi
+
   next=$(git -C "$wt" rev-parse HEAD)
   if ! verify_counter "$wt" "$dev"; then
     git worktree remove --force "$wt"
