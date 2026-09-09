@@ -6,6 +6,8 @@
 
 #include "src/common/sort/partition_key_tracker.cpp"
 
+#include "src/common/sort/partitioned_sort.cpp"
+
 #include "src/common/sort/sort.cpp"
 
 #include "src/common/sort/sort_strategy.cpp"
