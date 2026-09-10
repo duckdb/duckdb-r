@@ -1547,9 +1547,12 @@ bool CopyFileLifecycleExecutor::WorkOnTask(bool throw_error) {
 	if (!executor.GetTask(task)) {
 		return false;
 	}
+#ifdef D_ASSERT_IS_ENABLED
 	const auto result = task->Execute(TaskExecutionMode::PROCESS_ALL);
-	(void)result;
 	D_ASSERT(result != TaskExecutionResult::TASK_BLOCKED);
+#else
+	task->Execute(TaskExecutionMode::PROCESS_ALL);
+#endif
 	task.reset();
 	if (throw_error) {
 		ThrowError();
@@ -1587,15 +1590,18 @@ void CopyFileLifecycleExecutor::ThrowError() {
 // Copy File State Helpers
 //===--------------------------------------------------------------------===//
 bool CopyDirectoryManager::EnsureDirectory(FileSystem &fs, const string &dir_path) {
+#ifdef D_ASSERT_IS_ENABLED
 	bool created_entry = false;
-	(void)created_entry;
+#endif
 	{
 		std::unique_lock<mutex> guard(lock);
 		while (true) {
 			auto entry = directories.find(dir_path);
 			if (entry == directories.end()) {
 				directories.emplace(dir_path, DirectoryEntry());
+#ifdef D_ASSERT_IS_ENABLED
 				created_entry = true;
+#endif
 				break;
 			}
 
@@ -1621,7 +1627,9 @@ bool CopyDirectoryManager::EnsureDirectory(FileSystem &fs, const string &dir_pat
 		lock_guard<mutex> guard(lock);
 		auto entry = directories.find(dir_path);
 		D_ASSERT(entry != directories.end());
+#ifdef D_ASSERT_IS_ENABLED
 		D_ASSERT(created_entry);
+#endif
 		entry->second.state = error ? CopyDirectoryState::FAILED : CopyDirectoryState::COMPLETE;
 		entry->second.error = error;
 		entry->second.created = created;
@@ -2003,10 +2011,13 @@ optional<PartitionedCopyTask> PartitionedCopyHashGroup::TryNextBatchTask() {
 	task.end_idx = batch_row_idx;
 
 	// Update partition/batch counters
+#ifdef D_ASSERT_IS_ENABLED
 	const auto batch_idx =
 	    batch_state.AddCollectionSlot(partitioned_copy.GetPartitionCollectionSchema(), task.end_idx - task.begin_idx);
-	(void)batch_idx;
 	D_ASSERT(batch_idx == task.batch_idx);
+#else
+	batch_state.AddCollectionSlot(partitioned_copy.GetPartitionCollectionSchema(), task.end_idx - task.begin_idx);
+#endif
 
 	return task;
 }

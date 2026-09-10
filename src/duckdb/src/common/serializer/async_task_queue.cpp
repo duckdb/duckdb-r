@@ -92,11 +92,12 @@ AsyncTaskQueue::AsyncTaskQueue(ClientContext &client_context_p, idx_t max_active
 
 AsyncTaskQueue::~AsyncTaskQueue() {
 	lock_guard<mutex> guard(lock);
+#ifdef D_ASSERT_IS_ENABLED
 	auto drained = pending_requests.empty() && pending_bytes == 0 && in_flight_bytes == 0 && active_tasks == 0 &&
 	               pending_tasks == 0;
-	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
+#endif
 }
 
 bool AsyncTaskQueue::IsAsync() const {
@@ -274,9 +275,12 @@ void AsyncTaskQueue::WorkOnPendingTask() {
 		TaskScheduler::YieldThread();
 		return;
 	}
+#ifdef D_ASSERT_IS_ENABLED
 	auto result = task->Execute(TaskExecutionMode::PROCESS_ALL);
-	(void)result;
 	D_ASSERT(result != TaskExecutionResult::TASK_BLOCKED);
+#else
+	task->Execute(TaskExecutionMode::PROCESS_ALL);
+#endif
 	task.reset();
 }
 
@@ -385,10 +389,11 @@ ManagedAsyncTaskQueue::ManagedAsyncTaskQueue(ClientContext &client_context_p, id
 
 ManagedAsyncTaskQueue::~ManagedAsyncTaskQueue() {
 	lock_guard<mutex> guard(lock);
+#ifdef D_ASSERT_IS_ENABLED
 	auto drained = pending_requests.empty() && pending_bytes == 0 && submitted_bytes == 0 && submitted_requests == 0;
-	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
+#endif
 }
 
 bool ManagedAsyncTaskQueue::IsAsync() const {
