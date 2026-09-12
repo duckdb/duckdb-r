@@ -95,6 +95,14 @@ present where it builds and absent where it does not.
 It reads `DESCRIPTION` and nothing about this package,
 so it belongs to the template rather than to this repository.
 
+On the runner, though, is not the same as in the check:
+`--as-cran` never lets an `Enhances` package reach the tests
+([`usage/integrations/`](/handbook/usage/integrations/README.md)
+carries why), so for this package the step restores the dependency,
+not the coverage.
+A `Suggests` dependency named in `Additional_repositories` —
+the case the step is really written for — does get both.
+
 The condition is the build, not the platform,
 which is what makes this the right lever:
 nothing is declared about *where* the package is expected to fail,

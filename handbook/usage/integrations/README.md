@@ -151,6 +151,22 @@ so this package carries both —
 the field pointed at `apache.r-universe.dev`,
 which is where the ADBC monorepo publishes the package now.
 
+The move is paid for in coverage, and it is worth knowing the price.
+`--as-cran` runs tests and examples against a restricted library
+that `tools:::setRlibs()` builds from
+`Depends`, `Imports`, `Suggests` and `LinkingTo`.
+It never reads `Enhances`,
+and no environment variable changes that —
+neither `_R_CHECK_SUGGESTS_ONLY_` nor `_R_CHECK_DEPENDS_ONLY_` does;
+only dropping `--as-cran` does.
+So the package is installed on the machine
+and absent from the library the check's tests see,
+which is exactly what `Enhances` claims about it.
+`test-adbc.R` therefore skips under `--as-cran`,
+here and on CRAN alike,
+where it used to run while the dependency was a `Suggests`.
+Exercising that route again means running it outside the check.
+
 The driver manager also loads a DuckDB ADBC driver that is *not* this
 package's — a library built by whatever toolchain the platform's own
 DuckDB build uses — and that is the one way to reach an extension this
@@ -163,11 +179,14 @@ the DBI methods, the relational API, registration and the R type
 mapping are this package's rather than the driver's,
 and a second engine in the session shares nothing with this one.
 Both routes need `adbcdrivermanager`, which no longer installs itself:
-it comes from `apache.r-universe.dev` or from a source build of the
-monorepo, and on Windows arm64 from neither — there it has no binary and
-does not build
+it comes from `apache.r-universe.dev`, which is what
+`Additional_repositories` names
 ([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)
 carries what CI does about that).
+That universe publishes a prebuilt binary for every platform this package
+is checked on — Linux, macOS and Windows, x86_64 and aarch64 —
+so Windows arm64 is no longer the exception it was
+while CRAN was the only source and had no binary for it.
 
 ## data.table and collapse
 
