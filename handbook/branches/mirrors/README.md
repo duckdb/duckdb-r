@@ -32,6 +32,11 @@ Pull requires the upstream to be in the same fork network.
 [`.github/pull.yml`](/.github/pull.yml) is where it is configured:
 that file's rules are the list of mirrors,
 and the fork's series refs match none of them.
+That list is derived rather than remembered —
+a mirror is carried because a badge measures against it,
+so the badge table in the root [`README.md`](/README.md) says what the rules
+must be, and [`scripts/pull-config.sh`](/scripts/pull-config.sh) holds the two
+against each other.
 It is authored here, in the canonical repository,
 because CI/CD infrastructure has its source of truth on `main`,
 and read from the fork's default branch, which is a mirror of that `main`.
