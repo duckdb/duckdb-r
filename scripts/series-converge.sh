@@ -46,16 +46,24 @@
 #     them. Once both sit on the same upstream SHA every one of them must agree:
 #     the forward regenerates the vendored tree from its own patch stack, and
 #     series-forward-build.sh verifies exactly that at replay time.
-#   * The **flavored docs** -- `README.md` and `.github/README.md`. These are
-#     per-branch by design: `.github/README.md` is the front page GitHub renders
-#     and scripts/series-port.sh excludes it from the tooling sync by name, for
-#     the reason #2517 and #2518 were filed, and `README.md` is in no ported
-#     path at all. So each branch carries the wording its seed was made with,
-#     and a forward -- whose seed is regenerated on today's `main` -- carries
-#     `main`'s current wording while the base carries its own seed's. Observed
-#     on all three live series, 2026-08-15, and the same difference on each:
-#     the base still described itself as "the LTS version 1.3 of DuckDB" where
-#     the forward names its flavor.
+#   * The **flavored docs** -- `README.Rmd`, `README.md` and `.github/README.md`.
+#     These are per-branch by design: `.github/README.md` is the front page
+#     GitHub renders and scripts/series-port.sh excludes it from the tooling sync
+#     by name, for the reason #2517 and #2518 were filed, and the two READMEs are
+#     in no ported path at all. So each branch carries the wording its seed was
+#     made with, and a forward -- whose seed is regenerated on today's `main` --
+#     carries `main`'s current wording while the base carries its own seed's.
+#     Observed on all three live series, 2026-08-15, and the same difference on
+#     each: the base still described itself as "the LTS version 1.3 of DuckDB"
+#     where the forward names its flavor.
+#
+#     `README.Rmd` is the source the other two are knitted from, and it is the
+#     one `scripts/flavor.patch` renames, so it carries the same difference
+#     ahead of them rather than a different one. Listing only the generated
+#     halves reported the source as unexplained on a forward whose every other
+#     path agreed -- `v1.5-variegata-fwd`, 2026-09-12, where `README.Rmd` was
+#     the sole DIVERGED line and its diff was the flavor rename plus the seed's
+#     wording, hunk for hunk the `README.md` difference the same run explained.
 #   * The **Windows export list**, `src/*-win.def` -- but only when each side
 #     carries the list its own package needs and the two then differ by the
 #     flavor rename alone. Both the file name and the single symbol in it are a
@@ -237,7 +245,7 @@ while IFS=$'\t' read -r add del f; do
     NEWS.md)
       explained+=("$f|$add/$del|release paperwork; stage 4 never ports a VERSION commit")
       ;;
-    README.md | .github/README.md)
+    README.Rmd | README.md | .github/README.md)
       explained+=("$f|$add/$del|flavored doc, never ported; each branch carries its seed's wording")
       ;;
     src/*-win.def)
