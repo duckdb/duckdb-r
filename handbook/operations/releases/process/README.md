@@ -314,6 +314,11 @@ coordinate at the **cluster** level:
   the only other addition is that vendor-coupled glue may be *born* on
   its `<S>-dev`, the one documented exception to R-side work being born on
   `main`.
+  The flip is what a line with no series of its own needs.
+  Opening one for the release branch instead makes the release an ordinary
+  linear move onto `main`, and moves the question to what the preview line
+  is rebuilt on afterwards
+  ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
 
 ## What each cluster must leave standing
 

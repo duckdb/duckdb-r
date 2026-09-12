@@ -110,6 +110,10 @@ the replay then populates `<S>-fwd-build`.
    `scripts/series-forward-build.sh <old-build> <old-base>`
    does exactly this, run on the fresh seed —
    `<old-base>` only delimits the range.
+   A range starting above the old base is legitimate,
+   and is how a preview line is forwarded onto the release it produced:
+   everything below the fork point is already in the new base,
+   so replaying it would replay what the base is (`series-open.md`).
 
    **It refuses to start while the buffer carries a change
    the new base does not have.**
