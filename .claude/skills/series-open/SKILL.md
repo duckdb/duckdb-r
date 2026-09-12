@@ -154,10 +154,14 @@ The replay is the forward routine's, run on the new seed, and the range is what 
    and let it refuse rather than drop a `patch/` entry it cannot place.
 3. **Walk forward from there** with `vendor-one.sh`, as step 5, over what `<U>` has of its own.
 
-**The replay crosses flavors, which a forward never does.**
-The picked commits were written under `<P>`'s flavor and land under `<F>`'s,
-so a glue fix that touched one of the files `scripts/flavor.patch` rewrites conflicts on the name,
+**Replay rather than branch, and the flavor is why.**
+Pointing a new ref into `<P>-build` would share the commits outright and cost nothing up front,
+but the buffer would then carry `<P>`'s flavor under an `<F>` series,
+and every commit stage 5 mints would cross flavors for the life of the line.
+A replay crosses once, here, where a human is already watching for conflicts:
+a picked glue fix that touched one of the files `scripts/flavor.patch` rewrites conflicts on the name,
 and the resolution keeps the seed's name and the commit's change.
+The two buffers then share content and not objects, which is the point rather than a cost.
 
 **What is inherited is what compiles, and nothing else.**
 `-build` holds what the vendor gate checks, and everything `<P>` learned from CI afterwards lives on `<P>-dev`.
@@ -230,12 +234,16 @@ on the day it parks rather than on the day it was opened —
 and `pull-config.sh` reports it as soon as the badge base moves,
 which is step 7 arriving by itself rather than being remembered.
 
-**Where the new line is the one `main` will release, the forward is range-limited.**
-Opening `<S>` from the preview line and then flipping `main` onto `<S>`'s release
-leaves the preview line rebuilt on a base that already contains everything it vendored below the fork point,
-so replaying the whole buffer onto it would replay what the new base is.
-The forward replays the buffer above the fork-point commit instead,
-which `series-forward-build.sh` takes as its range argument,
-and the preview line's version prefix moves on to the line it previews next.
-That sequence, for the opening this repository has next, is
+**A derived opening re-roots the parent in the same change.**
+`<P>-build` walks its line from the series' own beginning,
+and everything below the fork point now belongs to `<S>`.
+Squash those vendor commits into one, keeping the seed and everything above,
+so the buffer takes the shape step 4 produces:
+the seed, one commit carrying the fork-point tree, then the line's own commits.
+The squashed commit keeps the fork-point commit's version,
+so the counter above is untouched and `<P>-dev` is not rewritten at all.
+Do it while the buffer is drained, `<P>-build` and `<P>-build-base` being equal,
+so nothing has to reason about what stage 5 was part-way through.
+That, the preview line's prefix moving on to the line it previews next,
+and what is left of the walk-backwards problem at the flip, are
 [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.
