@@ -1124,11 +1124,53 @@ which it may well do for an unrelated reason.
 **A caught-up forward is reported, not swapped.**
 When `<S>-fwd-green` vendors the upstream commit `<S>-green` vendors,
 `series-check.sh` says so beside that series' verdict,
-and the firing carries the line into its summary:
+and the firing carries it into its summary
+as a block somebody can paste into a terminal whole:
 
 ```sh
-scripts/series-cutover.sh <S> origin <upstream-clone>
+# Tooling from `main`, refs and tags from everywhere.
+git fetch --prune --tags --all
+git switch main && git merge --ff-only @{u}
+git -C ../../../duckdb fetch --prune --tags origin
+
+# Both halves of the question, before anything moves.
+UPSTREAM_CLONE=../../../duckdb scripts/series-check.sh <S> <S>-fwd
+scripts/series-converge.sh <S>
+
+# The swap. It prints the four ref moves and the convergence report,
+# then asks for the series name.
+scripts/series-cutover.sh <S> origin ../../../duckdb
+
+# A retired lineage moves the badge table, and the mirror rules with it.
+scripts/pull-config.sh --check
 ```
+
+`origin` is whichever remote of that checkout carries `<S>-green`,
+and `../../../duckdb` is where `vendor-one.sh` looks for the upstream clone
+when nobody names one, so it is the path the project already assumes.
+Say so beside the block where either is not the reader's:
+the second argument is a remote of *this* repository
+and the third a filesystem path, and the script only catches the swap
+of the two once it is already fetching.
+Check that the `main` the block lands on is the canonical one —
+a fork's mirror lags by however long the mirroring takes,
+and a cutover run off a stale mirror runs a stale `series-cutover.sh`.
+
+**Emit the block whole, on every firing the condition holds**,
+with `<S>` and the paths substituted rather than left as placeholders.
+`series-check.sh` prints the swap alone, which is the one line
+that cannot usefully be pasted by itself:
+a cutover typed on a clone that last fetched hours ago
+runs its coverage gate against refs that have since moved,
+and a firing that abbreviates the block to the line it already saw
+hands the reader exactly that.
+The reads above the swap are not ceremony either —
+`series-cutover.sh` runs the convergence report itself,
+but it runs it *after* the fetches and one prompt before the push,
+which is too late to be the moment anybody decides anything.
+Repeating the block costs a firing nothing;
+it is not summarised into a sentence, and not dropped
+because an earlier firing already printed it.
 
 That is the whole stage.
 The routine does not run the script,
@@ -1255,6 +1297,14 @@ When the script says it could not read the upstream branches,
 the firing says so too:
 otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
+
+**A due cutover is reported the same way, above the `UNSERVED` block.**
+The two are the loop's only findings a firing may not act on,
+so they are the two it has to hand over completely:
+stage 6's block, filled in, every firing `series-check.sh` prints a
+`CUTOVER` line, and for the same reason —
+a decision nobody can take from the report alone
+is a decision the report failed to deliver.
 
 ## Rerun one commit: `retry-<S>-dev`
 
