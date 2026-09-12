@@ -20,6 +20,15 @@
 # Usage: series-cutover.sh <series> [remote] [upstream-clone]
 #   series-cutover.sh main origin ../duckdb
 #
+# The two trailing arguments are different kinds of thing, and a `gh` clone
+# carries names that make them easy to swap:
+#   [remote]         a remote of *this* repository -- the one carrying the
+#                    series refs. A clone made with `gh` has both `origin`
+#                    and `upstream`; pass whichever holds `<series>-green`.
+#   [upstream-clone] a filesystem path to a `duckdb/duckdb` checkout, read
+#                    with `git -C`. Never a remote name, whatever it is
+#                    called.
+#
 # The upstream clone is needed for the coverage gate (an ancestry check
 # between vendored upstream SHAs); without it the gate degrades to a warning.
 
@@ -91,6 +100,15 @@ if [ -n "$old_up" ]; then
     exit 1
   fi
   if [ -n "$upstream" ]; then
+    # Separate "git could not run there" from "the ancestry says no": both
+    # reach the `||` below, and reporting a regression for a path that is not
+    # a checkout sends the reader after the wrong thing. A remote name passed
+    # as the path is exactly that case.
+    git -C "$upstream" rev-parse --git-dir >/dev/null 2>&1 || {
+      echo "Error: $upstream is not a git checkout"
+      echo "  The third argument is a path to a duckdb/duckdb clone, not a remote."
+      exit 1
+    }
     git -C "$upstream" merge-base --is-ancestor "$old_up" "$new_up" || {
       echo "Error: forward green does not cover old green; coverage would regress"
       exit 1
