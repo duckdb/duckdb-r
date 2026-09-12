@@ -19,8 +19,8 @@
 #   series-glue.sh <rev-range>       # an explicit range, e.g. main-fwd-build-base..main-fwd-build
 #   series-glue.sh <what> --diff     # ... and the cumulative glue diff of it
 #
-# Glue is `src/` without the vendored engine, plus `R/`, `NAMESPACE` and
-# `inst/include/`. `R/version.R` and `DESCRIPTION` are excluded: they are
+# Glue is `src/` without the vendored engine, plus `R/` and `NAMESPACE`.
+# `R/version.R` and `DESCRIPTION` are excluded: they are
 # version bookkeeping that `rconfigure.py` rewrites on every vendor commit, so
 # leaving them in makes every commit look like a glue commit.
 
@@ -32,7 +32,7 @@ what=${1:?usage: series-glue.sh <series>|<rev-range> [--diff]}
 diff=${2:-}
 remote=origin
 
-GLUE=(src R NAMESPACE inst/include
+GLUE=(src R NAMESPACE
   ':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)DESCRIPTION')
 
 # A series name resolves to its whole span: from where it left the mainline to

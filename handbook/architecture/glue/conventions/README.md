@@ -19,7 +19,7 @@ through R, every entry point,
 and `DUCKDB_R_POISON_GUARD()` (the C++ half of the CRAN guard).
 
 **cpp11 is vendored, not depended on** —
-`inst/include/cpp11/` carries the copy,
+`src/vendor/cpp11/` carries the copy,
 taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
 a patch stack on top of
 [`r-lib/cpp11`](https://github.com/r-lib/cpp11):
@@ -30,7 +30,7 @@ An entry point is a function marked `[[cpp11::register]]`;
 which are generated and never edited.
 
 **The generator is the fork too, and it is not vendored.**
-`cpp_register()` does not come from `inst/include/cpp11/` —
+`cpp_register()` does not come from `src/vendor/cpp11/` —
 it is an R function, resolved from whatever cpp11 the library holds,
 and so it is the one part of cpp11 this repository cannot pin.
 It has to be the fork as well,
