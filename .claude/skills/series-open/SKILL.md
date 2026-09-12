@@ -1,3 +1,8 @@
+---
+name: series-open
+description: Open a new vendoring series for a release branch upstream has just cut — seed its branches, apply the flavor rename, and take the first vendor commit. Use when upstream cuts a release branch and it needs a series of its own, or when asked to open, seed or bootstrap a series.
+---
+
 # Opening a new series
 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
@@ -52,7 +57,7 @@ This skill is the release branch's birth certificate.
    else — but it costs the whole run, and `cpp_register()` is the last
    step.
    That the two cpp11s differ at all is also why a forward series is
-   rebased rather than reseeded (`series-rebase.md`).
+   rebased rather than reseeded (`series-rebase/SKILL.md`).
 
 3. **Create all four refs at the seed tip**
    (day-one rule, no exceptions):
@@ -106,7 +111,7 @@ This skill is the release branch's birth certificate.
    The fork's mirror configuration is the one thing that lives outside
    the refs — and the routine writes that too,
    from the same detection, on the firing that sees the series change
-   ([`series-loop.md`](series-loop.md)).
+   ([`series-loop/SKILL.md`](series-loop)).
 
 ## Patching the README
 
@@ -157,7 +162,7 @@ If `main` itself has moved on
 (release commits, R-side work),
 forward the `main` series onto it
 rather than rebasing in place —
-see `series-forward.md`.
+see `series-forward/SKILL.md`.
 The old `main-green` keeps serving until cutover.
 
 A line that stops being the current one parks on its own

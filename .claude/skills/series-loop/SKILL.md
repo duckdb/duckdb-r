@@ -1,3 +1,8 @@
+---
+name: series-loop
+description: Drive the vendoring series loop: for every series and its forward counterpart, vendor the next upstream commits, promote what is green, and repair what is not. Use when asked to run, advance, continue or repair the series loop or a series, when a scheduled routine fires for it, or when a series' green ref has fallen behind its buffer.
+---
+
 # The series loop: vendor, promote, repair
 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
@@ -49,7 +54,7 @@ rather than answering wrongly; raise it then.
 **A series is discovered, not configured**:
 each firing lists `refs/heads/*-build`,
 and every `<X>-build` with a sibling `<X>-dev` is a series it serves —
-base and forward (`<S>-fwd-*`, see `series-forward.md`) alike,
+base and forward (`<S>-fwd-*`, see `series-forward/SKILL.md`) alike,
 in one pass over all of them.
 Ignore a forward series
 whose green is an ancestor of its base series' green;
@@ -522,7 +527,7 @@ already superseded, further down the very range it was read from.
 The ranked file list is the cheapest read of where that is about to happen.
 Mining is what *forwarding* costs, and only forwarding:
 a forward series rebased onto a newer mainline
-(`series-rebase.md`) leaves nothing to mine,
+(`series-rebase/SKILL.md`) leaves nothing to mine,
 because its repairs are still commits on `-fwd-dev`.
 CI still judges the result like any other repair.
 
@@ -935,10 +940,10 @@ the consumption anchor of stage 5 reads vendor subjects
 and does not see them —
 and transient:
 a forward's seed already carries their content
-and the replay leaves them behind (`series-forward.md`);
+and the replay leaves them behind (`series-forward/SKILL.md`);
 a rebase drops patch-id equivalents,
 and a sync commit whose delta `main` absorbed
-rebases to empty and is dropped the same way (`series-rebase.md`).
+rebases to empty and is dropped the same way (`series-rebase/SKILL.md`).
 
 ### 5. Extend `<S>-dev`
 
@@ -1119,11 +1124,53 @@ which it may well do for an unrelated reason.
 **A caught-up forward is reported, not swapped.**
 When `<S>-fwd-green` vendors the upstream commit `<S>-green` vendors,
 `series-check.sh` says so beside that series' verdict,
-and the firing carries the line into its summary:
+and the firing carries it into its summary
+as a block somebody can paste into a terminal whole:
 
 ```sh
-scripts/series-cutover.sh <S> origin <upstream-clone>
+# Tooling from `main`, refs and tags from everywhere.
+git fetch --prune --tags --all
+git switch main && git merge --ff-only @{u}
+git -C ../../../duckdb fetch --prune --tags origin
+
+# Both halves of the question, before anything moves.
+UPSTREAM_CLONE=../../../duckdb scripts/series-check.sh <S> <S>-fwd
+scripts/series-converge.sh <S>
+
+# The swap. It prints the four ref moves and the convergence report,
+# then asks for the series name.
+scripts/series-cutover.sh <S> origin ../../../duckdb
+
+# A retired lineage moves the badge table, and the mirror rules with it.
+scripts/pull-config.sh --check
 ```
+
+`origin` is whichever remote of that checkout carries `<S>-green`,
+and `../../../duckdb` is where `vendor-one.sh` looks for the upstream clone
+when nobody names one, so it is the path the project already assumes.
+Say so beside the block where either is not the reader's:
+the second argument is a remote of *this* repository
+and the third a filesystem path, and the script only catches the swap
+of the two once it is already fetching.
+Check that the `main` the block lands on is the canonical one —
+a fork's mirror lags by however long the mirroring takes,
+and a cutover run off a stale mirror runs a stale `series-cutover.sh`.
+
+**Emit the block whole, on every firing the condition holds**,
+with `<S>` and the paths substituted rather than left as placeholders.
+`series-check.sh` prints the swap alone, which is the one line
+that cannot usefully be pasted by itself:
+a cutover typed on a clone that last fetched hours ago
+runs its coverage gate against refs that have since moved,
+and a firing that abbreviates the block to the line it already saw
+hands the reader exactly that.
+The reads above the swap are not ceremony either —
+`series-cutover.sh` runs the convergence report itself,
+but it runs it *after* the fetches and one prompt before the push,
+which is too late to be the moment anybody decides anything.
+Repeating the block costs a firing nothing;
+it is not summarised into a sentence, and not dropped
+because an earlier firing already printed it.
 
 That is the whole stage.
 The routine does not run the script,
@@ -1135,7 +1182,7 @@ a bad repair is repaired again,
 a wrong extension is replayed,
 and `-green` only ever moves forward over commits CI called green.
 The swap moves a serving green *sideways*
-— the single sanctioned non-fast-forward of one (`series-forward.md`) —
+— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`) —
 and it deletes the counterpart that would let it be undone.
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
@@ -1241,7 +1288,7 @@ rather than late in one, and absence raises nothing anywhere.
 The report is the only place it is visible.
 
 **Reported, never acted on.**
-Opening the series is `series-open.md`'s job, and a human's,
+Opening the series is `series-open/SKILL.md`'s job, and a human's,
 exactly as a cutover is (stage 6).
 The firing names the line, the fork point and the skill, and stops there.
 
@@ -1250,6 +1297,14 @@ When the script says it could not read the upstream branches,
 the firing says so too:
 otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
+
+**A due cutover is reported the same way, above the `UNSERVED` block.**
+The two are the loop's only findings a firing may not act on,
+so they are the two it has to hand over completely:
+stage 6's block, filled in, every firing `series-check.sh` prints a
+`CUTOVER` line, and for the same reason —
+a decision nobody can take from the report alone
+is a decision the report failed to deliver.
 
 ## Rerun one commit: `retry-<S>-dev`
 
@@ -1339,7 +1394,7 @@ push the branch, dispatch `each-rcc` on `retry-<S>-dev`
 with `force=true` and `max-commits=1`,
 and — on the store path only — drop the stale record once the rerun is green,
 both copies of it, per above.
-A rebase onto a newer mainline (`series-rebase.md`)
+A rebase onto a newer mainline (`series-rebase/SKILL.md`)
 is what carries the automatic path into a forward series.
 
 ## Commit-message contract

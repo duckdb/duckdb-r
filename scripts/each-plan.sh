@@ -121,7 +121,7 @@ case "${branch}" in
     # `retry-<S>-dev` asks for one commit of series `<S>` to be judged again on
     # its own SHA -- the alternative is amending it, which re-mints every
     # descendant and throws away the runs that decided them. See
-    # .claude/skills/series-loop.md.
+    # .claude/skills/series-loop/SKILL.md.
     #
     # It is the series' own branch name with a prefix, so stripping the prefix
     # anchors the scan on `<S>-green`, the ref that already marks how far the

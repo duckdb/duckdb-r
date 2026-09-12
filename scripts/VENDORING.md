@@ -248,7 +248,7 @@ awk 'NR==FNR{a[$0];next} $0 in a{print; exit}' /tmp/main-fp /tmp/rel-fp
 Day one of a new cycle then looks like this
 (the series bootstrap — the fifth-component commit
 and the four refs created equal at the seed tip — is
-`.claude/skills/series-open.md`'s job;
+`.claude/skills/series-open/SKILL.md`'s job;
 this list is the sources-and-glue side it drives):
 
 1. Create the new dev branch from the current package `main`
@@ -371,7 +371,7 @@ The live table is the `Flavors` section of [`README.md`](/README.md) —
 one row per flavor, these two badges
 plus an *ahead* badge against the branch the series releases from,
 and version badges for the CRAN and LTS rows.
-`.claude/skills/series-open.md` documents its upkeep,
+`.claude/skills/series-open/SKILL.md` documents its upkeep,
 including the constraint that every ref a badge names
 must live in `krlmlr/duckdb-r`:
 shields.io compares within a single repository,

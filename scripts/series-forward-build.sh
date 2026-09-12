@@ -1,7 +1,7 @@
 #!/bin/bash
 # Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build`
 # onto HEAD, which must be the freshly flavored seed on current `main`
-# (.claude/skills/series-forward.md).
+# (.claude/skills/series-forward/SKILL.md).
 #
 # The replay is a cherry-pick, not a tree reconstruction. A vendor commit's diff
 # is exactly what vendoring changed -- `src/duckdb/`, the version bookkeeping,
