@@ -105,7 +105,7 @@ The version counter gains a gap where the folded bump went,
 which is what a counter that orders rather than counts allows
 ([`versioning/`](/handbook/operations/releases/versioning/README.md)).
 The loop's own statement of the rule is in its repair stage
-([`series-loop.md`](/.claude/skills/series-loop.md)).
+([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
 
 ## Where a patch goes in the chain
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Read-only: what did r-universe make of the refs this repository publishes?
 #
-# `<S>-green` is what r-universe builds (.claude/skills/series-loop.md), on
+# `<S>-green` is what r-universe builds (.claude/skills/series-loop/SKILL.md), on
 # platforms the per-commit `rcc` gate never touches -- Windows on x86_64 and
 # arm64, macOS on both, wasm. A series can therefore be green commit by commit
 # and still ship a package that does not build, and nothing in the harvest on

@@ -32,7 +32,7 @@ The families, in one breath:
 * **Forward convergence** — at the end of a forwarding, `<S>-dev` and
   `<S>-fwd-dev` are identical, or every difference between them is
   explicable. A forward is the same series rebuilt on a newer `main`
-  ([`.claude/skills/series-forward.md`](/.claude/skills/series-forward.md)),
+  ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)),
   so the histories differ by construction and only the trees carry the
   claim.
 * **Prerelease** — while a release stabilises, only `main` and the dev
