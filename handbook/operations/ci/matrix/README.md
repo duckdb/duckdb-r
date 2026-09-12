@@ -79,6 +79,10 @@ Dropping it from the plan is only half the arrangement:
 a step in [`custom/after-install/`](/.github/workflows/custom/after-install/action.yml)
 then installs it from `Additional_repositories`,
 which is what actually puts it back on the runners that can have it.
+On the runner, though, is not the same as in the check:
+`--as-cran` never lets an `Enhances` package reach the tests
+([`usage/integrations/`](/handbook/usage/integrations/README.md)
+carries why), so this restores the package, not the coverage.
 
 The condition is the build, not the platform,
 which is what makes this the right lever:
