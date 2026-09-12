@@ -1,5 +1,66 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9020
+
+## Bug fixes
+
+### rcc
+
+- Run the testsuite when `rcc-one.sh` runs outside Actions (#2669).
+
+### rcc
+
+- Tell a missing `clang-format` apart from a misformatted tree (#2671).
+
+### flavor
+
+- Run the flavor-rename guard where it can actually fire (#2676).
+
+### vendor
+
+- Refuse an upstream clone that cannot name a version (#2677).
+
+### vendor
+
+- Say how a retired patch reaches the vendor commit (#2679).
+
+### series
+
+- Report what stage 5 added, not what it set out to add (#2680).
+
+### ci
+
+- Backport kit fixes from `rigraph`, `duckdb-r` and `dm`.
+
+
+# duckdb 1.5.5.9019
+
+## Bug fixes
+
+### series
+
+- Register the `ours-version` driver before refusing over it (#2665).
+
+### series
+
+- Read every universe that publishes a green, not just `duckdb` (#2670).
+
+## Documentation
+
+### meta
+
+- Make `authoring/` obey itself, name evidence in the rules, and refresh the `meta/` node (#2673).
+
+
+# duckdb 1.5.5.9018
+
+## Documentation
+
+### meta
+
+- Consolidate the authoring rules, and split recorded evidence into its own leaf (#2672).
+
+
 # duckdb 1.5.5.9017
 
 ## Bug fixes

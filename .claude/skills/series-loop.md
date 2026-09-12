@@ -87,7 +87,9 @@ which is stage 2's fallback source, not its first one;
 prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
-a suggestion for a human, stage 6),
+a suggestion for a human, stage 6,
+and an UNSERVED block for an upstream release line no series covers,
+the other suggestion for a human, and the one the report ends with),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
 sets `-build-base` to the vendored-SHA match,
@@ -133,6 +135,12 @@ and every one of those meets the graft boundary
 and answers wrong or refuses.
 Tags are not optional either:
 `vendor-one.sh` reads `git describe --tags` for the version it stamps.
+A clone that cannot reach a versioning tag used to stamp `v0.0.0`
+and vendor on without a word,
+which reaches CI as a test failure looking like the engine's —
+every extension download 404s on `extensions.duckdb.org/v0.0.0/`.
+The script now refuses such a clone before it vendors anything;
+treat that refusal as the answer and fetch the tags.
 
 **Establish how this firing reads results, once.**
 Verdicts and logs come from the `each-rcc` runs that produced them (stage 2),
@@ -608,7 +616,12 @@ It prints, per package, the version and the commit built —
 naming the local ref when this clone knows it,
 which is how a red is attributed to a series —
 then one line per target that is not OK, with the log URL.
-Three access facts it exists to encapsulate, each paid for once:
+Four access facts it exists to encapsulate, each paid for once:
+the greens are published in **more than one universe** —
+`duckdb.r-universe.dev` builds the base series' greens
+and `krlmlr.r-universe.dev` the forward ones —
+so a read of one of them answers for half the series
+and reports all-OK over a failing `-fwd-green`;
 the `/builds` dashboard answers 403 to some fetchers
 while `https://<universe>.r-universe.dev` answers a plain curl;
 the build logs live in the GitHub repository `r-universe/<universe>`,
@@ -675,6 +688,17 @@ an extension repository with nothing published for a platform —
 write it anyway, on the next `-dev` commit the stage produces:
 a finding with no repair is still the thing
 that stops the next firing diagnosing it from scratch.
+That commit is minted and pushed by stage 5,
+so hand the text to the run that mints it
+rather than amending after the fact:
+
+```sh
+scripts/series-advance.sh <S> --dev-note <file>
+```
+
+The note is appended to the newest commit of the chunk before the push.
+Writing it afterwards costs an amend, a force-push,
+and one `each-rcc` run spent on a commit about to be re-minted.
 
 **What a fix may be is the handbook's rule, not this skill's.**
 A compiler-warning fix is bound by
@@ -1169,6 +1193,44 @@ The test is whether the *same firing done again* would hit it —
 a bug in a script or a workflow would,
 an upstream commit that did not build would not.
 
+## What a firing reports
+
+The report ends with `series-check.sh`'s `UNSERVED` block, verbatim,
+whenever the script prints one:
+an upstream release line that no series here covers.
+Run the script with stage 1's clone,
+`UPSTREAM_CLONE=<upstream-clone> scripts/series-check.sh`,
+so the block carries the fork point and not only the branch name.
+
+**It goes last, and it outranks a quiet pass.**
+A firing where every series reads ADVANCE or IDLE
+is the quietest report this loop writes,
+and it is exactly the firing where an unopened series
+is the only thing left worth acting on.
+So it is not summarised into a sentence among the per-series verdicts,
+and not dropped because everything that is served is green.
+Loud because it is easy to skim past, not because anything is broken:
+a line may be opened deliberately, later and on a released tree,
+so what the block reports is a decision owed an answer rather than a fault.
+
+**It repeats until the refs exist.**
+Nothing else in the loop can notice the condition:
+a series is discovered from its refs,
+so a release line that has none is absent from every stage above
+rather than late in one, and absence raises nothing anywhere.
+The report is the only place it is visible.
+
+**Reported, never acted on.**
+Opening the series is `series-open.md`'s job, and a human's,
+exactly as a cutover is (stage 6).
+The firing names the line, the fork point and the skill, and stops there.
+
+**A reading that failed is reported as one.**
+When the script says it could not read the upstream branches,
+the firing says so too:
+otherwise a question that went unanswered
+reads exactly like an answer of "nothing new".
+
 ## Rerun one commit: `retry-<S>-dev`
 
 Some runs fail for reasons the commit had no part in:
@@ -1305,6 +1367,10 @@ is what carries the automatic path into a forward series.
   and prints the command; it never runs it,
   and never swaps the refs by another route.
   Every other ref move in this skill is the routine's to make.
+- Opening a series is manual too, and its trigger is upstream's branch cut.
+  The loop reports a release line no series covers,
+  at the end of every firing until the refs exist;
+  it creates none of them.
 - A base is advanced on completed, successful runs —
   never on absence of a failure.
 - Fixes are folded into the commit that needs them,

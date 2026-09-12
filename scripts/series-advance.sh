@@ -40,24 +40,45 @@
 # `--continue` picks the run up where it stopped; `--abort` throws the worktree
 # away and leaves the refs untouched.
 #
-# Usage: series-advance.sh <series> [chunk-size]     # chunk default 100
-#        series-advance.sh <series> --continue       # after resolving a stop
+# **`--dev-note` writes a stage-3 finding into the commit this stage mints.** An
+# r-universe failure has no per-commit record anywhere and no commit of its own,
+# so the series keeps it in the message of the next `-dev` commit
+# (.claude/skills/series-loop.md stage 3). This stage is the one that mints that
+# commit and pushes it in the same breath, so a firing that writes the finding
+# afterwards pays an amend, a force-push, and one each-rcc run spent on a commit
+# it is about to re-mint. The note is appended to the newest minted commit's
+# message before the push instead. A note forces the replay route below, because
+# the plain ref move has no commit of its own to carry it, and it is an error to
+# ask for one when the chunk minted nothing.
+#
+# Usage: series-advance.sh <series> [chunk-size] [--dev-note <file>]
+#        series-advance.sh <series> --continue [--dev-note <file>]
 #        series-advance.sh <series> --abort          # discard a stopped replay
 
 set -euo pipefail
 
-usage='usage: series-advance.sh <series> [chunk-size | --continue | --abort]'
+usage='usage: series-advance.sh <series> [chunk-size] [--dev-note <file>]
+       series-advance.sh <series> --continue [--dev-note <file>]
+       series-advance.sh <series> --abort'
 S=${1:?$usage}
+shift
 CONTINUE=
 ABORT=
+DEV_NOTE=
 chunk=100
-case "${2:-}" in
-  '') ;;
-  --continue) CONTINUE=1 ;;
-  --abort) ABORT=1 ;;
-  -*) echo "$usage" >&2; exit 1 ;;
-  *) chunk=$2 ;;
-esac
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --continue) CONTINUE=1; shift ;;
+    --abort) ABORT=1; shift ;;
+    --dev-note) DEV_NOTE=${2:?$usage}; shift 2 ;;
+    -*) echo "$usage" >&2; exit 1 ;;
+    *) chunk=$1; shift ;;
+  esac
+done
+if [ -n "$DEV_NOTE" ] && [ ! -s "$DEV_NOTE" ]; then
+  echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
+  exit 1
+fi
 remote=origin
 rcc=${RCC_BRANCH:-rcc2}
 
@@ -83,8 +104,16 @@ fi
 # lives in .git/config and cannot be committed, so a fresh clone has the
 # attribute (.gitattributes) and not the driver, and the replay stops on a
 # DESCRIPTION conflict indistinguishable from one a human has to resolve.
-# Refuse up front, as scripts/series-forward-build.sh already does. After the
-# --abort branch, so a stopped replay can always be discarded.
+#
+# Register it, then refuse if it is still missing. This script already knew how
+# to register it -- below, in the replay branch -- and a refusal reached first
+# made every firing run scripts/setup-git.sh by hand, because a firing runs in a
+# fresh clone. Idempotent, and .git/config is shared with the worktree the
+# replay uses. After the --abort branch, so a stopped replay can always be
+# discarded.
+if [ -x "$(dirname "$0")/setup-git.sh" ]; then
+  VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
+fi
 git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
@@ -454,6 +483,13 @@ if [ "$ahead" -eq 0 ]; then
 fi
 n=$((ahead < chunk ? ahead : chunk))
 
+# What -dev is at before this stage writes anything, so the closing line can
+# report what the stage actually added rather than what it set out to add. The
+# replay drops a buffer commit whose content reached -dev by another route
+# (`--empty=drop` below), so the two differ, and `git push` moves the
+# remote-tracking ref this resolves -- read it once, here.
+dev_before=$(git rev-parse "$dev")
+
 # Which commits in this chunk have a test-side fix waiting on the base series.
 # Computed before anything is written, because it decides the route: a plain ref
 # move cannot carry content, so one carry in the chunk makes the whole chunk a
@@ -483,7 +519,10 @@ if [ -n "$base_dev" ]; then
   fi
 fi
 
-if [ "$anchor" = "$(git rev-parse "$dev")" ] && [ "$carries" -eq 0 ] && [ -z "$CONTINUE" ]; then
+# A note takes the replay route: the fast path pushes the buffer's own commits
+# unchanged, so there is nothing of this stage's making to write the finding on.
+if [ "$anchor" = "$(git rev-parse "$dev")" ] && [ "$carries" -eq 0 ] &&
+   [ -z "$CONTINUE" ] && [ -z "$DEV_NOTE" ]; then
   next=$(git rev-list --reverse "$anchor..$build" | sed -n "${n}p")
   git push "$remote" "$next:refs/heads/$S-dev"
 else
@@ -493,11 +532,8 @@ else
   # Every buffer commit bumps DESCRIPTION's vendor counter, so a -dev that has
   # taken a fledge bump conflicts on the `Version:` line at the first replayed
   # commit and at every one after it. That line is what the ours-version merge
-  # driver exists for; register it here as series-port.sh does, so only genuine
-  # conflicts reach the judgement above.
-  if [ -x "$(dirname "$0")/setup-git.sh" ]; then
-    VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
-  fi
+  # driver exists for, and the gate at the top of this script has registered it
+  # already, so only genuine conflicts reach the judgement above.
 
   # Where the run stops, and how it says so. The worktree is kept: it holds the
   # conflict, and whoever resolves it needs somewhere to do that. Nothing has
@@ -615,6 +651,22 @@ else
     restamp "$wt" "$c"
     [ -n "${CARRY[$c]:-}" ] && apply_carry "$wt" "$c" "${CARRY[$c]}"
   done
+  # The stage-3 finding, onto the newest commit this chunk minted. Appended
+  # rather than folded in anywhere else: the commit already carries the vendor
+  # message the finding is about, and the readers of these findings --
+  # series-glue.sh, and stage 2's mining step -- read exactly this message.
+  if [ -n "$DEV_NOTE" ]; then
+    if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ]; then
+      git worktree remove --force "$wt"
+      echo "Error: $S — the chunk minted nothing, so --dev-note has no commit" >&2
+      echo "  to write the finding on. Record it on the next chunk instead." >&2
+      exit 1
+    fi
+    { git -C "$wt" log -1 --format=%B; echo; cat "$DEV_NOTE"; } > "$wt/.series-advance-note"
+    git -C "$wt" commit -q --amend --no-verify -F "$wt/.series-advance-note"
+    rm -f "$wt/.series-advance-note"
+  fi
+
   next=$(git -C "$wt" rev-parse HEAD)
   if ! verify_counter "$wt" "$dev"; then
     git worktree remove --force "$wt"
@@ -624,4 +676,4 @@ else
   rm -f "$STATE"
   git push "$remote" "$next:refs/heads/$S-dev"
 fi
-echo "dev -> $(git rev-parse --short "$next") (+$n)"
+echo "dev -> $(git rev-parse --short "$next") (+$(git rev-list --count "$dev_before..$next"))"

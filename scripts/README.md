@@ -39,12 +39,6 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
 
-## [`build/configuration/`](/handbook/build/configuration/README.md)
-
-| File | Purpose |
-|---|---|
-| [`setup-makeflags.R`](setup-makeflags.R) | Setup MAKEFLAGS for parallel compilation. |
-
 ## [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 
 | File | Purpose |

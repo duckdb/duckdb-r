@@ -75,9 +75,35 @@ This skill is the release branch's birth certificate.
 
 6. **Add the series to the README's `Flavors` table** — see below.
 
-7. The routine discovers every series from its refs
+7. **Give the fork the mirror the badges measure against,
+   and `.github/pull.yml` the rule that keeps it fresh.**
+   The series' own four refs never get a rule —
+   [`.github/pull.yml`](/.github/pull.yml) says why the app cannot reach them,
+   and a rule that could would hard-reset the loop's work away.
+   What may need one is the branch the *ahead* badge measures against:
+   a line that is still current releases from `main`,
+   which has a rule already, so a series measured against `main` adds nothing;
+   a line measured against a parked `vX-codename` baseline needs that baseline
+   mirrored in the fork and ruled here.
+   Three moves, in this order.
+   Push the branch into the fork once by hand:
+   a rule whose base the fork lacks is skipped silently and forever,
+   so the rule never creates the mirror.
+   Add the rule here, on `main`, where the file is authored.
+   Then carry it to where Pull reads it —
+   the fork's default branch, itself a mirror of this `main` —
+   because until that mirror has the edit the rule does not exist for the app.
+   `pull.yml` names the URL that validates it
+   and the URL that triggers a sync,
+   which is how the last move takes effect today
+   rather than within six hours
+   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+
+8. The routine discovers every series from its refs
    and serves them all in one firing;
-   a new series needs no configuration, only its refs.
+   the loop itself needs no configuration for a new series.
+   The fork's mirror configuration is the one thing that lives outside
+   the refs, and it is step 7's.
 
 ## Patching the README
 
@@ -107,11 +133,11 @@ Two things to check before pushing:
 * **Every ref a badge names must live in `krlmlr/duckdb-r`.**
   A base that exists only in the canonical repo
   renders as an error, not a count.
-  Push the release branch into the fork once —
-  the Pull app keeps a mirror fresh but never creates one —
-  and give it a rule in [`.github/pull.yml`](/.github/pull.yml)
-  if the badge measures against it
+  Reading a base the fork does carry but nothing keeps current
+  is worse than that, because it renders:
+  a mirror left behind counts commits that have already shipped
   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+  Step 7 is where both are settled.
 * **The table must stay clear of `scripts/flavor.patch`.**
   `README.md` is a flavored file;
   the patch rewrites the installation hunks near the top.
@@ -130,3 +156,11 @@ forward the `main` series onto it
 rather than rebasing in place —
 see `series-forward.md`.
 The old `main-green` keeps serving until cutover.
+
+A line that stops being the current one parks on its own
+`vX-codename` baseline,
+and its `.dev` badge follows it there —
+the *ahead* base is the branch the series releases from,
+which is no longer `main`.
+That move is what earns the outgoing line a mirror and a rule,
+by step 7, on the day it parks rather than on the day it was opened.

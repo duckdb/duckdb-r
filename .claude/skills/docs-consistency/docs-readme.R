@@ -155,10 +155,6 @@ groups <- list(
     globs = c("install-*.sh")
   ),
   list(
-    owner = "handbook/build/configuration",
-    globs = c("setup-makeflags.R")
-  ),
-  list(
     owner = "handbook/architecture/glue/conventions",
     globs = c("format.py", "python_helpers.py")
   ),

@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Eleven
+# A forward series inherits only the first when its buffer is replayed. Thirteen
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -37,6 +37,11 @@
 #  11. A base series with a *live* forward counterpart consumes its buffer like
 #      any other. It used to be refused, which froze the branch a cutover is
 #      measured against and left the forward with no twin to mine.
+#  12. A replay in which every buffer commit drops as empty reports that nothing
+#      was added, rather than an empty buffer, and leaves the ref where it was.
+#  13. `--dev-note` appends a stage-3 finding to the newest commit the chunk
+#      mints -- taking the replay route so there is one to write it on -- and
+#      refuses when the chunk minted nothing or the file is not there.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -195,6 +200,29 @@ bvendor fff1111 1.0.0.9000.1 f.cpp
 bvendor fff2222 1.0.0.9000.2 g.cpp
 git branch solo-build-base base-seed
 
+# --- a series for the stage-3 finding note (claim 13) -----------------------
+# Same shape as `solo`, so the note is checked on a chunk that would otherwise
+# have taken the plain ref move -- which is the route the note has to override.
+git checkout -q -b note-dev base-seed
+git branch note-green note-dev
+git checkout -q -b note-build base-seed
+bvendor fff4444 1.0.0.9000.1 j.cpp
+bvendor fff5555 1.0.0.9000.2 k.cpp
+git branch note-build-base base-seed
+
+# --- a buffer commit whose content already reached -dev (claim 12) ----------
+# Stage 3 sends a patch/ entry down both paths on purpose, so the replay drops
+# it (`--empty=drop`) and the stage adds nothing. The subject on the -dev side
+# is not a vendor one, so the anchor looks past it to the seed and the buffer
+# still reads as one commit ahead -- which is what makes the drop reachable.
+git checkout -q -b dup-dev base-seed
+bvendor fff3333 1.0.0.9000.1 i.cpp
+git commit -q --amend -m 'chore: Carry the same content by another route'
+git branch dup-green base-seed
+git checkout -q -b dup-build base-seed
+bvendor fff3333 1.0.0.9000.1 i.cpp
+git branch dup-build-base base-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like.
 git checkout -q --orphan rcc2
@@ -204,7 +232,9 @@ git commit -q --allow-empty -m 'chore: empty store'
 git checkout -q main
 git push -q origin main base-seed base-build base-dev base-green base-build-base \
   base-fwd-build base-fwd-dev base-fwd-green base-fwd-build-base \
-  solo-build solo-dev solo-green solo-build-base rcc2
+  solo-build solo-dev solo-green solo-build-base \
+  note-build note-dev note-green note-build-base \
+  dup-build dup-dev dup-green dup-build-base rcc2
 git fetch -q origin
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
@@ -371,6 +401,56 @@ is "replayed onto the base's own tip, not the buffer's" \
   "$(git rev-parse "$F^")" "$(git rev-parse origin/base-green)"
 is "and the counter rose once for it" \
   "$(git show "$F:DESCRIPTION" | sed -n 's/^Version: //p')" 1.0.0.9000.6
+
+# --- claim 12: a replay that drops every commit says so -----------------------
+echo
+echo "== a buffer commit whose content already reached -dev"
+before=$(git rev-parse origin/dup-dev)
+out=$(run dup)
+hasnt "does not report an empty buffer" "$out" 'buffer empty'
+has   "reports nothing added"           "$out" "dev -> $(git rev-parse --short "$before") (+0)"
+git fetch -q origin
+is "and leaves dev where it was" "$(git rev-parse origin/dup-dev)" "$before"
+
+# --- claim 13: --dev-note carries a stage-3 finding into the minted commit ----
+echo
+echo "== --dev-note, the stage-3 finding with no fix to carry"
+NOTE=$SCRATCH/finding.txt
+printf 'R-side fix:\n\nmacos-oldrel-x86_64 timed out at the hour budget.\n' > "$NOTE"
+out=$(run note --dev-note "$NOTE")
+has "moves the ref" "$out" 'dev ->'
+git fetch -q origin
+is "both buffered commits reached dev" \
+  "$(git rev-list --count origin/note-green..origin/note-dev)" 2
+is "the tip is a replay, not the buffer commit verbatim" \
+  "$([ "$(git rev-parse origin/note-dev)" = "$(git rev-parse origin/note-build)" ] &&
+       echo verbatim || echo replay)" replay
+has "the newest commit carries the finding" \
+  "$(git log -1 --format=%B origin/note-dev)" 'macos-oldrel-x86_64 timed out'
+has "and keeps its own vendor subject" \
+  "$(git log -1 --format=%s origin/note-dev)" 'duckdb@fff5555'
+hasnt "the commit below it does not" \
+  "$(git log -1 --format=%B origin/note-dev^)" 'macos-oldrel-x86_64 timed out'
+is "and the counter still rose once per vendor commit" \
+  "$(git show origin/note-dev:DESCRIPTION | sed -n 's/^Version: //p')" 1.0.0.9000.2
+
+echo
+echo "== --dev-note when the chunk minted nothing"
+before=$(git rev-parse origin/dup-dev)
+out=$(run dup --dev-note "$NOTE")
+has "refuses rather than dropping the finding" "$out" 'has no commit'
+has "and exits non-zero"                       "$out" 'EXIT=1'
+git fetch -q origin
+is "leaving dev where it was" "$(git rev-parse origin/dup-dev)" "$before"
+
+echo
+echo "== --dev-note naming a file that is not there"
+before=$(git rev-parse origin/note-dev)
+out=$(run note --dev-note "$SCRATCH/absent.txt")
+has "refuses before reading any ref" "$out" 'missing or empty'
+has "and exits non-zero"             "$out" 'EXIT=1'
+git fetch -q origin
+is "leaving dev where it was" "$(git rev-parse origin/note-dev)" "$before"
 
 echo
 echo "$pass passed, $fail failed"

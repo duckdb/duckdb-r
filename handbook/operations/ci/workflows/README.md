@@ -29,6 +29,7 @@ which is the part of this a reader can check from the tree.
 | [`rhub.yaml`](/.github/workflows/rhub.yaml) | push to `cran-*`; dispatch | R-hub checks ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | sharded old-vs-new check of every reverse dependency, reported as artifacts ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
+| [`revdep4.yaml`](/.github/workflows/revdep4.yaml) | dispatch | the successor engine: each package's two halves sequentially, per-package containers, a work queue across packages |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
 | [`copilot-setup-steps.yaml`](/.github/workflows/copilot-setup-steps.yaml) | changes to itself | environment bootstrap for coding agents |
 
