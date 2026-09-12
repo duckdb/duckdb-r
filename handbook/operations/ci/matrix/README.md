@@ -57,18 +57,28 @@ This package says that about `arrow`,
 which does not compile against Rtools45;
 the field's `Config/comment/…` twin records why.
 
-The lever reaches a build that fails, and only that.
+That parameter reaches a build that fails, and only that.
 `adbcdrivermanager` fails a step earlier since CRAN archived it
 ([apache/arrow-adbc#4638](https://github.com/apache/arrow-adbc/issues/4638)):
-pak cannot resolve the reference at all,
-and a reference that resolves to nothing takes the whole entry with it
-however it is parameterized.
-So that package left the field
-and is installed from `Additional_repositories` instead,
-by a step in [`custom/after-install/`](/.github/workflows/custom/after-install/action.yml)
-that tolerates its own failure —
-which puts it back where `=?ignore-build-errors` had it,
-present where it builds and absent where it does not.
+nothing resolves the name, so there is no build to demote,
+and a dependency that resolves to nothing takes the whole entry with it —
+`Can't find package called adbcdrivermanager`, before any check begins.
+Declaring it an `Enhances` does not take it out of pak's way.
+The action calls pak with `dependencies = "all"`,
+which resolves `Enhances` alongside the rest,
+so the package stays in the plan whichever optional field holds it.
+Neither does `Additional_repositories`: pak reads `repos` and nothing else.
+
+The parameter that does reach it is `=?ignore-unavailable`,
+which drops a package no repository carries instead of failing the solve.
+So the reference stays in the field and carries both —
+`adbcdrivermanager=?ignore-unavailable&ignore-build-errors` —
+the second half held for the day it returns to CRAN
+and Rtools45 has to build it again.
+Dropping it from the plan is only half the arrangement:
+a step in [`custom/after-install/`](/.github/workflows/custom/after-install/action.yml)
+then installs it from `Additional_repositories`,
+which is what actually puts it back on the runners that can have it.
 
 The condition is the build, not the platform,
 which is what makes this the right lever:
