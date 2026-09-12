@@ -152,13 +152,22 @@ fi
 #
 # The lineage under the seed is what separates them, and it is the one quantity
 # that does not move: the candidate list and the distance to the join both grow
-# as `main` does, while a well-seeded series stays at zero however long it runs.
-# Naming the series here instead would age — every LTS line opened or retired
-# would be an edit to this script, and a firing would trust the list over the
-# branch in front of it.
+# as `main` does, while a well-seeded series stays near zero however long it
+# runs. Naming the series here instead would age — every LTS line opened or
+# retired would be an edit to this script, and a firing would trust the list
+# over the branch in front of it.
+#
+# What is counted is the part of that lineage `main` does not already have.
+# Counting commits instead made one seeding fix enough to freeze a series:
+# `v1.5-variegata-fwd` carried a single `fix(flavor)` commit below its flavor
+# commit — `main`'s own, replayed into the seed — and took no ports at all,
+# until its `-dev` differed from the base series' on 18 paths the convergence
+# report could not explain. A release-seeded lineage is not one commit off:
+# `v1.4-andium` has 56 commits under its seed, 45 of them `main`'s by no
+# reading, which is the shape the freeze is for.
 seed=$(git rev-list "$mb..$dev" --grep="$seed_re" | tail -n 1)
 under=0
-[ -n "$seed" ] && under=$(git rev-list --count "$mb..$seed^")
+[ -n "$seed" ] && under=$(git cherry "$main" "$seed^" "$mb" | grep -c '^+' || true)
 frozen=
 [ "$under" != 0 ] && frozen=1
 
