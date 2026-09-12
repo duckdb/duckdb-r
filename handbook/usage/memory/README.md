@@ -41,6 +41,11 @@ as properties of today's system, not choices a caller can revisit:
   bounded instead by its own size cap
   ([below](#a-results-copies-path-by-path)).
 
+The engine's own ledger, `SELECT * FROM duckdb_memory()`,
+shows the counted side per tag and what of it has spilled;
+the untracked copies above never appear in it,
+and R's `gc()` never sees the engine at all —
+so a session's true footprint is the process, not either report.
 Engine-side overshoot on *writes* has been reported as well,
 tracked in [#97](https://github.com/duckdb/duckdb-r/issues/97).
 
@@ -145,8 +150,10 @@ so the paths differ by which copies they hold and when each is freed.
   up to three copies coexist —
   the shape of the
   [#1065](https://github.com/duckdb/duckdb-r/issues/1065) report.
-  `duckdb_fetch_record_batch()` additionally leaks its stream wrapper
-  (the `FIXME` at `rapi_record_batch()`, same file).
+  `duckdb_fetch_record_batch()` instead hands the engine copy to an
+  arrow `RecordBatchReader` (`rapi_record_batch()`, same file),
+  which reads it batch by batch and frees it when the reader is
+  collected.
   The route is slated for retirement in favor of the DBI Arrow API
   ([#2587](https://github.com/duckdb/duckdb-r/pull/2587)
   refuses to combine it with `stream = TRUE` and names the migration).

@@ -440,8 +440,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
-	// FIXME: This is a memory leak, need better lifecycle management
-	// (documented as such in handbook/usage/memory/README.md)
+	// The wrapper owns the result from here on. arrow's ImportRecordBatchReader
+	// takes the stream and frees both through stream.release when the reader is
+	// collected; only a failing import below leaks it (handbook/usage/memory/README.md).
 	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
 
 	cpp11::sexp stream_ptr_sexp(
