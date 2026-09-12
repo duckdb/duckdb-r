@@ -36,11 +36,12 @@ and so it is the one part of cpp11 this repository cannot pin.
 It has to be the fork as well,
 because the flavor names it derives the `.Call` prefix from
 carry more dots than CRAN's cpp11 replaces.
-Install it from GitHub —
-`remotes::install_github("krlmlr/cpp11")` —
-beside `decor`, which `cpp_register()` also needs;
-`krlmlr.r-universe.dev` does not build cpp11,
-so naming that repository ahead of CRAN installs CRAN's.
+Install it from
+[`krlmlr.r-universe.dev`](https://krlmlr.r-universe.dev),
+which builds the fork and serves it as a binary —
+name that repository ahead of CRAN and `install.packages("cpp11")`
+picks up the fork, beside `decor`, which `cpp_register()` also needs.
+`remotes::install_github("krlmlr/cpp11")` does the same from source.
 [`scripts/flavor.sh`](/scripts/flavor.sh) refuses a generated binding
 whose entry points are not C identifiers, which is what a wrong cpp11
 produces.
