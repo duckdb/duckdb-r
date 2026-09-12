@@ -72,11 +72,23 @@
 # they are transient — a forward's seed already carries their content, and a
 # rebase drops patch-id equivalents and empty leftovers.
 #
-# Usage: series-port.sh <series> [--list] [--apply [sha...]]
+# **`--dev-note` writes a stage-3 finding into the newest commit this stage
+# mints.** An r-universe failure has no per-commit record anywhere and no commit
+# of its own, so the series keeps it in the message of the next `-dev` commit
+# (.claude/skills/series-loop/SKILL.md stage 3). Normally that is stage 5's, and
+# scripts/series-advance.sh takes the note. A firing whose buffer is empty mints
+# no vendor commit at all, though, and then the ports this stage makes are the
+# only `-dev` commits of the whole firing -- so it takes the same option, with
+# the same meaning, rather than leaving the firing to amend and force-push after
+# the push here and spend an each-rcc run on a commit it is about to re-mint.
+#
+# Usage: series-port.sh <series> [--list] [--apply [sha...]] [--dev-note <file>]
 
 set -euo pipefail
 
-S=${1:?usage: series-port.sh <series> [--list] [--apply [sha...]]}
+usage='usage: series-port.sh <series> [--list] [--apply [sha...]] [--dev-note <file>]'
+
+S=${1:?$usage}
 shift
 # --list walks a frozen series anyway, for when the question is which commit of
 # `main` to name. No effect on any other series: the walk is their default.
@@ -89,6 +101,36 @@ apply=
 if [ "${1:-}" = "--apply" ]; then
   apply=1
   shift
+fi
+# `--dev-note` may sit anywhere after `--apply`, because what follows it is a
+# list of SHAs and an option pinned to one end of that list is a rule nobody
+# remembers. Pulled out here, so the SHA list below stays what it was.
+DEV_NOTE=
+rest=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dev-note)
+      DEV_NOTE=${2:?$usage}
+      shift 2
+      ;;
+    *)
+      rest+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- ${rest[@]+"${rest[@]}"}
+if [ -n "$DEV_NOTE" ]; then
+  if [ ! -s "$DEV_NOTE" ]; then
+    echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
+    exit 1
+  fi
+  # The note rides on a commit, and only --apply mints one.
+  if [ -z "$apply" ]; then
+    echo "Error: --dev-note needs --apply — the note rides on a commit this" >&2
+    echo "  run mints, and a listing run mints none." >&2
+    exit 1
+  fi
 fi
 remote=origin
 
@@ -322,6 +364,24 @@ EOF
 fi
 git -C "$wt" diff --quiet "$main" -- "${tooling[@]}" ||
   { echo "Error: tooling still differs after sync"; exit 1; }
+
+if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ] &&
+  [ -n "$DEV_NOTE" ]; then
+  git worktree remove --force "$wt"
+  echo "Error: $S — the port minted nothing, so --dev-note has no commit" >&2
+  echo "  to write the finding on. Record it on the next one instead." >&2
+  exit 1
+fi
+
+# The stage-3 finding, onto the newest commit this run minted — the same place
+# and the same reason as in scripts/series-advance.sh: the readers of these
+# findings, scripts/series-glue.sh and stage 2's mining step, read exactly this
+# message.
+if [ -n "$DEV_NOTE" ]; then
+  { git -C "$wt" log -1 --format=%B; echo; cat "$DEV_NOTE"; } > "$wt/.series-port-note"
+  git -C "$wt" commit -q --amend --no-verify -F "$wt/.series-port-note"
+  rm -f "$wt/.series-port-note"
+fi
 
 next=$(git -C "$wt" rev-parse HEAD)
 git worktree remove --force "$wt"
