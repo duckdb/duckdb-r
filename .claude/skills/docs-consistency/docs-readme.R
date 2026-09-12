@@ -151,6 +151,10 @@ groups <- list(
     globs = c("flavor*")
   ),
   list(
+    owner = "handbook/branches/mirrors",
+    globs = c("pull-config.sh")
+  ),
+  list(
     owner = "handbook/build/fast-paths",
     globs = c("install-*.sh")
   ),

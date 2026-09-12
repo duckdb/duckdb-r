@@ -75,35 +75,38 @@ This skill is the release branch's birth certificate.
 
 6. **Add the series to the README's `Flavors` table** — see below.
 
-7. **Give the fork the mirror the badges measure against,
-   and `.github/pull.yml` the rule that keeps it fresh.**
-   The series' own four refs never get a rule —
-   [`.github/pull.yml`](/.github/pull.yml) says why the app cannot reach them,
-   and a rule that could would hard-reset the loop's work away.
-   What may need one is the branch the *ahead* badge measures against:
-   a line that is still current releases from `main`,
-   which has a rule already, so a series measured against `main` adds nothing;
-   a line measured against a parked `vX-codename` baseline needs that baseline
-   mirrored in the fork and ruled here.
-   Three moves, in this order.
-   Push the branch into the fork once by hand:
+7. **Update the fork's mirror configuration — derived, not remembered.**
+   The branch a series' *ahead* badge measures against is not one of the
+   series' refs: it is a mirror in the fork, and it stays current only while
+   [`.github/pull.yml`](/.github/pull.yml) carries a rule for it.
+   Which rules the file owes is a function of the badge table step 6 just
+   moved, so [`scripts/pull-config.sh`](/scripts/pull-config.sh) evaluates that
+   function against the file and prints the block that is missing;
+   `--check` exits non-zero on a disagreement.
+   Run it after step 6, and put what it prints in the same change.
+   A line still releasing from `main` is measured against `main`,
+   which is ruled already,
+   so most openings add no rule at all and the script says so.
+
+   Two halves of this the script cannot do.
+   **Push the branch into the fork once by hand, first** —
    a rule whose base the fork lacks is skipped silently and forever,
-   so the rule never creates the mirror.
-   Add the rule here, on `main`, where the file is authored.
-   Then carry it to where Pull reads it —
-   the fork's default branch, itself a mirror of this `main` —
-   because until that mirror has the edit the rule does not exist for the app.
-   `pull.yml` names the URL that validates it
-   and the URL that triggers a sync,
-   which is how the last move takes effect today
-   rather than within six hours
+   so adding the rule never creates the mirror,
+   and the script says which of the two is missing.
+   **Then carry the merged file to where Pull reads it**,
+   the fork's default branch, itself a mirror of this `main`:
+   until that mirror has the edit, the rule does not exist for the app.
+   `pull.yml` names the URL that validates it and the URL that triggers
+   a sync, which is how that takes effect today rather than within six hours
    ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
 8. The routine discovers every series from its refs
    and serves them all in one firing;
    the loop itself needs no configuration for a new series.
    The fork's mirror configuration is the one thing that lives outside
-   the refs, and it is step 7's.
+   the refs — and the routine writes that too,
+   from the same detection, on the firing that sees the series change
+   ([`series-loop.md`](series-loop.md)).
 
 ## Patching the README
 
@@ -163,4 +166,6 @@ and its `.dev` badge follows it there —
 the *ahead* base is the branch the series releases from,
 which is no longer `main`.
 That move is what earns the outgoing line a mirror and a rule,
-by step 7, on the day it parks rather than on the day it was opened.
+on the day it parks rather than on the day it was opened —
+and `pull-config.sh` reports it as soon as the badge base moves,
+which is step 7 arriving by itself rather than being remembered.

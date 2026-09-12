@@ -108,6 +108,21 @@ and `scripts/series-converge.sh <S>`
 into what the forwarding explains and what it does not, stage 6).
 Judgement — repairs, review, vendoring — stays here.
 
+One more runs on an event rather than on every firing:
+`scripts/pull-config.sh`
+(read-only — the fork's mirror rules in [`.github/pull.yml`](/.github/pull.yml)
+against the badges that read them;
+prints the rule the file is missing, `--check` exits non-zero).
+Run it on the firing that sees a series change —
+one opened, one parked, one retired —
+because that is when the badge table moves and the rule list moves with it,
+and a mirror nobody keeps still renders, counting commits already shipped
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+What it prints is a change to `main` like any other,
+so it goes to `main` as a PR, the way stage 7 sends one;
+the firing does not edit the file on a series branch,
+where nothing would ever read it.
+
 ### 0. Setup
 
 **Every branch, whole history, with tags.**
