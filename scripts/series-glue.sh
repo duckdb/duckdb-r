@@ -3,7 +3,7 @@
 #
 # Vendoring adapts the glue commit by commit: `vendor-one.sh` stops at the first
 # commit whose upstream change breaks `src/`, the fix is folded into it, and an
-# `R-side fix` section records what was adapted (.claude/skills/series-loop.md).
+# `R-side fix` section records what was adapted (.claude/skills/series-loop/SKILL.md).
 # The set of those adaptations is what a forward has to reproduce against a new
 # base, and what a repair on a forward series should mine rather than rederive.
 #

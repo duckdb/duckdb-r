@@ -1,3 +1,8 @@
+---
+name: series-rebase
+description: Rebase a forward (`-fwd`) series onto a newer mainline within its own lineage, as distinct from forwarding across lineages. Use when asked to rebase a series or a forward series, or when deciding whether a given move is a rebase or a forward.
+---
+
 # Rebasing a forward series onto a newer mainline
 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
@@ -6,7 +11,7 @@ what this routine is, and when it runs.*
 Two different moves put a series on a newer base,
 and only one of them is a rebase.
 
-**Forwarding** (`series-forward.md`) is `<S>` → `<S>-fwd`,
+**Forwarding** (`series-forward/SKILL.md`) is `<S>` → `<S>-fwd`,
 across lineages:
 `-fwd-build` is replayed out of the base series' buffer
 by `scripts/series-forward-build.sh`,
@@ -27,7 +32,7 @@ and the counter keeps its numbering.
 
 Only while the series is WIP —
 after cutover its green serves consumers,
-and moving it means a new forward series (`series-forward.md`).
+and moving it means a new forward series (`series-forward/SKILL.md`).
 
 ## The rebase
 
@@ -43,7 +48,7 @@ A rebase conflicts where the glue does,
 and `rerere` only replays a resolution that has already been made once —
 so the pass that decides them is the first one,
 and it decides better having seen all of them
-(`series-forward.md`, "Read the whole glue set before the first pick").
+(`series-forward/SKILL.md`, "Read the whole glue set before the first pick").
 
 ```sh
 # `<old-seed>` is the branch's `chore: Add fifth version component` commit.
@@ -151,7 +156,7 @@ and the next one has to be manufactured.
 - **The seed is replayed, never regenerated.**
   Rerunning `scripts/flavor.sh` would re-run `cpp11::cpp_register()`,
   whose output is not stable across cpp11 versions
-  (`series-open.md`), so it can quietly differ from the seed
+  (`series-open/SKILL.md`), so it can quietly differ from the seed
   the series was built and verified on.
   Replaying the recorded seed commits has no such freedom.
   Worth confirming after a rebase, cheaply:

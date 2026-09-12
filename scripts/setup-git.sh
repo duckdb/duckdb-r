@@ -9,7 +9,7 @@
 # The checkout to configure, so a caller running `main`'s copy of this script
 # configures the clone it is operating on rather than the one the script came
 # from. The series loop invokes tooling from `main` against another checkout
-# (.claude/skills/series-loop.md stage 1), and without this the config lands in
+# (.claude/skills/series-loop/SKILL.md stage 1), and without this the config lands in
 # the `main` checkout, the target clone keeps no driver at all, and the only
 # report is a success line naming neither. Same variable, and the same worktree
 # check, as scripts/vendor-one.sh: one export configures whichever clone the

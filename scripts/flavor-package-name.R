@@ -71,7 +71,7 @@ flavor_scanned_files <- function(root) {
   # `README.Rmd` is the one entry named literally rather than found by `dir()`,
   # so it is the only one that can be absent -- and on a frozen series it is:
   # the commit that adds it is not ported there
-  # (.claude/skills/series-loop.md stage 4), while the tooling sync brings this
+  # (.claude/skills/series-loop/SKILL.md stage 4), while the tooling sync brings this
   # scan and the `scripts/flavor.patch` that keys it. Reading it unconditionally
   # turned that combination into an error rather than a verdict. Every other
   # entry is discovered, so a missing one there would be a real problem and is
@@ -137,7 +137,7 @@ flavor_renamed_paths <- function(patch_file) {
 #
 # `scripts/flavor.patch` renames these, and it runs once, when a series is
 # seeded. A commit that adds such a file on `main` and is then ported onto a
-# flavored series (.claude/skills/series-loop.md stage 4) brings the mainline
+# flavored series (.claude/skills/series-loop/SKILL.md stage 4) brings the mainline
 # name with it, and nothing rewrites it afterwards. The file is then simply not
 # read: `src/duckdb-win.def` on a `duckdb.dev` build is not the export list R's
 # `share/make/winshlib.mk` looks for, so the Windows link falls back to
@@ -175,7 +175,7 @@ flavor_generated_readmes <- c("README.md", file.path(".github", "README.md"))
 # on a series nothing does: `scripts/flavor.sh` renders them once, when the
 # series is seeded. After that they are ordinary tracked files, and a `main`
 # commit touching them is cherry-picked onto the series whole
-# (.claude/skills/series-loop.md stage 4), which lands mainline text on a
+# (.claude/skills/series-loop/SKILL.md stage 4), which lands mainline text on a
 # flavored branch. `.github/README.md` is the front page GitHub renders, so the
 # first thing a reader is told there is to install a package these sources do
 # not build.

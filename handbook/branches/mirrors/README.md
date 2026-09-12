@@ -53,5 +53,5 @@ rather than pushing the branch.
 Pull skips a rule whose base branch the fork does not have,
 and says so only in its own logs,
 so a branch that is about to be measured against is pushed once by hand
-([`.claude/skills/series-open.md`](/.claude/skills/series-open.md));
+([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md));
 the config keeps it fresh afterwards and never creates it.
