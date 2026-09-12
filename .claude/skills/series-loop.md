@@ -861,6 +861,11 @@ and treat anything it reverts that the series genuinely needs
 as a finding for `main`:
 make it conditional there;
 a series never keeps its own fork of the tooling.
+One class the script now names for you rather than leaving to the diff:
+a file the sync deletes that something outside the tooling paths still calls.
+`main` moved it in a commit the series did not take,
+and the caller moved with it, out of the sync's reach —
+so port that commit by name and the reference is whole again.
 
 **A frozen series takes no ports by default.**
 A series seeded from a release branch keeps the R code it was seeded with —

@@ -48,6 +48,12 @@
 # reading it is part of the port. In steady state the residue is empty and
 # no sync commit is created.
 #
+# One class of residue is worth more than an eye over a diff, so the sync names
+# it: a file it deletes that is still referenced from outside the tooling paths.
+# `main` moved the file in a commit this series did not take, and the caller
+# that moved with it is somewhere the sync cannot reach. The warning says which
+# file and which callers; the remedy is to port that commit by name.
+#
 # A frozen series takes no ports by default: a line seeded from a release
 # branch keeps the R code it was seeded with, so `main`'s development line is
 # not a backlog it is behind on. The walk is skipped for those and the sync
@@ -285,6 +291,25 @@ if ! git -C "$wt" diff --quiet "$main" -- "${tooling[@]}"; then
   git -C "$wt" commit -q -m "chore(series): Sync tooling with main" \
     -m "Takes main's ${tooling[*]} verbatim on top of the ported commits;
 the diff is the residue the commit walk could not explain."
+
+  # A file the sync deletes can still be named from outside the tooling paths:
+  # `main` moved it in a commit this series did not take, and the caller that
+  # moved with it lives where the sync cannot reach. `configure` calling
+  # `scripts/setup-makeflags.R` is the case this was written for -- the call is
+  # guarded with `|| echo ""`, so the tree stays green and simply builds
+  # single-threaded, which is the kind of loss nobody finds by reading a diff.
+  # Name it instead, and name the remedy: port the commit that moved the file.
+  while read -r gone; do
+    [ -n "$gone" ] || continue
+    callers=$(git -C "$wt" grep -lF -- "$gone" -- . \
+      ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
+    [ -n "$callers" ] || continue
+    echo "warning: the sync deleted $gone, still referenced by:"
+    echo "$callers" | sed 's/^/  /'
+    echo "  port the commit that moved it: scripts/series-port.sh $S --apply <sha>"
+  done <<EOF
+$(git -C "$wt" diff --diff-filter=D --name-only HEAD^ HEAD)
+EOF
 fi
 git -C "$wt" diff --quiet "$main" -- "${tooling[@]}" ||
   { echo "Error: tooling still differs after sync"; exit 1; }
