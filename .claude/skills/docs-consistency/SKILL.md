@@ -8,8 +8,10 @@ handbook pages, free-floating `.md` files, script headers,
 generated indexes — and periodically as a scheduled sweep.
 
 Judgment lives here; mechanics live in helpers.
-The one helper today is [`docs-readme.R`](docs-readme.R) in this
-directory, which renders and diffs the generated `scripts/` index.
+Two helpers live in this directory:
+[`docs-readme.R`](docs-readme.R) renders and diffs the generated
+`scripts/` index, and [`docs-links.py`](docs-links.py) walks the
+tracked Markdown for the link checks below.
 Helpers are not entry points of their own.
 
 ## Checks
@@ -20,7 +22,9 @@ Helpers are not entry points of their own.
    in its parent's navigation list, with a scope phrase.
    The root's per-area sketch names each area's actual
    next level; a renamed, added, or removed child
-   updates the sketch in the same change.
+   updates the sketch in the same change —
+   hold `ls -d handbook/*/*/` beside the sketch to see a child
+   the prose skipped, since the sketch reads fluently either way.
    Internal nodes navigate and may govern:
    a scope sentence, optionally the area's principles,
    and the list — nothing else,
@@ -30,31 +34,26 @@ Helpers are not entry points of their own.
    deepen line naming what remains.
 
 2. **Link integrity** (mechanical).
-   Every link under `handbook/` resolves,
-   and no link traverses upward with `../`
+   Every internal link under `handbook/` resolves,
+   no handbook link traverses upward with `../`
    (the rules, "The forms": a link that leaves its own directory
-   is written from the repository root).
+   is written from the repository root),
+   every `/handbook/…` link in a tracked `.md` outside the tree —
+   the backreferences — resolves too,
+   and every fragment on an internal Markdown link
+   matches a heading of the file it points into.
 
    ```sh
-   python3 - <<'EOF'
-   import os, re, sys
-   bad = 0
-   for dirpath, _, files in os.walk("handbook"):
-       for f in files:
-           p = os.path.join(dirpath, f)
-           for m in re.finditer(r"\]\(([^)#]+?)\)", open(p).read()):
-               t = m.group(1)
-               if t.startswith("http"):
-                   continue
-               if t.startswith(".."):
-                   print("UPWARD", p, t); bad += 1
-                   continue
-               base = "." if t.startswith("/") else dirpath
-               if not os.path.exists(os.path.normpath(base + "/" + t)):
-                   print("DANGLING", p, t); bad += 1
-   sys.exit(1 if bad else 0)
-   EOF
+   python3 .claude/skills/docs-consistency/docs-links.py
    ```
+
+   External links are outside the helper's reach.
+   Check this repository's own issue and pull-request links
+   with whatever GitHub access the session has,
+   and treat an unreachable foreign domain as unverified, not broken:
+   in a sandboxed session the proxy answers 000 or 403
+   for anything off the allow-list,
+   which says nothing about the link.
 
 3. **Generated indexes are fresh** (mechanical).
 
@@ -65,9 +64,35 @@ Helpers are not entry points of their own.
    Stale → regenerate and include the result in the same change.
    Never edit a generated file by hand.
 
-4. **Source-to-leaf coverage** (judgment).
+4. **Directory maps are complete** (mechanical, then judgment).
+   A leaf that presents itself as the map of a directory
+   is compared against that directory, both ways.
+   The one such map today is the workflow inventory
+   ([`handbook/operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)):
+
+   ```sh
+   diff <(basename -a .github/workflows/*.yaml | sort) \
+        <(grep -o '[A-Za-z0-9._-]*\.yaml' \
+            handbook/operations/ci/workflows/README.md | sort -u)
+   ```
+
+   A missing or extra row is repaired in the same change.
+   Whether each row's *fires on* still matches the file's `on:` block
+   is judged by reading the blocks — triggers drift silently,
+   and the prose keeps rendering either way.
+
+5. **Deepen lines are live** (mechanical, then judgment).
+   A deepen line's promises must still be redeemable.
+   List them with `grep -rn -A3 -- '\*To deepen:' handbook/`,
+   then check each issue a *drain* clause names
+   against the tracker with whatever GitHub access the session has —
+   a closed issue is drained or dropped, never left promised —
+   and each `§`-named section against the headings
+   of the file it would absorb.
+
+6. **Source-to-leaf coverage** (judgment).
    Every tracked source path is claimed by exactly one handbook
-   leaf. `scripts/` is machine-mapped in the helper's `groups`;
+   leaf. `scripts/` is machine-mapped in `docs-readme.R`'s `groups`;
    for the rest, walk the top-level directories
    (`R/`, `src/`, `tests/`, `.github/`, `patch/`, `inst/`, …)
    against the leaves' scope and deepen lines.
@@ -77,7 +102,7 @@ Helpers are not entry points of their own.
    per the address rule in
    [`handbook/operations/triage/`](/handbook/operations/triage/README.md).
 
-5. **Backreferences** (judgment).
+7. **Backreferences** (judgment).
    The tree is the single source of truth;
    every secondary document — the root `README.md`'s sections,
    reference pages, per-directory indexes,
@@ -86,16 +111,16 @@ Helpers are not entry points of their own.
    Any secondary document touched by the change under review
    must carry its backreference; add it or flag it.
 
-6. **Headers describe their files** (judgment).
-   The helper only extracts a first sentence;
+8. **Headers describe their files** (judgment).
+   `docs-readme.R` only extracts a first sentence;
    whether that sentence says what the file does is judged here.
    A weak or missing header is fixed at the source file,
    never patched over in the index.
 
-7. **Report and repair.**
+9. **Report and repair.**
    Apply the small fixes in the same change:
    regenerated indexes, navigation lists, links, backreferences,
-   header punctuation.
+   map rows, stale drain pointers, header punctuation.
    Report the structural findings instead of acting on them:
    unclaimed surface, a grouping that looks wrong,
    an internal node accreting prose, a leaf outgrowing its scope,
