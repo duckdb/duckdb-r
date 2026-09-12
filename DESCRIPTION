@@ -82,7 +82,8 @@ Config/comment/gha/extra-packages: arrow does not compile against Rtools45,
     cover that -- it demotes a failed build, not a failed lookup --
     and pak reads repos alone, so Additional_repositories does not
     either. ignore-build-errors stays for the day it returns to CRAN and
-    Rtools45 has to build it again. Explained in
+    Rtools45 has to build it again. It is installed from
+    Additional_repositories by .github/workflows/install. Explained in
     handbook/operations/ci/matrix/README.md.
 Config/testthat/edition: 3
 Encoding: UTF-8
