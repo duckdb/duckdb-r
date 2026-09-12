@@ -17,6 +17,12 @@
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace.
 #
+# The report names the package on both sides -- `Package:` once, and `Version:`
+# for each of the four refs, before and after -- because the swap moves both:
+# the forward regenerates its own flavor commits, and the replay renumbers the
+# fifth component as a counter of its own chain. A version that goes backwards
+# is the one cost of the swap that nothing else on screen shows.
+#
 # Usage: series-cutover.sh <series> [remote] [upstream-clone]
 #   series-cutover.sh main origin ../duckdb
 #
@@ -56,6 +62,42 @@ vendored_sha() {
     fi
   fi
   echo "$sha"
+}
+
+# One field of a branch's DESCRIPTION, empty when the ref or the field is not
+# there. Both fields this script reads are per-branch: the flavor rename writes
+# `Package:`, and the replay renumbers the fifth component of `Version:`.
+#
+# A missing ref is ordinary here -- a series opened as `-fwd` has no base refs
+# at all -- so `git show`'s failure is swallowed rather than left to `pipefail`,
+# which would otherwise make an empty answer end the run.
+desc_field() {
+  git show "$1:DESCRIPTION" 2>/dev/null | sed -n "s/^$2: *//p" | head -n 1 || true
+}
+
+# GNU sort, wherever it is called: on Linux that is `sort`, on macOS it is
+# `gsort` and the system `sort` is BSD's. Prefer `gsort`, then verify -- the
+# same choice, and the same reason, scripts/flavor.sh makes for `sed`. Empty
+# when neither is GNU, which is a comparison not made rather than a wrong one.
+if command -v gsort >/dev/null 2>&1; then
+  gnu_sort=gsort
+else
+  gnu_sort=sort
+fi
+case "$("$gnu_sort" --version 2>/dev/null || true)" in
+  *"GNU coreutils"*) ;;
+  *) gnu_sort= ;;
+esac
+
+# Where two dotted versions sort against each other, as -1, 0 or 1. `sort -V`
+# compares them component by component and numerically, so 1.5.5.9013.36 sorts
+# below 1.5.5.9020.12 rather than by string order, and a missing component
+# ranks below a present one: 1.5.5.9020 below 1.5.5.9020.1.
+version_cmp() {
+  local sorted
+  [ "$1" != "$2" ] || { printf '%s\n' 0; return; }
+  sorted=$(printf '%s\n%s\n' "$1" "$2" | "$gnu_sort" -V)
+  if [ "${sorted%%$'\n'*}" = "$1" ]; then printf '%s\n' -1; else printf '%s\n' 1; fi
 }
 
 for r in build dev green build-base; do
@@ -120,6 +162,23 @@ if [ "$rc" -eq 1 ]; then
 fi
 echo
 
+# The package the swap publishes, named on both sides. `Package:` and
+# `Version:` are what a consumer installs, and the swap moves both: the name
+# because the forward regenerates its own flavor commits, the version because
+# the replay renumbers the fifth component as a counter of its own chain. So
+# each ref is shown with the version it carries before and after, and a name
+# that changes is called out rather than left to be read off four lines.
+old_pkg=$(desc_field "refs/remotes/$remote/$S-dev" Package)
+new_pkg=$(desc_field "refs/remotes/$remote/$S-fwd-dev" Package)
+if [ -z "$old_pkg" ] || [ "$old_pkg" = "$new_pkg" ]; then
+  echo "package: ${new_pkg:-<none>}"
+else
+  echo "package: $old_pkg -> $new_pkg"
+  echo "  ^ the swap renames the package. A series and its forward are flavored"
+  echo "    the same; a name that moved means the forward was seeded with"
+  echo "    another flavor, and the swap would publish a different package."
+fi
+
 leases=()
 refspecs=()
 echo "refs to swap:"
@@ -133,13 +192,56 @@ for r in build dev green build-base; do
   leases+=("--force-with-lease=refs/heads/$S-$r:$cur")
   refspecs+=("$new:refs/heads/$S-$r")
   short=${cur:0:7}
-  printf '  %-20s %s -> %s\n' "$S-$r" "${short:-<new>}" "${new:0:7}"
+  oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
+  newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
+  printf '  %-26s %-7s %-16s ->  %-7s %s\n' \
+    "$S-$r" "${short:-<new>}" "${oldv:--}" "${new:0:7}" "${newv:--}"
 done
 
+# A version that does not move forward -- back, or not at all -- is the swap's
+# one cost that nothing else on screen shows. `<S>-dev` is what r-universe
+# builds, so its version is the one consumers are offered, and the replay's
+# renumbering starts the fifth component well below what the base series
+# accumulated. Usually the fourth component covers it, because the forward is
+# seeded on a newer `main` whose version has moved on since; where it does not,
+# r-universe has nothing to offer as an upgrade until the new chain's counter
+# climbs past the old one's. That is a cost rather than a corruption, and
+# whether it is worth paying is a judgement, so this names it and leaves the
+# decision with the confirmation.
+#
+# Without a GNU sort the versions are still printed and simply not compared:
+# the swap is not worth blocking over a missing coreutils, and a comparison
+# made with the wrong tool would read as a clean bill.
+if [ -z "$gnu_sort" ]; then
+  echo "Note: no GNU sort here, so the versions above were not compared."
+  echo "  Read them: a $S-dev version that does not move forward is an upgrade"
+  echo "  r-universe cannot offer. Install GNU coreutils as 'gsort' -- on"
+  echo "  macOS, 'brew install coreutils'."
+else
+  for r in dev green; do
+    oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
+    newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
+    [ -n "$oldv" ] && [ -n "$newv" ] || continue
+    case "$(version_cmp "$oldv" "$newv")" in
+      -1) continue ;;
+      # Equal is the same problem wearing the other face: two different trees
+      # published under one version, so whoever already has it never sees the
+      # replacement at all.
+      0) echo "Warning: $S-$r keeps version $oldv across the swap." ;;
+      1) echo "Warning: $S-$r would go from $oldv back to $newv." ;;
+    esac
+    if [ "$r" = dev ]; then
+      echo "  r-universe publishes from this ref and has no upgrade to offer"
+      echo "  until the forward chain's counter passes $oldv."
+    fi
+  done
+fi
+
 # The gate above says the swap is allowed; this asks whether it is wanted. It
-# comes last so the operator confirms with the coverage lines and the four ref
-# moves on screen, and it takes the series name rather than a keystroke because
-# the mistake worth catching is cutting over the wrong series.
+# comes last so the operator confirms with the coverage lines, the package
+# versions and the four ref moves on screen, and it takes the series name
+# rather than a keystroke because the mistake worth catching is cutting over
+# the wrong series.
 printf 'Replace series %s with %s-fwd-*? Type the series name to confirm: ' "$S" "$S"
 read -r confirm
 [ "$confirm" = "$S" ] || { echo "Aborted; nothing was pushed."; exit 1; }

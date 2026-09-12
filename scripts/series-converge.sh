@@ -30,7 +30,10 @@
 #   * `DESCRIPTION` -- but only its `Version:` line. The replay renumbers the
 #     fifth component as a counter of its own chain, so the versions differ by
 #     construction. Anything else in that file is a real difference, and the
-#     file is diffed line-wise to tell the two apart.
+#     file is diffed line-wise to tell the two apart. Both versions are named
+#     where the difference is explained: "renumbered" accounts for a counter
+#     that restarted, and for nothing that happened to the four components
+#     above it.
 #   * `NEWS.md` -- the release paperwork a `fledge:` commit carries, and stage 4
 #     never ports a VERSION commit: `main`'s R-client counter is not a series'
 #     (.claude/skills/series-loop.md). So the two branches hold whatever their
@@ -163,6 +166,11 @@ def_expected() {
   echo "src/$pkg-win.def R_init_${pkg//./_}"
 }
 
+# The version a branch declares, for naming the two the explanation covers.
+desc_version() {
+  git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: *//p' | head -n 1 || true
+}
+
 # True when each branch's Windows export list is the one its own package needs,
 # and the two differ by the flavor rename and nothing else.
 #
@@ -231,7 +239,9 @@ while IFS=$'\t' read -r add del f; do
       if [ -n "$other" ]; then
         unexplained+=("$f|$add/$del|differs beyond its Version: line")
       else
-        explained+=("$f|$add/$del|version counter, renumbered by the replay")
+        renumbered="version counter, renumbered by the replay:"
+        renumbered="$renumbered $(desc_version "$dev") -> $(desc_version "$fwd")"
+        explained+=("$f|$add/$del|$renumbered")
       fi
       ;;
     NEWS.md)
