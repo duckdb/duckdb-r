@@ -47,7 +47,6 @@ Imports:
     methods,
     utils
 Suggests: 
-    adbcdrivermanager,
     arrow (>= 13.0.0),
     bit64,
     callr,
@@ -63,17 +62,27 @@ Suggests:
     vctrs,
     wk,
     withr
+Enhances:
+    adbcdrivermanager
+Additional_repositories: https://apache.r-universe.dev
 Biarch: true
 Config/build/compilation-database: false
 Config/build/never-clean: true
 Config/comment/compilation-database: Generate manually with
     pkgload:::generate_db() for faster pkgload::load_all()
 Config/gha/extra-packages: 
-    adbcdrivermanager=?ignore-build-errors,
+    adbcdrivermanager=?ignore-unavailable&ignore-build-errors,
     arrow=?ignore-build-errors
-Config/comment/gha/extra-packages: adbcdrivermanager and arrow do not compile
-    against Rtools45, and the aarch64 Windows runner has no binary to
-    install instead. Explained in
+Config/comment/gha/extra-packages: arrow does not compile against Rtools45,
+    and the aarch64 Windows runner has no binary to install instead.
+    adbcdrivermanager needs ignore-unavailable as well, and needs it on
+    every runner: CRAN archived it, and pak is called with
+    dependencies = "all", which resolves Enhances too, so the package is
+    in the plan and resolves to nothing. ignore-build-errors does not
+    cover that -- it demotes a failed build, not a failed lookup --
+    and pak reads repos alone, so Additional_repositories does not
+    either. ignore-build-errors stays for the day it returns to CRAN and
+    Rtools45 has to build it again. Explained in
     handbook/operations/ci/matrix/README.md.
 Config/testthat/edition: 3
 Encoding: UTF-8
