@@ -63,12 +63,24 @@ The lever reaches a build that fails, and only that.
 pak cannot resolve the reference at all,
 and a reference that resolves to nothing takes the whole entry with it
 however it is parameterized.
-So that package left the field
-and is installed from `Additional_repositories` instead,
-by a step in [`custom/after-install/`](/.github/workflows/custom/after-install/action.yml)
-that tolerates its own failure —
-which puts it back where `=?ignore-build-errors` had it,
+So that package left the field,
+and `DESCRIPTION` names the repository that still publishes it in
+`Additional_repositories` — the field `R CMD check` reads to confirm a
+dependency outside CRAN is obtainable,
+and which neither the checker nor pak ever installs from.
+[`install/`](/.github/workflows/install/action.yml) closes that gap:
+after the pak solve it installs the declared dependencies that are
+still missing *and* that no configured repository carries at all.
+Both halves of that condition are load-bearing.
+A universe carries dev builds of whatever else its owner publishes —
+this one builds `arrow` and `nanoarrow`, both `Suggests` here —
+so a looser rule would swap a released dependency for a snapshot
+on the very runner where the first one failed to build.
+The step tolerates its own failure,
+which puts the package back where `=?ignore-build-errors` had it,
 present where it builds and absent where it does not.
+It reads `DESCRIPTION` and nothing about this package,
+so it belongs to the template rather than to this repository.
 
 The condition is the build, not the platform,
 which is what makes this the right lever:
