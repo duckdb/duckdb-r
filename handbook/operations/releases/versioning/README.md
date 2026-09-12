@@ -49,10 +49,11 @@ and the series stops being orderable —
 [`scripts/series-advance.sh`](/scripts/series-advance.sh) restamps it,
 and refuses to push a replay whose counter did not rise
 ([`.claude/skills/series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
-`main-dev` carries the preview prefix `1.5.99`
-and its buffer `main-build` carries `1.5.5`,
+A preview line is where the two strands drift apart, its prefix not being the one `main` carries (below):
+`main-dev` has carried the preview prefix `1.5.99` over a `main-build` still on `1.5.5`,
 which is that state.
-Aligning a series' two strands is the fix.
+Aligning a series' two strands is the fix,
+and stamping the prefix into the seed rather than onto `-dev` is what keeps them aligned.
 Exempting the fifth component from the gate — taking the maximum counter
 across differing prefixes too — is declined
 ([#2488](https://github.com/duckdb/duckdb-r/issues/2488)):
@@ -89,3 +90,28 @@ never derived from git; the tag follows `DESCRIPTION`.
 writing `NEWS.md` from commit messages
 and merging its bump PR by squash — which is why commit messages on `main` are
 written to be read as changelog entries.
+
+**A preview line carries the prefix of the line it previews**, which is the one
+[fledge](https://fledge.cynkra.com/) would write for it:
+`a.b.99` before a minor release and `a.99.99` before a major one, its `pre-minor` and `pre-major` bumps.
+So a series previewing 1.6 from a 1.5.5 seed is `1.5.99.9000`, one previewing 2.0 is `1.99.99.9000`,
+and the vendor counter hangs off that as usual.
+A preview of the next *patch* release needs no such prefix,
+because a fourth component already says "past `a.b.c`", which is all a patch changes.
+Taking fledge's prefix rather than inventing one is what makes the sequence monotone:
+it sorts above every version of the line being previewed, which is what lets r-universe offer the `.dev`
+flavor as an upgrade, and it is what `main` itself will carry when the line opens there.
+The cost is the fourth component's other reading:
+on a preview line the version names the line previewed rather than the one seeded from,
+and which release the seed came from is read from the seed commit.
+
+**The prefix belongs to the seed, and so to all four refs.**
+It is stamped beside the fifth component, before `<S>-green`, `<S>-build-base`, `<S>-build` and `<S>-dev`
+are created equal ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)),
+because a prefix on `-dev` alone is the split the gate above declines to resolve.
+A forward is where a preview line would lose it:
+[`series-forward`](/.claude/skills/series-forward/SKILL.md) regenerates the seed from current `main`,
+which knows nothing of what the series previews,
+and the replay cannot put it back, since the gate keeps our side of `DESCRIPTION` verbatim
+across differing prefixes and every replayed commit inherits whatever the new seed was stamped with.
+Restamping is part of regenerating the seed, not something the replay carries.
