@@ -24,6 +24,8 @@ taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
 a patch stack on top of
 [`r-lib/cpp11`](https://github.com/r-lib/cpp11):
 this package needs extensions upstream does not ship.
+Refreshing that copy is
+[`.claude/skills/vendor-cpp11/`](/.claude/skills/vendor-cpp11/SKILL.md)'s.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
 (`src/cpp11.cpp`, `R/cpp11.R`),
