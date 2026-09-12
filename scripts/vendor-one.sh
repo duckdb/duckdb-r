@@ -112,13 +112,45 @@ git -C "$upstream_dir" config core.abbrev 10
 # an HTTP 404, which surfaces a whole CI cycle later as a test failure that
 # looks like the engine's.
 #
+# A shallow clone is the condition the placeholder below was only ever a proxy
+# for, and it is the half that still holds on every branch: refuse it directly.
+# The clone is the tree the version is read from, so ask it rather than the
+# source -- `git clone` of a shallow repository is shallow, and CI checks
+# upstream out in `$upstream_dir` itself.
+if [ "$(git -C "$upstream_dir" rev-parse --is-shallow-repository)" = true ]; then
+  echo ""
+  echo "=== SHALLOW UPSTREAM CLONE ==="
+  echo "$upstream_dir, cloned from $upstream_basedir, is shallow, so neither"
+  echo "'git describe --tags' nor 'git rev-list --count HEAD' answers what the"
+  echo "full history would, and every commit vendored from it would carry a"
+  echo "DUCKDB_VERSION no extension repository has a directory for."
+  echo "  git -C $upstream_basedir fetch --unshallow origin"
+  echo "  git -C $upstream_basedir fetch --tags origin"
+  echo "Then rerun this script."
+  rm -rf "$upstream_dir"
+  exit 6
+fi
+
 # Ask upstream's own resolver rather than reimplementing its tag match, which
 # depends on MAIN_BRANCH_VERSIONING and is upstream's to change.
 #
-# The probe is allowed to fail -- upstream owns that file and may move it --
-# and says so rather than refusing, because only the placeholder is evidence.
+# Upstream keeps the resolver under two names: `get_git_describe()` on the
+# release branches, and `git_dev_version()` on `main`, which stopped describing
+# tags at all and composes `scripts/ci/release_version.txt` with the commit
+# count instead. Importing one name by itself made the probe raise on `main`
+# and answer empty, so the guard below stopped guarding the busiest series --
+# silently, behind a warning that fired on every vendor run.
+#
+# The probe is still allowed to fail -- upstream owns that file and may move it
+# again -- and says so rather than refusing, because only the placeholder is
+# evidence.
 upstream_describe=$(cd "$upstream_dir" && python3 -c \
-  'import sys; sys.path.insert(0, "scripts"); from package_build import get_git_describe; print(get_git_describe())' \
+  'import sys; sys.path.insert(0, "scripts"); import package_build
+for name in ("get_git_describe", "git_dev_version"):
+    fn = getattr(package_build, name, None)
+    if fn is not None:
+        print(fn())
+        break' \
   2>/dev/null) || upstream_describe=
 if [ -z "$upstream_describe" ]; then
   echo "Warning: could not read the version $upstream_dir would stamp" >&2
@@ -129,8 +161,7 @@ if [ "$upstream_describe" = "v0.0.0-0-gdeadbeeff" ]; then
   echo "$upstream_dir, cloned from $upstream_basedir, has no versioning tag that"
   echo "'git describe' can reach, so every commit vendored from it would carry"
   echo "DUCKDB_VERSION \"v0.0.0\" and fail to install any extension."
-  echo "A shallow clone, or one fetched without tags, is the usual cause:"
-  echo "  git -C $upstream_basedir fetch --unshallow origin"
+  echo "A clone fetched without tags is the usual cause:"
   echo "  git -C $upstream_basedir fetch --tags origin"
   echo "Then rerun this script."
   rm -rf "$upstream_dir"
