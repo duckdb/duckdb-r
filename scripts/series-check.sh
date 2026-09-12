@@ -54,12 +54,28 @@
 # still building into REPAIR, and invites amending a commit that is about to go
 # green. The harvested run's `head_branch` is what tells the two apart.
 #
+# One more line is about no series at all: `UNSERVED`, last and in its own
+# block, names an upstream release line this repository does not serve yet. A
+# series is discovered from its refs, so a line that has none is invisible to
+# every other part of the loop, and stays invisible while upstream builds on it.
+# Reported, never acted on, like the cutover above: opening a series is
+# .claude/skills/series-open.md's job, and a human's.
+#
 # Usage: series-check.sh [<series>...]     # default: discover all from refs
+#   UPSTREAM_CLONE=../duckdb series-check.sh   # fork point too, not just names
 
 set -euo pipefail
 
 remote=origin
 rcc=${RCC_BRANCH:-rcc2}
+
+# Where the release-line check at the end reads upstream. Branch names are all
+# that check needs, and `git ls-remote` supplies those from the URL alone, so a
+# firing with no clone still gets it; a clone is preferred because it also
+# answers with the fork point.
+upstream=${UPSTREAM_CLONE:-}
+upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+
 git fetch -q "$remote"
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
@@ -193,14 +209,75 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
   fi
 }
 
+# Every series this repository serves, discovered from the refs and never from
+# configuration (handbook/branches/model/): an `<X>-build` with a sibling
+# `<X>-dev`. Discovered even when the caller named series, because the
+# release-line check at the end asks what is served, and a run narrowed to one
+# series would otherwise report the rest of them as unserved.
+all_series=()
+while IFS= read -r b; do
+  s=${b#refs/heads/}; s=${s%-build}
+  case "$s" in *-build-base) continue ;; esac
+  git rev-parse -q --verify "refs/remotes/$remote/$s-dev" >/dev/null && all_series+=("$s")
+done < <(git ls-remote --heads "$remote" '*-build' | cut -f2)
+
 series=("$@")
 if [ ${#series[@]} -eq 0 ]; then
-  while IFS= read -r b; do
-    s=${b#refs/heads/}; s=${s%-build}
-    case "$s" in *-build-base) continue ;; esac
-    git rev-parse -q --verify "refs/remotes/$remote/$s-dev" >/dev/null && series+=("$s")
-  done < <(git ls-remote --heads "$remote" '*-build' | cut -f2)
+  series=("${all_series[@]}")
 fi
+
+# The shape upstream gives a release line, and the only branches the check at
+# the end looks at. `main` is not one: it is a line the package serves under
+# that name, and it never stops being the newest.
+release_line_re='^v[0-9]+\.[0-9]+-[A-Za-z0-9-]+$'
+
+# `major.minor` as one number, so lines are compared as versions rather than as
+# strings -- a string compare puts `v1.10` below `v1.9`, and the floor below
+# would then fall silent on the newer line.
+line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
+  local v=${1#v} major minor
+  major=${v%%.*}; minor=${v#*.}; minor=${minor%%-*}
+  echo $((major * 1000 + minor))
+}
+
+# How the clone names an upstream branch: a clone made by `git clone` carries it
+# as a remote-tracking ref, and a mirror as a head.
+upstream_ref() { # <branch> -> full ref, empty if the clone has none
+  local r
+  for r in "refs/remotes/origin/$1" "refs/heads/$1"; do
+    if git -C "$upstream" rev-parse -q --verify "$r" >/dev/null; then echo "$r"; return; fi
+  done
+}
+
+# The upstream branch names, from the clone when there is one and from the
+# remote otherwise. Empty is not "upstream has no release branches" -- it never
+# has none -- it is the reading having failed, and the caller says so rather
+# than printing the silence as a clean result.
+upstream_branches() {
+  if [ -n "$upstream" ]; then
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=3)' 'refs/remotes/*/v*' 2>/dev/null || true
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=2)' 'refs/heads/v*' 2>/dev/null || true
+  else
+    git ls-remote --heads "$upstream_url" 'v*' 2>/dev/null | cut -f2 | sed 's|^refs/heads/||' || true
+  fi
+}
+
+# The fork point of a release line: the newest commit on the first-parent chain
+# of both upstream branches (scripts/VENDORING.md, "Starting a New Dev Line: the
+# Fork-Point Rule"). Not `git merge-base`, which upstream's back-merges of the
+# release branch into `main` drag forward by weeks; a series seeded from that
+# answer jumps the commits in between in one step, and none of them is ever
+# built against the glue. Printed only when a clone can compute it, because a
+# wrong fork point is worse than none.
+fork_point() { # <upstream branch> -> sha, empty without a clone
+  local main_ref rel_ref
+  [ -n "$upstream" ] || return 0
+  main_ref=$(upstream_ref main); rel_ref=$(upstream_ref "$1")
+  [ -n "$main_ref" ] && [ -n "$rel_ref" ] || return 0
+  awk 'NR==FNR { seen[$0]; next } $0 in seen { print; exit }' \
+    <(git -C "$upstream" rev-list --first-parent "$main_ref") \
+    <(git -C "$upstream" rev-list --first-parent "$rel_ref")
+}
 
 tip=$(rcc_tip) || { echo "no $rcc branch on $remote"; exit 1; }
 echo "harvest: $(git log -1 --format='%ci (%ar)' "$tip")"
@@ -311,3 +388,79 @@ for S in "${series[@]}"; do
     echo "           scripts/series-converge.sh $cutover"
   fi
 done
+
+# An upstream release line this repository does not serve. Printed last and in
+# a block of its own, because everything above it is per-series: a firing where
+# every series reads ADVANCE or IDLE is the quietest report the loop produces,
+# and exactly the one a line lost at the bottom of would be skimmed past. It is
+# reported again on every firing until the series exists, because nothing else
+# notices it at all -- a series is discovered from refs
+# (handbook/branches/model/), so a line that has none is absent rather than
+# late, and absence raises nothing anywhere.
+#
+# The floor is the greatest `major.minor` among the served series. Upstream
+# keeps every release branch it ever cut alive, and this repository serves the
+# recent ones only, so a line at or below the floor is a decision already taken
+# and only a line above it is news. That is the whole rule, and it is why there
+# is no list of lines to ignore: such a list is maintained by hand, and the
+# firing it would be stale on is the one where a line was just cut. With no
+# served series carrying a version token there is no floor, and every release
+# line upstream carries is reported -- a repository serving none of them is one
+# where each is genuinely unserved.
+floor=0
+for S in "${all_series[@]}"; do
+  case "$S" in
+    v[0-9]*.[0-9]*-*) r=$(line_rank "$S"); [ "$r" -gt "$floor" ] && floor=$r ;;
+  esac
+done
+
+unserved=()
+branches=$(upstream_branches | sort -u)
+while IFS= read -r b; do
+  [ -n "$b" ] || continue
+  grep -qE "$release_line_re" <<<"$b" || continue
+  [ "$(line_rank "$b")" -gt "$floor" ] || continue
+  # Served is the same question every other stage asks, asked of one branch:
+  # does a series of that name exist? A line may be served by a `-fwd` series
+  # alone, which is one that started as a forward and has no base to replace.
+  served=
+  for S in "${all_series[@]}"; do
+    case "$S" in "$b" | "$b-fwd") served=1; break ;; esac
+  done
+  [ -n "$served" ] || unserved+=("$b")
+done <<<"$branches"
+
+if [ -z "$branches" ]; then
+  # A reading that failed reads exactly like a clean result, so say which this
+  # is. The same degradation rule as the cutover gate's missing clone.
+  echo
+  echo "UNSERVED  could not read the upstream branches from ${upstream:-$upstream_url},"
+  echo "          so this firing does not know whether a release line was cut."
+  echo "          That is missing data, not a clean result."
+elif [ ${#unserved[@]} -gt 0 ]; then
+  echo
+  echo "=============================================================================="
+  for b in "${unserved[@]}"; do
+    echo "UNSERVED  $b is cut upstream and no series here serves it:"
+    echo "          neither $b-build nor $b-dev exists."
+    fp=$(fork_point "$b")
+    if [ -n "$fp" ]; then
+      echo "          Fork point $fp,"
+      echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
+      echo "          git merge-base answers here (scripts/VENDORING.md)."
+    fi
+  done
+  # Said once, however many lines are listed: what waiting costs. It is a
+  # decision owed an answer rather than a fault -- a line may be opened
+  # deliberately, on a released tree, once the current one ships -- and the
+  # loop cannot open it either way, so all this block can do is be impossible
+  # to miss and stay inside what branch names can support. How much of the
+  # line another series has already vendored is not one of those things:
+  # upstream back-merges the release branch into `main`, so some of it may
+  # well be built here, and a check that reads names cannot say how much.
+  echo "          Open the series: .claude/skills/series-open.md"
+  echo "          No release can be cut from a line nothing here serves, and"
+  echo "          the catch-up walk that opening one costs grows with every"
+  echo "          upstream commit on it."
+  echo "=============================================================================="
+fi
