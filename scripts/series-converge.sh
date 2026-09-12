@@ -103,9 +103,12 @@
 # has not accounted for is worse than no check: it reads as a clean bill. When a
 # firing proves a new class benign, it adds it with the evidence.
 #
-# Usage: series-converge.sh <series> [remote] [--no-fetch]
+# Usage: series-converge.sh <series> [--remote <name>] [--no-fetch]
 #   series-converge.sh main            # the base name
 #   series-converge.sh main-fwd        # or the forward's; the same comparison
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 #
 # Exit status: 0 when nothing is unexplained, 1 when something is, 2 on a usage
 # or lookup error -- so a caller can gate on it. `--no-fetch` is for a caller
@@ -113,18 +116,22 @@
 
 set -euo pipefail
 
-usage='usage: series-converge.sh <series> [remote] [--no-fetch]'
-S=${1:?$usage}
-shift
-remote=origin
+usage='usage: series-converge.sh <series> [--remote <name>] [--no-fetch]'
+argerr() { echo "$usage" >&2; exit 2; }
+remote=${SERIES_REMOTE:-origin}
 fetch=1
-for a in "$@"; do
-  case "$a" in
-    --no-fetch) fetch= ;;
-    -*) echo "$usage" >&2; exit 2 ;;
-    *) remote=$a ;;
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --no-fetch) fetch=; shift ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
   esac
 done
+[ ${#args[@]} -eq 1 ] || argerr
+S=${args[0]}
 
 # Either name asks the same question, so neither is wrong to type.
 S=${S%-fwd}
