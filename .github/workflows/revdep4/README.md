@@ -1,8 +1,11 @@
 # `revdep4` — the sequential-halves queue engine
 
+*Handbook: [`testing/revdep/`](/handbook/testing/revdep/README.md) —
+the routes and when each runs; this page owns the queue engine.*
+
 `.github/workflows/revdep4.yaml` is built on the core in
 [`../revdepx/`](../revdepx/README.md).
-It checks every reverse dependency of igraph twice —
+It checks every reverse dependency of this package twice —
 once against the CRAN release, once against the dev version —
 inside a prebuilt universe image,
 running a package's two halves one after the other

@@ -94,5 +94,4 @@ under a name carrying the flavor
 
 *To deepen: absorb the per-unit responsibility table and the error
 rethrow path from the sources; drain
-[#540](https://github.com/duckdb/duckdb-r/issues/540),
-[#1147](https://github.com/duckdb/duckdb-r/issues/1147).*
+[#540](https://github.com/duckdb/duckdb-r/issues/540).*

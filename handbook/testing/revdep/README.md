@@ -2,7 +2,7 @@
 
 Checking the packages that depend on this one before a release.
 
-Two routes, and they produce different things.
+The routes, each producing something different:
 
 **revdepcheck, run locally**, against the `.dev` build at the pinned
 release candidate.
@@ -27,6 +27,28 @@ It builds one job per reverse dependency, runs
 compares the two with `rcmdcheck::compare_checks()`,
 and uploads the pair as an artifact only when they differ.
 It commits nothing.
+
+**[`revdep2.yaml`](/.github/workflows/revdep2.yaml)**, on dispatch.
+It deals the reverse dependencies into cost-balanced shards,
+checks each against the CRAN release and the dev build,
+and folds the shard results into revdepcheck-style report artifacts,
+reusing still-valid baseline results from an earlier run.
+It also commits nothing, and it trades runner minutes for wall clock
+against the one-job-per-package `revdep.yaml`;
+[`.github/workflows/revdep2/README.md`](/.github/workflows/revdep2/README.md)
+owns the algorithm and the knobs.
+
+**[`revdep4.yaml`](/.github/workflows/revdep4.yaml)**, on dispatch —
+the successor engine.
+It runs a package's two halves *sequentially*, each in its own container,
+because two simultaneous checks of one package share ports, caches and
+locks that nothing in the R toolchain promises to support —
+the flaw behind `revdep2`'s false `newly_broken` verdicts —
+and it wins the parallelism back across packages with a work queue.
+It commits nothing either;
+[`.github/workflows/revdep4/README.md`](/.github/workflows/revdep4/README.md)
+owns the engine, and the shared core beside it in
+`.github/workflows/revdepx/` the rest of the machinery.
 
 When the runs happen — an early pass and a go/no-go gate before the
 tag — is
