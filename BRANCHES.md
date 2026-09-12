@@ -32,7 +32,7 @@ The seven components are:
    ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 
 2. **Flavor** (`DESCRIPTION`, `R/duckdb-package.R`, `NAMESPACE`, `README.md`, `src/include/rapi.hpp`,
-   `inst/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
+   `src/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
    name variant (`duckdb`, `duckdb.1.4`, `duckdb.1.4.dev`, …).
    The rename surface and the mechanism are
    [`branches/flavors/`](/handbook/branches/flavors/README.md)'s,
@@ -73,9 +73,6 @@ duckdb-r/
 │       ├── src/                    # DuckDB source files
 │       ├── third_party/            # DuckDB bundled third-party libs
 │       └── extension/              # Extension loaders
-├── inst/
-│   └── include/
-│       └── duckdb_types.hpp        # Public C++ types exposed to downstream R pkgs [3]
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
 ├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
@@ -291,7 +288,7 @@ other.
 - **S1 — Flavor isolation (`lts`).** `git diff stable lts` touches only flavor
   files (`DESCRIPTION:Package`, `R/duckdb-package.R`, `src/include/rapi.hpp`
   macro, `NAMESPACE`, `man/*-package.Rd`, the renamed
-  `inst/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
+  `src/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
   `test_check()` names in `tests/`). Nothing under `src/duckdb/`, no glue logic
   in `src/*.cpp`, no `R/` logic.
 - **S2 — Baseline purity (`dev-base`).** `dev-base` is byte-identical to the
