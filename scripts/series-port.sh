@@ -1,6 +1,6 @@
 #!/bin/bash
 # Bring a series' -dev branch level with `main` — stage 4 of the series loop
-# (.claude/skills/series-loop.md).
+# (.claude/skills/series-loop/SKILL.md).
 #
 # The goal is identity, not curation: after a successful --apply, the tooling
 # paths — .github/, scripts/, .claude/ — of <S>-dev are byte-identical to
@@ -113,7 +113,7 @@ flavored_docs_re='^\.github/README\.md$'
 vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
 
 # scripts/flavor.sh's first commit, and so the foot of every seed
-# (series-open.md step 2, series-forward.md step 1).
+# (series-open step 2, series-forward step 1).
 seed_re='^chore: Update flavor patch to '
 
 # A pick that moves `Version:` is decided by the `ours-version` merge driver,
@@ -143,8 +143,8 @@ if [ -z "$mb" ]; then
 fi
 
 # Frozen is read off the series, not listed here. A series is seeded from the R
-# package's `main` (series-open.md step 2), and a forward regenerates that seed
-# on current `main` (series-forward.md step 1), so a well-seeded series has its
+# package's `main` (series-open step 2), and a forward regenerates that seed
+# on current `main` (series-forward step 1), so a well-seeded series has its
 # flavor commit sitting directly on the merge base and `git cherry` offers what
 # `main` gained since the last port. Seeded from a release line instead, the
 # seed sits on that line's own commits, and the walk reaches back to where that

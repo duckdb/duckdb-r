@@ -3,7 +3,7 @@
 The scheduled routine that vendors every series.
 The procedures are machine-loaded playbooks under
 [`.claude/skills/`](/.claude/skills) —
-[`series-loop.md`](/.claude/skills/series-loop.md) with its
+[`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) with its
 siblings `series-forward`, `series-rebase`, `series-open` —
 linked from here, never restated:
 a reader who wants to *run* the loop follows the link;

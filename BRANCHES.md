@@ -301,7 +301,7 @@ other.
   This invariant describes the legacy `dev-base` layout;
   a series-loop series has no `dev-base` —
   its seed is flavored from day one,
-  per the bootstrap rule in `.claude/skills/series-loop.md`.
+  per the bootstrap rule in `.claude/skills/series-loop/SKILL.md`.
 - **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
   fast-forwards; `dev..dev-base` is always empty.
 - **S4 — `dev` contents.** Every commit in `dev-base..dev` is either a `vendor:`

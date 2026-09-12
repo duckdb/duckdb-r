@@ -1,3 +1,8 @@
+---
+name: docs-consistency
+description: Check the documentation system for consistency: handbook rules, link targets, script headers, and the generated indexes. Use when a change touches documentation — handbook pages, free-floating Markdown, script headers, generated indexes — and as a periodic sweep.
+---
+
 # Documentation consistency
 
 The enforcement arm of the handbook rules

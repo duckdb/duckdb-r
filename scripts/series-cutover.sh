@@ -2,14 +2,14 @@
 # Atomically replace a series with its forward counterpart.
 #
 # A forward series <S>-fwd-* is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward.md). Once its green ref covers at least the
+# (.claude/skills/series-forward/SKILL.md). Once its green ref covers at least the
 # upstream commits the old green covered, this script swaps all four series
 # refs in one atomic push, so consumers of <S>-green never observe a
 # half-replaced series. The swap is the one sanctioned non-fast-forward move
 # of a green ref.
 #
 # It is also the one move the series loop never makes: the loop reports a ready
-# cutover and stops (.claude/skills/series-loop.md), because retiring the
+# cutover and stops (.claude/skills/series-loop/SKILL.md), because retiring the
 # lineage r-universe builds from is a decision, not a stage. This script is the
 # mechanical half of that rule — it runs from a terminal, on a typed
 # confirmation, and nowhere else.
@@ -43,7 +43,7 @@ upstream=${3:-}
 if [ ! -t 0 ] || [ ! -t 1 ]; then
   echo "Error: cutover is a manual operation; run this script from a terminal." >&2
   echo "  The series loop reports a ready cutover and stops; a human runs it." >&2
-  echo "  See .claude/skills/series-forward.md and series-loop.md." >&2
+  echo "  See .claude/skills/series-forward/SKILL.md and series-loop." >&2
   exit 1
 fi
 

@@ -265,7 +265,7 @@ jobs:
 
       # What a firing reads. The per-commit publish to `rcc2` is the copy, and
       # this is the source: one record and one log per commit the leg decided,
-      # in the same bytes (.claude/skills/series-loop.md stage 2). It used to
+      # in the same bytes (.claude/skills/series-loop/SKILL.md stage 2). It used to
       # feed a fan-in job as well, which reconciled onto the branch whatever a
       # leg could not publish; that job is gone, because a reader that opens
       # this artifact has already got what the fan-in would have copied.

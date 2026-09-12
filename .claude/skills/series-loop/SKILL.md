@@ -1,3 +1,8 @@
+---
+name: series-loop
+description: Drive the vendoring series loop: for every series and its forward counterpart, vendor the next upstream commits, promote what is green, and repair what is not. Use when asked to run, advance, continue or repair the series loop or a series, when a scheduled routine fires for it, or when a series' green ref has fallen behind its buffer.
+---
+
 # The series loop: vendor, promote, repair
 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
@@ -49,7 +54,7 @@ rather than answering wrongly; raise it then.
 **A series is discovered, not configured**:
 each firing lists `refs/heads/*-build`,
 and every `<X>-build` with a sibling `<X>-dev` is a series it serves —
-base and forward (`<S>-fwd-*`, see `series-forward.md`) alike,
+base and forward (`<S>-fwd-*`, see `series-forward/SKILL.md`) alike,
 in one pass over all of them.
 Ignore a forward series
 whose green is an ancestor of its base series' green;
@@ -522,7 +527,7 @@ already superseded, further down the very range it was read from.
 The ranked file list is the cheapest read of where that is about to happen.
 Mining is what *forwarding* costs, and only forwarding:
 a forward series rebased onto a newer mainline
-(`series-rebase.md`) leaves nothing to mine,
+(`series-rebase/SKILL.md`) leaves nothing to mine,
 because its repairs are still commits on `-fwd-dev`.
 CI still judges the result like any other repair.
 
@@ -935,10 +940,10 @@ the consumption anchor of stage 5 reads vendor subjects
 and does not see them —
 and transient:
 a forward's seed already carries their content
-and the replay leaves them behind (`series-forward.md`);
+and the replay leaves them behind (`series-forward/SKILL.md`);
 a rebase drops patch-id equivalents,
 and a sync commit whose delta `main` absorbed
-rebases to empty and is dropped the same way (`series-rebase.md`).
+rebases to empty and is dropped the same way (`series-rebase/SKILL.md`).
 
 ### 5. Extend `<S>-dev`
 
@@ -1135,7 +1140,7 @@ a bad repair is repaired again,
 a wrong extension is replayed,
 and `-green` only ever moves forward over commits CI called green.
 The swap moves a serving green *sideways*
-— the single sanctioned non-fast-forward of one (`series-forward.md`) —
+— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`) —
 and it deletes the counterpart that would let it be undone.
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
@@ -1241,7 +1246,7 @@ rather than late in one, and absence raises nothing anywhere.
 The report is the only place it is visible.
 
 **Reported, never acted on.**
-Opening the series is `series-open.md`'s job, and a human's,
+Opening the series is `series-open/SKILL.md`'s job, and a human's,
 exactly as a cutover is (stage 6).
 The firing names the line, the fork point and the skill, and stops there.
 
@@ -1339,7 +1344,7 @@ push the branch, dispatch `each-rcc` on `retry-<S>-dev`
 with `force=true` and `max-commits=1`,
 and — on the store path only — drop the stale record once the rerun is green,
 both copies of it, per above.
-A rebase onto a newer mainline (`series-rebase.md`)
+A rebase onto a newer mainline (`series-rebase/SKILL.md`)
 is what carries the automatic path into a forward series.
 
 ## Commit-message contract

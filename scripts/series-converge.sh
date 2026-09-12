@@ -2,7 +2,7 @@
 # Does a forward series still carry the same package as the series it replaces?
 #
 # A forward series is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward.md). Its *history* differs by construction -- a
+# (.claude/skills/series-forward/SKILL.md). Its *history* differs by construction -- a
 # regenerated seed, version counters renumbered as a true counter, the ported
 # commits the replay leaves behind -- and its *content* must not. So the
 # statement a cutover rests on is about trees, not ancestry:
@@ -33,7 +33,7 @@
 #     file is diffed line-wise to tell the two apart.
 #   * `NEWS.md` -- the release paperwork a `fledge:` commit carries, and stage 4
 #     never ports a VERSION commit: `main`'s R-client counter is not a series'
-#     (.claude/skills/series-loop.md). So the two branches hold whatever their
+#     (.claude/skills/series-loop/SKILL.md). So the two branches hold whatever their
 #     seeds' release lines held, and the file is fledge-maintained, never edited
 #     by hand.
 #   * The **vendored strand** -- `src/duckdb/`, `patch/`, `R/version.R`,
@@ -306,5 +306,5 @@ echo "DIVERGED: ${#unexplained[@]} path(s) the forwarding does not explain."
 echo "  Each is a difference somebody has to account for before the swap:"
 echo "  a fix folded on one branch and not the other, a port that reached one"
 echo "  of them, or a carry that stage 5 could not make. See"
-echo "  .claude/skills/series-forward.md."
+echo "  .claude/skills/series-forward/SKILL.md."
 exit 1
