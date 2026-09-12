@@ -30,11 +30,7 @@ void BaseNode<CAPACITY, TYPE>::InsertChildInternal(BaseNode &n, const uint8_t by
 }
 
 template <uint8_t CAPACITY, NType TYPE>
-NodeHandle<BaseNode<CAPACITY, TYPE>> BaseNode<CAPACITY, TYPE>::DeleteChildInternal(ART &art, Node &node,
-                                                                                   const uint8_t byte) {
-	NodeHandle<BaseNode<CAPACITY, TYPE>> handle(art, node);
-	auto &n = handle.Get();
-
+void BaseNode<CAPACITY, TYPE>::DeleteChildInternal(ART &art, BaseNode &n, const uint8_t byte) {
 	uint8_t child_pos = 0;
 	for (; child_pos < n.count; child_pos++) {
 		if (n.key[child_pos] == byte) {
@@ -51,8 +47,6 @@ NodeHandle<BaseNode<CAPACITY, TYPE>> BaseNode<CAPACITY, TYPE>::DeleteChildIntern
 		n.key[i] = n.key[i + 1];
 		n.children[i] = n.children[i + 1];
 	}
-
-	return handle;
 }
 
 //===--------------------------------------------------------------------===//
@@ -81,8 +75,9 @@ void Node4::DeleteChild(ART &art, Node &node, Node &parent, const uint8_t byte, 
 	uint8_t remaining_byte;
 
 	{
-		auto handle = DeleteChildInternal(art, node, byte);
+		NodeHandle<Node4> handle(art, node);
 		auto &n = handle.Get();
+		DeleteChildInternal(art, n, byte);
 
 		if (n.count != 1) {
 			return;
@@ -140,8 +135,9 @@ void Node16::InsertChild(ART &art, Node &node, const uint8_t byte, const Node ch
 
 void Node16::DeleteChild(ART &art, Node &node, const uint8_t byte) {
 	{
-		auto handle = DeleteChildInternal(art, node, byte);
+		NodeHandle<Node16> handle(art, node);
 		auto &n = handle.Get();
+		DeleteChildInternal(art, n, byte);
 		if (n.count >= Node4::CAPACITY) {
 			return;
 		}

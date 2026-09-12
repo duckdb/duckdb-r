@@ -87,7 +87,9 @@ which is stage 2's fallback source, not its first one;
 prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
-a suggestion for a human, stage 6),
+a suggestion for a human, stage 6,
+and an UNSERVED block for an upstream release line no series covers,
+the other suggestion for a human, and the one the report ends with),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
 sets `-build-base` to the vendored-SHA match,
@@ -105,6 +107,21 @@ and `scripts/series-converge.sh <S>`
 (read-only — `<S>-dev` against `<S>-fwd-dev`, every difference sorted
 into what the forwarding explains and what it does not, stage 6).
 Judgement — repairs, review, vendoring — stays here.
+
+One more runs on an event rather than on every firing:
+`scripts/pull-config.sh`
+(read-only — the fork's mirror rules in [`.github/pull.yml`](/.github/pull.yml)
+against the badges that read them;
+prints the rule the file is missing, `--check` exits non-zero).
+Run it on the firing that sees a series change —
+one opened, one parked, one retired —
+because that is when the badge table moves and the rule list moves with it,
+and a mirror nobody keeps still renders, counting commits already shipped
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+What it prints is a change to `main` like any other,
+so it goes to `main` as a PR, the way stage 7 sends one;
+the firing does not edit the file on a series branch,
+where nothing would ever read it.
 
 ### 0. Setup
 
@@ -844,6 +861,11 @@ and treat anything it reverts that the series genuinely needs
 as a finding for `main`:
 make it conditional there;
 a series never keeps its own fork of the tooling.
+One class the script now names for you rather than leaving to the diff:
+a file the sync deletes that something outside the tooling paths still calls.
+`main` moved it in a commit the series did not take,
+and the caller moved with it, out of the sync's reach —
+so port that commit by name and the reference is whole again.
 
 **A frozen series takes no ports by default.**
 A series seeded from a release branch keeps the R code it was seeded with —
@@ -1191,6 +1213,44 @@ The test is whether the *same firing done again* would hit it —
 a bug in a script or a workflow would,
 an upstream commit that did not build would not.
 
+## What a firing reports
+
+The report ends with `series-check.sh`'s `UNSERVED` block, verbatim,
+whenever the script prints one:
+an upstream release line that no series here covers.
+Run the script with stage 1's clone,
+`UPSTREAM_CLONE=<upstream-clone> scripts/series-check.sh`,
+so the block carries the fork point and not only the branch name.
+
+**It goes last, and it outranks a quiet pass.**
+A firing where every series reads ADVANCE or IDLE
+is the quietest report this loop writes,
+and it is exactly the firing where an unopened series
+is the only thing left worth acting on.
+So it is not summarised into a sentence among the per-series verdicts,
+and not dropped because everything that is served is green.
+Loud because it is easy to skim past, not because anything is broken:
+a line may be opened deliberately, later and on a released tree,
+so what the block reports is a decision owed an answer rather than a fault.
+
+**It repeats until the refs exist.**
+Nothing else in the loop can notice the condition:
+a series is discovered from its refs,
+so a release line that has none is absent from every stage above
+rather than late in one, and absence raises nothing anywhere.
+The report is the only place it is visible.
+
+**Reported, never acted on.**
+Opening the series is `series-open.md`'s job, and a human's,
+exactly as a cutover is (stage 6).
+The firing names the line, the fork point and the skill, and stops there.
+
+**A reading that failed is reported as one.**
+When the script says it could not read the upstream branches,
+the firing says so too:
+otherwise a question that went unanswered
+reads exactly like an answer of "nothing new".
+
 ## Rerun one commit: `retry-<S>-dev`
 
 Some runs fail for reasons the commit had no part in:
@@ -1327,6 +1387,10 @@ is what carries the automatic path into a forward series.
   and prints the command; it never runs it,
   and never swaps the refs by another route.
   Every other ref move in this skill is the routine's to make.
+- Opening a series is manual too, and its trigger is upstream's branch cut.
+  The loop reports a release line no series covers,
+  at the end of every firing until the refs exist;
+  it creates none of them.
 - A base is advanced on completed, successful runs —
   never on absence of a failure.
 - Fixes are folded into the commit that needs them,

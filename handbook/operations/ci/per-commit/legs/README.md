@@ -12,7 +12,7 @@ One run is three jobs:
 ```
 plan  (1 job, ~30 s)
   ├─ git log --first-parent --after=$SINCE          → candidate commits
-  ├─ scripts/rcc-decided.sh (one tree-only fetch)   → verdicts already on `rcc`
+  ├─ scripts/rcc-decided.sh (one tree-only fetch)   → verdicts already on `rcc2`
   ├─ scripts/each-cost.py                           → objects each commit invalidates
   ├─ scripts/each-partition.py
   │    ├─ greedy contiguous fill under the leg deadline → fewest shards

@@ -114,3 +114,21 @@ the port stage brings it back on the next firing.
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints each
 series' verdict read-only and is always safe to run
 ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
+
+**A firing also reports the series that does not exist.**
+An upstream release line newer than every series served here, with no refs
+of its own, is named at the end of every firing's report until someone opens
+it with `series-open`.
+The report carries the fork point as well, wherever the firing has an
+upstream clone to compute it in, because only the first-parent recipe
+answers that question correctly
+([`scripts/VENDORING.md`](/scripts/VENDORING.md)).
+Nothing else in the loop can raise the condition: the stages above walk the
+series they discover, so a line with no refs is absent from all of them
+rather than overdue in one.
+What the report states is what branch names support, and no more: no release
+can be cut from a line nothing serves, and the catch-up walk that opening one
+costs grows with every upstream commit on it.
+How much of that line another series has already vendored is a different
+question, which upstream's back-merges into `main` make a real one and which
+no reading of branch names answers.
