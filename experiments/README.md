@@ -67,7 +67,7 @@ This file is what names the contents, so nothing here is an orphan.
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
   fix in [#2562](https://github.com/duckdb/duckdb-r/pull/2562);
-  supports [`usage/memory/`](/handbook/usage/memory/README.md).
+  supports [`usage/memory/budget/`](/handbook/usage/memory/budget/README.md).
 * [`2026-08-streaming-tpch-bench/`](2026-08-streaming-tpch-bench/) —
   wall time and memory of moving a TPC-H result into R, per fetch
   strategy, on the CRAN build and

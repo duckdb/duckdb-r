@@ -24,7 +24,7 @@ The departures from that baseline are what this leaf owns:
   called, so `dbFetch(n = )` limits what is returned, not what is held
   ([#1997](https://github.com/duckdb/duckdb-r/issues/1997);
   the memory consequences and the streaming work that will change
-  this are [`memory/`](/handbook/usage/memory/README.md)'s).
+  this are [`memory/reading/`](/handbook/usage/memory/reading/README.md)'s).
 * In a multi-statement string,
   everything before the final statement executes at prepare time,
   and `?` placeholders bind only in the last statement

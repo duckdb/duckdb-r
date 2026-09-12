@@ -12,7 +12,7 @@ unlimited by default ([`R/relational.R`](/R/relational.R)),
 and an execution error is stored and re-raised at every later access.
 What materializing allocates, and that the engine's copy of the result
 stays with the data frame after conversion, is
-[`usage/memory/`](/handbook/usage/memory/README.md)'s.
+[`usage/memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
 Touching is R's to do:
 every method that can materialize runs on R's thread and nowhere else,
 which is [`threading/`](/handbook/architecture/glue/threading/README.md)'s

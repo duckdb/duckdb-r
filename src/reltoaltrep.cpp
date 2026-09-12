@@ -20,7 +20,7 @@
 #include <cmath>
 #include <cstddef>
 
-// Handbook: handbook/usage/memory/README.md
+// Handbook: handbook/usage/memory/reading/README.md
 // (what materialization allocates on either side, and when it is freed)
 
 #ifdef TRUE

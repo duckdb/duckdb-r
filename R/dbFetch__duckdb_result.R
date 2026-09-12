@@ -52,7 +52,7 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
   }
 
   # `n` slices a resultset that is already fully materialized in R:
-  # handbook/usage/memory/README.md, #1997, #2587.
+  # handbook/usage/memory/reading/README.md, #1997, #2587.
   n_remaining <- nrow(res@env$resultset) - res@env$rows_fetched
 
   if (n == -1) {

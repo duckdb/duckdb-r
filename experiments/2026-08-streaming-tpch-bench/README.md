@@ -7,7 +7,7 @@ Gathered for
 which reads the numbers as
 "how much of the wall clock is conversion, and therefore how much a
 producer thread could hide";
-supports [`usage/memory/`](/handbook/usage/memory/README.md)
+supports [`usage/memory/reading/`](/handbook/usage/memory/reading/README.md)
 once its streaming entries land.
 
 The harness is [`bench.R`](bench.R): one file, DBI + duckdb only.
