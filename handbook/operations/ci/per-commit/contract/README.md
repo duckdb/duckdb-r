@@ -74,7 +74,7 @@ so they see a verdict minutes after it happens rather than at the end of a run.
 [`rcc-logs.sh`](/scripts/rcc-logs.sh) writes records to the same place.
 
 The **series loop reads the runs first** and treats the store as its fallback
-([`.claude/skills/series-loop.md`](/.claude/skills/series-loop.md), stage 2):
+([`.claude/skills/series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md), stage 2):
 the store was built so that an agent with no API access could still read a
 verdict and a log, and one that can read the run reads the source instead.
 Nothing about the CI-side use above changes with it.

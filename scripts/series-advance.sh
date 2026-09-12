@@ -43,7 +43,7 @@
 # **`--dev-note` writes a stage-3 finding into the commit this stage mints.** An
 # r-universe failure has no per-commit record anywhere and no commit of its own,
 # so the series keeps it in the message of the next `-dev` commit
-# (.claude/skills/series-loop.md stage 3). This stage is the one that mints that
+# (.claude/skills/series-loop/SKILL.md stage 3). This stage is the one that mints that
 # commit and pushes it in the same breath, so a firing that writes the finding
 # afterwards pays an amend, a force-push, and one each-rcc run spent on a commit
 # it is about to re-mint. The note is appended to the newest minted commit's
@@ -201,7 +201,7 @@ version_gt() { # <a> <b>
 
 # Raise DESCRIPTION's fifth component to one above the parent's, on a commit
 # that vendors. Every vendor commit must be strictly above its parent
-# (.claude/skills/series-loop.md): gaps are fine, repeats are not, because
+# (.claude/skills/series-loop/SKILL.md): gaps are fine, repeats are not, because
 # r-universe installs by version and cannot tell a run of commits sharing one
 # apart.
 #
@@ -324,7 +324,7 @@ carry_paths() { # <buffer commit> <base -dev commit>
 
 # Glue the base `-dev` has and the base `-build` lacks *entirely* -- a fix
 # folded during a repair and never mirrored onto the buffer, so the next tree
-# regenerated there still wants it (.claude/skills/series-loop.md, stage 2).
+# regenerated there still wants it (.claude/skills/series-loop/SKILL.md, stage 2).
 # Carried like the rest, but said out loud, because it is buffer drift.
 #
 # Deliberately the filename test rather than carry_paths': a file the buffer
@@ -379,7 +379,7 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
       # Set, never advance. -build-base is the one ref of the four that is not
       # fast-forward only: nothing consumes it, and the match is recomputed
       # here from scratch every time, so where the ref sat before says nothing
-      # this stage needs (.claude/skills/series-loop.md, stage 3). Force,
+      # this stage needs (.claude/skills/series-loop/SKILL.md, stage 3). Force,
       # because a write from outside this loop -- a CI job committing onto the
       # branch it ran on -- can leave the ref past the match or beside the
       # buffer, and refusing that stopped stage 5 with it.
@@ -431,7 +431,7 @@ fi
 # So a base series consumes its buffer like any other, and the two lineages run
 # level until a human swaps them. It is more CI on a series about to be retired;
 # it is also the only thing that makes retiring it a check rather than a hope.
-# Pending work does not hold the buffer (.claude/skills/series-loop.md stage 5):
+# Pending work does not hold the buffer (.claude/skills/series-loop/SKILL.md stage 5):
 # each.yaml plans every commit in green..tip that has no status, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does
 # hold it: stage 2 will fold a fix into that commit and replay everything above,

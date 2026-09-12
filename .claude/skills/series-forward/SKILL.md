@@ -1,3 +1,8 @@
+---
+name: series-forward
+description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
+---
+
 # Forwarding a series to a newer base
 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
@@ -24,10 +29,10 @@ the replay then populates `<S>-fwd-build`.
    Regenerate the seed —
    `scripts/flavor.sh`,
    plus the separate fifth-component commit on a dev branch
-   (`series-open.md`) —
+   (`series-open/SKILL.md`) —
    then replay each vendor commit onto it.
    `flavor.sh` needs `krlmlr/cpp11` installed, and refuses the whole run
-   without it (`series-open.md`, step 2).
+   without it (`series-open/SKILL.md`, step 2).
    A series seeded from a release branch rather than from `main`
    regenerates on **that** branch,
    whose `scripts/` may be older than `main`'s —
@@ -84,7 +89,7 @@ the replay then populates `<S>-fwd-build`.
    and are already in the seed.
    That includes the commits stage 4 of the loop
    ported onto `-dev`, and its tooling sync commits
-   (`series-loop.md`):
+   (`series-loop/SKILL.md`):
    the seed carries their content,
    the replay leaves them behind,
    and that is where a port's life ends.
@@ -143,7 +148,7 @@ the replay then populates `<S>-fwd-build`.
    and nothing of what the base series learned afterwards.
    That second half is not replayed here and is not missing either:
    the loop's stage 5 folds it in from the base `<S>-dev`
-   as each buffer commit is consumed (`series-loop.md`),
+   as each buffer commit is consumed (`series-loop/SKILL.md`),
    glue included where a test rather than the compiler demanded it.
    So do not reach for it during the replay,
    and do not put a snapshot or a test fix onto `-fwd-build` by hand.
@@ -178,7 +183,7 @@ and this is the normal way to pick up `main`-side fine-tuning —
 CI changes, script fixes, R-side work —
 that landed while the forward series was being built or verified.
 
-That move is a rebase of the series onto itself, `series-rebase.md`,
+That move is a rebase of the series onto itself, `series-rebase/SKILL.md`,
 and it is not this skill.
 Forwarding is `<S>` → `<S>-fwd`, across lineages:
 `-fwd-build` is replayed out of the base series' buffer
@@ -262,7 +267,7 @@ scripts/series-cutover.sh <S> origin <upstream-clone>
 
 **A human runs this, never the loop.**
 The series loop reports a ready cutover and stops there
-(`series-loop.md`, stage 6),
+(`series-loop/SKILL.md`, stage 6),
 and the script refuses to run without a terminal
 and a typed confirmation.
 Pass the upstream clone:

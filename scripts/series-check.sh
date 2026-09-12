@@ -14,15 +14,15 @@
 #
 # A forward series that has caught up with the green it replaces additionally
 # gets a CUTOVER line: the command to run, for a human to run. The loop never
-# swaps a serving green itself (.claude/skills/series-loop.md).
+# swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
 #
-# Classification is by positive evidence only (.claude/skills/series-loop.md);
+# Classification is by positive evidence only (.claude/skills/series-loop/SKILL.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
 # The store is the *copy* of what an `each-rcc` leg wrote, not the source: the
 # leg writes the same record and log into its artifact and publishes them here
 # (scripts/each-shard.sh). A firing reads the run first and this branch only
-# when it cannot (.claude/skills/series-loop.md stage 2), so where a verdict
+# when it cannot (.claude/skills/series-loop/SKILL.md stage 2), so where a verdict
 # here and one read from a run disagree, the run is right. The ref geometry
 # below -- in flight, buffered, the retry ledger, a ready cutover -- does not
 # depend on the source at all, which is why this stays worth running either way.
@@ -59,7 +59,7 @@
 # series is discovered from its refs, so a line that has none is invisible to
 # every other part of the loop, and stays invisible while upstream builds on it.
 # Reported, never acted on, like the cutover above: opening a series is
-# .claude/skills/series-open.md's job, and a human's.
+# .claude/skills/series-open/SKILL.md's job, and a human's.
 #
 # Usage: series-check.sh [<series>...]     # default: discover all from refs
 #   UPSTREAM_CLONE=../duckdb series-check.sh   # fork point too, not just names
@@ -398,7 +398,7 @@ for S in "${series[@]}"; do
     fi
   elif [ "$missing" -gt 0 ]; then
     # Pending verdicts hold green, not the buffer: stage 5 extends on pending
-    # and stops only on red (.claude/skills/series-loop.md stage 5).
+    # and stops only on red (.claude/skills/series-loop/SKILL.md stage 5).
     if [ "$buffered" != 0 ]; then
       echo "  WAIT   $missing run(s) not harvested yet — green holds, buffer may still extend"
     else
@@ -411,7 +411,7 @@ for S in "${series[@]}"; do
   fi
 
   # Suggested, never done: a firing reports a ready cutover and stops
-  # (.claude/skills/series-loop.md). Printed beside the verdict rather than as
+  # (.claude/skills/series-loop/SKILL.md). Printed beside the verdict rather than as
   # one, because it is orthogonal — a forward series that has caught up still
   # needs repairing, advancing or waiting like any other.
   if [ -n "$cutover" ]; then
@@ -492,7 +492,7 @@ elif [ ${#unserved[@]} -gt 0 ]; then
   # line another series has already vendored is not one of those things:
   # upstream back-merges the release branch into `main`, so some of it may
   # well be built here, and a check that reads names cannot say how much.
-  echo "          Open the series: .claude/skills/series-open.md"
+  echo "          Open the series: .claude/skills/series-open/SKILL.md"
   echo "          No release can be cut from a line nothing here serves, and"
   echo "          the catch-up walk that opening one costs grows with every"
   echo "          upstream commit on it."

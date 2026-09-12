@@ -12,7 +12,7 @@ together with the R package branches that carry it.
 A series is *discovered, not configured*:
 the vendoring routine serves every `<S>-build` ref that has a
 sibling `<S>-dev`, so opening one is creating refs
-([`.claude/skills/series-open.md`](/.claude/skills/series-open.md)).
+([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
 
 **Two repositories.**
 `duckdb/duckdb-r` is canonical:

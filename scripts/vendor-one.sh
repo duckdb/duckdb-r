@@ -1,6 +1,6 @@
 #!/bin/bash
 # Vendors DuckDB sources commit-by-commit from the upstream repository.
-# Used by the series loop (.claude/skills/series-loop.md).
+# Used by the series loop (.claude/skills/series-loop/SKILL.md).
 # See scripts/VENDORING.md for complete documentation
 #
 # https://unix.stackexchange.com/a/654932/19205
