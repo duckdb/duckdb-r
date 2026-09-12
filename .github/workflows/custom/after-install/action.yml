@@ -3,6 +3,40 @@ name: 'Custom steps to run after R packages are installed'
 runs:
   using: "composite"
   steps:
+    # adbcdrivermanager was archived on CRAN (apache/arrow-adbc#4638), so pak
+    # can no longer resolve it and `Config/gha/extra-packages` had to stop
+    # naming it: the failure is resolution, not the source build, and
+    # `=?ignore-build-errors` demotes only the latter. The package is still
+    # published from the ADBC monorepo to apache.r-universe.dev, which is what
+    # `Additional_repositories` in DESCRIPTION points CRAN at, so install it
+    # from there and the ADBC tests (tests/testthat/test-adbc.R) and the
+    # `duckdb_adbc()` example keep running.
+    #
+    # Deliberately a separate install.packages() rather than an extra
+    # repository for pak to resolve against: that universe also builds `arrow`
+    # and `nanoarrow`, both `Suggests` here, and a dev build of either would win
+    # on version and silently replace the CRAN one in every entry of the matrix.
+    # Naming the one package reaches only it; `nanoarrow`, its dependency, is
+    # already installed by then and so is left alone. The universe goes last in
+    # `repos` for the same reason.
+    #
+    # Best effort by design. Where it does not build -- `windows-11-arm` has no
+    # binary to install and does not compile against Rtools45 -- the tests skip
+    # with `skip_if_not_installed()` and the example with `requireNamespace()`,
+    # exactly as they did while `=?ignore-build-errors` dropped it
+    # (handbook/operations/ci/matrix/README.md).
+    - name: Install adbcdrivermanager from Additional_repositories
+      run: |
+        try(install.packages(
+          "adbcdrivermanager",
+          repos = c(getOption("repos"), ADBC = "https://apache.r-universe.dev")
+        ))
+        writeLines(paste0(
+          "adbcdrivermanager available: ",
+          requireNamespace("adbcdrivermanager", quietly = TRUE)
+        ))
+      shell: Rscript {0}
+
     # Must be done after installing R because rtools is installed only then
     - name: Compute cache key
       if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'

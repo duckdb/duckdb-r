@@ -53,9 +53,22 @@ A reference carries pak parameters,
 so `<package>=?ignore-build-errors` demotes a failed source build
 of that one package to a warning
 and drops it from the installation plan.
-This package says that about `adbcdrivermanager`,
+This package says that about `arrow`,
 which does not compile against Rtools45;
 the field's `Config/comment/…` twin records why.
+
+The lever reaches a build that fails, and only that.
+`adbcdrivermanager` fails a step earlier since CRAN archived it
+([apache/arrow-adbc#4638](https://github.com/apache/arrow-adbc/issues/4638)):
+pak cannot resolve the reference at all,
+and a reference that resolves to nothing takes the whole entry with it
+however it is parameterized.
+So that package left the field
+and is installed from `Additional_repositories` instead,
+by a step in [`custom/after-install/`](/.github/workflows/custom/after-install/action.yml)
+that tolerates its own failure —
+which puts it back where `=?ignore-build-errors` had it,
+present where it builds and absent where it does not.
 
 The condition is the build, not the platform,
 which is what makes this the right lever:
@@ -64,7 +77,8 @@ so every runner that has a binary still checks against it,
 and the one that does not picks it back up
 the day it builds again — with no commit here.
 
-Dropping a `Suggests` package is safe because the check is written for it:
+Dropping an optional dependency — `Suggests` or `Enhances` — is safe
+because the check is written for it:
 tests guard with `skip_if_not_installed()`,
 examples with `requireNamespace()`,
 and `rcc` downgrades `RCMDCHECK_ERROR_ON` to `warning`
