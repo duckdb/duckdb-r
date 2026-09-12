@@ -146,7 +146,7 @@ until somebody pushes to that branch or dispatches the workflow.
 The replanning is correct; it is not automatic.
 
 **The series loop's documented recovery discards good results.**
-[`series-loop.md`](/.claude/skills/series-loop.md) says that a commit still
+[`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) says that a commit still
 missing from the harvest after 12 hours should be presumed lost, and repaired by
 amending it and replaying the tail.
 Replaying mints a new SHA for every commit after it,
