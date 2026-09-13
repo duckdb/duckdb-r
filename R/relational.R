@@ -1,6 +1,4 @@
-# The relational API: lazy relation trees and the ALTREP data frames they
-# produce.  Internal -- every function here is @noRd, and duckplyr is the one
-# supported consumer.
+# The relational API: lazy relation trees and the ALTREP data frames they produce.  Internal -- every function here is @noRd, and duckplyr is the one supported consumer.
 # Explained in handbook/usage/relational/README.md.
 
 # expressions
@@ -294,7 +292,8 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' Lazily reorder a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param orders a list of DuckDB expressions to order by
-#' @param ascending a vector of boolean values describing sort order of expressions. True for ascending.
+#' @param ascending a vector of boolean values describing sort order of expressions.
+#' True for ascending.
 #' @return the now aggregated `duckdb_relation` object
 #' @noRd
 #' @examples
@@ -461,8 +460,8 @@ rel_join <- function(
 ) {
   join <- match.arg(join)
   join_ref_type <- match.arg(join_ref_type)
-  # the ref type is naturally regular. Users won't write rel_join(left, right, conds, "cross", "cross")
-  # so we update it here.
+  # the ref type is naturally regular.
+  # Users won't write rel_join(left, right, conds, "cross", "cross") so we update it here.
   if (join == "cross" && join_ref_type == "regular") {
     join_ref_type <- "cross"
   }
@@ -641,8 +640,7 @@ rel_to_altrep <- function(
 
 #' Retrieves the data frame back from a altrep df
 #' @param df the data frame created by rel_to_altrep
-#' @param strict whether to throw an error if the data frame is not an altrep
-#'   or if other criteria are not met
+#' @param strict whether to throw an error if the data frame is not an altrep or if other criteria are not met
 #' @param allow_materialized whether to succeed if the data frame is already materialized
 #' @return the relation object
 #' @noRd
@@ -686,19 +684,17 @@ rel_to_sql <- function(rel) {
 
 #' Create a duckdb relation from an SQL query
 #'
-#' Creates a relation that represents the result of an SQL query against the
-#' connection, without executing it.
+#' Creates a relation that represents the result of an SQL query against the connection, without executing it.
 #'
-#' If the connection was opened with `duckdb(environment_scan = TRUE)`, table
-#' references in `sql` that do not resolve in the database catalog are looked
-#' up in `env` (and its enclosing environments). Any data frame found this way
-#' is captured by the resulting relation and stays accessible for the lifetime
-#' of the relation, even after `env` is no longer reachable from R.
+#' If the connection was opened with `duckdb(environment_scan = TRUE)`,
+#' table references in `sql` that do not resolve in the database catalog are looked up in `env` (and its enclosing environments).
+#' Any data frame found this way is captured by the resulting relation and stays accessible for the lifetime of the relation,
+#' even after `env` is no longer reachable from R.
 #'
 #' @param con A duckdb connection.
 #' @param sql An SQL query.
-#' @param env An environment in which to look up data frames referenced by
-#'   `sql`. Defaults to the caller's environment.
+#' @param env An environment in which to look up data frames referenced by `sql`.
+#'   Defaults to the caller's environment.
 #' @return a duckdb relation
 #' @noRd
 #' @examples

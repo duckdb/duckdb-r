@@ -3,9 +3,8 @@
 #' DuckDB SQL backend for dbplyr
 #'
 #' @description
-#' This is a SQL backend for dbplyr tailored to take into account DuckDB's
-#' possibilities. This mainly follows the backend for PostgreSQL, but
-#' contains more mapped functions.
+#' This is a SQL backend for dbplyr tailored to take into account DuckDB's possibilities.
+#' This mainly follows the backend for PostgreSQL, but contains more mapped functions.
 #'
 #' @name backend-duckdb
 #' @aliases NULL
@@ -43,8 +42,7 @@ dbplyr_edition.duckdb_connection <- function(con) {
 # Description of the database connection
 # @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name db_connection_describe
-# @return
-# String consisting of DuckDB version, user login name, operating system, R version and the name of database
+# @return String consisting of DuckDB version, user login name, operating system, R version and the name of database
 db_connection_describe.duckdb_connection <- function(con) {
   info <- DBI::dbGetInfo(con)
   paste0(
@@ -90,15 +88,13 @@ duckdb_grepl <- function(
   }
 }
 
-# `MAKE_DATE()` takes integers, and DuckDB does not narrow a DOUBLE to one
-# implicitly: the bare `2000` a caller writes arrives here as a double and would
-# escape as `2000.0`, which fails to bind. clock accepts a whole double for a
-# year, month or day, so send the integer it names. Anything that is not a
-# double -- a column reference, a SQL fragment, an integer already -- passes
-# through untouched, so a column keeps whatever type the table gave it.
+# `MAKE_DATE()` takes integers, and DuckDB does not narrow a DOUBLE to one implicitly:
+# the bare `2000` a caller writes arrives here as a double and would escape as `2000.0`, which fails to bind.
+# clock accepts a whole double for a year, month or day, so send the integer it names.
+# Anything that is not a double -- a column reference, a SQL fragment, an integer already --
+# passes through untouched, so a column keeps whatever type the table gave it.
 # `call` names the translation the argument was written in, not this check:
-# rlang's `abort()` would otherwise report `duckdb_integerish()` for a
-# `date_build()` the caller wrote.
+# rlang's `abort()` would otherwise report `duckdb_integerish()` for a `date_build()` the caller wrote.
 duckdb_integerish <- function(
   x,
   arg = deparse(substitute(x)),
@@ -118,8 +114,8 @@ duckdb_integerish <- function(
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
-  # `sql_glue()` reads the active connection itself, and `{...}` renders the
-  # dots comma-separated, the way `{.col {list(...)}*}` did before dbplyr 2.6.0.
+  # `sql_glue()` reads the active connection itself,
+  # and `{...}` renders the dots comma-separated, the way `{.col {list(...)}*}` did before dbplyr 2.6.0.
   sql_glue <- pkg_method("sql_glue", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
@@ -357,8 +353,8 @@ sql_translation.duckdb_connection <- function(con) {
       },
       yday = function(x) sql_expr(EXTRACT(DOY %FROM% !!x)),
 
-      # These work fine internally, but getting INTERVAL-type data out of DuckDB
-      # seems problematic until there is a fix for the issue #1920 / #2900
+      # These work fine internally,
+      # but getting INTERVAL-type data out of DuckDB seems problematic until there is a fix for the issue #1920 / #2900
       # (https://github.com/duckdb/duckdb/issues/1920)
       seconds = function(x) {
         sql_expr(TO_SECONDS(CAST((!!x) %AS% BIGINT)))
@@ -447,8 +443,7 @@ sql_translation.duckdb_connection <- function(con) {
         build_sql("DATEDIFF('day', ", !!start, ", ", !!end, ")")
       },
       date_build = function(year, month = 1L, day = 1L, ..., invalid = NULL) {
-        # DuckDB resolves an invalid date its own way, so there is nothing to
-        # map clock's `invalid` strategies onto.
+        # DuckDB resolves an invalid date its own way, so there is nothing to map clock's `invalid` strategies onto.
         check_unsupported_arg(invalid, allow_null = TRUE)
         rlang::check_dots_empty()
 
@@ -461,9 +456,8 @@ sql_translation.duckdb_connection <- function(con) {
 
       # base R functions
 
-      # DATEDIFF() counts whole days, so that is the one `units` value
-      # translated; `tz` has no equivalent, because the subtraction happens in
-      # the database rather than on an R clock.
+      # DATEDIFF() counts whole days, so that is the one `units` value translated;
+      # `tz` has no equivalent, because the subtraction happens in the database rather than on an R clock.
       difftime = function(time1, time2, tz, units = "days") {
         check_unsupported_arg(tz)
         check_unsupported_arg(units, allowed = "days")
@@ -684,8 +678,7 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
 #' Create a lazy table from a query
 #'
 #' @description
-#' `tbl_function()` is an experimental variant of [dplyr::tbl()]
-#' to create a lazy table from a table-generating function,
+#' `tbl_function()` is an experimental variant of [dplyr::tbl()] to create a lazy table from a table-generating function,
 #' useful for reading nonstandard CSV files or other data sources.
 #' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the query.
 #' See <https://duckdb.org/docs/data/overview> for details on data importing functions.
@@ -716,8 +709,7 @@ tbl_query <- function(src, query, ...) {
 #' Connection object for simulation of the SQL generation without actual database.
 #' dbplyr overrides database specific identifier and string quotes
 #'
-#' Use `simulate_duckdb()` with `lazy_frame()`
-#' to see simulated SQL without opening a DuckDB connection.
+#' Use `simulate_duckdb()` with `lazy_frame()` to see simulated SQL without opening a DuckDB connection.
 #' @param ... Any parameters to be forwarded
 #' @export
 #' @rdname backend-duckdb
