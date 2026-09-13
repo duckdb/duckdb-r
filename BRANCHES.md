@@ -8,8 +8,8 @@ where the two disagree, the leaf is right.*
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
-What is left here is the branch model in detail — components,
-diagrams, the legacy `dev`/`dev-base` layout — and the
+What is left here is the branch model in detail — components and
+diagrams — and the
 **[series invariants](#series-invariants)**, which
 [`branches/invariants/`](/handbook/branches/invariants/README.md)
 defers to rather than restating.
@@ -140,11 +140,11 @@ duckdb/duckdb        krlmlr/duckdb-r         duckdb/duckdb-r       CRAN / r-univ
 (upstream C++)       (CI/CD fork)            (canonical R pkg)
 ──────────────       ──────────────          ───────────────       ─────────────────
 main            ──►  main-dev           ──►  main               ──►  duckdb (r-universe)
-                     main-dev-base                                   duckdb.dev
+                                                                     duckdb.dev
 v1.5-variegata  ──►  v1.5-variegata-dev ──►  main               ──►  duckdb (CRAN)
-                     v1.5-variegata-dev-base                         duckdb.1.5.dev (r-universe)
+                                                                     duckdb.1.5.dev (r-universe)
 v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ──►  duckdb.1.4 (r-universe)
-                     v1.4-andium-dev-base    v1.4-andium-lts         duckdb.1.4.dev (r-universe)
+                                             v1.4-andium-lts         duckdb.1.4.dev (r-universe)
 
    │              ^        ^       │                ^
    │  vendor      │        │       │ during release │
@@ -166,60 +166,35 @@ and the engine is vendored from `duckdb/duckdb` into the fork.
 
 ## Branch Overview
 
-Each supported DuckDB minor version has a **series of four branches** organised into two repos.
-The table below shows the complete set at the time of writing.
-The `dev`/`dev-base` pair is the legacy vendoring layout;
-as each series is reseeded into the series loop
-(see [`operations/vendoring/`](/handbook/operations/vendoring/README.md) below),
-that pair gives way to the loop's four refs —
-`<S>-build`, `<S>-dev`, `<S>-green`, `<S>-build-base`.
+Each supported DuckDB minor version has a series of branches organised into two repos.
+The branches that publish something are below, and which package each publishes is
+[`branches/flavors/`](/handbook/branches/flavors/README.md)'s live table.
+Three more refs sit beside every `<S>-dev` in the fork —
+`<S>-build`, `<S>-green` and `<S>-build-base`, the series loop's working refs,
+each with one meaning and one allowed motion
+([`branches/model/`](/handbook/branches/model/README.md)) —
+and the root [`README.md`](/README.md)'s badges count the gaps between them.
+The `dev`/`dev-base` pair the four replaced is retired,
+its refs archived in `krlmlr/duckdb-r-old`.
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
 | `main`                    | `duckdb/duckdb-r` | `duckdb`         | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
-| `main-dev`                | `krlmlr/duckdb-r` | `duckdb`         | Vendored dev (upstream `main`); published as `duckdb.dev`  |
-| `main-dev-base`           | `krlmlr/duckdb-r` | `duckdb`         | Stable base for `main-dev`; marks the last reviewed point  |
+| `main-dev`                | `krlmlr/duckdb-r` | `duckdb.dev`     | Vendored dev on upstream `main`; the preview line          |
 | `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for current release                        |
 | `v1.5-variegata-lts`      |                   |                  | Does not exist, v1.5 is not an LTS                         |
 | `v1.5-variegata-dev`      | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Bleeding edge on v1.5 upstream                             |
-| `v1.5-variegata-dev-base` | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Stable base for `v1.5-variegata-dev`                       |
 | `v1.4-andium`             | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for LTS release                            |
 | `v1.4-andium-lts`         | `duckdb/duckdb-r` | `duckdb.1.4`     | `v1.4-andium` + one rename commit; published to r-universe |
 | `v1.4-andium-dev`         | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Bleeding edge on v1.4 upstream                             |
-| `v1.4-andium-dev-base`    | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Stable base for `v1.4-andium-dev`                          |
 
 ### Branch series structure
 
-Within each minor version, the four branches form a linear stack, illustrated here for v1.4:
-
-```
-duckdb/duckdb-r                         krlmlr/duckdb-r
-───────────────                         ───────────────
-
-v1.4-andium  ────────────────────────────────────►
- │  Package: duckdb                              │
- │  Baseline: glue code + vendored C++           │
- │                                               ▼
- │                                      v1.4-andium-dev-base
- │                                      Package: duckdb.1.4.dev
- │                                      v1.4-andium + rename + version suffix
- │                                               │
- │                                               │  vendor commits land here first
- │                                               ▼
- ▼                                      v1.4-andium-dev          ← bleeding edge
-v1.4-andium-lts                         Package: duckdb.1.4.dev
- Package: duckdb.1.4                    Always a descendant of dev-base
- v1.4-andium + one rename commit
- Published to r-universe
-```
-
-The pending changes between `dev-base` and `dev` can be inspected at any time:
-
-```
-https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-dev-base...v1.4-andium-dev
-```
-
-The same structure applies to v1.5 and to `main`/`main-dev`/`main-dev-base`.
+Within a series the refs form one chain in the fork, flavored from its first commit:
+the buffer `<S>-build` is vendored ahead, `<S>-dev` consumes it and is what CI judges,
+`<S>-green` trails as the verified frontier, and `<S>-build-base` marks green's place in the buffer.
+What each may do, and what would be a violation, is
+[`branches/model/`](/handbook/branches/model/README.md)'s.
 The `-lts`-suffixed branch only exists when the minor version is designated an LTS release.
 
 Stable branches (`duckdb/duckdb-r`) track released R package versions and are the source for CRAN
@@ -268,8 +243,8 @@ the fork's `main` is a mirror and moves on its own
 ## Series Invariants
 
 A **series** is one DuckDB minor line `L` together with its branches: `stable`
-(published; `main` for the current line), `lts` (LTS lines only), `dev`, and
-`dev-base`. The following invariants hold across all branches of a series. Each
+(published; `main` for the current line), `lts` (LTS lines only), and the loop's
+working refs. The following invariants hold across all branches of a series. Each
 is phrased to be **checkable** — most can be enforced by a dev-branch health
 workflow. The numbers file them here and are not a way to cite one elsewhere:
 the release FSM in
@@ -291,18 +266,11 @@ other.
   `src/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
   `test_check()` names in `tests/`). Nothing under `src/duckdb/`, no glue logic
   in `src/*.cpp`, no `R/` logic.
-- **S2 — Baseline purity (`dev-base`).** `dev-base` is byte-identical to the
-  *released* `stable` tree: `Package: duckdb`, bare three-component version, **no
-  flavor rename**. The `flavor.sh` rename and the version scaffolding live entirely
-  *above* it, in `dev-base..dev`. (Confirmed: `v1.5-variegata-dev-base` reads
-  `duckdb 1.5.4`, `v1.4-andium-dev-base` reads `duckdb 1.4.5`.)
-  This invariant describes the legacy `dev-base` layout;
-  a series-loop series has no `dev-base` —
-  its seed is flavored from day one,
-  per the bootstrap rule in `.claude/skills/series-loop/SKILL.md`.
-- **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
-  fast-forwards; `dev..dev-base` is always empty.
-- **S4 — `dev` contents.** Every commit in `dev-base..dev` is either a `vendor:`
+- **S2, S3 — retired.** Both described the unflavored `dev-base` baseline and how
+  `dev` sat above it. No series carries one: a series-loop seed is flavored from day
+  one, per the bootstrap rule in `.claude/skills/series-loop/SKILL.md`, and the
+  `dev-base` refs are archived in `krlmlr/duckdb-r-old`.
+- **S4 — `dev` contents.** Every commit above the seed is either a `vendor:`
   commit or a forward-port equivalent to a commit on `main` (`git cherry main
   dev` shows no unmatched non-vendor `+`). **Glue is never *born* on a `dev`
   branch.** *Exception:* on the preview line (tracking upstream `main`),
@@ -315,7 +283,7 @@ other.
 History is **linear going forward** — the cost of extra rebases and CI runs is
 accepted in exchange for a bisectable, merge-free active history.
 
-- **L — No new merge commits.** The active region (`dev-base..dev`) and every
+- **L — No new merge commits.** The active region above the seed and every
   release transition are linear: forward-ports are `cherry-pick`s, releases are
   fast-forwards or rebases, and PRs never create a merge commit (use "Rebase and
   merge", or a fast-forward push). Deep history below the release baselines still
@@ -325,16 +293,12 @@ accepted in exchange for a bisectable, merge-free active history.
   merge in its 21-commit window that should be rebased out, and the 1.5.4 release
   landed on `main` via a merge commit, which this policy replaces with FF/rebase.)*
 - **A1 — Dev descends from its release point.** Within a patch series,
-  `release-content ⊑ dev-base ⊑ dev` as linear ancestors, where `release-content`
-  is the released tree (which `dev-base` equals, per **S2**) — this may sit a
+  `release-content ⊑ dev` as linear ancestors, where `release-content`
+  is the released tree — this may sit a
   couple of commits *below* `stable`'s tip when that tip carries release mechanics
-  (the CRAN merge + post-release bump). `dev-base` advances only by fast-forward;
-  `dev` grows by append and is rewritten (force-push) only to re-anchor onto a new
-  release point or to drop a non-green commit. The `flavor.sh` rename is the first
-  group of commits in `dev-base..dev`. *(Confirmed: `dev-base ⊑ dev` everywhere
-  (pending 402 / 21 / 3, nothing behind); `v1.4-andium`'s release ⊑ `dev`. For
-  1.5, `dev-base` is anchored at the release content `main~2`, two commits below
-  `main`'s current tip.)*
+  (the CRAN merge + post-release bump). `dev` grows by append and is rewritten
+  (force-push) only to re-anchor onto a new release point or to drop a non-green
+  commit. The `flavor.sh` rename is the first group of commits above the seed.
 - **A2 — Flip ancestry (preview line).** For the next-major flip to be an atomic
   fast-forward, `main ⊑ main-dev` must hold. This is **not** maintained
   continuously: `main` (current stable) and `main-dev` (next major) vendor
@@ -346,7 +310,7 @@ accepted in exchange for a bisectable, merge-free active history.
   [`operations/releases/process/`](/handbook/operations/releases/process/README.md)'s.
 - **A3 — Dev SHAs are disposable.** Because linearity is maintained by rebasing,
   `-dev` SHAs are not durable; only tags (releases) and the fast-forward-only
-  `dev-base` marker are stable references. This is acceptable — `-dev` exists
+  `-green` frontier are stable references. This is acceptable — `-dev` exists
   solely for CI and r-universe.
 
 #### Cost of maintaining linear ancestry
@@ -354,7 +318,6 @@ accepted in exchange for a bisectable, merge-free active history.
 | Operation | When | Cost | Mechanism |
 |-----------|------|------|-----------|
 | `dev` append (vendor / forward-port) | daily / per glue change | O(1) | append; cherry-pick |
-| `dev-base` advance | per reviewed release | O(1) ref update | fast-forward |
 | Patch re-baseline | per patch release | O(pending) replayed × per-commit CI (small: 3–21 today) | rebase; merge driver auto-resolves the version |
 | Forward-port across the chain | per glue change | O(diff) × active lines | cherry-pick; merge driver handles `DESCRIPTION` |
 | **Major-flip linearization** | per major release | O(hundreds) — 402 pending on `main-dev` today | one-time rewind + replay (deferred, not continuous) |
@@ -368,10 +331,8 @@ release.
 
 - **F1 — Name coherence.** Within a branch, `DESCRIPTION:Package`,
   `DUCKDB_PACKAGE_NAME`, `@useDynLib`, the `duckdb[._]L[._]types.hpp` filename,
-  and the testthat names all agree and match the branch role: `stable` and
-  `dev-base` → `duckdb` (per **S2**, `dev-base` is the un-renamed release);
-  `lts` → `duckdb.L`; `dev` → `duckdb.L.dev`. The rename is exactly what
-  distinguishes `dev` from `dev-base`.
+  and the testthat names all agree and match the branch role: `stable` →
+  `duckdb`; `lts` → `duckdb.L`; `dev` → `duckdb.L.dev`.
 - **F2 — Mechanical rename.** The rename is produced solely by `scripts/flavor.sh`;
   its non-name structure is identical across all series, differing only in the
   version token.
@@ -383,7 +344,7 @@ release.
   than any current release (`main-dev` is `1.5.99.…`) until the flip sets the
   real number (e.g. `2.0.0`).
 - **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
-  `dev`/`dev-base` are at or ahead of `Z`.
+  `dev` is at or ahead of `Z`.
 - **V3 — Counters.** The **4th** component free-runs as the R-client dev counter
   *only* on the glue source of truth (`main`: `…9003`, `…9004`); on `-dev`
   branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
@@ -393,7 +354,7 @@ release.
   elsewhere it is absent until the first vendor commit mints `.1` —
   e.g. `v1.4-andium-dev` at `1.4.5.9000` has no vendor commits yet.
   Regular LTS flavors never carry a fifth component.
-  Componentwise within the prefix, `dev ≥ dev-base ≥ stable`.
+  Componentwise within the prefix, `dev ≥ stable`.
 - **V4 — Release shape.** A released `stable`/`lts` version is the bare
   three-component prefix (no 4th/5th component).
 
@@ -411,13 +372,12 @@ release.
 
 - **C1 — Every `dev` commit is green** (`each.yaml`), so `dev` is bisectable
   end to end.
-- **C2 — `stable`, `lts`, and `dev-base` tips are green** (former green `dev`
-  tips or freshly checked re-baselines).
+- **C2 — `stable` and `lts` tips are green** (former green `dev` tips).
 
 ### Prerelease (during STABILIZE)
 
 - **P1 — Release branches frozen.** Pre-release mutates only `main` (fold-back
-  fixes) and `dev` (forward-ports + vendor); `stable`, `lts`, and `dev-base`
+  fixes) and `dev` (forward-ports + vendor); `stable` and `lts`
   stay at the previous release until CUT. A half-finished pre-release is
   abortable with zero rollback on the release branches.
 - **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an ancestor
