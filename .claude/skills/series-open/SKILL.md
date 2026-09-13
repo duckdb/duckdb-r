@@ -221,12 +221,28 @@ The replay is the forward routine's, run on the new seed, and the range is what 
    so `-dev`'s copy of a commit carries what CI taught and `-build`'s does not.
 4. **Walk forward from there** with `vendor-one.sh`, as step 5, over what `<U>` has of its own.
 
-**A derived opening's four refs are not created equal.**
-Step 3's day-one rule is for a line with nothing to inherit, and this one inherits two strands,
-so each ref is written where its own strand ends:
-`<S>-build` and `<S>-dev` at their re-rooted tips,
-`<S>-build-base` at `<S>-build`'s, the buffer being drained at creation,
-and `<S>-green` at `<S>-dev`'s, where the fork-point commit sits below `<P>-green`.
+**A derived opening inherits commits. It does not inherit the green.**
+`<S>-build` and `<S>-dev` are written at their re-rooted tips, because content is what a replay moves.
+**`<S>-green` and `<S>-build-base` start at the seed, on every opening, without exception.**
+
+A green is not a property of a commit, it is a record that *this series'* CI ran on it and passed
+([`branches/model/`](/handbook/branches/model/README.md)).
+The parent earned its green under the parent's flavor:
+a different `Package:`, a different `library()` call in `tests/testthat.R`,
+a different shared object and every `.Call()` entry point renamed.
+Nothing built the commits under `<F>`, so nothing may claim they are green under `<F>`.
+That the rename surface measures empty says the replay is unlikely to have broken them.
+Unlikely is not evidence, and `-green` is the ref that means evidence.
+
+The temptation is real and worth naming, because the saving looks large:
+green at the re-rooted tip makes `<S>-green..<S>-dev` empty,
+the per-commit planner considers nothing
+([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)),
+and a 1400-commit opening costs one 23-second run.
+What that buys is a series whose green ref has never been earned,
+and whose first genuine verdict arrives whenever someone happens to walk it forward.
+Opening a line costs its CI. Pay it.
+
 There is still no `-fwd`:
 a forward counterpart protects a green consumers already read, and a line opened today has none.
 `series-forward-build.sh` is borrowed for the replay

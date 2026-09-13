@@ -86,11 +86,13 @@ Two things the new series does not inherit, and both are work:
   stop the run to be placed by hand.
   The inheritance that matters is in the vendor commits, which carry stage 5's folds —
   a small share of them, on the order of the 10-in-802 the `main-fwd` run needed.
-  `6cfcf3665` is an ancestor of `main-green`,
-  so every commit the new series inherits is one the preview line has already proven,
-  and `v2.0-cyanoptera-green` can be written at the re-rooted `-dev` tip
-  rather than at the seed.
-  The series opens green, with a buffer drained against it.
+  `6cfcf3665` is an ancestor of `main-green`, so the preview line has built this content --
+  under flavor `dev`, which is not the flavor this series publishes.
+  So `v2.0-cyanoptera-green` starts at the **seed**, like every other opening,
+  and the whole buffer goes through CI once as `2.0.dev`.
+  What the inheritance saves is the repair, not the verification:
+  the commits arrive with the glue and the test-side fixes their history taught,
+  so CI should confirm them rather than stop on them.
 * **The rename surface, which is measured and empty.** The picks were written under `dev` and land under `2.0.dev`,
   so any that touched a file [`scripts/flavor.patch`](/scripts/flavor.patch) rewrites would conflict on the name.
   None does: across the 1409 commits of the replay range, the number touching any file that patch rewrites,
