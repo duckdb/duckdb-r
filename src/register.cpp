@@ -62,7 +62,7 @@ using namespace duckdb;
 	signal_handler.HandleInterrupt();
 
 	if (res->HasError()) {
-		rapi_error_with_context("rapi_unregister_df", res->GetError());
+		rapi_error_with_context("rapi_unregister_df", res->GetErrorObject());
 	}
 }
 
