@@ -105,8 +105,13 @@ test_that("a progress callback outlives a collection between the reads of a stre
   )
   # Only a display the engine still calls can show that the callback survived,
   # and an engine that reports no progress while a streaming result is read
-  # never calls it. Ask this one, before anything is collected.
+  # never calls it. Ask this one, before anything is collected, on the second
+  # read: the first starts the query and reports even where no later read does.
   rows <- 0
+  batch <- stream$get_next()
+  if (!is.null(batch)) {
+    rows <- rows + batch$length
+  }
   calls <- 0L
   batch <- stream$get_next()
   reports_while_streaming <- calls > 0L
@@ -127,7 +132,7 @@ test_that("a progress callback outlives a collection between the reads of a stre
   expect_equal(rows, 500000)
   skip_if_not(
     reports_while_streaming,
-    "the engine reports no progress while a streaming result is read"
+    "the engine reports no progress after a stream's first read"
   )
   expect_gt(calls, 0L)
 })
