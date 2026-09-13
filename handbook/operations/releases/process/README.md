@@ -296,11 +296,11 @@ coordinate at the **cluster** level:
   its STABILIZE *is* the upstream release-candidate window.
   Its CUT is the atomic fast-forward flip of `main`, which needs `main` to be
   an ancestor of `main-dev`: not maintained continuously, and established once
-  just before the flip by rewinding to the bifurcation and replaying.
+  just before the flip by grafting the bifurcation point's tree onto `main` and
+  replaying.
   That is what a line with no series of its own requires.
   Where the release branch is opened as a series instead, its release is the
-  ordinary linear move onto `main` and there is no flip, which is what the next
-  major is planned to do
+  ordinary linear move onto `main` and there is no flip — which is what v2.0 did
   ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
   Either way the durations differ from an ordinary line's and the machine does
   not, and the one other addition is that vendor-coupled glue may be *born* on

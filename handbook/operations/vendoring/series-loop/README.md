@@ -169,12 +169,10 @@ rather than overdue in one.
 What the report states is what branch names support, and no more: no release
 can be cut from a line nothing serves, and the catch-up walk that opening one
 costs grows with every upstream commit on it.
-How much of that line another series has already vendored is a different
-question, which upstream's back-merges into `main` make a real one and which
-no reading of branch names answers.
-Where the answer is "most of it", the walk is replaced by a replay out of that
-series' buffer, and the opening becomes a fission of it
+That catch-up is usually already done, by whichever series tracks the line the
+release branch was cut from: below the fork point the two are one history.
+So an opening cuts that series' strands there rather than walking, and the walk
+is only what the release branch has of its own
 ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
-The next such opening, the v2.0 line the preview line has been vendoring for a
-year, is planned in
-[`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md).
+Opening `v2.0-cyanoptera` this way left 193 commits to walk instead of 3612
+([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).

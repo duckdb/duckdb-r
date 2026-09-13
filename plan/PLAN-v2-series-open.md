@@ -1,194 +1,66 @@
 # Opening the v2.0 series
 
-*A plan for the next series opening, not a description of the system.
-[`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md) owns the routine,
-[`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md) the rebuild it leans on,
+*Executed 2026-09-13. This is the record and what is left, not the routine —
+[`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md) owns that,
+[`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md) the forward,
 and [`operations/releases/process/`](/handbook/operations/releases/process/README.md) the release around it.
 Where a skill and this document disagree, the skill is right.*
 
-Upstream has cut `v2.0-cyanoptera`, so the line exists and nothing here serves it.
-Every series opened so far was opened for a line nothing here tracked, and this one is the opposite case:
-the preview line has been vendoring upstream `main` since it was opened,
-so the commits `cyanoptera` inherits below the fork point are already in `main-build`,
-each with the glue its gate demanded.
-The opening is a fission, and it has two halves that are worth doing together:
-`v2.0-cyanoptera` gets those commits, and `main-build` stops carrying them.
-The placeholders are `series-open/SKILL.md`'s.
+## What was done
 
-## What the first run established
+Upstream cut `v2.0-cyanoptera` off `main` at
+`duckdb/duckdb@a00803f7687ca3d7188d417216e288c5c4b22b58`, 2026-09-02 —
+the newest commit on the first-parent chain of both.
+`git merge-base` gives `7074015a34`, a week newer, so the recipe is load-bearing.
 
-The opening was driven as far as the seed on 2026-09-13, and the numbers it turned up are recorded here
-rather than left to be re-derived.
+Both halves were cuts at that point, not replays.
 
-* **The fork point is `a00803f7687ca3d7188d417216e288c5c4b22b58`**, 2026-09-02.
-  `git merge-base` gives `7074015a`, a week newer, so the first-parent recipe is load-bearing exactly as
-  [`scripts/VENDORING.md`](/scripts/VENDORING.md) warns.
-* **`main-build` vendors that commit exactly**, at `01aa52689`, so the parent buffer's fork-point commit
-  is the fork point itself and step 1 of the derived opening needs no search.
-* **The replay range is `30ae31408..01aa52689`**: 1406 vendor commits and 3 non-vendor ones,
-  all three `fix(patch)` entries the buffer took for itself.
-* **`cyanoptera` has 193 first-parent commits of its own** above the fork point, which is the walk.
-* **The seed builds.** `duckdb.2.0.dev` at `1.99.99.9000.0`, a cold compile of fourteen minutes on four cores.
+* **`v2.0-cyanoptera`** took `main-build` and `main-dev` at their fork-point commits
+  (`01aa52689f`, `6cfcf36653`), with all four refs there.
+  The series then walked forward on its own: 25 commits on `-build`, 72 on `-dev`,
+  within the hour.
+* **`main-fwd-*`** took one graft commit each — the fork-point commit's tree
+  verbatim, parented on `main` — then everything the branch had taken since,
+  replayed in order. 6606 commits became 14, 6731 became 50.
+  Both heads came out byte-identical to the live branches outside `DESCRIPTION`,
+  whose `Version:` takes `2.0.99.9000`, the prefix of the 2.1 line `main` now previews.
 
-## The rule everything here turns on
+## What the run established
 
-A replay may start above a buffer's beginning
-**only if the new base already vendors the upstream commit the range starts at.**
-A vendor commit's diff is what vendoring changed, not the tree it produced,
-so a range that starts higher lands its first commit on whatever the base happens to vendor.
-Where that is an older upstream tree, the series opens with the backwards-and-skip-ahead step
-[`scripts/VENDORING.md`](/scripts/VENDORING.md) records `main-dev` having taken once,
-and a bisect across that commit answers nothing.
-Nothing checks this: the pick applies cleanly either way.
+* **A replay onto a fresh seed cannot open a series.** `main` vendors a *released*
+  engine — 1.5.5, `duckdb/duckdb@d8cdaa33fda`, on `v1.5-variegata` — which is on
+  neither branch's first-parent chain, so no range start satisfies the range rule.
+  The first pick laid a December-2024 delta over that tree and conflicted in some
+  four hundred files.
+* **A graft that keeps only the vendored surface does not build.** Taking
+  `src/duckdb/` and the generated bookkeeping from the fork point while keeping the
+  seed's R side pairs a 1.5.5-era glue with a 2.0-dev engine: 108 compile errors,
+  `rfuns.cpp` alone losing `BinaryExecutor::ExecuteWithNulls` and four more.
+  The whole tree is the graft; anything less is a merge nobody reviewed.
+* **`in_base()` needed an ancestry test.** A commit the new base descends from is in
+  the new base, whatever later commits did to the lines it touched; neither content
+  test can see that. The v2.0 range stranded 906 commits, 903 of them plain ancestors.
+* **A vendor-only replay drops ports a graft's base lacks.** Four `main` commits that
+  landed after the fork point (#2649, #2687, #2698, #2714) strand against a graft,
+  correctly — which is why a graft replays every subject, not only `vendor:`.
 
-The rule is why each half below replays or re-roots from a commit the base actually vendors,
-and it is what the residual question at the end is about.
+## What is left
 
-**Measured, because it was tried.** Forwarding `main` by picking the fork-point commit
-and the thirteen above it onto a fresh seed runs clean: twelve rounds, no conflict outside
-`src/duckdb/`, the counter advancing commit by commit.
-The result has `R/version.R` reading `2.1.0-dev84198` over an engine still 1.5.5 in 3274 files,
-because `main` does not vendor `f3fa738d811`, the commit the range starts from.
-Nothing in the run says so.
-That is why `main`'s rewind commit is taken with `scripts/vendor.sh` and not picked,
-and why the patch-stack rewind it costs is not avoidable by rearranging the replay.
-
-## The v2.0 half: replay onto its own seed
-
-The derived opening, `series-open/SKILL.md`'s *When another series already vendors the line*:
-seed from `main` with flavor `2.0.dev` and the preview prefix `1.99.99.9000`
-([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
-re-root both of `main`'s strands onto it up to the commit that vendors the fork point,
-then walk `cyanoptera` forward for what it has of its own,
-and write the four refs at the end.
-The replay is `scripts/series-forward-build.sh <fork-point commit> <main's seed>`,
-and it satisfies the rule by starting where the chain starts.
-
-**Replaying rather than branching is what pays the flavor crossing once.**
-Pointing a new ref into `main-build` would share the commits and cost nothing up front,
-but the buffer would then carry flavor `dev` under a `2.0.dev` series,
-and every commit stage 5 mints would cross flavors for the life of the line.
-A replay crosses once, at creation, where a conflict is a conflict a human is already watching for.
-What it costs is that the two buffers share content and not objects,
-which is the deliberate answer to whether ancestry is wanted here: it is not.
-
-Two things the new series does not inherit, and both are work:
-
-* **What CI taught the preview line, which is inherited after all.**
-  `-build` carries what compiles and the test-side fixes live on `main-dev`,
-  so a buffer-only fission would return each of them as a red in the new series' CI, once.
-  This plan asked for a tooling change to avoid that -- teaching stage 5 to match a derived series
-  against the one it was derived from -- and none is needed:
-  `main-dev` splits at the fork point exactly as `main-build` does, and is re-rooted the same way.
-  Its fork-point commit is `6cfcf3665`, with 1498 commits below it, 1406 vendor and 92 not.
-  The 92 are almost all ports: **88 of them are on current `main` by subject**, so the regenerated
-  seed carries them and the replay drops them correctly, and the 4 that are not
-  stop the run to be placed by hand.
-  The inheritance that matters is in the vendor commits, which carry stage 5's folds —
-  a small share of them, on the order of the 10-in-802 the `main-fwd` run needed.
-  `6cfcf3665` is an ancestor of `main-green`, so the preview line has built this content --
-  under flavor `dev`, which is not the flavor this series publishes.
-  So `v2.0-cyanoptera-green` starts at the **seed**, like every other opening,
-  and the whole buffer goes through CI once as `2.0.dev`.
-  What the inheritance saves is the repair, not the verification:
-  the commits arrive with the glue and the test-side fixes their history taught,
-  so CI should confirm them rather than stop on them.
-* **The rename surface, which is measured and empty.** The picks were written under `dev` and land under `2.0.dev`,
-  so any that touched a file [`scripts/flavor.patch`](/scripts/flavor.patch) rewrites would conflict on the name.
-  None does: across the 1409 commits of the replay range, the number touching any file that patch rewrites,
-  other than `DESCRIPTION`, is zero, and `DESCRIPTION` is the `ours-version` driver's on every commit anyway.
-  So the flavor crossing costs nothing here, and the trade it was weighed against was the expensive reading.
-  The measurement is a file-level count and stays true only while the buffer does not move,
-  which the drained state below is what fixes.
-
-## The main half: the forward `main` needs anyway
-
-`main-build` walks upstream `main` from the series' own beginning,
-a stretch of history that now belongs to `cyanoptera`,
-and its seed sits at an older `main` than today's.
-Both are seed-and-lineage work, and so is the preview prefix,
-so `main` takes one forward counterpart and the three land together
-([`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
-`main-fwd-build` is the regenerated seed carrying the preview prefix,
-then one vendor commit at the fork point, which is `series-open` step 4's,
-taken with `scripts/vendor.sh` and subject to that step's glue-rewind check,
-then a replay of the buffer's commits above the fork point.
-That is the re-rooted shape reached without force-pushing a live buffer:
-what installs it is the ordinary cutover, which a human runs and the loop only reports.
-
-**Re-rooting is what makes the forward affordable**, and is the reason to do both halves as one change.
-A plain forward replays the whole buffer, and the loop then puts every replayed commit through CI.
-Re-rooted, `main-fwd-dev` has the mainline commits to verify and nothing below the fork point:
-the commits the fission moves to `cyanoptera` are exactly the ones `main` no longer re-verifies.
-
-**The refs are written last, and not equal.**
-A derived opening inherits two strands, so the four refs land where each strand ends,
-and none of them is pushed until all four are built:
-the loop discovers series from refs, and a ref that lands mid-build
-invites a firing into a half-built series.
-Up to that push the whole thing is local branches and a deletion undoes it.
-
-**v2.0 takes no counterpart of its own.**
-A forward exists to protect a green that consumers already read, and a line opened today has none.
-`series-open` step 3 creates the four baseline refs equal and the series starts there;
-`series-forward-build.sh` is borrowed for the replay
-and says nothing about which refs the opening writes.
-
-**Timing.** `main-build` and `main-build-base` both read `1.5.5.9010.1418`, so the buffer is drained,
-which fixes the replay range rather than leaving it moving under the rebuild.
-
-## What is left at the flip
-
-When 2.0 lands on `main`, the preview line is rebuilt on a base carrying the `cyanoptera` release tree,
-while the re-rooted buffer's commits are diffs against the fork-point tree.
-The first replayed commit therefore still walks the engine backwards, by the release-branch delta.
-The re-root shrinks that from the whole chain to that delta, and does not remove it.
-
-What removes it is upstream's **back-merge of `cyanoptera` into `main`**.
-After it, `main-build` has a vendor commit whose tree is not behind the release,
-and a forward may range-limit above that commit and start on a base that matches.
-Upstream does back-merge, which is why the fork point needs the first-parent recipe at all.
-**It has already landed, twice**: `56b103b7f7` on 2026-09-08 and `ca5ce12b7d` on 2026-09-10,
-and `main-build` has vendored both.
-So the waiting this section described is over before it started:
-the main half may range-limit its replay above the commit that vendors `ca5ce12b7d`
-and start on a base that matches, rather than replaying the buffer whole
-and accepting a backwards step at its root.
-What remains is to confirm that commit is the newest such back-merge when the forward is actually run.
-
-## r-universe has to be told
-
-`duckdb.2.0.dev` is a package that does not exist yet,
-and nothing in this repository creates it:
-the registration is the universe's own, outside this tree
-([`branches/flavors/`](/handbook/branches/flavors/README.md)).
-Today `duckdb.r-universe.dev` carries `duckdb`, `duckdb.1.4`
-and the three `.dev` flavors, and `krlmlr.r-universe.dev` carries the three `.dev` flavors,
-so the new series needs an entry and `main`'s forward needs none.
-`scripts/r-universe-check.sh` is what says the registration took,
-listing exactly the packages whose upstream is this repository.
-Until it appears there, a series is covered only by the per-commit gate,
-which is Linux on one R version.
-
-## Sequencing
-
-The derived opening removes most of the reason to hurry:
-what waiting costs is now the `cyanoptera`-only commits to walk, not the whole shared history.
-Two things do want ordering.
-`v1.5-variegata` had a live `-fwd` counterpart with a cutover pending;
-that cutover has since run, and no `-fwd` ref remains in the fork,
-so re-rooting `main-build` no longer puts two lineages in flight at once.
-And the v1.5.6 release runs from `main` on the v1.5 line, unchanged,
-needing to know nothing about either half of this.
-
-## What this plan owes before it can be executed
-
-* Nothing, of the two measurements. The rename surface's conflict count is zero,
-  and the carry scope stopped being a question once `-dev` is re-rooted beside `-build`:
-  there is no carry, because the commits that would have been carried are inherited.
-* A reading of `scripts/series-check.sh` and `scripts/series-converge.sh` against a derived series.
-  Both were written for a series with one lineage, and a derived one has a parent they do not know about.
-* The one open decision: whether the buffer's flavor is worth removing altogether.
-  Nothing publishes `-build` and the compile gate does not care about the package name,
-  so an unflavored buffer would let one chain serve every series that shares upstream history,
-  and it is a larger change than either half above.
+* **v2.0's first forward.** The cut took `main`'s tree entire, so the series answers
+  to `duckdb.dev` and stands on the fork point's R side. The forward gives it
+  `2.0.dev` and current `main`'s R side, and only then is the line its own.
+* **`duckdb.2.0.dev` in `duckdb.r-universe.dev`.** A package nothing here creates;
+  the entry is a pull request against that repository. It cannot build until the
+  forward above lands, but the queue is someone else's, so the request goes first.
+  [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it took.
+* **The README `Flavors` row and `.github/pull.yml`.** v2.0 still releases from
+  `main`, which is ruled already, so
+  [`scripts/pull-config.sh`](/scripts/pull-config.sh) should print nothing —
+  run it rather than assume.
+* **`scripts/series-check.sh` and `scripts/series-converge.sh` against a cut series.**
+  Both were written for a series with one lineage; a cut one shares objects with its
+  parent, which they do not know about.
+* **The open question: whether the buffer needs a flavor at all.** Nothing publishes
+  `-build` and the compile gate does not care about the package name, so an
+  unflavored buffer would let one chain serve every series sharing upstream history.
+  Larger than anything above.

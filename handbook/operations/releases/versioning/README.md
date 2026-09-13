@@ -121,13 +121,15 @@ The cost is the fourth component's other reading:
 on a preview line the version names the line previewed rather than the one seeded from,
 and which release the seed came from is read from the seed commit.
 
-**The prefix belongs to the seed, and so to all four refs.**
-It is stamped beside the fifth component, before `<S>-green`, `<S>-build-base`, `<S>-build` and `<S>-dev`
-are created equal ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)),
-because a prefix on `-dev` alone is the split the gate above declines to resolve.
-A forward is where a preview line would lose it:
-[`series-forward`](/.claude/skills/series-forward/SKILL.md) regenerates the seed from current `main`,
-which knows nothing of what the series previews,
-and the replay cannot put it back, since the gate keeps our side of `DESCRIPTION` verbatim
-across differing prefixes and every replayed commit inherits whatever the new seed was stamped with.
-Restamping is part of regenerating the seed, not something the replay carries.
+**The prefix belongs to the base of a line, and so to all four refs.**
+A prefix on `-dev` alone is the split the gate above declines to resolve,
+so it is stamped once, beside the fifth component, and never by the replay:
+the gate keeps our side of `DESCRIPTION` verbatim across differing prefixes,
+so every replayed commit inherits whatever the base was stamped with.
+An opening stamps nothing, because it cuts the parent's strands rather than
+building a base ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md));
+the new line carries the parent's prefix until its first forward.
+That forward is where both lines get theirs —
+[`series-forward`](/.claude/skills/series-forward/SKILL.md) regenerates a seed
+from current `main`, or grafts the fork point's tree, and either way the prefix
+is the stamp that makes the base the new line's rather than the old one's.

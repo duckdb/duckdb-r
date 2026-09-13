@@ -67,11 +67,12 @@ git rev-list --first-parent origin/v2.0-codename > /tmp/rel-fp
 awk 'NR==FNR{a[$0];next} $0 in a{print; exit}' /tmp/main-fp /tmp/rel-fp
 ```
 
-That first commit walks the engine backwards by construction — the seed comes from
-`main`, which carries the released line — and that is the point: one backwards step,
-at the root, where a bisect can see it, instead of the same step mid-chain.
-Taking it is [`series-open`](/.claude/skills/series-open/SKILL.md)'s, which also owns
-why it is generated rather than replayed.
+A line opened at that commit inherits the parent's walk unbroken, because it is
+cut from the parent rather than replayed onto a base of its own
+([`series-open`](/.claude/skills/series-open/SKILL.md)).
+A replay is what would break it: a vendor commit carries a delta, not a tree, so
+one may start above a chain's beginning only where the base already vendors the
+commit the range starts at.
 
 What enforces the green claim is the gate every commit passes
 ([`ci/per-commit/contract/`](/handbook/operations/ci/per-commit/contract/README.md));

@@ -23,22 +23,13 @@ This skill is the release branch's birth certificate.
 ## Steps
 
 1. **Find the fork point — not the merge base.**
-   The fork point is the newest commit
-   on the first-parent chain of *both* upstream branches.
-   `git merge-base` is dragged forward by upstream back-merges
-   and has been observed months off.
-   The rule and the recipe are
+   The newest commit on the first-parent chain of *both* upstream branches.
+   `git merge-base` is dragged forward by back-merges; opening v2.0 measured the
+   two a week apart. The rule and the recipe are
    [`vendoring/model/`](/handbook/operations/vendoring/model/README.md)'s.
-   Compute it in the upstream clone;
-   write it down in the seed commit's message.
 
-2. **Cut both strands at the fork point.**
+2. **Cut both strands there.**
    `<P>` is the parent series, the one whose line `<U>` was cut from.
-   Below the fork point `<P>` and `<U>` are one history,
-   so `<P>` has already vendored every commit `<U>` inherits,
-   each with the glue it needed and the CI that judged it.
-   Take that work; do not re-derive it.
-
    A strand's fork-point commit is its newest commit whose `duckdb/duckdb@<sha>`
    subject names a commit on `<U>`'s first-parent chain:
 
@@ -50,140 +41,74 @@ This skill is the release branch's birth certificate.
      awk 'NR==FNR{c[$0];next} ($2 in c){print $1; exit}' /tmp/chain -
    ```
 
-   The new refs are those two commits. That is the whole of it:
+   All four refs go there — `<S>-build` and `<S>-build-base` at `<P>-build`'s,
+   `<S>-dev` and `<S>-green` at `<P>-dev`'s. There is no `-fwd`: a forward
+   counterpart protects a green consumers already read, and a line opened today
+   has none.
 
-   ```bash
-   git branch <S>-build <P-build's fork-point commit>
-   git branch <S>-dev   <P-dev's fork-point commit>
-   ```
+   Nothing else. No seed, no replay, no flavor. Below the cut `<P>` has vendored
+   every commit `<U>` inherits, with the glue it needed and the CI that judged
+   it; sharing those objects is how that evidence travels rather than being
+   claimed again. A green here is earned because nothing changed.
 
-   **A cut, not a replay.** The two series share objects from here down,
-   and that is the point rather than a cost: the trees are byte-identical to the
-   ones `<P>`'s CI judged, under the flavor it judged them in, so the evidence
-   travels with them honestly.
-   Replaying `<P>`'s vendor commits onto a fresh seed instead is what the older
-   routine did, and opening v2.0 measured what it costs: `main` vendors a
-   *released* engine — 1.5.5, `duckdb/duckdb@d8cdaa33fda`, which sits on
-   `v1.5-variegata` and therefore on neither branch's first-parent chain — so no
-   range start satisfies the rule below, and the first pick laid a
-   December-2024 delta over that tree and conflicted in some four hundred files.
+   **Do not replay onto a fresh seed.** `main` vendors a *released* engine,
+   which sits on no branch's first-parent chain, so no range start satisfies the
+   range rule ([`vendoring/model/`](/handbook/operations/vendoring/model/README.md))
+   and the first pick lays one line's delta over another's tree.
 
-   **The range rule is why, and it survives the simplification.**
-   A vendor commit's diff is what vendoring changed and not the tree it produced,
-   so a replay may start above a chain's beginning only where the base it lands on
-   already vendors the commit the range starts at.
-   Start it higher and the first pick lays a delta from one line over the tree of
-   another — quietly, since the pick applies and the counter advances.
-   A cut starts nowhere: it moves no commit, so it cannot violate the rule.
-
-3. **Write `<S>-green` and `<S>-build-base` at the cut, too.**
-   All four refs meet at the fork point.
-   A green records that CI passed on a commit, and here it did:
-   `<S>-dev`'s tip *is* `<P>-dev`'s commit, same tree, same flavor, same run.
-   This is the one opening shape where green is earned rather than inherited,
-   and it is earned because nothing changed
-   ([`branches/model/`](/handbook/branches/model/README.md)).
-   There is no `-fwd`: a forward counterpart protects a green consumers already
-   read, and a line opened today has none.
-
-   **The flavor is not applied here, and the series is not usable until it is.**
-   `<S>` carries `<P>`'s flavor out of the cut — its `DESCRIPTION` still names
-   `<P>`'s package — because re-flavoring in place means reversing one flavor
-   before applying the next, and `flavor.sh` builds a flavor onto an unflavored
-   tree rather than across two.
-   The first forward does it properly: a seed regenerated from `main`, unflavored,
-   with `flavor.sh <F>` on top (step 8).
-   So an opening is two moves, and until the second one lands the line exists
-   but answers to the wrong name.
-
-4. **Walk forward** along `<U>`
-   with the gated `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
+3. **Walk forward** along `<U>` with the gated
+   `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
    fixing glue breaks in place as the gate stops on them.
+   Push only once all four refs exist: the routine discovers series from refs and
+   serves them in one firing, so a ref landing alone invites a firing into half a
+   series.
 
-   **Nothing is pushed until all four refs are written.**
-   The routine discovers series from refs and serves them in one firing,
-   so a ref that lands mid-cut invites a firing into a half-built series.
-   Up to that push the opening is local branches and a deletion undoes it.
+4. **Add the series to the README's `Flavors` table** — see below.
 
-5. **Add the series to the README's `Flavors` table** — see below.
+5. **Update the fork's mirror configuration — derived, not remembered.**
+   A series' *ahead* badge measures against a mirror in the fork, which stays
+   current only while [`.github/pull.yml`](/.github/pull.yml) carries a rule for
+   it. Which rules the file owes is a function of the table step 4 just moved, so
+   [`scripts/pull-config.sh`](/scripts/pull-config.sh) evaluates that function and
+   prints what is missing (`--check` exits non-zero). Run it after step 4 and put
+   what it prints in the same change. A line still releasing from `main` is
+   measured against `main`, which is ruled already, so most openings add no rule.
 
-6. **Update the fork's mirror configuration — derived, not remembered.**
-   The branch a series' *ahead* badge measures against is not one of the
-   series' refs: it is a mirror in the fork, and it stays current only while
-   [`.github/pull.yml`](/.github/pull.yml) carries a rule for it.
-   Which rules the file owes is a function of the badge table step 5 just
-   moved, so [`scripts/pull-config.sh`](/scripts/pull-config.sh) evaluates that
-   function against the file and prints the block that is missing;
-   `--check` exits non-zero on a disagreement.
-   Run it after step 5, and put what it prints in the same change.
-   A line still releasing from `main` is measured against `main`,
-   which is ruled already,
-   so most openings add no rule at all and the script says so.
+   Two halves the script cannot do. **Push the branch into the fork first** — a
+   rule whose base the fork lacks is skipped silently and forever. **Then carry
+   the merged file to the fork's default branch**, where Pull reads it; `pull.yml`
+   names the URL that triggers a sync, so it takes effect today rather than within
+   six hours ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
-   Two halves of this the script cannot do.
-   **Push the branch into the fork once by hand, first** —
-   a rule whose base the fork lacks is skipped silently and forever,
-   so adding the rule never creates the mirror,
-   and the script says which of the two is missing.
-   **Then carry the merged file to where Pull reads it**,
-   the fork's default branch, itself a mirror of this `main`:
-   until that mirror has the edit, the rule does not exist for the app.
-   `pull.yml` names the URL that validates it and the URL that triggers
-   a sync, which is how that takes effect today rather than within six hours
-   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+   Nothing else lives outside the refs: the loop discovers every series from them
+   and serves them in one firing, and writes the mirror configuration too, from
+   the same detection ([`series-loop/SKILL.md`](series-loop)).
 
-7. The routine discovers every series from its refs
-   and serves them all in one firing;
-   the loop itself needs no configuration for a new series.
-   The fork's mirror configuration is the one thing that lives outside
-   the refs — and the routine writes that too,
-   from the same detection, on the firing that sees the series change
-   ([`series-loop/SKILL.md`](series-loop)).
+6. **Forward once, and only then is the line its own.**
+   An opening is two moves, and this is the second, not a tidying pass. The cut
+   took `<P>`'s tree entire, so the series stands on the fork point's R side under
+   `<P>`'s flavor; the forward changes both, replacing the base and applying
+   `flavor.sh <F>` ([`series-forward/SKILL.md`](series-forward)).
+   Until it lands the package answers to `<P>`'s name, and every R-side fix `main`
+   took after the fork is missing from the glue — read a red in the opening's
+   first commits as that outstanding work, not as a broken opening.
 
-8. **Forward once, and only then is the line its own.**
-   An opening is two moves, and this is the second — not a tidying pass after it.
-   The cut took `<P>`'s tree entire, so the series stands on the fork point's R side
-   under `<P>`'s flavor, and the forward is what changes both at once:
-   a seed regenerated from current `main`, `flavor.sh <F>` on top of it,
-   and `<P>`'s vendor commits above the fork point replayed onto that
-   ([`series-forward/SKILL.md`](series-forward)).
-   That replay obeys the range rule by construction, because the regenerated seed
-   vendors what `main` vendors and the range starts above it.
-   Until it lands, every R-side fix `main` took after the fork is missing from the
-   glue and the package answers to `<P>`'s name;
-   read a red in the opening's first commits as that outstanding work
-   rather than as a broken opening.
-
-9. **Register the new flavor with r-universe.**
-   `<F>` is a package that does not exist yet,
-   and nothing in this repository creates it:
-   the registration is the universe's own, outside this tree
+7. **Register the new flavor with r-universe.**
+   `<F>` is a package nothing in this repository creates: a universe is configured
+   by `<user>/<user>.r-universe.dev`, whose `packages.json` gives each package a
+   `url` and the `branch` to build — `<S>-green` for a series. Adding `<F>` is an
+   entry there, so a pull request against that repository is the request, and where
+   it is not yours to open, its owner is who to reach; a base series belongs in
+   `duckdb.r-universe.dev`, a forward counterpart in `krlmlr.r-universe.dev`
    ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
-   A base series belongs in `duckdb.r-universe.dev`,
-   a forward counterpart in `krlmlr.r-universe.dev`.
-
-   **Ask for it, in one of two places.**
-   A universe is configured by a repository of its own,
-   `<user>/<user>.r-universe.dev`,
-   whose `packages.json` gives each package a `url` and the `branch` to build —
-   for a series that branch is `<S>-green`, which is what r-universe builds
+   Where the universe does not answer,
+   [`r-universe-org/help`](https://github.com/r-universe-org/help) is its issue
+   tracker. Open the request while the refs are being written — the wait is someone
+   else's queue, and it will not build until step 6 has given the series `<F>`
+   anyway. [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it
+   took. Until then the series is covered by the per-commit gate alone, which is
+   Linux on one R version, and stage 3 of the loop has nothing to read back
    ([`series-loop/SKILL.md`](series-loop)).
-   Adding `<F>` is an entry there, so a pull request against that repository is the request,
-   and where it is not yours to open, its owner is who to reach.
-   Where the universe does not answer, or the entry lands and no build appears,
-   [`r-universe-org/help`](https://github.com/r-universe-org/help) is r-universe's own issue tracker.
-   Neither is this repository, and neither is instant:
-   open the request while the refs are being written rather than when the series
-   is finished, because the wait is someone else's queue.
-   It will not build until step 8 has given the series `<F>`, and that is fine —
-   the entry can sit in the queue meanwhile.
-   [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) is what says it took,
-   listing exactly the packages whose upstream is this repository.
-   Until the entry exists, the series is covered by the per-commit gate alone,
-   which is Linux on one R version,
-   and stage 3 of the loop has nothing to read back
-   ([`series-loop/SKILL.md`](series-loop)).
-
 ## Patching the README
 
 The `Flavors` table in `README.md` is the only place
@@ -247,15 +172,17 @@ and `pull-config.sh` reports it as soon as the badge base moves,
 which is step 6 arriving by itself rather than being remembered.
 
 **An opening re-roots the parent, through the forward it already needs.**
-`<P>-build` walks its line from the series' own beginning,
+`<P>` walks its line from the series' own beginning,
 and everything below the fork point now belongs to `<S>`.
-Rather than rewriting the live buffer, put the re-root in `<P>`'s next forward:
-a seed regenerated from current `main`,
-then the buffer's commits above the fork point replayed onto it — the range rule
-satisfied because the seed vendors what `main` vendors and the range starts above that.
-The prefix a preview line owes the line it previews next is stamped in the same seed,
-so one forward carries all three changes and the cutover installs them together.
-The saving is what makes that forward affordable:
-`<P>-fwd-dev` has the line's own commits to verify and nothing below the fork point.
-That, and what is left of the walk-backwards problem when `<S>` releases, are
+Rather than rewriting the live branches, put the re-root in `<P>`'s next forward,
+as a **graft**: one commit carrying the fork-point commit's tree verbatim,
+parented on current `main`, then everything `<P>` has taken since replayed onto it
+(`series-forward/SKILL.md`).
+The graft is a tree the loop has already judged, so the base of the new line is
+sound by construction rather than by a replay that has to be checked — and the
+version prefix the preview line owes the line it previews next is the one thing
+about the fork point that is no longer true of it, so it is the graft's only edit.
+Opening v2.0 re-rooted `main` this way: 6606 commits became 14, 6731 became 50,
+and both heads came out byte-identical to the live branches outside `DESCRIPTION`.
+What is left of the walk-backwards problem when `<S>` releases is
 [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.

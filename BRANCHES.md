@@ -271,8 +271,9 @@ accepted in exchange for a bisectable, merge-free active history.
   continuously: `main` (current stable) and `main-dev` (next major) vendor
   different upstream C++, so forcing ancestry would mean rebasing 400+ commits on
   every `main` patch release for no benefit. Instead it is **established once**,
-  immediately before the flip, by rewinding to the upstream bifurcation point and
-  replaying. Nothing automates that step — there is no runbook and no script —
+  immediately before the flip, by grafting the upstream bifurcation point's tree
+  onto `main` and replaying what the branch has taken since
+  ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)),
   and the flip it prepares is
   [`operations/releases/process/`](/handbook/operations/releases/process/README.md)'s.
 - **A3 — Dev SHAs are disposable.** Because linearity is maintained by rebasing,
@@ -287,7 +288,7 @@ accepted in exchange for a bisectable, merge-free active history.
 | `dev` append (vendor / forward-port) | daily / per glue change | O(1) | append; cherry-pick |
 | Patch re-baseline | per patch release | O(pending) replayed × per-commit CI (small: 3–21 today) | rebase; merge driver auto-resolves the version |
 | Forward-port across the chain | per glue change | O(diff) × active lines | cherry-pick; merge driver handles `DESCRIPTION` |
-| **Major-flip linearization** | per major release | O(hundreds) — 402 pending on `main-dev` today | one-time rewind + replay (deferred, not continuous) |
+| **Major-flip linearization** | per major release | O(commits above the bifurcation) — 49 on `main-dev` at the v2.0 opening | one-time graft + replay (deferred, not continuous) |
 
 The merge driver is what keeps the recurring rebases (patch re-baseline,
 forward-port) cheap; the one genuinely expensive operation — the major-flip
