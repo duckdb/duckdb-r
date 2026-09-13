@@ -44,7 +44,7 @@ the replay then populates `<S>-fwd-build`.
    the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
    so every picked commit inherits whatever the seed was stamped with
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   Stamp it in the fifth-component commit the way `series-open.md` step 2 does,
+   Stamp it in the fifth-component commit the way `series-open/SKILL.md` step 2 does,
    before the four `-fwd` refs are created equal.
 
    **The forward series takes the whole of the new base.**
@@ -110,6 +110,15 @@ the replay then populates `<S>-fwd-build`.
    `scripts/series-forward-build.sh <old-build> <old-base>`
    does exactly this, run on the fresh seed —
    `<old-base>` only delimits the range.
+   A range starting above the old base is legitimate
+   where the new base already vendors the commit the range starts at,
+   and nowhere else:
+   a range that starts higher lands its first commit on whatever the base
+   happens to vendor, walking the engine backwards where that is older.
+   For a line tracking upstream `main`,
+   what establishes such a base is upstream's back-merge of a release branch,
+   and until one lands the whole buffer replays
+   ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
 
    **It refuses to start while the buffer carries a change
    the new base does not have.**
