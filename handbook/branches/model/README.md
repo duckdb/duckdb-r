@@ -3,8 +3,7 @@
 The series and their refs: what a series is, where its branches live,
 what each ref means and how far it may move.
 [`BRANCHES.md`](/BRANCHES.md) keeps what is not yet absorbed:
-the package components, the repository diagrams,
-and the legacy `dev`/`dev-base` layout some series still carry.
+the package components and the repository diagrams.
 
 **A series** is one upstream branch of `duckdb/duckdb` —
 `main`, `v1.5-variegata`, `v1.4-andium` —
@@ -29,6 +28,8 @@ they are seeded from and measured against
 The fork carries only the refs the loop serves;
 what it does not carry stands in `krlmlr/duckdb-r-old`,
 an archive that nothing reads and nothing writes to.
+The `<S>-dev-base` refs of the older `dev`/`dev-base` layout are there:
+every series is a series-loop series now, and none of the four below is that baseline.
 
 **The four refs** of a series `<S>`, all in the fork:
 
