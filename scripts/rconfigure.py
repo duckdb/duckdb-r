@@ -227,7 +227,7 @@ object_list = ' '.join([x.rsplit('.', 1)[0] + '.o' for x in sorted(duckdb_source
 
 
 include_list = ' '.join(['-I' + 'duckdb/' + x for x in include_list])
-include_list += ' -I' + os.path.join('..', 'inst', 'include')
+include_list += ' -Ivendor'
 include_list += ' -Iduckdb'
 include_list += extension_list
 include_list += debug_move_flag

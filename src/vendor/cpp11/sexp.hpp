@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.3.9000
-// vendored on: 2026-01-27
+// cpp11 version: 0.5.5.9000
+// vendored on: 2026-09-12
 #pragma once
 
 #include <cstddef>  // for size_t
@@ -69,11 +69,20 @@ class sexp {
   SEXP data() const { return data_; }
 
   /// DEPRECATED: Do not use this, it will be removed soon.
-  [[deprecated("Implicit conversion from cpp11::sexp to double is deprecated")]] operator double() const { return REAL_ELT(data_, 0); }
+  [[deprecated("Implicit conversion from cpp11::sexp to double is deprecated")]]
+  operator double() const {
+    return REAL_ELT(data_, 0);
+  }
   /// DEPRECATED: Do not use this, it will be removed soon.
-  [[deprecated("Implicit conversion from cpp11::sexp to size_t is deprecated")]] operator size_t() const { return REAL_ELT(data_, 0); }
+  [[deprecated("Implicit conversion from cpp11::sexp to size_t is deprecated")]]
+  operator size_t() const {
+    return REAL_ELT(data_, 0);
+  }
   /// DEPRECATED: Do not use this, it will be removed soon.
-  [[deprecated("Implicit conversion from cpp11::sexp to bool is deprecated")]] operator bool() const { return LOGICAL_ELT(data_, 0); }
+  [[deprecated("Implicit conversion from cpp11::sexp to bool is deprecated")]]
+  operator bool() const {
+    return LOGICAL_ELT(data_, 0);
+  }
 };
 
 }  // namespace cpp11

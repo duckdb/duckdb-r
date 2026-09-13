@@ -23,7 +23,7 @@ and what another scope owns is counted rather than listed.
   Fixed as a patch under [`patch/`](/patch)
   and sent upstream
   ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
-* **`cpp11`** — `inst/include/cpp11/`, and nobody's here:
+* **`cpp11`** — `src/vendor/cpp11/`, and nobody's here:
   the copy comes from the
   [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11) fork
   ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
