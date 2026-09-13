@@ -86,10 +86,10 @@ index df1f52e..19f0527 100644
  ## Flavors
  
  The sources in this repository are published under several names —
-diff --git a/inst/include/duckdb_types.hpp b/inst/include/duckdb_1_3_types.hpp
+diff --git a/src/include/duckdb_types.hpp b/src/include/duckdb_1_3_types.hpp
 similarity index 100%
-rename from inst/include/duckdb_types.hpp
-rename to inst/include/duckdb_1_3_types.hpp
+rename from src/include/duckdb_types.hpp
+rename to src/include/duckdb_1_3_types.hpp
 diff --git a/src/duckdb-win.def b/src/duckdb.1.3-win.def
 similarity index 94%
 rename from src/duckdb-win.def
