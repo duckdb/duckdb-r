@@ -167,26 +167,33 @@ and the engine is vendored from `duckdb/duckdb` into the fork.
 ## Branch Overview
 
 Each supported DuckDB minor version has a series of branches organised into two repos.
-The canonical ones are below.
-The working refs are the series loop's four —
-`<S>-build`, `<S>-dev`, `<S>-green`, `<S>-build-base` —
-and [`branches/model/`](/handbook/branches/model/README.md) states what each means
-and how far it may move.
-The `dev`/`dev-base` pair they replaced is retired,
+The branches that publish something are below, and which package each publishes is
+[`branches/flavors/`](/handbook/branches/flavors/README.md)'s live table.
+Three more refs sit beside every `<S>-dev` in the fork —
+`<S>-build`, `<S>-green` and `<S>-build-base`, the series loop's working refs,
+each with one meaning and one allowed motion
+([`branches/model/`](/handbook/branches/model/README.md)) —
+and the root [`README.md`](/README.md)'s badges count the gaps between them.
+The `dev`/`dev-base` pair the four replaced is retired,
 its refs archived in `krlmlr/duckdb-r-old`.
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
 | `main`                    | `duckdb/duckdb-r` | `duckdb`         | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
+| `main-dev`                | `krlmlr/duckdb-r` | `duckdb.dev`     | Vendored dev on upstream `main`; the preview line          |
 | `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for current release                        |
 | `v1.5-variegata-lts`      |                   |                  | Does not exist, v1.5 is not an LTS                         |
+| `v1.5-variegata-dev`      | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Bleeding edge on v1.5 upstream                             |
 | `v1.4-andium`             | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for LTS release                            |
 | `v1.4-andium-lts`         | `duckdb/duckdb-r` | `duckdb.1.4`     | `v1.4-andium` + one rename commit; published to r-universe |
+| `v1.4-andium-dev`         | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Bleeding edge on v1.4 upstream                             |
 
 ### Branch series structure
 
-A series' working refs live in the fork and are flavored from their first commit.
-Their shape, and how far each may move, is
+Within a series the refs form one chain in the fork, flavored from its first commit:
+the buffer `<S>-build` is vendored ahead, `<S>-dev` consumes it and is what CI judges,
+`<S>-green` trails as the verified frontier, and `<S>-build-base` marks green's place in the buffer.
+What each may do, and what would be a violation, is
 [`branches/model/`](/handbook/branches/model/README.md)'s.
 The `-lts`-suffixed branch only exists when the minor version is designated an LTS release.
 
