@@ -673,9 +673,26 @@ else
         --author="$(git log -1 --format='%an <%ae>' "$rd")" -F "$wt/.series-advance-msg"
       rm -f "$wt/.series-advance-msg"
     else
-      git -C "$wt" -c core.editor=true cherry-pick --continue
-      restamp "$wt" "$rc"
-      [ -n "${CARRY[$rc]:-}" ] && apply_carry "$wt" "$rc" "${CARRY[$rc]}"
+      # A resolution that comes out empty is the conflicting twin of the
+      # `--empty=drop` case below: the buffer commit's content reached -dev by
+      # another route, so the resolved tree is the one -dev already has and git
+      # refuses to commit nothing. Drop it, exactly as the unconflicted case
+      # does. Letting `cherry-pick --continue` fail here left the stage with no
+      # way forward at all -- the operator's own `--skip` then met `no
+      # cherry-pick or revert in progress` on the next `--continue`, which is
+      # why the sequencer is only driven when one is actually in progress.
+      resumed_at=$(git -C "$wt" rev-parse HEAD)
+      if git -C "$wt" rev-parse -q --verify CHERRY_PICK_HEAD >/dev/null; then
+        git -C "$wt" -c core.editor=true cherry-pick --continue ||
+          git -C "$wt" cherry-pick --skip
+      fi
+      # A dropped pick minted nothing, so there is no version to restamp and no
+      # carry to fold in; `remaining` below excludes the resumed commit either
+      # way.
+      if [ "$(git -C "$wt" rev-parse HEAD)" != "$resumed_at" ]; then
+        restamp "$wt" "$rc"
+        [ -n "${CARRY[$rc]:-}" ] && apply_carry "$wt" "$rc" "${CARRY[$rc]}"
+      fi
     fi
     rm -f "$STATE"
     # The rest of the same chunk, not a fresh one: nothing was pushed, so the
