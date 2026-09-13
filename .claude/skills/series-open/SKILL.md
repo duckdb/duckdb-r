@@ -46,6 +46,18 @@ This skill is the release branch's birth certificate.
    `flavor.sh` never stamps it,
    because regular LTS flavors keep their four-component version.
 
+   **A series previewing an unreleased line takes that line's prefix in the same commit.**
+   `main` carries the released line's version,
+   so a series tracking upstream `main` sets `Version:` to fledge's prefix for the line it previews,
+   `a.b.99.9000` before a minor release and `a.99.99.9000` before a major one,
+   and appends the counter's `.0` to that
+   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+   Stamping it here is what puts it on all four refs at once.
+   On `-dev` alone it splits the series' two version strands,
+   and the `DESCRIPTION` merge driver stops resolving them.
+   A series opened for a release branch takes no preview prefix:
+   that line's version is the one `main` already carries.
+
    **Install `krlmlr/cpp11` before running `flavor.sh`**, from GitHub —
    `remotes::install_github("krlmlr/cpp11")`, beside `decor`.
    `flavor.sh` runs `cpp11::cpp_register()`,
