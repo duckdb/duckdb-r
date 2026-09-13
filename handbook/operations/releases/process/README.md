@@ -210,7 +210,7 @@ and it does so through reviewed, green, gated steps.
 upstream has usually moved on by now,
 and the post-tag commits stay queued for the next cycle.
 
-### 1 VENDORED → 2 REVIEW → 3 PROMOTED
+### 1 VENDORED → 2 REVIEW → 3 PROVEN
 
 1. The series loop produces the `vendor: … (tag vX.Y.Z) …` commit on
    `<S>-dev`; wait for `each.yaml` to show it **green**.
@@ -302,17 +302,20 @@ coordinate at the **cluster** level:
 * **CUT runs per line, pipelined, CRAN line first.**
   Submit the CRAN line early because its acceptance is asynchronous;
   the r-universe-only LTS line finishes alongside with no CRAN tail.
-* **The preview line** — the next major, tracking upstream `main` —
+* **The preview line** — the one tracking upstream `main` —
   lives in a long-running TRACK/STABILIZE:
-  its STABILIZE *is* the upstream release-candidate window,
-  and its CUT *is* the atomic fast-forward flip of `main`.
-  The flip requires `main` to be an ancestor of `main-dev`,
-  which is *not* maintained continuously —
-  it is established once, just before the flip,
-  by rewinding to the bifurcation and replaying.
-  Same machine, different durations;
-  the only other addition is that vendor-coupled glue may be *born* on
-  its `<S>-dev`, the one documented exception to R-side work being born on
+  its STABILIZE *is* the upstream release-candidate window.
+  Its CUT is the atomic fast-forward flip of `main`, which needs `main` to be
+  an ancestor of `main-dev`: not maintained continuously, and established once
+  just before the flip by rewinding to the bifurcation and replaying.
+  That is what a line with no series of its own requires.
+  Where the release branch is opened as a series instead, its release is the
+  ordinary linear move onto `main` and there is no flip, which is what the next
+  major is planned to do
+  ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
+  Either way the durations differ from an ordinary line's and the machine does
+  not, and the one other addition is that vendor-coupled glue may be *born* on
+  the line's `<S>-dev`, the documented exception to R-side work being born on
   `main`.
 
 ## What each cluster must leave standing
