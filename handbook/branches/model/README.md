@@ -41,10 +41,13 @@ every series is a series-loop series now, and none of the four below is that bas
 | `<S>-build-base` | forward only | the `-build` commit equivalent to `-green` |
 
 All four exist from a series' first day, so there is never a "no green yet" state.
-A series opened for a line nothing here tracked starts them equal, at its seed.
-One derived from a series that already vendors the line starts them
-where each inherited strand ends, which is not equal and not the seed
-([`series-open`](/.claude/skills/series-open/SKILL.md)).
+`<S>-green` and `<S>-build-base` are written **at the seed** on that day, always.
+A derived opening, which starts `-build` and `-dev` at the tips of the strands it
+inherits, is no exception ([`series-open`](/.claude/skills/series-open/SKILL.md)):
+a green records that *this series'* CI passed on a commit, and a series that has
+published nothing has no such record to point at.
+Content is inheritable and a verdict is not —
+the parent earned its green under the parent's flavor, on a tree naming a different package.
 The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
 ([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
