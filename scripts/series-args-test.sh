@@ -71,6 +71,7 @@ scripts=(
   series-advance.sh
   series-check.sh
   series-converge.sh
+  series-cut.sh
   series-cutover.sh
   series-forward-build.sh
   series-glue.sh
@@ -80,11 +81,12 @@ remote_scripts=(
   series-advance.sh
   series-check.sh
   series-converge.sh
+  series-cut.sh
   series-cutover.sh
   series-glue.sh
   series-port.sh
 )
-upstream_scripts=(series-check.sh series-cutover.sh)
+upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${scripts[@]}"; do
