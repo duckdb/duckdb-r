@@ -1084,6 +1084,15 @@ and completes the rest of the chunk;
 so the next firing simply reaches the same stop.
 Starting a fresh run beside a stopped one is refused,
 because it would replay over a resolution somebody made.
+
+**A resolution that comes out empty is a resolution.**
+The buffer commit's content reached `-dev` by another route —
+a buffer whose flavor rename still names the path a port has since moved,
+most plainly — so resolving toward what `-dev` already has
+leaves nothing to commit.
+`--continue` drops that pick and finishes the chunk,
+which is what `--empty=drop` does for the same commit
+when it merges cleanly (duckdb/duckdb-r#2734).
 The push triggers one `each-rcc` run for the commits it added,
 and every verdict that run reaches is readable from it
 as soon as the leg has written it —
