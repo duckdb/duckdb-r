@@ -59,6 +59,9 @@
 # thing that legitimately moves it off its lineage is a cutover, which does the
 # mirror itself (scripts/series-cutover.sh). A `-fwd` series is skipped -- its
 # green is a rebuild nobody installs, published from the fork's own universe.
+# The push runs on every firing, not only on the ones where green moved: an
+# idle series whose copy fell behind for some other reason would otherwise
+# never be asked about again, and the push is a no-op when the two agree.
 #
 # It defaults to `upstream`, the name a `gh` clone of a fork gives the repository
 # it was forked from, so mirroring is on wherever that name means what it usually
@@ -401,32 +404,7 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
     { echo "Error: green would not fast-forward — verified history was rewritten"; exit 1; }
   git push "$remote" "$new_green:refs/heads/$S-green"
   echo "green -> $(git rev-parse --short "$new_green")"
-
-  # The canonical repository publishes the base flavors, so its copy of green
-  # has to move too. No `+` and no lease: a plain push is fast-forward only, and
-  # a refusal here means the two repositories disagree about verified history,
-  # which is a thing to look at rather than to overwrite.
-  if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
-    if ! git remote get-url "$canonical" >/dev/null 2>&1; then
-      echo "Error: no remote '$canonical' to mirror $S-green into." >&2
-      echo "  The canonical repository is where r-universe publishes the base" >&2
-      echo "  flavors from, so a green that stays in the fork is a package that" >&2
-      echo "  keeps being published as the fork owner's. Name the remote" >&2
-      echo "  'upstream', or pass --canonical <name>; SERIES_CANONICAL='' turns" >&2
-      echo "  the mirroring off deliberately." >&2
-      exit 1
-    fi
-    if git push "$canonical" "$new_green:refs/heads/$S-green"; then
-      echo "green mirrored to $canonical"
-    else
-      echo "Error: $S-green would not fast-forward in $canonical." >&2
-      echo "  The fork and the canonical repository disagree about verified" >&2
-      echo "  history. Only a cutover moves green off its lineage, and it" >&2
-      echo "  mirrors that itself -- so this is a divergence to read, not to" >&2
-      echo "  force. r-universe is serving the canonical copy meanwhile." >&2
-      exit 1
-    fi
-  fi
+  green_moved=1
 
   up=$(vendored_sha "$new_green")
   if [ -n "$up" ]; then
@@ -447,6 +425,45 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
   fi
 else
   echo "green unchanged at $(git rev-parse --short "$green")"
+fi
+
+# The canonical repository publishes the base flavors, so its copy of green has
+# to move too. No `+` and no lease: a plain push is fast-forward only, and a
+# refusal here means the two repositories disagree about verified history, which
+# is a thing to look at rather than to overwrite.
+#
+# It runs whether or not green moved this firing, because the two copies can
+# disagree for reasons this firing had no part in: a green promoted before the
+# mirroring existed, a firing that ran without `--canonical`, a push that
+# failed. Gating it on the move left `v1.4-andium-green` a commit behind in the
+# canonical repository for as long as that series stayed idle -- and r-universe
+# builds the canonical copy, so what it published was a commit behind with it.
+# An already-equal push is a no-op that says so, which is the cheapest possible
+# way to keep asking the question.
+if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
+  if ! git remote get-url "$canonical" >/dev/null 2>&1; then
+    # Fatal only when this firing promoted something: then the missing remote
+    # is a verified commit stranded in the fork. With green where it was there
+    # is nothing to strand, and nothing to compare it against either.
+    if [ -n "${green_moved:-}" ]; then
+      echo "Error: no remote '$canonical' to mirror $S-green into." >&2
+      echo "  The canonical repository is where r-universe publishes the base" >&2
+      echo "  flavors from, so a green that stays in the fork is a package that" >&2
+      echo "  keeps being published as the fork owner's. Name the remote" >&2
+      echo "  'upstream', or pass --canonical <name>; SERIES_CANONICAL='' turns" >&2
+      echo "  the mirroring off deliberately." >&2
+      exit 1
+    fi
+  elif git push "$canonical" "$new_green:refs/heads/$S-green"; then
+    echo "green mirrored to $canonical"
+  else
+    echo "Error: $S-green would not fast-forward in $canonical." >&2
+    echo "  The fork and the canonical repository disagree about verified" >&2
+    echo "  history. Only a cutover moves green off its lineage, and it" >&2
+    echo "  mirrors that itself -- so this is a divergence to read, not to" >&2
+    echo "  force. r-universe is serving the canonical copy meanwhile." >&2
+    exit 1
+  fi
 fi
 
 # --- stage 5: extend -dev from the buffer ------------------------------------
