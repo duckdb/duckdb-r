@@ -568,6 +568,19 @@ and is never re-examined.
 `-green` is fast-forward only —
 if it cannot fast-forward, something rewrote verified history;
 stop and say so.
+
+**Then mirror it into the canonical repository, for a base series only.**
+r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership
+from the URL of the branch it builds, so `<S>-green` is the one branch that
+travels out of the fork — no buffer, no `-dev`, and no `-fwd-green`, whose
+rebuild is published from the fork's own universe
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+`--canonical <name>` names the remote, defaulting to `upstream`, and the push is
+a plain one, so git refuses anything that is not a forward.
+**Scream on a refusal, never force it.** Two repositories disagreeing about
+verified history is a finding; the only thing that legitimately moves green off
+its lineage is a cutover, and that does the mirror itself (stage 6).
+
 Set `<S>-build-base` to the `<S>-build` commit
 with the same vendored upstream SHA
 (day one: the seed tip, before any vendor commit is consumed),
@@ -1071,6 +1084,15 @@ and completes the rest of the chunk;
 so the next firing simply reaches the same stop.
 Starting a fresh run beside a stopped one is refused,
 because it would replay over a resolution somebody made.
+
+**A resolution that comes out empty is a resolution.**
+The buffer commit's content reached `-dev` by another route —
+a buffer whose flavor rename still names the path a port has since moved,
+most plainly — so resolving toward what `-dev` already has
+leaves nothing to commit.
+`--continue` drops that pick and finishes the chunk,
+which is what `--empty=drop` does for the same commit
+when it merges cleanly (duckdb/duckdb-r#2734).
 The push triggers one `each-rcc` run for the commits it added,
 and every verdict that run reaches is readable from it
 as soon as the leg has written it —
@@ -1138,7 +1160,9 @@ scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
 scripts/series-converge.sh <S>
 
 # The swap. It prints the four ref moves and the convergence report,
-# then asks for the series name.
+# then asks for the series name. It also moves the copy of green that
+# r-universe publishes from -- name that remote with --canonical where it is
+# not `upstream`, or the copy keeps serving the pre-cutover lineage.
 scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 
 # A retired lineage moves the badge table, and the mirror rules with it.
@@ -1184,7 +1208,10 @@ a bad repair is repaired again,
 a wrong extension is replayed,
 and `-green` only ever moves forward over commits CI called green.
 The swap moves a serving green *sideways*
-— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`) —
+— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`),
+and the one place the canonical repository's copy of green is forced rather than
+fast-forwarded, which is why `--canonical` belongs on this line and nowhere else
+the routine types by hand —
 and it deletes the counterpart that would let it be undone.
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
