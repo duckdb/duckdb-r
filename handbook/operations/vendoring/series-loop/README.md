@@ -174,7 +174,7 @@ question, which upstream's back-merges into `main` make a real one and which
 no reading of branch names answers.
 Where the answer is "most of it", the walk is replaced by a replay out of that
 series' buffer, and the opening becomes a fission of it
-([`.claude/skills/series-open.md`](/.claude/skills/series-open.md)).
+([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
 The next such opening, the v2.0 line the preview line has been vendoring for a
 year, is planned in
 [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md).

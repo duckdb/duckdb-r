@@ -44,7 +44,7 @@ the replay then populates `<S>-fwd-build`.
    the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
    so every picked commit inherits whatever the seed was stamped with
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   Stamp it in the fifth-component commit the way `series-open.md` step 2 does,
+   Stamp it in the fifth-component commit the way `series-open/SKILL.md` step 2 does,
    before the four `-fwd` refs are created equal.
 
    **The forward series takes the whole of the new base.**

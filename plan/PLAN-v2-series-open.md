@@ -1,8 +1,8 @@
 # Opening the v2.0 series
 
 *A plan for the next series opening, not a description of the system.
-[`.claude/skills/series-open.md`](/.claude/skills/series-open.md) owns the routine,
-[`.claude/skills/series-forward.md`](/.claude/skills/series-forward.md) the rebuild it leans on,
+[`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md) owns the routine,
+[`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md) the rebuild it leans on,
 and [`operations/releases/process/`](/handbook/operations/releases/process/README.md) the release around it.
 Where a skill and this document disagree, the skill is right.*
 
@@ -13,7 +13,7 @@ so the commits `cyanoptera` inherits below the fork point are already in `main-b
 each with the glue its gate demanded.
 The opening is a fission, and it has two halves that are worth doing together:
 `v2.0-cyanoptera` gets those commits, and `main-build` stops carrying them.
-The placeholders are `series-open.md`'s.
+The placeholders are `series-open/SKILL.md`'s.
 
 ## The rule everything here turns on
 
@@ -31,7 +31,7 @@ and it is what the residual question at the end is about.
 
 ## The v2.0 half: replay onto its own seed
 
-The derived opening, `series-open.md`'s *When another series already vendors the line*:
+The derived opening, `series-open/SKILL.md`'s *When another series already vendors the line*:
 seed from `main` with flavor `2.0.dev` and the preview prefix `1.99.99.9000`
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
 create the four refs equal,
@@ -51,7 +51,7 @@ which is the deliberate answer to whether ancestry is wanted here: it is not.
 Two things the new series does not inherit, and both are work:
 
 * **What CI taught the preview line.** `-build` carries what compiles, and the test-side fixes live on `main-dev`.
-  A forward folds those back from its twin by vendored SHA (`series-loop.md`, stage 5);
+  A forward folds those back from its twin by vendored SHA (`series-loop/SKILL.md`, stage 5);
   a derived opening has a twin too, the same `main-dev`, and nothing wires it up.
   Left as is, each fix returns as a red in the new series' CI, once, at a repair plus a replay above it.
   Teaching stage 5 to match a derived series against the series it was derived from is the one
@@ -64,32 +64,34 @@ Two things the new series does not inherit, and both are work:
   `scripts/series-glue.sh` over the buffer's range ranks the adapted files by how often each was touched,
   which is what says whether this is a handful of conflicts or a running cost.
 
-## The main half: re-root `main-build` at the bifurcation
+## The main half: the forward `main` needs anyway
 
-`main-build` currently walks upstream `main` from the series' own beginning,
-which is a stretch of history that now belongs to `cyanoptera`.
-Squash the vendor commits below the fork point into one, keeping the seed and everything above:
-the buffer becomes the seed, one vendor commit carrying the fork-point tree, and the mainline commits.
-That is the shape `series-open` step 4 produces for a line opened at its fork point,
-reached from the other direction.
+`main-build` walks upstream `main` from the series' own beginning,
+a stretch of history that now belongs to `cyanoptera`,
+and its seed sits at an older `main` than today's.
+Both are seed-and-lineage work, and so is the preview prefix,
+so `main` takes one forward counterpart and the three land together
+([`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
+`main-fwd-build` is the regenerated seed carrying the preview prefix,
+then one vendor commit at the fork point, which is `series-open` step 4's,
+taken with `scripts/vendor.sh` and subject to that step's glue-rewind check,
+then a replay of the buffer's commits above the fork point.
+That is the re-rooted shape reached without force-pushing a live buffer:
+what installs it is the ordinary cutover, which a human runs and the loop only reports.
 
-Details that decide whether it is safe:
+**Re-rooting is what makes the forward affordable**, and is the reason to do both halves as one change.
+A plain forward replays the whole buffer, and the loop then puts every replayed commit through CI.
+Re-rooted, `main-fwd-dev` has the mainline commits to verify and nothing below the fork point:
+the commits the fission moves to `cyanoptera` are exactly the ones `main` no longer re-verifies.
 
-* **Keep the fork-point commit's version.** The squashed commit takes it,
-  so the vendor counter above is untouched and `-dev`'s ordering is unaffected.
-* **`-dev` is not rewritten.** It keeps all of its history, including the commits below the fork point,
-  which r-universe has already published as `duckdb.dev` versions.
-* **The anchor still resolves.** Stage 5 finds `-dev`'s newest vendored SHA on `-build`;
-  that SHA is the buffer tip, which the squash does not touch.
-  Traced against `scripts/series-advance.sh`, the post-squash state reports "buffer empty" and writes nothing,
-  which is correct.
-* **`-build-base` self-heals**, being recomputed from the match and force-pushed on the next stage 3.
+**v2.0 takes no counterpart of its own.**
+A forward exists to protect a green that consumers already read, and a line opened today has none.
+`series-open` step 3 creates the four baseline refs equal and the series starts there;
+`series-forward-build.sh` is borrowed for the replay
+and says nothing about which refs the opening writes.
 
-**Do it while the buffer is drained.** It is, today:
-`main-build` and `main-build-base` both read `1.5.5.9010.1418`,
-so everything vendored has been consumed and verified, and `main-dev` sits at the same vendor counter.
-A re-root with commits in flight would have to reason about what stage 5 was mid-way through;
-this one does not.
+**Timing.** `main-build` and `main-build-base` both read `1.5.5.9010.1418`, so the buffer is drained,
+which fixes the replay range rather than leaving it moving under the rebuild.
 
 ## What is left at the flip
 
@@ -106,6 +108,20 @@ when it lands is upstream's business.
 So: wait for it where the timing allows, and where it does not,
 replay the re-rooted buffer whole and accept one backwards step at its root,
 which is a documented step at a known commit rather than a surprise in the middle of a chain.
+
+## r-universe has to be told
+
+`duckdb.2.0.dev` is a package that does not exist yet,
+and nothing in this repository creates it:
+the registration is the universe's own, outside this tree
+([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+Today `duckdb.r-universe.dev` carries `duckdb`, `duckdb.1.4`
+and the three `.dev` flavors, and `krlmlr.r-universe.dev` carries the three `.dev` flavors,
+so the new series needs an entry and `main`'s forward needs none.
+`scripts/r-universe-check.sh` is what says the registration took,
+listing exactly the packages whose upstream is this repository.
+Until it appears there, a series is covered only by the per-commit gate,
+which is Linux on one R version.
 
 ## Sequencing
 
