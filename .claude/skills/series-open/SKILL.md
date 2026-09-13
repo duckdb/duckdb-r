@@ -27,11 +27,10 @@ This skill is the release branch's birth certificate.
    on the first-parent chain of *both* upstream branches.
    `git merge-base` is dragged forward by upstream back-merges
    and has been observed months off.
-   The recipe,
-   and what to rewind when the fork point predates the release
-   the glue was written for,
-   is in `scripts/VENDORING.md`
-   under *Starting a New Dev Line: the Fork-Point Rule*.
+   The rule and the recipe are
+   [`vendoring/model/`](/handbook/operations/vendoring/model/README.md)'s;
+   what to rewind when the fork point predates the release the glue was written for
+   is `scripts/VENDORING.md`'s.
    Compute it in the upstream clone;
    write it down in the seed commit's message.
 
