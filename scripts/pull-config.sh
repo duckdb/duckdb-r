@@ -24,6 +24,18 @@
 #   * the `-lts` companion of such a baseline, where a rule already carries one:
 #     the LTS flavor publishes from it, which no badge shows.
 #
+# **The repository a badge is computed in does not enter the derivation**, and
+# that is not an oversight. An *ahead* badge is read from the canonical
+# repository now that `<S>-green` is mirrored there
+# (handbook/branches/mirrors/README.md), so nothing about the comparison needs
+# the fork to carry its base any more -- but the base of an *ahead* badge is the
+# branch that series releases from, and therefore the branch it seeds and
+# forward-ports from, which is the first bullet's reason applied to a line that
+# is not `main`. The badge names it; the seeding is why it is carried. So the
+# rule list is what it was before the badges moved, and a reading that dropped
+# `v1.4-andium` on the strength of the moved badge would have unmirrored the
+# branch `v1.4-andium-fwd` regenerates its seed from.
+#
 # A series' own refs -- `-dev`, `-green`, `-build`, `-build-base` -- are never
 # mirrors and never get a rule: every rule hard-resets, so one that reached a
 # working ref would discard the loop's work (`.github/pull.yml` says the same
