@@ -5,7 +5,7 @@ its leaves state the model, the pipeline, the loop, and the
 troubleshooting map; where the two disagree, the leaf is right.*
 
 What is left here is what those leaves do not carry yet:
-driving the scripts by hand, creating a patch, and starting a new dev line.
+driving the scripts by hand, creating a patch, and the rewind a new dev line needs.
 Every heading below is a candidate for absorption,
 and this file goes away when the last one lands.
 For the branch model and the series invariants see
@@ -105,7 +105,7 @@ patch -p1 < patch/00NN-my-fix.patch
 
 This is the local equivalent of what CI does,
 and the loop to use when replaying a long stretch of upstream history
-(see [Starting a new dev line](#starting-a-new-dev-line-the-fork-point-rule)).
+(see [the rewind a new dev line needs](#starting-a-new-dev-line-what-to-rewind)).
 Check the upstream clone out at the **last** commit you want vendored,
 so that the walk terminates by itself:
 
@@ -174,45 +174,12 @@ so the fix lands *in* the vendor commit, then continue the loop.
 Never run `R CMD build` in a working tree you still need:
 the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
 
-## Starting a New Dev Line: the Fork-Point Rule
+## Starting a New Dev Line: what to rewind
 
-When upstream cuts a release branch (say `v2.0-<codename>` off `main`),
-the R package gains a new dev line.
-The tempting shortcut — point an existing dev branch at the new upstream branch
-and let `vendor-one.sh` catch up — silently breaks the one-upstream-commit-per-vendor-commit
-invariant, because the branch's recorded base is a commit on the *old* upstream line.
-
-What happens then is worth spelling out, because it happened to `main-dev`:
-
-* `main-dev` was created from the v1.5-era package (vendoring the released `v1.5.0` tree)
-  and re-pointed at upstream `main`.
-* `vendor-one.sh` enumerated `<v1.5 base>..main`,
-  whose oldest entries are the commits `main` accumulated
-  **after the fork point but before the release**.
-  So the first mainline vendor commit moved the vendored sources *backwards* in time —
-  from released `v1.5.0` to a `main` commit two weeks older —
-  while simultaneously skipping ahead:
-  it landed 101 first-parent commits past the fork point in a single step.
-* Those ~100 upstream commits were never built against the R glue,
-  and a `git bisect` across that one commit answers nothing.
-
-The rule that avoids this:
-
-> **A new dev line starts with a vendor commit at the fork point of the two upstream branches,
-> and walks forward from there, one upstream commit at a time.**
-
-The fork point is the newest commit on the **first-parent chain of both** upstream branches.
-It is not `git merge-base`:
-upstream merges the release branch back into `main`,
-which drags the merge base forward to just after the most recent release.
-
-```bash
-cd ~/duckdb
-git rev-list --first-parent origin/main          > /tmp/main-fp
-git rev-list --first-parent origin/v2.0-codename > /tmp/rel-fp
-# newest commit present in both chains:
-awk 'NR==FNR{a[$0];next} $0 in a{print; exit}' /tmp/main-fp /tmp/rel-fp
-```
+The fork-point rule, why it is not `git merge-base`, the recipe that computes it,
+and the `main-dev` step it exists to prevent are
+[`vendoring/model/`](/handbook/operations/vendoring/model/README.md)'s.
+What is left here is the rewind that commit needs.
 
 Day one of a new cycle then looks like this
 (the series bootstrap — the fifth-component commit
