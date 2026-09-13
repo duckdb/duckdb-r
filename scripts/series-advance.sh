@@ -51,6 +51,21 @@
 # the plain ref move has no commit of its own to carry it, and it is an error to
 # ask for one when the chunk minted nothing.
 #
+# **`--canonical` mirrors the green into the repository r-universe reads.**
+# The series refs live in the fork, but the base flavors are published from the
+# canonical repository, so `<S>-green` has to exist in both and nothing else
+# does. The push is a plain one, fast-forward only, and a refusal stops the
+# firing rather than being forced: green is the verified frontier, and the only
+# thing that legitimately moves it off its lineage is a cutover, which does the
+# mirror itself (scripts/series-cutover.sh). A `-fwd` series is skipped -- its
+# green is a rebuild nobody installs, published from the fork's own universe.
+#
+# It defaults to `upstream`, the name a `gh` clone of a fork gives the repository
+# it was forked from, so mirroring is on wherever that name means what it usually
+# means. Setting `SERIES_CANONICAL` to the empty string turns it off; leaving it
+# unset does not, because a mirror that silently stops is the failure this
+# exists to prevent.
+#
 # Usage: series-advance.sh <series> [--chunk <n>] [--dev-note <file>]
 #        series-advance.sh <series> --continue [--dev-note <file>]
 #        series-advance.sh <series> --abort          # discard a stopped replay
@@ -62,7 +77,7 @@
 
 set -euo pipefail
 
-usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--dev-note <file>]
+usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--canonical <name>] [--dev-note <file>]
        series-advance.sh <series> --continue [--dev-note <file>]
        series-advance.sh <series> --abort'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -71,6 +86,9 @@ ABORT=
 DEV_NOTE=
 chunk=100
 remote=${SERIES_REMOTE:-origin}
+# No colon: an explicitly empty SERIES_CANONICAL means "do not mirror", while
+# an unset one takes the default.
+canonical=${SERIES_CANONICAL-upstream}
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -78,6 +96,7 @@ while [ $# -gt 0 ]; do
     --abort) ABORT=1; shift ;;
     --chunk) [ $# -ge 2 ] || argerr; chunk=$2; shift 2 ;;
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     --dev-note) [ $# -ge 2 ] || argerr; DEV_NOTE=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
@@ -382,6 +401,32 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
     { echo "Error: green would not fast-forward — verified history was rewritten"; exit 1; }
   git push "$remote" "$new_green:refs/heads/$S-green"
   echo "green -> $(git rev-parse --short "$new_green")"
+
+  # The canonical repository publishes the base flavors, so its copy of green
+  # has to move too. No `+` and no lease: a plain push is fast-forward only, and
+  # a refusal here means the two repositories disagree about verified history,
+  # which is a thing to look at rather than to overwrite.
+  if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
+    if ! git remote get-url "$canonical" >/dev/null 2>&1; then
+      echo "Error: no remote '$canonical' to mirror $S-green into." >&2
+      echo "  The canonical repository is where r-universe publishes the base" >&2
+      echo "  flavors from, so a green that stays in the fork is a package that" >&2
+      echo "  keeps being published as the fork owner's. Name the remote" >&2
+      echo "  'upstream', or pass --canonical <name>; SERIES_CANONICAL='' turns" >&2
+      echo "  the mirroring off deliberately." >&2
+      exit 1
+    fi
+    if git push "$canonical" "$new_green:refs/heads/$S-green"; then
+      echo "green mirrored to $canonical"
+    else
+      echo "Error: $S-green would not fast-forward in $canonical." >&2
+      echo "  The fork and the canonical repository disagree about verified" >&2
+      echo "  history. Only a cutover moves green off its lineage, and it" >&2
+      echo "  mirrors that itself -- so this is a divergence to read, not to" >&2
+      echo "  force. r-universe is serving the canonical copy meanwhile." >&2
+      exit 1
+    fi
+  fi
 
   up=$(vendored_sha "$new_green")
   if [ -n "$up" ]; then
