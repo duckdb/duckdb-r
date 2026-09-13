@@ -15,6 +15,21 @@ The opening is a fission, and it has two halves that are worth doing together:
 `v2.0-cyanoptera` gets those commits, and `main-build` stops carrying them.
 The placeholders are `series-open/SKILL.md`'s.
 
+## What the first run established
+
+The opening was driven as far as the seed on 2026-09-13, and the numbers it turned up are recorded here
+rather than left to be re-derived.
+
+* **The fork point is `a00803f7687ca3d7188d417216e288c5c4b22b58`**, 2026-09-02.
+  `git merge-base` gives `7074015a`, a week newer, so the first-parent recipe is load-bearing exactly as
+  [`scripts/VENDORING.md`](/scripts/VENDORING.md) warns.
+* **`main-build` vendors that commit exactly**, at `01aa52689`, so the parent buffer's fork-point commit
+  is the fork point itself and step 1 of the derived opening needs no search.
+* **The replay range is `30ae31408..01aa52689`**: 1406 vendor commits and 3 non-vendor ones,
+  all three `fix(patch)` entries the buffer took for itself.
+* **`cyanoptera` has 193 first-parent commits of its own** above the fork point, which is the walk.
+* **The seed builds.** `duckdb.2.0.dev` at `1.99.99.9000.0`, a cold compile of fourteen minutes on four cores.
+
 ## The rule everything here turns on
 
 A replay may start above a buffer's beginning
@@ -59,10 +74,13 @@ Two things the new series does not inherit, and both are work:
   the `main-fwd` run needed a carry on 10 of 802 buffered commits
   ([`experiments/2026-08-09-series-carry-scope/`](/experiments/2026-08-09-series-carry-scope/README.md)),
   and whether a cross-flavor fission looks like that is not known.
-* **The rename surface.** The picks were written under `dev` and land under `2.0.dev`,
-  so any that touched a file [`scripts/flavor.patch`](/scripts/flavor.patch) rewrites conflicts on the name.
-  `scripts/series-glue.sh` over the buffer's range ranks the adapted files by how often each was touched,
-  which is what says whether this is a handful of conflicts or a running cost.
+* **The rename surface, which is measured and empty.** The picks were written under `dev` and land under `2.0.dev`,
+  so any that touched a file [`scripts/flavor.patch`](/scripts/flavor.patch) rewrites would conflict on the name.
+  None does: across the 1409 commits of the replay range, the number touching any file that patch rewrites,
+  other than `DESCRIPTION`, is zero, and `DESCRIPTION` is the `ours-version` driver's on every commit anyway.
+  So the flavor crossing costs nothing here, and the trade it was weighed against was the expensive reading.
+  The measurement is a file-level count and stays true only while the buffer does not move,
+  which the drained state below is what fixes.
 
 ## The main half: the forward `main` needs anyway
 
@@ -103,11 +121,14 @@ The re-root shrinks that from the whole chain to that delta, and does not remove
 What removes it is upstream's **back-merge of `cyanoptera` into `main`**.
 After it, `main-build` has a vendor commit whose tree is not behind the release,
 and a forward may range-limit above that commit and start on a base that matches.
-Upstream does back-merge, which is why the fork point needs the first-parent recipe at all;
-when it lands is upstream's business.
-So: wait for it where the timing allows, and where it does not,
-replay the re-rooted buffer whole and accept one backwards step at its root,
-which is a documented step at a known commit rather than a surprise in the middle of a chain.
+Upstream does back-merge, which is why the fork point needs the first-parent recipe at all.
+**It has already landed, twice**: `56b103b7f7` on 2026-09-08 and `ca5ce12b7d` on 2026-09-10,
+and `main-build` has vendored both.
+So the waiting this section described is over before it started:
+the main half may range-limit its replay above the commit that vendors `ca5ce12b7d`
+and start on a base that matches, rather than replaying the buffer whole
+and accepting a backwards step at its root.
+What remains is to confirm that commit is the newest such back-merge when the forward is actually run.
 
 ## r-universe has to be told
 
@@ -128,14 +149,15 @@ which is Linux on one R version.
 The derived opening removes most of the reason to hurry:
 what waiting costs is now the `cyanoptera`-only commits to walk, not the whole shared history.
 Two things do want ordering.
-`v1.5-variegata` has a live `-fwd` counterpart with a cutover pending,
-and re-rooting `main-build` while another series is mid-forwarding puts two lineages in flight at once.
+`v1.5-variegata` had a live `-fwd` counterpart with a cutover pending;
+that cutover has since run, and no `-fwd` ref remains in the fork,
+so re-rooting `main-build` no longer puts two lineages in flight at once.
 And the v1.5.6 release runs from `main` on the v1.5 line, unchanged,
 needing to know nothing about either half of this.
 
 ## What this plan owes before it can be executed
 
-* The two measurements above: the carry scope for a derived series, and the rename surface's conflict count.
+* The carry scope for a derived series. The rename surface's conflict count is done, and is zero.
 * A reading of `scripts/series-check.sh` and `scripts/series-converge.sh` against a derived series.
   Both were written for a series with one lineage, and a derived one has a parent they do not know about.
 * The one open decision: whether the buffer's flavor is worth removing altogether.
