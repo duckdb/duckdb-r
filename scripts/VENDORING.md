@@ -280,18 +280,26 @@ this list is the sources-and-glue side it drives):
    * **whole test files** added later for a feature this engine does not have yet.
      Deleting one is legitimate, but say so in the commit message,
      so the deletion can be undone at the vendor commit where the feature appears;
-   * **`patch/` entries that no longer apply**, which is usually the largest of the four.
-     The stack `main` carries is maintained against the released line's tree,
-     and the fork-point tree belongs to a different line,
-     so an entry can neither apply forward nor reverse cleanly.
-     `vendor.sh` stops on the first such entry and keeps the regenerated tree,
-     which is the moment to survey the rest in one pass rather than one run at a time:
-     `git apply --check` every entry above the one it stopped on.
-     An entry whose target file is gone is a candidate to retire —
-     confirm the change is genuinely upstream first, because a patch and its replacement
-     can serve the same purpose by different means.
-     An entry whose target merely moved is rebased against the regenerated tree.
-     Opening v2.0 measured 8 of 21 entries needing a decision.
+   * **the `patch/` stack**, which is rewound whole and not entry by entry.
+     The seed carries `main`'s stack, maintained against the released line's tree;
+     the fork-point tree belongs to a different line, so entries `main` added after
+     the fork neither apply forward nor reverse, and `vendor.sh` stops on the first one.
+     Do not adjudicate them.
+     The stack that belongs with this tree is already recorded:
+     `<P>-build`'s fork-point commit vendors the same upstream commit,
+     and applied that stack to produce it.
+     Take it wholesale, in the rewind commit, before running `vendor.sh`:
+
+     ```bash
+     rm -rf patch && git checkout <P-build's fork-point commit> -- patch/ && git add -A patch/
+     ```
+
+     Opening v2.0 is the check on that: of `main`'s 21 entries, 8 broke against the
+     fork-point tree, and those 8 are exactly the 8 `main` added after the fork point.
+     With the stack rewound to the buffer's 19, `vendor.sh` runs clean.
+     `git checkout` restores files but does not stage the removals,
+     so `git add -A patch/` is load-bearing: without it the entries that exist only
+     on `main` survive into the commit and the run refuses on a dirty tree.
 
    Keep each rewind as small as the compiler and the testsuite demand.
    Reverting a whole file to its old state also reverts R-side improvements

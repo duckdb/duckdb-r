@@ -87,7 +87,10 @@ This skill is the release branch's birth certificate.
    subject carrying the `duckdb/duckdb@<sha>` reference as always;
    that subject is how `vendor-one.sh` finds its base.
    Rewind the glue as `VENDORING.md` describes
-   if the fork point predates the current glue.
+   if the fork point predates the current glue,
+   and rewind the `patch/` stack with it —
+   whole, out of `<P>-build`'s fork-point commit, before the run,
+   rather than adjudicating the entries `vendor.sh` stops on.
 
    **This commit walks the engine backwards, and that is the design.**
    The seed comes from `main`, which carries the released line,
