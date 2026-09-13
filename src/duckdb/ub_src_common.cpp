@@ -78,6 +78,8 @@
 
 #include "src/common/printer.cpp"
 
+#include "src/common/process_util.cpp"
+
 #include "src/common/radix_partitioning.cpp"
 
 #include "src/common/random_engine.cpp"
