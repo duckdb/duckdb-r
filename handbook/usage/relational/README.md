@@ -28,6 +28,19 @@ Expressions are built separately (`expr_reference()`, `expr_constant()`,
 so a caller assembles a tree rather than splicing text,
 and the engine never parses a string the caller built.
 
+No constructor starts from an Arrow source.
+`rel_from_df()` reaches one only through `as.data.frame()`,
+which materializes it,
+and `rel_from_table_function()` cannot express `arrow_scan` —
+its arguments are `POINTER` values that the R side does not build.
+What does work is `rel_from_sql()` over a name registered with
+`duckdb_register_arrow()`, and it binds by name:
+the scan is resolved again at materialization, so re-registering the
+name changes what an existing relation returns
+([`experiments/2026-08-08-rel-from-arrow/`](/experiments/2026-08-08-rel-from-arrow/README.md)).
+A pointer-bound constructor is
+[`plan/PLAN-rel-from-arrow.md`](/plan/PLAN-rel-from-arrow.md).
+
 **What lifts, and what is refused.**
 `rel_from_df()` refuses a column rather than converting it lossily:
 matrix/array columns, S4 columns, `integer64` columns,
