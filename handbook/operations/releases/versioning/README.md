@@ -96,8 +96,6 @@ written to be read as changelog entries.
 `a.b.99` before a minor release and `a.99.99` before a major one, its `pre-minor` and `pre-major` bumps.
 So a series previewing 1.6 from a 1.5.5 seed is `1.5.99.9000`, one previewing 2.0 is `1.99.99.9000`,
 and the vendor counter hangs off that as usual.
-A preview of the next *patch* release needs no such prefix,
-because a fourth component already says "past `a.b.c`", which is all a patch changes.
 
 **What makes a line a preview line is that its release has not happened,
 not which upstream branch the series tracks.**
@@ -109,9 +107,16 @@ so `main` carried `1.5.5` and nothing carried 2.0's version at all.
 The test is whether a released version already names the line —
 where one does the seed takes it from `main` and needs no prefix,
 and where none does the series is previewing, whatever branch it tracks.
-Taking fledge's prefix rather than inventing one is what makes the sequence monotone:
-it sorts above every version of the line being previewed, which is what lets r-universe offer the `.dev`
-flavor as an upgrade, and it is what `main` itself will carry when the line opens there.
+A line still taking patches is one a released version names, and its ordering is worth knowing:
+`1.5.5.9020.36` sits below `1.5.6`, so the day that patch ships the series reads as older
+than the release its own line just made, and re-seeding on the new `main` is what restores that
+([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
+Taking fledge's prefix rather than inventing one buys the version's plain reading,
+and it is what `main` itself will carry when the line opens there.
+Versions never compare across flavors, which are separate package names that coexist by design
+([`branches/flavors/`](/handbook/branches/flavors/README.md)),
+so what the prefix must not break is the ordering within one name across re-seeds,
+and `1.99.99.9000` giving way to `2.0.0.9000` rises.
 The cost is the fourth component's other reading:
 on a preview line the version names the line previewed rather than the one seeded from,
 and which release the seed came from is read from the seed commit.
