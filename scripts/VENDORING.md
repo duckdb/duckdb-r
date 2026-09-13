@@ -5,8 +5,7 @@ its leaves state the model, the pipeline, the loop, and the
 troubleshooting map; where the two disagree, the leaf is right.*
 
 What is left here is what those leaves do not carry yet:
-driving the scripts by hand, creating a patch, two properties of the
-regenerated tree, and starting a new dev line.
+driving the scripts by hand, creating a patch, and starting a new dev line.
 Every heading below is a candidate for absorption,
 and this file goes away when the last one lands.
 For the branch model and the series invariants see
@@ -174,35 +173,6 @@ When a commit breaks, fix the glue and `git commit --amend`
 so the fix lands *in* the vendor commit, then continue the loop.
 Never run `R CMD build` in a working tree you still need:
 the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
-
-## Two properties of the regenerated tree
-
-**It is not byte-reproducible across clones.**
-`src/function/table/version/pragma_version.cpp` records `DUCKDB_SOURCE_ID`
-as an *abbreviated* commit id,
-and git auto-sizes that abbreviation from the number of objects in the clone it runs in.
-The same upstream commit therefore vendors as `7300522cf0` from one clone
-and `7300522cf07` from another,
-and `main-dev` contains both lengths at different points in its own history.
-Nothing downstream breaks —
-`configure` and `scripts/install-libduckdb.sh` both substring-match the id —
-but a diff between two vendorings of the same upstream commit
-will show this one line even when everything else is identical.
-Pin `core.abbrev` in the upstream clone if an exact match matters.
-
-**Regeneration costs about twice what it needs to.**
-`rconfigure.py` rewrites all ~3550 vendored files unconditionally,
-including the ~3548 whose content did not change.
-That invalidates git's stat cache,
-so both the more-than-one-file test and the `git add` that follows
-re-hash the entire tree.
-Measured: `git status` over the vendored tree costs **1.06 s** right after every file is touched
-and **0.017 s** when the index is still valid.
-At two full passes per *candidate* — including candidates that are skipped
-because they changed nothing vendorable — this is the bulk of the per-commit cost
-(measured end to end: ~4.9 s per vendor commit on 4 cores).
-Writing only files whose content actually differs would roughly halve it,
-in CI as well as locally.
 
 ## Starting a New Dev Line: the Fork-Point Rule
 
