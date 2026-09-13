@@ -40,8 +40,11 @@ every series is a series-loop series now, and none of the four below is that bas
 | `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | forward only | the `-build` commit equivalent to `-green` |
 
-All four exist from a series' first day, equal at its seed,
-so there is never a "no green yet" state.
+All four exist from a series' first day, so there is never a "no green yet" state.
+A series opened for a line nothing here tracked starts them equal, at its seed.
+One derived from a series that already vendors the line starts them
+where each inherited strand ends, which is not equal and not the seed
+([`series-open`](/.claude/skills/series-open/SKILL.md)).
 The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
 ([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
@@ -71,5 +74,32 @@ An upstream-lag badge — how far behind `duckdb/duckdb` itself — is not expre
 because that comparison crosses repositories.
 The table's upkeep is [`series-open`](/.claude/skills/series-open/SKILL.md)'s.
 
-*To deepen: absorb `BRANCHES.md` §§ Package Components,
-Branch Overview, and Source of Truth.*
+**`main` in `duckdb/duckdb-r` is the source of truth** for four of the seven components
+a branch is made of, and the other three come from elsewhere:
+
+| Component | Source of truth | |
+|---|---|---|
+| DuckDB core | `duckdb/duckdb` upstream | vendored independently into each series |
+| Flavor | per branch, via [`flavor.sh`](/scripts/flavor.sh) | applied mechanically on top of the baseline |
+| **Glue code** | **`main`** | forward-ported to every series |
+| **R code and tests** | **`main`** | forward-ported to every series |
+| **CI/CD infrastructure** | **`main`** | forward-ported to every series |
+| **cpp11** | **`main`** | forward-ported to every series |
+| R core | external — `r-devel`, CRAN policy | monitored; fixes land in `main` first |
+
+**Forward-porting runs newer to older, and never in reverse**:
+`main` to the preview line and to each parked baseline,
+then down the `.dev` branches in release order.
+The series loop's forward-port stage keeps it consistent,
+running [`series-port.sh`](/scripts/series-port.sh) on every firing
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+The fork's `main` takes no part in it: it is a mirror and moves on its own
+([`mirrors/`](/handbook/branches/mirrors/README.md)).
+
+That ordering is what makes the vendor strand the only thing a series owns.
+Everything else it carries was born on `main` and arrived by port,
+which is why a regenerated seed is allowed to replace a series' whole R side
+and why a replay takes the new base for everything the vendor commits do not touch
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
+
+*To deepen: absorb `BRANCHES.md` §§ Package Components and Branch Overview.*
