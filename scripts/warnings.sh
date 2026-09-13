@@ -71,7 +71,7 @@ warnings_of() {
 # engine wherever it sits -- and the package directory is `duckdb-r`, which that
 # pattern does not match -- while `third_party/` and `extension/` are the
 # engine's other two roots. `cpp11` names the vendored cpp11 under
-# inst/include/, which has an upstream of its own and is nobody's here.
+# src/vendor/, which has an upstream of its own and is nobody's here.
 #
 # `generated` is checked first, and is dropped outright rather than counted:
 # an editable fix does not exist for a file its generator rewrites, this
@@ -90,7 +90,7 @@ classify='
     if (p ~ /(^|\/)(src_backend_parser_(gram|scan)|yyjson|cpp11)\.cpp$/) return "generated"
     if (p ~ /libpg_query\/grammar\//) return "generated"
     if (p ~ /(^|\/)(duckdb|third_party|extension)\//) return "vendored"
-    if (p ~ /inst\/include\/cpp11\//) return "cpp11"
+    if (p ~ /(^|\/)vendor\/cpp11\//) return "cpp11"
     return "glue"
   }'
 
