@@ -102,7 +102,26 @@ keeps the two version counters mergeable across vendor commits by
 resolving each component to the strand that owns it
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
+**A vendor commit's subject is machine-readable state**, and the shape is fixed:
+
+```text
+vendor: Update vendored sources to duckdb/duckdb@<commit_hash>
+
+Date: <author date of the upstream commit>
+
+<subjects of the upstream first-parent commits since the previously vendored commit>
+```
+
+A tagged release says so in the subject,
+`vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>`,
+and [`vendor-one.sh`](/scripts/vendor-one.sh) ends its run there.
+
+[`vendor-one.sh`](/scripts/vendor-one.sh), [`series-advance.sh`](/scripts/series-advance.sh),
+[`series-port.sh`](/scripts/series-port.sh) and the repair skills
+all recover *where is this branch in upstream history* by parsing `duckdb/duckdb@<sha>` out of that line.
+So it is not prose: do not reword it,
+and do not squash vendor commits without keeping the newest SHA in the subject.
+
 *To deepen: absorb `scripts/VENDORING.md`'s remaining sections —
 vendoring by hand, creating a patch, the two properties of the
-regenerated tree, the fork-point rule for a new dev line, the vendor
-commit format, and the badges.*
+regenerated tree, and the fork-point rule for a new dev line.*

@@ -6,8 +6,7 @@ troubleshooting map; where the two disagree, the leaf is right.*
 
 What is left here is what those leaves do not carry yet:
 driving the scripts by hand, creating a patch, two properties of the
-regenerated tree, starting a new dev line, the vendor commit format,
-recovering a broken run, and the badges.
+regenerated tree, and starting a new dev line.
 Every heading below is a candidate for absorption,
 and this file goes away when the last one lands.
 For the branch model and the series invariants see
@@ -312,92 +311,3 @@ Step 3 is only needed for the line that *rewinds*,
 i.e. the mainline whose fork point predates the current release.
 A dev line for a freshly cut release branch forks from `main`
 at a point the package already builds against, so it needs no rewind.
-
-## Understanding Vendor Commits
-
-Vendor commits follow a specific format:
-
-```text
-vendor: Update vendored sources to duckdb/duckdb@<commit_hash>
-
-Date: <author date of the upstream commit>
-
-<subjects of the upstream first-parent commits since the previously vendored commit>
-```
-
-For tagged releases:
-
-```text
-vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>
-```
-
-The subject line is machine-readable state:
-`vendor-one.sh`, `series-advance.sh`, `series-port.sh` and the repair skills
-all recover "where is this branch in upstream history"
-by parsing `duckdb/duckdb@<sha>` out of it.
-Do not reword it, and do not squash vendor commits together
-without keeping the newest SHA in the subject.
-
-## Troubleshooting
-
-The failure classes and what each needs are
-[`vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)'s.
-Two things that leaf does not carry:
-
-**Rebuilding the upstream clone from scratch**, when a broken or
-half-updated clone is the suspect:
-
-```bash
-# 1. Clone fresh DuckDB repository
-git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
-
-# 2. Checkout target branch
-cd /tmp/duckdb-vendor
-git checkout v1.4-andium   # adjust to target series
-
-# 3. Run manual vendor
-cd /path/to/duckdb-r
-scripts/vendor.sh /tmp/duckdb-vendor
-
-# 4. Test build
-R CMD INSTALL .
-```
-
-**`src/*.dd` files changing on every build** is spurious —
-revert with `git checkout -- src/*.dd`.
-They should only change when a `.cpp` file gains or loses a local `#include`.
-
-## Monitoring Vendoring
-
-Two ranges tell a human how far a series is,
-and both stay clean linear counts by construction
-(`-green` is always an ancestor of `-dev`,
-and `-build-base` of `-build` —
-the display ref `-build-base` exists for exactly this;
-no script ever reads it back):
-
-* **in flight** — pushed to CI, not yet trusted: `<S>-green..<S>-dev`
-* **buffered** — vendored, not yet consumed: `<S>-build-base..<S>-build`
-
-shields.io renders these from the public repo,
-showing how many commits `head` is ahead of `base`:
-
-```text
-https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-green&head=<S>-dev&label=in%20flight
-https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-build-base&head=<S>-build&label=buffered
-```
-
-The live table is the `Flavors` section of [`README.md`](/README.md) —
-one row per flavor, these two badges
-plus an *ahead* badge against the branch the series releases from,
-and version badges for the CRAN and LTS rows.
-`.claude/skills/series-open/SKILL.md` documents its upkeep,
-including the constraint that every ref a badge names
-must live in `krlmlr/duckdb-r`:
-shields.io compares within a single repository,
-so release branches are mirrored into the fork and kept fresh.
-Link a badge to the matching compare URL —
-`https://github.com/krlmlr/duckdb-r/compare/<base>...<head>` —
-which is the drill-down.
-An upstream-lag badge ("how far behind `duckdb/duckdb` itself")
-is not expressible this way — the comparison would cross repositories.

@@ -48,9 +48,28 @@ so vendoring can run ahead while CI catches up
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.
-The badges in the root [`README.md`](/README.md) count these gaps:
-*in flight* and *buffered* between these refs,
-*ahead* against the branch the series releases from.
+**The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
+and both counts stay linear by construction —
+`-green` is always an ancestor of `-dev`, and `-build-base` of `-build`:
+
+* **in flight** — pushed to CI, not yet trusted: `<S>-green..<S>-dev`
+* **buffered** — vendored, not yet consumed: `<S>-build-base..<S>-build`
+* **ahead** — against the branch the series releases from
+
+`-build-base` is a display ref and exists for exactly this; no script reads it back.
+shields.io renders a count from the public repository:
+
+```text
+https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-green&head=<S>-dev&label=in%20flight
+```
+
+It compares **within one repository**, which is what forces every ref a badge names
+to live in `krlmlr/duckdb-r`, release branches included, and kept fresh
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+Link each badge to `https://github.com/krlmlr/duckdb-r/compare/<base>...<head>`, its drill-down.
+An upstream-lag badge — how far behind `duckdb/duckdb` itself — is not expressible this way,
+because that comparison crosses repositories.
+The table's upkeep is [`series-open`](/.claude/skills/series-open/SKILL.md)'s.
 
 *To deepen: absorb `BRANCHES.md` §§ Package Components,
 Branch Overview, and Source of Truth.*
