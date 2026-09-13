@@ -52,6 +52,8 @@ the replay then populates `<S>-fwd-build`.
    so every picked commit inherits whatever the seed was stamped with
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
    Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
+   The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
+   previewing 2.0 is `1.99.99.9000`.
 
    **The forward series takes the whole of the new base.**
    The replay is a cherry-pick, not a tree reconstruction:
