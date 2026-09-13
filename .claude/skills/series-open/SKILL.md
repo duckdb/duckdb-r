@@ -190,12 +190,21 @@ Two things a copied row gets wrong.
 
 **Which branch *ahead* measures from.** It is the branch the series releases from,
 which for a line still releasing from `main` *is* `main` — not `<U>`, and not the
-parked baseline a retired line uses. Every lag badge names refs of
-`krlmlr/duckdb-r`, because that is the repository carrying `<S>-dev` and
-`<S>-build` and shields.io compares two refs of one repository. A badge whose base
-the named repository lacks renders as an error rather than a count, and one
-reading a stale mirror is worse because it renders: it counts commits that have
-already shipped. Step 6 settles both.
+parked baseline a retired line uses.
+
+**Which repository each badge is counted in**, because that differs within one
+row. shields.io compares two refs of a single repository, and the row's three
+comparisons do not all live in the same one:
+
+* ***ahead*** is counted in `duckdb/duckdb-r`. Both its refs are there — the
+  release branch natively, and `<S>-green` because the loop mirrors it
+  ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+* ***in flight*** and ***buffered*** are counted in `krlmlr/duckdb-r`, the only
+  repository carrying `<S>-dev` and `<S>-build`.
+
+A badge whose base the named repository lacks renders as an error rather than a
+count, and one reading a stale mirror is worse because it renders: it counts
+commits that have already shipped. Step 6 settles both.
 
 **The table must stay clear of `scripts/flavor.patch`.**
 `README.Rmd` is a flavored file and the patch rewrites the installation hunks near
