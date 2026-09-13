@@ -3,10 +3,10 @@
 #' Reads a CSV file into DuckDB
 #'
 #' Directly reads a CSV file into DuckDB, tries to detect and create the correct schema for it.
-#' This usually is much faster than reading the data into R and writing it to DuckDB.
+#'  This usually is much faster than reading the data into R and writing it to DuckDB.
 #'
 #' If the table already exists in the database, the csv is appended to it.
-#' Otherwise the table is created.
+#'  Otherwise the table is created.
 #'
 #' @inheritParams duckdb_register
 #' @param files One or more CSV file names, should all have the same structure though
@@ -18,8 +18,8 @@
 #' @param quote Which quote character is used for columns in the CSV file
 #' @param col.names Override the detected or generated column names
 #' @param col.types Character vector of column types in the same order as col.names,
-#' or a named character vector where names are column names and types pairs.
-#' Valid types are [DuckDB data types](https://duckdb.org/docs/sql/data_types/overview.html), e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.
+#'  or a named character vector where names are column names and types pairs.
+#'  Valid types are [DuckDB data types](https://duckdb.org/docs/sql/data_types/overview.html), e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.
 #' @param lower.case.names Transform column names to lower case
 #' @param sep Alias for delim for compatibility
 #' @param transaction Should a transaction be used for the entire operation
@@ -219,7 +219,7 @@ set_csv_fields <- function(found, col.names, col.types) {
 #' Deprecated functions
 #'
 #' `read_csv_duckdb()` has been superseded by `duckdb_read_csv()`.
-#' The order of the arguments has changed.
+#'  The order of the arguments has changed.
 #'
 #' @rdname deprecated
 #' @export

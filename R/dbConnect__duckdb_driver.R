@@ -52,8 +52,8 @@
 #'
 #' @details
 #' The behavior of `with = "force"` at DST transitions depends on
-#' how R handles translation from the underlying time representation to a human-readable format.
-#' If the timestamp is invalid in the target timezone, the resulting value may be `NA` or an adjusted time.
+#'  how R handles translation from the underlying time representation to a human-readable format.
+#'  If the timestamp is invalid in the target timezone, the resulting value may be `NA` or an adjusted time.
 #'
 #' @rdname duckdb
 #' @examplesIf simulate_duckdb()$env$examples_enabled()

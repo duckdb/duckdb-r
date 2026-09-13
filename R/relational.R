@@ -293,7 +293,7 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' @param rel the DuckDB relation object
 #' @param orders a list of DuckDB expressions to order by
 #' @param ascending a vector of boolean values describing sort order of expressions.
-#' True for ascending.
+#'  True for ascending.
 #' @return the now aggregated `duckdb_relation` object
 #' @noRd
 #' @examples
@@ -687,9 +687,9 @@ rel_to_sql <- function(rel) {
 #' Creates a relation that represents the result of an SQL query against the connection, without executing it.
 #'
 #' If the connection was opened with `duckdb(environment_scan = TRUE)`,
-#' table references in `sql` that do not resolve in the database catalog are looked up in `env` (and its enclosing environments).
-#' Any data frame found this way is captured by the resulting relation and stays accessible for the lifetime of the relation,
-#' even after `env` is no longer reachable from R.
+#'  table references in `sql` that do not resolve in the database catalog are looked up in `env` (and its enclosing environments).
+#'  Any data frame found this way is captured by the resulting relation and stays accessible for the lifetime of the relation,
+#'  even after `env` is no longer reachable from R.
 #'
 #' @param con A duckdb connection.
 #' @param sql An SQL query.
