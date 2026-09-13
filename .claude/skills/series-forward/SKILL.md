@@ -38,6 +38,15 @@ the replay then populates `<S>-fwd-build`.
    whose `scripts/` may be older than `main`'s —
    replay the recorded seed commits instead when it is.
 
+   **A preview line's seed takes its version prefix again here.**
+   A regenerated seed carries `main`'s prefix, which is the released line's,
+   and the replay cannot put the preview prefix back:
+   the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
+   so every picked commit inherits whatever the seed was stamped with
+   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+   Stamp it in the fifth-component commit the way `series-open.md` step 2 does,
+   before the four `-fwd` refs are created equal.
+
    **The forward series takes the whole of the new base.**
    The replay is a cherry-pick, not a tree reconstruction:
    a vendor commit's diff is already exactly what vendoring changed —
