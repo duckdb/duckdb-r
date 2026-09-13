@@ -176,8 +176,10 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		signal_handler.HandleInterrupt();
 
 		if (res->HasError()) {
-			ErrorData error(res->GetError());
-			rapi_error_with_context("rapi_prepare", error);
+			// `GetErrorObject()`, not `GetError()`: the latter is the formatted
+			// message, and rebuilding an `ErrorData` from it would report every
+			// failure as INVALID with no extra info.
+			rapi_error_with_context("rapi_prepare", res->GetErrorObject());
 		}
 	}
 	bool explain_analyze = IsExplainAnalyze(*statements.back());
@@ -528,8 +530,9 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	signal_handler.Disable();
 
 	if (generic_result->HasError()) {
-		ErrorData error(generic_result->GetError());
-		rapi_error_with_context("rapi_execute", error);
+		// The error object rather than its message, so that the exception type
+		// and extra info survive to the caller -- see rapi_prepare() above.
+		rapi_error_with_context("rapi_execute", generic_result->GetErrorObject());
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
