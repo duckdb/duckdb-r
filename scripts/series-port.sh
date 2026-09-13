@@ -227,6 +227,31 @@ classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   fi
 }
 
+# What `main` gained through an ancestry-only merge: a merge whose tree is its
+# first parent's, so nothing of the lineage it records ever entered main's
+# tree. `git cherry` offers those commits like any other -- they are ancestors
+# of `main` carrying no patch-id the series has -- and porting one applies a
+# tree from another era on top of this one.
+#
+# #2713 recorded the v1.1.3-2 tag that way, and the next firing was offered 13
+# commits dated 2024-12 to 2025-01 for every non-frozen series, `feat: Limit
+# automatic materialization by number of rows or number of cells (#1017)` among
+# them. A default --apply would have cherry-picked all of them.
+#
+# The test is the merge's own tree and not its subject: `-s ours` is one way to
+# write "ancestry only", a hand-resolved merge that kept our side is another,
+# and both leave the same fact behind.
+ancestry_only_commits() {
+  local m parents
+  while IFS= read -r m; do
+    [ "$(git rev-parse "$m^{tree}")" = "$(git rev-parse "$m^1^{tree}")" ] || continue
+    parents=$(git rev-list --parents -n 1 "$m" | cut -d' ' -f3-)
+    [ -n "$parents" ] || continue
+    # shellcheck disable=SC2086  # a parent list, deliberately word-split
+    git rev-list $parents --not "$m^1"
+  done < <(git rev-list --merges "$mb..$main")
+}
+
 candidates=()
 declare -A klass=()
 
@@ -250,9 +275,12 @@ else
   while IFS= read -r x; do ported[$x]=1; done < <(
     git log --format=%B "$mb..$dev" |
       sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
+  declare -A ancestry_only=()
+  while IFS= read -r m; do ancestry_only[$m]=1; done < <(ancestry_only_commits)
   mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
   for sha in "${all[@]}"; do
     [ -n "${ported[$sha]:-}" ] && continue
+    [ -n "${ancestry_only[$sha]:-}" ] && continue
     candidates+=("$sha")
     klass[$sha]=$(classify "$sha")
     printf '%-7s %s %s\n' "${klass[$sha]}" \
