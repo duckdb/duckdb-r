@@ -17,11 +17,6 @@ duckdb_error_field_values <- function(
   fields[!vapply(fields, is.null, logical(1))]
 }
 
-# What `rethrow_error_from_rapi()` carries across the rethrow. Read off the
-# builder above rather than spelled out a second time, so a field added there
-# reaches the caller instead of being silently dropped on the way.
-duckdb_error_fields <- names(formals(duckdb_error_field_values))
-
 # Internal error function for C++ layer, base half of the pair below. Reachable
 # under this name so that the no-rlang path can be tested with rlang installed;
 # `rapi_error()` is what the glue calls, and `.onLoad()` points it at whichever

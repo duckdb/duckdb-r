@@ -3,9 +3,10 @@
 # noticed the problem (#522).
 #
 # A `duckdb_error` is rebuilt rather than flattened to its text: the class and
-# the `duckdb_error_fields` that `rapi_error()` filled from DuckDB's `ErrorData`
-# ride across, so a caller can branch on `err$error_type` instead of parsing
-# `conditionMessage()` (#2711).
+# the fields `rapi_error()` filled from DuckDB's `ErrorData` ride across, so a
+# caller can branch on `err$error_type` instead of parsing `conditionMessage()`
+# (#2711). Which fields those are is `duckdb_error_field_values()`'s to say --
+# a new one added there makes this call fail rather than silently drop it.
 #
 # The original condition is deliberately not attached as `parent`. Its message
 # is this message, and rlang would print the whole thing a second time under
@@ -31,6 +32,11 @@ rethrow_error_from_rapi <- function(e, call) {
     rlang::abort(msg, call = call)
   }
 
-  fields <- e[intersect(duckdb_error_fields, names(e))]
+  fields <- duckdb_error_field_values(
+    e$context,
+    e$error_type,
+    e$raw_message,
+    e$extra_info
+  )
   rlang::abort(msg, class = "duckdb_error", call = call, !!!fields)
 }
