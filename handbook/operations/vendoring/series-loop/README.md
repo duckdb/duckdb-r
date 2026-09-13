@@ -126,7 +126,9 @@ Everything else is an option, spelled identically in all of them:
   `git -C`. Default `$UPSTREAM_CLONE`.
   Only `series-check.sh` and `series-cutover.sh` read one.
 * `--canonical <name>` — the remote of the repository r-universe publishes the
-  base flavors from. Default `$SERIES_CANONICAL`; unset means no mirroring.
+  base flavors from. Default `$SERIES_CANONICAL`, then `upstream`, which is what
+  a `gh` clone of a fork calls the repository it was forked from.
+  An empty `SERIES_CANONICAL` turns the mirroring off; an unset one does not.
   Only `series-advance.sh` and `series-cutover.sh` write one
   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * `-h`, `--help` — the usage, on stdout, exit 0, before the script

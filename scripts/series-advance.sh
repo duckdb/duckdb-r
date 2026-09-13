@@ -58,8 +58,13 @@
 # firing rather than being forced: green is the verified frontier, and the only
 # thing that legitimately moves it off its lineage is a cutover, which does the
 # mirror itself (scripts/series-cutover.sh). A `-fwd` series is skipped -- its
-# green is a rebuild nobody installs, published from the fork's own universe --
-# and without the option nothing is mirrored at all.
+# green is a rebuild nobody installs, published from the fork's own universe.
+#
+# It defaults to `upstream`, the name a `gh` clone of a fork gives the repository
+# it was forked from, so mirroring is on wherever that name means what it usually
+# means. Setting `SERIES_CANONICAL` to the empty string turns it off; leaving it
+# unset does not, because a mirror that silently stops is the failure this
+# exists to prevent.
 #
 # Usage: series-advance.sh <series> [--chunk <n>] [--dev-note <file>]
 #        series-advance.sh <series> --continue [--dev-note <file>]
@@ -81,7 +86,9 @@ ABORT=
 DEV_NOTE=
 chunk=100
 remote=${SERIES_REMOTE:-origin}
-canonical=${SERIES_CANONICAL:-}
+# No colon: an explicitly empty SERIES_CANONICAL means "do not mirror", while
+# an unset one takes the default.
+canonical=${SERIES_CANONICAL-upstream}
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -400,6 +407,15 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
   # a refusal here means the two repositories disagree about verified history,
   # which is a thing to look at rather than to overwrite.
   if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
+    if ! git remote get-url "$canonical" >/dev/null 2>&1; then
+      echo "Error: no remote '$canonical' to mirror $S-green into." >&2
+      echo "  The canonical repository is where r-universe publishes the base" >&2
+      echo "  flavors from, so a green that stays in the fork is a package that" >&2
+      echo "  keeps being published as the fork owner's. Name the remote" >&2
+      echo "  'upstream', or pass --canonical <name>; SERIES_CANONICAL='' turns" >&2
+      echo "  the mirroring off deliberately." >&2
+      exit 1
+    fi
     if git push "$canonical" "$new_green:refs/heads/$S-green"; then
       echo "green mirrored to $canonical"
     else

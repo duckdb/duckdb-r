@@ -21,7 +21,8 @@
 #   series-cutover.sh main --upstream ../../../duckdb
 #
 # `--canonical <name>` names the repository r-universe publishes the base
-# flavors from, which carries a copy of `<S>-green` and nothing else
+# flavors from -- default `upstream`, as in series-advance.sh -- which carries a
+# copy of `<S>-green` and nothing else
 # (scripts/series-advance.sh). A cutover is the one move that takes green off
 # its lineage, so it is the one place that copy is forced -- under a lease, and
 # after the swap, so the canonical repository is never ahead of the fork.
@@ -45,7 +46,7 @@ set -euo pipefail
 usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
-canonical=${SERIES_CANONICAL:-}
+canonical=${SERIES_CANONICAL-upstream}
 upstream=${UPSTREAM_CLONE:-}
 args=()
 while [ $# -gt 0 ]; do

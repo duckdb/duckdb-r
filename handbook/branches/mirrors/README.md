@@ -77,7 +77,9 @@ duplicating either is the thing this avoids.
 
 **It is a fast-forward, and a refusal is a finding.**
 [`scripts/series-advance.sh`](/scripts/series-advance.sh) pushes it plainly
-beside the fork's own green, so git rejects anything that is not a forward,
+beside the fork's own green — to the remote `upstream` unless told otherwise,
+which is what a `gh` clone of a fork calls what it was forked from —
+so git rejects anything that is not a forward,
 and the rejection stops the firing rather than being forced:
 green is the verified frontier, and two repositories disagreeing about it
 is something to read.
