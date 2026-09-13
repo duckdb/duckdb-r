@@ -20,6 +20,11 @@
 # (the same lesson revdep2 learnt on the host). Everything downstream (the
 # universe image, every check container) stands on this.
 #
+# ccache is the one entry no check needs. The build job compiles the whole
+# vendored engine on the critical path of every run, and it alone puts
+# /usr/lib/ccache on its PATH (revdepx/build.R): a check container carries
+# the binary and never invokes it.
+#
 # Usage:
 #   base-image.sh <r-version> <registry-image>   # ensure it exists, print ref
 #   base-image.sh --tag-only <r-version>         # print the tag; no docker
@@ -110,6 +115,7 @@ RUN apt-get update \\
       xvfb xauth xfonts-base \\
       libtcl8.6 libtk8.6 \\
       tidy curl file git locales unzip \\
+      ccache \\
     && rm -rf /var/lib/apt/lists/*
 # Rust, for the reverse dependencies that compile cargo crates -- run
 # 32260705703 left exactly six packages uninstallable, every one of them

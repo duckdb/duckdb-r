@@ -412,6 +412,23 @@ jobs:
           restore-keys: |
             revdepx-pak-build-
 
+      # The compiler cache, which is what keeps this job from recompiling the
+      # whole vendored engine every run. Everything in it was produced by the
+      # base image's toolchain, so the key carries that image's recipe hash
+      # and the R version naming it: a change to either is a different
+      # compiler, and ccache would miss on every object regardless. The run id
+      # makes the key unique, because actions/cache never overwrites a key
+      # that already exists and the cache would otherwise be saved once and
+      # never again; restore-keys then takes the newest cache the same
+      # toolchain left behind.
+      - name: Cache the compiler cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: revdepx-ccache-${{ env.REVDEPX_R_VERSION_INPUT }}-${{ hashFiles('.github/workflows/revdepx/base-image.sh') }}-${{ github.run_id }}
+          restore-keys: |
+            revdepx-ccache-${{ env.REVDEPX_R_VERSION_INPUT }}-${{ hashFiles('.github/workflows/revdepx/base-image.sh') }}-
+
       # Inside the base container, because the binary must load under the
       # container's R (the pinned oldrel), and a binary built by the runner's
       # newer R would not.
@@ -420,22 +437,35 @@ jobs:
           BASE_IMAGE: ${{ needs.base.outputs.image }}
         run: |
           set -eu
-          mkdir -p "${RUNNER_TEMP}/pkg" "${RUNNER_TEMP}/pak-cache"
+          mkdir -p "${RUNNER_TEMP}/pkg" "${RUNNER_TEMP}/pak-cache" \
+            "${RUNNER_TEMP}/ccache"
+          # CCACHE_MAXSIZE is a budget, not an estimate: a repository gets
+          # 10 GB of Actions cache in total and the universe job's pak cache
+          # already spends more than two of them, so a compiler cache that
+          # grew without a ceiling would evict the very thing it shares the
+          # budget with. ccache compresses what it stores; raise this if the
+          # statistics in the build summary start reporting evictions.
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/revdepx/src" \
             -v "${RUNNER_TEMP}/pkg:/revdepx/pkg-out" \
             -v "${RUNNER_TEMP}/pak-cache:/root/.cache/R/pkgcache" \
+            -v "${RUNNER_TEMP}/ccache:/revdepx/ccache" \
             -w /revdepx/src \
             -e REVDEPX_BUILD_DEPS=1 \
             -e PKG_SYSREQS=true \
             -e OUT_DIR=/revdepx/pkg-out \
+            -e CCACHE_DIR=/revdepx/ccache \
+            -e CCACHE_MAXSIZE=2G \
             -e GITHUB_SHA \
             "${BASE_IMAGE}" \
             Rscript ./.github/workflows/revdepx/build.R
           # Root in the container wrote the pak cache, and its 600 lock
           # files defeat the cache post-step's tar ("Permission denied",
-          # save skipped). Hand the tree back to the runner user.
-          sudo chown -R "$(id -u):$(id -g)" "${RUNNER_TEMP}/pak-cache" || true
+          # save skipped). Hand the tree back to the runner user. The
+          # compiler cache is root-written for the same reason and needs the
+          # same handover.
+          sudo chown -R "$(id -u):$(id -g)" \
+            "${RUNNER_TEMP}/pak-cache" "${RUNNER_TEMP}/ccache" || true
         shell: bash
 
       - name: Upload the package binary

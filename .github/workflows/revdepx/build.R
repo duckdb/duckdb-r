@@ -16,6 +16,10 @@
 #   OUT_DIR             - where tarball, binary and metadata land (default: pkg)
 #   REVDEPX_BUILD_DEPS  - if truthy, pak-install the package's own hard
 #                         dependencies (with system requirements) first
+#   CCACHE_DIR          - read by ccache itself, not by this script: where
+#                         the compiler cache lives. Point it at a mount the
+#                         caller persists between runs, or leave it unset
+#                         and every object is compiled from scratch
 
 source(file.path(
   dirname(sub("--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
@@ -24,6 +28,75 @@ source(file.path(
 
 out_dir <- env_chr("OUT_DIR", "pkg")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Compile through ccache. This build is the whole vendored engine and it is
+# on the critical path of every run -- no shard starts before the binary
+# exists -- while between runs the engine moves by one vendor commit at a
+# time, which is exactly the shape a content-addressed compiler cache pays
+# off on.
+#
+# Debian's ccache package keeps one symlink per installed compiler under
+# /usr/lib/ccache, so putting that directory first on PATH routes every
+# `gcc`/`g++` the build resolves through ccache and touches neither R's
+# Makeconf nor ~/.R/Makevars. Prefixing the compiler in Makevars instead is
+# the alternative, and it is the one that bit us before: R-devel took the
+# first word of `CC = ccache gcc` and ran a bare `ccache`, which died with
+# "invalid option -- 'E'" (.github/workflows/install/action.yml says more).
+#
+# Where the cache lives is CCACHE_DIR's business, and the caller's: with a
+# persisted mount this is minutes off every run, with nothing mounted it is
+# the container's own directory, thrown away with the container. Correct
+# either way -- a cold cache only ever costs the hashing.
+ccache_bin_dir <- "/usr/lib/ccache"
+use_ccache <- dir.exists(ccache_bin_dir) && nzchar(Sys.which("ccache"))
+if (use_ccache) {
+  Sys.setenv(
+    PATH = paste(ccache_bin_dir, Sys.getenv("PATH"), sep = .Platform$path.sep)
+  )
+  # Zeroed so the statistics printed at the end describe this build alone,
+  # not every build the restored cache has ever served.
+  system2("ccache", "--zero-stats", stdout = FALSE, stderr = FALSE)
+  cache_dir <- Sys.getenv("CCACHE_DIR")
+  inform(
+    "Compiling through ccache, cache in ",
+    if (nzchar(cache_dir)) {
+      cache_dir
+    } else {
+      "the container's own directory (not persisted)"
+    }
+  )
+} else {
+  inform("ccache is not installed in this image; compiling without it")
+}
+
+# ccache's own words rather than a hit rate parsed out of them: the format of
+# `--show-stats` has changed more than once between ccache versions, and a
+# mis-parse would report a healthy cache as a cold one -- the exact thing this
+# is here to notice.
+ccache_stats <- function() {
+  out <- tryCatch(
+    suppressWarnings(system2(
+      "ccache",
+      "--show-stats",
+      stdout = TRUE,
+      stderr = TRUE
+    )),
+    error = function(e) character()
+  )
+  if (length(out) == 0) {
+    return(character())
+  }
+  c(
+    "",
+    "<details><summary>ccache statistics</summary>",
+    "",
+    "```",
+    out,
+    "```",
+    "",
+    "</details>"
+  )
+}
 
 if (env_flag("REVDEPX_BUILD_DEPS")) {
   # The image's baked repo may be a frozen P3M snapshot (rocker pins the last
@@ -137,8 +210,14 @@ write_json(
 )
 inform("Binary: ", binary)
 
+# What the cache actually did, in the log and in the run summary: a hit rate
+# is the only way to notice that a key stopped matching and every run has
+# quietly gone back to compiling the engine from scratch.
+ccache_summary <- if (use_ccache) ccache_stats() else character()
+
 append_summary(c(
   "## revdepx build",
   "",
-  sprintf("Built `%s` %s: `%s`.", package, dev_version, binary)
+  sprintf("Built `%s` %s: `%s`.", package, dev_version, binary),
+  ccache_summary
 ))
