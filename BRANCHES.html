@@ -196,47 +196,7 @@
 </div>
 <div class="section level2">
 <h2 id="source-of-truth">Source of Truth<a class="anchor" aria-label="anchor" href="#source-of-truth"></a></h2>
-<p><code>main</code> in <code>duckdb/duckdb-r</code> is the <strong>source of truth</strong> for four of the seven components:</p>
-<table class="table"><colgroup><col width="23%"><col width="31%"><col width="45%"></colgroup><thead><tr><th>Component</th>
-<th>Source of truth</th>
-<th>Notes</th>
-</tr></thead><tbody><tr><td>DuckDB core</td>
-<td>
-<code>duckdb/duckdb</code> upstream</td>
-<td>Vendored independently into each branch</td>
-</tr><tr><td>Flavor</td>
-<td>Per-branch (via <code>flavor.sh</code>)</td>
-<td>Applied mechanically on top of the baseline</td>
-</tr><tr><td><strong>Glue code</strong></td>
-<td><strong><code>main</code></strong></td>
-<td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr><td><strong>R code and tests</strong></td>
-<td><strong><code>main</code></strong></td>
-<td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr><td><strong>CI/CD infrastructure</strong></td>
-<td><strong><code>main</code></strong></td>
-<td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr><td><strong>cpp11</strong></td>
-<td><strong><code>main</code></strong></td>
-<td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr><td>R core</td>
-<td>External (<code>r-devel</code>, CRAN policy)</td>
-<td>Monitored; fixes land in <code>main</code> first</td>
-</tr></tbody></table><div class="section level3">
-<h3 id="keeping-derived-branches-in-sync-with-main">Keeping derived branches in sync with main<a class="anchor" aria-label="anchor" href="#keeping-derived-branches-in-sync-with-main"></a></h3>
-<p>The forward-port order for non-vendor commits is always from newer to older:</p>
-<pre><code>duckdb/duckdb-r@main ─────────────────────────────►
-        │                                         │
-        ▼                                         ▼
-krlmlr/duckdb-r@main-dev                duckdb/duckdb-r@v1.4-andium
-        │
-        ▼
-krlmlr/duckdb-r@v1.5-variegata-dev
-        │
-        ▼
-krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
-<p>Never port in reverse. Keeping it consistent is the series loop’s forward-port stage (<a href="/handbook/operations/vendoring/series-loop/README.html"><code>operations/vendoring/series-loop/</code></a>), which runs <code>scripts/series-port.sh</code> on every firing; the fork’s <code>main</code> is a mirror and moves on its own (<a href="/handbook/branches/mirrors/README.html"><code>branches/mirrors/</code></a>).</p>
-</div>
+<p>Absorbed: <a href="/handbook/branches/model/README.html"><code>branches/model/</code></a> owns which of the seven components <code>main</code> is the source of truth for, and the forward-port order.</p>
 </div>
 <div class="section level2">
 <h2 id="series-invariants">Series Invariants<a class="anchor" aria-label="anchor" href="#series-invariants"></a></h2>
@@ -260,7 +220,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <li>
 <strong>A1 — Dev descends from its release point.</strong> Within a patch series, <code>release-content ⊑ dev</code> as linear ancestors, where <code>release-content</code> is the released tree — this may sit a couple of commits <em>below</em> <code>stable</code>’s tip when that tip carries release mechanics (the CRAN merge + post-release bump). <code>dev</code> grows by append and is rewritten (force-push) only to re-anchor onto a new release point or to drop a non-green commit. The <code>flavor.sh</code> rename is the first group of commits above the seed.</li>
 <li>
-<strong>A2 — Flip ancestry (preview line).</strong> For the next-major flip to be an atomic fast-forward, <code>main ⊑ main-dev</code> must hold. This is <strong>not</strong> maintained continuously: <code>main</code> (current stable) and <code>main-dev</code> (next major) vendor different upstream C++, so forcing ancestry would mean rebasing 400+ commits on every <code>main</code> patch release for no benefit. Instead it is <strong>established once</strong>, immediately before the flip, by rewinding to the upstream bifurcation point and replaying. Nothing automates that step — there is no runbook and no script — and the flip it prepares is <a href="/handbook/operations/releases/process/README.html"><code>operations/releases/process/</code></a>’s.</li>
+<strong>A2 — Flip ancestry (preview line).</strong> For the next-major flip to be an atomic fast-forward, <code>main ⊑ main-dev</code> must hold. This is <strong>not</strong> maintained continuously: <code>main</code> (current stable) and <code>main-dev</code> (next major) vendor different upstream C++, so forcing ancestry would mean rebasing 400+ commits on every <code>main</code> patch release for no benefit. Instead it is <strong>established once</strong>, immediately before the flip, by grafting the upstream bifurcation point’s tree onto <code>main</code> and replaying what the branch has taken since (<a href="/.claude/skills/series-forward/SKILL.html"><code>.claude/skills/series-forward/SKILL.md</code></a>), and the flip it prepares is <a href="/handbook/operations/releases/process/README.html"><code>operations/releases/process/</code></a>’s.</li>
 <li>
 <strong>A3 — Dev SHAs are disposable.</strong> Because linearity is maintained by rebasing, <code>-dev</code> SHAs are not durable; only tags (releases) and the fast-forward-only <code>-green</code> frontier are stable references. This is acceptable — <code>-dev</code> exists solely for CI and r-universe.</li>
 </ul><div class="section level4">
@@ -285,8 +245,8 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </td>
 </tr><tr><td><strong>Major-flip linearization</strong></td>
 <td>per major release</td>
-<td>O(hundreds) — 402 pending on <code>main-dev</code> today</td>
-<td>one-time rewind + replay (deferred, not continuous)</td>
+<td>O(commits above the bifurcation) — 49 on <code>main-dev</code> at the v2.0 opening</td>
+<td>one-time graft + replay (deferred, not continuous)</td>
 </tr></tbody></table><p>The merge driver is what keeps the recurring rebases (patch re-baseline, forward-port) cheap; the one genuinely expensive operation — the major-flip linearization — is paid once, by design, rather than amortized into every patch release.</p>
 </div>
 </div>

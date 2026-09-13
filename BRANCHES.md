@@ -215,41 +215,10 @@ corresponding bleeding-edge upstream branches and are published as
 
 ## Source of Truth
 
-`main` in `duckdb/duckdb-r` is the **source of truth** for four of the
-seven components:
-
-| Component | Source of truth | Notes |
-|----|----|----|
-| DuckDB core | `duckdb/duckdb` upstream | Vendored independently into each branch |
-| Flavor | Per-branch (via `flavor.sh`) | Applied mechanically on top of the baseline |
-| **Glue code** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
-| **R code and tests** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
-| **CI/CD infrastructure** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
-| **cpp11** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
-| R core | External (`r-devel`, CRAN policy) | Monitored; fixes land in `main` first |
-
-### Keeping derived branches in sync with main
-
-The forward-port order for non-vendor commits is always from newer to
-older:
-
-    duckdb/duckdb-r@main ─────────────────────────────►
-            │                                         │
-            ▼                                         ▼
-    krlmlr/duckdb-r@main-dev                duckdb/duckdb-r@v1.4-andium
-            │
-            ▼
-    krlmlr/duckdb-r@v1.5-variegata-dev
-            │
-            ▼
-    krlmlr/duckdb-r@v1.4-andium-dev
-
-Never port in reverse. Keeping it consistent is the series loop’s
-forward-port stage
-([`operations/vendoring/series-loop/`](https://r.duckdb.org/handbook/operations/vendoring/series-loop/README.md)),
-which runs `scripts/series-port.sh` on every firing; the fork’s `main`
-is a mirror and moves on its own
-([`branches/mirrors/`](https://r.duckdb.org/handbook/branches/mirrors/README.md)).
+Absorbed:
+[`branches/model/`](https://r.duckdb.org/handbook/branches/model/README.md)
+owns which of the seven components `main` is the source of truth for,
+and the forward-port order.
 
 ## Series Invariants
 
@@ -323,9 +292,10 @@ history.
   major) vendor different upstream C++, so forcing ancestry would mean
   rebasing 400+ commits on every `main` patch release for no benefit.
   Instead it is **established once**, immediately before the flip, by
-  rewinding to the upstream bifurcation point and replaying. Nothing
-  automates that step — there is no runbook and no script — and the flip
-  it prepares is
+  grafting the upstream bifurcation point’s tree onto `main` and
+  replaying what the branch has taken since
+  ([`.claude/skills/series-forward/SKILL.md`](https://r.duckdb.org/.claude/skills/series-forward/SKILL.md)),
+  and the flip it prepares is
   [`operations/releases/process/`](https://r.duckdb.org/handbook/operations/releases/process/README.md)’s.
 - **A3 — Dev SHAs are disposable.** Because linearity is maintained by
   rebasing, `-dev` SHAs are not durable; only tags (releases) and the
@@ -339,7 +309,7 @@ history.
 | `dev` append (vendor / forward-port) | daily / per glue change | O(1) | append; cherry-pick |
 | Patch re-baseline | per patch release | O(pending) replayed × per-commit CI (small: 3–21 today) | rebase; merge driver auto-resolves the version |
 | Forward-port across the chain | per glue change | O(diff) × active lines | cherry-pick; merge driver handles `DESCRIPTION` |
-| **Major-flip linearization** | per major release | O(hundreds) — 402 pending on `main-dev` today | one-time rewind + replay (deferred, not continuous) |
+| **Major-flip linearization** | per major release | O(commits above the bifurcation) — 49 on `main-dev` at the v2.0 opening | one-time graft + replay (deferred, not continuous) |
 
 The merge driver is what keeps the recurring rebases (patch re-baseline,
 forward-port) cheap; the one genuinely expensive operation — the
