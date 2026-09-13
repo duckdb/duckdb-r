@@ -17,8 +17,14 @@
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace.
 #
-# Usage: series-cutover.sh <series> [--remote <name>] [--upstream <path>]
+# Usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]
 #   series-cutover.sh main --upstream ../../../duckdb
+#
+# `--canonical <name>` names the repository r-universe publishes the base
+# flavors from, which carries a copy of `<S>-green` and nothing else
+# (scripts/series-advance.sh). A cutover is the one move that takes green off
+# its lineage, so it is the one place that copy is forced -- under a lease, and
+# after the swap, so the canonical repository is never ahead of the fork.
 #
 # The two are different kinds of thing, and a `gh` clone carries names that made
 # them easy to swap while both were positional:
@@ -36,14 +42,16 @@
 
 set -euo pipefail
 
-usage='usage: series-cutover.sh <series> [--remote <name>] [--upstream <path>]'
+usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
+canonical=${SERIES_CANONICAL:-}
 upstream=${UPSTREAM_CLONE:-}
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
@@ -182,6 +190,28 @@ if [ ${#missing[@]} -eq 4 ]; then
   echo "Series $S created from its forward counterpart."
 else
   echo "Series $S replaced by its forward counterpart."
+fi
+
+# The canonical repository carries a copy of green for r-universe to publish
+# from, and the swap just moved green onto a lineage the old one is no more an
+# ancestor of. This is the only place that copy is forced: the loop's own mirror
+# is fast-forward only and would stop the next firing on exactly this
+# divergence. After the swap, never before, so the canonical copy is never ahead
+# of the fork -- and under a lease, so a green nobody here wrote is not
+# overwritten silently.
+if [ -n "$canonical" ]; then
+  new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
+  git fetch -q "$canonical" "$S-green" 2>/dev/null || true
+  cur=$(git rev-parse -q --verify FETCH_HEAD) || cur=
+  if [ "$cur" = "$new_green" ]; then
+    echo "canonical $S-green already at $(git rev-parse --short "$new_green")"
+  elif git push --force-with-lease="refs/heads/$S-green:$cur" \
+      "$canonical" "$new_green:refs/heads/$S-green"; then
+    echo "canonical $S-green -> $(git rev-parse --short "$new_green")"
+  else
+    echo "Warning: could not move $S-green in $canonical; r-universe still" >&2
+    echo "  publishes the pre-cutover lineage until it is moved by hand." >&2
+  fi
 fi
 
 # Best-effort: some git proxies refuse deletions. Until these refs are gone,

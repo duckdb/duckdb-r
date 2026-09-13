@@ -15,9 +15,10 @@ Because the names differ, flavors coexist in one library.
 |---|---|---|---|
 | `duckdb` | CRAN, also r-universe | `main` in `duckdb/duckdb-r` | `v1.5-variegata` |
 | `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` in `duckdb/duckdb-r` | `v1.4-andium` |
-| `duckdb.dev` | dev, r-universe | `main-dev` in the fork | `main` |
-| `duckdb.1.5.dev` | dev, r-universe | `v1.5-variegata-dev` in the fork | `v1.5-variegata` |
-| `duckdb.1.4.dev` | dev, r-universe | `v1.4-andium-dev` in the fork | `v1.4-andium` |
+| `duckdb.dev` | dev, r-universe | `main-green` | `main` |
+| `duckdb.2.0.dev` | dev, r-universe | `v2.0-cyanoptera-green` | `v2.0-cyanoptera` |
+| `duckdb.1.5.dev` | dev, r-universe | `v1.5-variegata-green` | `v1.5-variegata` |
+| `duckdb.1.4.dev` | dev, r-universe | `v1.4-andium-green` | `v1.4-andium` |
 
 There is no `duckdb.1.5`: v1.5 is not an LTS line,
 and the current release already ships as `duckdb`.
@@ -52,5 +53,22 @@ This handbook is written for the mainline flavor:
 where a page spells the package `duckdb`,
 a reader on another flavor substitutes its name.
 
-*To deepen: state where r-universe is told
-which branch serves which flavor — the registration lives outside this repo.*
+## Where r-universe is told
+
+A universe is a repository of its own, `<user>/<user>.r-universe.dev`,
+whose `packages.json` gives each package a `url` and a `branch`.
+The registration lives outside this repo, so adding a flavor is a pull request
+against that one ([`series-open`](/.claude/skills/series-open/SKILL.md)),
+and [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it took.
+
+**Every base flavor names `duckdb/duckdb-r`, and a `.dev` one names `<S>-green`.**
+r-universe reads ownership from that URL, so a `duckdb.*` package built from the
+fork is published as the fork owner's.
+The `-green` refs are therefore mirrored from the fork into the canonical
+repository, which is the only branch that travels that way
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+
+The fork's own universe carries the `-fwd-green` refs and nothing else.
+A forward counterpart is a rebuild nobody installs, published only so a cutover
+can be verified across fifteen targets before it happens,
+so it belongs where it is built and not beside the flavor it will become.

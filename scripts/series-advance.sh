@@ -51,6 +51,16 @@
 # the plain ref move has no commit of its own to carry it, and it is an error to
 # ask for one when the chunk minted nothing.
 #
+# **`--canonical` mirrors the green into the repository r-universe reads.**
+# The series refs live in the fork, but the base flavors are published from the
+# canonical repository, so `<S>-green` has to exist in both and nothing else
+# does. The push is a plain one, fast-forward only, and a refusal stops the
+# firing rather than being forced: green is the verified frontier, and the only
+# thing that legitimately moves it off its lineage is a cutover, which does the
+# mirror itself (scripts/series-cutover.sh). A `-fwd` series is skipped -- its
+# green is a rebuild nobody installs, published from the fork's own universe --
+# and without the option nothing is mirrored at all.
+#
 # Usage: series-advance.sh <series> [--chunk <n>] [--dev-note <file>]
 #        series-advance.sh <series> --continue [--dev-note <file>]
 #        series-advance.sh <series> --abort          # discard a stopped replay
@@ -62,7 +72,7 @@
 
 set -euo pipefail
 
-usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--dev-note <file>]
+usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--canonical <name>] [--dev-note <file>]
        series-advance.sh <series> --continue [--dev-note <file>]
        series-advance.sh <series> --abort'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -71,6 +81,7 @@ ABORT=
 DEV_NOTE=
 chunk=100
 remote=${SERIES_REMOTE:-origin}
+canonical=${SERIES_CANONICAL:-}
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -78,6 +89,7 @@ while [ $# -gt 0 ]; do
     --abort) ABORT=1; shift ;;
     --chunk) [ $# -ge 2 ] || argerr; chunk=$2; shift 2 ;;
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     --dev-note) [ $# -ge 2 ] || argerr; DEV_NOTE=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
@@ -382,6 +394,23 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
     { echo "Error: green would not fast-forward — verified history was rewritten"; exit 1; }
   git push "$remote" "$new_green:refs/heads/$S-green"
   echo "green -> $(git rev-parse --short "$new_green")"
+
+  # The canonical repository publishes the base flavors, so its copy of green
+  # has to move too. No `+` and no lease: a plain push is fast-forward only, and
+  # a refusal here means the two repositories disagree about verified history,
+  # which is a thing to look at rather than to overwrite.
+  if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
+    if git push "$canonical" "$new_green:refs/heads/$S-green"; then
+      echo "green mirrored to $canonical"
+    else
+      echo "Error: $S-green would not fast-forward in $canonical." >&2
+      echo "  The fork and the canonical repository disagree about verified" >&2
+      echo "  history. Only a cutover moves green off its lineage, and it" >&2
+      echo "  mirrors that itself -- so this is a divergence to read, not to" >&2
+      echo "  force. r-universe is serving the canonical copy meanwhile." >&2
+      exit 1
+    fi
+  fi
 
   up=$(vendored_sha "$new_green")
   if [ -n "$up" ]; then
