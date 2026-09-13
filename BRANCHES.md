@@ -32,7 +32,7 @@ The seven components are:
    ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 
 2. **Flavor** (`DESCRIPTION`, `R/duckdb-package.R`, `NAMESPACE`, `README.md`, `src/include/rapi.hpp`,
-   `inst/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
+   `src/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
    name variant (`duckdb`, `duckdb.1.4`, `duckdb.1.4.dev`, …).
    The rename surface and the mechanism are
    [`branches/flavors/`](/handbook/branches/flavors/README.md)'s,
@@ -47,7 +47,7 @@ The seven components are:
 
 5. **CI/CD infrastructure** (`.github/workflows/`, `scripts/`): build, test, and release automation.
 
-6. **cpp11** (`inst/include/cpp11/`, `inst/include/cpp11.hpp`): vendored from
+6. **cpp11** (`src/vendor/cpp11/`, `src/vendor/cpp11.hpp`): vendored from
    [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11), which is a patch stack on top of
    [`r-lib/cpp11`](https://github.com/r-lib/cpp11).
 
@@ -66,15 +66,13 @@ duckdb-r/
 │   ├── *.dd                        # Local-header dependency tracking (keep in VCS)[3]
 │   ├── include/
 │   │   └── rapi.hpp                # Defines DUCKDB_PACKAGE_NAME (flavor)         [2,3]
+│   ├── vendor/
+│   │   ├── cpp11/                  # Vendored cpp11 headers (krlmlr/cpp11)         [6]
+│   │   └── cpp11.hpp               # cpp11 single-header entry point               [6]
 │   └── duckdb/                     # Vendored DuckDB C++ core (≈1700 .cpp, ≈1400 .h) [1]
 │       ├── src/                    # DuckDB source files
 │       ├── third_party/            # DuckDB bundled third-party libs
 │       └── extension/              # Extension loaders
-├── inst/
-│   └── include/
-│       ├── cpp11/                  # Vendored cpp11 headers (krlmlr/cpp11)         [6]
-│       ├── cpp11.hpp               # cpp11 single-header entry point               [6]
-│       └── duckdb_types.hpp        # Public C++ types exposed to downstream R pkgs [3]
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
 ├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
@@ -95,7 +93,7 @@ Numbers in `[brackets]` refer to the component list above.
   r-lib/cpp11
       │  patches maintained in krlmlr/cpp11
       ▼
-  inst/include/cpp11/   ◄─────────────────────────────────────────────────────────────┐
+  src/vendor/cpp11/     ◄─────────────────────────────────────────────────────────────┐
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
@@ -290,7 +288,7 @@ other.
 - **S1 — Flavor isolation (`lts`).** `git diff stable lts` touches only flavor
   files (`DESCRIPTION:Package`, `R/duckdb-package.R`, `src/include/rapi.hpp`
   macro, `NAMESPACE`, `man/*-package.Rd`, the renamed
-  `inst/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
+  `src/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
   `test_check()` names in `tests/`). Nothing under `src/duckdb/`, no glue logic
   in `src/*.cpp`, no `R/` logic.
 - **S2 — Baseline purity (`dev-base`).** `dev-base` is byte-identical to the

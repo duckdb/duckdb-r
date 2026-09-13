@@ -18,8 +18,8 @@
 #
 # The scan covers the R-level surface -- `R/`, `man/`, `tests/`, `vignettes/`, the
 # Markdown files at the top level, and `README.Rmd` in place of the `README.md`
-# generated from it -- plus the C++ glue in `src/` and
-# `inst/include/`. In the glue only the quoted form is checked: `duckdb::` there is
+# generated from it -- plus the C++ glue in `src/`.
+# In the glue only the quoted form is checked: `duckdb::` there is
 # the engine's C++ namespace, which has nothing to do with the R package name.
 # Vendored sources under `src/duckdb/` and testthat snapshots are left alone.
 #
@@ -87,11 +87,12 @@ flavor_scanned_files <- function(root) {
     readme_rmd
   )
 
-  glue <- c(
-    flavor_dir(root, "src", "[.](c|h|cpp|hpp)$"),
-    flavor_dir(root, file.path("inst", "include"), "[.](h|hpp)$")
-  )
+  glue <- flavor_dir(root, "src", "[.](c|h|cpp|hpp)$")
+  # `src/duckdb/` is the vendored engine and `src/vendor/` the vendored cpp11.
+  # Both have an upstream of their own and neither is renamed by a flavor, so
+  # a hit there would be somebody else's spelling of the word.
   glue <- glue[!startsWith(glue, paste0(file.path("src", "duckdb"), "/"))]
+  glue <- glue[!startsWith(glue, paste0(file.path("src", "vendor"), "/"))]
 
   patterns <- c(
     rep('duckdb:::?|"duckdb"', length(r_level)),
