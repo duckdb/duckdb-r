@@ -135,6 +135,20 @@ This skill is the release branch's birth certificate.
    ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
    A base series belongs in `duckdb.r-universe.dev`,
    a forward counterpart in `krlmlr.r-universe.dev`.
+
+   **Ask for it, in one of two places.**
+   A universe is configured by a repository of its own,
+   `<user>/<user>.r-universe.dev`,
+   whose `packages.json` gives each package a `url` and the `branch` to build —
+   for a series that branch is `<S>-green`, which is what r-universe builds
+   ([`series-loop/SKILL.md`](series-loop)).
+   Adding `<F>` is an entry there, so a pull request against that repository is the request,
+   and where it is not yours to open, its owner is who to reach.
+   Where the universe does not answer, or the entry lands and no build appears,
+   [`r-universe-org/help`](https://github.com/r-universe-org/help) is r-universe's own issue tracker.
+   Neither is this repository, and neither is instant:
+   open the request when the refs exist rather than when the series is finished,
+   because the wait is someone else's queue.
    [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) is what says it took,
    listing exactly the packages whose upstream is this repository.
    Until the entry exists, the series is covered by the per-commit gate alone,
