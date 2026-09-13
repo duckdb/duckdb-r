@@ -38,9 +38,9 @@ setClass(
 #' @slot convert_opts internal options controlling how result values are converted to R.
 #' @slot reserved_words character vector of the engine's reserved SQL keywords, used to quote identifiers.
 #' @slot timezone_out `r lifecycle::badge("deprecated")` time zone results are returned in;
-#' superseded by `convert_opts`, from which it is copied at construction, and no longer read internally.
+#'  superseded by `convert_opts`, from which it is copied at construction, and no longer read internally.
 #' @slot tz_out_convert `r lifecycle::badge("deprecated")` how timestamps are converted to `timezone_out` (`"with"` or `"force"`);
-#' superseded by `convert_opts`.
+#'  superseded by `convert_opts`.
 #' @slot bigint `r lifecycle::badge("deprecated")` how 64-bit integers are returned; superseded by `convert_opts`.
 #' @aliases duckdb_connection
 #' @keywords internal

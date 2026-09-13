@@ -2,13 +2,13 @@
 #'
 #' @description
 #' Every error the database engine raises reaches R as a condition of class `duckdb_error`,
-#' carrying DuckDB's own classification alongside the message.
-#' Catch it with [tryCatch()] or `rlang::try_fetch()` and branch on the fields rather than on the message text,
-#' which is formatted for display and is not a stable interface.
+#'  carrying DuckDB's own classification alongside the message.
+#'  Catch it with [tryCatch()] or `rlang::try_fetch()` and branch on the fields rather than on the message text,
+#'  which is formatted for display and is not a stable interface.
 #'
 #' @details
 #' The condition is raised against the call that caused it -- [DBI::dbGetQuery()],
-#' [DBI::dbExecute()], [DBI::dbBind()], [DBI::dbFetch()], and the relational API alike -- and the fields survive that rethrow.
+#'  [DBI::dbExecute()], [DBI::dbBind()], [DBI::dbFetch()], and the relational API alike -- and the fields survive that rethrow.
 #'
 #' # Fields
 #'
@@ -27,12 +27,12 @@
 #' }
 #'
 #' A field the engine did not supply is absent from the condition, so reading it gives `NULL`.
-#' Classification code should therefore treat `NULL` as "unknown" and keep a fallback branch:
-#' an error raised before the engine is reached, by an R-level check or by a failing callback,
-#' is an ordinary error with none of these fields.
+#'  Classification code should therefore treat `NULL` as "unknown" and keep a fallback branch:
+#'  an error raised before the engine is reached, by an R-level check or by a failing callback,
+#'  is an ordinary error with none of these fields.
 #'
 #' Errors are formatted with bullets when rlang is installed;
-#' without it the message is a single line, and the class and the fields are the same.
+#'  without it the message is a single line, and the class and the fields are the same.
 #'
 #' @examplesIf simulate_duckdb()$env$examples_enabled()
 #' con <- dbConnect(duckdb())

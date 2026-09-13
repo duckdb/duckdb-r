@@ -1,7 +1,7 @@
 #' Local DuckDB connection fixture for testing
 #'
 #' Creates a DuckDB connection that will be automatically disconnected when the calling function exits.
-#' This is a test fixture that follows testthat guidelines for resource management.
+#'  This is a test fixture that follows testthat guidelines for resource management.
 #'
 #' @param ... Additional arguments passed to [duckdb()]
 #'
