@@ -249,6 +249,14 @@ files, and inspecting query plans.
   [`print.duckdb_explain`](https://r.duckdb.org/reference/duckdb_explain-class.md)
   : DuckDB EXPLAIN query tree
 
+## Errors
+
+What a failing query raises, and the fields to classify it by instead of
+parsing the message.
+
+- [`duckdb_error`](https://r.duckdb.org/reference/duckdb_error.md) :
+  DuckDB error conditions
+
 ## Storage locations
 
 Where DuckDB writes extensions, stored secrets, and temporary files, and
