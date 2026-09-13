@@ -208,7 +208,7 @@ counter this script reads back from HEAD keeps matching the commits it wrote --
 or by judging it already carried, or obsolete. It is remembered for the rest of
 the replay.
 
-Already carried is a real outcome, not an excuse: this refuses on the two
+Already carried is a real outcome, not an excuse: this refuses on the
 cheap tests it has, so a change the new base holds in a shape neither
 recognises is listed here too. Confirm one by reading the base for its effect,
 not by assuming either way.
