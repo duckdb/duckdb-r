@@ -85,6 +85,7 @@ remote_scripts=(
   series-port.sh
 )
 upstream_scripts=(series-check.sh series-cutover.sh)
+canonical_scripts=(series-advance.sh series-cutover.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${scripts[@]}"; do
@@ -107,6 +108,9 @@ done
 for s in "${upstream_scripts[@]}"; do
   is "$s --upstream (bare)" "$(rc "$s" --upstream)" 2
 done
+for s in "${canonical_scripts[@]}"; do
+  is "$s --canonical (bare)" "$(rc "$s" --canonical)" 2
+done
 
 echo
 echo "== the remote and the upstream clone are named, never positional"
@@ -121,6 +125,9 @@ for s in "${remote_scripts[@]}"; do
 done
 for s in "${upstream_scripts[@]}"; do
   is "$s accepts --upstream" "$(out "$s" --help | grep -c -- '--upstream <path>')" 1
+done
+for s in "${canonical_scripts[@]}"; do
+  is "$s accepts --canonical" "$(out "$s" --help | grep -c -- '--canonical <name>')" 1
 done
 
 echo
