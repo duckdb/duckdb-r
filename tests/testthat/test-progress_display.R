@@ -97,22 +97,12 @@ test_that("a progress callback outlives a collection between the reads of a stre
   dbExecute(con, "CREATE TABLE t AS SELECT i FROM range(1000000) t(i)")
 
   # getOption() hands the display a copy of the callback that nothing else
-  # refers to, and a streaming result keeps its display until it is read.
+  # refers to, and the display is built here, where the query is submitted.
   stream <- dbGetQueryArrow(
     con,
     "SELECT i FROM t WHERE i % 2 = 0",
     chunk_size = 10000
   )
-  # Only a display the engine still calls can show that the callback survived,
-  # and an engine that reports no progress while a streaming result is read
-  # never calls it. Ask this one, before anything is collected.
-  rows <- 0
-  calls <- 0L
-  batch <- stream$get_next()
-  reports_while_streaming <- calls > 0L
-  if (!is.null(batch)) {
-    rows <- rows + batch$length
-  }
 
   # Collect, and reuse the cells a collected callback would have left behind.
   for (pass in 1:5) {
@@ -121,15 +111,16 @@ test_that("a progress callback outlives a collection between the reads of a stre
   }
   calls <- 0L
 
-  while (!is.null(batch <- stream$get_next())) {
+  # The engine reports progress on a stream's first read, which runs the query,
+  # and on no read after it, so only that read can show the callback survived.
+  rows <- 0
+  batch <- stream$get_next()
+  expect_gt(calls, 0L)
+  while (!is.null(batch)) {
     rows <- rows + batch$length
+    batch <- stream$get_next()
   }
   expect_equal(rows, 500000)
-  skip_if_not(
-    reports_while_streaming,
-    "the engine reports no progress while a streaming result is read"
-  )
-  expect_gt(calls, 0L)
 })
 
 # Drives duckdb_progress_display() on a clock the test sets.
