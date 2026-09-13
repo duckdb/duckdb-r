@@ -23,8 +23,8 @@
 # --remote is spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
 #
-# Glue is `src/` without the vendored engine, plus `R/`, `NAMESPACE` and
-# `inst/include/`. `R/version.R` and `DESCRIPTION` are excluded: they are
+# Glue is `src/` without the vendored engine, plus `R/` and `NAMESPACE`.
+# `R/version.R` and `DESCRIPTION` are excluded: they are
 # version bookkeeping that `rconfigure.py` rewrites on every vendor commit, so
 # leaving them in makes every commit look like a glue commit.
 
@@ -56,7 +56,7 @@ toplevel=${VENDOR_REPO:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
 [ -n "$toplevel" ] || { echo "Error: $PWD is not a git worktree" >&2; exit 1; }
 cd "$toplevel"
 
-GLUE=(src R NAMESPACE inst/include
+GLUE=(src R NAMESPACE
   ':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)DESCRIPTION')
 
 # A series name resolves to its whole span: from where it left the mainline to
