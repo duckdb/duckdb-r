@@ -204,41 +204,8 @@ published as `.dev` packages.
 
 ## Source of Truth
 
-`main` in `duckdb/duckdb-r` is the **source of truth** for four of the seven components:
-
-| Component                | Source of truth                   | Notes                                             |
-|--------------------------|-----------------------------------|---------------------------------------------------|
-| DuckDB core              | `duckdb/duckdb` upstream          | Vendored independently into each branch           |
-| Flavor                   | Per-branch (via `flavor.sh`)      | Applied mechanically on top of the baseline       |
-| **Glue code**            | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| **R code and tests**     | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| **CI/CD infrastructure** | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| **cpp11**                | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| R core                   | External (`r-devel`, CRAN policy) | Monitored; fixes land in `main` first             |
-
-### Keeping derived branches in sync with main
-
-The forward-port order for non-vendor commits is always from newer to older:
-
-```
-duckdb/duckdb-r@main ─────────────────────────────►
-        │                                         │
-        ▼                                         ▼
-krlmlr/duckdb-r@main-dev                duckdb/duckdb-r@v1.4-andium
-        │
-        ▼
-krlmlr/duckdb-r@v1.5-variegata-dev
-        │
-        ▼
-krlmlr/duckdb-r@v1.4-andium-dev
-```
-
-Never port in reverse.
-Keeping it consistent is the series loop's forward-port stage
-([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
-which runs `scripts/series-port.sh` on every firing;
-the fork's `main` is a mirror and moves on its own
-([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+Absorbed: [`branches/model/`](/handbook/branches/model/README.md) owns which of the
+seven components `main` is the source of truth for, and the forward-port order.
 
 ## Series Invariants
 
