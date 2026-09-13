@@ -26,6 +26,8 @@
 
 #include "src/function/table/system/duckdb_functions.cpp"
 
+#include "src/function/table/system/duckdb_grammar_extensions.cpp"
+
 #include "src/function/table/system/duckdb_indexes.cpp"
 
 #include "src/function/table/system/duckdb_keywords.cpp"
