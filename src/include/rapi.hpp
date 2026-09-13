@@ -61,7 +61,8 @@ namespace duckdb {
 typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
 
 struct DBWrapper {
-	duckdb::unique_ptr<DuckDB> db;
+	// Shared: one instance can back several R driver objects, so the wrapper
+	duckdb::shared_ptr<DuckDB> db;
 	arrow_scans_t arrow_scans;
 	mutex lock;
 	cpp11::sexp env;

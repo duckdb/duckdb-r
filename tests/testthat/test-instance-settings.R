@@ -39,9 +39,12 @@ test_that("a `read_only` that the instance cannot honor is reported", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  expect_error(duckdb(path, read_only = TRUE), "read_only")
-  # Refused, not applied: the writable instance is untouched and still reachable.
-  expect_identical(duckdb(path)@database_ref, drv@database_ref)
+  # The engine's cache raises this, less specifically than the R-side check
+  # it replaced -- it names neither the setting nor the way out. Tracked in
+  # plan/PLAN-instance-cache.md.
+  expect_error(duckdb(path, read_only = TRUE), "different configuration")
+  # Refused, not applied: the writable instance is untouched and still usable.
+  expect_no_error(dbExecute(con, "CREATE TABLE untouched AS SELECT 1"))
 })
 
 test_that("a `config` entry that the instance cannot honor is reported", {
@@ -56,8 +59,7 @@ test_that("a `config` entry that the instance cannot honor is reported", {
   expect_no_error(duckdb(path, config = list(default_order = "DESC")))
   expect_error(
     duckdb(path, config = list(default_order = "ASC")),
-    "config$default_order",
-    fixed = TRUE
+    "different configuration"
   )
 })
 
@@ -69,7 +71,7 @@ test_that("storage arguments are reported when the instance already exists", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  expect_error(duckdb(path, shared_home = FALSE), "shared_home")
+  expect_error(duckdb(path, shared_home = FALSE), "different configuration")
 })
 
 test_that("a `dbdir` that overrides a file driver's own is reported", {
@@ -83,7 +85,7 @@ test_that("a `dbdir` that overrides a file driver's own is reported", {
   expect_error(dbConnect(drv, other), "can't override")
 
   # Refused outright: no connection, and the driver still holds its own.
-  expect_equal(drv@dbdir, path_normalize(own))
+  expect_equal(drv@dbdir, normalizePath(own))
 })
 
 test_that("the in-memory driver idiom stays silent", {
@@ -96,20 +98,20 @@ test_that("the in-memory driver idiom stays silent", {
 })
 
 test_that("a `dbdir` an extension answers is left alone", {
-  # `md:` is MotherDuck's entry point; normalizing it would hand the engine a
-  # local file name instead. No connection is opened -- the extension is not
-  # installed here -- only the path handling is under test.
-  expect_equal(path_normalize("md:mydb"), "md:mydb")
-  expect_equal(path_normalize("ducklake:metadata.db"), "ducklake:metadata.db")
-
-  # A URL scheme is not an extension prefix, and neither is a Windows drive.
-  expect_false(has_extension_prefix("s3://bucket/db.duckdb"))
-  expect_false(has_extension_prefix("C:/db.duckdb"))
-  expect_false(has_extension_prefix("/tmp/db.duckdb"))
-  expect_true(has_extension_prefix("md:"))
-
-  # Nothing is created for a prefixed `dbdir`.
+  # `md:` names a replacement open, not a file. The engine makes that
+  # distinction itself, in `GetDBAbsolutePath()`, so the test is what a caller
+  # sees: the path reaches the engine as spelled, and nothing local is created.
+  #
+  # Extensions off and storage kept out of `~/.duckdb`: with them on, the
+  # engine installs the MotherDuck extension on demand -- 19 MB over the
+  # network, into the user's shared home -- before failing.
   withr::local_dir(withr::local_tempdir())
-  path_normalize("md:mydb")
+
+  err <- expect_error(
+    duckdb("md:mydb", allow_extensions = FALSE, shared_home = FALSE)
+  )
+  # The refusal names the extension, which is only reachable if the prefix
+  # survived: a mangled path is a local file name and opens without error.
+  expect_match(conditionMessage(err), "md", fixed = TRUE)
   expect_equal(list.files(all.files = TRUE, no.. = TRUE), character())
 })

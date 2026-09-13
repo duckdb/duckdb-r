@@ -36,6 +36,15 @@ rethrow_rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, 
   )
 }
 
+rethrow_rapi_database_path <- function(dual, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_database_path(dual),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_lock <- function(dual, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_lock(dual),
@@ -581,6 +590,7 @@ rethrow_restore <- function() {
   rethrow_rapi_disconnect <<- rapi_disconnect
   rethrow_rapi_connection_valid <<- rapi_connection_valid
   rethrow_rapi_startup <<- rapi_startup
+  rethrow_rapi_database_path <<- rapi_database_path
   rethrow_rapi_lock <<- rapi_lock
   rethrow_rapi_unlock <<- rapi_unlock
   rethrow_rapi_is_locked <<- rapi_is_locked
