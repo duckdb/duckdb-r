@@ -55,8 +55,11 @@ This skill is the release branch's birth certificate.
    Stamping it here is what puts it on all four refs at once.
    On `-dev` alone it splits the series' two version strands,
    and the `DESCRIPTION` merge driver stops resolving them.
-   A series opened for a release branch takes no preview prefix:
-   that line's version is the one `main` already carries.
+   A series opened for a release branch takes no preview prefix
+   **once that line has been released**,
+   because its version is then the one `main` already carries.
+   Where upstream cut the branch ahead of the release, nothing carries that line's version yet,
+   and the series takes the prefix like any other preview line.
 
    **Install `krlmlr/cpp11` before running `flavor.sh`**, from GitHub —
    `remotes::install_github("krlmlr/cpp11")`, beside `decor`.
