@@ -279,7 +279,19 @@ this list is the sources-and-glue side it drives):
      which are simply older here;
    * **whole test files** added later for a feature this engine does not have yet.
      Deleting one is legitimate, but say so in the commit message,
-     so the deletion can be undone at the vendor commit where the feature appears.
+     so the deletion can be undone at the vendor commit where the feature appears;
+   * **`patch/` entries that no longer apply**, which is usually the largest of the four.
+     The stack `main` carries is maintained against the released line's tree,
+     and the fork-point tree belongs to a different line,
+     so an entry can neither apply forward nor reverse cleanly.
+     `vendor.sh` stops on the first such entry and keeps the regenerated tree,
+     which is the moment to survey the rest in one pass rather than one run at a time:
+     `git apply --check` every entry above the one it stopped on.
+     An entry whose target file is gone is a candidate to retire —
+     confirm the change is genuinely upstream first, because a patch and its replacement
+     can serve the same purpose by different means.
+     An entry whose target merely moved is rebased against the regenerated tree.
+     Opening v2.0 measured 8 of 21 entries needing a decision.
 
    Keep each rewind as small as the compiler and the testsuite demand.
    Reverting a whole file to its old state also reverts R-side improvements

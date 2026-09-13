@@ -129,6 +129,14 @@ the replay then populates `<S>-fwd-build`.
    and until one lands the whole buffer replays
    ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
 
+   **A forward that re-roots takes its lowest commit from `vendor.sh`, not from a pick.**
+   Where the point of the forward is to drop history below a fork point,
+   the commit at the new root is the fork-point vendor commit,
+   and picking it would land a delta from one line on the tree of another —
+   quietly, because the pick applies and the counter advances
+   ([`series-open/SKILL.md`](series-open) step 4, which owns that commit).
+   Generate it, then replay above it.
+
    **It refuses to start while the buffer carries a change
    the new base does not have.**
    `-build` takes no ports, so a non-vendor commit above its first
