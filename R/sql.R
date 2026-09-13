@@ -4,10 +4,10 @@
 #' `r lifecycle::badge('experimental')`
 #'
 #' `sql_query()` runs an arbitrary SQL query using [DBI::dbGetQuery()] and returns a [data.frame] with the query results.
-#'  `sql_exec()` runs an arbitrary SQL statement using [DBI::dbExecute()] and returns the number of affected rows.
+#' `sql_exec()` runs an arbitrary SQL statement using [DBI::dbExecute()] and returns the number of affected rows.
 #'
 #' These functions are intended as an easy way to interactively run DuckDB without having to manage connections.
-#'  By default, data frame objects are available as views.
+#' By default, data frame objects are available as views.
 #'
 #' Scripts and packages should manage their own connections and prefer the DBI methods for more control.
 #'
@@ -49,15 +49,15 @@ the <- new.env(parent = emptyenv())
 #'
 #' @details
 #' Currently, the connection is established with `duckdb(environment_scan = TRUE)` and `dbConnect(timezone_out = "", array = "matrix")`
-#'  so that data frames are automatically available as tables,
-#'  timestamps are returned in the local timezone,
-#'  and DuckDB's array type is returned as an R matrix.
-#'  The details of how the connection is established are subject to change.
-#'  In particular, returning the output as a tibble or other object may be supported in the future.
+#' so that data frames are automatically available as tables,
+#' timestamps are returned in the local timezone,
+#' and DuckDB's array type is returned as an R matrix.
+#' The details of how the connection is established are subject to change.
+#' In particular, returning the output as a tibble or other object may be supported in the future.
 #'
 #' This connection is intended for interactive use.
-#'  There is no way for this or other packages to comprehensively track the state of this connection,
-#'  so scripts and packages should manage their own connections.
+#' There is no way for this or other packages to comprehensively track the state of this connection,
+#' so scripts and packages should manage their own connections.
 #'
 #' @return A DuckDB connection object
 #' @export

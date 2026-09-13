@@ -4,7 +4,7 @@
 #'
 #' @description
 #' This is a SQL backend for dbplyr tailored to take into account DuckDB's possibilities.
-#'  This mainly follows the backend for PostgreSQL, but contains more mapped functions.
+#' This mainly follows the backend for PostgreSQL, but contains more mapped functions.
 #'
 #' @name backend-duckdb
 #' @aliases NULL
@@ -650,8 +650,8 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
 #' Create a lazy table from a Parquet file or SQL query
 #'
 #' `tbl_file()` is an experimental variant of [dplyr::tbl()] to directly access files on disk.
-#'  It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the request,
-#'  and paths with special characters are supported.
+#' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the request,
+#' and paths with special characters are supported.
 #'
 #' @param src A duckdb connection object, [default_conn()] if omitted.
 #' @param path Path to existing Parquet, CSV or JSON file
@@ -679,9 +679,9 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
 #'
 #' @description
 #' `tbl_function()` is an experimental variant of [dplyr::tbl()] to create a lazy table from a table-generating function,
-#'  useful for reading nonstandard CSV files or other data sources.
-#'  It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the query.
-#'  See <https://duckdb.org/docs/data/overview> for details on data importing functions.
+#' useful for reading nonstandard CSV files or other data sources.
+#' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the query.
+#' See <https://duckdb.org/docs/data/overview> for details on data importing functions.
 #'
 #' As an alternative, use `dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))` for custom SQL queries.
 #'
@@ -707,7 +707,7 @@ tbl_query <- function(src, query, ...) {
 }
 
 #' Connection object for simulation of the SQL generation without actual database.
-#'  dbplyr overrides database specific identifier and string quotes
+#' dbplyr overrides database specific identifier and string quotes
 #'
 #' Use `simulate_duckdb()` with `lazy_frame()` to see simulated SQL without opening a DuckDB connection.
 #' @param ... Any parameters to be forwarded

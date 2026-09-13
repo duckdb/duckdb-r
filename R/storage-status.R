@@ -4,9 +4,9 @@
 
 #' @details
 #' `duckdb_storage_status()` reports the directory the package would currently use for downloaded extensions and for persisted secrets,
-#'  and which tier of the resolution above chose it.
-#'  It has no side effects:
-#'  it never prompts and never creates a directory, so an as-yet-uncreated `~/.duckdb` is reported as the per-session temporary default.
+#' and which tier of the resolution above chose it.
+#' It has no side effects:
+#' it never prompts and never creates a directory, so an as-yet-uncreated `~/.duckdb` is reported as the per-session temporary default.
 #'
 #' @return `duckdb_storage_status()` returns a data frame (class `"duckdb_storage_status"`) with one row per kind of state
 #'   and columns `kind`, `source`, and `directory`; its print method renders a readable summary when the result is auto-printed.

@@ -26,10 +26,10 @@
 #' `r lifecycle::badge('experimental')`
 #'
 #' DuckDB writes several distinct kinds of data to the file system.
-#'  This page catalogs every such location and documents the policy the duckdb R package uses to choose them.
-#'  By default the package never creates anything in your home directory on its own:
-#'  downloaded extensions and stored secrets go under the R session's temporary directory
-#'  unless a `~/.duckdb` directory already exists (or you point the package somewhere explicitly).
+#' This page catalogs every such location and documents the policy the duckdb R package uses to choose them.
+#' By default the package never creates anything in your home directory on its own:
+#' downloaded extensions and stored secrets go under the R session's temporary directory
+#' unless a `~/.duckdb` directory already exists (or you point the package somewhere explicitly).
 #'
 #' [duckdb_storage_status()] reports where each location currently resolves.
 #'
@@ -69,7 +69,7 @@
 #' # Resolving the home directory
 #'
 #' Extensions and secrets share one *home* root, resolved fresh on every call to [duckdb()] that creates a new database driver object.
-#'  The first source that yields a value wins:
+#' The first source that yields a value wins:
 #'
 #' 1. the `home` argument to [duckdb()];
 #' 1. the `duckdb.home` R option, e.g. `options(duckdb.home = "/path/to/duckdb")`;
@@ -82,12 +82,12 @@
 #' The extension cache is then `<home>/extensions` and the secret store is `<home>/stored_secrets`.
 #'
 #' Because the decision is remade on every new driver object,
-#'  creating `~/.duckdb` (or setting the option/variable) takes effect immediately for drivers created afterwards.
-#'  Existing drivers are unaffected.
+#' creating `~/.duckdb` (or setting the option/variable) takes effect immediately for drivers created afterwards.
+#' Existing drivers are unaffected.
 #'
 #' The `shared_home` argument of [duckdb()] overrides this resolution:
-#'  `shared_home = TRUE` uses (and creates) `~/.duckdb`,
-#'  and `shared_home = FALSE` forces a per-session [tempdir()] even if `~/.duckdb` already exists.
+#' `shared_home = TRUE` uses (and creates) `~/.duckdb`,
+#' and `shared_home = FALSE` forces a per-session [tempdir()] even if `~/.duckdb` already exists.
 #'
 #' # Per-location reference
 #'
@@ -100,12 +100,12 @@
 #' | Logs           | `log_query_path`      | DuckDB setting                                                        | disabled (off)                                          |
 #'
 #' "set" means `duckdb()` sets the value explicitly in the database config.
-#'  The home directory is left untouched so that `~` in user SQL keeps its usual meaning.
-#'  The temp/spill setting is left unset for an on-disk database:
-#'  the engine's own `<dbdir>.tmp` default already matches the DuckDB CLI,
-#'  no matter whether the database is opened through [duckdb()] or through the `dbdir` argument of [DBI::dbConnect()].
-#'  An `extension_directory` / `secret_directory` / `temp_directory` passed directly in the `config` list is always honored
-#'  and takes precedence over the resolution above.
+#' The home directory is left untouched so that `~` in user SQL keeps its usual meaning.
+#' The temp/spill setting is left unset for an on-disk database:
+#' the engine's own `<dbdir>.tmp` default already matches the DuckDB CLI,
+#' no matter whether the database is opened through [duckdb()] or through the `dbdir` argument of [DBI::dbConnect()].
+#' An `extension_directory` / `secret_directory` / `temp_directory` passed directly in the `config` list is always honored
+#' and takes precedence over the resolution above.
 #'
 #' # Messages
 #'
@@ -129,10 +129,10 @@
 #' ## Silencing the message
 #'
 #' Make the choice explicit and it is no longer announced.
-#'  Pass `shared_home` to [duckdb()] -- `TRUE` to keep extensions and secrets under `~/.duckdb`,
-#'  `FALSE` to accept a per-session temporary directory.
-#'  Alternatively, point `home` (or the `duckdb.home` option / `DUCKDB_R_HOME` variable) at a location of your choice.
-#'  As a last resort, use [suppressMessages()]:
+#' Pass `shared_home` to [duckdb()] -- `TRUE` to keep extensions and secrets under `~/.duckdb`,
+#' `FALSE` to accept a per-session temporary directory.
+#' Alternatively, point `home` (or the `duckdb.home` option / `DUCKDB_R_HOME` variable) at a location of your choice.
+#' As a last resort, use [suppressMessages()]:
 #'
 #' ```r
 #' # Explicit arguments:

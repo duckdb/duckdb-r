@@ -87,49 +87,49 @@ driver_registry <- new.env(parent = emptyenv())
 #' @section Database instances and driver reuse:
 #'
 #' `duckdb()` returns a driver object that owns a DuckDB *database instance*.
-#'  `dbConnect()` opens connections to that instance,
-#'  and many connections can share one instance.
+#' `dbConnect()` opens connections to that instance,
+#' and many connections can share one instance.
 #'
 #' For a file-based `dbdir`, the instance is cached, keyed by the (normalized) path:
-#'  calling `duckdb()` again with the same `dbdir` returns the same driver and instance while it is still alive.
-#'  This is deliberate.
-#'  DuckDB allows only a single read-write handle to a database file at a time,
-#'  so opening a second instance of the same file would fail with a lock error.
-#'  Reusing one instance instead lets any number of `dbConnect(duckdb(dbdir = "my.db"))` calls share it.
-#'  An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
-#'  every `duckdb()` call creates a fresh, isolated instance.
+#' calling `duckdb()` again with the same `dbdir` returns the same driver and instance while it is still alive.
+#' This is deliberate.
+#' DuckDB allows only a single read-write handle to a database file at a time,
+#' so opening a second instance of the same file would fail with a lock error.
+#' Reusing one instance instead lets any number of `dbConnect(duckdb(dbdir = "my.db"))` calls share it.
+#' An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
+#' every `duckdb()` call creates a fresh, isolated instance.
 #'
 #' Because the instance is created once per database file,
-#'  `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#'  A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
-#'  Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
-#'  because the connection would go to `dbdir` while the driver kept its own database open.
-#'  To apply different values to a file-based database --
-#'  for example to reopen it read-only, or to send extensions and secrets elsewhere --
-#'  first release the instance with [duckdb_shutdown()], which also drops it from the cache,
-#'  then create it again.
-#'  [dbDisconnect()] only closes a connection,
-#'  it does not release the instance, and its `shutdown` argument is unused.
-#'  Instances are shut down automatically when the driver is garbage-collected or the session ends.
+#' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
+#' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+#' Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
+#' because the connection would go to `dbdir` while the driver kept its own database open.
+#' To apply different values to a file-based database --
+#' for example to reopen it read-only, or to send extensions and secrets elsewhere --
+#' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
+#' then create it again.
+#' [dbDisconnect()] only closes a connection,
+#' it does not release the instance, and its `shutdown` argument is unused.
+#' Instances are shut down automatically when the driver is garbage-collected or the session ends.
 #'
 #' @section DuckDB extensions on Linux:
 #'
 #' DuckDB's prebuilt extensions for Linux are compiled with the GNU C++ standard library (`libstdc++`).
-#'  Loading one into a `duckdb` package that was itself built with a *different* C++ standard library --
-#'  most commonly `libc++` (clang's `-stdlib=libc++`) --
-#'  is an ABI mismatch that crashes R (<https://github.com/duckdb/duckdb-r/issues/1107>).
-#'  Almost all Linux builds (CRAN binaries and most source installs) use `libstdc++` and are unaffected;
-#'  macOS and Windows are unaffected.
+#' Loading one into a `duckdb` package that was itself built with a *different* C++ standard library --
+#' most commonly `libc++` (clang's `-stdlib=libc++`) --
+#' is an ABI mismatch that crashes R (<https://github.com/duckdb/duckdb-r/issues/1107>).
+#' Almost all Linux builds (CRAN binaries and most source installs) use `libstdc++` and are unaffected;
+#' macOS and Windows are unaffected.
 #'
 #' Each `duckdb()` call decides whether the driver it returns may load extensions,
-#'  via the `allow_extensions` argument, the `duckdb.allow_extensions` option,
-#'  the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable, or automatic detection.
-#'  On the automatic path a build that was not compiled with `libstdc++` on Linux disables extensions:
-#'  `INSTALL` / `LOAD` raise a clear error instead of crashing,
-#'  automatic extension install/load is turned off,
-#'  and a throttled advisory message is shown when `duckdb()` is called.
-#'  Pass `allow_extensions = FALSE` to disable extensions and silence that message,
-#'  or `allow_extensions = TRUE` to attempt loading anyway (which may still crash R).
+#' via the `allow_extensions` argument, the `duckdb.allow_extensions` option,
+#' the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable, or automatic detection.
+#' On the automatic path a build that was not compiled with `libstdc++` on Linux disables extensions:
+#' `INSTALL` / `LOAD` raise a clear error instead of crashing,
+#' automatic extension install/load is turned off,
+#' and a throttled advisory message is shown when `duckdb()` is called.
+#' Pass `allow_extensions = FALSE` to disable extensions and silence that message,
+#' or `allow_extensions = TRUE` to attempt loading anyway (which may still crash R).
 #'
 #' The decision is carried on the returned driver as the experimental `allow_extensions` slot (see [duckdb_driver-class]).
 #'
