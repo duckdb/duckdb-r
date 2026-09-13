@@ -128,7 +128,8 @@ done
 echo "fork point   $(ups log -1 --format='%h %ad %s' --date=short "$fork" | cut -c1-72)"
 echo "$parent-build cut  $(git log -1 --format='%h %ad' --date=short "$cut_build")  $(git rev-list --count "$cut_build..$remote/$parent-build") above it"
 echo "$parent-dev   cut  $(git log -1 --format='%h %ad' --date=short "$cut_dev")  $(git rev-list --count "$cut_dev..$remote/$parent-dev") above it"
-echo "to walk      $(ups rev-list --count "$fork..origin/$U") commits on $U"
+# The loop's backlog once the refs are pushed, not a task for the caller.
+echo "loop backlog $(ups rev-list --count "$fork..origin/$U") commits of $U above the fork point"
 
 # --- the four refs -----------------------------------------------------------
 declare -A want=(

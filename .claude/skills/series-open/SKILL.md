@@ -24,7 +24,8 @@ This skill is the release branch's birth certificate.
 **Nothing here is derived twice.** The new series is minted out of commits its
 parent has already vendored and CI has already called green: below the fork point
 the two lines are one history, so the opening takes that work rather than
-rebuilding it. Opening v2.0 moved 1501 such commits and left 193 to walk.
+rebuilding it. Opening v2.0 moved 1501 such commits that way, and left the
+commits `<U>` has of its own to the loop.
 
 **It leaves two lines standing on the fork point, so both are forwarded.**
 The cut puts `<S>` on the fork point's R side, months behind `main`, and
@@ -105,6 +106,14 @@ until now.
    the wrong name. Up to this push the opening is local branches and a deletion
    undoes it.
 
+   **This hands the walk over.** Nobody vendors `<U>` by hand afterwards: the
+   loop's stage 1 runs `vendor-one.sh --commits 100` against the buffer of every
+   series it discovers, which is now this one
+   ([`series-loop/SKILL.md`](series-loop)). Opening v2.0 pushed four refs and the
+   next firing had walked the buffer 25 commits and `-dev` 72, unasked.
+   `series-cut.sh` reports how many are left to walk; that number is the loop's
+   backlog, not a task.
+
 4. **Open both forwards.** Two invocations of
    [`series-forward/SKILL.md`](series-forward), neither waiting on the other:
 
@@ -127,21 +136,16 @@ until now.
    Both run beside their live refs as `-fwd-*` and swap in at cutover, so no green
    anyone reads is rewritten.
 
-5. **Walk forward** along `<U>` with the gated
-   `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
-   fixing glue breaks in place as the gate stops on them.
-   `series-cut.sh` reports how many commits that is.
-
-6. **Announce `<F>` in both tables.** The `Flavors` table in
+5. **Announce `<F>` in both tables.** The `Flavors` table in
    [`README.Rmd`](/README.Rmd) — see below — and the one in
    [`branches/flavors/`](/handbook/branches/flavors/README.md), which says where
    each flavor publishes from. They are the only two places a new series is named
    by hand; everything else is discovered from refs.
 
-7. **Update the fork's mirror configuration — derived, not remembered.**
+6. **Update the fork's mirror configuration — derived, not remembered.**
    A series' *ahead* badge measures against a branch the fork mirrors, which stays
    current only while [`.github/pull.yml`](/.github/pull.yml) carries a rule for
-   it. Which rules the file owes is a function of the table step 6 just moved, so
+   it. Which rules the file owes is a function of the table step 5 just moved, so
    [`scripts/pull-config.sh`](/scripts/pull-config.sh) evaluates that function and
    prints what is missing (`--check` exits non-zero). A line still releasing from
    `main` is measured against `main`, which is ruled already, so most openings add
@@ -157,7 +161,7 @@ until now.
    and writes the mirror configuration too, from the same detection
    ([`series-loop/SKILL.md`](series-loop)).
 
-8. **Register the new flavor with r-universe.**
+7. **Register the new flavor with r-universe.**
    `<F>` is a package nothing in this repository creates: a universe is configured
    by `<user>/<user>.r-universe.dev`, whose `packages.json` gives each package a
    `url` and the `branch` to build — `<S>-green` for a series. Adding `<F>` is an
@@ -195,7 +199,7 @@ differs *within* the row:
 
 A badge whose base the named repository lacks renders as an error rather than a
 count, and one reading a stale mirror is worse because it renders: it counts
-commits that have already shipped. Step 7 is where that is settled.
+commits that have already shipped. Step 6 is where that is settled.
 
 **The table must stay clear of `scripts/flavor.patch`.**
 `README.md` is a flavored file and the patch rewrites the installation hunks near
@@ -213,7 +217,7 @@ and its `.dev` badge follows it there — the *ahead* base is the branch the ser
 releases from, which is no longer `main`.
 That move is what earns the outgoing line a mirror and a rule, on the day it
 parks rather than on the day it was opened, and `pull-config.sh` reports it as
-soon as the badge base moves: step 7 arriving by itself rather than being
+soon as the badge base moves: step 6 arriving by itself rather than being
 remembered.
 
 What is left of the walk-backwards problem when `<S>` releases is
