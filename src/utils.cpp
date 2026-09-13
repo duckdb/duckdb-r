@@ -364,21 +364,21 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	// Convert ExceptionType to string
 	std::string error_type = EnumUtil::ToChars(error_data.Type());
 
-	// Convert extra_info to R list
-	cpp11::writable::list extra_info;
+	// Convert extra_info to a named character vector, which `rapi_error()` hands
+	// to the caller as the `extra_info` field of the condition.
 	const auto &info_map = error_data.ExtraInfo();
 
 	cpp11::writable::strings names(info_map.size());
-	cpp11::writable::strings values(info_map.size());
+	cpp11::writable::strings extra_info(info_map.size());
 
 	size_t i = 0;
 	for (const auto &pair : info_map) {
 		names[i] = pair.first;
-		values[i] = pair.second;
+		extra_info[i] = pair.second;
 		i++;
 	}
 
-	values.names() = names;
+	extra_info.names() = names;
 
 	// Call R function with all parameters
 	rapi_error(context, message, error_type, raw_message, extra_info);
