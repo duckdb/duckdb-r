@@ -8,12 +8,16 @@ description: Open a new vendoring series for a release branch upstream has just 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
 what this routine is, and when it runs.*
 
-When upstream cuts a release branch —
-v2.0 is released, upstream `main` becomes the 2.1 line —
-the release gets a series of its own.
-Nothing about the `main` series changes on a release cut:
-it keeps tracking upstream `main`,
-which now simply contains 2.1 work.
+When upstream cuts a release branch, it gets a series of its own.
+**The cut comes long before the release** — upstream branched `v2.0-cyanoptera`
+on 2026-09-02 and `main` read `2.1.0-dev` the same week, with 2.0 still
+unreleased weeks later — so the line exists, and needs serving, while no
+released version names it.
+That gap is why an opening is dated from the branch rather than from the
+release, and why a series opened here usually takes a preview prefix
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+Nothing about the `main` series changes: it keeps tracking upstream `main`,
+which now simply contains the next line's work.
 This skill is the release branch's birth certificate.
 
 `<S>` is the new series (e.g. `v2.0-<codename>`),
@@ -176,7 +180,7 @@ Two things to check before pushing:
 
 The edit lands on `main` and is forward-ported like any other R-side change.
 
-## The other half of a release cut
+## The other half of a branch cut
 
 The `main` series' base and glue
 now describe the *next* minor version.
