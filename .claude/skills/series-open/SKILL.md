@@ -16,9 +16,32 @@ released version names it.
 That gap is why an opening is dated from the branch rather than from the
 release, and why a series opened here usually takes a preview prefix
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-Nothing about the `main` series changes: it keeps tracking upstream `main`,
-which now simply contains the next line's work.
+What the `main` series *tracks* does not change: it keeps following upstream
+`main`, which now simply contains the next line's work. Its refs do change —
+see below.
 This skill is the release branch's birth certificate.
+
+**Nothing here is derived twice.** The new series is minted out of commits its
+parent has already vendored and CI has already called green: below the fork point
+the two lines are one history, so the opening takes that work rather than
+rebuilding it. Opening v2.0 moved 1501 such commits and left 193 to walk.
+
+**It leaves two lines standing on the fork point, so both are forwarded at once.**
+Everything below the fork point has just become the new series', so `main` is
+re-rooted onto a graft of it rather than going on carrying it — 6606 commits
+became 14, and 6731 became 50. And the cut puts `<S>` on that same R side, months
+behind `main`, so it needs the same move. Neither forward is tidying afterwards:
+they follow immediately, by the one routine
+([`series-forward/SKILL.md`](series-forward)), and the re-root's saving is what
+makes them affordable.
+
+**Prerequisite: `main` has no `-fwd` in flight.** A series has exactly one set of
+`<S>-fwd-*` refs, and an opening needs `main`'s: opening while one is pending
+means overwriting it or abandoning the cutover it was built for. Cut the pending
+one over first, or wait for it —
+`git ls-remote --heads <remote> 'main-fwd-*'` answers this in one line.
+`<S>`'s own `-fwd` refs are free by construction, since the series did not exist
+until now.
 
 `<S>` is the new series (e.g. `v2.0-<codename>`),
 `<F>` its dev flavor (e.g. `2.0.dev`),
@@ -113,11 +136,12 @@ This skill is the release branch's birth certificate.
    and serves them in one firing, and writes the mirror configuration too, from
    the same detection ([`series-loop/SKILL.md`](series-loop)).
 
-7. **Forward once, to align the R side.**
-   The cut took `<P>`'s tree entire, so the series stands on the fork point's R
-   side: every R-side fix `main` took after the fork is missing from the glue
-   until the first forward brings the line onto current `main`
-   ([`series-forward/SKILL.md`](series-forward)).
+7. **Forward both lines, to align their R sides.**
+   The cut took `<P>`'s tree entire and the graft took the same one, so `<S>` and
+   the re-rooted `<P>` stand on the fork point's R side alike: every R-side fix
+   `main` took after the fork is missing from both until a forward brings them
+   onto current `main` ([`series-forward/SKILL.md`](series-forward)).
+   Two runs of one routine, and neither waits on the other.
    Read a red in the opening's first commits as that outstanding work rather
    than as a broken opening.
    The flavor is not part of it — step 3 settled that, and a forward regenerates
@@ -201,18 +225,16 @@ on the day it parks rather than on the day it was opened —
 and `pull-config.sh` reports it as soon as the badge base moves,
 which is step 6 arriving by itself rather than being remembered.
 
-**An opening re-roots the parent, through the forward it already needs.**
-`<P>` walks its line from the series' own beginning,
-and everything below the fork point now belongs to `<S>`.
-Rather than rewriting the live branches, put the re-root in `<P>`'s next forward,
-as a **graft**: one commit carrying the fork-point commit's tree verbatim,
-parented on current `main`, then everything `<P>` has taken since replayed onto it
+**How the re-root is made: a graft.**
+One commit carrying the fork-point commit's tree verbatim, parented on current
+`main`, then everything `<P>` has taken since replayed onto it
 (`series-forward/SKILL.md`).
-The graft is a tree the loop has already judged, so the base of the new line is
-sound by construction rather than by a replay that has to be checked — and the
-version prefix the preview line owes the line it previews next is the one thing
-about the fork point that is no longer true of it, so it is the graft's only edit.
-Opening v2.0 re-rooted `main` this way: 6606 commits became 14, 6731 became 50,
-and both heads came out byte-identical to the live branches outside `DESCRIPTION`.
+It goes in `<P>`'s next forward rather than rewriting the live branches, and the
+tree is one the loop has already judged, so the base is sound by construction
+rather than by a replay that has to be checked.
+The version prefix the preview line owes the line it previews next is the one
+thing about the fork point that is no longer true of it, so it is the graft's
+only edit.
+Both heads came out byte-identical to the live branches outside `DESCRIPTION`.
 What is left of the walk-backwards problem when `<S>` releases is
 [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.
