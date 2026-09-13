@@ -39,16 +39,18 @@ and the upstream `duckdb/duckdb` checkout is neither of them:
 it is a separate directory on disk, with no remote in this repository
 pointing at it.
 `scripts/series-cutover.sh` takes one of each,
-which is where the two get swapped:
-its second argument is a remote of the package repository,
-the one carrying the series refs,
-and its third is a path read with `git -C`.
-Passing a remote name where the path belongs used to report
+which is where the two used to get swapped.
+Passing a remote name where the path belonged reported
 `coverage would regress`:
 `git -C` failed because the directory was not there,
 and the gate read that failure as a negative ancestry answer.
-It now checks that the path is a checkout first,
-so the message names the argument rather than the refs.
+The script now checks that the path is a checkout first,
+so the message names the argument rather than the refs —
+and the two are named rather than positional,
+`--remote <name>` and `--upstream <path>`,
+which is what makes the swap unsayable instead of merely diagnosable.
+That spelling is the one every `scripts/series-*.sh` shares
+([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
 **`rconfigure.py`** does the regeneration:
 `src/duckdb/`, `src/include/sources.mk`, the Makevars files

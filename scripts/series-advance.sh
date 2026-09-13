@@ -51,35 +51,46 @@
 # the plain ref move has no commit of its own to carry it, and it is an error to
 # ask for one when the chunk minted nothing.
 #
-# Usage: series-advance.sh <series> [chunk-size] [--dev-note <file>]
+# Usage: series-advance.sh <series> [--chunk <n>] [--dev-note <file>]
 #        series-advance.sh <series> --continue [--dev-note <file>]
 #        series-advance.sh <series> --abort          # discard a stopped replay
+#
+# --remote is spelled the same in every scripts/series-*.sh, and the chunk size
+# is an option like vendor-one.sh's --commits rather than a bare number beside
+# the series name; see the shared contract in
+# handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-usage='usage: series-advance.sh <series> [chunk-size] [--dev-note <file>]
+usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--dev-note <file>]
        series-advance.sh <series> --continue [--dev-note <file>]
        series-advance.sh <series> --abort'
-S=${1:?$usage}
-shift
+argerr() { echo "$usage" >&2; exit 2; }
 CONTINUE=
 ABORT=
 DEV_NOTE=
 chunk=100
+remote=${SERIES_REMOTE:-origin}
+args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --continue) CONTINUE=1; shift ;;
     --abort) ABORT=1; shift ;;
-    --dev-note) DEV_NOTE=${2:?$usage}; shift 2 ;;
-    -*) echo "$usage" >&2; exit 1 ;;
-    *) chunk=$1; shift ;;
+    --chunk) [ $# -ge 2 ] || argerr; chunk=$2; shift 2 ;;
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --dev-note) [ $# -ge 2 ] || argerr; DEV_NOTE=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
   esac
 done
+[ ${#args[@]} -eq 1 ] || argerr
+S=${args[0]}
+case "$chunk" in '' | *[!0-9]*) echo "Error: --chunk takes a number: $chunk" >&2; exit 2 ;; esac
 if [ -n "$DEV_NOTE" ] && [ ! -s "$DEV_NOTE" ]; then
   echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
   exit 1
 fi
-remote=origin
 rcc=${RCC_BRANCH:-rcc2}
 
 # A stopped stage 5 lives here: the worktree it kept, the buffer commit whose

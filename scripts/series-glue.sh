@@ -18,6 +18,10 @@
 #   series-glue.sh <series>          # the series' whole span, oldest first
 #   series-glue.sh <rev-range>       # an explicit range, e.g. main-fwd-build-base..main-fwd-build
 #   series-glue.sh <what> --diff     # ... and the cumulative glue diff of it
+#   series-glue.sh <what> --remote <name>
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 #
 # Glue is `src/` without the vendored engine, plus `R/`, `NAMESPACE` and
 # `inst/include/`. `R/version.R` and `DESCRIPTION` are excluded: they are
@@ -26,11 +30,31 @@
 
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+usage='usage: series-glue.sh <series>|<rev-range> [--diff] [--remote <name>]'
+argerr() { echo "$usage" >&2; exit 2; }
+diff=
+remote=${SERIES_REMOTE:-origin}
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --diff) diff=--diff; shift ;;
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -eq 1 ] || argerr
+what=${args[0]}
 
-what=${1:?usage: series-glue.sh <series>|<rev-range> [--diff]}
-diff=${2:-}
-remote=origin
+# The tree to read, the same knob vendor-one.sh takes, so `main`'s copy of this
+# script reads the worktree the caller is in rather than the one it lives in.
+# `$(dirname "$0")/..` read its own repository whatever the caller had checked
+# out, which is silently the wrong answer for every series but `main`'s. After
+# the parsing, so `--help` and a usage error never touch git.
+toplevel=${VENDOR_REPO:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
+[ -n "$toplevel" ] || { echo "Error: $PWD is not a git worktree" >&2; exit 1; }
+cd "$toplevel"
 
 GLUE=(src R NAMESPACE inst/include
   ':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)DESCRIPTION')
