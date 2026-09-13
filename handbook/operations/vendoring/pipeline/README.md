@@ -81,6 +81,18 @@ regeneration, rather than leaving the vendored copies stale:
 upstream renaming a logo is a decision for a human,
 since the new name has to reach `README.md` too.
 
+**The regenerated tree is byte-reproducible, and cheap to re-hash**, and neither was
+always true — both are properties the pipeline now enforces rather than caveats a reader carries.
+`pragma_version.cpp` records `DUCKDB_SOURCE_ID` as an *abbreviated* upstream commit id,
+and git sizes that abbreviation from the number of objects in the clone it runs in,
+so the same upstream commit once vendored differently from two clones;
+[`vendor.sh`](/scripts/vendor.sh) pins `core.abbrev` to 10 in the upstream clone,
+which is the width DuckDB's own CMake truncates to.
+And `rconfigure.py` used to rewrite all ~3550 files whether or not their content changed,
+which invalidated git's stat cache and made every `git status` over the tree re-hash it;
+it now restores a file that comes out byte-identical to its predecessor,
+keeping the inode and the stat cache, and reports `N files changed, M unchanged`.
+
 **The patch stack** under [`patch/`](/patch) applies R-specific
 modifications to the vendored tree in place,
 and patches are sent upstream as pull requests every once in a while.
