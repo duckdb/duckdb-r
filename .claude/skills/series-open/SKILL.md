@@ -125,6 +125,75 @@ This skill is the release branch's birth certificate.
    from the same detection, on the firing that sees the series change
    ([`series-loop/SKILL.md`](series-loop)).
 
+9. **Register the new flavor with r-universe.**
+   `<F>` is a package that does not exist yet,
+   and nothing in this repository creates it:
+   the registration is the universe's own, outside this tree
+   ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+   A base series belongs in `duckdb.r-universe.dev`,
+   a forward counterpart in `krlmlr.r-universe.dev`.
+   [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) is what says it took,
+   listing exactly the packages whose upstream is this repository.
+   Until the entry exists, the series is covered by the per-commit gate alone,
+   which is Linux on one R version,
+   and stage 3 of the loop has nothing to read back
+   ([`series-loop/SKILL.md`](series-loop)).
+
+## When another series already vendors the line
+
+Steps 4 and 5 assume the line is new to this repository, and a release branch cut off a tracked line is not.
+Below the fork point `<U>` and the branch it was cut from are one history,
+so the parent series' buffer, `<P>-build` for a parent series `<P>`,
+already carries a vendor commit for every upstream commit `<U>` inherits,
+each with the glue the gate made that commit fix.
+Walking them again pays the catch-up cost the loop's report warns about
+and rediscovers those fixes one gate stop at a time,
+which is the difference between opening a line on the day it is cut and opening it whenever someone gets to it.
+Inherit them instead; steps 4 and 5 stay for a line nothing has vendored.
+
+The replay is the forward routine's, run on the new seed, and the range is what changes:
+
+1. **Find the parent buffer's fork-point commit**:
+   the newest `<P>-build` commit whose `duckdb/duckdb@<sha>` subject names a commit
+   on `<U>`'s first-parent chain.
+   For a branch cut today that is the fork point itself.
+   For one cut earlier it is wherever `<P>`'s vendoring had reached by then,
+   and step 3 below is correspondingly longer.
+2. **Replay onto the seed**, with the seed checked out:
+   `scripts/series-forward-build.sh <that commit> <P's seed>`.
+   The second argument only delimits the range,
+   so this is an ordinary forward replay with a different seed under it,
+   and everything `series-forward/SKILL.md` says about running one holds:
+   read the whole glue set first (`scripts/series-glue.sh`), register the merge driver,
+   and let it refuse rather than drop a `patch/` entry it cannot place.
+3. **Walk forward from there** with `vendor-one.sh`, as step 5, over what `<U>` has of its own.
+
+**The new series is mint, so it takes the baseline refs.**
+Step 3's day-one rule stands unchanged:
+`<S>-green`, `<S>-build-base`, `<S>-build` and `<S>-dev`, created equal, and no `-fwd`.
+A forward counterpart exists to protect a green consumers already read,
+and a line opened today has none.
+`series-forward-build.sh` is borrowed for the replay
+and says nothing about which refs the opening writes.
+
+**Replay rather than branch, and the flavor is why.**
+Pointing a new ref into `<P>-build` would share the commits outright and cost nothing up front,
+but the buffer would then carry `<P>`'s flavor under an `<F>` series,
+and every commit stage 5 mints would cross flavors for the life of the line.
+A replay crosses once, here, where a human is already watching for conflicts:
+a picked glue fix that touched one of the files `scripts/flavor.patch` rewrites conflicts on the name,
+and the resolution keeps the seed's name and the commit's change.
+The two buffers then share content and not objects, which is the point rather than a cost.
+
+**What is inherited is what compiles, and nothing else.**
+`-build` holds what the vendor gate checks, and everything `<P>` learned from CI afterwards lives on `<P>-dev`.
+A forward folds that back from its twin, matched by vendored SHA
+([`series-loop/SKILL.md`](series-loop), stage 5), and a new series has no twin to fold from,
+so those fixes come back as reds, once each, in its own CI.
+Whether the same match could serve a derived opening,
+and how the opening this repository has next is sequenced around the release before it,
+are [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.
+
 ## Patching the README
 
 The `Flavors` table in `README.md` is the only place
@@ -186,3 +255,16 @@ That move is what earns the outgoing line a mirror and a rule,
 on the day it parks rather than on the day it was opened —
 and `pull-config.sh` reports it as soon as the badge base moves,
 which is step 7 arriving by itself rather than being remembered.
+
+**A derived opening re-roots the parent, through the forward it already needs.**
+`<P>-build` walks its line from the series' own beginning,
+and everything below the fork point now belongs to `<S>`.
+Rather than rewriting the live buffer, put the re-root in `<P>`'s next forward:
+the regenerated seed, then one vendor commit at the fork point as in step 4,
+then a replay of the buffer's commits above it.
+The prefix a preview line owes the line it previews next is stamped in the same seed,
+so one forward carries all three changes and the cutover installs them together.
+The saving is what makes that forward affordable:
+`<P>-fwd-dev` has the line's own commits to verify and nothing below the fork point.
+That, and what is left of the walk-backwards problem when `<S>` releases, are
+[`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.

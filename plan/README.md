@@ -27,6 +27,7 @@ when the two disagree, the handbook leaf is right.
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
 | A producer thread for streaming results: overlapping engine production with R-side conversion, and spillable materialized results | [`PLAN-streaming-thread.md`](PLAN-streaming-thread.md) |
 | Making Ctrl+C reach a DuckDB call blocked in a network wait, and why the obvious escalation is refused | [`PLAN-query-cancellation.md`](PLAN-query-cancellation.md) |
+| Opening the v2.0 series out of the preview line it forks from, and what becomes of the preview line | [`PLAN-v2-series-open.md`](PLAN-v2-series-open.md) |
 
 ## `done/` — plans that came true
 
