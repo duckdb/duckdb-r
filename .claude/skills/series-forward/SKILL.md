@@ -18,6 +18,15 @@ a forward counterpart is built as a sibling series,
 verified from scratch by the ordinary loop,
 and swapped in atomically once it has caught up.
 
+**A release is the largest instance of `main` moving, and not a rule of its own.**
+Nothing schedules a forward; what makes one due is drift worth resolving.
+For a series whose own line has just released, the version is one reading of that drift:
+its seed sits below the release it produced, `1.5.5.9020.36` being under `1.5.6`,
+and re-seeding is what restores the correspondence.
+A preview line is the exception, its prefix being deliberately not `main`'s
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
+so a bump on `main` moves nothing under it and only the R-side drift counts.
+
 ## Create the forward series
 
 Bootstrap first, populate second —
