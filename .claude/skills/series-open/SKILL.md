@@ -89,6 +89,30 @@ This skill is the release branch's birth certificate.
    Rewind the glue as `VENDORING.md` describes
    if the fork point predates the current glue.
 
+   **This commit walks the engine backwards, and that is the design.**
+   The seed comes from `main`, which carries the released line,
+   and the series starts where its line forked, which is older.
+   So every series begins with one backwards step,
+   at a known commit, at the root, where a bisect can see it —
+   which is what the fork-point rule buys
+   in place of the same step appearing in the middle of a chain
+   ([`VENDORING.md`](/scripts/VENDORING.md)).
+   It is the first commit of every series from now on, not an anomaly in one.
+
+   **It is generated here, and can never be replayed from another series.**
+   Every other commit of a buffer can be cherry-picked,
+   which is what a forward and a derived opening do.
+   This one cannot: a vendor commit's diff is what vendoring changed,
+   not the tree it produced,
+   so picking it onto a base that does not vendor its predecessor
+   lays a delta from one line over the tree of another.
+   That is the range rule stated from the other side,
+   and it fails quietly — the pick applies, the counter advances,
+   and `R/version.R` names a version the sources are not.
+   Measured on this repository: replaying the fork-point commit onto a seed
+   from `main` left `R/version.R` reading `2.1.0-dev84198`
+   over sources still 1.5.5 in 3274 files.
+
 5. **Walk forward** along `<U>`
    with the gated `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
    fixing glue breaks in place as the gate stops on them.
@@ -183,11 +207,15 @@ The replay is the forward routine's, run on the new seed, and the range is what 
    and everything `series-forward/SKILL.md` says about running one holds:
    read the whole glue set first (`scripts/series-glue.sh`), register the merge driver,
    and let it refuse rather than drop a `patch/` entry it cannot place.
-3. **Re-root `<P>-dev` the same way**, onto the same seed.
-   Its fork-point commit is the newest `<P>-dev` commit whose subject names the same upstream SHA,
-   and the range below it carries the vendor commits *and* the non-vendor ones:
-   the ports, and the vendor-coupled glue CI made that stretch fix.
-   That is the half a buffer cannot give, and it is why both strands are re-rooted rather than one.
+3. **Re-root `<P>-dev` the same way**, onto the same seed, with the same script.
+   Its fork-point commit is the newest `<P>-dev` commit whose subject names the same upstream SHA.
+   Only `vendor:` subjects replay here too, and that is correct rather than a shortfall:
+   a `-dev` branch's other commits are ports, and the seed is regenerated from the `main` that has them.
+   The script checks rather than assumes, so the few born on `<P>-dev` stop the run and are named
+   — `--placed` them, or fold them into the commit that wants them.
+   What the strand is inherited *for* is its vendor commits:
+   stage 5 folds the base series' test-side fixes into them as it consumes the buffer,
+   so `-dev`'s copy of a commit carries what CI taught and `-build`'s does not.
 4. **Walk forward from there** with `vendor-one.sh`, as step 5, over what `<U>` has of its own.
 
 **A derived opening's four refs are not created equal.**

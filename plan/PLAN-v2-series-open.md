@@ -44,6 +44,15 @@ Nothing checks this: the pick applies cleanly either way.
 The rule is why each half below replays or re-roots from a commit the base actually vendors,
 and it is what the residual question at the end is about.
 
+**Measured, because it was tried.** Forwarding `main` by picking the fork-point commit
+and the thirteen above it onto a fresh seed runs clean: twelve rounds, no conflict outside
+`src/duckdb/`, the counter advancing commit by commit.
+The result has `R/version.R` reading `2.1.0-dev84198` over an engine still 1.5.5 in 3274 files,
+because `main` does not vendor `f3fa738d811`, the commit the range starts from.
+Nothing in the run says so.
+That is why `main`'s rewind commit is taken with `scripts/vendor.sh` and not picked,
+and why the patch-stack rewind it costs is not avoidable by rearranging the replay.
+
 ## The v2.0 half: replay onto its own seed
 
 The derived opening, `series-open/SKILL.md`'s *When another series already vendors the line*:
@@ -71,8 +80,12 @@ Two things the new series does not inherit, and both are work:
   This plan asked for a tooling change to avoid that -- teaching stage 5 to match a derived series
   against the one it was derived from -- and none is needed:
   `main-dev` splits at the fork point exactly as `main-build` does, and is re-rooted the same way.
-  Its fork-point commit is `6cfcf3665`, below it sit 1498 commits, 1406 vendor and **92 not**,
-  and those 92 are the ports and the vendor-coupled glue that stretch was made to fix.
+  Its fork-point commit is `6cfcf3665`, with 1498 commits below it, 1406 vendor and 92 not.
+  The 92 are almost all ports: **88 of them are on current `main` by subject**, so the regenerated
+  seed carries them and the replay drops them correctly, and the 4 that are not
+  stop the run to be placed by hand.
+  The inheritance that matters is in the vendor commits, which carry stage 5's folds —
+  a small share of them, on the order of the 10-in-802 the `main-fwd` run needed.
   `6cfcf3665` is an ancestor of `main-green`,
   so every commit the new series inherits is one the preview line has already proven,
   and `v2.0-cyanoptera-green` can be written at the re-rooted `-dev` tip
