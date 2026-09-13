@@ -61,12 +61,17 @@
 # Reported, never acted on, like the cutover above: opening a series is
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
-# Usage: series-check.sh [<series>...]     # default: discover all from refs
-#   UPSTREAM_CLONE=../duckdb series-check.sh   # fork point too, not just names
+# Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
+#   series-check.sh                                 # discover all from refs
+#   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
+#
+# --remote and --upstream are spelled the same in every scripts/series-*.sh;
+# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-remote=origin
+usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]'
+remote=${SERIES_REMOTE:-origin}
 rcc=${RCC_BRANCH:-rcc2}
 
 # Where the release-line check at the end reads upstream. Branch names are all
@@ -75,6 +80,19 @@ rcc=${RCC_BRANCH:-rcc2}
 # answers with the fork point.
 upstream=${UPSTREAM_CLONE:-}
 upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+
+argerr() { echo "$usage" >&2; exit 2; }
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- ${args+"${args[@]}"}
 
 git fetch -q "$remote"
 
@@ -415,11 +433,17 @@ for S in "${series[@]}"; do
   # one, because it is orthogonal — a forward series that has caught up still
   # needs repairing, advancing or waiting like any other.
   if [ -n "$cutover" ]; then
+    # Named options, and the upstream path filled in when this run was given
+    # one: the block a firing hands over is meant to be pasted whole, and a
+    # placeholder in the argument that decides whether the coverage gate runs
+    # at all is the one word nobody can substitute from the report alone
+    # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
-    echo "           scripts/series-cutover.sh $cutover $remote <upstream-clone>"
+    echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
+    echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
     echo "           Coverage is only half of it; what the two branches carry is"
     echo "           the other half, and the cutover prints it before it asks:"
-    echo "           scripts/series-converge.sh $cutover"
+    echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done
 

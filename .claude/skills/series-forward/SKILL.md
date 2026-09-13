@@ -262,7 +262,7 @@ When `<S>-fwd-green` vendors at least the upstream commit
 coverage may never regress — run
 
 ```sh
-scripts/series-cutover.sh <S> origin <upstream-clone>
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 ```
 
 **A human runs this, never the loop.**

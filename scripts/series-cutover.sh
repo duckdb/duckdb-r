@@ -17,26 +17,41 @@
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace.
 #
-# Usage: series-cutover.sh <series> [remote] [upstream-clone]
-#   series-cutover.sh main origin ../duckdb
+# Usage: series-cutover.sh <series> [--remote <name>] [--upstream <path>]
+#   series-cutover.sh main --upstream ../../../duckdb
 #
-# The two trailing arguments are different kinds of thing, and a `gh` clone
-# carries names that make them easy to swap:
-#   [remote]         a remote of *this* repository -- the one carrying the
-#                    series refs. A clone made with `gh` has both `origin`
-#                    and `upstream`; pass whichever holds `<series>-green`.
-#   [upstream-clone] a filesystem path to a `duckdb/duckdb` checkout, read
-#                    with `git -C`. Never a remote name, whatever it is
-#                    called.
+# The two are different kinds of thing, and a `gh` clone carries names that made
+# them easy to swap while both were positional:
+#   --remote <name>   a remote of *this* repository -- the one carrying the
+#                     series refs. A clone made with `gh` has both `origin`
+#                     and `upstream`; pass whichever holds `<series>-green`.
+#   --upstream <path> a filesystem path to a `duckdb/duckdb` checkout, read
+#                     with `git -C`. Never a remote name, whatever it is
+#                     called.
+# Both are spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 #
 # The upstream clone is needed for the coverage gate (an ancestry check
 # between vendored upstream SHAs); without it the gate degrades to a warning.
 
 set -euo pipefail
 
-S=${1:?usage: series-cutover.sh <series> [remote] [upstream-clone]}
-remote=${2:-origin}
-upstream=${3:-}
+usage='usage: series-cutover.sh <series> [--remote <name>] [--upstream <path>]'
+argerr() { echo "$usage" >&2; exit 2; }
+remote=${SERIES_REMOTE:-origin}
+upstream=${UPSTREAM_CLONE:-}
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -eq 1 ] || argerr
+S=${args[0]}
 
 # Fail before the fetch, not after it: an unattended firing has no terminal, so
 # there is nothing for it to confirm with and no reason to do any work first.
@@ -127,7 +142,7 @@ fi
 # can make -- which is why this prints and the human decides.
 echo
 rc=0
-"$(dirname "$0")/series-converge.sh" "$S" "$remote" --no-fetch || rc=$?
+"$(dirname "$0")/series-converge.sh" "$S" --remote "$remote" --no-fetch || rc=$?
 # 1 is a divergence to read; 2 is the comparison not being available at all --
 # a series that started as `-fwd` has no `<S>-dev` to compare against, and the
 # script has already said so on its own.
