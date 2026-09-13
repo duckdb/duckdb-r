@@ -148,7 +148,7 @@ groups <- list(
   ),
   list(
     owner = "handbook/branches/flavors",
-    globs = c("flavor*")
+    globs = c("flavor*", "reflavor*")
   ),
   list(
     owner = "handbook/branches/mirrors",

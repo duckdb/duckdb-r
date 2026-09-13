@@ -38,6 +38,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
+| [`reflavor.sh`](reflavor.sh) | Change an already-flavored tree from one flavor to another, in place: `duckdb.dev` -> `duckdb.2.0.dev`, renamed files and regenerated binding included. |
 
 ## [`branches/mirrors/`](/handbook/branches/mirrors/README.md)
 
