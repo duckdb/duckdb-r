@@ -1134,24 +1134,26 @@ git switch main && git merge --ff-only @{u}
 git -C ../../../duckdb fetch --prune --tags origin
 
 # Both halves of the question, before anything moves.
-UPSTREAM_CLONE=../../../duckdb scripts/series-check.sh <S> <S>-fwd
+scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
 scripts/series-converge.sh <S>
 
 # The swap. It prints the four ref moves and the convergence report,
 # then asks for the series name.
-scripts/series-cutover.sh <S> origin ../../../duckdb
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 
 # A retired lineage moves the badge table, and the mirror rules with it.
 scripts/pull-config.sh --check
 ```
 
-`origin` is whichever remote of that checkout carries `<S>-green`,
-and `../../../duckdb` is where `vendor-one.sh` looks for the upstream clone
-when nobody names one, so it is the path the project already assumes.
-Say so beside the block where either is not the reader's:
-the second argument is a remote of *this* repository
-and the third a filesystem path, and the script only catches the swap
-of the two once it is already fetching.
+`--remote` names whichever remote of that checkout carries `<S>-green`,
+and `--upstream` the `duckdb/duckdb` checkout on disk —
+`../../../duckdb` is where `vendor-one.sh` looks for one when nobody names it,
+so it is the path the project already assumes.
+Substitute either where it is not the reader's;
+the names are the same in every `scripts/series-*.sh`
+(`handbook/operations/vendoring/series-loop/README.md`),
+and naming them is what makes the remote-for-path swap unsayable
+rather than merely diagnosable.
 Check that the `main` the block lands on is the canonical one —
 a fork's mirror lags by however long the mirroring takes,
 and a cutover run off a stale mirror runs a stale `series-cutover.sh`.
@@ -1266,7 +1268,7 @@ The report ends with `series-check.sh`'s `UNSERVED` block, verbatim,
 whenever the script prints one:
 an upstream release line that no series here covers.
 Run the script with stage 1's clone,
-`UPSTREAM_CLONE=<upstream-clone> scripts/series-check.sh`,
+`scripts/series-check.sh --upstream <upstream-clone>`,
 so the block carries the fork point and not only the branch name.
 
 **It goes last, and it outranks a quiet pass.**
