@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Thirteen
+# A forward series inherits only the first when its buffer is replayed. Fourteen
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -42,6 +42,10 @@
 #  13. `--dev-note` appends a stage-3 finding to the newest commit the chunk
 #      mints -- taking the replay route so there is one to write it on -- and
 #      refuses when the chunk minted nothing or the file is not there.
+#  14. A replay whose conflict resolves to nothing is dropped rather than
+#      stopping the stage: the buffer commit's content reached `-dev` by another
+#      route, which is claim 12 arrived at through a conflict. The chunk also
+#      finishes when the operator dropped the pick by hand first.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -223,6 +227,27 @@ git checkout -q -b dup-build base-seed
 bvendor fff3333 1.0.0.9000.1 i.cpp
 git branch dup-build-base base-seed
 
+# --- a buffer commit whose conflict resolves to nothing (claim 14) ----------
+# The same drop as above, reached through a conflict instead of a clean merge:
+# `-build` carries no ports, so its flavor rename still names the path the port
+# has since moved on `-dev`, and the two renames of one file collide. Resolving
+# toward what `-dev` already has leaves nothing to commit.
+git checkout -q -b emptyres-seed base-seed
+mkdir -p inst
+echo 'types' > inst/types.hpp
+git add -A
+git commit -qm 'chore: Add the types header the flavor renames'
+
+git checkout -q -b emptyres-dev emptyres-seed
+mkdir -p src/include
+git mv inst/types.hpp src/include/flavored.hpp
+git commit -qm 'chore: Reflavor, and take the move a port brought'
+git branch emptyres-green emptyres-seed
+git checkout -q -b emptyres-build emptyres-seed
+git mv inst/types.hpp inst/flavored.hpp
+git commit -qm 'chore: Reflavor'
+git branch emptyres-build-base emptyres-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like.
 git checkout -q --orphan rcc2
@@ -234,7 +259,8 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   base-fwd-build base-fwd-dev base-fwd-green base-fwd-build-base \
   solo-build solo-dev solo-green solo-build-base \
   note-build note-dev note-green note-build-base \
-  dup-build dup-dev dup-green dup-build-base rcc2
+  dup-build dup-dev dup-green dup-build-base \
+  emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
@@ -411,6 +437,37 @@ hasnt "does not report an empty buffer" "$out" 'buffer empty'
 has   "reports nothing added"           "$out" "dev -> $(git rev-parse --short "$before") (+0)"
 git fetch -q origin
 is "and leaves dev where it was" "$(git rev-parse origin/dup-dev)" "$before"
+
+# --- claim 14: a conflict whose resolution is empty ---------------------------
+echo
+echo "== a buffer commit whose conflict resolves to nothing"
+before=$(git rev-parse origin/emptyres-dev)
+out=$(run emptyres)
+has "stops with the conflict" "$out" 'conflicted'
+WT=$(awk '{print $1}' .git/series-advance-emptyres)
+# Resolving toward what -dev already has is resolving to HEAD's tree.
+git -C "$WT" read-tree --reset -u HEAD
+out=$(run emptyres --continue)
+has "resumes at the stopped commit" "$out" 'resuming at'
+has "and reports nothing added"     "$out" "dev -> $(git rev-parse --short "$before") (+0)"
+is "no state file survives"         "$(ls .git | grep -c series-advance || true)" 0
+is "the kept worktree is gone"      "$([ -d "$WT" ] && echo yes || echo no)" no
+git fetch -q origin
+is "and leaves dev where it was" "$(git rev-parse origin/emptyres-dev)" "$before"
+
+# The same stop with the operator's own `git cherry-pick --skip` in between:
+# that used to meet `no cherry-pick or revert in progress` and leave the chunk
+# with no way to finish at all.
+out=$(run emptyres)
+has "the next run stops at the same place" "$out" 'conflicted'
+WT=$(awk '{print $1}' .git/series-advance-emptyres)
+git -C "$WT" read-tree --reset -u HEAD
+git -C "$WT" cherry-pick --skip
+out=$(run emptyres --continue)
+has "finishes after a hand-skipped pick" \
+  "$out" "dev -> $(git rev-parse --short "$before") (+0)"
+git fetch -q origin
+is "and still leaves dev where it was" "$(git rev-parse origin/emptyres-dev)" "$before"
 
 # --- claim 13: --dev-note carries a stage-3 finding into the minted commit ----
 echo
