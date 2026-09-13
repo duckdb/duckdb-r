@@ -98,6 +98,17 @@ So a series previewing 1.6 from a 1.5.5 seed is `1.5.99.9000`, one previewing 2.
 and the vendor counter hangs off that as usual.
 A preview of the next *patch* release needs no such prefix,
 because a fourth component already says "past `a.b.c`", which is all a patch changes.
+
+**What makes a line a preview line is that its release has not happened,
+not which upstream branch the series tracks.**
+The series tracking upstream `main` is the usual case and not the only one:
+upstream may cut a release branch well ahead of the release,
+and a series opened for one then serves a line no version names yet.
+`v2.0-cyanoptera` was cut while the newest tag was `v1.5.5`,
+so `main` carried `1.5.5` and nothing carried 2.0's version at all.
+The test is whether a released version already names the line —
+where one does the seed takes it from `main` and needs no prefix,
+and where none does the series is previewing, whatever branch it tracks.
 Taking fledge's prefix rather than inventing one is what makes the sequence monotone:
 it sorts above every version of the line being previewed, which is what lets r-universe offer the `.dev`
 flavor as an upgrade, and it is what `main` itself will carry when the line opens there.
