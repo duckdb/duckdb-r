@@ -53,7 +53,7 @@ esac
   { echo "$0: the working tree is not clean; commit or stash first." >&2; exit 1; }
 
 # The flavor the tree carries, read from the one file that always states it.
-pkg=$(sed -rn 's/^Package: (.*)$/\1/p' DESCRIPTION)
+pkg=$("$gnu_sed" -rn 's/^Package: (.*)$/\1/p' DESCRIPTION)
 cur=${pkg#duckdb}
 cur=${cur#.}
 [ -n "$cur" ] ||
@@ -82,6 +82,12 @@ mapfile -t patched < <(
     sed -e "s/duckdb\.1\.3/duckdb.$cur/g" -e "s/duckdb_1_3/duckdb_${cur_u}/g" |
     sort -u
 )
+# Process substitution reports no status and `pipefail` does not reach it, so an
+# unreadable or reshaped patch would leave this empty -- and an empty pathspec
+# makes the guard below a whole-tree grep, which then fails on the very prose
+# this promises not to touch.
+[ ${#patched[@]} -gt 0 ] ||
+  { echo "$0: scripts/flavor.patch named no files; it is the rename surface." >&2; exit 1; }
 
 for f in "${patched[@]}"; do
   [ -e "$f" ] || continue
@@ -102,18 +108,17 @@ done
 
 R -q -e 'cpp11::cpp_register()'
 
-# `README.md` and `.github/README.md` are rendered from `README.Rmd`, which a
-# `-build` buffer does not carry: it takes no ports, so it has the rendered file
-# and not its source. Where the source is there, rendering is what keeps the two
-# in step; where it is not, the rename is the whole of the change anyway.
-if [ -e README.Rmd ]; then
-  R -q -e 'rmarkdown::render("README.Rmd", quiet = TRUE)'
-else
-  for f in README.md .github/README.md; do
-    [ -e "$f" ] || continue
-    "$gnu_sed" -i -e "s/duckdb\.$cur/duckdb.$new/g" -e "s/duckdb_${cur_u}/duckdb_${new_u}/g" "$f"
-  done
-fi
+# **The READMEs are renamed, never rendered.** `flavor.sh` renders them because on
+# `main` the source and the two rendered files are in step. On a series they are
+# not, by design: all three are per-branch flavored documents that the port stage
+# never carries, each keeping its own seed's wording (scripts/series-port.sh,
+# duckdb/duckdb-r#2517). Rendering here would rewrite a `.dev` branch's front page
+# back into `main`'s -- CRAN install instructions and all -- inside a commit whose
+# subject says it only renamed a package.
+for f in README.Rmd README.md .github/README.md; do
+  [ -e "$f" ] || continue
+  "$gnu_sed" -i -e "s/duckdb\.$cur/duckdb.$new/g" -e "s/duckdb_${cur_u}/duckdb_${new_u}/g" "$f"
+done
 git clean -f -- "*.orig"
 
 # The same guard flavor.sh keeps: CRAN's cpp11 leaves the dots in, and a flavor
@@ -126,9 +131,28 @@ if grep -qE '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp; then
 fi
 
 # Nothing may still name the old flavor inside the surface; prose elsewhere may.
-if git grep -qE "duckdb\.$cur\b|duckdb_${cur_u}\b" -- "${patched[@]}" 2>/dev/null; then
+#
+# Checked on the paths as they are **now**: three of them were renamed above, and
+# a pathspec matching nothing makes `git grep` exit 1 in silence -- so guarding
+# the old names would pass a rename that never happened. The regenerated files
+# are guarded too, because they carry the symbol prefix and the patch does not
+# name them.
+guarded=()
+for f in "${patched[@]}"; do
+  t=${f//duckdb.$cur/duckdb.$new}
+  t=${t//duckdb_${cur_u}/duckdb_${new_u}}
+  [ -e "$t" ] && guarded+=("$t")
+done
+for f in src/cpp11.cpp R/cpp11.R README.Rmd README.md .github/README.md; do
+  [ -e "$f" ] && guarded+=("$f")
+done
+[ ${#guarded[@]} -gt 0 ] ||
+  { echo "$0: nothing to guard; the rename cannot have happened." >&2; exit 1; }
+
+cur_re=${cur//./\\.}
+if git grep -qE "duckdb\\.$cur_re\\b|duckdb_${cur_u}\\b" -- "${guarded[@]}"; then
   echo "$0: the old flavor survives in the renamed surface:" >&2
-  git grep -nE "duckdb\.$cur\b|duckdb_${cur_u}\b" -- "${patched[@]}" >&2
+  git grep -nE "duckdb\\.$cur_re\\b|duckdb_${cur_u}\\b" -- "${guarded[@]}" >&2
   exit 1
 fi
 

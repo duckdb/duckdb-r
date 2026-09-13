@@ -20,7 +20,8 @@
 #   --parent <series> the series whose line the new branch was cut from.
 #                     Default `main`. Its own upstream branch is its name.
 #   --flavor <name>   the dev flavor, for the commands --next prints. Default is
-#                     the series' version with `.dev` -- `v2.0-x` gives `2.0.dev`.
+#                     the version in <series> with `.dev` -- `v2.0-x` gives
+#                     `2.0.dev`. A series whose name carries no version needs it.
 #   --check           compute and report, write nothing. Exit 1 if the refs exist
 #                     already and disagree with what this would write.
 #   --next            print the commands that follow the cut, filled in.
@@ -59,7 +60,8 @@ toplevel=${VENDOR_REPO:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
 [ -n "$toplevel" ] || { echo "Error: $PWD is not a git worktree" >&2; exit 1; }
 cd "$toplevel"
 
-[ -d "$upstream/.git" ] ||
+# `-e` rather than `-d`: in a linked worktree `.git` is a file naming the real one.
+[ -e "$upstream/.git" ] ||
   { echo "Error: $upstream is not a duckdb/duckdb checkout (--upstream)" >&2; exit 1; }
 
 # The new series is named for the branch it tracks, and so is its parent.
@@ -72,6 +74,8 @@ if [ -z "$flavor" ]; then
   v=$(printf '%s\n' "$S" | sed -rn 's/^v([0-9]+\.[0-9]+).*$/\1/p')
   [ -n "$v" ] && flavor="$v.dev"
 fi
+[ "$S" != "$parent" ] ||
+  { echo "Error: <series> and --parent are both '$S'; a series cannot cut itself." >&2; exit 1; }
 
 ups() { git -C "$upstream" "$@"; }
 for b in "$U" "$PU"; do
@@ -108,7 +112,11 @@ fork=$(awk 'NR==FNR{a[$0];next} $0 in a{print; exit}' "$work/pu" "$work/u")
 # history, so everything there is already vendored, glued and judged.
 cut_of() { # <strand ref> -> sha
   git log --format='%H|%s' "$1" > "$work/strand"
-  awk -F'|' '$2 ~ /^vendor: Update vendored sources to duckdb\/duckdb@/ {
+  # `sources .*@` rather than `sources to @`: a commit vendoring a tagged upstream
+  # commit reads `vendor: Update vendored sources (tag v1.5.5) to duckdb/duckdb@`,
+  # and a release branch is cut precisely around a tag. `main-dev` carries 19 of
+  # them; anchoring on `to ` would step the cut silently past one.
+  awk -F'|' '$2 ~ /^vendor: Update vendored sources .*duckdb\/duckdb@/ {
     n = split($2, a, "@"); print $1, a[n] }' "$work/strand" > "$work/vendored"
   awk 'NR==FNR{c[$0];next} ($2 in c){print $1; exit}' "$chain" "$work/vendored"
 }
@@ -125,9 +133,13 @@ for c in "$cut_build" "$cut_dev"; do
     { echo "Error: $parent has no vendor commit on $U's chain" >&2; exit 1; }
 done
 
-echo "fork point   $(ups log -1 --format='%h %ad %s' --date=short "$fork" | cut -c1-72)"
-echo "$parent-build cut  $(git log -1 --format='%h %ad' --date=short "$cut_build")  $(git rev-list --count "$cut_build..$remote/$parent-build") above it"
-echo "$parent-dev   cut  $(git log -1 --format='%h %ad' --date=short "$cut_dev")  $(git rev-list --count "$cut_dev..$remote/$parent-dev") above it"
+printf 'fork point    %s\n' "$(ups log -1 --format='%h %ad %s' --date=short "$fork" | cut -c1-70)"
+for r in build dev; do
+  eval "c=\$cut_$r"
+  printf '%-20s %s  %s above it\n' "$parent-$r cut" \
+    "$(git log -1 --format='%h %ad' --date=short "$c")" \
+    "$(git rev-list --count "$c..$remote/$parent-$r")"
+done
 # The loop's backlog once the refs are pushed, not a task for the caller.
 echo "loop backlog $(ups rev-list --count "$fork..origin/$U") commits of $U above the fork point"
 
@@ -137,26 +149,53 @@ declare -A want=(
   ["$S-dev"]=$cut_dev     ["$S-green"]=$cut_dev
 )
 
+# In ref order rather than hash order, so the report reads the same every run and
+# a refusal leaves the same refs behind on any machine.
+order=("$S-build" "$S-build-base" "$S-dev" "$S-green")
+
+# Both sides are read: `refs/heads/` is what this writes, and `$remote/` is what
+# step 3 pushes and the loop serves. A fresh clone has no local branches at all,
+# so checking only the former gives an unconditional all-clear on a series that
+# is already open.
 status=0
-for ref in "${!want[@]}"; do
-  have=$(git rev-parse -q --verify "refs/heads/$ref") || have=
-  if [ -n "$check" ]; then
-    if [ -z "$have" ]; then
-      echo "would create  $ref -> $(git rev-parse --short "${want[$ref]}")"
-    elif [ "$have" = "${want[$ref]}" ]; then
-      echo "agrees        $ref"
+conflicts=()
+for ref in "${order[@]}"; do
+  w=${want[$ref]}
+  for side in "refs/heads/$ref" "refs/remotes/$remote/$ref"; do
+    have=$(git rev-parse -q --verify "$side") || continue
+    where=${side#refs/}
+    if [ "$have" = "$w" ]; then
+      [ -n "$check" ] && echo "agrees        $where"
+    elif git merge-base --is-ancestor "$w" "$have" 2>/dev/null; then
+      # The series has advanced past its own cut, which is the loop working.
+      [ -n "$check" ] &&
+        echo "advanced      $where is $(git rev-parse --short "$have"), $(git rev-list --count "$w..$have") above the cut"
     else
-      echo "DISAGREES     $ref is $(git rev-parse --short "$have"), cut says $(git rev-parse --short "${want[$ref]}")" >&2
+      echo "DISAGREES     $where is $(git rev-parse --short "$have"), cut says $(git rev-parse --short "$w")" >&2
       status=1
+      [ "$side" = "refs/heads/$ref" ] && conflicts+=("$ref")
     fi
-  else
-    [ -z "$have" ] || [ "$have" = "${want[$ref]}" ] ||
-      { echo "Error: $ref exists at $(git rev-parse --short "$have") and is not the cut." >&2
-        echo "  Delete it, or run --check to see every disagreement first." >&2; exit 1; }
+  done
+done
+
+if [ -n "$check" ]; then
+  for ref in "${order[@]}"; do
+    git rev-parse -q --verify "refs/heads/$ref" >/dev/null ||
+      echo "would create  heads/$ref -> $(git rev-parse --short "${want[$ref]}")"
+  done
+else
+  # Nothing is written until every ref has been judged: a refusal halfway leaves
+  # a partial cut, and which half depends on the order the refs were visited.
+  if [ ${#conflicts[@]} -gt 0 ]; then
+    echo "Error: ${#conflicts[@]} local ref(s) exist and are not the cut: ${conflicts[*]}" >&2
+    echo "  Nothing was written. Delete them, or run --check to see every side." >&2
+    exit 1
+  fi
+  for ref in "${order[@]}"; do
     git branch -f "$ref" "${want[$ref]}"
     echo "wrote         $ref -> $(git rev-parse --short "${want[$ref]}")"
-  fi
-done
+  done
+fi
 
 if [ -n "$next" ]; then
   F=${flavor:-<F>}
@@ -164,9 +203,11 @@ if [ -n "$next" ]; then
 
 Next, in order -- the cut is not complete until the rename is in:
 
-  # 1. Reflavor each strand, one commit above its cut.
-  git worktree add ../wt-$S-build $S-build && (cd ../wt-$S-build && scripts/reflavor.sh $F)
-  git worktree add ../wt-$S-dev   $S-dev   && (cd ../wt-$S-dev   && scripts/reflavor.sh $F)
+  # 1. Reflavor each strand, one commit above its cut. Run *this* checkout's
+  #    copy of the script: neither strand carries scripts/, a buffer takes no
+  #    ports, and the cut predates the script in any case.
+  git worktree add ../wt-$S-build $S-build && (cd ../wt-$S-build && $PWD/scripts/reflavor.sh $F)
+  git worktree add ../wt-$S-dev   $S-dev   && (cd ../wt-$S-dev   && $PWD/scripts/reflavor.sh $F)
 
   # 2. Push all four together; a ref landing alone invites a half-built firing.
   git push --atomic $remote \\
@@ -176,8 +217,9 @@ Next, in order -- the cut is not complete until the rename is in:
   # 3. Open both forwards -- series-forward/SKILL.md, twice, neither waiting
   #    on the other:
   #      series $S: onto current main, ordinary regenerated seed
-  #      series $parent: onto current main, grafted at $(git rev-parse --short "$cut_dev") --
-  #        everything below that commit is $S's now
+  #      series $parent: onto current main, grafted per strand --
+  #        $parent-fwd-build at $(git rev-parse --short "$cut_build"), $parent-fwd-dev at $(git rev-parse --short "$cut_dev").
+  #        Each strand grafts its own cut; everything below is $S's now.
 
   # 4. Announce the flavor $F in both tables -- README.Rmd (rendered into
   #    README.md and .github/README.md) and handbook/branches/flavors/ --

@@ -24,8 +24,8 @@ This skill is the release branch's birth certificate.
 **Nothing here is derived twice.** The new series is minted out of commits its
 parent has already vendored and CI has already called green: below the fork point
 the two lines are one history, so the opening takes that work rather than
-rebuilding it. Opening v2.0 moved 1501 such commits that way, and left the
-commits `<U>` has of its own to the loop.
+rebuilding it. `series-cut.sh` reports how deep that goes, and leaves the commits
+`<U>` has of its own to the loop.
 
 **It leaves two lines standing on the fork point, so both are forwarded.**
 The cut puts `<S>` on the fork point's R side, months behind `main`, and
@@ -136,10 +136,10 @@ until now.
    Both run beside their live refs as `-fwd-*` and swap in at cutover, so no green
    anyone reads is rewritten.
 
-5. **Announce `<F>` in both tables.** The `Flavors` table in
-   [`README.Rmd`](/README.Rmd) — see below — and the one in
+5. **Announce `<F>` in both tables** — the `Flavors` table in
+   [`README.Rmd`](/README.Rmd), see below, and the one in
    [`branches/flavors/`](/handbook/branches/flavors/README.md), which says where
-   each flavor publishes from. They are the only two places a new series is named
+   each flavor publishes from. Those two are the only places a new series is named
    by hand; everything else is discovered from refs.
 
 6. **Update the fork's mirror configuration — derived, not remembered.**
@@ -180,32 +180,29 @@ until now.
 
 ## Patching the README
 
-The `Flavors` table in `README.md` is the only place
-a new series has to be announced by hand;
-everything else is discovered from refs.
-Add one row for `<F>`, in the table's order —
-CRAN, then LTS, then the `.dev` flavors newest series first:
-
+Edit [`README.Rmd`](/README.Rmd): `README.md` and `.github/README.md` are
+rendered from it, and all three carry the table.
 Copy the row of the nearest `.dev` flavor and substitute `<F>`, `<U>` and the
-series' refs. The row's shape is the table's to state, not this skill's; what a
-copy gets wrong is which repository each badge is counted in, because that
-differs *within* the row:
+series' refs, keeping the table's order — CRAN, then LTS, then the `.dev` flavors
+newest series first.
 
-* ***ahead*** is counted in `duckdb/duckdb-r`, over `<release-branch>..<S>-green`.
-  Both refs live there — the release branch natively, and `<S>-green` because the
-  loop mirrors it ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
-* ***in flight*** and ***buffered*** are counted in `krlmlr/duckdb-r`, which is
-  the only repository carrying `<S>-dev` and `<S>-build`.
+Two things a copied row gets wrong.
 
-A badge whose base the named repository lacks renders as an error rather than a
-count, and one reading a stale mirror is worse because it renders: it counts
-commits that have already shipped. Step 6 is where that is settled.
+**Which branch *ahead* measures from.** It is the branch the series releases from,
+which for a line still releasing from `main` *is* `main` — not `<U>`, and not the
+parked baseline a retired line uses. Every lag badge names refs of
+`krlmlr/duckdb-r`, because that is the repository carrying `<S>-dev` and
+`<S>-build` and shields.io compares two refs of one repository. A badge whose base
+the named repository lacks renders as an error rather than a count, and one
+reading a stale mirror is worse because it renders: it counts commits that have
+already shipped. Step 6 settles both.
 
 **The table must stay clear of `scripts/flavor.patch`.**
-`README.md` is a flavored file and the patch rewrites the installation hunks near
-the top, so `git apply --check --include=README.md scripts/flavor.patch` has to
-still pass. Edit `README.Rmd`; `README.md` and `.github/README.md` are rendered
-from it and all three carry the table.
+`README.Rmd` is a flavored file and the patch rewrites the installation hunks near
+the top, so `git apply --check --include=README.Rmd scripts/flavor.patch` has to
+still pass. Name the `.Rmd`: `--include` matching no path exits 0, so checking the
+rendered `README.md` — which the patch does not touch — passes whatever the edit
+did.
 
 The edit lands on `main` and is forward-ported like any other R-side change.
 When the series later releases, it gains a stable row of its own.

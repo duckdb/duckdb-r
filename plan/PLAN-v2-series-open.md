@@ -22,6 +22,11 @@ Both halves were cuts at that point, not replays.
 * **`main-fwd-*`** took one graft commit each — the fork-point commit's tree
   verbatim, parented on `main` — then everything the branch had taken since,
   replayed in order. 6606 commits became 14, 6731 became 50.
+* **Both strands were then reflavored**, one commit above their cut, with
+  `scripts/reflavor.sh` — a rename, because `flavor.sh` refuses an already-flavored
+  tree and reversing the old flavor against `main`'s template fails on context the
+  series has moved. `R CMD INSTALL` clean, and the installed package answers
+  `v2.0.0-dev83376` under the new name.
   Both heads came out byte-identical to the live branches outside `DESCRIPTION`,
   whose `Version:` takes `2.0.99.9000`, the prefix of the 2.1 line `main` now previews.
 
@@ -46,9 +51,12 @@ Both halves were cuts at that point, not replays.
 
 ## What is left
 
-* **v2.0's first forward.** The cut took `main`'s tree entire, so the series answers
-  to `duckdb.dev` and stands on the fork point's R side. The forward gives it
-  `2.0.dev` and current `main`'s R side, and only then is the line its own.
+* **v2.0's first forward.** The cut took `main`'s tree entire, so the series stands
+  on the fork point's R side; the forward brings it onto current `main`'s.
+  Not the flavor — `scripts/reflavor.sh` did that before the push (`3007727026`,
+  `9fe4008b6e`), and both strands read `Package: duckdb.2.0.dev`.
+  `-green` still reads `duckdb.dev` because it sits at the cut, below the rename,
+  which is what the routine prescribes: the gate carries it over.
 * **`duckdb.2.0.dev` in `duckdb.r-universe.dev`.** A package nothing here creates;
   the entry is a pull request against that repository. It cannot build until the
   forward above lands, but the queue is someone else's, so the request goes first.
