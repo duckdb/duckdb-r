@@ -86,11 +86,29 @@ This skill is the release branch's birth certificate.
    one commit,
    subject carrying the `duckdb/duckdb@<sha>` reference as always;
    that subject is how `vendor-one.sh` finds its base.
-   Rewind the glue as `VENDORING.md` describes
-   if the fork point predates the current glue,
-   and rewind the `patch/` stack with it —
-   whole, out of `<P>-build`'s fork-point commit, before the run,
-   rather than adjudicating the entries `vendor.sh` stops on.
+   **Where a series has already proven this upstream commit, take its tree rather than building one.**
+   A parent series' `-dev` commit for the same SHA, below that series' `-green`,
+   is an engine, a glue and a `patch/` stack that were green *together*.
+   Take all three from it, wholesale, path-scoped —
+   `src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`, and the glue —
+   and leave the rest of the seed alone, which is `main`'s and stays `main`'s.
+
+   Do not reconcile the glue with `main`'s by merging them.
+   Measured: a three-way merge of the glue, with `main` at the series' seed as the base,
+   reported **zero conflicts and still dropped three engine adaptations** in `database.cpp`
+   alone — the `Identifier` migration, `ApplyToFunctions`, and an include.
+   The proven version compiles and the merged one does not,
+   so the merge produces a state neither side ever validated and does not say so.
+   Nor take the glue wholesale without knowing what it costs:
+   a `-build` branch takes no ports, so its glue lacks every R-side fix that
+   landed on `main` after the fork — which is how a bulk rewind once reverted
+   `#2582 fix(scan): Materialize packed columns on R's thread` and deadlocked the suite
+   on 48 threads with the compiler none the wiser.
+   A `-dev` commit below green is the tree to take, because it has both.
+
+   Where nothing has vendored the commit, there is no proven tree and `vendor.sh` is the only way:
+   rewind the glue as `VENDORING.md` describes, and rewind the `patch/` stack with it,
+   whole and before the run, rather than adjudicating the entries `vendor.sh` stops on.
 
    **This commit walks the engine backwards, and that is the design.**
    The seed comes from `main`, which carries the released line,
@@ -115,6 +133,19 @@ This skill is the release branch's birth certificate.
    Measured on this repository: replaying the fork-point commit onto a seed
    from `main` left `R/version.R` reading `2.1.0-dev84198`
    over sources still 1.5.5 in 3274 files.
+
+   **An opening is not aligned, and one forward finishes it.**
+   Whatever the rewind takes, it takes from the fork point,
+   so the series starts carrying the R side of that moment
+   while its seed carries `main`'s of today — and the two are reconciled by neither.
+   Every R-side fix that landed on `main` after the fork is absent from the glue
+   until it arrives the way R-side work always reaches a series, as a forward-port.
+   So plan the opening as two moves, not one:
+   the opening makes the line exist and vendorable,
+   and the first forward brings it onto current `main` and re-ports what the rewind left behind
+   ([`series-forward/SKILL.md`](series-forward)).
+   Neither v2.0 nor the line `main` tracks was aligned by its opening alone.
+   Read a red in the opening's first commits as that work, not as a broken opening.
 
 5. **Walk forward** along `<U>`
    with the gated `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
