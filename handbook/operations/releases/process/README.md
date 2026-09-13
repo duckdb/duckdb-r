@@ -24,7 +24,8 @@ that carry it.
 Four refs matter here:
 
 * **the release branch** — `main` for the current line,
-  `<S>` for a legacy one, in `duckdb/duckdb-r`.
+  the parked `vX-codename` branch for a line that is no longer current,
+  in `duckdb/duckdb-r`.
   It sits at the last release and is what CRAN and r-universe publish.
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
@@ -37,7 +38,7 @@ Green moves itself: the series loop fast-forwards it over commits with
 recorded successful runs, so promoting a release point is not a step
 anyone performs.
 
-At any moment a series is in exactly one of four **clusters**.
+At any moment a series is in exactly one of three **clusters**.
 The clusters — not the individual states — are the unit of coordination
 when several series release together
 (see [Multi-line coordination](#multi-line-coordination)).
@@ -49,7 +50,6 @@ when several series release together
 | **TRACK** | 0 | the series loop | no — forward-ports pass *through* | no | — |
 | **STABILIZE** | 0.1–0.5 | calendar / human (T−14 → tag) | **yes** (fold-back fixes are born here) | no | revdep ⇄ fold-back |
 | **CUT** | 1–5 | upstream tag, then mechanical | no | **yes — the only cluster that does** | red ⇄ fix-in-commit |
-| **RESET** | 6 | script | no | no | — |
 
 The single most important property of the whole design is the pair of
 middle columns: **vendored commits enter the mainline in exactly one
@@ -95,14 +95,9 @@ stateDiagram-v2
         Merged --> Published
     }
 
-    state RESET {
-        Rebaselined : 6 RE-BASELINED (legacy series only)
-    }
-
     TRACK --> STABILIZE : T-14 open window
     STABILIZE --> CUT : upstream tag vX.Y.Z
-    CUT --> RESET : published
-    RESET --> TRACK
+    CUT --> TRACK : published
     note right of CUT : CRAN acceptance is an async tail (current line only)
 ```
 
@@ -110,7 +105,7 @@ stateDiagram-v2
 
 | State | Enter when | `<S>-dev` | `<S>-green` | release / `-lts` branch | Gate to leave | On failure |
 |-------|-----------|-------|-----------|------------------|---------------|------------|
-| **0 TRACKING** | RESET done | grows: vendor + forward-port | advances with CI | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
+| **0 TRACKING** | the previous release published | grows: vendor + forward-port | advances with CI | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
 | **0.1 CANDIDATE PINNED** | window opens | fixes only; pin likely release commit | advances with CI | frozen | candidate green | — |
 | **0.2 REVDEP-1** | candidate pinned | — | — | — | revdep run triaged | — |
 | **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | advances with CI | **fixes born on `main`**, then ported | findings resolved/accepted | loop to 0.4 |
@@ -121,7 +116,6 @@ stateDiagram-v2
 | **3 PROVEN** | review ok | — | **has advanced over the tagged commit** | — | green covers the tag | red → 1 |
 | **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; `fledge` bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
 | **5 PUBLISHED** | merged | — | — | tag `vX.Y.Z` pushed; r-universe builds; CRAN submitted (current line) | tag pushed | CRAN reject → new patch cycle |
-| **6 RE-BASELINED** | published | legacy series only: recreated from the new release branch plus the flavor rename; a series-loop series carries straight on | — | — | back to TRACK | — |
 
 The **On failure** column is the whole of rollback:
 there is no state this machine cannot be walked back out of,
@@ -265,29 +259,24 @@ git push origin vX.Y.Z
 ```
 
 For the **current** line only, submit to CRAN (`cran/`).
-Acceptance is asynchronous and overlaps RESET and the next TRACK,
+Acceptance is asynchronous and overlaps the next TRACK,
 so the tag and the r-universe publish do not wait for it;
 a rejection is fixed on the release branch and re-enters CUT as a follow-up patch.
 
-## RESET — re-baseline
+### Back to TRACK
 
-A series running the loop needs no reset: `<S>-dev` and `<S>-green` carry
-straight on past the release point, and the series is back in TRACK the
-moment the release branch has moved.
+There is no re-baselining step. `<S>-dev` and `<S>-green` carry straight on
+past the release point, and the series is in TRACK again the moment the
+release branch has moved. What used to happen here was rebuilding a series
+that had not been reseeded into the loop, from the released tip plus the
+flavor rename; every series runs the loop now
+([`branches/model/`](/handbook/branches/model/README.md)).
 
-A **legacy series** — one not yet reseeded into the loop — is rebuilt from
-the freshly released tip plus the flavor rename:
-
-```bash
-git checkout -b <S>-dev-base origin/<S>
-scripts/flavor.sh <N>.dev        # the major.minor token, e.g. 1.4.dev
-git push krlmlr <S>-dev-base --force-with-lease
-git push krlmlr <S>-dev-base:<S>-dev --force-with-lease
-```
-
-Either way the glue source of truth (`main`) separately moves to its
-ongoing development version via `fledge`,
-and the vendor counter resumes from the new baseline (`versioning/`).
+Separately, the glue source of truth (`main`) moves to its ongoing
+development version via `fledge` (`versioning/`).
+The vendor counter is not a release-time concern: it rises on `<S>-dev` as
+the buffer is consumed, and the one thing that re-derives it is a forward
+rebuild, which has nothing to do with a release having happened.
 
 ## Multi-line coordination
 
@@ -327,6 +316,5 @@ Every cluster hands the series on with its invariants intact:
   and every `<S>-dev` commit green.
 * **CUT** is the controlled transition where the release branches advance
   to the tagged commit `<S>-green` has already proven;
-  the version and flavor invariants must hold at the new release point.
-* **RESET** re-establishes a baseline that is the released tree plus the
-  rename, and nothing else.
+  the version and flavor invariants must hold at the new release point,
+  and the series is back in TRACK with the same refs it had.
