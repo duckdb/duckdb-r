@@ -440,6 +440,21 @@ extern "C" SEXP _duckdb_rapi_execute(SEXP stmt, SEXP convert_opts) {
     return cpp11::as_sexp(rapi_execute(cpp11::as_cpp<cpp11::decay_t<duckdb::stmt_eptr_t>>(stmt), cpp11::as_cpp<cpp11::decay_t<duckdb::ConvertOpts>>(convert_opts)));
   END_CPP11
 }
+// statement.cpp
+cpp11::list rapi_stream_fetch(duckdb::rqry_eptr_t qry_res, double n, duckdb::ConvertOpts convert_opts);
+extern "C" SEXP _duckdb_rapi_stream_fetch(SEXP qry_res, SEXP n, SEXP convert_opts) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_stream_fetch(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<double>>(n), cpp11::as_cpp<cpp11::decay_t<duckdb::ConvertOpts>>(convert_opts)));
+  END_CPP11
+}
+// statement.cpp
+void rapi_stream_close(duckdb::rqry_eptr_t qry_res);
+extern "C" SEXP _duckdb_rapi_stream_close(SEXP qry_res) {
+  BEGIN_CPP11
+    rapi_stream_close(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res));
+    return R_NilValue;
+  END_CPP11
+}
 // utils.cpp
 SEXP rapi_adbc_init_func();
 extern "C" SEXP _duckdb_rapi_adbc_init_func() {
@@ -533,6 +548,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                  1},
     {"_duckdb_rapi_shutdown",                (DL_FUNC) &_duckdb_rapi_shutdown,                 1},
     {"_duckdb_rapi_startup",                 (DL_FUNC) &_duckdb_rapi_startup,                  5},
+    {"_duckdb_rapi_stream_close",            (DL_FUNC) &_duckdb_rapi_stream_close,             1},
+    {"_duckdb_rapi_stream_fetch",            (DL_FUNC) &_duckdb_rapi_stream_fetch,             3},
     {"_duckdb_rapi_unlock",                  (DL_FUNC) &_duckdb_rapi_unlock,                   1},
     {"_duckdb_rapi_unregister_arrow",        (DL_FUNC) &_duckdb_rapi_unregister_arrow,         2},
     {"_duckdb_rapi_unregister_df",           (DL_FUNC) &_duckdb_rapi_unregister_df,            2},
