@@ -72,25 +72,35 @@
 # they are transient — a forward's seed already carries their content, and a
 # rebase drops patch-id equivalents and empty leftovers.
 #
-# Usage: series-port.sh <series> [--list] [--apply [sha...]]
+# Usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [sha...]
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-S=${1:?usage: series-port.sh <series> [--list] [--apply [sha...]]}
-shift
+usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [sha...]'
+argerr() { echo "$usage" >&2; exit 2; }
 # --list walks a frozen series anyway, for when the question is which commit of
 # `main` to name. No effect on any other series: the walk is their default.
 list=
-if [ "${1:-}" = "--list" ]; then
-  list=1
-  shift
-fi
 apply=
-if [ "${1:-}" = "--apply" ]; then
-  apply=1
-  shift
-fi
-remote=origin
+remote=${SERIES_REMOTE:-origin}
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) list=1; shift ;;
+    --apply) apply=1; shift ;;
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -ge 1 ] || argerr
+S=${args[0]}
+set -- ${args+"${args[@]:1}"}
+[ -n "$apply" ] || [ $# -eq 0 ] || argerr
 
 # The identity set: what CI and the routine execute. patch/ stays out
 # (vendor-coupled: applied by vendor runs, refreshed by repairs), as do the
