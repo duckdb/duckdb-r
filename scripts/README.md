@@ -38,6 +38,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
+| [`reflavor.sh`](reflavor.sh) | Change an already-flavored tree from one flavor to another, in place: `duckdb.dev` -> `duckdb.2.0.dev`, renamed files and regenerated binding included. |
 
 ## [`branches/mirrors/`](/handbook/branches/mirrors/README.md)
 
@@ -118,6 +119,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-args-test.sh`](series-args-test.sh) | Check the argument contract every scripts/series-*.sh shares, offline. |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
 | [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
+| [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
 | [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
