@@ -81,6 +81,18 @@ regeneration, rather than leaving the vendored copies stale:
 upstream renaming a logo is a decision for a human,
 since the new name has to reach `README.md` too.
 
+**The regenerated tree is byte-reproducible, and cheap to re-hash**, and neither was
+always true — both are properties the pipeline now enforces rather than caveats a reader carries.
+`pragma_version.cpp` records `DUCKDB_SOURCE_ID` as an *abbreviated* upstream commit id,
+and git sizes that abbreviation from the number of objects in the clone it runs in,
+so the same upstream commit once vendored differently from two clones;
+[`vendor.sh`](/scripts/vendor.sh) pins `core.abbrev` to 10 in the upstream clone,
+which is the width DuckDB's own CMake truncates to.
+And `rconfigure.py` used to rewrite all ~3550 files whether or not their content changed,
+which invalidated git's stat cache and made every `git status` over the tree re-hash it;
+it now restores a file that comes out byte-identical to its predecessor,
+keeping the inode and the stat cache, and reports `N files changed, M unchanged`.
+
 **The patch stack** under [`patch/`](/patch) applies R-specific
 modifications to the vendored tree in place,
 and patches are sent upstream as pull requests every once in a while.
@@ -102,7 +114,26 @@ keeps the two version counters mergeable across vendor commits by
 resolving each component to the strand that owns it
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
+**A vendor commit's subject is machine-readable state**, and the shape is fixed:
+
+```text
+vendor: Update vendored sources to duckdb/duckdb@<commit_hash>
+
+Date: <author date of the upstream commit>
+
+<subjects of the upstream first-parent commits since the previously vendored commit>
+```
+
+A tagged release says so in the subject,
+`vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>`,
+and [`vendor-one.sh`](/scripts/vendor-one.sh) ends its run there.
+
+[`vendor-one.sh`](/scripts/vendor-one.sh), [`series-advance.sh`](/scripts/series-advance.sh),
+[`series-port.sh`](/scripts/series-port.sh) and the repair skills
+all recover *where is this branch in upstream history* by parsing `duckdb/duckdb@<sha>` out of that line.
+So it is not prose: do not reword it,
+and do not squash vendor commits without keeping the newest SHA in the subject.
+
 *To deepen: absorb `scripts/VENDORING.md`'s remaining sections —
 vendoring by hand, creating a patch, the two properties of the
-regenerated tree, the fork-point rule for a new dev line, the vendor
-commit format, and the badges.*
+regenerated tree, and the fork-point rule for a new dev line.*
