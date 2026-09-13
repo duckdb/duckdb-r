@@ -1,5 +1,136 @@
 # Changelog
 
+## duckdb 1.5.5.9021
+
+### Bug fixes
+
+#### series-port
+
+- Count only what `main` does not have under the seed
+  ([\#2707](https://github.com/duckdb/duckdb-r/issues/2707)).
+
+#### series
+
+- Say which argument is a remote and which is a path
+  ([\#2685](https://github.com/duckdb/duckdb-r/issues/2685)).
+
+#### series
+
+- Stop counting a buffer commit stage 5 would drop as empty
+  ([\#2682](https://github.com/duckdb/duckdb-r/issues/2682)).
+
+#### vendor
+
+- Read the version upstream `main` would stamp, and refuse a shallow
+  clone ([\#2683](https://github.com/duckdb/duckdb-r/issues/2683)).
+
+#### series
+
+- Name a file the tooling sync deletes and something still calls
+  ([\#2695](https://github.com/duckdb/duckdb-r/issues/2695)).
+
+#### series-converge
+
+- Explain `README.Rmd` alongside the READMEs knitted from it
+  ([\#2699](https://github.com/duckdb/duckdb-r/issues/2699)).
+
+#### patch
+
+- Three vendored fixes for the clang23 and R-devel flavors
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2698](https://github.com/duckdb/duckdb-r/issues/2698)).
+
+#### flavor
+
+- Refresh the README.Rmd hunk the patch no longer matched
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2700](https://github.com/duckdb/duckdb-r/issues/2700)).
+
+#### build
+
+- Ship the `MAKEFLAGS` helper in the tarball, and refuse a value that is
+  not `-jN` ([\#2678](https://github.com/duckdb/duckdb-r/issues/2678)).
+
+- Declare `adbcdrivermanager` as `Enhances`, installed from
+  `Additional_repositories`
+  ([\#2687](https://github.com/duckdb/duckdb-r/issues/2687)).
+
+### Features
+
+#### pull-config
+
+- Derive the fork’s mirror rules from the badges that read them
+  ([\#2696](https://github.com/duckdb/duckdb-r/issues/2696)).
+
+#### series-check
+
+- Report an upstream release line that no series serves
+  ([\#2686](https://github.com/duckdb/duckdb-r/issues/2686)).
+
+#### docs-consistency
+
+- Catch the drift classes a full review found by hand
+  ([\#2668](https://github.com/duckdb/duckdb-r/issues/2668)).
+
+#### series
+
+- Write a stage-3 finding into the commit stage 5 mints
+  ([\#2684](https://github.com/duckdb/duckdb-r/issues/2684)).
+
+#### ci
+
+- Align the `revdep2`, `revdep4` and `revdepx` subsystems with
+  `rigraph`.
+
+### Chore
+
+- Change maintainer
+  ([\#112](https://github.com/duckdb/duckdb-r/issues/112)).
+
+#### skills
+
+- Make the series playbooks real skills, and describe them
+  ([\#2706](https://github.com/duckdb/duckdb-r/issues/2706)).
+
+### Continuous integration
+
+- Track revdep4 run (most, depth 1) before merging to main
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2701](https://github.com/duckdb/duckdb-r/issues/2701)).
+
+- Install dependencies from `Additional_repositories` in the shared
+  action ([\#2688](https://github.com/duckdb/duckdb-r/issues/2688)).
+
+### Documentation
+
+#### series-loop
+
+- Hand over a due cutover as a block, not as one line
+  ([\#2708](https://github.com/duckdb/duckdb-r/issues/2708)).
+
+#### handbook
+
+- Repair drift found by a cover-to-cover review
+  ([\#2667](https://github.com/duckdb/duckdb-r/issues/2667)).
+
+#### series-open
+
+- Give the fork’s mirror configuration a step of its own
+  ([\#2694](https://github.com/duckdb/duckdb-r/issues/2694)).
+
+### Performance
+
+#### revdepx
+
+- Compile the revdeps’ checks through ccache
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2691](https://github.com/duckdb/duckdb-r/issues/2691)).
+
+### Uncategorized
+
+- Ci: Fail the roxygenize step on roxygen2 warnings
+  ([\#111](https://github.com/duckdb/duckdb-r/issues/111)).
+
 ## duckdb 1.5.5.9020
 
 ### Bug fixes

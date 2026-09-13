@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9020</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9021</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,111 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9021" id="duckdb-1559021">duckdb 1.5.5.9021<a class="anchor" aria-label="anchor" href="#duckdb-1559021"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9021">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9021"></a></h3>
+<div class="section level4">
+<h4 id="series-port-1-5-5-9021">series-port<a class="anchor" aria-label="anchor" href="#series-port-1-5-5-9021"></a></h4>
+<ul><li>Count only what <code>main</code> does not have under the seed (<a href="https://github.com/duckdb/duckdb-r/issues/2707" class="external-link">#2707</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9021">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9021"></a></h4>
+<ul><li>Say which argument is a remote and which is a path (<a href="https://github.com/duckdb/duckdb-r/issues/2685" class="external-link">#2685</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9021-1">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9021-1"></a></h4>
+<ul><li>Stop counting a buffer commit stage 5 would drop as empty (<a href="https://github.com/duckdb/duckdb-r/issues/2682" class="external-link">#2682</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="vendor-1-5-5-9021">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-5-5-9021"></a></h4>
+<ul><li>Read the version upstream <code>main</code> would stamp, and refuse a shallow clone (<a href="https://github.com/duckdb/duckdb-r/issues/2683" class="external-link">#2683</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9021-2">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9021-2"></a></h4>
+<ul><li>Name a file the tooling sync deletes and something still calls (<a href="https://github.com/duckdb/duckdb-r/issues/2695" class="external-link">#2695</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-converge-1-5-5-9021">series-converge<a class="anchor" aria-label="anchor" href="#series-converge-1-5-5-9021"></a></h4>
+<ul><li>Explain <code>README.Rmd</code> alongside the READMEs knitted from it (<a href="https://github.com/duckdb/duckdb-r/issues/2699" class="external-link">#2699</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="patch-1-5-5-9021">patch<a class="anchor" aria-label="anchor" href="#patch-1-5-5-9021"></a></h4>
+<ul><li>Three vendored fixes for the clang23 and R-devel flavors (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2698" class="external-link">#2698</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="flavor-1-5-5-9021">flavor<a class="anchor" aria-label="anchor" href="#flavor-1-5-5-9021"></a></h4>
+<ul><li>Refresh the README.Rmd hunk the patch no longer matched (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2700" class="external-link">#2700</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="build-1-5-5-9021">build<a class="anchor" aria-label="anchor" href="#build-1-5-5-9021"></a></h4>
+<ul><li><p>Ship the <code>MAKEFLAGS</code> helper in the tarball, and refuse a value that is not <code>-jN</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2678" class="external-link">#2678</a>).</p></li>
+<li><p>Declare <code>adbcdrivermanager</code> as <code>Enhances</code>, installed from <code>Additional_repositories</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2687" class="external-link">#2687</a>).</p></li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="features-1-5-5-9021">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5-9021"></a></h3>
+<div class="section level4">
+<h4 id="pull-config-1-5-5-9021">pull-config<a class="anchor" aria-label="anchor" href="#pull-config-1-5-5-9021"></a></h4>
+<ul><li>Derive the fork’s mirror rules from the badges that read them (<a href="https://github.com/duckdb/duckdb-r/issues/2696" class="external-link">#2696</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-check-1-5-5-9021">series-check<a class="anchor" aria-label="anchor" href="#series-check-1-5-5-9021"></a></h4>
+<ul><li>Report an upstream release line that no series serves (<a href="https://github.com/duckdb/duckdb-r/issues/2686" class="external-link">#2686</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="docs-consistency-1-5-5-9021">docs-consistency<a class="anchor" aria-label="anchor" href="#docs-consistency-1-5-5-9021"></a></h4>
+<ul><li>Catch the drift classes a full review found by hand (<a href="https://github.com/duckdb/duckdb-r/issues/2668" class="external-link">#2668</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9021-3">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9021-3"></a></h4>
+<ul><li>Write a stage-3 finding into the commit stage 5 mints (<a href="https://github.com/duckdb/duckdb-r/issues/2684" class="external-link">#2684</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="ci-1-5-5-9021">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-5-9021"></a></h4>
+<ul><li>Align the <code>revdep2</code>, <code>revdep4</code> and <code>revdepx</code> subsystems with <code>rigraph</code>.</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="chore-1-5-5-9021">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-5-9021"></a></h3>
+<ul><li>Change maintainer (<a href="https://github.com/duckdb/duckdb-r/issues/112" class="external-link">#112</a>).</li>
+</ul><div class="section level4">
+<h4 id="skills-1-5-5-9021">skills<a class="anchor" aria-label="anchor" href="#skills-1-5-5-9021"></a></h4>
+<ul><li>Make the series playbooks real skills, and describe them (<a href="https://github.com/duckdb/duckdb-r/issues/2706" class="external-link">#2706</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-5-9021">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-5-9021"></a></h3>
+<ul><li><p>Track revdep4 run (most, depth 1) before merging to main (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2701" class="external-link">#2701</a>).</p></li>
+<li><p>Install dependencies from <code>Additional_repositories</code> in the shared action (<a href="https://github.com/duckdb/duckdb-r/issues/2688" class="external-link">#2688</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9021">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9021"></a></h3>
+<div class="section level4">
+<h4 id="series-loop-1-5-5-9021">series-loop<a class="anchor" aria-label="anchor" href="#series-loop-1-5-5-9021"></a></h4>
+<ul><li>Hand over a due cutover as a block, not as one line (<a href="https://github.com/duckdb/duckdb-r/issues/2708" class="external-link">#2708</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="handbook-1-5-5-9021">handbook<a class="anchor" aria-label="anchor" href="#handbook-1-5-5-9021"></a></h4>
+<ul><li>Repair drift found by a cover-to-cover review (<a href="https://github.com/duckdb/duckdb-r/issues/2667" class="external-link">#2667</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-open-1-5-5-9021">series-open<a class="anchor" aria-label="anchor" href="#series-open-1-5-5-9021"></a></h4>
+<ul><li>Give the fork’s mirror configuration a step of its own (<a href="https://github.com/duckdb/duckdb-r/issues/2694" class="external-link">#2694</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="performance-1-5-5-9021">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-5-9021"></a></h3>
+<div class="section level4">
+<h4 id="revdepx-1-5-5-9021">revdepx<a class="anchor" aria-label="anchor" href="#revdepx-1-5-5-9021"></a></h4>
+<ul><li>Compile the revdeps’ checks through ccache (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2691" class="external-link">#2691</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="uncategorized-1-5-5-9021">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-5-9021"></a></h3>
+<ul><li>Ci: Fail the roxygenize step on roxygen2 warnings (<a href="https://github.com/duckdb/duckdb-r/issues/111" class="external-link">#111</a>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9020" id="duckdb-1559020">duckdb 1.5.5.9020<a class="anchor" aria-label="anchor" href="#duckdb-1559020"></a></h2>
 <div class="section level3">
