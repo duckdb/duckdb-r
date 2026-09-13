@@ -183,15 +183,31 @@ The replay is the forward routine's, run on the new seed, and the range is what 
    and everything `series-forward/SKILL.md` says about running one holds:
    read the whole glue set first (`scripts/series-glue.sh`), register the merge driver,
    and let it refuse rather than drop a `patch/` entry it cannot place.
-3. **Walk forward from there** with `vendor-one.sh`, as step 5, over what `<U>` has of its own.
+3. **Re-root `<P>-dev` the same way**, onto the same seed.
+   Its fork-point commit is the newest `<P>-dev` commit whose subject names the same upstream SHA,
+   and the range below it carries the vendor commits *and* the non-vendor ones:
+   the ports, and the vendor-coupled glue CI made that stretch fix.
+   That is the half a buffer cannot give, and it is why both strands are re-rooted rather than one.
+4. **Walk forward from there** with `vendor-one.sh`, as step 5, over what `<U>` has of its own.
 
-**The new series is mint, so it takes the baseline refs.**
-Step 3's day-one rule stands unchanged:
-`<S>-green`, `<S>-build-base`, `<S>-build` and `<S>-dev`, created equal, and no `-fwd`.
-A forward counterpart exists to protect a green consumers already read,
-and a line opened today has none.
+**A derived opening's four refs are not created equal.**
+Step 3's day-one rule is for a line with nothing to inherit, and this one inherits two strands,
+so each ref is written where its own strand ends:
+`<S>-build` and `<S>-dev` at their re-rooted tips,
+`<S>-build-base` at `<S>-build`'s, the buffer being drained at creation,
+and `<S>-green` at `<S>-dev`'s, where the fork-point commit sits below `<P>-green`.
+There is still no `-fwd`:
+a forward counterpart protects a green consumers already read, and a line opened today has none.
 `series-forward-build.sh` is borrowed for the replay
 and says nothing about which refs the opening writes.
+
+**Nothing is pushed until every strand is built.**
+The routine discovers series from its refs and serves them all in one firing (step 8),
+so a ref that lands mid-build invites it into a half-built series --
+a buffer with no `-dev` above it, or a `-green` naming a commit whose twin does not exist yet.
+Build all four locally, check them against each other, and push them together at the end.
+Everything before that point is reversible by deleting a local branch;
+the push is what is not.
 
 **Replay rather than branch, and the flavor is why.**
 Pointing a new ref into `<P>-build` would share the commits outright and cost nothing up front,
@@ -202,14 +218,19 @@ a picked glue fix that touched one of the files `scripts/flavor.patch` rewrites 
 and the resolution keeps the seed's name and the commit's change.
 The two buffers then share content and not objects, which is the point rather than a cost.
 
-**What is inherited is what compiles, and nothing else.**
+**Both strands are inherited, and the green comes with them.**
 `-build` holds what the vendor gate checks, and everything `<P>` learned from CI afterwards lives on `<P>-dev`.
 A forward folds that back from its twin, matched by vendored SHA
-([`series-loop/SKILL.md`](series-loop), stage 5), and a new series has no twin to fold from,
-so those fixes come back as reds, once each, in its own CI.
-Whether the same match could serve a derived opening,
-and how the opening this repository has next is sequenced around the release before it,
-are [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.
+([`series-loop/SKILL.md`](series-loop), stage 5).
+A derived opening needs no such fold, because it re-roots `<P>-dev` itself
+and those fixes ride in the commits that carry them.
+What makes it sound is the range:
+where the fork-point commit sits below `<P>-green`,
+every commit the new series inherits is one the parent has already proven,
+so the series opens green instead of opening at its seed and earning that back one red at a time.
+Where it does not, `<S>-green` stops at the last inherited commit that does.
+How the opening this repository has next is sequenced around the release before it
+is [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.
 
 ## Patching the README
 

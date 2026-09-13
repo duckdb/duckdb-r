@@ -49,9 +49,9 @@ and it is what the residual question at the end is about.
 The derived opening, `series-open/SKILL.md`'s *When another series already vendors the line*:
 seed from `main` with flavor `2.0.dev` and the preview prefix `1.99.99.9000`
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
-create the four refs equal,
-replay `main-build` from its own first vendor commit up to the commit that vendors the fork point,
-then walk `cyanoptera` forward for what it has of its own.
+re-root both of `main`'s strands onto it up to the commit that vendors the fork point,
+then walk `cyanoptera` forward for what it has of its own,
+and write the four refs at the end.
 The replay is `scripts/series-forward-build.sh <fork-point commit> <main's seed>`,
 and it satisfies the rule by starting where the chain starts.
 
@@ -65,15 +65,19 @@ which is the deliberate answer to whether ancestry is wanted here: it is not.
 
 Two things the new series does not inherit, and both are work:
 
-* **What CI taught the preview line.** `-build` carries what compiles, and the test-side fixes live on `main-dev`.
-  A forward folds those back from its twin by vendored SHA (`series-loop/SKILL.md`, stage 5);
-  a derived opening has a twin too, the same `main-dev`, and nothing wires it up.
-  Left as is, each fix returns as a red in the new series' CI, once, at a repair plus a replay above it.
-  Teaching stage 5 to match a derived series against the series it was derived from is the one
-  tooling change this plan asks for, and the one measurement worth taking first:
-  the `main-fwd` run needed a carry on 10 of 802 buffered commits
-  ([`experiments/2026-08-09-series-carry-scope/`](/experiments/2026-08-09-series-carry-scope/README.md)),
-  and whether a cross-flavor fission looks like that is not known.
+* **What CI taught the preview line, which is inherited after all.**
+  `-build` carries what compiles and the test-side fixes live on `main-dev`,
+  so a buffer-only fission would return each of them as a red in the new series' CI, once.
+  This plan asked for a tooling change to avoid that -- teaching stage 5 to match a derived series
+  against the one it was derived from -- and none is needed:
+  `main-dev` splits at the fork point exactly as `main-build` does, and is re-rooted the same way.
+  Its fork-point commit is `6cfcf3665`, below it sit 1498 commits, 1406 vendor and **92 not**,
+  and those 92 are the ports and the vendor-coupled glue that stretch was made to fix.
+  `6cfcf3665` is an ancestor of `main-green`,
+  so every commit the new series inherits is one the preview line has already proven,
+  and `v2.0-cyanoptera-green` can be written at the re-rooted `-dev` tip
+  rather than at the seed.
+  The series opens green, with a buffer drained against it.
 * **The rename surface, which is measured and empty.** The picks were written under `dev` and land under `2.0.dev`,
   so any that touched a file [`scripts/flavor.patch`](/scripts/flavor.patch) rewrites would conflict on the name.
   None does: across the 1409 commits of the replay range, the number touching any file that patch rewrites,
@@ -101,6 +105,13 @@ what installs it is the ordinary cutover, which a human runs and the loop only r
 A plain forward replays the whole buffer, and the loop then puts every replayed commit through CI.
 Re-rooted, `main-fwd-dev` has the mainline commits to verify and nothing below the fork point:
 the commits the fission moves to `cyanoptera` are exactly the ones `main` no longer re-verifies.
+
+**The refs are written last, and not equal.**
+A derived opening inherits two strands, so the four refs land where each strand ends,
+and none of them is pushed until all four are built:
+the loop discovers series from refs, and a ref that lands mid-build
+invites a firing into a half-built series.
+Up to that push the whole thing is local branches and a deletion undoes it.
 
 **v2.0 takes no counterpart of its own.**
 A forward exists to protect a green that consumers already read, and a line opened today has none.
@@ -157,7 +168,9 @@ needing to know nothing about either half of this.
 
 ## What this plan owes before it can be executed
 
-* The carry scope for a derived series. The rename surface's conflict count is done, and is zero.
+* Nothing, of the two measurements. The rename surface's conflict count is zero,
+  and the carry scope stopped being a question once `-dev` is re-rooted beside `-build`:
+  there is no carry, because the commits that would have been carried are inherited.
 * A reading of `scripts/series-check.sh` and `scripts/series-converge.sh` against a derived series.
   Both were written for a series with one lineage, and a derived one has a parent they do not know about.
 * The one open decision: whether the buffer's flavor is worth removing altogether.
