@@ -59,16 +59,38 @@ cd "$toplevel"
 GLUE=(src R NAMESPACE
   ':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)DESCRIPTION')
 
-# A series name resolves to its whole span: from where it left the mainline to
-# the buffer tip, which is every vendor commit it has, verified or not. Anything
-# containing `..` is taken as the range it looks like.
+# The fifth version component stamped above scripts/flavor.sh's commits is the
+# tip of every seed (series-open.md steps 2 and 3, series-forward.md step 1).
+seed_tip_re='^chore: Add fifth version component'
+
+# A series name resolves to its whole span: from its seed to the buffer tip,
+# which is every vendor commit it has, verified or not. Anything containing
+# `..` is taken as the range it looks like.
 case "$what" in
   *..*) range=$what ;;
   *)
     build="$remote/$what-build"
     git rev-parse -q --verify "$build" >/dev/null ||
       { echo "Error: no $build, and '$what' is not a rev-range" >&2; exit 1; }
-    range="$(git merge-base "$remote/main" "$build")..$build"
+    # The span starts at the seed's tip, not at the merge base with `main`. A
+    # series seeded from `main` has its seed sitting directly on that merge
+    # base, so the two differ only by the seed's own commits -- the flavor
+    # rename and the counter's zero, which are not adaptations. A series seeded
+    # from a release line (`v1.4-andium`) has the whole R development of that
+    # line between the two, which the merge base listed as if the series
+    # carried it. And a shallow clone has no merge base at all, which under
+    # `set -e` used to exit 1 without a word. The merge base stays the anchor
+    # for a branch that carries no seed.
+    from=$(git rev-list -n 1 --grep="$seed_tip_re" "$build")
+    if [ -z "$from" ]; then
+      from=$(git merge-base "$remote/main" "$build" 2>/dev/null || true)
+      [ -n "$from" ] || {
+        echo "Error: $build carries no seed commit and shares no history with $remote/main" >&2
+        echo "  (a shallow clone? fetch $remote/main whole, or pass a rev-range)" >&2
+        exit 1
+      }
+    fi
+    range="$from..$build"
     ;;
 esac
 
