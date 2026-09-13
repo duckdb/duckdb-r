@@ -1,7 +1,7 @@
 #' DuckDB Result Set
 #'
 #' Methods for accessing result sets for queries on DuckDB connections.
-#'  Implements [DBIResult-class].
+#' Implements [DBIResult-class].
 #'
 #' @slot connection the [duckdb_connection-class] the query was executed on.
 #' @slot stmt_lst internal list describing the prepared statement (names,
@@ -27,7 +27,7 @@ setClass(
 #' DuckDB Arrow Result Set
 #'
 #' Streaming Arrow result for queries on DuckDB connections.
-#'  Implements [DBIResultArrow-class][DBI::DBIResultArrow-class].
+#' Implements [DBIResultArrow-class][DBI::DBIResultArrow-class].
 #'
 #' @slot connection the [duckdb_connection-class] the query was executed on.
 #' @slot stmt_lst internal list describing the prepared statement.
