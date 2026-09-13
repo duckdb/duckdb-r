@@ -46,31 +46,56 @@ This skill is the release branch's birth certificate.
    counterpart protects a green consumers already read, and a line opened today
    has none.
 
-   Nothing else. No seed, no replay, no flavor. Below the cut `<P>` has vendored
-   every commit `<U>` inherits, with the glue it needed and the CI that judged
-   it; sharing those objects is how that evidence travels rather than being
-   claimed again. A green here is earned because nothing changed.
+   No seed and no replay. Below the cut `<P>` has vendored every commit `<U>`
+   inherits, with the glue it needed and the CI that judged it; sharing those
+   objects is how that evidence travels rather than being claimed again. A green
+   here is earned because nothing changed.
+
+3. **Reflavor both strands, on top of the cut.**
+   The one thing a cut gets wrong is the name: it takes `<P>`'s tree entire, so
+   `DESCRIPTION` says `<P>`'s package and the binding exports `<P>`'s symbols.
+
+   ```bash
+   scripts/reflavor.sh <F>        # on <S>-build, then on <S>-dev
+   ```
+
+   One commit per strand, both above their cut, so `-green` stays where the
+   evidence is and the gate advances it over the rename like any other commit.
+   `-build` too, and not only `-dev`: the buffer is what `-dev` replays from, so
+   a buffer left on the old name mints commits that carry it forward.
+
+   `reflavor.sh` renames rather than re-patching. `flavor.sh` builds a flavor
+   onto an unflavored tree and refuses one that already has it, and reversing
+   the old flavor first does not work on a series: `scripts/flavor.patch` is the
+   unflavored template `main` owns, and the context it would reverse against has
+   moved — against the v2.0 cut it failed four hunks of nine. A rename needs no
+   context. It needs `krlmlr/cpp11`, for the reason `flavor.sh` gives, and
+   refuses the run when the symbols come out wrong.
+
+   **Do this before the loop fires.** The routine discovers the series from its
+   refs and will extend `-dev` from `-build` on its next firing, so a series
+   pushed without the rename is a series that grows under the wrong name.
 
    **Do not replay onto a fresh seed.** `main` vendors a *released* engine,
    which sits on no branch's first-parent chain, so no range start satisfies the
    range rule ([`vendoring/model/`](/handbook/operations/vendoring/model/README.md))
    and the first pick lays one line's delta over another's tree.
 
-3. **Walk forward** along `<U>` with the gated
+4. **Walk forward** along `<U>` with the gated
    `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
    fixing glue breaks in place as the gate stops on them.
    Push only once all four refs exist: the routine discovers series from refs and
    serves them in one firing, so a ref landing alone invites a firing into half a
    series.
 
-4. **Add the series to the README's `Flavors` table** — see below.
+5. **Add the series to the README's `Flavors` table** — see below.
 
-5. **Update the fork's mirror configuration — derived, not remembered.**
+6. **Update the fork's mirror configuration — derived, not remembered.**
    A series' *ahead* badge measures against a mirror in the fork, which stays
    current only while [`.github/pull.yml`](/.github/pull.yml) carries a rule for
-   it. Which rules the file owes is a function of the table step 4 just moved, so
+   it. Which rules the file owes is a function of the table step 5 just moved, so
    [`scripts/pull-config.sh`](/scripts/pull-config.sh) evaluates that function and
-   prints what is missing (`--check` exits non-zero). Run it after step 4 and put
+   prints what is missing (`--check` exits non-zero). Run it after step 5 and put
    what it prints in the same change. A line still releasing from `main` is
    measured against `main`, which is ruled already, so most openings add no rule.
 
@@ -84,16 +109,17 @@ This skill is the release branch's birth certificate.
    and serves them in one firing, and writes the mirror configuration too, from
    the same detection ([`series-loop/SKILL.md`](series-loop)).
 
-6. **Forward once, and only then is the line its own.**
-   An opening is two moves, and this is the second, not a tidying pass. The cut
-   took `<P>`'s tree entire, so the series stands on the fork point's R side under
-   `<P>`'s flavor; the forward changes both, replacing the base and applying
-   `flavor.sh <F>` ([`series-forward/SKILL.md`](series-forward)).
-   Until it lands the package answers to `<P>`'s name, and every R-side fix `main`
-   took after the fork is missing from the glue — read a red in the opening's
-   first commits as that outstanding work, not as a broken opening.
+7. **Forward once, to align the R side.**
+   The cut took `<P>`'s tree entire, so the series stands on the fork point's R
+   side: every R-side fix `main` took after the fork is missing from the glue
+   until the first forward brings the line onto current `main`
+   ([`series-forward/SKILL.md`](series-forward)).
+   Read a red in the opening's first commits as that outstanding work rather
+   than as a broken opening.
+   The flavor is not part of it — step 3 settled that, and a forward regenerates
+   its seed with `flavor.sh <F>` from an unflavored `main` in any case.
 
-7. **Register the new flavor with r-universe.**
+8. **Register the new flavor with r-universe.**
    `<F>` is a package nothing in this repository creates: a universe is configured
    by `<user>/<user>.r-universe.dev`, whose `packages.json` gives each package a
    `url` and the `branch` to build — `<S>-green` for a series. Adding `<F>` is an
@@ -104,7 +130,7 @@ This skill is the release branch's birth certificate.
    Where the universe does not answer,
    [`r-universe-org/help`](https://github.com/r-universe-org/help) is its issue
    tracker. Open the request while the refs are being written — the wait is someone
-   else's queue, and it will not build until step 6 has given the series `<F>`
+   else's queue, and it will not build until step 7 has given the series `<F>`
    anyway. [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it
    took. Until then the series is covered by the per-commit gate alone, which is
    Linux on one R version, and stage 3 of the loop has nothing to read back
