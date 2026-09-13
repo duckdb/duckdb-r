@@ -273,8 +273,10 @@ flavor rename; every series runs the loop now
 ([`branches/model/`](/handbook/branches/model/README.md)).
 
 Separately, the glue source of truth (`main`) moves to its ongoing
-development version via `fledge`, and the vendor counter resumes from the
-new baseline (`versioning/`).
+development version via `fledge` (`versioning/`).
+The vendor counter is not a release-time concern: it rises on `<S>-dev` as
+the buffer is consumed, and the one thing that re-derives it is a forward
+rebuild, which has nothing to do with a release having happened.
 
 ## Multi-line coordination
 
