@@ -47,11 +47,11 @@
 <p>The R package is a <strong>monorepo without submodules</strong>, combining several components in a single repository. This design accommodates R development conventions (<code>R CMD build</code>, CRAN compliance) and preserves the requirement to avoid hard runtime dependencies other than DBI.</p>
 <p>The seven components are:</p>
 <ol style="list-style-type: decimal"><li><p><strong>DuckDB core</strong> (<code>src/duckdb/</code>): the vendored C++ database engine. It is tracked from upstream branches of <code>duckdb/duckdb</code>: <code>main</code> (bleeding edge / dev), <code>v1.5-variegata</code> (current patch series), <code>v1.4-andium</code> (LTS). Advanced by vendor commits, never edited in place (<a href="/handbook/operations/vendoring/model/README.html"><code>operations/vendoring/model/</code></a>).</p></li>
-<li><p><strong>Flavor</strong> (<code>DESCRIPTION</code>, <code>R/duckdb-package.R</code>, <code>NAMESPACE</code>, <code>README.md</code>, <code>src/include/rapi.hpp</code>, <code>inst/include/duckdb_types.hpp</code>, <code>tests/testthat.R</code>, <code>man/duckdb-package.Rd</code>): the published package name variant (<code>duckdb</code>, <code>duckdb.1.4</code>, <code>duckdb.1.4.dev</code>, …). The rename surface and the mechanism are <a href="/handbook/branches/flavors/README.html"><code>branches/flavors/</code></a>’s, the scan that keeps the name out of everything else is <a href="/handbook/testing/guards/README.html"><code>testing/guards/</code></a>’s.</p></li>
+<li><p><strong>Flavor</strong> (<code>DESCRIPTION</code>, <code>R/duckdb-package.R</code>, <code>NAMESPACE</code>, <code>README.md</code>, <code>src/include/rapi.hpp</code>, <code>src/include/duckdb_types.hpp</code>, <code>tests/testthat.R</code>, <code>man/duckdb-package.Rd</code>): the published package name variant (<code>duckdb</code>, <code>duckdb.1.4</code>, <code>duckdb.1.4.dev</code>, …). The rename surface and the mechanism are <a href="/handbook/branches/flavors/README.html"><code>branches/flavors/</code></a>’s, the scan that keeps the name out of everything else is <a href="/handbook/testing/guards/README.html"><code>testing/guards/</code></a>’s.</p></li>
 <li><p><strong>Glue code</strong> (<code>src/*.cpp</code>, <code>src/include/</code>): the C++ bridge between R and the DuckDB C++ API. Glue code may change when DuckDB’s C++ API shifts, so it is updated together with vendoring commits.</p></li>
 <li><p><strong>R code and tests</strong> (<code>R/</code>, <code>tests/</code>, some interfaces also reflected in <code>src/*.cpp</code>): the native R interface — DBI implementation, connection handling, result processing, and the full testsuite.</p></li>
 <li><p><strong>CI/CD infrastructure</strong> (<code>.github/workflows/</code>, <code>scripts/</code>): build, test, and release automation.</p></li>
-<li><p><strong>cpp11</strong> (<code>inst/include/cpp11/</code>, <code>inst/include/cpp11.hpp</code>): vendored from <a href="https://github.com/krlmlr/cpp11" class="external-link"><code>krlmlr/cpp11</code></a>, which is a patch stack on top of <a href="https://github.com/r-lib/cpp11" class="external-link"><code>r-lib/cpp11</code></a>.</p></li>
+<li><p><strong>cpp11</strong> (<code>src/vendor/cpp11/</code>, <code>src/vendor/cpp11.hpp</code>): vendored from <a href="https://github.com/krlmlr/cpp11" class="external-link"><code>krlmlr/cpp11</code></a>, which is a patch stack on top of <a href="https://github.com/r-lib/cpp11" class="external-link"><code>r-lib/cpp11</code></a>.</p></li>
 <li><p><strong>R core</strong> (indirect): the R API itself constrains what the glue code may safely do; changes in R (e.g. <code>r-devel</code> ABI shifts) affect the package indirectly and may require R or glue code updates.</p></li>
 </ol><div class="section level3">
 <h3 id="directory-tree">Directory tree<a class="anchor" aria-label="anchor" href="#directory-tree"></a></h3>
@@ -64,15 +64,13 @@
 │   ├── *.dd                        # Local-header dependency tracking (keep in VCS)[3]
 │   ├── include/
 │   │   └── rapi.hpp                # Defines DUCKDB_PACKAGE_NAME (flavor)         [2,3]
+│   ├── vendor/
+│   │   ├── cpp11/                  # Vendored cpp11 headers (krlmlr/cpp11)         [6]
+│   │   └── cpp11.hpp               # cpp11 single-header entry point               [6]
 │   └── duckdb/                     # Vendored DuckDB C++ core (≈1700 .cpp, ≈1400 .h) [1]
 │       ├── src/                    # DuckDB source files
 │       ├── third_party/            # DuckDB bundled third-party libs
 │       └── extension/              # Extension loaders
-├── inst/
-│   └── include/
-│       ├── cpp11/                  # Vendored cpp11 headers (krlmlr/cpp11)         [6]
-│       ├── cpp11.hpp               # cpp11 single-header entry point               [6]
-│       └── duckdb_types.hpp        # Public C++ types exposed to downstream R pkgs [3]
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
 ├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
@@ -90,7 +88,7 @@
 <pre><code>  r-lib/cpp11
       │  patches maintained in krlmlr/cpp11
       ▼
-  inst/include/cpp11/   ◄─────────────────────────────────────────────────────────────┐
+  src/vendor/cpp11/     ◄─────────────────────────────────────────────────────────────┐
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
@@ -283,7 +281,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <div class="section level3">
 <h3 id="structural">Structural<a class="anchor" aria-label="anchor" href="#structural"></a></h3>
 <ul><li>
-<strong>S1 — Flavor isolation (<code>lts</code>).</strong> <code>git diff stable lts</code> touches only flavor files (<code>DESCRIPTION:Package</code>, <code>R/duckdb-package.R</code>, <code>src/include/rapi.hpp</code> macro, <code>NAMESPACE</code>, <code>man/*-package.Rd</code>, the renamed <code>inst/include/duckdb_*_types.hpp</code>, the README blurb, and the <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> / <code>test_check()</code> names in <code>tests/</code>). Nothing under <code>src/duckdb/</code>, no glue logic in <code>src/*.cpp</code>, no <code>R/</code> logic.</li>
+<strong>S1 — Flavor isolation (<code>lts</code>).</strong> <code>git diff stable lts</code> touches only flavor files (<code>DESCRIPTION:Package</code>, <code>R/duckdb-package.R</code>, <code>src/include/rapi.hpp</code> macro, <code>NAMESPACE</code>, <code>man/*-package.Rd</code>, the renamed <code>src/include/duckdb_*_types.hpp</code>, the README blurb, and the <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> / <code>test_check()</code> names in <code>tests/</code>). Nothing under <code>src/duckdb/</code>, no glue logic in <code>src/*.cpp</code>, no <code>R/</code> logic.</li>
 <li>
 <strong>S2 — Baseline purity (<code>dev-base</code>).</strong> <code>dev-base</code> is byte-identical to the <em>released</em> <code>stable</code> tree: <code>Package: duckdb</code>, bare three-component version, <strong>no flavor rename</strong>. The <code>flavor.sh</code> rename and the version scaffolding live entirely <em>above</em> it, in <code>dev-base..dev</code>. (Confirmed: <code>v1.5-variegata-dev-base</code> reads <code>duckdb 1.5.4</code>, <code>v1.4-andium-dev-base</code> reads <code>duckdb 1.4.5</code>.) This invariant describes the legacy <code>dev-base</code> layout; a series-loop series has no <code>dev-base</code> — its seed is flavored from day one, per the bootstrap rule in <code>.claude/skills/series-loop/SKILL.md</code>.</li>
 <li>
