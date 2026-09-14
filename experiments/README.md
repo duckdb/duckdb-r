@@ -74,6 +74,12 @@ This file is what names the contents, so nothing here is an orphan.
   [#2292](https://github.com/duckdb/duckdb-r/pull/2292)'s streaming
   build; gathered for
   [`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md).
+* [`2026-09-14-memory-clients/`](2026-09-14-memory-clients/) —
+  the memory findings behind the memory leaves, re-run in containers
+  on the dev and the CRAN build, and the same fetch shapes measured
+  through the Python, Julia, Go, Rust and Node clients; supports
+  [`usage/memory/reading/`](/handbook/usage/memory/reading/README.md) and
+  [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
