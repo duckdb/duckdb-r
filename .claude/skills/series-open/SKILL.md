@@ -99,24 +99,39 @@ until now.
    context. It needs `krlmlr/cpp11`, for the reason `flavor.sh` gives, and refuses
    the run when the symbols come out wrong.
 
-3. **Stamp `<P>`'s new preview prefix, in the same breath.**
+3. **Stamp the new preview prefix on all four strands, in the same breath.**
 
    ```bash
-   scripts/preview-prefix.sh --check     # on <P>-build, then on <P>-dev
+   scripts/preview-prefix.sh --check     # <S>-build, <S>-dev, <P>-build, <P>-dev
    scripts/preview-prefix.sh
    ```
 
-   The cut is not the only thing the branch changed: upstream `main` starts
-   declaring the *next* line the same week, so `<P>` stops previewing the line
-   its version names. Until this is stamped it carries the version of a line it
-   no longer serves — and its two strands drift apart, which is the state where
-   the `DESCRIPTION` merge driver stops resolving them
+   **Both series need it, for opposite reasons.** `<P>` stops previewing the
+   line its version names: upstream `main` starts declaring the *next* line the
+   same week, so the version it carries is a line it no longer serves. `<S>`
+   never previewed the line its version names at all — the cut handed it `<P>`'s
+   tree, prefix included, and it serves a line no released version names yet.
+   Neither is fixed by the other: this step named only `<P>` when v2.0 was cut,
+   and `v2.0-cyanoptera`'s strands were still publishing `1.5.5.90xx` — the line
+   they had never previewed — until it was stamped by hand afterwards.
+
+   Until a strand is stamped it carries a foreign prefix, and its pair drifts
+   apart with it — the state where the `DESCRIPTION` merge driver stops
+   resolving them
    ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
-   The prefix is read off the engine the strand vendors, so it takes no input:
-   `2.1.0-dev` means previewing 2.1, which is `2.0.99.9000`. The vendor counter
-   carries over — the chain does not restart — and the script refuses a version
-   that would not rise.
+   The prefix is read off the engine the strand vendors, so it takes no input
+   and cannot name the wrong line: `2.1.0-dev` on `<P>` means previewing 2.1,
+   which is `2.0.99.9000`; `2.0.0-dev` on `<S>` means previewing 2.0, which is
+   `1.99.99.9000`. The vendor counter carries over — the chain does not restart
+   — and the script refuses a version that would not rise.
+
+   **`-green` is not stamped, and does not need to be.** It is fast-forward
+   only, so the stamp reaches it the way every other commit does: the loop
+   advances over it once CI has judged it. A stamp committed onto `-green`
+   directly would fork it off `-dev`'s history, which is the one thing the
+   frontier may never do. Run `--check` against `<S>-build` and `<S>-dev`;
+   a `-green` still on the old prefix is the queue, not a miss.
 
    **The flavor does not change, and that is not an oversight.** `<P>`'s package
    name says which branch it tracks, not which version: `duckdb.dev` is upstream
@@ -126,8 +141,10 @@ until now.
    and need a fresh r-universe registration every time
    ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
-4. **Push all four refs, together.**
-   `git push --atomic`, as `--next` spells it. The loop discovers series from
+4. **Push all four refs, together — and `<P>`'s two stamped strands with them.**
+   `git push --atomic`, as `--next` spells it.
+   Step 3 moved `<P>-build` and `<P>-dev` as well, and a pair that lands split
+   is a pair whose prefixes differ, which is where the merge driver gives up. The loop discovers series from
    refs and serves them in one firing, so a ref landing alone invites a firing
    into half a series — and a series pushed before step 2 is one that grows under
    the wrong name. Up to this push the opening is local branches and a deletion
