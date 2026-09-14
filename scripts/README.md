@@ -35,6 +35,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
+| [`series-table.R`](series-table.R) | Write the flavor tables from scripts/series.yaml. |
+| [`series.yaml`](series.yaml) | The flavors this repository publishes, and the series behind them. |
+
+## [`branches/flavors/`](/handbook/branches/flavors/README.md)
+
+| File | Purpose |
+|---|---|
 | [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |

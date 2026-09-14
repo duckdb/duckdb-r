@@ -11,19 +11,38 @@ An LTS line is frozen for its year
 ([`invariants/`](/handbook/branches/invariants/README.md)).
 Because the names differ, flavors coexist in one library.
 
+Every one of them is built from a branch of `duckdb/duckdb-r`, the `.dev`
+flavors included: their `-green` refs live in the fork and are mirrored there for
+r-universe to read ([`mirrors/`](/handbook/branches/mirrors/README.md)).
+This table and the archive list under it are generated from
+[`scripts/series.yaml`](/scripts/series.yaml) by
+[`scripts/series-table.R`](/scripts/series-table.R); the root
+[`README.Rmd`](/README.Rmd) calls the same helpers from a chunk, so its copy is
+written at render time. Edit the declaration, not the rows.
+
+<!-- flavors:begin -->
 | Flavor | Kind | Published from | Upstream series |
 |---|---|---|---|
-| `duckdb` | CRAN, also r-universe | `main` in `duckdb/duckdb-r` | `v1.5-variegata` |
-| `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` in `duckdb/duckdb-r` | `v1.4-andium` |
+| `duckdb` | CRAN, also r-universe | `main` | `v1.5-variegata` |
+| `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` | `v1.4-andium` |
 | `duckdb.dev` | dev, r-universe | `main-green` | `main` |
 | `duckdb.2.0.dev` | dev, r-universe | `v2.0-cyanoptera-green` | `v2.0-cyanoptera` |
 | `duckdb.1.5.dev` | dev, r-universe | `v1.5-variegata-green` | `v1.5-variegata` |
 | `duckdb.1.4.dev` | dev, r-universe | `v1.4-andium-green` | `v1.4-andium` |
 
+Upstream keeps every release branch it ever cut.
+The following series are only available in the package archives:
+
+- [`v1.3-ossivalis`](https://github.com/duckdb/duckdb/tree/v1.3-ossivalis) (2025-09-03)
+- [`v1.2-histrionicus`](https://github.com/duckdb/duckdb/tree/v1.2-histrionicus) (2025-04-07)
+- [`v1.1-eatoni`](https://github.com/duckdb/duckdb/tree/v1.1-eatoni) (2024-11-02)
+- `v1.0-nivis` and earlier (no upstream release branch)
+<!-- flavors:end -->
+
 There is no `duckdb.1.5`: v1.5 is not an LTS line,
 and the current release already ships as `duckdb`.
-The `Flavors` table in the root [`README.md`](/README.md) is where
-a new flavor is announced.
+A new flavor is announced by adding it to `series.yaml`, which this table and
+the root [`README.md`](/README.md)'s are both written from.
 
 **The rename surface** is exactly the set of places
 that cannot ask for the name at run time —
