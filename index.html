@@ -166,7 +166,19 @@
 </tr>
 </tbody>
 </table>
-<p>Every row opens with the versions published, one badge per place it is published from, and the flavor’s name is a link on those rather than on the name itself. Only <code>duckdb</code> is in two: CRAN releases it, and r-universe rebuilds the same source between releases. The three after it track a <code>.dev</code> series: <em>ahead</em> counts commits ahead of the branch the series releases from, <em>in flight</em> counts commits in CI but not yet trusted, <em>buffered</em> counts commits vendored but not yet verified. <em>ahead</em> is counted here, where the branch a series releases from lives and <code>&lt;S&gt;-green</code> is mirrored to; the other two are counted in the fork, which is the only repository carrying <code>&lt;S&gt;-dev</code> and <code>&lt;S&gt;-build</code>. So the two greens either side of <em>in flight</em> are the same commit because one push writes both and the loop stops if the second cannot fast-forward. See the handbook’s <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md" class="external-link"><code>branches/</code></a> for the full model.</p>
+<p>Every row opens with the versions published, one badge per place it is published from, and the flavor’s name is a link on those rather than on the name itself. Only <code>duckdb</code> is in two: CRAN releases it, and r-universe rebuilds the same source between releases. The three after it track a <code>.dev</code> series: <em>ahead</em> counts commits ahead of the branch the series releases from, <em>in flight</em> counts commits in CI but not yet trusted, <em>buffered</em> counts commits vendored but not yet verified. <em>ahead</em> is counted here, where the branch a series releases from lives and <code>&lt;S&gt;-green</code> is mirrored to; the other two are counted in the fork, which is the only repository carrying <code>&lt;S&gt;-dev</code> and <code>&lt;S&gt;-build</code>. So the two greens either side of <em>in flight</em> are the same commit because one push writes both and the loop stops if the second cannot fast-forward.</p>
+<p>Upstream keeps every release branch it ever cut. The following series are only available in the package archives:</p>
+<ul>
+<li>
+<a href="https://github.com/duckdb/duckdb/tree/v1.3-ossivalis" class="external-link"><code>v1.3-ossivalis</code></a> (2025-09-03)</li>
+<li>
+<a href="https://github.com/duckdb/duckdb/tree/v1.2-histrionicus" class="external-link"><code>v1.2-histrionicus</code></a> (2025-04-07)</li>
+<li>
+<a href="https://github.com/duckdb/duckdb/tree/v1.1-eatoni" class="external-link"><code>v1.1-eatoni</code></a> (2024-11-02)</li>
+<li>
+<code>v1.0-nivis</code> and earlier (no upstream release branch)</li>
+</ul>
+<p>See the handbook’s <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md" class="external-link"><code>branches/</code></a> for the full model.</p>
 </div>
 <div class="section level2">
 <h2 id="user-guide">User Guide<a class="anchor" aria-label="anchor" href="#user-guide"></a>
