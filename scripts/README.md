@@ -35,6 +35,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
+| [`series-table.R`](series-table.R) | Write the flavor tables from scripts/series.yaml. |
+| [`series.yaml`](series.yaml) | The flavors this repository publishes, and the series behind them. |
+
+## [`branches/flavors/`](/handbook/branches/flavors/README.md)
+
+| File | Purpose |
+|---|---|
 | [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
@@ -97,6 +104,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rcc-publish.sh`](rcc-publish.sh) | Publish a staging directory to the verdict store on the orphan `rcc2` branch. |
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 | [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
+
+## [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)
+
+| File | Purpose |
+|---|---|
+| [`preview-prefix.sh`](preview-prefix.sh) | Stamp a preview line's version prefix onto the strand checked out here: the prefix of the line it *previews*, not the one it was seeded from (handbook/operat... |
 
 ## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 

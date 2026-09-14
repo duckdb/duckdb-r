@@ -77,6 +77,10 @@ scripts=(
   series-glue.sh
   series-port.sh
 )
+# preview-prefix.sh and reflavor.sh act on the worktree they are run in and name
+# no series, so they take neither --remote nor --upstream; the usage contract and
+# the exit statuses are still shared.
+standalone_scripts=(preview-prefix.sh reflavor.sh)
 remote_scripts=(
   series-advance.sh
   series-check.sh
@@ -90,6 +94,11 @@ upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
 canonical_scripts=(series-advance.sh series-cutover.sh)
 
 echo "== -h and --help print the usage and exit 0"
+for s in "${standalone_scripts[@]}"; do
+  is "$s -h"     "$(rc "$s" -h)" 0
+  is "$s --help" "$(rc "$s" --help)" 0
+  is "$s --bogus" "$(rc "$s" --bogus)" 2
+done
 for s in "${scripts[@]}"; do
   is "$s -h"       "$(rc "$s" -h)" 0
   is "$s --help"   "$(rc "$s" --help)" 0

@@ -30,18 +30,25 @@
 
 set -euxo pipefail
 
+usage='usage: reflavor.sh <package-name>'
+argerr() { echo "$usage" >&2; exit 2; }
+
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -eq 1 ] || argerr
+new=${args[0]}
+
 # The tree to reflavor, found the way every scripts/series-*.sh finds it, so a
 # copy of this script outside the worktree still reflavors the worktree.
 toplevel=${VENDOR_REPO:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
 [ -n "$toplevel" ] || { echo "Error: $PWD is not a git worktree" >&2; exit 1; }
 cd "$toplevel"
-
-new="${1-}"
-if [ -z "$new" ]; then
-  echo "Usage: $0 <package-name>" >&2
-  echo "  $0 2.0.dev" >&2
-  exit 1
-fi
 
 if command -v gsed >/dev/null 2>&1; then gnu_sed=gsed; else gnu_sed=sed; fi
 case "$("$gnu_sed" --version 2>/dev/null || true)" in
