@@ -157,7 +157,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
 	auto const_value = RApiTypes::SexpToValue(val, 0, false);
-	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
+	auto out = make_external_from<ParsedExpression>("duckdb_expr", ConstantExpression::FromValue(const_value));
 	if (alias != "") {
 		out->SetAlias(Identifier(std::move(alias)));
 	}
@@ -257,7 +257,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 // DuckDB Relations: low-level conversion
 
 [[cpp11::register]] SEXP rapi_get_null_SEXP_ptr() {
-	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", nullptr);
+	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", Literal::Null());
 	return ret;
 }
 
@@ -491,7 +491,7 @@ static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	if (expr->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
 		auto const_expr = expr->Cast<ConstantExpression>();
-		return !const_expr.GetValue().IsNull();
+		return !const_expr.GetLiteral().IsNull();
 	}
 	return true;
 }
@@ -552,7 +552,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		bool default_offset = function.FunctionName() == "lead" || function.FunctionName() == "lag";
 		if (default_offset && !constant_expression_is_not_null(offset_expr)) {
 			window_expr->GetArgumentsMutable().push_back(
-			    FunctionArgument(make_uniq<ConstantExpression>(Value::BIGINT(1))));
+			    FunctionArgument(ConstantExpression::FromValue(Value::BIGINT(1))));
 		}
 		window_expr->GetArgumentsMutable().push_back(FunctionArgument(default_expr->Copy()));
 	}
