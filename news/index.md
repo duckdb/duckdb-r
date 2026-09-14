@@ -1,5 +1,152 @@
 # Changelog
 
+## duckdb 1.5.5.9022
+
+### Bug fixes
+
+#### series
+
+- Two ref-hygiene fixes the 2026-09-13 firing paid by hand
+  ([\#2737](https://github.com/duckdb/duckdb-r/issues/2737)).
+
+#### series-advance
+
+- Drop a replayed pick whose conflict resolves to nothing
+  ([\#2734](https://github.com/duckdb/duckdb-r/issues/2734)).
+
+#### build
+
+- Add the types header `src/cpp11.dd` still omits
+  ([\#2732](https://github.com/duckdb/duckdb-r/issues/2732)).
+
+#### series-port
+
+- Skip what `main` merged for its ancestry alone
+  ([\#2725](https://github.com/duckdb/duckdb-r/issues/2725)).
+
+#### build
+
+- Give the glue the cpp11 dependencies its `.dd` files never gained
+  ([\#2719](https://github.com/duckdb/duckdb-r/issues/2719)).
+
+#### versioning
+
+- Decide the preview prefix by the release, not by the branch
+  ([\#2720](https://github.com/duckdb/duckdb-r/issues/2720)).
+
+#### flavor
+
+- Make the rename patch apply exactly, without fuzz or offset
+  ([\#2718](https://github.com/duckdb/duckdb-r/issues/2718)).
+
+#### series-glue
+
+- Anchor a series’ span on its seed, not on the merge base with `main`
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2715](https://github.com/duckdb/duckdb-r/issues/2715)).
+
+#### series
+
+- Give every `series-*` script the same arguments
+  ([\#2709](https://github.com/duckdb/duckdb-r/issues/2709)).
+
+### Features
+
+#### series-open
+
+- An opening is a cut, and both lines are forwarded after it
+  ([\#2736](https://github.com/duckdb/duckdb-r/issues/2736)).
+
+#### series
+
+- Mirror `<S>-green` into the canonical repository
+  ([\#2733](https://github.com/duckdb/duckdb-r/issues/2733)).
+
+- Preserve DuckDB’s structured error fields through the rethrow
+  ([\#2711](https://github.com/duckdb/duckdb-r/issues/2711),
+  [\#2714](https://github.com/duckdb/duckdb-r/issues/2714)).
+
+### Chore
+
+- Remove Copilot setup steps.
+
+- Record the v1.1.3-2 tag on the mainline
+  ([\#2713](https://github.com/duckdb/duckdb-r/issues/2713)).
+
+- Update vendored cpp11, move under `src/` and move `duckdb_types.hpp`
+  into private space
+  ([\#2501](https://github.com/duckdb/duckdb-r/issues/2501),
+  [\#2649](https://github.com/duckdb/duckdb-r/issues/2649)).
+
+### Continuous integration
+
+- Include checks for older versions of Windows
+  ([\#109](https://github.com/duckdb/duckdb-r/issues/109),
+  [\#113](https://github.com/duckdb/duckdb-r/issues/113),
+  [\#120](https://github.com/duckdb/duckdb-r/issues/120)).
+
+- Align with cynkratemplate.
+
+### Documentation
+
+#### readme
+
+- Announce the v2.0-cyanoptera series, and link each flavor to
+  r-universe ([\#2728](https://github.com/duckdb/duckdb-r/issues/2728)).
+
+#### versioning
+
+- Say what the preview prefix buys, and what a patch release does to a
+  version ([\#2723](https://github.com/duckdb/duckdb-r/issues/2723)).
+
+#### branches
+
+- Retire the `dev`/`dev-base` layout and the RESET state it served
+  ([\#2716](https://github.com/duckdb/duckdb-r/issues/2716)).
+
+#### series-open
+
+- Say where to ask for the r-universe registration
+  ([\#2722](https://github.com/duckdb/duckdb-r/issues/2722)).
+
+#### plan
+
+- Record what driving the v2.0 opening established
+  ([\#2721](https://github.com/duckdb/duckdb-r/issues/2721)).
+
+#### series-open
+
+- Derive a new series from the line another series already vendors, and
+  plan the v2.0 opening
+  ([\#2704](https://github.com/duckdb/duckdb-r/issues/2704)).
+
+#### versioning
+
+- Give a preview line the fledge prefix of the line it previews
+  ([\#2703](https://github.com/duckdb/duckdb-r/issues/2703)).
+
+#### revdep
+
+- Name `revdep4` as the route a reverse-dependency check takes
+  ([\#2702](https://github.com/duckdb/duckdb-r/issues/2702)).
+
+### Uncategorized
+
+- Refactor(ci): Serve the actions from this repository instead of
+  copying them (cynkra/cynkratemplate#121).
+
+- Fix(ci): Keep the raw name expression out of the running job’s step
+  list (cynkra/cynkratemplate#119).
+
+- Fix(fledge): Push the bump to the default branch wherever that is
+  allowed (cynkra/cynkratemplate#117).
+
+- Fix(ci): Make a failing `rcc` run say what failed, and link to it
+  (cynkra/cynkratemplate#115).
+
+- Fix(ci): Exempt deprecation warnings from the roxygenize warning gate
+  (cynkra/cynkratemplate#114).
+
 ## duckdb 1.5.5.9021
 
 ### Bug fixes

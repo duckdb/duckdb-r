@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,114 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9022" id="duckdb-1559022">duckdb 1.5.5.9022<a class="anchor" aria-label="anchor" href="#duckdb-1559022"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9022">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9022"></a></h3>
+<div class="section level4">
+<h4 id="series-1-5-5-9022">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9022"></a></h4>
+<ul><li>Two ref-hygiene fixes the 2026-09-13 firing paid by hand (<a href="https://github.com/duckdb/duckdb-r/issues/2737" class="external-link">#2737</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-advance-1-5-5-9022">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-5-9022"></a></h4>
+<ul><li>Drop a replayed pick whose conflict resolves to nothing (<a href="https://github.com/duckdb/duckdb-r/issues/2734" class="external-link">#2734</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="build-1-5-5-9022">build<a class="anchor" aria-label="anchor" href="#build-1-5-5-9022"></a></h4>
+<ul><li>Add the types header <code>src/cpp11.dd</code> still omits (<a href="https://github.com/duckdb/duckdb-r/issues/2732" class="external-link">#2732</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-port-1-5-5-9022">series-port<a class="anchor" aria-label="anchor" href="#series-port-1-5-5-9022"></a></h4>
+<ul><li>Skip what <code>main</code> merged for its ancestry alone (<a href="https://github.com/duckdb/duckdb-r/issues/2725" class="external-link">#2725</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="build-1-5-5-9022-1">build<a class="anchor" aria-label="anchor" href="#build-1-5-5-9022-1"></a></h4>
+<ul><li>Give the glue the cpp11 dependencies its <code>.dd</code> files never gained (<a href="https://github.com/duckdb/duckdb-r/issues/2719" class="external-link">#2719</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="versioning-1-5-5-9022">versioning<a class="anchor" aria-label="anchor" href="#versioning-1-5-5-9022"></a></h4>
+<ul><li>Decide the preview prefix by the release, not by the branch (<a href="https://github.com/duckdb/duckdb-r/issues/2720" class="external-link">#2720</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="flavor-1-5-5-9022">flavor<a class="anchor" aria-label="anchor" href="#flavor-1-5-5-9022"></a></h4>
+<ul><li>Make the rename patch apply exactly, without fuzz or offset (<a href="https://github.com/duckdb/duckdb-r/issues/2718" class="external-link">#2718</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-glue-1-5-5-9022">series-glue<a class="anchor" aria-label="anchor" href="#series-glue-1-5-5-9022"></a></h4>
+<ul><li>Anchor a series’ span on its seed, not on the merge base with <code>main</code> (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2715" class="external-link">#2715</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9022-1">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9022-1"></a></h4>
+<ul><li>Give every <code>series-*</code> script the same arguments (<a href="https://github.com/duckdb/duckdb-r/issues/2709" class="external-link">#2709</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="features-1-5-5-9022">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5-9022"></a></h3>
+<div class="section level4">
+<h4 id="series-open-1-5-5-9022">series-open<a class="anchor" aria-label="anchor" href="#series-open-1-5-5-9022"></a></h4>
+<ul><li>An opening is a cut, and both lines are forwarded after it (<a href="https://github.com/duckdb/duckdb-r/issues/2736" class="external-link">#2736</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-1-5-5-9022-2">series<a class="anchor" aria-label="anchor" href="#series-1-5-5-9022-2"></a></h4>
+<ul><li><p>Mirror <code>&lt;S&gt;-green</code> into the canonical repository (<a href="https://github.com/duckdb/duckdb-r/issues/2733" class="external-link">#2733</a>).</p></li>
+<li><p>Preserve DuckDB’s structured error fields through the rethrow (<a href="https://github.com/duckdb/duckdb-r/issues/2711" class="external-link">#2711</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2714" class="external-link">#2714</a>).</p></li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="chore-1-5-5-9022">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-5-9022"></a></h3>
+<ul><li><p>Remove Copilot setup steps.</p></li>
+<li><p>Record the v1.1.3-2 tag on the mainline (<a href="https://github.com/duckdb/duckdb-r/issues/2713" class="external-link">#2713</a>).</p></li>
+<li><p>Update vendored cpp11, move under <code>src/</code> and move <code>duckdb_types.hpp</code> into private space (<a href="https://github.com/duckdb/duckdb-r/issues/2501" class="external-link">#2501</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2649" class="external-link">#2649</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-5-9022">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-5-9022"></a></h3>
+<ul><li><p>Include checks for older versions of Windows (<a href="https://github.com/duckdb/duckdb-r/issues/109" class="external-link">#109</a>, <a href="https://github.com/duckdb/duckdb-r/issues/113" class="external-link">#113</a>, <a href="https://github.com/duckdb/duckdb-r/issues/120" class="external-link">#120</a>).</p></li>
+<li><p>Align with cynkratemplate.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9022">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9022"></a></h3>
+<div class="section level4">
+<h4 id="readme-1-5-5-9022">readme<a class="anchor" aria-label="anchor" href="#readme-1-5-5-9022"></a></h4>
+<ul><li>Announce the v2.0-cyanoptera series, and link each flavor to r-universe (<a href="https://github.com/duckdb/duckdb-r/issues/2728" class="external-link">#2728</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="versioning-1-5-5-9022-1">versioning<a class="anchor" aria-label="anchor" href="#versioning-1-5-5-9022-1"></a></h4>
+<ul><li>Say what the preview prefix buys, and what a patch release does to a version (<a href="https://github.com/duckdb/duckdb-r/issues/2723" class="external-link">#2723</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="branches-1-5-5-9022">branches<a class="anchor" aria-label="anchor" href="#branches-1-5-5-9022"></a></h4>
+<ul><li>Retire the <code>dev</code>/<code>dev-base</code> layout and the RESET state it served (<a href="https://github.com/duckdb/duckdb-r/issues/2716" class="external-link">#2716</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-open-1-5-5-9022-1">series-open<a class="anchor" aria-label="anchor" href="#series-open-1-5-5-9022-1"></a></h4>
+<ul><li>Say where to ask for the r-universe registration (<a href="https://github.com/duckdb/duckdb-r/issues/2722" class="external-link">#2722</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="plan-1-5-5-9022">plan<a class="anchor" aria-label="anchor" href="#plan-1-5-5-9022"></a></h4>
+<ul><li>Record what driving the v2.0 opening established (<a href="https://github.com/duckdb/duckdb-r/issues/2721" class="external-link">#2721</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-open-1-5-5-9022-2">series-open<a class="anchor" aria-label="anchor" href="#series-open-1-5-5-9022-2"></a></h4>
+<ul><li>Derive a new series from the line another series already vendors, and plan the v2.0 opening (<a href="https://github.com/duckdb/duckdb-r/issues/2704" class="external-link">#2704</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="versioning-1-5-5-9022-2">versioning<a class="anchor" aria-label="anchor" href="#versioning-1-5-5-9022-2"></a></h4>
+<ul><li>Give a preview line the fledge prefix of the line it previews (<a href="https://github.com/duckdb/duckdb-r/issues/2703" class="external-link">#2703</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="revdep-1-5-5-9022">revdep<a class="anchor" aria-label="anchor" href="#revdep-1-5-5-9022"></a></h4>
+<ul><li>Name <code>revdep4</code> as the route a reverse-dependency check takes (<a href="https://github.com/duckdb/duckdb-r/issues/2702" class="external-link">#2702</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="uncategorized-1-5-5-9022">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-5-9022"></a></h3>
+<ul><li><p>Refactor(ci): Serve the actions from this repository instead of copying them (cynkra/cynkratemplate#121).</p></li>
+<li><p>Fix(ci): Keep the raw name expression out of the running job’s step list (cynkra/cynkratemplate#119).</p></li>
+<li><p>Fix(fledge): Push the bump to the default branch wherever that is allowed (cynkra/cynkratemplate#117).</p></li>
+<li><p>Fix(ci): Make a failing <code>rcc</code> run say what failed, and link to it (cynkra/cynkratemplate#115).</p></li>
+<li><p>Fix(ci): Exempt deprecation warnings from the roxygenize warning gate (cynkra/cynkratemplate#114).</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9021" id="duckdb-1559021">duckdb 1.5.5.9021<a class="anchor" aria-label="anchor" href="#duckdb-1559021"></a></h2>
 <div class="section level3">
