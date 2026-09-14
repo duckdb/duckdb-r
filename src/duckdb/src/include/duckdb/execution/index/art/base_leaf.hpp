@@ -74,7 +74,7 @@ public:
 
 private:
 	static void InsertByteInternal(BaseLeaf &n, const uint8_t byte);
-	static NodeHandle DeleteByteInternal(ART &art, NodePtr &node, const uint8_t byte);
+	static void DeleteByteInternal(BaseLeaf &n, const uint8_t byte);
 };
 
 //! Node7Leaf holds up to seven sorted bytes.

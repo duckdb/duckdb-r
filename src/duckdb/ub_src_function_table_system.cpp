@@ -46,6 +46,8 @@
 
 #include "src/function/table/system/duckdb_schemas.cpp"
 
+#include "src/function/table/system/duckdb_secret_type_parameters.cpp"
+
 #include "src/function/table/system/duckdb_secret_types.cpp"
 
 #include "src/function/table/system/duckdb_secrets.cpp"
