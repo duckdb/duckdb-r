@@ -10,5 +10,7 @@
 
 #include "src/common/multi_file/multi_file_reader.cpp"
 
+#include "src/common/multi_file/table_function_multi_file.cpp"
+
 #include "src/common/multi_file/union_by_name.cpp"
 
