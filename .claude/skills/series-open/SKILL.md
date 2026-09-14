@@ -163,11 +163,20 @@ until now.
    Both run beside their live refs as `-fwd-*` and swap in at cutover, so no green
    anyone reads is rewritten.
 
-6. **Announce `<F>` in both tables** — the `Flavors` table in
-   [`README.Rmd`](/README.Rmd), see below, and the one in
-   [`branches/flavors/`](/handbook/branches/flavors/README.md), which says where
-   each flavor publishes from. Those two are the only places a new series is named
-   by hand; everything else is discovered from refs.
+6. **Declare `<F>`, and generate what says so.**
+
+   ```bash
+   # add the flavor to scripts/series.yaml, then
+   scripts/series-table.R
+   R -q -e 'rmarkdown::render("README.Rmd")'
+   ```
+
+   One entry, and both tables are written from it — the `Flavors` table in
+   [`README.Rmd`](/README.Rmd) and the one in
+   [`branches/flavors/`](/handbook/branches/flavors/README.md) — along with the
+   mirror rules step 7 checks. The entry is the only place a new series is named
+   by hand; everything else is discovered from refs or derived from it.
+   See below for what the fields mean and what a badge row gets wrong.
 
 7. **Update the fork's mirror configuration — derived, not remembered.**
    A series' *ahead* badge measures against a branch the fork mirrors, which stays
@@ -205,19 +214,39 @@ until now.
    Linux on one R version, and stage 3 of the loop has nothing to read back
    ([`series-loop/SKILL.md`](series-loop)).
 
-## Patching the README
+## Declaring the flavor
 
-Edit [`README.Rmd`](/README.Rmd): `README.md` and `.github/README.md` are
-rendered from it, and all three carry the table.
-Copy the row of the nearest `.dev` flavor and substitute `<F>`, `<U>` and the
-series' refs, keeping the table's order — CRAN, then LTS, then the `.dev` flavors
-newest series first.
+[`scripts/series.yaml`](/scripts/series.yaml) is the declaration.
+[`README.Rmd`](/README.Rmd) builds its table from a chunk, so rendering is what
+writes the root and `.github/` copies; the handbook's is a plain `.md`, so
+[`scripts/series-table.R`](/scripts/series-table.R) splices it between
+`<!-- flavors:begin -->` markers. Order in the file is order in the
+table — CRAN, then LTS, then the `.dev` flavors newest series first. A `.dev`
+entry is eight fields:
 
-Two things a copied row gets wrong.
+```yaml
+  - flavor: duckdb.2.0.dev
+    kind: dev
+    upstream: v2.0-cyanoptera
+    series: v2.0-cyanoptera
+    releases_from: main
+    publishes_from: v2.0-cyanoptera-green
+    repo: duckdb/duckdb-r
+    badges: [r-universe]
+```
 
-**Which branch *ahead* measures from.** It is the branch the series releases from,
-which for a line still releasing from `main` *is* `main` — not `<U>`, and not the
-parked baseline a retired line uses.
+`series` is the prefix of the four refs; `publishes_from` is what r-universe
+builds. `releases_from` is the one to get right, and it does two jobs: it is the
+base the *ahead* badge measures from, and it is the branch the series seeds and
+forward-ports from, which is why the fork mirrors it and why
+`pull-config.sh` reads it rather than the badge
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+
+Two things the generator settles that a hand-copied row used to get wrong.
+
+**Which branch *ahead* measures from.** It is `releases_from`, which for a line
+still releasing from `main` *is* `main` — not `<U>`, and not the parked baseline
+a retired line moves to later.
 
 **Which repository each badge is counted in**, because that differs within one
 row. shields.io compares two refs of a single repository, and the row's three
@@ -236,12 +265,14 @@ commits that have already shipped. Step 7 settles both.
 **The table must stay clear of `scripts/flavor.patch`.**
 `README.Rmd` is a flavored file and the patch rewrites the installation hunks near
 the top, so `git apply --check --include=README.Rmd scripts/flavor.patch` has to
-still pass. Name the `.Rmd`: `--include` matching no path exits 0, so checking the
-rendered `README.md` — which the patch does not touch — passes whatever the edit
-did.
+still pass after regenerating. Name the `.Rmd`: `--include` matching no path exits
+0, so checking the rendered `README.md` — which the patch does not touch — passes
+whatever the edit did.
 
-The edit lands on `main` and is forward-ported like any other R-side change.
-When the series later releases, it gains a stable row of its own.
+`README.md` and `.github/README.md` are rendered from `README.Rmd`, so run the
+render after the generator. The change lands on `main` and is forward-ported like
+any other R-side change; when the series later releases, it gains a stable entry
+of its own.
 
 ## Later, when the line parks
 
