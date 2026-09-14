@@ -14,42 +14,42 @@
     Code
       expr_comparison("=", list(expr_constant(-42), expr_constant(42L)))
     Message
-      DuckDB Expression: (-42.0 = 42)
+      DuckDB Expression: (CAST(-42.0 AS DOUBLE) = 42)
 
 ---
 
     Code
       expr_comparison("!=", list(expr_constant(-42), expr_constant(42L)))
     Message
-      DuckDB Expression: (-42.0 != 42)
+      DuckDB Expression: (CAST(-42.0 AS DOUBLE) != 42)
 
 ---
 
     Code
       expr_comparison(">", list(expr_constant(-42), expr_constant(42L)))
     Message
-      DuckDB Expression: (-42.0 > 42)
+      DuckDB Expression: (CAST(-42.0 AS DOUBLE) > 42)
 
 ---
 
     Code
       expr_comparison("<", list(expr_constant(-42), expr_constant(42L)))
     Message
-      DuckDB Expression: (-42.0 < 42)
+      DuckDB Expression: (CAST(-42.0 AS DOUBLE) < 42)
 
 ---
 
     Code
       expr_comparison(">=", list(expr_constant(-42), expr_constant(42L)))
     Message
-      DuckDB Expression: (-42.0 >= 42)
+      DuckDB Expression: (CAST(-42.0 AS DOUBLE) >= 42)
 
 ---
 
     Code
       expr_comparison("<=", list(expr_constant(-42), expr_constant(42L)))
     Message
-      DuckDB Expression: (-42.0 <= 42)
+      DuckDB Expression: (CAST(-42.0 AS DOUBLE) <= 42)
 
 # we cannot create comparison expressions with inappropriate operators
 
@@ -81,7 +81,7 @@
       expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42),
       expr_constant(42)))
     Message
-      DuckDB Expression: (some_column IN (-42.0, 42.0))
+      DuckDB Expression: (some_column IN (CAST(-42.0 AS DOUBLE), CAST(42.0 AS DOUBLE)))
 
 ---
 
@@ -89,7 +89,7 @@
       expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42),
       expr_constant(42)))
     Message
-      DuckDB Expression: (some_column NOT IN (-42.0, 42.0))
+      DuckDB Expression: (some_column NOT IN (CAST(-42.0 AS DOUBLE), CAST(42.0 AS DOUBLE)))
 
 ---
 
@@ -1580,7 +1580,7 @@
     Code
       expr_constant(list(integer()))
     Message
-      DuckDB Expression: []
+      DuckDB Expression: CAST(list_value() AS INTEGER[])
 
 # prudence
 

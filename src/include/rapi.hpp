@@ -333,6 +333,14 @@ cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&...ar
 	return extptr;
 }
 
+// For factories that hand back an owning pointer rather than constructor arguments.
+template <typename T, typename PTR>
+cpp11::external_pointer<T> make_external_from(const std::string &rclass, PTR ptr) {
+	auto extptr = cpp11::external_pointer<T>(ptr.release());
+	((cpp11::sexp)extptr).attr("class") = rclass;
+	return extptr;
+}
+
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external_prot(const std::string &rclass, SEXP prot, ARGS &&...args) {
 	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
