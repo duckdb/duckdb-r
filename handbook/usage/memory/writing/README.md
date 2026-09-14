@@ -27,7 +27,10 @@ the import surfaces are
   owns why bind is where that happens).
   On the engine side the new table is buffer-pool memory:
   in an in-memory database it stays resident up to the limit and is
-  offloaded to `temp_directory` beyond it;
+  offloaded to `temp_directory` beyond it —
+  on the 1.5.5 release that offload fails instead, and the write with it,
+  the spill regression
+  [`budget/`](/handbook/usage/memory/budget/README.md) names;
   in a file database it is written through to the file as the
   statement runs, and only a working set stays in the pool.
   The peak is therefore the frame plus at most the limit —

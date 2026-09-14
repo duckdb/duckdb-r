@@ -35,7 +35,6 @@ dev,config_trap,duckdb_config,190.7 MiB
 dev,config_trap,dbConnect_config_memory,12.5 GiB
 dev,config_trap,dbConnect_dbdir_config,190.7 MiB
 dev,config_trap,dbConnect_config_on_dbdir_driver,12.5 GiB
-dev,record_batch_cycles,rss_over_base_after_each_cycle_mb,11;126;185;185
 dev,adbc,first_batch_rows,2048
 dev,adbc,rss_delta_after_second_statement_mb,495
 dev,adbc,rows_still_readable,30000000
@@ -51,3 +50,4 @@ dev,drain_gc,peak_after_drain_mb,224
 dev,sorted_stream_limited,peak_at_open_mb,354
 dev,sorted_stream_limited,rows,5e+07
 dev,sorted_stream_limited,peak_after_drain_mb,369
+dev,record_batch_cycles,rss_over_base_after_each_cycle_mb,11;126;114;114;-14;115;103;172

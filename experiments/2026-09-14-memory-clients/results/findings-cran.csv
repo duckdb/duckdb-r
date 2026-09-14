@@ -44,5 +44,5 @@ cran,config_trap,duckdb_config,190.7 MiB
 cran,config_trap,dbConnect_config_memory,12.5 GiB
 cran,config_trap,dbConnect_dbdir_config,190.7 MiB
 cran,config_trap,dbConnect_config_on_dbdir_driver,12.5 GiB
-cran,record_batch_cycles,rss_over_base_after_each_cycle_mb,33;33;167;285
 cran,sorted_stream_limited,ERROR,
+cran,record_batch_cycles,rss_over_base_after_each_cycle_mb,33;34;136;125;7;8;7;140

@@ -198,8 +198,9 @@ side of the boundary.
 
 ## Against the other clients
 
-The same result through the Python, Node, Go and Rust clients,
-each bundling the same engine release, measured in
+The same result through the Python, Node, Go and Rust clients —
+each bundling the engine release the CRAN package ships,
+Go one release behind — measured in
 [`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md):
 
 * **Python streams by default.**
