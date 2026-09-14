@@ -20,6 +20,8 @@
 
 #include "src/optimizer/pushdown/pushdown_projection.cpp"
 
+#include "src/optimizer/pushdown/pushdown_secure_view.cpp"
+
 #include "src/optimizer/pushdown/pushdown_semi_anti_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_set_operation.cpp"
