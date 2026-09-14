@@ -3,54 +3,57 @@
 #' `dbConnect()` connects to a database instance.
 #'
 #' @param drv Object returned by `duckdb()`
-#' @param dbdir Location for database files. Should be a path to an existing
-#'   directory in the file system. With the default (or `""`), all
-#'   data is kept in RAM.
+#' @param dbdir Location for database files.
+#'   Should be a path to an existing directory in the file system.
+#'   With the default (or `""`), all data is kept in RAM.
 #' @inheritParams rlang::args_dots_empty
 #' @param debug Print additional debug information, such as queries.
 #' @param read_only Set to `TRUE` for read-only operation.
 #'   For file-based databases, this is only applied when the database file is opened for the first time.
-#'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path)
-#'   cannot apply it, and fail rather than ignoring it.
-#' @param timezone_out The time zone in which plain `TIMESTAMP` columns
-#'   (without time zone) are returned to R, defaults to `"UTC"`.
+#'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path) cannot apply it,
+#'   and fail rather than ignoring it.
+#' @param timezone_out The time zone in which plain `TIMESTAMP` columns (without time zone) are returned to R, defaults to `"UTC"`.
 #'   If you want to display datetime values in the local timezone,
 #'   set to [Sys.timezone()] or `""`.
 #'   `TIMESTAMPTZ` columns follow the session's `TimeZone` setting instead.
-#' @param tz_out_convert How to convert timestamp columns to the timezone specified
-#'   in `timezone_out`. There are two options: `"with"`, and `"force"`. If `"with"`
-#'   is chosen, the timestamp will be returned as it would appear in the specified time zone.
-#'   If `"force"` is chosen, the timestamp will have the same clock
-#'   time as the timestamp in the database, but with the new time zone.
-#' @param config Named list with DuckDB configuration flags, see
-#'   <https://duckdb.org/docs/configuration/overview#configuration-reference> for the possible options.
+#' @param tz_out_convert How to convert timestamp columns to the timezone specified in `timezone_out`.
+#'   There are two options: `"with"`, and `"force"`.
+#'   If `"with"` is chosen, the timestamp will be returned as it would appear in the specified time zone.
+#'   If `"force"` is chosen, the timestamp will have the same clock time as the timestamp in the database, but with the new time zone.
+#' @param config Named list with DuckDB configuration flags,
+#'   see <https://duckdb.org/docs/configuration/overview#configuration-reference> for the possible options.
 #'   These flags are only applied when the database object is instantiated.
 #'   Subsequent connections cannot apply them, and fail rather than ignoring them.
-#' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
+#' @param bigint How 64-bit integers should be returned.
+#'   There are two options: `"numeric"` and `"integer64"`.
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
-#' @param array How arrays should be returned. There are two options: `"none"` and `"matrix"`.
-#'   If `"none"` is selected, arrays are not returned. Instead an error is generated.
-#'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix.
-#' @param geometry How geometry columns should be returned. There are two options: `"blob"` and `"wk"`.
+#' @param array How arrays should be returned.
+#'   There are two options: `"none"` and `"matrix"`.
+#'   If `"none"` is selected, arrays are not returned.
+#'   Instead an error is generated.
+#'   If `"matrix"` is selected, arrays are returned as a column matrix.
+#'   Each array is one row in the matrix.
+#' @param geometry How geometry columns should be returned.
+#'   There are two options: `"blob"` and `"wk"`.
 #'   If `"blob"` is selected, geometry columns are returned as a list of raw vectors containing WKB data.
 #'   If `"wk"` is selected, geometry columns are returned as \pkg{wk} `wk_wkb` vectors.
 #'   Use [wk::wk_handle()] or [sf::st_as_sfc()] to convert to other geometry formats.
-#' @param map How `MAP` columns should be returned. There are two options: `"data.frame"` and `"list_of"`.
-#'   If `"data.frame"` is selected (the default), `MAP` columns are returned as a list of data frames with
-#'   `key` and `value` columns.
-#'   If `"list_of"` is selected, `MAP` columns are returned as a [vctrs::list_of()] whose `ptype` is a
-#'   `data.frame(key = <K>, value = <V>)` that records the SQL key/value types. This enables MAP columns
-#'   to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
+#' @param map How `MAP` columns should be returned.
+#'   There are two options: `"data.frame"` and `"list_of"`.
+#'   If `"data.frame"` is selected (the default), `MAP` columns are returned as a list of data frames with `key` and `value` columns.
+#'   If `"list_of"` is selected,
+#'   `MAP` columns are returned as a [vctrs::list_of()] whose `ptype` is a `data.frame(key = <K>, value = <V>)`
+#'   that records the SQL key/value types.
+#'   This enables MAP columns to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
 #'   and lets scans accept named-list cells as MAP entries.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
 #' @details
-#' The behavior of `with = "force"` at DST transitions depends on how R handles translation from
-#' the underlying time representation to a human-readable format.
-#' If the timestamp is invalid in the target timezone, the resulting value may be `NA`
-#' or an adjusted time.
+#' The behavior of `with = "force"` at DST transitions depends on
+#' how R handles translation from the underlying time representation to a human-readable format.
+#' If the timestamp is invalid in the target timezone, the resulting value may be `NA` or an adjusted time.
 #'
 #' @rdname duckdb
 #' @examplesIf simulate_duckdb()$env$examples_enabled()
@@ -89,10 +92,9 @@ dbConnect__duckdb_driver <- function(
     dbdir <- drv@dbdir
   } else {
     dbdir <- path_normalize(dbdir)
-    # `dbdir` wins over the driver's own, silently, and leaves the driver
-    # holding a database nobody asked about (duckdb/duckdb-r#2560). Only a
-    # driver that owns a *file* has anything to lose: the throwaway instance
-    # behind `dbConnect(duckdb(), "my.db")` is the documented idiom.
+    # `dbdir` wins over the driver's own, silently, and leaves the driver holding a database nobody asked about (duckdb/duckdb-r#2560).
+    # Only a driver that owns a *file* has anything to lose:
+    # the throwaway instance behind `dbConnect(duckdb(), "my.db")` is the documented idiom.
     if (drv@dbdir != DBDIR_MEMORY && dbdir != drv@dbdir) {
       abort(c(
         "`dbdir` can't override the database file the driver was built with.",
@@ -127,7 +129,8 @@ dbConnect__duckdb_driver <- function(
 
   config <- utils::modifyList(drv@config, config)
 
-  # aha, a late comer. let's make a new instance.
+  # aha, a late comer.
+  # let's make a new instance.
   if (dbdir != drv@dbdir || !rethrow_rapi_lock(drv@database_ref)) {
     rethrow_rapi_unlock(drv@database_ref)
     drv <- duckdb(dbdir, read_only, bigint, config)
