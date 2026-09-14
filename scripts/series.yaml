@@ -66,10 +66,14 @@ flavors:
     repo: duckdb/duckdb-r
     badges: [r-universe]
 
-# Upstream release lines this repository has never served. Documentation, not a
-# filter: series-check.sh decides what is unserved from a floor it computes,
-# precisely so that no hand-kept list can be stale on the firing where a line
-# was just cut.
+# The release lines only the package archives still have: each was served on
+# CRAN as plain `duckdb` before flavors existed, and nothing installs them now.
+# A line lands here when it stops being served -- `v1.4-andium` will, once it is
+# demoted from LTS and `duckdb.1.4` goes away.
+#
+# Documentation, not a filter: series-check.sh decides what is unserved from a
+# floor it computes, precisely so that no hand-kept list can be stale on the
+# firing where a line was just cut.
 archived:
   - upstream: v1.3-ossivalis
     cut: "2025-09-03"

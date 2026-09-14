@@ -14,7 +14,7 @@ Because the names differ, flavors coexist in one library.
 Every one of them is built from a branch of `duckdb/duckdb-r`, the `.dev`
 flavors included: their `-green` refs live in the fork and are mirrored there for
 r-universe to read ([`mirrors/`](/handbook/branches/mirrors/README.md)).
-This table and the note under it are generated from
+This table and the archive list under it are generated from
 [`scripts/series.yaml`](/scripts/series.yaml) by
 [`scripts/series-table.R`](/scripts/series-table.R); the root
 [`README.Rmd`](/README.Rmd) calls the same helpers from a chunk, so its copy is
@@ -30,7 +30,12 @@ written at render time. Edit the declaration, not the rows.
 | `duckdb.1.5.dev` | dev, r-universe | `v1.5-variegata-green` | `v1.5-variegata` |
 | `duckdb.1.4.dev` | dev, r-universe | `v1.4-andium-green` | `v1.4-andium` |
 
-Upstream keeps every release branch it ever cut. This repository has never served [`v1.3-ossivalis`](https://github.com/duckdb/duckdb/tree/v1.3-ossivalis) (2025-09-03), [`v1.2-histrionicus`](https://github.com/duckdb/duckdb/tree/v1.2-histrionicus) (2025-04-07), [`v1.1-eatoni`](https://github.com/duckdb/duckdb/tree/v1.1-eatoni) (2024-11-02) — they predate the oldest flavor above, and nothing installs them. Opening one is possible and nobody plans to.
+Upstream keeps every release branch it ever cut.
+The following series are only available in the package archives:
+
+- [`v1.3-ossivalis`](https://github.com/duckdb/duckdb/tree/v1.3-ossivalis) (2025-09-03)
+- [`v1.2-histrionicus`](https://github.com/duckdb/duckdb/tree/v1.2-histrionicus) (2025-04-07)
+- [`v1.1-eatoni`](https://github.com/duckdb/duckdb/tree/v1.1-eatoni) (2024-11-02)
 <!-- flavors:end -->
 
 There is no `duckdb.1.5`: v1.5 is not an LTS line,

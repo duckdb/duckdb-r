@@ -174,19 +174,20 @@ handbook_table <- function(decl = series_decl()) {
   )
 }
 
-# The lines upstream cut that this repository has never served. Prose rather
-# than a row: they carry no flavor, no refs and no badges, so a table of them
-# would be four empty columns.
-archived_sentence <- function(decl = series_decl()) {
+# The series only the package archives still have. A list rather than rows:
+# they carry no flavor, no refs and no badges, so a row would be four empty
+# columns. A line lands here when it stops being served -- `v1.4-andium` will,
+# once it is demoted from LTS.
+archived_list <- function(decl = series_decl()) {
   a <- decl$archived
   if (!length(a)) {
     return("")
   }
-  named <- vapply(
+  bullets <- vapply(
     a,
     function(x) {
       sprintf(
-        "[`%s`](https://github.com/duckdb/duckdb/tree/%s) (%s)",
+        "- [`%s`](https://github.com/duckdb/duckdb/tree/%s) (%s)",
         x$upstream,
         x$upstream,
         x$cut
@@ -194,12 +195,14 @@ archived_sentence <- function(decl = series_decl()) {
     },
     character(1)
   )
-  paste0(
-    "Upstream keeps every release branch it ever cut. This repository has never ",
-    "served ",
-    paste(named, collapse = ", "),
-    " — they predate the oldest flavor ",
-    "above, and nothing installs them. Opening one is possible and nobody plans to."
+  paste(
+    c(
+      "Upstream keeps every release branch it ever cut.",
+      "The following series are only available in the package archives:",
+      "",
+      bullets
+    ),
+    collapse = "\n"
   )
 }
 
@@ -241,7 +244,7 @@ if (sys.nframe() == 0L) {
   decl <- series_decl()
   rc <- splice(
     "handbook/branches/flavors/README.md",
-    paste(handbook_table(decl), archived_sentence(decl), sep = "\n\n"),
+    paste(handbook_table(decl), archived_list(decl), sep = "\n\n"),
     check
   )
   if (check && rc == 0L) {

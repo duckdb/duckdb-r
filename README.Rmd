@@ -101,9 +101,9 @@ The `.dev` flavors are created by an automated vendoring process;
 the CRAN and LTS flavors always point at a stable upstream release.
 
 ```{r flavors, echo = FALSE, results = "asis"}
-# The table and the note below it are written from scripts/series.yaml; edit the
-# declaration, not this file. scripts/series-table.R is the generator, and the
-# handbook's copy of the same table is spliced by running it.
+# The table and the archive list below it are written from scripts/series.yaml;
+# edit the declaration, not this file. scripts/series-table.R is the generator,
+# and the handbook's copy of the same table is spliced by running it.
 source("scripts/series-table.R")
 decl <- series_decl(".")
 cat(flavor_table(decl), "\n", sep = "")
@@ -124,7 +124,7 @@ So the two greens either side of *in flight* are the same commit because one
 push writes both and the loop stops if the second cannot fast-forward.
 
 ```{r archived, echo = FALSE, results = "asis"}
-cat(archived_sentence(decl), "\n", sep = "")
+cat(archived_list(decl), "\n", sep = "")
 ```
 
 See the handbook's
