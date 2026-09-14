@@ -22,6 +22,11 @@ fn main() {
     let t0 = Instant::now();
     let mut rows: usize = 0;
     match scenario.as_str() {
+        "version" => {
+            let v: String = conn.query_row("SELECT version()", [], |r| r.get(0)).unwrap();
+            println!("rust,{},version,duckdb-crate,{},", image, v);
+            return;
+        }
         "materialize_arrow" => {
             let mut stmt = conn.prepare(q).unwrap();
             let batches: Vec<_> = stmt.query_arrow([]).unwrap().collect();

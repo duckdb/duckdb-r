@@ -37,6 +37,11 @@ func main() {
 	t0 := time.Now()
 	rows := 0
 	switch scenario {
+	case "version":
+		var v string
+		db.QueryRow("SELECT version()").Scan(&v)
+		fmt.Printf("go,%s,version,go-duckdb,%s,\n", image, v)
+		return
 	case "materialize":
 		rs, err := db.Query(q)
 		if err != nil {

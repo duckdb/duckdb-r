@@ -10,7 +10,8 @@ const conn = await instance.connect();
 const t0 = Date.now();
 let rows = 0;
 const drain = async (result) => { for (;;) { const chunk = await result.fetchChunk(); if (!chunk || chunk.rowCount === 0) break; rows += chunk.rowCount; } };
-if (scenario === 'materialize_columns') { const reader = await conn.runAndReadAll(Q); rows = reader.getColumns()[0].length; }
+if (scenario === 'version') { const r = await conn.runAndReadAll('SELECT version()'); console.log(`node,${image},version,${(await import('@duckdb/node-api/package.json', { with: { type: 'json' } })).default.version},${r.getRows()[0][0]},`); process.exit(0); }
+else if (scenario === 'materialize_columns') { const reader = await conn.runAndReadAll(Q); rows = reader.getColumns()[0].length; }
 else if (scenario === 'materialize_chunks') { const reader = await conn.runAndReadAll(Q); rows = reader.currentRowCount; }
 else if (scenario === 'run_fetch_discard') { await drain(await conn.run(Q)); }
 else if (scenario === 'stream_fetch_discard') { await drain(await conn.stream(Q)); }

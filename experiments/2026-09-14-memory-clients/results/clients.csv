@@ -32,3 +32,4 @@ r,cran,adbc_stream,50000000,146,3.8
 r,cran,adbc_sorted_limited,50000000,363,18.7
 go,go125,materialize,50000000,3223,13.9
 go,go125,stream_discard,50000000,821,11.5
+go,go125,stream_sorted_limited,50000000,1070,24.0

@@ -9,7 +9,9 @@ Q = "SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(50000000) t(i)"
 QS = "SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(50000000) t(i) ORDER BY b"
 con = duckdb.connect()
 t0 = time.time(); rows = 0
-if scenario == "materialize_df":
+if scenario == "version":
+    print(f"python,{image},version,{duckdb.__version__},{con.execute('SELECT version()').fetchone()[0]},"); raise SystemExit(0)
+elif scenario == "materialize_df":
     df = con.execute(Q).df(); rows = len(df)
 elif scenario == "materialize_arrow":
     tb = con.execute(Q).fetch_arrow_table(); rows = tb.num_rows
