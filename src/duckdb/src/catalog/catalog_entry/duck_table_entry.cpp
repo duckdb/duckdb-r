@@ -1155,6 +1155,14 @@ unique_ptr<CatalogEntry> DuckTableEntry::SetNotNull(ClientContext &context, SetN
 
 unique_ptr<CatalogEntry> DuckTableEntry::DropNotNull(ClientContext &context, DropNotNullInfo &info) {
 	auto not_null_idx = GetColumnIndex(info.column_name);
+	if (const auto pk = GetPrimaryKey()) {
+		auto &unique = pk->Cast<UniqueConstraint>();
+		for (const auto &pk_index : unique.GetLogicalIndexes(columns)) {
+			if (pk_index == not_null_idx) {
+				throw CatalogException("column %s is in a primary key", info.column_name);
+			}
+		}
+	}
 
 	auto create_info = GetInfo();
 	auto &table_info = create_info->Cast<CreateTableInfo>();
