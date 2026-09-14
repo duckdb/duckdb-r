@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:05:35 +0000
+Subject: [PATCH] Mark the index lock's locked index as used outside its assertion
+
+IndexLock keeps a reference to the index it locked only for AssertHeld()
+to compare against, and reads it nowhere but inside D_ASSERT(). In a
+release build, where D_ASSERT() expands to nothing, clang reports the
+field under -Wunused-private-field. A (void) cast after the assertion
+marks it used, the way the engine already treats locals that only an
+assertion reads.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/include/duckdb/execution/index/index_lock.hpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/duckdb/src/include/duckdb/execution/index/index_lock.hpp b/src/duckdb/src/include/duckdb/execution/index/index_lock.hpp
+index 7e13483a07..5e13b4fc29 100644
+--- a/src/duckdb/src/include/duckdb/execution/index/index_lock.hpp
++++ b/src/duckdb/src/include/duckdb/execution/index/index_lock.hpp
+@@ -27,6 +27,7 @@ public:
+ 	//! Verify that a borrowed guard holds this index's mutex.
+ 	void AssertHeld(const BoundIndex &index) const DUCKDB_ASSERT_CAPABILITY(this) DUCKDB_ASSERT_CAPABILITY(index.lock) {
+ 		D_ASSERT(&locked_index == &index);
++		(void)locked_index;
+ 	}
+ 
+ private:

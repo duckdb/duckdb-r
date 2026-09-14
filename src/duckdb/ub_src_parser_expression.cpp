@@ -34,5 +34,7 @@
 
 #include "src/parser/expression/type_expression.cpp"
 
+#include "src/parser/expression/value_expression.cpp"
+
 #include "src/parser/expression/window_expression.cpp"
 
