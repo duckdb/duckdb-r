@@ -14,13 +14,7 @@ python,python312,stream_sorted_limited,50000000,362,18.0
 node,node22,stream_sorted_limited,50000000,412,22.5
 r,dev,materialize,50000000,1655,1.9
 r,dev,chunked_native,50000000,1655,3.6
-r,dev,stream_discard,ERROR,,
-r,dev,stream_plain,ERROR,,
-r,dev,stream_convert,ERROR,,
-r,dev,stream_sorted_limited,ERROR,,
 r,dev,arrow_legacy,50000000,1741,1.9
-r,dev,adbc_stream,ERROR,,
-r,dev,adbc_sorted_limited,ERROR,,
 r,cran,materialize,50000000,1645,1.5
 r,cran,chunked_native,50000000,1645,3.2
 r,cran,stream_discard,50000000,140,1.2
@@ -38,3 +32,9 @@ rust,rust,materialize_vec,50000000,1569,3.8
 rust,rust,stream_arrow,50000000,805,1.0
 rust,rust,stream_rows,50000000,805,2.3
 rust,rust,stream_sorted_limited,50000000,1135,9.8
+r,dev,stream_discard,50000000,159,0.7
+r,dev,stream_plain,50000000,916,1.0
+r,dev,stream_convert,50000000,228,1.3
+r,dev,stream_sorted_limited,50000000,376,16.5
+r,dev,adbc_stream,50000000,150,3.6
+r,dev,adbc_sorted_limited,50000000,366,18.0

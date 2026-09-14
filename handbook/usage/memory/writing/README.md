@@ -38,7 +38,8 @@ the import surfaces are
   the form that does not reach a running instance
   ([#126](https://github.com/duckdb/duckdb-r/issues/126)),
   and with the limit set where it takes effect the same write stays
-  within it.
+  within it — measured, with every other number on this page, in
+  [`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md).
 * **Row-wise parameters cost one statement per row.**
   `dbBind()` or `params = ` with `n` rows executes the statement `n`
   times (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)),
@@ -68,7 +69,3 @@ the import surfaces are
   is unregistered and dropped
   ([#1089](https://github.com/duckdb/duckdb-r/issues/1089):
   a second `gc()` was what it took).
-
-*To deepen: record the write measurements behind this page as an
-experiment, and drain [#97](https://github.com/duckdb/duckdb-r/issues/97)
-once its read half closes with buffer-managed results.*

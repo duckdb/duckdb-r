@@ -164,7 +164,8 @@ so the paths differ by which copies they hold and when each is freed.
   Until then, a frame that must live on is cheaper as a plain copy:
   copying every column out with an ordinary subset and dropping the
   ALTREP frame releases both of its copies,
-  at the price of a third one while the copy is made.
+  at the price of a third one while the copy is made
+  (measured in the experiment named below).
 
 ## More than fits
 
@@ -185,13 +186,39 @@ result larger than memory, on three conditions:
   so a loop that merely drops each batch climbs toward the full
   result until a collection happens to run.
   `nanoarrow::nanoarrow_pointer_release()` on a consumed batch frees it
-  at once; an explicit `gc()` every so often is the blunter form.
+  at once; an explicit `gc()` every so often is the blunter form
+  (both drains are recorded in
+  [`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md),
+  beside every other number this page rests on).
 
 The materializing routes carry no such result:
 `dbGetQuery()`, `dbFetch()` in any chunking, the legacy arrow route
 and a touched relation each hold the whole result on at least one
 side of the boundary.
 
-*To deepen: record the drain-loop and copy-out measurements behind
-this page as an experiment, so the advice is re-runnable rather than
-recalled.*
+## Against the other clients
+
+The same result through the Python, Node, Go and Rust clients,
+each bundling the same engine release, measured in
+[`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md):
+
+* **Python streams by default.**
+  `execute()` opens a streaming result, so `fetchmany()`,
+  a record-batch reader and `fetch_df_chunk()` all stay at batch size;
+  a whole pandas frame peaks a little above twice the data,
+  a whole Arrow table barely above the data itself.
+* **Node streams on request.**
+  `stream()` stays near batch size; `run()` holds the engine copy,
+  and columns as JavaScript arrays cost several times the data.
+* **Go and Rust iterate over a held engine copy.**
+  `database/sql` rows and the `duckdb` crate's iterators both walk a
+  materialized result: the data once while iterating,
+  twice when collected in Rust,
+  and more in Go's growing slices.
+  Under a limit the held copy is untracked there too — the same
+  property as this package's materialized route, not an R one.
+* **Where this package differs** is the chunked API of its default
+  route: `dbFetch(n = )` keeps the full peak where Python's
+  `fetchmany()` does not.
+  Its Arrow stream, released batch by batch, and ADBC sit with the
+  lowest peaks of any client measured.

@@ -68,6 +68,13 @@ A file database is left to the engine's own default, `<dbdir>.tmp`
 beside the file (vendored `src/duckdb/src/main/config.cpp`);
 the options that override either are
 [`storage/`](/handbook/usage/storage/README.md)'s.
+The 1.5.5 release points both idioms at a directory nothing creates,
+so its first spill fails with an I/O error
+([#2562](https://github.com/duckdb/duckdb-r/pull/2562) is the fix,
+on `main`);
+the ADBC route is unaffected, since it never passes through the
+package's setting
+([`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md)).
 Spill covers table data and query state alike,
 an uncommitted write included
 ([`writing/`](/handbook/usage/memory/writing/README.md));
