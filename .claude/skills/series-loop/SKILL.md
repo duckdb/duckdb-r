@@ -1316,10 +1316,31 @@ so a release line that has none is absent from every stage above
 rather than late in one, and absence raises nothing anywhere.
 The report is the only place it is visible.
 
-**Reported, never acted on.**
+**Say it at the top as well, and say what it costs.**
+The block goes last because that is where it cannot be lost among the
+per-series verdicts, but a report whose only mention of a newborn line is
+its final paragraph is one that can be closed after the first screen.
+Open the report with it too — one line naming the branch — and carry the
+number that makes it urgent rather than merely true:
+`scripts/series-cut.sh <S> --upstream <clone> --check` prints the backlog,
+the commits of that line nothing here has vendored, and it grows every day
+the line stays unopened. Opening v2.0 a week after the cut left 193 to walk;
+the same line a fortnight later was past a thousand.
+
+**And `main`'s version is already wrong, whatever is decided about the line.**
+Upstream starts declaring the *next* line the week it cuts a branch, so the
+series tracking upstream `main` stops previewing the line its version names —
+`scripts/preview-prefix.sh --check` on either strand says so and exits 1.
+That is owed even if the new series is deliberately not opened yet, which makes
+it the one part of an UNSERVED report that is not a suggestion.
+Report it in the same block
+([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+
+**Otherwise reported, never acted on.**
 Opening the series is `series-open/SKILL.md`'s job, and a human's,
 exactly as a cutover is (stage 6).
-The firing names the line, the fork point and the skill, and stops there.
+The firing names the line, the fork point, the backlog and the skill,
+and stops there.
 
 **A reading that failed is reported as one.**
 When the script says it could not read the upstream branches,

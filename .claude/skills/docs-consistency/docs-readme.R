@@ -123,6 +123,10 @@ groups <- list(
     globs = c("series-*.sh", "r-universe-*.sh")
   ),
   list(
+    owner = "handbook/operations/releases/versioning",
+    globs = c("preview-prefix*")
+  ),
+  list(
     owner = "handbook/operations/ci/per-commit/selection",
     globs = c("rcc-decided.sh")
   ),

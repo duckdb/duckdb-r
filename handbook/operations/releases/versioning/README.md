@@ -94,6 +94,9 @@ written to be read as changelog entries.
 **A preview line carries the prefix of the line it previews**, which is the one
 [fledge](https://fledge.cynkra.com/) would write for it:
 `a.b.99` before a minor release and `a.99.99` before a major one, its `pre-minor` and `pre-major` bumps.
+[`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh) reads the line off the engine
+the strand vendors and stamps it, keeping the vendor counter and refusing a version that
+would not rise; `--check` reports and exits 1 where it is owed.
 The prefix names the line being previewed, never the one seeded from, so it is read off the target:
 a series previewing **2.1** takes `2.0.99.9000`, one previewing **2.0** takes `1.99.99.9000`.
 Those are the two in play — the series tracking upstream `main`, and one opened for `v2.0-cyanoptera` —
