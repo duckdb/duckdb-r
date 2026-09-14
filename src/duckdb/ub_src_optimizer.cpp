@@ -8,6 +8,8 @@
 
 #include "src/optimizer/build_probe_side_optimizer.cpp"
 
+#include "src/optimizer/builtin_function_lookup.cpp"
+
 #include "src/optimizer/column_binding_replacer.cpp"
 
 #include "src/optimizer/column_lifetime_analyzer.cpp"
