@@ -94,7 +94,8 @@ ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6,
 and an UNSERVED block for an upstream release line no series covers,
-the other suggestion for a human, and the one the report ends with),
+saying whether `series.yaml` declares its flavor yet,
+and the one the report ends with),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
 sets `-build-base` to the vendored-SHA match,
@@ -1336,11 +1337,31 @@ it the one part of an UNSERVED report that is not a suggestion.
 Report it in the same block
 ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
-**Otherwise reported, never acted on.**
-Opening the series is `series-open/SKILL.md`'s job, and a human's,
-exactly as a cutover is (stage 6).
-The firing names the line, the fork point, the backlog and the skill,
-and stops there.
+**Declaring the flavor is a PR the firing may open. Cutting the refs is not.**
+The two halves of an opening are no longer the same kind of work.
+Naming the line — `v2.1-<codename>` is served as `duckdb.2.1.dev` —
+is one entry in [`scripts/series.yaml`](/scripts/series.yaml),
+reviewable on its own and reversible by closing the PR.
+Cutting the four refs moves commits, and stays
+`series-open/SKILL.md`'s job and a human's, exactly as a cutover is (stage 6).
+So the firing opens the declaration PR and reports the rest:
+the line, the fork point, the backlog and the skill.
+
+**Check for the PR before opening one, and read the script's own answer first.**
+`series-check.sh` says on the UNSERVED line whether `series.yaml` already
+names the flavor. *Declared already* means the PR merged and only the refs
+are missing — say so and open nothing. *Undeclared* is not yet a licence:
+a PR may be open, or may have been closed on purpose, and a firing that
+skips the search files the same PR every time it runs. So search `main`'s
+PRs touching `scripts/series.yaml` for the flavor name, **open and closed
+both**, and:
+
+- an open one — name it in the report, add nothing, open nothing;
+- a closed one — the answer was no; report the line and leave it closed;
+- none — open it, one entry, against `main`, titled for the flavor.
+
+A firing that cannot search says so and opens nothing:
+duplicating a declaration is worse than deferring one.
 
 **A reading that failed is reported as one.**
 When the script says it could not read the upstream branches,
@@ -1349,8 +1370,9 @@ otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
 
 **A due cutover is reported the same way, above the `UNSERVED` block.**
-The two are the loop's only findings a firing may not act on,
-so they are the two it has to hand over completely:
+It is the one finding a firing may not act on at all —
+an UNSERVED line at least has its declaration PR —
+so it is the one it has to hand over completely:
 stage 6's block, filled in, every firing `series-check.sh` prints a
 `CUTOVER` line, and for the same reason —
 a decision nobody can take from the report alone

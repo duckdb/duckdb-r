@@ -67,6 +67,15 @@ The three after it track a `.dev` series:
 only repository carrying `<S>-dev` and `<S>-build`.
 So the two greens either side of *in flight* are the same commit because one
 push writes both and the loop stops if the second cannot fast-forward.
+
+Upstream keeps every release branch it ever cut.
+The following series are only available in the package archives:
+
+- [`v1.3-ossivalis`](https://github.com/duckdb/duckdb/tree/v1.3-ossivalis) (2025-09-03)
+- [`v1.2-histrionicus`](https://github.com/duckdb/duckdb/tree/v1.2-histrionicus) (2025-04-07)
+- [`v1.1-eatoni`](https://github.com/duckdb/duckdb/tree/v1.1-eatoni) (2024-11-02)
+- `v1.0-nivis` and earlier (no upstream release branch)
+
 See the handbook's
 [`branches/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md)
 for the full model.
