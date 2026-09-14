@@ -60,14 +60,25 @@ Helpers are not entry points of their own.
    for anything off the allow-list,
    which says nothing about the link.
 
-3. **Generated indexes are fresh** (mechanical).
+3. **Generated indexes and tables are fresh** (mechanical).
 
    ```sh
    Rscript .claude/skills/docs-consistency/docs-readme.R --check
+   scripts/series-table.R --check
+   scripts/pull-config.sh --check
    ```
 
+   The first is the `scripts/` index;
+   the second writes [`branches/flavors/`](/handbook/branches/flavors/README.md)'s table
+   from [`scripts/series.yaml`](/scripts/series.yaml);
+   the third holds the fork's mirror rules against the same declaration.
+   The root README's table comes from the same declaration
+   through a `README.Rmd` chunk, so `make README.md` is what refreshes it.
+
    Stale → regenerate and include the result in the same change.
-   Never edit a generated file by hand.
+   Never edit a generated file by hand, and never edit a generated table's rows:
+   the handbook's sit between `<!-- flavors:begin -->` and `<!-- flavors:end -->`,
+   and what is outside those markers is prose nobody generates.
 
 4. **Directory maps are complete** (mechanical, then judgment).
    A leaf that presents itself as the map of a directory
