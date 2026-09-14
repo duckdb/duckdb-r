@@ -884,10 +884,14 @@ void RowGroupCollection::MergeStorage(RowGroupCollection &data, optional_ptr<Dat
 	}
 	bool is_persistent = segments.back()->GetNode().IsPersistent();
 	idx_t merged_count = 0;
+#ifdef D_ASSERT_IS_ENABLED
 	idx_t source_offset = 0;
+#endif
 	idx_t target_row_start = start_index;
 	for (auto &entry : segments) {
+#ifdef D_ASSERT_IS_ENABLED
 		D_ASSERT(entry->GetRowStart() == source_row_groups->GetBaseRowId() + source_offset);
+#endif
 		auto row_group = entry->MoveNode();
 		row_group->MoveToCollection(*this);
 		idx_t row_group_count = row_group->count;
@@ -899,7 +903,9 @@ void RowGroupCollection::MergeStorage(RowGroupCollection &data, optional_ptr<Dat
 			row_group_data->row_group_data.push_back(std::move(persistent_data));
 		}
 		merged_count += row_group_count;
+#ifdef D_ASSERT_IS_ENABLED
 		source_offset += row_group_count;
+#endif
 		row_groups->AppendSegment(std::move(row_group), target_row_start);
 		target_row_start += row_group_count;
 	}
