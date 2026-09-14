@@ -9,12 +9,18 @@
 # previewed is read from the engine the strand vendors, so this needs no input
 # and cannot drift from the tree it stamps.
 #
-# **It is owed at a branch cut.** When upstream cuts a release branch, `main`
-# starts previewing the *next* line the same week, and until this is stamped the
-# series carries the version of a line it has stopped previewing -- the
-# misalignment `versioning/` describes, where the two strands' prefixes differ
-# and the `DESCRIPTION` merge driver stops resolving them
-# (.claude/skills/series-open/SKILL.md).
+# **It is owed at a branch cut, by both series.** When upstream cuts a release
+# branch, `main` starts previewing the *next* line the same week, so the series
+# tracking it carries the version of a line it has stopped previewing. The new
+# series has the opposite problem and the same fix: the cut hands it the
+# parent's tree, prefix included, so it carries a line it never previewed.
+# Either way a strand names a foreign line and its pair drifts apart with it --
+# the misalignment `versioning/` describes, where the two strands' prefixes
+# differ and the `DESCRIPTION` merge driver stops resolving them
+# (.claude/skills/series-open/SKILL.md step 3).
+#
+# Run it on the two `-build`/`-dev` strands of each; `-green` is fast-forward
+# only and takes the stamp when the loop advances over it.
 #
 # The vendor counter is kept: the chain does not restart, so the fifth component
 # carries over and the version still rises.
