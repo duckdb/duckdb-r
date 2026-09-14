@@ -33,3 +33,8 @@ r,cran,adbc_sorted_limited,50000000,363,18.7
 go,go125,materialize,50000000,3223,13.9
 go,go125,stream_discard,50000000,821,11.5
 go,go125,stream_sorted_limited,50000000,1070,24.0
+rust,rust,materialize_arrow,50000000,1646,1.6
+rust,rust,materialize_vec,50000000,1569,3.8
+rust,rust,stream_arrow,50000000,805,1.0
+rust,rust,stream_rows,50000000,805,2.3
+rust,rust,stream_sorted_limited,50000000,1135,9.8
