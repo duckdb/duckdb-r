@@ -71,6 +71,10 @@ flavors:
 # A line lands here when it stops being served -- `v1.4-andium` will, once it is
 # demoted from LTS and `duckdb.1.4` goes away.
 #
+# Only the lines upstream cut a branch for are listed. Everything before
+# `v1.1-eatoni` predates that convention, so series-table.R closes the list with
+# one undeclared bullet for it.
+#
 # Documentation, not a filter: series-check.sh decides what is unserved from a
 # floor it computes, precisely so that no hand-kept list can be stale on the
 # firing where a line was just cut.

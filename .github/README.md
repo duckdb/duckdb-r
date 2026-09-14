@@ -94,6 +94,7 @@ The following series are only available in the package archives:
 - [`v1.3-ossivalis`](https://github.com/duckdb/duckdb/tree/v1.3-ossivalis) (2025-09-03)
 - [`v1.2-histrionicus`](https://github.com/duckdb/duckdb/tree/v1.2-histrionicus) (2025-04-07)
 - [`v1.1-eatoni`](https://github.com/duckdb/duckdb/tree/v1.1-eatoni) (2024-11-02)
+- `v1.0-nivis` and earlier (no upstream release branch)
 
 See the handbook's
 [`branches/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md)

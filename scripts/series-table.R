@@ -178,6 +178,11 @@ handbook_table <- function(decl = series_decl()) {
 # they carry no flavor, no refs and no badges, so a row would be four empty
 # columns. A line lands here when it stops being served -- `v1.4-andium` will,
 # once it is demoted from LTS.
+# Everything before `v1.1-eatoni`, in one bullet that is not declared and never
+# moves: upstream cut no release branch until 1.1, so these lines have no branch
+# to name one by and none to link to. 1.0.0 was "Snow Duck" (Anas nivis).
+TAIL <- "- `v1.0-nivis` and earlier (no upstream release branch)"
+
 archived_list <- function(decl = series_decl()) {
   a <- decl$archived
   if (!length(a)) {
@@ -200,7 +205,8 @@ archived_list <- function(decl = series_decl()) {
       "Upstream keeps every release branch it ever cut.",
       "The following series are only available in the package archives:",
       "",
-      bullets
+      bullets,
+      TAIL
     ),
     collapse = "\n"
   )
