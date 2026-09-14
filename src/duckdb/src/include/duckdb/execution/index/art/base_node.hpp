@@ -154,7 +154,7 @@ public:
 
 private:
 	static void InsertChildInternal(BaseNode &n, const uint8_t byte, const NodePtr child);
-	static NodeHandle DeleteChildInternal(ART &art, NodePtr &node, const uint8_t byte);
+	static void DeleteChildInternal(ART &art, BaseNode &n, const uint8_t byte);
 };
 
 //! Node4 holds up to four children sorted by their key byte.

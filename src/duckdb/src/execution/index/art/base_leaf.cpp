@@ -30,9 +30,7 @@ void BaseLeaf<CAPACITY, NODE_TYPE>::InsertByteInternal(BaseLeaf &n, const uint8_
 }
 
 template <uint8_t CAPACITY, NType NODE_TYPE>
-NodeHandle BaseLeaf<CAPACITY, NODE_TYPE>::DeleteByteInternal(ART &art, NodePtr &node, const uint8_t byte) {
-	NodeHandle handle(art, node);
-	auto &n = handle.Get<BaseLeaf<CAPACITY, NODE_TYPE>>();
+void BaseLeaf<CAPACITY, NODE_TYPE>::DeleteByteInternal(BaseLeaf &n, const uint8_t byte) {
 	uint8_t child_pos = 0;
 
 	for (; child_pos < n.count; child_pos++) {
@@ -46,7 +44,6 @@ NodeHandle BaseLeaf<CAPACITY, NODE_TYPE>::DeleteByteInternal(ART &art, NodePtr &
 	for (uint8_t i = child_pos; i < n.count; i++) {
 		n.key[i] = n.key[i + 1];
 	}
-	return handle;
 }
 
 //===--------------------------------------------------------------------===//
@@ -72,8 +69,9 @@ void Node7Leaf::InsertByte(ART &art, NodePtr &node, const uint8_t byte) {
 void Node7Leaf::DeleteByte(ART &art, NodePtr &node, NodePtr &prefix, const uint8_t byte, const ARTKey &row_id) {
 	idx_t remainder;
 	{
-		auto n7_handle = DeleteByteInternal(art, node, byte);
+		NodeHandle n7_handle(art, node);
 		auto &n7 = n7_handle.Get<Node7Leaf>();
+		DeleteByteInternal(n7, byte);
 
 		if (n7.count != 1) {
 			return;
@@ -135,8 +133,9 @@ void Node15Leaf::InsertByte(ART &art, NodePtr &node, const uint8_t byte) {
 
 void Node15Leaf::DeleteByte(ART &art, NodePtr &node, const uint8_t byte) {
 	{
-		auto n15_handle = DeleteByteInternal(art, node, byte);
+		NodeHandle n15_handle(art, node);
 		auto &n15 = n15_handle.Get<Node15Leaf>();
+		DeleteByteInternal(n15, byte);
 		if (n15.count >= Node7Leaf::CAPACITY) {
 			return;
 		}
