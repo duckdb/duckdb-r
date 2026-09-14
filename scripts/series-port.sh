@@ -79,19 +79,23 @@
 
 set -euo pipefail
 
-usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [sha...]'
+usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [sha...]'
 argerr() { echo "$usage" >&2; exit 2; }
 # --list walks a frozen series anyway, for when the question is which commit of
 # `main` to name. No effect on any other series: the walk is their default.
 list=
 apply=
 remote=${SERIES_REMOTE:-origin}
+# The repository `main` belongs to, which the fork mirrors. Same name and same
+# default as series-advance.sh's, and read for the staleness check below only.
+canonical=${SERIES_CANONICAL-upstream}
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --list) list=1; shift ;;
     --apply) apply=1; shift ;;
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -141,6 +145,42 @@ git config --get merge.ours-version.driver >/dev/null ||
 git fetch -q "$remote"
 dev="$remote/$S-dev" main="$remote/main"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
+
+# The series live in the fork and `main` is the canonical repository's branch,
+# mirrored into the fork by .github/pull.yml. The mirror lags by however long
+# the mirroring takes, and this script's whole output is "what does the series
+# not have that main has" -- so a stale `$remote/main` is not a smaller answer
+# but a wrong one. The sync commit takes that main's tooling tree *verbatim*,
+# which means every commit merged since the mirror last ran is reverted onto
+# the series, silently and on all of them at once.
+#
+# That is not hypothetical: on 2026-09-14 a firing ported while the fork's main
+# was two commits behind duckdb/duckdb-r#2743 and #2745, which had moved the
+# composite actions out of `.github/workflows/`. The sync pointed `each.yaml`
+# back at `./.github/workflows/git-identity`, which no longer exists anywhere,
+# and every `each-rcc` leg on every series died at that step within seconds.
+# Nothing was judged until the mirror was pushed forward and the ports rerun.
+#
+# So ask the canonical repository directly, under the same name and default
+# series-advance.sh mirrors green into. Refuse rather than warn: the damage is
+# a push, and a warning printed above a `--apply` that went on to push anyway
+# is a warning nobody reads until CI is red.
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  git fetch -q "$canonical" main 2>/dev/null || true
+  canonical_main=$(git rev-parse -q --verify FETCH_HEAD || true)
+  if [ -n "$canonical_main" ] &&
+    ! git merge-base --is-ancestor "$canonical_main" "$main"; then
+    behind=$(git rev-list --count "$main..$canonical_main")
+    echo "Error: $main is $behind commit(s) behind $canonical/main." >&2
+    echo "  The sync commit takes that tree verbatim, so porting now reverts" >&2
+    echo "  every one of them onto $S-dev. Wait for .github/pull.yml to" >&2
+    echo "  mirror, or push the fork's main forward -- it is a fast-forward" >&2
+    echo "  of a mirror, not a rewrite -- and rerun:" >&2
+    echo "    git push $remote $canonical/main:refs/heads/main" >&2
+    echo "  SERIES_CANONICAL='' skips this check." >&2
+    exit 1
+  fi
+fi
 
 mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
 if [ -z "$mb" ]; then
