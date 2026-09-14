@@ -47,7 +47,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: cynkra/cynkratemplate/.github/actions/git-identity@main
+      - uses: ./.github/workflows/git-identity
 
       # The one job that does want a full checkout of the store: it decides what
       # to drop by reading every record, and rewrites the branch as a whole.
