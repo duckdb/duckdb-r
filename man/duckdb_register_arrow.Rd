@@ -25,9 +25,8 @@ duckdb_list_arrow(conn)
 These functions are called for their side effect.
 }
 \description{
-\code{duckdb_register_arrow()} registers an Arrow data source as a virtual table (view)
-in a DuckDB connection.
-No data is copied.
+\code{duckdb_register_arrow()} registers an Arrow data source as a virtual table (view) in a DuckDB connection.
+ No data is copied.
 }
 \details{
 \code{duckdb_unregister_arrow()} unregisters a previously registered data frame.

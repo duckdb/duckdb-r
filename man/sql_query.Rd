@@ -20,17 +20,13 @@ A data frame with the query result
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-\code{sql_query()} runs an arbitrary SQL query using \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}
-and returns a \link{data.frame} with the query results.
-\code{sql_exec()} runs an arbitrary SQL statement using \code{\link[DBI:dbExecute]{DBI::dbExecute()}}
-and returns the number of affected rows.
+\code{sql_query()} runs an arbitrary SQL query using \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}} and returns a \link{data.frame} with the query results.
+ \code{sql_exec()} runs an arbitrary SQL statement using \code{\link[DBI:dbExecute]{DBI::dbExecute()}} and returns the number of affected rows.
 
-These functions are intended as an easy way to interactively run DuckDB
-without having to manage connections.
-By default, data frame objects are available as views.
+These functions are intended as an easy way to interactively run DuckDB without having to manage connections.
+ By default, data frame objects are available as views.
 
-Scripts and packages should manage their own connections
-and prefer the DBI methods for more control.
+Scripts and packages should manage their own connections and prefer the DBI methods for more control.
 }
 \examples{
 \dontshow{if (simulate_duckdb()$env$examples_enabled()) withAutoprint(\{ # examplesIf}

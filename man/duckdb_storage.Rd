@@ -8,99 +8,81 @@
 duckdb_storage_status()
 }
 \value{
-\code{duckdb_storage_status()} returns a data frame (class
-\code{"duckdb_storage_status"}) with one row per kind of state and columns
-\code{kind}, \code{source}, and \code{directory}; its print method renders a readable
-summary when the result is auto-printed.
+\code{duckdb_storage_status()} returns a data frame (class \code{"duckdb_storage_status"}) with one row per kind of state
+and columns \code{kind}, \code{source}, and \code{directory}; its print method renders a readable summary when the result is auto-printed.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
 DuckDB writes several distinct kinds of data to the file system.
-This page catalogs every such location
-and documents the policy the duckdb R package uses to choose them.
-By default the package never creates anything in your home directory on its own:
+ This page catalogs every such location and documents the policy the duckdb R package uses to choose them.
+ By default the package never creates anything in your home directory on its own:
 downloaded extensions and stored secrets go under the R session's temporary directory
-unless a \verb{~/.duckdb} directory already exists
-(or you point the package somewhere explicitly).
+unless a \verb{~/.duckdb} directory already exists (or you point the package somewhere explicitly).
 
 \code{\link[=duckdb_storage_status]{duckdb_storage_status()}} reports where each location currently resolves.
 }
 \details{
-\code{duckdb_storage_status()} reports the directory the package would currently
-use for downloaded extensions and for persisted secrets, and which tier of
-the resolution above chose it. It has no side effects: it never prompts and
-never creates a directory, so an as-yet-uncreated \verb{~/.duckdb} is reported as
-the per-session temporary default.
+\code{duckdb_storage_status()} reports the directory the package would currently use for downloaded extensions and for persisted secrets,
+and which tier of the resolution above chose it.
+ It has no side effects:
+it never prompts and never creates a directory, so an as-yet-uncreated \verb{~/.duckdb} is reported as the per-session temporary default.
 }
 \section{Kinds of on-disk state}{
 \describe{
-\item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to
-derive default sub-locations. DuckDB setting: \code{home_directory}. The
-package does not set this: doing so would also redirect \code{~} in user SQL
-(e.g. \verb{COPY ... TO '~/out.csv'}). The extension and secret locations
-below are pointed at the resolved home root directly instead.}
-\item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g.
-\code{spatial}, \code{httpfs}, \code{h3}). DuckDB setting: \code{extension_directory}. A
-re-usable cache placed at \verb{<home>/extensions}, where \verb{<home>} is resolved
-as described below.}
-\item{Stored secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
-setting: \code{secret_directory}. Placed at \verb{<home>/stored_secrets}, the same
-\verb{<home>}.}
-\item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
-joins, and similar operations.
-DuckDB settings: \code{temp_directory}, \code{max_temp_directory_size}.
-Temporary storage is on by default, with the DuckDB CLI's semantics:
+\item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to derive default sub-locations.
+ DuckDB setting: \code{home_directory}.
+ The package does not set this: doing so would also redirect \code{~} in user SQL (e.g. \verb{COPY ... TO '~/out.csv'}).
+ The extension and secret locations below are pointed at the resolved home root directly instead.}
+\item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g. \code{spatial}, \code{httpfs}, \code{h3}).
+ DuckDB setting: \code{extension_directory}.
+ A re-usable cache placed at \verb{<home>/extensions}, where \verb{<home>} is resolved as described below.}
+\item{Stored secrets}{Persisted credentials under \code{stored_secrets}.
+ DuckDB setting: \code{secret_directory}.
+ Placed at \verb{<home>/stored_secrets}, the same \verb{<home>}.}
+\item{Temporary / spill files}{Out-of-core intermediates for sorts, hash joins, and similar operations.
+ DuckDB settings: \code{temp_directory}, \code{max_temp_directory_size}.
+ Temporary storage is on by default, with the DuckDB CLI's semantics:
 the directory is created only when a query actually spills,
 and removed again when the database instance shuts down.
-An on-disk database keeps the engine's own default,
+ An on-disk database keeps the engine's own default,
 \verb{<dbdir>.tmp} next to the database file.
-For an in-memory (\verb{:memory:}) database the engine's own default
-would spill to \code{.tmp} in the current working directory,
-so the package points it at a fresh per-instance sub-directory
-below \code{\link[=tempdir]{tempdir()}} instead.
-Every in-memory instance gets its own spill directory:
+ For an in-memory (\verb{:memory:}) database the engine's own default would spill to \code{.tmp} in the current working directory,
+so the package points it at a fresh per-instance sub-directory below \code{\link[=tempdir]{tempdir()}} instead.
+ Every in-memory instance gets its own spill directory:
 instances must not share one,
-because the engine's spill file names are deterministic
-and an instance cleans up its directory when it shuts down.
-This is a separate setting from the extension/secret home (see below).}
-\item{Logs and profiling output}{Written only when a path is explicitly
-configured (DuckDB settings \code{log_query_path}, \code{http_logging_output},
-profiling output). They default to \emph{off}, so nothing is written without
-the user asking, and the user chooses where it goes.}
-\item{Database file, WAL, and checkpoints}{Chosen by the user through the
-\code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}. The package does not manage these.}
+because the engine's spill file names are deterministic and an instance cleans up its directory when it shuts down.
+ This is a separate setting from the extension/secret home (see below).}
+\item{Logs and profiling output}{Written only when a path is explicitly configured (DuckDB settings \code{log_query_path},
+\code{http_logging_output}, profiling output).
+ They default to \emph{off}, so nothing is written without the user asking, and the user chooses where it goes.}
+\item{Database file, WAL, and checkpoints}{Chosen by the user through the \code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}.
+ The package does not manage these.}
 }
 }
 
 \section{Resolving the home directory}{
-Extensions and secrets share one \emph{home} root, resolved fresh on every call to
-\code{\link[=duckdb]{duckdb()}} that creates a new database driver object.
-The first source that yields a value wins:
+Extensions and secrets share one \emph{home} root, resolved fresh on every call to \code{\link[=duckdb]{duckdb()}} that creates a new database driver object.
+ The first source that yields a value wins:
 \enumerate{
 \item the \code{home} argument to \code{\link[=duckdb]{duckdb()}};
-\item the \code{duckdb.home} R option, e.g.
-\code{options(duckdb.home = "/path/to/duckdb")};
+\item the \code{duckdb.home} R option, e.g. \code{options(duckdb.home = "/path/to/duckdb")};
 \item the \code{DUCKDB_R_HOME} environment variable;
-\item \verb{~/.duckdb}, if that directory already exists -- the location shared with
-the DuckDB CLI and other clients;
-\item In interactive sessions only, the package offers to create \verb{~/.duckdb}
-once: answer "yes" to create and use it, "no" to fall through to the
-temporary directory below, or cancel the prompt to abort with an error.
+\item \verb{~/.duckdb}, if that directory already exists -- the location shared with the DuckDB CLI and other clients;
+\item In interactive sessions only, the package offers to create \verb{~/.duckdb} once:
+answer "yes" to create and use it, "no" to fall through to the temporary directory below, or cancel the prompt to abort with an error.
 \item Otherwise a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
 }
 
-The extension cache is then \verb{<home>/extensions} and the secret store is
-\verb{<home>/stored_secrets}.
+The extension cache is then \verb{<home>/extensions} and the secret store is \verb{<home>/stored_secrets}.
 
-Because the decision is remade on every new driver object, creating
-\verb{~/.duckdb} (or setting the option/variable) takes effect immediately for
-drivers created afterwards.
-Existing drivers are unaffected.
+Because the decision is remade on every new driver object,
+creating \verb{~/.duckdb} (or setting the option/variable) takes effect immediately for drivers created afterwards.
+ Existing drivers are unaffected.
 
 The \code{shared_home} argument of \code{\link[=duckdb]{duckdb()}} overrides this resolution:
-\code{shared_home = TRUE} uses (and creates) \verb{~/.duckdb}, and \code{shared_home = FALSE}
-forces a per-session \code{\link[=tempdir]{tempdir()}} even if \verb{~/.duckdb} already exists.
+\code{shared_home = TRUE} uses (and creates) \verb{~/.duckdb},
+and \code{shared_home = FALSE} forces a per-session \code{\link[=tempdir]{tempdir()}} even if \verb{~/.duckdb} already exists.
 }
 
 \section{Per-location reference}{
@@ -115,46 +97,38 @@ forces a per-session \code{\link[=tempdir]{tempdir()}} even if \verb{~/.duckdb} 
 
 
 "set" means \code{duckdb()} sets the value explicitly in the database config.
-The home directory is left untouched so that \code{~} in user SQL keeps its usual meaning.
-The temp/spill setting is left unset for an on-disk database:
+ The home directory is left untouched so that \code{~} in user SQL keeps its usual meaning.
+ The temp/spill setting is left unset for an on-disk database:
 the engine's own \verb{<dbdir>.tmp} default already matches the DuckDB CLI,
-no matter whether the database is opened through \code{\link[=duckdb]{duckdb()}}
-or through the \code{dbdir} argument of \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.
-An \code{extension_directory} / \code{secret_directory} / \code{temp_directory}
-passed directly in the \code{config} list is always honored
+no matter whether the database is opened through \code{\link[=duckdb]{duckdb()}} or through the \code{dbdir} argument of \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.
+ An \code{extension_directory} / \code{secret_directory} / \code{temp_directory} passed directly in the \code{config} list is always honored
 and takes precedence over the resolution above.
 }
 
 \section{Messages}{
 \describe{
-\item{Storage-location message}{When the package picked the location itself
-(a per-session \code{\link[=tempdir]{tempdir()}}, or an existing \verb{~/.duckdb}), \code{duckdb()} emits
-an informational message describing where extensions and secrets are
-going and how to change it. It is throttled by session type: in an
-\strong{interactive} session at most once every eight hours (a human can act on it);
+\item{Storage-location message}{When the package picked the location itself (a per-session \code{\link[=tempdir]{tempdir()}},
+or an existing \verb{~/.duckdb}),
+\code{duckdb()} emits an informational message describing where extensions and secrets are going and how to change it.
+ It is throttled by session type: in an \strong{interactive} session at most once every eight hours (a human can act on it);
 in a \strong{non-interactive} session up to 60 times,
 after which it goes silent for good,
 so a long-running or automated process is not reminded forever.
-The message is suppressed entirely when you chose the
-location yourself -- the \code{home} or \code{shared_home} argument, the
-\code{duckdb.home} option, or the \code{DUCKDB_R_HOME} environment variable.
-Non-interactively it covers both the temporary directory and an existing
-\verb{~/.duckdb}; interactively it is issued only when the user opts out of
-creating \verb{~/.duckdb}.
-It is also suppressed once you have made any explicit \code{home} or
-\code{shared_home} choice earlier in the session: having set the location
-explicitly once, you have seen how, so later auto-resolved calls stay
-quiet.
-}
+ The message is suppressed entirely when you chose the location yourself --
+the \code{home} or \code{shared_home} argument, the \code{duckdb.home} option, or the \code{DUCKDB_R_HOME} environment variable.
+ Non-interactively it covers both the temporary directory and an existing \verb{~/.duckdb};
+interactively it is issued only when the user opts out of creating \verb{~/.duckdb}.
+ It is also suppressed once you have made any explicit \code{home} or \code{shared_home} choice earlier in the session:
+having set the location explicitly once, you have seen how, so later auto-resolved calls stay quiet.
+ }
 }
 \subsection{Silencing the message}{
 
 Make the choice explicit and it is no longer announced.
-Pass \code{shared_home} to \code{\link[=duckdb]{duckdb()}} -- \code{TRUE} to keep extensions and secrets under \verb{~/.duckdb},
+ Pass \code{shared_home} to \code{\link[=duckdb]{duckdb()}} -- \code{TRUE} to keep extensions and secrets under \verb{~/.duckdb},
 \code{FALSE} to accept a per-session temporary directory.
-Alternatively, point \code{home} (or the \code{duckdb.home} option / \code{DUCKDB_R_HOME} variable)
-at a location of your choice.
-As a last resort, use \code{\link[=suppressMessages]{suppressMessages()}}:
+ Alternatively, point \code{home} (or the \code{duckdb.home} option / \code{DUCKDB_R_HOME} variable) at a location of your choice.
+ As a last resort, use \code{\link[=suppressMessages]{suppressMessages()}}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{# Explicit arguments:
 con <- dbConnect(duckdb(shared_home = FALSE))
@@ -176,17 +150,15 @@ con <- dbConnect(duckdb())
 Packages that use duckdb inherit this policy:
 \itemize{
 \item duckdb never writes outside \code{\link[=tempdir]{tempdir()}} on its own during checks.
-In a non-interactive session (which all \verb{R CMD check} runs are)
-it uses \code{tempdir()} by default unless a \verb{~/.duckdb} already exists,
+ In a non-interactive session (which all \verb{R CMD check} runs are) it uses \code{tempdir()} by default unless a \verb{~/.duckdb} already exists,
 and it never \emph{creates} \verb{~/.duckdb} unless requested.
-So a package that merely opens a database needs no special handling.
+ So a package that merely opens a database needs no special handling.
 \item Downloading and installing an extension is the caller's responsibility.
-Ensure that all tests involving extensions are skipped if the download fails.
-For robust testing on CRAN and other platforms,
+ Ensure that all tests involving extensions are skipped if the download fails.
+ For robust testing on CRAN and other platforms,
 ensure that the extensions your package uses can be downloaded and installed.
-Run the check in a subprocess to avoid crashing the main R process
-if the extension is incompatible with the platform.
-To force a throwaway cache in your own tests, connect with an explicit home:
+ Run the check in a subprocess to avoid crashing the main R process if the extension is incompatible with the platform.
+ To force a throwaway cache in your own tests, connect with an explicit home:
 }
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{tempdir_for_tests <- withr::local_tempdir()

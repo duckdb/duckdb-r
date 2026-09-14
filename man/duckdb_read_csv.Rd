@@ -45,7 +45,7 @@ duckdb_read_csv(
 
 \item{col.types}{Character vector of column types in the same order as col.names,
 or a named character vector where names are column names and types pairs.
-Valid types are \href{https://duckdb.org/docs/sql/data_types/overview.html}{DuckDB data types}, e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.}
+ Valid types are \href{https://duckdb.org/docs/sql/data_types/overview.html}{DuckDB data types}, e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.}
 
 \item{lower.case.names}{Transform column names to lower case}
 
@@ -60,10 +60,11 @@ The number of rows in the resulted table, invisibly.
 }
 \description{
 Directly reads a CSV file into DuckDB, tries to detect and create the correct schema for it.
-This usually is much faster than reading the data into R and writing it to DuckDB.
+ This usually is much faster than reading the data into R and writing it to DuckDB.
 }
 \details{
-If the table already exists in the database, the csv is appended to it. Otherwise the table is created.
+If the table already exists in the database, the csv is appended to it.
+ Otherwise the table is created.
 }
 \examples{
 \dontshow{if (identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}

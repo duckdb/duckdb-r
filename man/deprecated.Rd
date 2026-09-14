@@ -8,6 +8,6 @@ read_csv_duckdb(conn, files, tablename, ...)
 }
 \description{
 \code{read_csv_duckdb()} has been superseded by \code{duckdb_read_csv()}.
-The order of the arguments has changed.
+ The order of the arguments has changed.
 }
 \keyword{internal}

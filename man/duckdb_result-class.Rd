@@ -84,7 +84,7 @@ special values.}
 }
 \description{
 Methods for accessing result sets for queries on DuckDB connections.
-Implements \link[DBI:DBIResult-class]{DBIResult}.
+ Implements \link[DBI:DBIResult-class]{DBIResult}.
 }
 \section{Slots}{
 
@@ -98,8 +98,7 @@ types, ...).}
 
 \item{\code{arrow}}{whether the result is fetched via Arrow.}
 
-\item{\code{query_result}}{external pointer to the underlying materialized query
-result.}
+\item{\code{query_result}}{external pointer to the underlying materialized query result.}
 }}
 
 \keyword{internal}
