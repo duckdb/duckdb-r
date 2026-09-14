@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 20:41:25 +0000
+Subject: [PATCH] Assert on the temporary buffer header size without an unused local
+
+TemporaryFileHandle::ReadTemporaryBuffer() reads the block header size
+of the index into a local that only D_ASSERT() uses, so in a release
+build, where D_ASSERT() expands to nothing, the local is unused and
+-Wunused-variable says so. The assertion reads the size from the index
+itself.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/storage/temporary_file_manager.cpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/storage/temporary_file_manager.cpp b/src/duckdb/src/storage/temporary_file_manager.cpp
+index 87d6383999..bf59c69822 100644
+--- a/src/duckdb/src/storage/temporary_file_manager.cpp
++++ b/src/duckdb/src/storage/temporary_file_manager.cpp
+@@ -228,8 +228,7 @@ unique_ptr<FileBuffer> TemporaryFileHandle::ReadTemporaryBuffer(QueryContext con
+                                                                 const TemporaryFileIndex &index_in_file,
+                                                                 unique_ptr<FileBuffer> buffer) const {
+ 	auto block_index = index_in_file.block_index.GetIndex();
+-	auto block_header_size = index_in_file.block_header_size.GetIndex();
+-	D_ASSERT(buffer->GetHeaderSize() == block_header_size);
++	D_ASSERT(buffer->GetHeaderSize() == index_in_file.block_header_size.GetIndex());
+ 	AllocatedData compressed_buffer;
+ 	data_ptr_t read_buffer;
+ 	idx_t read_size;

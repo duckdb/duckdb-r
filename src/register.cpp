@@ -133,9 +133,9 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	// TODO: do utf conversion
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
-	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
+	children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)df)));
 	auto add_named_parameter = [&children](const char *name, bool value) {
-		auto parameter = make_uniq<ConstantExpression>(Value::BOOLEAN(value));
+		auto parameter = ConstantExpression::FromValue(Value::BOOLEAN(value));
 		parameter->SetAlias(Identifier(name));
 		children.push_back(std::move(parameter));
 	};
@@ -527,11 +527,11 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	for (auto e = arrow_scans.find(table_name); e != arrow_scans.end(); ++e) {
 		auto table_function = make_uniq<TableFunctionRef>();
 		vector<duckdb::unique_ptr<ParsedExpression>> children;
-		children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second[0]))));
+		children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second[0]))));
 		children.push_back(
-		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
+		    ConstantExpression::FromValue(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
 		children.push_back(
-		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
+		    ConstantExpression::FromValue(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
 		table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
 		return std::move(table_function);
 	}
