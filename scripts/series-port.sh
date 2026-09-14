@@ -262,6 +262,15 @@ declare -A klass=()
 # original patch — those would otherwise be re-offered and re-conflict on
 # every rerun.
 #
+# Both layers need a commit to read, so a pick whose *resolution* comes out
+# empty has to be committed empty rather than skipped. That happens wherever
+# the series already carries main's change under its own flavor's name: the
+# tree is right, the patch-id is not main's, and `git cherry-pick --skip` —
+# which is what git itself suggests there — leaves neither a patch-id nor a
+# trailer, so the same pick is offered and reconflicts on every firing. The
+# guidance below says so; `--empty=drop` cannot reach this case, because it
+# judges the pick before the resolution exists.
+#
 # A frozen series skips the walk rather than listing what it will not take by
 # default: the list is long — an LTS line joins `main` far back, so `git cherry`
 # offers the whole development line since the fork — and reading it every firing
@@ -323,6 +332,9 @@ if [ ${#picks[@]} -gt 0 ] && ! git -C "$wt" cherry-pick -x --empty=drop "${picks
   git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
   echo "Resolve toward main's intent, then:"
   echo "  git -C $wt cherry-pick --continue    # repeats through the rest"
+  echo "A resolution that comes out empty is committed empty, never skipped —"
+  echo "the empty commit is what carries the trailer that retires the pick:"
+  echo "  git -C $wt commit --allow-empty --cleanup=strip --no-edit"
   echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
   echo "  git worktree remove --force $wt"
   echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"
