@@ -178,6 +178,12 @@ until now.
    by hand; everything else is discovered from refs or derived from it.
    See below for what the fields mean and what a badge row gets wrong.
 
+   **The entry may already be there.** A loop firing that saw the line cut
+   opens the declaration PR by itself, so this step is often merging or
+   reviewing that one rather than writing the entry
+   ([`series-loop/SKILL.md`](series-loop), "What a firing reports").
+   The loop never cuts the refs — only steps 1–5 above do.
+
 7. **Update the fork's mirror configuration — derived, not remembered.**
    A series' *ahead* badge measures against a branch the fork mirrors, which stays
    current only while [`.github/pull.yml`](/.github/pull.yml) carries a rule for
