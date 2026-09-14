@@ -72,8 +72,7 @@ with one column per query parameter.}
 
 \item{...}{Other arguments passed on to methods.}
 
-\item{chunk_size}{The chunk size in rows used when pulling Arrow batches
-from DuckDB.}
+\item{chunk_size}{The chunk size in rows used when pulling Arrow batches from DuckDB.}
 
 \item{dbObj}{An object inheriting from \link[DBI:DBIObject-class]{DBIObject},
 i.e. \link[DBI:DBIDriver-class]{DBIDriver}, \link[DBI:DBIConnection-class]{DBIConnection},
