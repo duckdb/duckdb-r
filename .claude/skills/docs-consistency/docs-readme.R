@@ -127,6 +127,10 @@ groups <- list(
     globs = c("preview-prefix*")
   ),
   list(
+    owner = "handbook/branches/flavors",
+    globs = c("series.yaml", "series-table.R")
+  ),
+  list(
     owner = "handbook/operations/ci/per-commit/selection",
     globs = c("rcc-decided.sh")
   ),
