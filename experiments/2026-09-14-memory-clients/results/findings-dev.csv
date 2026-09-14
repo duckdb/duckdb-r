@@ -1,17 +1,43 @@
 image,finding,metric,value
-dev,version,ERROR,
-dev,eager,ERROR,
-dev,double_copy,ERROR,
-dev,ledger,ERROR,
-dev,altrep,ERROR,
+dev,version,duckdb,1.5.5.9022
+dev,version,R,R version 4.6.1 (2026-06-24)
+dev,version,memory_limit_default,12.5 GiB
+dev,version,mem_available_kb,12781336
+dev,eager,resultset_rows_before_fetch,100000
+dev,eager,fetch_n5_rows,5
+dev,double_copy,data_mb,800
+dev,double_copy,peak_over_base_mb,1542
+dev,double_copy,rows,50000000
+dev,ledger,tags_while_result_held,IN_MEMORY_TABLE=107MB
+dev,altrep,materialized_after_rel_to_altrep,FALSE
+dev,altrep,rss_after_rel_to_altrep_mb,3
+dev,altrep,materialized_after_touch,TRUE
+dev,altrep,rss_after_touch_mb,158
+dev,altrep,rss_after_copy_out_mb,273
+dev,altrep,rss_after_drop_altrep_mb,168
 dev,adbc,ERROR,
 dev,drain_plain,ERROR,
 dev,drain_release,ERROR,
 dev,drain_gc,ERROR,
-dev,write_memory,ERROR,
-dev,write_file,ERROR,
-dev,write_txn_memory,ERROR,
-dev,write_txn_file,ERROR,
-dev,config_trap,ERROR,
-dev,record_batch_cycles,ERROR,
+dev,write_memory,write,ok
+dev,write_memory,ledger_before_commit,IN_MEMORY_TABLE=200MB/spilled384MB
+dev,write_memory,peak_over_base_mb,204
+dev,write_file,write,ok
+dev,write_file,ledger_before_commit,BASE_TABLE=186MB/spilled0MB
+dev,write_file,peak_over_base_mb,203
+dev,write_file,file_mb,402
+dev,write_txn_memory,write,ok
+dev,write_txn_memory,ledger_before_commit,IN_MEMORY_TABLE=200MB/spilled391MB;TRANSACTION=0MB/spilled0MB
+dev,write_txn_memory,commit,ok
+dev,write_txn_memory,peak_over_base_mb,203
+dev,write_txn_file,write,ok
+dev,write_txn_file,ledger_before_commit,BASE_TABLE=181MB/spilled0MB;IN_MEMORY_TABLE=15MB/spilled0MB;TRANSACTION=0MB/spilled0MB
+dev,write_txn_file,commit,ok
+dev,write_txn_file,peak_over_base_mb,208
+dev,write_txn_file,file_mb,402
+dev,config_trap,duckdb_config,190.7 MiB
+dev,config_trap,dbConnect_config_memory,12.5 GiB
+dev,config_trap,dbConnect_dbdir_config,190.7 MiB
+dev,config_trap,dbConnect_config_on_dbdir_driver,12.5 GiB
+dev,record_batch_cycles,rss_over_base_after_each_cycle_mb,11;126;185;185
 dev,sorted_stream_limited,ERROR,

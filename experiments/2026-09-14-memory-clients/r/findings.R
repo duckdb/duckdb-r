@@ -63,7 +63,7 @@ if (finding == "version") {
   out("dbConnect_config_on_dbdir_driver", lim(dbConnect(duckdb::duckdb(dbdir = f), config = list(memory_limit = "200MB"))))
 } else if (finding == "record_batch_cycles") {
   suppressMessages(library(arrow)); con <- dbConnect(duckdb::duckdb()); base <- rss(); peaks <- c()
-  for (i in 1:4) { rs <- dbSendQuery(con, "SELECT i::DOUBLE a, i::DOUBLE b FROM range(10000000) t(i)", arrow = TRUE)
+  for (i in 1:8) { rs <- dbSendQuery(con, "SELECT i::DOUBLE a, i::DOUBLE b FROM range(10000000) t(i)", arrow = TRUE)
     rd <- duckdb::duckdb_fetch_record_batch(rs); while (!is.null(b <- rd$read_next_batch())) NULL; dbClearResult(rs); rm(rd, rs, b); invisible(gc()); peaks <- c(peaks, round(rss() - base)) }
   out("rss_over_base_after_each_cycle_mb", paste(peaks, collapse = ";")); dbDisconnect(con, shutdown = TRUE)
 } else if (finding == "sorted_stream_limited") {
