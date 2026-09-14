@@ -8,6 +8,8 @@
 
 #include "src/optimizer/build_probe_side_optimizer.cpp"
 
+#include "src/optimizer/builtin_function_lookup.cpp"
+
 #include "src/optimizer/column_binding_replacer.cpp"
 
 #include "src/optimizer/column_lifetime_analyzer.cpp"
@@ -17,6 +19,8 @@
 #include "src/optimizer/common_subplan_optimizer.cpp"
 
 #include "src/optimizer/compressed_materialization.cpp"
+
+#include "src/optimizer/constant_or_null_simplification.cpp"
 
 #include "src/optimizer/cse_optimizer.cpp"
 
@@ -65,6 +69,8 @@
 #include "src/optimizer/partial_aggregate_pushdown.cpp"
 
 #include "src/optimizer/partitioned_execution.cpp"
+
+#include "src/optimizer/projection_placement.cpp"
 
 #include "src/optimizer/projection_pullup.cpp"
 
