@@ -76,7 +76,7 @@ driving [`scripts/format.py`](/scripts/format.py),
 and [`.clang-format`](/.clang-format) alone decides the result —
 a bare `clang-format -style=file`, which is what an editor and the
 pull-request formatter
-([`.github/workflows/style/action.yml`](/.github/workflows/style/action.yml))
+([cynkratemplate's `style/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/style/action.yml))
 run, prints the same tree.
 The one thing it will not rewrite is the order of the `#include`s:
 `SortIncludes: Never` and `IncludeBlocks: Preserve` pin them,
