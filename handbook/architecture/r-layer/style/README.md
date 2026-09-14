@@ -25,7 +25,7 @@ Indentation, line breaks, spacing and call wrapping are
 and no review argues them.
 The repository carries an [`air.toml`](/air.toml),
 which is what turns the pull-request formatter
-([`.github/workflows/style/action.yml`](/.github/workflows/style/action.yml))
+([cynkratemplate's `style/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/style/action.yml))
 on for R: without it that job formats the C++ and leaves the R alone.
 `R/` and `tests/` match what air prints, so `air format .` before
 pushing is the whole of the layout question —
