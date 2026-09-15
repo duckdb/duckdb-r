@@ -2,6 +2,8 @@
 
 #include "src/parser/peg/compiled_grammar.cpp"
 
+#include "src/parser/peg/dialect_extension.cpp"
+
 #include "src/parser/peg/grammar_change.cpp"
 
 #include "src/parser/peg/keyword_map.cpp"
