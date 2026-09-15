@@ -37,13 +37,9 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	if (res->HasError()) {
 		stop("%s", res->GetError().c_str());
 	}
-	if (res->GetResultType() == QueryResultType::STREAM_RESULT) {
-		res = ((StreamQueryResult &)*res).Materialize();
-	}
 	D_ASSERT(res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
-	auto mat_res = (MaterializedQueryResult *)res.get();
 
-	return duckdb_execute_R_impl(mat_res, duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
+	return duckdb_execute_R_impl(res.get(), duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
 }
 
 // Check if column has names
