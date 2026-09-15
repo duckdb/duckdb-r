@@ -43,6 +43,30 @@ is_release_version <- function(version) {
   )
 }
 
+# Does the vendored engine stream an Arrow result, so that another statement on
+# its connection can end one not read to the end?
+#
+# From duckdb/duckdb#25477 (`2.0.0-dev84770`), which unified the result types,
+# until duckdb/duckdb#25989 (`2.0.0-dev85442`), which let the Arrow stream
+# wrapper stream again, the engine hands back an Arrow result it holds whole:
+# nothing another statement runs can invalidate it, and no query stays open on
+# the connection for `dbClearResult()` to end. The development counter is the
+# upstream commit count, so it orders snapshots along upstream's history.
+arrow_result_streams <- function(version = get_duckdb_version()) {
+  dev <- regmatches(version, regexec("^2[.]0[.]0-dev([0-9]+)$", version))[[1]]
+  if (length(dev) != 2) {
+    return(TRUE)
+  }
+  dev <- as.numeric(dev[[2]])
+  dev < 84770 || dev >= 85442
+}
+
+skip_if_arrow_result_not_streamed <- function() {
+  if (!arrow_result_streams()) {
+    skip("This engine snapshot holds an Arrow result whole.")
+  }
+}
+
 # Skip on every flavor but the mainline one.
 #
 # `scripts/flavor.sh` renames the package to a flavor -- `duckdb.1.4`,

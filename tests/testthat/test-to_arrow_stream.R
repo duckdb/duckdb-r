@@ -44,6 +44,7 @@ test_that("to_arrow_stream() refuses a simulated or a closed connection", {
 })
 
 test_that("a statement on its connection invalidates a reader not read to the end", {
+  skip_if_arrow_result_not_streamed()
   con <- local_con()
 
   lazy <- dplyr::tbl(con, dplyr::sql("SELECT i FROM range(3000000) t(i)"))
@@ -62,7 +63,9 @@ test_that("the reader's documented limits hold", {
   # dbplyr asks for the columns of a new lazy table.
   reader <- to_arrow_stream(lazy)
   dplyr::tbl(con, "u")
-  expect_error(reader$read_next_batch(), "invalidated by another statement")
+  if (arrow_result_streams()) {
+    expect_error(reader$read_next_batch(), "invalidated by another statement")
+  }
 
   # A second connection to the same database leaves the reader alone.
   other <- dbConnect(con@driver)

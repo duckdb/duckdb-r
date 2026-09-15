@@ -279,6 +279,7 @@ test_that("dbColumnInfo() still works on an arrow result and matches the schema"
 })
 
 test_that("a stream that another statement invalidated errors instead of ending (#2772)", {
+  skip_if_arrow_result_not_streamed()
   con <- local_con()
 
   res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
@@ -300,6 +301,7 @@ test_that("a stream that another statement invalidated errors instead of ending 
 })
 
 test_that("a chunked result that another statement invalidated errors instead of ending (#2772)", {
+  skip_if_arrow_result_not_streamed()
   con <- local_con()
 
   res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")

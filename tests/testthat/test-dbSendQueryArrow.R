@@ -64,6 +64,7 @@ test_that("dbSendQueryArrow() does not materialize a large streaming query", {
 })
 
 test_that("dbClearResult() ends the query of a stream not read to the end", {
+  skip_if_arrow_result_not_streamed()
   drv <- duckdb()
   con <- dbConnect(drv)
   other <- dbConnect(drv)

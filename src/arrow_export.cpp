@@ -118,16 +118,10 @@ RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResul
 	stream.private_data = this;
 }
 
-// A streaming result that ran to the end has let go of its client context,
-// one that another statement on its connection invalidated still holds it
-// (vendored src/duckdb/src/main/stream_query_result.cpp).
+// This engine's Arrow stream reads a result it holds whole, with nothing another statement can end
+// (vendored src/duckdb/src/common/arrow/arrow_wrapper.cpp), until duckdb/duckdb#25989 streams again.
 bool RArrowArrayStreamWrapper::Invalidated() {
-	auto &result = *engine.result;
-	if (result.GetResultType() != QueryResultType::STREAM_RESULT || result.HasError()) {
-		return false;
-	}
-	auto &stream_result = result.Cast<StreamQueryResult>();
-	return stream_result.context && !stream_result.IsOpen();
+	return false;
 }
 
 int RArrowArrayStreamWrapper::ReportInvalidated() {
@@ -305,17 +299,12 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 // A streaming result not read to the end keeps its query, with the pipeline and the rows it has buffered,
 // active on the connection until the next statement there cleans it up,
 // so this ends the query the same way (handbook/usage/memory/reading/README.md).
+// This engine ends it on destruction, so dropping the handles is all it takes
+// (vendored src/duckdb/src/main/query_result.cpp, src/main/query_result_stream.cpp).
 // A stream that dbFetchArrow() has handed over is no longer here, and keeps its query.
 [[cpp11::register]] void rapi_release_arrow_result(duckdb::rqry_eptr_t qry_res) {
 	if (!qry_res || !qry_res.get()) {
 		return;
-	}
-	auto result = qry_res->stream_wrapper ? qry_res->stream_wrapper->engine.result.get() : qry_res->result.get();
-	if (result && result->GetResultType() == QueryResultType::STREAM_RESULT) {
-		auto &stream_result = result->Cast<StreamQueryResult>();
-		if (stream_result.IsOpen()) {
-			stream_result.context->CancelTransaction();
-		}
 	}
 	qry_res->stream_wrapper.reset();
 	qry_res->result.reset();
