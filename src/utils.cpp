@@ -5,6 +5,11 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
+// Handbook: handbook/architecture/glue/conventions/README.md,
+// and handbook/architecture/glue/threading/README.md for the thread guard
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -180,7 +185,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 
 		auto ce = Rf_getCharCE(str_val);
 		if (ce != CE_UTF8 && ce != CE_NATIVE) {
-			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
+			// The scan reaches this check, and the scan is no place to raise an
+			// R error -- the message would not survive the trip back
+			throw InvalidInputException(
+			    "SexpToValue: Only UTF-8 encoded strings are supported for the data frame scan.");
 		}
 		return Value(CHAR(str_val));
 	}
@@ -339,8 +347,26 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// The thread the package was loaded on, which is R's: R_init_duckdb() runs
+// there, and nothing else sets this
+static std::thread::id r_thread_id;
+
+void rapi_record_r_thread() {
+	r_thread_id = std::this_thread::get_id();
+}
+
+bool rapi_on_r_thread() {
+	return std::this_thread::get_id() == r_thread_id;
+}
+
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	if (!rapi_on_r_thread()) {
+		// Reporting an error means calling an R function, and this is not R's
+		// thread. Let the engine carry the message back to it instead.
+		throw InvalidInputException(context + ": " + message);
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
