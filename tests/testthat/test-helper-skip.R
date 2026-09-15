@@ -29,6 +29,16 @@ test_that("a release version is told from a snapshot between releases", {
   expect_false(is_release_version(""))
 })
 
+test_that("the snapshots that hold an Arrow result whole are told apart", {
+  expect_false(arrow_result_streams("2.0.0-dev84770"))
+  expect_false(arrow_result_streams("2.0.0-dev85441"))
+
+  expect_true(arrow_result_streams("2.0.0-dev84769"))
+  expect_true(arrow_result_streams("2.0.0-dev85442"))
+  expect_true(arrow_result_streams("2.0.0"))
+  expect_true(arrow_result_streams("1.5.4-dev84800"))
+})
+
 test_that("the tests behind `TEST_RE2` run everywhere but in the R-hub workflow", {
   withr::local_envvar(DUCKDB_R_TEST_RE2 = NA, GITHUB_WORKFLOW = NA)
   expect_true(test_re2_enabled())

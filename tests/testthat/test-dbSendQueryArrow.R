@@ -98,6 +98,7 @@ test_that("dbBind() with one row of parameters streams the Arrow result", {
 })
 
 test_that("dbClearResult() ends the query of a stream not read to the end", {
+  skip_if_arrow_result_not_streamed()
   drv <- duckdb()
   con <- dbConnect(drv)
   other <- dbConnect(drv)
