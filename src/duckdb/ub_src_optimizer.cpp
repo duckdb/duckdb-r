@@ -68,6 +68,8 @@
 
 #include "src/optimizer/partitioned_execution.cpp"
 
+#include "src/optimizer/projection_placement.cpp"
+
 #include "src/optimizer/projection_pullup.cpp"
 
 #include "src/optimizer/regex_range_filter.cpp"
