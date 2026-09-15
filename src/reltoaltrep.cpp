@@ -134,7 +134,7 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 	return (bool)mat_result;
 }
 
-MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
+QueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
 		rapi_error_with_context("GetQueryResult", mat_error);
 	}
@@ -192,7 +192,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		signal_handler.Disable();
 	}
 	D_ASSERT(mat_result);
-	return (MaterializedQueryResult *)mat_result.get();
+	return mat_result.get();
 }
 
 void AltrepRelationWrapper::Materialize() {
@@ -224,8 +224,7 @@ void AltrepRelationWrapper::Materialize() {
 	D_ASSERT(local_res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
 
 	if (max_rows < MAX_SIZE_T) {
-		auto local_mat_res = (MaterializedQueryResult *)local_res.get();
-		if (local_mat_res->RowCount() > max_rows) {
+		if (local_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
 			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);

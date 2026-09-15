@@ -197,7 +197,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs, explain_analyze);
 }
 
-static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result);
+static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts);
 
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
                                           duckdb::ConvertOpts convert_opts) {
@@ -238,11 +238,6 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
-	// Streaming arrow results from the same prepared statement cannot coexist
-	// (each Execute() invalidates the previous StreamQueryResult). Materialize
-	// per-row arrow results when binding multiple rows.
-	bool allow_stream_result = arrow && streaming && n_rows == 1;
-
 	cpp11::writable::list out;
 	out.reserve(n_rows);
 
@@ -254,7 +249,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		}
 
 		// Protection error is flagged by rchk
-		cpp11::sexp res = rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
+		cpp11::sexp res = rapi_execute_impl(stmt.get(), convert_opts);
 		out.push_back(res);
 	}
 
@@ -281,8 +276,7 @@ static cpp11::writable::list duckdb_r_allocate_df(const vector<LogicalType> &typ
 	return data_frame;
 }
 
-SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts,
-                                   SEXP class_) {
+SEXP duckdb::duckdb_execute_R_impl(QueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_) {
 	// step 2: create result data frame and allocate columns
 	auto ncols = result->GetTypes().size();
 	if (ncols == 0) {
@@ -511,7 +505,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](record_batch_reader, arrow_namespace);
 }
 
-static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result) {
+static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts) {
 	auto context = stmt->stmt->TryGetContext();
 	ScopedInterruptHandler signal_handler(context);
 
@@ -523,7 +517,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		QueryProfiler::Get(*context).StartExplainAnalyze();
 	}
 
-	auto generic_result = stmt->stmt->Execute(stmt->parameters, allow_stream_result);
+	auto generic_result = stmt->stmt->Execute(stmt->parameters);
 
 	signal_handler.HandleInterrupt();
 
@@ -542,7 +536,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		return query_resultsexp;
 	} else {
 		D_ASSERT(generic_result->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
-		auto result = (MaterializedQueryResult *)generic_result.get();
+		auto result = generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
 		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
@@ -557,7 +551,5 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
 
-	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED &&
-	                           convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
-	return rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
+	return rapi_execute_impl(stmt.get(), convert_opts);
 }
