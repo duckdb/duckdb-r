@@ -62,6 +62,8 @@
 
 #include "src/main/capi/v2/capi_v2_stubs.cpp"
 
+#include "src/main/capi/v2/capi_v2_tokenizer.cpp"
+
 #include "src/main/capi/v2/capi_v2_value.cpp"
 
 #include "src/main/capi/v2/capi_v2_vector.cpp"
