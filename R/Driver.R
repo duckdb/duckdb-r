@@ -476,7 +476,7 @@ has_extension_prefix <- function(path) {
   grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
 }
 
-path_normalize <- function(path) {
+path_normalize <- function(path, normalize_path = normalizePath) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
   }
@@ -485,13 +485,16 @@ path_normalize <- function(path) {
     return(path)
   }
 
-  out <- normalizePath(path, mustWork = FALSE)
+  out <- normalize_path(path, mustWork = FALSE)
 
   # Stable results are only guaranteed if the file exists
   if (!file.exists(out)) {
     on.exit(unlink(out))
     writeLines(character(), out)
-    out <- normalizePath(out, mustWork = TRUE)
+    if (!file.exists(out)) {
+      abort("Failed to normalize database path `", path, "`.")
+    }
+    out <- normalize_path(out, mustWork = FALSE)
   }
   out
 }
