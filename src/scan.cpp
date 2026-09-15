@@ -38,6 +38,7 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	case RType::STRING:
 		return ReadOnlyDataPtr(DATAPTR_RO(coldata));
 	case RType::TIMESTAMP:
+	case RType::TIMESTAMP_TZ:
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::INTERVAL_SECONDS:
 	case RType::INTERVAL_MINUTES:
@@ -142,6 +143,7 @@ static void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t
 	source_data += sexp_offset;
 	auto &result_mask = FlatVector::Validity(result);
 	auto child_rtype = rtype.GetListChildType();
+	auto child_timestamptz = child_rtype.id() == RTypeId::TIMESTAMP_TZ;
 	auto result_data = FlatVector::GetData<list_entry_t>(result);
 	for (idx_t i = 0; i < count; i++) {
 		auto val = source_data[i];
@@ -151,7 +153,7 @@ static void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t
 			auto len = RApiTypes::GetVecSize(child_rtype, val);
 			result_data[i].offset = ListVector::GetListSize(result);
 			for (R_len_t child_idx = 0; child_idx < len; ++child_idx) {
-				auto child_item = RApiTypes::SexpToValue(val, child_idx);
+				auto child_item = RApiTypes::SexpToValue(val, child_idx, true, child_timestamptz);
 				ListVector::PushBack(result, child_item);
 			}
 			result_data[i].length = len;
@@ -168,6 +170,7 @@ static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_d
 	auto &result_mask = FlatVector::Validity(result);
 	auto child_rtype = rtype.GetListChildType();
 	D_ASSERT(child_rtype.id() == RTypeId::STRUCT);
+	auto value_timestamptz = child_rtype.GetStructChildTypes()[1].second.id() == RTypeId::TIMESTAMP_TZ;
 	auto result_data = FlatVector::GetData<list_entry_t>(result);
 
 	for (idx_t i = 0; i < count; i++) {
@@ -186,7 +189,7 @@ static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_d
 			for (R_len_t j = 0; j < len; ++j) {
 				child_list_t<Value> kv;
 				kv.push_back({"key", RApiTypes::SexpToValue(key_col, j)});
-				kv.push_back({"value", RApiTypes::SexpToValue(value_col, j)});
+				kv.push_back({"value", RApiTypes::SexpToValue(value_col, j, true, value_timestamptz)});
 				ListVector::PushBack(result, Value::STRUCT(std::move(kv)));
 			}
 		} else {
@@ -201,7 +204,7 @@ static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_d
 					// Treat element NULL as a SQL NULL of the column's value type
 					kv.push_back({"value", Value()});
 				} else {
-					kv.push_back({"value", RApiTypes::SexpToValue(value_sexp, 0)});
+					kv.push_back({"value", RApiTypes::SexpToValue(value_sexp, 0, true, value_timestamptz)});
 				}
 				ListVector::PushBack(result, Value::STRUCT(std::move(kv)));
 			}
@@ -351,7 +354,10 @@ static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_p
 		}
 		break;
 	}
-	case RType::TIMESTAMP: {
+	case RType::TIMESTAMP:
+	case RType::TIMESTAMP_TZ: {
+		// Both carry microseconds since the UTC epoch in an INT64 payload,
+		// so only the declared type differs
 		auto data_ptr = (double *)coldata_ptr;
 		AppendColumnSegment<double, timestamp_t, RTimestampType>(data_ptr, sexp_offset, v, this_count);
 		break;
@@ -495,6 +501,14 @@ static bool get_map_list_of_param(named_parameter_map_t &named_parameters) {
 	return false;
 }
 
+static bool get_timestamptz_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("timestamptz");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
+}
+
 // Returns true when `coldata` is a list column whose non-NULL cells are all
 // named lists (and not data frames or blobs) that the caller has opted into
 // scanning as MAP entries via `dbConnect(map = "list_of")`. The cells'
@@ -502,7 +516,7 @@ static bool get_map_list_of_param(named_parameter_map_t &named_parameters) {
 //
 // On success, `value_rtype` is set to the common value RType and the column's
 // rtype should be overridden to `LIST(STRUCT(key = STRING, value = V))`.
-static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_rtype) {
+static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, bool timestamptz, RType &value_rtype) {
 	if (TYPEOF(coldata) != VECSXP) {
 		return false;
 	}
@@ -538,7 +552,7 @@ static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_
 			if (v_j == R_NilValue) {
 				continue;
 			}
-			RType t = RApiTypes::DetectRType(v_j, integer64);
+			RType t = RApiTypes::DetectRType(v_j, integer64, timestamptz);
 			if (!common_set) {
 				value_rtype = t;
 				common_set = true;
@@ -602,6 +616,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	auto integer64 = get_integer64_param(input.named_parameters);
 	auto experimental = get_experimental_param(input.named_parameters);
 	auto map_list_of = get_map_list_of_param(input.named_parameters);
+	auto timestamptz = get_timestamptz_param(input.named_parameters);
 
 	auto df_names = df.names();
 	vector<RType> rtypes;
@@ -613,12 +628,12 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 
 		auto coldata = df[col_idx];
 		TouchColumn(coldata);
-		auto rtype = RApiTypes::DetectRType(coldata, integer64);
+		auto rtype = RApiTypes::DetectRType(coldata, integer64, timestamptz);
 
 		bool is_named_list_map = false;
 		if (map_list_of && (rtype.id() == RTypeId::LIST || rtype.id() == RTypeId::LIST_OF_NULLS)) {
 			RType value_rtype;
-			if (DetectNamedListMapColumn(coldata, integer64, value_rtype)) {
+			if (DetectNamedListMapColumn(coldata, integer64, timestamptz, value_rtype)) {
 				child_list_t<RType> struct_children;
 				struct_children.push_back({"key", RType(RTypeId::STRING)});
 				struct_children.push_back({"value", value_rtype});
@@ -738,6 +753,7 @@ DataFrameScanFunction::DataFrameScanFunction()
 	named_parameters["integer64"] = LogicalType::BOOLEAN;
 	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	named_parameters["map_list_of"] = LogicalType::BOOLEAN;
+	named_parameters["timestamptz"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

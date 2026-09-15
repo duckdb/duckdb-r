@@ -2,7 +2,7 @@
 #' @inheritParams DBI::dbDataType
 #' @usage NULL
 dbDataType__duckdb_connection <- function(dbObj, obj, ...) {
-  dbDataType(dbObj@driver, obj, ...)
+  duckdb_data_type(dbObj, obj)
 }
 
 #' @rdname duckdb_connection-class

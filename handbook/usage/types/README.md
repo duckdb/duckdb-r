@@ -69,7 +69,8 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 * **Timestamps** come back as `POSIXct`;
   which zone labels them — `timezone_out` for plain `TIMESTAMP`,
   the session `TimeZone` for `TIMESTAMPTZ` —
-  and when an instant can change is
+  when an instant can change, and which of the two types a `POSIXct`
+  becomes on the way in, is
   [`timestamps/`](/handbook/usage/timestamps/README.md)'s.
 * **Not every column lifts into the relational path** (duckplyr's):
   `rel_from_df()` refuses rather than converts —

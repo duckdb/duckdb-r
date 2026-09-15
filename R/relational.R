@@ -64,6 +64,10 @@ expr_constant <- function(
     } else {
       convert_opts <- con@convert_opts
     }
+    # `TIMESTAMP` for the same reason `rel_from_df()` pins it: a constant
+    # lands in a relation, and the relational path returns the zone it was
+    # given rather than the session's.
+    convert_opts$posixct <- "timestamp"
   }
 
   rethrow_rapi_expr_constant(val, alias, convert_opts)
@@ -195,6 +199,11 @@ rel_from_df <- function(
   # FIXME: Enable warning
   if (is.null(convert_opts)) {
     convert_opts <- con@convert_opts
+    # A relation promises the data frame back unchanged, which a TIMESTAMPTZ
+    # column cannot: it comes back labeled with the session zone. Measured in
+    # experiments/2026-08-09-rel-from-df-posixct/README.md; a caller who wants
+    # the connection's setting here passes `convert_opts` themselves.
+    convert_opts$posixct <- "timestamp"
   }
   if (!is.null(experimental)) {
     convert_opts$experimental <- experimental
