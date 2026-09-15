@@ -58,6 +58,8 @@
 
 #include "src/parser/peg/transformer/transform_external_resource.cpp"
 
+#include "src/parser/peg/transformer/transform_external_resource_source.cpp"
+
 #include "src/parser/peg/transformer/transform_generated.cpp"
 
 #include "src/parser/peg/transformer/transform_generated_trampoline.cpp"
