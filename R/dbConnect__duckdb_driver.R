@@ -11,7 +11,7 @@
 #' @param read_only Set to `TRUE` for read-only operation.
 #'   For file-based databases, this is only applied when the database file is opened for the first time.
 #'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path)
-#'   cannot apply it, and fail rather than ignoring it.
+#'   cannot apply it, and warn rather than ignoring it silently.
 #' @param timezone_out The time zone in which plain `TIMESTAMP` columns
 #'   (without time zone) are returned to R, defaults to `"UTC"`.
 #'   If you want to display datetime values in the local timezone,
@@ -25,7 +25,7 @@
 #' @param config Named list with DuckDB configuration flags, see
 #'   <https://duckdb.org/docs/configuration/overview#configuration-reference> for the possible options.
 #'   These flags are only applied when the database object is instantiated.
-#'   Subsequent connections cannot apply them, and fail rather than ignoring them.
+#'   Subsequent connections cannot apply them, and warn rather than ignoring them silently.
 #' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.

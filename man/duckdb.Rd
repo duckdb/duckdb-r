@@ -52,7 +52,7 @@ data is kept in RAM.}
 \item{read_only}{Set to \code{TRUE} for read-only operation.
 For file-based databases, this is only applied when the database file is opened for the first time.
 Subsequent connections (via the same \code{drv} object or a \code{drv} object pointing to the same path)
-cannot apply it, and fail rather than ignoring it.}
+cannot apply it, and warn rather than ignoring it silently.}
 
 \item{bigint}{How 64-bit integers should be returned. There are two options: \code{"numeric"} and \code{"integer64"}.
 If \code{"numeric"} is selected, bigint integers will be treated as double/numeric.
@@ -61,7 +61,7 @@ If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding
 \item{config}{Named list with DuckDB configuration flags, see
 \url{https://duckdb.org/docs/configuration/overview#configuration-reference} for the possible options.
 These flags are only applied when the database object is instantiated.
-Subsequent connections cannot apply them, and fail rather than ignoring them.}
+Subsequent connections cannot apply them, and warn rather than ignoring them silently.}
 
 \item{...}{These dots are for future extensions and must be empty.}
 
@@ -211,7 +211,8 @@ every \code{duckdb()} call creates a fresh, isolated instance.
 
 Because the instance is created once per database file,
 \code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation.
-A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+A call that reuses an existing instance cannot apply them, and warns rather than dropping them silently.
+The warning is classed \code{duckdb_instance_settings_ignored}, so it can be caught or suppressed on purpose.
 Passing \code{dbdir} to \code{dbConnect()} fails too when the driver owns a database file of its own,
 because the connection would go to \code{dbdir} while the driver kept its own database open.
 To apply different values to a file-based database --

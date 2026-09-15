@@ -108,7 +108,8 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+#' A call that reuses an existing instance cannot apply them, and warns rather than dropping them silently.
+#' The warning is classed `duckdb_instance_settings_ignored`, so it can be caught or suppressed on purpose.
 #' Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
 #' because the connection would go to `dbdir` while the driver kept its own database open.
 #' To apply different values to a file-based database --
@@ -423,6 +424,14 @@ check_tz <- function(timezone) {
 # the driver's own values, and repeating a setting the instance already has is
 # not a collision. Explained in handbook/usage/connections/README.md;
 # duckdb/duckdb-r#2560 asks for the noise, duckdb/duckdb-r#126 for the removal.
+#
+# A warning, not an error. It began as an error, and a reverse-dependency run
+# against 353 packages priced that choice: `datacaged` and `Rduckhts` both stop
+# where 1.5.5 ran, on calls that pass `read_only` to a database they opened
+# earlier. The setting was silently dropped before and is still dropped now --
+# what the error bought was the telling, and a warning tells just as loudly
+# without ending the script. `duckdb_instance_settings_ignored` classes it, so
+# a caller who has read the message once can silence it deliberately.
 warn_instance_settings_ignored <- function(
   drv,
   read_only,
@@ -449,7 +458,7 @@ warn_instance_settings_ignored <- function(
     return(invisible())
   }
 
-  abort(
+  warn(
     c(
       paste0(
         paste0("`", ignored, "`", collapse = ", "),
@@ -460,6 +469,7 @@ warn_instance_settings_ignored <- function(
       "These settings take effect only when the instance is created.",
       "Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it."
     ),
+    class = "duckdb_instance_settings_ignored",
     call = call
   )
 }

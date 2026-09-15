@@ -10,8 +10,8 @@ test_that("reusing an instance is silent when nothing collides", {
   withr::defer(dbDisconnect(con))
 
   # Same settings again.
-  expect_no_error(duckdb(path))
-  expect_no_error(dbDisconnect(dbConnect(drv)))
+  expect_no_warning(duckdb(path))
+  expect_no_warning(dbDisconnect(dbConnect(drv)))
 })
 
 test_that("a differing `bigint` is not a collision", {
@@ -39,9 +39,25 @@ test_that("a `read_only` that the instance cannot honor is reported", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  expect_error(duckdb(path, read_only = TRUE), "read_only")
-  # Refused, not applied: the writable instance is untouched and still reachable.
-  expect_identical(duckdb(path)@database_ref, drv@database_ref)
+  expect_warning(reused <- duckdb(path, read_only = TRUE), "read_only")
+  # Dropped, not applied, and the call still returns the instance it found:
+  # the warning says what was lost without ending the caller's script.
+  expect_identical(reused@database_ref, drv@database_ref)
+  expect_false(reused@read_only)
+})
+
+test_that("the warning is classed, so it can be silenced deliberately", {
+  path <- file.path(withr::local_tempdir(), "db.duckdb")
+
+  drv <- duckdb(path)
+  withr::defer(duckdb_shutdown(drv))
+  con <- dbConnect(drv)
+  withr::defer(dbDisconnect(con))
+
+  expect_warning(
+    duckdb(path, read_only = TRUE),
+    class = "duckdb_instance_settings_ignored"
+  )
 })
 
 test_that("a `config` entry that the instance cannot honor is reported", {
@@ -52,9 +68,10 @@ test_that("a `config` entry that the instance cannot honor is reported", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  # Repeating what the instance already has is not a collision.
-  expect_no_error(duckdb(path, config = list(default_order = "DESC")))
-  expect_error(
+  # Repeating what the instance already has is not a collision, and so is not
+  # a warning either -- `dbConnect()` forwards the driver's own values.
+  expect_no_warning(duckdb(path, config = list(default_order = "DESC")))
+  expect_warning(
     duckdb(path, config = list(default_order = "ASC")),
     "config$default_order",
     fixed = TRUE
@@ -69,7 +86,8 @@ test_that("storage arguments are reported when the instance already exists", {
   con <- dbConnect(drv)
   withr::defer(dbDisconnect(con))
 
-  expect_error(duckdb(path, shared_home = FALSE), "shared_home")
+  expect_warning(reused <- duckdb(path, shared_home = FALSE), "shared_home")
+  expect_identical(reused@database_ref, drv@database_ref)
 })
 
 test_that("a `dbdir` that overrides a file driver's own is reported", {

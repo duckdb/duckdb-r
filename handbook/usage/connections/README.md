@@ -37,28 +37,36 @@ The load-bearing facts:
   release the instance with `duckdb_shutdown()` first;
   a setting the engine also accepts after startup, `memory_limit`
   and `threads` among them, can be `SET` on the connection instead.
-* **Each of those losses is now an error**
+* **Each of those losses warns**
   ([#2560](https://github.com/duckdb/duckdb-r/issues/2560)),
+  under the class `duckdb_instance_settings_ignored`,
   and taking the arguments out of `dbConnect()` altogether remains
   [#126](https://github.com/duckdb/duckdb-r/issues/126).
-  A setting is refused when it *differs* from the instance's, not
+  A setting is reported when it *differs* from the instance's, not
   merely when it is passed: `dbConnect()` forwards the driver's own
   values, so repeating one is no collision.
-  A `dbdir` that would displace the driver's is refused only when the
-  driver owns a file — `dbConnect(duckdb(), "my.db")` displaces a
-  throwaway in-memory database and is the documented idiom.
+  A `dbdir` that would displace the driver's is a different case and
+  still an error, and only when the driver owns a file —
+  `dbConnect(duckdb(), "my.db")` displaces a throwaway in-memory
+  database and is the documented idiom.
   The way through, either way, is `duckdb_shutdown()`.
-* **Why an error and not a warning.**
-  The trade is a script that used to run and now stops, against a
-  setting the caller believed had applied.
-  The second is the worse failure and the harder one to notice —
+* **Why a warning and not an error.**
+  It was an error first.
+  The reasoning was that a setting the caller believed had applied is
+  the worse failure and the harder one to notice —
   a database opened writable when `read_only = TRUE` was asked for
-  reads as success until something writes — and
-  [tidy design](https://design.tidyverse.org/) settles which way that
-  goes.
-  The cost is bounded by comparing values rather than counting
-  arguments: the calls that break are the ones that were already not
-  doing what they said.
+  reads as success until something writes.
+  A reverse-dependency run over 353 packages then priced the other
+  side of that trade: `datacaged` and `Rduckhts` stop where 1.5.5 ran,
+  on calls that hand `read_only` to a database they opened earlier.
+  A warning keeps the telling, which is what #2560 asked for, and
+  drops the part that ends somebody else's script.
+  The setting is no more applied than it was before —
+  the caller now reads about it and carries on.
+  Silence is still the thing being fixed, and the cost stays bounded
+  by comparing values rather than counting arguments:
+  the calls that warn are the ones that were already not doing what
+  they said.
 * **A `dbdir` an extension answers is not normalized.**
   `md:` (MotherDuck), `ducklake:` and their kind name a replacement
   open, not a file, so they pass through untouched; normalizing one
