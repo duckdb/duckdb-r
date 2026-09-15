@@ -5,6 +5,38 @@
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
 
+## Goals and non-goals
+
+duckdb aims to:
+
+- Implement the [DBI](https://dbi.r-dbi.org/) interface for DuckDB,
+  from the driver and connections through prepared statements, transactions, and result fetching.
+- Install the database along with the package:
+  the DuckDB C++ sources are vendored into `src/duckdb/` and built here, so nothing has to be installed separately.
+- Follow upstream DuckDB closely, with an automated vendoring routine advancing each release series commit by commit,
+  and publish the same source tree under the flavor names listed below.
+- Meet the rest of the R ecosystem where it already is:
+  a dbplyr backend, data frames and Arrow objects registered as tables, and CSV files read by the engine directly.
+- Leave the file system alone unless asked:
+  downloaded extensions and stored secrets go under the session's temporary directory unless `~/.duckdb` already exists,
+  and that directory is never created without consent.
+
+It is explicitly not trying to:
+
+- Bundle every DuckDB extension.
+  Only `parquet` and `core_functions` are linked in;
+  everything else is downloaded by `INSTALL`, and no companion R package carries extensions.
+- Fetch anything on its own.
+  An installed extension autoloads on first use, but autoinstall stays off, so nothing is downloaded without being asked for.
+- Expose the relational API as a public interface.
+  Every function there is internal, and duckplyr is the one supported consumer.
+- Hand a prebuilt engine to whoever installs the package.
+  `DUCKDB_R_USE_SYSTEM_LIB` links a released `libduckdb` on Linux and macOS as a development convenience,
+  and nothing fetches one on an installer's behalf.
+- Exercise the bundled C++ engine on CRAN.
+  The test suite and the runnable examples are too heavy for the check farm,
+  so they run on GitHub Actions and r-universe, and elsewhere only when `DUCKDB_R_RUN_TESTS` asks for them.
+
 ## Installation from CRAN
 
 This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
