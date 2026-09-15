@@ -80,6 +80,38 @@ test_that("dbSendQueryArrow() streams: an error late in the result waits for the
   expect_error(dbFetchArrowChunk(res, chunk_size = 6000000), "late")
 })
 
+test_that("a read that fails fails again on the next read, rather than ending the result", {
+  con <- local_con()
+  dbExecute(con, "SET threads = 1")
+
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT CASE WHEN i < 5000000 THEN i ELSE error('late') END AS i
+    FROM range(6000000) t(i)"
+  )
+  withr::defer(dbClearResult(res))
+
+  expect_error(dbFetchArrowChunk(res, chunk_size = 6000000), "late")
+  expect_error(dbFetchArrowChunk(res, chunk_size = 6000000), "late")
+  expect_false(dbHasCompleted(res))
+})
+
+test_that("a SELECT that writes runs to completion, so ending its stream early keeps its transaction", {
+  con <- local_con()
+  dbExecute(con, "CREATE TABLE t (x INTEGER)")
+  dbExecute(con, "CREATE SEQUENCE s")
+
+  dbBegin(con)
+  dbExecute(con, "INSERT INTO t VALUES (42)")
+  res <- dbSendQueryArrow(con, "SELECT nextval('s') AS v FROM range(1000000)")
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
+  dbClearResult(res)
+  dbCommit(con)
+
+  expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM t")$n, 1)
+  expect_equal(dbGetQuery(con, "SELECT nextval('s') AS v")$v, 1000001)
+})
+
 test_that("dbBind() with one row of parameters streams the Arrow result", {
   con <- local_con()
   dbExecute(con, "SET threads = 1")
