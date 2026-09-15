@@ -59,6 +59,22 @@ The load-bearing facts:
   The cost is bounded by comparing values rather than counting
   arguments: the calls that break are the ones that were already not
   doing what they said.
+* **Two callers get the warning instead**
+  — `datacaged` and `Rduckhts`, named in
+  `INSTANCE_SETTINGS_WARN_ONLY` in [`R/Driver.R`](/R/Driver.R).
+  A reverse-dependency run over 353 packages found exactly those two
+  stopping where 1.5.5 ran, each on a `read_only` handed to a database
+  it had opened earlier.
+  The list is meant to be deleted rather than extended:
+  an entry goes when that package stops passing settings to a reused
+  instance, and a third package found later is a reason to reconsider
+  erroring at all, not to add a line.
+  Two things it does not do.
+  It does not help a user's own script, or any package not named,
+  doing exactly what those two do.
+  And it makes the behaviour depend on the caller, so the same line
+  errors from a script and warns from inside `datacaged` —
+  worth remembering when a report does not reproduce.
 * **A `dbdir` an extension answers is not normalized.**
   `md:` (MotherDuck), `ducklake:` and their kind name a replacement
   open, not a file, so they pass through untouched; normalizing one

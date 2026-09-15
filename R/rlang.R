@@ -34,6 +34,26 @@ abort <- function(message = NULL, ..., class = NULL, call = NULL) {
   stop(paste(message, collapse = "\n"), call. = FALSE)
 }
 
+# `rlang::warn()`. How this package raises the diagnostics that are not fatal.
+#
+# The base fallback keeps the message vector joined with newlines, the bulleted
+# layout being rlang's, and drops the calling function the way `abort()` does.
+#
+# Unlike `abort()` it honours `class`, via `warningCondition()`. The class is
+# not decoration: `duckdb_instance_settings_ignored` is documented as the
+# handle for catching or suppressing that warning on purpose, and a contract
+# that held only where rlang happens to be installed would not be one. `call`
+# stays accepted and ignored, so a call site need not know which
+# implementation it is talking to.
+warn <- function(message = NULL, ..., class = NULL, call = NULL) {
+  warning(warningCondition(
+    paste(message, collapse = "\n"),
+    class = class,
+    call = NULL
+  ))
+  invisible()
+}
+
 # `rlang::check_dots_empty0()`.
 check_dots_empty0 <- function(...) {
   if (...length() > 0L) {

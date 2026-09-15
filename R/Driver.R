@@ -417,12 +417,55 @@ check_tz <- function(timezone) {
   timezone
 }
 
+# The CRAN packages that call `duckdb()` with instance settings for a database
+# they opened earlier, and so would stop at the error below.
+#
+# A reverse-dependency run over 353 packages found exactly these two. They get
+# the warning instead; every other caller gets the error. The list is meant to
+# be deleted, not extended: each entry goes when that package stops passing
+# settings to a reused instance, and a third package discovered later is a
+# reason to reconsider erroring at all rather than to add a line here.
+#
+# Two things this list does not do. It does not help a user's own script, or
+# any package not on it, doing exactly what these two do. And it makes the
+# behaviour depend on who is calling, so the same line errors from a script and
+# warns from inside `datacaged` -- which is a thing to remember when a report
+# does not reproduce.
+INSTANCE_SETTINGS_WARN_ONLY <- c("datacaged", "Rduckhts")
+
+# The package whose code called us, or NULL from a script or the console.
+# `find_caller()` in R/dbSendQuery__duckdb_connection_character.R walks the
+# stack the same way for a different purpose; this one wants the name. DBI is
+# skipped with our own namespace because `dbConnect()` sits between the caller
+# and here.
+calling_package <- function() {
+  frames <- sys.frames()
+  skip <- c(get_package_name(), "DBI", "base", "methods")
+
+  for (i in rev(seq_along(frames))) {
+    env <- topenv(frames[[i]])
+    if (!isNamespace(env)) {
+      next
+    }
+    name <- environmentName(env)
+    if (name %in% skip) {
+      next
+    }
+    return(name)
+  }
+
+  NULL
+}
+
 # `config`, `read_only` and the storage arguments describe the database
 # *instance*, so a call that finds one in the registry cannot apply them. They
 # are compared rather than merely counted as supplied: `dbConnect()` forwards
 # the driver's own values, and repeating a setting the instance already has is
 # not a collision. Explained in handbook/usage/connections/README.md;
 # duckdb/duckdb-r#2560 asks for the noise, duckdb/duckdb-r#126 for the removal.
+#
+# An error, except for the callers named in INSTANCE_SETTINGS_WARN_ONLY, who
+# get the same words as a warning and carry on.
 warn_instance_settings_ignored <- function(
   drv,
   read_only,
@@ -449,19 +492,23 @@ warn_instance_settings_ignored <- function(
     return(invisible())
   }
 
-  abort(
-    c(
-      paste0(
-        paste0("`", ignored, "`", collapse = ", "),
-        " can't be applied to the database instance for `",
-        drv@dbdir,
-        "`, which already exists."
-      ),
-      "These settings take effect only when the instance is created.",
-      "Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it."
+  message <- c(
+    paste0(
+      paste0("`", ignored, "`", collapse = ", "),
+      " can't be applied to the database instance for `",
+      drv@dbdir,
+      "`, which already exists."
     ),
-    call = call
+    "These settings take effect only when the instance is created.",
+    "Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it."
   )
+
+  if (isTRUE(calling_package() %in% INSTANCE_SETTINGS_WARN_ONLY)) {
+    warn(message, class = "duckdb_instance_settings_ignored", call = call)
+    return(invisible())
+  }
+
+  abort(message, call = call)
 }
 
 # A `dbdir` an extension answers rather than the filesystem -- `md:` for

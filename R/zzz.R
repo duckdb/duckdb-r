@@ -26,6 +26,7 @@
     rapi_error <<- rapi_error_rlang
     check_dots_empty0 <<- rlang::check_dots_empty0
     inform <<- rlang::inform
+    warn <<- rlang::warn
     arg_match <<- rlang::arg_match
   } else {
     rethrow_restore()

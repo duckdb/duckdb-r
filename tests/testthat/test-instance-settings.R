@@ -44,6 +44,53 @@ test_that("a `read_only` that the instance cannot honor is reported", {
   expect_identical(duckdb(path)@database_ref, drv@database_ref)
 })
 
+test_that("a caller on the warn-only list gets a warning and its driver back", {
+  # The list exists because `datacaged` and `Rduckhts` pass settings to a
+  # database they opened earlier, and erroring stops them where 1.5.5 ran.
+  # `calling_package()` is mocked rather than staged: building a package
+  # namespace inside a test to be found by a stack walk would test testthat.
+  path <- file.path(withr::local_tempdir(), "db.duckdb")
+
+  drv <- duckdb(path)
+  withr::defer(duckdb_shutdown(drv))
+  con <- dbConnect(drv)
+  withr::defer(dbDisconnect(con))
+
+  local_mocked_bindings(calling_package = function() "datacaged")
+
+  expect_warning(
+    reused <- duckdb(path, read_only = TRUE),
+    class = "duckdb_instance_settings_ignored"
+  )
+  # Warned, not applied, and the call still returns the instance it found.
+  expect_identical(reused@database_ref, drv@database_ref)
+  expect_false(reused@read_only)
+})
+
+test_that("a caller that is not on the list still gets the error", {
+  path <- file.path(withr::local_tempdir(), "db.duckdb")
+
+  drv <- duckdb(path)
+  withr::defer(duckdb_shutdown(drv))
+  con <- dbConnect(drv)
+  withr::defer(dbDisconnect(con))
+
+  local_mocked_bindings(calling_package = function() "someotherpkg")
+  expect_error(duckdb(path, read_only = TRUE), "read_only")
+
+  # And a call from a script, which is where `calling_package()` finds nothing.
+  local_mocked_bindings(calling_package = function() NULL)
+  expect_error(duckdb(path, read_only = TRUE), "read_only")
+})
+
+test_that("`calling_package()` names the namespace a call came from", {
+  expect_null(calling_package())
+
+  from_utils <- function() calling_package()
+  environment(from_utils) <- asNamespace("utils")
+  expect_identical(from_utils(), "utils")
+})
+
 test_that("a `config` entry that the instance cannot honor is reported", {
   path <- file.path(withr::local_tempdir(), "db.duckdb")
 
