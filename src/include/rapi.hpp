@@ -17,6 +17,7 @@
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/main/query_result_stream.hpp"
 
 #include "convert.hpp"
 
@@ -216,10 +217,27 @@ public:
 
 	//! Whether a duckdb call is running R code right now
 	static bool Active();
-	//! Park a statement that cannot be destroyed where we are
-	static void Defer(duckdb::unique_ptr<PreparedStatement> stmt);
-	//! Destroy everything parked so far; a no-op while Active()
+	//! Park an object that cannot be destroyed where we are:
+	//! a statement, or a query result, which ends its query under the same lock
+	template <class T>
+	static void Defer(T object) {
+		Park(duckdb::make_uniq<Parked<T>>(std::move(object)));
+	}
+	//! Destroy everything parked so far, in the order it was parked; a no-op while Active()
 	static void Drain();
+
+	struct ParkedBase {
+		virtual ~ParkedBase() = default;
+	};
+
+private:
+	template <class T>
+	struct Parked : public ParkedBase {
+		explicit Parked(T object_p) : object(std::move(object_p)) {
+		}
+		T object;
+	};
+	static void Park(duckdb::unique_ptr<ParkedBase> object);
 };
 
 struct RStatement {
@@ -249,6 +267,54 @@ typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
 
 typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
+// Pulls chunks from a query result and converts them to Arrow arrays of at most batch_size rows.
+// A result that can be drained is streamed; any other is read from its collection.
+class RArrowChunkSource {
+public:
+	explicit RArrowChunkSource(duckdb::unique_ptr<QueryResult> result);
+	explicit RArrowChunkSource(QueryResult &result);
+
+public:
+	// The number of rows written to out, 0 at the end. Throws on an execution error
+	idx_t FetchArray(idx_t batch_size, ArrowArray &out);
+	void FetchSchema(ArrowSchema &out);
+	optional_ptr<QueryResultStream> StreamResult() {
+		return stream_result.get();
+	}
+
+private:
+	void Initialize();
+	bool LoadNextChunk();
+
+private:
+	duckdb::unique_ptr<QueryResult> owned_result;
+	optional_ptr<QueryResult> result;
+	duckdb::unique_ptr<QueryResultStream> stream_result;
+	ClientProperties client_properties;
+	vector<LogicalType> types;
+	vector<string> names;
+	unordered_map<idx_t, const duckdb::shared_ptr<ArrowTypeExtensionData>> extension_types;
+	duckdb::unique_ptr<DataChunk> current_chunk;
+	idx_t offset = 0;
+	bool finished = false;
+};
+
+// An Arrow C stream over a query result, converting on the consumer thread
+struct RResultArrowStream {
+	RResultArrowStream(duckdb::unique_ptr<QueryResult> result, idx_t batch_size);
+
+	ArrowArrayStream stream;
+	RArrowChunkSource source;
+	idx_t batch_size;
+	ErrorData last_error;
+
+private:
+	static int GetSchema(ArrowArrayStream *stream, ArrowSchema *out);
+	static int GetNext(ArrowArrayStream *stream, ArrowArray *out);
+	static const char *GetLastError(ArrowArrayStream *stream);
+	static void Release(ArrowArrayStream *stream);
+};
+
 // The engine's Arrow stream over a query result, behind one that reports a streaming result
 // invalidated by another statement on its connection as an error, where the engine reports the end of the stream
 // (handbook/usage/integrations/README.md).
@@ -261,7 +327,7 @@ struct RArrowArrayStreamWrapper {
 	// which a streaming result lets go of once it has seen its end, and a disconnect frees.
 	// Declared before `engine`, so the context outlives it.
 	duckdb::shared_ptr<ClientContext> context;
-	ResultArrowArrayStreamWrapper engine;
+	RResultArrowStream engine;
 	ErrorData last_error;
 
 private:
@@ -284,6 +350,7 @@ struct RQueryResult {
 	    : context(std::move(context_p)), result(std::move(result_p)), types(result->GetTypes()),
 	      names(IdentifiersToStrings(result->GetNames())), client_properties(result->client_properties) {
 	}
+	~RQueryResult();
 
 	// Declared first, so the context outlives everything that reads it.
 	duckdb::shared_ptr<ClientContext> context;
@@ -370,7 +437,7 @@ private:
 	RStrings();
 };
 
-SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_);
+SEXP duckdb_execute_R_impl(QueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_);
 
 } // namespace duckdb
 
