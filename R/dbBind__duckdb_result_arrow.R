@@ -23,7 +23,7 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
     duckdb_convert_opts_impl(
       res@connection@convert_opts,
       arrow = TRUE,
-      streaming = TRUE
+      allow_stream_result = TRUE
     )
   )
   if (length(out) == 0L) {
