@@ -68,6 +68,8 @@
 
 #include "src/parser/peg/transformer/transform_load.cpp"
 
+#include "src/parser/peg/transformer/transform_match_recognize.cpp"
+
 #include "src/parser/peg/transformer/transform_merge_into.cpp"
 
 #include "src/parser/peg/transformer/transform_pivot.cpp"
