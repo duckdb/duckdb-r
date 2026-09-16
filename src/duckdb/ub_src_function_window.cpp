@@ -1,3 +1,5 @@
+#include "src/function/window/match_recognize_matcher.cpp"
+
 #include "src/function/window/window_aggregate_function.cpp"
 
 #include "src/function/window/window_aggregate_states.cpp"
@@ -17,6 +19,8 @@
 #include "src/function/window/window_executor.cpp"
 
 #include "src/function/window/window_index_tree.cpp"
+
+#include "src/function/window/window_match_recognize.cpp"
 
 #include "src/function/window/window_merge_sort_tree.cpp"
 
