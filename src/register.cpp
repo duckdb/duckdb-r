@@ -136,50 +136,46 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	return std::move(table_function);
 }
 
-class RArrowTabularStreamFactory {
+class RArrowTabularStreamFactory : public ArrowScanFactory {
 public:
 	RArrowTabularStreamFactory(SEXP export_fun_p, SEXP arrow_scannable_p, ClientProperties config_)
 	    : arrow_scannable(arrow_scannable_p), export_fun(export_fun_p), config(std::move(config_)) {
 	}
 
-	static unique_ptr<ArrowArrayStreamWrapper> Produce(uintptr_t factory_p, ArrowStreamParameters &parameters) {
+	unique_ptr<ArrowArrayStreamWrapper> ProduceStream(ArrowStreamParameters &parameters) override {
 		// Called from ArrowScanInitGlobal, under the client context lock.
 		RCallbackScope callback_scope;
 
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
-		auto factory = (RArrowTabularStreamFactory *)factory_p;
 		cpp11::sexp stream_ptr_sexp =
 		    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&res->arrow_array_stream)));
 
-		cpp11::function export_fun = VECTOR_ELT(factory->export_fun, 0);
+		cpp11::function produce_fun = VECTOR_ELT(export_fun, 0);
 
 		auto &column_list = parameters.projected_columns.columns;
 		auto filters = parameters.filters;
 		auto &projection_map = parameters.projected_columns.projection_map;
 		if (column_list.empty()) {
-			export_fun(factory->arrow_scannable, stream_ptr_sexp);
+			produce_fun(arrow_scannable, stream_ptr_sexp);
 		} else {
 			cpp11::sexp projection_sexp = StringsToSexp(column_list);
 			cpp11::sexp filters_sexp = Rf_ScalarLogical(true);
 			if (filters && filters->HasFilters()) {
-				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun);
+				filters_sexp = TransformFilter(*filters, projection_map, export_fun);
 			}
-			export_fun(factory->arrow_scannable, stream_ptr_sexp, projection_sexp, filters_sexp);
+			produce_fun(arrow_scannable, stream_ptr_sexp, projection_sexp, filters_sexp);
 		}
 		return res;
 	}
 
-	static void GetSchema(uintptr_t factory_p, ArrowSchemaWrapper &schema) {
+	void GetSchema(ArrowSchema &schema) override {
 		RCallbackScope callback_scope;
 
-		auto res = make_uniq<ArrowArrayStreamWrapper>();
-		auto factory = (RArrowTabularStreamFactory *)factory_p;
-		cpp11::sexp schema_ptr_sexp =
-		    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&schema.arrow_schema)));
+		cpp11::sexp schema_ptr_sexp = Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&schema)));
 
-		cpp11::function export_fun = VECTOR_ELT(factory->export_fun, 4);
+		cpp11::function schema_fun = VECTOR_ELT(export_fun, 4);
 
-		export_fun(factory->arrow_scannable, schema_ptr_sexp);
+		schema_fun(arrow_scannable, schema_ptr_sexp);
 	}
 
 	SEXP arrow_scannable;
@@ -497,14 +493,11 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;
 	for (auto e = arrow_scans.find(table_name); e != arrow_scans.end(); ++e) {
+		auto &factory = *reinterpret_cast<shared_ptr<RArrowTabularStreamFactory> *>(R_ExternalPtrAddr(e->second[0]));
 		auto table_function = make_uniq<TableFunctionRef>();
 		vector<duckdb::unique_ptr<ParsedExpression>> children;
-		children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second[0]))));
-		children.push_back(
-		    ConstantExpression::FromValue(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
-		children.push_back(
-		    ConstantExpression::FromValue(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
 		table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
+		table_function->bind_info = shared_ptr_cast<RArrowTabularStreamFactory, TableFunctionInfo>(factory);
 		return std::move(table_function);
 	}
 	return nullptr;
@@ -520,9 +513,10 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	}
 
 	auto stream_factory =
-	    new RArrowTabularStreamFactory(export_funs, valuesexp, conn->conn->context->GetClientProperties());
+	    make_shared_ptr<RArrowTabularStreamFactory>(export_funs, valuesexp, conn->conn->context->GetClientProperties());
 	// make r external ptr object to keep factory around until arrow table is unregistered
-	cpp11::external_pointer<RArrowTabularStreamFactory> factorysexp(stream_factory);
+	cpp11::external_pointer<shared_ptr<RArrowTabularStreamFactory>> factorysexp(
+	    new shared_ptr<RArrowTabularStreamFactory>(stream_factory));
 
 	// factorysexp must occur first here, used in ArrowScanReplacement()
 	cpp11::writable::list state_list = {factorysexp, export_funs, valuesexp};
