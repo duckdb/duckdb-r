@@ -29,6 +29,7 @@ class DuckDB;
 class LogicalOperator;
 class SelectStatement;
 struct CSVReaderOptions;
+struct TableFunctionInfo;
 
 //! A connection to a database. This represents a (client) connection that can
 //! be used to query the database.
@@ -135,6 +136,10 @@ public:
 	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values,
 	                                              const named_parameter_map_t &named_parameters);
 	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values);
+	//! Calls a table function with process-local input for this invocation
+	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values,
+	                                              const named_parameter_map_t &named_parameters,
+	                                              shared_ptr<TableFunctionInfo> bind_info);
 	//! Returns a relation that produces values
 	DUCKDB_API shared_ptr<Relation> Values(const vector<vector<Value>> &values);
 	DUCKDB_API shared_ptr<Relation> Values(vector<vector<unique_ptr<ParsedExpression>>> &&values);
