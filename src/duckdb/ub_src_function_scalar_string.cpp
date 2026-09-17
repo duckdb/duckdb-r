@@ -6,6 +6,8 @@
 
 #include "src/function/scalar/string/contains.cpp"
 
+#include "src/function/scalar/string/hive_partition_component.cpp"
+
 #include "src/function/scalar/string/length.cpp"
 
 #include "src/function/scalar/string/like.cpp"
