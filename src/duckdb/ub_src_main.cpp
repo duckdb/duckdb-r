@@ -62,6 +62,8 @@
 
 #include "src/main/result_set_manager.cpp"
 
+#include "src/main/result_unit.cpp"
+
 #include "src/main/statement_iterator.cpp"
 
 #include "src/main/user_settings.cpp"
