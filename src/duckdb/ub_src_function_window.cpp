@@ -30,6 +30,8 @@
 
 #include "src/function/window/window_rownumber_function.cpp"
 
+#include "src/function/window/window_scalar_function.cpp"
+
 #include "src/function/window/window_segment_tree.cpp"
 
 #include "src/function/window/window_shared_expressions.cpp"
