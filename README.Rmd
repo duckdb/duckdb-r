@@ -1,9 +1,5 @@
 ---
-output:
-  github_document:
-    html_preview: false
-    md_extensions: "-smart"
-    pandoc_args: ["--wrap=preserve"]
+output: cynkratemplate::readme_document
 ---
 
 ```{r setup, include = FALSE}
