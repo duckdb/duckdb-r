@@ -516,6 +516,8 @@ has "under a header the readers anchor on" \
   "$(git log -1 --format=%B origin/bare-dev)" 'R-side fix'
 is "written exactly once" \
   "$(git log -1 --format=%B origin/bare-dev | grep -ci '^R-side fix')" 1
+is "in the spelling series-glue.sh reads today" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -c '^R-side fix:')" 1
 
 echo
 echo "== --dev-note when the chunk minted nothing"

@@ -753,6 +753,8 @@ else
   # prose is a finding nothing ever reads back. The header is the one part of
   # the note that is the same every time, so the stage writes it when the note
   # does not, and leaves whichever spelling the note chose alone when it does.
+  # The spelling written here is the colon one, which series-glue.sh reads
+  # today; #2746 is what makes the other three read back as well.
   if [ -n "$DEV_NOTE" ]; then
     if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ]; then
       git worktree remove --force "$wt"
@@ -762,7 +764,7 @@ else
     fi
     note_head=
     if ! sed -n '/[^[:space:]]/{p;q;}' "$DEV_NOTE" | grep -qi '^R-side fix'; then
-      note_head=$'R-side fix\n----------\n\n'
+      note_head=$'R-side fix:\n\n'
     fi
     { git -C "$wt" log -1 --format=%B; echo; printf '%s' "$note_head";
       cat "$DEV_NOTE"; } > "$wt/.series-advance-note"
