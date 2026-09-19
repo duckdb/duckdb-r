@@ -308,7 +308,9 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	Vector vec(type, 1);
 	vec.SetValue(0, val);
 
-	SEXP dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
+	// Hold the destination across `duckdb_r_decorate()` and `duckdb_r_transform()`:
+	// both allocate, and an unprotected `dest` can be collected mid-conversion.
+	cpp11::sexp dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
 	duckdb_r_decorate(type, dest, convert_opts);
 	duckdb_r_transform(vec, dest, 0, 1, convert_opts, "variant");
 
