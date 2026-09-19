@@ -1,1 +1,8 @@
 lang,image,scenario,target,rows,base_mb,peak_mb,over_base_mb,seconds
+r,dev,engine_generate,file,750000000,137,492,355,107.0
+r,dev,frame_dbWriteTable,file,750000000,11581,11954,373,101.7
+r,dev,frame_register_only,file,750000000,11581,11581,1,1.3
+r,dev,frame_nanoarrow_register,file,750000000,11581,12007,426,103.9
+r,dev,chunks_dbAppendTable,file,750000000,138,601,463,186.2
+r,dev,stream_stdin_csv,file,750000000,138,568,431,378.0
+r,dev,stream_stdin_arrow_dbAppendTableArrow,file,750000000,138,719,582,235.5
