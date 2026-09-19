@@ -68,6 +68,12 @@ This file is what names the contents, so nothing here is an orphan.
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
   fix in [#2562](https://github.com/duckdb/duckdb-r/pull/2562);
   supports [`usage/memory/`](/handbook/usage/memory/README.md).
+* [`2026-09-19-instance-cache-in-use/`](2026-09-19-instance-cache-in-use/) —
+  which state the engine's instance cache is in when it finds an entry
+  whose handle is gone, how each is reached from the C API, and what
+  reporting a live instance without a grace period costs; supports
+  [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
+  and [`usage/connections/`](/handbook/usage/connections/README.md).
 * [`2026-08-streaming-tpch-bench/`](2026-08-streaming-tpch-bench/) —
   wall time and memory of moving a TPC-H result into R, per fetch
   strategy, on the CRAN build and
