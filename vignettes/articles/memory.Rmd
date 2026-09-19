@@ -1,0 +1,96 @@
+---
+title: "Memory-efficient reading and writing"
+---
+
+<!-- Handbook: handbook/usage/memory/README.md — this article is the user-facing
+     digest of the memory leaves; the leaves own the facts, this page shows one way. -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+DuckDB and R allocate from two different budgets.
+The engine's memory is bounded by `memory_limit` and can spill to disk;
+R's vectors are bounded by nothing and never spill.
+Every number below is a measurement of the same 800 MB result —
+fifty million rows of two `DOUBLE` columns —
+taken on the development build in September 2026,
+as the peak resident memory of the whole R process over its baseline;
+the method and every other route are recorded in the repository's
+[`experiments/2026-09-14-memory-clients/`](https://github.com/duckdb/duckdb-r/tree/main/experiments/2026-09-14-memory-clients)
+and
+[`experiments/2026-09-19-memory-ingest/`](https://github.com/duckdb/duckdb-r/tree/main/experiments/2026-09-19-memory-ingest).
+
+## Set the limit where it takes effect
+
+The engine's limit is set on the driver, or on a live connection.
+Passing it to `dbConnect(config = )` does not reach an instance that
+already exists, which the default in-memory database always does.
+
+```{r}
+library(DBI)
+con <- dbConnect(duckdb::duckdb(config = list(memory_limit = "2GB")))
+# or, on a live connection:
+dbExecute(con, "SET memory_limit = '2GB'")
+```
+
+## Reading: stream, and release each batch
+
+The one route that never holds the result whole is the Arrow stream.
+Execution starts at `dbSendQueryArrow()` and pauses at a bounded
+buffer; each `dbFetchArrowChunk()` hands over one batch,
+which `as.data.frame()` converts and `nanoarrow_pointer_release()`
+frees at once — the release matters, because a batch's memory is
+Arrow's, and R's garbage collector never sees it.
+
+```{r}
+rs <- dbSendQueryArrow(con, "SELECT * FROM huge")
+repeat {
+  batch <- dbFetchArrowChunk(rs, chunk_size = 1e6)
+  if (batch$length == 0) break
+  df <- as.data.frame(batch)
+  # ... consume df ...
+  nanoarrow::nanoarrow_pointer_release(batch)
+}
+dbClearResult(rs)
+```
+
+Overhead, measured: the loop above peaks between 160 and 230 MB over
+the process baseline for the 800 MB result, and stays there even when
+the query sorts more than `memory_limit` allows, because the sort spills
+and the stream carries the result batch by batch.
+Fetching the same result with `dbGetQuery()` peaks at about 1,650 MB,
+twice the data: the engine's copy and R's coexist while the result
+converts — and `dbSendQuery()` with a `dbFetch(n = )` loop peaks the
+same, because the whole result is materialized before the first `n`
+rows return.
+Dropping batches without releasing them costs about 900 MB,
+the whole result waiting for a collector that runs on R-heap pressure it
+never sees.
+
+## Writing: hand the data frame over, and let the engine scan it
+
+`dbWriteTable()` copies nothing on the R side: it registers the data
+frame as a view the engine scans in place, creates the table from that
+scan, and unregisters.
+`dbAppendTable()` does the same into an existing table, so data that
+arrives in pieces is appended piece by piece with the same cost.
+
+```{r}
+dbWriteTable(con, "t", df)        # one frame
+dbAppendTable(con, "t", next_df)  # or piece by piece
+```
+
+Overhead, measured: writing an 800 MB frame peaks between 280 and
+320 MB over the frame's own size, in a file database and in an
+in-memory one alike under a 300 MB `memory_limit` — the engine's write
+working set, bounded by the limit, and nothing else.
+Fifty appends of a million rows each, from a producer that never holds
+the data whole, peak at about 430 MB over an empty process.
+Where no table is needed at all, `duckdb::duckdb_register()` alone
+lets queries scan the frame for a measured 1 MB of overhead.
+
+```{r}
+duckdb::duckdb_register(con, "df", df)
+dbGetQuery(con, "SELECT count(*) FROM df WHERE a > 0.5")
+```
