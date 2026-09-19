@@ -1,5 +1,38 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9023
+
+## Bug fixes
+
+### ci
+
+- Align every workflow reference with where the actions now live (#2745).
+
+### ci
+
+- Point the two duckdb-r workflows at the relocated actions (#2743).
+
+### series-open
+
+- Stamp the preview prefix on both series, not just the parent (#2744).
+
+## Features
+
+### series
+
+- Declare the flavors once, and generate what says so (#2742).
+
+### preview-prefix
+
+- Stamp the parent's new prefix at the branch cut (#2740).
+
+## Documentation
+
+### ci
+
+- Point at the actions where they live now (#2741).
+
+
 # duckdb 1.5.5.9022
 
 ## Bug fixes

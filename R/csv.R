@@ -5,7 +5,8 @@
 #' Directly reads a CSV file into DuckDB, tries to detect and create the correct schema for it.
 #' This usually is much faster than reading the data into R and writing it to DuckDB.
 #'
-#' If the table already exists in the database, the csv is appended to it. Otherwise the table is created.
+#' If the table already exists in the database, the csv is appended to it.
+#' Otherwise the table is created.
 #'
 #' @inheritParams duckdb_register
 #' @param files One or more CSV file names, should all have the same structure though

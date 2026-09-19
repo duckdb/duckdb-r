@@ -31,8 +31,7 @@ s3_register <- function(generic, class, method = NULL) {
   register <- function(...) {
     envir <- asNamespace(package)
 
-    # Refresh the method each time, it might have been updated by
-    # `devtools::load_all()`
+    # Refresh the method each time, it might have been updated by `devtools::load_all()`
     method_fn <- get_method(method)
     stopifnot(is.function(method_fn))
 

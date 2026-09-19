@@ -20,8 +20,7 @@ encode_values <- function(value) {
 
 #' Register a data frame as a virtual table
 #'
-#' `duckdb_register()` registers a data frame as a virtual table (view)
-#'  in a DuckDB connection.
+#' `duckdb_register()` registers a data frame as a virtual table (view) in a DuckDB connection.
 #'  No data is copied.
 #'
 #' `duckdb_unregister()` unregisters a previously registered data frame.
@@ -71,8 +70,7 @@ duckdb_unregister <- function(conn, name) {
 
 #' Register an Arrow data source as a virtual table
 #'
-#' `duckdb_register_arrow()` registers an Arrow data source as a virtual table (view)
-#'  in a DuckDB connection.
+#' `duckdb_register_arrow()` registers an Arrow data source as a virtual table (view) in a DuckDB connection.
 #'  No data is copied.
 #'
 #' `duckdb_unregister_arrow()` unregisters a previously registered data frame.

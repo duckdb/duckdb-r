@@ -8,8 +8,7 @@
 #'   types, ...).
 #' @slot env environment holding the result's mutable fetch state.
 #' @slot arrow whether the result is fetched via Arrow.
-#' @slot query_result external pointer to the underlying materialized query
-#'   result.
+#' @slot query_result external pointer to the underlying materialized query result.
 #' @aliases duckdb_result
 #' @keywords internal
 #' @export

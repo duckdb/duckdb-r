@@ -1,9 +1,7 @@
 # Implementation of the storage-location policy documented in `?duckdb_storage`.
-# Explained in handbook/usage/storage/README.md, and for the temp/spill
-# resolvers at the bottom, handbook/usage/memory/budget/README.md.
-# Extensions and stored secrets live under a single "home" directory that is
-# resolved afresh on every `duckdb()` call; the resolvers and the user-facing
-# status function build on the helpers below.
+# Explained in handbook/usage/storage/README.md, and for the temp/spill resolvers at the bottom, handbook/usage/memory/budget/README.md.
+# Extensions and stored secrets live under a single "home" directory that is resolved afresh on every `duckdb()` call;
+# the resolvers and the user-facing status function build on the helpers below.
 
 # --- Home root ----------------------------------------------------------------
 
@@ -12,14 +10,14 @@ session_temp_dir <- function() {
   tempdir()
 }
 
-# The per-session home, under tempdir(). Wiped when the R session ends.
+# The per-session home, under tempdir().
+# Wiped when the R session ends.
 session_home <- function() {
   file.path(session_temp_dir(), get_package_name())
 }
 
-# The sub-directory of a home root that holds a given kind of state. The names
-# ("extensions", "stored_secrets") match DuckDB's own layout, so a home shared
-# with the DuckDB CLI and Python client lines up.
+# The sub-directory of a home root that holds a given kind of state.
+# The names ("extensions", "stored_secrets") match DuckDB's own layout, so a home shared with the DuckDB CLI and Python client lines up.
 home_subdir <- function(root, kind) {
   file.path(root, kind)
 }
@@ -31,24 +29,21 @@ is_nonempty_string <- function(x) {
 
 # --- Resolution ---------------------------------------------------------------
 
-# Resolve the home directory this driver uses for extensions and secrets, and
-# the tier that chose it. First match wins:
+# Resolve the home directory this driver uses for extensions and secrets, and the tier that chose it.
+# First match wins:
 #
 #   1. the `home` argument to duckdb()          -> source "argument"
 #   2. the `duckdb.home` option                 -> source "option"
 #   3. the `DUCKDB_R_HOME` environment variable -> source "env"
 #   4. `~/.duckdb`, if it already exists         -> source "shared"
-#   5. otherwise: in an interactive session, offer to create `~/.duckdb` once
-#      (source "created" if accepted; a "no" uses a per-session tempdir; a
-#      cancelled prompt aborts with an error). A non-interactive session uses
-#      the per-session tempdir (source "session").
+#   5. otherwise: in an interactive session, offer to create `~/.duckdb` once (source "created" if accepted;
+#      a "no" uses a per-session tempdir; a cancelled prompt aborts with an error).
+#      A non-interactive session uses the per-session tempdir (source "session").
 #
-# Only branch 5 in an interactive session has side effects (a prompt, and on
-# consent creating the directory, or an error if cancelled). The read-only
-# counterpart used by `duckdb_storage_status()` is `describe_storage_home()`.
+# Only branch 5 in an interactive session has side effects (a prompt, and on consent creating the directory, or an error if cancelled).
+# The read-only counterpart used by `duckdb_storage_status()` is `describe_storage_home()`.
 resolve_storage_home <- function(home = NULL, shared_home = NULL) {
-  # `shared_home` is a tri-state explicit override (duckdb() has already checked
-  # it is not combined with `home`):
+  # `shared_home` is a tri-state explicit override (duckdb() has already checked it is not combined with `home`):
   #   * NULL  -- resolve automatically (the tiers below).
   #   * TRUE  -- opt in to ~/.duckdb, creating it if needed, with no prompt.
   #   * FALSE -- force a per-session tempdir, even if ~/.duckdb already exists
@@ -73,14 +68,13 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
   }
 
   if (is_interactive() && !home_prompt_declined()) {
-    # consent_to_create_home() returns askYesNo()'s TRUE (yes) / FALSE (no) /
-    # NA (cancel).
+    # consent_to_create_home() returns askYesNo()'s TRUE (yes) / FALSE (no) / NA (cancel).
     answer <- consent_to_create_home(shared)
     if (is.na(answer)) {
-      # A cancelled prompt is not a decision. Rather than silently pick a
-      # location, abort -- reusing the storage-location message as the error
-      # text so the user sees exactly how to choose. Only an explicit "no"
-      # proceeds with a temporary directory.
+      # A cancelled prompt is not a decision.
+      # Rather than silently pick a location, abort --
+      # reusing the storage-location message as the error text so the user sees exactly how to choose.
+      # Only an explicit "no" proceeds with a temporary directory.
       abort(
         paste(
           storage_location_message(
@@ -105,18 +99,18 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
       )
     }
 
-    # An explicit "no", or a creation that failed: remember it so we do not
-    # prompt again this session, and fall through to the per-session default.
+    # An explicit "no", or a creation that failed:
+    # remember it so we do not prompt again this session, and fall through to the per-session default.
     mark_home_prompt_declined()
   }
 
   list(root = session_home(), source = "session")
 }
 
-# The tiers of `resolve_storage_home()` that are pure lookups with no side
-# effects: the explicit argument, the option, and the environment variable.
-# Returns NULL when none is set. Shared by the resolver and the read-only
-# `describe_storage_home()`.
+# The tiers of `resolve_storage_home()` that are pure lookups with no side effects:
+# the explicit argument, the option, and the environment variable.
+# Returns NULL when none is set.
+# Shared by the resolver and the read-only `describe_storage_home()`.
 fixed_storage_home <- function(home = NULL) {
   if (!is.null(home)) {
     check_home_arg(home)
@@ -139,8 +133,7 @@ fixed_storage_home <- function(home = NULL) {
   NULL
 }
 
-# Read-only counterpart to `resolve_storage_home()`, used by
-# `duckdb_storage_status()`: never prompts and never creates a directory.
+# Read-only counterpart to `resolve_storage_home()`, used by `duckdb_storage_status()`: never prompts and never creates a directory.
 # A missing `~/.duckdb` is therefore reported as the per-session default.
 describe_storage_home <- function() {
   fixed <- fixed_storage_home()
@@ -164,22 +157,19 @@ check_home_arg <- function(home) {
 
 # --- Interactive consent ------------------------------------------------------
 
-# Ask, in an interactive session, whether `~/.duckdb` may be created. Returns
-# askYesNo()'s TRUE / FALSE / NA (NA when the prompt is cancelled); the caller
-# treats anything but TRUE as a decline. Mockable seam: tests bind this directly
-# rather than driving the console.
+# Ask, in an interactive session, whether `~/.duckdb` may be created.
+# Returns askYesNo()'s TRUE / FALSE / NA (NA when the prompt is cancelled); the caller treats anything but TRUE as a decline.
+# Mockable seam: tests bind this directly rather than driving the console.
 #
-# The default is anchored at `interactive()`, not the `is_interactive()` that
-# gates the prompt in resolve_storage_home(). The two can disagree: setting
-# `rlang_interactive = TRUE` (a common idiom in reverse dependencies' tests)
-# makes `is_interactive()` report an interactive session in a process where
-# `readline()` cannot reach a human -- it returns "" at once, and askYesNo()
-# takes that empty answer as its `default`. With a hardcoded TRUE the package
-# would then consent on the user's behalf and create `~/.duckdb` during
-# `R CMD check`, exactly what this policy exists to prevent. Anchoring the
-# default at `interactive()` makes the unanswerable prompt a "no", which falls
-# through to the per-session tempdir. A human at a console still gets the
-# convenient "yes" default.
+# The default is anchored at `interactive()`, not the `is_interactive()` that gates the prompt in resolve_storage_home().
+# The two can disagree:
+# setting `rlang_interactive = TRUE` (a common idiom in reverse dependencies' tests)
+# makes `is_interactive()` report an interactive session in a process where `readline()` cannot reach a human --
+# it returns "" at once, and askYesNo() takes that empty answer as its `default`.
+# With a hardcoded TRUE the package would then consent on the user's behalf and create `~/.duckdb` during `R CMD check`,
+# exactly what this policy exists to prevent.
+# Anchoring the default at `interactive()` makes the unanswerable prompt a "no", which falls through to the per-session tempdir.
+# A human at a console still gets the convenient "yes" default.
 consent_to_create_home <- function(path) {
   utils::askYesNo(
     paste0("duckdb: create ", path, "?\n"),
@@ -195,11 +185,10 @@ mark_home_prompt_declined <- function() {
   storage_message_state[["home_prompt_declined"]] <- TRUE
 }
 
-# Whether the user has, in this session, chosen a storage location explicitly by
-# passing `home` or `shared_home` to duckdb(). The storage-location message
-# exists to point at exactly those arguments, so once the user has used one of
-# them they have seen the settings and later auto-resolved calls no longer
-# announce (see the announce logic in duckdb()).
+# Whether the user has, in this session, chosen a storage location explicitly by passing `home` or `shared_home` to duckdb().
+# The storage-location message exists to point at exactly those arguments,
+# so once the user has used one of them they have seen the settings
+# and later auto-resolved calls no longer announce (see the announce logic in duckdb()).
 storage_choice_made <- function() {
   isTRUE(storage_message_state[["choice_made"]])
 }
@@ -210,10 +199,9 @@ mark_storage_choice_made <- function() {
 
 # --- Temp / spill directory ---------------------------------------------------
 
-# An explicit temp/spill-directory override via the `duckdb.temp_directory`
-# option or the `DUCKDB_R_TEMP_DIRECTORY` environment variable, or NULL if neither
-# is set. Unlike the extension/secret home this stays a separate setting: spill
-# files can be large and are unrelated to the extension cache.
+# An explicit temp/spill-directory override via the `duckdb.temp_directory` option or the `DUCKDB_R_TEMP_DIRECTORY` environment variable,
+# or NULL if neither is set.
+# Unlike the extension/secret home this stays a separate setting: spill files can be large and are unrelated to the extension cache.
 temp_directory_override <- function() {
   opt <- getOption("duckdb.temp_directory")
   if (is_nonempty_string(opt)) {
@@ -226,11 +214,11 @@ temp_directory_override <- function() {
   NULL
 }
 
-# Resolve the temp/spill directory. Temporary storage stays on by default, as
-# in the DuckDB CLI. For on-disk databases keep DuckDB's `<db>.tmp` default
-# (`directory` is NULL so the setting is left unset); for in-memory databases
-# DuckDB would spill to a `.tmp` directory in the working directory, so point
-# each instance at its own directory under the session tempdir instead.
+# Resolve the temp/spill directory.
+# Temporary storage stays on by default, as in the DuckDB CLI.
+# For on-disk databases keep DuckDB's `<db>.tmp` default (`directory` is NULL so the setting is left unset);
+# for in-memory databases DuckDB would spill to a `.tmp` directory in the working directory,
+# so point each instance at its own directory under the session tempdir instead.
 # Overridable; an override is passed through verbatim and never created here,
 # like an explicit `temp_directory` in the CLI.
 resolve_temp_directory <- function(dbdir) {
@@ -245,17 +233,16 @@ resolve_temp_directory <- function(dbdir) {
 }
 
 # The spill directory for one in-memory database instance:
-# `<session_home>/temp/spill-<unique>`. The leaf is not created here -- that is
-# left to the engine, which creates it when a query first spills and removes it
-# again when the instance shuts down, exactly as the CLI's `.tmp` behaves. Only
-# the parent chain is created, because the engine's directory creation is a
-# single-level `mkdir` that cannot make two missing levels: without it, the
-# first spill fails with an IO Error instead (the in-memory corner of the
-# duckdb/duckdb-r#1604 symptom family). The leaf is unique per instance because
-# concurrent instances must not share a spill directory: the engine's spill
-# file names are deterministic (`duckdb_temp_storage_<size>-<index>.tmp`,
-# `duckdb_temp_block-<id>.block`), and a shutting-down instance removes the
-# `duckdb_temp_*` files -- or the whole directory -- it finds in its own.
+# `<session_home>/temp/spill-<unique>`.
+# The leaf is not created here --
+# that is left to the engine,
+# which creates it when a query first spills and removes it again when the instance shuts down, exactly as the CLI's `.tmp` behaves.
+# Only the parent chain is created, because the engine's directory creation is a single-level `mkdir` that cannot make two missing levels:
+# without it, the first spill fails with an IO Error instead (the in-memory corner of the duckdb/duckdb-r#1604 symptom family).
+# The leaf is unique per instance because concurrent instances must not share a spill directory:
+# the engine's spill file names are deterministic (`duckdb_temp_storage_<size>-<index>.tmp`,
+# `duckdb_temp_block-<id>.block`), and a shutting-down instance removes the `duckdb_temp_*` files -- or the whole directory --
+# it finds in its own.
 instance_spill_directory <- function() {
   root <- file.path(session_home(), "temp")
   dir.create(root, recursive = TRUE, showWarnings = FALSE)
@@ -282,9 +269,8 @@ now_seconds <- function() {
 # Session-local throttle state (also holds the "prompt declined" flag).
 storage_message_state <- new.env(parent = emptyenv())
 
-# Emit `message` (an rlang-style character vector, names "i"/"!"/"*" for
-# bullets) at most once per `seconds` per session. Used for the interactive
-# reminder, where a human can act on it and a gentle time-based cadence fits.
+# Emit `message` (an rlang-style character vector, names "i"/"!"/"*" for bullets) at most once per `seconds` per session.
+# Used for the interactive reminder, where a human can act on it and a gentle time-based cadence fits.
 inform_once_every <- function(id, seconds, message) {
   now <- now_seconds()
   last <- storage_message_state[[id]]
@@ -296,15 +282,13 @@ inform_once_every <- function(id, seconds, message) {
   invisible(TRUE)
 }
 
-# The most times the non-interactive storage-location message is shown per
-# session before it goes quiet for good. A bounded count (rather than the
-# time-based throttle used interactively) so that a long-running or automated
-# process -- which the time throttle would remind forever, once every interval
-# -- eventually stops being told.
+# The most times the non-interactive storage-location message is shown per session before it goes quiet for good.
+# A bounded count (rather than the time-based throttle used interactively) so that a long-running or automated process --
+# which the time throttle would remind forever, once every interval -- eventually stops being told.
 STORAGE_MESSAGE_MAX <- 60L
 
-# Emit `message` up to `max` times per session (keyed by `id`), then stay
-# silent. The final allowed emission notes that it will not be shown again.
+# Emit `message` up to `max` times per session (keyed by `id`), then stay silent.
+# The final allowed emission notes that it will not be shown again.
 inform_up_to <- function(id, max, message) {
   count <- storage_message_state[[id]]
   count <- if (is.numeric(count)) count else 0L
@@ -327,13 +311,12 @@ inform_up_to <- function(id, max, message) {
   invisible(TRUE)
 }
 
-# The informational lines describing a resolved storage location (`resolved` is
-# the list(root, source) from resolve_storage_home()). Kept in one place because
-# it is reused both for the non-interactive message and, verbatim, as the error
-# text when an interactive prompt is cancelled. `interactive = TRUE` selects the
-# variant for the cancelled-prompt error: the quickest fix there is to re-run
-# and answer the prompt, so it leads with that rather than the `shared_home`
-# arguments a script would use.
+# The informational lines describing a resolved storage location (`resolved` is the list(root, source) from resolve_storage_home()).
+# Kept in one place because it is reused both for the non-interactive message and, verbatim,
+# as the error text when an interactive prompt is cancelled.
+# `interactive = TRUE` selects the variant for the cancelled-prompt error:
+# the quickest fix there is to re-run and answer the prompt,
+# so it leads with that rather than the `shared_home` arguments a script would use.
 storage_location_message <- function(resolved, interactive = FALSE) {
   if (identical(resolved$source, "shared")) {
     c(
@@ -367,8 +350,7 @@ storage_location_message <- function(resolved, interactive = FALSE) {
   }
 }
 
-# A short confirmation shown right after the interactive prompt creates
-# ~/.duckdb, so the user sees what accepting actually did.
+# A short confirmation shown right after the interactive prompt creates ~/.duckdb, so the user sees what accepting actually did.
 home_created_message <- function(path) {
   c(
     paste0("duckdb: created ", path, "."),
@@ -377,13 +359,12 @@ home_created_message <- function(path) {
   )
 }
 
-# Called when a new driver is created and the location was chosen by the package
-# itself (a per-session tempdir, or an existing ~/.duckdb) rather than requested
-# explicitly. Reports where extensions and secrets are going, and how to change
-# or silence it. The reminder is throttled differently by mode: interactively,
-# at most once every 8 hours (a human can act on it); non-interactively, a
-# bounded number of times before going silent for good, so an automated process
-# is not reminded forever.
+# Called when a new driver is created and the location was chosen by the package itself (a per-session tempdir,
+# or an existing ~/.duckdb) rather than requested explicitly.
+# Reports where extensions and secrets are going, and how to change or silence it.
+# The reminder is throttled differently by mode: interactively,
+# at most once every 8 hours (a human can act on it);
+# non-interactively, a bounded number of times before going silent for good, so an automated process is not reminded forever.
 maybe_storage_location_message <- function(resolved) {
   if (is.null(resolved) || is.null(resolved$root)) {
     return(invisible())
