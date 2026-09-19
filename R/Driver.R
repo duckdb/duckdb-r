@@ -342,9 +342,12 @@ duckdb_shutdown <- function(drv) {
   # instance is commonly gone already, released by its last connection.
   rethrow_rapi_shutdown(drv@database_ref)
 
+  # This driver's own entry, and only it: `rm()` warns rather than shrugging when
+  # there is none, and by now the key may hold a newer driver, whose instance has
+  # to stay reachable or the next `duckdb()` call opens a second one on the file.
+  registered <- driver_registry[[drv@dbdir]]
   if (
-    drv@dbdir != DBDIR_MEMORY &&
-      exists(drv@dbdir, driver_registry, inherits = FALSE)
+    !is.null(registered) && identical(registered@database_ref, drv@database_ref)
   ) {
     rm(list = drv@dbdir, envir = driver_registry)
   }

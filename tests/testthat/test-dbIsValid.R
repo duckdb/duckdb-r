@@ -50,3 +50,20 @@ test_that("`duckdb_shutdown()` is silent once the instance is gone", {
   expect_silent(duckdb_shutdown(drv))
   expect_silent(duckdb_shutdown(drv))
 })
+
+test_that("`duckdb_shutdown()` leaves a newer driver for the same path cached", {
+  path <- file.path(withr::local_tempdir(), "db.duckdb")
+
+  old <- duckdb(path)
+  con <- dbConnect(old)
+  dbDisconnect(con)
+
+  # The instance `old` held is gone, so this call creates and caches a second
+  # one. Shutting `old` down must not evict it: the next `duckdb()` call would
+  # then open a third instance beside a live one, on the same file.
+  new <- duckdb(path)
+  withr::defer(duckdb_shutdown(new))
+
+  duckdb_shutdown(old)
+  expect_identical(duckdb(path)@database_ref, new@database_ref)
+})
