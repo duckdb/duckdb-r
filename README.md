@@ -113,10 +113,14 @@ and other details, are described in the handbook under
 
 ## Vendoring
 
-This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. How it works, and how to vendor by hand, is in the handbook under [`operations/vendoring/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/operations/vendoring/README.md).
+This package includes a vendored copy of the DuckDB C++ library.
+The vendoring process is automated —
+a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit.
+How it works, and how to vendor by hand, is in the handbook under [`operations/vendoring/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/operations/vendoring/README.md).
 
 ## Contributors
 
-Thanks to all [contributors](https://github.com/duckdb/duckdb-r/graphs/contributors) to this repository, and to those who contributed when the code was still hosted in the main [duckdb/duckdb](https://github.com/duckdb/duckdb) repository:
+Thanks to all [contributors](https://github.com/duckdb/duckdb-r/graphs/contributors) to this repository,
+and to those who contributed when the code was still hosted in the main [duckdb/duckdb](https://github.com/duckdb/duckdb) repository:
 
 Mark Raasveldt, Pedro Holanda, Tom Ebergen, Reijo Sund, Nicolas Bennett, Patrik Schratz, Tishj, Laurens Kuiper, Sam Ansmink, Andy Teucher, Hadley Wickham, Jonathan Keane, Lindsay Wray, Richard Wesley, Elliana May, Edwin de Jonge, Dewey Dunnington, Carlo Piovesan, Andre Beckedorf, Tania Bogatsch, Pedro Ferreira, Maximilian Girlich, James Lamb, James Atkins, usurai, Ubuntu, Noam Ross, Michael Antonov, Jeroen Ooms, Jamie Lentin, Jacob, and Chilarai.
