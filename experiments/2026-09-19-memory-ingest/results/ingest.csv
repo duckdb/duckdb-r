@@ -1,0 +1,6 @@
+lang,image,scenario,target,rows,base_mb,peak_mb,over_base_mb,seconds
+python,python312,engine_generate,file,50000000,67,363,297,7.1
+python,python312,file_read_parquet,file,50000000,66,390,324,5.3
+python,python312,file_read_csv,file,50000000,67,502,435,7.3
+python,python312,frame_pandas_register,file,50000000,1669,1669,0,7.6
+python,python312,frame_pandas_register_only,file,50000000,1671,1671,0,0.1

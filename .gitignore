@@ -127,3 +127,4 @@ cmake-build-debug
 /extensions/
 /inst/extensions/
 .cache-memory-clients/
+.cache-memory-ingest/
