@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/memory/writing/README.md
 # helper to clean up non-utf and posixlt vectors
 encode_values <- function(value) {
   if (!is.null(names(value))) {
