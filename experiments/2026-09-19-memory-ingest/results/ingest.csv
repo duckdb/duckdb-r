@@ -44,3 +44,5 @@ node,node22,frame_arrays_appender_chunks,file,50000000,856,1210,354,12.0
 node,node22,stream_table_function,file,50000000,92,426,334,9.4
 node,node22,stream_stdin_csv,file,50000000,92,422,330,20.8
 go,go125,engine_generate,file,50000000,35,335,300,5.6
+go,go125,file_read_parquet,file,50000000,35,383,348,3.2
+go,go125,file_read_csv,file,50000000,35,467,432,5.5
