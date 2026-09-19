@@ -1,0 +1,47 @@
+$ ./run.sh                    # released libduckdb v1.5.5, no patch
+
+=== in-use-connection ===
+libduckdb v1.5.5, scenario in-use-connection
+  in-use-connection: reopening ...
+Killed
+  HUNG: still spinning after 15s, killed
+  (15s)
+
+=== in-use-result ===
+libduckdb v1.5.5, scenario in-use-result
+  in-use-result: reopening ...
+Killed
+  HUNG: still spinning after 15s, killed
+  (15s)
+
+=== shutdown-race ===
+libduckdb v1.5.5, scenario shutdown-race
+  reopened 200, refused 0 (refused is a spurious error: nothing was in use)
+  (4s)
+
+=== shutdown-race, staged tightly ===
+  reopened 200, refused 0 (refused is a spurious error: nothing was in use)
+  (3s)
+
+$ ./run.sh --lib <patched build>
+
+=== in-use-connection ===
+libduckdb v2.1.0-dev2, scenario in-use-connection
+  in-use-connection: reopening ...
+  in-use-connection: refused: Connection Error: Database "/tmp/duckdb-instance-cache-probe.db" is still in use: 1 connection(s) are open on it
+  (0s)
+
+=== in-use-result ===
+libduckdb v2.1.0-dev2, scenario in-use-result
+  in-use-result: reopening ...
+  in-use-result: refused: Connection Error: Database "/tmp/duckdb-instance-cache-probe.db" is still in use: no connections are open, but something still holds it, such as an unfinished query result
+  (1s)
+
+=== shutdown-race ===
+libduckdb v2.1.0-dev2, scenario shutdown-race
+  reopened 200, refused 0 (refused is a spurious error: nothing was in use)
+  (6s)
+
+=== shutdown-race, staged tightly ===
+  reopened 200, refused 0 (refused is a spurious error: nothing was in use)
+  (5s)
