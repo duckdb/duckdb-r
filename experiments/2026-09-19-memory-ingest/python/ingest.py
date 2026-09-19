@@ -2,9 +2,13 @@
 # Usage: python ingest.py <image-label> <file|memory> <scenario>
 import sys, time, tempfile, duckdb, numpy as np
 image, target, scenario = sys.argv[1:4]
-def hwm():
+def stat(key):
     for line in open("/proc/self/status"):
-        if line.startswith("VmHWM"): return int(line.split()[1]) / 1024
+        if line.startswith(key): return int(line.split()[1]) / 1024
+def hwm(): return stat("VmHWM")
+# Writing 5 to clear_refs resets the kernel's peak-RSS counter to the current RSS, so the peak
+# measured afterwards is the measured step's own, not the source frame's construction.
+def reset_peak(): open("/proc/self/clear_refs", "w").write("5")
 N = 50_000_000
 con = duckdb.connect(tempfile.mktemp(suffix=".duckdb") if target == "file" else ":memory:")
 con.execute("SET memory_limit = '300MB'")
@@ -15,7 +19,8 @@ def ctas(src): con.execute(f"CREATE TABLE t AS SELECT a, b FROM {src}")
 def count(): return con.execute("SELECT count(*) FROM t").fetchone()[0]
 base = t0 = None
 def start():
-    global base, t0; base = hwm(); t0 = time.time()
+    global base, t0
+    import gc; gc.collect(); reset_peak(); base = stat("VmRSS"); t0 = time.time()
 rows = None
 if scenario in ("frame_pandas_register", "frame_pandas_register_only", "frame_pandas_append", "frame_parquet_roundtrip"):
     import pandas as pd

@@ -1,7 +1,11 @@
 # The ingest scenarios, R side: one scenario per process, one CSV line out.
 # Usage: Rscript ingest.R <image-label> <file|memory> <scenario>
 args <- commandArgs(TRUE); image <- args[1]; target <- args[2]; scenario <- args[3]
-hwm <- function() { x <- readLines("/proc/self/status"); as.numeric(strsplit(x[grep("VmHWM", x)], "\\s+")[[1]][2]) / 1024 }
+stat <- function(key) { x <- readLines("/proc/self/status"); as.numeric(strsplit(x[grep(key, x)], "\\s+")[[1]][2]) / 1024 }
+hwm <- function() stat("VmHWM")
+# Writing 5 to clear_refs resets the kernel's peak-RSS counter to the current RSS, so the peak
+# measured afterwards is the measured step's own, not the source frame's construction.
+reset_peak <- function() writeLines("5", "/proc/self/clear_refs")
 suppressMessages(library(DBI))
 N <- 50e6
 dbdir <- if (target == "file") tempfile(fileext = ".duckdb") else ":memory:"
@@ -10,7 +14,7 @@ make_frame <- function(n = N) { set.seed(1); data.frame(a = runif(n), b = runif(
 create <- function() dbExecute(con, "CREATE TABLE t (a DOUBLE, b DOUBLE)")
 ctas <- function(from) dbExecute(con, paste0("CREATE TABLE t AS SELECT a, b FROM ", from))
 base <- NA; t0 <- NA; rows <- NA
-start <- function() { base <<- hwm(); t0 <<- Sys.time() }
+start <- function() { invisible(gc()); reset_peak(); base <<- stat("VmRSS"); t0 <<- Sys.time() }
 count <- function() dbGetQuery(con, "SELECT count(*) AS n FROM t")$n
 if (scenario == "frame_dbWriteTable") {
   df <- make_frame(); start(); dbWriteTable(con, "t", df); rows <- count()
