@@ -36,7 +36,8 @@ if (scenario == "frame_dbWriteTable") {
   create(); start(); for (i in 1:50) dbAppendTable(con, "t", make_frame(1e6)); rows <- count()
 } else if (scenario == "stream_stdin_csv") {
   create(); start(); dbExecute(con, "COPY t FROM '/dev/stdin' (FORMAT CSV, HEADER false)"); rows <- count()
-} else if (scenario == "stream_stdin_arrow") {
+} else if (scenario %in% c("stream_stdin_arrow", "stream_stdin_arrow_1thread")) {
+  if (scenario == "stream_stdin_arrow_1thread") dbExecute(con, "SET threads = 1")
   start(); rdr <- arrow::as_record_batch_reader(nanoarrow::read_nanoarrow(file("stdin", "rb")))
   duckdb::duckdb_register_arrow(con, "src", rdr); ctas("src"); rows <- count()
 } else if (scenario == "file_read_parquet") {

@@ -41,8 +41,9 @@ elif scenario == "frame_polars_register":
     import polars as pl
     a, b = arrays(); pdf = pl.DataFrame({"a": a, "b": b}); del a, b
     start(); con.register("src", pdf); ctas("src"); rows = count()
-elif scenario == "stream_arrow_reader_generator":
+elif scenario in ("stream_arrow_reader_generator", "stream_arrow_reader_generator_syspool"):
     import pyarrow as pa
+    if scenario.endswith("_syspool"): pa.set_memory_pool(pa.system_memory_pool())
     schema = pa.schema([("a", pa.float64()), ("b", pa.float64())])
     def gen():
         rng = np.random.default_rng(1)
@@ -55,8 +56,9 @@ elif scenario == "chunks_pandas_append":
     rows = count()
 elif scenario == "stream_stdin_csv":
     create(); start(); con.execute("COPY t FROM '/dev/stdin' (FORMAT CSV, HEADER false)"); rows = count()
-elif scenario == "stream_stdin_arrow":
+elif scenario in ("stream_stdin_arrow", "stream_stdin_arrow_syspool"):
     import pyarrow as pa
+    if scenario.endswith("_syspool"): pa.set_memory_pool(pa.system_memory_pool())
     start(); con.register("src", pa.ipc.open_stream(sys.stdin.buffer)); ctas("src"); rows = count()
 elif scenario == "file_read_parquet":
     start(); ctas("read_parquet('/data/src.parquet')"); rows = count()

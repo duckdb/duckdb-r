@@ -24,3 +24,22 @@ r,dev,frame_dbAppendTable,file,50000000,900,1179,279,8.2
 r,dev,frame_register_only,file,50000000,900,900,1,0.2
 r,dev,frame_arrow_register,file,50000000,900,1328,429,5.5
 r,dev,frame_nanoarrow_register,file,50000000,900,1254,354,9.3
+r,dev,frame_nanoparquet_roundtrip,file,50000000,900,1264,364,9.2
+r,dev,chunks_dbAppendTable,file,50000000,138,563,426,11.5
+r,dev,stream_stdin_csv,file,50000000,138,453,315,21.0
+[1] 0
+r,dev,frame_dbWriteTable,memory,50000000,880,1200,320,4.0
+r,dev,frame_nanoarrow_register,memory,50000000,880,1253,374,6.2
+r,dev,chunks_dbAppendTable,memory,50000000,118,492,374,8.5
+r,cran,frame_dbWriteTable,file,50000000,863,1183,320,7.0
+r,cran,frame_nanoarrow_register,file,50000000,863,1255,392,8.8
+r,cran,chunks_dbAppendTable,file,50000000,100,526,426,12.2
+r,cran,stream_stdin_csv,file,50000000,101,429,328,20.8
+node,node22,engine_generate,file,50000000,91,390,299,6.1
+node,node22,file_read_parquet,file,50000000,92,429,337,3.7
+node,node22,file_read_csv,file,50000000,91,541,450,6.3
+node,node22,stream_appender_rows,file,50000000,92,408,316,20.5
+node,node22,stream_appender_chunks,file,50000000,93,424,331,14.3
+node,node22,frame_arrays_appender_chunks,file,50000000,856,1210,354,12.0
+node,node22,stream_table_function,file,50000000,92,426,334,9.4
+node,node22,stream_stdin_csv,file,50000000,92,422,330,20.8
