@@ -405,8 +405,12 @@ private:
 			vector<cpp11::sexp> equal_exprs;
 			equal_exprs.reserve(in_filter.values.size());
 			for (auto &value : in_filter.values) {
-				equal_exprs.push_back(cpp11::sexp(CreateExpression(functions, "equal", column_name_expr,
-				                                                   CreateConstantExpression(functions, value))));
+				// Bind the constant before building the comparison: `CreateExpression()`
+				// allocates before it stores its operands, so passing the fresh
+				// expression straight through would leave it unprotected.
+				cpp11::sexp constant_expr = CreateConstantExpression(functions, value);
+				equal_exprs.push_back(
+				    cpp11::sexp(CreateExpression(functions, "equal", column_name_expr, constant_expr)));
 			}
 			return FoldBalanced(functions, "or_kleene", equal_exprs, 0, equal_exprs.size());
 		}
