@@ -46,6 +46,7 @@ func (r *genReader) Release()              {}
 func (r *genReader) Schema() *arrow.Schema { return r.schema }
 func (r *genReader) Err() error            { return nil }
 func (r *genReader) Record() arrow.Record  { return r.rec }
+func (r *genReader) RecordBatch() arrow.RecordBatch { return r.rec }
 func (r *genReader) Next() bool {
 	if r.i >= r.n {
 		return false
