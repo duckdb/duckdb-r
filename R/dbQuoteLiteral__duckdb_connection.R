@@ -1,8 +1,7 @@
 #' @rdname duckdb_connection-class
 #' @usage NULL
 dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
-  # Switchpatching to avoid ambiguous S4 dispatch, so that our method
-  # is used only if no alternatives are available.
+  # Switchpatching to avoid ambiguous S4 dispatch, so that our method is used only if no alternatives are available.
 
   if (is(x, "SQL")) {
     return(x)

@@ -40,7 +40,8 @@
 #  12. A replay in which every buffer commit drops as empty reports that nothing
 #      was added, rather than an empty buffer, and leaves the ref where it was.
 #  13. `--dev-note` appends a stage-3 finding to the newest commit the chunk
-#      mints -- taking the replay route so there is one to write it on -- and
+#      mints -- taking the replay route so there is one to write it on -- under
+#      an `R-side fix` header it writes when the note brought none, and
 #      refuses when the chunk minted nothing or the file is not there.
 #  14. A replay whose conflict resolves to nothing is dropped rather than
 #      stopping the stage: the buffer commit's content reached `-dev` by another
@@ -214,6 +215,14 @@ bvendor fff4444 1.0.0.9000.1 j.cpp
 bvendor fff5555 1.0.0.9000.2 k.cpp
 git branch note-build-base base-seed
 
+# --- the same, for a note that brings no header of its own (claim 13) -------
+git checkout -q -b bare-dev base-seed
+git branch bare-green bare-dev
+git checkout -q -b bare-build base-seed
+bvendor fff6666 1.0.0.9000.1 l.cpp
+bvendor fff7777 1.0.0.9000.2 m.cpp
+git branch bare-build-base base-seed
+
 # --- a buffer commit whose content already reached -dev (claim 12) ----------
 # Stage 3 sends a patch/ entry down both paths on purpose, so the replay drops
 # it (`--empty=drop`) and the stage adds nothing. The subject on the -dev side
@@ -259,6 +268,7 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   base-fwd-build base-fwd-dev base-fwd-green base-fwd-build-base \
   solo-build solo-dev solo-green solo-build-base \
   note-build note-dev note-green note-build-base \
+  bare-build bare-dev bare-green bare-build-base \
   dup-build dup-dev dup-green dup-build-base \
   emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
@@ -490,6 +500,24 @@ hasnt "the commit below it does not" \
   "$(git log -1 --format=%B origin/note-dev^)" 'macos-oldrel-x86_64 timed out'
 is "and the counter still rose once per vendor commit" \
   "$(git show origin/note-dev:DESCRIPTION | sed -n 's/^Version: //p')" 1.0.0.9000.2
+is "the header the note brought is not doubled" \
+  "$(git log -1 --format=%B origin/note-dev | grep -ci '^R-side fix')" 1
+
+echo
+echo "== --dev-note that brings no header of its own"
+BARE=$SCRATCH/bare-finding.txt
+printf '\nmacos-release-x86_64 timed out at the hour budget.\n' > "$BARE"
+out=$(run bare --dev-note "$BARE")
+has "moves the ref" "$out" 'dev ->'
+git fetch -q origin
+has "the finding still lands" \
+  "$(git log -1 --format=%B origin/bare-dev)" 'macos-release-x86_64 timed out'
+has "under a header the readers anchor on" \
+  "$(git log -1 --format=%B origin/bare-dev)" 'R-side fix'
+is "written exactly once" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -ci '^R-side fix')" 1
+is "in the spelling series-glue.sh reads today" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -c '^R-side fix:')" 1
 
 echo
 echo "== --dev-note when the chunk minted nothing"
