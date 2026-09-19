@@ -161,3 +161,30 @@ index 1ca9656e4..b1b162348 100644
 +\title{duckdb.1.3: DBI Package for the DuckDB Database Management System}
  \description{
  \if{html}{\figure{logo.svg}{options: style='float: right' alt='logo' width='120'}}
+diff --git a/vignettes/articles/memory.Rmd b/vignettes/articles/memory.Rmd
+index 1a918fd..6e5d9fd 100644
+--- a/vignettes/articles/memory.Rmd
++++ b/vignettes/articles/memory.Rmd
+@@ -29,7 +29,7 @@ already exists, which the default in-memory database always does.
+ 
+ ```{r}
+ library(DBI)
+-con <- dbConnect(duckdb::duckdb(config = list(memory_limit = "2GB")))
++con <- dbConnect(duckdb.1.3::duckdb(config = list(memory_limit = "2GB")))
+ # or, on a live connection:
+ dbExecute(con, "SET memory_limit = '2GB'")
+ ```
+@@ -87,11 +87,11 @@ in-memory one alike under a 300 MB `memory_limit` — the engine's write
+ working set, bounded by the limit, and nothing else.
+ Fifty appends of a million rows each, from a producer that never holds
+ the data whole, peak at about 430 MB over an empty process.
+-Where no table is needed at all, `duckdb::duckdb_register()` alone
++Where no table is needed at all, `duckdb.1.3::duckdb_register()` alone
+ lets queries scan the frame for a measured 1 MB of overhead.
+ 
+ ```{r}
+-duckdb::duckdb_register(con, "df", df)
++duckdb.1.3::duckdb_register(con, "df", df)
+ dbGetQuery(con, "SELECT count(*) FROM df WHERE a > 0.5")
+ ```
+ 
