@@ -1,0 +1,76 @@
+diff --git a/R/dbConnect__duckdb_driver.R b/R/dbConnect__duckdb_driver.R
+index 2d88830..6d4a9d7 100644
+--- a/R/dbConnect__duckdb_driver.R
++++ b/R/dbConnect__duckdb_driver.R
+@@ -137,6 +137,11 @@ dbConnect__duckdb_driver <- function(
+   conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts)
+   on.exit(dbDisconnect(conn))
+ 
++  # EXPERIMENT pin-session: make the session zone `timezone_out`, so a
++  # TIMESTAMPTZ column comes back with the label the connection promises
++  # instead of the one the machine happens to carry.
++  duckdb_pin_session_timezone(conn, timezone_out)
++
+   reg.finalizer(conn@conn_ref, onexit = TRUE, rapi_disconnect)
+   on.exit(NULL)
+ 
+@@ -148,3 +153,30 @@ dbConnect__duckdb_driver <- function(
+ #' @rdname duckdb
+ #' @export
+ setMethod("dbConnect", "duckdb_driver", dbConnect__duckdb_driver)
++
++# The TimeZone setting lives in icu, and asking for it when icu is absent
++# would try to autoload it. Where icu is not loaded the session zone already
++# reads "UTC", which is what `timezone_out` defaults to, so the only case
++# that needs the SET is the one where asking is free.
++duckdb_pin_session_timezone <- function(conn, timezone_out) {
++  loaded <- dbGetQuery(
++    conn,
++    "SELECT loaded FROM duckdb_extensions() WHERE extension_name = 'icu'"
++  )
++  if (nrow(loaded) == 0 || !isTRUE(loaded$loaded[[1]])) {
++    return(invisible(FALSE))
++  }
++
++  zone <- if (nzchar(timezone_out)) timezone_out else Sys.timezone()
++  if (is.na(zone) || !nzchar(zone)) {
++    return(invisible(FALSE))
++  }
++
++  tryCatch(
++    {
++      dbExecute(conn, paste0("SET TimeZone = ", dbQuoteString(conn, zone)))
++      invisible(TRUE)
++    },
++    error = function(e) invisible(FALSE)
++  )
++}
+diff --git a/R/relational.R b/R/relational.R
+index 67b59b8..56bebb7 100644
+--- a/R/relational.R
++++ b/R/relational.R
+@@ -64,10 +64,7 @@ expr_constant <- function(
+     } else {
+       convert_opts <- con@convert_opts
+     }
+-    # `TIMESTAMP` for the same reason `rel_from_df()` pins it: a constant
+-    # lands in a relation, and the relational path returns the zone it was
+-    # given rather than the session's.
+-    convert_opts$posixct <- "timestamp"
++    # EXPERIMENT follow: take `posixct` as the connection gives it.
+   }
+ 
+   rethrow_rapi_expr_constant(val, alias, convert_opts)
+@@ -199,11 +196,7 @@ rel_from_df <- function(
+   # FIXME: Enable warning
+   if (is.null(convert_opts)) {
+     convert_opts <- con@convert_opts
+-    # A relation promises the data frame back unchanged, which a TIMESTAMPTZ
+-    # column cannot: it comes back labeled with the session zone. Measured in
+-    # experiments/2026-08-09-rel-from-df-posixct/README.md; a caller who wants
+-    # the connection's setting here passes `convert_opts` themselves.
+-    convert_opts$posixct <- "timestamp"
++    # EXPERIMENT follow: take `posixct` as the connection gives it.
+   }
+   if (!is.null(experimental)) {
+     convert_opts$experimental <- experimental

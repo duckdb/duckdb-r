@@ -51,6 +51,14 @@ ConvertOpts::MapShape string_to_map_shape(const std::string &str) {
 	rapi_error_with_context("string_to_map_shape", "Invalid map value: " + str);
 }
 
+ConvertOpts::PosixctType string_to_posixct_type(const std::string &str) {
+	if (str == "timestamp")
+		return ConvertOpts::PosixctType::TIMESTAMP;
+	if (str == "timestamptz")
+		return ConvertOpts::PosixctType::TIMESTAMPTZ;
+	rapi_error_with_context("string_to_posixct_type", "Invalid posixct value: " + str);
+}
+
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
 	return use_arrow ? ConvertOpts::ArrowConversion::ENABLED : ConvertOpts::ArrowConversion::DISABLED;
 }
@@ -91,6 +99,9 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 
 	// Extract map
 	map = string_to_map_shape(as_cpp<std::string>(options["map"]));
+
+	// Extract posixct
+	posixct = string_to_posixct_type(as_cpp<std::string>(options["posixct"]));
 
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));

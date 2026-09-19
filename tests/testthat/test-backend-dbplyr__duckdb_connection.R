@@ -529,7 +529,7 @@ test_that("datetime escaping working as in DBI", {
   test_datetime <- as.POSIXct("2020-01-01 01:23:45 UTC", tz = "UTC")
   expect_equal(
     escape(test_datetime),
-    sql(r"{'2020-01-01 01:23:45'::timestamp}")
+    sql(r"{'2020-01-01 01:23:45+00:00'::timestamptz}")
   )
   expect_equal(
     escape("2020-01-01 01:23:45 UTC"),
@@ -542,7 +542,7 @@ test_that("datetime escaping working as in DBI", {
   )
   expect_equal(
     escape(test_datetime_tz),
-    sql(r"{'2020-01-02 02:23:45'::timestamp}")
+    sql(r"{'2020-01-02 02:23:45+00:00'::timestamptz}")
   )
   expect_equal(
     escape("2020-01-01 18:23:45 PST"),
@@ -1080,10 +1080,13 @@ test_that("an escaped POSIXct is sent as the instant it names", {
     })
   }
 
-  expect_equal(escape_at("UTC"), "'2025-03-01 18:00:00'::timestamp")
+  expect_equal(escape_at("UTC"), "'2025-03-01 18:00:00+00:00'::timestamptz")
   expect_equal(
     escape_at("America/Indiana/Indianapolis"),
-    "'2025-03-01 23:00:00'::timestamp"
+    "'2025-03-01 23:00:00+00:00'::timestamptz"
   )
-  expect_equal(escape_at("Europe/Zurich"), "'2025-03-01 17:00:00'::timestamp")
+  expect_equal(
+    escape_at("Europe/Zurich"),
+    "'2025-03-01 17:00:00+00:00'::timestamptz"
+  )
 })

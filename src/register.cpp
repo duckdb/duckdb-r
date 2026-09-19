@@ -37,6 +37,7 @@ using namespace duckdb;
 		parameter_map["integer64"] = convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64;
 		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
 		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
+		parameter_map["timestamptz"] = convert_opts.posixct == ConvertOpts::PosixctType::TIMESTAMPTZ;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
