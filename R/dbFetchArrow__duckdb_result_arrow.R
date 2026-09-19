@@ -1,7 +1,6 @@
 #' @rdname duckdb_result_arrow-class
 #' @inheritParams DBI::dbFetchArrow
-#' @param chunk_size The chunk size in rows used when pulling Arrow batches
-#'   from DuckDB.
+#' @param chunk_size The chunk size in rows used when pulling Arrow batches from DuckDB.
 #' @usage NULL
 dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
   if (!res@env$open) {
@@ -30,8 +29,7 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
     return(stream)
   }
 
-  # Multi-execution: drain every per-row query result into chunks and emit a
-  # single basic_array_stream so callers see one unified stream.
+  # Multi-execution: drain every per-row query result into chunks and emit a single basic_array_stream so callers see one unified stream.
   arrays <- list()
   repeat {
     chunk <- dbFetchArrowChunk(res, chunk_size = chunk_size)
@@ -132,9 +130,8 @@ require_nanoarrow <- function(what) {
 empty_arrow_chunk <- function(res) {
   schema <- res@env$arrow_schema
   if (is.null(schema)) {
-    # No chunk has ever been fetched (e.g. dbBindArrow() with a zero-length
-    # stream). Fall back to an empty no-column array; downstream code that
-    # only inspects `chunk$length` is unaffected.
+    # No chunk has ever been fetched (e.g. dbBindArrow() with a zero-length stream).
+    # Fall back to an empty no-column array; downstream code that only inspects `chunk$length` is unaffected.
     return(nanoarrow::as_nanoarrow_array(data.frame()))
   }
   ptype <- nanoarrow::infer_nanoarrow_ptype(schema)
