@@ -76,6 +76,52 @@ runs:
         fi
       shell: bash
 
+    # Which allocator the source build actually linked, read out of the library
+    # it produced rather than assumed from the platform.
+    # handbook/architecture/engine/README.md owns the rule: ./configure probes
+    # for 64-bit glibc Linux and takes jemalloc there, the standard allocator
+    # everywhere else. Both halves of that are worth a check -- a probe that
+    # says no on a platform DuckDB builds jemalloc for is as wrong as one that
+    # says yes on Windows -- and neither shows up as a build failure, because
+    # both allocators compile and both produce a working package.
+    #
+    # jemalloc's symbols carry DuckDB's duckdb_je_ prefix, and
+    # allocator_jemalloc.cpp compiles to nothing at all without the define, so
+    # the name is in the library when jemalloc is in it and not otherwise.
+    # GitHub's Linux runners are 64-bit glibc, so RUNNER_OS decides what to
+    # expect. A system-libduckdb build compiled none of this and has nothing to
+    # read.
+    - name: Check which allocator the build linked
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
+      run: |
+        libdir="$(dirname "$(pwd)")/lib/duckdb/libs"
+        lib=$(find "${libdir}" -type f \( -name 'duckdb.so' -o -name 'duckdb.dll' \) | head -n 1)
+        if [ -z "${lib}" ]; then
+          echo "No installed library under ${libdir}:" >&2
+          find "${libdir}" -type f >&2 || true
+          exit 1
+        fi
+
+        if [ "${RUNNER_OS}" = "Linux" ]; then
+          expected=jemalloc
+        else
+          expected=standard
+        fi
+
+        if grep -q -a duckdb_je_ "${lib}"; then
+          found=jemalloc
+        else
+          found=standard
+        fi
+
+        echo "Allocator in ${lib}: ${found} (expected ${expected} on ${RUNNER_OS}/${RUNNER_ARCH})"
+        if [ "${expected}" != "${found}" ]; then
+          echo "The allocator this build linked is not the one configure should have picked." >&2
+          echo "See handbook/architecture/engine/README.md for which platforms take which." >&2
+          exit 1
+        fi
+      shell: bash
+
     - name: Show ccache stats
       if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
