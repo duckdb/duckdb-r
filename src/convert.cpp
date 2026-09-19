@@ -55,8 +55,8 @@ ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
 	return use_arrow ? ConvertOpts::ArrowConversion::ENABLED : ConvertOpts::ArrowConversion::DISABLED;
 }
 
-ConvertOpts::ResultStreaming bool_to_result_streaming(bool use_streaming) {
-	return use_streaming ? ConvertOpts::ResultStreaming::ENABLED : ConvertOpts::ResultStreaming::DISABLED;
+ConvertOpts::AllowStreamResult bool_to_allow_stream_result(bool allow_stream_result) {
+	return allow_stream_result ? ConvertOpts::AllowStreamResult::ENABLED : ConvertOpts::AllowStreamResult::DISABLED;
 }
 
 ConvertOpts::ExperimentalFeatures bool_to_experimental_features(bool use_experimental) {
@@ -96,7 +96,7 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));
 
 	// Extract streaming
-	streaming = bool_to_result_streaming(as_cpp<bool>(options["streaming"]));
+	allow_stream_result = bool_to_allow_stream_result(as_cpp<bool>(options["allow_stream_result"]));
 
 	// Extract experimental
 	experimental = bool_to_experimental_features(as_cpp<bool>(options["experimental"]));
