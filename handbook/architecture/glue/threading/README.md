@@ -46,7 +46,16 @@ and that call is moved onto the scheduling thread by
 ([`src/database.cpp`](/src/database.cpp));
 the batches that follow come from an Arrow C++ reader
 [`R/register.R`](/R/register.R) exports,
-so pulling one never re-enters R.
+so pulling one never re-enters R —
+provided the reader does not itself call R.
+nanoarrow's reader over an R connection does,
+and refuses any thread but R's;
+since the export wraps whatever it is given in Arrow's `Scanner`,
+which pulls on Arrow's own pool,
+such a reader cannot feed a registered scan at all,
+`threads = 1` included
+([`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)
+has the measurement and the route that works).
 The progress display evaluates an R callback,
 but its only caller runs under the client context lock,
 which is to say on the thread that issued the query.

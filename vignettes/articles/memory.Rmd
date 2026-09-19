@@ -94,3 +94,33 @@ lets queries scan the frame for a measured 1 MB of overhead.
 duckdb::duckdb_register(con, "df", df)
 dbGetQuery(con, "SELECT count(*) FROM df WHERE a > 0.5")
 ```
+
+### Files: let the engine read them
+
+A file the engine can read is cheapest read by the engine.
+Routing a Parquet file through the arrow package's dataset scanner —
+`arrow::open_dataset()` handed to `duckdb_register_arrow()`, or
+`arrow::to_duckdb()` — buffers the file ahead of the table write and
+peaks above the data's own size (measured: 1,036 MB for an 800 MB file),
+where `read_parquet()` in the engine peaks at 308 MB, the pool at its
+limit.
+
+```{r}
+dbExecute(con, "CREATE TABLE t AS SELECT * FROM read_parquet('data.parquet')")
+```
+
+### Arrow streams: append a batch at a time
+
+Data that arrives as an Arrow stream — from a pipe, a socket, another
+library's reader — goes in through `dbWriteTableArrow()`, or
+`dbAppendTableArrow()` into an existing table: both pull one batch on
+R's thread and append it as a data frame.
+Measured: 505 MB over an empty process for the same 800 MB.
+Registering the stream as a table instead costs the whole dataset for
+the same reason the file does, and a stream over an R connection cannot
+be registered at all: the engine pulls it from a thread that is not R's.
+
+```{r}
+stream <- nanoarrow::read_nanoarrow(file("data.arrows", "rb"))
+dbWriteTableArrow(con, "t", stream)
+```

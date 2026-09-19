@@ -40,6 +40,14 @@ if (scenario == "frame_dbWriteTable") {
   if (scenario == "stream_stdin_arrow_1thread") dbExecute(con, "SET threads = 1")
   start(); rdr <- arrow::as_record_batch_reader(nanoarrow::read_nanoarrow(file("stdin", "rb")))
   duckdb::duckdb_register_arrow(con, "src", rdr); ctas("src"); rows <- count()
+} else if (scenario == "stream_stdin_arrow_dbAppendTableArrow") {
+  # DBI's default: pulls one batch at a time on R's thread and appends each as a data frame.
+  create(); start(); DBI::dbAppendTableArrow(con, "t", nanoarrow::read_nanoarrow(file("stdin", "rb"))); rows <- count()
+} else if (startsWith(scenario, "dataset_arrow_to_duckdb")) {
+  # What arrow::to_duckdb() does: the arrow package's dataset scanner reads the file, the engine ingests the stream.
+  if (endsWith(scenario, "_1thread")) invisible(dbExecute(con, "SET threads = 1"))
+  start(); duckdb::duckdb_register_arrow(con, "src", arrow::open_dataset("/data/src.parquet"))
+  if (endsWith(scenario, "_count")) rows <- dbGetQuery(con, "SELECT count(*) AS n FROM src")$n else { ctas("src"); rows <- count() }
 } else if (scenario == "file_read_parquet") {
   start(); ctas("read_parquet('/data/src.parquet')"); rows <- count()
 } else if (scenario == "file_read_csv") {

@@ -41,8 +41,22 @@ the import surfaces are
   the form that does not reach a running instance
   ([#126](https://github.com/duckdb/duckdb-r/issues/126)),
   and with the limit set where it takes effect the same write stays
-  within it — measured, with every other number on this page, in
-  [`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md).
+  within it
+  ([`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md)).
+  Against the other clients the route is as cheap as any:
+  an 800 MB frame goes in for 279–320 MB over its own size under a
+  300 MB limit — the pool filling to the limit, which is also what the
+  engine generating the rows itself costs — where pandas, an Arrow
+  table and polars in Python, a `Vec` in Rust and typed arrays in Node
+  read 298–378,
+  and `duckdb_register()` alone, with no table made, reads 1 MB
+  ([`experiments/2026-09-19-memory-ingest/`](/experiments/2026-09-19-memory-ingest/README.md),
+  the source of every cross-client number on this page).
+  Data that arrives in pieces is appended in pieces for about a chunk
+  more (fifty `dbAppendTable()` calls of a million rows: 426 MB over an
+  idle process),
+  and CSV over a pipe into `COPY ... FROM '/dev/stdin'` for the floor
+  alone (315 MB), at three times the file reader's time.
 * **Row-wise parameters cost one statement per row.**
   `dbBind()` or `params = ` with `n` rows executes the statement `n`
   times (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)),
@@ -66,9 +80,37 @@ the import surfaces are
   [#1604](https://github.com/duckdb/duckdb-r/issues/1604),
   did not reproduce on four builds
   ([`experiments/2026-08-temp-storage-spill/`](/experiments/2026-08-temp-storage-spill/README.md)).
-* **A registered Arrow object** is scanned batch by batch through
-  its own reader;
-  its memory is Arrow's, and returns at Arrow's pace once the object
-  is unregistered and dropped
+* **A registered Arrow object is Arrow's memory, and a lazy one is
+  held whole.**
+  `duckdb_register_arrow()` exports whatever it is given through
+  `arrow::Scanner$create()` ([`R/register.R`](/R/register.R)),
+  and the scanner reads ahead on Arrow's own thread pool,
+  pausing only at a backpressure threshold above most datasets.
+  An Arrow table already in memory costs the scan alone
+  (354–429 MB over the table, under the 300 MB limit);
+  a source that produces as it is read —
+  `arrow::open_dataset()` handed over, which is what `arrow::to_duckdb()`
+  does — is buffered by the scanner faster than a table write under a
+  memory limit can drain it,
+  and peaks above the data's size:
+  1,036 MB for the 800 MB Parquet file, 1,435 MB with `threads = 1`,
+  where `read_parquet()` in the engine reads the same file for 308 MB.
+  The same pairing costs Python the same
+  (799–854 MB for a dataset, a generator and an IPC stream);
+  the engine's scan holds one batch per thread
+  (`ArrowScanParallelStateNext()`,
+  [`src/duckdb/src/function/table/arrow.cpp`](/src/duckdb/src/function/table/arrow.cpp)),
+  and a consumer that keeps up — `count(*)` over the source — sees
+  169–349 MB.
+  An Arrow *stream* over an R connection cannot go this way at all:
+  nanoarrow's reader refuses any thread but R's, the scanner pulls from
+  Arrow's pool, and `threads = 1` does not change that
+  ([`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)).
+  `dbAppendTableArrow()` is the route for a stream —
+  DBI's default pulls a batch on R's thread and appends it as a data
+  frame, 505 MB over an idle process for the same 800 MB —
+  and for a file the engine can read, letting it read is a third of the
+  cost.
+  Once unregistered and dropped, the memory returns at Arrow's pace
   ([#1089](https://github.com/duckdb/duckdb-r/issues/1089):
   a second `gc()` was what it took).

@@ -41,14 +41,36 @@ elif scenario == "frame_polars_register":
     import polars as pl
     a, b = arrays(); pdf = pl.DataFrame({"a": a, "b": b}); del a, b
     start(); con.register("src", pdf); ctas("src"); rows = count()
-elif scenario in ("stream_arrow_reader_generator", "stream_arrow_reader_generator_syspool"):
+elif scenario.startswith("stream_arrow_reader_generator") or "_only_slow" in scenario:
     import pyarrow as pa
     if scenario.endswith("_syspool"): pa.set_memory_pool(pa.system_memory_pool())
     schema = pa.schema([("a", pa.float64()), ("b", pa.float64())])
     def gen():
         rng = np.random.default_rng(1)
         for _ in range(50): yield pa.record_batch([rng.random(1_000_000), rng.random(1_000_000)], schema=schema)
-    start(); con.register("src", pa.RecordBatchReader.from_batches(schema, gen())); ctas("src"); rows = count()
+    def reader(): return pa.RecordBatchReader.from_batches(schema, gen())
+    if scenario.endswith("_chunks"):
+        # One batch at a time through the same registration route: nothing lazy for the scanner to read ahead.
+        create(); start()
+        for batch in gen():
+            con.register("b", pa.Table.from_batches([batch])); con.execute("INSERT INTO t SELECT a, b FROM b")
+        rows = count()
+    elif "_only_slow" in scenario:
+        # No DuckDB at all: the client's own consumption of the same stream, through the dataset Scanner the
+        # duckdb module wraps a reader in (`scanner`) or through the plain reader (`reader`), with a consumer
+        # that takes 20 ms per batch (`_slow`, a little slower than the producer) or 150 ms (`_slower`,
+        # about the pace of a table write under the limit).
+        import pyarrow.dataset as ds
+        pause = 0.15 if scenario.endswith("_slower") else 0.02
+        start(); src = ds.Scanner.from_batches(reader()).to_reader() if scenario.startswith("stream_scanner") else reader()
+        rows = 0
+        for batch in src: rows += batch.num_rows; time.sleep(pause)
+    else:
+        if scenario.endswith("_noorder"): con.execute("SET preserve_insertion_order = false")
+        if scenario.endswith("_1thread"): con.execute("SET threads = 1")
+        start(); con.register("src", reader())
+        if scenario.endswith("_count"): rows = con.execute("SELECT count(*) FROM src").fetchone()[0]
+        else: ctas("src"); rows = count()
 elif scenario == "chunks_pandas_append":
     import pandas as pd
     create(); start(); rng = np.random.default_rng(1)
@@ -60,6 +82,12 @@ elif scenario in ("stream_stdin_arrow", "stream_stdin_arrow_syspool"):
     import pyarrow as pa
     if scenario.endswith("_syspool"): pa.set_memory_pool(pa.system_memory_pool())
     start(); con.register("src", pa.ipc.open_stream(sys.stdin.buffer)); ctas("src"); rows = count()
+elif scenario.startswith("dataset_arrow_scanner"):
+    import pyarrow.dataset as ds
+    if scenario.endswith("_1thread"): con.execute("SET threads = 1")
+    start(); con.register("src", ds.dataset("/data/src.parquet"))
+    if scenario.endswith("_count"): rows = con.execute("SELECT count(*) FROM src").fetchone()[0]
+    else: ctas("src"); rows = count()
 elif scenario == "file_read_parquet":
     start(); ctas("read_parquet('/data/src.parquet')"); rows = count()
 elif scenario == "file_read_csv":
