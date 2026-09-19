@@ -168,8 +168,10 @@ r_path() {
 #
 # CPPFLAGS rather than CXX17FLAGS, because R appends CPPFLAGS to the package's
 # own and replaces CXX17FLAGS, which would drop the platform's optimisation
-# settings. The vendored tree has no C sources, so a C++-only flag never
-# reaches a C compile.
+# settings. CPPFLAGS reaches the C compiles too, and the vendored tree has
+# those since jemalloc, so GCC answers each C++-only flag with a `cc1: warning:`
+# naming the option, once per file. Those lines carry no file:line:col and
+# `scan` never matches them: noise in the log, and not a verdict.
 ride() {
   local scope=$1 log=$2
   shift 2

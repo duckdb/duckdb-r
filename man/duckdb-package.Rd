@@ -53,6 +53,8 @@ Other contributors:
   \item Redis Labs, Inc. [copyright holder]
   \item Melissa O'Neill [copyright holder]
   \item PCG Project contributors [copyright holder]
+  \item Jason Evans [copyright holder]
+  \item Mozilla Foundation [copyright holder]
 }
 
 }

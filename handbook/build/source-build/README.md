@@ -19,7 +19,9 @@ turns the same command into seconds.
 then `make` in `src/` driven by `src/Makevars`.
 `configure` computes no compiler flags;
 it writes small include fragments that `src/Makevars` picks up —
-`Makevars.rstrtmgr`, then either `Makevars.system-lib` for the fast path
+`Makevars.rstrtmgr` and `Makevars.jemalloc`
+(the allocator, [`architecture/engine/`](/handbook/architecture/engine/README.md)),
+then either `Makevars.system-lib` for the fast path
 or a `Makevars.duckdb` copied from `src/include/from-tar.mk`
 when `DUCKDB_R_PREBUILT_ARCHIVE` names an archive that extracts,
 and from `src/include/to-tar.mk` when it does not
