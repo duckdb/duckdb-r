@@ -1,5 +1,7 @@
 # `revdep2` — sharded reverse-dependency checking
 
+*Handbook: [`testing/revdep/`](/handbook/testing/revdep/README.md) owns what this workflow is for.*
+
 `.github/workflows/revdep2.yaml` checks every CRAN reverse dependency of the
 package twice — once against the CRAN version, once against the checked-out
 dev version — and reports the difference,
