@@ -16,8 +16,10 @@ fn peak_mb() -> f64 {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let (image, scenario) = (&args[1], &args[2]);
-    let q = "SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(50000000) t(i)";
-    let qs = "SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(50000000) t(i) ORDER BY b";
+    // ROWS scales the result: 50 million rows of two doubles are 800 MB.
+    let n: usize = std::env::var("ROWS").ok().and_then(|s| s.parse().ok()).unwrap_or(50_000_000);
+    let q = &format!("SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range({}) t(i)", n);
+    let qs = &format!("SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range({}) t(i) ORDER BY b", n);
     let conn = Connection::open_in_memory().unwrap();
     let t0 = Instant::now();
     let mut rows: usize = 0;

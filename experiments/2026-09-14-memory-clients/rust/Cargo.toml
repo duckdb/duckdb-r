@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-duckdb = { version = "1", features = ["bundled"] }
+duckdb = { version = "1", features = ["bundled", "vtab-arrow", "appender-arrow"] } # the ingest experiment's feature set, so the two builds share one compiled engine

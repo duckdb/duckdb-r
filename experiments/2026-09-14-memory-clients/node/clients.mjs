@@ -3,8 +3,9 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { readFileSync } from 'node:fs';
 const [image, scenario] = process.argv.slice(2);
 const peakMB = () => Math.round(+readFileSync('/proc/self/status', 'utf8').match(/VmHWM:\s+(\d+)/)[1] / 1024);
-const Q = 'SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(50000000) t(i)';
-const QS = 'SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(50000000) t(i) ORDER BY b';
+const N = Number(process.env.ROWS ?? 50_000_000); // 50 million rows of two doubles are 800 MB
+const Q = `SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(${N}) t(i)`;
+const QS = `SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(${N}) t(i) ORDER BY b`;
 const instance = await DuckDBInstance.create(':memory:');
 const conn = await instance.connect();
 const t0 = Date.now();

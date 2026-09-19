@@ -5,7 +5,10 @@ use duckdb::Connection;
 use std::sync::Arc;
 use std::time::Instant;
 
-const N: usize = 50_000_000;
+// ROWS scales the data: 50 million rows of two doubles are 800 MB.
+fn n_rows() -> usize {
+    std::env::var("ROWS").ok().and_then(|s| s.parse().ok()).unwrap_or(50_000_000)
+}
 
 fn stat(key: &str) -> f64 {
     let s = std::fs::read_to_string("/proc/self/status").unwrap();
@@ -50,7 +53,7 @@ fn main() {
             create(&conn);
             start();
             let mut app = conn.appender("t").unwrap();
-            for i in 0..N {
+            for i in 0..n_rows() {
                 app.append_row([i as f64, 2.0 * i as f64]).unwrap();
             }
             app.flush().unwrap();
@@ -58,12 +61,12 @@ fn main() {
             rows = count(&conn);
         }
         "frame_vec_appender" => {
-            let a: Vec<f64> = (0..N).map(|i| i as f64).collect();
-            let b: Vec<f64> = (0..N).map(|i| 2.0 * i as f64).collect();
+            let a: Vec<f64> = (0..n_rows()).map(|i| i as f64).collect();
+            let b: Vec<f64> = (0..n_rows()).map(|i| 2.0 * i as f64).collect();
             create(&conn);
             start();
             let mut app = conn.appender("t").unwrap();
-            for i in 0..N {
+            for i in 0..n_rows() {
                 app.append_row([a[i], b[i]]).unwrap();
             }
             app.flush().unwrap();
@@ -74,7 +77,7 @@ fn main() {
             create(&conn);
             start();
             let mut app = conn.appender("t").unwrap();
-            for j in 0..50 {
+            for j in 0..n_rows() / 1_000_000 {
                 let a: Vec<f64> = (0..1_000_000).map(|k| (j * 1_000_000 + k) as f64).collect();
                 let b: Vec<f64> = a.iter().map(|x| 2.0 * x).collect();
                 app.append_record_batch(batch(a, b)).unwrap();
@@ -84,8 +87,8 @@ fn main() {
             rows = count(&conn);
         }
         "frame_arrow_vtab" => {
-            let a: Vec<f64> = (0..N).map(|i| i as f64).collect();
-            let b: Vec<f64> = (0..N).map(|i| 2.0 * i as f64).collect();
+            let a: Vec<f64> = (0..n_rows()).map(|i| i as f64).collect();
+            let b: Vec<f64> = (0..n_rows()).map(|i| 2.0 * i as f64).collect();
             start();
             conn.register_table_function::<ArrowVTab>("arrow").unwrap();
             let params = arrow_recordbatch_to_query_params(batch(a, b));
@@ -110,7 +113,7 @@ fn main() {
         }
         "engine_generate" => {
             start();
-            conn.execute_batch(&format!("CREATE TABLE t AS SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range({}) t(i)", N)).unwrap();
+            conn.execute_batch(&format!("CREATE TABLE t AS SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range({}) t(i)", n_rows())).unwrap();
             rows = count(&conn);
         }
         _ => panic!("unknown scenario {}", scenario),

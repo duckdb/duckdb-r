@@ -8,8 +8,10 @@ peak_mb <- function() {
   as.numeric(strsplit(x[grep("VmHWM", x)], "\\s+")[[1]][2]) / 1024
 }
 suppressMessages(library(DBI))
-q <- "SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(50000000) t(i)"
-q_sorted <- "SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(50000000) t(i) ORDER BY b"
+# ROWS scales the result: 50 million rows of two doubles are 800 MB.
+n_rows <- as.numeric(Sys.getenv("ROWS", "50000000"))
+q <- sprintf("SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(%.0f) t(i)", n_rows)
+q_sorted <- sprintf("SELECT i::DOUBLE AS a, ((i * 7919) %% 1000003)::DOUBLE AS b FROM range(%.0f) t(i) ORDER BY b", n_rows)
 con <- dbConnect(duckdb::duckdb())
 t0 <- Sys.time()
 rows <- 0

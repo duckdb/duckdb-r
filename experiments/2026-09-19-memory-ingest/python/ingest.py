@@ -1,6 +1,6 @@
 # The ingest scenarios, Python side (the duckdb wheel): one scenario per process, one CSV line out.
 # Usage: python ingest.py <image-label> <file|memory> <scenario>
-import sys, time, tempfile, duckdb, numpy as np
+import sys, os, time, tempfile, duckdb, numpy as np
 image, target, scenario = sys.argv[1:4]
 def stat(key):
     for line in open("/proc/self/status"):
@@ -9,7 +9,7 @@ def hwm(): return stat("VmHWM")
 # Writing 5 to clear_refs resets the kernel's peak-RSS counter to the current RSS, so the peak
 # measured afterwards is the measured step's own, not the source frame's construction.
 def reset_peak(): open("/proc/self/clear_refs", "w").write("5")
-N = 50_000_000
+N = int(os.environ.get("ROWS", "50000000"))  # 50 million rows of two doubles are 800 MB; chunks are a million rows
 con = duckdb.connect(tempfile.mktemp(suffix=".duckdb") if target == "file" else ":memory:")
 con.execute("SET memory_limit = '300MB'")
 def arrays(n=N):
@@ -47,7 +47,7 @@ elif scenario.startswith("stream_arrow_reader_generator") or "_only_slow" in sce
     schema = pa.schema([("a", pa.float64()), ("b", pa.float64())])
     def gen():
         rng = np.random.default_rng(1)
-        for _ in range(50): yield pa.record_batch([rng.random(1_000_000), rng.random(1_000_000)], schema=schema)
+        for _ in range(N // 1_000_000): yield pa.record_batch([rng.random(1_000_000), rng.random(1_000_000)], schema=schema)
     def reader(): return pa.RecordBatchReader.from_batches(schema, gen())
     if scenario.endswith("_chunks"):
         # One batch at a time through the same registration route: nothing lazy for the scanner to read ahead.
@@ -74,7 +74,7 @@ elif scenario.startswith("stream_arrow_reader_generator") or "_only_slow" in sce
 elif scenario == "chunks_pandas_append":
     import pandas as pd
     create(); start(); rng = np.random.default_rng(1)
-    for _ in range(50): con.append("t", pd.DataFrame({"a": rng.random(1_000_000), "b": rng.random(1_000_000)}))
+    for _ in range(N // 1_000_000): con.append("t", pd.DataFrame({"a": rng.random(1_000_000), "b": rng.random(1_000_000)}))
     rows = count()
 elif scenario == "stream_stdin_csv":
     create(); start(); con.execute("COPY t FROM '/dev/stdin' (FORMAT CSV, HEADER false)"); rows = count()

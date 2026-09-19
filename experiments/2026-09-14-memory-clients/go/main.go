@@ -28,8 +28,13 @@ func peakMB() int {
 
 func main() {
 	image, scenario := os.Args[1], os.Args[2]
-	q := "SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(50000000) t(i)"
-	qs := "SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(50000000) t(i) ORDER BY b"
+	// ROWS scales the result: 50 million rows of two doubles are 800 MB.
+	n := 50_000_000
+	if v, err := strconv.Atoi(os.Getenv("ROWS")); err == nil && v > 0 {
+		n = v
+	}
+	q := fmt.Sprintf("SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(%d) t(i)", n)
+	qs := fmt.Sprintf("SELECT i::DOUBLE AS a, ((i * 7919) %% 1000003)::DOUBLE AS b FROM range(%d) t(i) ORDER BY b", n)
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
 		panic(err)

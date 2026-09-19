@@ -1,12 +1,13 @@
 # The cross-client scenarios, Python side (the duckdb wheel): one scenario per process, one CSV line out.
-import sys, time, duckdb
+import sys, os, time, duckdb
 image, scenario = sys.argv[1], sys.argv[2]
 def peak_mb():
     for line in open("/proc/self/status"):
         if line.startswith("VmHWM"):
             return int(line.split()[1]) / 1024
-Q = "SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range(50000000) t(i)"
-QS = "SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range(50000000) t(i) ORDER BY b"
+N = int(os.environ.get("ROWS", "50000000"))  # 50 million rows of two doubles are 800 MB
+Q = f"SELECT i::DOUBLE AS a, (i * 2)::DOUBLE AS b FROM range({N}) t(i)"
+QS = f"SELECT i::DOUBLE AS a, ((i * 7919) % 1000003)::DOUBLE AS b FROM range({N}) t(i) ORDER BY b"
 con = duckdb.connect()
 t0 = time.time(); rows = 0
 if scenario == "version":

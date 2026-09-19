@@ -4,7 +4,7 @@ import { DuckDBInstance, DuckDBDataChunk, DuckDBTableFunction, DOUBLE } from '@d
 import { readFileSync, writeFileSync } from 'node:fs';
 const [image, target, scenario] = process.argv.slice(2);
 const stat = (key) => Math.round(+readFileSync('/proc/self/status', 'utf8').match(new RegExp(key + ':\\s+(\\d+)'))[1] / 1024);
-const N = 50_000_000;
+const N = Number(process.env.ROWS ?? 50_000_000); // 50 million rows of two doubles are 800 MB
 const instance = await DuckDBInstance.create(target === 'file' ? `/tmp/ingest-${process.pid}.duckdb` : ':memory:');
 const conn = await instance.connect();
 await conn.run("SET memory_limit = '300MB'");

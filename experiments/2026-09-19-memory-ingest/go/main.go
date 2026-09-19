@@ -19,7 +19,13 @@ import (
 	"github.com/duckdb/duckdb-go/v2"
 )
 
-const N = 50_000_000
+// ROWS scales the data: 50 million rows of two doubles are 800 MB.
+var N = func() int {
+	if v, err := strconv.Atoi(os.Getenv("ROWS")); err == nil && v > 0 {
+		return v
+	}
+	return 50_000_000
+}()
 
 func stat(key string) int {
 	f, _ := os.Open("/proc/self/status")
@@ -34,18 +40,18 @@ func stat(key string) int {
 	return 0
 }
 
-// genReader yields fifty batches of a million rows, generated as they are pulled.
+// genReader yields ROWS / 1e6 batches of a million rows, generated as they are pulled.
 type genReader struct {
 	schema *arrow.Schema
 	i, n   int
 	rec    arrow.Record
 }
 
-func (r *genReader) Retain()               {}
-func (r *genReader) Release()              {}
-func (r *genReader) Schema() *arrow.Schema { return r.schema }
-func (r *genReader) Err() error            { return nil }
-func (r *genReader) Record() arrow.Record  { return r.rec }
+func (r *genReader) Retain()                        {}
+func (r *genReader) Release()                       {}
+func (r *genReader) Schema() *arrow.Schema          { return r.schema }
+func (r *genReader) Err() error                     { return nil }
+func (r *genReader) Record() arrow.Record           { return r.rec }
 func (r *genReader) RecordBatch() arrow.RecordBatch { return r.rec }
 func (r *genReader) Next() bool {
 	if r.i >= r.n {
@@ -82,7 +88,10 @@ func main() {
 	con, err := c.Connect(context.Background())
 	must(err)
 	db := sql.OpenDB(c)
-	exec := func(q string) { _, err := con.(driver.ExecerContext).ExecContext(context.Background(), q, nil); must(err) }
+	exec := func(q string) {
+		_, err := con.(driver.ExecerContext).ExecContext(context.Background(), q, nil)
+		must(err)
+	}
 	exec("SET memory_limit = '300MB'")
 	count := func() int {
 		var n int
@@ -125,7 +134,7 @@ func main() {
 		ar, err := duckdb.NewArrowFromConn(con)
 		must(err)
 		schema := arrow.NewSchema([]arrow.Field{{Name: "a", Type: arrow.PrimitiveTypes.Float64}, {Name: "b", Type: arrow.PrimitiveTypes.Float64}}, nil)
-		release, err := ar.RegisterView(&genReader{schema: schema, n: 50}, "src")
+		release, err := ar.RegisterView(&genReader{schema: schema, n: N / 1_000_000}, "src")
 		must(err)
 		exec("CREATE TABLE t AS SELECT a, b FROM src")
 		release()

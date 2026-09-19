@@ -7,7 +7,8 @@ hwm <- function() stat("VmHWM")
 # measured afterwards is the measured step's own, not the source frame's construction.
 reset_peak <- function() writeLines("5", "/proc/self/clear_refs")
 suppressMessages(library(DBI))
-N <- 50e6
+# ROWS scales the data: 50 million rows of two doubles are 800 MB; the chunked routes append a million rows at a time.
+N <- as.numeric(Sys.getenv("ROWS", "50e6"))
 dbdir <- if (target == "file") tempfile(fileext = ".duckdb") else ":memory:"
 con <- dbConnect(duckdb::duckdb(), dbdir = dbdir); dbExecute(con, "SET memory_limit = '300MB'")
 make_frame <- function(n = N) { set.seed(1); data.frame(a = runif(n), b = runif(n)) }
@@ -33,7 +34,7 @@ if (scenario == "frame_dbWriteTable") {
   df <- make_frame(); start(); f <- tempfile(fileext = ".parquet"); nanoparquet::write_parquet(df, f)
   ctas(sprintf("read_parquet('%s')", f)); rows <- count()
 } else if (scenario == "chunks_dbAppendTable") {
-  create(); start(); for (i in 1:50) dbAppendTable(con, "t", make_frame(1e6)); rows <- count()
+  create(); start(); for (i in seq_len(N / 1e6)) dbAppendTable(con, "t", make_frame(1e6)); rows <- count()
 } else if (scenario == "stream_stdin_csv") {
   create(); start(); dbExecute(con, "COPY t FROM '/dev/stdin' (FORMAT CSV, HEADER false)"); rows <- count()
 } else if (scenario %in% c("stream_stdin_arrow", "stream_stdin_arrow_1thread")) {

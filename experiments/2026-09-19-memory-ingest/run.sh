@@ -25,10 +25,20 @@ proxy_args() {
   fi
   echo "$a"
 }
+# ROWS scales the data (50 million rows are 800 MB) and reaches every script; MEMORY, when set, caps the
+# container with a cgroup limit of that size and no swap, so a run that outgrows it is killed inside the
+# container rather than by the host's OOM killer.
+scale_args() {
+  a=""
+  [ -n "$ROWS" ] && a="$a -e ROWS=$ROWS"
+  [ -n "$MEMORY" ] && a="$a --memory=$MEMORY --memory-swap=$MEMORY"
+  [ -n "$NODE_HEAP_MB" ] && a="$a -e NODE_HEAP_MB=$NODE_HEAP_MB"
+  echo "$a"
+}
 run() { # $1 image-label, rest: command
   label=$1; shift
   mkdir -p "$CACHE/$lang" "$CACHE/shared"
-  sudo docker run --rm $(proxy_args) -v "$HERE:/exp:ro" -v "$CACHE/$lang:/cache" -v "$CACHE/shared:/data" -w /tmp "$(image_for "$label")" "$@"
+  sudo docker run --rm $(proxy_args) $(scale_args) -v "$HERE:/exp:ro" -v "$CACHE/$lang:/cache" -v "$CACHE/shared:/data" -w /tmp "$(image_for "$label")" "$@"
 }
 case "$cmd" in
   prepare)
