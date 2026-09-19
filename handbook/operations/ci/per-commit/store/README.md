@@ -79,6 +79,22 @@ Nobody rewrites anything that is not their own commit's —
 except a verdict they are overturning, below —
 and that is what makes the concurrency work without a lock.
 
+**"On dispatch" has to be enforced by a branch filter, not just intended.**
+`rcc-logs.yaml` also carries a `push` trigger,
+so that a change to its own code is smoke-tested when it lands;
+`paths` is what keeps that narrow.
+But `paths` is evaluated over the *whole pushed range*,
+and a `push` trigger with no `branches` filter fires on every ref,
+so a series ref fast-forwarding over the commit
+that last touched `scripts/rcc-logs.sh`
+matched it and dispatched the sweep.
+Every `<S>-green` and `<S>-dev` line carries that commit,
+which made an ordinary stage 3 fast-forward a store writer —
+and the sweep derives records for commits it finds undecided
+from their `rcc` statuses,
+so it put back verdicts a firing had deliberately dropped.
+The trigger is pinned to `main` for that reason.
+
 ## Retention is one window
 
 The store keeps `RCC_RETENTION_DAYS` (30) of history,

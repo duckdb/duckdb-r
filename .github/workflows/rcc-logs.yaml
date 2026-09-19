@@ -20,10 +20,21 @@
 # The leg's own publish stays, and is the store's one automatic writer. A run
 # takes 2-13 minutes, so a firing that needs this dispatches it and reads the
 # result on its next pass rather than waiting.
+#
+# The push trigger is a smoke test of this workflow's own code, so it is pinned
+# to `main`, where that code lands. Without the branch filter it fires on a push
+# to *any* ref -- and `paths` is evaluated over the whole pushed range, so a
+# series ref fast-forwarding over the commit that last touched `rcc-logs.sh`
+# matches it. Every `<S>-green` and `<S>-dev` line carries that commit, so an
+# ordinary ref move by the series loop was dispatching the sweep, which then
+# re-derived records from stale `rcc` statuses -- putting back verdicts a firing
+# had deliberately dropped (114 of them on 2026-08-13, across two ref moves).
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/rcc-logs.yaml"
       - "scripts/rcc-logs.sh"
