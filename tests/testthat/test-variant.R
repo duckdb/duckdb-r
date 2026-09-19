@@ -200,3 +200,23 @@ test_that("VARIANT handles MAPs with data", {
   expect_equal(v$key, c("key1", "key2"))
   expect_equal(v$value, c(10, 20))
 })
+
+test_that("VARIANT values survive garbage collection during conversion", {
+  con <- local_con()
+
+  sql <- "SELECT {'kind': 'NULL', 'length': 0}::VARIANT AS value,
+                 NULL::VARIANT AS absent"
+  expected <- dbGetQuery(con, sql)
+  expect_identical(expected$value[[1L]]$kind, "NULL")
+  expect_null(expected$absent[[1L]])
+
+  # `ValueToSexp()` decorates and transforms the destination it just
+  # allocated, and both steps allocate: an unprotected destination is
+  # collected mid-conversion under GC pressure (#2750).
+  old_step <- gctorture2(25L)
+  withr::defer(gctorture2(old_step))
+
+  for (iteration in seq_len(20L)) {
+    expect_identical(dbGetQuery(con, sql), expected)
+  }
+})
