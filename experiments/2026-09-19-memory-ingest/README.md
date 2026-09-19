@@ -292,6 +292,9 @@ the producer now writes through an R connection wrapped for arrow.
   rows.
   So the cost belongs to the pairing of a lazy source with a slow sink,
   and a table write under a memory limit is the slow sink.
+  The readahead is bounded, though the bound is above this dataset:
+  at fifteen times the data it stops at about 2 GB
+  ([below](#at-the-workers-ram)).
 * **The remedy is to take the stream in pieces on the client's side.**
   Python inserting one registered batch at a time (455)
   and R's `dbAppendTableArrow()` (505) —
@@ -310,3 +313,97 @@ the producer now writes through an R connection wrapped for arrow.
 * **Go's Arrow view reads as 500** with the record reader implemented
   on the Go allocator and consumed through duckdb-go's own stream —
   no scanner in between, and the collector's pacing again.
+
+## At the worker's RAM
+
+The same routes with fifteen times the data:
+750 million rows, 12 GB as a frame, on the 15.7 GiB worker —
+three quarters of its memory, and more than any route that holds the
+data twice can have.
+One container at a time, each capped by a cgroup at 14.5 GB with no
+swap, so a run that outgrows the cap is killed inside its container
+(recorded as *OOM*) rather than by the host;
+the dev build only, since the CRAN build read the same at 800 MB;
+`memory_limit` at 300 MB as before.
+Left out at this size:
+the file sources and the Parquet round trips,
+because the session's disk allowance of 15 GB cannot hold a 12 GB
+table beside a 12 GB source;
+R's `frame_arrow_register`, whose conversion copies the frame;
+and the probe variants.
+Recorded in
+[`results/ingest-near-ram.csv`](results/ingest-near-ram.csv),
+same columns.
+
+| client (engine) | route | over base MB | s |
+|---|---|---|---|
+| R dev 1.5.5.9023 | `engine_generate` | 355 | 107 |
+| R dev | `frame_dbWriteTable` | 373 | 102 |
+| R dev | `frame_register_only` | 1 | 1 |
+| R dev | `frame_nanoarrow_register` | 426 | 104 |
+| R dev | ▸ `chunks_dbAppendTable` | 463 | 186 |
+| R dev | ▸ `stream_stdin_csv` | 431 | 378 |
+| R dev | ▸ `stream_stdin_arrow_dbAppendTableArrow` | 582 | 236 |
+| Python 1.5.5 | `engine_generate` | 363 | 87 |
+| Python | `frame_pandas_register` | *OOM building the frame* | 64 |
+| Python | `frame_pandas_register_only` | *OOM building the frame* | 36 |
+| Python | `frame_arrow_register` | 372 | 98 |
+| Python | ▸ `chunks_pandas_append` | 468 | 165 |
+| Python | ▸ `stream_arrow_reader_generator` | 2,114 | 49 |
+| Python | ▸ `stream_arrow_reader_generator_chunks` | 516 | 157 |
+| Python | ▸ `stream_stdin_arrow` | 2,033 | 50 |
+| Python | ▸ `stream_stdin_csv` | 402 | 372 |
+| Node 1.5.5 | `engine_generate` | 361 | 95 |
+| Node | `frame_arrays_appender_chunks` | 531 | 165 |
+| Node | ▸ `stream_appender_rows` | 350 | 272 |
+| Node | ▸ `stream_appender_chunks` | 515 | 187 |
+| Node | ▸ `stream_table_function` | 386 | 127 |
+| Node | ▸ `stream_stdin_csv` | 388 | 370 |
+| Go 1.5.5 | `engine_generate` | 364 | 69 |
+| Go | `frame_slices_appender` | *OOM* | 95 |
+| Go | the same, `GOGC=20` | 2,877 | 174 |
+| Go | ▸ `stream_appender_rows` | 412 | 171 |
+| Go | ▸ `stream_arrow_view` | 552 | 33 |
+| Go | ▸ `stream_stdin_csv` | 410 | 351 |
+| Rust 1.5.5 | `engine_generate` | 358 | 69 |
+| Rust | `frame_vec_appender` | 348 | 168 |
+| Rust | `frame_arrow_vtab` | 359 | 73 |
+| Rust | ▸ `stream_appender_rows` | 348 | 159 |
+| Rust | ▸ `stream_append_record_batches` | 363 | 80 |
+| Rust | ▸ `stream_stdin_csv` | 441 | 346 |
+
+* **What stayed near the floor stays near it.**
+  The floor reads 355–364 (sixty above the small run's, growing with
+  the row count rather than with the data held),
+  and the frame routes sit on it as before:
+  373 over the 12 GB frame in R, 372 for the Arrow table in Python,
+  348 and 359 in Rust, 531 in Node,
+  1 MB to register.
+  The piecewise routes read 348–582, and CSV over a pipe 388–441 at
+  six minutes, the producer's pace.
+  The two rows killed at the cap are the two that would hold the data
+  twice.
+* **pandas dies building the frame, before the engine is involved.**
+  Its constructor consolidates the two float columns into one block,
+  a copy,
+  so the frame alone wants 24 GB at this size;
+  the Arrow table built from the same NumPy arrays is zero-copy
+  and goes through for 372.
+* **A lazy Arrow source is buffered up to a threshold, not without limit.**
+  At 800 MB the scanner held the whole dataset (820 and 814);
+  at 12 GB the generator and the IPC pipe both stop at about 2.1 GB
+  over an idle process — some 1.7 GB of readahead above the floor,
+  the backpressure threshold the small dataset never reached.
+  So the pairing of a lazy source with a table write costs a bounded
+  two gigabytes rather than the data,
+  still four times the same stream taken a batch at a time (516).
+* **Go's collector headroom is a fraction of the live heap.**
+  `frame_slices_appender` is killed at the cap:
+  `AppendRow` boxes every value, and the collector lets the garbage
+  grow by `GOGC` percent of the 12 GB that is live before it runs.
+  At `GOGC=20` that is 2.4 GB of headroom,
+  and the run reads 2,877 over the slices —
+  the 494 of the small run scaled with the live heap,
+  as pacing predicts.
+  The appender fed from a generator, with no live frame to scale on,
+  stays at 412.

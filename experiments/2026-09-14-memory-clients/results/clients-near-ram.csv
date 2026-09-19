@@ -1,1 +1,7 @@
 lang,image,scenario,rows,peak_mb,seconds
+r,dev,materialize,OOM,,69
+r,dev,chunked_native,OOM,,50
+r,dev,arrow_legacy,OOM,,48
+r,dev,stream_plain,750000000,8031,34.3
+r,dev,stream_discard,750000000,166,11.2
+r,dev,stream_convert,750000000,229,20.5

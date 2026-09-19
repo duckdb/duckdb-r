@@ -57,6 +57,12 @@ the import surfaces are
   idle process),
   and CSV over a pipe into `COPY ... FROM '/dev/stdin'` for the floor
   alone (315 MB), at three times the file reader's time.
+  None of this grows with the data:
+  at 12 GB on a 15.7 GiB machine, three quarters of its memory,
+  the same routes read 355–582 MB over their baseline —
+  373 over the frame for `dbWriteTable()`, 1 to register —
+  and every one of them completes,
+  where the same frame through pandas is killed building the frame.
 * **Row-wise parameters cost one statement per row.**
   `dbBind()` or `params = ` with `n` rows executes the statement `n`
   times (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)),
@@ -96,7 +102,10 @@ the import surfaces are
   1,036 MB for the 800 MB Parquet file, 1,435 MB with `threads = 1`,
   where `read_parquet()` in the engine reads the same file for 308 MB.
   The same pairing costs Python the same
-  (799–854 MB for a dataset, a generator and an IPC stream);
+  (799–854 MB for a dataset, a generator and an IPC stream),
+  and the buffering has a ceiling the small dataset never reached:
+  at 12 GB the scanner stops about 2 GB over an idle process,
+  still four times the same stream taken a batch at a time;
   the engine's scan holds one batch per thread
   (`ArrowScanParallelStateNext()`,
   [`src/duckdb/src/function/table/arrow.cpp`](/src/duckdb/src/function/table/arrow.cpp)),
