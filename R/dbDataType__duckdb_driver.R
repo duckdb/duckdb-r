@@ -51,8 +51,8 @@ duckdb_data_type <- function(dbObj, obj) {
   }
 }
 
-# Recognize a `vctrs::list_of` whose ptype is a `data.frame(key, value)`
-# (the shape produced by `dbConnect(map = "list_of")`) and return its MAP type.
+# Recognize a `vctrs::list_of` whose ptype is a `data.frame(key, value)` (the shape produced by `dbConnect(map = "list_of")`)
+# and return its MAP type.
 # Returns NULL when `obj` is not such a column.
 duckdb_map_type_from_list_of <- function(dbObj, obj) {
   if (!inherits(obj, "vctrs_list_of")) {

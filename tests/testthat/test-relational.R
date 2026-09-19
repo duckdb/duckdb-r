@@ -193,6 +193,18 @@ test_that("expr_operator validates ... parameter", {
   )
 })
 
+test_that("rel_to_altrep validates ... parameter", {
+  rel <- rel_from_df(con, data.frame(a = 1))
+  expect_error(
+    rel_to_altrep(rel, allow_materialization = FALSE),
+    "... must be empty"
+  )
+  expect_error(
+    rel_to_altrep(rel, 5),
+    "... must be empty"
+  )
+})
+
 
 # TODO should maybe be a different file, test_enum_strings.R
 
@@ -1508,12 +1520,7 @@ test_that("prudence", {
     )
   )
 
-  forbid <- rel_to_altrep(rel2, allow_materialization = FALSE)
-  expect_snapshot(error = TRUE, {
-    nrow(forbid)
-  })
-
-  forbid_nrow <- rel_to_altrep(rel2, n_cells = 0)
+  forbid <- rel_to_altrep(rel2, n_cells = 0)
   expect_snapshot(error = TRUE, {
     nrow(forbid)
   })

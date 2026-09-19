@@ -60,7 +60,7 @@ The remaining selection details:
   A store that cannot be read stops the plan rather than reporting nothing
   decided, which would replan the whole range.
 * A `retry-<S>-dev` branch — the series' own branch name with a prefix, see
-  [`series-loop.md`](/.claude/skills/series-loop.md) — replans **its tip**
+  [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) — replans **its tip**
   even when that commit already carries a verdict,
   so one commit can be judged again on its own SHA
   instead of being amended and taking its descendants with it.

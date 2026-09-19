@@ -1,5 +1,535 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9023
+
+## Bug fixes
+
+### ci
+
+- Align every workflow reference with where the actions now live (#2745).
+
+### ci
+
+- Point the two duckdb-r workflows at the relocated actions (#2743).
+
+### series-open
+
+- Stamp the preview prefix on both series, not just the parent (#2744).
+
+## Features
+
+### series
+
+- Declare the flavors once, and generate what says so (#2742).
+
+### preview-prefix
+
+- Stamp the parent's new prefix at the branch cut (#2740).
+
+## Documentation
+
+### ci
+
+- Point at the actions where they live now (#2741).
+
+
+# duckdb 1.5.5.9022
+
+## Bug fixes
+
+### series
+
+- Two ref-hygiene fixes the 2026-09-13 firing paid by hand (#2737).
+
+### series-advance
+
+- Drop a replayed pick whose conflict resolves to nothing (#2734).
+
+### build
+
+- Add the types header `src/cpp11.dd` still omits (#2732).
+
+### series-port
+
+- Skip what `main` merged for its ancestry alone (#2725).
+
+### build
+
+- Give the glue the cpp11 dependencies its `.dd` files never gained (#2719).
+
+### versioning
+
+- Decide the preview prefix by the release, not by the branch (#2720).
+
+### flavor
+
+- Make the rename patch apply exactly, without fuzz or offset (#2718).
+
+### series-glue
+
+- Anchor a series' span on its seed, not on the merge base with `main` (@krlmlr, #2715).
+
+### series
+
+- Give every `series-*` script the same arguments (#2709).
+
+## Features
+
+### series-open
+
+- An opening is a cut, and both lines are forwarded after it (#2736).
+
+### series
+
+- Mirror `<S>-green` into the canonical repository (#2733).
+
+- Preserve DuckDB's structured error fields through the rethrow (#2711, #2714).
+
+## Chore
+
+- Remove Copilot setup steps.
+
+- Record the v1.1.3-2 tag on the mainline (#2713).
+
+- Update vendored cpp11, move under `src/` and move `duckdb_types.hpp` into private space (#2501, #2649).
+
+## Continuous integration
+
+- Include checks for older versions of Windows (#109, #113, #120).
+
+- Align with cynkratemplate.
+
+## Documentation
+
+### readme
+
+- Announce the v2.0-cyanoptera series, and link each flavor to r-universe (#2728).
+
+### versioning
+
+- Say what the preview prefix buys, and what a patch release does to a version (#2723).
+
+### branches
+
+- Retire the `dev`/`dev-base` layout and the RESET state it served (#2716).
+
+### series-open
+
+- Say where to ask for the r-universe registration (#2722).
+
+### plan
+
+- Record what driving the v2.0 opening established (#2721).
+
+### series-open
+
+- Derive a new series from the line another series already vendors, and plan the v2.0 opening (#2704).
+
+### versioning
+
+- Give a preview line the fledge prefix of the line it previews (#2703).
+
+### revdep
+
+- Name `revdep4` as the route a reverse-dependency check takes (#2702).
+
+## Uncategorized
+
+- Refactor(ci): Serve the actions from this repository instead of copying them (cynkra/cynkratemplate#121).
+
+- Fix(ci): Keep the raw name expression out of the running job's step list (cynkra/cynkratemplate#119).
+
+- Fix(fledge): Push the bump to the default branch wherever that is allowed (cynkra/cynkratemplate#117).
+
+- Fix(ci): Make a failing `rcc` run say what failed, and link to it (cynkra/cynkratemplate#115).
+
+- Fix(ci): Exempt deprecation warnings from the roxygenize warning gate (cynkra/cynkratemplate#114).
+
+
+# duckdb 1.5.5.9021
+
+## Bug fixes
+
+### series-port
+
+- Count only what `main` does not have under the seed (#2707).
+
+### series
+
+- Say which argument is a remote and which is a path (#2685).
+
+### series
+
+- Stop counting a buffer commit stage 5 would drop as empty (#2682).
+
+### vendor
+
+- Read the version upstream `main` would stamp, and refuse a shallow clone (#2683).
+
+### series
+
+- Name a file the tooling sync deletes and something still calls (#2695).
+
+### series-converge
+
+- Explain `README.Rmd` alongside the READMEs knitted from it (#2699).
+
+### patch
+
+- Three vendored fixes for the clang23 and R-devel flavors (@krlmlr, #2698).
+
+### flavor
+
+- Refresh the README.Rmd hunk the patch no longer matched (@krlmlr, #2700).
+
+### build
+
+- Ship the `MAKEFLAGS` helper in the tarball, and refuse a value that is not `-jN` (#2678).
+
+- Declare `adbcdrivermanager` as `Enhances`, installed from `Additional_repositories` (#2687).
+
+## Features
+
+### pull-config
+
+- Derive the fork's mirror rules from the badges that read them (#2696).
+
+### series-check
+
+- Report an upstream release line that no series serves (#2686).
+
+### docs-consistency
+
+- Catch the drift classes a full review found by hand (#2668).
+
+### series
+
+- Write a stage-3 finding into the commit stage 5 mints (#2684).
+
+### ci
+
+- Align the `revdep2`, `revdep4` and `revdepx` subsystems with `rigraph`.
+
+## Chore
+
+- Change maintainer (#112).
+
+### skills
+
+- Make the series playbooks real skills, and describe them (#2706).
+
+## Continuous integration
+
+- Track revdep4 run (most, depth 1) before merging to main (@krlmlr, #2701).
+
+- Install dependencies from `Additional_repositories` in the shared action (#2688).
+
+## Documentation
+
+### series-loop
+
+- Hand over a due cutover as a block, not as one line (#2708).
+
+### handbook
+
+- Repair drift found by a cover-to-cover review (#2667).
+
+### series-open
+
+- Give the fork's mirror configuration a step of its own (#2694).
+
+## Performance
+
+### revdepx
+
+- Compile the revdeps' checks through ccache (@krlmlr, #2691).
+
+## Uncategorized
+
+- Ci: Fail the roxygenize step on roxygen2 warnings (#111).
+
+
+# duckdb 1.5.5.9020
+
+## Bug fixes
+
+### rcc
+
+- Run the testsuite when `rcc-one.sh` runs outside Actions (#2669).
+
+### rcc
+
+- Tell a missing `clang-format` apart from a misformatted tree (#2671).
+
+### flavor
+
+- Run the flavor-rename guard where it can actually fire (#2676).
+
+### vendor
+
+- Refuse an upstream clone that cannot name a version (#2677).
+
+### vendor
+
+- Say how a retired patch reaches the vendor commit (#2679).
+
+### series
+
+- Report what stage 5 added, not what it set out to add (#2680).
+
+### ci
+
+- Backport kit fixes from `rigraph`, `duckdb-r` and `dm`.
+
+
+# duckdb 1.5.5.9019
+
+## Bug fixes
+
+### series
+
+- Register the `ours-version` driver before refusing over it (#2665).
+
+### series
+
+- Read every universe that publishes a green, not just `duckdb` (#2670).
+
+## Documentation
+
+### meta
+
+- Make `authoring/` obey itself, name evidence in the rules, and refresh the `meta/` node (#2673).
+
+
+# duckdb 1.5.5.9018
+
+## Documentation
+
+### meta
+
+- Consolidate the authoring rules, and split recorded evidence into its own leaf (#2672).
+
+
+# duckdb 1.5.5.9017
+
+## Bug fixes
+
+### series
+
+- Make the `ours-version` driver reach the clone that needs it (#2663).
+
+## Features
+
+### series
+
+- Explain the flavor surface in the convergence check (#2661).
+
+
+# duckdb 1.5.5.9016
+
+## Bug fixes
+
+### series
+
+- Refuse to replay when the `ours-version` merge driver is missing (#2659).
+
+### series-check
+
+- Classify an `R CMD check` gate failure instead of giving up on it (#2653).
+
+### series-advance
+
+- Carry the twin's work in a file the buffer also touched (#2657).
+
+## Features
+
+### series
+
+- Keep forwarding a base series with a live `-fwd`, and check the two converge (#2658).
+
+
+# duckdb 1.5.5.9015
+
+## Bug fixes
+
+### ci
+
+- Give the warning gate its own flags, and skip what a dropped `Suggests` cannot support (#2652).
+
+
+# duckdb 1.5.5.9014
+
+## Bug fixes
+
+### testing
+
+- Read a double-digit patch release as a release, and say that air runs here (#2638).
+
+### glue
+
+- Drop the semicolon after two namespace closings (#2645).
+
+### patch
+
+- Make the vendored tree compile without warnings (#2617).
+
+### vendoring
+
+- Pin the upstream clone's abbreviation, so a vendored tree is reproducible (#2489, #2631).
+
+### vendoring
+
+- Say when the glue check could not run, instead of blaming the glue (#2513, #2629).
+
+### scripts
+
+- Let `BASE_SCAN_DEPTH` raise the base scan in all four scanners (#2512, #2628).
+
+### rfuns
+
+- Unshadow two locals (#2612).
+
+### dbplyr
+
+- Render `n_distinct()` through the exported `sql_glue()`, and warn on an older dbplyr (#1982, #2605).
+
+### glue
+
+- Drop a stray semicolon after a constructor body (#2610).
+
+### glue
+
+- Suffix the one shadowing parameter left in a header (#2618).
+
+### glue
+
+- Build a `string_t` from R's `const char*` without a cast (#2619).
+
+### glue
+
+- Widen to R's double explicitly when copying a column out (#2611).
+
+### glue
+
+- Stop casting away `const` on R's read-only data pointers (#2609).
+
+### glue
+
+- Suffix constructor parameters that shadow their member (#2608).
+
+### ci
+
+- Read wrapped Config/gha/extra-packages values, bump auxiliary workflows to ubuntu-26.04 (#2603).
+
+### series
+
+- Keep stage 5 alive when the buffer is longer than the chunk (#2602).
+
+### scan
+
+- Materialize packed columns on R's thread, not on the scan's (#2582).
+
+### signal
+
+- State the interrupt handler's invariants where they are used (#2598).
+
+## Features
+
+### build
+
+- Gate the compiler warnings each scope answers for (#1829, #2620).
+
+### relational
+
+- Remove `allow_materialization` from `rel_to_altrep()` (#1052, #2643).
+
+### connections
+
+- Report instance settings a reused database cannot apply, and avoids treating URL-like paths like files (#2560, #2641).
+
+### build
+
+- Make the prebuilt-engine setup work without privileges (#22, #2622).
+
+### dbplyr
+
+- Translate `clock::date_build()` and `difftime()` (#2621).
+
+### series
+
+- Fold the base series' test-side fixes in as stage 5 consumes the buffer (#2594).
+
+## Chore
+
+- Format with air.
+
+## Documentation
+
+### build
+
+- Say that a vendored edit does not rebuild itself (#2648).
+
+### testing
+
+- Give the two undocumented testthat helpers a header (#2502, #2634).
+
+### branches
+
+- Point the invariants' deepen line at what is missing, not at notes `BRANCHES.md` lacks (#2516, #2633).
+
+- Convert the stray Rd spellings in roxygen to Markdown (#2616, #2635).
+
+### style
+
+- Spell out the tidyverse rules R here answers to, and the deviations (#2613).
+
+### testing
+
+- Say when a snapshot is the right tool, not only how to accept one (#2624).
+
+### interop
+
+- Say what two limits cost a caller, and pin them (#590, #1064, #2600).
+
+### authoring
+
+- Cut an entry to the shortest correct statement, and split the rest into a leaf (#2604).
+
+### dbplyr
+
+- Measure what `DISTINCT ON` would buy, and hand it over anyway (#384, #2601).
+
+### handbook
+
+- Close the last three days' issues into their leaves (#2595).
+
+### plan
+
+- Design a producer thread for streaming results, with a TPC-H fetch benchmark (#2583).
+
+## Code style
+
+### clang-format
+
+- Never reorder includes (#2642).
+
+## Refactoring
+
+- Raise every error through `abort()`, so it points at the caller (#2615, #2637).
+
+- Extract result data-frame allocation into a helper (#2585).
+
+## Performance
+
+### vendoring
+
+- Keep git's stat cache valid across a regeneration of the vendored tree (#2490, #2632).
+
+## Uncategorized
+
+- Docs(interactive): Give the interrupt its leaf, and answer #202 down to the client name (#2596).
+
+
 # duckdb 1.5.5.9013
 
 ## Continuous integration

@@ -39,7 +39,7 @@
 #     the moment it exists (scripts/rcc-publish.sh), so a leg that dies takes
 #     nothing with it but the commit it was in the middle of. The artifact is
 #     the backstop for the push itself failing, and is what a firing reads
-#     anyway (.claude/skills/series-loop.md stage 2) -- which is why each.yaml
+#     anyway (.claude/skills/series-loop/SKILL.md stage 2) -- which is why each.yaml
 #     names it per run *attempt*: a resumed leg's index covers only what it
 #     rebuilt, so overwriting would delete the previous attempt's copy of
 #     anything that attempt decided but could not publish.
@@ -253,7 +253,7 @@ write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
 # A verdict that is *not* a failure lists the log for removal rather than staging
 # one: there is nothing to compare against, so any log the branch still holds
 # belongs to a verdict this record overturns -- which is what a retry
-# (.claude/skills/series-loop.md) leaves behind.
+# (.claude/skills/series-loop/SKILL.md) leaves behind.
 #
 # Never fatal: the artifact remains, and it is what a firing reads, so the worst
 # a failed publish costs is that the store does not learn this verdict until

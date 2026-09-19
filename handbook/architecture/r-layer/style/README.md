@@ -23,18 +23,13 @@ since everything else is a link.
 Indentation, line breaks, spacing and call wrapping are
 [air](https://posit-dev.github.io/air/)'s output,
 and no review argues them.
-Nothing runs air over this repository today:
-the pull-request formatter
-([`.github/workflows/style/action.yml`](/.github/workflows/style/action.yml))
-reformats R only when the repository carries an `air.toml`,
-and this one carries only `.clang-format`,
-so that job formats the C++ and leaves the R alone.
-`R/` and `tests/` have drifted from what air prints as a result,
-which makes reformatting-in-passing expensive:
-until the config lands
-([#2614](https://github.com/duckdb/duckdb-r/issues/2614)),
-a change matches the file it is editing
-and leaves the lines it did not come for alone.
+The repository carries an [`air.toml`](/air.toml),
+which is what turns the pull-request formatter
+([cynkratemplate's `style/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/style/action.yml))
+on for R: without it that job formats the C++ and leaves the R alone.
+`R/` and `tests/` match what air prints, so `air format .` before
+pushing is the whole of the layout question —
+a change no longer has to match a file that had drifted from it.
 
 **An error message is a contract, not a sentence.**
 The guide's [error chapter](https://style.tidyverse.org/errors.html)
@@ -56,8 +51,11 @@ wrappers already give errors coming out of C++.
 Either way the message points at the user's call rather than at the
 internal check that noticed.
 The three `stop()` calls left in `R/` are the base fallbacks themselves —
-`abort()`, `check_dots_empty0()`, `rapi_error()` — each the base half of
+`abort()`, `check_dots_empty0()`, `rapi_error_base()` — each the base half of
 a pair whose other half is rlang's.
+`rapi_error_base()` raises a classed condition rather than a bare string,
+so the structured fields reach the caller with rlang absent too
+([`usage/statements/`](/handbook/usage/statements/README.md)).
 
 **`...` goes after the required arguments**
 ([design guide](https://design.tidyverse.org/dots-after-required.html)),
@@ -120,10 +118,7 @@ Each `@param` is a sentence — capitalised, ending in a full stop.
   functions the package uses, swapped for the real ones at load
   when rlang is installed.
 
-*To deepen: state the rules once the `air.toml` sweep that makes the
-code match them has run
-([#2614](https://github.com/duckdb/duckdb-r/issues/2614)),
-and add the rules a review has enforced twice since.
+*To deepen: add the rules a review has enforced twice since.
 `warning()` is the other half of this page's message rules and is not
 stated at all: nothing says whether it takes the same treatment
 `abort()` just did.*

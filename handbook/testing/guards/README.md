@@ -78,3 +78,19 @@ All three run in the same `rcc-smoke` step
 (`.github/workflows/custom/after-install/action.yml`)
 and are wrapped for the suite by
 `tests/testthat/test-flavor-package-name.R`.
+
+**The two companion scans also run per commit**,
+as `rcc-one.sh`'s `flavor` gate
+([`operations/ci/per-commit/contract/`](/handbook/operations/ci/per-commit/contract/README.md)),
+and that is the only place they can do any work.
+`rcc-smoke` runs on `main` and on pull requests to it,
+where `Package: duckdb` makes both return early by construction;
+the branches they exist for are judged by the per-commit gate alone.
+Until the gate carried them,
+`flavor_unflavored_paths()` reported `src/duckdb-win.def`
+on `v1.5-variegata-dev` for a fortnight
+while every commit on that branch was judged green.
+The content scan stays in `rcc-smoke` only:
+it does not return early, so `rcc-smoke` already exercises it,
+and a frozen series' seed-era R code
+would red the whole series the moment it ran per commit.

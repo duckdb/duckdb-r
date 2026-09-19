@@ -31,6 +31,26 @@ One so far:
   One statement per call is the way to keep execution where the
   caller put it.
 
+**A failing statement raises `duckdb_error`, and the classification is a field.**
+The engine's exception type, whatever it attached as extra info, the operation that failed,
+and its own unformatted wording ride on the condition as
+`error_type`, `extra_info`, `context` and `raw_message` —
+so a caller telling a constraint violation from an I/O failure reads a field
+rather than matching on the message
+([#2711](https://github.com/duckdb/duckdb-r/issues/2711), `?duckdb_error`).
+The fields survive the rethrow that points the error at the user's call
+([`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md)),
+and the no-rlang fallback carries the same ones on a plainer message.
+
+**The message stays prose and the rest stays data.**
+`error_type` is the one field also rendered, because it is short and bounded;
+`extra_info` is not, because the engine puts a resolved stack trace and lists of candidate names in there.
+So a field absent from the message is not a field absent from the condition —
+and a field the engine did not supply is absent from the condition too, reading as `NULL`,
+which is why classification code needs a fallback branch.
+The engine, not this package, owns which types and which `extra_info` keys exist,
+so both grow without a release here.
+
 *To deepen: state the remaining departures — what a transaction does to
 an in-flight result, what `dbWriteTable()` does about types it cannot
 round-trip, and which identifiers need quoting the engine would

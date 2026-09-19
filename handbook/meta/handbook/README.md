@@ -63,6 +63,16 @@ has exactly one place in this tree.
   and each affected leaf links the plan that carries its intent.
   A plan that has become fact is documented as fact,
   in the leaf, with no trace of its having once been a proposal.
+* **Evidence lives outside the tree.**
+  A measurement too expensive to re-derive is recorded under
+  [`experiments/`](/experiments/README.md),
+  one directory per run, with the method that produced it.
+  The leaf that leans on it takes the finding and links the record;
+  [`meta/experiments/`](/handbook/meta/experiments/README.md) explains
+  that directory and the conventions that govern it.
+  A leaf states what is true,
+  which is not the same kind of writing
+  as a record of what was measured on one day.
 * **The tree is the single source of truth.**
   Everything outside it is secondary —
   user-facing surfaces (the root `README.md`, reference pages),
@@ -201,9 +211,8 @@ it has the lifetime of the child list
 (a fact an ordinary commit could falsify has a leaf);
 and it names no particulars —
 no paths, scripts, variables, versions, counts, or commands.
-A node whose leaves share no such constraint gets no principle;
-where an area has a leaf whose topic is the area's own rules,
-the principles are that leaf's, and the node stays navigation-only.
+A node whose leaves share no such constraint gets no principle,
+and a node never restates a rule that a leaf under it owns.
 
 **A link that leaves its own directory is written from the repository
 root**, with a leading `/`;
@@ -270,8 +279,8 @@ takes no backreference; `man/*.Rd` is the only such case here.
 ## Enforcement
 
 Consistency is agent work.
-The checks — mechanical on shape, links and index freshness,
-judgment on mapping and headers —
+The checks — mechanical where a claim can be computed,
+judgment where it cannot —
 are the `docs-consistency` skill's
 (`.claude/skills/docs-consistency/`), which is the list;
 it runs when documentation is touched

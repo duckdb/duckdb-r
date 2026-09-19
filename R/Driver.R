@@ -1,12 +1,11 @@
 # The driver and its `?duckdb` reference page.
-# Explained in handbook/usage/connections/README.md, and for the extension
-# section of that page, handbook/usage/extensions/README.md.
+# Explained in handbook/usage/connections/README.md, and for the extension section of that page, handbook/usage/extensions/README.md.
 
 DBDIR_MEMORY <- ":memory:"
 
-# `call` names the frame the flag was passed in, not this check: rlang's
-# `abort()` would otherwise report `check_flag()` to someone who called
-# `dbConnect()`. The base fallback ignores it and suppresses the call entirely.
+# `call` names the frame the flag was passed in, not this check:
+# rlang's `abort()` would otherwise report `check_flag()` to someone who called `dbConnect()`.
+# The base fallback ignores it and suppresses the call entirely.
 check_flag <- function(x, call = parent.frame()) {
   if (is.null(x) || length(x) != 1 || is.na(x) || !is.logical(x)) {
     abort("flags need to be scalar logicals", call = call)
@@ -37,8 +36,7 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' @param home Root directory for DuckDB's downloaded extensions and stored secrets.
 #'   `NULL` (the default) resolves the location as described in [duckdb_storage]:
-#'   an existing `~/.duckdb`, else a per-session temporary directory
-#'   (with an offer to create `~/.duckdb` in interactive sessions).
+#'   an existing `~/.duckdb`, else a per-session temporary directory (with an offer to create `~/.duckdb` in interactive sessions).
 #'   Pass a path to use it as the root explicitly, creating it if needed.
 #'   Cannot be combined with `shared_home`.
 #'   Applied only when the database instance is created;
@@ -48,24 +46,22 @@ driver_registry <- new.env(parent = emptyenv())
 #'   One of:
 #'   * `NULL` (the default) -- resolve automatically (see [duckdb_storage]).
 #'     This is the safe default.
-#'   * `TRUE` -- store extensions and secrets under `~/.duckdb`, **creating that
-#'     directory if it does not exist**.
+#'   * `TRUE` -- store extensions and secrets under `~/.duckdb`, **creating that directory if it does not exist**.
 #'     This is a good setting for permanent deployments (Posit Connect, Shiny, APIs).
 #'     Do not use on CRAN or on other infrastructure where you don't own `~/.duckdb`.
 #'
 #'     The setting is a durable, machine-level side effect that is *not* scoped to the current session:
-#'     the directory persists after R exits, is reused by every future R session
-#'     (and by the DuckDB CLI, Python and other clients that share `~/.duckdb`),
+#'     the directory persists after R exits, is reused by every future R session (and by the DuckDB CLI,
+#'     Python and other clients that share `~/.duckdb`),
 #'     and any secrets written there outlive this process.
 #'     Applying this setting repeatedly is a fast no-op.
-#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb`
-#'     already exists. Nothing persists beyond the session.
+#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb` already exists.
+#'     Nothing persists beyond the session.
 #'
 #'   Cannot be combined with `home`.
 #'   Applied only when the database instance is created;
 #'   see the \sQuote{Database instances and driver reuse} section.
-#' @param allow_extensions `r lifecycle::badge("experimental")`
-#'   Whether this driver may load DuckDB extensions (`INSTALL` / `LOAD`).
+#' @param allow_extensions `r lifecycle::badge("experimental")` Whether this driver may load DuckDB extensions (`INSTALL` / `LOAD`).
 #'   One of:
 #'   * `NULL` (the default) -- decide automatically.
 #'     Extensions are enabled,
@@ -78,13 +74,11 @@ driver_registry <- new.env(parent = emptyenv())
 #'   * `FALSE` -- disable extensions and silence the advisory message.
 #'
 #'   The argument takes precedence over the `duckdb.allow_extensions` option (a scalar logical)
-#'   and the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable
-#'   (a value R reads as `TRUE` enables extensions and `FALSE` disables them;
+#'   and the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable (a value R reads as `TRUE` enables extensions and `FALSE` disables them;
 #'   unset, empty, or any other value is undecided).
 #'   Applied only when the database instance is created;
 #'   see the \sQuote{Database instances and driver reuse} section.
-#' @param environment_scan Set to `TRUE` to treat
-#'   data frames from the calling environment as tables.
+#' @param environment_scan Set to `TRUE` to treat data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
 #'   The default of this setting may change in a future version.
 #'
@@ -97,8 +91,7 @@ driver_registry <- new.env(parent = emptyenv())
 #' and many connections can share one instance.
 #'
 #' For a file-based `dbdir`, the instance is cached, keyed by the (normalized) path:
-#' calling `duckdb()` again with the same `dbdir` returns the same driver and instance
-#' while it is still alive.
+#' calling `duckdb()` again with the same `dbdir` returns the same driver and instance while it is still alive.
 #' This is deliberate.
 #' DuckDB allows only a single read-write handle to a database file at a time,
 #' so opening a second instance of the same file would fail with a lock error.
@@ -108,7 +101,9 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#' A call that reuses an existing instance ignores them.
+#' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+#' Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
+#' because the connection would go to `dbdir` while the driver kept its own database open.
 #' To apply different values to a file-based database --
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
@@ -136,8 +131,7 @@ driver_registry <- new.env(parent = emptyenv())
 #' Pass `allow_extensions = FALSE` to disable extensions and silence that message,
 #' or `allow_extensions = TRUE` to attempt loading anyway (which may still crash R).
 #'
-#' The decision is carried on the returned driver as the experimental `allow_extensions` slot
-#' (see [duckdb_driver-class]).
+#' The decision is carried on the returned driver as the experimental `allow_extensions` slot (see [duckdb_driver-class]).
 #'
 #' @import methods DBI
 #' @export
@@ -176,35 +170,42 @@ duckdb <- function(
     # We reuse an existing driver object if the database is still alive.
     # If not, we fall back to creating a new driver object with a new database.
     if (!is.null(drv) && rethrow_rapi_lock(drv@database_ref)) {
-      # We don't care about different read_only or config settings here.
-      # The bigint setting can be actually picked up by dbConnect(), we update it here.
+      # Settings that bind at creation are dropped here.
+      # Saying so is duckdb/duckdb-r#2560; the bigint setting is not one of them, because dbConnect() picks it up, so we update it.
+      warn_instance_settings_ignored(
+        drv,
+        read_only = read_only,
+        config = config,
+        supplied = c(
+          if (!missing(home)) "home",
+          if (!missing(shared_home)) "shared_home",
+          if (!missing(allow_extensions)) "allow_extensions",
+          if (!missing(environment_scan)) "environment_scan"
+        )
+      )
       drv@convert_opts <- convert_opts
       drv@bigint <- convert_opts$bigint
       return(drv)
     }
   }
 
-  # Decide once, past the driver-cache reuse above, whether this driver may load
-  # DuckDB extensions (argument > `duckdb.allow_extensions` option >
-  # `DUCKDB_R_ALLOW_EXTENSIONS` env var > auto). The resolved flag is plumbed
-  # into the engine via rapi_startup() and exposed as the driver's
-  # `allow_extensions` slot; on the auto path it also drives the advisory message
-  # below. Placed here so an argument a reused driver would ignore does not take
-  # effect.
+  # Decide once, past the driver-cache reuse above,
+  # whether this driver may load DuckDB extensions
+  # (argument > `duckdb.allow_extensions` option > `DUCKDB_R_ALLOW_EXTENSIONS` env var > auto).
+  # The resolved flag is plumbed into the engine via rapi_startup() and exposed as the driver's `allow_extensions` slot;
+  # on the auto path it also drives the advisory message below.
+  # Placed here so an argument a reused driver would ignore does not take effect.
   ax <- resolve_allow_extensions(allow_extensions)
 
-  # Choose CRAN-safe locations for the engine's writable state unless the user
-  # set them explicitly. Extensions and secrets share a "home" directory
-  # resolved fresh on every call (an existing ~/.duckdb, else a temporary
-  # directory; see `?duckdb_storage`); the temp/spill directory is redirected
-  # for in-memory databases.
+  # Choose CRAN-safe locations for the engine's writable state unless the user set them explicitly.
+  # Extensions and secrets share a "home" directory resolved fresh on every call (an existing ~/.duckdb, else a temporary directory;
+  # see `?duckdb_storage`); the temp/spill directory is redirected for in-memory databases.
   need_extension <- !("extension_directory" %in% names(config))
   need_secret <- !("secret_directory" %in% names(config))
   if (need_extension || need_secret) {
-    # An explicit `home`/`shared_home` means the user knows the storage
-    # settings; remember it so later auto-resolved calls this session stay
-    # quiet. Set here, past the driver-cache reuse above, so an argument that a
-    # reused driver would ignore does not silence future messages.
+    # An explicit `home`/`shared_home` means the user knows the storage settings;
+    # remember it so later auto-resolved calls this session stay quiet.
+    # Set here, past the driver-cache reuse above, so an argument that a reused driver would ignore does not silence future messages.
     if (!is.null(home) || !is.null(shared_home)) {
       mark_storage_choice_made()
     }
@@ -221,15 +222,15 @@ duckdb <- function(
         "stored_secrets"
       )
     }
-    # Report where storage resolved (once), unless the caller chose the location
-    # explicitly with `home` or `shared_home` (or a `duckdb.home` option /
-    # `DUCKDB_R_HOME` variable, which yield sources "option"/"env"). A tempdir
-    # ("session") is announced in both modes -- non-interactively, and
-    # interactively when the user opted out of creating ~/.duckdb; an existing
-    # ~/.duckdb ("shared") is announced only non-interactively (interactively it
-    # is the user's own directory, used without a prompt). Once the user has
-    # made any explicit `home`/`shared_home` choice this session they have seen
-    # the settings, so we stay quiet from then on.
+    # Report where storage resolved (once),
+    # unless the caller chose the location explicitly with `home` or `shared_home` (or a `duckdb.home` option / `DUCKDB_R_HOME` variable,
+    # which yield sources "option"/"env").
+    # A tempdir ("session") is announced in both modes --
+    # non-interactively, and interactively when the user opted out of creating ~/.duckdb;
+    # an existing ~/.duckdb ("shared") is announced only non-interactively (interactively it is the user's own directory,
+    # used without a prompt).
+    # Once the user has made any explicit `home`/`shared_home` choice this session they have seen the settings,
+    # so we stay quiet from then on.
     announce <- is.null(home) &&
       is.null(shared_home) &&
       !storage_choice_made() &&
@@ -239,12 +240,12 @@ duckdb <- function(
       maybe_storage_location_message(resolved_home)
     }
   }
-  # When extensions are disallowed for this driver, also turn off automatic
-  # extension install/load so a query cannot implicitly pull in a prebuilt
-  # (libstdc++) extension and crash R (duckdb/duckdb-r#1107). Automatic loading
-  # is a separate engine mechanism the C++ INSTALL/LOAD guard does not
-  # intercept, so it must be disabled here. Explicit INSTALL/LOAD is refused in
-  # the engine glue (see rapi_prepare()). An explicit user setting wins.
+  # When extensions are disallowed for this driver,
+  # also turn off automatic extension install/load so a query cannot implicitly pull in a prebuilt (libstdc++) extension
+  # and crash R (duckdb/duckdb-r#1107).
+  # Automatic loading is a separate engine mechanism the C++ INSTALL/LOAD guard does not intercept, so it must be disabled here.
+  # Explicit INSTALL/LOAD is refused in the engine glue (see rapi_prepare()).
+  # An explicit user setting wins.
   if (!ax$allow) {
     if (!("autoinstall_known_extensions" %in% names(config))) {
       config[["autoinstall_known_extensions"]] <- "FALSE"
@@ -254,26 +255,23 @@ duckdb <- function(
     }
   }
 
-  # Announce the disabled state, but only on the auto path (NULL argument and no
-  # option/env override) where extensions came out disabled -- an explicit
-  # argument/option/env silences it. Throttled like the storage message, and
-  # independent of the storage announce above.
+  # Announce the disabled state, but only on the auto path (NULL argument and no option/env override) where extensions came out disabled --
+  # an explicit argument/option/env silences it.
+  # Throttled like the storage message, and independent of the storage announce above.
   if (ax$announce) {
     maybe_extensions_message()
   }
 
-  # Temporary storage stays on by default, with the CLI's semantics: an
-  # on-disk database keeps the engine's own `<dbdir>.tmp` default, and an
-  # in-memory database gets a per-instance directory under the session tempdir
-  # (the engine's own default, `.tmp` in the working directory, is not a place
-  # an R package should write). The resolved value goes into the startup
-  # config only, not into the driver's `config` slot: that slot seeds the
-  # instance re-created when `dbConnect()` is called with a different `dbdir`
-  # (see dbConnect__duckdb_driver), which must re-resolve for the new `dbdir`
-  # -- an on-disk database opened as `dbConnect(duckdb(), dbdir = ...)` would
-  # otherwise inherit the in-memory driver's spill path and never use
-  # `<dbdir>.tmp` (the duckdb/duckdb-r#1604 family). An explicit
-  # `temp_directory` in `config` is stored and honored as-is.
+  # Temporary storage stays on by default, with the CLI's semantics:
+  # an on-disk database keeps the engine's own `<dbdir>.tmp` default,
+  # and an in-memory database gets a per-instance directory under the session tempdir (the engine's own default,
+  # `.tmp` in the working directory, is not a place an R package should write).
+  # The resolved value goes into the startup config only, not into the driver's `config` slot:
+  # that slot seeds the instance re-created when `dbConnect()` is called with a different `dbdir` (see dbConnect__duckdb_driver),
+  # which must re-resolve for the new `dbdir` --
+  # an on-disk database opened as `dbConnect(duckdb(), dbdir = ...)` would otherwise inherit the in-memory driver's spill path
+  # and never use `<dbdir>.tmp` (the duckdb/duckdb-r#1604 family).
+  # An explicit `temp_directory` in `config` is stored and honored as-is.
   startup_config <- config
   if (!("temp_directory" %in% names(config))) {
     temp_directory <- resolve_temp_directory(dbdir)$directory
@@ -313,8 +311,7 @@ duckdb <- function(
 #' @description
 #' `duckdb_shutdown()` shuts down a database instance.
 #'
-#' @return `dbDisconnect()` and `duckdb_shutdown()` are called for their
-#'   side effect.
+#' @return `dbDisconnect()` and `duckdb_shutdown()` are called for their side effect.
 #' @rdname duckdb
 #' @export
 duckdb_shutdown <- function(drv) {
@@ -335,8 +332,7 @@ duckdb_shutdown <- function(drv) {
 }
 
 #' @description
-#' Return an [adbcdrivermanager::adbc_driver()] for use with Arrow Database
-#' Connectivity via the adbcdrivermanager package.
+#' Return an [adbcdrivermanager::adbc_driver()] for use with Arrow Database Connectivity via the adbcdrivermanager package.
 #'
 #' @return An object of class "adbc_driver"
 #' @rdname duckdb
@@ -403,9 +399,70 @@ check_tz <- function(timezone) {
   timezone
 }
 
+# `config`, `read_only` and the storage arguments describe the database *instance*,
+# so a call that finds one in the registry cannot apply them.
+# They are compared rather than merely counted as supplied:
+# `dbConnect()` forwards the driver's own values, and repeating a setting the instance already has is not a collision.
+# Explained in handbook/usage/connections/README.md;
+# duckdb/duckdb-r#2560 asks for the noise, duckdb/duckdb-r#126 for the removal.
+warn_instance_settings_ignored <- function(
+  drv,
+  read_only,
+  config,
+  supplied,
+  call = parent.frame()
+) {
+  ignored <- supplied
+
+  if (!identical(read_only, drv@read_only)) {
+    ignored <- c(ignored, "read_only")
+  }
+
+  differs <- !vapply(
+    names(config),
+    function(name) identical(config[[name]], drv@config[[name]]),
+    logical(1)
+  )
+  if (any(differs)) {
+    ignored <- c(ignored, paste0("config$", names(config)[differs]))
+  }
+
+  if (length(ignored) == 0) {
+    return(invisible())
+  }
+
+  abort(
+    c(
+      paste0(
+        paste0("`", ignored, "`", collapse = ", "),
+        " can't be applied to the database instance for `",
+        drv@dbdir,
+        "`, which already exists."
+      ),
+      "These settings take effect only when the instance is created.",
+      "Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it."
+    ),
+    call = call
+  )
+}
+
+# A `dbdir` an extension answers rather than the filesystem -- `md:` for MotherDuck, `ducklake:` for DuckLake -- is not a path.
+# Normalizing one turns it into a local file name that no extension will ever be asked about.
+#
+# The rule is the engine's, from `ExtensionHelper::ExtractExtensionPrefixFromPath()`:
+# at least two alphanumeric-or-underscore characters before the first colon,
+# which keeps `C:\db` a Windows path, and `://` after them means a URL scheme rather than a prefix, which keeps `s3://` out.
+has_extension_prefix <- function(path) {
+  grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
+}
+
 path_normalize <- function(path) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
+  }
+
+  if (has_extension_prefix(path)) {
+    return(path)
   }
 
   out <- normalizePath(path, mustWork = FALSE)
