@@ -18,7 +18,7 @@ This article shows memory-efficient ways for reading and writing:
 - Registering a data frame for writing
 
 The routes below keep R's share to one batch, or one data frame, at a time.
-Follow these recipies to process datasets larger than memory.
+Follow these recipes to process datasets larger than memory.
 
 ## Set the limit where it takes effect
 
@@ -40,7 +40,7 @@ dbExecute(con, "SET memory_limit = '2GB'")
 Reading via Arrow stream never holds the result whole.
 Execution starts at `dbSendQueryArrow()` and pauses at a bounded buffer.
 Each `dbFetchArrowChunk()` hands over one batch that can be converted using `as.data.frame()`.
-For best results, release a batch immediately via `nanoarrow_pointer_release()`.
+For best results, release a batch immediately via `nanoarrow::nanoarrow_pointer_release()`.
 
 ```{r}
 rs <- dbSendQueryArrow(con, "SELECT * FROM huge")
@@ -91,11 +91,8 @@ stream <- nanoarrow::read_nanoarrow(file("data.arrows", "rb"))
 dbWriteTableArrow(con, "t", stream)
 ```
 
-## How the numbers were measured
+## Experiments
 
-Every number above is the peak resident memory of the whole R process over its baseline,
-taken on the development build in September 2026, for the same 800 MB result or frame: fifty million rows of two `DOUBLE` columns.
-The 12 GB figures are the same measurements at 750 million rows on a machine with 16 GB, one run at a time.
 The method, every other route, and the same measurements through the Python, Node, Go and Rust clients are recorded in the repository:
 [`experiments/2026-09-14-memory-clients/`](https://github.com/duckdb/duckdb-r/tree/main/experiments/2026-09-14-memory-clients) for reading,
 [`experiments/2026-09-19-memory-ingest/`](https://github.com/duckdb/duckdb-r/tree/main/experiments/2026-09-19-memory-ingest) for writing.
