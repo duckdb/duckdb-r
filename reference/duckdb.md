@@ -272,9 +272,12 @@ it read-only, or to send extensions and secrets elsewhere – first
 release the instance with `duckdb_shutdown()`, which also drops it from
 the cache, then create it again.
 [`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
-only closes a connection, it does not release the instance, and its
-`shutdown` argument is unused. Instances are shut down automatically
-when the driver is garbage-collected or the session ends.
+closes one connection, and its `shutdown` argument is unused.
+Connections keep the instance alive, so it is released once the last
+connection to it closes; a driver that was never connected to releases
+its instance when the driver is garbage-collected or the session ends.
+[`dbIsValid()`](https://dbi.r-dbi.org/reference/dbIsValid.html) reports
+whether a driver still holds an instance.
 
 ## DuckDB extensions on Linux
 

@@ -284,9 +284,12 @@ To apply different values to a file-based database –
 for example to reopen it read-only, or to send extensions and secrets elsewhere –
 first release the instance with <code>duckdb_shutdown()</code>, which also drops it from the cache,
 then create it again.
-<code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> only closes a connection,
-it does not release the instance, and its <code>shutdown</code> argument is unused.
-Instances are shut down automatically when the driver is garbage-collected or the session ends.</p>
+<code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> closes one connection, and its <code>shutdown</code> argument is unused.
+Connections keep the instance alive,
+so it is released once the last connection to it closes;
+a driver that was never connected to releases its instance
+when the driver is garbage-collected or the session ends.
+<code><a href="https://dbi.r-dbi.org/reference/dbIsValid.html" class="external-link">dbIsValid()</a></code> reports whether a driver still holds an instance.</p>
     </div>
     <div class="section level2">
     <h2 id="duckdb-extensions-on-linux">DuckDB extensions on Linux<a class="anchor" aria-label="anchor" href="#duckdb-extensions-on-linux"></a></h2>
