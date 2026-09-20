@@ -11,17 +11,20 @@ knitr::opts_chunk$set(eval = FALSE)
 
 A result that fits comfortably in the database can still be too large for R,
 and a data frame that fits in R can still be copied on its way into the database.
-This article shows one way to read and one way to write that keep memory bounded, and says what each costs.
+This article shows memory-efficient ways for reading and writing:
 
-DuckDB and R allocate from two different budgets.
-The engine's memory is bounded by `memory_limit` and can spill to disk; R's vectors are bounded by nothing and never spill.
-The routes below keep R's share to one batch, or one data frame, at a time, and leave the rest to the engine's budget.
-The overheads quoted are measurements, described at the end of the page.
+- Memory limits
+- Streamed reading via Arrow
+- Registering a data frame for writing
 
 ## Set the limit where it takes effect
 
-The engine's limit is set on the driver, or on a live connection.
-Passing it to `dbConnect(config = )` does not reach an instance that already exists, which the default in-memory database always does.
+DuckDB and R allocate from two different budgets.
+The engine's memory is bounded by `memory_limit` and can spill to disk; R's vectors are unbounded and only spilled to the system swap space, if at all.
+The routes below keep R's share to one batch, or one data frame, at a time, and leave the rest to the engine's budget.
+The overheads quoted are measurements, described at the end of the page.
+
+The engine's limit is set on the driver or on a live connection.
 
 ```{r}
 library(DBI)
@@ -32,13 +35,10 @@ dbExecute(con, "SET memory_limit = '2GB'")
 
 ## Reading: stream, and release each batch
 
-The one route that never holds the result whole is the Arrow stream.
-Execution starts at `dbSendQueryArrow()` and pauses at a bounded buffer;
-each `dbFetchArrowChunk()` hands over one batch, which `as.data.frame()` converts and `nanoarrow_pointer_release()` frees at once.
-The release is what gives you control:
-a batch's memory is Arrow's, allocated by the engine outside R's heap, and R's garbage collector never sees it,
-so a batch that is merely dropped waits for a collection that nothing prompts.
-`gc()` is the fallback, and it frees a batch only if nothing still refers to it.
+Reading via Arrow stream never holds the result whole.
+Execution starts at `dbSendQueryArrow()` and pauses at a bounded buffer.
+Each `dbFetchArrowChunk()` hands over one batch that can be converted using `as.data.frame()`.
+A batch is released immediately via `nanoarrow_pointer_release()` or indirectly via `gc()` (assuming nothing else refers to it).
 
 ```{r}
 rs <- dbSendQueryArrow(con, "SELECT * FROM huge")
@@ -52,26 +52,12 @@ repeat {
 dbClearResult(rs)
 ```
 
-Overhead, measured: the loop above peaks between 160 and 230 MB over the process baseline for an 800 MB result,
-and stays there even when the query sorts more than `memory_limit` allows,
-because the sort spills and the stream carries the result batch by batch.
-It peaks at the same 166 to 229 MB for a 12 GB result on a 16 GB machine: the peak belongs to the batch, not to the result.
-Fetching the same result with `dbGetQuery()` peaks at about 1,650 MB, twice the data,
-because the engine's copy and R's coexist while the result converts;
-`dbSendQuery()` with a `dbFetch(n = )` loop peaks the same, because the whole result is materialized before the first `n` rows return.
-At 12 GB, both are killed.
-Dropping batches without releasing them costs about 900 MB,
-the whole result waiting for a collector that runs on R-heap pressure it never sees,
-and 8 GB of the 12 GB result before that collector happens to run.
-One thing the release does not do:
-a character column converted from a batch keeps its part of the batch alive until the strings are materialized or the column is dropped,
-because the conversion is lazy.
-Numeric columns are copied, and the batch can go as soon as they are.
+Overhead, measured: the loop above peaks between 160 and 230 MB over the process baseline for both an 800 MB and a 12 GB result on a 16 GB machine.
 
 ## Writing: hand the data frame over, and let the engine scan it
 
 `dbWriteTable()` copies nothing on the R side:
-it registers the data frame as a view the engine scans in place, creates the table from that scan, and unregisters.
+it registers the data frame as a view that the engine scans in place, creates the table from that scan, and unregisters.
 `dbAppendTable()` does the same into an existing table, so data that arrives in pieces is appended piece by piece with the same cost.
 
 ```{r}
@@ -79,12 +65,8 @@ dbWriteTable(con, "t", df)        # one frame
 dbAppendTable(con, "t", next_df)  # or piece by piece
 ```
 
-Overhead, measured: writing an 800 MB frame peaks between 280 and 320 MB over the frame's own size,
-in a file database and in an in-memory one alike under a 300 MB `memory_limit`.
-That is the engine's write working set, bounded by the limit, and nothing else;
-a 12 GB frame on a 16 GB machine peaks 373 MB over its own size.
-Fifty appends of a million rows each, from a producer that never holds the data whole, peak at about 430 MB over an empty process,
-and 460 MB when the pieces add up to 12 GB.
+Overhead, measured: writing an 800 MB frame consumes between 280 and 320 MB in addition to the frame's own size,
+writing a 12 GB frame on a 16 GB machine consumes 373 MB.
 Where no table is needed at all, `duckdb::duckdb_register()` alone lets queries scan the frame for a measured 1 MB of overhead.
 
 ```{r}
@@ -95,10 +77,7 @@ dbGetQuery(con, "SELECT count(*) FROM df WHERE a > 0.5")
 ### Files: let the engine read them
 
 A file the engine can read is cheapest read by the engine.
-Routing a Parquet file through the arrow package's dataset scanner,
-which is what `arrow::open_dataset()` handed to `duckdb_register_arrow()` or `arrow::to_duckdb()` does,
-buffers the file ahead of the table write and peaks above the data's own size (measured: 1,036 MB for an 800 MB file),
-where `read_parquet()` in the engine peaks at 308 MB, the pool at its limit.
+Calling `read_parquet()` function in the engine consumes 308 MB.
 
 ```{r}
 dbExecute(con, "CREATE TABLE t AS SELECT * FROM read_parquet('data.parquet')")
@@ -107,12 +86,9 @@ dbExecute(con, "CREATE TABLE t AS SELECT * FROM read_parquet('data.parquet')")
 ### Arrow streams: append a batch at a time
 
 Data that arrives as an Arrow stream, from a pipe, a socket or another library's reader,
-goes in through `dbWriteTableArrow()`, or `dbAppendTableArrow()` into an existing table:
-both pull one batch on R's thread and append it as a data frame.
+goes in through `dbWriteTableArrow()`, or `dbAppendTableArrow()` into an existing table.
+Both pull one batch on R's thread and append it as a data frame.
 Measured: 505 MB over an empty process for the same 800 MB.
-Registering the stream as a table instead costs the whole dataset for the same reason the file does,
-about 2 GB once the data is larger than that,
-and a stream over an R connection cannot be registered at all: the engine pulls it from a thread that is not R's.
 
 ```{r}
 stream <- nanoarrow::read_nanoarrow(file("data.arrows", "rb"))
