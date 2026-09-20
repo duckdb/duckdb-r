@@ -63,6 +63,15 @@ rethrow_rapi_is_locked <- function(dual, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_database_valid <- function(dual, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_database_valid(dual),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_shutdown <- function(dbsexp, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_shutdown(dbsexp),
@@ -584,6 +593,7 @@ rethrow_restore <- function() {
   rethrow_rapi_lock <<- rapi_lock
   rethrow_rapi_unlock <<- rapi_unlock
   rethrow_rapi_is_locked <<- rapi_is_locked
+  rethrow_rapi_database_valid <<- rapi_database_valid
   rethrow_rapi_shutdown <<- rapi_shutdown
   rethrow_rapi_register_df <<- rapi_register_df
   rethrow_rapi_unregister_df <<- rapi_unregister_df
