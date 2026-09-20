@@ -451,6 +451,70 @@ test_that("the default reaches nested columns (#2574)", {
   )
 })
 
+# A type assertion at a UTC session zone passes whatever the nested values
+# are, because a naive value read as UTC lands on the same instant. These
+# assert values, under a session zone where the two differ by five hours.
+test_that("nested values keep the instant at a non-UTC session zone (#2574)", {
+  skip_if_no_icu()
+
+  con <- local_con()
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/New_York'")
+
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+
+  df <- data.frame(row = 1L)
+  df$l <- list(instant)
+  df$s <- data.frame(t = instant)
+  duckdb_register(con, "df", df)
+  expect_equal(
+    dbGetQuery(con, "SELECT l[1] AS a FROM df")$a,
+    instant,
+    ignore_attr = TRUE
+  )
+  expect_equal(
+    dbGetQuery(con, "SELECT s.t AS a FROM df")$a,
+    instant,
+    ignore_attr = TRUE
+  )
+})
+
+test_that("nested bound parameters keep the instant too (#2574)", {
+  skip_if_no_icu()
+
+  con <- local_con()
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/New_York'")
+
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+
+  # A `POSIXct` one level down has to be sent as TIMESTAMPTZ as well: sent as
+  # TIMESTAMP, the cast into the column reads it as a local wall clock and
+  # moves it by the session offset
+  expect_equal(
+    dbGetQuery(con, "SELECT typeof(?) AS t", params = list(list(instant)))$t,
+    "TIMESTAMP WITH TIME ZONE[]"
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT typeof(?) AS t",
+      params = list(data.frame(t = instant))
+    )$t,
+    "STRUCT(t TIMESTAMP WITH TIME ZONE)"
+  )
+
+  dbExecute(con, "CREATE TABLE t (a TIMESTAMPTZ[])")
+  dbExecute(con, "INSERT INTO t VALUES (?)", params = list(list(instant)))
+  expect_equal(
+    dbGetQuery(con, "SELECT a[1] AS a FROM t")$a,
+    instant,
+    ignore_attr = TRUE
+  )
+})
+
 # A relation promises the data frame back unchanged, which TIMESTAMPTZ cannot
 # keep: it comes back labeled with the session zone. Measured in
 # experiments/2026-08-09-rel-from-df-posixct/README.md.
