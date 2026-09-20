@@ -226,3 +226,86 @@ To refresh: pull the images, run `./run.sh prepare <lang>` for each
 language (the Rust one compiles the engine, in the order of an hour),
 then `./run.sh run <lang> <image-label> <scenario...>` per scenario as
 listed in the scripts, and replace the CSVs.
+
+## At the worker's RAM
+
+The same fetch shapes with fifteen times the result:
+750 million rows, 12 GB, on the 15.7 GiB worker —
+three quarters of its memory, so a route that holds the result twice
+cannot complete.
+One container at a time, each capped by a cgroup at 14.5 GB with no
+swap, so a run that outgrows the cap is killed inside its container
+(recorded as *OOM*, with the seconds it took to die) rather than by the
+host;
+`run.sh` takes the size as `ROWS` and the cap as `MEMORY`,
+Node's heap ceiling raised to 14 GB for the occasion.
+The dev build only, since the CRAN build read the same at 800 MB;
+the sorted-under-a-limit variants left out,
+because the engine would have to spill the 12 GB and the session's
+disk allowance is 15 GB.
+Recorded in
+[`results/clients-near-ram.csv`](results/clients-near-ram.csv),
+same columns.
+
+| client (engine) | route | peak MB | s |
+|---|---|---|---|
+| R dev 1.5.5.9023 | `dbGetQuery()` | *OOM* | 69 |
+| R dev | `dbSendQuery()` + `dbFetch(n = 1e6)` loop | *OOM* | 50 |
+| R dev | `dbSendQuery(arrow = TRUE)` + `duckdb_fetch_arrow()` | *OOM* | 48 |
+| R dev | ▸ `dbSendQueryArrow()` + `dbFetchArrowChunk()`, batches dropped | 8,031 | 34 |
+| R dev | ▸ the same, each batch released | 166 | 11 |
+| R dev | ▸ the same, each batch converted with `as.data.frame()` | 229 | 21 |
+| R dev | ▸ ADBC stream, batches released | 154 | 70 |
+| Python 1.5.5 | `.df()` (pandas) | *OOM* | 70 |
+| Python | `.fetch_arrow_table()` | 11,743 | 45 |
+| Python | `.fetchnumpy()` | *OOM* | 38 |
+| Python | ▸ `.fetchmany(1e6)` loop | 320 | 227 |
+| Python | ▸ `.fetch_record_batch(1e6)` reader | 255 | 14 |
+| Python | ▸ `.fetch_df_chunk()` loop | 292 | 17 |
+| Node 1.5.5 | `runAndReadAll()` + `getColumns()` | *OOM* | 8,559 |
+| Node | `runAndReadAll()`, chunks kept, no conversion | *OOM* | 59 |
+| Node | `run()` + `fetchChunk()` loop | 12,114 | 60 |
+| Node | ▸ `stream()` + `fetchChunk()` loop | 444 | 42 |
+| Go 1.5.5 | `database/sql` rows into slices | *OOM* | 85 |
+| Go | `database/sql` rows, discarded | 11,746 | 162 |
+| Rust 1.5.5 | `query_arrow()` collected | *OOM* | 43 |
+| Rust | `query_map()` collected into a `Vec` | *OOM* | 51 |
+| Rust | `query_arrow()` iterated, discarded | 11,726 | 28 |
+| Rust | `query()` rows iterated, discarded | 11,727 | 41 |
+
+* **What held the result twice is killed, in every client.**
+  `dbGetQuery()`, the `dbFetch(n = )` loop and the legacy arrow route
+  in R; pandas and NumPy in Python; Node's arrays and its kept chunks;
+  Go's slices; Rust's collected table and `Vec`.
+  The 2× of the small run is not a cost at this size but a wall.
+* **What streams carries 12 GB through a few hundred megabytes,
+  and the number is the small run's.**
+  R's released Arrow stream at 166 (159 at 800 MB), the converted one
+  at 229 (228), ADBC at 154 (150);
+  Python's three streaming forms at 255–320 (196–321);
+  Node's `stream()` at 444 (400).
+  The peak of a streaming route is a property of the batch,
+  not of the result.
+* **A held engine copy survives only because one copy still fits.**
+  Go's and Rust's iterators and Node's `run()` read 11.7–12.1 GB —
+  the engine's materialized result, walked once —
+  and Python's Arrow table 11.7 GB;
+  a result with less room than its own size would end where the
+  collected forms did.
+  These are the routes the small run marked as holding one copy,
+  and at this size one copy is the whole machine.
+* **Dropping batches is not releasing them.**
+  The stream whose batches are merely dropped climbs to 8 GB before
+  R's collector happens to run, in a 34-second run —
+  the collector sees none of Arrow's memory and chose its moment on
+  R-heap pressure alone.
+  Released as consumed, the same stream peaks at 166.
+* **Node's failure is slow.**
+  `getColumns()` over 750 million rows did not die in a minute like
+  the others but after two hours and twenty-three minutes of the
+  collector thrashing under its 14 GB heap ceiling —
+  what a user would see as a hang.
+* **Batch size buys time, not memory.**
+  ADBC's 2048-row batches take 70 seconds where the 1e6-row Arrow
+  chunks take 11, at the same peak;
+  Python's `fetchmany()` takes 227 seconds building a tuple per row.

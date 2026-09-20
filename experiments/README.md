@@ -76,15 +76,17 @@ This file is what names the contents, so nothing here is an orphan.
   [`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md).
 * [`2026-09-14-memory-clients/`](2026-09-14-memory-clients/) —
   the memory findings behind the memory leaves, re-run in containers
-  on the dev and the CRAN build, and the same fetch shapes measured
-  through the Python, Go, Rust and Node clients; supports
+  on the dev and the CRAN build, the same fetch shapes measured
+  through the Python, Go, Rust and Node clients,
+  and every shape again at 12 GB on a 16 GB worker; supports
   [`usage/memory/reading/`](/handbook/usage/memory/reading/README.md) and
   [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md).
 * [`2026-09-19-memory-ingest/`](2026-09-19-memory-ingest/) —
   what it costs to bring the same 800 MB into the engine through every
   route the R, Python, Node, Go and Rust clients offer, from a frame
   scanned in place to a generator, an appender or a pipe,
-  and why a lazy Arrow source costs the whole dataset; supports
+  why a lazy Arrow source costs the whole dataset,
+  and the same routes at 12 GB on a 16 GB worker; supports
   [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md).
 
 Adding one: create the directory, name it for the date and the topic,

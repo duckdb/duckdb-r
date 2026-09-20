@@ -184,7 +184,8 @@ result larger than memory, on three conditions:
   A batch's memory is Arrow's, outside R's heap,
   and R's collector runs on R-heap pressure it never sees —
   so a loop that merely drops each batch climbs toward the full
-  result until a collection happens to run.
+  result until a collection happens to run
+  (8 GB of a 12 GB result, measured).
   `nanoarrow::nanoarrow_pointer_release()` on a consumed batch frees it
   at once; an explicit `gc()` every so often is the blunter form
   (both drains are recorded in
@@ -195,6 +196,12 @@ The materializing routes carry no such result:
 `dbGetQuery()`, `dbFetch()` in any chunking, the legacy arrow route
 and a touched relation each hold the whole result on at least one
 side of the boundary.
+Measured at three quarters of a machine's memory —
+12 GB of a 15.7 GiB worker, in the same experiment —
+the released Arrow stream peaks at 166 MB, the converted one at 229
+and ADBC at 154, the small result's numbers,
+while `dbGetQuery()`, the `dbFetch(n = )` loop and the legacy arrow
+route are each killed at the memory cap within a minute.
 
 ## Against the other clients
 
@@ -205,19 +212,24 @@ Go one release behind — measured in
 
 * **Python streams by default.**
   `execute()` opens a streaming result, so `fetchmany()`,
-  a record-batch reader and `fetch_df_chunk()` all stay at batch size;
+  a record-batch reader and `fetch_df_chunk()` all stay at batch size
+  (255–320 MB for a 12 GB result);
   a whole pandas frame peaks a little above twice the data,
   a whole Arrow table barely above the data itself.
 * **Node streams on request.**
   `stream()` stays near batch size; `run()` holds the engine copy,
-  and columns as JavaScript arrays cost several times the data.
+  and columns as JavaScript arrays cost several times the data —
+  at 12 GB, two hours of collector thrashing before the kill.
 * **Go and Rust iterate over a held engine copy.**
   `database/sql` rows and the `duckdb` crate's iterators both walk a
   materialized result: the data once while iterating,
   twice when collected in Rust,
   and more in Go's growing slices.
   Under a limit the held copy is untracked there too — the same
-  property as this package's materialized route, not an R one.
+  property as this package's materialized route, not an R one —
+  and at 12 GB on a 16 GB machine it is why they survive at 11.7 GB
+  where every collected form is killed,
+  and why a result without room for one copy would end them too.
 * **Where this package differs** is the chunked API of its default
   route: `dbFetch(n = )` keeps the full peak where Python's
   `fetchmany()` does not.

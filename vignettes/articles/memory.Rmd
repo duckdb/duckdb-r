@@ -59,14 +59,18 @@ Overhead, measured: the loop above peaks between 160 and 230 MB over
 the process baseline for the 800 MB result, and stays there even when
 the query sorts more than `memory_limit` allows, because the sort spills
 and the stream carries the result batch by batch.
+It peaks at the same 166 to 229 MB for a 12 GB result on a 16 GB
+machine: the peak belongs to the batch, not to the result.
 Fetching the same result with `dbGetQuery()` peaks at about 1,650 MB,
 twice the data: the engine's copy and R's coexist while the result
 converts — and `dbSendQuery()` with a `dbFetch(n = )` loop peaks the
 same, because the whole result is materialized before the first `n`
 rows return.
+At 12 GB, both are killed.
 Dropping batches without releasing them costs about 900 MB,
 the whole result waiting for a collector that runs on R-heap pressure it
-never sees.
+never sees — and 8 GB of the 12 GB result before that collector
+happens to run.
 
 ## Writing: hand the data frame over, and let the engine scan it
 
