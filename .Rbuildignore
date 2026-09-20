@@ -48,3 +48,6 @@ _files$
 ^experiments$
 ^README\.Rmd$
 ^air\.toml$
+^CLAUDE\.md$
+^\.handbook-source$
+^\.handbook-ignore$
