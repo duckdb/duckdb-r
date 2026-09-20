@@ -40,8 +40,13 @@ The one route that never holds the result whole is the Arrow stream.
 Execution starts at `dbSendQueryArrow()` and pauses at a bounded
 buffer; each `dbFetchArrowChunk()` hands over one batch,
 which `as.data.frame()` converts and `nanoarrow_pointer_release()`
-frees at once — the release matters, because a batch's memory is
-Arrow's, and R's garbage collector never sees it.
+frees at once.
+The release is what gives you control: a batch's memory is Arrow's,
+allocated by the engine outside R's heap, and R's garbage collector
+never sees it, so a batch that is merely dropped waits for a
+collection that nothing prompts.
+`gc()` is the fallback, and it frees a batch only if nothing still
+refers to it.
 
 ```{r}
 rs <- dbSendQueryArrow(con, "SELECT * FROM huge")
@@ -71,6 +76,10 @@ Dropping batches without releasing them costs about 900 MB,
 the whole result waiting for a collector that runs on R-heap pressure it
 never sees — and 8 GB of the 12 GB result before that collector
 happens to run.
+One thing the release does not do: a character column converted
+from a batch keeps its part of the batch alive until the strings are
+materialized or the column is dropped, because the conversion is lazy.
+Numeric columns are copied, and the batch can go as soon as they are.
 
 ## Writing: hand the data frame over, and let the engine scan it
 

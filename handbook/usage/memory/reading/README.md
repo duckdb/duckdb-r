@@ -180,17 +180,36 @@ result larger than memory, on three conditions:
 * **The consumer must not accumulate.**
   Converting the whole stream at once is a full R copy;
   a loop over batches is what keeps R at batch size.
-* **Each batch must be released before the next.**
-  A batch's memory is Arrow's, outside R's heap,
-  and R's collector runs on R-heap pressure it never sees —
-  so a loop that merely drops each batch climbs toward the full
-  result until a collection happens to run
+* **Each batch must be released before the next,
+  and `nanoarrow_pointer_release()` is what releases it.**
+  A batch is a `nanoarrow_array` whose buffers the engine allocated
+  with `malloc`, outside R's heap
+  (`rapi_fetch_arrow_array()`, [`src/statement.cpp`](/src/statement.cpp),
+  fills a struct that `nanoarrow::nanoarrow_allocate_array()` owns);
+  what frees them is the struct's release callback,
+  the engine's `ArrowAppender::ReleaseArray`.
+  `nanoarrow::nanoarrow_pointer_release()` runs that callback at once,
+  whatever else refers to the batch, and is the route with the most
+  control: the object is an invalid pointer afterwards, and the result
+  it came from is untouched.
+  Dropping the batch leaves the callback to the finalizer nanoarrow
+  registered on the pointer, which runs only in a collection,
+  and R's collector runs on R-heap pressure these buffers never
+  create — so a loop that merely drops each batch climbs toward the
+  full result until a collection happens to run
   (8 GB of a 12 GB result, measured).
-  `nanoarrow::nanoarrow_pointer_release()` on a consumed batch frees it
-  at once; an explicit `gc()` every so often is the blunter form
-  (both drains are recorded in
-  [`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md),
-  beside every other number this page rests on).
+  `gc()` is the fallback that forces one:
+  a single call frees a dropped batch, since the finalizer calls the
+  release directly, but only if nothing refers to the batch any more,
+  and at the cost of a full collection each time.
+  The one thing neither route reaches is a character column converted
+  from the batch: nanoarrow converts strings lazily, moving that column
+  out of the batch into an owner of its own, so the column keeps its
+  buffers until it is materialized or dropped, while numeric columns
+  are copied and let the batch go.
+  Every one of these is measured in
+  [`experiments/2026-09-14-memory-clients/`](/experiments/2026-09-14-memory-clients/README.md#releasing-a-batch),
+  beside every other number this page rests on.
 
 The materializing routes carry no such result:
 `dbGetQuery()`, `dbFetch()` in any chunking, the legacy arrow route

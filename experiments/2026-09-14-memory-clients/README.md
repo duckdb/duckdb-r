@@ -227,6 +227,42 @@ language (the Rust one compiles the engine, in the order of an hour),
 then `./run.sh run <lang> <image-label> <scenario...>` per scenario as
 listed in the scripts, and replace the CSVs.
 
+## Releasing a batch
+
+What frees a batch's memory on the R side, in one process on the dev
+build, resident size in MB at each step
+([`r/release.R`](r/release.R); a 320 MB batch of doubles, then a
+batch of ten million strings):
+
+* **Drop and collect.**
+  Idle 123, batch held 437, unchanged after `rm()` (437),
+  127 after one `gc()`, 127 after a second.
+  The finalizer nanoarrow registers on the pointer calls the release
+  directly, so one collection is enough once the batch is unreachable.
+* **Release explicitly.**
+  A half-size batch held at 282 reads 129 the moment
+  `nanoarrow_pointer_release()` returns,
+  the object prints as `<nanoarrow_array[invalid pointer]>`,
+  and the next `dbFetchArrowChunk()` on the same result returns its
+  ten million rows: the stream is untouched.
+* **A second reference defeats collection, not release.**
+  With another reference to the batch alive, `rm()` and `gc()` leave
+  it held (438); dropping that reference and collecting frees it (127).
+* **Numeric columns are copied.**
+  `as.data.frame()` on the 320 MB batch adds 292 (437 to 729),
+  the column is not ALTREP,
+  and releasing the batch with the frame kept drops 310 (to 419).
+* **Character columns are converted lazily and keep their buffers.**
+  Ten million strings arrive as a 167 MB batch (115 to 282);
+  `as.data.frame()` adds nothing and the column is ALTREP;
+  releasing the batch frees nothing (282), nor does `gc()` (282),
+  and the values read back correctly afterwards,
+  because nanoarrow moved the column out of the batch into an owner of
+  its own before deferring the conversion;
+  materializing the column costs 778 of R strings (1060),
+  and the next `gc()` returns the 193 the column and its owner held
+  (867).
+
 ## At the worker's RAM
 
 The same fetch shapes with fifteen times the result:
