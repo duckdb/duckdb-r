@@ -69,8 +69,15 @@ The load-bearing facts:
   a prefix, which leaves `s3://` to be normalized like any other path.
 * `dbDisconnect()` closes one connection only;
   its `shutdown` argument is unused.
-  Instances are shut down when the driver is garbage-collected
-  or the session ends.
+  `dbConnect()` hands the instance's only strong reference to the connection,
+  so the instance is released when the last connection closes —
+  and a driver never connected to releases it when it is garbage-collected,
+  or at the end of the session.
+* `dbIsValid()` on a driver reports whether it still holds an instance,
+  and opens nothing to find out,
+  so a driver whose last connection has closed is no longer valid.
+  `duckdb_shutdown()` on such a driver is a silent no-op:
+  what it asks for has already happened.
 
 *To deepen: absorb the instance and caching section of `?duckdb`;
 drain [#455](https://github.com/duckdb/duckdb-r/issues/455).*

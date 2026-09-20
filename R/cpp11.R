@@ -28,6 +28,10 @@ rapi_is_locked <- function(dual) {
   .Call(`_duckdb_dev_rapi_is_locked`, dual)
 }
 
+rapi_database_valid <- function(dual) {
+  .Call(`_duckdb_dev_rapi_database_valid`, dual)
+}
+
 rapi_shutdown <- function(dbsexp) {
   invisible(.Call(`_duckdb_dev_rapi_shutdown`, dbsexp))
 }
