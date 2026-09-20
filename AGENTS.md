@@ -30,6 +30,13 @@ source of truth. This page only routes there.
 - operate the vendoring loop:
   [`operations/vendoring/series-loop/`](https://r.duckdb.org/handbook/operations/vendoring/series-loop/README.md)
   and `.claude/skills/`
+- write a sentence the way this repository does, before you write one:
+  [`meta/authoring/`](https://r.duckdb.org/handbook/meta/authoring/README.md)
+  and
+  [`meta/style/`](https://r.duckdb.org/handbook/meta/style/README.md)
+- know what this repository decides for itself, and the rules it adopts
+  beyond the shared ones:
+  [`meta/local/`](https://r.duckdb.org/handbook/meta/local/README.md)
 
 ## Everything else
 
@@ -41,3 +48,19 @@ the reasons ([the
 rules](https://r.duckdb.org/handbook/meta/handbook/README.md)). Start at
 the root and follow the scope sentences; searching the tree is the
 slower path.
+
+## Behaviour
+
+- Every document outside `handbook/` either derives from it or
+  backreferences the node it serves. In Claude Code the prose rules load
+  on their own when you touch a file carrying prose; run `/docs:check`
+  after touching documentation.
+
+------------------------------------------------------------------------
+
+*The shared pages under `handbook/meta/` point to their home,
+[`cynkra/handbook-tools`](https://github.com/cynkra/handbook-tools); the
+rule file and the skills are carried from there unchanged, and
+[`.handbook-source`](https://r.duckdb.org/.handbook-source) names the
+files and the state of the source this handbook was last checked
+against.*

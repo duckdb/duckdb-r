@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9023</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9024</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,10 +61,19 @@
 </li>
 <li>operate the vendoring loop: <a href="/handbook/operations/vendoring/series-loop/README.html"><code>operations/vendoring/series-loop/</code></a> and <code>.claude/skills/</code>
 </li>
+<li>write a sentence the way this repository does, before you write one: <a href="/handbook/meta/authoring/README.html"><code>meta/authoring/</code></a> and <a href="/handbook/meta/style/README.html"><code>meta/style/</code></a>
+</li>
+<li>know what this repository decides for itself, and the rules it adopts beyond the shared ones: <a href="/handbook/meta/local/README.html"><code>meta/local/</code></a>
+</li>
 </ul></div>
 <div class="section level2">
 <h2 id="everything-else">Everything else<a class="anchor" aria-label="anchor" href="#everything-else"></a></h2>
 <p>Anything not on this page is in the tree, and walking down from <a href="/handbook/README.html"><code>handbook/</code></a> is how you find it: internal nodes navigate, leaves explain, and every fact has exactly one leaf that owns it — including the limits, the declined requests, and the reasons (<a href="/handbook/meta/handbook/README.html">the rules</a>). Start at the root and follow the scope sentences; searching the tree is the slower path.</p>
+</div>
+<div class="section level2">
+<h2 id="behaviour">Behaviour<a class="anchor" aria-label="anchor" href="#behaviour"></a></h2>
+<ul><li>Every document outside <code>handbook/</code> either derives from it or backreferences the node it serves. In Claude Code the prose rules load on their own when you touch a file carrying prose; run <code>/docs:check</code> after touching documentation.</li>
+</ul><hr><p><em>The shared pages under <code>handbook/meta/</code> point to their home, <a href="https://github.com/cynkra/handbook-tools" class="external-link"><code>cynkra/handbook-tools</code></a>; the rule file and the skills are carried from there unchanged, and <a href="/.handbook-source"><code>.handbook-source</code></a> names the files and the state of the source this handbook was last checked against.</em></p>
 </div>
 </div>
 
