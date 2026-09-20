@@ -178,14 +178,29 @@ autoloads icu in 0.05s, and the same query that returned `"UTC"` before
 it returns `"Europe/Zurich"` after. Nothing announces the switch, and
 the toucher need not be the caller's own code.
 
-That last one is what decides the pin. Guarding it on "icu is already
-loaded" is *necessary* — an unguarded `SET` at connect raises on a
-build without icu — but it is also *ineffective exactly where the
-machine dependence lives*, because in the installed-but-not-loaded
-state the guard skips and the first later touch of the setting brings
-the machine's zone back. A pin that closed that hole would have to
-`LOAD icu` at connect for everyone who has it cached, which is a much
-larger change than a default.
+That last one sets the shape of the fix rather than ruling it out.
+A connect-time `SET` has to be guarded, because an unguarded one raises
+on a build without icu; but a guard on "icu is already loaded" skips in
+the installed-but-not-loaded state, which is exactly where the zone
+moves under a session. Loading an installed icu at connect closes that,
+and costs nothing a download could: `LOAD` reads what is on disk.
+
+## Which zone to name
+
+[`pin-target.md`](pin-target.md), from [`pin-target.R`](pin-target.R),
+answers the question `defaults.md` got wrong. That run pinned the
+session to `timezone_out` and read the result as a fix; it is one only
+because its `timezone_out` was `"UTC"`. Under
+`tz_out_convert = "with"` the read side takes a naive wall clock as UTC
+whatever `timezone_out` says — that setting relabels and nothing more —
+so a session on `timezone_out = "America/New_York"` writes `08:03:12`
+into a naive column and reads it back as `08:03:12 UTC`, five hours
+from where it started. The session has to be **UTC**, for every
+`timezone_out`, because UTC is the zone the reader uses.
+
+A `TIMESTAMPTZ` column is then labeled `UTC` rather than the machine's
+zone, which is the same answer on every machine and the reason results
+stop depending on where they ran.
 
 **What none of these runs covers.**
 Windows, where icu cannot be installed at all on the arm64 build

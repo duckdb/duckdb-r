@@ -29,30 +29,30 @@ the wider type mapping is
   A DBI result captures the zone at execute time;
   an ALTREP result captures it earlier, when the data frame is built —
   that corner is [`relational/`](/handbook/usage/relational/README.md)'s.
-* **The session `TimeZone` is the icu extension's setting.**
-  `SET TimeZone` needs icu for any value, `'UTC'` included;
-  where icu never loaded, results quietly fall back to a `UTC` label.
-  Where icu is *installed but not loaded* — what running `INSTALL icu`
-  once leaves behind — the fallback holds only until something touches
-  the setting: `SET TimeZone` and `current_setting('TimeZone')` both
-  autoload icu, and from then on the label is the machine's zone,
-  so the same query can return a differently labeled column later in
-  one session, with nothing announcing the switch
+* **`dbConnect()` sets the session `TimeZone` to `UTC`.**
+  Both timestamp types then read a naive wall clock the same way —
+  R reads one as UTC, and so does the engine — which is what lets a
+  `POSIXct` written into a `TIMESTAMP` column come back as the instant
+  that went in ([`R/session-timezone.R`](/R/session-timezone.R)).
+  It is a starting point, not a lock: `SET TimeZone` on the connection
+  wins, and a naive column stops round-tripping once it does,
+  because only one side of the pair moved.
+* **The session `TimeZone` is the icu extension's setting,
+  so the alignment reaches exactly as far as icu does.**
+  `SET TimeZone` needs icu for any value, `'UTC'` included.
+  `dbConnect()` loads an *installed* icu to set it, and installs
+  nothing ([`extensions/`](/handbook/usage/extensions/README.md));
+  where icu cannot be had, the engine reports `UTC` for want of the
+  setting, which is the zone the alignment would have set, so the two
+  cases agree on the answer and differ only in how they reach it.
+  What the alignment removes is the state in between, where icu is
+  installed but unloaded and the zone changes under a session:
+  `SET TimeZone` and `current_setting('TimeZone')` both autoload icu,
+  and before the alignment the label went from `UTC` to the machine's
+  zone the moment anything touched the setting
   ([`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md)).
-  Asking `duckdb_extensions()` loads nothing, and is how to tell
-  which state a session is in.
-  This package autoloads an *installed* icu but downloads nothing
-  by itself ([`extensions/`](/handbook/usage/extensions/README.md)),
-  and does not link icu statically —
-  a binary that does (the DuckDB CLI, a fast-path build against a
-  release `libduckdb`) has the setting from startup,
-  defaulting to the machine's zone.
-  It takes that zone as the machine spells it,
-  so a `TIMESTAMPTZ` label is `TZ` verbatim —
-  `"UTC"` and `"Etc/UTC"` are one zone under two labels,
-  and no value of `timezone_out` aligns with the session zone
-  on every machine, because the session zone is not a constant
-  ([`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md)).
+  `duckdb_extensions()` loads nothing, and is how to tell which state
+  a session is in.
 * **`tz_out_convert = "force"` is the one instant-changing path.**
   It relabels every datetime column in `timezone_out`,
   preserving the UTC-rendered wall clock;
