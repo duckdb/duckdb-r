@@ -162,10 +162,10 @@ index 1ca9656e4..b1b162348 100644
  \description{
  \if{html}{\figure{logo.svg}{options: style='float: right' alt='logo' width='120'}}
 diff --git a/vignettes/articles/memory.Rmd b/vignettes/articles/memory.Rmd
-index ab160b8..ae15838 100644
+index 6688555..9164028 100644
 --- a/vignettes/articles/memory.Rmd
 +++ b/vignettes/articles/memory.Rmd
-@@ -25,7 +25,7 @@ Passing it to `dbConnect(config = )` does not reach an instance that already exi
+@@ -30,7 +30,7 @@ The engine's limit is set on the driver or on a live connection.
  
  ```{r}
  library(DBI)
@@ -174,12 +174,12 @@ index ab160b8..ae15838 100644
  # or, on a live connection:
  dbExecute(con, "SET memory_limit = '2GB'")
  ```
-@@ -85,10 +85,10 @@ That is the engine's write working set, bounded by the limit, and nothing else;
- a 12 GB frame on a 16 GB machine peaks 373 MB over its own size.
- Fifty appends of a million rows each, from a producer that never holds the data whole, peak at about 430 MB over an empty process,
- and 460 MB when the pieces add up to 12 GB.
--Where no table is needed at all, `duckdb::duckdb_register()` alone lets queries scan the frame for a measured 1 MB of overhead.
-+Where no table is needed at all, `duckdb.1.3::duckdb_register()` alone lets queries scan the frame for a measured 1 MB of overhead.
+@@ -65,10 +65,10 @@ dbWriteTable(con, "t", df)        # one frame
+ dbAppendTable(con, "t", next_df)  # or piece by piece
+ ```
+ 
+-Where no table is needed at all, `duckdb::duckdb_register()` alone lets queries scan the frame with negligible overhead.
++Where no table is needed at all, `duckdb.1.3::duckdb_register()` alone lets queries scan the frame with negligible overhead.
  
  ```{r}
 -duckdb::duckdb_register(con, "df", df)
