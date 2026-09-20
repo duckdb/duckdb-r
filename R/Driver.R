@@ -80,6 +80,9 @@ driver_registry <- new.env(parent = emptyenv())
 #'   see the \sQuote{Database instances and driver reuse} section.
 #' @param environment_scan Set to `TRUE` to treat data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
+#'   A data frame found this way is converted with the same options as one
+#'   passed to [duckdb_register()], so the `bigint`, `map` and `posixct`
+#'   arguments of [dbConnect()] reach both alike.
 #'   The default of this setting may change in a future version.
 #'
 #' @return `duckdb()` returns an object of class [duckdb_driver-class].

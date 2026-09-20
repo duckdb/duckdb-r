@@ -120,6 +120,9 @@ see the \sQuote{Database instances and driver reuse} section.}
 
 \item{environment_scan}{Set to \code{TRUE} to treat data frames from the calling environment as tables.
 If a database table with the same name exists, it takes precedence.
+A data frame found this way is converted with the same options as one
+passed to \code{\link[=duckdb_register]{duckdb_register()}}, so the \code{bigint}, \code{map} and \code{posixct}
+arguments of \code{\link[DBI:dbConnect]{dbConnect()}} reach both alike.
 The default of this setting may change in a future version.}
 
 \item{drv}{Object returned by \code{duckdb()}}
@@ -174,9 +177,8 @@ This is the mapping earlier versions used, and the way back to it.
 The setting reaches \code{\link[DBI:dbWriteTable]{dbWriteTable()}}, \code{\link[DBI:dbAppendTable]{dbAppendTable()}},
 \code{\link[=duckdb_register]{duckdb_register()}}, bound parameters, \code{\link[DBI:dbDataType]{dbDataType()}} and
 \code{\link[DBI:dbQuoteLiteral]{dbQuoteLiteral()}}.
-It does not reach a data frame picked up by name under
-\code{duckdb(environment_scan = TRUE)}, nor the relational API behind
-\pkg{duckplyr}, which both stay on \code{TIMESTAMP}.}
+It does not reach the relational API behind \pkg{duckplyr}, which
+stays on \code{TIMESTAMP}.}
 
 \item{conn}{A \code{duckdb_connection} object}
 

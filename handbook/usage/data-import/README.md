@@ -1,8 +1,9 @@
 # Data import
 
-Getting CSV and Parquet data in (and out):
-`duckdb_read_csv()` versus the engine's own readers,
-and reading many files at once.
+Getting data in (and out):
+CSV and Parquet through `duckdb_read_csv()` or the engine's own
+readers, many files at once,
+and an R data frame through registration or the environment scan.
 
 * **`duckdb_read_csv()`** (`?duckdb_read_csv`,
   [`R/csv.R`](/R/csv.R)) sniffs the header and column types with
@@ -27,6 +28,16 @@ and reading many files at once.
   and `filename = true` only promotes it into `SELECT *`.
   A wrapper that forwards nothing therefore withholds less than it
   looks like — what it withholds is the column in `SELECT *`.
+* **An R data frame reaches the engine by registration,**
+  `duckdb_register()`, which makes a view over the data frame without
+  copying it; `duckdb(environment_scan = TRUE)` does the same for a
+  data frame found by name in the calling environment, and a table of
+  that name in the database wins over it.
+  Both bind with the connection's conversion options —
+  `bigint`, `map`, `posixct` — so one data frame reaching the engine
+  two ways arrives as one set of types.
+  Which types those are is
+  [`types/`](/handbook/usage/types/README.md)'s.
 * **Out:** `COPY ... TO 'file.parquet'` in SQL;
   writing from dplyr pipelines is duckplyr's `compute_parquet()`.
 * **R data frames** need no import at all:

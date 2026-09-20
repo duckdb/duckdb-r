@@ -17,6 +17,7 @@
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/main/client_context_state.hpp"
 
 #include "convert.hpp"
 
@@ -59,6 +60,22 @@
 namespace duckdb {
 
 typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
+
+// A connection's ConvertOpts, parked where the engine can reach them.
+//
+// The replacement scan that turns a bare name into a data frame runs inside
+// the engine, and is handed a ClientContext and the database -- not the R
+// connection object the options live on. Registering them on the context is
+// what lets the scan bind a data frame the way `duckdb_register()` would,
+// rather than with the table function's own defaults.
+// Handbook: handbook/usage/data-import/README.md
+struct ConvertOptsState : public ClientContextState {
+	explicit ConvertOptsState(ConvertOpts convert_opts_p) : convert_opts(std::move(convert_opts_p)) {
+	}
+	ConvertOpts convert_opts;
+};
+
+static constexpr const char *CONVERT_OPTS_STATE_KEY = "duckdb_r_convert_opts";
 
 struct DBWrapper {
 	duckdb::unique_ptr<DuckDB> db;

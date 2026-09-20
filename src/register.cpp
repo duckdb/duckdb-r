@@ -67,6 +67,35 @@ using namespace duckdb;
 	}
 }
 
+// The named parameters `duckdb_register()` passes explicitly, for a data
+// frame the replacement scan found by name instead. Without them a scan
+// binds with the table function's defaults, and the same data frame reaches
+// the engine as a different set of types depending on how it was named:
+// an `integer64` column as the double its bits spell, a named list as a
+// nested list rather than a MAP, a `POSIXct` as a naive TIMESTAMP.
+// Handbook: handbook/usage/data-import/README.md
+static void AddScanOptions(vector<duckdb::unique_ptr<ParsedExpression>> &children, ClientContext &context) {
+	if (!context.registered_state) {
+		return;
+	}
+	auto state = context.registered_state->Get<ConvertOptsState>(CONVERT_OPTS_STATE_KEY);
+	if (!state) {
+		return;
+	}
+
+	auto &opts = state->convert_opts;
+	auto add = [&](const char *name, bool value) {
+		auto param = make_uniq<ConstantExpression>(Value::BOOLEAN(value));
+		param->SetAlias(name);
+		children.push_back(std::move(param));
+	};
+
+	add("integer64", opts.bigint == ConvertOpts::BigIntType::INTEGER64);
+	add("experimental", opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED);
+	add("map_list_of", opts.map == ConvertOpts::MapShape::LIST_OF);
+	add("timestamptz", opts.posixct == ConvertOpts::PosixctType::TIMESTAMPTZ);
+}
+
 unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input,
                                                         optional_ptr<ReplacementScanData> data_p) {
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
@@ -111,6 +140,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
+	AddScanOptions(children, context);
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 
 	// Signal that this table reference depends on external state (the R data

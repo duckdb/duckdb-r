@@ -73,6 +73,13 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	auto &client_context = *conn_wrapper->conn->context;
 	SetDefaultConfigArguments(client_context);
 
+	// So that the environment replacement scan binds a data frame with this
+	// connection's options rather than the table function's defaults
+	if (client_context.registered_state) {
+		client_context.registered_state->Insert(CONVERT_OPTS_STATE_KEY,
+		                                        make_shared_ptr<ConvertOptsState>(conn_wrapper->convert_opts));
+	}
+
 	// The connection now holds a reference to the database.
 	// This reference is released when the connection is closed.
 	// From the R side, the database pointer will remain valid
