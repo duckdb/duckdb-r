@@ -127,6 +127,19 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return dual->is_locked();
 }
 
+// Whether the reference still points at a live database. A predicate: it does not
+// lock, connect or query, and a released reference answers false rather than raising.
+[[cpp11::register]] bool rapi_database_valid(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		return false;
+	}
+	auto wrapper = dual->get();
+	if (!wrapper || !wrapper->db) {
+		return false;
+	}
+	return true;
+}
+
 [[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
 	auto db_wrapper = dbsexp.release();
 	if (db_wrapper) {

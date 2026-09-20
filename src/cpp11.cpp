@@ -57,6 +57,13 @@ extern "C" SEXP _duckdb_2_0_dev_rapi_is_locked(SEXP dual) {
   END_CPP11
 }
 // database.cpp
+bool rapi_database_valid(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_2_0_dev_rapi_database_valid(SEXP dual) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_database_valid(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual)));
+  END_CPP11
+}
+// database.cpp
 void rapi_shutdown(duckdb::db_eptr_t dbsexp);
 extern "C" SEXP _duckdb_2_0_dev_rapi_shutdown(SEXP dbsexp) {
   BEGIN_CPP11
@@ -477,6 +484,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_2_0_dev_rapi_connect",                 (DL_FUNC) &_duckdb_2_0_dev_rapi_connect,                  2},
     {"_duckdb_2_0_dev_rapi_connection_valid",        (DL_FUNC) &_duckdb_2_0_dev_rapi_connection_valid,         1},
     {"_duckdb_2_0_dev_rapi_cxx_stdlib",              (DL_FUNC) &_duckdb_2_0_dev_rapi_cxx_stdlib,               0},
+    {"_duckdb_2_0_dev_rapi_database_valid",          (DL_FUNC) &_duckdb_2_0_dev_rapi_database_valid,           1},
     {"_duckdb_2_0_dev_rapi_disconnect",              (DL_FUNC) &_duckdb_2_0_dev_rapi_disconnect,               1},
     {"_duckdb_2_0_dev_rapi_execute",                 (DL_FUNC) &_duckdb_2_0_dev_rapi_execute,                  2},
     {"_duckdb_2_0_dev_rapi_execute_arrow",           (DL_FUNC) &_duckdb_2_0_dev_rapi_execute_arrow,            2},
