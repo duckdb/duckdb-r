@@ -16,7 +16,7 @@
 using namespace duckdb;
 
 int main() {
-	const char *path = "/tmp/duckdb-instance-cache-race.db";
+	const char *path = "/tmp/duckdb-shutdown-race-tight.db";
 	const char *rounds_env = getenv("ROUNDS");
 	int rounds = rounds_env ? atoi(rounds_env) : 200;
 	int reopened = 0, refused = 0;
@@ -35,8 +35,12 @@ int main() {
 			refused++;
 		}
 		releaser.join();
+		if ((i + 1) % 25 == 0) {
+			printf("  round %d of %d\n", i + 1, rounds);
+			fflush(stdout);
+		}
 	}
 	remove(path);
-	printf("  reopened %d, refused %d (refused is a spurious error: nothing was in use)\n", reopened, refused);
+	printf("  reopened %d, refused %d (a refusal is a false positive: nothing was in use)\n", reopened, refused);
 	return 0;
 }

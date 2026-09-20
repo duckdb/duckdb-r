@@ -12,12 +12,14 @@ The unpatched side is the released `libduckdb` v1.5.5 (upstream commit
 installs for the fast path
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 The patched side is a `RelWithDebInfo` build of `duckdb/duckdb` `main`
-(v2.1.0-dev2) carrying
+(v2.1.0-dev10582) carrying
 [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch);
 `src/main/db_instance_cache.cpp` is byte-identical on `main`, `v1.5-variegata`
 and `v2.0-cyanoptera`, so the two sides differ in the patch and not in the code
 it patches.
-Method: [`run.sh`](run.sh), driving [`probe.c`](probe.c) and [`race.cpp`](race.cpp),
+Method: [`run.sh`](run.sh), driving one standalone source per case --
+[`in-use-connection.c`](in-use-connection.c), [`in-use-result.c`](in-use-result.c),
+[`shutdown-race.c`](shutdown-race.c) and [`shutdown-race-tight.cpp`](shutdown-race-tight.cpp) --
 output in [`transcript.txt`](transcript.txt).
 
 *What it supports:* the patch above and its upstream counterpart, and the
@@ -28,27 +30,37 @@ instance-lifetime section of
 
 `GetInstanceInternal()` finds a cache entry whose `weak_ptr<DuckDB>` has expired,
 concludes another thread is shutting that database down, and spins until the
-entry expires. Three probes, each reaching that line from a different state:
+entry expires. One source per state that reaches that line, each a single file
+with its own `main` and no switches, so any of them compiles and runs by hand:
 
-* `in-use-connection` — open through the cache, connect, release the handle with
-  the connection still open.
-* `in-use-result` — the same, but the connection is closed and a pending result
-  holds the `ClientContext`, so no connection is registered.
-* `shutdown-race` — 200 rounds of releasing the last handle on a second thread
-  while the first asks the cache for the same path. Nothing is in use, so every
-  round must reopen.
+* [`in-use-connection.c`](in-use-connection.c) — open through the cache,
+  connect, release the handle with the connection still open.
+* [`in-use-result.c`](in-use-result.c) — the same, but the connection is closed
+  and a pending result holds the `ClientContext`, so no connection is registered.
+* [`shutdown-race.c`](shutdown-race.c) — 200 rounds of releasing the last handle
+  on a second thread while the first asks the cache for the same path. Nothing
+  is in use, so every round must reopen.
+* [`shutdown-race-tight.cpp`](shutdown-race-tight.cpp) — the same race, staged
+  tightly.
 
-The first two are the C API alone, so upstream can run them against any
-`libduckdb` with a compiler and no container. The third is there twice, because
+The three C cases are the C API alone, so upstream can run them against any
+`libduckdb` with a compiler and no container. The race is there twice because
 the C API cannot stage it tightly: `duckdb_open_internal()` builds a `DBConfig`
 and sets `duckdb_api` before it reaches the cache, and the shutdown has finished
-by then. `race.cpp` reaches for `db_instance_cache.hpp` — which the vendored tree
-carries — to put the two calls next to each other.
+by then. The C++ one reaches for `db_instance_cache.hpp` — which the vendored
+tree carries — to put the two calls next to each other.
+
+**Reading a run that does not finish.** Only the two in-use cases can wedge; the
+race cases return, but each round pays a DuckDB startup and teardown, about
+20 ms here, and a slower machine can take a race case past its budget. That is
+why they count rounds as they go: a run that stops at a round is wedged, and one
+still counting when it is killed was only slow. Lower `ROUNDS` before concluding
+anything from a race case that ran long.
 
 ## What it found
 
 **Both in-use states hang, and neither is a mistake.** Against the released
-engine the two probes spin at 100% CPU until the watchdog kills them, from a
+engine the two in-use cases spin at 100% CPU until the watchdog kills them, from a
 sequence with nothing exotic in it: open, run a query, drop the handle without
 clearing the result, open the same path again. `~DatabaseInstance` releases the
 cache entry on its last line, and a `ClientContext` keeps a `DatabaseInstance`
@@ -89,8 +101,15 @@ experiments/2026-09-19-instance-cache-in-use/run.sh
 experiments/2026-09-19-instance-cache-in-use/run.sh --lib path/to/patched/lib
 ```
 
-`TIMEOUT` bounds the scenarios that do not return (default 15 seconds) and
-`ROUNDS` sets the race length (default 200). `race.cpp` compiles against the
-vendored headers, which carry the patch's extra member once it is applied; the
-entry it sits in is only ever constructed inside the library, so the layout
-`race.cpp` itself depends on is the same either way.
+`TIMEOUT` bounds the two in-use cases (default 15 seconds), `RACE_TIMEOUT` the
+two race cases (default 300), and `ROUNDS` sets the race length (default 200).
+Any single case also builds by hand against any `libduckdb`:
+
+```sh
+cc in-use-result.c -I ~/.local/include -L ~/.local/lib -lduckdb -o in-use-result
+```
+
+`shutdown-race-tight.cpp` compiles against the vendored headers, which carry the
+patch's extra member once it is applied; the entry it sits in is only ever
+constructed inside the library, so the layout the stager itself depends on is
+the same either way.
