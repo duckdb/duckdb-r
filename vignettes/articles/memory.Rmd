@@ -17,12 +17,14 @@ This article shows memory-efficient ways for reading and writing:
 - Streamed reading via Arrow
 - Registering a data frame for writing
 
+The routes below keep R's share to one batch, or one data frame, at a time.
+Follow these recipies to process datasets larger than memory.
+
 ## Set the limit where it takes effect
 
 DuckDB and R allocate from two different budgets.
-The engine's memory is bounded by `memory_limit` and can spill to disk; R's vectors are unbounded and only spilled to the system swap space, if at all.
-The routes below keep R's share to one batch, or one data frame, at a time, and leave the rest to the engine's budget.
-The overheads quoted are measurements, described at the end of the page.
+The engine's memory is bounded by `memory_limit` and can spill to disk;
+R's vectors are unbounded and only spilled to the system swap space, if at all.
 
 The engine's limit is set on the driver or on a live connection.
 
@@ -38,7 +40,7 @@ dbExecute(con, "SET memory_limit = '2GB'")
 Reading via Arrow stream never holds the result whole.
 Execution starts at `dbSendQueryArrow()` and pauses at a bounded buffer.
 Each `dbFetchArrowChunk()` hands over one batch that can be converted using `as.data.frame()`.
-A batch is released immediately via `nanoarrow_pointer_release()` or indirectly via `gc()` (assuming nothing else refers to it).
+For best results, release a batch immediately via `nanoarrow_pointer_release()`.
 
 ```{r}
 rs <- dbSendQueryArrow(con, "SELECT * FROM huge")
@@ -52,8 +54,6 @@ repeat {
 dbClearResult(rs)
 ```
 
-Overhead, measured: the loop above peaks between 160 and 230 MB over the process baseline for both an 800 MB and a 12 GB result on a 16 GB machine.
-
 ## Writing: hand the data frame over, and let the engine scan it
 
 `dbWriteTable()` copies nothing on the R side:
@@ -65,9 +65,7 @@ dbWriteTable(con, "t", df)        # one frame
 dbAppendTable(con, "t", next_df)  # or piece by piece
 ```
 
-Overhead, measured: writing an 800 MB frame consumes between 280 and 320 MB in addition to the frame's own size,
-writing a 12 GB frame on a 16 GB machine consumes 373 MB.
-Where no table is needed at all, `duckdb::duckdb_register()` alone lets queries scan the frame for a measured 1 MB of overhead.
+Where no table is needed at all, `duckdb::duckdb_register()` alone lets queries scan the frame with negligible overhead.
 
 ```{r}
 duckdb::duckdb_register(con, "df", df)
@@ -76,8 +74,7 @@ dbGetQuery(con, "SELECT count(*) FROM df WHERE a > 0.5")
 
 ### Files: let the engine read them
 
-A file the engine can read is cheapest read by the engine.
-Calling `read_parquet()` function in the engine consumes 308 MB.
+DuckDB supports readers for various formats, bypassing R memory entirely.
 
 ```{r}
 dbExecute(con, "CREATE TABLE t AS SELECT * FROM read_parquet('data.parquet')")
@@ -88,7 +85,6 @@ dbExecute(con, "CREATE TABLE t AS SELECT * FROM read_parquet('data.parquet')")
 Data that arrives as an Arrow stream, from a pipe, a socket or another library's reader,
 goes in through `dbWriteTableArrow()`, or `dbAppendTableArrow()` into an existing table.
 Both pull one batch on R's thread and append it as a data frame.
-Measured: 505 MB over an empty process for the same 800 MB.
 
 ```{r}
 stream <- nanoarrow::read_nanoarrow(file("data.arrows", "rb"))
