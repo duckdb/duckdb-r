@@ -41,21 +41,13 @@ The site builds its home page from the root `README.md`, which has no
 banner — so the header logo above is the only one on the page,
 rather than the second of two.
 
-**Articles are the site's, never the tarball's.**
-An article lives in `vignettes/articles/`, which
-[`.Rbuildignore`](/.Rbuildignore) keeps out of `R CMD build`,
-so building or checking the package never renders one and never needs
-the compiled package for it;
-pkgdown renders them when it builds the site,
-with the rmarkdown that `Config/Needs/website` declares in
-[`DESCRIPTION`](/DESCRIPTION) and nothing else pulls in.
-An article's code chunks are not evaluated
-(`knitr::opts_chunk$set(eval = FALSE)`),
-so the site build needs no engine either, and every number an article
-quotes is a measurement it links rather than a result it computes.
-Each article is a secondary document of the leaf it digests and
-carries that leaf as a source comment;
-[`memory.Rmd`](/vignettes/articles/memory.Rmd) digests
-[`usage/memory/`](/handbook/usage/memory/README.md).
+**A guide is a manual page.**
+The memory recipes are `?duckdb_memory` ([`R/memory.R`](/R/memory.R)),
+a topic with no function behind it, like `?duckdb_storage`:
+it ships in the tarball, `R CMD check` checks it,
+and the site renders it from the same Rd file,
+where an article under `vignettes/articles/` would be the site's alone and need a toolchain of its own.
+Such a page is a secondary document of the leaf it digests and carries that leaf as a source comment;
+`?duckdb_memory` digests [`usage/memory/`](/handbook/usage/memory/README.md).
 
 *To deepen: state where the deploy branch is served from.*

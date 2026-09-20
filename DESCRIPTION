@@ -90,4 +90,3 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 SystemRequirements: xz (for building from source)
 Config/roxygen2/version: 8.1.0.9000
-Config/Needs/website: rmarkdown
