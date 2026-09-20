@@ -1,5 +1,28 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9024
+
+## Bug fixes
+
+### series-advance
+
+- Write the `R-side fix` header a `--dev-note` did not bring (#2752).
+
+### gc
+
+- Own every R value across the allocations that build it (#2750, #2753).
+
+### series-port
+
+- Refuse to sync from a `main` the fork has not mirrored yet (#2747).
+
+## Documentation
+
+- Break lines at meaning boundaries (#2730).
+
+- Name the shared README output format (#2729).
+
+
 # duckdb 1.5.5.9023
 
 ## Bug fixes
