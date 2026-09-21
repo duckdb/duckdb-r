@@ -50,12 +50,15 @@ and sets `duckdb_api` before it reaches the cache, and the shutdown has finished
 by then. The C++ one reaches for `db_instance_cache.hpp` — which the vendored
 tree carries — to put the two calls next to each other.
 
-**Reading a run that does not finish.** Only the two in-use cases can wedge; the
-race cases return, but each round pays a DuckDB startup and teardown, about
-20 ms here, and a slower machine can take a race case past its budget. That is
-why they count rounds as they go: a run that stops at a round is wedged, and one
-still counting when it is killed was only slow. Lower `ROUNDS` before concluding
-anything from a race case that ran long.
+**Reading a run that does not finish.** Only the two in-use cases can wedge.
+The race cases return, but each round pays a DuckDB startup and teardown, and
+that cost varies by platform more than anything else on this page: about 20 ms a
+round on the Linux box above, and about 150 ms on a macOS run against
+v1.5.6-dev179 reported while this was being written, where 200 rounds outran a
+15-second budget and the kill read as a hang. That is why they count rounds as
+they go, and why `RACE_TIMEOUT` is theirs rather than `TIMEOUT`: a run that stops
+at a round is wedged, and one still counting when it is killed was only slow.
+Lower `ROUNDS` before concluding anything from a race case that ran long.
 
 ## What it found
 
