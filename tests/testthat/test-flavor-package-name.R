@@ -44,3 +44,12 @@ test_that("no generated README tells a reader to install the mainline package", 
 
   expect_equal(flavor_mainline_readme_offenders(root), character())
 })
+
+test_that("scripts/flavor.patch applies to the unflavored tree", {
+  root <- lts_source_root()
+  skip_if(is.na(root), "Not running from the package source tree.")
+
+  source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
+
+  expect_equal(flavor_patch_failures(root), character())
+})
