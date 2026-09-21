@@ -22,6 +22,8 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+// Handbook: handbook/usage/memory/writing/README.md
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
