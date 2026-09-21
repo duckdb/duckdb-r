@@ -11,6 +11,15 @@ in-memory connection.
 - [`default_conn()`](https://r.duckdb.org/reference/default_conn.md)
   **\[experimental\]** : Get the default connection
 
+## Memory
+
+Reading and writing large data within a memory budget: the limit, the
+streaming read, and the routes that let the engine scan a data frame or
+a file in place.
+
+- [`duckdb_memory`](https://r.duckdb.org/reference/duckdb_memory.md) :
+  Memory-efficient reading and writing
+
 ## Driver
 
 Create or reuse a DuckDB database instance and the driver object passed
