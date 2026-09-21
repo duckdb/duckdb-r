@@ -48,7 +48,7 @@ and are not repeated here; this page holds this repository's own.
 * **shard** — a contiguous, cost-balanced slice of commits one CI job builds and judges ([`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)).
 * **snapshot** — recorded test output; accepting a change asserts the new output is correct ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
 * **source id** — `DUCKDB_SOURCE_ID`, the upstream commit the vendored engine identifies as ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
-* **spill** — the engine's offload of larger-than-memory work to `temp_directory` ([`usage/memory/`](/handbook/usage/memory/README.md)).
+* **spill** — the engine's offload of larger-than-memory work to `temp_directory` ([`usage/memory/budget/`](/handbook/usage/memory/budget/README.md)).
 * **storage home** — the one root extensions and secrets share, `~/.duckdb` when shared ([`usage/storage/`](/handbook/usage/storage/README.md)).
 * **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
 * **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).

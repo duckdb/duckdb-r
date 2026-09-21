@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/memory/writing/README.md
 # helper to clean up non-utf and posixlt vectors
 encode_values <- function(value) {
   if (!is.null(names(value))) {
@@ -97,6 +98,9 @@ duckdb_register_arrow <- function(
   }
 
   # create some R functions to pass to c-land
+  # The Scanner reads ahead on Arrow's own thread pool, so a lazy source is
+  # buffered whole ahead of a slow sink, and a reader that calls R cannot be
+  # pulled at all: handbook/usage/memory/writing/README.md.
   export_fun <- function(
     arrow_scannable,
     stream_ptr,
