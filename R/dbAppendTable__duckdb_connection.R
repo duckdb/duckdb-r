@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/memory/writing/README.md
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbAppendTable
 #' @usage NULL
