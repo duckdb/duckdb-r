@@ -118,10 +118,19 @@ RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResul
 	stream.private_data = this;
 }
 
-// This engine's Arrow stream reads a result it holds whole, with nothing another statement can end
-// (vendored src/duckdb/src/common/arrow/arrow_wrapper.cpp), until duckdb/duckdb#25989 streams again.
+// This engine has one query result type and a separate stream drained from it, and the stream records
+// an invalidation as an interrupt of its own: `Poll()` reports a stream that another statement ended as
+// EXECUTION_ERROR, where a stream read to the end reports its terminal state
+// (vendored src/duckdb/src/main/query_result_stream.cpp).
 bool RArrowArrayStreamWrapper::Invalidated() {
-	return false;
+	auto *stream_result = engine.stream_result.get();
+	if (!stream_result) {
+		return false;
+	}
+	if (stream_result->Poll() != QueryResultState::EXECUTION_ERROR) {
+		return false;
+	}
+	return stream_result->GetErrorType() == ExceptionType::INTERRUPT;
 }
 
 int RArrowArrayStreamWrapper::ReportInvalidated() {

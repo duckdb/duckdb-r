@@ -47,18 +47,18 @@ is_release_version <- function(version) {
 # its connection can end one not read to the end?
 #
 # From duckdb/duckdb#25477 (`2.0.0-dev84770`), which unified the result types,
-# until duckdb/duckdb#25989 (`2.0.0-dev85442`), which let the Arrow stream
-# wrapper stream again, the engine hands back an Arrow result it holds whole:
-# nothing another statement runs can invalidate it, and no query stays open on
-# the connection for `dbClearResult()` to end. The development counter is the
-# upstream commit count, so it orders snapshots along upstream's history.
+# the engine hands back an Arrow result that no other statement can invalidate,
+# and no query stays open on the connection for `dbClearResult()` to end.
+# duckdb/duckdb#25989 (`2.0.0-dev85442`) let the Arrow stream wrapper stream
+# again, but a stream still reads to the end across another statement.
+# The development counter is the upstream commit count,
+# so it orders snapshots along upstream's history.
 arrow_result_streams <- function(version = get_duckdb_version()) {
   dev <- regmatches(version, regexec("^2[.]0[.]0-dev([0-9]+)$", version))[[1]]
-  if (length(dev) != 2) {
-    return(TRUE)
+  if (length(dev) == 2) {
+    return(as.numeric(dev[[2]]) < 84770)
   }
-  dev <- as.numeric(dev[[2]])
-  dev < 84770 || dev >= 85442
+  package_version(sub("-.*$", "", version)) < "2.0.0"
 }
 
 skip_if_arrow_result_not_streamed <- function() {
