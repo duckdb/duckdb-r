@@ -121,9 +121,9 @@ bool RArrowArrayStreamWrapper::Invalidated() {
 
 int RArrowArrayStreamWrapper::ReportInvalidated() {
 	last_error = ErrorData(ExceptionType::INVALID_INPUT,
-	                       "The Arrow stream was invalidated by another statement on its connection "
+	                       "The query result was invalidated by another statement on its connection "
 	                       "before it was read to the end. "
-	                       "Read the stream to the end first, or run the other statement on a separate connection.");
+	                       "Read it to the end first, or run the other statement on a separate connection.");
 	return EINVAL;
 }
 
