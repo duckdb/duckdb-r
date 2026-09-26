@@ -85,6 +85,12 @@ special values.}
 \description{
 Methods for accessing result sets for queries on DuckDB connections.
 Implements \link[DBI:DBIResult-class]{DBIResult}.
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
+\code{duckdb_fetch_arrow()} and \code{duckdb_fetch_record_batch()} fetch a result
+of the deprecated \code{dbSendQuery(arrow = TRUE)}.
+Use \code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}} with \code{\link[DBI:dbFetchArrow]{DBI::dbFetchArrow()}}
+or \code{\link[DBI:dbFetchArrowChunk]{DBI::dbFetchArrowChunk()}} instead.
 }
 \section{Slots}{
 
@@ -96,7 +102,7 @@ types, ...).}
 
 \item{\code{env}}{environment holding the result's mutable fetch state.}
 
-\item{\code{arrow}}{whether the result is fetched via Arrow.}
+\item{\code{arrow}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} whether the result is fetched via Arrow.}
 
 \item{\code{query_result}}{external pointer to the underlying materialized query result.}
 }}
