@@ -44,6 +44,14 @@ extern "C" SEXP _duckdb_rapi_arrow_empty_array(SEXP qry_res, SEXP array_xptr) {
   END_CPP11
 }
 // arrow_export.cpp
+void rapi_release_arrow_result(duckdb::rqry_eptr_t qry_res);
+extern "C" SEXP _duckdb_rapi_release_arrow_result(SEXP qry_res) {
+  BEGIN_CPP11
+    rapi_release_arrow_result(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res));
+    return R_NilValue;
+  END_CPP11
+}
+// arrow_export.cpp
 SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size);
 extern "C" SEXP _duckdb_rapi_record_batch(SEXP qry_res, SEXP chunk_size) {
   BEGIN_CPP11
@@ -557,6 +565,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_tostring",            (DL_FUNC) &_duckdb_rapi_rel_tostring,             2},
     {"_duckdb_rapi_rel_union_all",           (DL_FUNC) &_duckdb_rapi_rel_union_all,            2},
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                  1},
+    {"_duckdb_rapi_release_arrow_result",    (DL_FUNC) &_duckdb_rapi_release_arrow_result,     1},
     {"_duckdb_rapi_shutdown",                (DL_FUNC) &_duckdb_rapi_shutdown,                 1},
     {"_duckdb_rapi_startup",                 (DL_FUNC) &_duckdb_rapi_startup,                  5},
     {"_duckdb_rapi_unlock",                  (DL_FUNC) &_duckdb_rapi_unlock,                   1},

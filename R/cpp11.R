@@ -20,6 +20,10 @@ rapi_arrow_empty_array <- function(qry_res, array_xptr) {
   invisible(.Call(`_duckdb_rapi_arrow_empty_array`, qry_res, array_xptr))
 }
 
+rapi_release_arrow_result <- function(qry_res) {
+  invisible(.Call(`_duckdb_rapi_release_arrow_result`, qry_res))
+}
+
 rapi_record_batch <- function(qry_res, chunk_size) {
   .Call(`_duckdb_rapi_record_batch`, qry_res, chunk_size)
 }
