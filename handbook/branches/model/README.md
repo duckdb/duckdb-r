@@ -3,8 +3,7 @@
 The series and their refs: what a series is, where its branches live,
 what each ref means and how far it may move.
 [`BRANCHES.md`](/BRANCHES.md) keeps what is not yet absorbed:
-the package components, the repository diagrams,
-and the legacy `dev`/`dev-base` layout some series still carry.
+the package components and the repository diagrams.
 
 **A series** is one upstream branch of `duckdb/duckdb` —
 `main`, `v1.5-variegata`, `v1.4-andium` —
@@ -29,6 +28,8 @@ they are seeded from and measured against
 The fork carries only the refs the loop serves;
 what it does not carry stands in `krlmlr/duckdb-r-old`,
 an archive that nothing reads and nothing writes to.
+The `<S>-dev-base` refs of the older `dev`/`dev-base` layout are there:
+every series is a series-loop series now, and none of the four below is that baseline.
 
 **The four refs** of a series `<S>`, all in the fork:
 
@@ -39,17 +40,68 @@ an archive that nothing reads and nothing writes to.
 | `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | forward only | the `-build` commit equivalent to `-green` |
 
-All four exist from a series' first day, equal at its seed,
-so there is never a "no green yet" state.
+All four exist from a series' first day, so there is never a "no green yet" state.
+An opening cuts the parent's strands at the fork point and writes all four there
+([`series-open`](/.claude/skills/series-open/SKILL.md)).
+A green records that CI passed on a commit, and here it did: the cut moves no
+commit, so `<S>-dev`'s tip *is* the parent's, same tree and same run.
+That is what makes the green honest — not inheritance, but the absence of any
+change to inherit across.
 The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
 ([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.
-The badges in the root [`README.md`](/README.md) count these gaps:
-*in flight* and *buffered* between these refs,
-*ahead* against the branch the series releases from.
+**The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
+and both counts stay linear by construction —
+`-green` is always an ancestor of `-dev`, and `-build-base` of `-build`:
 
-*To deepen: absorb `BRANCHES.md` §§ Package Components,
-Branch Overview, and Source of Truth.*
+* **in flight** — pushed to CI, not yet trusted: `<S>-green..<S>-dev`
+* **buffered** — vendored, not yet consumed: `<S>-build-base..<S>-build`
+* **ahead** — against the branch the series releases from
+
+`-build-base` is a display ref and exists for exactly this; no script reads it back.
+shields.io renders a count from the public repository:
+
+```text
+https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-green&head=<S>-dev&label=in%20flight
+```
+
+It compares **within one repository**, which is what forces every ref a badge names
+to live in `krlmlr/duckdb-r`, release branches included, and kept fresh
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+Link each badge to `https://github.com/krlmlr/duckdb-r/compare/<base>...<head>`, its drill-down.
+An upstream-lag badge — how far behind `duckdb/duckdb` itself — is not expressible this way,
+because that comparison crosses repositories.
+The table's upkeep is [`series-open`](/.claude/skills/series-open/SKILL.md)'s.
+
+**`main` in `duckdb/duckdb-r` is the source of truth** for four of the seven components
+a branch is made of, and the other three come from elsewhere:
+
+| Component | Source of truth | |
+|---|---|---|
+| DuckDB core | `duckdb/duckdb` upstream | vendored independently into each series |
+| Flavor | per branch, via [`flavor.sh`](/scripts/flavor.sh) | applied mechanically on top of the baseline |
+| **Glue code** | **`main`** | forward-ported to every series |
+| **R code and tests** | **`main`** | forward-ported to every series |
+| **CI/CD infrastructure** | **`main`** | forward-ported to every series |
+| **cpp11** | **`main`** | forward-ported to every series |
+| R core | external — `r-devel`, CRAN policy | monitored; fixes land in `main` first |
+
+**Forward-porting runs newer to older, and never in reverse**:
+`main` to the preview line and to each parked baseline,
+then down the `.dev` branches in release order.
+The series loop's forward-port stage keeps it consistent,
+running [`series-port.sh`](/scripts/series-port.sh) on every firing
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+The fork's `main` takes no part in it: it is a mirror and moves on its own
+([`mirrors/`](/handbook/branches/mirrors/README.md)).
+
+That ordering is what makes the vendor strand the only thing a series owns.
+Everything else it carries was born on `main` and arrived by port,
+which is why a regenerated seed is allowed to replace a series' whole R side
+and why a replay takes the new base for everything the vendor commits do not touch
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
+
+*To deepen: absorb `BRANCHES.md` §§ Package Components and Branch Overview.*

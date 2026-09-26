@@ -19,28 +19,31 @@ through R, every entry point,
 and `DUCKDB_R_POISON_GUARD()` (the C++ half of the CRAN guard).
 
 **cpp11 is vendored, not depended on** —
-`inst/include/cpp11/` carries the copy,
+`src/vendor/cpp11/` carries the copy,
 taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
 a patch stack on top of
 [`r-lib/cpp11`](https://github.com/r-lib/cpp11):
 this package needs extensions upstream does not ship.
+Refreshing that copy is
+[`.claude/skills/vendor-cpp11/`](/.claude/skills/vendor-cpp11/SKILL.md)'s.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
 (`src/cpp11.cpp`, `R/cpp11.R`),
 which are generated and never edited.
 
 **The generator is the fork too, and it is not vendored.**
-`cpp_register()` does not come from `inst/include/cpp11/` —
+`cpp_register()` does not come from `src/vendor/cpp11/` —
 it is an R function, resolved from whatever cpp11 the library holds,
 and so it is the one part of cpp11 this repository cannot pin.
 It has to be the fork as well,
 because the flavor names it derives the `.Call` prefix from
 carry more dots than CRAN's cpp11 replaces.
-Install it from GitHub —
-`remotes::install_github("krlmlr/cpp11")` —
-beside `decor`, which `cpp_register()` also needs;
-`krlmlr.r-universe.dev` does not build cpp11,
-so naming that repository ahead of CRAN installs CRAN's.
+Install it from
+[`krlmlr.r-universe.dev`](https://krlmlr.r-universe.dev),
+which builds the fork and serves it as a binary —
+name that repository ahead of CRAN and `install.packages("cpp11")`
+picks up the fork, beside `decor`, which `cpp_register()` also needs.
+`remotes::install_github("krlmlr/cpp11")` does the same from source.
 [`scripts/flavor.sh`](/scripts/flavor.sh) refuses a generated binding
 whose entry points are not C identifiers, which is what a wrong cpp11
 produces.
@@ -73,7 +76,7 @@ driving [`scripts/format.py`](/scripts/format.py),
 and [`.clang-format`](/.clang-format) alone decides the result —
 a bare `clang-format -style=file`, which is what an editor and the
 pull-request formatter
-([`.github/workflows/style/action.yml`](/.github/workflows/style/action.yml))
+([cynkratemplate's `style/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/style/action.yml))
 run, prints the same tree.
 The one thing it will not rewrite is the order of the `#include`s:
 `SortIncludes: Never` and `IncludeBlocks: Preserve` pin them,
@@ -83,14 +86,6 @@ and its `#undef TRUE` / `#undef FALSE` guards only work
 where they are written relative to the header that defines them.
 So the includes of a translation unit are the author's to order,
 and a review argues them the way it argues code.
-
-**One header is public.**
-[`inst/include/duckdb_types.hpp`](/inst/include/duckdb_types.hpp)
-is what a downstream R package compiles against;
-everything under `src/include/` is this package's own.
-Being public makes it part of the rename surface — it is installed
-under a name carrying the flavor
-([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
 *To deepen: absorb the per-unit responsibility table and the error
 rethrow path from the sources; drain

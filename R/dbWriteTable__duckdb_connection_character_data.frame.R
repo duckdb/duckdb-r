@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/memory/writing/README.md
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbWriteTable
 #' @param conn A [duckdb_connection-class] object as returned by [DBI::dbConnect()]
@@ -84,9 +85,8 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(
       ))
     )$column_name
 
-    # Auto-fill MAP column types from `dbDataType()`, so that
-    # `vctrs::list_of`-tagged columns produced by
-    # `dbConnect(map = "list_of")` round-trip back into MAP columns.
+    # Auto-fill MAP column types from `dbDataType()`,
+    # so that `vctrs::list_of`-tagged columns produced by `dbConnect(map = "list_of")` round-trip back into MAP columns.
     field.types <- duckdb_augment_field_types_for_map(conn, value, field.types)
 
     cols <- character()
@@ -94,8 +94,7 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(
     for (name in col_names) {
       if (name %in% names(field.types)) {
         if (duckdb_is_map_type(field.types[[name]])) {
-          # `map_from_entries()` builds a MAP from a LIST(STRUCT(key, value))
-          # representation, which matches how MAPs are read back into R.
+          # `map_from_entries()` builds a MAP from a LIST(STRUCT(key, value)) representation, which matches how MAPs are read back into R.
           cols <- c(
             cols,
             sprintf(
@@ -141,10 +140,9 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(
   invisible(TRUE)
 }
 
-# Adds MAP types inferred from `dbDataType()` to `field.types`, but only for
-# columns the user has not already provided a type for. Other types are left
-# to the existing `CREATE TABLE AS SELECT` flow, which avoids unnecessary
-# casts and matches DuckDB's own type inference.
+# Adds MAP types inferred from `dbDataType()` to `field.types`, but only for columns the user has not already provided a type for.
+# Other types are left to the existing `CREATE TABLE AS SELECT` flow,
+# which avoids unnecessary casts and matches DuckDB's own type inference.
 duckdb_augment_field_types_for_map <- function(conn, value, field.types) {
   for (col_name in names(value)) {
     if (col_name %in% names(field.types)) {

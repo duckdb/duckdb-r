@@ -94,7 +94,8 @@ ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6,
 and an UNSERVED block for an upstream release line no series covers,
-the other suggestion for a human, and the one the report ends with),
+saying whether `series.yaml` declares its flavor yet,
+and the one the report ends with),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
 sets `-build-base` to the vendored-SHA match,
@@ -568,6 +569,19 @@ and is never re-examined.
 `-green` is fast-forward only —
 if it cannot fast-forward, something rewrote verified history;
 stop and say so.
+
+**Then mirror it into the canonical repository, for a base series only.**
+r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership
+from the URL of the branch it builds, so `<S>-green` is the one branch that
+travels out of the fork — no buffer, no `-dev`, and no `-fwd-green`, whose
+rebuild is published from the fork's own universe
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+`--canonical <name>` names the remote, defaulting to `upstream`, and the push is
+a plain one, so git refuses anything that is not a forward.
+**Scream on a refusal, never force it.** Two repositories disagreeing about
+verified history is a finding; the only thing that legitimately moves green off
+its lineage is a cutover, and that does the mirror itself (stage 6).
+
 Set `<S>-build-base` to the `<S>-build` commit
 with the same vendored upstream SHA
 (day one: the seed tip, before any vendor commit is consumed),
@@ -1088,6 +1102,15 @@ and completes the rest of the chunk;
 so the next firing simply reaches the same stop.
 Starting a fresh run beside a stopped one is refused,
 because it would replay over a resolution somebody made.
+
+**A resolution that comes out empty is a resolution.**
+The buffer commit's content reached `-dev` by another route —
+a buffer whose flavor rename still names the path a port has since moved,
+most plainly — so resolving toward what `-dev` already has
+leaves nothing to commit.
+`--continue` drops that pick and finishes the chunk,
+which is what `--empty=drop` does for the same commit
+when it merges cleanly (duckdb/duckdb-r#2734).
 The push triggers one `each-rcc` run for the commits it added,
 and every verdict that run reaches is readable from it
 as soon as the leg has written it —
@@ -1151,24 +1174,28 @@ git switch main && git merge --ff-only @{u}
 git -C ../../../duckdb fetch --prune --tags origin
 
 # Both halves of the question, before anything moves.
-UPSTREAM_CLONE=../../../duckdb scripts/series-check.sh <S> <S>-fwd
+scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
 scripts/series-converge.sh <S>
 
 # The swap. It prints the four ref moves and the convergence report,
-# then asks for the series name.
-scripts/series-cutover.sh <S> origin ../../../duckdb
+# then asks for the series name. It also moves the copy of green that
+# r-universe publishes from -- name that remote with --canonical where it is
+# not `upstream`, or the copy keeps serving the pre-cutover lineage.
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 
 # A retired lineage moves the badge table, and the mirror rules with it.
 scripts/pull-config.sh --check
 ```
 
-`origin` is whichever remote of that checkout carries `<S>-green`,
-and `../../../duckdb` is where `vendor-one.sh` looks for the upstream clone
-when nobody names one, so it is the path the project already assumes.
-Say so beside the block where either is not the reader's:
-the second argument is a remote of *this* repository
-and the third a filesystem path, and the script only catches the swap
-of the two once it is already fetching.
+`--remote` names whichever remote of that checkout carries `<S>-green`,
+and `--upstream` the `duckdb/duckdb` checkout on disk —
+`../../../duckdb` is where `vendor-one.sh` looks for one when nobody names it,
+so it is the path the project already assumes.
+Substitute either where it is not the reader's;
+the names are the same in every `scripts/series-*.sh`
+(`handbook/operations/vendoring/series-loop/README.md`),
+and naming them is what makes the remote-for-path swap unsayable
+rather than merely diagnosable.
 Check that the `main` the block lands on is the canonical one —
 a fork's mirror lags by however long the mirroring takes,
 and a cutover run off a stale mirror runs a stale `series-cutover.sh`.
@@ -1199,7 +1226,10 @@ a bad repair is repaired again,
 a wrong extension is replayed,
 and `-green` only ever moves forward over commits CI called green.
 The swap moves a serving green *sideways*
-— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`) —
+— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`),
+and the one place the canonical repository's copy of green is forced rather than
+fast-forwarded, which is why `--canonical` belongs on this line and nowhere else
+the routine types by hand —
 and it deletes the counterpart that would let it be undone.
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
@@ -1283,7 +1313,7 @@ The report ends with `series-check.sh`'s `UNSERVED` block, verbatim,
 whenever the script prints one:
 an upstream release line that no series here covers.
 Run the script with stage 1's clone,
-`UPSTREAM_CLONE=<upstream-clone> scripts/series-check.sh`,
+`scripts/series-check.sh --upstream <upstream-clone>`,
 so the block carries the fork point and not only the branch name.
 
 **It goes last, and it outranks a quiet pass.**
@@ -1304,10 +1334,51 @@ so a release line that has none is absent from every stage above
 rather than late in one, and absence raises nothing anywhere.
 The report is the only place it is visible.
 
-**Reported, never acted on.**
-Opening the series is `series-open/SKILL.md`'s job, and a human's,
-exactly as a cutover is (stage 6).
-The firing names the line, the fork point and the skill, and stops there.
+**Say it at the top as well, and say what it costs.**
+The block goes last because that is where it cannot be lost among the
+per-series verdicts, but a report whose only mention of a newborn line is
+its final paragraph is one that can be closed after the first screen.
+Open the report with it too — one line naming the branch — and carry the
+number that makes it urgent rather than merely true:
+`scripts/series-cut.sh <S> --upstream <clone> --check` prints the backlog,
+the commits of that line nothing here has vendored, and it grows every day
+the line stays unopened. Opening v2.0 a week after the cut left 193 to walk;
+the same line a fortnight later was past a thousand.
+
+**And `main`'s version is already wrong, whatever is decided about the line.**
+Upstream starts declaring the *next* line the week it cuts a branch, so the
+series tracking upstream `main` stops previewing the line its version names —
+`scripts/preview-prefix.sh --check` on either strand says so and exits 1.
+That is owed even if the new series is deliberately not opened yet, which makes
+it the one part of an UNSERVED report that is not a suggestion.
+Report it in the same block
+([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+
+**Declaring the flavor is a PR the firing may open. Cutting the refs is not.**
+The two halves of an opening are no longer the same kind of work.
+Naming the line — `v2.1-<codename>` is served as `duckdb.2.1.dev` —
+is one entry in [`scripts/series.yaml`](/scripts/series.yaml),
+reviewable on its own and reversible by closing the PR.
+Cutting the four refs moves commits, and stays
+`series-open/SKILL.md`'s job and a human's, exactly as a cutover is (stage 6).
+So the firing opens the declaration PR and reports the rest:
+the line, the fork point, the backlog and the skill.
+
+**Check for the PR before opening one, and read the script's own answer first.**
+`series-check.sh` says on the UNSERVED line whether `series.yaml` already
+names the flavor. *Declared already* means the PR merged and only the refs
+are missing — say so and open nothing. *Undeclared* is not yet a licence:
+a PR may be open, or may have been closed on purpose, and a firing that
+skips the search files the same PR every time it runs. So search `main`'s
+PRs touching `scripts/series.yaml` for the flavor name, **open and closed
+both**, and:
+
+- an open one — name it in the report, add nothing, open nothing;
+- a closed one — the answer was no; report the line and leave it closed;
+- none — open it, one entry, against `main`, titled for the flavor.
+
+A firing that cannot search says so and opens nothing:
+duplicating a declaration is worse than deferring one.
 
 **A reading that failed is reported as one.**
 When the script says it could not read the upstream branches,
@@ -1316,8 +1387,9 @@ otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
 
 **A due cutover is reported the same way, above the `UNSERVED` block.**
-The two are the loop's only findings a firing may not act on,
-so they are the two it has to hand over completely:
+It is the one finding a firing may not act on at all —
+an UNSERVED line at least has its declaration PR —
+so it is the one it has to hand over completely:
 stage 6's block, filled in, every firing `series-check.sh` prints a
 `CUTOVER` line, and for the same reason —
 a decision nobody can take from the report alone

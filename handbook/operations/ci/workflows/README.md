@@ -27,12 +27,19 @@ which is the part of this a reader can check from the tree.
 | [`commit-suggest.yaml`](/.github/workflows/commit-suggest.yaml) | after an `rcc` run on a PR | turns the run's changes patch into review suggestions |
 | [`pkgdown.yaml`](/.github/workflows/pkgdown.yaml) | push to `docs*`, `cran-*`; dispatch | builds the site (main is covered by `rcc`) |
 | [`rhub.yaml`](/.github/workflows/rhub.yaml) | push to `cran-*`; dispatch | R-hub checks ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
+| [`revdep4.yaml`](/.github/workflows/revdep4.yaml) | dispatch | **the reverse-dependency route** ([`testing/revdep/`](/handbook/testing/revdep/README.md)): each package's two halves sequentially, per-package containers, a work queue across packages |
+| [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | revdep4's predecessor, both halves at once on one host ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
-| [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | sharded old-vs-new check of every reverse dependency, reported as artifacts ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
-| [`revdep4.yaml`](/.github/workflows/revdep4.yaml) | dispatch | the successor engine: each package's two halves sequentially, per-package containers, a work queue across packages |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
-| [`copilot-setup-steps.yaml`](/.github/workflows/copilot-setup-steps.yaml) | changes to itself | environment bootstrap for coding agents |
+| [`handbook.yaml`](/.github/workflows/handbook.yaml) | PR; dispatch | the handbook checks, and the carried files against their source ([`meta/local/`](/handbook/meta/local/README.md)) |
 
-*To deepen: cover the composite actions beside these files —
-`check/`, `commit/`, `install/`, `update-snapshots/`, `versions-matrix/`
-and their siblings — which the workflows call and this page does not name.*
+**The composite actions these workflows call are not in this repository.**
+They live in
+[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate/tree/main/.github/actions)
+and are referenced as `cynkra/cynkratemplate/.github/actions/<name>@main` —
+`check/`, `commit/`, `install/`, `style/`, `update-snapshots/`, `versions-matrix/`
+and some thirty more.
+They were copied into `.github/workflows/` until cynkra/cynkratemplate#121 served
+them from one place instead, so a path under `.github/workflows/<name>/` in an
+older page is that copy and not a file.
+What stays here is `.github/workflows/custom/`, the hooks this package fills in.

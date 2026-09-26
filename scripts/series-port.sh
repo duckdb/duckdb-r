@@ -82,57 +82,53 @@
 # the same meaning, rather than leaving the firing to amend and force-push after
 # the push here and spend an each-rcc run on a commit it is about to re-mint.
 #
-# Usage: series-port.sh <series> [--list] [--apply [sha...]] [--dev-note <file>]
+# Usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--dev-note <file>] [sha...]
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-usage='usage: series-port.sh <series> [--list] [--apply [sha...]] [--dev-note <file>]'
-
-S=${1:?$usage}
-shift
+usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [--dev-note <file>] [sha...]'
+argerr() { echo "$usage" >&2; exit 2; }
 # --list walks a frozen series anyway, for when the question is which commit of
 # `main` to name. No effect on any other series: the walk is their default.
 list=
-if [ "${1:-}" = "--list" ]; then
-  list=1
-  shift
-fi
 apply=
-if [ "${1:-}" = "--apply" ]; then
-  apply=1
-  shift
-fi
-# `--dev-note` may sit anywhere after `--apply`, because what follows it is a
-# list of SHAs and an option pinned to one end of that list is a rule nobody
-# remembers. Pulled out here, so the SHA list below stays what it was.
 DEV_NOTE=
-rest=()
+remote=${SERIES_REMOTE:-origin}
+# The repository `main` belongs to, which the fork mirrors. Same name and same
+# default as series-advance.sh's, and read for the staleness check below only.
+canonical=${SERIES_CANONICAL-upstream}
+args=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --dev-note)
-      DEV_NOTE=${2:?$usage}
-      shift 2
-      ;;
-    *)
-      rest+=("$1")
-      shift
-      ;;
+    --list) list=1; shift ;;
+    --apply) apply=1; shift ;;
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
+    --dev-note) [ $# -ge 2 ] || argerr; DEV_NOTE=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
   esac
 done
-set -- ${rest[@]+"${rest[@]}"}
+[ ${#args[@]} -ge 1 ] || argerr
+S=${args[0]}
+set -- ${args+"${args[@]:1}"}
+[ -n "$apply" ] || [ $# -eq 0 ] || argerr
 if [ -n "$DEV_NOTE" ]; then
-  if [ ! -s "$DEV_NOTE" ]; then
-    echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
-    exit 1
-  fi
   # The note rides on a commit, and only --apply mints one.
   if [ -z "$apply" ]; then
     echo "Error: --dev-note needs --apply — the note rides on a commit this" >&2
     echo "  run mints, and a listing run mints none." >&2
+    argerr
+  fi
+  if [ ! -s "$DEV_NOTE" ]; then
+    echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
     exit 1
   fi
 fi
-remote=origin
 
 # The identity set: what CI and the routine execute. patch/ stays out
 # (vendor-coupled: applied by vendor runs, refreshed by repairs), as do the
@@ -173,6 +169,42 @@ git config --get merge.ours-version.driver >/dev/null ||
 git fetch -q "$remote"
 dev="$remote/$S-dev" main="$remote/main"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
+
+# The series live in the fork and `main` is the canonical repository's branch,
+# mirrored into the fork by .github/pull.yml. The mirror lags by however long
+# the mirroring takes, and this script's whole output is "what does the series
+# not have that main has" -- so a stale `$remote/main` is not a smaller answer
+# but a wrong one. The sync commit takes that main's tooling tree *verbatim*,
+# which means every commit merged since the mirror last ran is reverted onto
+# the series, silently and on all of them at once.
+#
+# That is not hypothetical: on 2026-09-14 a firing ported while the fork's main
+# was two commits behind duckdb/duckdb-r#2743 and #2745, which had moved the
+# composite actions out of `.github/workflows/`. The sync pointed `each.yaml`
+# back at `./.github/workflows/git-identity`, which no longer exists anywhere,
+# and every `each-rcc` leg on every series died at that step within seconds.
+# Nothing was judged until the mirror was pushed forward and the ports rerun.
+#
+# So ask the canonical repository directly, under the same name and default
+# series-advance.sh mirrors green into. Refuse rather than warn: the damage is
+# a push, and a warning printed above a `--apply` that went on to push anyway
+# is a warning nobody reads until CI is red.
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  git fetch -q "$canonical" main 2>/dev/null || true
+  canonical_main=$(git rev-parse -q --verify FETCH_HEAD || true)
+  if [ -n "$canonical_main" ] &&
+    ! git merge-base --is-ancestor "$canonical_main" "$main"; then
+    behind=$(git rev-list --count "$main..$canonical_main")
+    echo "Error: $main is $behind commit(s) behind $canonical/main." >&2
+    echo "  The sync commit takes that tree verbatim, so porting now reverts" >&2
+    echo "  every one of them onto $S-dev. Wait for .github/pull.yml to" >&2
+    echo "  mirror, or push the fork's main forward -- it is a fast-forward" >&2
+    echo "  of a mirror, not a rewrite -- and rerun:" >&2
+    echo "    git push $remote $canonical/main:refs/heads/main" >&2
+    echo "  SERIES_CANONICAL='' skips this check." >&2
+    exit 1
+  fi
+fi
 
 mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
 if [ -z "$mb" ]; then
@@ -259,6 +291,31 @@ classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   fi
 }
 
+# What `main` gained through an ancestry-only merge: a merge whose tree is its
+# first parent's, so nothing of the lineage it records ever entered main's
+# tree. `git cherry` offers those commits like any other -- they are ancestors
+# of `main` carrying no patch-id the series has -- and porting one applies a
+# tree from another era on top of this one.
+#
+# #2713 recorded the v1.1.3-2 tag that way, and the next firing was offered 13
+# commits dated 2024-12 to 2025-01 for every non-frozen series, `feat: Limit
+# automatic materialization by number of rows or number of cells (#1017)` among
+# them. A default --apply would have cherry-picked all of them.
+#
+# The test is the merge's own tree and not its subject: `-s ours` is one way to
+# write "ancestry only", a hand-resolved merge that kept our side is another,
+# and both leave the same fact behind.
+ancestry_only_commits() {
+  local m parents
+  while IFS= read -r m; do
+    [ "$(git rev-parse "$m^{tree}")" = "$(git rev-parse "$m^1^{tree}")" ] || continue
+    parents=$(git rev-list --parents -n 1 "$m" | cut -d' ' -f3-)
+    [ -n "$parents" ] || continue
+    # shellcheck disable=SC2086  # a parent list, deliberately word-split
+    git rev-list $parents --not "$m^1"
+  done < <(git rev-list --merges "$mb..$main")
+}
+
 candidates=()
 declare -A klass=()
 
@@ -268,6 +325,15 @@ declare -A klass=()
 # every ported commit excludes picks whose resolution diverged from the
 # original patch — those would otherwise be re-offered and re-conflict on
 # every rerun.
+#
+# Both layers need a commit to read, so a pick whose *resolution* comes out
+# empty has to be committed empty rather than skipped. That happens wherever
+# the series already carries main's change under its own flavor's name: the
+# tree is right, the patch-id is not main's, and `git cherry-pick --skip` —
+# which is what git itself suggests there — leaves neither a patch-id nor a
+# trailer, so the same pick is offered and reconflicts on every firing. The
+# guidance below says so; `--empty=drop` cannot reach this case, because it
+# judges the pick before the resolution exists.
 #
 # A frozen series skips the walk rather than listing what it will not take by
 # default: the list is long — an LTS line joins `main` far back, so `git cherry`
@@ -282,9 +348,12 @@ else
   while IFS= read -r x; do ported[$x]=1; done < <(
     git log --format=%B "$mb..$dev" |
       sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
+  declare -A ancestry_only=()
+  while IFS= read -r m; do ancestry_only[$m]=1; done < <(ancestry_only_commits)
   mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
   for sha in "${all[@]}"; do
     [ -n "${ported[$sha]:-}" ] && continue
+    [ -n "${ancestry_only[$sha]:-}" ] && continue
     candidates+=("$sha")
     klass[$sha]=$(classify "$sha")
     printf '%-7s %s %s\n' "${klass[$sha]}" \
@@ -327,6 +396,9 @@ if [ ${#picks[@]} -gt 0 ] && ! git -C "$wt" cherry-pick -x --empty=drop "${picks
   git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
   echo "Resolve toward main's intent, then:"
   echo "  git -C $wt cherry-pick --continue    # repeats through the rest"
+  echo "A resolution that comes out empty is committed empty, never skipped —"
+  echo "the empty commit is what carries the trailer that retires the pick:"
+  echo "  git -C $wt commit --allow-empty --cleanup=strip --no-edit"
   echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
   echo "  git worktree remove --force $wt"
   echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"

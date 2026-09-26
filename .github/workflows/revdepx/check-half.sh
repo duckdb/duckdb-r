@@ -94,15 +94,15 @@ forward_env=(
 # goes on PATH, so the compilers R CMD check invokes run through ccache.
 #
 # This is where a compiler cache has something to cache. The two halves of a
-# package compile the SAME sources minutes apart -- only the duckdb in
-# `lib-half` differs -- and inside the container both halves see identical
+# revdep compile the SAME sources minutes apart -- only the package under test
+# in `lib-half` differs -- and inside the container both halves see identical
 # paths, because each mounts its own workdir at the same /revdepx/out. The
 # second half therefore hits on everything that does not depend on the package
-# under test. A package with `LinkingTo: duckdb` reads headers that really do
-# differ between halves, and ccache misses on exactly those objects, because
-# what it hashes is the preprocessed source: the comparison the two halves
-# exist to make is not weakened by caching, it just stops paying twice for the
-# parts that were never different.
+# under test. A revdep that names it in `LinkingTo` reads headers that really
+# do differ between halves, and ccache misses on exactly those objects,
+# because what it hashes is the preprocessed source: the comparison the two
+# halves exist to make is not weakened by caching, it just stops paying twice
+# for the parts that were never different.
 half=$1
 tarball=$2
 work=$3

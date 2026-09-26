@@ -49,10 +49,11 @@ and the series stops being orderable —
 [`scripts/series-advance.sh`](/scripts/series-advance.sh) restamps it,
 and refuses to push a replay whose counter did not rise
 ([`.claude/skills/series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
-`main-dev` carries the preview prefix `1.5.99`
-and its buffer `main-build` carries `1.5.5`,
+A preview line is where the two strands drift apart, its prefix not being the one `main` carries (below):
+`main-dev` has carried the preview prefix `1.5.99` over a `main-build` still on `1.5.5`,
 which is that state.
-Aligning a series' two strands is the fix.
+Aligning a series' two strands is the fix,
+and stamping the prefix into the seed rather than onto `-dev` is what keeps them aligned.
 Exempting the fifth component from the gate — taking the maximum counter
 across differing prefixes too — is declined
 ([#2488](https://github.com/duckdb/duckdb-r/issues/2488)):
@@ -89,3 +90,51 @@ never derived from git; the tag follows `DESCRIPTION`.
 writing `NEWS.md` from commit messages
 and merging its bump PR by squash — which is why commit messages on `main` are
 written to be read as changelog entries.
+
+**A preview line carries the prefix of the line it previews**, which is the one
+[fledge](https://fledge.cynkra.com/) would write for it:
+`a.b.99` before a minor release and `a.99.99` before a major one, its `pre-minor` and `pre-major` bumps.
+[`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh) reads the line off the engine
+the strand vendors and stamps it, keeping the vendor counter and refusing a version that
+would not rise; `--check` reports and exits 1 where it is owed.
+The prefix names the line being previewed, never the one seeded from, so it is read off the target:
+a series previewing **2.1** takes `2.0.99.9000`, one previewing **2.0** takes `1.99.99.9000`.
+Those are the two in play — the series tracking upstream `main`, and one opened for `v2.0-cyanoptera` —
+and the vendor counter hangs off the prefix as usual.
+
+**What makes a line a preview line is that its release has not happened,
+not which upstream branch the series tracks.**
+The series tracking upstream `main` is the usual case and not the only one:
+upstream may cut a release branch well ahead of the release,
+and a series opened for one then serves a line no version names yet.
+`v2.0-cyanoptera` was cut while the newest tag was `v1.5.5`,
+so `main` carried `1.5.5` and nothing carried 2.0's version at all.
+The test is whether a released version already names the line —
+where one does the seed takes it from `main` and needs no prefix,
+and where none does the series is previewing, whatever branch it tracks.
+A line still taking patches is one a released version names, and its ordering is worth knowing:
+`1.5.5.9020.36` sits below `1.5.6`, so the day that patch ships the series reads as older
+than the release its own line just made, and re-seeding on the new `main` is what restores that
+([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
+Taking fledge's prefix rather than inventing one buys the version's plain reading,
+and it is what `main` itself will carry when the line opens there.
+Versions never compare across flavors, which are separate package names that coexist by design
+([`branches/flavors/`](/handbook/branches/flavors/README.md)),
+so what the prefix must not break is the ordering within one name across re-seeds,
+and `1.99.99.9000` giving way to `2.0.0.9000` rises.
+The cost is the fourth component's other reading:
+on a preview line the version names the line previewed rather than the one seeded from,
+and which release the seed came from is read from the seed commit.
+
+**The prefix belongs to the base of a line, and so to all four refs.**
+A prefix on `-dev` alone is the split the gate above declines to resolve,
+so it is stamped once, beside the fifth component, and never by the replay:
+the gate keeps our side of `DESCRIPTION` verbatim across differing prefixes,
+so every replayed commit inherits whatever the base was stamped with.
+An opening stamps nothing, because it cuts the parent's strands rather than
+building a base ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md));
+the new line carries the parent's prefix until its first forward.
+That forward is where both lines get theirs —
+[`series-forward`](/.claude/skills/series-forward/SKILL.md) regenerates a seed
+from current `main`, or grafts the fork point's tree, and either way the prefix
+is the stamp that makes the base the new line's rather than the old one's.

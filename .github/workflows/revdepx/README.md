@@ -1,7 +1,6 @@
 # revdepx: the core of the revdep4 workflow
 
-*Handbook: [`testing/revdep/`](/handbook/testing/revdep/README.md) —
-the routes and when each runs; this page owns the shared core.*
+*Handbook: [`testing/revdep/`](/handbook/testing/revdep/README.md) owns what this workflow is for.*
 
 This directory is the core of the reverse-dependency-check workflow
 `revdep4.yaml` (the *queue* engine):

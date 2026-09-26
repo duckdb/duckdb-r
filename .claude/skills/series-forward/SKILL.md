@@ -18,6 +18,15 @@ a forward counterpart is built as a sibling series,
 verified from scratch by the ordinary loop,
 and swapped in atomically once it has caught up.
 
+**A release is the largest instance of `main` moving, and not a rule of its own.**
+Nothing schedules a forward; what makes one due is drift worth resolving.
+For a series whose own line has just released, the version is one reading of that drift:
+its seed sits below the release it produced, `1.5.5.9020.36` being under `1.5.6`,
+and re-seeding is what restores the correspondence.
+A preview line is the exception, its prefix being deliberately not `main`'s
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
+so a bump on `main` moves nothing under it and only the R-side drift counts.
+
 ## Create the forward series
 
 Bootstrap first, populate second —
@@ -26,17 +35,25 @@ the four `-fwd` refs start **equal** at the regenerated seed tip;
 the replay then populates `<S>-fwd-build`.
 
 1. **`<S>-fwd-build`**: rebuild `<S>-build` on current `main`.
-   Regenerate the seed —
-   `scripts/flavor.sh`,
-   plus the separate fifth-component commit on a dev branch
-   (`series-open/SKILL.md`) —
-   then replay each vendor commit onto it.
-   `flavor.sh` needs `krlmlr/cpp11` installed, and refuses the whole run
-   without it (`series-open/SKILL.md`, step 2).
+   Regenerate the seed — `scripts/flavor.sh <F>`, plus a separate
+   `chore: Add fifth version component` commit appending the counter's `.0` to
+   `Version:` — then replay each vendor commit onto it.
+   `flavor.sh` needs `krlmlr/cpp11` installed and refuses the whole run without
+   it ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
    A series seeded from a release branch rather than from `main`
    regenerates on **that** branch,
    whose `scripts/` may be older than `main`'s —
    replay the recorded seed commits instead when it is.
+
+   **A preview line's seed takes its version prefix again here.**
+   A regenerated seed carries `main`'s prefix, which is the released line's,
+   and the replay cannot put the preview prefix back:
+   the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
+   so every picked commit inherits whatever the seed was stamped with
+   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+   Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
+   The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
+   previewing 2.0 is `1.99.99.9000`.
 
    **The forward series takes the whole of the new base.**
    The replay is a cherry-pick, not a tree reconstruction:
@@ -101,6 +118,32 @@ the replay then populates `<S>-fwd-build`.
    `scripts/series-forward-build.sh <old-build> <old-base>`
    does exactly this, run on the fresh seed —
    `<old-base>` only delimits the range.
+   A range starting above the old base is legitimate
+   where the new base already vendors the commit the range starts at,
+   and nowhere else:
+   a range that starts higher lands its first commit on whatever the base
+   happens to vendor, walking the engine backwards where that is older.
+   For a line tracking upstream `main`,
+   what establishes such a base is upstream's back-merge of a release branch,
+   and until one lands the whole buffer replays
+   ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
+
+   **A forward that re-roots is a graft, and grafts nothing but a tree.**
+   Where the point is to drop history below a fork point — an opening leaves the
+   parent carrying it ([`series-open/SKILL.md`](series-open)) — the new root is
+   one commit whose tree *is* the fork-point commit's, verbatim, parented on
+   current `main`:
+
+   ```bash
+   git commit-tree <fork-point commit>^{tree} -p <main> -F <message>
+   ```
+
+   No pick, because a pick would land one line's delta on another's tree. No
+   regenerated seed either: the graft keeps the fork point's R side, and the
+   forward that aligns it with `main` is a separate move. Replay everything the
+   branch has taken since — every subject, not only `vendor:`, since the base is
+   that range's own base — stamping the counter on each. `Version:` is the graft's
+   only edit, taking the prefix of the line the series now previews.
 
    **It refuses to start while the buffer carries a change
    the new base does not have.**
@@ -262,7 +305,7 @@ When `<S>-fwd-green` vendors at least the upstream commit
 coverage may never regress — run
 
 ```sh
-scripts/series-cutover.sh <S> origin <upstream-clone>
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 ```
 
 **A human runs this, never the loop.**

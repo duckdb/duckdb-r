@@ -8,8 +8,7 @@
 #'   types, ...).
 #' @slot env environment holding the result's mutable fetch state.
 #' @slot arrow whether the result is fetched via Arrow.
-#' @slot query_result external pointer to the underlying materialized query
-#'   result.
+#' @slot query_result external pointer to the underlying materialized query result.
 #' @aliases duckdb_result
 #' @keywords internal
 #' @export
@@ -77,6 +76,15 @@ duckdb_execute_arrow <- function(res) {
   )
 }
 
+# Every method on a result, of either class, asks this first:
+# a result is open from `dbSendQuery()` until `dbClearResult()`.
+check_result_open <- function(res, call = parent.frame()) {
+  if (!res@env$open) {
+    abort("result has already been cleared", call = call)
+  }
+  invisible(res)
+}
+
 duckdb_result <- function(connection, stmt_lst, arrow) {
   env <- new.env(parent = emptyenv())
   env$rows_fetched <- 0
@@ -136,6 +144,8 @@ duckdb_post_execute <- function(res, out) {
     out <- tz_force(out, res@connection@convert_opts$timezone_out)
   }
 
+  # The whole result is stored here, whatever dbFetch() later asks for:
+  # handbook/usage/memory/reading/README.md, #1997, #2587.
   res@env$resultset <- out
 
   out
@@ -151,6 +161,11 @@ is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
 #' @param chunk_size The chunk size
 #' @export
 duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
+  # A cleared result has released the statement
+  # whose client context the query result still points to.
+  if (!res@env$open) {
+    abort("result set was closed")
+  }
   if (chunk_size <= 0) {
     abort("Chunk Size must be higher than 0")
   }
@@ -162,6 +177,11 @@ duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
 #' @param chunk_size The chunk size
 #' @export
 duckdb_fetch_record_batch <- function(res, chunk_size = 1000000) {
+  # A cleared result has released the statement
+  # whose client context the query result still points to.
+  if (!res@env$open) {
+    abort("result set was closed")
+  }
   if (chunk_size <= 0) {
     abort("Chunk Size must be higher than 0")
   }

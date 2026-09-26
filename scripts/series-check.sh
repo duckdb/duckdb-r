@@ -58,15 +58,22 @@
 # block, names an upstream release line this repository does not serve yet. A
 # series is discovered from its refs, so a line that has none is invisible to
 # every other part of the loop, and stays invisible while upstream builds on it.
-# Reported, never acted on, like the cutover above: opening a series is
+# The block splits the two halves of an opening, because a firing may do one of
+# them: it says whether scripts/series.yaml declares the line's flavor, which is
+# an edit and a PR. Cutting the refs is not, and stays
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
-# Usage: series-check.sh [<series>...]     # default: discover all from refs
-#   UPSTREAM_CLONE=../duckdb series-check.sh   # fork point too, not just names
+# Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
+#   series-check.sh                                 # discover all from refs
+#   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
+#
+# --remote and --upstream are spelled the same in every scripts/series-*.sh;
+# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-remote=origin
+usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]'
+remote=${SERIES_REMOTE:-origin}
 rcc=${RCC_BRANCH:-rcc2}
 
 # Where the release-line check at the end reads upstream. Branch names are all
@@ -75,6 +82,19 @@ rcc=${RCC_BRANCH:-rcc2}
 # answers with the fork point.
 upstream=${UPSTREAM_CLONE:-}
 upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+
+argerr() { echo "$usage" >&2; exit 2; }
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- ${args+"${args[@]}"}
 
 git fetch -q "$remote"
 
@@ -272,6 +292,31 @@ line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
   echo $((major * 1000 + minor))
 }
 
+# The flavor a line would publish under, by the rule the declaration follows:
+# `v2.1-<codename>` is served as `duckdb.2.1.dev`. Derived rather than read, so
+# that a line with no entry yet still has a name to report.
+flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
+  local v=${1#v}
+  echo "duckdb.${v%%-*}.dev"
+}
+
+# Does `scripts/series.yaml` already name that flavor? An UNSERVED line has no
+# refs by definition, so the declaration is the only place a decision about it
+# can have been recorded, and it splits two states a firing must not confuse:
+# nothing done at all, and the flavor PR merged with only the refs left to cut
+# (.claude/skills/series-loop/SKILL.md, "What a firing reports").
+#
+# Read from the remote's `main` rather than the working tree: a firing checks
+# out series branches, whose trees lag `main` by whatever stage 4 has not
+# ported yet, and the declaration is `main`'s.
+declaration() { # -> the file, empty and non-zero when no ref carries it
+  local r
+  for r in "refs/remotes/$remote/main" refs/heads/main; do
+    git show "$r:scripts/series.yaml" 2>/dev/null && return 0
+  done
+  return 1
+}
+
 # How the clone names an upstream branch: a clone made by `git clone` carries it
 # as a remote-tracking ref, and a mirror as a head.
 upstream_ref() { # <branch> -> full ref, empty if the clone has none
@@ -415,11 +460,17 @@ for S in "${series[@]}"; do
   # one, because it is orthogonal — a forward series that has caught up still
   # needs repairing, advancing or waiting like any other.
   if [ -n "$cutover" ]; then
+    # Named options, and the upstream path filled in when this run was given
+    # one: the block a firing hands over is meant to be pasted whole, and a
+    # placeholder in the argument that decides whether the coverage gate runs
+    # at all is the one word nobody can substitute from the report alone
+    # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
-    echo "           scripts/series-cutover.sh $cutover $remote <upstream-clone>"
+    echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
+    echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
     echo "           Coverage is only half of it; what the two branches carry is"
     echo "           the other half, and the cutover prints it before it asks:"
-    echo "           scripts/series-converge.sh $cutover"
+    echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done
 
@@ -483,12 +534,25 @@ elif [ ${#unserved[@]} -gt 0 ]; then
       echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
       echo "          git merge-base answers here (scripts/VENDORING.md)."
     fi
+    # Which half of the opening is still owed. Declaring the flavor is a file
+    # edit and a firing may open the PR for it; cutting the refs is not, and
+    # never is.
+    flav=$(flavor_of "$b"); decl=$(declaration || true)
+    if [ -z "$decl" ]; then
+      echo "          Could not read scripts/series.yaml, so this firing does not"
+      echo "          know whether $flav is declared. Missing data, not a clean result."
+    elif grep -qE "^[[:space:]]*-?[[:space:]]*flavor:[[:space:]]*${flav//./\\.}[[:space:]]*\$" <<<"$decl"; then
+      echo "          Declared already: scripts/series.yaml names $flav, so only the"
+      echo "          refs are missing. Do not open a second declaration PR."
+    else
+      echo "          Undeclared: scripts/series.yaml has no $flav."
+    fi
   done
   # Said once, however many lines are listed: what waiting costs. It is a
   # decision owed an answer rather than a fault -- a line may be opened
   # deliberately, on a released tree, once the current one ships -- and the
-  # loop cannot open it either way, so all this block can do is be impossible
-  # to miss and stay inside what branch names can support. How much of the
+  # loop cuts no refs either way, so the rest of this block is to be impossible
+  # to miss and to stay inside what branch names can support. How much of the
   # line another series has already vendored is not one of those things:
   # upstream back-merges the release branch into `main`, so some of it may
   # well be built here, and a check that reads names cannot say how much.
