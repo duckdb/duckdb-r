@@ -83,3 +83,15 @@ test_that("dbBindArrow() runs the query once per row for multi-row streams", {
   df <- dbFetch(res)
   expect_equal(df$a, c(1, 2, 3))
 })
+
+test_that("dbClearResult() drops the results of a multi-row bind not read yet", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT ?::INTEGER AS a")
+  dbBind(res, list(1:3))
+  expect_length(res@env$pending_query_results, 2L)
+
+  expect_equal(dbFetchArrowChunk(res)$length, 1L)
+  dbClearResult(res)
+  expect_null(res@env$pending_query_results)
+})
