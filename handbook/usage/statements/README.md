@@ -37,6 +37,15 @@ The departures from that baseline are what this leaf owns:
   ([#2498](https://github.com/duckdb/duckdb-r/issues/2498)).
   One statement per call is the way to keep execution where the
   caller put it.
+* A streaming result is ended by the next statement on its connection,
+  whichever helper runs it, `dbExistsTable()` and `dbAppendTable()` included,
+  and it then reads as drained rather than failing;
+  a second connection to the same instance is the way to keep one open while
+  the first works, until
+  [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md) lands.
+  The object each DBI class wraps, and why the stream and the connection
+  share a session, is
+  [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.
 
 **A failing statement raises `duckdb_error`, and the classification is a field.**
 The engine's exception type, whatever it attached as extra info, the operation that failed,
@@ -58,7 +67,6 @@ which is why classification code needs a fallback branch.
 The engine, not this package, owns which types and which `extra_info` keys exist,
 so both grow without a release here.
 
-*To deepen: state the remaining departures — what a transaction does to
-an in-flight result, what `dbWriteTable()` does about types it cannot
-round-trip, and which identifiers need quoting the engine would
-otherwise fold — each with the test that pins it.*
+*To deepen: state the remaining departures, what `dbWriteTable()` does
+about types it cannot round-trip and which identifiers need quoting the
+engine would otherwise fold, each with the test that pins it.*

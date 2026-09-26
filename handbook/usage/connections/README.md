@@ -97,5 +97,9 @@ The load-bearing facts:
   so a driver whose last connection has closed is no longer valid.
   `duckdb_shutdown()` on such a driver is a silent no-op:
   what it asks for has already happened.
+* An uncleared result keeps the instance alive past `dbDisconnect()`,
+  unknown to the driver, and a new driver on the same file then opens the
+  file a second time in this process; the mapping behind that is
+  [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.
 
 *To deepen: absorb the instance and caching section of `?duckdb`.*
