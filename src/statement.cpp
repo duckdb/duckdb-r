@@ -24,6 +24,13 @@ using namespace cpp11::literals;
 	}
 }
 
+// Every entry point that takes a statement asks this first: the pointer may have been released by dbClearResult().
+static void CheckStatement(const duckdb::stmt_eptr_t &stmt, const char *context) {
+	if (!stmt || !stmt.get() || !stmt->stmt) {
+		rapi_error_with_context(context, "Invalid statement");
+	}
+}
+
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
                                      SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
@@ -137,9 +144,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
                                           duckdb::ConvertOpts convert_opts) {
-	if (!stmt || !stmt.get() || !stmt->stmt) {
-		rapi_error_with_context("rapi_bind", "Invalid statement");
-	}
+	CheckStatement(stmt, "rapi_bind");
 
 	auto n_param = stmt->stmt->named_param_map.size();
 
@@ -273,8 +278,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		auto query_result = make_uniq<RQueryResult>();
-		query_result->result = std::move(generic_result);
+		auto query_result = make_uniq<RQueryResult>(std::move(generic_result));
 		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {
@@ -288,9 +292,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 }
 
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
-	if (!stmt || !stmt.get() || !stmt->stmt) {
-		rapi_error_with_context("rapi_execute", "Invalid statement");
-	}
+	CheckStatement(stmt, "rapi_execute");
 
 	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED &&
 	                           convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;

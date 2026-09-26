@@ -6,7 +6,7 @@ test_that("dbFetchArrow() returns a nanoarrow_array_stream", {
   dbExecute(con, "INSERT INTO t VALUES (1, 'x'), (2, 'y'), (3, 'z')")
 
   res <- dbSendQueryArrow(con, "SELECT * FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   stream <- dbFetchArrow(res)
   expect_s3_class(stream, "nanoarrow_array_stream")
@@ -24,7 +24,7 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   dbExecute(con, "CREATE TABLE t AS SELECT range a FROM range(5000)")
 
   res <- dbSendQueryArrow(con, "SELECT a FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   total <- 0L
   chunks <- 0L
@@ -45,6 +45,189 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   expect_equal(again$length, 0L)
 })
 
+test_that("each dbFetchArrowChunk() and dbFetchArrow() call uses its own chunk_size", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(100) t(i)")
+  withr::defer(dbClearResult(res))
+
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 50)$length, 50L)
+  stream <- dbFetchArrow(res, chunk_size = 30)
+  expect_equal(stream$get_next()$length, 30L)
+  expect_equal(stream$get_next()$length, 10L)
+})
+
+test_that("the final empty chunk has the result's schema for every type (#2773)", {
+  con <- local_con()
+
+  # LIST and INTERVAL failed when the chunk went through an R prototype.
+  columns <- c(
+    l = "[i, i + 1]",
+    iv = "INTERVAL 1 DAY",
+    s = "{'a': i, 'l': [i]}",
+    m = "MAP {'k': i}",
+    a = "[i, i]::BIGINT[2]",
+    b = "i::BIGINT"
+  )
+  select <- paste(columns, "AS", names(columns), collapse = ", ")
+  sql <- paste("SELECT", select, "FROM range(3) t(i)")
+
+  formats <- function(x) {
+    schema <- nanoarrow::infer_nanoarrow_schema(x)
+    vapply(schema$children, function(child) child$format, character(1))
+  }
+
+  res <- dbSendQueryArrow(con, sql)
+  withr::defer(dbClearResult(res))
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 3L)
+
+  empty <- dbFetchArrowChunk(res)
+  expect_equal(empty$length, 0L)
+  expect_equal(formats(empty), formats(chunk))
+  expect_true(dbHasCompleted(res))
+
+  # The stream of a drained result carries the same schema.
+  stream <- dbFetchArrow(res)
+  expect_null(stream$get_next())
+  expect_equal(formats(stream), formats(chunk))
+})
+
+test_that("the final empty chunk imports into arrow for every type (#2773)", {
+  skip_if_not_installed("arrow")
+
+  con <- local_con()
+  dbExecute(con, "CREATE TYPE mood AS ENUM ('a', 'b')")
+
+  # A zero-length offsets buffer still holds one offset, which arrow checks.
+  columns <- c(
+    v = "'x'",
+    bl = "'x'::BLOB",
+    l = "[i, i + 1]",
+    ll = "[['a']]",
+    iv = "INTERVAL 1 DAY",
+    s = "{'a': i, 'l': ['a']}",
+    m = "MAP {'k': 'v'}",
+    e = "'a'::mood",
+    a = "['a', 'b']::VARCHAR[2]",
+    u = "uuid()",
+    h = "i::HUGEINT"
+  )
+  select <- paste(columns, "AS", names(columns), collapse = ", ")
+
+  # Large offsets, extension types, and string and list views.
+  settings <- list(
+    character(),
+    "SET arrow_large_buffer_size = true",
+    "SET arrow_lossless_conversion = true",
+    c(
+      "SET arrow_output_version = '1.5'",
+      "SET produce_arrow_string_view = true",
+      "SET arrow_output_list_view = true"
+    )
+  )
+
+  for (setting in settings) {
+    for (sql in setting) {
+      dbExecute(con, sql)
+    }
+    for (where in c("", "WHERE false")) {
+      sql <- paste("SELECT", select, "FROM range(3) t(i)", where)
+      res <- dbSendQueryArrow(con, sql)
+
+      repeat {
+        chunk <- dbFetchArrowChunk(res)
+        if (chunk$length == 0L) {
+          break
+        }
+      }
+      expect_no_error(
+        nanoarrow::nanoarrow_array_set_schema(
+          chunk,
+          arrow_schema(res),
+          validate = TRUE
+        )
+      )
+      table <- arrow::as_arrow_table(chunk)
+      expect_equal(dim(table), c(0L, length(columns)))
+      expect_no_error(table$ValidateFull())
+
+      dbClearResult(res)
+    }
+    for (sql in setting) {
+      dbExecute(con, sub("^SET (\\w+) = .*$", "RESET \\1", sql))
+    }
+  }
+})
+
+test_that("a zero-row LIST result returns an empty chunk on the first fetch (#2773)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT [1] AS l WHERE false")
+  withr::defer(dbClearResult(res))
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 0L)
+  expect_equal(nanoarrow::infer_nanoarrow_schema(chunk)$children$l$format, "+l")
+  expect_true(dbHasCompleted(res))
+})
+
+test_that("a result handed over by dbFetchArrow() keeps its columns (#2773)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT [i] AS l, INTERVAL 1 DAY AS iv FROM range(3) t(i)"
+  )
+  withr::defer(dbClearResult(res))
+
+  stream <- dbFetchArrow(res)
+  expect_equal(stream$get_next()$length, 3L)
+  expect_true(dbHasCompleted(res))
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 0L)
+  expect_named(nanoarrow::infer_nanoarrow_schema(chunk)$children, c("l", "iv"))
+
+  again <- dbFetchArrow(res)
+  expect_null(again$get_next())
+  expect_named(nanoarrow::infer_nanoarrow_schema(again)$children, c("l", "iv"))
+})
+
+test_that("the Arrow schema and an empty batch are there before the first fetch", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT [i] AS l, INTERVAL 1 DAY AS iv, 'x' AS v FROM range(3) t(i)"
+  )
+  withr::defer(dbClearResult(res))
+
+  formats <- function(schema) {
+    vapply(schema$children, function(child) child$format, character(1))
+  }
+
+  schema <- arrow_schema(res)
+  expect_named(schema$children, c("l", "iv", "v"))
+
+  # Built from an empty chunk, so it carries the offset a zero-length list or string array still has.
+  empty <- nanoarrow::nanoarrow_allocate_array()
+  rapi_arrow_empty_array(res@env$query_result, empty)
+  expect_no_error(
+    nanoarrow::nanoarrow_array_set_schema(empty, schema, validate = TRUE)
+  )
+  expect_equal(empty$length, 0L)
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 3L)
+  expect_equal(
+    formats(nanoarrow::infer_nanoarrow_schema(chunk)),
+    formats(schema)
+  )
+})
+
 test_that("dbFetchArrow() errors after the result is cleared", {
   con <- local_con()
   res <- dbSendQueryArrow(con, "SELECT 1")
@@ -56,7 +239,7 @@ test_that("dbFetchArrow() errors after the result is cleared", {
 test_that("dbFetchArrow() returns an empty stream after the result is consumed", {
   con <- local_con()
   res <- dbSendQueryArrow(con, "SELECT 1 AS a")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   dbFetchArrow(res)
   again <- dbFetchArrow(res)
@@ -69,7 +252,7 @@ test_that("dbSendQueryArrow() + dbFetchArrowChunk() streams large queries", {
 
   t1 <- Sys.time()
   res <- dbSendQueryArrow(con, "SELECT * FROM range(10000000)")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
   elapsed <- as.numeric(Sys.time() - t1, units = "secs")
 
   # No materialization happened.
@@ -84,7 +267,7 @@ test_that("dbColumnInfo() still works on an arrow result and matches the schema"
   dbExecute(con, "CREATE TABLE t (a INTEGER, b VARCHAR, c DOUBLE)")
 
   res <- dbSendQueryArrow(con, "SELECT a, b, c FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   info <- dbColumnInfo(res)
   expect_equal(info$name, c("a", "b", "c"))
@@ -93,4 +276,93 @@ test_that("dbColumnInfo() still works on an arrow result and matches the schema"
   chunk <- dbFetchArrowChunk(res)
   schema <- res@env$arrow_schema
   expect_s3_class(schema, "nanoarrow_schema")
+})
+
+test_that("a stream that another statement invalidated errors instead of ending (#2772)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  stream <- dbFetchArrow(res, chunk_size = 10)
+  dbClearResult(res)
+
+  expect_equal(stream$get_next()$length, 10L)
+  dbGetQuery(con, "SELECT 42")
+  expect_error(stream$get_next(), "invalidated by another statement")
+  expect_error(stream$get_next(), "invalidated by another statement")
+
+  # Invalidated before the first read, when not even the schema was read.
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  stream <- dbFetchArrow(res, chunk_size = 10)
+  dbClearResult(res)
+
+  dbGetQuery(con, "SELECT 42")
+  expect_error(stream$get_next(), "invalidated by another statement")
+})
+
+test_that("a chunked result that another statement invalidated errors instead of ending (#2772)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  withr::defer(dbClearResult(res))
+
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
+  dbGetQuery(con, "SELECT 42")
+  expect_error(
+    dbFetchArrowChunk(res, chunk_size = 10),
+    "invalidated by another statement"
+  )
+  expect_false(dbHasCompleted(res))
+})
+
+test_that("a stream read to the end still ends after another statement (#2772)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  stream <- dbFetchArrow(res, chunk_size = 10)
+  dbClearResult(res)
+
+  total <- 0L
+  while (!is.null(batch <- stream$get_next())) {
+    total <- total + batch$length
+  }
+  expect_equal(total, 30L)
+
+  dbGetQuery(con, "SELECT 42")
+  expect_null(stream$get_next())
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  withr::defer(dbClearResult(res))
+  repeat {
+    if (dbFetchArrowChunk(res, chunk_size = 10)$length == 0L) {
+      break
+    }
+  }
+
+  dbGetQuery(con, "SELECT 42")
+  expect_equal(dbFetchArrowChunk(res)$length, 0L)
+})
+
+test_that("a stream can be read after its connection is gone", {
+  con <- dbConnect(duckdb())
+  # Under lossless conversion, BOOLEAN is an extension type, and its schema reads the client context.
+  dbExecute(con, "SET arrow_lossless_conversion = true")
+  stream <- dbGetQueryArrow(con, "SELECT true AS b")
+  dbDisconnect(con, shutdown = TRUE)
+  invisible(gc())
+
+  expect_equal(stream$get_next()$length, 1L)
+  expect_null(stream$get_next())
+
+  # A materialized result, from a multi-row bind, handed over after one chunk.
+  con <- dbConnect(duckdb())
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(?::BIGINT) t(i)")
+  dbBind(res, list(c(1, 3)))
+  expect_equal(dbFetchArrowChunk(res)$length, 1L)
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 1)$length, 1L)
+  stream <- dbFetchArrow(res)
+  dbClearResult(res)
+  dbDisconnect(con, shutdown = TRUE)
+  invisible(gc())
+
+  expect_equal(nrow(as.data.frame(stream)), 2L)
 })
