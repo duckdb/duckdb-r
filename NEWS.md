@@ -1,5 +1,93 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9026
+
+## Chore
+
+### flavor
+
+- Keep `scripts/flavor.patch` applicable, and check that it is (#2647, #2767).
+
+## Documentation
+
+### memory
+
+- Describe a query's memory end to end, in leaves for the budget, reading, and writing (#1065, #2666).
+
+
+# duckdb 1.5.5.9025
+
+## Bug fixes
+
+### preview-prefix
+
+- Report no prefix owed for a line a release already names (#2762).
+
+### driver
+
+- `dbIsValid()` on a driver object no longer connects to the database (#2754).
+
+## Chore
+
+- Point the shared handbook pages at `cynkra/handbook-tools` and carry its checks (#2758).
+
+
+# duckdb 1.5.5.9024
+
+## Bug fixes
+
+### series-advance
+
+- Write the `R-side fix` header a `--dev-note` did not bring (#2752).
+
+### gc
+
+- Own every R value across the allocations that build it (#2750, #2753).
+
+### series-port
+
+- Refuse to sync from a `main` the fork has not mirrored yet (#2747).
+
+## Documentation
+
+- Break lines at meaning boundaries (#2730).
+
+- Name the shared README output format (#2729).
+
+
+# duckdb 1.5.5.9023
+
+## Bug fixes
+
+### ci
+
+- Align every workflow reference with where the actions now live (#2745).
+
+### ci
+
+- Point the two duckdb-r workflows at the relocated actions (#2743).
+
+### series-open
+
+- Stamp the preview prefix on both series, not just the parent (#2744).
+
+## Features
+
+### series
+
+- Declare the flavors once, and generate what says so (#2742).
+
+### preview-prefix
+
+- Stamp the parent's new prefix at the branch cut (#2740).
+
+## Documentation
+
+### ci
+
+- Point at the actions where they live now (#2741).
+
+
 # duckdb 1.5.5.9022
 
 ## Bug fixes

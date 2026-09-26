@@ -15,9 +15,16 @@ so `R/` is the list
 A reader asking "does `dbAppendTable()` work here" answers it by
 finding the file, not by consulting an inventory that can go stale.
 
-The departures from that baseline are what this leaf owns.
-One so far:
+The departures from that baseline are what this leaf owns:
 
+* `dbSendQuery()` does not defer:
+  a statement executes at `dbSendQuery()` time —
+  at `dbBind()` time when it has parameters —
+  and the full result is fetched into R before `dbFetch()` is ever
+  called, so `dbFetch(n = )` limits what is returned, not what is held
+  ([#1997](https://github.com/duckdb/duckdb-r/issues/1997);
+  the memory consequences and the streaming work that will change
+  this are [`memory/reading/`](/handbook/usage/memory/reading/README.md)'s).
 * In a multi-statement string,
   everything before the final statement executes at prepare time,
   and `?` placeholders bind only in the last statement
@@ -30,6 +37,22 @@ One so far:
   ([#2498](https://github.com/duckdb/duckdb-r/issues/2498)).
   One statement per call is the way to keep execution where the
   caller put it.
+* A streaming result is ended by the next statement on its connection,
+  whichever helper runs it, `dbExistsTable()` and `dbAppendTable()` included,
+  and reading it afterwards is an error
+  ([#2772](https://github.com/duckdb/duckdb-r/issues/2772));
+  a second connection to the same instance is the way to keep one open while
+  the first works, and `dbConnect(con)`, which DBI defines as cloning a
+  connection, is what
+  [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) adds so
+  that the second carries the first's session settings.
+  `FORCE CHECKPOINT` on one connection while a stream is parked on another
+  does not return, since it waits for a transaction only the waiting thread
+  can advance (measured in
+  [`experiments/2026-09-26-connection-per-result/`](/experiments/2026-09-26-connection-per-result/README.md)).
+  The object each DBI class wraps, and why the stream and the connection
+  share a session, is
+  [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.
 
 **A failing statement raises `duckdb_error`, and the classification is a field.**
 The engine's exception type, whatever it attached as extra info, the operation that failed,
@@ -51,7 +74,6 @@ which is why classification code needs a fallback branch.
 The engine, not this package, owns which types and which `extra_info` keys exist,
 so both grow without a release here.
 
-*To deepen: state the remaining departures — what a transaction does to
-an in-flight result, what `dbWriteTable()` does about types it cannot
-round-trip, and which identifiers need quoting the engine would
-otherwise fold — each with the test that pins it.*
+*To deepen: state the remaining departures, what `dbWriteTable()` does
+about types it cannot round-trip and which identifiers need quoting the
+engine would otherwise fold, each with the test that pins it.*
