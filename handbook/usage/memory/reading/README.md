@@ -124,7 +124,7 @@ so the paths differ by which copies they hold and when each is freed.
   `dbClearResult()` frees it eagerly,
   and a multi-row bind falls back to one materialized result per row
   (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)).
-  The surfaces, and that a stream drains once, are
+  The surfaces, that a stream drains once, and what reading an invalidated one does, are
   [`integrations/`](/handbook/usage/integrations/README.md)'s.
 * **ADBC.**
   The engine's own ADBC driver, compiled into this package's library
