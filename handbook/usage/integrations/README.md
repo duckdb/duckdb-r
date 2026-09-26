@@ -101,6 +101,11 @@ Out: `dbGetQueryArrow()` returns a `nanoarrow_array_stream`,
 and `dbSendQueryArrow()` / `dbFetchArrowChunk()` stream a result
 batch by batch — true streaming since 1.5.4
 ([#162](https://github.com/duckdb/duckdb-r/issues/162)).
+The query result keeps its columns from execution on (`RQueryResult` in [`src/include/rapi.hpp`](/src/include/rapi.hpp)).
+So its Arrow schema is there before the first fetch (`rapi_arrow_schema()` in [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+So is an empty batch, which the engine's own converter builds from an empty chunk (`rapi_arrow_empty_array()`).
+It has the layout of the batches a fetch returns, which `nanoarrow_array_init()` would not:
+that leaves out the one offset a zero-length string, binary, list or map array still carries, and arrow refuses the array without it.
 The stream is the interchange:
 any Arrow-C-stream consumer takes a result onward
 without an R data frame in between —

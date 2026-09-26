@@ -8,8 +8,16 @@ rapi_fetch_arrow_stream_into <- function(qry_res, stream_xptr, chunk_size) {
   invisible(.Call(`_duckdb_rapi_fetch_arrow_stream_into`, qry_res, stream_xptr, chunk_size))
 }
 
+rapi_arrow_schema <- function(qry_res, schema_xptr) {
+  invisible(.Call(`_duckdb_rapi_arrow_schema`, qry_res, schema_xptr))
+}
+
 rapi_fetch_arrow_array <- function(qry_res, array_xptr, schema_xptr, chunk_size) {
   .Call(`_duckdb_rapi_fetch_arrow_array`, qry_res, array_xptr, schema_xptr, chunk_size)
+}
+
+rapi_arrow_empty_array <- function(qry_res, array_xptr) {
+  invisible(.Call(`_duckdb_rapi_arrow_empty_array`, qry_res, array_xptr))
 }
 
 rapi_record_batch <- function(qry_res, chunk_size) {

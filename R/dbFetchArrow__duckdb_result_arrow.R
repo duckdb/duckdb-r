@@ -148,6 +148,18 @@ require_nanoarrow <- function(what) {
   }
 }
 
+# The Arrow schema of the result, from the columns its query result keeps:
+# there before the first fetch.
+arrow_schema <- function(res) {
+  schema <- res@env$arrow_schema
+  if (is.null(schema)) {
+    schema <- nanoarrow::nanoarrow_allocate_schema()
+    rethrow_rapi_arrow_schema(res@env$query_result, schema)
+    res@env$arrow_schema <- schema
+  }
+  schema
+}
+
 empty_arrow_chunk <- function(res) {
   schema <- res@env$arrow_schema
   if (is.null(schema)) {
