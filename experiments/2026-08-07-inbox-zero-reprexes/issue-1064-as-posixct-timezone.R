@@ -11,17 +11,18 @@ as.POSIXct("2025-03-01 18:00:00")
 # Translated: the string is cast as-is, the session zone is not applied
 translate_sql(as.POSIXct("2025-03-01 18:00:00"), con = simulate_duckdb())
 
-# Escaped instead of translated: dbplyr converts the R value to UTC
+# Escaped instead of translated: this package's sql_escape_datetime() method
+# converts the R value to UTC
 translate_sql(!!as.POSIXct("2025-03-01 18:00:00"), con = simulate_duckdb())
 
-# The tz argument is not part of the translation at all
+# The tz argument is not part of this package's TRY_CAST translation at all
 try(translate_sql(
   as.POSIXct("2025-03-01 18:00:00", tz = "UTC"),
   con = simulate_duckdb()
 ))
 
-# Every other backend translates it the same way, so this is dbplyr's base
-# translation rather than the duckdb dialect
+# Other backends cast the string as written too; the duckdb dialect differs
+# only in using TRY_CAST
 translate_sql(as.POSIXct("2025-03-01 18:00:00"), con = simulate_postgres())
 translate_sql(as.POSIXct("2025-03-01 18:00:00"), con = simulate_mssql())
 translate_sql(as.POSIXct("2025-03-01 18:00:00"), con = simulate_mysql())

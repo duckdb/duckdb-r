@@ -20,10 +20,10 @@ action** — an issue that stays open is a decision, not a leftover:
 * `KEEP-ROADMAP` — deliberately open epic with a named next step.
 
 A verdict that rests on behaviour rests on a transcript, not on memory:
-the runs behind the current queue's `CLOSE-FIXED`, `CLOSE-UPSTREAM` and
-`CLOSE-STALE-ASK` verdicts are
+the runs behind the `CLOSE-FIXED`, `CLOSE-UPSTREAM` and `CLOSE-STALE-ASK` verdicts of
+[#2522](https://github.com/duckdb/duckdb-r/issues/2522)'s queue are
 [`experiments/2026-08-07-inbox-zero-reprexes/`](/experiments/2026-08-07-inbox-zero-reprexes/README.md),
-one reprex per issue — including the three that came out the other way.
+which also names the ones that came out other than their verdict.
 
 **A close without a code change
 is a close *with* a documentation change.**

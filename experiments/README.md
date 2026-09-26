@@ -25,10 +25,9 @@ This file is what names the contents, so nothing here is an orphan.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
-* [`2026-08-07-inbox-zero-reprexes/`](2026-08-07-inbox-zero-reprexes/) —
-  what 1.5.5 does when the issues closed with evidence, upstream, or as
-  stale are run again, one reprex each; supports
-  [`operations/triage/`](/handbook/operations/triage/README.md).
+* [`2026-08-07-inbox-zero-reprexes/`](2026-08-07-inbox-zero-reprexes/):
+  what 1.5.5 does when the issues #2522 closed with evidence, upstream, or as stale are run again;
+  supports [`operations/triage/`](/handbook/operations/triage/README.md).
 * [`2026-08-08-altrep-scan-threads/`](2026-08-08-altrep-scan-threads/) —
   what a scan returned when it reached a registered ALTREP data frame's
   packed column itself, per thread count and field type, before and

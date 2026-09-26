@@ -30,7 +30,8 @@ measure(function(query, peak_rss_mb) {
   c(rows = nrow(tbl), peak_rss_mb = peak_rss_mb())
 })
 
-# 2. the DBI Arrow stream, one chunk at a time, nothing accumulated
+# 2. the DBI Arrow stream, one chunk at a time, each batch dropped:
+#    its buffers wait for a garbage collection that nothing triggers
 measure(function(query, peak_rss_mb) {
   library(duckdb)
   con <- dbConnect(duckdb())
@@ -43,7 +44,23 @@ measure(function(query, peak_rss_mb) {
   c(rows = rows, peak_rss_mb = peak_rss_mb())
 })
 
-# 3. the record batch reader the issue uses
+# 3. the same loop, each batch released before the next, as ?duckdb_memory
+#    recommends
+measure(function(query, peak_rss_mb) {
+  library(duckdb)
+  con <- dbConnect(duckdb())
+  res <- dbSendQueryArrow(con, query)
+  rows <- 0
+  while (!dbHasCompleted(res)) {
+    batch <- dbFetchArrowChunk(res)
+    rows <- rows + batch$length
+    nanoarrow::nanoarrow_pointer_release(batch)
+  }
+  dbClearResult(res)
+  c(rows = rows, peak_rss_mb = peak_rss_mb())
+})
+
+# 4. the record batch reader the issue uses
 measure(function(query, peak_rss_mb) {
   library(duckdb)
   con <- dbConnect(duckdb())
@@ -57,7 +74,7 @@ measure(function(query, peak_rss_mb) {
   c(rows = rows, peak_rss_mb = peak_rss_mb())
 })
 
-# 4. ten bounded results instead of one unbounded one
+# 5. ten bounded results instead of one unbounded one
 measure(function(query, peak_rss_mb) {
   library(duckdb)
   con <- dbConnect(duckdb())
@@ -74,7 +91,7 @@ measure(function(query, peak_rss_mb) {
   c(rows = rows, peak_rss_mb = peak_rss_mb())
 })
 
-# 5. the same question answered inside the engine, nothing fetched
+# 6. the same question answered inside the engine, nothing fetched
 measure(function(query, peak_rss_mb) {
   library(duckdb)
   con <- dbConnect(duckdb())
