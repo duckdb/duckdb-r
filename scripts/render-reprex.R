@@ -1,4 +1,5 @@
 # Render an experiment script as a reprex into <stem>.md beside it.
+# Handbook: handbook/meta/local/README.md
 args <- commandArgs(trailingOnly = TRUE)
 input <- normalizePath(args[[1]])
 stem <- args[[2]]
