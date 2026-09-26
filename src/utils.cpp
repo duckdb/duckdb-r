@@ -301,6 +301,16 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	}
 }
 
+Value RApiTypes::SexpToValueAt(const std::string &context, SEXP valsexp, R_len_t idx, bool typed_logical_null) {
+	try {
+		return SexpToValue(valsexp, idx, typed_logical_null);
+	} catch (Exception &e) {
+		// An engine exception escaping an entry point reaches R as its JSON.
+		// Only engine exceptions: an R error unwinding through here must go on.
+		rapi_error_with_context(context, ErrorData(e));
+	}
+}
+
 SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	if (val.IsNull()) {
 		return R_NilValue;

@@ -27,3 +27,17 @@ test_that("Errors raised on R's thread keep their context", {
     duckdb_register(con, "empty", data.frame())
   })
 })
+
+test_that("An entry point reports the scan's encoding check through R", {
+  # The check throws for the scan's sake; outside the scan it must still
+  # arrive as a classed error, not as the engine's JSON
+  con <- local_con()
+  latin1 <- iconv("für", "UTF-8", "latin1")
+
+  expect_snapshot(error = TRUE, {
+    expr_constant(latin1)
+  })
+  expect_snapshot(error = TRUE, {
+    rel_from_table_function(con, "repeat", list(latin1, 3L))
+  })
+})
