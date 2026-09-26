@@ -7,13 +7,13 @@
 #   3. whether the default write/read round trip still follows the machine
 #   4. what `SET TimeZone` costs when it has to reach for the extension
 #
-# Needs the vendored engine compiled from source -- it links `parquet` and
-# `core_functions` and nothing else -- installed in its own library:
-#
-#   git worktree add --detach ../duckdb-r-noicu HEAD
-#   (cd ../duckdb-r-noicu && MAKEFLAGS=-j4 NOT_CRAN=true \
-#      R CMD INSTALL . --library=$HOME/R-noicu --no-byte-compile)
-#   R_LIBS=$HOME/R-noicu TZ=UTC Rscript experiments/.../no-icu.R
+# Needs the vendored engine compiled from source, which links `parquet` and
+# `core_functions` and nothing else, installed in its own library;
+# run-no-icu.sh builds it and points `R_LIBS` at it. Each machine zone needs
+# its own process, because icu reads the zone once when it loads, so this
+# spawns one child per zone rather than looping in place.
+ZONES <- c("UTC", "Europe/Zurich")
+
 suppressMessages(library(duckdb))
 
 INSTANT <- as.POSIXct(1745781814.84963, origin = "1970-01-01", tz = "UTC")
@@ -101,25 +101,40 @@ report <- function(label, con) {
   )
 }
 
-say(
-  "== TZ=%s, duckdb %s, DuckDB %s, source build ==",
-  Sys.getenv("TZ"),
-  packageVersion("duckdb"),
-  duckdb:::get_duckdb_version()
-)
+if (!nzchar(Sys.getenv("DUCKDB_R_ZONE_CHILD"))) {
+  for (zone in ZONES) {
+    cat(
+      system2(
+        "Rscript",
+        "no-icu.R",
+        env = c(paste0("TZ=", zone), "DUCKDB_R_ZONE_CHILD=1"),
+        stdout = TRUE,
+        stderr = TRUE
+      ),
+      sep = "\n"
+    )
+  }
+} else {
+  say(
+    "== TZ=%s, duckdb %s, DuckDB %s, source build ==",
+    Sys.getenv("TZ"),
+    packageVersion("duckdb"),
+    duckdb:::get_duckdb_version()
+  )
 
-# A machine that has never downloaded icu, whatever this one's store holds.
-empty_store <- tempfile("ext-store-")
-dir.create(empty_store)
-con <- suppressMessages(dbConnect(
-  duckdb(config = list(extension_directory = empty_store))
-))
-report("empty extension store", con)
-dbDisconnect(con, shutdown = TRUE)
+  # A machine that has never downloaded icu, whatever this one's store holds.
+  empty_store <- tempfile("ext-store-")
+  dir.create(empty_store)
+  con <- suppressMessages(dbConnect(
+    duckdb(config = list(extension_directory = empty_store))
+  ))
+  report("empty extension store", con)
+  dbDisconnect(con, shutdown = TRUE)
 
-# And a machine that has: the default store, where icu may be cached. If
-# asking loads it, a connect-time pin would load an extension for everyone
-# who has one, which is what a guard would exist to avoid.
-con2 <- suppressMessages(dbConnect(duckdb()))
-report("default extension store", con2)
-dbDisconnect(con2, shutdown = TRUE)
+  # And a machine that has: the default store, where icu may be cached. If
+  # asking loads it, a connect-time pin would load an extension for everyone
+  # who has one, which is what a guard would exist to avoid.
+  con2 <- suppressMessages(dbConnect(duckdb()))
+  report("default extension store", con2)
+  dbDisconnect(con2, shutdown = TRUE)
+}
