@@ -161,6 +161,8 @@ builds the vendored engine from source instead, linking `parquet` and
 ([`usage/extensions/`](/handbook/usage/extensions/README.md)), and runs
 [`no-icu.R`](no-icu.R) against it, recorded in
 [`no-icu.md`](no-icu.md).
+One reprex covers both machine zones here, because the script spawns a
+child per zone rather than looping in place.
 
 **Without icu the writing default has no machine to follow.**
 `dbWriteTable()` still writes `TIMESTAMP WITH TIME ZONE`, the instant
@@ -175,7 +177,7 @@ property of having icu.
 With no icu installed, both raise an Extension Autoloading Error rather
 than blocking, because `autoinstall_known_extensions` is `false`, so autoload
 loads a local extension but never downloads one, and the failure costs
-0.2s, not a network timeout. `duckdb_extensions()` is the safe way to
+0.15s, not a network timeout. `duckdb_extensions()` is the safe way to
 ask: it reported icu without loading it in every cell.
 
 **The label is order-dependent within one session.**
