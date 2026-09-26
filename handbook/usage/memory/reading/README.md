@@ -120,8 +120,8 @@ so the paths differ by which copies they hold and when each is freed.
   `dbFetchArrow()` hands over the whole stream,
   and what materializes from it is the consumer's choice.
   The stream pins the connection —
-  any other statement invalidates it, and it then reads as drained
-  ([`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)) —
+  any other statement invalidates it,
+  [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md) says why —
   `dbClearResult()` frees it eagerly,
   and a multi-row bind falls back to one materialized result per row
   (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)).

@@ -10,12 +10,13 @@ The measurements it rests on are
 
 ## Problem
 
-A streaming result is its connection's one open result, and any statement on the connection ends it, silently:
-the next batch is empty and `dbHasCompleted()` is `TRUE`.
+A streaming result is its connection's one open result, and any statement on the connection ends it.
 The package's own helpers are statements,
 so the DBI chunked loop, a stream read in batches with each batch appended through the same connection,
-stops after one batch and reports success,
+stops after one batch,
 and the Connections pane can end a stream from the IDE.
+Until [#2775](https://github.com/duckdb/duckdb-r/pull/2775) the ended stream read as drained and the loop reported success;
+now it is an error that names the cause, and the loop still does not complete.
 Today the exposure is `dbSendQueryArrow()`'s;
 once `dbSendQuery(stream = TRUE)` lands
 ([#2584](https://github.com/duckdb/duckdb-r/pull/2584),
@@ -53,13 +54,9 @@ Read on the vendored tree, and measured in the experiment above where a number i
 
 ## Design
 
-1. **An ended stream fails loudly, first and on its own.**
-   The glue checks `StreamQueryResult::IsOpen()` before it asks the Arrow stream for a batch,
-   in `rapi_fetch_arrow_array()` and `rapi_fetch_arrow_stream_into()`
-   ([`src/arrow_export.cpp`](/src/arrow_export.cpp)),
-   and raises a `duckdb_error` that says another statement on the connection ended the result;
-   a streaming `dbFetch()` (#2584) does the same.
-   This ships before anything below, and stands whether or not the rest does.
+1. **An ended stream fails loudly, on every route.**
+   The Arrow route does since #2775 (`RArrowArrayStreamWrapper` in [`src/arrow_export.cpp`](/src/arrow_export.cpp));
+   a streaming `dbFetch()` (#2584) does the same before it lands.
 2. **A private context, when the statement qualifies.**
    At `dbSendQueryArrow()` and `dbSendQuery(stream = TRUE)` the statement is prepared on the connection's context as today.
    Then, when the connection is in auto-commit mode,
@@ -69,7 +66,7 @@ Read on the vendored tree, and measured in the experiment above where a number i
    the glue opens one, copies the connection's `ClientConfig` and search path,
    registers the connection's frames again as temporary views,
    prepares the statement there under the same environment-scan window, and executes there.
-   Otherwise the statement runs on the connection's context, with one live stream and the loud error of step 1.
+   Otherwise the statement runs on the connection's context, with one live stream and the error of step 1.
 3. **Lifetime.**
    The private context is a member of `RQueryResult`, and of `RStatement` for the `dbFetch()` route;
    it dies with `dbClearResult()` or with the result's finalizer.
@@ -97,11 +94,11 @@ Read on the vendored tree, and measured in the experiment above where a number i
   would remove the replay and make a registration visible from every connection; not proposed here.
 * `SETSEED()` state does not copy.
 * dbplyr's `collect()` of a `compute()`d temp table reads the temp catalog, so it stays on the connection's context:
-  one live stream there, and the loud error.
+  one live stream there, and the error of step 1.
 
 ## Tasks
 
-1. The loud error for an ended stream, with the interleave cases of the experiment as tests.
+1. The error for an ended stream on the `dbFetch()` route, once #2584 lands, with the interleave cases of the experiment as tests.
 2. The qualification check over `StatementProperties` and the transaction state, one test per guard.
 3. The private context: open, copy the config and the search path, replay the registrations, prepare, execute;
    the chunked loop through one connection, and two streams on one connection read alternately, as tests.

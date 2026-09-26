@@ -39,7 +39,8 @@ The departures from that baseline are what this leaf owns:
   caller put it.
 * A streaming result is ended by the next statement on its connection,
   whichever helper runs it, `dbExistsTable()` and `dbAppendTable()` included,
-  and it then reads as drained rather than failing;
+  and reading it afterwards is an error
+  ([#2772](https://github.com/duckdb/duckdb-r/issues/2772));
   a second connection to the same instance is the way to keep one open while
   the first works, until
   [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md) lands.

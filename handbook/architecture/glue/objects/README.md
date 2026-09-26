@@ -43,22 +43,25 @@ Each of these was read from a second context in
 and every later statement on the connection sees them because it runs on that context.
 That is what the mapping buys.
 
-**One live stream per connection, and it ends without a word.**
+**One live stream per connection.**
 A materialized result survives any statement on its connection, because its rows are already R's.
 A streaming result is the context's open result,
 `dbSendQueryArrow()`'s today and `dbSendQuery(stream = TRUE)`'s once
 [#2584](https://github.com/duckdb/duckdb-r/pull/2584) lands,
 and the package's own helpers run statements:
 `dbExistsTable()`, `dbListTables()`, `dbListFields()`, `duckdb_register()`, `dbAppendTable()` and the Connections pane each end it.
-An ended stream then reads as drained rather than failing:
-the engine's Arrow stream wrapper reports a closed stream as the end of the stream
+The engine's Arrow stream wrapper reports an ended stream as the end of the stream
 (`MyStreamGetNext()` in vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
-so `dbFetchArrowChunk()` returns an empty batch and `dbHasCompleted()` says `TRUE`.
-The DBI chunked loop that appends each batch through the same connection stops after its first batch and reports success
-(measured in the experiment above).
-The way through today is a second connection to the same instance:
+which is what the experiment above met: an empty batch, `dbHasCompleted()` saying `TRUE`,
+and the DBI chunked loop that appends each batch through the same connection stopping after its first batch and reporting success.
+Since [#2775](https://github.com/duckdb/duckdb-r/pull/2775) the glue wraps that stream and reports the ended result as an error instead
+(`RArrowArrayStreamWrapper` in [`src/arrow_export.cpp`](/src/arrow_export.cpp);
+what the error says, and when a stream counts as read to the end, is
+[`usage/integrations/`](/handbook/usage/integrations/README.md)'s),
+so the loop now stops at its second batch with the reason.
+The way through is a second connection to the same instance:
 a stream on each interleaves, and the loop completes with its writes on the other connection.
-Making the ended stream fail, and giving a streaming result a context of its own where that is sound,
+Giving a streaming result a context of its own where that is sound, so the loop completes on one connection,
 is [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md).
 
 **A result outlives its connection, and holds the instance with it.**

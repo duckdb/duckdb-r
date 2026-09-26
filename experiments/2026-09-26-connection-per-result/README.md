@@ -15,7 +15,8 @@ against the released `libduckdb` v1.5.5 (upstream commit `d8cdaa33fd`) that
 [`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh) installs,
 with nanoarrow 0.9.0, bench 1.1.4 and callr 3.8.0 beside it.
 The C++ case compiles against the vendored headers and links that same library.
-Method: [`run.sh`](run.sh), one script per question, output in [`transcript.txt`](transcript.txt).
+Method: [`run.sh`](run.sh), one script per question, output in [`transcript.txt`](transcript.txt);
+the one case run again after #2775 is named where it is read.
 
 *What it supports:* [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md),
 which states the mapping and what follows from it,
@@ -67,6 +68,12 @@ The engine's Arrow stream wrapper reports a closed stream as the end of the stre
 where the C++ `Fetch()` on the same stream raises `Attempting to execute an unsuccessful or closed pending query result`.
 So the DBI chunked loop that appends each batch through the same connection stops after 10,000 of 100,000 rows and reports success.
 With the writes on a second connection to the same instance it completes, and two streams on two connections read alternately.
+[#2775](https://github.com/duckdb/duckdb-r/pull/2775), merged after this run, wraps the engine's stream in the glue
+and reports the ended result as an error instead;
+[`interleave.R`](interleave.R) run again on a tree carrying it, in [`transcript-after-2775.txt`](transcript-after-2775.txt),
+fails every ended case with `The query result was invalidated by another statement on its connection before it was read to the end`,
+and the loop through one connection stops at its second batch with that error rather than with success.
+The stream still ends; only what reading it says has changed.
 
 **A stream on another context is a snapshot, and one statement waits on it forever.**
 `INSERT`, `CHECKPOINT` and `DROP TABLE` on the first connection all run while the second's stream is parked, and the stream yields on.
