@@ -37,7 +37,8 @@ register_nanoarrow <- function(con, name, x, on_filter = c("ignore", "error")) {
     nanoarrow::nanoarrow_pointer_export(schema, schema_ptr)
   }
 
-  expr_factory <- switch(on_filter,
+  expr_factory <- switch(
+    on_filter,
     ignore = function(...) structure(list(...), class = "unused_expression"),
     error = function(...) stop("nanoarrow source cannot apply filters")
   )
@@ -116,8 +117,14 @@ types <- list(
   character = c("a", "äöü", NA),
   factor = factor(c("x", "y", NA)),
   Date = as.Date(c("2024-01-01", "2024-06-15", NA)),
-  POSIXct_utc = as.POSIXct(c("2024-01-01 10:00:00", "2024-06-15 10:00:00", NA), tz = "UTC"),
-  POSIXct_tz = as.POSIXct(c("2024-01-01 10:00:00", "2024-06-15 10:00:00", NA), tz = "Europe/Zurich"),
+  POSIXct_utc = as.POSIXct(
+    c("2024-01-01 10:00:00", "2024-06-15 10:00:00", NA),
+    tz = "UTC"
+  ),
+  POSIXct_tz = as.POSIXct(
+    c("2024-01-01 10:00:00", "2024-06-15 10:00:00", NA),
+    tz = "Europe/Zurich"
+  ),
   difftime_secs = as.difftime(c(1, 2, NA), units = "secs"),
   difftime_days = as.difftime(c(1, 2, NA), units = "days"),
   integer64 = bit64::as.integer64(c(1, 2, NA)),
@@ -149,19 +156,22 @@ probe_one <- function(value, how) {
   )
 }
 
-grid <- do.call(rbind, lapply(names(types), function(name) {
-  native <- probe_one(types[[name]], "r_dataframe_scan")
-  nano <- probe_one(types[[name]], "nanoarrow")
-  data.frame(
-    column = name,
-    native_type = native$type,
-    nanoarrow_type = nano$type,
-    native_roundtrips = identical(native$value, types[[name]]),
-    nanoarrow_roundtrips = identical(nano$value, types[[name]]),
-    agree = identical(native$value, nano$value),
-    stringsAsFactors = FALSE
-  )
-}))
+grid <- do.call(
+  rbind,
+  lapply(names(types), function(name) {
+    native <- probe_one(types[[name]], "r_dataframe_scan")
+    nano <- probe_one(types[[name]], "nanoarrow")
+    data.frame(
+      column = name,
+      native_type = native$type,
+      nanoarrow_type = nano$type,
+      native_roundtrips = identical(native$value, types[[name]]),
+      nanoarrow_roundtrips = identical(nano$value, types[[name]]),
+      agree = identical(native$value, nano$value),
+      stringsAsFactors = FALSE
+    )
+  })
+)
 grid$native_type <- substr(grid$native_type, 1, 32)
 grid$nanoarrow_type <- substr(grid$nanoarrow_type, 1, 32)
 grid
@@ -187,20 +197,36 @@ register_nanoarrow(con2, "na", big)
 
 timing <- function(label, expr) {
   expr <- substitute(expr)
-  t <- system.time(for (i in 1:3) eval(expr, parent.frame()))
-  data.frame(what = label, elapsed_per_run = round(unname(t[["elapsed"]]) / 3, 3))
+  t <- system.time(
+    for (i in 1:3) {
+      eval(expr, parent.frame())
+    }
+  )
+  data.frame(
+    what = label,
+    elapsed_per_run = round(unname(t[["elapsed"]]) / 3, 3)
+  )
 }
 
-do.call(rbind, list(
-  timing("native  count(*)", dbGetQuery(con2, "SELECT count(*) FROM native")),
-  timing("nanoarrow count(*)", dbGetQuery(con2, "SELECT count(*) FROM na")),
-  timing("native  sum(i)", dbGetQuery(con2, "SELECT sum(i) FROM native")),
-  timing("nanoarrow sum(i)", dbGetQuery(con2, "SELECT sum(i) FROM na")),
-  timing("native  one string column", dbGetQuery(con2, "SELECT count(DISTINCT s) FROM native")),
-  timing("nanoarrow one string column", dbGetQuery(con2, "SELECT count(DISTINCT s) FROM na")),
-  timing("native  full fetch", dbGetQuery(con2, "SELECT * FROM native")),
-  timing("nanoarrow full fetch", dbGetQuery(con2, "SELECT * FROM na"))
-))
+do.call(
+  rbind,
+  list(
+    timing("native  count(*)", dbGetQuery(con2, "SELECT count(*) FROM native")),
+    timing("nanoarrow count(*)", dbGetQuery(con2, "SELECT count(*) FROM na")),
+    timing("native  sum(i)", dbGetQuery(con2, "SELECT sum(i) FROM native")),
+    timing("nanoarrow sum(i)", dbGetQuery(con2, "SELECT sum(i) FROM na")),
+    timing(
+      "native  one string column",
+      dbGetQuery(con2, "SELECT count(DISTINCT s) FROM native")
+    ),
+    timing(
+      "nanoarrow one string column",
+      dbGetQuery(con2, "SELECT count(DISTINCT s) FROM na")
+    ),
+    timing("native  full fetch", dbGetQuery(con2, "SELECT * FROM native")),
+    timing("nanoarrow full fetch", dbGetQuery(con2, "SELECT * FROM na"))
+  )
+)
 
 dbDisconnect(con2)
 dbDisconnect(con)
