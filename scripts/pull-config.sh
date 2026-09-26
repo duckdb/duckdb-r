@@ -1,12 +1,17 @@
 #!/bin/bash
 # Read-only: does `.github/pull.yml` rule every mirror a badge measures against?
 #
-# A mirror exists because a comparison needs a base in the same repository
-# (handbook/branches/mirrors/README.md), and the comparisons are the badges in
-# `README.md`: shields.io counts two refs of `krlmlr/duckdb-r`, so a badge names
-# its base there and the fork has to carry it. That makes the rule list a
-# function of the badge table rather than a thing to remember, and this script
-# is that function, evaluated against the file.
+# A mirror exists because a series seeds and forward-ports from the branch it
+# releases from (handbook/branches/mirrors/README.md), and that branch is
+# `releases_from` in scripts/series.yaml. So the rule list is a function of the
+# declared flavors rather than a thing to remember, and this script is that
+# function, evaluated against the file.
+#
+# It read the badge table out of the rendered `README.md` until then, by regular
+# expression over shields.io URLs. That made the rule list depend on how a badge
+# was spelled: when *ahead* moved to the canonical repository the refs it named
+# stopped being the fork's, and a derivation reading them would have unmirrored
+# `v1.4-andium` -- the branch `v1.4-andium-fwd` regenerates its seed from.
 #
 # It is wanted when a series changes -- one opened, one parked, one retired --
 # because that is when the badge table moves and the rule list moves with it.
@@ -16,13 +21,12 @@
 #
 # What the fork must carry, derived:
 #
-#   * `main`, always. It is a badge base, and it is also what every series seeds
-#     from and forward-ports from, so it is carried even when no badge reads it.
-#   * every other badge base that is not a series' own ref -- the parked
-#     `vX.Y-codename` baseline a line is measured against once it stops
-#     releasing from `main`.
+#   * `main`, always. Every series seeds from it and forward-ports from it, so it
+#     is carried whether or not a flavor names it.
+#   * every other `releases_from` -- the parked `vX.Y-codename` baseline a line
+#     moves to once it stops releasing from `main`.
 #   * the `-lts` companion of such a baseline, where a rule already carries one:
-#     the LTS flavor publishes from it, which no badge shows.
+#     the LTS flavor publishes from it, which nothing else here names.
 #
 # **The repository a badge is computed in does not enter the derivation**, and
 # that is not an oversight. An *ahead* badge is read from the canonical
@@ -56,15 +60,23 @@ cd "$(dirname "$0")/.."
 check=
 [ "${1:-}" = --check ] && check=1
 
-readme=README.md
+declaration=scripts/series.yaml
 config=.github/pull.yml
 fork_url=${FORK_URL:-https://github.com/krlmlr/duckdb-r}
 
-# The refs a badge names in the fork. Both sides of every comparison, because a
-# head that is a mirror needs carrying just as much as a base does; today every
-# head is a series ref and only bases survive the filter below.
+[ -e "$declaration" ] ||
+  { echo "Error: no $declaration to derive the rules from" >&2; exit 1; }
+
+# The branch each flavor releases from, which is the branch its series seeds and
+# forward-ports from. A flavor with none -- CRAN and LTS, which release from the
+# branch they publish -- contributes nothing.
 badge_refs() {
-  grep -oE '[?&](base|head)=[A-Za-z0-9._-]+' "$readme" | cut -d= -f2 | sort -u
+  python3 -c '
+import sys, yaml
+with open(sys.argv[1]) as f:
+    for x in sorted({v["releases_from"] for v in yaml.safe_load(f)["flavors"] if "releases_from" in v}):
+        print(x)
+' "$declaration"
 }
 
 # A series' own refs, which are the fork's to move and never mirrors of
@@ -138,14 +150,14 @@ fork_has() { # <branch> -> 0 yes, 1 no, 2 could not read
 status=0
 
 if [ ${#missing[@]} -eq 0 ] && [ ${#unread[@]} -eq 0 ]; then
-  echo "pull.yml: ${#rules[@]} rules, and the badge table asks for exactly those."
+  echo "pull.yml: ${#rules[@]} rules, and the declaration asks for exactly those."
 else
   status=1
 fi
 
 for w in "${missing[@]}"; do
   echo
-  echo "pull.yml: no rule for $w, which a badge in $readme measures against."
+  echo "pull.yml: no rule for $w, which $declaration names as a releases_from."
   echo "          Without one the mirror stops at whatever it was last pushed at,"
   echo "          and the badge keeps rendering, counting commits already shipped."
   rc=0; fork_has "$w" || rc=$?
@@ -171,7 +183,7 @@ done
 
 for r in "${unread[@]}"; do
   echo
-  echo "pull.yml: the rule for $r, and no badge in $readme measures against it."
+  echo "pull.yml: the rule for $r, and no flavor in $declaration releases from it."
   echo "          Either the badge table lost a row it should have,"
   echo "          or the line retired and the rule outlived it. Read, do not delete:"
   echo "          a rule costs a sync, and a mirror nobody keeps costs a wrong badge."
