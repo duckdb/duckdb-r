@@ -45,6 +45,144 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   expect_equal(again$length, 0L)
 })
 
+test_that("the final empty chunk has the result's schema for every type (#2773)", {
+  con <- local_con()
+
+  # LIST and INTERVAL failed when the chunk went through an R prototype.
+  columns <- c(
+    l = "[i, i + 1]",
+    iv = "INTERVAL 1 DAY",
+    s = "{'a': i, 'l': [i]}",
+    m = "MAP {'k': i}",
+    a = "[i, i]::BIGINT[2]",
+    b = "i::BIGINT"
+  )
+  select <- paste(columns, "AS", names(columns), collapse = ", ")
+  sql <- paste("SELECT", select, "FROM range(3) t(i)")
+
+  formats <- function(x) {
+    schema <- nanoarrow::infer_nanoarrow_schema(x)
+    vapply(schema$children, function(child) child$format, character(1))
+  }
+
+  res <- dbSendQueryArrow(con, sql)
+  on.exit(dbClearResult(res), add = TRUE)
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 3L)
+
+  empty <- dbFetchArrowChunk(res)
+  expect_equal(empty$length, 0L)
+  expect_equal(formats(empty), formats(chunk))
+  expect_true(dbHasCompleted(res))
+
+  # The stream of a drained result carries the same schema.
+  stream <- dbFetchArrow(res)
+  expect_null(stream$get_next())
+  expect_equal(formats(stream), formats(chunk))
+})
+
+test_that("the final empty chunk imports into arrow for every type (#2773)", {
+  skip_if_not_installed("arrow")
+
+  con <- local_con()
+  dbExecute(con, "CREATE TYPE mood AS ENUM ('a', 'b')")
+
+  # A zero-length offsets buffer still holds one offset, which arrow checks.
+  columns <- c(
+    v = "'x'",
+    bl = "'x'::BLOB",
+    l = "[i, i + 1]",
+    ll = "[['a']]",
+    iv = "INTERVAL 1 DAY",
+    s = "{'a': i, 'l': ['a']}",
+    m = "MAP {'k': 'v'}",
+    e = "'a'::mood",
+    a = "['a', 'b']::VARCHAR[2]",
+    u = "uuid()",
+    h = "i::HUGEINT"
+  )
+  select <- paste(columns, "AS", names(columns), collapse = ", ")
+
+  # Large offsets, extension types, and string and list views.
+  settings <- list(
+    character(),
+    "SET arrow_large_buffer_size = true",
+    "SET arrow_lossless_conversion = true",
+    c(
+      "SET arrow_output_version = '1.5'",
+      "SET produce_arrow_string_view = true",
+      "SET arrow_output_list_view = true"
+    )
+  )
+
+  for (setting in settings) {
+    for (sql in setting) {
+      dbExecute(con, sql)
+    }
+    for (where in c("", "WHERE false")) {
+      sql <- paste("SELECT", select, "FROM range(3) t(i)", where)
+      res <- dbSendQueryArrow(con, sql)
+
+      repeat {
+        chunk <- dbFetchArrowChunk(res)
+        if (chunk$length == 0L) {
+          break
+        }
+      }
+      expect_no_error(
+        nanoarrow::nanoarrow_array_set_schema(
+          chunk,
+          arrow_schema(res),
+          validate = TRUE
+        )
+      )
+      table <- arrow::as_arrow_table(chunk)
+      expect_equal(dim(table), c(0L, length(columns)))
+      expect_no_error(table$ValidateFull())
+
+      dbClearResult(res)
+    }
+    for (sql in setting) {
+      dbExecute(con, sub("^SET (\\w+) = .*$", "RESET \\1", sql))
+    }
+  }
+})
+
+test_that("a zero-row LIST result returns an empty chunk on the first fetch (#2773)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT [1] AS l WHERE false")
+  on.exit(dbClearResult(res), add = TRUE)
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 0L)
+  expect_equal(nanoarrow::infer_nanoarrow_schema(chunk)$children$l$format, "+l")
+  expect_true(dbHasCompleted(res))
+})
+
+test_that("a result handed over by dbFetchArrow() keeps its columns (#2773)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT [i] AS l, INTERVAL 1 DAY AS iv FROM range(3) t(i)"
+  )
+  on.exit(dbClearResult(res), add = TRUE)
+
+  stream <- dbFetchArrow(res)
+  expect_equal(stream$get_next()$length, 3L)
+  expect_true(dbHasCompleted(res))
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 0L)
+  expect_named(nanoarrow::infer_nanoarrow_schema(chunk)$children, c("l", "iv"))
+
+  again <- dbFetchArrow(res)
+  expect_null(again$get_next())
+  expect_named(nanoarrow::infer_nanoarrow_schema(again)$children, c("l", "iv"))
+})
+
 test_that("the Arrow schema and an empty batch are there before the first fetch", {
   con <- local_con()
 

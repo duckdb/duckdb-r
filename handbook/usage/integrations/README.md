@@ -106,6 +106,11 @@ So its Arrow schema is there before the first fetch (`rapi_arrow_schema()` in [`
 So is an empty batch, which the engine's own converter builds from an empty chunk (`rapi_arrow_empty_array()`).
 It has the layout of the batches a fetch returns, which `nanoarrow_array_init()` would not:
 that leaves out the one offset a zero-length string, binary, list or map array still carries, and arrow refuses the array without it.
+Once `dbFetchArrowChunk()` has drained a result, it answers with that empty batch, and `dbFetchArrow()` with an empty stream.
+So does a result that `dbFetchArrow()` has handed over.
+Both keep the result's columns, `INTERVAL` included
+([#2773](https://github.com/duckdb/duckdb-r/issues/2773)).
+Only a zero-length `dbBind()` executes nothing, so what it answers has no columns.
 The stream is the interchange:
 any Arrow-C-stream consumer takes a result onward
 without an R data frame in between —
