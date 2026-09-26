@@ -2,7 +2,7 @@
 # Does a forward series still carry the same package as the series it replaces?
 #
 # A forward series is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward.md). Its *history* differs by construction -- a
+# (.claude/skills/series-forward/SKILL.md). Its *history* differs by construction -- a
 # regenerated seed, version counters renumbered as a true counter, the ported
 # commits the replay leaves behind -- and its *content* must not. So the
 # statement a cutover rests on is about trees, not ancestry:
@@ -33,7 +33,7 @@
 #     file is diffed line-wise to tell the two apart.
 #   * `NEWS.md` -- the release paperwork a `fledge:` commit carries, and stage 4
 #     never ports a VERSION commit: `main`'s R-client counter is not a series'
-#     (.claude/skills/series-loop.md). So the two branches hold whatever their
+#     (.claude/skills/series-loop/SKILL.md). So the two branches hold whatever their
 #     seeds' release lines held, and the file is fledge-maintained, never edited
 #     by hand.
 #   * The **vendored strand** -- `src/duckdb/`, `patch/`, `R/version.R`,
@@ -46,6 +46,42 @@
 #     them. Once both sit on the same upstream SHA every one of them must agree:
 #     the forward regenerates the vendored tree from its own patch stack, and
 #     series-forward-build.sh verifies exactly that at replay time.
+#   * The **flavored docs** -- `README.Rmd`, `README.md` and `.github/README.md`.
+#     These are per-branch by design: `.github/README.md` is the front page
+#     GitHub renders and scripts/series-port.sh excludes it from the tooling sync
+#     by name, for the reason #2517 and #2518 were filed, and the two READMEs are
+#     in no ported path at all. So each branch carries the wording its seed was
+#     made with, and a forward -- whose seed is regenerated on today's `main` --
+#     carries `main`'s current wording while the base carries its own seed's.
+#     Observed on all three live series, 2026-08-15, and the same difference on
+#     each: the base still described itself as "the LTS version 1.3 of DuckDB"
+#     where the forward names its flavor.
+#
+#     `README.Rmd` is the source the other two are knitted from, and it is the
+#     one `scripts/flavor.patch` renames, so it carries the same difference
+#     ahead of them rather than a different one. Listing only the generated
+#     halves reported the source as unexplained on a forward whose every other
+#     path agreed -- `v1.5-variegata-fwd`, 2026-09-12, where `README.Rmd` was
+#     the sole DIVERGED line and its diff was the flavor rename plus the seed's
+#     wording, hunk for hunk the `README.md` difference the same run explained.
+#   * The **Windows export list**, `src/*-win.def` -- but only when each side
+#     carries the list its own package needs and the two then differ by the
+#     flavor rename alone. Both the file name and the single symbol in it are a
+#     function of `Package:`, so a base whose seed predates the file holds
+#     `src/duckdb.1.5.dev-win.def` exporting `R_init_duckdb_1_5_dev` once the
+#     commit adding it is ported and renamed, and its forward -- reseeded on
+#     today's `main` -- holds the same file under the same name. The comment
+#     prose is compared verbatim and only the `R_init_` line may differ, so a
+#     real edit to the list is still a finding.
+#
+#     This class read `v1.5-variegata` as explained from 2026-08-15 while the
+#     base carried `src/duckdb-win.def` exporting `R_init_duckdb` under
+#     `Package: duckdb.1.5.dev` -- a port of the `main` commit that added the
+#     file, never renamed, so R found no export list and generated one from
+#     every object. A side that is simply unrenamed and a side that is correctly
+#     renamed are indistinguishable to a comparison that only takes the
+#     `R_init_` line out, which is why each side is now checked against its own
+#     `Package:` before the two are compared at all.
 #
 # Note what is *not* here. Stage 5's carry excludes the same generated files
 # (scripts/series-advance.sh), but for an unrelated reason -- so the twin's copy
@@ -56,18 +92,23 @@
 # from upstream at all, so a difference there is a finding like any other.
 #
 # Everything else is unexplained and printed as a finding -- glue under `src/`,
-# tests, R code, the READMEs, and the tooling directories, which stage 4 brings
-# to `main`'s state on both branches every firing and which therefore have no
-# reason to differ at all.
+# tests, R code, and the tooling directories, which stage 4 brings to `main`'s
+# state on both branches every firing and which therefore have no reason to
+# differ at all. The READMEs used to be listed here too, which was wrong twice
+# over: the port never carries them, so "no reason to differ" was never true of
+# them.
 #
 # The list is deliberately short. A class is added here only once something has
 # shown the difference to be benign, because a check that explains away what it
 # has not accounted for is worse than no check: it reads as a clean bill. When a
 # firing proves a new class benign, it adds it with the evidence.
 #
-# Usage: series-converge.sh <series> [remote] [--no-fetch]
+# Usage: series-converge.sh <series> [--remote <name>] [--no-fetch]
 #   series-converge.sh main            # the base name
 #   series-converge.sh main-fwd        # or the forward's; the same comparison
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 #
 # Exit status: 0 when nothing is unexplained, 1 when something is, 2 on a usage
 # or lookup error -- so a caller can gate on it. `--no-fetch` is for a caller
@@ -75,18 +116,22 @@
 
 set -euo pipefail
 
-usage='usage: series-converge.sh <series> [remote] [--no-fetch]'
-S=${1:?$usage}
-shift
-remote=origin
+usage='usage: series-converge.sh <series> [--remote <name>] [--no-fetch]'
+argerr() { echo "$usage" >&2; exit 2; }
+remote=${SERIES_REMOTE:-origin}
 fetch=1
-for a in "$@"; do
-  case "$a" in
-    --no-fetch) fetch= ;;
-    -*) echo "$usage" >&2; exit 2 ;;
-    *) remote=$a ;;
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --no-fetch) fetch=; shift ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
   esac
 done
+[ ${#args[@]} -eq 1 ] || argerr
+S=${args[0]}
 
 # Either name asks the same question, so neither is wrong to type.
 S=${S%-fwd}
@@ -121,6 +166,49 @@ vendored_sha() {
     fi
   fi
   echo "$sha"
+}
+
+# The name and symbol a branch's Windows export list must carry, printed as
+# "<path> <symbol>". R links against `<dll base>-win.def`, and the dll base is
+# the package name, so both are a function of that branch's `Package:` alone --
+# which is what makes this answerable per branch rather than by comparison.
+def_expected() {
+  local pkg
+  pkg=$(git show "$1:DESCRIPTION" | sed -n 's/^Package: *//p' | head -n 1)
+  echo "src/$pkg-win.def R_init_${pkg//./_}"
+}
+
+# True when each branch's Windows export list is the one its own package needs,
+# and the two differ by the flavor rename and nothing else.
+#
+# Comparing the two files to each other is not enough, and used to be all this
+# did. Both sides can be self-consistent and differ by the rename; so can a side
+# that simply never got renamed, and the two shapes are identical to a
+# comparison that only takes the `R_init_` line out. `v1.5-variegata-dev` held
+# `src/duckdb-win.def` exporting `R_init_duckdb` under `Package: duckdb.1.5.dev`
+# from 2026-08-05 -- a stage 4 port of a `main` commit that added the file,
+# carrying the mainline name because scripts/flavor.patch runs at seed time and
+# nothing rewrites a ported file afterwards. R then finds no export list at all
+# and falls back to generating one from every object, which is what the file
+# exists to prevent. This read called it CONVERGED every firing in between.
+#
+# So each side is checked against its own `Package:` first, and only then are
+# the two compared. The rename means the pair cannot be found by path -- it is
+# found by suffix, one per branch.
+def_renamed_only() {
+  local dev_def fwd_def
+  dev_def=$(git ls-tree -r --name-only "$dev" src/ | grep -- '-win\.def$' || true)
+  fwd_def=$(git ls-tree -r --name-only "$fwd" src/ | grep -- '-win\.def$' || true)
+  # One on each side, or there is no pair and the difference is not a rename.
+  [ "$(grep -c . <<<"$dev_def")" = 1 ] || return 1
+  [ "$(grep -c . <<<"$fwd_def")" = 1 ] || return 1
+  # Each side's file named, and exporting, what its own package needs.
+  [ "$dev_def $(git show "$dev:$dev_def" | grep '^R_init_')" \
+      = "$(def_expected "$dev")" ] || return 1
+  [ "$fwd_def $(git show "$fwd:$fwd_def" | grep '^R_init_')" \
+      = "$(def_expected "$fwd")" ] || return 1
+  cmp -s <(git show "$dev:$dev_def" | grep -v '^R_init_') \
+         <(git show "$fwd:$fwd_def" | grep -v '^R_init_')
 }
 
 dev_up=$(vendored_sha "$dev")
@@ -163,6 +251,24 @@ while IFS=$'\t' read -r add del f; do
       ;;
     NEWS.md)
       explained+=("$f|$add/$del|release paperwork; stage 4 never ports a VERSION commit")
+      ;;
+    README.Rmd | README.md | .github/README.md)
+      explained+=("$f|$add/$del|flavored doc, never ported; each branch carries its seed's wording")
+      ;;
+    src/*-win.def)
+      # Only the flavor rename is explained, and only between two sides that are
+      # each already correct for themselves. The file's own comment says the name
+      # and the symbol both carry the package name, so each side is checked
+      # against its own `Package:`; everything above `EXPORTS` is prose that is
+      # the same on every flavor, so compare that verbatim and allow only the
+      # `R_init_` line to differ. A path that is present on one side alone diffs
+      # against the empty tree, and its prose then differs too -- which is
+      # exactly the rename, so pair the two by their suffix before comparing.
+      if def_renamed_only; then
+        explained+=("$f|$add/$del|Windows export list, flavor-renamed")
+      else
+        unexplained+=("$f|$add/$del|export list not named for its own package, or edited beyond its R_init_ symbol")
+      fi
       ;;
     src/duckdb/* | patch/* | R/version.R | src/include/sources.mk | \
     src/Makevars | src/Makevars.win | src/Makevars.in)
@@ -207,5 +313,5 @@ echo "DIVERGED: ${#unexplained[@]} path(s) the forwarding does not explain."
 echo "  Each is a difference somebody has to account for before the swap:"
 echo "  a fix folded on one branch and not the other, a port that reached one"
 echo "  of them, or a carry that stage 5 could not make. See"
-echo "  .claude/skills/series-forward.md."
+echo "  .claude/skills/series-forward/SKILL.md."
 exit 1

@@ -14,19 +14,19 @@
 #
 # A forward series that has caught up with the green it replaces additionally
 # gets a CUTOVER line: the command to run, for a human to run. The loop never
-# swaps a serving green itself (.claude/skills/series-loop.md).
+# swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
 #
 # A series whose `-dev` carries `patch/` entries its `-build` lacks gets a
 # PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
 # an entry that never reached it is one the next vendor run will not apply.
 #
-# Classification is by positive evidence only (.claude/skills/series-loop.md);
+# Classification is by positive evidence only (.claude/skills/series-loop/SKILL.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
 # The store is the *copy* of what an `each-rcc` leg wrote, not the source: the
 # leg writes the same record and log into its artifact and publishes them here
 # (scripts/each-shard.sh). A firing reads the run first and this branch only
-# when it cannot (.claude/skills/series-loop.md stage 2), so where a verdict
+# when it cannot (.claude/skills/series-loop/SKILL.md stage 2), so where a verdict
 # here and one read from a run disagree, the run is right. The ref geometry
 # below -- in flight, buffered, the retry ledger, a ready cutover -- does not
 # depend on the source at all, which is why this stays worth running either way.
@@ -58,12 +58,48 @@
 # still building into REPAIR, and invites amending a commit that is about to go
 # green. The harvested run's `head_branch` is what tells the two apart.
 #
-# Usage: series-check.sh [<series>...]     # default: discover all from refs
+# One more line is about no series at all: `UNSERVED`, last and in its own
+# block, names an upstream release line this repository does not serve yet. A
+# series is discovered from its refs, so a line that has none is invisible to
+# every other part of the loop, and stays invisible while upstream builds on it.
+# The block splits the two halves of an opening, because a firing may do one of
+# them: it says whether scripts/series.yaml declares the line's flavor, which is
+# an edit and a PR. Cutting the refs is not, and stays
+# .claude/skills/series-open/SKILL.md's job, and a human's.
+#
+# Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
+#   series-check.sh                                 # discover all from refs
+#   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
+#
+# --remote and --upstream are spelled the same in every scripts/series-*.sh;
+# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-remote=origin
+usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]'
+remote=${SERIES_REMOTE:-origin}
 rcc=${RCC_BRANCH:-rcc2}
+
+# Where the release-line check at the end reads upstream. Branch names are all
+# that check needs, and `git ls-remote` supplies those from the URL alone, so a
+# firing with no clone still gets it; a clone is preferred because it also
+# answers with the fork point.
+upstream=${UPSTREAM_CLONE:-}
+upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+
+argerr() { echo "$usage" >&2; exit 2; }
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- ${args+"${args[@]}"}
+
 git fetch -q "$remote"
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
@@ -88,6 +124,38 @@ vendored_sha() {
     fi
   fi
   echo "$sha"
+}
+
+# How many commits of a buffer range are still work for stage 5.
+#
+# series-advance.sh replays them with `cherry-pick --empty=drop`, so a commit
+# whose every path `-dev` already carries at that commit's post-image produces
+# nothing and is dropped. Counting one leaves the series reading ADVANCE for
+# ever: the firing runs the advance, is told `dev -> … (+0)`, and reads the
+# same verdict again next time. Only a new vendor commit on the buffer would
+# clear it, by moving the anchor past the whole run.
+#
+# Observed on v1.4-andium since 2026-08-06 (f52ed130b). A buffer takes no ports
+# by design, so its `.github/` predates the removal of the `v*.*-*` push filter
+# from R-CMD-check.yaml, and a series ref move still triggers `rcc` there; its
+# auto-update step committed a `Config/roxygen2/version` bump onto `-build`
+# that `-dev` already carried.
+#
+# The comparison is by content and not by patch-id: `git cherry` reports such a
+# commit as unmerged, because the same post-image was reached on `-dev` by a
+# different diff.
+consumable_count() { # <range> <dev> -> commits of <range> that are not no-ops on <dev>
+  local range=$1 dev=$2 n=0 c f
+  while IFS= read -r c; do
+    while IFS= read -r -d '' f; do
+      if [ "$(git rev-parse -q --verify "$c:$f" || true)" \
+        != "$(git rev-parse -q --verify "$dev:$f" || true)" ]; then
+        n=$((n + 1))
+        break
+      fi
+    done < <(git diff-tree --no-commit-id --name-only -r -z "$c")
+  done < <(git rev-list "$range")
+  echo "$n"
 }
 
 # The store's record for a commit: one small blob, published by the matrix leg
@@ -197,14 +265,100 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
   fi
 }
 
+# Every series this repository serves, discovered from the refs and never from
+# configuration (handbook/branches/model/): an `<X>-build` with a sibling
+# `<X>-dev`. Discovered even when the caller named series, because the
+# release-line check at the end asks what is served, and a run narrowed to one
+# series would otherwise report the rest of them as unserved.
+all_series=()
+while IFS= read -r b; do
+  s=${b#refs/heads/}; s=${s%-build}
+  case "$s" in *-build-base) continue ;; esac
+  git rev-parse -q --verify "refs/remotes/$remote/$s-dev" >/dev/null && all_series+=("$s")
+done < <(git ls-remote --heads "$remote" '*-build' | cut -f2)
+
 series=("$@")
 if [ ${#series[@]} -eq 0 ]; then
-  while IFS= read -r b; do
-    s=${b#refs/heads/}; s=${s%-build}
-    case "$s" in *-build-base) continue ;; esac
-    git rev-parse -q --verify "refs/remotes/$remote/$s-dev" >/dev/null && series+=("$s")
-  done < <(git ls-remote --heads "$remote" '*-build' | cut -f2)
+  series=("${all_series[@]}")
 fi
+
+# The shape upstream gives a release line, and the only branches the check at
+# the end looks at. `main` is not one: it is a line the package serves under
+# that name, and it never stops being the newest.
+release_line_re='^v[0-9]+\.[0-9]+-[A-Za-z0-9-]+$'
+
+# `major.minor` as one number, so lines are compared as versions rather than as
+# strings -- a string compare puts `v1.10` below `v1.9`, and the floor below
+# would then fall silent on the newer line.
+line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
+  local v=${1#v} major minor
+  major=${v%%.*}; minor=${v#*.}; minor=${minor%%-*}
+  echo $((major * 1000 + minor))
+}
+
+# The flavor a line would publish under, by the rule the declaration follows:
+# `v2.1-<codename>` is served as `duckdb.2.1.dev`. Derived rather than read, so
+# that a line with no entry yet still has a name to report.
+flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
+  local v=${1#v}
+  echo "duckdb.${v%%-*}.dev"
+}
+
+# Does `scripts/series.yaml` already name that flavor? An UNSERVED line has no
+# refs by definition, so the declaration is the only place a decision about it
+# can have been recorded, and it splits two states a firing must not confuse:
+# nothing done at all, and the flavor PR merged with only the refs left to cut
+# (.claude/skills/series-loop/SKILL.md, "What a firing reports").
+#
+# Read from the remote's `main` rather than the working tree: a firing checks
+# out series branches, whose trees lag `main` by whatever stage 4 has not
+# ported yet, and the declaration is `main`'s.
+declaration() { # -> the file, empty and non-zero when no ref carries it
+  local r
+  for r in "refs/remotes/$remote/main" refs/heads/main; do
+    git show "$r:scripts/series.yaml" 2>/dev/null && return 0
+  done
+  return 1
+}
+
+# How the clone names an upstream branch: a clone made by `git clone` carries it
+# as a remote-tracking ref, and a mirror as a head.
+upstream_ref() { # <branch> -> full ref, empty if the clone has none
+  local r
+  for r in "refs/remotes/origin/$1" "refs/heads/$1"; do
+    if git -C "$upstream" rev-parse -q --verify "$r" >/dev/null; then echo "$r"; return; fi
+  done
+}
+
+# The upstream branch names, from the clone when there is one and from the
+# remote otherwise. Empty is not "upstream has no release branches" -- it never
+# has none -- it is the reading having failed, and the caller says so rather
+# than printing the silence as a clean result.
+upstream_branches() {
+  if [ -n "$upstream" ]; then
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=3)' 'refs/remotes/*/v*' 2>/dev/null || true
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=2)' 'refs/heads/v*' 2>/dev/null || true
+  else
+    git ls-remote --heads "$upstream_url" 'v*' 2>/dev/null | cut -f2 | sed 's|^refs/heads/||' || true
+  fi
+}
+
+# The fork point of a release line: the newest commit on the first-parent chain
+# of both upstream branches (scripts/VENDORING.md, "Starting a New Dev Line: the
+# Fork-Point Rule"). Not `git merge-base`, which upstream's back-merges of the
+# release branch into `main` drag forward by weeks; a series seeded from that
+# answer jumps the commits in between in one step, and none of them is ever
+# built against the glue. Printed only when a clone can compute it, because a
+# wrong fork point is worse than none.
+fork_point() { # <upstream branch> -> sha, empty without a clone
+  local main_ref rel_ref
+  [ -n "$upstream" ] || return 0
+  main_ref=$(upstream_ref main); rel_ref=$(upstream_ref "$1")
+  [ -n "$main_ref" ] && [ -n "$rel_ref" ] || return 0
+  awk 'NR==FNR { seen[$0]; next } $0 in seen { print; exit }' \
+    <(git -C "$upstream" rev-list --first-parent "$main_ref") \
+    <(git -C "$upstream" rev-list --first-parent "$rel_ref")
+}
 
 tip=$(rcc_tip) || { echo "no $rcc branch on $remote"; exit 1; }
 echo "harvest: $(git log -1 --format='%ci (%ar)' "$tip")"
@@ -244,15 +398,17 @@ for S in "${series[@]}"; do
   # the buffer counts from -dev's consumption anchor on -build: the -dev tip
   # while it sits on -build's line, otherwise the -build commit equivalent to
   # -dev's newest vendor commit — the identical rule, and the identical reasons,
-  # as the anchor in scripts/series-advance.sh.
+  # as the anchor in scripts/series-advance.sh. It counts what that stage would
+  # actually mint, which is why a commit it would drop as empty is not buffered
+  # work (consumable_count above).
   mb=$(git merge-base "$dev" "$build")
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
-    buffered=$(git rev-list --count "$dev..$build")
+    buffered=$(consumable_count "$dev..$build" "$dev")
   else
     dev_up=$(vendored_sha "$dev")
     anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
     if [ -n "$anchor" ]; then
-      buffered=$(git rev-list --count "$anchor..$build")
+      buffered=$(consumable_count "$anchor..$build" "$dev")
     else
       buffered="?"
     fi
@@ -291,7 +447,7 @@ for S in "${series[@]}"; do
     fi
   elif [ "$missing" -gt 0 ]; then
     # Pending verdicts hold green, not the buffer: stage 5 extends on pending
-    # and stops only on red (.claude/skills/series-loop.md stage 5).
+    # and stops only on red (.claude/skills/series-loop/SKILL.md stage 5).
     if [ "$buffered" != 0 ]; then
       echo "  WAIT   $missing run(s) not harvested yet — green holds, buffer may still extend"
     else
@@ -305,7 +461,7 @@ for S in "${series[@]}"; do
 
   # A `patch/` entry that only ever reached `-dev` is absent the next time the
   # buffer vendors: `vendor-one.sh` applies the *buffer's* patch stack to every
-  # tree it regenerates (.claude/skills/series-loop.md stage 3). Stage 4's port
+  # tree it regenerates (.claude/skills/series-loop/SKILL.md stage 3). Stage 4's port
   # is how such an entry arrives -- it carries whole `main` commits onto `-dev`,
   # `patch/` files included -- and `-build` takes no ports by design, so nothing
   # closes the gap by itself. The drift is quiet while upstream leaves the
@@ -346,14 +502,109 @@ for S in "${series[@]}"; do
   fi
 
   # Suggested, never done: a firing reports a ready cutover and stops
-  # (.claude/skills/series-loop.md). Printed beside the verdict rather than as
+  # (.claude/skills/series-loop/SKILL.md). Printed beside the verdict rather than as
   # one, because it is orthogonal — a forward series that has caught up still
   # needs repairing, advancing or waiting like any other.
   if [ -n "$cutover" ]; then
+    # Named options, and the upstream path filled in when this run was given
+    # one: the block a firing hands over is meant to be pasted whole, and a
+    # placeholder in the argument that decides whether the coverage gate runs
+    # at all is the one word nobody can substitute from the report alone
+    # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
-    echo "           scripts/series-cutover.sh $cutover $remote <upstream-clone>"
+    echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
+    echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
     echo "           Coverage is only half of it; what the two branches carry is"
     echo "           the other half, and the cutover prints it before it asks:"
-    echo "           scripts/series-converge.sh $cutover"
+    echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done
+
+# An upstream release line this repository does not serve. Printed last and in
+# a block of its own, because everything above it is per-series: a firing where
+# every series reads ADVANCE or IDLE is the quietest report the loop produces,
+# and exactly the one a line lost at the bottom of would be skimmed past. It is
+# reported again on every firing until the series exists, because nothing else
+# notices it at all -- a series is discovered from refs
+# (handbook/branches/model/), so a line that has none is absent rather than
+# late, and absence raises nothing anywhere.
+#
+# The floor is the greatest `major.minor` among the served series. Upstream
+# keeps every release branch it ever cut alive, and this repository serves the
+# recent ones only, so a line at or below the floor is a decision already taken
+# and only a line above it is news. That is the whole rule, and it is why there
+# is no list of lines to ignore: such a list is maintained by hand, and the
+# firing it would be stale on is the one where a line was just cut. With no
+# served series carrying a version token there is no floor, and every release
+# line upstream carries is reported -- a repository serving none of them is one
+# where each is genuinely unserved.
+floor=0
+for S in "${all_series[@]}"; do
+  case "$S" in
+    v[0-9]*.[0-9]*-*) r=$(line_rank "$S"); [ "$r" -gt "$floor" ] && floor=$r ;;
+  esac
+done
+
+unserved=()
+branches=$(upstream_branches | sort -u)
+while IFS= read -r b; do
+  [ -n "$b" ] || continue
+  grep -qE "$release_line_re" <<<"$b" || continue
+  [ "$(line_rank "$b")" -gt "$floor" ] || continue
+  # Served is the same question every other stage asks, asked of one branch:
+  # does a series of that name exist? A line may be served by a `-fwd` series
+  # alone, which is one that started as a forward and has no base to replace.
+  served=
+  for S in "${all_series[@]}"; do
+    case "$S" in "$b" | "$b-fwd") served=1; break ;; esac
+  done
+  [ -n "$served" ] || unserved+=("$b")
+done <<<"$branches"
+
+if [ -z "$branches" ]; then
+  # A reading that failed reads exactly like a clean result, so say which this
+  # is. The same degradation rule as the cutover gate's missing clone.
+  echo
+  echo "UNSERVED  could not read the upstream branches from ${upstream:-$upstream_url},"
+  echo "          so this firing does not know whether a release line was cut."
+  echo "          That is missing data, not a clean result."
+elif [ ${#unserved[@]} -gt 0 ]; then
+  echo
+  echo "=============================================================================="
+  for b in "${unserved[@]}"; do
+    echo "UNSERVED  $b is cut upstream and no series here serves it:"
+    echo "          neither $b-build nor $b-dev exists."
+    fp=$(fork_point "$b")
+    if [ -n "$fp" ]; then
+      echo "          Fork point $fp,"
+      echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
+      echo "          git merge-base answers here (scripts/VENDORING.md)."
+    fi
+    # Which half of the opening is still owed. Declaring the flavor is a file
+    # edit and a firing may open the PR for it; cutting the refs is not, and
+    # never is.
+    flav=$(flavor_of "$b"); decl=$(declaration || true)
+    if [ -z "$decl" ]; then
+      echo "          Could not read scripts/series.yaml, so this firing does not"
+      echo "          know whether $flav is declared. Missing data, not a clean result."
+    elif grep -qE "^[[:space:]]*-?[[:space:]]*flavor:[[:space:]]*${flav//./\\.}[[:space:]]*\$" <<<"$decl"; then
+      echo "          Declared already: scripts/series.yaml names $flav, so only the"
+      echo "          refs are missing. Do not open a second declaration PR."
+    else
+      echo "          Undeclared: scripts/series.yaml has no $flav."
+    fi
+  done
+  # Said once, however many lines are listed: what waiting costs. It is a
+  # decision owed an answer rather than a fault -- a line may be opened
+  # deliberately, on a released tree, once the current one ships -- and the
+  # loop cuts no refs either way, so the rest of this block is to be impossible
+  # to miss and to stay inside what branch names can support. How much of the
+  # line another series has already vendored is not one of those things:
+  # upstream back-merges the release branch into `main`, so some of it may
+  # well be built here, and a check that reads names cannot say how much.
+  echo "          Open the series: .claude/skills/series-open/SKILL.md"
+  echo "          No release can be cut from a line nothing here serves, and"
+  echo "          the catch-up walk that opening one costs grows with every"
+  echo "          upstream commit on it."
+  echo "=============================================================================="
+fi

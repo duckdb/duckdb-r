@@ -13,7 +13,7 @@
 # Dispatch-only, deliberately. It used to tick every 30 minutes, from when the
 # promotion loop gated on this data and harvest latency was its cycle time. The
 # loop reads the runs that decided a commit now
-# (.claude/skills/series-loop.md stage 2), so the schedule was paying ~48 runs a
+# (.claude/skills/series-loop/SKILL.md stage 2), so the schedule was paying ~48 runs a
 # day to keep a copy warm that a firing normally never opens -- and, worse,
 # making the copy look authoritative by being continuously fresh.
 #

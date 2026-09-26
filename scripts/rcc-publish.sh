@@ -38,7 +38,7 @@
 # the index, so identical content stages nothing and no commit is made. That is
 # what makes a re-publish free and a retry -- where a commit is deliberately
 # rebuilt on its own SHA to overturn a verdict that was never about its tree
-# (.claude/skills/series-loop.md) -- land as a replacement.
+# (.claude/skills/series-loop/SKILL.md) -- land as a replacement.
 #
 # Environment variables:
 #   GH_TOKEN / GITHUB_TOKEN - token with contents:write on the repository

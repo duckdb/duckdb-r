@@ -23,7 +23,7 @@
 # **What carries is decided by test-applying, never by the file list.** A buffer
 # runs ahead of `main`, so an entry that `main` needs may not fit the engine the
 # buffer has vendored, and committing it there regardless would break the next
-# vendor run outright (`vendor.sh`'s "patches moved" exit) rather than help
+# vendor run outright (`vendor-one.sh`'s `PATCH BROKEN` exit) rather than help
 # anything. Each candidate is applied against the buffer's own tree first, and
 # the three answers are three different situations:
 #
@@ -52,7 +52,7 @@
 # repair against an engine `main` has not reached. They are listed for the sake
 # of the other direction of this question -- one that applies to `main`'s tree
 # today belongs on `main`, where stage 4 spreads it by itself
-# (.claude/skills/series-loop.md stage 3) -- and never removed here.
+# (.claude/skills/series-loop/SKILL.md stage 3) -- and never removed here.
 #
 # Usage: series-patch-sync.sh <series> [--apply]     # default: report only
 

@@ -25,7 +25,7 @@ Indentation, line breaks, spacing and call wrapping are
 and no review argues them.
 The repository carries an [`air.toml`](/air.toml),
 which is what turns the pull-request formatter
-([`.github/workflows/style/action.yml`](/.github/workflows/style/action.yml))
+([cynkratemplate's `style/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/style/action.yml))
 on for R: without it that job formats the C++ and leaves the R alone.
 `R/` and `tests/` match what air prints, so `air format .` before
 pushing is the whole of the layout question —
@@ -51,8 +51,11 @@ wrappers already give errors coming out of C++.
 Either way the message points at the user's call rather than at the
 internal check that noticed.
 The three `stop()` calls left in `R/` are the base fallbacks themselves —
-`abort()`, `check_dots_empty0()`, `rapi_error()` — each the base half of
+`abort()`, `check_dots_empty0()`, `rapi_error_base()` — each the base half of
 a pair whose other half is rlang's.
+`rapi_error_base()` raises a classed condition rather than a bare string,
+so the structured fields reach the caller with rlang absent too
+([`usage/statements/`](/handbook/usage/statements/README.md)).
 
 **`...` goes after the required arguments**
 ([design guide](https://design.tidyverse.org/dots-after-required.html)),

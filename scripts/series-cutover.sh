@@ -2,14 +2,14 @@
 # Atomically replace a series with its forward counterpart.
 #
 # A forward series <S>-fwd-* is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward.md). Once its green ref covers at least the
+# (.claude/skills/series-forward/SKILL.md). Once its green ref covers at least the
 # upstream commits the old green covered, this script swaps all four series
 # refs in one atomic push, so consumers of <S>-green never observe a
 # half-replaced series. The swap is the one sanctioned non-fast-forward move
 # of a green ref.
 #
 # It is also the one move the series loop never makes: the loop reports a ready
-# cutover and stops (.claude/skills/series-loop.md), because retiring the
+# cutover and stops (.claude/skills/series-loop/SKILL.md), because retiring the
 # lineage r-universe builds from is a decision, not a stage. This script is the
 # mechanical half of that rule — it runs from a terminal, on a typed
 # confirmation, and nowhere else.
@@ -17,24 +17,57 @@
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace.
 #
-# Usage: series-cutover.sh <series> [remote] [upstream-clone]
-#   series-cutover.sh main origin ../duckdb
+# Usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]
+#   series-cutover.sh main --upstream ../../../duckdb
+#
+# `--canonical <name>` names the repository r-universe publishes the base
+# flavors from -- default `upstream`, as in series-advance.sh -- which carries a
+# copy of `<S>-green` and nothing else
+# (scripts/series-advance.sh). A cutover is the one move that takes green off
+# its lineage, so it is the one place that copy is forced -- under a lease, and
+# after the swap, so the canonical repository is never ahead of the fork.
+#
+# The two are different kinds of thing, and a `gh` clone carries names that made
+# them easy to swap while both were positional:
+#   --remote <name>   a remote of *this* repository -- the one carrying the
+#                     series refs. A clone made with `gh` has both `origin`
+#                     and `upstream`; pass whichever holds `<series>-green`.
+#   --upstream <path> a filesystem path to a `duckdb/duckdb` checkout, read
+#                     with `git -C`. Never a remote name, whatever it is
+#                     called.
+# Both are spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 #
 # The upstream clone is needed for the coverage gate (an ancestry check
 # between vendored upstream SHAs); without it the gate degrades to a warning.
 
 set -euo pipefail
 
-S=${1:?usage: series-cutover.sh <series> [remote] [upstream-clone]}
-remote=${2:-origin}
-upstream=${3:-}
+usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]'
+argerr() { echo "$usage" >&2; exit 2; }
+remote=${SERIES_REMOTE:-origin}
+canonical=${SERIES_CANONICAL-upstream}
+upstream=${UPSTREAM_CLONE:-}
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
+    --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -eq 1 ] || argerr
+S=${args[0]}
 
 # Fail before the fetch, not after it: an unattended firing has no terminal, so
 # there is nothing for it to confirm with and no reason to do any work first.
 if [ ! -t 0 ] || [ ! -t 1 ]; then
   echo "Error: cutover is a manual operation; run this script from a terminal." >&2
   echo "  The series loop reports a ready cutover and stops; a human runs it." >&2
-  echo "  See .claude/skills/series-forward.md and series-loop.md." >&2
+  echo "  See .claude/skills/series-forward/SKILL.md and series-loop." >&2
   exit 1
 fi
 
@@ -91,6 +124,15 @@ if [ -n "$old_up" ]; then
     exit 1
   fi
   if [ -n "$upstream" ]; then
+    # Separate "git could not run there" from "the ancestry says no": both
+    # reach the `||` below, and reporting a regression for a path that is not
+    # a checkout sends the reader after the wrong thing. A remote name passed
+    # as the path is exactly that case.
+    git -C "$upstream" rev-parse --git-dir >/dev/null 2>&1 || {
+      echo "Error: $upstream is not a git checkout"
+      echo "  The third argument is a path to a duckdb/duckdb clone, not a remote."
+      exit 1
+    }
     git -C "$upstream" merge-base --is-ancestor "$old_up" "$new_up" || {
       echo "Error: forward green does not cover old green; coverage would regress"
       exit 1
@@ -109,7 +151,7 @@ fi
 # can make -- which is why this prints and the human decides.
 echo
 rc=0
-"$(dirname "$0")/series-converge.sh" "$S" "$remote" --no-fetch || rc=$?
+"$(dirname "$0")/series-converge.sh" "$S" --remote "$remote" --no-fetch || rc=$?
 # 1 is a divergence to read; 2 is the comparison not being available at all --
 # a series that started as `-fwd` has no `<S>-dev` to compare against, and the
 # script has already said so on its own.
@@ -149,6 +191,28 @@ if [ ${#missing[@]} -eq 4 ]; then
   echo "Series $S created from its forward counterpart."
 else
   echo "Series $S replaced by its forward counterpart."
+fi
+
+# The canonical repository carries a copy of green for r-universe to publish
+# from, and the swap just moved green onto a lineage the old one is no more an
+# ancestor of. This is the only place that copy is forced: the loop's own mirror
+# is fast-forward only and would stop the next firing on exactly this
+# divergence. After the swap, never before, so the canonical copy is never ahead
+# of the fork -- and under a lease, so a green nobody here wrote is not
+# overwritten silently.
+if [ -n "$canonical" ]; then
+  new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
+  git fetch -q "$canonical" "$S-green" 2>/dev/null || true
+  cur=$(git rev-parse -q --verify FETCH_HEAD) || cur=
+  if [ "$cur" = "$new_green" ]; then
+    echo "canonical $S-green already at $(git rev-parse --short "$new_green")"
+  elif git push --force-with-lease="refs/heads/$S-green:$cur" \
+      "$canonical" "$new_green:refs/heads/$S-green"; then
+    echo "canonical $S-green -> $(git rev-parse --short "$new_green")"
+  else
+    echo "Warning: could not move $S-green in $canonical; r-universe still" >&2
+    echo "  publishes the pre-cutover lineage until it is moved by hand." >&2
+  fi
 fi
 
 # Best-effort: some git proxies refuse deletions. Until these refs are gone,

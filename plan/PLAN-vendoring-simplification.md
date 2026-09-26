@@ -170,7 +170,7 @@ with a status line each as the work lands:
   so it kept being re-examined as if it were coordination state.
   *Status:* moot — the badges are the consumption:
   the README's `Flavors` table renders *buffered* from exactly this ref
-  (#88, since fleshed out; upkeep documented in `series-open.md`),
+  (#88, since fleshed out; upkeep documented in `series-open/SKILL.md`),
   and the contract is stated here (D3, §3.4).
 - **F7 — The docs describe the system three times.** `BRANCHES.md`
   §Vendoring, `scripts/VENDORING.md`, and the skills each re-tell the loop;
@@ -229,7 +229,7 @@ idempotent, restartable, self-selecting its work as
 "commits in `green..tip` that are undecided"
 (the selection key today is the status; D1 makes it the record).
 
-**Seven rules** — deliberately restating `series-loop.md`'s invariants
+**Seven rules** — deliberately restating `series-loop/SKILL.md`'s invariants
 as one checklist; this plan is analysis, not a routing node:
 
 1. One upstream first-parent commit per vendor commit;
@@ -344,7 +344,7 @@ the live table is the README's `Flavors` section
 (#88, since fleshed out — per dev flavor an *ahead* badge against the
 release branch plus these two, version badges for CRAN/LTS rows),
 its upkeep including the mirror-freshness constraint is
-`series-open.md` §"Patching the README",
+`series-open/SKILL.md` §"Patching the README",
 and the endpoint mechanics are `scripts/VENDORING.md` §Monitoring.
 True upstream lag ("how far behind `duckdb/duckdb` itself") cannot be a
 badge — the comparison would cross repositories — and stays with the
@@ -393,7 +393,7 @@ Vendor-strand commits are listed and never auto-picked —
 The landed class excludes by **path**
 (`src/duckdb/`, the generated version files) as well as by subject,
 and the landed rationale (in `series-port.sh`'s header and
-`series-loop.md` stage 4) asserts that the scans *rely on* every
+`series-loop/SKILL.md` stage 4) asserts that the scans *rely on* every
 `src/duckdb`-touching `-dev` commit being a vendor commit.
 The principle that landed on `main` in the same day's batch (#85)
 asserts the opposite:
@@ -422,10 +422,10 @@ the boundary is content, and the content boundary is the subject.
 Ported commits are **transient by construction**:
 
 - a forward replays only `vendor:` subjects onto a seed that already
-  carries the tooling, so the port ends there (`series-forward.md`);
+  carries the tooling, so the port ends there (`series-forward/SKILL.md`);
 - a rebase drops them by patch-id once `main` contains them,
   and a sync commit whose delta `main` absorbed rebases to empty
-  (`series-rebase.md`);
+  (`series-rebase/SKILL.md`);
 - they vendor nothing, so the consumption anchor is untouched —
   the loop already reads the anchor from the newest *vendor* subject
   precisely because `-dev` carries such commits (`series-advance.sh`).
@@ -463,7 +463,7 @@ kept light by habit rather than process:
   each with the failing firing linked as evidence;
   a fix must never be load-bearing for the *current* firing
   (the firing works around by hand; the PR prevents the next one).
-  *Status:* landed as stage 7 of `series-loop.md`,
+  *Status:* landed as stage 7 of `series-loop/SKILL.md`,
   with the **reading** of open PRs moved up into that skill's setup,
   where it is context applied with judgement rather than a step:
   an open PR is tooling the series does not have
@@ -540,7 +540,7 @@ Fork-specific switches to flip at creation:
   [`branches/mirrors/`](/handbook/branches/mirrors/README.md));
   its rules stay inert while the upstream is outside the fork network,
   so until the move the mirrors are refreshed by hand —
-  which is what `series-open.md` says today,
+  which is what `series-open/SKILL.md` says today,
   and what it goes on saying rather than promising automation
   that is not there yet.
 
@@ -606,8 +606,8 @@ AGENTS.md ──┤                  maintainers & agents: quickstart + router
             ├─ scripts/VENDORING.md     vendoring mechanics
             │    └─ scripts/EACH.md     per-commit CI design
             ├─ .claude/skills/          playbooks the routine executes
-            │    series-loop.md · series-forward.md ·
-            │    series-rebase.md · series-open.md
+            │    series-loop · series-forward ·
+            │    series-rebase · series-open
             └─ plan/README.md           designs and decisions
                  PLAN-*.md
                  └─ plan/superseded/         designs overtaken by events
@@ -665,7 +665,7 @@ of the kernel.
 |---|---|---|
 | **0 (PR #86, this PR)** | this plan; router in `AGENTS.md`; badge semantics + pointers in `scripts/VENDORING.md` and `scripts/EACH.md` | none — docs only |
 | **1 — landed (#87)** | the port stage: `scripts/series-port.sh` plus the amended `series-loop` / `series-forward` / `series-rebase` skills | first real `--apply` still runs supervised |
-| **1a (follow-up)** | resolve the subject-vs-path contradiction (§4), in order: harden `vendor-one.sh` and `vendor.sh`'s subject scans to bounded-and-loud; relax `classify()` to subject-decided; rewrite the landed rationale in `series-port.sh`'s header and `series-loop.md` stage 4; stage 1 invokes `main`'s `vendor-one.sh` against the buffer worktree | wider than first scoped — two scanners, one classifier, two rationale blocks, one skill rule; each independently shippable |
+| **1a (follow-up)** | resolve the subject-vs-path contradiction (§4), in order: harden `vendor-one.sh` and `vendor.sh`'s subject scans to bounded-and-loud; relax `classify()` to subject-decided; rewrite the landed rationale in `series-port.sh`'s header and `series-loop/SKILL.md` stage 4; stage 1 invokes `main`'s `vendor-one.sh` against the buffer worktree | wider than first scoped — two scanners, one classifier, two rationale blocks, one skill rule; each independently shippable |
 | **2** | single verdict store (D1: selection and resume by record; backstop stops writing, its schedule dispatches idle undecided work); one sweep, then drop the aggregate outright (D2); the fan-in stays (per-commit logs, §3.2) | verdicts are already dual-written today; rollback = read statuses again |
 | **3 — landed (#2534)** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own | one-time move; the replaced repository is kept as `krlmlr/duckdb-r-old` |
 | **4** | docs tree (§8): README root landed (#88); next the moves, then node rewrites (including `AGENTS.md`'s and `BRANCHES.md`'s stale rows); `docs-tree` skill | docs only |
@@ -697,7 +697,7 @@ Phase 2.
    or in PR comments only?
 6. **Does the store still earn its keep?** It exists because an agent
    firing could not read CI logs; that is no longer true where the
-   firing has Actions access, so `series-loop.md` now reads the run
+   firing has Actions access, so `series-loop/SKILL.md` now reads the run
    and falls back to `rcc2`. Every firing records which path served.
    If the fallback goes unused across a full cycle, the question is
    what the store is still *for* — CI-side selection reads it too

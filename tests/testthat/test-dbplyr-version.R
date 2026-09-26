@@ -2,7 +2,15 @@ test_that("the declared minimum matches the DESCRIPTION floor", {
   # The declared floor, so reading DESCRIPTION is the point here -- unlike the
   # runtime check below, which must not.
   suggests <- packageDescription(get_package_name())[["Suggests"]]
-  entries <- trimws(strsplit(suggests, ",")[[1]])
+  # This reads the *installed* DESCRIPTION, which is not the file in the
+  # sources: `R CMD INSTALL` regenerates it through `write.dcf()`, and
+  # `Suggests` is not one of the fields kept verbatim
+  # (`tools:::.keep_white_description_fields`). So the field arrives rewrapped
+  # at `0.9 * getOption("width")` as it stood in the installing session, and a
+  # break can land inside an entry -- "dbplyr (>=\n2.6.0)" at width 80, but not
+  # at 70 or 90. Fold the wrapping away before comparing: the floor is what is
+  # asserted here, not where the line happened to end.
+  entries <- gsub("[[:space:]]+", " ", trimws(strsplit(suggests, ",")[[1]]))
   entry <- grep("^dbplyr\\b", entries, value = TRUE)
 
   expect_length(entry, 1L)

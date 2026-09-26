@@ -27,7 +27,7 @@ a reader with git and nothing else.
 That reader was the series loop, from a session with no API access.
 A firing that *can* read the run now reads it there
 and keeps this branch as its fallback
-([`.claude/skills/series-loop.md`](/.claude/skills/series-loop.md), stage 2);
+([`.claude/skills/series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md), stage 2);
 CI-side selection reads the store and only the store, unchanged.
 
 Two writers recording different commits touch different paths,

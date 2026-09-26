@@ -169,9 +169,45 @@ typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
 
 typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
+// The engine's Arrow stream over a query result, behind one that reports a streaming result
+// invalidated by another statement on its connection as an error, where the engine reports the end of the stream
+// (handbook/usage/integrations/README.md).
+struct RArrowArrayStreamWrapper {
+	RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size);
+
+	ArrowArrayStream stream;
+	// The engine's callbacks read the result's client context through a raw pointer,
+	// which a streaming result lets go of once it has seen its end, and a disconnect frees.
+	// Declared before `engine`, so the context outlives it.
+	duckdb::shared_ptr<ClientContext> context;
+	ResultArrowArrayStreamWrapper engine;
+	ErrorData last_error;
+
+private:
+	static int GetSchema(ArrowArrayStream *stream, ArrowSchema *out);
+	static int GetNext(ArrowArrayStream *stream, ArrowArray *out);
+	static const char *GetLastError(ArrowArrayStream *stream);
+	static void Release(ArrowArrayStream *stream);
+	bool Invalidated();
+	int ReportInvalidated();
+};
+
+// A query result for the Arrow route.
+// Its columns stay after the result has been read to the end or handed over,
+// for the Arrow schema and the empty batch that answer from then on (handbook/usage/integrations/README.md).
+// The client properties point to the client context,
+// which the result's prepared statement keeps alive until dbClearResult().
 struct RQueryResult {
+	explicit RQueryResult(duckdb::unique_ptr<QueryResult> result_p)
+	    : result(std::move(result_p)), types(result->types), names(result->names),
+	      client_properties(result->client_properties) {
+	}
+
 	duckdb::unique_ptr<QueryResult> result;
-	duckdb::unique_ptr<ResultArrowArrayStreamWrapper> stream_wrapper;
+	duckdb::unique_ptr<RArrowArrayStreamWrapper> stream_wrapper;
+	vector<LogicalType> types;
+	vector<string> names;
+	ClientProperties client_properties;
 };
 
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;

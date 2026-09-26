@@ -1,6 +1,6 @@
 #!/bin/bash
 # Bring a series' -dev branch level with `main` — stage 4 of the series loop
-# (.claude/skills/series-loop.md).
+# (.claude/skills/series-loop/SKILL.md).
 #
 # The goal is identity, not curation: after a successful --apply, the tooling
 # paths — .github/, scripts/, .claude/ — of <S>-dev are byte-identical to
@@ -48,6 +48,12 @@
 # reading it is part of the port. In steady state the residue is empty and
 # no sync commit is created.
 #
+# One class of residue is worth more than an eye over a diff, so the sync names
+# it: a file it deletes that is still referenced from outside the tooling paths.
+# `main` moved the file in a commit this series did not take, and the caller
+# that moved with it is somewhere the sync cannot reach. The warning says which
+# file and which callers; the remedy is to port that commit by name.
+#
 # A frozen series takes no ports by default: a line seeded from a release
 # branch keeps the R code it was seeded with, so `main`'s development line is
 # not a backlog it is behind on. The walk is skipped for those and the sync
@@ -66,25 +72,39 @@
 # they are transient — a forward's seed already carries their content, and a
 # rebase drops patch-id equivalents and empty leftovers.
 #
-# Usage: series-port.sh <series> [--list] [--apply [sha...]]
+# Usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [sha...]
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-S=${1:?usage: series-port.sh <series> [--list] [--apply [sha...]]}
-shift
+usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [sha...]'
+argerr() { echo "$usage" >&2; exit 2; }
 # --list walks a frozen series anyway, for when the question is which commit of
 # `main` to name. No effect on any other series: the walk is their default.
 list=
-if [ "${1:-}" = "--list" ]; then
-  list=1
-  shift
-fi
 apply=
-if [ "${1:-}" = "--apply" ]; then
-  apply=1
-  shift
-fi
-remote=origin
+remote=${SERIES_REMOTE:-origin}
+# The repository `main` belongs to, which the fork mirrors. Same name and same
+# default as series-advance.sh's, and read for the staleness check below only.
+canonical=${SERIES_CANONICAL-upstream}
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) list=1; shift ;;
+    --apply) apply=1; shift ;;
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -ge 1 ] || argerr
+S=${args[0]}
+set -- ${args+"${args[@]:1}"}
+[ -n "$apply" ] || [ $# -eq 0 ] || argerr
 
 # The identity set: what CI and the routine execute. patch/ stays out
 # (vendor-coupled: applied by vendor runs, refreshed by repairs), as do the
@@ -107,12 +127,60 @@ flavored_docs_re='^\.github/README\.md$'
 vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
 
 # scripts/flavor.sh's first commit, and so the foot of every seed
-# (series-open.md step 2, series-forward.md step 1).
+# (series-open step 2, series-forward step 1).
 seed_re='^chore: Update flavor patch to '
+
+# A pick that moves `Version:` is decided by the `ours-version` merge driver,
+# whose name -> command mapping lives in .git/config and cannot be committed.
+# A fresh clone has the attribute and not the driver, so register it here and
+# refuse only if it is still missing -- refusing first made every firing run
+# scripts/setup-git.sh by hand for a step this script already took under
+# --apply. Idempotent; .git/config is shared with the worktree.
+if [ -x "$(dirname "$0")/setup-git.sh" ]; then
+  VENDOR_REPO="$(git rev-parse --show-toplevel)" "$(dirname "$0")/setup-git.sh" >/dev/null
+fi
+git config --get merge.ours-version.driver >/dev/null ||
+  { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
 git fetch -q "$remote"
 dev="$remote/$S-dev" main="$remote/main"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
+
+# The series live in the fork and `main` is the canonical repository's branch,
+# mirrored into the fork by .github/pull.yml. The mirror lags by however long
+# the mirroring takes, and this script's whole output is "what does the series
+# not have that main has" -- so a stale `$remote/main` is not a smaller answer
+# but a wrong one. The sync commit takes that main's tooling tree *verbatim*,
+# which means every commit merged since the mirror last ran is reverted onto
+# the series, silently and on all of them at once.
+#
+# That is not hypothetical: on 2026-09-14 a firing ported while the fork's main
+# was two commits behind duckdb/duckdb-r#2743 and #2745, which had moved the
+# composite actions out of `.github/workflows/`. The sync pointed `each.yaml`
+# back at `./.github/workflows/git-identity`, which no longer exists anywhere,
+# and every `each-rcc` leg on every series died at that step within seconds.
+# Nothing was judged until the mirror was pushed forward and the ports rerun.
+#
+# So ask the canonical repository directly, under the same name and default
+# series-advance.sh mirrors green into. Refuse rather than warn: the damage is
+# a push, and a warning printed above a `--apply` that went on to push anyway
+# is a warning nobody reads until CI is red.
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  git fetch -q "$canonical" main 2>/dev/null || true
+  canonical_main=$(git rev-parse -q --verify FETCH_HEAD || true)
+  if [ -n "$canonical_main" ] &&
+    ! git merge-base --is-ancestor "$canonical_main" "$main"; then
+    behind=$(git rev-list --count "$main..$canonical_main")
+    echo "Error: $main is $behind commit(s) behind $canonical/main." >&2
+    echo "  The sync commit takes that tree verbatim, so porting now reverts" >&2
+    echo "  every one of them onto $S-dev. Wait for .github/pull.yml to" >&2
+    echo "  mirror, or push the fork's main forward -- it is a fast-forward" >&2
+    echo "  of a mirror, not a rewrite -- and rerun:" >&2
+    echo "    git push $remote $canonical/main:refs/heads/main" >&2
+    echo "  SERIES_CANONICAL='' skips this check." >&2
+    exit 1
+  fi
+fi
 
 mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
 if [ -z "$mb" ]; then
@@ -125,8 +193,8 @@ if [ -z "$mb" ]; then
 fi
 
 # Frozen is read off the series, not listed here. A series is seeded from the R
-# package's `main` (series-open.md step 2), and a forward regenerates that seed
-# on current `main` (series-forward.md step 1), so a well-seeded series has its
+# package's `main` (series-open step 2), and a forward regenerates that seed
+# on current `main` (series-forward step 1), so a well-seeded series has its
 # flavor commit sitting directly on the merge base and `git cherry` offers what
 # `main` gained since the last port. Seeded from a release line instead, the
 # seed sits on that line's own commits, and the walk reaches back to where that
@@ -134,13 +202,22 @@ fi
 #
 # The lineage under the seed is what separates them, and it is the one quantity
 # that does not move: the candidate list and the distance to the join both grow
-# as `main` does, while a well-seeded series stays at zero however long it runs.
-# Naming the series here instead would age — every LTS line opened or retired
-# would be an edit to this script, and a firing would trust the list over the
-# branch in front of it.
+# as `main` does, while a well-seeded series stays near zero however long it
+# runs. Naming the series here instead would age — every LTS line opened or
+# retired would be an edit to this script, and a firing would trust the list
+# over the branch in front of it.
+#
+# What is counted is the part of that lineage `main` does not already have.
+# Counting commits instead made one seeding fix enough to freeze a series:
+# `v1.5-variegata-fwd` carried a single `fix(flavor)` commit below its flavor
+# commit — `main`'s own, replayed into the seed — and took no ports at all,
+# until its `-dev` differed from the base series' on 18 paths the convergence
+# report could not explain. A release-seeded lineage is not one commit off:
+# `v1.4-andium` has 56 commits under its seed, 45 of them `main`'s by no
+# reading, which is the shape the freeze is for.
 seed=$(git rev-list "$mb..$dev" --grep="$seed_re" | tail -n 1)
 under=0
-[ -n "$seed" ] && under=$(git rev-list --count "$mb..$seed^")
+[ -n "$seed" ] && under=$(git cherry "$main" "$seed^" "$mb" | grep -c '^+' || true)
 frozen=
 [ "$under" != 0 ] && frozen=1
 
@@ -190,6 +267,31 @@ classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   fi
 }
 
+# What `main` gained through an ancestry-only merge: a merge whose tree is its
+# first parent's, so nothing of the lineage it records ever entered main's
+# tree. `git cherry` offers those commits like any other -- they are ancestors
+# of `main` carrying no patch-id the series has -- and porting one applies a
+# tree from another era on top of this one.
+#
+# #2713 recorded the v1.1.3-2 tag that way, and the next firing was offered 13
+# commits dated 2024-12 to 2025-01 for every non-frozen series, `feat: Limit
+# automatic materialization by number of rows or number of cells (#1017)` among
+# them. A default --apply would have cherry-picked all of them.
+#
+# The test is the merge's own tree and not its subject: `-s ours` is one way to
+# write "ancestry only", a hand-resolved merge that kept our side is another,
+# and both leave the same fact behind.
+ancestry_only_commits() {
+  local m parents
+  while IFS= read -r m; do
+    [ "$(git rev-parse "$m^{tree}")" = "$(git rev-parse "$m^1^{tree}")" ] || continue
+    parents=$(git rev-list --parents -n 1 "$m" | cut -d' ' -f3-)
+    [ -n "$parents" ] || continue
+    # shellcheck disable=SC2086  # a parent list, deliberately word-split
+    git rev-list $parents --not "$m^1"
+  done < <(git rev-list --merges "$mb..$main")
+}
+
 candidates=()
 declare -A klass=()
 
@@ -199,6 +301,15 @@ declare -A klass=()
 # every ported commit excludes picks whose resolution diverged from the
 # original patch — those would otherwise be re-offered and re-conflict on
 # every rerun.
+#
+# Both layers need a commit to read, so a pick whose *resolution* comes out
+# empty has to be committed empty rather than skipped. That happens wherever
+# the series already carries main's change under its own flavor's name: the
+# tree is right, the patch-id is not main's, and `git cherry-pick --skip` —
+# which is what git itself suggests there — leaves neither a patch-id nor a
+# trailer, so the same pick is offered and reconflicts on every firing. The
+# guidance below says so; `--empty=drop` cannot reach this case, because it
+# judges the pick before the resolution exists.
 #
 # A frozen series skips the walk rather than listing what it will not take by
 # default: the list is long — an LTS line joins `main` far back, so `git cherry`
@@ -213,9 +324,12 @@ else
   while IFS= read -r x; do ported[$x]=1; done < <(
     git log --format=%B "$mb..$dev" |
       sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
+  declare -A ancestry_only=()
+  while IFS= read -r m; do ancestry_only[$m]=1; done < <(ancestry_only_commits)
   mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
   for sha in "${all[@]}"; do
     [ -n "${ported[$sha]:-}" ] && continue
+    [ -n "${ancestry_only[$sha]:-}" ] && continue
     candidates+=("$sha")
     klass[$sha]=$(classify "$sha")
     printf '%-7s %s %s\n' "${klass[$sha]}" \
@@ -233,11 +347,8 @@ fi
 
 # A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a
 # forward-port that carries one -- and the ours-version merge driver is what
-# keeps that line off the conflict list. Idempotent; .git/config is shared with
-# the worktree.
-if [ -x "$(dirname "$0")/setup-git.sh" ]; then
-  "$(dirname "$0")/setup-git.sh" >/dev/null
-fi
+# keeps that line off the conflict list. The gate at the top of this script has
+# registered it already.
 
 # The default fill is what a frozen series does not get: `--list --apply` shows
 # the walk and still ports nothing, because seeing the candidates is not the
@@ -261,6 +372,9 @@ if [ ${#picks[@]} -gt 0 ] && ! git -C "$wt" cherry-pick -x --empty=drop "${picks
   git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
   echo "Resolve toward main's intent, then:"
   echo "  git -C $wt cherry-pick --continue    # repeats through the rest"
+  echo "A resolution that comes out empty is committed empty, never skipped —"
+  echo "the empty commit is what carries the trailer that retires the pick:"
+  echo "  git -C $wt commit --allow-empty --cleanup=strip --no-edit"
   echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
   echo "  git worktree remove --force $wt"
   echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"
@@ -276,6 +390,25 @@ if ! git -C "$wt" diff --quiet "$main" -- "${tooling[@]}"; then
   git -C "$wt" commit -q -m "chore(series): Sync tooling with main" \
     -m "Takes main's ${tooling[*]} verbatim on top of the ported commits;
 the diff is the residue the commit walk could not explain."
+
+  # A file the sync deletes can still be named from outside the tooling paths:
+  # `main` moved it in a commit this series did not take, and the caller that
+  # moved with it lives where the sync cannot reach. `configure` calling
+  # `scripts/setup-makeflags.R` is the case this was written for -- the call is
+  # guarded with `|| echo ""`, so the tree stays green and simply builds
+  # single-threaded, which is the kind of loss nobody finds by reading a diff.
+  # Name it instead, and name the remedy: port the commit that moved the file.
+  while read -r gone; do
+    [ -n "$gone" ] || continue
+    callers=$(git -C "$wt" grep -lF -- "$gone" -- . \
+      ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
+    [ -n "$callers" ] || continue
+    echo "warning: the sync deleted $gone, still referenced by:"
+    echo "$callers" | sed 's/^/  /'
+    echo "  port the commit that moved it: scripts/series-port.sh $S --apply <sha>"
+  done <<EOF
+$(git -C "$wt" diff --diff-filter=D --name-only HEAD^ HEAD)
+EOF
 fi
 git -C "$wt" diff --quiet "$main" -- "${tooling[@]}" ||
   { echo "Error: tooling still differs after sync"; exit 1; }
