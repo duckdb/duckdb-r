@@ -99,6 +99,14 @@ driver_registry <- new.env(parent = emptyenv())
 #' An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
 #' every `duckdb()` call creates a fresh, isolated instance.
 #'
+#' The key is the path as [normalizePath()] resolves it.
+#' A database file that does not exist yet is resolved through an empty placeholder
+#' that `duckdb()` creates and removes again,
+#' so a `dbdir` in a directory that cannot be written to fails here rather than in the engine.
+#' Creating that placeholder is the only step that has to succeed:
+#' a path `normalizePath()` cannot resolve is kept as it stands instead of raising an error
+#' (a network drive with parent directories the user may not read is the common case).
+#'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
 #' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
@@ -386,12 +394,25 @@ is_installed <- function(pkg) {
   as.logical(requireNamespace(pkg, quietly = TRUE)) == TRUE
 }
 
+# The Olson list, read once per session into `the` on first use,
+# not at load time.
+# `OlsonNames()` reads the zoneinfo directory on every call, 1.4 ms on Linux,
+# and `check_tz()` runs on every `dbConnect()`, twice:
+# once directly and once through `duckdb_convert_opts()`.
+# A `TZDIR` changed after the first call is not seen.
+olson_names <- function() {
+  if (is.null(the$olson_names)) {
+    the$olson_names <- OlsonNames()
+  }
+  the$olson_names
+}
+
 check_tz <- function(timezone) {
   if (!is.null(timezone) && timezone == "") {
     return("")
   }
 
-  if (is.null(timezone) || !timezone %in% OlsonNames()) {
+  if (is.null(timezone) || !timezone %in% olson_names()) {
     warning(
       "Invalid time zone '",
       timezone,
@@ -474,11 +495,21 @@ path_normalize <- function(path) {
 
   out <- normalizePath(path, mustWork = FALSE)
 
-  # Stable results are only guaranteed if the file exists
+  # Stable results are only guaranteed if the file exists, so a database yet to
+  # be created is normalized through an empty placeholder. Creating that file is
+  # the only thing here that has to succeed: neither call asks `normalizePath()`
+  # to resolve the path, only to try.
   if (!file.exists(out)) {
+    if (!file.create(out, showWarnings = FALSE)) {
+      abort(c(
+        paste0("Can't create the database file `", path, "`."),
+        "Its directory must exist and be writable."
+      ))
+    }
+
     on.exit(unlink(out))
-    writeLines(character(), out)
-    out <- normalizePath(out, mustWork = TRUE)
+    out <- normalizePath(out, mustWork = FALSE)
   }
+
   out
 }

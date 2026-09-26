@@ -148,6 +148,14 @@ isnt "series-advance.sh --chunk 25 is not a usage error" \
 is "series-advance.sh --chunk origin" "$(rc series-advance.sh s --chunk origin)" 2
 
 echo
+echo "== --dev-note takes a file, and only where a commit is minted"
+for s in series-advance.sh series-port.sh; do
+  is "$s --dev-note (bare)" "$(rc "$s" s --dev-note)" 2
+done
+is "series-port.sh --dev-note without --apply" \
+  "$(rc series-port.sh s --dev-note /dev/null)" 2
+
+echo
 echo "== a missing series is a usage error too"
 for s in series-advance.sh series-converge.sh series-cutover.sh series-glue.sh series-port.sh; do
   is "$s with no series" "$(rc "$s")" 2
