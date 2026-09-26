@@ -230,28 +230,23 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	}
 }
 
-// Fetch one Arrow chunk from the streaming query result. Both `schema_xptr`
-// and `array_xptr` are nanoarrow-owned external pointers to zeroed structs
-// (typically from `nanoarrow::nanoarrow_allocate_schema()` and
-// `nanoarrow::nanoarrow_allocate_array()`). The schema is populated on every
-// call so the caller can rely on it after the first chunk. Returns TRUE
-// when a chunk was fetched, FALSE when the stream is exhausted.
-[[cpp11::register]] bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr,
-                                                cpp11::sexp schema_xptr, int chunk_size) {
+// Fetch one Arrow chunk from the streaming query result into the nanoarrow-owned struct behind `array_xptr`,
+// typically from `nanoarrow::nanoarrow_allocate_array()`.
+// Returns TRUE when a chunk was fetched, FALSE when the stream is exhausted.
+[[cpp11::register]] bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr, int chunk_size) {
 	if (!qry_res || !qry_res.get()) {
 		rapi_error_with_context("rapi_fetch_arrow_array", "Invalid query result");
 	}
 	if (chunk_size <= 0) {
 		rapi_error_with_context("rapi_fetch_arrow_array", "Chunk Size must be higher than 0");
 	}
-	if (TYPEOF(array_xptr.data()) != EXTPTRSXP || TYPEOF(schema_xptr.data()) != EXTPTRSXP) {
-		rapi_error_with_context("rapi_fetch_arrow_array", "Expected external pointers for array and schema");
+	if (TYPEOF(array_xptr.data()) != EXTPTRSXP) {
+		rapi_error_with_context("rapi_fetch_arrow_array", "Expected an external pointer for array");
 	}
 
 	auto out_array = reinterpret_cast<ArrowArray *>(R_ExternalPtrAddr(array_xptr.data()));
-	auto out_schema = reinterpret_cast<ArrowSchema *>(R_ExternalPtrAddr(schema_xptr.data()));
-	if (out_array == nullptr || out_schema == nullptr) {
-		rapi_error_with_context("rapi_fetch_arrow_array", "Output pointers are NULL");
+	if (out_array == nullptr) {
+		rapi_error_with_context("rapi_fetch_arrow_array", "Array pointer is NULL");
 	}
 
 	if (!qry_res->stream_wrapper) {
@@ -262,15 +257,16 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	}
 
 	auto &stream = qry_res->stream_wrapper->stream;
-	if (out_schema->release == nullptr) {
-		if (stream.get_schema(&stream, out_schema) != 0) {
-			rapi_error_with_context("rapi_fetch_arrow_array", stream.get_last_error(&stream));
-		}
-	}
 	if (stream.get_next(&stream, out_array) != 0) {
 		rapi_error_with_context("rapi_fetch_arrow_array", stream.get_last_error(&stream));
 	}
-	return out_array->release != nullptr;
+	if (out_array->release == nullptr) {
+		// Read to the end: let go of the result, which for a materialized one still holds all its rows.
+		// The columns that the schema and the empty batch need stay in the query result.
+		qry_res->stream_wrapper.reset();
+		return false;
+	}
+	return true;
 }
 
 // Write a zero-length Arrow array for the columns of a query result into the nanoarrow-owned struct behind
