@@ -88,6 +88,12 @@ This file is what names the contents, so nothing here is an orphan.
   why a lazy Arrow source costs the whole dataset,
   and the same routes at 12 GB on a 16 GB worker; supports
   [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md).
+* [`2026-09-19-instance-cache-in-use/`](2026-09-19-instance-cache-in-use/) —
+  which state the engine's instance cache is in when it finds an entry
+  whose handle is gone, how each is reached from the C API, and what
+  reporting a live instance without a grace period costs; supports
+  [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
+  and [`usage/connections/`](/handbook/usage/connections/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
