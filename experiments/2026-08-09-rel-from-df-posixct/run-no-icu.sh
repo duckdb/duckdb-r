@@ -18,7 +18,6 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(git rev-parse --show-toplevel)
 tree=${NOICU_TREE:-$root/../duckdb-r-noicu}
 lib=${NOICU_LIB:-$HOME/R-noicu}
-out=$here/no-icu.md
 
 if [ ! -d "$tree" ]; then
   git -C "$root" worktree add --detach "$tree" HEAD
@@ -32,16 +31,6 @@ printf 'building from source in %s\n' "$tree" >&2
       R CMD INSTALL . --library="$lib" --no-byte-compile >/dev/null 2>&1
 )
 
-{
-  printf '# Timestamps on a build with no icu\n\n'
-  printf 'Recorded by `run-no-icu.sh`; `README.md` says what it asks.\n\n'
-  printf '```\n'
-  for tz in UTC Europe/Zurich; do
-    R_LIBS="$lib" TZ=$tz Rscript "$here/no-icu.R" 2>&1 |
-      grep -vE '^(Loading required|ℹ|duckdb is storing|This persists)'
-    printf '\n'
-  done
-  printf '```\n'
-} >"$out"
+R_LIBS="$lib" Rscript "$here/../../scripts/render-reprex.R" "$here/no-icu.R" no-icu >/dev/null
 
-printf 'wrote %s\n' "$out" >&2
+printf 'wrote %s\n' "$here/no-icu.md" >&2
