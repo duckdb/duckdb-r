@@ -67,3 +67,25 @@ test_that("the value of a classed numeric column survives every route in", {
   )
   expect_equal(bound$area, 2.5)
 })
+
+test_that("a table whose columns R cannot hold is still found and listed", {
+  con <- local_con()
+
+  for (type in c("BIT", "BIGNUM", "TIME_NS", "UNION(a INTEGER)")) {
+    dbExecute(con, paste("CREATE OR REPLACE TABLE t (x", type, ", y INTEGER)"))
+
+    expect_true(dbExistsTable(con, "t"), info = type)
+    expect_equal(dbListFields(con, "t"), c("x", "y"), info = type)
+  }
+})
+
+test_that("a column R cannot hold is refused by name when its rows arrive", {
+  skip_if_not_installed("nanoarrow")
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT '101'::BIT AS x")
+  on.exit(dbClearResult(res))
+
+  expect_equal(dbColumnInfo(res)$type, "unknown")
+  expect_error(dbGetQuery(con, "SELECT '101'::BIT AS x"), "column `x`: BIT")
+})

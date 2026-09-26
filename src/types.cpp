@@ -366,6 +366,12 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 		return "factor";
 	case LogicalTypeId::UNKNOWN:
 	case LogicalTypeId::SQLNULL:
+	// No R vector holds these: converting the rows fails and names the column,
+	// while an Arrow result carries them unconverted (handbook/usage/types/README.md).
+	case LogicalTypeId::BIT:
+	case LogicalTypeId::BIGNUM:
+	case LogicalTypeId::TIME_NS:
+	case LogicalTypeId::UNION:
 		return "unknown";
 
 	default: {
