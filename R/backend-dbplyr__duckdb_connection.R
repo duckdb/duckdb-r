@@ -3,9 +3,8 @@
 #' DuckDB SQL backend for dbplyr
 #'
 #' @description
-#' This is a SQL backend for dbplyr tailored to take into account DuckDB's
-#' possibilities. This mainly follows the backend for PostgreSQL, but
-#' contains more mapped functions.
+#' This is a SQL backend for dbplyr tailored to take into account DuckDB's possibilities.
+#' This mainly follows the backend for PostgreSQL, but contains more mapped functions.
 #'
 #' @name backend-duckdb
 #' @aliases NULL
@@ -34,17 +33,16 @@
 NULL
 
 # Declare which version of dbplyr API is being called.
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name dbplyr_edition
 dbplyr_edition.duckdb_connection <- function(con) {
   2L
 }
 
 # Description of the database connection
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name db_connection_describe
-# @return
-# String consisting of DuckDB version, user login name, operating system, R version and the name of database
+# @return String consisting of DuckDB version, user login name, operating system, R version and the name of database
 db_connection_describe.duckdb_connection <- function(con) {
   info <- DBI::dbGetInfo(con)
   paste0(
@@ -75,9 +73,8 @@ duckdb_grepl <- function(
 ) {
   # https://duckdb.org/docs/sql/functions/patternmatching
   if (any(c(perl, fixed, useBytes))) {
-    stop(
-      "Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend",
-      call. = FALSE
+    abort(
+      "Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend"
     )
   }
 
@@ -91,20 +88,25 @@ duckdb_grepl <- function(
   }
 }
 
-# `MAKE_DATE()` takes integers, and DuckDB does not narrow a DOUBLE to one
-# implicitly: the bare `2000` a caller writes arrives here as a double and would
-# escape as `2000.0`, which fails to bind. clock accepts a whole double for a
-# year, month or day, so send the integer it names. Anything that is not a
-# double -- a column reference, a SQL fragment, an integer already -- passes
-# through untouched, so a column keeps whatever type the table gave it.
-duckdb_integerish <- function(x, arg = deparse(substitute(x))) {
+# `MAKE_DATE()` takes integers, and DuckDB does not narrow a DOUBLE to one implicitly:
+# the bare `2000` a caller writes arrives here as a double and would escape as `2000.0`, which fails to bind.
+# clock accepts a whole double for a year, month or day, so send the integer it names.
+# Anything that is not a double -- a column reference, a SQL fragment, an integer already --
+# passes through untouched, so a column keeps whatever type the table gave it.
+# `call` names the translation the argument was written in, not this check:
+# rlang's `abort()` would otherwise report `duckdb_integerish()` for a `date_build()` the caller wrote.
+duckdb_integerish <- function(
+  x,
+  arg = deparse(substitute(x)),
+  call = parent.frame()
+) {
   if (!is.double(x)) {
     return(x)
   }
 
   int <- suppressWarnings(as.integer(x))
   if (!identical(as.double(int), as.double(x))) {
-    stop("`", arg, "` must be a whole number.", call. = FALSE)
+    abort(paste0("`", arg, "` must be a whole number."), call = call)
   }
 
   int
@@ -112,13 +114,13 @@ duckdb_integerish <- function(x, arg = deparse(substitute(x))) {
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
-  # `sql_glue()` reads the active connection itself, and `{...}` renders the
-  # dots comma-separated, the way `{.col {list(...)}*}` did before dbplyr 2.6.0.
+  # `sql_glue()` reads the active connection itself,
+  # and `{...}` renders the dots comma-separated, the way `{.col {list(...)}*}` did before dbplyr 2.6.0.
   sql_glue <- pkg_method("sql_glue", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
   if (missing(...)) {
-    stop("`...` is absent, but must be supplied.")
+    abort("`...` is absent, but must be supplied.")
   }
   check_dots_unnamed()
 
@@ -143,7 +145,7 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
 }
 
 # Customized translation functions for DuckDB SQL
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @name sql_translation
 sql_translation.duckdb_connection <- function(con) {
   sql_variant <- pkg_method("sql_variant", "dbplyr")
@@ -283,9 +285,8 @@ sql_translation.duckdb_connection <- function(con) {
         with_year = identical(type, "year.quarter")
       ) {
         if (fiscal_start != 1) {
-          stop(
-            "`fiscal_start` is not yet supported in DuckDB translation. Must be 1.",
-            call. = FALSE
+          abort(
+            "`fiscal_start` is not yet supported in DuckDB translation. Must be 1."
           )
         }
         if (is.logical(type)) {
@@ -321,7 +322,7 @@ sql_translation.duckdb_connection <- function(con) {
               ))
             )
           },
-          stop(paste("Unsupported type", type), call. = FALSE)
+          abort(paste("Unsupported type", type))
         )
       },
       qday = function(x) {
@@ -347,13 +348,13 @@ sql_translation.duckdb_connection <- function(con) {
         } else if (label && abbr) {
           sql_expr(STRFTIME(!!x, "%a"))
         } else {
-          stop("Unrecognized arguments to `wday`", call. = FALSE)
+          abort("Unrecognized arguments to `wday`")
         }
       },
       yday = function(x) sql_expr(EXTRACT(DOY %FROM% !!x)),
 
-      # These work fine internally, but getting INTERVAL-type data out of DuckDB
-      # seems problematic until there is a fix for the issue #1920 / #2900
+      # These work fine internally,
+      # but getting INTERVAL-type data out of DuckDB seems problematic until there is a fix for the issue #1920 / #2900
       # (https://github.com/duckdb/duckdb/issues/1920)
       seconds = function(x) {
         sql_expr(TO_SECONDS(CAST((!!x) %AS% BIGINT)))
@@ -431,19 +432,18 @@ sql_translation.duckdb_connection <- function(con) {
       date_count_between = function(start, end, precision, ..., n = 1L) {
         rlang::check_dots_empty()
         if (precision != "day") {
-          stop(
+          abort(
             'The only supported value for `precision` on SQL backends is "day"'
           )
         }
         if (n != 1) {
-          stop('The only supported value for `n` on SQL backends is "1"')
+          abort('The only supported value for `n` on SQL backends is "1"')
         }
 
         build_sql("DATEDIFF('day', ", !!start, ", ", !!end, ")")
       },
       date_build = function(year, month = 1L, day = 1L, ..., invalid = NULL) {
-        # DuckDB resolves an invalid date its own way, so there is nothing to
-        # map clock's `invalid` strategies onto.
+        # DuckDB resolves an invalid date its own way, so there is nothing to map clock's `invalid` strategies onto.
         check_unsupported_arg(invalid, allow_null = TRUE)
         rlang::check_dots_empty()
 
@@ -456,9 +456,8 @@ sql_translation.duckdb_connection <- function(con) {
 
       # base R functions
 
-      # DATEDIFF() counts whole days, so that is the one `units` value
-      # translated; `tz` has no equivalent, because the subtraction happens in
-      # the database rather than on an R clock.
+      # DATEDIFF() counts whole days, so that is the one `units` value translated;
+      # `tz` has no equivalent, because the subtraction happens in the database rather than on an R clock.
       difftime = function(time1, time2, tz, units = "days") {
         check_unsupported_arg(tz)
         check_unsupported_arg(units, allowed = "days")
@@ -546,9 +545,8 @@ sql_translation.duckdb_connection <- function(con) {
             !!pad
           ))
         } else {
-          stop(
-            'Argument \'side\' should be "left", "right" or "both"',
-            call. = FALSE
+          abort(
+            'Argument \'side\' should be "left", "right" or "both"'
           )
         }
       }
@@ -606,7 +604,7 @@ sql_translation.duckdb_connection <- function(con) {
 
 
 # Customized translation for comparing to objects in DuckDB SQL
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @param x First object to be compared
 # @param y Second object to be compared
 # @name sql_expr_matches
@@ -617,7 +615,7 @@ sql_expr_matches.duckdb_connection <- function(con, x, y) {
 }
 
 # Customized escape translation for date objects
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @param x Date object to be escaped
 # @name sql_escape_date
 sql_escape_date.duckdb_connection <- function(con, x) {
@@ -627,7 +625,7 @@ sql_escape_date.duckdb_connection <- function(con, x) {
 }
 
 # Customized escape translation for datetime objects
-# @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param con A [dbConnect()] object, as returned by `dbConnect()`
 # @param x Datetime object to be escaped
 # @name sql_escape_datetime
 sql_escape_datetime.duckdb_connection <- function(con, x) {
@@ -636,7 +634,7 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
 }
 
 # Customized handling for tbl() to allow the use of replacement scans
-# @param src .con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
+# @param src .con A [dbConnect()] object, as returned by `dbConnect()`
 # @param from Table or parquet/csv -files to be registered
 # @param cache Enable object cache for parquet files
 tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
@@ -662,15 +660,14 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
 #' @rdname backend-duckdb
 tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
   if (...length() > 0) {
-    stop("... must be empty.", call. = FALSE)
+    abort("... must be empty.")
   }
   if (grepl("'", path)) {
-    stop(
+    abort(paste0(
       "File '",
       path,
-      "' contains a single quote, this is not supported",
-      call. = FALSE
-    )
+      "' contains a single quote, this is not supported"
+    ))
   }
   if (is.null(src)) {
     src <- default_conn()
@@ -681,8 +678,7 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
 #' Create a lazy table from a query
 #'
 #' @description
-#' `tbl_function()` is an experimental variant of [dplyr::tbl()]
-#' to create a lazy table from a table-generating function,
+#' `tbl_function()` is an experimental variant of [dplyr::tbl()] to create a lazy table from a table-generating function,
 #' useful for reading nonstandard CSV files or other data sources.
 #' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the query.
 #' See <https://duckdb.org/docs/data/overview> for details on data importing functions.
@@ -713,8 +709,7 @@ tbl_query <- function(src, query, ...) {
 #' Connection object for simulation of the SQL generation without actual database.
 #' dbplyr overrides database specific identifier and string quotes
 #'
-#' Use `simulate_duckdb()` with `lazy_frame()`
-#' to see simulated SQL without opening a DuckDB connection.
+#' Use `simulate_duckdb()` with `lazy_frame()` to see simulated SQL without opening a DuckDB connection.
 #' @param ... Any parameters to be forwarded
 #' @export
 #' @rdname backend-duckdb

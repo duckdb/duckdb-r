@@ -42,5 +42,4 @@ The guard that scans for offenders is
 
 *To deepen: state the S4 class inventory and the deferred S3
 registration for Suggests packages; drain
-[#98](https://github.com/duckdb/duckdb-r/issues/98),
-[#1052](https://github.com/duckdb/duckdb-r/issues/1052).*
+[#98](https://github.com/duckdb/duckdb-r/issues/98).*

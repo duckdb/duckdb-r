@@ -5,7 +5,19 @@ set -ex
 # Setup parallel compilation if MAKEFLAGS not already set
 cd "$(dirname "$0")"
 if [ -z "${MAKEFLAGS}" ]; then
-  makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
+  makeflags_value=$(Rscript tools/setup-makeflags.R 2>/dev/null || echo "")
+  # Rscript reports a file it cannot open on *stdout* and exits 2, so neither
+  # the redirect nor the `||` keeps that message out of the capture. Accept
+  # only the -jN the helper produces, so anything else leaves MAKEFLAGS unset.
+  case "${makeflags_value}" in
+    -j*)
+      makeflags_digits="${makeflags_value#-j}"
+      case "${makeflags_digits}" in
+        '' | *[!0-9]*) makeflags_value="" ;;
+      esac
+      ;;
+    *) makeflags_value="" ;;
+  esac
   if [ -n "${makeflags_value}" ]; then
     export MAKEFLAGS="${makeflags_value}"
     echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
@@ -116,6 +128,10 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
   # commit hash to 10 chars in the binary (CMake SUBSTRING 0 10), while the
   # vendored pragma_version.cpp sometimes carries 11. Both abbreviate the
   # same SHA, so we compare on the shared 10-char prefix.
+  #
+  # Newly vendored trees carry 10, because the vendor scripts pin core.abbrev
+  # in the upstream clone; the prefix comparison stays for the trees vendored
+  # before that, which a branch keeps until its next vendor commit.
   version_file=duckdb/src/function/table/version/pragma_version.cpp
   if [ -f "${version_file}" ]; then
     vendored_version=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "${version_file}")

@@ -1,29 +1,14 @@
 # `experiments/` — measured evidence
 
-*Handbook: [`meta/plans/`](/handbook/meta/plans/README.md)
-explains this directory alongside `plan/`.*
+*Handbook: [`meta/experiments/`](/handbook/meta/experiments/README.md)
+owns this directory's conventions.*
 
 One directory per experiment, holding everything it needs:
 a `README.md` that says what was measured, when, on what,
 and which handbook page relies on it,
 plus whatever the run took — scripts, inputs, recorded output.
 
-An experiment is evidence, not a check.
-It does not re-run itself, and nothing here gates a build:
-what a test can pin is a test
-([`testing/suite/`](/handbook/testing/suite/README.md)),
-and what a scan can enforce is a check
-([`testing/guards/`](/handbook/testing/guards/README.md)).
-What lands here is the finding too expensive to re-derive on demand —
-a measurement, a survey, a build that takes an hour —
-kept so the leaf that cites it can be trusted
-without the reader repeating the work.
-
-A record ages rather than rots:
-it is true of the day it names,
-and a leaf that leans on it says so.
-Re-running is how it is refreshed;
-the directory keeps the method so that is possible.
+This file is what names the contents, so nothing here is an orphan.
 
 * [`2026-03-vendor-build-cost/`](2026-03-vendor-build-cost/) —
   churn per vendor commit, ccache hit rate on adjacent commits,
@@ -86,13 +71,33 @@ the directory keeps the method so that is possible.
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
   fix in [#2562](https://github.com/duckdb/duckdb-r/pull/2562);
-  supports [`usage/memory/`](/handbook/usage/memory/README.md).
+  supports [`usage/memory/budget/`](/handbook/usage/memory/budget/README.md).
 * [`2026-08-streaming-tpch-bench/`](2026-08-streaming-tpch-bench/) —
   wall time and memory of moving a TPC-H result into R, per fetch
   strategy, on the CRAN build and
   [#2292](https://github.com/duckdb/duckdb-r/pull/2292)'s streaming
   build; gathered for
   [`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md).
+* [`2026-09-14-memory-clients/`](2026-09-14-memory-clients/) —
+  the memory findings behind the memory leaves, re-run in containers
+  on the dev and the CRAN build, the same fetch shapes measured
+  through the Python, Go, Rust and Node clients,
+  and every shape again at 12 GB on a 16 GB worker; supports
+  [`usage/memory/reading/`](/handbook/usage/memory/reading/README.md) and
+  [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md).
+* [`2026-09-19-memory-ingest/`](2026-09-19-memory-ingest/) —
+  what it costs to bring the same 800 MB into the engine through every
+  route the R, Python, Node, Go and Rust clients offer, from a frame
+  scanned in place to a generator, an appender or a pipe,
+  why a lazy Arrow source costs the whole dataset,
+  and the same routes at 12 GB on a 16 GB worker; supports
+  [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md).
+* [`2026-09-19-instance-cache-in-use/`](2026-09-19-instance-cache-in-use/) —
+  which state the engine's instance cache is in when it finds an entry
+  whose handle is gone, how each is reached from the C API, and what
+  reporting a live instance without a grace period costs; supports
+  [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
+  and [`usage/connections/`](/handbook/usage/connections/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

@@ -30,7 +30,7 @@ is a close *with* a documentation change.**
 The answer lands in the handbook leaf that owns the topic,
 in the same pull request that closes the issue,
 and the closing comment links it
-([`meta/handbook/`](/handbook/meta/handbook/README.md#growing-a-leaf)).
+([`meta/growth/`](/handbook/meta/growth/README.md)).
 Every open issue can name the leaf that would absorb its answer;
 an issue with no addressable leaf is a defect of the tree.
 Closing credits the reporter and names the reopen condition.

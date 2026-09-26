@@ -1,6 +1,6 @@
 #!/bin/bash
 # Vendors DuckDB sources commit-by-commit from the upstream repository.
-# Used by the series loop (.claude/skills/series-loop.md).
+# Used by the series loop (.claude/skills/series-loop/SKILL.md).
 # See scripts/VENDORING.md for complete documentation
 #
 # https://unix.stackexchange.com/a/654932/19205
@@ -86,6 +86,86 @@ elif [ "$upstream_basedir" != "$upstream_dir" ]; then
   git -C "$upstream_dir" fetch origin
   git -C "$upstream_dir" checkout -q --detach \
     "$(git -C "$upstream_basedir" rev-parse --verify HEAD)"
+fi
+
+# Make the vendored tree depend on the upstream commit and nothing else.
+# `DUCKDB_SOURCE_ID` in pragma_version.cpp comes from upstream's
+# `git describe --tags --long`, run inside this clone, and git auto-sizes that
+# abbreviation from the number of objects the repository holds -- so the same
+# commit vendored twice, from clones that have grown apart, writes two different
+# strings and two different trees, and re-vendoring a commit to reproduce a
+# failure does not reproduce the tree. Set on every run, not only on the clone,
+# because the clone may be one someone else made (CI checks upstream out here).
+# Ten is DuckDB's own length: its CMake truncates the id to ten characters in
+# the built library, which is what ./configure's commit-match guard compares
+# against.
+git -C "$upstream_dir" config core.abbrev 10
+
+# The version stamp comes from the same clone, and a clone without versioning
+# tags stamps a placeholder instead of failing. Upstream's
+# `package_build.get_git_describe()` -- which rconfigure.py reaches through
+# `build_package()` -- catches the `git describe` failure and answers
+# `v0.0.0-0-gdeadbeeff`, so `DUCKDB_VERSION` becomes `v0.0.0` and the tree
+# builds, installs and passes the glue gate. What it does not do is load an
+# extension: every download then asks
+# extensions.duckdb.org/v0.0.0/<platform>/<name>.duckdb_extension.gz and gets
+# an HTTP 404, which surfaces a whole CI cycle later as a test failure that
+# looks like the engine's.
+#
+# A shallow clone is the condition the placeholder below was only ever a proxy
+# for, and it is the half that still holds on every branch: refuse it directly.
+# The clone is the tree the version is read from, so ask it rather than the
+# source -- `git clone` of a shallow repository is shallow, and CI checks
+# upstream out in `$upstream_dir` itself.
+if [ "$(git -C "$upstream_dir" rev-parse --is-shallow-repository)" = true ]; then
+  echo ""
+  echo "=== SHALLOW UPSTREAM CLONE ==="
+  echo "$upstream_dir, cloned from $upstream_basedir, is shallow, so neither"
+  echo "'git describe --tags' nor 'git rev-list --count HEAD' answers what the"
+  echo "full history would, and every commit vendored from it would carry a"
+  echo "DUCKDB_VERSION no extension repository has a directory for."
+  echo "  git -C $upstream_basedir fetch --unshallow origin"
+  echo "  git -C $upstream_basedir fetch --tags origin"
+  echo "Then rerun this script."
+  rm -rf "$upstream_dir"
+  exit 6
+fi
+
+# Ask upstream's own resolver rather than reimplementing its tag match, which
+# depends on MAIN_BRANCH_VERSIONING and is upstream's to change.
+#
+# Upstream keeps the resolver under two names: `get_git_describe()` on the
+# release branches, and `git_dev_version()` on `main`, which stopped describing
+# tags at all and composes `scripts/ci/release_version.txt` with the commit
+# count instead. Importing one name by itself made the probe raise on `main`
+# and answer empty, so the guard below stopped guarding the busiest series --
+# silently, behind a warning that fired on every vendor run.
+#
+# The probe is still allowed to fail -- upstream owns that file and may move it
+# again -- and says so rather than refusing, because only the placeholder is
+# evidence.
+upstream_describe=$(cd "$upstream_dir" && python3 -c \
+  'import sys; sys.path.insert(0, "scripts"); import package_build
+for name in ("get_git_describe", "git_dev_version"):
+    fn = getattr(package_build, name, None)
+    if fn is not None:
+        print(fn())
+        break' \
+  2>/dev/null) || upstream_describe=
+if [ -z "$upstream_describe" ]; then
+  echo "Warning: could not read the version $upstream_dir would stamp" >&2
+fi
+if [ "$upstream_describe" = "v0.0.0-0-gdeadbeeff" ]; then
+  echo ""
+  echo "=== NO VERSION IN THE UPSTREAM CLONE ==="
+  echo "$upstream_dir, cloned from $upstream_basedir, has no versioning tag that"
+  echo "'git describe' can reach, so every commit vendored from it would carry"
+  echo "DUCKDB_VERSION \"v0.0.0\" and fail to install any extension."
+  echo "A clone fetched without tags is the usual cause:"
+  echo "  git -C $upstream_basedir fetch --tags origin"
+  echo "Then rerun this script."
+  rm -rf "$upstream_dir"
+  exit 6
 fi
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -218,8 +298,12 @@ while [ $commits_vendored -lt $num_commits ]; do
       exit 1
     }
 
-    rm -rf ${vendor_dir}
-
+    # The tree is not deleted here: rconfigure.py moves it aside itself and puts
+    # back the inode of every regenerated file that did not change, so a file
+    # whose content is the same keeps its stat cache entry and every later git
+    # command over ~3550 files stays cheap -- which this loop pays twice per
+    # candidate, kept or skipped. Files upstream dropped still go: they are in
+    # the tree that was moved aside, and never come back from it.
     echo "R: configure"
     DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
       echo "Error: Failed to configure"
@@ -247,7 +331,14 @@ while [ $commits_vendored -lt $num_commits ]; do
         echo "uncommitted, and the upstream clone is kept."
         echo "Rebase $f against them, keeping the rebased patch outside the tree,"
         echo "then 'git checkout -- .', put it back, and rerun this script."
-        echo "Delete it only after confirming its change is genuinely upstream."
+        echo "Delete it only after confirming its change is genuinely upstream --"
+        echo "the effect it had, however upstream reached it, not this diff."
+        echo "A deletion has to ride in the vendor commit for ${commit}, and this"
+        echo "script refuses to start on a dirty tree, so land it in three steps:"
+        echo "  git checkout -- . && git rm $f && git commit -m 'tmp: retire patch'"
+        echo "  $0 --commits 1 <upstream>"
+        echo "  git reset --soft HEAD~2 && git commit   # keep the vendor message,"
+        echo "                                          # add an 'R-side fix' section"
         exit 4
       fi
     done

@@ -105,7 +105,7 @@ The version counter gains a gap where the folded bump went,
 which is what a counter that orders rather than counts allows
 ([`versioning/`](/handbook/operations/releases/versioning/README.md)).
 The loop's own statement of the rule is in its repair stage
-([`series-loop.md`](/.claude/skills/series-loop.md)).
+([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
 
 ## Where a patch goes in the chain
 
@@ -149,5 +149,31 @@ its range is clean of what is being bisected for.
 An entry added at the top of the chain instead leaves the span below it
 carrying a defect the same branch already knows how to silence.
 
-*To deepen: absorb `scripts/VENDORING.md` § Troubleshooting —
-rebuilding the upstream clone, and the spurious `src/*.dd` churn.*
+## Two suspects that are not the vendoring
+
+**A broken or half-updated upstream clone.**
+Rule it out by vendoring from a fresh one rather than by inspecting the old one:
+
+```bash
+git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
+git -C /tmp/duckdb-vendor checkout v1.4-andium   # the target series
+scripts/vendor.sh /tmp/duckdb-vendor
+R CMD INSTALL .
+```
+
+**A `src/*.dd` file the build rewrote.**
+This used to be recorded here as spurious churn to revert with `git checkout -- src/*.dd`,
+and that advice is withdrawn.
+A `.dd` is rewritten only when its own `.cpp` is newer,
+so a build that rewrites one is reporting that the glue's include graph moved,
+and reverting it puts the stale dependency list back
+([`build/source-build/`](/handbook/build/source-build/README.md)).
+Vendoring cpp11 under `src/vendor/` is what that advice cost:
+the `.dd` files went on naming no cpp11 header at all until
+[#2719](https://github.com/duckdb/duckdb-r/pull/2719),
+and in between no glue object rebuilt when those headers changed.
+Commit the rewrite, and read a large one as the include graph having moved.
+
+It still matters that a rewritten `.dd` leaves the tree dirty,
+because [`vendor-one.sh`](/scripts/vendor-one.sh) refuses to start on one —
+which is a reason to commit it, not to revert it.

@@ -1,3 +1,18 @@
+// glibc's <langinfo.h> defines GROUPING as a macro under _GNU_SOURCE,
+// and the table below spells the bison token names bare.
+// A translation unit that reaches <langinfo.h> after parser/gram.hpp
+// -- which is what libc++ does when <vector> keeps its transitive includes --
+// therefore expands GROUPING to the nl_item 65538 instead of the token code 439.
+// 65538 does not fit the int16_t field it initializes,
+// so the aggregate initializer below is a hard -Wc++11-narrowing error;
+// on a compiler that lets it through it would be a silently wrong parser.
+//
+// gram.hpp declares every token as an `enum yytokentype` enumerator as well as a macro,
+// so dropping the macro leaves the same value behind.
+// Undoing it here, at the one place the bare token names are used as values,
+// is the seam that does not move:
+// the include order that poisons the name belongs to a system header, not to this tree.
+#undef GROUPING
 
 namespace duckdb_libpgquery {
 #define PG_KEYWORD(a,b,c) {a,b,c},

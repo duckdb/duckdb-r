@@ -3,7 +3,7 @@
 #' @usage NULL
 dbGetRowsAffected__duckdb_result <- function(res, ...) {
   if (!res@env$open) {
-    stop("result has already been cleared")
+    abort("result has already been cleared")
   }
   if (is.null(res@env$resultset)) {
     return(NA_integer_)

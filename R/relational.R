@@ -1,6 +1,4 @@
-# The relational API: lazy relation trees and the ALTREP data frames they
-# produce.  Internal -- every function here is @noRd, and duckplyr is the one
-# supported consumer.
+# The relational API: lazy relation trees and the ALTREP data frames they produce.  Internal -- every function here is @noRd, and duckplyr is the one supported consumer.
 # Explained in handbook/usage/relational/README.md.
 
 # expressions
@@ -20,7 +18,7 @@ expr_reference <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (inherits(table, "duckdb_relation")) {
@@ -51,7 +49,7 @@ expr_constant <- function(
   convert_opts = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -83,7 +81,7 @@ expr_operator <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -107,7 +105,7 @@ expr_comparison <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -133,7 +131,7 @@ expr_function <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -189,7 +187,7 @@ rel_from_df <- function(
   strict = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   # FIXME: Enable warning
@@ -221,7 +219,7 @@ as.data.frame.duckdb_relation <- function(
 ) {
   # nolint: object_name_linter
   if (!missing(row.names) || !missing(optional)) {
-    stop("row.names and optional parameters not supported")
+    abort("row.names and optional parameters not supported")
   }
   rethrow_rapi_rel_to_df(x)
 }
@@ -294,7 +292,8 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' Lazily reorder a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param orders a list of DuckDB expressions to order by
-#' @param ascending a vector of boolean values describing sort order of expressions. True for ascending.
+#' @param ascending a vector of boolean values describing sort order of expressions.
+#' True for ascending.
 #' @return the now aggregated `duckdb_relation` object
 #' @noRd
 #' @examples
@@ -307,7 +306,7 @@ rel_order <- function(rel, orders, ascending = NULL, nulls_first = NULL) {
   }
 
   if (length(orders) != length(ascending)) {
-    stop("length of ascending must equal length of orders")
+    abort("length of ascending must equal length of orders")
   }
 
   if (is.null(nulls_first)) {
@@ -315,7 +314,7 @@ rel_order <- function(rel, orders, ascending = NULL, nulls_first = NULL) {
   }
 
   if (length(orders) != length(nulls_first)) {
-    stop("length of nulls_first must equal length of orders")
+    abort("length of nulls_first must equal length of orders")
   }
 
   return(rethrow_rapi_rel_order(rel, orders, ascending, nulls_first))
@@ -363,13 +362,13 @@ expr_window <- function(
     ascending <- rep(TRUE, length(order_bys))
   }
   if (length(order_bys) != length(ascending)) {
-    stop("length of ascending must equal length of order_bys")
+    abort("length of ascending must equal length of order_bys")
   }
   if (is.null(nulls_first)) {
     nulls_first <- rep(FALSE, length(order_bys))
   }
   if (length(order_bys) != length(nulls_first)) {
-    stop("length of nulls_first must equal length of order_bys")
+    abort("length of nulls_first must equal length of order_bys")
   }
 
   expr_window_(
@@ -461,8 +460,8 @@ rel_join <- function(
 ) {
   join <- match.arg(join)
   join_ref_type <- match.arg(join_ref_type)
-  # the ref type is naturally regular. Users won't write rel_join(left, right, conds, "cross", "cross")
-  # so we update it here.
+  # the ref type is naturally regular.
+  # Users won't write rel_join(left, right, conds, "cross", "cross") so we update it here.
   if (join == "cross" && join_ref_type == "regular") {
     join_ref_type <- "cross"
   }
@@ -618,6 +617,8 @@ rel_set_alias <- function(rel, alias) {
 
 #' Transforms a relation object to a lazy data frame using altrep
 #' @param rel the DuckDB relation object
+#' @param ... reserved for future extensions, must be empty
+#' @param n_rows,n_cells the materialization budget, in rows and in cells
 #' @return a data frame
 #' @noRd
 #' @examples
@@ -626,17 +627,12 @@ rel_set_alias <- function(rel, alias) {
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(
   rel,
-  allow_materialization = TRUE,
+  ...,
   n_rows = Inf,
-  n_cells = Inf,
-  ...
+  n_cells = Inf
 ) {
-  # FIXME: Move dots after `rel` for duckplyr >= 1.1.0
   if (...length() > 0) {
-    stop("... must be empty")
-  }
-  if (!isTRUE(allow_materialization)) {
-    n_cells <- 0
+    abort("... must be empty")
   }
   rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
@@ -644,8 +640,7 @@ rel_to_altrep <- function(
 
 #' Retrieves the data frame back from a altrep df
 #' @param df the data frame created by rel_to_altrep
-#' @param strict whether to throw an error if the data frame is not an altrep
-#'   or if other criteria are not met
+#' @param strict whether to throw an error if the data frame is not an altrep or if other criteria are not met
 #' @param allow_materialized whether to succeed if the data frame is already materialized
 #' @return the relation object
 #' @noRd
@@ -689,19 +684,17 @@ rel_to_sql <- function(rel) {
 
 #' Create a duckdb relation from an SQL query
 #'
-#' Creates a relation that represents the result of an SQL query against the
-#' connection, without executing it.
+#' Creates a relation that represents the result of an SQL query against the connection, without executing it.
 #'
-#' If the connection was opened with `duckdb(environment_scan = TRUE)`, table
-#' references in `sql` that do not resolve in the database catalog are looked
-#' up in `env` (and its enclosing environments). Any data frame found this way
-#' is captured by the resulting relation and stays accessible for the lifetime
-#' of the relation, even after `env` is no longer reachable from R.
+#' If the connection was opened with `duckdb(environment_scan = TRUE)`,
+#' table references in `sql` that do not resolve in the database catalog are looked up in `env` (and its enclosing environments).
+#' Any data frame found this way is captured by the resulting relation and stays accessible for the lifetime of the relation,
+#' even after `env` is no longer reachable from R.
 #'
 #' @param con A duckdb connection.
 #' @param sql An SQL query.
-#' @param env An environment in which to look up data frames referenced by
-#'   `sql`. Defaults to the caller's environment.
+#' @param env An environment in which to look up data frames referenced by `sql`.
+#'   Defaults to the caller's environment.
 #' @return a duckdb relation
 #' @noRd
 #' @examples
@@ -719,7 +712,7 @@ rel_to_sql <- function(rel) {
 #' as.data.frame(rel2)
 rel_from_sql <- function(con, sql, env = parent.frame()) {
   if (!is.environment(env)) {
-    stop("`env` must be an environment.", call. = FALSE)
+    abort("`env` must be an environment.")
   }
   rethrow_rapi_rel_from_sql(con@conn_ref, sql, env)
 }
