@@ -15,30 +15,15 @@ set -eu
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(git rev-parse --show-toplevel)
-out=$here/defaults.md
 patch=$here/patches/pin-session.patch
+render=$here/../../scripts/render-reprex.R
 
 run() {
   policy=$1
   printf 'running %s\n' "$policy" >&2
   (cd "$root" && R CMD INSTALL . --no-byte-compile >/dev/null 2>&1)
-  {
-    printf '\n## %s\n\n' "$policy"
-    printf '```\n'
-    for tz in UTC Etc/UTC Europe/Zurich; do
-      TZ=$tz POLICY="$policy" Rscript "$here/defaults-grid.R" 2>&1 |
-        grep -v '^Loading required'
-    done
-    printf '```\n'
-  } >>"$out"
+  POLICY="$policy" Rscript "$render" "$here/defaults-grid.R" "defaults-$policy" >/dev/null
 }
-
-{
-  printf '# What the defaults do, per machine zone\n\n'
-  printf 'Recorded by `run-defaults.sh`; `README.md` says what the columns\n'
-  printf 'mean. `rel` is `rel_from_df()` then `rel_to_altrep()`; `dbi` is\n'
-  printf '`dbWriteTable()` then `dbReadTable()`. Nothing calls `SET TimeZone`.\n'
-} >"$out"
 
 run shipped
 

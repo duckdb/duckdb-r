@@ -17,14 +17,19 @@ R 4.5.3, Linux, machine zone `Etc/UTC`.
 [`usage/relational/`](/handbook/usage/relational/README.md)
 and [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
 
-Run [`run.sh`](run.sh) with `DUCKDB_R_USE_SYSTEM_LIB=1` on a clean
-tree; one policy's run is [`grid.R`](grid.R), the default-zone probe is
-[`default-zone.R`](default-zone.R), the policies other than the shipped
-one are the patches under [`patches/`](patches/),
-and the recorded run is [`grid.md`](grid.md).
-[`run-defaults.sh`](run-defaults.sh) asks the second question below over
+Run [`run.sh`](run.sh) with `DUCKDB_R_USE_SYSTEM_LIB=1` on a clean tree.
+One policy's run is [`grid.R`](grid.R), the policies other than the
+shipped one are the patches under [`patches/`](patches/), and each
+policy is recorded as its own reprex,
+`grid-baseline.md` through `grid-relaxed.md`;
+[`default-zone.R`](default-zone.R) is the probe below it, in
+[`default-zone.md`](default-zone.md).
+[`run-defaults.sh`](run-defaults.sh) asks the second question over
 [`defaults-grid.R`](defaults-grid.R), recorded in
-[`defaults.md`](defaults.md).
+[`defaults-shipped.md`](defaults-shipped.md) and
+[`defaults-pin-session.md`](defaults-pin-session.md).
+One reprex per build, because a policy is a build, and a machine zone
+is a process: icu reads the zone once, when it loads.
 
 **Why the check is in question.**
 `rel_from_df()` refuses a `POSIXct` column whose `tzone` is not
@@ -104,15 +109,17 @@ or duckplyr deciding a session-zone label is one it can live with
 **Why the machine zone is not a grid dimension.**
 Every cell sets the session zone explicitly, so the machine's `TZ`
 cannot reach the measurement. It decides only which row a user lands in
-by default, and that is what the default-zone probe records: five
-machine zones, five session zones, echoed verbatim. `Etc/UTC` in the
+by default, and that is what [`default-zone.md`](default-zone.md)
+records: five machine zones, five session zones, echoed verbatim. `Etc/UTC` in the
 run above is this container's `TZ`, not a DuckDB default.
 
 ## What the defaults do
 
 The grid above sets the session zone in every cell. Setting nothing is
 the commoner case, and it asks a different question: is the answer the
-same on every machine? [`defaults.md`](defaults.md) runs column label ×
+same on every machine? [`defaults-shipped.md`](defaults-shipped.md)
+and [`defaults-pin-session.md`](defaults-pin-session.md)
+run column label ×
 `timezone_out` against three machine zones, for the shipped tree and
 for `pin-session`, a patch that issues `SET TimeZone = timezone_out`
 at connect when icu is already loaded.

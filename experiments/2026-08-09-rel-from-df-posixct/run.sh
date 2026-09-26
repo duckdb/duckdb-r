@@ -1,5 +1,6 @@
 #!/bin/sh
-# Run grid.R once per policy, rebuilding the glue in between, into grid.md.
+# Run grid.R once per policy, rebuilding the glue in between, into one
+# reprex per policy: grid-<policy>.md.
 #
 # The shipped tree is the `timestamp-rel` policy; the other three are the
 # patches under patches/, applied with `git apply` and reverted after the run,
@@ -17,32 +18,21 @@ set -eu
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(git rev-parse --show-toplevel)
-out=$here/grid.md
+render=$here/../../scripts/render-reprex.R
 
 build_and_run() {
   policy=$1
   printf 'running %s\n' "$policy" >&2
   (cd "$root" && R CMD INSTALL . --no-byte-compile >/dev/null 2>&1)
-  {
-    printf '\n## %s\n\n' "$policy"
-    printf '```\n'
-    POLICY="$policy" Rscript "$here/grid.R" 2>&1
-    printf '```\n'
-  } >>"$out"
+  POLICY="$policy" Rscript "$render" "$here/grid.R" "grid-$policy" >/dev/null
 }
 
-{
-  printf '# `rel_from_df()` POSIXct grid\n\n'
-  printf 'Recorded by `run.sh`; what each column means is in `README.md`.\n'
-  printf '\n## default session zone\n\n'
-  printf 'Which grid row a user lands in without `SET TimeZone`, per machine\n'
-  printf 'zone. One process each: icu reads the zone once, when it loads.\n\n'
-  printf '```\n'
-  for tz in UTC Etc/UTC Europe/Zurich America/New_York Asia/Tokyo; do
-    TZ=$tz Rscript "$here/default-zone.R" 2>&1
-  done
-  printf '```\n'
-} >"$out"
+# The default session zone, one machine zone per process: icu reads the zone
+# once, when it loads, so a loop inside one session would not vary it.
+# Installed first, because the R library is shared with every other worktree
+# and whatever built last is what an unqualified `Rscript` would load.
+(cd "$root" && R CMD INSTALL . --no-byte-compile >/dev/null 2>&1)
+Rscript "$render" "$here/default-zone.R" default-zone >/dev/null
 
 # The baseline is the tree without `posixct` at all: the row every other
 # policy is compared against, measured rather than remembered.
