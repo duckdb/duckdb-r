@@ -58,11 +58,16 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return true;
 }
 
+// Every entry point that takes a query result asks this first: the pointer may have been released.
+static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *context) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context(context, "Invalid query result");
+	}
+}
+
 // Turn a DuckDB result set into an Arrow Table
 [[cpp11::register]] SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context("rapi_execute_arrow", "Invalid query result");
-	}
+	CheckQueryResult(qry_res, "rapi_execute_arrow");
 	if (!qry_res->result) {
 		rapi_error_with_context("rapi_execute_arrow", "Result has already been consumed");
 	}
@@ -175,9 +180,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 // nanoarrow's finalizer invokes `stream->release()`.
 [[cpp11::register]] void rapi_fetch_arrow_stream_into(duckdb::rqry_eptr_t qry_res, cpp11::sexp stream_xptr,
                                                       int chunk_size) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context("rapi_fetch_arrow_stream_into", "Invalid query result");
-	}
+	CheckQueryResult(qry_res, "rapi_fetch_arrow_stream_into");
 	if (chunk_size <= 0) {
 		rapi_error_with_context("rapi_fetch_arrow_stream_into", "Chunk Size must be higher than 0");
 	}
@@ -213,9 +216,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 // from the columns the result keeps: available before the first fetch,
 // and after the result has been read to the end or handed over.
 [[cpp11::register]] void rapi_arrow_schema(duckdb::rqry_eptr_t qry_res, cpp11::sexp schema_xptr) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context("rapi_arrow_schema", "Invalid query result");
-	}
+	CheckQueryResult(qry_res, "rapi_arrow_schema");
 	if (TYPEOF(schema_xptr.data()) != EXTPTRSXP) {
 		rapi_error_with_context("rapi_arrow_schema", "Expected an external pointer for schema");
 	}
@@ -235,9 +236,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 // typically from `nanoarrow::nanoarrow_allocate_array()`.
 // Returns TRUE when a chunk was fetched, FALSE when the stream is exhausted.
 [[cpp11::register]] bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr, int chunk_size) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context("rapi_fetch_arrow_array", "Invalid query result");
-	}
+	CheckQueryResult(qry_res, "rapi_fetch_arrow_array");
 	if (chunk_size <= 0) {
 		rapi_error_with_context("rapi_fetch_arrow_array", "Chunk Size must be higher than 0");
 	}
@@ -276,9 +275,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 // `array_xptr`: the batch a drained result answers with (handbook/usage/integrations/README.md).
 // The engine's converter builds it from an empty chunk, so it has the layout of every batch before it.
 [[cpp11::register]] void rapi_arrow_empty_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context("rapi_arrow_empty_array", "Invalid query result");
-	}
+	CheckQueryResult(qry_res, "rapi_arrow_empty_array");
 	if (TYPEOF(array_xptr.data()) != EXTPTRSXP) {
 		rapi_error_with_context("rapi_arrow_empty_array", "Expected an external pointer for array");
 	}
@@ -300,9 +297,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 
 // Turn a DuckDB result set into an RecordBatchReader
 [[cpp11::register]] SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context("rapi_record_batch", "Invalid query result");
-	}
+	CheckQueryResult(qry_res, "rapi_record_batch");
 	if (!qry_res->result) {
 		rapi_error_with_context("rapi_record_batch", "Result has already been consumed");
 	}
