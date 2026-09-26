@@ -45,6 +45,15 @@ rethrow_rapi_arrow_empty_array <- function(qry_res, array_xptr, call = parent.fr
   )
 }
 
+rethrow_rapi_release_arrow_result <- function(qry_res, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_release_arrow_result(qry_res),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_record_batch <- function(qry_res, chunk_size, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_record_batch(qry_res, chunk_size),
@@ -609,6 +618,7 @@ rethrow_restore <- function() {
   rethrow_rapi_arrow_schema <<- rapi_arrow_schema
   rethrow_rapi_fetch_arrow_array <<- rapi_fetch_arrow_array
   rethrow_rapi_arrow_empty_array <<- rapi_arrow_empty_array
+  rethrow_rapi_release_arrow_result <<- rapi_release_arrow_result
   rethrow_rapi_record_batch <<- rapi_record_batch
   rethrow_rapi_connect <<- rapi_connect
   rethrow_rapi_disconnect <<- rapi_disconnect
