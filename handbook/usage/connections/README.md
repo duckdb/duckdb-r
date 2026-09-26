@@ -14,11 +14,29 @@ The load-bearing facts:
   `dbConnect()` opens connections to it,
   and many connections share one instance.
 * For a file-based `dbdir` the instance is **cached**,
-  keyed by the normalized path —
-  DuckDB allows only one read-write handle per database file,
-  so reuse is what lets repeated
-  `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
+  keyed by the canonical path, in `driver_registry`.
   An in-memory database is never cached.
+* **That cache is a correctness guard, not an optimization.**
+  The engine's file lock is per-process, and `rapi_startup()` builds a `DuckDB` directly,
+  so a second read-write instance on a file this process already holds opens without complaint.
+  The two then diverge: each sees what was committed before it opened and nothing the other writes afterwards.
+  `driver_registry` is what keeps one R session to one writer per database,
+  so a key that fails to unify two spellings of one file is a data-integrity bug rather than a missed reuse
+  ([`2026-08-09-path-canonicalization/`](/experiments/2026-08-09-path-canonicalization/README.md)).
+* **The key is the engine's path, not R's.**
+  `path_normalize()` asks DuckDB through `rapi_canonicalize_path()` rather than calling `normalizePath()`,
+  because the identity that decides whether two calls collide on a lock is the engine's.
+  DuckDB canonicalizes the longest existing prefix and appends the rest,
+  so a database that does not exist yet resolves without anything being created,
+  and gets the same key it will keep once it does.
+  Two spellings of one database (relative, symlinked, differently separated) therefore share an instance.
+  Only `~` stays R's to expand: DuckDB has its own idea of the home directory, and on Windows it is not R's.
+  A path that resolves no further is used as it stands rather than refused:
+  a network drive whose directories the user may traverse but not list
+  is one the engine opens and `normalizePath()` refuses
+  ([#455](https://github.com/duckdb/duckdb-r/issues/455)).
+  A path the engine cannot open, in a directory that does not exist for one,
+  still fails in `duckdb()` with the engine's error naming it, and leaves nothing cached.
 * `dbdir`, `config`, `read_only`, `home`, and `shared_home`
   all describe the *instance*, so they bind when it is created —
   and `dbConnect()` accepts every one of them anyway,
@@ -59,16 +77,6 @@ The load-bearing facts:
   The cost is bounded by comparing values rather than counting
   arguments: the calls that break are the ones that were already not
   doing what they said.
-* **Normalization resolves the path as far as it goes, and no further.**
-  A database file that does not exist yet is resolved through an empty
-  placeholder `duckdb()` creates and removes again,
-  so a `dbdir` in a directory that cannot be written to fails at
-  `duckdb()` rather than in the engine.
-  Creating that placeholder is the only step that has to succeed:
-  a path `normalizePath()` cannot resolve is kept as it stands.
-  Asking for more refused the network drive whose parent directories
-  the user may traverse but not list
-  ([#455](https://github.com/duckdb/duckdb-r/issues/455)).
 * **A `dbdir` an extension answers is not normalized.**
   `md:` (MotherDuck), `ducklake:` and their kind name a replacement
   open, not a file, so they pass through untouched; normalizing one
