@@ -14,6 +14,25 @@ void duckdb::ConnDeleter(ConnWrapper *conn) {
 	delete conn;
 }
 
+// Closing the connection closes the results still open on it: each lets go of its prepared statement, its query
+// result or its stream, which is where the connection's client context was held, so the context, and the database
+// instance it holds, go with the connection rather than living on in a result the driver knows nothing about
+// (handbook/architecture/glue/objects/README.md). The R objects stay, and report that their connection has closed.
+// Closing a result does not take it out of its set, so each loop is safe, and the sets die with the connection.
+ConnWrapper::~ConnWrapper() {
+	for (auto stmt : statements) {
+		stmt->Close();
+	}
+	// A query result owns the stream it reads through and destroys it here, which takes that stream out of `streams`
+	// before the loop below reaches it.
+	for (auto result : query_results) {
+		result->Close();
+	}
+	for (auto stream : streams) {
+		stream->Close();
+	}
+}
+
 unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
 	return make_uniq<RProgressBarDisplay>();
 }
@@ -82,11 +101,16 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	return conn_eptr_t(conn_wrapper.release());
 }
 
-[[cpp11::register]] void rapi_disconnect(duckdb::conn_eptr_t conn) {
+// Closes the connection, and with it the results still open on it (~ConnWrapper), and says how many there were:
+// DBI asks for a warning when a connection closes with results uncleared (dbDisconnect__duckdb_connection.R).
+[[cpp11::register]] int rapi_disconnect(duckdb::conn_eptr_t conn) {
 	auto conn_wrapper = conn.release();
-	if (conn_wrapper) {
-		delete conn_wrapper;
+	if (!conn_wrapper) {
+		return 0;
 	}
+	auto open_results = static_cast<int>(conn_wrapper->statements.size());
+	delete conn_wrapper;
+	return open_results;
 }
 
 [[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {

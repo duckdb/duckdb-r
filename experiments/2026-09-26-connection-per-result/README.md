@@ -16,7 +16,7 @@ against the released `libduckdb` v1.5.5 (upstream commit `d8cdaa33fd`) that
 with nanoarrow 0.9.0, bench 1.1.4 and callr 3.8.0 beside it.
 The C++ case compiles against the vendored headers and links that same library.
 Method: [`run.sh`](run.sh), one script per question, output in [`transcript.txt`](transcript.txt);
-the one case run again after #2775 is named where it is read.
+the two cases run again after #2775 and #2789 are named where they are read.
 
 *What it supports:* [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md),
 which states the mapping and what follows from it,
@@ -94,6 +94,11 @@ The driver reports no instance, another process is refused the file (`Conflictin
 and this process opens it again, since a POSIX record lock is held per process and the driver registry has forgotten the instance.
 A table created through the second instance is not seen by the first,
 so the file has two instances in one process until the result is cleared.
+[#2789](https://github.com/duckdb/duckdb-r/pull/2789), which followed this run, closes the results still open on a connection with it;
+[`result-lifetime.R`](result-lifetime.R) run again on a tree carrying it, in [`transcript-after-2789.txt`](transcript-after-2789.txt),
+warns at `dbDisconnect()`, reports the result invalid, fails each read and rebind with
+`The connection this result was sent on has been closed`, and finds the file free: another process opens it at once,
+and the reopen in this process is the only instance there is.
 
 **Two contexts run at once, one context serializes, and what that buys depends on the query.**
 

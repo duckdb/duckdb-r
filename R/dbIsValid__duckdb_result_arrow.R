@@ -2,7 +2,8 @@
 #' @inheritParams DBI::dbIsValid
 #' @usage NULL
 dbIsValid__duckdb_result_arrow <- function(dbObj, ...) {
-  dbObj@env$open
+  # Cleared, or closed with its connection: see check_result_open() in Result.R.
+  dbObj@env$open && dbIsValid(dbObj@connection)
 }
 
 #' @rdname duckdb_result_arrow-class
