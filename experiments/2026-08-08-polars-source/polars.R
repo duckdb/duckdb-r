@@ -43,9 +43,12 @@ polars_schema(pdf)$children$b$format
 # The nanoarrow shim, with projection expressed as a Polars select.
 register_polars_eager <- function(con, name, x) {
   export_fun <- function(x, stream_ptr, projection = NULL, filter = TRUE) {
-    if (!is.null(projection)) x <- x$select(projection)
+    if (!is.null(projection)) {
+      x <- x$select(projection)
+    }
     nanoarrow::nanoarrow_pointer_export(
-      nanoarrow::as_nanoarrow_array_stream(x), stream_ptr
+      nanoarrow::as_nanoarrow_array_stream(x),
+      stream_ptr
     )
   }
   get_schema_fun <- function(x, schema_ptr) {
@@ -53,7 +56,8 @@ register_polars_eager <- function(con, name, x) {
   }
   expr_factory <- function(...) stop("this producer cannot filter")
   duckdb:::rapi_register_arrow(
-    con@conn_ref, name,
+    con@conn_ref,
+    name,
     list(export_fun, expr_factory, expr_factory, expr_factory, get_schema_fun),
     x
   )
@@ -85,7 +89,10 @@ cat(dbGetQuery(con, "EXPLAIN SELECT * FROM pl_num WHERE a > 3")[[2]])
 # layouts by default; asking for the oldest turns string_view into
 # large_utf8, and the filter becomes pushable again.
 nanoarrow::infer_nanoarrow_schema(
-  nanoarrow::as_nanoarrow_array_stream(pdf$head(0), polars_compat_level = "oldest")
+  nanoarrow::as_nanoarrow_array_stream(
+    pdf$head(0),
+    polars_compat_level = "oldest"
+  )
 )$children$b$format
 
 # --- 4. The pushdown route: translate the filter into Polars ------------
@@ -94,7 +101,8 @@ nanoarrow::infer_nanoarrow_schema(
 # uses -- an expression builder, a column reference, and a scalar.
 # Nothing says they have to build Arrow expressions.
 polars_expr <- function(name, op1, op2 = NULL) {
-  switch(name,
+  switch(
+    name,
     equal = op1 == op2,
     not_equal = op1 != op2,
     greater = op1 > op2,
@@ -112,17 +120,23 @@ polars_expr <- function(name, op1, op2 = NULL) {
 register_polars_lazy <- function(con, name, x) {
   lf <- as_polars_lf(x)
   export_fun <- function(lf, stream_ptr, projection = NULL, filter = TRUE) {
-    if (!isTRUE(filter)) lf <- lf$filter(filter)
-    if (!is.null(projection)) lf <- lf$select(projection)
+    if (!isTRUE(filter)) {
+      lf <- lf$filter(filter)
+    }
+    if (!is.null(projection)) {
+      lf <- lf$select(projection)
+    }
     nanoarrow::nanoarrow_pointer_export(
-      nanoarrow::as_nanoarrow_array_stream(lf$collect()), stream_ptr
+      nanoarrow::as_nanoarrow_array_stream(lf$collect()),
+      stream_ptr
     )
   }
   get_schema_fun <- function(lf, schema_ptr) {
     nanoarrow::nanoarrow_pointer_export(polars_schema(lf), schema_ptr)
   }
   duckdb:::rapi_register_arrow(
-    con@conn_ref, name,
+    con@conn_ref,
+    name,
     list(export_fun, polars_expr, pl$col, pl$lit, get_schema_fun),
     lf
   )
@@ -145,7 +159,10 @@ types <- list(
   character = c("a", "äöü", NA),
   factor = factor(c("x", "y", NA)),
   Date = as.Date(c("2024-01-01", "2024-06-15", NA)),
-  POSIXct = as.POSIXct(c("2024-01-01 10:00:00", "2024-06-15 10:00:00", NA), tz = "UTC"),
+  POSIXct = as.POSIXct(
+    c("2024-01-01 10:00:00", "2024-06-15 10:00:00", NA),
+    tz = "UTC"
+  ),
   difftime = as.difftime(c(1, 2, NA), units = "secs"),
   integer64 = bit64::as.integer64(c(1, 2, NA)),
   list_int = NULL
@@ -167,21 +184,26 @@ probe_one <- function(value, how) {
       type <- dbGetQuery(con, "SELECT typeof(x) AS t FROM t LIMIT 1")$t[[1]]
       list(type = type, value = dbGetQuery(con, "SELECT * FROM t")$x)
     },
-    error = function(e) list(type = paste("ERROR:", conditionMessage(e)), value = NULL)
+    error = function(e) {
+      list(type = paste("ERROR:", conditionMessage(e)), value = NULL)
+    }
   )
 }
 
-grid <- do.call(rbind, lapply(names(types), function(name) {
-  native <- probe_one(types[[name]], "r_dataframe_scan")
-  pl_res <- probe_one(types[[name]], "polars")
-  data.frame(
-    column = name,
-    native_type = substr(native$type, 1, 40),
-    polars_type = substr(pl_res$type, 1, 40),
-    agree = identical(native$value, pl_res$value),
-    stringsAsFactors = FALSE
-  )
-}))
+grid <- do.call(
+  rbind,
+  lapply(names(types), function(name) {
+    native <- probe_one(types[[name]], "r_dataframe_scan")
+    pl_res <- probe_one(types[[name]], "polars")
+    data.frame(
+      column = name,
+      native_type = substr(native$type, 1, 40),
+      polars_type = substr(pl_res$type, 1, 40),
+      agree = identical(native$value, pl_res$value),
+      stringsAsFactors = FALSE
+    )
+  })
+)
 grid
 
 # --- 6. What the export and the pushdown cost ---------------------------
@@ -198,27 +220,55 @@ register_polars_lazy(con2, "pl_lazy", big_pl)
 timing <- function(label, expr) {
   expr <- substitute(expr)
   eval(expr, parent.frame())
-  t <- system.time(for (i in 1:3) eval(expr, parent.frame()))
-  data.frame(what = label, elapsed_per_run = round(unname(t[["elapsed"]]) / 3, 3))
+  t <- system.time(
+    for (i in 1:3) {
+      eval(expr, parent.frame())
+    }
+  )
+  data.frame(
+    what = label,
+    elapsed_per_run = round(unname(t[["elapsed"]]) / 3, 3)
+  )
 }
 
 # Unfiltered: what the Arrow export costs over the built-in scan.
-do.call(rbind, list(
-  timing("native  sum(d)", dbGetQuery(con2, "SELECT sum(d) FROM native")),
-  timing("polars  sum(d), eager", dbGetQuery(con2, "SELECT sum(d) FROM pl_eager")),
-  timing("polars  sum(d), lazy", dbGetQuery(con2, "SELECT sum(d) FROM pl_lazy"))
-))
+do.call(
+  rbind,
+  list(
+    timing("native  sum(d)", dbGetQuery(con2, "SELECT sum(d) FROM native")),
+    timing(
+      "polars  sum(d), eager",
+      dbGetQuery(con2, "SELECT sum(d) FROM pl_eager")
+    ),
+    timing(
+      "polars  sum(d), lazy",
+      dbGetQuery(con2, "SELECT sum(d) FROM pl_lazy")
+    )
+  )
+)
 
 # Filtered to ten rows in five million, in memory. The pushdown saves
 # the transfer but not the scan, because Polars still walks every row.
-do.call(rbind, list(
-  timing("native  selective filter",
-    dbGetQuery(con2, "SELECT sum(d) FROM native WHERE i > 4999990")),
-  timing("polars  selective filter, pushed",
-    dbGetQuery(con2, "SELECT sum(d) FROM pl_lazy WHERE i > 4999990")),
-  timing("polars  selective filter, not pushed",
-    dbGetQuery(con2, "WITH t AS MATERIALIZED (SELECT * FROM pl_lazy) SELECT sum(d) FROM t WHERE i > 4999990"))
-))
+do.call(
+  rbind,
+  list(
+    timing(
+      "native  selective filter",
+      dbGetQuery(con2, "SELECT sum(d) FROM native WHERE i > 4999990")
+    ),
+    timing(
+      "polars  selective filter, pushed",
+      dbGetQuery(con2, "SELECT sum(d) FROM pl_lazy WHERE i > 4999990")
+    ),
+    timing(
+      "polars  selective filter, not pushed",
+      dbGetQuery(
+        con2,
+        "WITH t AS MATERIALIZED (SELECT * FROM pl_lazy) SELECT sum(d) FROM t WHERE i > 4999990"
+      )
+    )
+  )
+)
 
 # --- 7. What crosses the boundary ---------------------------------------
 
@@ -231,20 +281,30 @@ exported <- NULL
 register_polars_counting <- function(con, name, x) {
   lf <- as_polars_lf(x)
   export_fun <- function(lf, stream_ptr, projection = NULL, filter = TRUE) {
-    if (!isTRUE(filter)) lf <- lf$filter(filter)
-    if (!is.null(projection)) lf <- lf$select(projection)
+    if (!isTRUE(filter)) {
+      lf <- lf$filter(filter)
+    }
+    if (!is.null(projection)) {
+      lf <- lf$select(projection)
+    }
     out <- lf$collect()
-    exported <<- rbind(exported, data.frame(rows = out$height, cols = out$width))
+    exported <<- rbind(
+      exported,
+      data.frame(rows = out$height, cols = out$width)
+    )
     nanoarrow::nanoarrow_pointer_export(
-      nanoarrow::as_nanoarrow_array_stream(out), stream_ptr
+      nanoarrow::as_nanoarrow_array_stream(out),
+      stream_ptr
     )
   }
   get_schema_fun <- function(lf, schema_ptr) {
     nanoarrow::nanoarrow_pointer_export(polars_schema(lf), schema_ptr)
   }
   duckdb:::rapi_register_arrow(
-    con@conn_ref, name,
-    list(export_fun, polars_expr, pl$col, pl$lit, get_schema_fun), lf
+    con@conn_ref,
+    name,
+    list(export_fun, polars_expr, pl$col, pl$lit, get_schema_fun),
+    lf
   )
   invisible(TRUE)
 }
@@ -277,14 +337,29 @@ dbGetQuery(con2, "SELECT sum(c1) FROM pl_scan_s WHERE c1 > 1999990")
 exported
 
 # Which is also what it costs.
-do.call(rbind, list(
-  timing("duckdb  read_parquet",
-    dbGetQuery(con2, sprintf("SELECT sum(c1) FROM read_parquet('%s') WHERE c1 > 1999990", path))),
-  timing("polars  scan_parquet, filter pushed",
-    dbGetQuery(con2, "SELECT sum(c1) FROM pl_scan WHERE c1 > 1999990")),
-  timing("polars  scan_parquet, filter not pushable",
-    dbGetQuery(con2, "SELECT sum(c1) FROM pl_scan_s WHERE c1 > 1999990"))
-))
+do.call(
+  rbind,
+  list(
+    timing(
+      "duckdb  read_parquet",
+      dbGetQuery(
+        con2,
+        sprintf(
+          "SELECT sum(c1) FROM read_parquet('%s') WHERE c1 > 1999990",
+          path
+        )
+      )
+    ),
+    timing(
+      "polars  scan_parquet, filter pushed",
+      dbGetQuery(con2, "SELECT sum(c1) FROM pl_scan WHERE c1 > 1999990")
+    ),
+    timing(
+      "polars  scan_parquet, filter not pushable",
+      dbGetQuery(con2, "SELECT sum(c1) FROM pl_scan_s WHERE c1 > 1999990")
+    )
+  )
+)
 
 unlink(c(path, path2))
 dbDisconnect(con2)
