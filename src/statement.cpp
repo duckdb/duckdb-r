@@ -1,4 +1,5 @@
 #include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
@@ -73,7 +74,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	vector<unique_ptr<SQLStatement>> statements;
 	try {
-		statements = conn->conn->ExtractStatements(query.c_str());
+		Parser parser(conn->conn->context->GetParserOptions());
+		parser.ParseQuery(query);
+		statements = std::move(parser.statements);
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		error.AddErrorLocation(query);
@@ -105,21 +108,40 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 
-	// if there are multiple statements, we directly execute the statements besides the last one
-	// we only return the result of the last statement to the user, unless one of the previous statements fails
-	for (idx_t i = 0; i + 1 < statements.size(); i++) {
-		auto res = conn->conn->Query(std::move(statements[i]));
-
-		signal_handler.HandleInterrupt();
-
-		if (res->HasError()) {
-			// `GetErrorObject()`, not `GetError()`: the latter is the formatted
-			// message, and rebuilding an `ErrorData` from it would report every
-			// failure as INVALID with no extra info.
-			rapi_error_with_context("rapi_prepare", res->GetErrorObject());
+	unique_ptr<SQLStatement> last_statement;
+	for (idx_t i = 0; i < statements.size(); i++) {
+		vector<unique_ptr<SQLStatement>> fragments;
+		fragments.push_back(std::move(statements[i]));
+		try {
+			conn->conn->context->PreprocessStatements(fragments);
+		} catch (std::exception &ex) {
+			ErrorData error(ex);
+			error.AddErrorLocation(query);
+			rapi_error_with_context("rapi_prepare", error);
+		}
+		for (idx_t j = 0; j < fragments.size(); j++) {
+			auto &fragment = fragments[j];
+			if (!conn->db->allow_extensions && fragment->type == StatementType::LOAD_STATEMENT) {
+				rapi_error_with_context("load_extension", "");
+			}
+			if (i + 1 == statements.size() && j + 1 == fragments.size()) {
+				last_statement = std::move(fragment);
+				break;
+			}
+			auto res = conn->conn->Query(std::move(fragment));
+			signal_handler.HandleInterrupt();
+			if (res->HasError()) {
+				// `GetErrorObject()`, not `GetError()`: the latter is the formatted
+				// message, and rebuilding an `ErrorData` from it would report every
+				// failure as INVALID with no extra info.
+				rapi_error_with_context("rapi_prepare", res->GetErrorObject());
+			}
 		}
 	}
-	auto stmt = conn->conn->Prepare(std::move(statements.back()));
+	if (!last_statement) {
+		rapi_error_with_context("rapi_prepare", "No statements to execute");
+	}
+	auto stmt = conn->conn->Prepare(std::move(last_statement));
 
 	signal_handler.HandleInterrupt();
 
