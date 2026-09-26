@@ -392,13 +392,23 @@ verify_counter() { # <worktree> <ref the replay started from>
 }
 
 # --- stage 3: the all-green prefix -------------------------------------------
+#
+# A failure ends the walk the way a missing verdict does, and the prefix below
+# it still counts. Every commit under the red one was decided by a run of its
+# own, a repair replays only the tail above it, and green is the ref r-universe
+# installs -- so refusing the whole stage left verified commits unpublished for
+# as long as the repair took, which is the one cost the frontier exists to
+# avoid. The red is still fatal, one stage later: green and `-build-base` are
+# set first, then the firing stops before stage 5 extends `-dev` onto a tip a
+# repair is about to re-mint (.claude/skills/series-loop/SKILL.md, stages 3 and 5).
 new_green=$(git rev-parse "$green")
+failed= failed_state=
 while IFS= read -r sha; do
   st=$(state_of "$sha")
   case "$st" in
     success) new_green="$sha" ;;
     missing|pending) break ;;
-    *) echo "Error: $sha is '$st' — repair before advancing"; exit 1 ;;
+    *) failed=$sha failed_state=$st; break ;;
   esac
 done < <(git rev-list --reverse "$green..$dev")
 
@@ -467,6 +477,14 @@ if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
     echo "  force. r-universe is serving the canonical copy meanwhile." >&2
     exit 1
   fi
+fi
+
+# A red commit in flight stops the firing here, with the frontier already moved.
+# Stage 2 is going to fold a fix into it and replay everything above, so anything
+# stage 5 appended now would be minted only to be re-minted.
+if [ -n "$failed" ]; then
+  echo "Error: $failed is '$failed_state' — repair before extending -dev" >&2
+  exit 1
 fi
 
 # --- stage 5: extend -dev from the buffer ------------------------------------
