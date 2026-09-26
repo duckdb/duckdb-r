@@ -6,6 +6,8 @@
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
 #include "rapi.hpp"
 
+#include <cerrno>
+
 // Handbook: handbook/usage/integrations/README.md (the Arrow routes out of a query result),
 // and handbook/usage/memory/reading/README.md (what each route holds, and when it is freed)
 
@@ -96,6 +98,75 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
 }
 
+RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size)
+    : engine(std::move(result), batch_size) {
+	stream.get_schema = GetSchema;
+	stream.get_next = GetNext;
+	stream.get_last_error = GetLastError;
+	stream.release = Release;
+	stream.private_data = this;
+}
+
+// A streaming result that ran to the end has let go of its client context,
+// one that another statement on its connection invalidated still holds it
+// (vendored src/duckdb/src/main/stream_query_result.cpp).
+bool RArrowArrayStreamWrapper::Invalidated() {
+	auto &result = *engine.result;
+	if (result.type != QueryResultType::STREAM_RESULT || result.HasError()) {
+		return false;
+	}
+	auto &stream_result = result.Cast<StreamQueryResult>();
+	return stream_result.context && !stream_result.IsOpen();
+}
+
+int RArrowArrayStreamWrapper::ReportInvalidated() {
+	last_error = ErrorData(ExceptionType::INVALID_INPUT,
+	                       "The query result was invalidated by another statement on its connection "
+	                       "before it was read to the end. "
+	                       "Read it to the end first, or run the other statement on a separate connection.");
+	// A failing callback of the Arrow C stream interface returns an errno-compatible code, not the engine's -1
+	// (https://arrow.apache.org/docs/format/CStreamInterface.html).
+	return EINVAL;
+}
+
+int RArrowArrayStreamWrapper::GetSchema(ArrowArrayStream *stream, ArrowSchema *out) {
+	auto wrapper = reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data);
+	auto status = wrapper->engine.stream.get_schema(&wrapper->engine.stream, out);
+	// The engine's own message for an invalidated result says only that it is closed.
+	if (status != 0 && wrapper->Invalidated()) {
+		return wrapper->ReportInvalidated();
+	}
+	return status;
+}
+
+int RArrowArrayStreamWrapper::GetNext(ArrowArrayStream *stream, ArrowArray *out) {
+	auto wrapper = reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data);
+	// The engine reports an invalidated result as the end of the stream,
+	// which reads as a complete result (#2772).
+	if (wrapper->Invalidated()) {
+		return wrapper->ReportInvalidated();
+	}
+	return wrapper->engine.stream.get_next(&wrapper->engine.stream, out);
+}
+
+const char *RArrowArrayStreamWrapper::GetLastError(ArrowArrayStream *stream) {
+	auto wrapper = reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data);
+	if (wrapper->last_error.HasError()) {
+		return wrapper->last_error.Message().c_str();
+	}
+	return wrapper->engine.stream.get_last_error(&wrapper->engine.stream);
+}
+
+void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
+	if (!stream || !stream->release) {
+		return;
+	}
+	// The Arrow C data interface requires a release callback to mark the struct released by nulling `release`,
+	// as the engine's own callbacks do (vendored src/duckdb/src/common/arrow/arrow_wrapper.cpp).
+	stream->release = nullptr;
+	delete reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data);
+}
+
 // Move the streaming query result into a nanoarrow-owned ArrowArrayStream.
 // `stream_xptr` is a nanoarrow_array_stream external pointer whose target
 // `ArrowArrayStream` struct has been zero-initialized by
@@ -121,11 +192,11 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		rapi_error_with_context("rapi_fetch_arrow_stream_into", "Stream pointer is already initialized");
 	}
 
-	ResultArrowArrayStreamWrapper *wrapper;
+	RArrowArrayStreamWrapper *wrapper;
 	if (qry_res->stream_wrapper) {
 		wrapper = qry_res->stream_wrapper.release();
 	} else if (qry_res->result) {
-		wrapper = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+		wrapper = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
 	} else {
 		rapi_error_with_context("rapi_fetch_arrow_stream_into", "Result has already been consumed");
 	}
@@ -165,7 +236,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		if (!qry_res->result) {
 			rapi_error_with_context("rapi_fetch_arrow_array", "Result has already been consumed");
 		}
-		qry_res->stream_wrapper = make_uniq<ResultArrowArrayStreamWrapper>(std::move(qry_res->result), chunk_size);
+		qry_res->stream_wrapper = make_uniq<RArrowArrayStreamWrapper>(std::move(qry_res->result), chunk_size);
 	}
 
 	auto &stream = qry_res->stream_wrapper->stream;
