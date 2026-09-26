@@ -31,7 +31,9 @@ Authors@R: c(
     person("Oran Agra", role = "cph"),
     person("Redis Labs, Inc.", role = "cph"),
     person("Melissa O'Neill", role = "cph"),
-    person("PCG Project contributors", role = "cph")
+    person("PCG Project contributors", role = "cph"),
+    person("Jason Evans", role = "cph"),
+    person("Mozilla Foundation", role = "cph")
   )
 Description: The DuckDB project is an embedded analytical data management
     system with support for the Structured Query Language (SQL). This

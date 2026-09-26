@@ -9,6 +9,8 @@
 
 #include "jemalloc/jemalloc.h"
 #include "duckdb/malloc_ncpus.h"
+#include "duckdb/common/exception.hpp"
+#include "duckdb/common/string_util.hpp"
 
 #else
 #error "jemalloc support is only available on 64-bit Linux with DUCKDB_ENABLE_JEMALLOC enabled"
