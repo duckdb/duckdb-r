@@ -17,14 +17,19 @@ dbBind__duckdb_result <- function(res, params, ...) {
     abort("`params` must not be named")
   }
 
-  # Validate parameter count (mirrors rapi_bind C++ validation), so that
-  # structural errors still surface at bind time
+  # This mirrors the count check in `rapi_bind()`, which no longer runs at bind time,
+  # so a structural error still surfaces at `dbBind()`.
+  # It raises through `rapi_error()` like the glue does,
+  # so the condition keeps its class and `context` (`?duckdb_error`).
   n_param <- res@stmt_lst$n_param
   if (n_param == 0) {
-    abort("`dbBind()` called but query takes no parameters")
+    rapi_error("rapi_bind", "`dbBind()` called but query takes no parameters")
   }
   if (length(params) != n_param) {
-    abort(paste0("Bind parameters need to be a list of length ", n_param))
+    rapi_error(
+      "rapi_bind",
+      paste0("Bind parameters need to be a list of length ", n_param)
+    )
   }
 
   res@env$rows_fetched <- 0
