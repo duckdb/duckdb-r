@@ -27,9 +27,9 @@ rethrow_rapi_arrow_schema <- function(qry_res, schema_xptr, call = parent.frame(
   )
 }
 
-rethrow_rapi_fetch_arrow_array <- function(qry_res, array_xptr, schema_xptr, chunk_size, call = parent.frame(2)) {
+rethrow_rapi_fetch_arrow_array <- function(qry_res, array_xptr, chunk_size, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_fetch_arrow_array(qry_res, array_xptr, schema_xptr, chunk_size),
+    rapi_fetch_arrow_array(qry_res, array_xptr, chunk_size),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
