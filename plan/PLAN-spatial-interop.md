@@ -1,7 +1,7 @@
 # Plan: geometry on the write side, and the sf seam
 
 *This is a plan — work proposed, not a description of the system.
-[`usage/types/`](/handbook/usage/types/README.md) owns what geometry
+[`usage/spatial/`](/handbook/usage/spatial/README.md) owns what geometry
 does today, and where the two disagree, the leaf is right.
 The measurements it argues from are
 [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md),
@@ -99,17 +99,11 @@ Two changes in the glue, both small:
 This is a bug fix, not a feature, and it is what makes the rest
 diagnosable.
 
-### 2. Give the leaf the shorter route
+### 2. Give the leaf the shorter route (done)
 
-[`usage/types/`](/handbook/usage/types/README.md) currently documents
-the `ALTER TABLE … ALTER COLUMN … SET DATA TYPE GEOMETRY USING
-ST_GeomFromWKB()` route.
-It works, but it takes two statements and drops the CRS —
-`SET DATA TYPE GEOMETRY` names the bare type, so a CRS applied in the
-`USING` clause has nowhere to live.
-The one-statement WKT route belongs there instead, with the CRS form
-beside it and the note that naming a CRS in DDL needs `spatial`
-loaded while `ST_SetCRS()` does not.
+[`usage/spatial/`](/handbook/usage/spatial/README.md) gives the one-statement WKT route first, with the CRS form beside it,
+and keeps the `ALTER TABLE … ALTER COLUMN … SET DATA TYPE GEOMETRY USING ST_GeomFromWKB()` route
+with the note that it drops the CRS.
 
 ### 3. Write `wk_wkb` as `GEOMETRY`, not `BLOB`
 

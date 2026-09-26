@@ -66,7 +66,7 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-08-09-spatial-interop/`](2026-08-09-spatial-interop/) —
   which route carries a geometry across the R boundary, in each
   direction, what arrives, and what each does to the CRS; supports
-  [`usage/types/`](/handbook/usage/types/README.md) and
+  [`usage/spatial/`](/handbook/usage/spatial/README.md) and
   [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md).
 * [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
   what the published Windows `libduckdb` exports, and how much of what
@@ -114,6 +114,11 @@ This file is what names the contents, so nothing here is an orphan.
   whether `arrow::to_arrow()` can stream from `dbGetQueryArrow()` and still return what it returns today.
   Also what streaming changes about how long its reader stays valid, and its memory against the materializing route.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-26-type-catalog/`](2026-09-26-type-catalog/):
+  every DuckDB type in its documentation and its extensions, read into R and written back by every route,
+  through Arrow with and without lossless export,
+  and the values that change, collide with `NA`, or fail, before and after the fixes that came with it; supports
+  [`usage/types/`](/handbook/usage/types/README.md) and [`usage/spatial/`](/handbook/usage/spatial/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
