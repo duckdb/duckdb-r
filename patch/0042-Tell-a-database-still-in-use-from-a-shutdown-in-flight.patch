@@ -39,8 +39,11 @@ the file lock does not fire within one process, so creating would succeed
 and leave two instances writing one file, each blind to what the other
 commits.
 
-Staged for upstream in krlmlr/duckdb#178, and carried here until a
-release carries it.
+Staged for upstream in krlmlr/duckdb#200 (main), #201 (v1.5-variegata)
+and #202 (v2.0-cyanoptera), and carried here until a release carries it.
+The region it touches is identical on all three, so it is one patch; the
+file as a whole is not, because v2.0-cyanoptera carries a
+CreateEmptyInstance() that main and v1.5-variegata do not.
 ---
 diff --git a/src/duckdb/src/include/duckdb/main/db_instance_cache.hpp b/src/duckdb/src/include/duckdb/main/db_instance_cache.hpp
 index a8a14c41..3206b7f5 100644
@@ -57,7 +60,7 @@ index a8a14c41..3206b7f5 100644
  };
  
 diff --git a/src/duckdb/src/main/db_instance_cache.cpp b/src/duckdb/src/main/db_instance_cache.cpp
-index c774ba86..b33c0a2b 100644
+index c774ba86..3ca4db01 100644
 --- a/src/duckdb/src/main/db_instance_cache.cpp
 +++ b/src/duckdb/src/main/db_instance_cache.cpp
 @@ -1,9 +1,17 @@
@@ -78,7 +81,7 @@ index c774ba86..b33c0a2b 100644
  DatabaseCacheEntry::DatabaseCacheEntry() {
  }
  
-@@ -78,11 +86,48 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database,
+@@ -78,11 +86,47 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database,
  	}
  	// cache entry exists - check if the actual database still exists
  	if (!db_instance) {
@@ -113,9 +116,8 @@ index c774ba86..b33c0a2b 100644
 +					auto connections = ConnectionManager::Get(*live_instance).GetConnectionCount();
 +					live_instance.reset();
 +					if (connections > 0) {
-+						throw ConnectionException(
-+						    "Database \"%s\" is still in use: %llu connection(s) are open on it", database,
-+						    (unsigned long long)connections);
++						throw ConnectionException("Database \"%s\" is still in use: %llu connection(s) are open on it",
++						                          database, (unsigned long long)connections);
 +					}
 +					throw ConnectionException("Database \"%s\" is still in use: no connections are open, but "
 +					                          "something still holds it, such as an unfinished query result",
@@ -124,13 +126,13 @@ index c774ba86..b33c0a2b 100644
 +				grace = now + std::chrono::milliseconds(IN_USE_GRACE_MILLIS);
 +			}
 +			if (now > deadline) {
-+				throw ConnectionException("Database \"%s\" did not finish shutting down within %lld seconds",
-+				                          database, (long long)SHUTDOWN_WAIT_SECONDS);
++				throw ConnectionException("Database \"%s\" did not finish shutting down within %lld seconds", database,
++				                          (long long)SHUTDOWN_WAIT_SECONDS);
 +			}
  		}
  		D_ASSERT(!cache_entry);
  		// the cache entry has now been deleted - clear it from the set of database instances and return
-@@ -134,6 +179,7 @@ shared_ptr<DuckDB> DBInstanceCache::CreateInstanceInternal(const string &databas
+@@ -134,6 +178,7 @@ shared_ptr<DuckDB> DBInstanceCache::CreateInstanceInternal(const string &databas
  		db_instances_lock.unlock();
  		db_instance = make_shared_ptr<DuckDB>(instance_path, &config);
  		cache_entry->database = db_instance;

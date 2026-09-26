@@ -13,10 +13,12 @@ installs for the fast path
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 The patched side is a `RelWithDebInfo` build of `duckdb/duckdb` `main`
 (v2.1.0-dev10582) carrying
-[`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch);
-`src/main/db_instance_cache.cpp` is byte-identical on `main`, `v1.5-variegata`
-and `v2.0-cyanoptera`, so the two sides differ in the patch and not in the code
-it patches.
+[`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch).
+The vendored engine and that build share the code the patch touches, so the two
+sides differ in the patch and not in what it patches. The same holds for
+`v1.5-variegata`; `v2.0-cyanoptera` carries a `CreateEmptyInstance()` the other
+two do not, elsewhere in the same file, which is why the patch applies to all
+three while the files are not identical.
 Method: [`run.sh`](run.sh), driving one standalone source per case --
 [`in-use-connection.c`](in-use-connection.c), [`in-use-result.c`](in-use-result.c),
 [`shutdown-race.c`](shutdown-race.c) and [`shutdown-race-tight.cpp`](shutdown-race-tight.cpp) --
