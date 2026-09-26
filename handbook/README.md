@@ -14,16 +14,25 @@ and the same question brings both to the same leaf —
 an audience split would need the same fact in two places,
 and the tree holds every fact once.
 
+Two bodies of writing stay outside the tree, and the handbook says what each owns and links it rather than restating either.
+[`plan/`](/plan/README.md) holds intent: a design for work not done, and the record of one that came true or was overtaken.
+[`experiments/`](/experiments/README.md) holds the evidence a leaf leans on: what was measured, when, and on what.
+A leaf that paraphrases a plan has created a second copy of a proposal.
+A leaf that copies out a measurement has created a second copy of a record that ages.
+
 * [`usage/`](usage/) — installation and flavors, connections,
   statements, types, timestamps, extensions, memory, data import,
   storage, integrations, the relational API, interactive use
 * [`architecture/`](architecture/) — the R layer, the C++ glue,
   the embedded engine, the `rfuns` extension
-* [`build/`](build/) — source build, fast paths, build knobs
+* [`build/`](build/) — source build, fast paths, build knobs,
+  compiler warnings
 * [`testing/`](testing/) — suite, snapshots, guards, revdep
 * [`branches/`](branches/) — series, mirrors, flavors, invariants
 * [`operations/`](operations/) — vendoring, triage, review,
   CI, releases, the site
 * [`contributors/`](contributors/) — setup, workflow, where to help
 * [`meta/`](meta/) — the rules, the authoring checklist,
-  the plans, the glossary
+  the forms and the growth moves, the style rules,
+  the plans, the evidence convention, the glossary,
+  and what this repository decides for itself

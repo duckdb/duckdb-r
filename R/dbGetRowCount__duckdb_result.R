@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbGetRowCount
 #' @usage NULL
 dbGetRowCount__duckdb_result <- function(res, ...) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   return(res@env$rows_fetched)
 }
 

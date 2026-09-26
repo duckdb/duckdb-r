@@ -123,6 +123,14 @@ groups <- list(
     globs = c("series-*.sh", "r-universe-*.sh")
   ),
   list(
+    owner = "handbook/operations/releases/versioning",
+    globs = c("preview-prefix*")
+  ),
+  list(
+    owner = "handbook/branches/flavors",
+    globs = c("series.yaml", "series-table.R")
+  ),
+  list(
     owner = "handbook/operations/ci/per-commit/selection",
     globs = c("rcc-decided.sh")
   ),
@@ -148,15 +156,15 @@ groups <- list(
   ),
   list(
     owner = "handbook/branches/flavors",
-    globs = c("flavor*")
+    globs = c("flavor*", "reflavor*")
+  ),
+  list(
+    owner = "handbook/branches/mirrors",
+    globs = c("pull-config.sh")
   ),
   list(
     owner = "handbook/build/fast-paths",
     globs = c("install-*.sh")
-  ),
-  list(
-    owner = "handbook/build/configuration",
-    globs = c("setup-makeflags.R")
   ),
   list(
     owner = "handbook/architecture/glue/conventions",

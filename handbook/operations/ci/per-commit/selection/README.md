@@ -21,8 +21,10 @@ Branches without a green sibling fall back to first-parent history since `SINCE`
 
 That fallback is the one path that can reach past the store's retention window
 ([`store/`](/handbook/operations/ci/per-commit/store/README.md#retention-is-one-window)):
-`SINCE` defaults to a fixed date months back, while records are dropped after 30
-days, so a commit older than the window reads as undecided and is replanned.
+`SINCE` defaults to a fixed date, while records are dropped after 180 days,
+so a commit older than the window reads as undecided and is replanned —
+and because `SINCE` is fixed and the window is not,
+the gap between them widens with every month that passes.
 A series branch never sees it — `<S>-green` is far newer than the window — and
 the cost where it does bite is a rebuild, never a wrong verdict.
 Narrow `SINCE` on a branch with no green sibling if the rebuild is not wanted.
@@ -60,7 +62,7 @@ The remaining selection details:
   A store that cannot be read stops the plan rather than reporting nothing
   decided, which would replan the whole range.
 * A `retry-<S>-dev` branch — the series' own branch name with a prefix, see
-  [`series-loop.md`](/.claude/skills/series-loop.md) — replans **its tip**
+  [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) — replans **its tip**
   even when that commit already carries a verdict,
   so one commit can be judged again on its own SHA
   instead of being amended and taking its descendants with it.

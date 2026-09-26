@@ -310,7 +310,9 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	Vector vec(type, 1);
 	vec.SetValue(0, val);
 
-	SEXP dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
+	// Hold the destination across `duckdb_r_decorate()` and `duckdb_r_transform()`:
+	// both allocate, and an unprotected `dest` can be collected mid-conversion.
+	cpp11::sexp dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
 	duckdb_r_decorate(type, dest, convert_opts);
 	duckdb_r_transform(vec, dest, 0, 1, convert_opts, "variant");
 
@@ -339,8 +341,19 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// ALTREP guard depth counter; see the class comment in rapi.hpp.
+std::atomic<int> AltrepGuard::depth {0};
+
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Inside an ALTREP method, calling back into R via cpp11::function is
+	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
+	// method without unwinding C++ frames. Throw a regular C++ exception so
+	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + message);
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
@@ -354,6 +367,11 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Inside an ALTREP method, see comment in the string overload above.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + error_data.Message());
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 
@@ -364,21 +382,21 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	// Convert ExceptionType to string
 	std::string error_type = EnumUtil::ToChars(error_data.Type());
 
-	// Convert extra_info to R list
-	cpp11::writable::list extra_info;
+	// Convert extra_info to a named character vector, which `rapi_error()` hands
+	// to the caller as the `extra_info` field of the condition.
 	const auto &info_map = error_data.ExtraInfo();
 
 	cpp11::writable::strings names(info_map.size());
-	cpp11::writable::strings values(info_map.size());
+	cpp11::writable::strings extra_info(info_map.size());
 
 	size_t i = 0;
 	for (const auto &pair : info_map) {
 		names[i] = pair.first;
-		values[i] = pair.second;
+		extra_info[i] = pair.second;
 		i++;
 	}
 
-	values.names() = names;
+	extra_info.names() = names;
 
 	// Call R function with all parameters
 	rapi_error(context, message, error_type, raw_message, extra_info);
