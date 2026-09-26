@@ -474,28 +474,29 @@ for S in "${series[@]}"; do
   # neither half alone says so.
   # Compared by blob, not by name: `main` also edits an entry in place, and the
   # port brings the new content to `-dev` under a name the buffer already has,
-  # which a name-only comparison calls level.
+  # which a name-only comparison calls level. Such an entry is `edited`, as
+  # series-patch-sync.sh calls it, and is never carried.
   only_dev=$(comm -23 \
     <(git ls-tree --name-only "$dev" patch/ | sort) \
     <(git ls-tree --name-only "$build" patch/ | sort))
   only_build=$(comm -13 \
     <(git ls-tree --name-only "$dev" patch/ | sort) \
     <(git ls-tree --name-only "$build" patch/ | sort))
-  differs=$(for n in $(comm -12 \
+  edited=$(for n in $(comm -12 \
       <(git ls-tree --name-only "$dev" patch/ | sort) \
       <(git ls-tree --name-only "$build" patch/ | sort)); do
     [ "$(git rev-parse "$dev:$n")" = "$(git rev-parse "$build:$n")" ] || echo "$n"
   done)
-  if [ -n "$only_dev$only_build$differs" ]; then
+  if [ -n "$only_dev$only_build$edited" ]; then
     echo "  PATCH DRIFT  the two patch stacks of $S differ:"
     if [ -n "$only_dev" ]; then
-      sed 's|^patch/|               -dev only:    |' <<<"$only_dev"
+      printf '%s\n' "$only_dev" | sed 's|^patch/|               -dev only:    |'
     fi
     if [ -n "$only_build" ]; then
-      sed 's|^patch/|               -build only:  |' <<<"$only_build"
+      printf '%s\n' "$only_build" | sed 's|^patch/|               -build only:  |'
     fi
-    if [ -n "$differs" ]; then
-      sed 's|^patch/|               both, differ: |' <<<"$differs"
+    if [ -n "$edited" ]; then
+      printf '%s\n' "$edited" | sed 's|^patch/|               edited:       |'
     fi
     echo "               scripts/series-patch-sync.sh $S --remote $remote says which of these it can carry;"
     echo "               after a port, what is left is what it declined — stage 3 work"

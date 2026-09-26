@@ -34,12 +34,17 @@
 #              left alone: on this series' engine the entry answers nothing, and
 #              it reaches the buffer if and when the code it answers does.
 #
-# A candidate is any entry `-dev` has that the buffer does not have *in the same
-# bytes*. Comparing names alone misses the entry `main` edits in place -- widened
-# to cover more, or re-rooted after upstream moved -- which the port brings to
-# `-dev` while the buffer keeps the old content, under a name that matches.
-# `0009-Remove-stderr-for-zstd` is the standing example, and a name-only
-# comparison calls those two stacks level.
+# A candidate is any entry `-dev` has and the buffer does not have at all. One
+# both carry in different versions is **edited**, and never a candidate: `main`
+# changed it in place -- widened it to cover more, or re-rooted it after upstream
+# moved -- and the port brought the new version to `-dev` while the buffer kept
+# the old, under the same name. `0009-Remove-stderr-for-zstd` is the standing
+# example. A name-only comparison calls those two stacks level, so both are read
+# by blob; but the buffer's tree already carries the old version's effect, and
+# test-applying the new one against it answers for neither -- it comes out
+# `stale`, which it is not. Trading one version for the other is a reverse and an
+# apply, and whether the new one fits this engine at all is judgement, so an
+# edited entry is reported and never carried.
 #
 # A candidate whose files are also touched by an entry the buffer has and `-dev`
 # does not is a **supersession**, not an addition -- `0003-Fix-clang-warnings-in-re2`
@@ -97,21 +102,17 @@ build_only=$(comm -13 \
   <(git ls-tree --name-only "$build" patch/ | sort))
 
 # An entry can drift without either side gaining or losing a name: `main` edits
-# one in place -- widening what it covers, re-rooting it after upstream moved --
-# and the port brings the new content to `-dev` while the buffer keeps the old.
-# A name-only comparison reports the two stacks level and is wrong, so the
-# entries both sides have are compared by blob and join the candidates.
+# one in place and the port brings the new version to `-dev` while the buffer
+# keeps the old. The entries both sides have are compared by blob, and one that
+# differs is `edited` -- reported beside the candidates, never among them (above).
 both=$(comm -12 \
   <(git ls-tree --name-only "$dev" patch/ | sort) \
   <(git ls-tree --name-only "$build" patch/ | sort))
-for n in $both; do
-  if [ "$(git rev-parse "$dev:$n")" != "$(git rev-parse "$build:$n")" ]; then
-    dev_only=$(printf '%s\n%s' "$dev_only" "$n")
-  fi
-done
-dev_only=$(printf '%s' "$dev_only" | grep . | sort || true)
+edited=$(for n in $both; do
+  [ "$(git rev-parse "$dev:$n")" = "$(git rev-parse "$build:$n")" ] || echo "$n"
+done)
 
-if [ -z "$dev_only$build_only" ]; then
+if [ -z "$dev_only$build_only$edited" ]; then
   echo "$S: patch stacks level"
   exit 0
 fi
@@ -157,6 +158,8 @@ report carry "${carried[@]:-}"
 report satisfied "${satisfied[@]:-}"
 report stale "${stale[@]:-}"
 report supersedes "${superseded[@]:-}"
+# shellcheck disable=SC2086  # one entry per line, split deliberately
+report edited $edited
 # shellcheck disable=SC2086  # one entry per line, split deliberately
 report buffer-own $build_only
 

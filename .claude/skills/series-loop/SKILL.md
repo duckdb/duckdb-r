@@ -831,14 +831,23 @@ Three answers, three situations:
 to keep the two stacks named alike;
 *stale* is neither — upstream moved the code out from under it,
 and it reaches the buffer if and when the code it answers does.
+Two shapes are reported and never carried, because both are judgement.
 A candidate whose files an entry the buffer has and `-dev` lacks
-also touches is a **supersession** and is never carried:
-applying both is how the next vendor run breaks,
-and which of the two the buffer should end up with is judgement.
+also touches is a **supersession**,
+and applying both is how the next vendor run breaks.
+An entry both stacks carry in different versions is **edited**:
+`main` changed it in place and the port brought the new version to `-dev`,
+while the buffer's tree still carries the old version's effect.
+Test-applying the new one against that tree answers for neither version,
+and it would read as *stale*;
+trading one for the other is a reverse and an apply,
+and whether the new version fits the buffer's engine is a stage 3 question.
+`0009-Remove-stderr-for-zstd` is the standing example.
 
 `scripts/series-check.sh` still prints a PATCH DRIFT line per series,
-naming what the two stacks differ by in both directions —
-a renamed entry is one of each.
+naming what the two stacks differ by: an entry only `-dev` has,
+one only `-build` has — a renamed entry is one of each —
+and one both have in different versions.
 It is the backstop, not the mechanism:
 what it reports after a port is what the carry deliberately declined,
 which is a stage 3 repair like any patch this stage writes.
