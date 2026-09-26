@@ -101,6 +101,16 @@ Out: `dbGetQueryArrow()` returns a `nanoarrow_array_stream`,
 and `dbSendQueryArrow()` / `dbFetchArrowChunk()` stream a result
 batch by batch — true streaming since 1.5.4
 ([#162](https://github.com/duckdb/duckdb-r/issues/162)).
+The query result keeps its columns from execution on (`RQueryResult` in [`src/include/rapi.hpp`](/src/include/rapi.hpp)).
+So its Arrow schema is there before the first fetch (`rapi_arrow_schema()` in [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+So is an empty batch, which the engine's own converter builds from an empty chunk (`rapi_arrow_empty_array()`).
+It has the layout of the batches a fetch returns, which `nanoarrow_array_init()` would not:
+that leaves out the one offset a zero-length string, binary, list or map array still carries, and arrow refuses the array without it.
+Once `dbFetchArrowChunk()` has drained a result, it answers with that empty batch, and `dbFetchArrow()` with an empty stream.
+So does a result that `dbFetchArrow()` has handed over.
+Both keep the result's columns, `INTERVAL` included
+([#2773](https://github.com/duckdb/duckdb-r/issues/2773)).
+Only a zero-length `dbBind()` executes nothing, so what it answers has no columns.
 The stream is the interchange:
 any Arrow-C-stream consumer takes a result onward
 without an R data frame in between —
@@ -112,6 +122,16 @@ so a dedicated writer per frame library
 The stream feeds one consumer, draining as it is read,
 so a second pass over the same object sees zero rows
 rather than the result again.
+It also holds its connection until the engine has seen the end of the result, in a batch shorter than `chunk_size` or in an empty read.
+Another statement on that connection invalidates it.
+The next read is then an error, not an early end that would pass for a complete result
+([#2772](https://github.com/duckdb/duckdb-r/issues/2772)).
+So a stream whose last batch held exactly `chunk_size` rows is invalidated, although every row has arrived.
+The engine's own Arrow stream reports an invalidated result as ended
+(vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
+so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+Statements that must run between reads need a connection of their own.
+A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
 [`memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
