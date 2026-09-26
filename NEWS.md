@@ -1,5 +1,64 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9028
+
+## Bug fixes
+
+### rcc
+
+- Seed the in-window record the consolidation check asserts on (#2809).
+
+- `check_tz()` reads the Olson list again when `TZDIR` changes (#2810).
+
+- `dbClearResult()` ends the query of an Arrow stream not read to the end (#2793).
+
+### series-glue
+
+- Read the section under every spelling the folds gave it (#2746).
+
+- Keep `rapi_error_with_context()` out of R while an ALTREP method is on the stack (#1796, #1797).
+
+## Features
+
+- Include rfuns extension (hannes/duckdb-rfuns#78, #144).
+
+### series-cutover
+
+- Name the package versions before and after the swap (@krlmlr, #2697).
+
+### series-port
+
+- Take the stage-3 finding when the buffer minted nothing (#2710).
+
+## Documentation
+
+### meta
+
+- Record that an experiment renders its R output as a reprex (#2778).
+
+- Experiment with an `arrow::to_arrow()` replacement on `dbGetQueryArrow()` (#2801).
+
+### series-port
+
+- Name the `-x` trailer where a firing writes its own message (#2780).
+
+### rcc
+
+- Say plainly that the verdict store is live, plan its retirement as D6, and sync the buffer's tooling (#2625).
+
+## Refactoring
+
+- Rename the `streaming` convert option to `allow_stream_result` (#2599).
+
+## Uncategorized
+
+- Feat(ci): Report coverage on pull requests from this repository (cynkra/cynkratemplate#146).
+
+- Feat: Build a binary package in every check job and share it as an artifact (cynkra/cynkratemplate#141).
+
+- Fix(ci): Collect the fleet's workflow fixes after the move to central actions (cynkra/cynkratemplate#139).
+
+
 # duckdb 1.5.5.9027
 
 ## Bug fixes
