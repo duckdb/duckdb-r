@@ -85,7 +85,7 @@ so the paths differ by which copies they hold and when each is freed.
   for the result's whole lifetime, re-scanning it on each fetch.
   A fetch converts the entire result into arrow record batches and a
   Table (`rapi_execute_arrow()`,
-  [`src/statement.cpp`](/src/statement.cpp)),
+  [`src/arrow_export.cpp`](/src/arrow_export.cpp)),
   and `dbFetch()` stacks `as.data.frame()` on top:
   up to three copies coexist —
   the shape of the
@@ -184,7 +184,7 @@ result larger than memory, on three conditions:
   and `nanoarrow_pointer_release()` is what releases it.**
   A batch is a `nanoarrow_array` whose buffers the engine allocated
   with `malloc`, outside R's heap
-  (`rapi_fetch_arrow_array()`, [`src/statement.cpp`](/src/statement.cpp),
+  (`rapi_fetch_arrow_array()`, [`src/arrow_export.cpp`](/src/arrow_export.cpp),
   fills a struct that `nanoarrow::nanoarrow_allocate_array()` owns);
   what frees them is the struct's release callback,
   the engine's `ArrowAppender::ReleaseArray`.

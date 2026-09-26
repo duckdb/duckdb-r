@@ -5,6 +5,35 @@
 #include "cpp11/declarations.hpp"
 #include <R_ext/Visibility.h>
 
+// arrow_export.cpp
+SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size);
+extern "C" SEXP _duckdb_rapi_execute_arrow(SEXP qry_res, SEXP chunk_size) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_execute_arrow(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
+  END_CPP11
+}
+// arrow_export.cpp
+void rapi_fetch_arrow_stream_into(duckdb::rqry_eptr_t qry_res, cpp11::sexp stream_xptr, int chunk_size);
+extern "C" SEXP _duckdb_rapi_fetch_arrow_stream_into(SEXP qry_res, SEXP stream_xptr, SEXP chunk_size) {
+  BEGIN_CPP11
+    rapi_fetch_arrow_stream_into(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(stream_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size));
+    return R_NilValue;
+  END_CPP11
+}
+// arrow_export.cpp
+bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr, cpp11::sexp schema_xptr, int chunk_size);
+extern "C" SEXP _duckdb_rapi_fetch_arrow_array(SEXP qry_res, SEXP array_xptr, SEXP schema_xptr, SEXP chunk_size) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_fetch_arrow_array(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(array_xptr), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(schema_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
+  END_CPP11
+}
+// arrow_export.cpp
+SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size);
+extern "C" SEXP _duckdb_rapi_record_batch(SEXP qry_res, SEXP chunk_size) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_record_batch(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
+  END_CPP11
+}
 // connection.cpp
 duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual, duckdb::ConvertOpts convert_opts);
 extern "C" SEXP _duckdb_rapi_connect(SEXP dual, SEXP convert_opts) {
@@ -409,35 +438,6 @@ cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, duckdb::Conv
 extern "C" SEXP _duckdb_rapi_bind(SEXP stmt, SEXP params, SEXP convert_opts) {
   BEGIN_CPP11
     return cpp11::as_sexp(rapi_bind(cpp11::as_cpp<cpp11::decay_t<duckdb::stmt_eptr_t>>(stmt), cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(params), cpp11::as_cpp<cpp11::decay_t<duckdb::ConvertOpts>>(convert_opts)));
-  END_CPP11
-}
-// statement.cpp
-SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size);
-extern "C" SEXP _duckdb_rapi_execute_arrow(SEXP qry_res, SEXP chunk_size) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(rapi_execute_arrow(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
-  END_CPP11
-}
-// statement.cpp
-void rapi_fetch_arrow_stream_into(duckdb::rqry_eptr_t qry_res, cpp11::sexp stream_xptr, int chunk_size);
-extern "C" SEXP _duckdb_rapi_fetch_arrow_stream_into(SEXP qry_res, SEXP stream_xptr, SEXP chunk_size) {
-  BEGIN_CPP11
-    rapi_fetch_arrow_stream_into(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(stream_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size));
-    return R_NilValue;
-  END_CPP11
-}
-// statement.cpp
-bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr, cpp11::sexp schema_xptr, int chunk_size);
-extern "C" SEXP _duckdb_rapi_fetch_arrow_array(SEXP qry_res, SEXP array_xptr, SEXP schema_xptr, SEXP chunk_size) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(rapi_fetch_arrow_array(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(array_xptr), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(schema_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
-  END_CPP11
-}
-// statement.cpp
-SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size);
-extern "C" SEXP _duckdb_rapi_record_batch(SEXP qry_res, SEXP chunk_size) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(rapi_record_batch(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
   END_CPP11
 }
 // statement.cpp
