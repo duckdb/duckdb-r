@@ -1,0 +1,56 @@
+# Scratch, not for merge: `rcc-full`'s steps from R-CMD-check.yaml,
+# on R-release only, one runner per OS.
+# The full matrix is explained in handbook/operations/ci/matrix/README.md.
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+name: rcc-release
+
+permissions:
+  contents: read
+
+jobs:
+  rcc-release:
+    runs-on: ${{ matrix.os }}
+
+    name: "rcc: ${{ matrix.os }} (release)"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-26.04
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run the repository-specific before-install steps
+        uses: ./.github/workflows/custom/before-install
+
+      - name: Install R and the package dependencies
+        uses: cynkra/cynkratemplate/.github/actions/install@main
+        with:
+          r-version: release
+          cache-version: rcc-full-1
+          token: ${{ secrets.GITHUB_TOKEN }}
+          needs: build, check
+
+      - name: Run the repository-specific after-install steps
+        uses: ./.github/workflows/custom/after-install
+
+      - name: Must allow NOTEs if packages are missing, even with _R_CHECK_FORCE_SUGGESTS_
+        uses: cynkra/cynkratemplate/.github/actions/allow-notes-when-deps-missing@main
+
+      - name: Run R CMD check
+        uses: cynkra/cynkratemplate/.github/actions/check@main
+        with:
+          results: ${{ runner.os }}-${{ runner.arch }}-release
