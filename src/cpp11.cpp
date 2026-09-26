@@ -21,10 +21,26 @@ extern "C" SEXP _duckdb_rapi_fetch_arrow_stream_into(SEXP qry_res, SEXP stream_x
   END_CPP11
 }
 // arrow_export.cpp
+void rapi_arrow_schema(duckdb::rqry_eptr_t qry_res, cpp11::sexp schema_xptr);
+extern "C" SEXP _duckdb_rapi_arrow_schema(SEXP qry_res, SEXP schema_xptr) {
+  BEGIN_CPP11
+    rapi_arrow_schema(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(schema_xptr));
+    return R_NilValue;
+  END_CPP11
+}
+// arrow_export.cpp
 bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr, cpp11::sexp schema_xptr, int chunk_size);
 extern "C" SEXP _duckdb_rapi_fetch_arrow_array(SEXP qry_res, SEXP array_xptr, SEXP schema_xptr, SEXP chunk_size) {
   BEGIN_CPP11
     return cpp11::as_sexp(rapi_fetch_arrow_array(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(array_xptr), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(schema_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
+  END_CPP11
+}
+// arrow_export.cpp
+void rapi_arrow_empty_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr);
+extern "C" SEXP _duckdb_rapi_arrow_empty_array(SEXP qry_res, SEXP array_xptr) {
+  BEGIN_CPP11
+    rapi_arrow_empty_array(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(array_xptr));
+    return R_NilValue;
   END_CPP11
 }
 // arrow_export.cpp
@@ -480,6 +496,8 @@ extern "C" SEXP _duckdb_rapi_load_rfuns(SEXP dual) {
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_adbc_init_func",          (DL_FUNC) &_duckdb_rapi_adbc_init_func,           0},
+    {"_duckdb_rapi_arrow_empty_array",       (DL_FUNC) &_duckdb_rapi_arrow_empty_array,        2},
+    {"_duckdb_rapi_arrow_schema",            (DL_FUNC) &_duckdb_rapi_arrow_schema,             2},
     {"_duckdb_rapi_bind",                    (DL_FUNC) &_duckdb_rapi_bind,                     3},
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                  2},
     {"_duckdb_rapi_connection_valid",        (DL_FUNC) &_duckdb_rapi_connection_valid,         1},

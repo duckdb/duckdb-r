@@ -208,6 +208,28 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	wrapper->stream.release = nullptr;
 }
 
+// Write the Arrow schema of a query result into the nanoarrow-owned struct behind `schema_xptr`,
+// from the columns the result keeps: available before the first fetch,
+// and after the result has been read to the end or handed over.
+[[cpp11::register]] void rapi_arrow_schema(duckdb::rqry_eptr_t qry_res, cpp11::sexp schema_xptr) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context("rapi_arrow_schema", "Invalid query result");
+	}
+	if (TYPEOF(schema_xptr.data()) != EXTPTRSXP) {
+		rapi_error_with_context("rapi_arrow_schema", "Expected an external pointer for schema");
+	}
+	auto out = reinterpret_cast<ArrowSchema *>(R_ExternalPtrAddr(schema_xptr.data()));
+	if (out == nullptr || out->release != nullptr) {
+		rapi_error_with_context("rapi_arrow_schema", "Schema pointer is NULL or already initialized");
+	}
+
+	try {
+		ArrowConverter::ToArrowSchema(out, qry_res->types, qry_res->names, qry_res->client_properties);
+	} catch (std::exception &e) {
+		rapi_error_with_context("rapi_arrow_schema", ErrorData(e));
+	}
+}
+
 // Fetch one Arrow chunk from the streaming query result. Both `schema_xptr`
 // and `array_xptr` are nanoarrow-owned external pointers to zeroed structs
 // (typically from `nanoarrow::nanoarrow_allocate_schema()` and
@@ -249,6 +271,32 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		rapi_error_with_context("rapi_fetch_arrow_array", stream.get_last_error(&stream));
 	}
 	return out_array->release != nullptr;
+}
+
+// Write a zero-length Arrow array for the columns of a query result into the nanoarrow-owned struct behind
+// `array_xptr`: the batch a drained result answers with (handbook/usage/integrations/README.md).
+// The engine's converter builds it from an empty chunk, so it has the layout of every batch before it.
+[[cpp11::register]] void rapi_arrow_empty_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context("rapi_arrow_empty_array", "Invalid query result");
+	}
+	if (TYPEOF(array_xptr.data()) != EXTPTRSXP) {
+		rapi_error_with_context("rapi_arrow_empty_array", "Expected an external pointer for array");
+	}
+	auto out = reinterpret_cast<ArrowArray *>(R_ExternalPtrAddr(array_xptr.data()));
+	if (out == nullptr || out->release != nullptr) {
+		rapi_error_with_context("rapi_arrow_empty_array", "Array pointer is NULL or already initialized");
+	}
+
+	try {
+		auto &context = *qry_res->client_properties.client_context;
+		DataChunk empty;
+		empty.Initialize(Allocator::DefaultAllocator(), qry_res->types);
+		ArrowConverter::ToArrowArray(empty, out, qry_res->client_properties,
+		                             ArrowTypeExtensionData::GetExtensionTypes(context, qry_res->types));
+	} catch (std::exception &e) {
+		rapi_error_with_context("rapi_arrow_empty_array", ErrorData(e));
+	}
 }
 
 // Turn a DuckDB result set into an RecordBatchReader

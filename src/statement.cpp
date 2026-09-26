@@ -273,8 +273,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		auto query_result = make_uniq<RQueryResult>();
-		query_result->result = std::move(generic_result);
+		auto query_result = make_uniq<RQueryResult>(std::move(generic_result));
 		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {
