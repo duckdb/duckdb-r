@@ -30,10 +30,10 @@ the wider type mapping is
   an ALTREP result captures it earlier, when the data frame is built —
   that corner is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **`dbConnect()` sets the session `TimeZone` to `UTC`.**
-  Both timestamp types then read a naive wall clock the same way —
-  R reads one as UTC, and so does the engine — which is what lets a
-  `POSIXct` written into a `TIMESTAMP` column come back as the instant
-  that went in ([`R/session-timezone.R`](/R/session-timezone.R)).
+  Both timestamp types then read a naive wall clock the same way,
+  R as UTC and the engine as UTC,
+  which is what lets a `POSIXct` written into a `TIMESTAMP` column
+  come back as the instant that went in ([`R/session-timezone.R`](/R/session-timezone.R)).
   It is a starting point, not a lock: `SET TimeZone` on the connection
   wins, and a naive column stops round-tripping once it does,
   because only one side of the pair moved.
@@ -70,7 +70,7 @@ the wider type mapping is
   ([#184](https://github.com/duckdb/duckdb-r/issues/184)).
   The setting reaches `dbWriteTable()`, `dbAppendTable()`,
   `duckdb_register()`, bound parameters, `dbDataType()` and
-  `dbQuoteLiteral()` — nested columns included.
+  `dbQuoteLiteral()`, nested columns included.
 * **Two paths stay on `TIMESTAMP` whatever the setting says.**
   A data frame picked up by name under
   `duckdb(environment_scan = TRUE)` scans with the table function's
@@ -81,7 +81,7 @@ the wider type mapping is
   `TIMESTAMPTZ` column cannot keep, and what each candidate policy
   costs is measured in
   [`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md).
-  A caller who wants the setting there passes `convert_opts` —
+  A caller who wants the setting there passes `convert_opts`;
   the rest is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **A zone survives the round trip only through `TIMESTAMPTZ`,
   and only the session's.**
