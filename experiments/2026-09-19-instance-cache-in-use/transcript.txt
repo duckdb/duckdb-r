@@ -1,0 +1,89 @@
+$ ./run.sh                    # released libduckdb v1.5.5, no patch
+
+=== in-use-connection ===
+libduckdb v1.5.5
+  opened and connected
+  released the handle, connection still open
+  reopening ...
+Killed
+  did not return within 15s, killed
+  (15s)
+
+=== in-use-result ===
+libduckdb v1.5.5
+  opened, with a result left unfinished
+  released the connection and the handle, result still open
+  reopening ...
+Killed
+  did not return within 15s, killed
+  (15s)
+
+=== shutdown-race ===
+libduckdb v1.5.5, 200 rounds
+  round 25 of 200
+  round 50 of 200
+  round 75 of 200
+  round 100 of 200
+  round 125 of 200
+  round 150 of 200
+  round 175 of 200
+  round 200 of 200
+  reopened 200, refused 0 (a refusal is a false positive: nothing was in use)
+  (4s)
+
+=== shutdown-race-tight ===
+  round 25 of 200
+  round 50 of 200
+  round 75 of 200
+  round 100 of 200
+  round 125 of 200
+  round 150 of 200
+  round 175 of 200
+  round 200 of 200
+  reopened 200, refused 0 (a refusal is a false positive: nothing was in use)
+  (5s)
+
+
+$ ./run.sh --lib <a build carrying patch/0042>
+
+=== in-use-connection ===
+libduckdb v2.1.0-dev10582
+  opened and connected
+  released the handle, connection still open
+  reopening ...
+  refused: Connection Error: Database "/tmp/duckdb-in-use-connection.db" is still in use: 1 connection(s) are open on it
+  (0s)
+
+=== in-use-result ===
+libduckdb v2.1.0-dev10582
+  opened, with a result left unfinished
+  released the connection and the handle, result still open
+  reopening ...
+  refused: Connection Error: Database "/tmp/duckdb-in-use-result.db" is still in use: no connections are open, but something still holds it, such as an unfinished query result
+  (0s)
+
+=== shutdown-race ===
+libduckdb v2.1.0-dev10582, 200 rounds
+  round 25 of 200
+  round 50 of 200
+  round 75 of 200
+  round 100 of 200
+  round 125 of 200
+  round 150 of 200
+  round 175 of 200
+  round 200 of 200
+  reopened 200, refused 0 (a refusal is a false positive: nothing was in use)
+  (9s)
+
+=== shutdown-race-tight ===
+  round 25 of 200
+  round 50 of 200
+  round 75 of 200
+  round 100 of 200
+  round 125 of 200
+  round 150 of 200
+  round 175 of 200
+  round 200 of 200
+  reopened 200, refused 0 (a refusal is a false positive: nothing was in use)
+  (8s)
+

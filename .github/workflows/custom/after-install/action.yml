@@ -83,7 +83,9 @@ runs:
       shell: bash
 
     # Guard for the flavor rename: fail when the package name is hard-coded
-    # somewhere scripts/flavor.patch does not rewrite it. The equivalent testthat
+    # somewhere scripts/flavor.patch does not rewrite it, when a renamed file or
+    # a generated README still carries the mainline name, or when the patch
+    # itself no longer applies to the tree. The equivalent testthat
     # test (tests/testthat/test-flavor-package-name.R) can only skip under R CMD
     # check, which runs from a built tarball where neither the sources nor
     # scripts/ (.Rbuildignore'd) exist -- so the scan runs here, against the
@@ -142,4 +144,13 @@ runs:
           )
         }
         writeLines("No generated README pointing at the mainline package.")
+        failures <- flavor_patch_failures(".")
+        if (length(failures) > 0) {
+          writeLines(failures)
+          stop(
+            "scripts/flavor.patch no longer applies to the unflavored tree; ",
+            "regenerate the hunk named above against the current file."
+          )
+        }
+        writeLines("scripts/flavor.patch applies.")
       shell: Rscript {0}
