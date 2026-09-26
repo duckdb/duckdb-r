@@ -32,8 +32,9 @@ the wider type mapping is
 * **The session `TimeZone` is the icu extension's setting.**
   `SET TimeZone` needs icu for any value, `'UTC'` included;
   where icu never loaded, results quietly fall back to a `UTC` label.
-  Where icu is *installed but not loaded* — what running `INSTALL icu`
-  once leaves behind — the fallback holds only until something touches
+  Where icu is *installed but not loaded*,
+  which is what running `INSTALL icu` once leaves behind,
+  the fallback holds only until something touches
   the setting: `SET TimeZone` and `current_setting('TimeZone')` both
   autoload icu, and from then on the label is the machine's zone,
   so the same query can return a differently labeled column later in
@@ -48,7 +49,7 @@ the wider type mapping is
   release `libduckdb`) has the setting from startup,
   defaulting to the machine's zone.
   It takes that zone as the machine spells it,
-  so a `TIMESTAMPTZ` label is `TZ` verbatim —
+  so a `TIMESTAMPTZ` label is `TZ` verbatim:
   `"UTC"` and `"Etc/UTC"` are one zone under two labels,
   and no value of `timezone_out` aligns with the session zone
   on every machine, because the session zone is not a constant
@@ -70,7 +71,7 @@ the wider type mapping is
   ([#184](https://github.com/duckdb/duckdb-r/issues/184)).
   The setting reaches `dbWriteTable()`, `dbAppendTable()`,
   `duckdb_register()`, bound parameters, `dbDataType()` and
-  `dbQuoteLiteral()` — nested columns included.
+  `dbQuoteLiteral()`, nested columns included.
 * **Two paths stay on `TIMESTAMP` whatever the setting says.**
   A data frame picked up by name under
   `duckdb(environment_scan = TRUE)` scans with the table function's
@@ -81,7 +82,7 @@ the wider type mapping is
   `TIMESTAMPTZ` column cannot keep, and what each candidate policy
   costs is measured in
   [`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md).
-  A caller who wants the setting there passes `convert_opts` —
+  A caller who wants the setting there passes `convert_opts`;
   the rest is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **A zone survives the round trip only through `TIMESTAMPTZ`,
   and only the session's.**
