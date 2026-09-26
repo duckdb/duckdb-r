@@ -54,20 +54,31 @@
 # today belongs on `main`, where stage 4 spreads it by itself
 # (.claude/skills/series-loop/SKILL.md stage 3) -- and never removed here.
 #
-# Usage: series-patch-sync.sh <series> [--apply]     # default: report only
+# Usage: series-patch-sync.sh <series> [--apply] [--remote <name>]
+#   Without --apply it reports and writes nothing.
+#
+# --remote is spelled the same in every scripts/series-*.sh; see the shared
+# contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-usage='usage: series-patch-sync.sh <series> [--apply]'
-S=${1:?$usage}
+usage='usage: series-patch-sync.sh <series> [--apply] [--remote <name>]'
+argerr() { echo "$usage" >&2; exit 2; }
 apply=
-case "${2:-}" in
-  '') ;;
-  --apply) apply=1 ;;
-  *) echo "$usage" >&2; exit 1 ;;
-esac
+remote=${SERIES_REMOTE:-origin}
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --apply) apply=1; shift ;;
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+[ ${#args[@]} -eq 1 ] || argerr
+S=${args[0]}
 
-remote=${REMOTE:-origin}
 git fetch -q "$remote"
 
 build="refs/remotes/$remote/$S-build"

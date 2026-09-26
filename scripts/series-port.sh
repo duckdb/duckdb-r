@@ -430,4 +430,4 @@ fi
 # test-applying against the buffer's own tree, because a buffer runs ahead of
 # `main` and an entry that does not fit its engine would break the next vendor
 # run rather than help it.
-"$(dirname "$0")/series-patch-sync.sh" "$S" --apply
+"$(dirname "$0")/series-patch-sync.sh" "$S" --apply --remote "$remote"

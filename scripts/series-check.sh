@@ -497,7 +497,7 @@ for S in "${series[@]}"; do
     if [ -n "$differs" ]; then
       sed 's|^patch/|               both, differ: |' <<<"$differs"
     fi
-    echo "               scripts/series-patch-sync.sh $S says which of these it can carry;"
+    echo "               scripts/series-patch-sync.sh $S --remote $remote says which of these it can carry;"
     echo "               after a port, what is left is what it declined — stage 3 work"
   fi
 
