@@ -14,7 +14,7 @@
 #      affordable at all. This is the one that regresses silently: a stray
 #      `git write-tree` without `--missing-ok` backfills every blob on the branch.
 #   3. A newer verdict for a commit that already has one overwrites it -- which is
-#      what a retry needs (.claude/skills/series-loop.md), and what a re-publish
+#      what a retry needs (.claude/skills/series-loop/SKILL.md), and what a re-publish
 #      of the *same* verdict must not cost anything -- and a verdict that stops
 #      being a failure takes its log with it.
 #   4. scripts/rcc-consolidate.sh is a no-op as a dry run, drops records and logs

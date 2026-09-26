@@ -4,7 +4,7 @@ Which platforms and R versions the `rcc` check covers
 ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)),
 and how an entry gets added.
 The matrix is *derived, not listed*:
-[`.github/workflows/versions-matrix/action.R`](/.github/workflows/versions-matrix/action.R)
+[cynkratemplate's `versions-matrix/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/versions-matrix/action.R)
 reads the live R tag list and this package's `Depends: R` floor,
 and builds the base entries from them —
 so a new R release enters the matrix without a commit.
@@ -47,7 +47,7 @@ Posit Package Manager publishes no aarch64 Windows binaries,
 so that runner builds every dependency from source.
 
 The lever is `Config/gha/extra-packages` in `DESCRIPTION`,
-which [`install/`](/.github/workflows/install/action.yml)
+which [cynkratemplate's `install/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/install/action.yml)
 passes to pak as extra package references.
 A reference carries pak parameters,
 so `<package>=?ignore-build-errors` demotes a failed source build
@@ -81,7 +81,7 @@ Dropping it from the plan is only half the arrangement.
 `Additional_repositories` — the field `R CMD check` reads to confirm a
 dependency outside CRAN is obtainable,
 and which neither the checker nor pak ever installs from.
-[`install/`](/.github/workflows/install/action.yml) closes that gap:
+[cynkratemplate's `install/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/install/action.yml) closes that gap:
 after the pak solve it installs the declared dependencies that are
 still missing *and* that no configured repository carries at all.
 Both halves of that condition are load-bearing.

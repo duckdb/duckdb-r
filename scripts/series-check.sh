@@ -14,15 +14,15 @@
 #
 # A forward series that has caught up with the green it replaces additionally
 # gets a CUTOVER line: the command to run, for a human to run. The loop never
-# swaps a serving green itself (.claude/skills/series-loop.md).
+# swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
 #
-# Classification is by positive evidence only (.claude/skills/series-loop.md);
+# Classification is by positive evidence only (.claude/skills/series-loop/SKILL.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
 # The store is the *copy* of what an `each-rcc` leg wrote, not the source: the
 # leg writes the same record and log into its artifact and publishes them here
 # (scripts/each-shard.sh). A firing reads the run first and this branch only
-# when it cannot (.claude/skills/series-loop.md stage 2), so where a verdict
+# when it cannot (.claude/skills/series-loop/SKILL.md stage 2), so where a verdict
 # here and one read from a run disagree, the run is right. The ref geometry
 # below -- in flight, buffered, the retry ledger, a ready cutover -- does not
 # depend on the source at all, which is why this stays worth running either way.
@@ -58,15 +58,22 @@
 # block, names an upstream release line this repository does not serve yet. A
 # series is discovered from its refs, so a line that has none is invisible to
 # every other part of the loop, and stays invisible while upstream builds on it.
-# Reported, never acted on, like the cutover above: opening a series is
-# .claude/skills/series-open.md's job, and a human's.
+# The block splits the two halves of an opening, because a firing may do one of
+# them: it says whether scripts/series.yaml declares the line's flavor, which is
+# an edit and a PR. Cutting the refs is not, and stays
+# .claude/skills/series-open/SKILL.md's job, and a human's.
 #
-# Usage: series-check.sh [<series>...]     # default: discover all from refs
-#   UPSTREAM_CLONE=../duckdb series-check.sh   # fork point too, not just names
+# Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
+#   series-check.sh                                 # discover all from refs
+#   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
+#
+# --remote and --upstream are spelled the same in every scripts/series-*.sh;
+# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-remote=origin
+usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]'
+remote=${SERIES_REMOTE:-origin}
 rcc=${RCC_BRANCH:-rcc2}
 
 # Where the release-line check at the end reads upstream. Branch names are all
@@ -75,6 +82,19 @@ rcc=${RCC_BRANCH:-rcc2}
 # answers with the fork point.
 upstream=${UPSTREAM_CLONE:-}
 upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+
+argerr() { echo "$usage" >&2; exit 2; }
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
+    --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- ${args+"${args[@]}"}
 
 git fetch -q "$remote"
 
@@ -100,6 +120,38 @@ vendored_sha() {
     fi
   fi
   echo "$sha"
+}
+
+# How many commits of a buffer range are still work for stage 5.
+#
+# series-advance.sh replays them with `cherry-pick --empty=drop`, so a commit
+# whose every path `-dev` already carries at that commit's post-image produces
+# nothing and is dropped. Counting one leaves the series reading ADVANCE for
+# ever: the firing runs the advance, is told `dev -> … (+0)`, and reads the
+# same verdict again next time. Only a new vendor commit on the buffer would
+# clear it, by moving the anchor past the whole run.
+#
+# Observed on v1.4-andium since 2026-08-06 (f52ed130b). A buffer takes no ports
+# by design, so its `.github/` predates the removal of the `v*.*-*` push filter
+# from R-CMD-check.yaml, and a series ref move still triggers `rcc` there; its
+# auto-update step committed a `Config/roxygen2/version` bump onto `-build`
+# that `-dev` already carried.
+#
+# The comparison is by content and not by patch-id: `git cherry` reports such a
+# commit as unmerged, because the same post-image was reached on `-dev` by a
+# different diff.
+consumable_count() { # <range> <dev> -> commits of <range> that are not no-ops on <dev>
+  local range=$1 dev=$2 n=0 c f
+  while IFS= read -r c; do
+    while IFS= read -r -d '' f; do
+      if [ "$(git rev-parse -q --verify "$c:$f" || true)" \
+        != "$(git rev-parse -q --verify "$dev:$f" || true)" ]; then
+        n=$((n + 1))
+        break
+      fi
+    done < <(git diff-tree --no-commit-id --name-only -r -z "$c")
+  done < <(git rev-list "$range")
+  echo "$n"
 }
 
 # The store's record for a commit: one small blob, published by the matrix leg
@@ -240,6 +292,31 @@ line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
   echo $((major * 1000 + minor))
 }
 
+# The flavor a line would publish under, by the rule the declaration follows:
+# `v2.1-<codename>` is served as `duckdb.2.1.dev`. Derived rather than read, so
+# that a line with no entry yet still has a name to report.
+flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
+  local v=${1#v}
+  echo "duckdb.${v%%-*}.dev"
+}
+
+# Does `scripts/series.yaml` already name that flavor? An UNSERVED line has no
+# refs by definition, so the declaration is the only place a decision about it
+# can have been recorded, and it splits two states a firing must not confuse:
+# nothing done at all, and the flavor PR merged with only the refs left to cut
+# (.claude/skills/series-loop/SKILL.md, "What a firing reports").
+#
+# Read from the remote's `main` rather than the working tree: a firing checks
+# out series branches, whose trees lag `main` by whatever stage 4 has not
+# ported yet, and the declaration is `main`'s.
+declaration() { # -> the file, empty and non-zero when no ref carries it
+  local r
+  for r in "refs/remotes/$remote/main" refs/heads/main; do
+    git show "$r:scripts/series.yaml" 2>/dev/null && return 0
+  done
+  return 1
+}
+
 # How the clone names an upstream branch: a clone made by `git clone` carries it
 # as a remote-tracking ref, and a mirror as a head.
 upstream_ref() { # <branch> -> full ref, empty if the clone has none
@@ -317,15 +394,17 @@ for S in "${series[@]}"; do
   # the buffer counts from -dev's consumption anchor on -build: the -dev tip
   # while it sits on -build's line, otherwise the -build commit equivalent to
   # -dev's newest vendor commit — the identical rule, and the identical reasons,
-  # as the anchor in scripts/series-advance.sh.
+  # as the anchor in scripts/series-advance.sh. It counts what that stage would
+  # actually mint, which is why a commit it would drop as empty is not buffered
+  # work (consumable_count above).
   mb=$(git merge-base "$dev" "$build")
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
-    buffered=$(git rev-list --count "$dev..$build")
+    buffered=$(consumable_count "$dev..$build" "$dev")
   else
     dev_up=$(vendored_sha "$dev")
     anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
     if [ -n "$anchor" ]; then
-      buffered=$(git rev-list --count "$anchor..$build")
+      buffered=$(consumable_count "$anchor..$build" "$dev")
     else
       buffered="?"
     fi
@@ -364,7 +443,7 @@ for S in "${series[@]}"; do
     fi
   elif [ "$missing" -gt 0 ]; then
     # Pending verdicts hold green, not the buffer: stage 5 extends on pending
-    # and stops only on red (.claude/skills/series-loop.md stage 5).
+    # and stops only on red (.claude/skills/series-loop/SKILL.md stage 5).
     if [ "$buffered" != 0 ]; then
       echo "  WAIT   $missing run(s) not harvested yet — green holds, buffer may still extend"
     else
@@ -377,15 +456,21 @@ for S in "${series[@]}"; do
   fi
 
   # Suggested, never done: a firing reports a ready cutover and stops
-  # (.claude/skills/series-loop.md). Printed beside the verdict rather than as
+  # (.claude/skills/series-loop/SKILL.md). Printed beside the verdict rather than as
   # one, because it is orthogonal — a forward series that has caught up still
   # needs repairing, advancing or waiting like any other.
   if [ -n "$cutover" ]; then
+    # Named options, and the upstream path filled in when this run was given
+    # one: the block a firing hands over is meant to be pasted whole, and a
+    # placeholder in the argument that decides whether the coverage gate runs
+    # at all is the one word nobody can substitute from the report alone
+    # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
-    echo "           scripts/series-cutover.sh $cutover $remote <upstream-clone>"
+    echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
+    echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
     echo "           Coverage is only half of it; what the two branches carry is"
     echo "           the other half, and the cutover prints it before it asks:"
-    echo "           scripts/series-converge.sh $cutover"
+    echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done
 
@@ -449,16 +534,29 @@ elif [ ${#unserved[@]} -gt 0 ]; then
       echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
       echo "          git merge-base answers here (scripts/VENDORING.md)."
     fi
+    # Which half of the opening is still owed. Declaring the flavor is a file
+    # edit and a firing may open the PR for it; cutting the refs is not, and
+    # never is.
+    flav=$(flavor_of "$b"); decl=$(declaration || true)
+    if [ -z "$decl" ]; then
+      echo "          Could not read scripts/series.yaml, so this firing does not"
+      echo "          know whether $flav is declared. Missing data, not a clean result."
+    elif grep -qE "^[[:space:]]*-?[[:space:]]*flavor:[[:space:]]*${flav//./\\.}[[:space:]]*\$" <<<"$decl"; then
+      echo "          Declared already: scripts/series.yaml names $flav, so only the"
+      echo "          refs are missing. Do not open a second declaration PR."
+    else
+      echo "          Undeclared: scripts/series.yaml has no $flav."
+    fi
   done
   # Said once, however many lines are listed: what waiting costs. It is a
   # decision owed an answer rather than a fault -- a line may be opened
   # deliberately, on a released tree, once the current one ships -- and the
-  # loop cannot open it either way, so all this block can do is be impossible
-  # to miss and stay inside what branch names can support. How much of the
+  # loop cuts no refs either way, so the rest of this block is to be impossible
+  # to miss and to stay inside what branch names can support. How much of the
   # line another series has already vendored is not one of those things:
   # upstream back-merges the release branch into `main`, so some of it may
   # well be built here, and a check that reads names cannot say how much.
-  echo "          Open the series: .claude/skills/series-open.md"
+  echo "          Open the series: .claude/skills/series-open/SKILL.md"
   echo "          No release can be cut from a line nothing here serves, and"
   echo "          the catch-up walk that opening one costs grows with every"
   echo "          upstream commit on it."

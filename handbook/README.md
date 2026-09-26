@@ -25,11 +25,14 @@ A leaf that copies out a measurement has created a second copy of a record that 
   storage, integrations, the relational API, interactive use
 * [`architecture/`](architecture/) — the R layer, the C++ glue,
   the embedded engine, the `rfuns` extension
-* [`build/`](build/) — source build, fast paths, build knobs
+* [`build/`](build/) — source build, fast paths, build knobs,
+  compiler warnings
 * [`testing/`](testing/) — suite, snapshots, guards, revdep
 * [`branches/`](branches/) — series, mirrors, flavors, invariants
 * [`operations/`](operations/) — vendoring, triage, review,
   CI, releases, the site
 * [`contributors/`](contributors/) — setup, workflow, where to help
 * [`meta/`](meta/) — the rules, the authoring checklist,
-  the plans, the glossary
+  the forms and the growth moves, the style rules,
+  the plans, the evidence convention, the glossary,
+  and what this repository decides for itself

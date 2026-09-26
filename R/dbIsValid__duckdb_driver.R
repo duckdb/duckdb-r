@@ -2,23 +2,9 @@
 #' @inheritParams DBI::dbIsValid
 #' @usage NULL
 dbIsValid__duckdb_driver <- function(dbObj, ...) {
-  valid <- FALSE
-  tryCatch(
-    {
-      was_locked <- rethrow_rapi_is_locked(dbObj@database_ref)
-      con <- dbConnect(dbObj)
-      # Keep driver alive, but only if needed
-      if (was_locked) {
-        rethrow_rapi_lock(dbObj@database_ref)
-      }
-
-      dbExecute(con, SQL("SELECT 1"))
-      dbDisconnect(con)
-      valid <- TRUE
-    },
-    error = function(c) {}
-  )
-  valid
+  # A predicate, not a probe: the connection this used to open would reopen a
+  # database the driver no longer holds, and `duckdb_shutdown()` asks first.
+  rethrow_rapi_database_valid(dbObj@database_ref)
 }
 
 #' @rdname duckdb_driver-class

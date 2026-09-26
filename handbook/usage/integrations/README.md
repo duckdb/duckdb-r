@@ -101,6 +101,16 @@ Out: `dbGetQueryArrow()` returns a `nanoarrow_array_stream`,
 and `dbSendQueryArrow()` / `dbFetchArrowChunk()` stream a result
 batch by batch — true streaming since 1.5.4
 ([#162](https://github.com/duckdb/duckdb-r/issues/162)).
+The query result keeps its columns from execution on (`RQueryResult` in [`src/include/rapi.hpp`](/src/include/rapi.hpp)).
+So its Arrow schema is there before the first fetch (`rapi_arrow_schema()` in [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+So is an empty batch, which the engine's own converter builds from an empty chunk (`rapi_arrow_empty_array()`).
+It has the layout of the batches a fetch returns, which `nanoarrow_array_init()` would not:
+that leaves out the one offset a zero-length string, binary, list or map array still carries, and arrow refuses the array without it.
+Once `dbFetchArrowChunk()` has drained a result, it answers with that empty batch, and `dbFetchArrow()` with an empty stream.
+So does a result that `dbFetchArrow()` has handed over.
+Both keep the result's columns, `INTERVAL` included
+([#2773](https://github.com/duckdb/duckdb-r/issues/2773)).
+Only a zero-length `dbBind()` executes nothing, so what it answers has no columns.
 The stream is the interchange:
 any Arrow-C-stream consumer takes a result onward
 without an R data frame in between —
@@ -109,10 +119,28 @@ without an R data frame in between —
 so a dedicated writer per frame library
 (Polars was the one asked for) is this route, not new C++
 ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-The stream feeds one consumer, draining as it is read,
-so a second pass over the same object sees zero rows
-rather than the result again.
-Reach for the stream where the result should not be held twice.
+The stream feeds one consumer, draining as it is read.
+A `$get_next()` loop over it ends in `NULL`.
+A conversion such as `as.data.frame()` or `arrow::as_arrow_table()` releases it.
+A second conversion is then an error ("has already been released"), not the result again.
+It also holds its connection until the engine has seen the end of the result, in a batch shorter than `chunk_size` or in an empty read.
+Another statement on that connection invalidates it.
+The next read is then an error, not an early end that would pass for a complete result
+([#2772](https://github.com/duckdb/duckdb-r/issues/2772)).
+So a stream whose last batch held exactly `chunk_size` rows is invalidated, although every row has arrived.
+The engine's own Arrow stream reports an invalidated result as ended
+(vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
+so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+The wrapper also keeps the connection's client context alive until the stream is released.
+The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
+Statements that must run between reads need a connection of their own.
+That includes a query that scans the stream itself, say after `duckdb_register_arrow()`.
+On the stream's own connection, that query hangs instead of failing.
+It holds the connection while it reads, and each read of the stream waits for the connection.
+A multi-row `dbBind()` is not affected, because its results are materialized.
+Reach for the stream where the result should not be held twice;
+what every route holds, and for how long, is
+[`memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
 `nanoarrow::convert_array_stream(to = )` takes a prototype and builds
 that class directly instead of a data frame to convert afterwards,
 and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
@@ -197,7 +225,6 @@ operate on subclasses of data frames internally.
 Unless this changes fundamentally,
 handing these packages a data frame is good enough:
 any other reader in these packages would still have to build R vectors.
-
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain

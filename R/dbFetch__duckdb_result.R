@@ -3,9 +3,7 @@
 #' @importFrom utils head
 #' @usage NULL
 dbFetch__duckdb_result <- function(res, n = -1, ...) {
-  if (!res@env$open) {
-    abort("result set was closed")
-  }
+  check_result_open(res)
 
   if (res@arrow) {
     if (n != -1) {
@@ -51,6 +49,8 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     res@env$rows_fetched <- 0
   }
 
+  # `n` slices a resultset that is already fully materialized in R:
+  # handbook/usage/memory/reading/README.md, #1997, #2587.
   n_remaining <- nrow(res@env$resultset) - res@env$rows_fetched
 
   if (n == -1) {

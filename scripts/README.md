@@ -35,9 +35,23 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
+| [`series-table.R`](series-table.R) | Write the flavor tables from scripts/series.yaml. |
+| [`series.yaml`](series.yaml) | The flavors this repository publishes, and the series behind them. |
+
+## [`branches/flavors/`](/handbook/branches/flavors/README.md)
+
+| File | Purpose |
+|---|---|
 | [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
+| [`reflavor.sh`](reflavor.sh) | Change an already-flavored tree from one flavor to another, in place: `duckdb.dev` -> `duckdb.2.0.dev`, renamed files and regenerated binding included. |
+
+## [`branches/mirrors/`](/handbook/branches/mirrors/README.md)
+
+| File | Purpose |
+|---|---|
+| [`pull-config.sh`](pull-config.sh) | Read-only: does `.github/pull.yml` rule every mirror a badge measures against? |
 
 ## [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 
@@ -91,6 +105,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 | [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 
+## [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)
+
+| File | Purpose |
+|---|---|
+| [`preview-prefix.sh`](preview-prefix.sh) | Stamp a preview line's version prefix onto the strand checked out here: the prefix of the line it *previews*, not the one it was seeded from (handbook/operat... |
+
 ## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 
 | File | Purpose |
@@ -109,12 +129,15 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`r-universe-check.sh`](r-universe-check.sh) | Read-only: what did r-universe make of the refs this repository publishes? |
 | [`series-advance-test.sh`](series-advance-test.sh) | Check stage 5's carry of the base series' test-side fixes, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: fast-forward `<S>-green` over the all-green prefix, set `<S>-build-base` to the equivalent... |
+| [`series-args-test.sh`](series-args-test.sh) | Check the argument contract every scripts/series-*.sh shares, offline. |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
 | [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
+| [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
 | [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
-| [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
+| [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
+| [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop/SKILL.md). |
 
 ## [`testing/snapshots/`](/handbook/testing/snapshots/README.md)
 

@@ -1,136 +1,100 @@
+---
+name: docs-consistency
+description: Check that the documentation system is whole. Handbook pages in the right shape, links that resolve, derived documents newer than their sources, a backreference on every document outside the handbook, and the judgment those checks cannot make. Use when a change touches documentation of any kind (a handbook page, `AGENTS.md`, `CLAUDE.md`, `README.md`, a skill or command file, a derived document), and periodically as a sweep.
+license: MIT
+compatibility: Requires git and a POSIX shell. The script beside this file uses only git, awk, sed, and grep.
+---
+
 # Documentation consistency
 
-The enforcement arm of the handbook rules
-([`handbook/meta/handbook/`](/handbook/meta/handbook/README.md)):
-the checks that keep the documentation system whole.
-Run it when a change touches documentation —
-handbook pages, free-floating `.md` files, script headers,
-generated indexes — and periodically as a scheduled sweep.
+*The enforcement arm of the handbook rules ([`handbook/meta/handbook/`](/handbook/meta/handbook/README.md)):
+the checks that keep the documentation system whole.*
 
-Judgment lives here; mechanics live in helpers.
-Two helpers live in this directory:
-[`docs-readme.R`](docs-readme.R) renders and diffs the generated
-`scripts/` index, and [`docs-links.py`](docs-links.py) walks the
-tracked Markdown for the link checks below.
-Helpers are not entry points of their own.
+This skill is the entry point.
+The mechanical half is one script beside it, and the judgment is the reading around the script's findings.
+Run the script first, from anywhere inside the repository, and spend the reading time on what it cannot see.
 
-## Checks
+## The mechanical half
 
-1. **Tree shape** (mechanical).
-   Every directory under `handbook/` has a `README.md`.
-   Every subdirectory is listed exactly once
-   in its parent's navigation list, with a scope phrase.
-   The root's per-area sketch names each area's actual
-   next level; a renamed, added, or removed child
-   updates the sketch in the same change —
-   hold `ls -d handbook/*/*/` beside the sketch to see a child
-   the prose skipped, since the sketch reads fluently either way.
-   Internal nodes navigate and may govern:
-   a scope sentence, optionally the area's principles,
-   and the list — nothing else,
-   and a principle passes the three tests in the rules' forms.
-   A leaf is written content at some depth;
-   a leaf below comprehensive depth ends with one italic
-   deepen line naming what remains.
+```sh
+.claude/skills/docs-consistency/scripts/check-handbook.sh
+```
 
-2. **Link integrity** (mechanical).
-   Every internal link under `handbook/` resolves,
-   no handbook link traverses upward with `../`
-   (the rules, "The forms": a link that leaves its own directory
-   is written from the repository root),
-   every `/handbook/…` link in a tracked `.md` outside the tree —
-   the backreferences — resolves too,
-   and every fragment on an internal Markdown link
-   matches a heading of the file it points into.
+Every finding is one line: a tag, a path, and what is wrong, and the script exits non-zero when it printed any.
+What each tag means is [`handbook/checks/`](https://github.com/cynkra/handbook-tools/blob/main/handbook/checks/README.md)'s where this skill lives in its source repository;
+in a repository that carries it, the tag names the rule and the path names the file, which is enough to act on.
+The em dash check is on by default; [`handbook/meta/local/`](/handbook/meta/local/README.md) says whether this repository keeps it,
+and `.handbook-ignore` is where it is dropped, by path or altogether.
+Two reports print only when named, and both feed the judgment below:
 
-   ```sh
-   python3 .claude/skills/docs-consistency/docs-links.py
-   ```
+```sh
+.claude/skills/docs-consistency/scripts/check-handbook.sh board   # status, verification date, depth per page
+.claude/skills/docs-consistency/scripts/check-handbook.sh lines   # every deepen line, with its page
+```
 
-   External links are outside the helper's reach.
-   Check this repository's own issue and pull-request links
-   with whatever GitHub access the session has,
-   and treat an unreachable foreign domain as unverified, not broken:
-   in a sandboxed session the proxy answers 000 or 403
-   for anything off the allow-list,
-   which says nothing about the link.
+Exemptions are the repository's:
+`.handbook-ignore` at the root skips a generated or foreign file in every check, or in the orphan or em dash check alone,
+with the reason beside the pattern.
 
-3. **Generated indexes are fresh** (mechanical).
+## The judgment
 
-   ```sh
-   Rscript .claude/skills/docs-consistency/docs-readme.R --check
-   ```
+1. **Tree shape.**
+   The script proves every directory has a page and every child is listed.
+   It cannot tell whether a scope sentence still admits its children,
+   whether a principle on a node passes the three tests in [`handbook/meta/forms/`](/handbook/meta/forms/README.md),
+   or whether a node has started explaining.
+   Hold `ls -d handbook/*/*/` beside the root's child list, whose entries sketch each area's next level in prose,
+   to see a child the sketch skipped, since it reads fluently either way.
 
-   Stale → regenerate and include the result in the same change.
-   Never edit a generated file by hand.
+2. **Coverage.**
+   Every part of the repository a reader could have a question about is claimed by exactly one leaf.
+   Walk the top-level directories and the root files against the leaves' scope sentences and deepen lines.
+   Unclaimed surface is a finding, reported with a proposed leaf address:
+   a homeless topic raises no error, so full cover is a claim to audit, not one the tree's shape can enforce.
+   Where a topic seems homeless, ask first whether a node's *wording* excluded it rather than its design.
 
-4. **Directory maps are complete** (mechanical, then judgment).
-   A leaf that presents itself as the map of a directory
-   is compared against that directory, both ways.
-   The one such map today is the workflow inventory
-   ([`handbook/operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)):
+3. **Backreferences.**
+   The script reports a document with neither `derived_from:` nor a link into the tree.
+   It cannot tell whether the node a document points at is the one it serves:
+   a pointer at the root, or at an internal node whose leaf owns the fact, answers nothing.
+   Nor can it tell whether a document that merely points should be derived, because it has started restating what a leaf holds.
+   Any secondary document touched by the change under review carries its backreference; add it or flag it.
+   A script or a configuration carries one too, in a comment, and which file is a document is this skill's call rather than a pattern's.
 
-   ```sh
-   diff <(basename -a .github/workflows/*.yaml | sort) \
-        <(grep -o '[A-Za-z0-9._-]*\.yaml' \
-            handbook/operations/ci/workflows/README.md | sort -u)
-   ```
+4. **Entries.**
+   An entry restating what the experiment, issue, or proposal it links already holds is a second copy of a record
+   ([`handbook/meta/authoring/`](/handbook/meta/authoring/README.md) says how long an entry is).
+   A leaf past 120 lines owes an answer to why it is still one topic.
 
-   A missing or extra row is repaired in the same change.
-   Whether each row's *fires on* still matches the file's `on:` block
-   is judged by reading the blocks — triggers drift silently,
-   and the prose keeps rendering either way.
+5. **Deepen lines.**
+   Their promises must still be redeemable.
+   Check each issue a *drain* clause names against the tracker with whatever GitHub access the session has,
+   since a closed issue is drained or dropped and never left promised,
+   and each section a line names against the headings of the file it would absorb.
 
-5. **Deepen lines are live** (mechanical, then judgment).
-   A deepen line's promises must still be redeemable.
-   List them with `grep -rn -A3 -- '\*To deepen:' handbook/`,
-   then check each issue a *drain* clause names
-   against the tracker with whatever GitHub access the session has —
-   a closed issue is drained or dropped, never left promised —
-   and each `§`-named section against the headings
-   of the file it would absorb.
+6. **External links.**
+   The script skips them.
+   Check the repository's own issue and pull-request links with whatever GitHub access the session has,
+   and treat an unreachable foreign domain as unverified rather than broken:
+   in a sandboxed session the proxy answers for anything off the allow-list, which says nothing about the link.
 
-6. **Source-to-leaf coverage** (judgment).
-   Every tracked source path is claimed by exactly one handbook
-   leaf. `scripts/` is machine-mapped in `docs-readme.R`'s `groups`;
-   for the rest, walk the top-level directories
-   (`R/`, `src/`, `tests/`, `.github/`, `patch/`, `inst/`, …)
-   against the leaves' scope and deepen lines.
-   Unclaimed surface is a finding:
-   report it with a proposed leaf address —
-   an unaddressable path is a defect of the tree,
-   per the address rule in
-   [`handbook/operations/triage/`](/handbook/operations/triage/README.md).
+7. **Headers.**
+   Where an in-place index is generated from file headers, whether a header says what its file does is judged here,
+   and a weak one is fixed at the source file rather than patched in the index.
 
-7. **Backreferences** (judgment).
-   The tree is the single source of truth;
-   every secondary document — the root `README.md`'s sections,
-   reference pages, per-directory indexes,
-   and the free-floating files still awaiting absorption —
-   names the handbook node it serves.
-   Any secondary document touched by the change under review
-   must carry its backreference; add it or flag it.
+8. **Status.**
+   A `draft` page that has since been verified is flipped to `confirmed` with a `verified:` date.
+   A stale `verified:` date on a page whose facts have moved is worse than none.
 
-8. **Headers describe their files** (judgment).
-   `docs-readme.R` only extracts a first sentence;
-   whether that sentence says what the file does is judged here.
-   A weak or missing header is fixed at the source file,
-   never patched over in the index.
+## Report and repair
 
-9. **Report and repair.**
-   Apply the small fixes in the same change:
-   regenerated indexes, navigation lists, links, backreferences,
-   map rows, stale drain pointers, header punctuation.
-   Report the structural findings instead of acting on them:
-   unclaimed surface, a grouping that looks wrong,
-   an internal node accreting prose, a leaf outgrowing its scope,
-   an entry restating what the experiment, issue, or plan it links
-   already holds
-   ([`handbook/meta/authoring/`](/handbook/meta/authoring/README.md),
-   "How long an entry is").
-   One summary at the end; no per-file chatter.
+Apply the small fixes in the same change:
+a broken or upward link, a child list out of step with its directory, a missing backreference,
+a missing or misplaced deepen line, a stale derivation.
+Report the structural findings instead of acting on them:
+unclaimed surface, an internal node accreting prose, a leaf outgrowing its scope, a page restating what the leaf it links already says.
+One summary at the end, no per-file chatter.
 
+Derivation runs one way: a wrong derived document is fixed at its handbook source and re-derived, never patched in place.
 The rules define, this skill enforces:
-when the two disagree,
-[`handbook/meta/handbook/`](/handbook/meta/handbook/README.md)
-is the authority, and the fix lands there first.
+when the two disagree, [`handbook/meta/handbook/`](/handbook/meta/handbook/README.md) is the authority, and the fix lands there first.

@@ -13,8 +13,8 @@
     "duckdb_connection_adbc"
   )
 
-  # Catches a dbplyr that loads after this package. Armed here rather than in
-  # `.onAttach()` because `.onLoad()` runs exactly once per namespace load,
+  # Catches a dbplyr that loads after this package.
+  # Armed here rather than in `.onAttach()` because `.onLoad()` runs exactly once per namespace load,
   # whereas a detach/reattach cycle would stack a second copy of the hook.
   setHook(packageEvent("dbplyr", "onLoad"), function(...) {
     warn_if_dbplyr_too_old()
@@ -29,7 +29,8 @@
     arg_match <<- rlang::arg_match
   } else {
     rethrow_restore()
-    # Overwrite rapi_error with base version when rlang is not available
+    # `rapi_error` already is `rapi_error_base`, and without `try_fetch()` there is nothing to rethrow through --
+    # the condition reaches the caller as the base half built it, fields and all.
   }
 
   invisible()

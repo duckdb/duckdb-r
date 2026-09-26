@@ -209,12 +209,12 @@ jobs:
           name: each-plan
           path: ${{ runner.temp }}/plan
 
-      - uses: ./.github/workflows/git-identity
+      - uses: cynkra/cynkratemplate/.github/actions/git-identity@main
 
       - uses: ./.github/workflows/custom/before-install
         if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
 
-      - uses: ./.github/workflows/install
+      - uses: cynkra/cynkratemplate/.github/actions/install@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cache-version: each-rcc-1
@@ -243,7 +243,7 @@ jobs:
       # Run for its tool installation only (air, clang-format). The formatting it
       # performs on the tip checkout is discarded: scripts/each-shard.sh resets
       # the workspace before every commit.
-      - uses: ./.github/workflows/style
+      - uses: cynkra/cynkratemplate/.github/actions/style@main
 
       - name: Build the shard
         env:
@@ -265,7 +265,7 @@ jobs:
 
       # What a firing reads. The per-commit publish to `rcc2` is the copy, and
       # this is the source: one record and one log per commit the leg decided,
-      # in the same bytes (.claude/skills/series-loop.md stage 2). It used to
+      # in the same bytes (.claude/skills/series-loop/SKILL.md stage 2). It used to
       # feed a fan-in job as well, which reconciled onto the branch whatever a
       # leg could not publish; that job is gone, because a reader that opens
       # this artifact has already got what the fan-in would have copied.
