@@ -142,6 +142,15 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result);
 
+// The rows a bind parameter carries. A data frame binds as STRUCT, one row per row,
+// and its length is its column count, so the rows are counted in its first column.
+static R_len_t bind_param_rows(SEXP param) {
+	if (Rf_inherits(param, "data.frame")) {
+		return Rf_length(param) == 0 ? 0 : bind_param_rows(VECTOR_ELT(param, 0));
+	}
+	return Rf_length(param);
+}
+
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
                                           duckdb::ConvertOpts convert_opts) {
 	CheckStatement(stmt, "rapi_bind");
@@ -160,10 +169,10 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	stmt->parameters.clear();
 	stmt->parameters.resize(n_param);
 
-	R_len_t n_rows = Rf_length(params[0]);
+	R_len_t n_rows = bind_param_rows(params[0]);
 
 	for (auto param = std::next(params.begin()); param != params.end(); ++param) {
-		if (Rf_length(*param) != n_rows) {
+		if (bind_param_rows(*param) != n_rows) {
 			rapi_error_with_context("rapi_bind", "Bind parameter values need to have the same length");
 		}
 	}

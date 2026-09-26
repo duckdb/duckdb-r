@@ -158,3 +158,15 @@ test_that("various error cases for dbBind()", {
     list("asdf", "asdf")
   ))
 })
+
+test_that("a data frame binds as STRUCT, one row per row", {
+  con <- local_con()
+
+  res <- dbGetQuery(
+    con,
+    "SELECT (?::STRUCT(i INTEGER, j VARCHAR))::VARCHAR AS v",
+    params = list(data.frame(i = 1:2, j = c("a", "b")))
+  )
+
+  expect_equal(res$v, c("{'i': 1, 'j': a}", "{'i': 2, 'j': b}"))
+})
