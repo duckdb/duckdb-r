@@ -1,5 +1,24 @@
 # Changelog
 
+## duckdb 1.5.5.9026
+
+### Chore
+
+#### flavor
+
+- Keep `scripts/flavor.patch` applicable, and check that it is
+  ([\#2647](https://github.com/duckdb/duckdb-r/issues/2647),
+  [\#2767](https://github.com/duckdb/duckdb-r/issues/2767)).
+
+### Documentation
+
+#### memory
+
+- Describe a query’s memory end to end, in leaves for the budget,
+  reading, and writing
+  ([\#1065](https://github.com/duckdb/duckdb-r/issues/1065),
+  [\#2666](https://github.com/duckdb/duckdb-r/issues/2666)).
+
 ## duckdb 1.5.5.9025
 
 ### Bug fixes
