@@ -14,6 +14,27 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     return(as.data.frame(duckdb_fetch_arrow(res)))
   }
 
+  # Streaming results (dbSendQuery(stream = TRUE)) pull chunks on demand and
+  # never populate res@env$resultset. Multi-row binds materialize row-by-row
+  # results (a prepared statement supports only one live stream), so they take
+  # the default path below; the same result streams again after a subsequent
+  # single-row dbBind().
+  if (
+    isTRUE(res@env$stream) &&
+      is.null(res@env$resultset) &&
+      (is.null(res@env$pending_params) ||
+        length(res@env$pending_params[[1]]) == 1)
+  ) {
+    if (
+      res@stmt_lst$n_param > 0 &&
+        is.null(res@env$pending_params) &&
+        is.null(res@env$stream_result)
+    ) {
+      abort("Need to call `dbBind()` before `dbFetch()`")
+    }
+    return(duckdb_stream_fetch(res, check_fetch_n(n)))
+  }
+
   # Parameterized statements defer execution to the first use after dbBind();
   # everything else has already executed at dbSendQuery() time.
   if (is.null(res@env$resultset)) {
@@ -29,18 +50,7 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     class(df) <- c("duckdb_explain", class(df))
     return(df)
   }
-  if (length(n) != 1) {
-    abort("need exactly one value in n")
-  }
-  if (is.infinite(n) || is.na(n)) {
-    n <- -1
-  }
-  if (n < -1) {
-    abort("cannot fetch negative n other than -1")
-  }
-  if (!is_wholenumber(n)) {
-    abort("n needs to be not a whole number")
-  }
+  n <- check_fetch_n(n)
   if (
     res@stmt_lst$type != "SELECT" &&
       res@stmt_lst$type != "RELATION" &&
@@ -84,6 +94,22 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
   res@env$rows_fetched <- res@env$rows_fetched + n
 
   df
+}
+
+check_fetch_n <- function(n) {
+  if (length(n) != 1) {
+    abort("need exactly one value in n")
+  }
+  if (is.infinite(n) || is.na(n)) {
+    n <- -1
+  }
+  if (n < -1) {
+    abort("cannot fetch negative n other than -1")
+  }
+  if (!is_wholenumber(n)) {
+    abort("n needs to be not a whole number")
+  }
+  n
 }
 
 #' @rdname duckdb_result-class
