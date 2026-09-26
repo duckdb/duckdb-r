@@ -130,7 +130,9 @@ or a data frame, with one element/column per query parameter.
 For \code{dbBindArrow()}, values as a nanoarrow stream,
 with one column per query parameter.}
 
-\item{arrow}{Whether the query should be returned as an Arrow Table}
+\item{arrow}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
+Whether the query should be returned as an Arrow Table.
+Use \code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}} or \code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}} instead.}
 
 \item{overwrite}{If a table with the given name already exists, should it be overwritten?}
 
