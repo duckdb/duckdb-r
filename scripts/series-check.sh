@@ -58,7 +58,9 @@
 # block, names an upstream release line this repository does not serve yet. A
 # series is discovered from its refs, so a line that has none is invisible to
 # every other part of the loop, and stays invisible while upstream builds on it.
-# Reported, never acted on, like the cutover above: opening a series is
+# The block splits the two halves of an opening, because a firing may do one of
+# them: it says whether scripts/series.yaml declares the line's flavor, which is
+# an edit and a PR. Cutting the refs is not, and stays
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
@@ -290,6 +292,31 @@ line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
   echo $((major * 1000 + minor))
 }
 
+# The flavor a line would publish under, by the rule the declaration follows:
+# `v2.1-<codename>` is served as `duckdb.2.1.dev`. Derived rather than read, so
+# that a line with no entry yet still has a name to report.
+flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
+  local v=${1#v}
+  echo "duckdb.${v%%-*}.dev"
+}
+
+# Does `scripts/series.yaml` already name that flavor? An UNSERVED line has no
+# refs by definition, so the declaration is the only place a decision about it
+# can have been recorded, and it splits two states a firing must not confuse:
+# nothing done at all, and the flavor PR merged with only the refs left to cut
+# (.claude/skills/series-loop/SKILL.md, "What a firing reports").
+#
+# Read from the remote's `main` rather than the working tree: a firing checks
+# out series branches, whose trees lag `main` by whatever stage 4 has not
+# ported yet, and the declaration is `main`'s.
+declaration() { # -> the file, empty and non-zero when no ref carries it
+  local r
+  for r in "refs/remotes/$remote/main" refs/heads/main; do
+    git show "$r:scripts/series.yaml" 2>/dev/null && return 0
+  done
+  return 1
+}
+
 # How the clone names an upstream branch: a clone made by `git clone` carries it
 # as a remote-tracking ref, and a mirror as a head.
 upstream_ref() { # <branch> -> full ref, empty if the clone has none
@@ -507,12 +534,25 @@ elif [ ${#unserved[@]} -gt 0 ]; then
       echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
       echo "          git merge-base answers here (scripts/VENDORING.md)."
     fi
+    # Which half of the opening is still owed. Declaring the flavor is a file
+    # edit and a firing may open the PR for it; cutting the refs is not, and
+    # never is.
+    flav=$(flavor_of "$b"); decl=$(declaration || true)
+    if [ -z "$decl" ]; then
+      echo "          Could not read scripts/series.yaml, so this firing does not"
+      echo "          know whether $flav is declared. Missing data, not a clean result."
+    elif grep -qE "^[[:space:]]*-?[[:space:]]*flavor:[[:space:]]*${flav//./\\.}[[:space:]]*\$" <<<"$decl"; then
+      echo "          Declared already: scripts/series.yaml names $flav, so only the"
+      echo "          refs are missing. Do not open a second declaration PR."
+    else
+      echo "          Undeclared: scripts/series.yaml has no $flav."
+    fi
   done
   # Said once, however many lines are listed: what waiting costs. It is a
   # decision owed an answer rather than a fault -- a line may be opened
   # deliberately, on a released tree, once the current one ships -- and the
-  # loop cannot open it either way, so all this block can do is be impossible
-  # to miss and stay inside what branch names can support. How much of the
+  # loop cuts no refs either way, so the rest of this block is to be impossible
+  # to miss and to stay inside what branch names can support. How much of the
   # line another series has already vendored is not one of those things:
   # upstream back-merges the release branch into `main`, so some of it may
   # well be built here, and a check that reads names cannot say how much.
