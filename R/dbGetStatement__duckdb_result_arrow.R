@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbGetStatement
 #' @usage NULL
 dbGetStatement__duckdb_result_arrow <- function(res, ...) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   res@stmt_lst$str
 }
 
