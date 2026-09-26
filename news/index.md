@@ -1,5 +1,96 @@
 # Changelog
 
+## duckdb 1.5.5.9027
+
+### Bug fixes
+
+- [`dbClearResult()`](https://dbi.r-dbi.org/reference/dbClearResult.html)
+  frees the results of a multi-row bind that were not read yet
+  ([\#2784](https://github.com/duckdb/duckdb-r/issues/2784)).
+
+- An Arrow stream keeps its connection’s client context alive
+  ([\#2790](https://github.com/duckdb/duckdb-r/issues/2790)).
+
+- [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  and
+  [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  refuse a cleared result
+  ([\#2785](https://github.com/duckdb/duckdb-r/issues/2785)).
+
+- Each
+  [`dbFetchArrowChunk()`](https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html)
+  and
+  [`dbFetchArrow()`](https://dbi.r-dbi.org/reference/dbFetchArrow.html)
+  call uses its own `chunk_size`
+  ([\#2791](https://github.com/duckdb/duckdb-r/issues/2791)).
+
+#### patch
+
+- Pass the instance-cache counts to the exception without a cast
+  ([\#2779](https://github.com/duckdb/duckdb-r/issues/2779)).
+
+- [`dbFetchArrowChunk()`](https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html)
+  builds the final empty chunk for LIST and INTERVAL columns
+  ([\#2773](https://github.com/duckdb/duckdb-r/issues/2773),
+  [\#2774](https://github.com/duckdb/duckdb-r/issues/2774)).
+
+- Reading an Arrow stream that another statement invalidated is an
+  error, not the end of the stream
+  ([\#2772](https://github.com/duckdb/duckdb-r/issues/2772),
+  [\#2773](https://github.com/duckdb/duckdb-r/issues/2773),
+  [\#2775](https://github.com/duckdb/duckdb-r/issues/2775)).
+
+#### connections
+
+- Normalize a database path only as far as it resolves
+  ([\#455](https://github.com/duckdb/duckdb-r/issues/455),
+  [\#2623](https://github.com/duckdb/duckdb-r/issues/2623)).
+
+#### sql
+
+- Keep sub-second precision in a `POSIXct` literal
+  ([\#2763](https://github.com/duckdb/duckdb-r/issues/2763)).
+
+### Features
+
+- Keep the columns of an Arrow query result for its schema and an empty
+  batch ([\#2781](https://github.com/duckdb/duckdb-r/issues/2781)).
+
+#### patch
+
+- Carry the instance-cache fix, and the evidence for its shape
+  ([\#2759](https://github.com/duckdb/duckdb-r/issues/2759)).
+
+### Documentation
+
+- Say what a second read of an Arrow stream and a scan on its own
+  connection do
+  ([\#2794](https://github.com/duckdb/duckdb-r/issues/2794)).
+
+#### glue
+
+- State which engine object each DBI object wraps, refuse a context per
+  result, and plan `dbConnect(con)`
+  ([\#2783](https://github.com/duckdb/duckdb-r/issues/2783)).
+
+### Refactoring
+
+- Guard a result through one helper on each side of the glue, and clear
+  test results before the fixture disconnects
+  ([\#2800](https://github.com/duckdb/duckdb-r/issues/2800)).
+
+- Give `the`, the package’s session state, a file of its own
+  ([\#2787](https://github.com/duckdb/duckdb-r/issues/2787)).
+
+- Move the Arrow result export from `statement.cpp` to
+  `arrow_export.cpp`
+  ([\#2776](https://github.com/duckdb/duckdb-r/issues/2776)).
+
+### Performance
+
+- `check_tz()` reads the Olson list once per session
+  ([\#2786](https://github.com/duckdb/duckdb-r/issues/2786)).
+
 ## duckdb 1.5.5.9026
 
 ### Chore

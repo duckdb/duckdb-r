@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9026</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9027</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,57 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9027" id="duckdb-1559027">duckdb 1.5.5.9027<a class="anchor" aria-label="anchor" href="#duckdb-1559027"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9027">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9027"></a></h3>
+<ul><li><p><code><a href="https://dbi.r-dbi.org/reference/dbClearResult.html" class="external-link">dbClearResult()</a></code> frees the results of a multi-row bind that were not read yet (<a href="https://github.com/duckdb/duckdb-r/issues/2784" class="external-link">#2784</a>).</p></li>
+<li><p>An Arrow stream keeps its connection’s client context alive (<a href="https://github.com/duckdb/duckdb-r/issues/2790" class="external-link">#2790</a>).</p></li>
+<li><p><code><a href="../reference/duckdb_result-class.html">duckdb_fetch_arrow()</a></code> and <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_record_batch()</a></code> refuse a cleared result (<a href="https://github.com/duckdb/duckdb-r/issues/2785" class="external-link">#2785</a>).</p></li>
+<li><p>Each <code><a href="https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html" class="external-link">dbFetchArrowChunk()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbFetchArrow.html" class="external-link">dbFetchArrow()</a></code> call uses its own <code>chunk_size</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2791" class="external-link">#2791</a>).</p></li>
+</ul><div class="section level4">
+<h4 id="patch-1-5-5-9027">patch<a class="anchor" aria-label="anchor" href="#patch-1-5-5-9027"></a></h4>
+<ul><li><p>Pass the instance-cache counts to the exception without a cast (<a href="https://github.com/duckdb/duckdb-r/issues/2779" class="external-link">#2779</a>).</p></li>
+<li><p><code><a href="https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html" class="external-link">dbFetchArrowChunk()</a></code> builds the final empty chunk for LIST and INTERVAL columns (<a href="https://github.com/duckdb/duckdb-r/issues/2773" class="external-link">#2773</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2774" class="external-link">#2774</a>).</p></li>
+<li><p>Reading an Arrow stream that another statement invalidated is an error, not the end of the stream (<a href="https://github.com/duckdb/duckdb-r/issues/2772" class="external-link">#2772</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2773" class="external-link">#2773</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2775" class="external-link">#2775</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="connections-1-5-5-9027">connections<a class="anchor" aria-label="anchor" href="#connections-1-5-5-9027"></a></h4>
+<ul><li>Normalize a database path only as far as it resolves (<a href="https://github.com/duckdb/duckdb-r/issues/455" class="external-link">#455</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2623" class="external-link">#2623</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="sql-1-5-5-9027">sql<a class="anchor" aria-label="anchor" href="#sql-1-5-5-9027"></a></h4>
+<ul><li>Keep sub-second precision in a <code>POSIXct</code> literal (<a href="https://github.com/duckdb/duckdb-r/issues/2763" class="external-link">#2763</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="features-1-5-5-9027">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5-9027"></a></h3>
+<ul><li>Keep the columns of an Arrow query result for its schema and an empty batch (<a href="https://github.com/duckdb/duckdb-r/issues/2781" class="external-link">#2781</a>).</li>
+</ul><div class="section level4">
+<h4 id="patch-1-5-5-9027-1">patch<a class="anchor" aria-label="anchor" href="#patch-1-5-5-9027-1"></a></h4>
+<ul><li>Carry the instance-cache fix, and the evidence for its shape (<a href="https://github.com/duckdb/duckdb-r/issues/2759" class="external-link">#2759</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9027">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9027"></a></h3>
+<ul><li>Say what a second read of an Arrow stream and a scan on its own connection do (<a href="https://github.com/duckdb/duckdb-r/issues/2794" class="external-link">#2794</a>).</li>
+</ul><div class="section level4">
+<h4 id="glue-1-5-5-9027">glue<a class="anchor" aria-label="anchor" href="#glue-1-5-5-9027"></a></h4>
+<ul><li>State which engine object each DBI object wraps, refuse a context per result, and plan <code>dbConnect(con)</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2783" class="external-link">#2783</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="refactoring-1-5-5-9027">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-1-5-5-9027"></a></h3>
+<ul><li><p>Guard a result through one helper on each side of the glue, and clear test results before the fixture disconnects (<a href="https://github.com/duckdb/duckdb-r/issues/2800" class="external-link">#2800</a>).</p></li>
+<li><p>Give <code>the</code>, the package’s session state, a file of its own (<a href="https://github.com/duckdb/duckdb-r/issues/2787" class="external-link">#2787</a>).</p></li>
+<li><p>Move the Arrow result export from <code>statement.cpp</code> to <code>arrow_export.cpp</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2776" class="external-link">#2776</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-1-5-5-9027">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-5-9027"></a></h3>
+<ul><li>
+<code>check_tz()</code> reads the Olson list once per session (<a href="https://github.com/duckdb/duckdb-r/issues/2786" class="external-link">#2786</a>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9026" id="duckdb-1559026">duckdb 1.5.5.9026<a class="anchor" aria-label="anchor" href="#duckdb-1559026"></a></h2>
 <div class="section level3">
