@@ -1,0 +1,237 @@
+``` r
+# The branch the fast path cannot reach: a build with no icu in it.
+#
+# Answers what neither grid could, because a fast-path build links icu
+# statically and its absence cannot be produced there:
+#   1. which ways of asking about the session zone are safe without icu
+#   2. what the zone reads when the setting does not exist
+#   3. whether the default write/read round trip still follows the machine
+#   4. what `SET TimeZone` costs when it has to reach for the extension
+#
+# Needs the vendored engine compiled from source, which links `parquet` and
+# `core_functions` and nothing else, installed in its own library;
+# run-no-icu.sh builds it and points `R_LIBS` at it. Each machine zone needs
+# its own process, because icu reads the zone once when it loads, so this
+# spawns one child per zone rather than looping in place.
+ZONES <- c("UTC", "Europe/Zurich")
+
+suppressMessages(library(duckdb))
+
+INSTANT <- as.POSIXct(1745781814.84963, origin = "1970-01-01", tz = "UTC")
+
+say <- function(...) cat(sprintf(...), "\n", sep = "")
+
+# `try_sql()` reports what a statement did rather than letting it stop the
+# script: on this build some of them raise an autoloading error, which is
+# itself one of the answers.
+try_sql <- function(con, sql, exec = FALSE) {
+  t <- system.time(
+    out <- tryCatch(
+      if (exec) dbExecute(con, sql) else dbGetQuery(con, sql),
+      error = function(e) e
+    )
+  )[["elapsed"]]
+  if (inherits(out, "error")) {
+    sprintf("%s (%.2fs)", sub("\n.*", "", conditionMessage(out)), t)
+  } else if (exec) {
+    sprintf("ok (%.2fs)", t)
+  } else {
+    sprintf("%s (%.2fs)", as.character(out[[1]]), t)
+  }
+}
+
+report <- function(label, con) {
+  say("-- %s --", label)
+
+  # 1. duckdb_extensions() is a catalog function, not a setting lookup.
+  ext <- dbGetQuery(
+    con,
+    "SELECT loaded, installed, install_mode
+       FROM duckdb_extensions() WHERE extension_name = 'icu'"
+  )
+  say(
+    "duckdb_extensions(): loaded=%s installed=%s install_mode=%s",
+    ext$loaded,
+    ext$installed,
+    ext$install_mode
+  )
+
+  # 2. The label on a TIMESTAMPTZ column is the session zone as the glue sees
+  # it, through GetClientProperties(); asking in SQL is the other way, and the
+  # two do not agree, because asking in SQL can load the extension that
+  # supplies the setting.
+  label <- function() {
+    attr(
+      dbGetQuery(con, "SELECT TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS a")$a,
+      "tzone"
+    )
+  }
+  say("tzone label before anything asks for the setting: %s", label())
+  say(
+    "current_setting('TimeZone'): %s",
+    try_sql(con, "SELECT current_setting('TimeZone')")
+  )
+  say("tzone label after: %s", label())
+
+  # 3. Does the default round trip still follow the machine?
+  df <- data.frame(a = INSTANT)
+  dbWriteTable(con, "t", df, overwrite = TRUE)
+  back <- dbReadTable(con, "t")$a
+  say("dbWriteTable type: %s", dbGetQuery(con, "DESCRIBE t")$column_type)
+  say(
+    "round trip: label %s, instant %s",
+    attr(back, "tzone"),
+    if (isTRUE(all.equal(as.numeric(back), as.numeric(INSTANT)))) {
+      "preserved"
+    } else {
+      "MOVED"
+    }
+  )
+
+  # 4. What a connect-time pin would be issuing.
+  say(
+    "SET TimeZone = 'UTC': %s",
+    try_sql(con, "SET TimeZone = 'UTC'", exec = TRUE)
+  )
+  say(
+    "icu loaded after: %s",
+    dbGetQuery(
+      con,
+      "SELECT loaded FROM duckdb_extensions() WHERE extension_name = 'icu'"
+    )$loaded
+  )
+}
+
+if (!nzchar(Sys.getenv("DUCKDB_R_ZONE_CHILD"))) {
+  for (zone in ZONES) {
+    cat(
+      system2(
+        "Rscript",
+        "no-icu.R",
+        env = c(paste0("TZ=", zone), "DUCKDB_R_ZONE_CHILD=1"),
+        stdout = TRUE,
+        stderr = TRUE
+      ),
+      sep = "\n"
+    )
+  }
+} else {
+  say(
+    "== TZ=%s, duckdb %s, DuckDB %s, source build ==",
+    Sys.getenv("TZ"),
+    packageVersion("duckdb"),
+    duckdb:::get_duckdb_version()
+  )
+
+  # A machine that has never downloaded icu, whatever this one's store holds.
+  empty_store <- tempfile("ext-store-")
+  dir.create(empty_store)
+  con <- suppressMessages(dbConnect(
+    duckdb(config = list(extension_directory = empty_store))
+  ))
+  report("empty extension store", con)
+  dbDisconnect(con, shutdown = TRUE)
+
+  # And a machine that has: the default store, where icu may be cached. If
+  # asking loads it, a connect-time pin would load an extension for everyone
+  # who has one, which is what a guard would exist to avoid.
+  con2 <- suppressMessages(dbConnect(duckdb()))
+  report("default extension store", con2)
+  dbDisconnect(con2, shutdown = TRUE)
+}
+#> == TZ=UTC, duckdb 1.5.5.9026, DuckDB 1.5.5, source build ==
+#> -- empty extension store --
+#> duckdb_extensions(): loaded=FALSE installed=FALSE install_mode=NOT_INSTALLED
+#> tzone label before anything asks for the setting: UTC
+#> current_setting('TimeZone'): Extension Autoloading Error: An error occurred while trying to automatically install the required extension 'icu': (0.14s)
+#> tzone label after: UTC
+#> dbWriteTable type: TIMESTAMP WITH TIME ZONE
+#> round trip: label UTC, instant preserved
+#> SET TimeZone = 'UTC': Extension Autoloading Error: An error occurred while trying to automatically install the required extension 'icu': (0.02s)
+#> icu loaded after: FALSE
+#> -- default extension store --
+#> duckdb_extensions(): loaded=FALSE installed=TRUE install_mode=REPOSITORY
+#> tzone label before anything asks for the setting: UTC
+#> current_setting('TimeZone'): UTC (1.32s)
+#> tzone label after: UTC
+#> dbWriteTable type: TIMESTAMP WITH TIME ZONE
+#> round trip: label UTC, instant preserved
+#> SET TimeZone = 'UTC': ok (0.00s)
+#> icu loaded after: TRUE
+#> == TZ=Europe/Zurich, duckdb 1.5.5.9026, DuckDB 1.5.5, source build ==
+#> -- empty extension store --
+#> duckdb_extensions(): loaded=FALSE installed=FALSE install_mode=NOT_INSTALLED
+#> tzone label before anything asks for the setting: UTC
+#> current_setting('TimeZone'): Extension Autoloading Error: An error occurred while trying to automatically install the required extension 'icu': (0.13s)
+#> tzone label after: UTC
+#> dbWriteTable type: TIMESTAMP WITH TIME ZONE
+#> round trip: label UTC, instant preserved
+#> SET TimeZone = 'UTC': Extension Autoloading Error: An error occurred while trying to automatically install the required extension 'icu': (0.02s)
+#> icu loaded after: FALSE
+#> -- default extension store --
+#> duckdb_extensions(): loaded=FALSE installed=TRUE install_mode=REPOSITORY
+#> tzone label before anything asks for the setting: UTC
+#> current_setting('TimeZone'): Europe/Zurich (0.05s)
+#> tzone label after: Europe/Zurich
+#> dbWriteTable type: TIMESTAMP WITH TIME ZONE
+#> round trip: label Europe/Zurich, instant preserved
+#> SET TimeZone = 'UTC': ok (0.00s)
+#> icu loaded after: TRUE
+```
+
+<sup>Created on 2026-09-26 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+
+<details style="margin-bottom:10px;">
+
+<summary>
+
+Session info
+</summary>
+
+``` r
+sessioninfo::session_info()
+#> ─ Session info ───────────────────────────────────────────────────────────────
+#>  setting  value
+#>  version  R version 4.5.3 (2026-03-11)
+#>  os       Ubuntu 24.04.4 LTS
+#>  system   x86_64, linux-gnu
+#>  ui       X11
+#>  language (EN)
+#>  collate  C.UTF-8
+#>  ctype    C.UTF-8
+#>  tz       Etc/UTC
+#>  date     2026-09-26
+#>  pandoc   3.9.0.2 @ /usr/local/bin/ (via rmarkdown)
+#>  quarto   1.9.38 @ /usr/local/bin/quarto
+#> 
+#> ─ Packages ───────────────────────────────────────────────────────────────────
+#>  package     * version    date (UTC) lib source
+#>  cli           3.6.6      2026-04-09 [2] RSPM
+#>  DBI         * 1.3.0      2026-02-25 [2] RSPM
+#>  digest        0.6.39     2025-11-19 [2] RSPM
+#>  duckdb      * 1.5.5.9026 2026-09-26 [1] local
+#>  evaluate      1.0.5      2025-08-27 [2] RSPM
+#>  fastmap       1.2.0      2024-05-15 [2] RSPM
+#>  fs            2.1.0      2026-04-18 [2] RSPM
+#>  glue          1.8.1      2026-04-17 [2] RSPM
+#>  htmltools     0.5.9      2025-12-04 [2] RSPM
+#>  knitr         1.52       2026-09-06 [2] RSPM
+#>  lifecycle     1.0.5      2026-01-08 [2] RSPM
+#>  otel          0.2.0      2025-08-29 [2] RSPM
+#>  reprex        2.1.1      2024-07-06 [2] RSPM
+#>  rlang         1.3.0      2026-07-05 [2] RSPM
+#>  rmarkdown     2.32       2026-09-01 [2] RSPM
+#>  sessioninfo   1.2.4      2026-06-04 [2] RSPM
+#>  withr         3.0.3      2026-06-19 [2] RSPM
+#>  xfun          0.60       2026-07-09 [2] RSPM
+#>  yaml          2.3.12     2025-12-10 [2] RSPM
+#> 
+#>  [1] /home/user/R-noicu
+#>  [2] /root/R/x86_64-pc-linux-gnu-library/4.5
+#>  [3] /opt/R/4.5.3/lib/R/library
+#>  * ── Packages attached to the search path.
+#> 
+#> ──────────────────────────────────────────────────────────────────────────────
+```
+
+</details>

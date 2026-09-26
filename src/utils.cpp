@@ -151,8 +151,8 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 	return GetVecSize(rtype, coldata);
 }
 
-Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null, bool timestamptz) {
+	auto rtype = RApiTypes::DetectRType(valsexp, false, timestamptz); // TODO
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -195,6 +195,15 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 			return Value::TIMESTAMP(RTimestampType::Convert(ts_val));
 		} else {
 			return Value(LogicalType::TIMESTAMP);
+		}
+	}
+	case RType::TIMESTAMP_TZ: {
+		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
+		bool is_null = RTimestampType::IsNull(ts_val);
+		if (!is_null) {
+			return Value::TIMESTAMPTZ(timestamp_tz_t(RTimestampType::Convert(ts_val).value));
+		} else {
+			return Value(LogicalType::TIMESTAMP_TZ);
 		}
 	}
 	case RType::DATE: {
@@ -269,7 +278,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		vector<Value> child_values;
 		R_len_t child_len = GetVecSize(child_rtype, ts_val);
 		for (R_len_t child_idx = 0; child_idx < child_len; ++child_idx) {
-			auto value = SexpToValue(ts_val, child_idx);
+			auto value = SexpToValue(ts_val, child_idx, true, timestamptz);
 			child_values.push_back(value);
 		}
 		if (child_values.empty()) {
@@ -282,7 +291,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		auto ncol = Rf_length(valsexp);
 		auto child_rtypes = rtype.GetStructChildTypes();
 		for (R_len_t col = 0; col < ncol; ++col) {
-			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx);
+			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx, true, timestamptz);
 			child_values.push_back(std::make_pair(child_rtypes[col].first, value));
 		}
 		return Value::STRUCT(std::move(child_values));

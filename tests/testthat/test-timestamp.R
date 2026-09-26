@@ -51,7 +51,8 @@ test_that("TIME WITH TIME ZONE columns are returned as difftime (#1807)", {
 })
 
 test_that("dbQuoteLiteral() keeps sub-second precision (#2646)", {
-  con <- local_con()
+  # The naive spelling, which `posixct = "timestamp"` is what still reaches
+  con <- local_con(posixct = "timestamp")
 
   x <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC") + 0.25
   literal <- dbQuoteLiteral(con, x)
@@ -74,5 +75,23 @@ test_that("dbQuoteLiteral() keeps sub-second precision (#2646)", {
   expect_equal(
     as.character(dbQuoteLiteral(con, as.POSIXct(NA, tz = "UTC"))),
     "NULL::timestamp"
+  )
+})
+
+test_that("a TIMESTAMPTZ literal keeps sub-seconds and NA (#2646)", {
+  con <- local_con()
+
+  x <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC") + 0.25
+  literal <- dbQuoteLiteral(con, x)
+  expect_match(as.character(literal), "13:03:12.25+00:00'", fixed = TRUE)
+  expect_equal(
+    dbGetQuery(con, paste0("SELECT ", literal, " AS a"))$a,
+    x,
+    ignore_attr = TRUE
+  )
+
+  expect_equal(
+    as.character(dbQuoteLiteral(con, as.POSIXct(NA, tz = "UTC"))),
+    "NULL::timestamptz"
   )
 })

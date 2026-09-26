@@ -1,7 +1,14 @@
 #' @rdname duckdb_driver-class
 #' @usage NULL
 dbDataType__duckdb_driver <- function(dbObj, obj, ...) {
-  # FIXME: Use RApiTypes::DetectRType()
+  duckdb_data_type(dbObj, obj)
+}
+
+# Shared by the driver and the connection method. Both classes carry
+# `convert_opts`; reading it here is what lets `dbConnect(posixct = )` reach
+# `dbDataType()` on the connection.
+# FIXME: Use RApiTypes::DetectRType()
+duckdb_data_type <- function(dbObj, obj) {
   if (is.null(obj)) {
     abort("NULL parameter")
   }
@@ -28,7 +35,11 @@ dbDataType__duckdb_driver <- function(dbObj, obj, ...) {
   } else if (is.numeric(obj)) {
     "DOUBLE"
   } else if (inherits(obj, "POSIXt")) {
-    "TIMESTAMP"
+    if (identical(dbObj@convert_opts$posixct, "timestamptz")) {
+      "TIMESTAMPTZ"
+    } else {
+      "TIMESTAMP"
+    }
   } else if (
     inherits(obj, "blob") ||
       (is.list(obj) &&
