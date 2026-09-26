@@ -117,9 +117,12 @@ driver_registry <- new.env(parent = emptyenv())
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
 #' then create it again.
-#' [dbDisconnect()] only closes a connection,
-#' it does not release the instance, and its `shutdown` argument is unused.
-#' Instances are shut down automatically when the driver is garbage-collected or the session ends.
+#' [dbDisconnect()] closes one connection, and its `shutdown` argument is unused.
+#' Connections keep the instance alive,
+#' so it is released once the last connection to it closes;
+#' a driver that was never connected to releases its instance
+#' when the driver is garbage-collected or the session ends.
+#' [dbIsValid()] reports whether a driver still holds an instance.
 #'
 #' @section DuckDB extensions on Linux:
 #'
@@ -327,13 +330,17 @@ duckdb_shutdown <- function(drv) {
   if (!is(drv, "duckdb_driver")) {
     abort("pass a duckdb_driver object")
   }
-  if (!dbIsValid(drv)) {
-    warning("invalid driver object, already closed?")
-    invisible(FALSE)
-  }
+  # No validity check first: `rapi_shutdown()` answers for every state, and the
+  # instance is commonly gone already, released by its last connection.
   rethrow_rapi_shutdown(drv@database_ref)
 
-  if (drv@dbdir != DBDIR_MEMORY) {
+  # This driver's own entry, and only it: `rm()` warns rather than shrugging when
+  # there is none, and by now the key may hold a newer driver, whose instance has
+  # to stay reachable or the next `duckdb()` call opens a second one on the file.
+  registered <- driver_registry[[drv@dbdir]]
+  if (
+    !is.null(registered) && identical(registered@database_ref, drv@database_ref)
+  ) {
     rm(list = drv@dbdir, envir = driver_registry)
   }
 

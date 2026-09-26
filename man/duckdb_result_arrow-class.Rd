@@ -94,4 +94,27 @@ Implements \link[DBI:DBIResultArrow-class]{DBIResultArrow-class}.
 \item{\code{env}}{environment holding the result's mutable fetch state.}
 }}
 
+\section{Releasing a batch}{
+
+Each batch that \code{dbFetchArrowChunk()} returns is a \code{nanoarrow_array}
+whose buffers live outside R's heap, allocated by the engine.
+They are freed by the batch's release callback, which runs in one of two ways.
+\code{nanoarrow::nanoarrow_pointer_release()} runs it at once,
+whatever else still refers to the batch, and gives the most control:
+a loop that converts each batch and releases it holds one batch at a time,
+however large the result.
+Dropping the batch instead leaves the callback to R's garbage collector,
+which runs on R's own allocations and never sees these buffers,
+so batches accumulate until a collection happens;
+\code{gc()} is the fallback that forces one,
+and it frees a batch only if nothing refers to it any more.
+
+Converting a batch with \code{as.data.frame()} copies numeric columns,
+but character columns are converted lazily
+and keep their part of the batch alive until they are materialized or dropped,
+whichever way the batch itself was released.
+Releasing a batch never affects the result it came from;
+the next \code{dbFetchArrowChunk()} proceeds as before.
+}
+
 \keyword{internal}

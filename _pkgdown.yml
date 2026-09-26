@@ -21,6 +21,13 @@ reference:
   contents:
   - sql_query
   - default_conn
+- title: Memory
+  desc: >
+    Reading and writing large data within a memory budget: the limit, the
+    streaming read, and the routes that let the engine scan a data frame or a
+    file in place.
+  contents:
+  - duckdb_memory
 - title: Driver
   desc: >
     Create or reuse a DuckDB database instance and the driver object passed to

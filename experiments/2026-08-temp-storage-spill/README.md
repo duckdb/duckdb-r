@@ -6,7 +6,7 @@ across four builds of the package.
 Run 2026-08-07/08 on Ubuntu 24.04 (x86_64, 4 cores, 16 GB RAM,
 R 4.5.3), each run rendered with reprex
 (`reprex::reprex(input = <script>, venue = "gh", session_info = TRUE)`);
-supports [`usage/memory/`](/handbook/usage/memory/README.md).
+supports [`usage/memory/budget/`](/handbook/usage/memory/budget/README.md).
 Gathered for
 [#2562](https://github.com/duckdb/duckdb-r/pull/2562),
 which reviews

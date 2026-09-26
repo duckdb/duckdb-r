@@ -223,9 +223,12 @@ To apply different values to a file-based database --
 for example to reopen it read-only, or to send extensions and secrets elsewhere --
 first release the instance with \code{\link[=duckdb_shutdown]{duckdb_shutdown()}}, which also drops it from the cache,
 then create it again.
-\code{\link[DBI:dbDisconnect]{dbDisconnect()}} only closes a connection,
-it does not release the instance, and its \code{shutdown} argument is unused.
-Instances are shut down automatically when the driver is garbage-collected or the session ends.
+\code{\link[DBI:dbDisconnect]{dbDisconnect()}} closes one connection, and its \code{shutdown} argument is unused.
+Connections keep the instance alive,
+so it is released once the last connection to it closes;
+a driver that was never connected to releases its instance
+when the driver is garbage-collected or the session ends.
+\code{\link[DBI:dbIsValid]{dbIsValid()}} reports whether a driver still holds an instance.
 }
 
 \section{DuckDB extensions on Linux}{
