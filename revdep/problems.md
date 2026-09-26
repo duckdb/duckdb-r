@@ -1,40 +1,80 @@
-# GeoTox (1.0.0)
+# datacaged (0.2.1)
 
-* GitHub: <https://github.com/NIEHS/GeoTox>
-* Email: <mailto:skylar.marvel@nih.gov>
-* GitHub mirror: <https://github.com/cran/GeoTox>
+* GitHub: <https://github.com/gecomt/datacaged>
+* Email: <mailto:alexsandro.prado@ufersa.edu.br>
+* GitHub mirror: <https://github.com/cran/datacaged>
 
-Run `revdepcheck::cloud_details(, "GeoTox")` for more info
+Run `revdepcheck::revdep_details(, "datacaged")` for more info
 
 ## Newly broken
 
 *   checking tests ... ERROR
      ```
      ...
-       i Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
-       i Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
-       i See ?duckdb_storage for details and alternatives.
-       Saving _problems/test-calc_sensitivity-84.R
-       The duckplyr package is configured to fall back to dplyr when it encounters an incompatibility. Fallback events can be collected and uploaded for analysis to guide future development. By default, data will be collected but no data will be uploaded.
-       i Automatic fallback uploading is not controlled and therefore disabled, see `?duckplyr::fallback()`.
-       v Number of reports ready for upload: 3.
-       > Review with `duckplyr::fallback_review()`, upload with `duckplyr::fallback_upload()`.
-       i Configure automatic uploading with `duckplyr::fallback_config()`.
-       [ FAIL 1 | WARN 0 | SKIP 6 | PASS 224 ]
+        3. └─datacaged::caged_load(...)
+        4.   └─datacaged::caged_info(db_path)
+        5.     └─datacaged::caged_connect(db_path, read_only = TRUE, quiet = TRUE)
+        6.       └─duckdb::duckdb(dbdir = db_path, read_only = read_only)
+        7.         └─duckdb:::warn_instance_settings_ignored(...)
+        8.           └─rlang::abort(...)
+       ── Error ('test-pipelines.R:216:3'): caged_adjustments_load() cria banco com tabela caged_ajustes ──
+       Error in `duckdb::duckdb(dbdir = db_path, read_only = read_only)`: `read_only` can't be applied to the database instance for `/tmp/RtmpLS2fZM/working_dir/RtmpyHcdxR/caged_adj_mock_31119a606bc.duckdb`, which already exists.
+       * These settings take effect only when the instance is created.
+       * Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it.
+       Backtrace:
+           ▆
+        1. ├─base::suppressMessages(...) at test-pipelines.R:216:3
+        2. │ └─base::withCallingHandlers(...)
+        3. └─datacaged::caged_adjustments_load(...)
+        4.   └─datacaged::caged_info(db_path)
+        5.     └─datacaged::caged_connect(db_path, read_only = TRUE, quiet = TRUE)
+        6.       └─duckdb::duckdb(dbdir = db_path, read_only = read_only)
+        7.         └─duckdb:::warn_instance_settings_ignored(...)
+        8.           └─rlang::abort(...)
        
-       ══ Skipped tests (6) ═══════════════════════════════════════════════════════════
-       • On CRAN (6): 'test-calc_response.R:1:1', 'test-calc_response.R:61:1',
-         'test-calc_risk.R:125:1', 'test-calc_sensitivity.R:26:1',
-         'test-calc_sensitivity.R:102:1', 'test-sensitivity_analysis.R:1:1'
-       
-       ══ Failed tests ════════════════════════════════════════════════════════════════
-       ── Failure ('test-calc_sensitivity.R:82:3'): calc sensitivity ──────────────────
-       Expected `calc_sensitivity(GT)` to run silently.
-       Actual noise: messages.
-       
-       [ FAIL 1 | WARN 0 | SKIP 6 | PASS 224 ]
+       [ FAIL 2 | WARN 0 | SKIP 5 | PASS 187 ]
        Error:
        ! Test failures.
+       Execution halted
+     ```
+
+# Rduckhts (1.5.1-0.1.3)
+
+* GitHub: <https://github.com/RGenomicsETL/duckhts>
+* Email: <mailto:sounkoutoure@gmail.com>
+* GitHub mirror: <https://github.com/cran/Rduckhts>
+
+Run `revdepcheck::revdep_details(, "Rduckhts")` for more info
+
+## Newly broken
+
+*   checking tests ... ERROR
+     ```
+     ...
+       MATCH: MAP -> data.frame
+       MATCH: MAP -> data.frame
+       MATCH: MAP -> data.frame
+       
+       test_type_mappings.R..........    0 tests    Testing type mapping function assertions...
+       Type mapping function assertions passed!
+       
+       test_type_mappings.R..........   13 tests OK Type mapping test completed! Check output above for effective type mappings.
+       
+       test_type_mappings.R..........   13 tests OK 79ms
+       
+       test_variantkey_regionkey.R...    0 tests    
+       test_variantkey_regionkey.R...    0 tests    
+       test_variantkey_regionkey.R...    0 tests    
+       test_variantkey_regionkey.R...   48 tests OK 0.1s
+       ----- FAILED[xcpt]: test_connection.R<143--143>
+        call| test_reused_file_driver_rejected()
+        call| -->expect_error(rduckhts_connect(dbdir = dbdir), "already has a live instance")
+        diff| The error message:
+        diff| '`shared_home`, `allow_extensions`, `config$allow_unsigned_extensions`, `config$autoinstall_known_extensions`, `config$autoload_known_extensions` can't be applied to the database instance for `/tmp/RtmpxbiFmy/working_dir/Rtmpw2lEhh/rduckhts_reused_c3631f8b8f6.duckdb`, which already exists.
+        diff| These settings take effect only when the instance is created.
+        diff| Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it.'
+        diff| does not match pattern 'already has a live instance'
+       Error: 1 out of 2078 tests failed
        Execution halted
      ```
 

@@ -1,6 +1,7 @@
 # Conventions
 
-Where a method lives, which files are generated and by what,
+Where a method lives, where session state lives,
+which files are generated and by what,
 and how the package refers to itself without writing its own name.
 How the code inside those files is written is
 [`style/`](/handbook/architecture/r-layer/style/README.md).
@@ -26,6 +27,14 @@ Each opens with a header saying so:
 R code calls the `rethrow_rapi_*()` wrappers, not `rapi_*()` directly —
 the wrapper re-raises C++ errors pointing at the user's call.
 
+**Session state is a field of `the`.**
+What the package remembers between calls in one R session lives in `the` ([`R/the.R`](/R/the.R)),
+one field per fact, reached through the function beside the code that owns it and never from elsewhere.
+A table keyed by a value from outside the package is an environment of its own,
+so that a key cannot shadow a field:
+`driver_registry` is keyed by database path, `storage_message_state` by message id.
+A test that plants a value restores the field it touched, never the environment.
+
 **Never hard-code the package name.**
 The package publishes under several names
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)),
@@ -42,5 +51,4 @@ The guard that scans for offenders is
 
 *To deepen: state the S4 class inventory and the deferred S3
 registration for Suggests packages; drain
-[#98](https://github.com/duckdb/duckdb-r/issues/98),
-[#1052](https://github.com/duckdb/duckdb-r/issues/1052).*
+[#98](https://github.com/duckdb/duckdb-r/issues/98).*

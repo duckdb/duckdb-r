@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbBind
 #' @usage NULL
 dbBind__duckdb_result_arrow <- function(res, params, ...) {
-  if (!res@env$open) {
-    stop("result has already been cleared")
-  }
+  check_result_open(res)
   res@env$completed <- FALSE
   res@env$arrow_schema <- NULL
   res@env$query_result <- NULL
@@ -12,7 +10,7 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
 
   params <- as.list(params)
   if (!is.null(names(params))) {
-    stop("`params` must not be named")
+    abort("`params` must not be named")
   }
 
   params <- encode_values(params)

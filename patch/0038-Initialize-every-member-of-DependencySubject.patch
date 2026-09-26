@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Initialize every member of DependencySubject
+
+Both DependencySubject aggregates leave oid out, which
+-Wmissing-field-initializers reports. optional_idx's default
+constructor already produces the invalid index the omission
+value-initializes to, so naming it changes nothing beyond making the
+third member as visible as the two the call sites already comment.
+---
+  src/duckdb/src/catalog/dependency_manager.cpp | 8 +++++---
+  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/duckdb/src/catalog/dependency_manager.cpp b/src/duckdb/src/catalog/dependency_manager.cpp
+index 32ef30e..6212c09 100644
+--- a/src/duckdb/src/catalog/dependency_manager.cpp
++++ b/src/duckdb/src/catalog/dependency_manager.cpp
+@@ -288,8 +288,9 @@ void DependencyManager::CreateDependencies(CatalogTransaction transaction, const
+ 
+ 	// add the object to the dependents_map of each object that it depends on
+ 	for (auto &dependency : dependencies.Set()) {
+-		DependencyInfo info {/*dependent = */ DependencyDependent {GetLookupProperties(object), dependency_flags},
+-		                     /*subject = */ DependencySubject {dependency.entry, DependencySubjectFlags()}};
++		DependencyInfo info {
++		    /*dependent = */ DependencyDependent {GetLookupProperties(object), dependency_flags},
++		    /*subject = */ DependencySubject {dependency.entry, DependencySubjectFlags(), optional_idx()}};
+ 		CreateDependency(transaction, info);
+ 	}
+ }
+@@ -808,7 +809,8 @@ void DependencyManager::AddOwnership(CatalogTransaction transaction, CatalogEntr
+ 
+ 	DependencyInfo info {
+ 	    /*dependent = */ DependencyDependent {GetLookupProperties(owner), DependencyDependentFlags().SetOwnedBy()},
+-	    /*subject = */ DependencySubject {GetLookupProperties(entry), DependencySubjectFlags().SetOwnership()}};
++	    /*subject = */
++	    DependencySubject {GetLookupProperties(entry), DependencySubjectFlags().SetOwnership(), optional_idx()}};
+ 	CreateDependency(transaction, info);
+ }
+ 
+-- 
+2.43.0

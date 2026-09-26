@@ -1,0 +1,5 @@
+lang,image,scenario,client,engine,
+python,python312,version,1.5.5,v1.5.5,
+go,go125,version,go-duckdb,v1.4.1,
+rust,rust,version,duckdb-crate,v1.5.5,
+node,node22,version,1.5.5-r.5,v1.5.5,

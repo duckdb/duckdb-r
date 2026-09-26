@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/memory/writing/README.md
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbAppendTable
 #' @usage NULL
@@ -9,17 +10,17 @@ dbAppendTable__duckdb_connection <- function(
   row.names = NULL
 ) {
   if (!is.null(row.names)) {
-    stop("Can't pass `row.names` to `dbAppendTable()`")
+    abort("Can't pass `row.names` to `dbAppendTable()`")
   }
 
   target_names <- dbListFields(conn, name)
 
   if (!all(names(value) %in% target_names)) {
-    stop(
+    abort(paste0(
       "Column `",
       setdiff(names(value), target_names)[[1]],
       "` does not exist in target table."
-    )
+    ))
   }
 
   if (nrow(value)) {
@@ -69,8 +70,8 @@ duckdb_target_column_types <- function(conn, name) {
   structure(info$column_type, names = info$column_name)
 }
 
-# Build SELECT column expressions, converting source representations into the
-# target column types where DuckDB cannot implicitly cast (e.g. MAP).
+# Build SELECT column expressions,
+# converting source representations into the target column types where DuckDB cannot implicitly cast (e.g. MAP).
 duckdb_select_exprs_for_target <- function(conn, col_names, target_types) {
   vapply(
     col_names,
@@ -78,8 +79,7 @@ duckdb_select_exprs_for_target <- function(conn, col_names, target_types) {
       quoted <- dbQuoteIdentifier(conn, col_name)
       target_type <- target_types[[col_name]]
       if (!is.null(target_type) && duckdb_is_map_type(target_type)) {
-        # `map_from_entries()` builds a MAP from a LIST(STRUCT(key, value))
-        # representation, which matches how MAPs are read back into R.
+        # `map_from_entries()` builds a MAP from a LIST(STRUCT(key, value)) representation, which matches how MAPs are read back into R.
         paste0("map_from_entries(", quoted, ") AS ", quoted)
       } else {
         as.character(quoted)
@@ -91,8 +91,8 @@ duckdb_select_exprs_for_target <- function(conn, col_names, target_types) {
 }
 
 # Returns TRUE if `type` is a top-level DuckDB MAP type,
-# e.g. "MAP(VARCHAR, INTEGER)". Returns FALSE for nested types
-# such as "MAP(VARCHAR, INTEGER)[]" (array of MAP) or "STRUCT(m MAP(...))".
+# e.g. "MAP(VARCHAR, INTEGER)".
+# Returns FALSE for nested types such as "MAP(VARCHAR, INTEGER)[]" (array of MAP) or "STRUCT(m MAP(...))".
 duckdb_is_map_type <- function(type) {
   grepl("^MAP\\(.*\\)$", type)
 }

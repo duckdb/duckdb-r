@@ -23,7 +23,12 @@ SpacesInConditionalStatement: false
 AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakTemplateDeclarations: Yes
-IncludeBlocks: Regroup
+# Include order is load-bearing in the glue, so the formatter never touches it:
+# `rapi.hpp` has to see `cpp11.hpp` before the R headers, and the `#undef TRUE` /
+# `#undef FALSE` guards around them only work in the order they are written.
+# Sorting or regrouping would reorder those and change what compiles.
+SortIncludes: Never
+IncludeBlocks: Preserve
 Language: Cpp
 AccessModifierOffset: -4
 ---

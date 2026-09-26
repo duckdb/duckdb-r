@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbHasCompleted
 #' @usage NULL
 dbHasCompleted__duckdb_result_arrow <- function(res, ...) {
-  if (!res@env$open) {
-    stop("result has already been cleared")
-  }
+  check_result_open(res)
   isTRUE(res@env$completed)
 }
 

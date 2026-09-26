@@ -367,15 +367,6 @@
 ---
 
     Code
-      nrow(forbid)
-    Condition
-      Error:
-      ! Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
-
----
-
-    Code
       nrow(four_rows)
     Condition
       Error:

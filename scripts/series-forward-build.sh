@@ -1,7 +1,7 @@
 #!/bin/bash
 # Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build`
 # onto HEAD, which must be the freshly flavored seed on current `main`
-# (.claude/skills/series-forward.md).
+# (.claude/skills/series-forward/SKILL.md).
 #
 # The replay is a cherry-pick, not a tree reconstruction. A vendor commit's diff
 # is exactly what vendoring changed -- `src/duckdb/`, the version bookkeeping,
@@ -10,16 +10,16 @@
 # deleted, tooling `main` gained comes along, and glue born on a `-dev` branch
 # rides in the commit that needed it.
 #
-# Only `vendor:` subjects are replayed. On a `-dev` branch the other commits
-# belong to `main` and the regenerated seed already carries them; on a `-build`
-# branch they do not, because the buffer takes no ports -- the `patch/` entries
-# stage 3 requires be committed onto it are its own. So a non-vendor commit
-# above the first vendor commit is checked rather than assumed: if the new base
-# does not already carry its change, the run refuses to start and names it,
-# because replaying the vendor commits above it would succeed and leave its
-# effect silently missing (duckdb/duckdb-r#2545). `--placed` is how the caller
-# says a commit has been dealt with; where such a change belongs is
-# handbook/operations/vendoring/troubleshooting/README.md.
+# Only `vendor:` subjects are replayed. Most of the others are `main`'s, which
+# the regenerated seed already carries -- on a `-dev` branch as ports, and on a
+# `-build` branch as the merges that advance the buffer's base. What is left is
+# the buffer's own, chiefly the `patch/` entries stage 3 requires. So a
+# non-vendor commit above the first vendor commit is checked rather than
+# assumed: if the new base does not already carry its change, the run refuses to
+# start and names it, because replaying the vendor commits above it would
+# succeed and leave its effect silently missing (duckdb/duckdb-r#2545).
+# `--placed` is how the caller says a commit has been dealt with; where such a
+# change belongs is handbook/operations/vendoring/troubleshooting/README.md.
 #
 # The fifth version component is renumbered as a true counter, one per replayed
 # commit, so it counts this chain rather than carrying the old one's numbering.
@@ -32,7 +32,7 @@
 # `git add`, and rerun; the counter and the remaining picks are derived from
 # HEAD, so the replay continues where it stopped.
 #
-# Usage: series-forward-build.sh [--placed <sha>]... <old-build-ref> <old-base-ref>
+# Usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]...
 #   old-base-ref only delimits the replay range; it has to sit below the oldest
 #   vendor commit to replay, and nothing else is read from it.
 #   --placed names a non-vendor commit whose change has been dealt with, once
@@ -41,21 +41,30 @@
 
 set -euo pipefail
 
-usage='usage: series-forward-build.sh [--placed <sha>]... <old-build-ref> <old-base-ref>'
+usage='usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]...'
+argerr() { echo "$usage" >&2; exit 2; }
 
+# It names two refs rather than a series, so it takes no --remote; the options
+# and the exit status are the shared contract's all the same
+# (handbook/operations/vendoring/series-loop/README.md).
 PLACED_ARGS=()
+args=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --placed) PLACED_ARGS+=("${2:?$usage}"); shift 2 ;;
-    -*) echo "$usage" >&2; exit 1 ;;
-    *) break ;;
+    --placed) [ $# -ge 2 ] || argerr; PLACED_ARGS+=("$2"); shift 2 ;;
+    -h | --help) echo "$usage"; exit 0 ;;
+    -*) argerr ;;
+    *) args+=("$1"); shift ;;
   esac
 done
+[ ${#args[@]} -eq 2 ] || argerr
+OLD=${args[0]}
+OLDBASE=${args[1]}
 
-OLD=${1:?$usage}
-OLDBASE=${2:?$usage}
-
-cd "$(dirname "$0")/.."
+# The tree to replay into, the same knob vendor-one.sh takes; see series-glue.sh.
+toplevel=${VENDOR_REPO:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
+[ -n "$toplevel" ] || { echo "Error: $PWD is not a git worktree" >&2; exit 1; }
+cd "$toplevel"
 
 for r in "$OLD" "$OLDBASE"; do
   git rev-parse -q --verify "$r^{commit}" >/dev/null ||
@@ -91,9 +100,17 @@ done
 placed() { [ -f "$PLACED" ] && grep -qx "$1" "$PLACED"; }
 
 # Is this commit's change already in the tree the replay is building on?
-# Two tests, because each sees what the other misses, and a false alarm costs
+# Three tests, because each sees what the others miss, and a false alarm costs
 # one `--placed` while a miss costs a wrong forward:
 #
+#   * ancestry -- about the commit, and the only one of the three that cannot be
+#     wrong: a commit the new base descends from is in the new base, whatever
+#     later commits did to the lines it touched. The content tests cannot see
+#     that, so `main`'s own commits strand whenever the base has moved past the
+#     shape they left -- a `fledge:` bump the base has bumped a hundred times
+#     since, a `NEWS.md` section it has rewritten. Replaying a range that
+#     reached back to the parent series' 2024 seed stranded 906 such commits,
+#     903 of them plain ancestors of the base;
 #   * reverse-applying the commit's own diff -- about content, so it holds when
 #     `main` landed the same change under another subject or bundled with more
 #     (patch/0034, carried onto the buffer alone and onto `main` inside a larger
@@ -105,6 +122,7 @@ placed() { [ -f "$PLACED" ] && grep -qx "$1" "$PLACED"; }
 # `git cherry` marks a commit `-` when the base carries an equivalent patch.
 CHERRY=$(git cherry HEAD "$OLD" "$OLDBASE" 2>/dev/null | sed -n 's/^- //p' || true)
 in_base() {
+  git merge-base --is-ancestor "$1" HEAD 2>/dev/null && return 0
   git show --format= "$1" | git apply --reverse --check - 2>/dev/null && return 0
   grep -qx "$1" <<<"$CHERRY"
 }
@@ -190,8 +208,8 @@ counter this script reads back from HEAD keeps matching the commits it wrote --
 or by judging it already carried, or obsolete. It is remembered for the rest of
 the replay.
 
-Already carried is a real outcome, not an excuse: this refuses on the two
-cheap tests it has, so a change the new base holds in a shape neither
+Already carried is a real outcome, not an excuse: this refuses on the
+cheap tests it has, so a change the new base holds in a shape none of them
 recognises is listed here too. Confirm one by reading the base for its effect,
 not by assuming either way.
 EOF

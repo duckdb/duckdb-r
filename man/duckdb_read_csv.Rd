@@ -63,7 +63,8 @@ Directly reads a CSV file into DuckDB, tries to detect and create the correct sc
 This usually is much faster than reading the data into R and writing it to DuckDB.
 }
 \details{
-If the table already exists in the database, the csv is appended to it. Otherwise the table is created.
+If the table already exists in the database, the csv is appended to it.
+Otherwise the table is created.
 }
 \examples{
 \dontshow{if (identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
