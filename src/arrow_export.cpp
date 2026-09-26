@@ -124,6 +124,8 @@ int RArrowArrayStreamWrapper::ReportInvalidated() {
 	                       "The query result was invalidated by another statement on its connection "
 	                       "before it was read to the end. "
 	                       "Read it to the end first, or run the other statement on a separate connection.");
+	// A failing callback of the Arrow C stream interface returns an errno-compatible code, not the engine's -1
+	// (https://arrow.apache.org/docs/format/CStreamInterface.html).
 	return EINVAL;
 }
 
@@ -159,6 +161,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	if (!stream || !stream->release) {
 		return;
 	}
+	// The Arrow C data interface requires a release callback to mark the struct released by nulling `release`,
+	// as the engine's own callbacks do (vendored src/duckdb/src/common/arrow/arrow_wrapper.cpp).
 	stream->release = nullptr;
 	delete reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data);
 }
