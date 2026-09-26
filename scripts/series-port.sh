@@ -91,19 +91,30 @@
 # they are transient — a forward's seed already carries their content, and a
 # rebase drops patch-id equivalents and empty leftovers.
 #
-# Usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [sha...]
+# **`--dev-note` writes a stage-3 finding into the newest commit this stage
+# mints.** An r-universe failure has no per-commit record anywhere and no commit
+# of its own, so the series keeps it in the message of the next `-dev` commit
+# (.claude/skills/series-loop/SKILL.md stage 3). Normally that is stage 5's, and
+# scripts/series-advance.sh takes the note. A firing whose buffer is empty mints
+# no vendor commit at all, though, and then the ports this stage makes are the
+# only `-dev` commits of the whole firing -- so it takes the same option, with
+# the same meaning, rather than leaving the firing to amend and force-push after
+# the push here and spend an each-rcc run on a commit it is about to re-mint.
+#
+# Usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--dev-note <file>] [sha...]
 #
 # --remote is spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [sha...]'
+usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [--dev-note <file>] [sha...]'
 argerr() { echo "$usage" >&2; exit 2; }
 # --list walks a frozen series anyway, for when the question is which commit of
 # `main` to name. No effect on any other series: the walk is their default.
 list=
 apply=
+DEV_NOTE=
 remote=${SERIES_REMOTE:-origin}
 # The repository `main` belongs to, which the fork mirrors. Same name and same
 # default as series-advance.sh's, and read for the staleness check below only.
@@ -115,6 +126,7 @@ while [ $# -gt 0 ]; do
     --apply) apply=1; shift ;;
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
+    --dev-note) [ $# -ge 2 ] || argerr; DEV_NOTE=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -124,6 +136,18 @@ done
 S=${args[0]}
 set -- ${args+"${args[@]:1}"}
 [ -n "$apply" ] || [ $# -eq 0 ] || argerr
+if [ -n "$DEV_NOTE" ]; then
+  # The note rides on a commit, and only --apply mints one.
+  if [ -z "$apply" ]; then
+    echo "Error: --dev-note needs --apply — the note rides on a commit this" >&2
+    echo "  run mints, and a listing run mints none." >&2
+    argerr
+  fi
+  if [ ! -s "$DEV_NOTE" ]; then
+    echo "Error: --dev-note file is missing or empty: $DEV_NOTE" >&2
+    exit 1
+  fi
+fi
 
 # The identity set: what CI and the routine execute. patch/ stays out
 # (vendor-coupled: applied by vendor runs, refreshed by repairs), as do the
@@ -453,6 +477,30 @@ EOF
 fi
 git -C "$wt" diff --quiet "$main" -- "${tooling[@]}" ||
   { echo "Error: tooling still differs after sync"; exit 1; }
+
+if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ] &&
+  [ -n "$DEV_NOTE" ]; then
+  git worktree remove --force "$wt"
+  echo "Error: $S — the port minted nothing, so --dev-note has no commit" >&2
+  echo "  to write the finding on. Record it on the next one instead." >&2
+  exit 1
+fi
+
+# The stage-3 finding, onto the newest commit this run minted — the same place
+# and the same reason as in scripts/series-advance.sh: the readers of these
+# findings, scripts/series-glue.sh and stage 2's mining step, read exactly this
+# message. They anchor on an `R-side fix` section, so a note that does not open
+# with that header gets the one series-advance.sh writes, by the same test.
+if [ -n "$DEV_NOTE" ]; then
+  note_head=
+  if ! sed -n '/[^[:space:]]/{p;q;}' "$DEV_NOTE" | grep -qi '^R-side fix'; then
+    note_head=$'R-side fix:\n\n'
+  fi
+  { git -C "$wt" log -1 --format=%B; echo; printf '%s' "$note_head";
+    cat "$DEV_NOTE"; } > "$wt/.series-port-note"
+  git -C "$wt" commit -q --amend --no-verify -F "$wt/.series-port-note"
+  rm -f "$wt/.series-port-note"
+fi
 
 next=$(git -C "$wt" rev-parse HEAD)
 git worktree remove --force "$wt"

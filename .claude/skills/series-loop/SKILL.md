@@ -739,6 +739,23 @@ The note is appended to the newest commit of the chunk before the push.
 Writing it afterwards costs an amend, a force-push,
 and one `each-rcc` run spent on a commit about to be re-minted.
 
+**An empty buffer mints no vendor commit, and the port stage takes the note
+instead.**
+A firing that finds every buffer level with upstream consumes nothing,
+so stage 5 has no chunk and refuses the note outright —
+while stage 4 still mints the ports and the tooling sync,
+which are then the only `-dev` commits the firing produces.
+`scripts/series-port.sh` takes `--dev-note <file>`
+with the same meaning and the same one-commit target:
+
+```sh
+scripts/series-port.sh <S> --apply --dev-note <file>
+```
+
+Which of the two carries it is whichever one mints;
+the finding goes on the newest `-dev` commit of the firing either way,
+and neither stage is worth an amend after its own push.
+
 **What a fix may be is the handbook's rule, not this skill's.**
 A compiler-warning fix is bound by
 [`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md),
