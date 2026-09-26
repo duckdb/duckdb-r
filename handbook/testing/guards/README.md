@@ -74,7 +74,17 @@ Both scans are empty on the mainline flavor, where that name is the right one.
   `.github/README.md` is the front page GitHub renders for the branch,
   which makes it the likeliest of the three to be read by a user.
 
-All three run in the same `rcc-smoke` step
+**A third companion, for whether the patch still applies.**
+The content scan keys on the lines the patch removes,
+so it stays green while the text around a renamed line drifts,
+and a hunk whose context has drifted no longer applies;
+`scripts/flavor.sh` would discover that only when the next series is seeded
+([#2647](https://github.com/duckdb/duckdb-r/issues/2647)).
+`flavor_patch_failures()` runs `git apply --check` over the patch on an unflavored checkout
+and reports what does not apply, in the change that caused it.
+On a flavored checkout it is empty, since the patch has been applied there.
+
+All four run in the same `rcc-smoke` step
 (`.github/workflows/custom/after-install/action.yml`)
 and are wrapped for the suite by
 `tests/testthat/test-flavor-package-name.R`.
