@@ -392,6 +392,11 @@ std::atomic<int> AltrepGuard::depth {0};
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Not on R's thread, see the string overload above; rethrown with its own
+	// type, so the engine carries the structured error back intact.
+	if (!rapi_on_r_thread()) {
+		error_data.Throw(context + ": ");
+	}
 	// Inside an ALTREP method, see comment in the string overload above.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + error_data.Message());
