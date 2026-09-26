@@ -113,9 +113,9 @@ desc_field() {
 # same choice, and the same reason, scripts/flavor.sh makes for `sed`. Empty
 # when neither is GNU, which is a comparison not made rather than a wrong one.
 if command -v gsort >/dev/null 2>&1; then
-  gnu_sort=gsort
+  gnu_sort='gsort'
 else
-  gnu_sort=sort
+  gnu_sort='sort'
 fi
 case "$("$gnu_sort" --version 2>/dev/null || true)" in
   *"GNU coreutils"*) ;;
@@ -268,7 +268,7 @@ else
   for r in dev green; do
     oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
     newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
-    [ -n "$oldv" ] && [ -n "$newv" ] || continue
+    if [ -z "$oldv" ] || [ -z "$newv" ]; then continue; fi
     case "$(version_cmp "$oldv" "$newv")" in
       -1) continue ;;
       # Equal is the same problem wearing the other face: two different trees
