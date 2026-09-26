@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Ten
+# A forward series inherits only the first when its buffer is replayed. Fourteen
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -34,6 +34,19 @@
 #      over the resolution; `--abort` discards it and writes no ref.
 #  10. The fifth version component still rises once per vendor commit, carry or
 #      no carry.
+#  11. A base series with a *live* forward counterpart consumes its buffer like
+#      any other. It used to be refused, which froze the branch a cutover is
+#      measured against and left the forward with no twin to mine.
+#  12. A replay in which every buffer commit drops as empty reports that nothing
+#      was added, rather than an empty buffer, and leaves the ref where it was.
+#  13. `--dev-note` appends a stage-3 finding to the newest commit the chunk
+#      mints -- taking the replay route so there is one to write it on -- under
+#      an `R-side fix` header it writes when the note brought none, and
+#      refuses when the chunk minted nothing or the file is not there.
+#  14. A replay whose conflict resolves to nothing is dropped rather than
+#      stopping the stage: the buffer commit's content reached `-dev` by another
+#      route, which is claim 12 arrived at through a conflict. The chunk also
+#      finishes when the operator dropped the pick by hand first.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -82,6 +95,12 @@ mkdir -p scripts src/duckdb src/include tests/testthat/_snaps R patch
 cp "$HERE/series-advance.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
+
+# The attribute is committed and the name -> command mapping is not, so a fresh
+# clone has the first and never the second -- which is what series-advance.sh
+# refuses on up front (duckdb/duckdb-r#2659). Register it here, as every real
+# clone does, or the suite fails at the refusal rather than at what it checks.
+scripts/setup-git.sh >/dev/null
 
 desc() { printf 'Package: duckdb\nVersion: %s\n' "$1" > DESCRIPTION; }
 verfile() { echo "duckdb_version <- \"$1\"" > R/version.R; }
@@ -170,6 +189,14 @@ git commit -qm 'test: the forward series has its own types snapshot'
 git branch base-fwd-green base-fwd-dev
 git branch base-fwd-build-base base-fwd-build
 
+# --- the base series' own buffer, one commit past its -dev (claim 11) --------
+# Added after `base-fwd-build` was branched, so the forward's buffer stays at
+# five and only the base has something left to consume. `base-fwd-green` carries
+# a commit `base-green` does not, so the forward is live rather than cutover
+# litter -- which is the shape this stage used to refuse to extend over.
+git checkout -q base-build
+bvendor fff9999 1.0.0.9000.6 h.cpp
+
 # --- a series with no forward and no base to mine (claim 4) -----------------
 git checkout -q -b solo-dev base-seed
 git branch solo-green solo-dev
@@ -177,6 +204,58 @@ git checkout -q -b solo-build base-seed
 bvendor fff1111 1.0.0.9000.1 f.cpp
 bvendor fff2222 1.0.0.9000.2 g.cpp
 git branch solo-build-base base-seed
+
+# --- a series for the stage-3 finding note (claim 13) -----------------------
+# Same shape as `solo`, so the note is checked on a chunk that would otherwise
+# have taken the plain ref move -- which is the route the note has to override.
+git checkout -q -b note-dev base-seed
+git branch note-green note-dev
+git checkout -q -b note-build base-seed
+bvendor fff4444 1.0.0.9000.1 j.cpp
+bvendor fff5555 1.0.0.9000.2 k.cpp
+git branch note-build-base base-seed
+
+# --- the same, for a note that brings no header of its own (claim 13) -------
+git checkout -q -b bare-dev base-seed
+git branch bare-green bare-dev
+git checkout -q -b bare-build base-seed
+bvendor fff6666 1.0.0.9000.1 l.cpp
+bvendor fff7777 1.0.0.9000.2 m.cpp
+git branch bare-build-base base-seed
+
+# --- a buffer commit whose content already reached -dev (claim 12) ----------
+# Stage 3 sends a patch/ entry down both paths on purpose, so the replay drops
+# it (`--empty=drop`) and the stage adds nothing. The subject on the -dev side
+# is not a vendor one, so the anchor looks past it to the seed and the buffer
+# still reads as one commit ahead -- which is what makes the drop reachable.
+git checkout -q -b dup-dev base-seed
+bvendor fff3333 1.0.0.9000.1 i.cpp
+git commit -q --amend -m 'chore: Carry the same content by another route'
+git branch dup-green base-seed
+git checkout -q -b dup-build base-seed
+bvendor fff3333 1.0.0.9000.1 i.cpp
+git branch dup-build-base base-seed
+
+# --- a buffer commit whose conflict resolves to nothing (claim 14) ----------
+# The same drop as above, reached through a conflict instead of a clean merge:
+# `-build` carries no ports, so its flavor rename still names the path the port
+# has since moved on `-dev`, and the two renames of one file collide. Resolving
+# toward what `-dev` already has leaves nothing to commit.
+git checkout -q -b emptyres-seed base-seed
+mkdir -p inst
+echo 'types' > inst/types.hpp
+git add -A
+git commit -qm 'chore: Add the types header the flavor renames'
+
+git checkout -q -b emptyres-dev emptyres-seed
+mkdir -p src/include
+git mv inst/types.hpp src/include/flavored.hpp
+git commit -qm 'chore: Reflavor, and take the move a port brought'
+git branch emptyres-green emptyres-seed
+git checkout -q -b emptyres-build emptyres-seed
+git mv inst/types.hpp inst/flavored.hpp
+git commit -qm 'chore: Reflavor'
+git branch emptyres-build-base emptyres-seed
 
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like.
@@ -187,15 +266,29 @@ git commit -q --allow-empty -m 'chore: empty store'
 git checkout -q main
 git push -q origin main base-seed base-build base-dev base-green base-build-base \
   base-fwd-build base-fwd-dev base-fwd-green base-fwd-build-base \
-  solo-build solo-dev solo-green solo-build-base rcc2
+  solo-build solo-dev solo-green solo-build-base \
+  note-build note-dev note-green note-build-base \
+  bare-build bare-dev bare-green bare-build-base \
+  dup-build dup-dev dup-green dup-build-base \
+  emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
+# Collected, then matched -- never piped straight into `grep -m1`. The grep
+# leaves as soon as it matches, and the SIGPIPE that hands `git log` surfaces
+# through `pipefail` as a failed command, aborting the whole run with 141
+# instead of failing a check. Whether it fires at all depends on how much the
+# log still had to write, so the same suite passes three times and dies on the
+# fourth. The same rule, for the same reason, as scripts/series-check.sh.
 at() { # <series> <upstream sha> -> the -dev commit vendoring it
-  git log --format='%H %s' "origin/$1-green..origin/$1-dev" | grep -m1 "duckdb@$2" | cut -d' ' -f1
+  local log
+  log=$(git log --format='%H %s' "origin/$1-green..origin/$1-dev")
+  grep -m1 "duckdb@$2" <<<"$log" | cut -d' ' -f1
 }
 wat() { # <upstream sha> -> the same, inside the kept worktree
-  git -C "$WT" log --format='%H %s' | grep -m1 "duckdb@$1" | cut -d' ' -f1
+  local log
+  log=$(git -C "$WT" log --format='%H %s')
+  grep -m1 "duckdb@$1" <<<"$log" | cut -d' ' -f1
 }
 
 # --- claims 1-3, 5, 8: extend the forward series ----------------------------
@@ -325,6 +418,124 @@ has   "and moves the ref"           "$out" 'dev ->'
 git fetch -q origin
 is "the dev tip is a buffer commit verbatim, not a replay" \
   "$(git rev-parse origin/solo-dev)" "$(git rev-parse origin/solo-build)"
+
+# --- claim 11: a base series with a live forward counterpart still consumes ---
+echo
+echo "== a base series whose forward counterpart is live"
+is "the forward is live, not cutover litter" \
+  "$(git merge-base --is-ancestor origin/base-fwd-green origin/base-green &&
+       echo litter || echo live)" live
+out=$(run base)
+hasnt "does not refuse over the counterpart" "$out" 'live forward counterpart'
+has   "and moves the ref"                    "$out" 'dev ->'
+hasnt "with nothing to mine, being a base"   "$out" 'carry a fix from'
+git fetch -q origin
+is "the buffered commit reached dev" \
+  "$(git rev-list --count origin/base-green..origin/base-dev)" 1
+F=$(at base fff9999)
+is "replayed onto the base's own tip, not the buffer's" \
+  "$(git rev-parse "$F^")" "$(git rev-parse origin/base-green)"
+is "and the counter rose once for it" \
+  "$(git show "$F:DESCRIPTION" | sed -n 's/^Version: //p')" 1.0.0.9000.6
+
+# --- claim 12: a replay that drops every commit says so -----------------------
+echo
+echo "== a buffer commit whose content already reached -dev"
+before=$(git rev-parse origin/dup-dev)
+out=$(run dup)
+hasnt "does not report an empty buffer" "$out" 'buffer empty'
+has   "reports nothing added"           "$out" "dev -> $(git rev-parse --short "$before") (+0)"
+git fetch -q origin
+is "and leaves dev where it was" "$(git rev-parse origin/dup-dev)" "$before"
+
+# --- claim 14: a conflict whose resolution is empty ---------------------------
+echo
+echo "== a buffer commit whose conflict resolves to nothing"
+before=$(git rev-parse origin/emptyres-dev)
+out=$(run emptyres)
+has "stops with the conflict" "$out" 'conflicted'
+WT=$(awk '{print $1}' .git/series-advance-emptyres)
+# Resolving toward what -dev already has is resolving to HEAD's tree.
+git -C "$WT" read-tree --reset -u HEAD
+out=$(run emptyres --continue)
+has "resumes at the stopped commit" "$out" 'resuming at'
+has "and reports nothing added"     "$out" "dev -> $(git rev-parse --short "$before") (+0)"
+is "no state file survives"         "$(ls .git | grep -c series-advance || true)" 0
+is "the kept worktree is gone"      "$([ -d "$WT" ] && echo yes || echo no)" no
+git fetch -q origin
+is "and leaves dev where it was" "$(git rev-parse origin/emptyres-dev)" "$before"
+
+# The same stop with the operator's own `git cherry-pick --skip` in between:
+# that used to meet `no cherry-pick or revert in progress` and leave the chunk
+# with no way to finish at all.
+out=$(run emptyres)
+has "the next run stops at the same place" "$out" 'conflicted'
+WT=$(awk '{print $1}' .git/series-advance-emptyres)
+git -C "$WT" read-tree --reset -u HEAD
+git -C "$WT" cherry-pick --skip
+out=$(run emptyres --continue)
+has "finishes after a hand-skipped pick" \
+  "$out" "dev -> $(git rev-parse --short "$before") (+0)"
+git fetch -q origin
+is "and still leaves dev where it was" "$(git rev-parse origin/emptyres-dev)" "$before"
+
+# --- claim 13: --dev-note carries a stage-3 finding into the minted commit ----
+echo
+echo "== --dev-note, the stage-3 finding with no fix to carry"
+NOTE=$SCRATCH/finding.txt
+printf 'R-side fix:\n\nmacos-oldrel-x86_64 timed out at the hour budget.\n' > "$NOTE"
+out=$(run note --dev-note "$NOTE")
+has "moves the ref" "$out" 'dev ->'
+git fetch -q origin
+is "both buffered commits reached dev" \
+  "$(git rev-list --count origin/note-green..origin/note-dev)" 2
+is "the tip is a replay, not the buffer commit verbatim" \
+  "$([ "$(git rev-parse origin/note-dev)" = "$(git rev-parse origin/note-build)" ] &&
+       echo verbatim || echo replay)" replay
+has "the newest commit carries the finding" \
+  "$(git log -1 --format=%B origin/note-dev)" 'macos-oldrel-x86_64 timed out'
+has "and keeps its own vendor subject" \
+  "$(git log -1 --format=%s origin/note-dev)" 'duckdb@fff5555'
+hasnt "the commit below it does not" \
+  "$(git log -1 --format=%B origin/note-dev^)" 'macos-oldrel-x86_64 timed out'
+is "and the counter still rose once per vendor commit" \
+  "$(git show origin/note-dev:DESCRIPTION | sed -n 's/^Version: //p')" 1.0.0.9000.2
+is "the header the note brought is not doubled" \
+  "$(git log -1 --format=%B origin/note-dev | grep -ci '^R-side fix')" 1
+
+echo
+echo "== --dev-note that brings no header of its own"
+BARE=$SCRATCH/bare-finding.txt
+printf '\nmacos-release-x86_64 timed out at the hour budget.\n' > "$BARE"
+out=$(run bare --dev-note "$BARE")
+has "moves the ref" "$out" 'dev ->'
+git fetch -q origin
+has "the finding still lands" \
+  "$(git log -1 --format=%B origin/bare-dev)" 'macos-release-x86_64 timed out'
+has "under a header the readers anchor on" \
+  "$(git log -1 --format=%B origin/bare-dev)" 'R-side fix'
+is "written exactly once" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -ci '^R-side fix')" 1
+is "in the colon spelling" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -c '^R-side fix:')" 1
+
+echo
+echo "== --dev-note when the chunk minted nothing"
+before=$(git rev-parse origin/dup-dev)
+out=$(run dup --dev-note "$NOTE")
+has "refuses rather than dropping the finding" "$out" 'has no commit'
+has "and exits non-zero"                       "$out" 'EXIT=1'
+git fetch -q origin
+is "leaving dev where it was" "$(git rev-parse origin/dup-dev)" "$before"
+
+echo
+echo "== --dev-note naming a file that is not there"
+before=$(git rev-parse origin/note-dev)
+out=$(run note --dev-note "$SCRATCH/absent.txt")
+has "refuses before reading any ref" "$out" 'missing or empty'
+has "and exits non-zero"             "$out" 'EXIT=1'
+git fetch -q origin
+is "leaving dev where it was" "$(git rev-parse origin/note-dev)" "$before"
 
 echo
 echo "$pass passed, $fail failed"

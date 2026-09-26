@@ -3,7 +3,7 @@
 The scheduled routine that vendors every series.
 The procedures are machine-loaded playbooks under
 [`.claude/skills/`](/.claude/skills) —
-[`series-loop.md`](/.claude/skills/series-loop.md) with its
+[`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) with its
 siblings `series-forward`, `series-rebase`, `series-open` —
 linked from here, never restated:
 a reader who wants to *run* the loop follows the link;
@@ -38,7 +38,11 @@ to do, and they run in this order:
   message of the `-dev` commit that answers it, which is where the
   next forward reads it.
 * **Forward-port** — bring `main`'s R-side work onto the series
-  ([`scripts/series-port.sh`](/scripts/series-port.sh)).
+  ([`scripts/series-port.sh`](/scripts/series-port.sh)),
+  and bring every ref's tooling level with `main` —
+  the buffer included, which takes no ports but does take the sync,
+  because a workflow fires from the branch it sits on
+  ([`branches/model/`](/handbook/branches/model/README.md)).
   A series seeded from a release branch rather than from `main` takes
   no wholesale port: its R side belongs to that line, so only the
   tooling sync and fixes named by hand apply.
@@ -66,11 +70,37 @@ to do, and they run in this order:
   This stage is **attended**: a carry the series has moved out from
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
-* **Suggest a cutover** — a caught-up `-fwd` counterpart is *reported*
-  with the command, never executed; that move is a human's.
+  A live forward counterpart does **not** hold the base series back: it
+  consumes, ports and verifies at full speed until a human swaps the
+  refs, which costs CI on a lineage about to be retired and buys the
+  only thing that makes retiring it checkable rather than hopeful
+  (below).
+* **Read the forwarding, and suggest a cutover** — for every series
+  with a forward counterpart,
+  [`scripts/series-converge.sh`](/scripts/series-converge.sh) diffs
+  `<S>-dev` against `<S>-fwd-dev` and sorts each differing path into
+  what the forwarding explains and what it does not; the findings go
+  into the report and to the stage that should have moved them. A
+  caught-up counterpart is *reported* with the cutover command, never
+  executed; that move is a human's, and the script prints the same
+  comparison before it asks for confirmation.
 * **Report what the tooling got wrong** — a firing that had to work
   around a script opens a pull request against it,
   so the next firing does not have to.
+
+**A forwarding ends where the two lineages agree.**
+A forward series is the same series rebuilt on a newer `main`, so its
+history differs by construction and its content must not: at the end of
+a forwarding `<S>-dev` and `<S>-fwd-dev` are identical, or every
+difference between them is explicable
+([`branches/invariants/`](/handbook/branches/invariants/README.md)).
+That is why the base keeps consuming. A base frozen where the forward
+went live can be compared only at the commit it stopped on — the one
+point the two are already known to agree — so every commit the forward
+vendored afterwards had nothing to check against; and past that frontier
+stage 5 finds no twin to match by vendored SHA, so each fix the base had
+already proved came back as a red on the forward, at a repair plus a
+replay of everything above it.
 
 **A forward carries the vendor strand, and the rest is placed by hand.**
 `<S>-fwd-build` is replayed from the buffer's `vendor:` commits alone, so
@@ -88,3 +118,71 @@ the port stage brings it back on the next firing.
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints each
 series' verdict read-only and is always safe to run
 ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
+
+**Every `scripts/series-*.sh` takes the same arguments.**
+Positional is only what the script *names* —
+a series, a rev-range, the two refs a forward replay is bounded by.
+Everything else is an option, spelled identically in all of them:
+
+* `--remote <name>` — the remote of *this* repository carrying the series
+  refs. Default `origin`, or `$SERIES_REMOTE`.
+* `--upstream <path>` — a `duckdb/duckdb` checkout on disk, read with
+  `git -C`. Default `$UPSTREAM_CLONE`.
+  Only `series-check.sh` and `series-cutover.sh` read one.
+* `--canonical <name>` — the remote of the repository r-universe publishes the
+  base flavors from. Default `$SERIES_CANONICAL`, then `upstream`, which is what
+  a `gh` clone of a fork calls the repository it was forked from.
+  An empty `SERIES_CANONICAL` turns the mirroring off; an unset one does not.
+  Only `series-advance.sh` and `series-cutover.sh` write one
+  ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+* `-h`, `--help` — the usage, on stdout, exit 0, before the script
+  touches git.
+* Anything else beginning with `-`, an option missing its value, or a
+  positional the script does not name: the usage on stderr, exit **2**.
+  Two is the usage status everywhere, so a caller can tell a wrong
+  invocation from a wrong answer —
+  `series-converge.sh` already reserved 1 for *diverged*.
+
+The reason it is worth a rule is
+[`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s story:
+a cutover takes a remote of this repository *and* a path to a checkout,
+a `gh` clone calls one of its remotes `upstream`,
+and while both were positional the swap was a `git -C` that failed,
+read as an ancestry answer, reported as `coverage would regress`.
+A name cannot be passed where another name belongs.
+The same rule retired the bare chunk size beside
+`series-advance.sh`'s series name — it is `--chunk <n>` now, as
+`vendor-one.sh` has always spelled `--commits <n>` — and the silently
+ignored SHAs `series-port.sh` accepted without `--apply`.
+
+`scripts/series-args-test.sh` checks the contract across every one of
+them, offline and in under a second: no repository, no network, no
+fixtures, because every check lands before the first `git` call.
+Uniformity is the property that rots one script at a time,
+each of them working perfectly well on its own while it drifts.
+Where a script reads a worktree rather than the refs of the one it is
+in — `series-glue.sh`, `series-forward-build.sh` — it takes
+`$VENDOR_REPO`, the same knob `vendor-one.sh` takes, so `main`'s copy of
+a script reads the tree the caller is in.
+
+**A firing also reports the series that does not exist.**
+An upstream release line newer than every series served here, with no refs
+of its own, is named at the end of every firing's report until someone opens
+it with `series-open`.
+The report carries the fork point as well, wherever the firing has an
+upstream clone to compute it in, because only the first-parent recipe
+answers that question correctly
+([`scripts/VENDORING.md`](/scripts/VENDORING.md)).
+Nothing else in the loop can raise the condition: the stages above walk the
+series they discover, so a line with no refs is absent from all of them
+rather than overdue in one.
+What the report states is what branch names support, and no more: no release
+can be cut from a line nothing serves, and the catch-up walk that opening one
+costs grows with every upstream commit on it.
+That catch-up is usually already done, by whichever series tracks the line the
+release branch was cut from: below the fork point the two are one history.
+So an opening cuts that series' strands there rather than walking, and the walk
+is only what the release branch has of its own
+([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
+Opening `v2.0-cyanoptera` this way left 193 commits to walk instead of 3612
+([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).

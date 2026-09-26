@@ -258,7 +258,15 @@
  * - Else: __attribute__((__fallthrough__))
  */
 #ifndef ZSTD_FALLTHROUGH
-# define ZSTD_FALLTHROUGH
+# if defined(__cplusplus) && __cplusplus >= 201703L
+#  define ZSTD_FALLTHROUGH [[fallthrough]]
+# elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#  define ZSTD_FALLTHROUGH [[fallthrough]]
+# elif defined(__GNUC__) && __GNUC__ >= 7
+#  define ZSTD_FALLTHROUGH __attribute__((__fallthrough__))
+# else
+#  define ZSTD_FALLTHROUGH
+# endif
 #endif
 
 /*-**************************************************************

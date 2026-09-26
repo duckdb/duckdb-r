@@ -14,7 +14,7 @@
 # misread it. That is the accepted cost of the store being a fallback: the
 # per-commit log is in the leg's `each-logs-*` artifact and, past its 14 days,
 # inline in the leg's job log, which is what a firing reads first
-# (.claude/skills/series-loop.md stage 2).
+# (.claude/skills/series-loop/SKILL.md stage 2).
 #
 # Iterates first-parent commits since $SINCE on every refs/remotes/*/*-dev
 # branch (deduped by SHA) and, for each commit with no record:

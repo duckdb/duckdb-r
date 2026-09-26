@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sat, 12 Sep 2026 12:00:00 +0200
+Subject: [PATCH] Undef GROUPING before the keyword table
+
+glibc's <langinfo.h> defines GROUPING as a macro under _GNU_SOURCE, and
+kwlist.hpp spells the bison token names bare. Whether that collides is
+decided by include order, and src_backend_parser_parser.cpp is the one
+translation unit where the order goes wrong: parser/gramparse.hpp brings
+in parser/gram.hpp and its `#define GROUPING 439`, and the next include,
+parser/parser.hpp, reaches <vector> -- which under libc++ with
+_LIBCPP_KEEP_TRANSITIVE_INCLUDES_LLVM23 pulls <locale>, its
+__locale_dir/support/linux.h, and so <langinfo.h>. The token code is
+silently replaced by the nl_item 65538 before the table is parsed.
+
+The redefinition itself is never reported, because it happens inside a
+system header. What is reported is the consequence: 65538 does not fit
+the int16_t field it initializes, so the aggregate initializer becomes a
+-Wc++11-narrowing error and the package fails to install on CRAN's
+clang23 flavor. A compiler that let it through would give a parser that
+mis-scans "grouping".
+
+gram.hpp declares every token as an `enum yytokentype` enumerator as
+well as a macro, so dropping the macro leaves the same value behind.
+Undoing it here, at the one place the bare token names are used as
+values, is the seam that does not move -- the include order that
+poisons the name belongs to a system header, not to this tree, and the
+next standard-library reshuffle can poison it from a different
+direction.
+---
+diff --git a/src/duckdb/third_party/libpg_query/include/parser/kwlist.hpp b/src/duckdb/third_party/libpg_query/include/parser/kwlist.hpp
+index 77689d9..064ffca 100644
+--- a/src/duckdb/third_party/libpg_query/include/parser/kwlist.hpp
++++ b/src/duckdb/third_party/libpg_query/include/parser/kwlist.hpp
+@@ -1,3 +1,18 @@
++// glibc's <langinfo.h> defines GROUPING as a macro under _GNU_SOURCE,
++// and the table below spells the bison token names bare.
++// A translation unit that reaches <langinfo.h> after parser/gram.hpp
++// -- which is what libc++ does when <vector> keeps its transitive includes --
++// therefore expands GROUPING to the nl_item 65538 instead of the token code 439.
++// 65538 does not fit the int16_t field it initializes,
++// so the aggregate initializer below is a hard -Wc++11-narrowing error;
++// on a compiler that lets it through it would be a silently wrong parser.
++//
++// gram.hpp declares every token as an `enum yytokentype` enumerator as well as a macro,
++// so dropping the macro leaves the same value behind.
++// Undoing it here, at the one place the bare token names are used as values,
++// is the seam that does not move:
++// the include order that poisons the name belongs to a system header, not to this tree.
++#undef GROUPING
+ 
+ namespace duckdb_libpgquery {
+ #define PG_KEYWORD(a,b,c) {a,b,c},

@@ -12,7 +12,7 @@ One run is three jobs:
 ```
 plan  (1 job, ~30 s)
   ├─ git log --first-parent --after=$SINCE          → candidate commits
-  ├─ scripts/rcc-decided.sh (one tree-only fetch)   → verdicts already on `rcc`
+  ├─ scripts/rcc-decided.sh (one tree-only fetch)   → verdicts already on `rcc2`
   ├─ scripts/each-cost.py                           → objects each commit invalidates
   ├─ scripts/each-partition.py
   │    ├─ greedy contiguous fill under the leg deadline → fewest shards
@@ -146,7 +146,7 @@ until somebody pushes to that branch or dispatches the workflow.
 The replanning is correct; it is not automatic.
 
 **The series loop's documented recovery discards good results.**
-[`series-loop.md`](/.claude/skills/series-loop.md) says that a commit still
+[`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) says that a commit still
 missing from the harvest after 12 hours should be presumed lost, and repaired by
 amending it and replaying the tail.
 Replaying mints a new SHA for every commit after it,

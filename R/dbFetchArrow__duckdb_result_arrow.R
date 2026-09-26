@@ -1,19 +1,17 @@
+# Handbook: handbook/usage/memory/reading/README.md (what a batch holds, and what frees it)
 #' @rdname duckdb_result_arrow-class
 #' @inheritParams DBI::dbFetchArrow
-#' @param chunk_size The chunk size in rows used when pulling Arrow batches
-#'   from DuckDB.
+#' @param chunk_size The chunk size in rows used when pulling Arrow batches from DuckDB.
 #' @usage NULL
 dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
-  if (!res@env$open) {
-    stop("result has already been cleared")
-  }
+  check_result_open(res)
   require_nanoarrow("dbFetchArrow()")
 
+  if (isTRUE(res@env$completed)) {
+    return(empty_arrow_stream(res))
+  }
   if (is.null(res@env$query_result)) {
-    if (isTRUE(res@env$completed)) {
-      return(empty_arrow_stream(res))
-    }
-    stop("Need to call `dbBind()` before `dbFetchArrow()`")
+    abort("Need to call `dbBind()` before `dbFetchArrow()`")
   }
 
   pending <- res@env$pending_query_results
@@ -25,13 +23,11 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
       stream,
       chunk_size
     )
-    res@env$query_result <- NULL
     res@env$completed <- TRUE
     return(stream)
   }
 
-  # Multi-execution: drain every per-row query result into chunks and emit a
-  # single basic_array_stream so callers see one unified stream.
+  # Multi-execution: drain every per-row query result into chunks and emit a single basic_array_stream so callers see one unified stream.
   arrays <- list()
   repeat {
     chunk <- dbFetchArrowChunk(res, chunk_size = chunk_size)
@@ -40,14 +36,11 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
     }
     arrays[[length(arrays) + 1L]] <- chunk
   }
-  if (length(arrays) == 0L) {
-    return(empty_arrow_stream(res))
-  }
-  schema <- res@env$arrow_schema
-  if (is.null(schema)) {
-    schema <- nanoarrow::infer_nanoarrow_schema(arrays[[1L]])
-  }
-  nanoarrow::basic_array_stream(arrays, schema = schema, validate = FALSE)
+  nanoarrow::basic_array_stream(
+    arrays,
+    schema = arrow_schema(res),
+    validate = FALSE
+  )
 }
 
 #' @rdname duckdb_result_arrow-class
@@ -61,36 +54,49 @@ setMethod(
 #' @rdname duckdb_result_arrow-class
 #' @inheritParams DBI::dbFetchArrowChunk
 #' @usage NULL
+#' @section Releasing a batch:
+#' Each batch that `dbFetchArrowChunk()` returns is a `nanoarrow_array`
+#' whose buffers live outside R's heap, allocated by the engine.
+#' They are freed by the batch's release callback, which runs in one of two ways.
+#' `nanoarrow::nanoarrow_pointer_release()` runs it at once,
+#' whatever else still refers to the batch, and gives the most control:
+#' a loop that converts each batch and releases it holds one batch at a time,
+#' however large the result.
+#' Dropping the batch instead leaves the callback to R's garbage collector,
+#' which runs on R's own allocations and never sees these buffers,
+#' so batches accumulate until a collection happens;
+#' `gc()` is the fallback that forces one,
+#' and it frees a batch only if nothing refers to it any more.
+#'
+#' Converting a batch with `as.data.frame()` copies numeric columns,
+#' but character columns are converted lazily
+#' and keep their part of the batch alive until they are materialized or dropped,
+#' whichever way the batch itself was released.
+#' Releasing a batch never affects the result it came from;
+#' the next `dbFetchArrowChunk()` proceeds as before.
 dbFetchArrowChunk__duckdb_result_arrow <- function(
   res,
   ...,
   chunk_size = 1000000
 ) {
-  if (!res@env$open) {
-    stop("result has already been cleared")
-  }
+  check_result_open(res)
   require_nanoarrow("dbFetchArrowChunk()")
 
+  if (isTRUE(res@env$completed)) {
+    return(empty_arrow_chunk(res))
+  }
   if (is.null(res@env$query_result)) {
-    if (isTRUE(res@env$completed)) {
-      return(empty_arrow_chunk(res))
-    }
-    stop("Need to call `dbBind()` before `dbFetchArrowChunk()`")
+    abort("Need to call `dbBind()` before `dbFetchArrowChunk()`")
   }
 
+  schema <- arrow_schema(res)
   repeat {
-    schema <- res@env$arrow_schema
-    if (is.null(schema)) {
-      schema <- nanoarrow::nanoarrow_allocate_schema()
-    }
     array <- nanoarrow::nanoarrow_allocate_array()
     has_chunk <- rethrow_rapi_fetch_arrow_array(
       res@env$query_result,
       array,
-      schema,
       chunk_size
     )
-    res@env$arrow_schema <- schema
 
     if (has_chunk) {
       nanoarrow::nanoarrow_array_set_schema(array, schema, validate = FALSE)
@@ -104,7 +110,7 @@ dbFetchArrowChunk__duckdb_result_arrow <- function(
       res@env$pending_query_results <- pending[-1L]
       next
     }
-    res@env$query_result <- NULL
+    # The drained result keeps its columns for the empty chunks that answer from here on.
     res@env$completed <- TRUE
     return(empty_arrow_chunk(res))
   }
@@ -120,26 +126,41 @@ setMethod(
 
 require_nanoarrow <- function(what) {
   if (!requireNamespace("nanoarrow", quietly = TRUE)) {
-    stop(
+    abort(
       sprintf(
         "%s requires the `nanoarrow` package. Install it with `install.packages(\"nanoarrow\")`.",
         what
-      ),
-      call. = FALSE
+      )
     )
   }
 }
 
-empty_arrow_chunk <- function(res) {
+# The Arrow schema of the result, from the columns its query result keeps:
+# there before the first fetch, and after the result has been read to the end or handed over.
+arrow_schema <- function(res) {
   schema <- res@env$arrow_schema
   if (is.null(schema)) {
-    # No chunk has ever been fetched (e.g. dbBindArrow() with a zero-length
-    # stream). Fall back to an empty no-column array; downstream code that
-    # only inspects `chunk$length` is unaffected.
+    schema <- nanoarrow::nanoarrow_allocate_schema()
+    rethrow_rapi_arrow_schema(res@env$query_result, schema)
+    res@env$arrow_schema <- schema
+  }
+  schema
+}
+
+empty_arrow_chunk <- function(res) {
+  if (is.null(res@env$query_result)) {
+    # A zero-length dbBind() executes nothing, so there are no columns to answer with.
+    # Downstream code that only inspects `chunk$length` is unaffected.
     return(nanoarrow::as_nanoarrow_array(data.frame()))
   }
-  ptype <- nanoarrow::infer_nanoarrow_ptype(schema)
-  nanoarrow::as_nanoarrow_array(ptype, schema = schema)
+  array <- nanoarrow::nanoarrow_allocate_array()
+  rethrow_rapi_arrow_empty_array(res@env$query_result, array)
+  nanoarrow::nanoarrow_array_set_schema(
+    array,
+    arrow_schema(res),
+    validate = FALSE
+  )
+  array
 }
 
 empty_arrow_stream <- function(res) {

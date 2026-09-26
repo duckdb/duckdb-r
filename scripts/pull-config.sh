@@ -1,0 +1,195 @@
+#!/bin/bash
+# Read-only: does `.github/pull.yml` rule every mirror a badge measures against?
+#
+# A mirror exists because a series seeds and forward-ports from the branch it
+# releases from (handbook/branches/mirrors/README.md), and that branch is
+# `releases_from` in scripts/series.yaml. So the rule list is a function of the
+# declared flavors rather than a thing to remember, and this script is that
+# function, evaluated against the file.
+#
+# It read the badge table out of the rendered `README.md` until then, by regular
+# expression over shields.io URLs. That made the rule list depend on how a badge
+# was spelled: when *ahead* moved to the canonical repository the refs it named
+# stopped being the fork's, and a derivation reading them would have unmirrored
+# `v1.4-andium` -- the branch `v1.4-andium-fwd` regenerates its seed from.
+#
+# It is wanted when a series changes -- one opened, one parked, one retired --
+# because that is when the badge table moves and the rule list moves with it.
+# A series is discovered from its refs and needs no configuration of its own
+# (handbook/branches/model/README.md); the branch its *ahead* badge measures
+# against is not one of those refs, and is exactly what this reads.
+#
+# What the fork must carry, derived:
+#
+#   * `main`, always. Every series seeds from it and forward-ports from it, so it
+#     is carried whether or not a flavor names it.
+#   * every other `releases_from` -- the parked `vX.Y-codename` baseline a line
+#     moves to once it stops releasing from `main`.
+#   * the `-lts` companion of such a baseline, where a rule already carries one:
+#     the LTS flavor publishes from it, which nothing else here names.
+#
+# **The repository a badge is computed in does not enter the derivation**, and
+# that is not an oversight. An *ahead* badge is read from the canonical
+# repository now that `<S>-green` is mirrored there
+# (handbook/branches/mirrors/README.md), so nothing about the comparison needs
+# the fork to carry its base any more -- but the base of an *ahead* badge is the
+# branch that series releases from, and therefore the branch it seeds and
+# forward-ports from, which is the first bullet's reason applied to a line that
+# is not `main`. The badge names it; the seeding is why it is carried. So the
+# rule list is what it was before the badges moved, and a reading that dropped
+# `v1.4-andium` on the strength of the moved badge would have unmirrored the
+# branch `v1.4-andium-fwd` regenerates its seed from.
+#
+# A series' own refs -- `-dev`, `-green`, `-build`, `-build-base` -- are never
+# mirrors and never get a rule: every rule hard-resets, so one that reached a
+# working ref would discard the loop's work (`.github/pull.yml` says the same
+# where someone editing it will read it).
+#
+# This prints the rule to add; it does not write the file. `.github/pull.yml`
+# carries comments that say why each rule is there, and a generator that owned
+# the file would have to own those too.
+#
+# Usage: pull-config.sh [--check]
+#   --check   exit 1 when the file and the badges disagree (default: exit 0,
+#             report either way)
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+check=
+[ "${1:-}" = --check ] && check=1
+
+declaration=scripts/series.yaml
+config=.github/pull.yml
+fork_url=${FORK_URL:-https://github.com/krlmlr/duckdb-r}
+
+[ -e "$declaration" ] ||
+  { echo "Error: no $declaration to derive the rules from" >&2; exit 1; }
+
+# The branch each flavor releases from, which is the branch its series seeds and
+# forward-ports from. A flavor with none -- CRAN and LTS, which release from the
+# branch they publish -- contributes nothing.
+badge_refs() {
+  python3 -c '
+import sys, yaml
+with open(sys.argv[1]) as f:
+    for x in sorted({v["releases_from"] for v in yaml.safe_load(f)["flavors"] if "releases_from" in v}):
+        print(x)
+' "$declaration"
+}
+
+# A series' own refs, which are the fork's to move and never mirrors of
+# anything. The suffix is what tells them apart -- the same test `pull.yml`
+# relies on for the app never reaching one.
+is_series_ref() {
+  case "$1" in
+    *-dev | *-green | *-build | *-build-base) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# `base:` of every rule, in file order, so the report can name what is there.
+config_rules() {
+  grep -oE '^[[:space:]]*-[[:space:]]+base:[[:space:]]*[A-Za-z0-9._-]+' "$config" |
+    awk '{print $NF}'
+}
+
+mapfile -t rules < <(config_rules)
+
+# The derivation, in the order the three bullets above give it.
+wanted=("main")
+while IFS= read -r r; do
+  [ -n "$r" ] || continue
+  is_series_ref "$r" && continue
+  [ "$r" = main ] && continue
+  wanted+=("$r")
+done < <(badge_refs)
+
+# The `-lts` companions, kept rather than derived: nothing in the tree points at
+# one, so the file is the only evidence that the flavor publishes from it, and
+# dropping a rule on the strength of not finding a reader is how a published
+# branch stops being mirrored.
+for r in "${rules[@]}"; do
+  case "$r" in
+    *-lts)
+      base=${r%-lts}
+      for w in "${wanted[@]}"; do
+        [ "$w" = "$base" ] && wanted+=("$r") && break
+      done
+      ;;
+  esac
+done
+
+contains() { # <needle> <haystack...>
+  local n=$1; shift
+  local h
+  for h in "$@"; do [ "$h" = "$n" ] && return 0; done
+  return 1
+}
+
+missing=()
+for w in "${wanted[@]}"; do
+  contains "$w" "${rules[@]}" || missing+=("$w")
+done
+
+unread=()
+for r in "${rules[@]}"; do
+  contains "$r" "${wanted[@]}" || unread+=("$r")
+done
+
+# Whether the fork has the branch at all. A rule whose base the fork lacks is
+# skipped silently and forever, so the push comes first and the rule second;
+# a reading that cannot be taken is reported as missing data, never as a pass.
+fork_has() { # <branch> -> 0 yes, 1 no, 2 could not read
+  local out
+  out=$(git ls-remote --heads "$fork_url" "$1" 2>/dev/null) || return 2
+  [ -n "$out" ]
+}
+
+status=0
+
+if [ ${#missing[@]} -eq 0 ] && [ ${#unread[@]} -eq 0 ]; then
+  echo "pull.yml: ${#rules[@]} rules, and the declaration asks for exactly those."
+else
+  status=1
+fi
+
+for w in "${missing[@]}"; do
+  echo
+  echo "pull.yml: no rule for $w, which $declaration names as a releases_from."
+  echo "          Without one the mirror stops at whatever it was last pushed at,"
+  echo "          and the badge keeps rendering, counting commits already shipped."
+  rc=0; fork_has "$w" || rc=$?
+  case $rc in
+    0) ;;
+    2)
+      echo "          Could not read $fork_url, so whether the fork carries $w"
+      echo "          is unknown here. That is missing data, not a clean result."
+      ;;
+    *)
+      echo "          The fork does not carry $w yet: push it once by hand FIRST."
+      echo "          A rule whose base the fork lacks is skipped silently and forever,"
+      echo "          so adding the rule never creates the mirror."
+      ;;
+  esac
+  echo "          Add, beside the rules it belongs with:"
+  echo
+  echo "  - base: $w"
+  echo "    upstream: duckdb:$w"
+  echo "    mergeMethod: hardreset"
+  echo "    mergeUnstable: true"
+done
+
+for r in "${unread[@]}"; do
+  echo
+  echo "pull.yml: the rule for $r, and no flavor in $declaration releases from it."
+  echo "          Either the badge table lost a row it should have,"
+  echo "          or the line retired and the rule outlived it. Read, do not delete:"
+  echo "          a rule costs a sync, and a mirror nobody keeps costs a wrong badge."
+done
+
+if [ -n "$check" ]; then
+  exit $status
+fi
+exit 0

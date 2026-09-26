@@ -1,8 +1,7 @@
 # adapted from sort-of reference at https://github.com/r-dbi/odbc/blob/main/R/Viewer.R
 # Handbook: handbook/usage/interactive/README.md
 rs_list_object_types <- function(connection) {
-  # slurp all the objects in the database so we can determine the correct
-  # object hierarchy
+  # slurp all the objects in the database so we can determine the correct object hierarchy
 
   # all databases contain tables, at a minimum or so someone claims
   obj_types <- list(table = list(contains = "data"))
@@ -38,8 +37,7 @@ rs_list_objects <- function(
   type = NULL,
   ...
 ) {
-  # if no schema was supplied but this database has schema, return a list of
-  # schema
+  # if no schema was supplied but this database has schema, return a list of schema
   if (is.null(schema)) {
     return(dbGetQuery(
       connection,
@@ -107,12 +105,12 @@ rs_preview <- function(
 ) {
   # Error if both table and view are passed
   if (!is.null(table) && !is.null(view)) {
-    stop("`table` and `view` can not both be used", call. = FALSE)
+    abort("`table` and `view` can not both be used")
   }
 
   # Error if neither table and view are passed
   if (is.null(table) && is.null(view)) {
-    stop("`table` and `view` can not both be `NULL`", call. = FALSE)
+    abort("`table` and `view` can not both be `NULL`")
   }
 
   name <- if (!is.null(table)) {
@@ -140,8 +138,7 @@ rs_preview <- function(
 rs_actions <- function(connection) {
   list(
     Help = list(
-      # show README for this package as the help; we will update to a more
-      # helpful (and/or more driver-specific) website once one exists
+      # show README for this package as the help; we will update to a more helpful (and/or more driver-specific) website once one exists
       icon = "",
       callback = function() {
         utils::browseURL("https://duckdb.org/docs/api/r")
@@ -194,8 +191,8 @@ rs_on_connection_opened <- function(connection, code = "") {
   display_name <- "DuckDB"
   server_name <- connection@driver@dbdir
 
-  # append the server name if we know it, and it isn't the same as the database name
-  # (this can happen for serverless, nameless databases such as SQLite)
+  # append the server name if we know it,
+  # and it isn't the same as the database name (this can happen for serverless, nameless databases such as SQLite)
   if (
     !is.null(server_name) &&
       nzchar(server_name) &&
