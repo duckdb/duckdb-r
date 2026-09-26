@@ -62,3 +62,39 @@ test_that("dbSendQueryArrow() does not materialize a large streaming query", {
   expect_lt(elapsed, 1)
   expect_true(dbIsValid(res))
 })
+
+test_that("dbClearResult() ends the query of a stream not read to the end", {
+  drv <- duckdb()
+  con <- dbConnect(drv)
+  other <- dbConnect(drv)
+  on.exit({
+    dbDisconnect(other)
+    dbDisconnect(con, shutdown = TRUE)
+  })
+  memory <- function() {
+    dbGetQuery(
+      other,
+      "SELECT sum(memory_usage_bytes) AS m FROM duckdb_memory()"
+    )$m
+  }
+
+  # The sort holds every row before the first one arrives.
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT i FROM range(1000000) t(i) ORDER BY i DESC"
+  )
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
+  held <- memory()
+  if (held == 0) {
+    # This series' engine has no streaming result type
+    # (duckdb/duckdb@b49292b48e), so dbSendQueryArrow() materializes: the sort is
+    # over before the first chunk arrives, and duckdb_memory() reports nothing to
+    # watch being released. Clearing the result is still exercised.
+    dbClearResult(res)
+    skip("the engine holds no memory for the sort behind an unread stream")
+  }
+  expect_gt(held, 0)
+
+  dbClearResult(res)
+  expect_lt(memory(), held / 10)
+})
