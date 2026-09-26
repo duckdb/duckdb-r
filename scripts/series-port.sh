@@ -472,6 +472,20 @@ git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
   -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
 from this ref is main's rather than the seed's. Vendors nothing, so stage 5
 replays it onto -dev and drops it as empty."
+# The same check as the -dev sync's, and it matters more here: vendor-one.sh
+# runs scripts/rconfigure.py and friends from the buffer's own tree. The
+# remedy differs, because the buffer takes no ports.
+while read -r gone; do
+  [ -n "$gone" ] || continue
+  callers=$(git -C "$bwt" grep -lF -- "$gone" -- . \
+    ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
+  [ -n "$callers" ] || continue
+  echo "warning: the buffer sync deleted $gone, still referenced by:"
+  echo "$callers" | sed 's/^/  /'
+  echo "  the buffer takes no ports: make main compatible, or fold the move into -build by hand"
+done <<EOF
+$(git -C "$bwt" diff --diff-filter=D --name-only HEAD^ HEAD)
+EOF
 git -C "$bwt" diff --quiet "$main" -- "${tooling[@]}" ||
   { echo "Error: buffer tooling still differs after sync; worktree kept at $bwt"; exit 1; }
 

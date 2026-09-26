@@ -316,8 +316,7 @@ between being pushed and being repaired.
 Past that the leg's **job log** carries the same content
 inline — `::group::<sha>` opens the commit's section,
 its log is printed inside, and `<sha>: <state> (<n>s, exit <rc>)` closes it —
-and GitHub keeps job logs far longer than either the artifact
-or the store's 30-day window.
+and GitHub keeps job logs far longer than the artifact.
 Which shard holds which commit is the run's `each-plan` artifact (7 days),
 or the group markers themselves.
 
@@ -1480,7 +1479,7 @@ the one case where a decided commit legitimately changes state.
 and only concerns a firing that is reading the store:
 remove `runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`,
 then dispatch `rcc-logs.yaml` to re-derive both from the fresh status,
-provided the commit is still inside the store's 30-day window.
+provided the commit is still inside the store's 180-day window.
 The removal alone no longer does anything:
 nothing sweeps on a schedule to notice the gap,
 so a deletion left unaccompanied is a record simply gone.
