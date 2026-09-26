@@ -23,20 +23,23 @@ It sends the query with \code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}
 and hands the stream to \code{arrow::as_record_batch_reader()},
 so the rows arrive batch by batch.
 \code{arrow::to_arrow()} materializes the whole result first,
-through the deprecated \code{arrow = TRUE} argument of \code{\link[DBI:dbSendQuery]{DBI::dbSendQuery()}}.
+through \code{dbSendQuery(arrow = TRUE)}.
 
 The reader is its connection's open result until it has been read to the end.
 Another statement on that connection makes the next read an error,
-and a query on that connection that scans the reader,
-such as one after \code{arrow::to_duckdb()} with \code{con} set to that connection,
-does not return.
+and a query on that connection that scans the reader does not return.
+Tables from \code{arrow::to_duckdb()} share the one connection that arrow keeps
+unless \code{con} is given:
+for such a table, a later \code{to_duckdb()} call is such a statement,
+and \code{to_duckdb()} on the reader with its default \code{con} is such a query.
 Read the reader to the end first, or run the other statement on a separate
 connection.
+
 Unlike \code{arrow::to_arrow()}, the reader is read on Arrow's threads,
-not on R's.
+not on R's, and Ctrl-C does not interrupt a read.
 }
 \examples{
-\dontshow{if (simulate_duckdb()$env$examples_enabled() && rlang::is_installed(c("arrow", "dbplyr", "dplyr", "nanoarrow"))) withAutoprint(\{ # examplesIf}
+\dontshow{if (simulate_duckdb()$env$examples_enabled() && all(vapply(c("arrow", "dbplyr", "dplyr", "nanoarrow"), requireNamespace, logical(1), quietly = TRUE))) withAutoprint(\{ # examplesIf}
 con <- dbConnect(duckdb())
 dbWriteTable(con, "mtcars", mtcars)
 

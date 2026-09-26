@@ -158,6 +158,9 @@ bridge dplyr pipelines both ways.
 `to_arrow()` still reads through the `arrow = TRUE` route, which materializes the whole result first.
 The same reader built from `dbGetQueryArrow()` and `arrow::as_record_batch_reader()` streams instead, and takes on the stream's limits.
 The package exports it as the experimental `to_arrow_stream()` ([`R/to_arrow_stream.R`](/R/to_arrow_stream.R)).
+Tables from `to_duckdb()` share the one connection arrow keeps unless `con` is given.
+So for those, a later `to_duckdb()` invalidates the reader, and `to_duckdb()` with its default `con` hands it back to its own connection.
+A read runs outside the package's interrupt handler, so Ctrl-C does not stop it, while it stops `to_arrow()`, which reads inside `dbSendQuery()`.
 A statement on its connection invalidates it before it is read to the end, and handed back to that connection with `to_duckdb()` it hangs.
 Arrow's `MakeSafeRecordBatchReader()`, which `to_arrow()` wraps around its reader, reports a read error as the end of the stream.
 So it cannot be kept around a stream, which can fail after its first batch.

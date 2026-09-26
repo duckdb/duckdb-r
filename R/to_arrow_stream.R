@@ -10,24 +10,27 @@
 #' and hands the stream to `arrow::as_record_batch_reader()`,
 #' so the rows arrive batch by batch.
 #' `arrow::to_arrow()` materializes the whole result first,
-#' through the deprecated `arrow = TRUE` argument of [DBI::dbSendQuery()].
+#' through `dbSendQuery(arrow = TRUE)`.
 #'
 #' The reader is its connection's open result until it has been read to the end.
 #' Another statement on that connection makes the next read an error,
-#' and a query on that connection that scans the reader,
-#' such as one after `arrow::to_duckdb()` with `con` set to that connection,
-#' does not return.
+#' and a query on that connection that scans the reader does not return.
+#' Tables from `arrow::to_duckdb()` share the one connection that arrow keeps
+#' unless `con` is given:
+#' for such a table, a later `to_duckdb()` call is such a statement,
+#' and `to_duckdb()` on the reader with its default `con` is such a query.
 #' Read the reader to the end first, or run the other statement on a separate
 #' connection.
+#'
 #' Unlike `arrow::to_arrow()`, the reader is read on Arrow's threads,
-#' not on R's.
+#' not on R's, and Ctrl-C does not interrupt a read.
 #'
 #' @param .data A dbplyr table on a DuckDB connection, or an Arrow object,
 #'   which is returned unchanged.
 #' @return An Arrow `RecordBatchReader`,
 #'   or an `arrow_dplyr_query` over it if `.data` is grouped.
 #' @export
-#' @examplesIf simulate_duckdb()$env$examples_enabled() && rlang::is_installed(c("arrow", "dbplyr", "dplyr", "nanoarrow"))
+#' @examplesIf simulate_duckdb()$env$examples_enabled() && all(vapply(c("arrow", "dbplyr", "dplyr", "nanoarrow"), requireNamespace, logical(1), quietly = TRUE))
 #' con <- dbConnect(duckdb())
 #' dbWriteTable(con, "mtcars", mtcars)
 #'
@@ -46,11 +49,15 @@ to_arrow_stream <- function(.data) {
   }
 
   con <- if (inherits(.data, "tbl_lazy")) dbplyr::remote_con(.data)
-  if (!inherits(con, "duckdb_connection")) {
+  # simulate_duckdb() is an S3 list that carries the class of a connection.
+  if (!isS4(con) || !inherits(con, "duckdb_connection")) {
     abort(paste(
       "`to_arrow_stream()` takes a dbplyr table on a DuckDB connection",
       "or an Arrow object."
     ))
+  }
+  if (!dbIsValid(con)) {
+    abort("`to_arrow_stream()` needs the connection of `.data` to be open.")
   }
   groups <- dplyr::groups(.data)
 
