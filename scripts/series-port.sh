@@ -515,39 +515,49 @@ fi
 # header). An append, never a rewrite: `-build`'s force-push is reserved for
 # mirroring a fold, and nothing here touches an upstream commit.
 #
-# A series with no buffer -- one pending cutover -- has nothing to sync, and
-# that is an ordinary state rather than an error.
+# A series with no buffer -- one pending cutover -- has nothing to sync or to
+# carry `patch/` entries onto, and that is an ordinary state rather than an
+# error.
 git rev-parse -q --verify "$buildref" > /dev/null || exit 0
-if git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
-  exit 0
-fi
-
-bwt=$(mktemp -d)
-git worktree add --detach -q "$bwt" "$buildref"
-git -C "$bwt" rm -qr --ignore-unmatch -- "${tooling[@]}"
-git -C "$bwt" checkout "$main" -- "${tooling[@]}"
-git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
-  -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
+if ! git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
+  bwt=$(mktemp -d)
+  git worktree add --detach -q "$bwt" "$buildref"
+  git -C "$bwt" rm -qr --ignore-unmatch -- "${tooling[@]}"
+  git -C "$bwt" checkout "$main" -- "${tooling[@]}"
+  git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
+    -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
 from this ref is main's rather than the seed's. Vendors nothing, so stage 5
 replays it onto -dev and drops it as empty."
-# The same check as the -dev sync's, and it matters more here: vendor-one.sh
-# runs scripts/rconfigure.py and friends from the buffer's own tree. The
-# remedy differs, because the buffer takes no ports.
-while read -r gone; do
-  [ -n "$gone" ] || continue
-  callers=$(git -C "$bwt" grep -lF -- "$gone" -- . \
-    ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
-  [ -n "$callers" ] || continue
-  echo "warning: the buffer sync deleted $gone, still referenced by:"
-  echo "$callers" | sed 's/^/  /'
-  echo "  the buffer takes no ports: make main compatible, or fold the move into -build by hand"
-done <<EOF
+  # The same check as the -dev sync's, and it matters more here: vendor-one.sh
+  # runs scripts/rconfigure.py and friends from the buffer's own tree. The
+  # remedy differs, because the buffer takes no ports.
+  while read -r gone; do
+    [ -n "$gone" ] || continue
+    callers=$(git -C "$bwt" grep -lF -- "$gone" -- . \
+      ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
+    [ -n "$callers" ] || continue
+    echo "warning: the buffer sync deleted $gone, still referenced by:"
+    echo "$callers" | sed 's/^/  /'
+    echo "  the buffer takes no ports: make main compatible, or fold the move into -build by hand"
+  done <<EOF
 $(git -C "$bwt" diff --diff-filter=D --name-only HEAD^ HEAD)
 EOF
-git -C "$bwt" diff --quiet "$main" -- "${tooling[@]}" ||
-  { echo "Error: buffer tooling still differs after sync; worktree kept at $bwt"; exit 1; }
+  git -C "$bwt" diff --quiet "$main" -- "${tooling[@]}" ||
+    { echo "Error: buffer tooling still differs after sync; worktree kept at $bwt"; exit 1; }
 
-bnext=$(git -C "$bwt" rev-parse HEAD)
-git worktree remove --force "$bwt"
-git push "$remote" "$bnext:refs/heads/$S-build"
-echo "build -> $(git rev-parse --short "$bnext")"
+  bnext=$(git -C "$bwt" rev-parse HEAD)
+  git worktree remove --force "$bwt"
+  git push "$remote" "$bnext:refs/heads/$S-build"
+  echo "build -> $(git rev-parse --short "$bnext")"
+fi
+
+# A port is how a `patch/` entry written against `main` reaches this series, and
+# `-dev` is not where it does anything: `vendor-one.sh` applies the *buffer's*
+# stack to every tree it regenerates. Carrying it on is part of porting, not a
+# separate errand somebody remembers -- so it runs here, on every --apply, and
+# whether or not this run had commits to pick. The carry decides by
+# test-applying against the buffer's own tree, because a buffer runs ahead of
+# `main` and an entry that does not fit its engine would break the next vendor
+# run rather than help it. It runs after the tooling sync and fetches again, so
+# it builds on the buffer tip that sync pushed.
+"$(dirname "$0")/series-patch-sync.sh" "$S" --apply --remote "$remote"
