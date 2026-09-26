@@ -508,7 +508,7 @@ fi
 # level until a human swaps them. It is more CI on a series about to be retired;
 # it is also the only thing that makes retiring it a check rather than a hope.
 # Pending work does not hold the buffer (.claude/skills/series-loop/SKILL.md stage 5):
-# each.yaml plans every commit in green..tip that has no status, so a longer tip
+# each.yaml plans every commit in green..tip that has no record, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does
 # hold it: stage 2 will fold a fix into that commit and replay everything above,
 # so anything appended now is minted only to be re-minted. The stage-3 walk above
@@ -753,8 +753,9 @@ else
   # prose is a finding nothing ever reads back. The header is the one part of
   # the note that is the same every time, so the stage writes it when the note
   # does not, and leaves whichever spelling the note chose alone when it does.
-  # The spelling written here is the colon one, which series-glue.sh reads
-  # today; #2746 is what makes the other three read back as well.
+  # The spelling written here is the colon one. series-glue.sh reads the
+  # section by its opening words under any spelling or case, the same test as
+  # the one below, so a header the note brought reads back as well as this one.
   if [ -n "$DEV_NOTE" ]; then
     if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ]; then
       git worktree remove --force "$wt"
