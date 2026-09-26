@@ -6,7 +6,7 @@ test_that("dbFetchArrow() returns a nanoarrow_array_stream", {
   dbExecute(con, "INSERT INTO t VALUES (1, 'x'), (2, 'y'), (3, 'z')")
 
   res <- dbSendQueryArrow(con, "SELECT * FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   stream <- dbFetchArrow(res)
   expect_s3_class(stream, "nanoarrow_array_stream")
@@ -24,7 +24,7 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   dbExecute(con, "CREATE TABLE t AS SELECT range a FROM range(5000)")
 
   res <- dbSendQueryArrow(con, "SELECT a FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   total <- 0L
   chunks <- 0L
@@ -49,7 +49,7 @@ test_that("each dbFetchArrowChunk() and dbFetchArrow() call uses its own chunk_s
   con <- local_con()
 
   res <- dbSendQueryArrow(con, "SELECT i FROM range(100) t(i)")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
   expect_equal(dbFetchArrowChunk(res, chunk_size = 50)$length, 50L)
@@ -79,7 +79,7 @@ test_that("the final empty chunk has the result's schema for every type (#2773)"
   }
 
   res <- dbSendQueryArrow(con, sql)
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   chunk <- dbFetchArrowChunk(res)
   expect_equal(chunk$length, 3L)
@@ -166,7 +166,7 @@ test_that("a zero-row LIST result returns an empty chunk on the first fetch (#27
   con <- local_con()
 
   res <- dbSendQueryArrow(con, "SELECT [1] AS l WHERE false")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   chunk <- dbFetchArrowChunk(res)
   expect_equal(chunk$length, 0L)
@@ -181,7 +181,7 @@ test_that("a result handed over by dbFetchArrow() keeps its columns (#2773)", {
     con,
     "SELECT [i] AS l, INTERVAL 1 DAY AS iv FROM range(3) t(i)"
   )
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   stream <- dbFetchArrow(res)
   expect_equal(stream$get_next()$length, 3L)
@@ -203,7 +203,7 @@ test_that("the Arrow schema and an empty batch are there before the first fetch"
     con,
     "SELECT [i] AS l, INTERVAL 1 DAY AS iv, 'x' AS v FROM range(3) t(i)"
   )
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   formats <- function(schema) {
     vapply(schema$children, function(child) child$format, character(1))
@@ -239,7 +239,7 @@ test_that("dbFetchArrow() errors after the result is cleared", {
 test_that("dbFetchArrow() returns an empty stream after the result is consumed", {
   con <- local_con()
   res <- dbSendQueryArrow(con, "SELECT 1 AS a")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   dbFetchArrow(res)
   again <- dbFetchArrow(res)
@@ -252,7 +252,7 @@ test_that("dbSendQueryArrow() + dbFetchArrowChunk() streams large queries", {
 
   t1 <- Sys.time()
   res <- dbSendQueryArrow(con, "SELECT * FROM range(10000000)")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
   elapsed <- as.numeric(Sys.time() - t1, units = "secs")
 
   # No materialization happened.
@@ -267,7 +267,7 @@ test_that("dbColumnInfo() still works on an arrow result and matches the schema"
   dbExecute(con, "CREATE TABLE t (a INTEGER, b VARCHAR, c DOUBLE)")
 
   res <- dbSendQueryArrow(con, "SELECT a, b, c FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   info <- dbColumnInfo(res)
   expect_equal(info$name, c("a", "b", "c"))
@@ -303,7 +303,7 @@ test_that("a chunked result that another statement invalidated errors instead of
   con <- local_con()
 
   res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
   dbGetQuery(con, "SELECT 42")
@@ -331,7 +331,7 @@ test_that("a stream read to the end still ends after another statement (#2772)",
   expect_null(stream$get_next())
 
   res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
   repeat {
     if (dbFetchArrowChunk(res, chunk_size = 10)$length == 0L) {
       break
