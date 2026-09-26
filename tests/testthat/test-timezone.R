@@ -648,3 +648,69 @@ test_that("expr_constant() stays on TIMESTAMP with the relational path (#2574)",
 
   expect_equal(dbGetQuery(con, "DESCRIBE t")$column_type, "TIMESTAMP")
 })
+
+test_that("dbConnect() sets the session TimeZone to UTC (#2646)", {
+  skip_if_no_icu()
+
+  con <- local_con()
+  dbExecute(con, "INSTALL icu")
+
+  # Whatever zone the machine is on, and whether or not icu was loaded
+  # before, a fresh connection starts on UTC
+  expect_equal(
+    dbGetQuery(con, "SELECT current_setting('TimeZone') AS tz")$tz,
+    "UTC"
+  )
+  expect_true(
+    dbGetQuery(
+      con,
+      "SELECT loaded FROM duckdb_extensions() WHERE extension_name = 'icu'"
+    )$loaded
+  )
+
+  # Which is the zone a naive TIMESTAMP is read in, so one round-trips
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+  dbExecute(con, "CREATE TABLE t (a TIMESTAMP)")
+  dbAppendTable(con, "t", data.frame(a = instant))
+  expect_equal(dbReadTable(con, "t")$a, instant, ignore_attr = TRUE)
+  expect_equal(
+    nrow(dbGetQuery(
+      con,
+      "SELECT * FROM t WHERE a = ?",
+      params = list(instant)
+    )),
+    1L
+  )
+})
+
+test_that("the alignment is a default, and `SET TimeZone` still wins (#2646)", {
+  skip_if_no_icu()
+
+  con <- local_con()
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "SET TimeZone = 'America/New_York'")
+
+  expect_equal(
+    dbGetQuery(con, "SELECT current_setting('TimeZone') AS tz")$tz,
+    "America/New_York"
+  )
+
+  # And a naive column stops round-tripping once it does: the engine renders
+  # the instant in the session zone while R reads the result back as UTC
+  instant <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+  dbExecute(con, "CREATE TABLE t (a TIMESTAMP)")
+  dbAppendTable(con, "t", data.frame(a = instant))
+  expect_equal(
+    dbGetQuery(con, "SELECT a::VARCHAR AS a FROM t")$a,
+    "2024-01-10 08:03:12"
+  )
+})
+
+test_that("a connection still opens where icu cannot be loaded (#2646)", {
+  con <- local_con(drv = duckdb(allow_extensions = FALSE))
+
+  # The alignment asks `duckdb_extensions()` first and gives up quietly,
+  # rather than reaching for a setting that would try to autoload icu
+  expect_true(dbIsValid(con))
+  expect_equal(dbGetQuery(con, "SELECT 1 AS a")$a, 1)
+})
