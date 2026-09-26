@@ -394,18 +394,17 @@ is_installed <- function(pkg) {
   as.logical(requireNamespace(pkg, quietly = TRUE)) == TRUE
 }
 
-# The Olson list, read once per session and on first use rather than at load time.
+# The Olson list, read once per session into `the` on first use,
+# not at load time.
 # `OlsonNames()` reads the zoneinfo directory on every call, 1.4 ms on Linux,
 # and `check_tz()` runs on every `dbConnect()`, twice:
 # once directly and once through `duckdb_convert_opts()`.
 # A `TZDIR` changed after the first call is not seen.
-olson_names_cache <- new.env(parent = emptyenv())
-
 olson_names <- function() {
-  if (is.null(olson_names_cache$names)) {
-    olson_names_cache$names <- OlsonNames()
+  if (is.null(the$olson_names)) {
+    the$olson_names <- OlsonNames()
   }
-  olson_names_cache$names
+  the$olson_names
 }
 
 check_tz <- function(timezone) {

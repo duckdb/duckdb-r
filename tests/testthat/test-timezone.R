@@ -136,9 +136,9 @@ test_that("check_tz() reads the Olson list from the session cache", {
   expect_setequal(olson_names(), OlsonNames())
 
   # A zone that only the cache knows passes, so the cache is what is consulted.
-  cached <- olson_names_cache$names
-  withr::defer(olson_names_cache$names <- cached)
-  olson_names_cache$names <- "Mars/Olympus"
+  cached <- the$olson_names
+  withr::defer(the$olson_names <- cached)
+  the$olson_names <- "Mars/Olympus"
 
   expect_silent(expect_identical(check_tz("Mars/Olympus"), "Mars/Olympus"))
   expect_warning(check_tz("UTC"), "Invalid time zone 'UTC'", fixed = TRUE)
