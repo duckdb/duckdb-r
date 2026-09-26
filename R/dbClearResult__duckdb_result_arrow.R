@@ -3,6 +3,9 @@
 #' @usage NULL
 dbClearResult__duckdb_result_arrow <- function(res, ...) {
   if (res@env$open) {
+    if (!is.null(res@env$query_result)) {
+      rethrow_rapi_release_arrow_result(res@env$query_result)
+    }
     res@env$query_result <- NULL
     res@env$pending_query_results <- NULL
     rethrow_rapi_release(res@stmt_lst$ref)
