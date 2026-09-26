@@ -94,6 +94,10 @@ This file is what names the contents, so nothing here is an orphan.
   reporting a live instance without a grace period costs; supports
   [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
   and [`usage/connections/`](/handbook/usage/connections/README.md).
+* [`2026-09-26-to-arrow-stream/`](2026-09-26-to-arrow-stream/):
+  whether `arrow::to_arrow()` can stream from `dbGetQueryArrow()` and still return what it returns today.
+  Also what streaming changes about how long its reader stays valid, and its memory against the materializing route.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

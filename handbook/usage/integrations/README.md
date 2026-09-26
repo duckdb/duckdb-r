@@ -142,6 +142,12 @@ at a time.
 
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
+`to_arrow()` still reads through the `arrow = TRUE` route, which materializes the whole result first.
+The same reader built from `dbGetQueryArrow()` and `arrow::as_record_batch_reader()` streams instead, and takes on the stream's limits.
+A statement on its connection invalidates it before it is read to the end, and handed back to that connection with `to_duckdb()` it hangs.
+Arrow's `MakeSafeRecordBatchReader()`, which `to_arrow()` wraps around its reader, reports a read error as the end of the stream.
+So it cannot be kept around a stream, which can fail after its first batch.
+The measurements, on arrow 25.0.1, are in [`experiments/2026-09-26-to-arrow-stream/`](/experiments/2026-09-26-to-arrow-stream/README.md).
 The DBI Arrow API plan is
 [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
 
