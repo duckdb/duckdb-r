@@ -119,7 +119,9 @@ for c in "${commits[@]}"; do
   # colon read 6 of the 14 sections in `main`'s own glue range and dropped the
   # other 8 in silence -- which is the one failure mode this read must not
   # have, since mining against a subset carries an intermediate fix forward.
-  body=$(git log -1 --format=%b "$c" | sed -n '/^R-side fix/,$p')
+  # Case-blind as well, like the check series-advance.sh makes before it writes
+  # a header of its own, so the writer and the reader agree on what one is.
+  body=$(git log -1 --format=%b "$c" | awk 'tolower($0) ~ /^r-side fix/ { f = 1 } f')
   [ -n "$body" ] && sed 's/^/    | /' <<<"$body"
   echo
 done
