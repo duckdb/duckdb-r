@@ -232,11 +232,11 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 
 	bool arrow = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
-	bool streaming = convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+	bool allow_stream = convert_opts.allow_stream_result == ConvertOpts::AllowStreamResult::ENABLED;
 
 	// The legacy arrow path (`dbSendQuery(arrow = TRUE)`) materializes results and
 	// has never supported binding multiple rows; preserve that error.
-	if (arrow && !streaming && n_rows != 1) {
+	if (arrow && !allow_stream && n_rows != 1) {
 		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
