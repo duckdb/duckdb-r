@@ -394,15 +394,19 @@ is_installed <- function(pkg) {
   as.logical(requireNamespace(pkg, quietly = TRUE)) == TRUE
 }
 
-# The Olson list, read once per session into `the` on first use,
-# not at load time.
+# The Olson list, read into `the` on first use, not at load time,
+# and read again whenever `TZDIR` has changed since.
 # `OlsonNames()` reads the zoneinfo directory on every call, 1.4 ms on Linux,
 # and `check_tz()` runs on every `dbConnect()`, twice:
 # once directly and once through `duckdb_convert_opts()`.
-# A `TZDIR` changed after the first call is not seen.
+# `TZDIR` does change within a session:
+# on macOS, loading lubridate points it from R's own database,
+# which lacks the `Factory` zone, to the system's.
 olson_names <- function() {
-  if (is.null(the$olson_names)) {
+  tzdir <- Sys.getenv("TZDIR")
+  if (!identical(the$olson_tzdir, tzdir)) {
     the$olson_names <- OlsonNames()
+    the$olson_tzdir <- tzdir
   }
   the$olson_names
 }
