@@ -29,6 +29,7 @@ when the two disagree, the handbook leaf is right.
 | Making Ctrl+C reach a DuckDB call blocked in a network wait, and why the obvious escalation is refused | [`PLAN-query-cancellation.md`](PLAN-query-cancellation.md) |
 | Opening the v2.0 series out of the preview line it forks from, and what becomes of the preview line | [`PLAN-v2-series-open.md`](PLAN-v2-series-open.md) |
 | Cloning a connection with its session, `dbConnect(con)`, so a stream survives the next statement on the original, and why not a private context behind every result | [`PLAN-connection-clone.md`](PLAN-connection-clone.md) |
+| Adding `rel_from_arrow()`, a relational scan of an Arrow or nanoarrow source | [`PLAN-rel-from-arrow.md`](PLAN-rel-from-arrow.md) |
 
 ## `done/` — plans that came true
 
