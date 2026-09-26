@@ -108,6 +108,42 @@ test_that("timezone_out gives a warning with NULL timezone, and converts to UTC"
   expect_equal(con@timezone_out, "UTC")
 })
 
+test_that("check_tz() passes a valid zone through without a warning", {
+  expect_silent(expect_identical(check_tz("UTC"), "UTC"))
+  expect_silent(expect_identical(check_tz("Pacific/Tahiti"), "Pacific/Tahiti"))
+  expect_silent(expect_identical(check_tz(""), ""))
+})
+
+test_that("check_tz() warns for an invalid zone once the Olson list is cached", {
+  # Fill the cache first: the check must still tell the zones apart afterwards.
+  check_tz("UTC")
+
+  expect_warning(
+    expect_identical(check_tz("not_a_timezone"), "UTC"),
+    "Invalid time zone 'not_a_timezone', falling back to UTC.",
+    fixed = TRUE
+  )
+  expect_warning(
+    expect_identical(check_tz(NULL), "UTC"),
+    "Invalid time zone '', falling back to UTC.",
+    fixed = TRUE
+  )
+})
+
+test_that("check_tz() reads the Olson list from the session cache", {
+  # As a set: `OlsonNames()` sorts in the collation of the moment,
+  # and the cache was filled before testthat switched to the C locale.
+  expect_setequal(olson_names(), OlsonNames())
+
+  # A zone that only the cache knows passes, so the cache is what is consulted.
+  cached <- olson_names_cache$names
+  withr::defer(olson_names_cache$names <- cached)
+  olson_names_cache$names <- "Mars/Olympus"
+
+  expect_silent(expect_identical(check_tz("Mars/Olympus"), "Mars/Olympus"))
+  expect_warning(check_tz("UTC"), "Invalid time zone 'UTC'", fixed = TRUE)
+})
+
 test_that("dbConnect fails when tz_out_convert is misspecified", {
   drv <- duckdb()
   on.exit(duckdb_shutdown(drv))
