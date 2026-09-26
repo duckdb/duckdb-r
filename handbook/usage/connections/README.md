@@ -73,6 +73,15 @@ The load-bearing facts:
   so the instance is released when the last connection closes —
   and a driver never connected to releases it when it is garbage-collected,
   or at the end of the session.
+* The engine keeps an instance cache of its own,
+  which waits for a shutdown that is finishing
+  and cannot tell that from an instance nothing is shutting down —
+  it spins forever on the second.
+  [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
+  makes it report instead, measured in
+  [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
+  No call from R reaches that cache today — `duckdb()` builds its instance directly —
+  which is what [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would change.
 * `dbIsValid()` on a driver reports whether it still holds an instance,
   and opens nothing to find out,
   so a driver whose last connection has closed is no longer valid.
