@@ -2,8 +2,11 @@
 #
 # grid.R sets the session zone in every cell, which is what a caller who
 # knows about it would do. This is the other half: what the defaults do, and
-# whether the answer moves with the machine's TZ. run.sh supplies TZ and
-# POLICY; icu reads the zone once when it loads, so each TZ needs a process.
+# whether the answer moves with the machine's TZ. run-defaults.sh supplies
+# POLICY; the machine zones are covered by spawning one process each, because
+# icu reads the zone once, when it loads.
+ZONES <- c("UTC", "Etc/UTC", "Europe/Zurich")
+
 suppressMessages(library(duckdb))
 options(width = 200)
 
@@ -89,6 +92,25 @@ grid <- expand.grid(
   stringsAsFactors = FALSE
 )
 
-out <- do.call(rbind, Map(cell, grid$col, grid$tz_out))
-rownames(out) <- NULL
-print(out, right = FALSE)
+if (nzchar(Sys.getenv("DUCKDB_R_ZONE_CHILD"))) {
+  out <- do.call(rbind, Map(cell, grid$col, grid$tz_out))
+  rownames(out) <- NULL
+  print(out, right = FALSE)
+} else {
+  for (zone in ZONES) {
+    cat(
+      system2(
+        "Rscript",
+        "defaults-grid.R",
+        env = c(
+          paste0("TZ=", zone),
+          paste0("POLICY=", policy),
+          "DUCKDB_R_ZONE_CHILD=1"
+        ),
+        stdout = TRUE,
+        stderr = TRUE
+      ),
+      sep = "\n"
+    )
+  }
+}
