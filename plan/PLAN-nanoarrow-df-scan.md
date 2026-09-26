@@ -2,8 +2,10 @@
 
 **Open.** The Arrow surface as it stands today is
 [`usage/integrations/`](/handbook/usage/integrations/README.md)'s,
-and the C++ that implements it is
-[`architecture/glue/`](/handbook/architecture/glue/README.md)'s;
+the C++ behind it is written to
+[`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)'s rules,
+and which thread may reach R from inside it is
+[`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)'s;
 this file is a proposal, and where it and a leaf disagree,
 the leaf is right.
 
@@ -34,6 +36,9 @@ nanoarrow is the small end of the same interface,
 and it is already in `Suggests`.
 Registering *into* DuckDB through it closes the loop
 without adding a dependency.
+What a registered Arrow object holds in memory,
+and that arrow's `Scanner` buffers a lazy source whole ahead of a slow sink,
+is [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)'s.
 
 ## What the measurement settled
 
@@ -99,6 +104,18 @@ can do rather than assume it can filter.
   as `Invalid Error: std::exception`.
   The producer calls get a wrapper that catches the R error and
   re-raises it with its own message and the producer's name.
+* **The stream a producer exports is pulled by engine threads.**
+  The export call itself is moved onto the scheduling thread,
+  but the batches that follow are pulled by whichever worker thread scans them,
+  so a stream whose `get_next` calls R cannot back a scan:
+  nanoarrow's reader over an R connection is the case that refuses any thread but R's
+  ([`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)).
+  What `as_nanoarrow_array_stream()` builds over R vectors is read without R,
+  and so is what arrow and polars export.
+  `duckdb_register_nanoarrow()` cannot tell the two apart from the outside,
+  so the reference page says which sources qualify,
+  and names `dbAppendTableArrow()` as the route for a stream that does not
+  ([`usage/memory/writing/`](/handbook/usage/memory/writing/README.md) has the measurement).
 
 ## Commits
 
@@ -165,8 +182,11 @@ The R surface and the C++ entry point behind it.
 `handbook/usage/integrations/README.md` gains the nanoarrow-in
 direction beside the existing arrow-in and stream-out ones, with the
 pushdown difference stated as the reason there are two.
-`handbook/architecture/glue/README.md` gains the capability flag and
-the `arrow_scan` / `arrow_scan_dumb` split.
+`handbook/architecture/glue/threading/README.md` gains the nanoarrow route beside the arrow one:
+the export still moves onto the scheduling thread,
+and the stream it returns must not call R.
+The capability flag and the `arrow_scan` / `arrow_scan_dumb` split are stated where the route is,
+on `usage/integrations/`.
 
 ## Out of scope
 
@@ -201,3 +221,10 @@ the `arrow_scan` / `arrow_scan_dumb` split.
   `BIGINT` for `integer64`, `TIME` for `hms`,
   `TIMESTAMP WITH TIME ZONE` for `POSIXct` —
   are bugs in `r_dataframe_scan` worth filing separately.
+* Whether the nanoarrow route changes the memory peak of a lazy source.
+  arrow's `Scanner` reads ahead on Arrow's own pool and buffers a lazy source whole,
+  the cost [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md) measured;
+  a nanoarrow producer puts no `Scanner` in front of the engine,
+  which holds one batch per thread,
+  so the read-ahead should not arise.
+  That is a mechanism, not a measurement, until the route exists to measure.

@@ -9,8 +9,12 @@ and what the Arrow export costs on a million rows.
 (this repository, built against the prebuilt libduckdb v1.5.5 via
 `DUCKDB_R_USE_SYSTEM_LIB=1`), nanoarrow 0.9.0, R 4.5.3, Linux.
 
+Re-run on 2026-09-26 against duckdb 1.5.5.9026, built from `main` on the same engine
+(`v1.5.5`, source id `d8cdaa33fda`): every result unchanged, timings within jitter.
+
 *What it supports:*
-[`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md).
+[`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md),
+and the Arrow section of [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Run [`scan.R`](scan.R); the recorded run is [`scan.md`](scan.md),
 rendered with `reprex::reprex(si = TRUE)`.
