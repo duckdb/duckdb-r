@@ -381,10 +381,9 @@ std::atomic<int> AltrepGuard::depth {0};
 		// thread. Let the engine carry the message back to it instead.
 		throw InvalidInputException(context + ": " + message);
 	}
-	// Inside an ALTREP method, calling back into R via cpp11::function is
-	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
-	// method without unwinding C++ frames. Throw a regular C++ exception so
-	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
+
+	// Inside an ALTREP method R may evaluate nothing, see AltrepGuard. The
+	// method's END_CPP11 raises this as a plain R error once it has unwound.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + message);
 	}
@@ -407,7 +406,8 @@ std::atomic<int> AltrepGuard::depth {0};
 	if (!rapi_on_r_thread()) {
 		error_data.Throw(context + ": ");
 	}
-	// Inside an ALTREP method, see comment in the string overload above.
+
+	// Inside an ALTREP method, see the string overload above.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + error_data.Message());
 	}
