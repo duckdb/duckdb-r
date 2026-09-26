@@ -119,8 +119,8 @@ so the paths differ by which copies they hold and when each is freed.
   `dbFetchArrowChunk()` hands over one such batch at a time;
   `dbFetchArrow()` hands over the whole stream,
   and what materializes from it is the consumer's choice.
-  The stream pins the connection —
-  any other statement invalidates it —
+  The stream pins the connection,
+  and survives any other statement run on it,
   `dbClearResult()` frees it eagerly,
   and a multi-row bind falls back to one materialized result per row
   (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)).

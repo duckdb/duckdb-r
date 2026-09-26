@@ -112,6 +112,15 @@ so a dedicated writer per frame library
 The stream feeds one consumer, draining as it is read,
 so a second pass over the same object sees zero rows
 rather than the result again.
+Another statement on that connection leaves it alone:
+this engine keeps a query result independent of whatever statement its connection is running,
+so a stream opened before that statement still delivers every row
+([#2772](https://github.com/duckdb/duckdb-r/issues/2772)).
+The glue wraps the engine's stream all the same
+(`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)),
+because the engine `main` vendors does invalidate such a result and reports it as ended,
+which would read as a complete result; on this engine that check never fires.
+A multi-row `dbBind()` is unaffected either way, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
 [`memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
