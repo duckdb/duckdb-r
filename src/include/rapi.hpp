@@ -176,6 +176,10 @@ struct RArrowArrayStreamWrapper {
 	RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size);
 
 	ArrowArrayStream stream;
+	// The engine's callbacks read the result's client context through a raw pointer,
+	// which a streaming result lets go of once it has seen its end, and a disconnect frees.
+	// Declared before `engine`, so the context outlives it.
+	duckdb::shared_ptr<ClientContext> context;
 	ResultArrowArrayStreamWrapper engine;
 	ErrorData last_error;
 

@@ -115,6 +115,20 @@ test_that("duckdb_fetch_arrow() record_batch_reader ", {
   expect_equal(NULL, cur_batch)
 })
 
+test_that("duckdb_fetch_record_batch() can be read after its connection is gone", {
+  con <- dbConnect(duckdb())
+  res <- suppressWarnings(
+    dbSendQuery(con, "SELECT i FROM range(3) t(i)", arrow = TRUE),
+    classes = "deprecatedWarning"
+  )
+  reader <- duckdb_fetch_record_batch(res)
+  dbClearResult(res)
+  dbDisconnect(con, shutdown = TRUE)
+  invisible(gc())
+
+  expect_equal(reader$read_table()$num_rows, 3L)
+})
+
 test_that("duckdb_fetch_arrow() record_batch_reader multiple vectors per chunk", {
   skip_if_not_installed("arrow", "4.0.1")
   con <- local_con()
