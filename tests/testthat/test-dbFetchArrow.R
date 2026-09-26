@@ -45,6 +45,19 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   expect_equal(again$length, 0L)
 })
 
+test_that("each dbFetchArrowChunk() and dbFetchArrow() call uses its own chunk_size", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(100) t(i)")
+  on.exit(dbClearResult(res), add = TRUE)
+
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 50)$length, 50L)
+  stream <- dbFetchArrow(res, chunk_size = 30)
+  expect_equal(stream$get_next()$length, 30L)
+  expect_equal(stream$get_next()$length, 10L)
+})
+
 test_that("the final empty chunk has the result's schema for every type (#2773)", {
   con <- local_con()
 
