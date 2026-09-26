@@ -195,6 +195,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	RArrowArrayStreamWrapper *wrapper;
 	if (qry_res->stream_wrapper) {
 		wrapper = qry_res->stream_wrapper.release();
+		wrapper->engine.batch_size = chunk_size;
 	} else if (qry_res->result) {
 		wrapper = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
 	} else {
@@ -255,6 +256,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		}
 		qry_res->stream_wrapper = make_uniq<RArrowArrayStreamWrapper>(std::move(qry_res->result), chunk_size);
 	}
+	// The wrapper outlives the call that created it, and each call asks for its own batch size.
+	qry_res->stream_wrapper->engine.batch_size = chunk_size;
 
 	auto &stream = qry_res->stream_wrapper->stream;
 	if (stream.get_next(&stream, out_array) != 0) {
