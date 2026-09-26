@@ -61,6 +61,12 @@ That is refused:
   since `duckdb_unregister()` on the connection drops the only protection the frame has,
   while a clone that is a connection carries its own attributes, as every connection does.
 
+A mode on the connection instead, `dbConnect(drv, isolated_results = TRUE)` or the like, is the same default confined to one
+connection: every streaming result on it would be a session of its own, and the temp table the caller made a statement ago
+would be missing from the next stream with nothing at the call site to say why.
+Refused for the same reasons.
+The opt-in is therefore an object and an argument, both explicit at the place they take effect.
+
 ## Design
 
 1. **`dbConnect(con)` clones the connection.**
@@ -79,12 +85,16 @@ That is refused:
 2. **The ended-stream error names the clone.**
    The message from #2775 says "run the other statement on a separate connection";
    it adds that `dbConnect(con)` makes one that carries the session.
-3. **A result that owns a clone, later and by argument.**
-   When the pump lands, `dbSendQueryArrow()` and `dbSendQuery(stream = TRUE)` take `isolated = TRUE`:
-   the result clones the connection for itself and closes the clone in `dbClearResult()`,
-   `prefetch = TRUE` implies it, and inside an open transaction it is refused with an error rather than quietly served
-   from the connection's context.
-   Nothing about it is built before the pump needs it.
+3. **A result that owns a clone, by argument.**
+   `dbSendQueryArrow()` and `dbSendQuery(stream = TRUE)` take `isolated = TRUE` (the name is open):
+   the result clones the connection for itself, sends the query on the clone,
+   and closes the clone in `dbClearResult()`, which DBI already requires of every result.
+   It is thin over step 1, R code alone, and it earns its place on three counts:
+   the lifetime is the result's, so nothing is left for the caller to disconnect and no clone outlives its stream;
+   a function handed one connection can keep its own stream open without asking its caller for a second;
+   and the pump needs exactly this, so `prefetch = TRUE` implies it.
+   Inside an open transaction it is refused with an error rather than quietly served from the connection's context,
+   and on a materialized result, `dbSendQuery()` without `stream = TRUE`, it is an error too, not a silent no-op.
 
 ## Consequences to state
 
@@ -99,12 +109,19 @@ That is refused:
 1. `dbConnect(con)`: the method, the session copy in the glue, the replay of registrations,
    and tests: a `SET TimeZone` on the source read back from the clone, a registered frame queried through the clone,
    a temp table not seen, the chunked loop completing with its writes on the clone, and `dbDisconnect()` of either side.
-2. The error message of #2775 pointing at the clone.
-3. The reference page (`?duckdb`, the connect section) and [`usage/connections/`](/handbook/usage/connections/README.md); `NEWS.md`.
-4. Deferred: the result-owned clone, with the pump.
+2. `isolated = TRUE` on the two streaming send methods, over the clone,
+   with tests: the chunked loop through one connection completing, two isolated streams on one connection read alternately,
+   the clone gone after `dbClearResult()`, the refusal inside a transaction, and the error on a materialized result.
+3. The error message of #2775 pointing at both forms.
+4. The reference pages (`?duckdb`, the connect section, and the two send methods) and
+   [`usage/connections/`](/handbook/usage/connections/README.md); `NEWS.md`.
+5. With the pump: `prefetch = TRUE` implying `isolated = TRUE`.
 
 ## Open questions
 
-* Whether cloning inside an open transaction is refused, since the clone cannot see it, or allowed and documented; proposed: allowed.
+* Whether cloning inside an open transaction is refused, since the clone cannot see it, or allowed and documented;
+  proposed: `dbConnect(con)` allowed, since a connection is the caller's to reason about, and `isolated = TRUE` refused,
+  since a result that cannot see the transaction it was sent in is an answer to a different question.
+* The argument's name: `isolated` reads as transaction isolation, which is half of what it means.
 * Whether `duckdb_register()` should become instance-wide, as the Arrow registrations are,
   which would remove the replay and make a registration visible from every connection; not proposed here.

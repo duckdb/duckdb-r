@@ -108,7 +108,7 @@ while the engine's own ADBC driver keeps one context and materializes an open st
 What the idea is good for, an open stream that leaves its connection usable and, with a producer thread, results that produce at once,
 is kept in the explicit form DBI already defines:
 `dbConnect(con)` cloning the connection, with its session settings, default database and registered frames,
-and, once the producer thread needs it, a result that owns such a clone when asked to by argument.
+and a result that owns such a clone when asked to by argument, which is also what a pumped result needs.
 A private context taken by default behind guards was drafted and refused;
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) carries the design and the reasons.
 
