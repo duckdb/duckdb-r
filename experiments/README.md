@@ -29,6 +29,9 @@ This file is what names the contents, so nothing here is an orphan.
   which R code runs when an ALTREP method raises an error, what it
   costs in C stack, and what #1797's guard changes; supports
   [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md).
+* [`2026-08-07-inbox-zero-reprexes/`](2026-08-07-inbox-zero-reprexes/):
+  what 1.5.5 does when the #2522 items still open are run again;
+  supports [`operations/triage/`](/handbook/operations/triage/README.md).
 * [`2026-08-08-altrep-scan-threads/`](2026-08-08-altrep-scan-threads/) —
   what a scan returned when it reached a registered ALTREP data frame's
   packed column itself, per thread count and field type, before and
