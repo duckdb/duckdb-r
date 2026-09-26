@@ -241,22 +241,27 @@ for r in build dev green build-base; do
 done
 
 # A version that does not move forward -- back, or not at all -- is the swap's
-# one cost that nothing else on screen shows. `<S>-dev` is what r-universe
-# builds, so its version is the one consumers are offered, and the replay's
-# renumbering starts the fifth component well below what the base series
-# accumulated. Usually the fourth component covers it, because the forward is
-# seeded on a newer `main` whose version has moved on since; where it does not,
-# r-universe has nothing to offer as an upgrade until the new chain's counter
-# climbs past the old one's. That is a cost rather than a corruption, and
-# whether it is worth paying is a judgement, so this names it and leaves the
-# decision with the confirmation.
+# one cost that nothing else on screen shows. `<S>-green` is what r-universe
+# publishes (handbook/branches/mirrors/README.md), so its version is the one
+# consumers are offered, and the replay's renumbering starts the fifth component
+# well below what the base series accumulated. Usually the fourth component
+# covers it, because the forward is seeded on a newer `main` whose version has
+# moved on since; where it does not, r-universe has nothing to offer as an
+# upgrade until the new chain's counter climbs past the old one's. That is a
+# cost rather than a corruption, and whether it is worth paying is a judgement,
+# so this names it and leaves the decision with the confirmation.
+#
+# On a preview line the fourth component never covers it: the prefix is pinned
+# to the line being previewed rather than taken from `main`
+# (scripts/preview-prefix.sh), so the forward keeps it and only the restarted
+# counter differs. A version going back is normal there, and the warning says so.
 #
 # Without a GNU sort the versions are still printed and simply not compared:
 # the swap is not worth blocking over a missing coreutils, and a comparison
 # made with the wrong tool would read as a clean bill.
 if [ -z "$gnu_sort" ]; then
   echo "Note: no GNU sort here, so the versions above were not compared."
-  echo "  Read them: a $S-dev version that does not move forward is an upgrade"
+  echo "  Read them: a $S-green version that does not move forward is an upgrade"
   echo "  r-universe cannot offer. Install GNU coreutils as 'gsort' -- on"
   echo "  macOS, 'brew install coreutils'."
 else
@@ -272,9 +277,11 @@ else
       0) echo "Warning: $S-$r keeps version $oldv across the swap." ;;
       1) echo "Warning: $S-$r would go from $oldv back to $newv." ;;
     esac
-    if [ "$r" = dev ]; then
+    if [ "$r" = green ]; then
       echo "  r-universe publishes from this ref and has no upgrade to offer"
-      echo "  until the forward chain's counter passes $oldv."
+      echo "  until the forward chain's counter passes $oldv. On a preview line"
+      echo "  that is normal: its prefix is pinned to the line it previews, so"
+      echo "  only the counter moves, and the replay restarts it."
     fi
   done
 fi

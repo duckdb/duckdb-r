@@ -329,11 +329,15 @@ as a counter of its own chain,
 which starts well below the one the base series accumulated,
 and the fourth component usually covers it
 because the forward is seeded on a newer `main`.
-Where it does not, r-universe has no upgrade to offer
+Where it does not, r-universe, which publishes from `<S>-green`, has no upgrade to offer
 until the new chain climbs past the old one's counter —
 a cost rather than a corruption,
 and whether it is worth paying is the judgement
 the typed confirmation already asks for.
+On a preview line it never does, and a version going back is normal there:
+the prefix is pinned to the line being previewed rather than taken from `main`
+([`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh)),
+so only the restarted counter differs.
 
 It swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
