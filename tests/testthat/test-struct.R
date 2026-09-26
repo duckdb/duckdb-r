@@ -416,3 +416,15 @@ test_that("nested columns work with ALTREP", {
 
   expect_identical(rel_to_altrep(rel5), expected)
 })
+
+test_that("a data frame column with several fields writes as STRUCT", {
+  con <- local_con()
+  df <- data.frame(id = 1:2)
+  df$s <- data.frame(i = 1:2, j = c("a", "b"))
+
+  dbWriteTable(con, "df", df)
+
+  res <- dbGetQuery(con, "SELECT typeof(s) AS t FROM df LIMIT 1")
+  expect_equal(res$t, "STRUCT(i INTEGER, j VARCHAR)")
+  expect_equal(dbReadTable(con, "df")$s, df$s)
+})

@@ -149,7 +149,8 @@ duckdb_augment_field_types_for_map <- function(conn, value, field.types) {
       next
     }
     inferred <- dbDataType(conn, value[[col_name]])
-    if (duckdb_is_map_type(inferred)) {
+    # A data frame column yields one type per field, and is never a MAP.
+    if (length(inferred) == 1 && duckdb_is_map_type(inferred)) {
       field.types[[col_name]] <- inferred
     }
   }
