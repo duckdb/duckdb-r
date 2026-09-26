@@ -62,6 +62,11 @@ Measured evidence:
   relation's protection list, so `rel_to_altrep()` can materialize
   long after the R-level handle is gone.
   `make_external_prot<RelationWrapper>()` already takes that list.
+  What materialization evaluates is [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s,
+  and the thread rule is [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)'s:
+  bind and the ALTREP methods run on R's thread,
+  and the stream the producer returns is pulled by engine threads,
+  so it must not call R.
 * **Registration is not required.**
   `rel_from_arrow(con, x)` takes the source directly.
   A name in the catalog is a separate concern

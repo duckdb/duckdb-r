@@ -10,8 +10,12 @@ behaves around binding, lifetime, filter pushdown, and cost.
 `DUCKDB_R_USE_SYSTEM_LIB=1`), arrow 25.0.0, nanoarrow 0.9.0,
 R 4.5.3, Linux.
 
+Re-run on 2026-09-26 against duckdb 1.5.5.9026, built from `main` on the same engine
+(`v1.5.5`, source id `d8cdaa33fda`): every result unchanged, timings within jitter.
+
 *What it supports:*
-[`plan/PLAN-rel-from-arrow.md`](/plan/PLAN-rel-from-arrow.md).
+[`plan/PLAN-rel-from-arrow.md`](/plan/PLAN-rel-from-arrow.md),
+and [`usage/relational/`](/handbook/usage/relational/README.md).
 
 Run [`rel.R`](rel.R); the recorded run is [`rel.md`](rel.md),
 rendered with `reprex::reprex(si = TRUE)`.
