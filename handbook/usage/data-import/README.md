@@ -33,9 +33,10 @@ and an R data frame through registration or the environment scan.
   copying it; `duckdb(environment_scan = TRUE)` does the same for a
   data frame found by name in the calling environment, and a table of
   that name in the database wins over it.
-  Both bind with the connection's conversion options —
-  `bigint`, `map`, `posixct` — so one data frame reaching the engine
-  two ways arrives as one set of types.
+  Both bind with the connection's conversion options,
+  `bigint` and `map` and `posixct`,
+  so one data frame reaching the engine two ways
+  arrives as one set of types.
   Which types those are is
   [`types/`](/handbook/usage/types/README.md)'s.
 * **Out:** `COPY ... TO 'file.parquet'` in SQL;
