@@ -91,6 +91,14 @@ a generic that a package outside CRAN can satisfy is an interface.
   and not from the class.
   The producer says so, and the C++ binds `arrow_scan` or
   `arrow_scan_dumb` accordingly.
+* **The export runs on R's thread; the stream it returns does not.**
+  The export call is moved onto the scheduling thread,
+  and the batches are pulled by whichever engine thread scans them
+  ([`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)),
+  so the contract requires a stream that does not call R.
+  The experiment's producer collects the `LazyFrame` inside the export
+  and hands over the collected frame's stream for that reason:
+  a reader that still had R work to do would be asked for it from the wrong thread.
 * **The relational side comes along for free.**
   `rel_from_arrow()` takes the same producer, so a Polars frame is a
   relation as well as a view, and duckplyr can build on one.

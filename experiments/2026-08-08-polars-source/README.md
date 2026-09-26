@@ -13,7 +13,8 @@ polars 1.14.0.9000 (r-universe, built from source),
 nanoarrow 0.9.0, R 4.5.3, Linux.
 
 *What it supports:*
-[`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md).
+[`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md),
+and the frame-library section of [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Run [`polars.R`](polars.R); the recorded run is [`polars.md`](polars.md),
 rendered with `reprex::reprex(si = TRUE)`.
