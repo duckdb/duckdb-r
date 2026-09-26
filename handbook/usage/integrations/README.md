@@ -119,9 +119,10 @@ without an R data frame in between —
 so a dedicated writer per frame library
 (Polars was the one asked for) is this route, not new C++
 ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-The stream feeds one consumer, draining as it is read,
-so a second pass over the same object sees zero rows
-rather than the result again.
+The stream feeds one consumer, draining as it is read.
+A `$get_next()` loop over it ends in `NULL`.
+A conversion such as `as.data.frame()` or `arrow::as_arrow_table()` releases it.
+A second conversion is then an error ("has already been released"), not the result again.
 Another statement on that connection leaves it alone:
 this engine keeps a query result independent of whatever statement its connection is running,
 so a stream opened before that statement still delivers every row
@@ -132,6 +133,9 @@ because the engine `main` vendors does invalidate such a result and reports it a
 which would read as a complete result; on this engine that check never fires.
 The wrapper also keeps the connection's client context alive until the stream is released.
 The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
+A query that scans the stream itself, say after `duckdb_register_arrow()`, still needs a connection of its own.
+On the stream's own connection, that query hangs instead of failing.
+It holds the connection while it reads, and each read of the stream waits for the connection.
 A multi-row `dbBind()` is unaffected either way, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
