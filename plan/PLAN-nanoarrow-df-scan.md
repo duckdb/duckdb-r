@@ -99,6 +99,10 @@ can do rather than assume it can filter.
   it has nothing to replay for the second scan.
   Detect it and say so, rather than failing on the first projection
   with a message about subsetting.
+  A query result's stream is the same case with a worse failure:
+  registered on its own connection, a query over it hangs,
+  because the scan holds the connection while each read of the stream waits for it
+  ([`usage/integrations/`](/handbook/usage/integrations/README.md) owns the mechanism).
 * **R errors keep their message.**
   An R condition raised inside a producer currently reaches the caller
   as `Invalid Error: std::exception`.
