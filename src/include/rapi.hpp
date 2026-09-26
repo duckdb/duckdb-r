@@ -188,9 +188,22 @@ private:
 	int ReportInvalidated();
 };
 
+// A query result for the Arrow route.
+// Its columns stay after the result has been read to the end or handed over,
+// for the Arrow schema and the empty batch that answer from then on (handbook/usage/integrations/README.md).
+// The client properties point to the client context,
+// which the result's prepared statement keeps alive until dbClearResult().
 struct RQueryResult {
+	explicit RQueryResult(duckdb::unique_ptr<QueryResult> result_p)
+	    : result(std::move(result_p)), types(result->types), names(result->names),
+	      client_properties(result->client_properties) {
+	}
+
 	duckdb::unique_ptr<QueryResult> result;
 	duckdb::unique_ptr<RArrowArrayStreamWrapper> stream_wrapper;
+	vector<LogicalType> types;
+	vector<string> names;
+	ClientProperties client_properties;
 };
 
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
