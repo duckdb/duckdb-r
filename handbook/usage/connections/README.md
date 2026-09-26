@@ -59,6 +59,16 @@ The load-bearing facts:
   The cost is bounded by comparing values rather than counting
   arguments: the calls that break are the ones that were already not
   doing what they said.
+* **Normalization resolves the path as far as it goes, and no further.**
+  A database file that does not exist yet is resolved through an empty
+  placeholder `duckdb()` creates and removes again,
+  so a `dbdir` in a directory that cannot be written to fails at
+  `duckdb()` rather than in the engine.
+  Creating that placeholder is the only step that has to succeed:
+  a path `normalizePath()` cannot resolve is kept as it stands.
+  Asking for more refused the network drive whose parent directories
+  the user may traverse but not list
+  ([#455](https://github.com/duckdb/duckdb-r/issues/455)).
 * **A `dbdir` an extension answers is not normalized.**
   `md:` (MotherDuck), `ducklake:` and their kind name a replacement
   open, not a file, so they pass through untouched; normalizing one
@@ -88,5 +98,4 @@ The load-bearing facts:
   `duckdb_shutdown()` on such a driver is a silent no-op:
   what it asks for has already happened.
 
-*To deepen: absorb the instance and caching section of `?duckdb`;
-drain [#455](https://github.com/duckdb/duckdb-r/issues/455).*
+*To deepen: absorb the instance and caching section of `?duckdb`.*
