@@ -7,6 +7,7 @@ test_that("dbSendQuery(stream = TRUE) fetches in chunks without materializing", 
   dbWriteTable(con, "mt", mtcars)
 
   rs <- dbSendQuery(con, "SELECT * FROM mt", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   expect_null(rs@env$resultset)
   # The stream opens eagerly at dbSendQuery() time, without materializing
   expect_false(is.null(rs@env$stream_result))
@@ -34,14 +35,13 @@ test_that("dbSendQuery(stream = TRUE) fetches in chunks without materializing", 
   expect_true(dbHasCompleted(rs))
 
   expect_identical(rbind(d1, d2, d3), dbGetQuery(con, "SELECT * FROM mt"))
-
-  dbClearResult(rs)
 })
 
 test_that("streaming fetch splits chunks at exact row counts", {
   con <- local_con()
 
   rs <- dbSendQuery(con, "SELECT * FROM range(10000) AS t(i)", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   sizes <- c(1, 7, 100, 2048, 3000)
   fetched <- lapply(sizes, function(n) dbFetch(rs, n = n))
   expect_equal(vapply(fetched, nrow, integer(1)), sizes)
@@ -51,31 +51,29 @@ test_that("streaming fetch splits chunks at exact row counts", {
 
   all <- do.call(rbind, c(fetched, list(rest)))
   expect_identical(all$i, as.numeric(0:9999))
-
-  dbClearResult(rs)
 })
 
 test_that("dbFetch(n = 0) on a streaming result returns no rows", {
   con <- local_con()
 
   rs <- dbSendQuery(con, "SELECT * FROM range(5) AS t(i)", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   z <- dbFetch(rs, n = 0)
   expect_equal(nrow(z), 0)
   expect_equal(names(z), "i")
   expect_false(dbHasCompleted(rs))
   expect_equal(nrow(dbFetch(rs)), 5)
-  dbClearResult(rs)
 })
 
 test_that("streaming a zero-row result completes on first fetch", {
   con <- local_con()
 
   rs <- dbSendQuery(con, "SELECT 1 AS a WHERE 1 = 0", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   z <- dbFetch(rs, n = 10)
   expect_equal(nrow(z), 0)
   expect_equal(names(z), "a")
   expect_true(dbHasCompleted(rs))
-  dbClearResult(rs)
 })
 
 test_that("streaming results rebind: new params open a fresh stream", {
@@ -83,6 +81,7 @@ test_that("streaming results rebind: new params open a fresh stream", {
   dbWriteTable(con, "mt", mtcars)
 
   rs <- dbSendQuery(con, "SELECT * FROM mt WHERE cyl = ?", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   expect_false(dbHasCompleted(rs))
   expect_error(dbFetch(rs), "dbBind")
 
@@ -98,17 +97,15 @@ test_that("streaming results rebind: new params open a fresh stream", {
   p2 <- dbFetch(rs)
   expect_equal(nrow(p2), 11)
   expect_true(dbHasCompleted(rs))
-
-  dbClearResult(rs)
 })
 
 test_that("type errors on streaming results surface at dbFetch()", {
   con <- local_con()
 
   rs <- dbSendQuery(con, "SELECT ?::INT + 1 AS a", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   dbBind(rs, list("asdf"))
   expect_error(dbFetch(rs))
-  dbClearResult(rs)
 })
 
 test_that("execution errors on streaming queries are raised, not swallowed", {
@@ -149,6 +146,7 @@ test_that("multi-row binds on a streaming result fall back to materializing", {
   con <- local_con()
 
   rs <- dbSendQuery(con, "SELECT ?::INT AS a", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   dbBind(rs, list(c(1L, 2L, 3L)))
   m <- dbFetch(rs)
   expect_equal(m$a, c(1L, 2L, 3L))
@@ -160,18 +158,16 @@ test_that("multi-row binds on a streaming result fall back to materializing", {
   m2 <- dbFetch(rs)
   expect_equal(m2$a, 9L)
   expect_true(dbHasCompleted(rs))
-
-  dbClearResult(rs)
 })
 
 test_that("EXPLAIN stays on the materialized path under stream = TRUE", {
   con <- local_con()
 
   rs <- dbSendQuery(con, "EXPLAIN SELECT 1", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   expect_false(rs@env$stream)
   out <- dbFetch(rs)
   expect_s3_class(out, "duckdb_explain")
-  dbClearResult(rs)
 })
 
 test_that("stream = TRUE does not affect DML side effects and counts", {
@@ -179,9 +175,9 @@ test_that("stream = TRUE does not affect DML side effects and counts", {
 
   dbExecute(con, "CREATE TABLE x (a INT)")
   rs <- dbSendQuery(con, "INSERT INTO x VALUES (1), (2)", stream = TRUE)
+  withr::defer(dbClearResult(rs))
   expect_false(rs@env$stream)
   expect_equal(dbGetRowsAffected(rs), 2)
-  dbClearResult(rs)
   expect_equal(dbGetQuery(con, "SELECT COUNT(*) AS n FROM x")$n, 2)
 })
 
@@ -269,8 +265,8 @@ test_that("streaming results convert types identically to materialized results",
   # One streamed fetch of everything is identical to the materialized result
   ref <- dbGetQuery(con, sql)
   rs <- dbSendQuery(con, sql, stream = TRUE)
+  withr::defer(dbClearResult(rs))
   expect_identical(dbFetch(rs), ref)
-  dbClearResult(rs)
 
   # The same sequence of partial fetches yields identical frames on both
   # paths. The materialized result executes eagerly at dbSendQuery() time,
@@ -282,14 +278,14 @@ test_that("streaming results convert types identically to materialized results",
   # full-fetch comparison above).
   sql_partial <- "SELECT * EXCLUDE (struct_col, array_col) FROM typed ORDER BY int_col"
   rs_m <- dbSendQuery(con, sql_partial)
+  withr::defer(dbClearResult(rs_m))
   rs_s <- dbSendQuery(con, sql_partial, stream = TRUE)
+  withr::defer(dbClearResult(rs_s))
   for (n in c(1, 999, 2500, -1)) {
     expect_identical(dbFetch(rs_s, n = n), dbFetch(rs_m, n = n))
   }
   expect_true(dbHasCompleted(rs_s))
   expect_true(dbHasCompleted(rs_m))
-  dbClearResult(rs_s)
-  dbClearResult(rs_m)
 })
 
 test_that("streaming converts TIMESTAMPTZ identically to materialized results", {
@@ -312,16 +308,16 @@ test_that("streaming converts TIMESTAMPTZ identically to materialized results", 
   ref <- dbGetQuery(con, sql)
 
   rs <- dbSendQuery(con, sql, stream = TRUE)
+  withr::defer(dbClearResult(rs))
   expect_identical(dbFetch(rs), ref)
-  dbClearResult(rs)
 
   rs_m <- dbSendQuery(con, sql)
+  withr::defer(dbClearResult(rs_m))
   rs_s <- dbSendQuery(con, sql, stream = TRUE)
+  withr::defer(dbClearResult(rs_s))
   for (n in c(3, 2500, -1)) {
     expect_identical(dbFetch(rs_s, n = n), dbFetch(rs_m, n = n))
   }
-  dbClearResult(rs_s)
-  dbClearResult(rs_m)
 })
 
 test_that("streaming respects timezone_out and tz_out_convert per fetch", {
@@ -332,8 +328,8 @@ test_that("streaming respects timezone_out and tz_out_convert per fetch", {
   ref <- dbGetQuery(con, sql)
 
   rs <- dbSendQuery(con, sql, stream = TRUE)
+  withr::defer(dbClearResult(rs))
   streamed <- rbind(dbFetch(rs, n = 42), dbFetch(rs, n = -1))
-  dbClearResult(rs)
 
   expect_identical(streamed, ref)
 })
@@ -346,8 +342,8 @@ test_that("streaming works with bigint = \"integer64\"", {
   ref <- dbGetQuery(con, sql)
 
   rs <- dbSendQuery(con, sql, stream = TRUE)
+  withr::defer(dbClearResult(rs))
   streamed <- rbind(dbFetch(rs, n = 7), dbFetch(rs, n = -1))
-  dbClearResult(rs)
 
   expect_identical(streamed, ref)
 })
