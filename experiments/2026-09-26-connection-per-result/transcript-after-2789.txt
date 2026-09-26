@@ -1,0 +1,12 @@
+Warning message:
+1 result was still open on this connection and has been closed with it.
+Clear results with `dbClearResult()` before disconnecting. 
+  dbIsValid(con) after dbDisconnect()                          FALSE
+  dbIsValid(res) after dbDisconnect()                          FALSE
+  dbFetch(res)$n, the copy taken at send time                  error: The connection this result was sent on has been closed.
+  dbBind(res, 'u'); dbFetch(res)$n, re-executed                error: The connection this result was sent on has been closed.
+  dbIsValid(drv): does the driver still hold the instance      FALSE
+  open the file again from another process                     opened
+  dbConnect(duckdb(path)) in this process, and CREATE TABLE u  opened
+  dbBind(res, 'u'); dbFetch(res)$n: does the result's instance see u error: The connection this result was sent on has been closed.
+  open the file from another process once the result is cleared opened

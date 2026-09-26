@@ -116,7 +116,9 @@ driver_registry <- new.env(parent = emptyenv())
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
 #' then create it again.
-#' [dbDisconnect()] closes one connection, and its `shutdown` argument is unused.
+#' [dbDisconnect()] closes one connection, and its `shutdown` argument is unused;
+#' it also closes the results still open on that connection, with a warning,
+#' so clear them with [dbClearResult()] first.
 #' Connections keep the instance alive,
 #' so it is released once the last connection to it closes;
 #' a driver that was never connected to releases its instance

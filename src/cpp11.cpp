@@ -58,11 +58,10 @@ extern "C" SEXP _duckdb_rapi_connect(SEXP dual, SEXP convert_opts) {
   END_CPP11
 }
 // connection.cpp
-void rapi_disconnect(duckdb::conn_eptr_t conn);
+int rapi_disconnect(duckdb::conn_eptr_t conn);
 extern "C" SEXP _duckdb_rapi_disconnect(SEXP conn) {
   BEGIN_CPP11
-    rapi_disconnect(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(conn));
-    return R_NilValue;
+    return cpp11::as_sexp(rapi_disconnect(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(conn)));
   END_CPP11
 }
 // connection.cpp

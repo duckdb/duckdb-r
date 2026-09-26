@@ -59,7 +59,11 @@ duckdb_result_arrow <- function(connection, stmt_lst) {
   )
 
   if (stmt_lst$n_param == 0) {
+    # A statement that fails as it runs here must not leave the result open on
+    # the connection: the caller never receives it, so nobody could clear it.
+    on.exit(dbClearResult(res))
     env$query_result <- duckdb_execute_arrow(res)
+    on.exit(NULL)
   }
 
   res
@@ -76,11 +80,23 @@ duckdb_execute_arrow <- function(res) {
   )
 }
 
-# Every method on a result, of either class, asks this first:
-# a result is open from `dbSendQuery()` until `dbClearResult()`.
+# Every method on a result, of either class, asks this first.
+# A result is open from `dbSendQuery()` until `dbClearResult()`,
+# and closing its connection closes it too:
+# `dbDisconnect()` releases the prepared statement and any stream still
+# open on the connection, so that nothing of the connection outlives it
+# (handbook/architecture/glue/objects/README.md).
+# The two ends are told apart, because a cleared result is the caller's own
+# doing, and a closed connection may not be.
 check_result_open <- function(res, call = parent.frame()) {
   if (!res@env$open) {
     abort("result has already been cleared", call = call)
+  }
+  if (!dbIsValid(res@connection)) {
+    abort(
+      "The connection this result was sent on has been closed.",
+      call = call
+    )
   }
   invisible(res)
 }
@@ -100,9 +116,12 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
   )
 
   if (stmt_lst$n_param == 0) {
+    # A statement that fails as it runs here must not leave the result open on
+    # the connection: the caller never receives it, so nobody could clear it.
+    on.exit(dbClearResult(res))
     if (arrow) {
       query_result <- duckdb_execute(res)
-      new_res <- new(
+      res <- new(
         "duckdb_result",
         connection = connection,
         stmt_lst = stmt_lst,
@@ -110,13 +129,13 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
         arrow = arrow,
         query_result = query_result
       )
-      return(new_res)
     } else {
       duckdb_execute(res)
     }
+    on.exit(NULL)
   }
 
-  return(res)
+  res
 }
 
 duckdb_execute <- function(res) {

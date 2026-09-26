@@ -2,7 +2,7 @@
 
 Which engine object each DBI object wraps, what that object scopes,
 and what follows from the mapping:
-one live stream per connection, a result that outlives its connection,
+one live stream per connection, a result that closes with its connection,
 and why a context per result is refused as the mapping and kept as a plan.
 The user-facing halves live where a user meets them:
 instance lifetime in [`usage/connections/`](/handbook/usage/connections/README.md),
@@ -16,13 +16,14 @@ The wrappers are [`src/include/rapi.hpp`](/src/include/rapi.hpp)'s.
   beside the state every connection to it shares, the Arrow registrations, the environment-scan hook and the extensions flag.
   It is reached through a `DualWrapper`, which is what lets a connection hold the instance's only strong reference.
 * `duckdb_connection` wraps `ConnWrapper`: one `duckdb::Connection`, which is one `ClientContext`, the engine's session,
-  beside the conversion options the connection was opened with.
+  beside the conversion options the connection was opened with and the set of results open on it.
 * `duckdb_result` wraps `RStatement`: one `PreparedStatement` and its bound parameters,
   with the rows themselves in R, materialized at send time.
   `duckdb_result_arrow` wraps `RQueryResult`: one streaming `QueryResult`, and the Arrow stream over it once fetching starts.
 * A relation wraps `RelationWrapper`: one `Relation` ([`altrep/`](/handbook/architecture/glue/altrep/README.md)).
 
-A prepared statement and a relation each hold a `shared_ptr` to the context they were made on,
+A prepared statement and a streaming result each hold a `shared_ptr` to the context they were made on,
+a relation only a weak one,
 and a context holds its instance, which is the lifetime fact everything below turns on.
 
 **What a context scopes.**
@@ -64,19 +65,34 @@ a stream on each interleaves, and the loop completes with its writes on the othe
 DBI names that second connection a clone, `dbConnect(con)`, and this package has no method for it yet:
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
 
-**A result outlives its connection, and holds the instance with it.**
-`dbDisconnect()` deletes the `Connection`, and the prepared statement keeps the context,
-so an uncleared result stays valid, fetches, and re-executes on `dbBind()` after the disconnect.
-The instance stays open with it, known to neither the driver, whose `dbIsValid()` says `FALSE`,
-nor the engine's connection count,
+**A result closes with its connection.**
+The prepared statement behind a result holds the context, and a streaming result holds it once more,
+so a result left open at `dbDisconnect()` would keep the connection's session alive, and the instance with it,
+with nobody to see it: the driver's `dbIsValid()` says `FALSE`, and the engine counts no connection,
 the in-use-result state of
 [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
 For a file that is the lock: another process is refused,
 while this process, whose driver registry has forgotten the instance, opens the file a second time,
-because a POSIX record lock is held per process.
-The two instances neither see nor exclude each other until the result is cleared (measured).
-Clearing every result before disconnecting is what DBI asks for;
-the package does not enforce it, and the plan above lists the enforcement among its open questions.
+because a POSIX record lock is held per process,
+and the two instances neither see nor exclude each other
+(measured in the experiment above, on the tree before the change that follows).
+So the connection owns its results, as DBI has it: `dbDisconnect()` discards the pending work.
+The `ConnWrapper` keeps the set of prepared statements, streaming results and handed-over streams open on it,
+and closing the connection closes each, which lets go of the last references to the context,
+so nothing of the connection outlives it
+(`ConnWrapper::~ConnWrapper()` in [`src/connection.cpp`](/src/connection.cpp)).
+The R objects stay: `dbIsValid()` on such a result says `FALSE`,
+every other method refuses it naming the closed connection,
+a stream `dbFetchArrow()` handed over reports the same instead of reading on,
+and `dbClearResult()` still succeeds, once and without a word.
+DBI asks for results to be cleared before the connection closes, and for a warning otherwise,
+which `dbDisconnect()` gives, counting the results it closed
+([`R/dbDisconnect__duckdb_connection.R`](/R/dbDisconnect__duckdb_connection.R)).
+A relation needs none of this: it holds the context weakly, and the engine refuses it once the context is gone
+(`ClientContextWrapper::GetContext()` in vendored `src/duckdb/src/main/client_context_wrapper.cpp`).
+The other shape, a result that keeps the instance reachable through the driver registry so that `duckdb(path)` reuses it,
+was weighed and declined: it keeps the file locked against every other process, and the session's state alive,
+for as long as a forgotten result lives, after a `dbDisconnect()` that promised to free both.
 
 **A context is cheap, so cost is not the argument.**
 16 µs to open and close, and 8 KB resident, 14 KB once it has run a statement,

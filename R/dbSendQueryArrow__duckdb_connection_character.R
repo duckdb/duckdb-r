@@ -22,7 +22,11 @@ dbSendQueryArrow__duckdb_connection_character <- function(
     stmt_lst = stmt_lst
   )
   if (length(params) > 0) {
+    # A bind that fails must not leave the result it was meant to fill open
+    # on the connection: the caller never sees it, so nobody would clear it.
+    on.exit(dbClearResult(res))
     dbBind(res, params)
+    on.exit(NULL)
   }
   res
 }
