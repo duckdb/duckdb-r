@@ -174,6 +174,7 @@ fi
 
 for n in "${carried[@]:-}" "${satisfied[@]:-}"; do
   [ -n "$n" ] || continue
+  mkdir -p "$wt/patch"
   git show "$dev:$n" > "$wt/$n"
 done
 for n in "${carried[@]:-}"; do
