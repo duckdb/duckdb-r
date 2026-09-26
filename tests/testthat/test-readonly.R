@@ -6,14 +6,16 @@ test_that("read_only flag and shutdown works as expected", {
 
   # 1st: create a db and write some tables
 
-  callr::r(function(dbdir, pkg) {
-    con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = FALSE) # FALSE is the default
-    print(con)
-    res <- DBI::dbWriteTable(con, "iris", iris)
-    DBI::dbDisconnect(con)
-    asNamespace(pkg)$duckdb_shutdown(con@driver)
-  }, args = list(dbdir, pkg))
-
+  callr::r(
+    function(dbdir, pkg) {
+      con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = FALSE) # FALSE is the default
+      print(con)
+      res <- DBI::dbWriteTable(con, "iris", iris)
+      DBI::dbDisconnect(con)
+      asNamespace(pkg)$duckdb_shutdown(con@driver)
+    },
+    args = list(dbdir, pkg)
+  )
 
   # 2nd: start two parallel read-only references
   drv <- duckdb(dbdir, read_only = TRUE)
@@ -21,17 +23,19 @@ test_that("read_only flag and shutdown works as expected", {
 
   res <- dbReadTable(con, "iris")
 
-
   # can have another conn on this drv
   con2 <- dbConnect(drv)
   res <- dbReadTable(con2, "iris")
 
   # con is still alive
-  callr::r(function(dbdir, pkg) {
-    con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = TRUE)
-    res <- DBI::dbReadTable(con, "iris")
-    DBI::dbDisconnect(con, shutdown = TRUE)
-  }, args = list(dbdir, pkg))
+  callr::r(
+    function(dbdir, pkg) {
+      con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = TRUE)
+      res <- DBI::dbReadTable(con, "iris")
+      DBI::dbDisconnect(con, shutdown = TRUE)
+    },
+    args = list(dbdir, pkg)
+  )
 
   # shut down one of them again
   res <- dbReadTable(con, "iris")
@@ -39,14 +43,16 @@ test_that("read_only flag and shutdown works as expected", {
   dbDisconnect(con)
   dbDisconnect(con2, shutdown = TRUE)
 
-
   # now we can get write access again
   # TODO shutdown
-  callr::r(function(dbdir, pkg) {
-    con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = FALSE) # FALSE is the default
-    res <- DBI::dbWriteTable(con, "iris2", iris)
-    DBI::dbDisconnect(con)
-  }, args = list(dbdir, pkg))
+  callr::r(
+    function(dbdir, pkg) {
+      con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = FALSE) # FALSE is the default
+      res <- DBI::dbWriteTable(con, "iris2", iris)
+      DBI::dbDisconnect(con)
+    },
+    args = list(dbdir, pkg)
+  )
 
   expect_true(TRUE)
 })
@@ -59,7 +65,7 @@ test_that("read_only flag does not throw error when rel_sql is called", {
   dbExecute(con, "create table t1 as select range a from range(2)")
   dbDisconnect(con)
 
-  con <- dbConnect(duckdb(), db_path, read_only=TRUE)
+  con <- dbConnect(duckdb(), db_path, read_only = TRUE)
   rel <- rel_from_df(con, data.frame(a = 1:2, b = 2:3, c = 4:5))
   ans <- data.frame(a = 1L, b = 2L)
   expect_rel2 <- rel_sql(rel, "SELECT a, b FROM _ where c = 4")

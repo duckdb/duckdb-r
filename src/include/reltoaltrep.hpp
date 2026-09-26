@@ -27,6 +27,8 @@ struct AltrepRelationWrapper {
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
+	// Released once every ALTREP column has been converted,
+	// see MarkColumnAsTransformed(): handbook/usage/memory/reading/README.md.
 	duckdb::unique_ptr<QueryResult> mat_result;
 	std::string mat_error;
 

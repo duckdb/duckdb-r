@@ -431,7 +431,7 @@ double RIntegralType::DoubleCast<>(hugeint_t val) {
 }
 
 string_t RStringSexpType::Convert(SEXP val) {
-	return string_t((char *)CHAR(val));
+	return string_t(CHAR(val));
 }
 
 bool RStringSexpType::IsNull(SEXP val) {

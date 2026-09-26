@@ -179,7 +179,10 @@ test_that("config only applies to the first driver object for a path", {
   drv2 <- duckdb(path, config = list(default_order = "DESC"))
   con2 <- dbConnect(drv2)
   on.exit(dbDisconnect(con2), add = TRUE)
-  expect_equal(dbGetQuery(con2, "SELECT * FROM x ORDER BY a"), data.frame(a = 1:3))
+  expect_equal(
+    dbGetQuery(con2, "SELECT * FROM x ORDER BY a"),
+    data.frame(a = 1:3)
+  )
 
   gc()
 })
@@ -189,7 +192,10 @@ test_that("user agent is set to r", {
 
   drv <- duckdb()
   con <- dbConnect(drv)
-  expect_match(dbGetQuery(con, "PRAGMA user_agent")[1, "user_agent"], "duckdb/.*(.*) r-dbi")
+  expect_match(
+    dbGetQuery(con, "PRAGMA user_agent")[1, "user_agent"],
+    "duckdb/.*(.*) r-dbi"
+  )
 
   gc()
 })

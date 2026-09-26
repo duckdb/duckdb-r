@@ -2,7 +2,12 @@
 #' @inheritParams DBI::dbSendQueryArrow
 #' @inheritParams DBI::dbBind
 #' @usage NULL
-dbSendQueryArrow__duckdb_connection_character <- function(conn, statement, params = NULL, ...) {
+dbSendQueryArrow__duckdb_connection_character <- function(
+  conn,
+  statement,
+  params = NULL,
+  ...
+) {
   if (conn@debug) {
     message("Q ", statement)
   }
@@ -25,6 +30,7 @@ dbSendQueryArrow__duckdb_connection_character <- function(conn, statement, param
 #' @rdname duckdb_connection-class
 #' @export
 setMethod(
-  "dbSendQueryArrow", c("duckdb_connection", "character"),
+  "dbSendQueryArrow",
+  c("duckdb_connection", "character"),
   dbSendQueryArrow__duckdb_connection_character
 )

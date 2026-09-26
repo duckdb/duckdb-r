@@ -1,4 +1,4 @@
-.PHONY: all opt unit clean debug release test unittest allunit benchmark docs doxygen format sqlite
+.PHONY: all opt unit clean debug release test unittest allunit benchmark docs doxygen format sqlite readme warnings warnings-glue warnings-vendored
 
 all: format-check
 
@@ -20,3 +20,15 @@ format-changes:
 
 format-main:
 	python3 scripts/format.py main --fix --noconfirm
+
+readme:
+	R -q -e 'rmarkdown::render("README.Rmd", quiet = TRUE)'
+
+# The compiler-warning gate; handbook/build/warnings/README.md.
+warnings: warnings-glue warnings-vendored
+
+warnings-glue:
+	scripts/warnings.sh glue
+
+warnings-vendored:
+	scripts/warnings.sh vendored

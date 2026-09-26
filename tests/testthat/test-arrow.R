@@ -22,7 +22,10 @@ skip_if_not_installed("dbplyr")
 skip_if_not_installed("dplyr")
 skip_if_not_installed("arrow", "5.0.0")
 # Skip if parquet is not a capability as an indicator that Arrow is fully installed.
-skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not fully featured, skipping Arrow integration tests")
+skip_if_not(
+  arrow::arrow_with_parquet(),
+  message = "The installed Arrow is not fully featured, skipping Arrow integration tests"
+)
 
 example_data <- dplyr::tibble(
   int = c(1:3, NA_integer_, 5:10),
@@ -52,31 +55,31 @@ test_that("to_duckdb", {
   )
 
   df1 <- ds %>%
-      dplyr::select(int, lgl, dbl) %>%
-      arrow::to_duckdb(con = con) %>%
-      dplyr::group_by(lgl) %>%
-      dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
-      dplyr::collect() %>%
-      dplyr::arrange(lgl, sum_int)
+    dplyr::select(int, lgl, dbl) %>%
+    arrow::to_duckdb(con = con) %>%
+    dplyr::group_by(lgl) %>%
+    dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
+    dplyr::collect() %>%
+    dplyr::arrange(lgl, sum_int)
   df2 <- example_data %>%
-      dplyr::select(int, lgl, dbl) %>%
-      dplyr::group_by(lgl) %>%
-      dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
-      dplyr::arrange(lgl, sum_int)
+    dplyr::select(int, lgl, dbl) %>%
+    dplyr::group_by(lgl) %>%
+    dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
+    dplyr::arrange(lgl, sum_int)
 
   # can group_by before the to_duckdb
   df1 <- ds %>%
-      dplyr::select(int, lgl, dbl) %>%
-      dplyr::group_by(lgl) %>%
-      arrow::to_duckdb(con = con) %>%
-      dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
-      dplyr::collect() %>%
-      dplyr::arrange(lgl, sum_int)
+    dplyr::select(int, lgl, dbl) %>%
+    dplyr::group_by(lgl) %>%
+    arrow::to_duckdb(con = con) %>%
+    dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
+    dplyr::collect() %>%
+    dplyr::arrange(lgl, sum_int)
   df2 <- example_data %>%
-      dplyr::select(int, lgl, dbl) %>%
-      dplyr::group_by(lgl) %>%
-      dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
-      dplyr::arrange(lgl, sum_int)
+    dplyr::select(int, lgl, dbl) %>%
+    dplyr::group_by(lgl) %>%
+    dplyr::summarise(sum_int = sum(int, na.rm = TRUE)) %>%
+    dplyr::arrange(lgl, sum_int)
 })
 
 test_that("to_duckdb then to_arrow", {
@@ -143,7 +146,10 @@ test_that("to_arrow roundtrip, with dataset", {
   new_ds <- rbind(
     cbind(example_data, part = 1),
     cbind(example_data, part = 2),
-    cbind(dplyr::mutate(example_data, dbl = dbl * 3, dbl2 = dbl2 * 3), part = 3),
+    cbind(
+      dplyr::mutate(example_data, dbl = dbl * 3, dbl2 = dbl2 * 3),
+      part = 3
+    ),
     cbind(dplyr::mutate(example_data, dbl = dbl * 4, dbl2 = dbl2 * 4), part = 4)
   )
   arrow::write_dataset(new_ds, tf, partitioning = "part")
@@ -208,25 +214,40 @@ test_that("Joining, auto-cleanup enabled", {
   res <- dbGetQuery(
     con,
     paste0(
-      "SELECT * FROM ", table_one_name,
-      " INNER JOIN ", table_two_name,
-      " ON ", table_one_name, ".int = ", table_two_name, ".int"
+      "SELECT * FROM ",
+      table_one_name,
+      " INNER JOIN ",
+      table_two_name,
+      " ON ",
+      table_one_name,
+      ".int = ",
+      table_two_name,
+      ".int"
     )
   )
   expect_identical(dim(res), c(9L, 14L))
 
   # clean up cleans up the tables
-  expect_true(all(c(table_one_name, table_two_name) %in% duckdb_list_arrow(con)))
+  expect_true(all(
+    c(table_one_name, table_two_name) %in% duckdb_list_arrow(con)
+  ))
   rm(table_one, table_two)
   gc()
-  expect_false(any(c(table_one_name, table_two_name) %in% duckdb_list_arrow(con)))
+  expect_false(any(
+    c(table_one_name, table_two_name) %in% duckdb_list_arrow(con)
+  ))
 })
 
 test_that("Joining, auto-cleanup disabled", {
   ds <- arrow::InMemoryDataset$create(example_data)
 
   table_three_name <- "my_arrow_table_3"
-  table_three <- arrow::to_duckdb(ds, con = con, table_name = table_three_name, auto_disconnect = FALSE)
+  table_three <- arrow::to_duckdb(
+    ds,
+    con = con,
+    table_name = table_three_name,
+    auto_disconnect = FALSE
+  )
 
   # clean up does *not* clean these tables
   expect_true(table_three_name %in% duckdb_list_arrow(con))
@@ -282,9 +303,12 @@ test_that("to_duckdb passing a connection", {
   result <- DBI::dbGetQuery(
     con_separate,
     paste0(
-      "SELECT * FROM ", table_four_name,
+      "SELECT * FROM ",
+      table_four_name,
       " INNER JOIN separate_join_table ",
-      "ON separate_join_table.int = ", table_four_name, ".int"
+      "ON separate_join_table.int = ",
+      table_four_name,
+      ".int"
     )
   )
 

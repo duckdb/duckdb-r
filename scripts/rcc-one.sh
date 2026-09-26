@@ -17,6 +17,7 @@
 #   |-----------------------|-------------------------------------------------|
 #   | versions-matrix       | skipped upstream too (workflow_dispatch, no opt-in) |
 #   | dep-suggests-matrix   | skipped upstream too                            |
+#   | flavor-package-name   | gate `flavor`, the two flavor-only scans of it   |
 #   | style                 | gate `style`                                    |
 #   | update-snapshots      | gate `snapshots`, incl. the snapshot-<sha> branch |
 #   | roxygenize            | gate `roxygen`                                  |
@@ -47,14 +48,19 @@
 #                           in <dir>/<stage>.log and its verdict appended to
 #                           <dir>/outcomes.tsv, so scripts/each-shard.sh can
 #                           quote the failing stage into the run summary
+#   CLANG_FORMAT          - the C++ formatter the style gate runs
+#                           (default: clang-format-21, what CI installs)
 #   RCMDCHECK_ERROR_ON    - passed through to rcmdcheck (default: note)
+#   DUCKDB_R_RUN_TESTS    - read by tests/testthat.R; the `check` gate defaults
+#                           it to true so the suite runs outside Actions too,
+#                           and never overrides a value the caller set
 #   EACH_TIMEOUT_<STAGE>  - seconds a stage may take before it is presumed stuck
 #                           and killed (see stage_budget below); 0 disables the
 #                           bound for that stage
 
 set -uo pipefail
 
-ALL_GATES="style snapshots roxygen clean check pkgdown"
+ALL_GATES="flavor style snapshots roxygen clean check pkgdown"
 GATES="${EACH_GATES:-${ALL_GATES}}"
 SNAPSHOT_BRANCH="${EACH_SNAPSHOT_BRANCH:-${GITHUB_ACTIONS:-false}}"
 STAGE_DIR="${EACH_STAGE_DIR:-}"
@@ -167,6 +173,7 @@ stage_budget() {
   fi
   case "$1" in
     install) echo 3600 ;;    # cold ccache, no reuse at all
+    flavor) echo 300 ;;      # a base-R scan of the checkout
     style) echo 600 ;;
     snapshots) echo 3600 ;;  # the full test suite
     roxygen) echo 900 ;;
@@ -285,17 +292,79 @@ fi
 
 # -------------------------------------------------------------------- gates --
 
+# The half of `.github/workflows/custom/after-install/action.yml`'s flavor-rename
+# guard that only a flavored checkout can answer.
+#
+# That step runs `if: github.job == 'rcc-smoke'`, and `rcc-smoke` runs on `main`
+# and on pull requests to it. Two of its three scans return early when
+# `DESCRIPTION` says `Package: duckdb` -- so on the only job that runs them they
+# are no-ops by construction, and on the branches where they could find
+# something, the per-commit gate is the only thing judging and it did not run
+# them. `flavor_unflavored_paths()` reported `src/duckdb-win.def` on
+# `v1.5-variegata-dev` for a fortnight while every commit on that branch was
+# judged green.
+#
+# `flavor_package_name_offenders()` is deliberately not here: it does not return
+# early, so `rcc-smoke` already exercises it on every commit that reaches `main`.
+# Running it per commit would also red the frozen v1.4 series at once, over four
+# seed-era lines its R code is not ported away from -- a separate question from
+# a file that arrived under the wrong name and nothing rewrote.
+gate_flavor() {
+  rscript <<'EOF'
+source("scripts/flavor-package-name.R")
+
+unflavored <- flavor_unflavored_paths(".")
+if (length(unflavored) > 0) {
+  writeLines(unflavored)
+  stop(
+    "A file scripts/flavor.patch renames still carries the mainline name; ",
+    "see scripts/flavor-package-name.R for how to resolve this."
+  )
+}
+writeLines("No file left under the mainline name.")
+
+readmes <- flavor_mainline_readme_offenders(".")
+if (length(readmes) > 0) {
+  writeLines(readmes)
+  stop(
+    "A generated README still tells a reader to install the mainline package; ",
+    "see scripts/flavor-package-name.R for how to resolve this."
+  )
+}
+writeLines("No generated README pointing at the mainline package.")
+EOF
+}
+
 # Mirrors .github/workflows/style/action.yml. Tool installation is the caller's
 # job; this only runs the formatters.
+#
+# A formatter that is not installed is not a style violation, and it used to read
+# as one: `clang-format-21` absent leaves `git status --short` empty and still
+# returns 1, so the gate reports `style failure` about a tree it never looked at
+# (duckdb/duckdb-r#2669). Say which of the two it is.
+#
+# The name stays pinned. CI installs clang-format-21, different majors format
+# differently, and falling back to whatever `clang-format` resolves to would
+# trade a legible failure for a verdict that is not CI's -- either reformatting
+# code CI is happy with, or passing code CI will reject. `CLANG_FORMAT` is for a
+# host that has the right major under another name, not for using another major.
 gate_style() {
-  local rc=0
+  local rc=0 clang_format="${CLANG_FORMAT:-clang-format-21}"
   if [ -f air.toml ]; then
     air format . || rc=1
   fi
   if [ -f .clang-format ]; then
-    shopt -s nullglob
-    clang-format-21 -i src/*.{c,cc,cpp,h,hpp} || rc=1
-    shopt -u nullglob
+    if ! command -v "${clang_format}" >/dev/null 2>&1; then
+      echo "Error: ${clang_format} is not on PATH, so the C++ sources were not" \
+        "formatted -- this says nothing about the tree." >&2
+      echo "  Install it (see .github/workflows/style/action.yml), or set" \
+        "CLANG_FORMAT to a build of the same major." >&2
+      rc=1
+    else
+      shopt -s nullglob
+      "${clang_format}" -i src/*.{c,cc,cpp,h,hpp} || rc=1
+      shopt -u nullglob
+    fi
   fi
   git status --short
   return "${rc}"
@@ -419,6 +488,11 @@ gate_check() {
 # package is not on CRAN, so every commit picks up a "New submission" NOTE.
 if (Sys.getenv("_R_CHECK_FORCE_SUGGESTS_", "") == "") Sys.setenv("_R_CHECK_FORCE_SUGGESTS_" = "false")
 if (Sys.getenv("_R_CHECK_CRAN_INCOMING_", "") == "") Sys.setenv("_R_CHECK_CRAN_INCOMING_" = "false")
+# `tests/testthat.R` falls back to GITHUB_ACTIONS / MY_UNIVERSE when this is
+# unset, so the suite runs in CI and silently does not run anywhere else. Opt in
+# here, without overriding a value the caller already set: the versions matrix
+# forces it to `false` under engine poisoning.
+if (Sys.getenv("DUCKDB_R_RUN_TESTS", "") == "") Sys.setenv("DUCKDB_R_RUN_TESTS" = "true")
 rcmdcheck::rcmdcheck(
   args = c("--no-manual", "--as-cran", "--no-multiarch"),
   build_args = "--no-manual",
@@ -453,7 +527,7 @@ if [ -n "${STAGE_ONLY}" ]; then
   exit $?
 fi
 
-for gate in style snapshots roxygen clean check pkgdown; do
+for gate in flavor style snapshots roxygen clean check pkgdown; do
   run_gate "${gate}"
 done
 

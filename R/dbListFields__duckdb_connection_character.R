@@ -14,4 +14,8 @@ dbListFields__duckdb_connection_character <- function(conn, name, ...) {
 
 #' @rdname duckdb_connection-class
 #' @export
-setMethod("dbListFields", c("duckdb_connection", "character"), dbListFields__duckdb_connection_character)
+setMethod(
+  "dbListFields",
+  c("duckdb_connection", "character"),
+  dbListFields__duckdb_connection_character
+)

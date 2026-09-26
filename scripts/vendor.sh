@@ -30,6 +30,16 @@ if [ "$upstream_basedir" != "$upstream_dir" ]; then
   git clone "$upstream_basedir" "$upstream_dir"
 fi
 
+# Make the vendored tree depend on the upstream commit and nothing else.
+# `DUCKDB_SOURCE_ID` in pragma_version.cpp comes from upstream's
+# `git describe --tags --long`, run inside this clone, and git auto-sizes that
+# abbreviation from the number of objects the repository holds -- so the same
+# commit vendored twice, from clones that have grown apart, writes two different
+# strings and two different trees. Ten is DuckDB's own length: its CMake
+# truncates the id to ten characters in the built library, which is what
+# ./configure's commit-match guard compares against.
+git -C "$upstream_dir" config core.abbrev 10
+
 if [ -n "$(git status --porcelain)" ]; then
   echo "Error: working directory not clean"
   exit 1
@@ -64,8 +74,11 @@ is_tag=
 for commit in $original; do
   echo "Importing commit $commit"
 
-  rm -rf ${vendor_dir}
-
+  # The tree is not deleted here: rconfigure.py moves it aside itself and puts
+  # back the inode of every regenerated file that did not change, so a file
+  # whose content is the same keeps its stat cache entry and every later git
+  # command over ~3550 files stays cheap. Files upstream dropped still go -- they
+  # are in the tree that was moved aside, and never come back from it.
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 

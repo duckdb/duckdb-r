@@ -11,7 +11,11 @@
 # The package source root, or NA when the sources are not around.
 lts_source_root <- function() {
   root <- normalizePath(test_path("..", ".."), mustWork = FALSE)
-  if (file.exists(file.path(root, "scripts", "flavor-package-name.R"))) root else NA_character_
+  if (file.exists(file.path(root, "scripts", "flavor-package-name.R"))) {
+    root
+  } else {
+    NA_character_
+  }
 }
 
 test_that("the package name is hard-coded only where scripts/flavor.patch rewrites it", {
@@ -21,4 +25,31 @@ test_that("the package name is hard-coded only where scripts/flavor.patch rewrit
   source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
 
   expect_equal(flavor_package_name_offenders(root), character())
+})
+
+test_that("no file still carries the mainline name that scripts/flavor.patch renames", {
+  root <- lts_source_root()
+  skip_if(is.na(root), "Not running from the package source tree.")
+
+  source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
+
+  expect_equal(flavor_unflavored_paths(root), character())
+})
+
+test_that("no generated README tells a reader to install the mainline package", {
+  root <- lts_source_root()
+  skip_if(is.na(root), "Not running from the package source tree.")
+
+  source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
+
+  expect_equal(flavor_mainline_readme_offenders(root), character())
+})
+
+test_that("scripts/flavor.patch applies to the unflavored tree", {
+  root <- lts_source_root()
+  skip_if(is.na(root), "Not running from the package source tree.")
+
+  source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
+
+  expect_equal(flavor_patch_failures(root), character())
 })

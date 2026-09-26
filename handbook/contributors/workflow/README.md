@@ -17,7 +17,13 @@ Little of this is codified; what is settled:
   ([`testing/suite/`](/handbook/testing/suite/README.md));
   the full suite can also be left to CI.
   Add a test with every bug fix.
-* Formatting is suggested on the PR by CI;
+* Write R to the tidyverse style and design guides,
+  and read the deviations before assuming a rule applies here
+  ([`architecture/r-layer/style/`](/handbook/architecture/r-layer/style/README.md));
+  the C++ has house rules of its own
+  ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
+* Layout is a formatter's output, never a review comment.
+  Where CI suggests formatting on the pull request,
   accept it rather than arguing with it.
   A snapshot the change legitimately moved is accepted deliberately
   ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).

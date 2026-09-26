@@ -6,7 +6,7 @@ mainline at once — `v1.4-andium`, then `v1.5-variegata`, then `main` —
 and this file is the list of glue-code changes that took,
 where each one was placed, and what the run found out about the routine.
 The routine itself is owned by
-[`.claude/skills/series-forward.md`](/.claude/skills/series-forward.md)
+[`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)
 and [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md);
 what a glue adaptation may be is
 [`architecture/glue/`](/handbook/architecture/glue/README.md)'s.
@@ -277,7 +277,7 @@ those two the `-build`↔`-dev` delta is exactly the forward-ports from
 
 **A forward silently loses a buffer's non-vendor commits, and `-build`
 has them.**
-`series-forward.md` justifies replaying `vendor:` subjects only by saying
+`series-forward/SKILL.md` justifies replaying `vendor:` subjects only by saying
 that a `-dev` branch's other commits belong to `main` and are already in
 the seed.
 That holds for `-dev`.

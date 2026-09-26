@@ -64,8 +64,9 @@
 # (main-fwd-dev, 24 commits over two legs) and 30422580063
 # (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
 # builds; see handbook/operations/ci/per-commit/planning/README.md. Every leg still records
-# duration_seconds per commit, and scripts/each-harvest.sh carries it onto the
-# `rcc2` branch, so the fit can be redone from a wider range at any time.
+# duration_seconds per commit, in the record it publishes and in its
+# `each-logs-*` artifact, so the fit can be redone from a wider range at any
+# time.
 
 set -euo pipefail
 
@@ -120,7 +121,7 @@ case "${branch}" in
     # `retry-<S>-dev` asks for one commit of series `<S>` to be judged again on
     # its own SHA -- the alternative is amending it, which re-mints every
     # descendant and throws away the runs that decided them. See
-    # .claude/skills/series-loop.md.
+    # .claude/skills/series-loop/SKILL.md.
     #
     # It is the series' own branch name with a prefix, so stripping the prefix
     # anchors the scan on `<S>-green`, the ref that already marks how far the

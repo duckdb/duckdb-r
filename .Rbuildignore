@@ -46,3 +46,8 @@ _files$
 ^inst/extensions$
 ^handbook$
 ^experiments$
+^README\.Rmd$
+^air\.toml$
+^CLAUDE\.md$
+^\.handbook-source$
+^\.handbook-ignore$

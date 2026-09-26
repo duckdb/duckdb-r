@@ -57,7 +57,9 @@ test_that("duckdb_storage_status prints a readable summary", {
   local_no_home_overrides()
   local_mocked_bindings(
     session_temp_dir = function() "/tmp/sess",
-    duckdb_shared_home = function() file.path(tempdir(), "snapshot-no-shared-home")
+    duckdb_shared_home = function() {
+      file.path(tempdir(), "snapshot-no-shared-home")
+    }
   )
   expect_snapshot(duckdb_storage_status(), transform = transform_package_name)
 })

@@ -1,0 +1,73 @@
+
+===== CLI, work the engine executes, 1 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] verdict: STILL RUNNING
+DuckDB v1.5.5 (Variegata)
+Enter ".help" for usage hints.
+memory D SELECT count(*) FROM range(1000000000000);
+^Cmemory D SELECT 'MARKER-RAN' AS marker;
+┌────────────┐
+│   marker   │
+│  varchar   │
+├────────────┤
+│ MARKER-RAN │
+└────────────┘
+memory D 
+===== R, work the engine executes, 1 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] verdict: STILL RUNNING
+> con <- DBI::dbConnect(duckdb::duckdb())
+> DBI::dbGetQuery(con, "SELECT count(*) FROM range(1000000000000)")
+DuckDB progress:   0%^C
+
+> cat('MARKER-RAN\n')
+MARKER-RAN
+> 
+===== CLI, wait blocked in httpfs, 1 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] verdict: STILL RUNNING
+DuckDB v1.5.5 (Variegata)
+Enter ".help" for usage hints.
+memory D LOAD httpfs; SET http_timeout=600000; SET http_retries=0;
+memory D ATTACH 'http://127.0.0.1:8998/x.db' AS x (READ_ONLY);
+^CSELECT 'MARKER-RAN' AS marker;
+
+===== CLI, wait blocked in httpfs, 3 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] ^C #2
+[ctrlc] ^C #3
+[ctrlc] verdict: EXITED status 256
+DuckDB v1.5.5 (Variegata)
+Enter ".help" for usage hints.
+memory D LOAD httpfs; SET http_timeout=600000; SET http_retries=0;
+memory D ATTACH 'http://127.0.0.1:8998/x.db' AS x (READ_ONLY);
+^C^C^C
+===== R, wait blocked in httpfs, 5 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] ^C #2
+[ctrlc] ^C #3
+[ctrlc] ^C #4
+[ctrlc] ^C #5
+[ctrlc] verdict: STILL RUNNING
+> con <- DBI::dbConnect(duckdb::duckdb()); DBI::dbExecute(con, "LOAD httpfs; S<db::duckdb()); DBI::dbExecute(con, "LOAD httpfs; SE                          T http_timeout=600000; SET<te(con, "LOAD httpfs; SET http_timeout=600000; SET                           http_retries=0;")
+DBI:[1] 0
+:> DBI::dbExecute(con, "ATTACH 'http://127.0.0.1:8998/x.db' AS x (READ_ONLY)")
+^C^C^C^C^Ccat('MARKER-RAN\n')
+
+===== R, C call that never asks R about interrupts, 2 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] ^C #2
+[ctrlc] verdict: STILL RUNNING
+> dyn.load('/home/user/duckdb-r/experiments/2026-08-08-interrupt-reach/blockin<b-r/experiments/2026-08-08-interrupt-reach/blocking                          _poll.so')
+> .Call('block_unchecked', 60L)
+^C^Ccat('MARKER-RAN\n')
+
+===== R, same C call with R_CheckUserInterrupt(), 1 x Ctrl+C
+[ctrlc] ^C #1
+[ctrlc] verdict: STILL RUNNING
+> dyn.load('/home/user/duckdb-r/experiments/2026-08-08-interrupt-reach/blockin<b-r/experiments/2026-08-08-interrupt-reach/blocking                          _poll.so')
+> .Call('block_checked', 60L)
+^C
+> cat('MARKER-RAN\n')
+MARKER-RAN
+> 

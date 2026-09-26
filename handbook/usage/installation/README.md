@@ -29,6 +29,12 @@ Picking a flavor changes the package name and little else,
 and a flavor installs alongside `duckdb` instead of replacing it;
 only `duckdb` reaches CRAN.
 
-Compiling a clone yourself, and making that fast,
-is [`build/source-build/`](/handbook/build/source-build/README.md)
-and [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+A source install has no shortcut of its own:
+nothing fetches a prebuilt engine on the installer's behalf
+([`build/fast-paths/`](/handbook/build/fast-paths/README.md)
+says why not),
+so the choice is a binary from one of the sources above,
+or the compile — with ccache and parallelism to soften it
+([`build/configuration/`](/handbook/build/configuration/README.md)).
+Compiling a clone yourself is
+[`build/source-build/`](/handbook/build/source-build/README.md).

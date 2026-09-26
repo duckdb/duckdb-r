@@ -46,7 +46,8 @@ test_that("compiled_cxx_stdlib() reports a known standard library", {
   # The real compile-time value on the CI/test toolchain; just assert it is one
   # of the recognized tokens (guards against the macro logic silently breaking).
   expect_true(
-    compiled_cxx_stdlib() %in% c("libc++", "libstdc++", "<an unknown C++ library>")
+    compiled_cxx_stdlib() %in%
+      c("libc++", "libstdc++", "<an unknown C++ library>")
   )
 })
 
@@ -113,7 +114,10 @@ test_that("a malformed duckdb.allow_extensions option warns and is reset", {
   withr::local_options(duckdb.allow_extensions = "yes")
   local_mocked_bindings(extensions_supported = function() TRUE)
 
-  expect_warning(res <- resolve_allow_extensions(NULL), "must be TRUE, FALSE, or NULL")
+  expect_warning(
+    res <- resolve_allow_extensions(NULL),
+    "must be TRUE, FALSE, or NULL"
+  )
   # Falls through to the auto path once the bad option is cleared.
   expect_identical(res$source, "auto")
   expect_true(res$allow)
@@ -275,12 +279,16 @@ test_that("extensions message wording is stable", {
   # The advisory names the detected C++ standard library as the cause and is only
   # shown on the auto path, so snapshot both stdlib variants that reach it.
   local_mocked_bindings(compiled_cxx_stdlib = function() "libc++")
-  expect_snapshot(rlang::inform(extensions_disabled_message()),
+  expect_snapshot(
+    rlang::inform(extensions_disabled_message()),
     transform = transform_package_name
   )
 
-  local_mocked_bindings(compiled_cxx_stdlib = function() "<an unknown C++ library>")
-  expect_snapshot(rlang::inform(extensions_disabled_message()),
+  local_mocked_bindings(compiled_cxx_stdlib = function() {
+    "<an unknown C++ library>"
+  })
+  expect_snapshot(
+    rlang::inform(extensions_disabled_message()),
     transform = transform_package_name
   )
 

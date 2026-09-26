@@ -1,7 +1,7 @@
 # Vendoring as an Agentic Loop — Design Plan
 
 Status: **historical** — superseded by the series loop
-(`.claude/skills/series-loop.md`);
+(`.claude/skills/series-loop/SKILL.md`);
 kept as design context.
 It lives under `plan/` because it is history, not routing:
 what the pipeline does *today* is owned by

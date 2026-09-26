@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sat, 12 Sep 2026 12:00:00 +0200
+Subject: [PATCH] Use the second elem column ref in list comprehensions
+
+The list-comprehension-with-filter rule in select.y builds two column
+references to the lambda parameter "elem", one for the filter lambda and
+one for the result lambda, and then hands the filter's node to both
+struct_extract calls. The second reference is left unused, which is what
+-Wunused-variable reports on CRAN's clang23 flavor.
+
+The value is the same either way -- both are makeColumnRef("elem") at
+the same location -- so this is not a wrong parse today. It does make
+one PGNode reachable from two places in a tree the rest of the parser
+walks as a tree, which is worth not relying on.
+
+This file is generated from grammar/statements/select.y, which the
+vendored tree does not carry; the fix belongs upstream in the grammar,
+and this patch drops out once it lands there. v1.4-andium does not have
+the rule at all.
+---
+diff --git a/src/duckdb/third_party/libpg_query/src_backend_parser_gram.cpp b/src/duckdb/third_party/libpg_query/src_backend_parser_gram.cpp
+index eb18ae1..20f6787 100644
+--- a/src/duckdb/third_party/libpg_query/src_backend_parser_gram.cpp
++++ b/src/duckdb/third_party/libpg_query/src_backend_parser_gram.cpp
+@@ -29734,7 +29734,7 @@ yyreduce:
+ 					/* Construct second apply */
+ 					PGNode *elem_column_ref_result = makeColumnRef(pstrdup("elem"), NIL, (yylsp[(1) - (9)]), yyscanner);
+ 					PGNode *result_column_name = makeStringConst("result", (yylsp[(1) - (9)]));
+-					PGFuncCall *result_extract = makeFuncCall(SystemFuncName("struct_extract"), list_make2(elem_column_ref_filter, result_column_name), (yylsp[(1) - (9)]));
++					PGFuncCall *result_extract = makeFuncCall(SystemFuncName("struct_extract"), list_make2(elem_column_ref_result, result_column_name), (yylsp[(1) - (9)]));
+ 
+ 					PGLambdaFunction *lambda_apply_2 = makeNode(PGLambdaFunction);
+ 					lambda_apply_2->lhs = list_make1(makeString("elem"));

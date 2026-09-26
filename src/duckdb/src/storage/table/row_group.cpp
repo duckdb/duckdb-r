@@ -1162,6 +1162,7 @@ vector<RowGroupWriteData> RowGroup::WriteToDisk(RowGroupWriteInfo &info,
 	idx_t column_count = row_groups[0].get().GetColumnCount();
 	for (auto &row_group : row_groups) {
 		D_ASSERT(column_count == row_group.get().GetColumnCount());
+		(void)row_group;
 		RowGroupWriteData write_data;
 		write_data.states.reserve(column_count);
 		write_data.statistics.reserve(column_count);

@@ -29734,7 +29734,7 @@ yyreduce:
 					/* Construct second apply */
 					PGNode *elem_column_ref_result = makeColumnRef(pstrdup("elem"), NIL, (yylsp[(1) - (9)]), yyscanner);
 					PGNode *result_column_name = makeStringConst("result", (yylsp[(1) - (9)]));
-					PGFuncCall *result_extract = makeFuncCall(SystemFuncName("struct_extract"), list_make2(elem_column_ref_filter, result_column_name), (yylsp[(1) - (9)]));
+					PGFuncCall *result_extract = makeFuncCall(SystemFuncName("struct_extract"), list_make2(elem_column_ref_result, result_column_name), (yylsp[(1) - (9)]));
 
 					PGLambdaFunction *lambda_apply_2 = makeNode(PGLambdaFunction);
 					lambda_apply_2->lhs = list_make1(makeString("elem"));

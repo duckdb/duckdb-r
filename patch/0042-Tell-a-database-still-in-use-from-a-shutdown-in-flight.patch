@@ -1,0 +1,143 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sat, 19 Sep 2026 12:00:00 +0200
+Subject: [PATCH] Tell a database still in use from a shutdown in flight
+
+DBInstanceCache::GetInstanceInternal() finds a cache entry whose DuckDB
+handle is gone, concludes that a shutdown is in flight on another thread,
+and busy-spins until the entry expires. ~DatabaseInstance releases the
+entry on its last line, so when a shutdown really is in flight that takes
+microseconds and the reasoning holds.
+
+It is not the only way to reach that state. A DatabaseInstance can
+outlive the DuckDB handle that pointed at it: a ClientContext holds a
+DatabaseInstance, and a connection or an unfinished result holds a
+ClientContext. Release the last DuckDB handle while either is alive and
+the entry stays with a null handle and no shutdown running to finish it.
+The spin then never terminates, at 100% CPU, with no interrupt check to
+break out of -- in a single-threaded embedding such as R, a wedge that
+Ctrl-C does not reach.
+
+The entry gains a weak_ptr to the instance, and that is what tells the
+two cases apart: an instance that still locks is not being destroyed, so
+nothing will ever release the entry and waiting for it is futile. The
+wait is bounded on both sides -- 100 ms before a live instance is
+reported as still in use, 5 seconds before a shutdown that never finishes
+is reported as such -- and the first message says whether connections are
+open, because ~Connection deregisters while an unfinished result does
+not, so a count of zero names the result.
+
+The grace period is load-bearing rather than defensive. ~DuckDB drops the
+handle before it drops the instance, so a shutdown that is genuinely in
+flight also presents as a live instance with no handle; reporting that
+immediately turned 4 of 200 concurrent close-and-reopen rounds into
+spurious errors, and 100 ms takes that to 0. Measured in
+experiments/2026-09-19-instance-cache-in-use/.
+
+Reporting rather than falling through to CreateInstance is deliberate:
+the file lock does not fire within one process, so creating would succeed
+and leave two instances writing one file, each blind to what the other
+commits.
+
+Proposed upstream in duckdb/duckdb#26134 against v1.5-variegata, staged
+in krlmlr/duckdb#200 (main), #201 (v1.5-variegata) and #202
+(v2.0-cyanoptera), and carried here until a release carries it.
+The region it touches is identical on all three, so it is one patch; the
+file as a whole is not, because v2.0-cyanoptera carries a
+CreateEmptyInstance() that main and v1.5-variegata do not.
+---
+diff --git a/src/duckdb/src/include/duckdb/main/db_instance_cache.hpp b/src/duckdb/src/include/duckdb/main/db_instance_cache.hpp
+index a8a14c41..3206b7f5 100644
+--- a/src/duckdb/src/include/duckdb/main/db_instance_cache.hpp
++++ b/src/duckdb/src/include/duckdb/main/db_instance_cache.hpp
+@@ -23,6 +23,9 @@ struct DatabaseCacheEntry {
+ 	~DatabaseCacheEntry();
+ 
+ 	weak_ptr<DuckDB> database;
++	//! The instance behind that handle: it outlives the handle whenever a ClientContext still holds it,
++	//! which is how an entry with no handle can still be in use rather than shutting down
++	weak_ptr<DatabaseInstance> instance;
+ 	mutex update_database_mutex;
+ };
+ 
+diff --git a/src/duckdb/src/main/db_instance_cache.cpp b/src/duckdb/src/main/db_instance_cache.cpp
+index c774ba86..80e3a82b 100644
+--- a/src/duckdb/src/main/db_instance_cache.cpp
++++ b/src/duckdb/src/main/db_instance_cache.cpp
+@@ -1,9 +1,17 @@
+ #include "duckdb/main/db_instance_cache.hpp"
+ #include "duckdb/main/extension_helper.hpp"
+ #include "duckdb/main/database_file_path_manager.hpp"
++#include "duckdb/common/chrono.hpp"
++#include "duckdb/parallel/task_scheduler.hpp"
+ 
+ namespace duckdb {
+ 
++//! How long to wait for an in-flight shutdown before reporting that the database is still in use
++static constexpr int64_t SHUTDOWN_WAIT_SECONDS = 5;
++
++//! How long a shutdown is given to finish before a live instance is reported as still in use
++static constexpr int64_t IN_USE_GRACE_MILLIS = 100;
++
+ DatabaseCacheEntry::DatabaseCacheEntry() {
+ }
+ 
+@@ -78,11 +86,47 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database,
+ 	}
+ 	// cache entry exists - check if the actual database still exists
+ 	if (!db_instance) {
+-		// if the database does not exist, but the cache entry still exists, the database is being shut down
+-		// we need to wait until the database is fully shut down to safely proceed
+-		// we do this here using a busy spin
++		// an entry whose handle is gone is usually a shutdown finishing, which takes microseconds. but a
++		// DatabaseInstance can outlive that handle, because a ClientContext holds one and a connection or an
++		// unfinished result holds a ClientContext - then nothing is shutting down, the entry is released on
++		// the last line of ~DatabaseInstance and never expires, and waiting for it is futile
++		//
++		// we report rather than fall through to CreateInstance: the file lock does not fire within a single
++		// process, so creating would succeed and leave two instances writing the same file
+ 		cache_entry.reset();
++		auto now = std::chrono::steady_clock::now();
++		// the grace period is what keeps a shutdown that is genuinely in flight from being reported as in
++		// use: ~DuckDB drops the handle before it drops the instance, so the instance is briefly alive
++		// while a real shutdown runs
++		auto grace = now + std::chrono::milliseconds(IN_USE_GRACE_MILLIS);
++		auto deadline = now + std::chrono::seconds(SHUTDOWN_WAIT_SECONDS);
+ 		while (!weak_cache_entry.expired()) {
++			TaskScheduler::YieldThread();
++			now = std::chrono::steady_clock::now();
++			if (now > grace) {
++				auto entry = weak_cache_entry.lock();
++				shared_ptr<DatabaseInstance> live_instance;
++				if (entry) {
++					live_instance = entry->instance.lock();
++				}
++				entry.reset();
++				if (live_instance) {
++					auto connections = ConnectionManager::Get(*live_instance).GetConnectionCount();
++					live_instance.reset();
++					if (connections > 0) {
++						throw ConnectionException("Database \"%s\" is still in use: %llu connection(s) are open on it",
++						                          database, connections);
++					}
++					throw ConnectionException("Database \"%s\" is still in use: no connections are open, but "
++					                          "something still holds it, such as an unfinished query result",
++					                          database);
++				}
++				grace = now + std::chrono::milliseconds(IN_USE_GRACE_MILLIS);
++			}
++			if (now > deadline) {
++				throw ConnectionException("Database \"%s\" did not finish shutting down within %d seconds", database,
++				                          SHUTDOWN_WAIT_SECONDS);
++			}
+ 		}
+ 		D_ASSERT(!cache_entry);
+ 		// the cache entry has now been deleted - clear it from the set of database instances and return
+@@ -134,6 +178,7 @@ shared_ptr<DuckDB> DBInstanceCache::CreateInstanceInternal(const string &databas
+ 		db_instances_lock.unlock();
+ 		db_instance = make_shared_ptr<DuckDB>(instance_path, &config);
+ 		cache_entry->database = db_instance;
++		cache_entry->instance = db_instance->instance;
+ 	} else {
+ 		db_instances_lock.unlock();
+ 		db_instance = make_shared_ptr<DuckDB>(instance_path, &config);

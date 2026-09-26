@@ -10,9 +10,16 @@ Read at build time:
 
 * **`MAKEFLAGS`** — parallelism.
   When unset, `configure` fills it in via
-  [`scripts/setup-makeflags.R`](/scripts/setup-makeflags.R) —
+  [`tools/setup-makeflags.R`](/tools/setup-makeflags.R) —
   capped at `-j2` unless `NOT_CRAN` is truthy, per CRAN policy.
   Set `-j$(nproc)` yourself for local builds.
+  The helper lives in `tools/` because `R CMD build` keeps that directory
+  and drops `scripts/` (`.Rbuildignore`),
+  so a package installed from the tarball can still read it.
+  `configure` takes its output only when it is a `-jN`:
+  `Rscript` reports a file it cannot open on *stdout*,
+  so a helper it cannot find would otherwise be exported as `MAKEFLAGS`
+  verbatim, and the build would run serially with no visible error.
 * **ccache** — not a variable:
   wrap the compilers in `~/.R/Makevars`,
   inferring each default with `R CMD config` and prepending `ccache`.

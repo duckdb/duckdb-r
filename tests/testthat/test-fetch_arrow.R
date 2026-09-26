@@ -2,17 +2,28 @@ skip_on_cran()
 skip_on_os("windows")
 skip_if_not_installed("arrow", "5.0.0")
 # Skip if parquet is not a capability as an indicator that Arrow is fully installed.
-skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not fully featured, skipping Arrow integration tests")
+skip_if_not(
+  arrow::arrow_with_parquet(),
+  message = "The installed Arrow is not fully featured, skipping Arrow integration tests"
+)
 
 test_that("duckdb_fetch_arrow() test table over vector size", {
   con <- local_con()
 
-  dbExecute(con, paste0("CREATE table test as select range a from range(10000);"))
+  dbExecute(
+    con,
+    paste0("CREATE table test as select range a from range(10000);")
+  )
   dbExecute(con, "INSERT INTO  test VALUES(NULL);")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  res <- dbSendQuery(con, "SELECT * FROM test", arrow = TRUE)
+  withr::defer(dbClearResult(res))
+  arrow_table <- duckdb_fetch_arrow(res)
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -22,10 +33,15 @@ test_that("duckdb_fetch_arrow() empty table", {
 
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
 
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  res <- dbSendQuery(con, "SELECT * FROM test", arrow = TRUE)
+  withr::defer(dbClearResult(res))
+  arrow_table <- duckdb_fetch_arrow(res)
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -36,10 +52,15 @@ test_that("duckdb_fetch_arrow() table with only nulls", {
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
 
   dbExecute(con, "INSERT INTO  test VALUES(NULL);")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  res <- dbSendQuery(con, "SELECT * FROM test", arrow = TRUE)
+  withr::defer(dbClearResult(res))
+  arrow_table <- duckdb_fetch_arrow(res)
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -52,10 +73,15 @@ test_that("duckdb_fetch_arrow() table with prepared statement", {
   for (value in 1:1500) {
     dbExecute(con, sprintf("EXECUTE s1 (%d, %d);", value, value * 2))
   }
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  res <- dbSendQuery(con, "SELECT * FROM test", arrow = TRUE)
+  withr::defer(dbClearResult(res))
+  arrow_table <- duckdb_fetch_arrow(res)
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
-  expect_equal(dbGetQuery(con, "SELECT * from testarrow"), dbGetQuery(con, "SELECT * from test"))
+  expect_equal(
+    dbGetQuery(con, "SELECT * from testarrow"),
+    dbGetQuery(con, "SELECT * from test")
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -67,6 +93,7 @@ test_that("duckdb_fetch_arrow() record_batch_reader ", {
 
   dbExecute(con, paste0("CREATE table t as select range a from range(3000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
+  withr::defer(dbClearResult(res))
   record_batch_reader <- duckdb_fetch_record_batch(res, 1024)
   cur_batch <- record_batch_reader$read_next_batch()
   expect_equal(1024, cur_batch$num_rows)
@@ -81,11 +108,26 @@ test_that("duckdb_fetch_arrow() record_batch_reader ", {
   expect_equal(NULL, cur_batch)
 })
 
+test_that("duckdb_fetch_record_batch() can be read after its connection is gone", {
+  con <- dbConnect(duckdb())
+  res <- suppressWarnings(
+    dbSendQuery(con, "SELECT i FROM range(3) t(i)", arrow = TRUE),
+    classes = "deprecatedWarning"
+  )
+  reader <- duckdb_fetch_record_batch(res)
+  dbClearResult(res)
+  dbDisconnect(con, shutdown = TRUE)
+  invisible(gc())
+
+  expect_equal(reader$read_table()$num_rows, 3L)
+})
+
 test_that("duckdb_fetch_arrow() record_batch_reader multiple vectors per chunk", {
   skip_if_not_installed("arrow", "4.0.1")
   con <- local_con()
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
+  withr::defer(dbClearResult(res))
   record_batch_reader <- duckdb_fetch_record_batch(res, 2048)
   cur_batch <- record_batch_reader$read_next_batch()
   expect_equal(2048, cur_batch$num_rows)
@@ -104,8 +146,12 @@ test_that("record_batch_reader and table error", {
   con <- local_con()
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
+  withr::defer(dbClearResult(res))
   expect_error(duckdb_fetch_record_batch(res, 0))
-  expect_error(duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE), 0))
+  expect_error(duckdb_fetch_arrow(
+    dbSendQuery(con, "SELECT * FROM test", arrow = TRUE),
+    0
+  ))
 })
 
 
@@ -114,6 +160,7 @@ test_that("duckdb_fetch_arrow() record_batch_reader defaultparamenter", {
   con <- local_con()
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
+  withr::defer(dbClearResult(res))
   record_batch_reader <- duckdb_fetch_record_batch(res)
   cur_batch <- record_batch_reader$read_next_batch()
   expect_equal(5000, cur_batch$num_rows)
@@ -127,6 +174,7 @@ test_that("duckdb_fetch_arrow() record_batch_reader Read Table", {
 
   dbExecute(con, paste0("CREATE table t as select range a from range(3000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
+  withr::defer(dbClearResult(res))
   record_batch_reader <- duckdb_fetch_record_batch(res)
   arrow_table <- record_batch_reader$read_table()
   expect_equal(3000, arrow_table$num_rows)
@@ -146,4 +194,13 @@ test_that("fetching from a consumed query result errors instead of crashing", {
 
   expect_equal(record_batch_reader$read_table()$num_rows, 1)
   dbClearResult(res)
+})
+
+test_that("duckdb_fetch_arrow() and duckdb_fetch_record_batch() refuse a cleared result", {
+  con <- local_con()
+
+  res <- dbSendQuery(con, "SELECT * FROM range(10) t(i)", arrow = TRUE)
+  dbClearResult(res)
+  expect_error(duckdb_fetch_arrow(res), "closed")
+  expect_error(duckdb_fetch_record_batch(res), "closed")
 })

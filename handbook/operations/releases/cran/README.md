@@ -35,7 +35,7 @@ resubmitted as a follow-up patch, never rolled back.
 
 **Policy the tree obeys all year:**
 no warning suppression
-([`architecture/glue/`](/handbook/architecture/glue/README.md)),
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
 no heavy tests or examples on the check farm
 ([`testing/guards/`](/handbook/testing/guards/README.md)),
 tarball size watched at release,

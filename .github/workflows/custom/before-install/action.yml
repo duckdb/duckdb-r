@@ -101,6 +101,13 @@ runs:
         fi
       shell: bash
 
+    # The vendored half of the compiler-warning gate used to append its flags to
+    # ~/.R/Makevars here. It now carries them itself, on the one install it
+    # rides, in after-install (handbook/build/warnings/README.md): that file is
+    # read by every later build in the job -- `R CMD check`'s among them, which
+    # fails over the flags -- and each.yaml runs this action without
+    # after-install, so from here they reached builds the gate never looks at.
+
     # Create the shared DuckDB home (~/.duckdb) so CI exercises the "shared"
     # storage-resolution path. The package only treats ~/.duckdb as the home for
     # downloaded extensions and stored secrets when that directory already

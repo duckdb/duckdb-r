@@ -64,7 +64,9 @@ test_that("r_base::min and r_base::max merge partial states in window frames", {
   # machines can serve from a single worker.
   dbExecute(con, "PRAGMA threads=1")
 
-  res <- dbGetQuery(con, '
+  res <- dbGetQuery(
+    con,
+    '
     WITH t AS (SELECT range::INTEGER AS i FROM range(5000)),
     w AS (SELECT
       "r_base::min"(i) OVER win AS rmn,
@@ -72,6 +74,7 @@ test_that("r_base::min and r_base::max merge partial states in window frames", {
       min(i)           OVER win AS nmn,
       max(i)           OVER win AS nmx
     FROM t WINDOW win AS (ORDER BY i ROWS BETWEEN 999 PRECEDING AND CURRENT ROW))
-    SELECT count(*) FILTER (WHERE rmn IS DISTINCT FROM nmn OR rmx IS DISTINCT FROM nmx) AS mismatches FROM w')
+    SELECT count(*) FILTER (WHERE rmn IS DISTINCT FROM nmn OR rmx IS DISTINCT FROM nmx) AS mismatches FROM w'
+  )
   expect_identical(res$mismatches, 0)
 })

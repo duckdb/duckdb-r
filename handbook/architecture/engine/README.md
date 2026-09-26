@@ -20,6 +20,16 @@ the source id is what the fast path's commit-match guard checks
 At vendor time `rconfigure.py` writes the version into
 [`R/version.R`](/R/version.R),
 which is what `dbGetInfo()` reports without opening a database.
+The source id is ten characters, and it is ten because the vendor
+scripts pin `core.abbrev` in the upstream clone they work from:
+upstream derives it from `git describe`, whose default abbreviation
+grows with the number of objects in the repository it runs in,
+so without the pin the same upstream commit vendored from two clones
+produced two different trees.
+Ten is DuckDB's own length in the built library,
+which is what the commit-match guard compares against.
+Branches carry eleven-character ids from before the pin;
+they are rewritten by the next vendor commit that touches them.
 The *package* version is a different number, owned by
 [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md).
 
@@ -48,4 +58,4 @@ Compiler warnings from the vendored tree are noise the shipped
 build does not silence
 ([#1829](https://github.com/duckdb/duckdb-r/issues/1829));
 the no-suppression policy is
-[`glue/`](/handbook/architecture/glue/README.md)'s.
+[`glue/conventions/`](/handbook/architecture/glue/conventions/README.md)'s.

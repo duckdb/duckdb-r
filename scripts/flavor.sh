@@ -75,6 +75,12 @@ trap restore EXIT
 patch -p1 < scripts/flavor.patch
 R -q -e 'cpp11::cpp_register()'
 
+# README.md and .github/README.md are generated, so the patch renames their
+# source and they are rewritten from it -- the same reason cpp11.cpp is
+# regenerated rather than patched. Patching all three would mean three copies
+# of one rename, kept in step by hand.
+R -q -e 'rmarkdown::render("README.Rmd", quiet = TRUE)'
+
 # Avoid storing .orig files
 git clean -f -- "*.orig"
 
@@ -82,11 +88,11 @@ git clean -f -- "*.orig"
 # underscores -- but only the fork replaces every one of them, so a flavor
 # carrying two comes out of CRAN's cpp11 as `_duckdb_1.5.dev_rapi_connect`.
 # The compiler is the next thing that would see it.
-# handbook/architecture/glue/README.md says which cpp11 to install.
+# handbook/architecture/glue/conventions/README.md says which cpp11 to install.
 if grep -qE '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp; then
   echo "$0: cpp11::cpp_register() wrote entry points that are not C identifiers:" >&2
   grep -E '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp | head -n 3 >&2
-  echo "  Install the fork -- R -q -e 'remotes::install_github(\"krlmlr/cpp11\")'" >&2
+  echo "  Install the fork -- R -q -e 'install.packages(\"cpp11\", repos = c(\"https://krlmlr.r-universe.dev\", getOption(\"repos\")))'" >&2
   exit 1
 fi
 

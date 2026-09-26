@@ -7,35 +7,44 @@ test_that("maps can be read", {
     con,
     "SELECT map([1,2],['a','b']) AS x"
   )
-  expect_equal(res, vctrs::data_frame(
-    x = list(
-      vctrs::data_frame(key = 1:2, value = letters[1:2])
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      x = list(
+        vctrs::data_frame(key = 1:2, value = letters[1:2])
+      )
     )
-  ))
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT 1 as a, map([1,2],[1.5,2.5]) AS x UNION SELECT 2, map([3,4,5],[5.5,4.5,3.5]) ORDER BY a"
   )
-  expect_equal(res, vctrs::data_frame(
-    a = 1:2,
-    x = list(
-      vctrs::data_frame(key = 1:2, value = 1:2 + 0.5),
-      vctrs::data_frame(key = 3:5, value = 5:3 + 0.5)
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      a = 1:2,
+      x = list(
+        vctrs::data_frame(key = 1:2, value = 1:2 + 0.5),
+        vctrs::data_frame(key = 3:5, value = 5:3 + 0.5)
+      )
     )
-  ))
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT 1 as a, map([1,2],[TRUE,FALSE]) AS x UNION SELECT 2, NULL ORDER BY a"
   )
-  expect_equal(res, vctrs::data_frame(
-    a = 1:2,
-    x = list(
-      vctrs::data_frame(key = 1:2, value = c(TRUE, FALSE)),
-      NULL
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      a = 1:2,
+      x = list(
+        vctrs::data_frame(key = 1:2, value = c(TRUE, FALSE)),
+        NULL
+      )
     )
-  ))
+  )
 })
 
 test_that("maps can be written with dbAppendTable (#200)", {
@@ -44,7 +53,11 @@ test_that("maps can be written with dbAppendTable (#200)", {
   dbExecute(con, "CREATE TABLE tbl (mp MAP(VARCHAR, VARCHAR))")
 
   df <- data.frame(
-    mp = I(list(data.frame(key = "page", value = "1", stringsAsFactors = FALSE)))
+    mp = I(list(data.frame(
+      key = "page",
+      value = "1",
+      stringsAsFactors = FALSE
+    )))
   )
   dbAppendTable(con, "tbl", df)
 
@@ -60,7 +73,10 @@ test_that("maps can be round-tripped via dbAppendTable (#200)", {
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE tbl (id INTEGER, mp MAP(VARCHAR, VARCHAR))")
-  dbExecute(con, "INSERT INTO tbl VALUES (1, MAP {'a': 'b', 'c': 'd'}), (2, MAP {'x': 'y'})")
+  dbExecute(
+    con,
+    "INSERT INTO tbl VALUES (1, MAP {'a': 'b', 'c': 'd'}), (2, MAP {'x': 'y'})"
+  )
 
   original <- dbReadTable(con, "tbl")
 
@@ -137,7 +153,10 @@ test_that("maps can be written with dbWriteTable and field.types (#200)", {
 test_that("non-map columns alongside map columns still work (#200)", {
   con <- local_con()
 
-  dbExecute(con, "CREATE TABLE tbl (id INTEGER, name VARCHAR, mp MAP(VARCHAR, INTEGER))")
+  dbExecute(
+    con,
+    "CREATE TABLE tbl (id INTEGER, name VARCHAR, mp MAP(VARCHAR, INTEGER))"
+  )
 
   df <- data.frame(
     id = 1:2,
@@ -176,37 +195,55 @@ test_that("structs give the same results via Arrow", {
     "SELECT map([1,2],['a','b']) AS x",
     arrow = TRUE
   )
-  expect_equal(res, vctrs::data_frame(
-    x = structure(class = c("arrow_list", class(vctrs::list_of(logical()))), vctrs::list_of(
-      tibble::tibble(key = 1:2, value = letters[1:2])
-    ))
-  ))
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      x = structure(
+        class = c("arrow_list", class(vctrs::list_of(logical()))),
+        vctrs::list_of(
+          tibble::tibble(key = 1:2, value = letters[1:2])
+        )
+      )
+    )
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT 1 as a, map([1,2],[1.5,2.5]) AS x UNION SELECT 2, map([3,4,5],[5.5,4.5,3.5]::double[]) ORDER BY a",
     arrow = TRUE
   )
-  expect_equal(res, vctrs::data_frame(
-    a = 1:2,
-    x = structure(class = c("arrow_list", class(vctrs::list_of(logical()))), vctrs::list_of(
-      tibble::tibble(key = 1:2, value = 1:2 + 0.5),
-      tibble::tibble(key = 3:5, value = 5:3 + 0.5)
-    ))
-  ))
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      a = 1:2,
+      x = structure(
+        class = c("arrow_list", class(vctrs::list_of(logical()))),
+        vctrs::list_of(
+          tibble::tibble(key = 1:2, value = 1:2 + 0.5),
+          tibble::tibble(key = 3:5, value = 5:3 + 0.5)
+        )
+      )
+    )
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT 1 as a, map([1,2],[TRUE,FALSE]) AS x UNION SELECT 2, NULL ORDER BY a",
     arrow = TRUE
   )
-  expect_equal(res, vctrs::data_frame(
-    a = 1:2,
-    x = structure(class = c("arrow_list", class(vctrs::list_of(logical()))), vctrs::list_of(
-      tibble::tibble(key = 1:2, value = c(TRUE, FALSE)),
-      NULL
-    ))
-  ))
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      a = 1:2,
+      x = structure(
+        class = c("arrow_list", class(vctrs::list_of(logical()))),
+        vctrs::list_of(
+          tibble::tibble(key = 1:2, value = c(TRUE, FALSE)),
+          NULL
+        )
+      )
+    )
+  )
 })
 
 test_that("empty maps can be read", {
@@ -215,23 +252,29 @@ test_that("empty maps can be read", {
   con <- local_con()
 
   res <- dbGetQuery(con, "SELECT MAP([]::INTEGER[], []::VARCHAR[]) AS x")
-  expect_equal(res, vctrs::data_frame(
-    x = list(
-      vctrs::data_frame(key = integer(), value = character())
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      x = list(
+        vctrs::data_frame(key = integer(), value = character())
+      )
     )
-  ))
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT 1 as a, MAP([]::INTEGER[], []::VARCHAR[]) AS x UNION ALL SELECT 2, MAP {1: 'a'} ORDER BY a"
   )
-  expect_equal(res, vctrs::data_frame(
-    a = 1:2,
-    x = list(
-      vctrs::data_frame(key = integer(), value = character()),
-      vctrs::data_frame(key = 1L, value = "a")
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      a = 1:2,
+      x = list(
+        vctrs::data_frame(key = integer(), value = character()),
+        vctrs::data_frame(key = 1L, value = "a")
+      )
     )
-  ))
+  )
 })
 
 test_that("NULL maps can be read", {
@@ -246,13 +289,16 @@ test_that("NULL maps can be read", {
     con,
     "SELECT 1 AS a, MAP {'x': 1, 'y': 2} AS m UNION ALL SELECT 2, NULL ORDER BY a"
   )
-  expect_equal(res, vctrs::data_frame(
-    a = 1:2,
-    m = list(
-      vctrs::data_frame(key = c("x", "y"), value = 1:2),
-      NULL
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      a = 1:2,
+      m = list(
+        vctrs::data_frame(key = c("x", "y"), value = 1:2),
+        NULL
+      )
     )
-  ))
+  )
 })
 
 test_that("maps with NULL values can be read", {
@@ -261,11 +307,14 @@ test_that("maps with NULL values can be read", {
   con <- local_con()
 
   res <- dbGetQuery(con, "SELECT MAP([1,2], [NULL, 'b']) AS m")
-  expect_equal(res, vctrs::data_frame(
-    m = list(
-      vctrs::data_frame(key = 1:2, value = c(NA, "b"))
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      m = list(
+        vctrs::data_frame(key = 1:2, value = c(NA, "b"))
+      )
     )
-  ))
+  )
 })
 
 test_that("maps preserve key insertion order", {
@@ -292,10 +341,13 @@ test_that("maps with various key and value types can be read", {
     con,
     "SELECT MAP([DATE '2024-01-01', DATE '2024-01-02'], ['a', 'b']) AS m"
   )
-  expect_equal(res$m[[1]], vctrs::data_frame(
-    key = as.Date(c("2024-01-01", "2024-01-02")),
-    value = c("a", "b")
-  ))
+  expect_equal(
+    res$m[[1]],
+    vctrs::data_frame(
+      key = as.Date(c("2024-01-01", "2024-01-02")),
+      value = c("a", "b")
+    )
+  )
 
   res <- dbGetQuery(con, "SELECT MAP {1.5: 1, 2.5: 2} AS m")
   expect_equal(res$m[[1]], vctrs::data_frame(key = c(1.5, 2.5), value = 1:2))
@@ -314,18 +366,24 @@ test_that("BIGINT values in maps respect the bigint connection option", {
 
   con <- local_con()
   res <- dbGetQuery(con, "SELECT MAP {'a': 1::BIGINT, 'b': 2::BIGINT} AS m")
-  expect_equal(res$m[[1]], vctrs::data_frame(
-    key = c("a", "b"),
-    value = c(1, 2)
-  ))
+  expect_equal(
+    res$m[[1]],
+    vctrs::data_frame(
+      key = c("a", "b"),
+      value = c(1, 2)
+    )
+  )
 
   skip_if_not_installed("bit64")
   con2 <- local_con(bigint = "integer64")
   res <- dbGetQuery(con2, "SELECT MAP {'a': 1::BIGINT, 'b': 2::BIGINT} AS m")
-  expect_equal(res$m[[1]], vctrs::data_frame(
-    key = c("a", "b"),
-    value = bit64::as.integer64(c(1, 2))
-  ))
+  expect_equal(
+    res$m[[1]],
+    vctrs::data_frame(
+      key = c("a", "b"),
+      value = bit64::as.integer64(c(1, 2))
+    )
+  )
 })
 
 test_that("maps with nested value types can be read", {
@@ -337,31 +395,40 @@ test_that("maps with nested value types can be read", {
     con,
     "SELECT MAP([1, 2], [[1, 2], [3, 4, 5]]) AS m"
   )
-  expect_equal(res$m[[1]], vctrs::data_frame(
-    key = 1:2,
-    value = list(1:2, 3:5)
-  ))
+  expect_equal(
+    res$m[[1]],
+    vctrs::data_frame(
+      key = 1:2,
+      value = list(1:2, 3:5)
+    )
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT MAP([1, 2], [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]) AS m"
   )
-  expect_equal(res$m[[1]], vctrs::data_frame(
-    key = 1:2,
-    value = vctrs::data_frame(a = c(1L, 3L), b = c(2L, 4L))
-  ))
+  expect_equal(
+    res$m[[1]],
+    vctrs::data_frame(
+      key = 1:2,
+      value = vctrs::data_frame(a = c(1L, 3L), b = c(2L, 4L))
+    )
+  )
 
   res <- dbGetQuery(
     con,
     "SELECT MAP([1, 2], [MAP {'a': 10}, MAP {'b': 20, 'c': 30}]) AS m"
   )
-  expect_equal(res$m[[1]], vctrs::data_frame(
-    key = 1:2,
-    value = list(
-      vctrs::data_frame(key = "a", value = 10L),
-      vctrs::data_frame(key = c("b", "c"), value = c(20L, 30L))
+  expect_equal(
+    res$m[[1]],
+    vctrs::data_frame(
+      key = 1:2,
+      value = list(
+        vctrs::data_frame(key = "a", value = 10L),
+        vctrs::data_frame(key = c("b", "c"), value = c(20L, 30L))
+      )
     )
-  ))
+  )
 })
 
 test_that("maps nested inside structs can be read", {
@@ -370,12 +437,15 @@ test_that("maps nested inside structs can be read", {
   con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'m': MAP {'a': 1}, 'n': 42} AS s")
-  expect_equal(res, vctrs::data_frame(
-    s = vctrs::data_frame(
-      m = list(vctrs::data_frame(key = "a", value = 1L)),
-      n = 42L
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      s = vctrs::data_frame(
+        m = list(vctrs::data_frame(key = "a", value = 1L)),
+        n = 42L
+      )
     )
-  ))
+  )
 })
 
 test_that("maps nested inside lists can be read", {
@@ -387,10 +457,13 @@ test_that("maps nested inside lists can be read", {
     con,
     "SELECT [MAP {'a': 1}, MAP {'b': 2, 'c': 3}] AS x"
   )
-  expect_equal(res$x, list(list(
-    vctrs::data_frame(key = "a", value = 1L),
-    vctrs::data_frame(key = c("b", "c"), value = c(2L, 3L))
-  )))
+  expect_equal(
+    res$x,
+    list(list(
+      vctrs::data_frame(key = "a", value = 1L),
+      vctrs::data_frame(key = c("b", "c"), value = c(2L, 3L))
+    ))
+  )
 })
 
 test_that("map column type is reported by DESCRIBE", {
@@ -487,13 +560,25 @@ test_that("dbDataType reports MAP for vctrs::list_of with key/value ptype", {
 
   col <- vctrs::new_list_of(
     list(data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)),
-    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+    ptype = data.frame(
+      key = character(),
+      value = integer(),
+      stringsAsFactors = FALSE
+    )
   )
   expect_equal(dbDataType(con, col), "MAP(STRING, INTEGER)")
 
   col2 <- vctrs::new_list_of(
-    list(data.frame(key = as.Date("2024-01-01"), value = "v", stringsAsFactors = FALSE)),
-    ptype = data.frame(key = as.Date(character()), value = character(), stringsAsFactors = FALSE)
+    list(data.frame(
+      key = as.Date("2024-01-01"),
+      value = "v",
+      stringsAsFactors = FALSE
+    )),
+    ptype = data.frame(
+      key = as.Date(character()),
+      value = character(),
+      stringsAsFactors = FALSE
+    )
   )
   expect_equal(dbDataType(con, col2), "MAP(DATE, STRING)")
 })
@@ -520,7 +605,11 @@ test_that("dbCreateTable on a list_of column creates a MAP column", {
 
   m <- vctrs::new_list_of(
     list(data.frame(key = "k", value = 1L, stringsAsFactors = FALSE)),
-    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+    ptype = data.frame(
+      key = character(),
+      value = integer(),
+      stringsAsFactors = FALSE
+    )
   )
   df <- data.frame(id = 1L)
   df$m <- m
@@ -542,7 +631,11 @@ test_that("dbWriteTable on a list_of column creates and populates a MAP column",
       NULL,
       data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
     ),
-    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+    ptype = data.frame(
+      key = character(),
+      value = integer(),
+      stringsAsFactors = FALSE
+    )
   )
   df <- data.frame(id = 1:3)
   df$m <- m
@@ -570,10 +663,13 @@ test_that("`map = \"list_of\"` round-trips a MAP column through dbWriteTable (#2
   con <- local_con(map = "list_of")
 
   dbExecute(con, "CREATE TABLE src (id INTEGER, m MAP(VARCHAR, INTEGER))")
-  dbExecute(con, "INSERT INTO src VALUES
+  dbExecute(
+    con,
+    "INSERT INTO src VALUES
     (1, MAP {'a': 1, 'b': 2}),
     (2, NULL),
-    (3, MAP {'c': 3})")
+    (3, MAP {'c': 3})"
+  )
 
   df <- dbReadTable(con, "src")
   expect_s3_class(df$m, "vctrs_list_of")
@@ -627,7 +723,7 @@ test_that("`map = \"list_of\"` scan ignores unnamed list columns", {
   con <- local_con(map = "list_of")
 
   df <- data.frame(id = 1L)
-  df$m <- list(list(1L, 2L))  # not named
+  df$m <- list(list(1L, 2L)) # not named
   duckdb_register(con, "v", df)
   ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
   expect_false(grepl("STRUCT", ctype, fixed = TRUE))
@@ -641,7 +737,7 @@ test_that("`map = \"list_of\"` scan does not promote partly-unnamed lists", {
   # Some entries have an empty name -> the detector bails out and the
   # column scans via the existing LIST path.
   df <- data.frame(id = 1L)
-  df$m <- list(list(a = 1L, 2L))  # second name is ""
+  df$m <- list(list(a = 1L, 2L)) # second name is ""
   duckdb_register(con, "v", df)
   ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
   expect_false(grepl("STRUCT", ctype, fixed = TRUE))
@@ -654,7 +750,11 @@ test_that("`map = \"list_of\"` scan keeps data.frame(key, value) cells working",
 
   dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
   df <- data.frame(id = 1L)
-  df$mp <- list(data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE))
+  df$mp <- list(data.frame(
+    key = c("a", "b"),
+    value = 1:2,
+    stringsAsFactors = FALSE
+  ))
   dbAppendTable(con, "t", df[, "mp", drop = FALSE])
 
   out <- dbReadTable(con, "t")
@@ -688,7 +788,11 @@ test_that("dbAppendTable can write to a MAP column (issue #200)", {
   dbExecute(con, "INSERT INTO tbl VALUES (MAP {'a': 'b'})")
 
   df <- data.frame(
-    mp = I(list(data.frame(key = "page", value = "1", stringsAsFactors = FALSE)))
+    mp = I(list(data.frame(
+      key = "page",
+      value = "1",
+      stringsAsFactors = FALSE
+    )))
   )
   dbAppendTable(con, "tbl", df)
 
@@ -704,7 +808,10 @@ test_that("dbWriteTable of a MAP-shaped data frame creates STRUCT[], not MAP", {
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE src (m MAP(VARCHAR, INTEGER))")
-  dbExecute(con, "INSERT INTO src VALUES (MAP {'a': 1, 'b': 2}), (MAP {'c': 3}), (NULL)")
+  dbExecute(
+    con,
+    "INSERT INTO src VALUES (MAP {'a': 1, 'b': 2}), (MAP {'c': 3}), (NULL)"
+  )
   df <- dbReadTable(con, "src")
 
   dbWriteTable(con, "dst", df)
@@ -779,7 +886,10 @@ test_that("map_from_entries() is a working SQL-side workaround (issue #200)", {
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE src (m MAP(VARCHAR, INTEGER))")
-  dbExecute(con, "INSERT INTO src VALUES (MAP {'a': 1, 'b': 2}), (NULL), (MAP {'c': 3})")
+  dbExecute(
+    con,
+    "INSERT INTO src VALUES (MAP {'a': 1, 'b': 2}), (NULL), (MAP {'c': 3})"
+  )
   df <- dbReadTable(con, "src")
 
   duckdb_register(con, "df_reg", df)

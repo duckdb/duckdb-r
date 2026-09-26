@@ -3,7 +3,11 @@
 #' @usage NULL
 dbClearResult__duckdb_result_arrow <- function(res, ...) {
   if (res@env$open) {
+    if (!is.null(res@env$query_result)) {
+      rethrow_rapi_release_arrow_result(res@env$query_result)
+    }
     res@env$query_result <- NULL
+    res@env$pending_query_results <- NULL
     rethrow_rapi_release(res@stmt_lst$ref)
     res@env$open <- FALSE
   } else {
@@ -14,4 +18,8 @@ dbClearResult__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbClearResult", "duckdb_result_arrow", dbClearResult__duckdb_result_arrow)
+setMethod(
+  "dbClearResult",
+  "duckdb_result_arrow",
+  dbClearResult__duckdb_result_arrow
+)

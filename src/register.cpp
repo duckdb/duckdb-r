@@ -12,6 +12,8 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+// Handbook: handbook/usage/memory/writing/README.md
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -62,7 +64,7 @@ using namespace duckdb;
 	signal_handler.HandleInterrupt();
 
 	if (res->HasError()) {
-		rapi_error_with_context("rapi_unregister_df", res->GetError());
+		rapi_error_with_context("rapi_unregister_df", res->GetErrorObject());
 	}
 }
 
@@ -124,8 +126,9 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 
 class RArrowTabularStreamFactory {
 public:
-	RArrowTabularStreamFactory(SEXP export_fun_p, SEXP arrow_scannable_p, ClientProperties config)
-	    : arrow_scannable(arrow_scannable_p), export_fun(export_fun_p), config(config) {};
+	RArrowTabularStreamFactory(SEXP export_fun_p, SEXP arrow_scannable_p, ClientProperties config_)
+	    : arrow_scannable(arrow_scannable_p), export_fun(export_fun_p), config(std::move(config_)) {
+	}
 
 	static unique_ptr<ArrowArrayStreamWrapper> Produce(uintptr_t factory_p, ArrowStreamParameters &parameters) {
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
@@ -250,8 +253,12 @@ private:
 			vector<cpp11::sexp> equal_exprs;
 			equal_exprs.reserve(in_filter.values.size());
 			for (auto &value : in_filter.values) {
-				equal_exprs.push_back(cpp11::sexp(CreateExpression(functions, "equal", column_name_expr,
-				                                                   CreateConstantExpression(functions, value))));
+				// Bind the constant before building the comparison: `CreateExpression()`
+				// allocates before it stores its operands, so passing the fresh
+				// expression straight through would leave it unprotected.
+				cpp11::sexp constant_expr = CreateConstantExpression(functions, value);
+				equal_exprs.push_back(
+				    cpp11::sexp(CreateExpression(functions, "equal", column_name_expr, constant_expr)));
 			}
 			return FoldBalanced(functions, "or_kleene", equal_exprs, 0, equal_exprs.size());
 		}

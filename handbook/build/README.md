@@ -18,3 +18,4 @@ but a fast one that produced something other than the package.
 * [`source-build/`](source-build/) — `configure`, Makevars, the tarball
 * [`fast-paths/`](fast-paths/) — prebuilt libduckdb in seconds
 * [`configuration/`](configuration/) — the build knobs
+* [`warnings/`](warnings/) — what the compiler may say, and who answers
