@@ -448,9 +448,15 @@ fi
 # The stage-3 finding, onto the newest commit this run minted — the same place
 # and the same reason as in scripts/series-advance.sh: the readers of these
 # findings, scripts/series-glue.sh and stage 2's mining step, read exactly this
-# message.
+# message. They anchor on an `R-side fix` section, so a note that does not open
+# with that header gets the one series-advance.sh writes, by the same test.
 if [ -n "$DEV_NOTE" ]; then
-  { git -C "$wt" log -1 --format=%B; echo; cat "$DEV_NOTE"; } > "$wt/.series-port-note"
+  note_head=
+  if ! sed -n '/[^[:space:]]/{p;q;}' "$DEV_NOTE" | grep -qi '^R-side fix'; then
+    note_head=$'R-side fix:\n\n'
+  fi
+  { git -C "$wt" log -1 --format=%B; echo; printf '%s' "$note_head";
+    cat "$DEV_NOTE"; } > "$wt/.series-port-note"
   git -C "$wt" commit -q --amend --no-verify -F "$wt/.series-port-note"
   rm -f "$wt/.series-port-note"
 fi
