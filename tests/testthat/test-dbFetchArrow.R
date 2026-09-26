@@ -45,6 +45,38 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   expect_equal(again$length, 0L)
 })
 
+test_that("the Arrow schema and an empty batch are there before the first fetch", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT [i] AS l, INTERVAL 1 DAY AS iv, 'x' AS v FROM range(3) t(i)"
+  )
+  on.exit(dbClearResult(res), add = TRUE)
+
+  formats <- function(schema) {
+    vapply(schema$children, function(child) child$format, character(1))
+  }
+
+  schema <- arrow_schema(res)
+  expect_named(schema$children, c("l", "iv", "v"))
+
+  # Built from an empty chunk, so it carries the offset a zero-length list or string array still has.
+  empty <- nanoarrow::nanoarrow_allocate_array()
+  rapi_arrow_empty_array(res@env$query_result, empty)
+  expect_no_error(
+    nanoarrow::nanoarrow_array_set_schema(empty, schema, validate = TRUE)
+  )
+  expect_equal(empty$length, 0L)
+
+  chunk <- dbFetchArrowChunk(res)
+  expect_equal(chunk$length, 3L)
+  expect_equal(
+    formats(nanoarrow::infer_nanoarrow_schema(chunk)),
+    formats(schema)
+  )
+})
+
 test_that("dbFetchArrow() errors after the result is cleared", {
   con <- local_con()
   res <- dbSendQueryArrow(con, "SELECT 1")
