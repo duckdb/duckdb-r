@@ -18,8 +18,9 @@
 #      of the *same* verdict must not cost anything -- and a verdict that stops
 #      being a failure takes its log with it.
 #   4. scripts/rcc-consolidate.sh is a no-op as a dry run, drops records and logs
-#      past their retention, squashes to two commits, inherits its empty root on a
-#      second pass, and refuses to push over a writer that landed in between.
+#      past their retention and keeps a record just inside it, squashes to two
+#      commits, inherits its empty root on a second pass, and refuses to push over
+#      a writer that landed in between.
 #   5. It survives every shape the branch can legitimately have.
 #   6. scripts/rcc-cutover.sh turns an `rcc`-shaped tree into a two-commit `rcc2`:
 #      the aggregate's records become parts, the flat logs move under the
@@ -56,6 +57,14 @@ fail() { echo "  FAIL  $*"; failures=$(( failures + 1 )); }
 
 now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ancient="2020-01-01T00:00:00Z"
+
+# UTC timestamp <n> hours ago. Spelled out here rather than taken from
+# rcc_cutoff, so a fixture dated against the window does not move with the code
+# under test. GNU and BSD `date` spell it differently.
+hours_ago() { # <n>
+  date -u -d "$1 hours ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+    || date -u -v "-$1H" +%Y-%m-%dT%H:%M:%SZ
+}
 
 sha_for() { # <n> -> a 40-hex pseudo-sha
   printf '%040x' "$(( $1 * 2654435761 & 0xffffffffffff ))"
@@ -248,18 +257,22 @@ git clone -q --single-branch --branch rcc2 "${work}/remote.git" "${work}/cons"
 git -C "${work}/cons" config user.name t
 git -C "${work}/cons" config user.email t@e
 
-# A record old enough to age out, with a log; and a log whose commit has no
-# record at all.
+# A record old enough to age out, with a log; a log whose commit has no record
+# at all; and a record twelve hours inside the window, which must survive. Dated
+# at the edge rather than today, so a window even a day short drops it.
 legacy_sha="$(sha_for 666001)"
 orphan_sha="$(sha_for 666002)"
-mkdir -p "${work}/cons/runs2.d/${legacy_sha:0:2}" \
+ok_sha="$(sha_for 666003)"
+mkdir -p "${work}/cons/runs2.d/${legacy_sha:0:2}" "${work}/cons/runs2.d/${ok_sha:0:2}" \
   "${work}/cons/logs2.d/${legacy_sha:0:2}" "${work}/cons/logs2.d/${orphan_sha:0:2}"
 record_for "${legacy_sha}" failure "${ancient}" 1 \
   > "${work}/cons/runs2.d/${legacy_sha:0:2}/${legacy_sha}.ndjson"
+record_for "${ok_sha}" success "$(hours_ago $(( ${RCC_RETENTION_DAYS:-180} * 24 - 12 )))" 1 \
+  > "${work}/cons/runs2.d/${ok_sha:0:2}/${ok_sha}.ndjson"
 printf 'an ancient log\n' > "${work}/cons/logs2.d/${legacy_sha:0:2}/${legacy_sha}.log"
 printf 'a log nothing records\n' > "${work}/cons/logs2.d/${orphan_sha:0:2}/${orphan_sha}.log"
 git -C "${work}/cons" add -A
-git -C "${work}/cons" commit -qm "an aged record and an orphaned log"
+git -C "${work}/cons" commit -qm "an aged record, an orphaned log, and one just inside the window"
 git -C "${work}/cons" push -q origin HEAD:rcc2
 
 before_state="$(git -C "${work}/cons" rev-parse HEAD:)"
