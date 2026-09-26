@@ -104,9 +104,8 @@ driver_registry <- new.env(parent = emptyenv())
 #' that `duckdb()` creates and removes again,
 #' so a `dbdir` in a directory that cannot be written to fails here rather than in the engine.
 #' Creating that placeholder is the only step that has to succeed:
-#' a path `normalizePath()` cannot resolve --
-#' a network drive with parent directories the user may not read is the common case --
-#' is kept as it stands instead of raising an error.
+#' a path `normalizePath()` cannot resolve is kept as it stands instead of raising an error
+#' (a network drive with parent directories the user may not read is the common case).
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
