@@ -1,5 +1,7 @@
 # `revdep4` — the sequential-halves queue engine
 
+*Handbook: [`testing/revdep/`](/handbook/testing/revdep/README.md) owns what this workflow is for.*
+
 `.github/workflows/revdep4.yaml` is built on the core in
 [`../revdepx/`](../revdepx/README.md).
 It checks every reverse dependency of this package twice —
