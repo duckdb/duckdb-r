@@ -303,6 +303,26 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	}
 }
 
+// Let go of a query result when its R result is cleared.
+// A streaming result not read to the end keeps its query, with the pipeline and the rows it has buffered,
+// active on the connection until the next statement there cleans it up,
+// so this ends the query the same way (handbook/usage/memory/reading/README.md).
+// A stream that dbFetchArrow() has handed over is no longer here, and keeps its query.
+[[cpp11::register]] void rapi_release_arrow_result(duckdb::rqry_eptr_t qry_res) {
+	if (!qry_res || !qry_res.get()) {
+		return;
+	}
+	auto result = qry_res->stream_wrapper ? qry_res->stream_wrapper->engine.result.get() : qry_res->result.get();
+	if (result && result->type == QueryResultType::STREAM_RESULT) {
+		auto &stream_result = result->Cast<StreamQueryResult>();
+		if (stream_result.IsOpen()) {
+			stream_result.context->CancelTransaction();
+		}
+	}
+	qry_res->stream_wrapper.reset();
+	qry_res->result.reset();
+}
+
 // Turn a DuckDB result set into an RecordBatchReader
 [[cpp11::register]] SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size) {
 	if (!qry_res || !qry_res.get()) {
