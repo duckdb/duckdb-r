@@ -6,7 +6,7 @@ test_that("dbSendQueryArrow() returns a duckdb_result_arrow", {
   dbExecute(con, "INSERT INTO t VALUES (1, 'x'), (2, 'y')")
 
   res <- dbSendQueryArrow(con, "SELECT a, b FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   expect_s4_class(res, "duckdb_result_arrow")
   expect_true(dbIsValid(res))
@@ -18,7 +18,7 @@ test_that("dbColumnInfo() works before fetching", {
   dbExecute(con, "CREATE TABLE t (a INTEGER, b VARCHAR)")
 
   res <- dbSendQueryArrow(con, "SELECT a, b FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   info <- dbColumnInfo(res)
   expect_equal(info$name, c("a", "b"))
@@ -31,7 +31,7 @@ test_that("dbHasCompleted() reports not-yet-completed before any fetch", {
   dbExecute(con, "INSERT INTO t VALUES (1)")
 
   res <- dbSendQueryArrow(con, "SELECT a FROM t")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   expect_false(dbHasCompleted(res))
 })
@@ -57,7 +57,7 @@ test_that("dbSendQueryArrow() does not materialize a large streaming query", {
   start <- Sys.time()
   res <- dbSendQueryArrow(con, "SELECT * FROM range(10000000)")
   elapsed <- as.numeric(Sys.time() - start, units = "secs")
-  on.exit(dbClearResult(res), add = TRUE)
+  withr::defer(dbClearResult(res))
 
   expect_lt(elapsed, 1)
   expect_true(dbIsValid(res))

@@ -21,8 +21,10 @@ Branches without a green sibling fall back to first-parent history since `SINCE`
 
 That fallback is the one path that can reach past the store's retention window
 ([`store/`](/handbook/operations/ci/per-commit/store/README.md#retention-is-one-window)):
-`SINCE` defaults to a fixed date months back, while records are dropped after 30
-days, so a commit older than the window reads as undecided and is replanned.
+`SINCE` defaults to a fixed date, while records are dropped after 180 days,
+so a commit older than the window reads as undecided and is replanned —
+and because `SINCE` is fixed and the window is not,
+the gap between them widens with every month that passes.
 A series branch never sees it — `<S>-green` is far newer than the window — and
 the cost where it does bite is a rebuild, never a wrong verdict.
 Narrow `SINCE` on a branch with no green sibling if the rebuild is not wanted.

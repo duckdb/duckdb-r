@@ -16,5 +16,5 @@ and where this package cannot follow it — with the reason.
 A deviation nobody wrote down is one the next contributor
 reports as a bug, and the one after that copies.
 
-* [`conventions/`](conventions/) — where a method lives, what is generated, and the flavor seam
+* [`conventions/`](conventions/) — where a method lives, where session state lives, what is generated, and the flavor seam
 * [`style/`](style/) — the tidyverse rules this code follows, and where it does not
