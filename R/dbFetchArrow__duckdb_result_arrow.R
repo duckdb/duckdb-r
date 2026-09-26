@@ -4,9 +4,7 @@
 #' @param chunk_size The chunk size in rows used when pulling Arrow batches from DuckDB.
 #' @usage NULL
 dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   require_nanoarrow("dbFetchArrow()")
 
   if (isTRUE(res@env$completed)) {
@@ -81,9 +79,7 @@ dbFetchArrowChunk__duckdb_result_arrow <- function(
   ...,
   chunk_size = 1000000
 ) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   require_nanoarrow("dbFetchArrowChunk()")
 
   if (isTRUE(res@env$completed)) {
