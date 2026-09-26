@@ -38,8 +38,6 @@ sql_exec <- function(sql, conn = default_conn()) {
   DBI::dbExecute(conn, sql)
 }
 
-the <- new.env(parent = emptyenv())
-
 #' Get the default connection
 #'
 #' @description
