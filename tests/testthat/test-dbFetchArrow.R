@@ -94,3 +94,67 @@ test_that("dbColumnInfo() still works on an arrow result and matches the schema"
   schema <- res@env$arrow_schema
   expect_s3_class(schema, "nanoarrow_schema")
 })
+
+test_that("a stream that another statement invalidated errors instead of ending (#2772)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  stream <- dbFetchArrow(res, chunk_size = 10)
+  dbClearResult(res)
+
+  expect_equal(stream$get_next()$length, 10L)
+  dbGetQuery(con, "SELECT 42")
+  expect_error(stream$get_next(), "invalidated by another statement")
+  expect_error(stream$get_next(), "invalidated by another statement")
+
+  # Invalidated before the first read, when not even the schema was read.
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  stream <- dbFetchArrow(res, chunk_size = 10)
+  dbClearResult(res)
+
+  dbGetQuery(con, "SELECT 42")
+  expect_error(stream$get_next(), "invalidated by another statement")
+})
+
+test_that("a chunked result that another statement invalidated errors instead of ending (#2772)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  on.exit(dbClearResult(res), add = TRUE)
+
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 10)$length, 10L)
+  dbGetQuery(con, "SELECT 42")
+  expect_error(
+    dbFetchArrowChunk(res, chunk_size = 10),
+    "invalidated by another statement"
+  )
+  expect_false(dbHasCompleted(res))
+})
+
+test_that("a stream read to the end still ends after another statement (#2772)", {
+  con <- local_con()
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  stream <- dbFetchArrow(res, chunk_size = 10)
+  dbClearResult(res)
+
+  total <- 0L
+  while (!is.null(batch <- stream$get_next())) {
+    total <- total + batch$length
+  }
+  expect_equal(total, 30L)
+
+  dbGetQuery(con, "SELECT 42")
+  expect_null(stream$get_next())
+
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(30) t(i)")
+  on.exit(dbClearResult(res), add = TRUE)
+  repeat {
+    if (dbFetchArrowChunk(res, chunk_size = 10)$length == 0L) {
+      break
+    }
+  }
+
+  dbGetQuery(con, "SELECT 42")
+  expect_equal(dbFetchArrowChunk(res)$length, 0L)
+})

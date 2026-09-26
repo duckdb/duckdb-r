@@ -112,6 +112,16 @@ so a dedicated writer per frame library
 The stream feeds one consumer, draining as it is read,
 so a second pass over the same object sees zero rows
 rather than the result again.
+It also holds its connection until the engine has seen the end of the result, in a batch shorter than `chunk_size` or in an empty read.
+Another statement on that connection invalidates it.
+The next read is then an error, not an early end that would pass for a complete result
+([#2772](https://github.com/duckdb/duckdb-r/issues/2772)).
+So a stream whose last batch held exactly `chunk_size` rows is invalidated, although every row has arrived.
+The engine's own Arrow stream reports an invalidated result as ended
+(vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
+so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+Statements that must run between reads need a connection of their own.
+A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
 [`memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
