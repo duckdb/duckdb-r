@@ -130,6 +130,8 @@ The glue wraps the engine's stream all the same
 (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)),
 because the engine `main` vendors does invalidate such a result and reports it as ended,
 which would read as a complete result; on this engine that check never fires.
+The wrapper also keeps the connection's client context alive until the stream is released.
+The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
 A multi-row `dbBind()` is unaffected either way, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
