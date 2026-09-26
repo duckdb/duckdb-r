@@ -20,7 +20,7 @@ the one case run again after #2775 is named where it is read.
 
 *What it supports:* [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md),
 which states the mapping and what follows from it,
-and the problem statement of [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md).
+and the problem statement of [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
 
 ## How it asks
 

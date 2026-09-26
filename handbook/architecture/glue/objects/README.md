@@ -61,8 +61,8 @@ what the error says, and when a stream counts as read to the end, is
 so the loop now stops at its second batch with the reason.
 The way through is a second connection to the same instance:
 a stream on each interleaves, and the loop completes with its writes on the other connection.
-Giving a streaming result a context of its own where that is sound, so the loop completes on one connection,
-is [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md).
+DBI names that second connection a clone, `dbConnect(con)`, and this package has no method for it yet:
+[`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
 
 **A result outlives its connection, and holds the instance with it.**
 `dbDisconnect()` deletes the `Connection`, and the prepared statement keeps the context,
@@ -106,10 +106,11 @@ Python's `cursor()` is a duplicate of the connection, and its multithreading gui
 while the engine's own ADBC driver keeps one context and materializes an open stream when another statement runs
 ([`usage/memory/reading/`](/handbook/usage/memory/reading/README.md)).
 What the idea is good for, an open stream that leaves its connection usable and, with a producer thread, results that produce at once,
-is kept where it applies: a private context behind a streaming result,
-taken only for a read outside an explicit transaction that touches nothing the session scopes,
-with the connection's context as the fallback, which is
-[`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md).
+is kept in the explicit form DBI already defines:
+`dbConnect(con)` cloning the connection, with its session settings, default database and registered frames,
+and, once the producer thread needs it, a result that owns such a clone when asked to by argument.
+A private context taken by default behind guards was drafted and refused;
+[`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) carries the design and the reasons.
 
 *To deepen: state what the driver-side mapping, a driver that owns its instance, costs against a factory driver
 over the engine's own instance cache, which [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would settle.*

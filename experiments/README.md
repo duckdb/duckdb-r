@@ -100,7 +100,7 @@ This file is what names the contents, so nothing here is an orphan.
   what a context costs, whether a result outlives its connection and what it
   keeps open, and what two contexts buy in wall time that one cannot; supports
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)
-  and [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md).
+  and [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

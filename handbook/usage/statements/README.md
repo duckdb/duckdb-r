@@ -42,8 +42,14 @@ The departures from that baseline are what this leaf owns:
   and reading it afterwards is an error
   ([#2772](https://github.com/duckdb/duckdb-r/issues/2772));
   a second connection to the same instance is the way to keep one open while
-  the first works, until
-  [`plan/PLAN-result-contexts.md`](/plan/PLAN-result-contexts.md) lands.
+  the first works, and `dbConnect(con)`, which DBI defines as cloning a
+  connection, is what
+  [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) adds so
+  that the second carries the first's session settings.
+  `FORCE CHECKPOINT` on one connection while a stream is parked on another
+  does not return, since it waits for a transaction only the waiting thread
+  can advance (measured in
+  [`experiments/2026-09-26-connection-per-result/`](/experiments/2026-09-26-connection-per-result/README.md)).
   The object each DBI class wraps, and why the stream and the connection
   share a session, is
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.
