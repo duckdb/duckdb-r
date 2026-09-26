@@ -371,7 +371,9 @@ git worktree add --detach -q "$wt" "$dev"
 # The `-x` trailer is the second dedupe layer, not decoration, so the guidance
 # below names it: a resolution that diverges from main's patch has no patch-id
 # in common with it, and the trailer is then the only thing that stops the pick
-# being offered and reconflicting on every firing.
+# being offered and reconflicting on every firing. It prints the SHA in full,
+# because the reader above matches 40 hex digits and every other SHA on screen
+# is abbreviated.
 if [ ${#picks[@]} -gt 0 ] && ! git -C "$wt" cherry-pick -x --empty=drop "${picks[@]}"; then
   echo "Conflict; worktree kept at $wt, conflicted files:"
   git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
@@ -379,7 +381,7 @@ if [ ${#picks[@]} -gt 0 ] && ! git -C "$wt" cherry-pick -x --empty=drop "${picks
   echo "  git -C $wt cherry-pick --continue    # repeats through the rest"
   echo "Writing the message by hand instead? Keep the trailer it would have"
   echo "written, or this pick is offered again on every firing:"
-  echo "  (cherry picked from commit <the main commit above>)"
+  echo "  (cherry picked from commit $(git -C "$wt" rev-parse CHERRY_PICK_HEAD))"
   echo "A resolution that comes out empty is committed empty, never skipped —"
   echo "the empty commit is what carries the trailer that retires the pick:"
   echo "  git -C $wt commit --allow-empty --cleanup=strip --no-edit"
