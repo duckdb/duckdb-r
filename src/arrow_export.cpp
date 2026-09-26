@@ -98,8 +98,13 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
 }
 
+static duckdb::shared_ptr<ClientContext> KeepContext(QueryResult &result) {
+	auto context = result.client_properties.client_context;
+	return context ? context->shared_from_this() : nullptr;
+}
+
 RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size)
-    : engine(std::move(result), batch_size) {
+    : context(KeepContext(*result)), engine(std::move(result), batch_size) {
 	stream.get_schema = GetSchema;
 	stream.get_next = GetNext;
 	stream.get_last_error = GetLastError;
@@ -310,7 +315,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	// The wrapper owns the result from here on. arrow's ImportRecordBatchReader
 	// takes the stream and frees both through stream.release when the reader is
 	// collected; only a failing import below leaks it (handbook/usage/memory/reading/README.md).
-	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+	// Unlike the engine's own wrapper, it keeps the client context alive for a reader that outlives the connection.
+	auto result_stream = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
 
 	cpp11::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));

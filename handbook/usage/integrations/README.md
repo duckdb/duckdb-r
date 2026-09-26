@@ -130,6 +130,8 @@ So a stream whose last batch held exactly `chunk_size` rows is invalidated, alth
 The engine's own Arrow stream reports an invalidated result as ended
 (vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
 so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+The wrapper also keeps the connection's client context alive until the stream is released.
+The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
 A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
