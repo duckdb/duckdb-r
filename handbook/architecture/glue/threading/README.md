@@ -72,12 +72,17 @@ Underneath all three sits the same load-bearing fact:
 for the length of a query,
 R's thread is blocked inside the engine and mutates nothing,
 which is what makes even a plain read of an R object from a task thread safe.
-The scan still takes such reads —
-a cell out of a list, a `class` attribute,
-a factor cell's levels through R's translation buffer.
+The scan still takes such reads:
+a cell out of a list, a `class` attribute, a factor cell's levels.
 Reads are all a task thread may take, and building a cpp11 vector is not one.
 It allocates, and links the vector into cpp11's one protection list, which two tasks would race on.
 Type detection in [`src/types.cpp`](/src/types.cpp) therefore reads a list cell's names and levels in place.
+Keeping every R allocation off the task threads is the aim, and not every path meets it yet.
+A factor level that is neither UTF-8 nor ASCII, latin1 for instance, is not read in place:
+`RType::FACTOR()` translates it with `Rf_translateCharUTF8()`, which allocates from R's buffers,
+and two tasks doing that at once crash a parallel scan of a list column of such factors.
+[`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md) sets out to keep R's thread and the engine's apart,
+with R's the only thread that touches the R API, and its first task audits paths like this one.
 So the inventory is not a licence to run R concurrently:
 a producer thread ends the blocking that underwrites it,
 which is why #2583 guards per connection
