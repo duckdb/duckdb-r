@@ -140,9 +140,16 @@ vendored_sha() {
 # The comparison is by content and not by patch-id: `git cherry` reports such a
 # commit as unmerged, because the same post-image was reached on `-dev` by a
 # different diff.
+#
+# A buffer tooling sync is no work whatever it holds: series-advance.sh skips it
+# rather than picking it, because `-dev`'s tooling is stage 4's. Counted, the
+# one at a quiet buffer's tail would read ADVANCE for ever, exactly as above.
 consumable_count() { # <range> <dev> -> commits of <range> that are not no-ops on <dev>
   local range=$1 dev=$2 n=0 c f
   while IFS= read -r c; do
+    if [ "$(git log -1 --format=%s "$c")" = "chore(series): Sync buffer tooling with main" ]; then
+      continue
+    fi
     while IFS= read -r -d '' f; do
       if [ "$(git rev-parse -q --verify "$c:$f" || true)" \
         != "$(git rev-parse -q --verify "$dev:$f" || true)" ]; then
