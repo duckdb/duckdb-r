@@ -11,12 +11,16 @@ The C++ side holds the symbol it invokes
 (`get_progress_display_sym` in
 [`src/include/rapi.hpp`](/src/include/rapi.hpp)),
 and [`R/progress_display.R`](/R/progress_display.R) draws it.
-The engine calls it whenever a query's progress moves, thousands of times in a query of a few seconds
+The engine calls it every time it polls a running query, whether or not the progress moved,
+thousands of times in a query of a few seconds
 ([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
 The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
 Throttling is left to the R side.
 A query paints nothing in its first half second, so a fast query never paints, and at most one line every half second after that.
-Completion bypasses the throttle, so a painted line never outlives its query, and the next query starts its own half second.
+Completion bypasses the throttle, so a painted line is cleared when its query completes, and the next query starts its own half second.
+Completion is the engine's call to the display's `Finish()`, which never comes for a query that fails or is interrupted,
+and comes with a streamed Arrow result's first chunk, before the reads that report further progress.
+Either way the last line painted stays, and the next query inherits the throttle's state, so it can paint at once.
 
 ## Interrupting a query
 
