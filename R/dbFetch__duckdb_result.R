@@ -3,9 +3,7 @@
 #' @importFrom utils head
 #' @usage NULL
 dbFetch__duckdb_result <- function(res, n = -1, ...) {
-  if (!res@env$open) {
-    abort("result set was closed")
-  }
+  check_result_open(res)
 
   if (res@arrow) {
     if (n != -1) {

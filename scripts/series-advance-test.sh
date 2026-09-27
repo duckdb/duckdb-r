@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Fourteen
+# A forward series inherits only the first when its buffer is replayed. Sixteen
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -47,6 +47,12 @@
 #      stopping the stage: the buffer commit's content reached `-dev` by another
 #      route, which is claim 12 arrived at through a conflict. The chunk also
 #      finishes when the operator dropped the pick by hand first.
+#  15. A red commit in flight does not hold back the verified commits below it:
+#      green and its canonical copy take them, and the firing then stops
+#      before stage 5 extends `-dev` onto a tip a repair is about to re-mint.
+#  16. A buffer tooling sync is skipped, never replayed: `-dev`'s tooling is
+#      stage 4's, and a sync taken against older tooling would conflict or put
+#      back what `main` removed. The vendor commits above it are consumed.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -257,11 +263,54 @@ git mv inst/types.hpp inst/flavored.hpp
 git commit -qm 'chore: Reflavor'
 git branch emptyres-build-base emptyres-seed
 
+# --- a verified prefix under a red tip (claim 15) ---------------------------
+# Two commits in flight, the older one green and the newer one red, and a buffer
+# commit waiting behind them. Stage 3 owes the frontier the commit it proved;
+# stage 5 owes the buffer nothing while a repair is pending.
+git checkout -q -b red-dev base-seed
+bvendor fff7777 1.0.0.9000.1 l.cpp
+RED_OK=$(git rev-parse HEAD)
+bvendor fff8888 1.0.0.9000.2 m.cpp
+RED_BAD=$(git rev-parse HEAD)
+git branch red-green base-seed
+git checkout -q -b red-build red-dev
+bvendor fff9990 1.0.0.9000.3 n.cpp
+git branch red-build-base base-seed
+
+# --- a buffer tooling sync above the anchor (claim 16) ----------------------
+# The buffer's sync took main's tooling as it was then; stage 4 has since given
+# -dev main's tooling as it is now, and the two disagree on the same file. A
+# pick of the sync conflicts there; the vendor commit above it is the real work.
+git checkout -q -b tsync-build base-seed
+bvendor ggg1111 1.0.0.9000.1 p.cpp
+TSYNC_V1=$(git rev-parse HEAD)
+mkdir -p .github/workflows
+echo 'jobs: as main had them at the buffer sync' > .github/workflows/w.yaml
+git add -A
+git commit -qm 'chore(series): Sync buffer tooling with main'
+bvendor ggg2222 1.0.0.9000.2 q.cpp
+git checkout -q -b tsync-dev "$TSYNC_V1"
+mkdir -p .github/workflows
+echo 'jobs: as main has them now' > .github/workflows/w.yaml
+git add -A
+git commit -qm 'chore(series): Sync tooling with main'
+git branch tsync-green tsync-dev
+git branch tsync-build-base "$TSYNC_V1"
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
-# anything absent, which is what a freshly pushed commit looks like.
+# anything absent, which is what a freshly pushed commit looks like. The `red`
+# series is the one case that needs real records, so it gets two.
 git checkout -q --orphan rcc2
 git rm -rqf .
-git commit -q --allow-empty -m 'chore: empty store'
+rec() { # <sha> <state>
+  mkdir -p "runs2.d/${1:0:2}"
+  printf '{"commit":"%s","status":{"context":"rcc","state":"%s"}}\n' "$1" "$2" \
+    > "runs2.d/${1:0:2}/$1.ndjson"
+}
+rec "$RED_OK" success
+rec "$RED_BAD" failure
+git add -A
+git commit -q -m 'chore: store stub'
 
 git checkout -q main
 git push -q origin main base-seed base-build base-dev base-green base-build-base \
@@ -270,8 +319,18 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   note-build note-dev note-green note-build-base \
   bare-build bare-dev bare-green bare-build-base \
   dup-build dup-dev dup-green dup-build-base \
+  red-build red-dev red-green red-build-base \
+  tsync-build tsync-dev tsync-green tsync-build-base \
   emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
+
+# A canonical remote, because `red` is the one series here whose green moves,
+# and the mirror is what r-universe reads. Only `red-green` lives there, the way
+# only green travels out of the fork.
+CANON=$SCRATCH/canonical.git
+git init -q --bare -b main "$CANON"
+git remote add upstream "$CANON"
+git push -q upstream red-green
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
 # Collected, then matched -- never piped straight into `grep -m1`. The grep
@@ -516,7 +575,7 @@ has "under a header the readers anchor on" \
   "$(git log -1 --format=%B origin/bare-dev)" 'R-side fix'
 is "written exactly once" \
   "$(git log -1 --format=%B origin/bare-dev | grep -ci '^R-side fix')" 1
-is "in the spelling series-glue.sh reads today" \
+is "in the colon spelling" \
   "$(git log -1 --format=%B origin/bare-dev | grep -c '^R-side fix:')" 1
 
 echo
@@ -536,6 +595,35 @@ has "refuses before reading any ref" "$out" 'missing or empty'
 has "and exits non-zero"             "$out" 'EXIT=1'
 git fetch -q origin
 is "leaving dev where it was" "$(git rev-parse origin/note-dev)" "$before"
+
+echo
+echo "== a verified prefix under a red tip"
+before=$(git rev-parse origin/red-dev)
+out=$(run red)
+git fetch -q origin
+is "green takes the commit the run proved" \
+  "$(git rev-parse origin/red-green)" "$RED_OK"
+is "and the canonical copy takes it too" \
+  "$(git --git-dir="$CANON" rev-parse red-green)" "$RED_OK"
+has "the red commit is named"    "$out" "$RED_BAD"
+has "as the reason to stop"      "$out" 'repair before extending'
+has "and the firing exits non-zero" "$out" 'EXIT=1'
+is "dev is left for the repair" "$(git rev-parse origin/red-dev)" "$before"
+is "and the buffer commit is not consumed" \
+  "$(git rev-list --count origin/red-dev..origin/red-build)" 1
+
+echo
+echo "== a buffer tooling sync above the anchor"
+out=$(run tsync)
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+hasnt "without stopping on the sync" "$out" 'conflicted'
+is "-dev keeps the tooling stage 4 gave it" \
+  "$(git show origin/tsync-dev:.github/workflows/w.yaml)" 'jobs: as main has them now'
+has "the vendor commit above the sync is consumed" \
+  "$(git log -1 --format=%s origin/tsync-dev)" 'duckdb@ggg2222'
+is "and the sync itself never reaches -dev" \
+  "$(git log --format=%s origin/tsync-green..origin/tsync-dev | grep -c 'Sync buffer tooling' || true)" 0
 
 echo
 echo "$pass passed, $fail failed"

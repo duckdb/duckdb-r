@@ -49,6 +49,74 @@ test_that("we can recognize if a df is materialized", {
   expect_true(df_is_materialized(df))
 })
 
+test_that("the query result is released once all columns are transformed", {
+  df_in <- data.frame(a = as.double(1:10000), b = as.double(10000:1))
+  df <- rel_to_altrep(rel_from_df(con, df_in))
+  expect_false(df_is_materialized(df))
+  expect_false(rapi_df_has_query_result(df))
+
+  # Materialization via the row count retains the result
+  expect_equal(nrow(df), 10000)
+  expect_true(df_is_materialized(df))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming only some of the columns retains the result
+  expect_equal(sum(df$a), sum(df_in$a))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming the last column releases the result
+  expect_equal(sum(df$b), sum(df_in$b))
+  expect_false(rapi_df_has_query_result(df))
+
+  # The data frame remains fully functional after the release
+  expect_true(df_is_materialized(df))
+  expect_equal(nrow(df), 10000)
+  expect_equal(df, df_in)
+
+  # A relation wrapped around the released data frame scans the R vectors
+  rel2 <- rel_from_altrep_df(df, wrap = TRUE)
+  expect_equal(rapi_rel_to_df(rel2), df_in, ignore_attr = TRUE)
+})
+
+test_that("the query result is released with nested STRUCT columns", {
+  rel <- rel_from_sql(
+    con,
+    "SELECT {'x': range::int, 'y': range::double} AS s, range AS a FROM range(1000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  # Transforming the plain column and one struct field retains the result
+  expect_equal(sum(df$a), sum(0:999))
+  expect_equal(sum(df$s$x), sum(0:999))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming the last struct field releases the result
+  expect_equal(sum(df$s$y), sum(0:999))
+  expect_false(rapi_df_has_query_result(df))
+
+  # The data frame remains fully functional after the release
+  expect_equal(nrow(df), 1000)
+  expect_equal(df$s$y, as.double(0:999))
+})
+
+test_that("a column whose conversion fails part way fails again on the next access", {
+  # The NUL byte sits in the second chunk,
+  # so the first 2048 rows are converted when the conversion fails
+  rel <- rel_from_sql(
+    con,
+    "SELECT CASE WHEN range = 3000 THEN 'a' || chr(0) || 'b' ELSE 'v' END AS s, range AS i FROM range(5000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  expect_error(df$s[1], "null byte")
+  # Not the partly converted vector, with "" in the rows after the first chunk
+  expect_error(df$s[1], "null byte")
+
+  # The column that failed keeps the engine's copy of the result
+  expect_equal(sum(df$i), sum(0:4999))
+  expect_true(rapi_df_has_query_result(df))
+})
+
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
@@ -1553,6 +1621,99 @@ test_that("prudence", {
   expect_snapshot(error = TRUE, {
     nrow(bad_cells)
   })
+
+  # Materialization errors triggered via column-data ALTREP methods
+  # (VectorLength / VectorDataptr) should also produce a clean error,
+  # matching the rownames path; verifies the AltrepGuard is active in
+  # those entrypoints too.
+  forbid_col <- rel_to_altrep(rel2, n_cells = 0)
+  expect_snapshot(error = TRUE, {
+    length(forbid_col$a)
+  })
+  expect_snapshot(error = TRUE, {
+    forbid_col$a[1]
+  })
+})
+
+test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  rel1 <- rel_from_df(con, data.frame(a = 1:10))
+  ans <- rel_to_altrep(rel1)
+
+  rlang::local_options(
+    duckdb.materialize_callback = function(rel) stop("callback failed")
+  )
+  expect_error(nrow(ans), "callback failed")
+
+  # The guard is process-wide, so a long-jmp that skipped its destructor would
+  # degrade every later error, including ones raised with no ALTREP method on
+  # the stack: the structured `Context:` bullet would collapse into a flat
+  # "<context>: <message>" string.
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df"
+  )
+})
+
+test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  df <- rel_to_altrep(rel_from_sql(con, "SELECT 1 AS a WHERE false"))
+  row_names <- attr(df, "row.names")
+
+  # The ALTREP Max method of empty row names warns,
+  # and an exiting handler long-jumps out of that warning
+  expect_equal(
+    tryCatch(max(row_names), warning = function(w) "caught"),
+    "caught"
+  )
+
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
+  )
+})
+
+test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_on_cran()
+  skip_if_not_installed("rlang")
+
+  # A column 32 MB larger than the free space of R's vector heap
+  vcells <- gc()["Vcells", ]
+  n_rows <- vcells[["gc trigger"]] - vcells[["used"]] + 2^22
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    paste0(
+      "SELECT range::DOUBLE AS d FROM range(",
+      format(n_rows, scientific = FALSE),
+      ")"
+    )
+  ))
+  # Runs the relation, whose result DuckDB holds outside R's heap;
+  # the column's R vector is allocated on its first access
+  expect_equal(nrow(df), n_rows)
+
+  # A limit the heap cannot grow past fails the column's allocation
+  local({
+    old_limit <- mem.maxVSize()
+    on.exit(mem.maxVSize(old_limit))
+    mem.maxVSize(ceiling(gc()["Vcells", "gc trigger"] * 8 / 2^20) + 1)
+    expect_error(df$d[1])
+  })
+
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
+  )
+  # The column converts once there is room
+  expect_equal(df$d[n_rows], n_rows - 1)
 })
 
 test_that("rel_to_view()", {

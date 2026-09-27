@@ -35,10 +35,12 @@ bool RType::operator==(const RType &rhs) const {
 	return id_ == rhs.id_ && size_ == rhs.size_ && aux_ == rhs.aux_;
 }
 
-RType RType::FACTOR(cpp11::strings levels) {
+// Reads the levels in place, as DetectRType() does a data frame's names
+RType RType::FACTOR(SEXP levels) {
+	D_ASSERT(TYPEOF(levels) == STRSXP);
 	RType out = RType(RTypeId::FACTOR);
-	for (R_xlen_t level_idx = 0; level_idx < levels.size(); level_idx++) {
-		out.aux_.push_back(std::make_pair(levels[level_idx], RType()));
+	for (R_xlen_t level_idx = 0; level_idx < Rf_xlength(levels); level_idx++) {
+		out.aux_.push_back(std::make_pair(Rf_translateCharUTF8(STRING_ELT(levels, level_idx)), RType()));
 	}
 	return out;
 }
@@ -153,7 +155,11 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64, bool timestamptz) {
 			return RType::UNKNOWN;
 		}
 	} else if (Rf_isFactor(v) && TYPEOF(v) == INTSXP) {
-		return RType::FACTOR(GET_LEVELS(v));
+		SEXP levels = GET_LEVELS(v);
+		if (TYPEOF(levels) != STRSXP) {
+			return RType::UNKNOWN;
+		}
+		return RType::FACTOR(levels);
 	} else if (Rf_isMatrix(v)) {
 		if (TYPEOF(v) == LGLSXP) {
 			return RType::MATRIX(RType::LOGICAL, Rf_ncols(v));
@@ -191,14 +197,19 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64, bool timestamptz) {
 			child_list_t<RType> child_types;
 			R_xlen_t ncol = Rf_length(v);
 
-			cpp11::strings names = GET_NAMES(v);
+			// Read in place: the scan detects a list cell's type on a task thread,
+			// where no cpp11 vector may be built (handbook/architecture/glue/threading/)
+			SEXP names = GET_NAMES(v);
+			if (TYPEOF(names) != STRSXP || Rf_xlength(names) != ncol) {
+				return RType::UNKNOWN;
+			}
 			for (R_xlen_t i = 0; i < ncol; ++i) {
 				RType child = DetectRType(VECTOR_ELT(v, i), integer64, timestamptz);
 				if (child == RType::UNKNOWN) {
 					return (RType::UNKNOWN);
 				}
 
-				child_types.push_back(std::make_pair(CHAR(names[i]), child));
+				child_types.push_back(std::make_pair(CHAR(STRING_ELT(names, i)), child));
 			}
 
 			return RType::STRUCT(std::move(child_types));

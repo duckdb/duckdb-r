@@ -11,21 +11,36 @@ struct AltrepRelationWrapper {
 
 	AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_);
 
-	bool HasQueryResult() const;
+	bool Materialized() const;
 
 	MaterializedQueryResult *GetQueryResult();
 
 	void Materialize();
+
+	idx_t RowCount();
+
+	void RegisterAltrepColumn();
+	void MarkColumnAsTransformed();
 
 	const size_t n_rows;
 	const size_t n_cells;
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
-	// Kept for the data frame's whole lifetime, also once every column has
-	// been converted: handbook/usage/memory/reading/README.md, #1027.
+	// Released once every ALTREP column has been converted,
+	// see MarkColumnAsTransformed(): handbook/usage/memory/reading/README.md.
 	duckdb::unique_ptr<QueryResult> mat_result;
 	std::string mat_error;
+
+	// True once the relation has been materialized,
+	// remains true after the materialized result has been released
+	bool materialized = false;
+	// Row count of the materialized result, valid once materialized is true
+	idx_t row_count = 0;
+	// Number of ALTREP vectors backed by this relation
+	idx_t altrep_columns = 0;
+	// Number of ALTREP vectors already transformed to their R representation
+	idx_t transformed_columns = 0;
 };
 
 } // namespace duckdb

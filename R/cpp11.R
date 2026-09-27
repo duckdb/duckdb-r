@@ -8,8 +8,20 @@ rapi_fetch_arrow_stream_into <- function(qry_res, stream_xptr, chunk_size) {
   invisible(.Call(`_duckdb_rapi_fetch_arrow_stream_into`, qry_res, stream_xptr, chunk_size))
 }
 
-rapi_fetch_arrow_array <- function(qry_res, array_xptr, schema_xptr, chunk_size) {
-  .Call(`_duckdb_rapi_fetch_arrow_array`, qry_res, array_xptr, schema_xptr, chunk_size)
+rapi_arrow_schema <- function(qry_res, schema_xptr) {
+  invisible(.Call(`_duckdb_rapi_arrow_schema`, qry_res, schema_xptr))
+}
+
+rapi_fetch_arrow_array <- function(qry_res, array_xptr, chunk_size) {
+  .Call(`_duckdb_rapi_fetch_arrow_array`, qry_res, array_xptr, chunk_size)
+}
+
+rapi_arrow_empty_array <- function(qry_res, array_xptr) {
+  invisible(.Call(`_duckdb_rapi_arrow_empty_array`, qry_res, array_xptr))
+}
+
+rapi_release_arrow_result <- function(qry_res) {
+  invisible(.Call(`_duckdb_rapi_release_arrow_result`, qry_res))
 }
 
 rapi_record_batch <- function(qry_res, chunk_size) {
@@ -222,6 +234,10 @@ rapi_rel_insert <- function(rel, schema_name, table_name) {
 
 rapi_rel_to_altrep <- function(rel, n_rows, n_cells) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, n_rows, n_cells)
+}
+
+rapi_df_has_query_result <- function(df) {
+  .Call(`_duckdb_rapi_df_has_query_result`, df)
 }
 
 rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap) {
