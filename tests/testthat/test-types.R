@@ -79,7 +79,7 @@ test_that("a table whose columns R cannot hold is still found and listed", {
   }
 })
 
-test_that("a column R cannot hold is refused by name when its rows arrive", {
+test_that("a column R cannot hold is refused by name", {
   skip_if_not_installed("nanoarrow")
   con <- local_con()
 
@@ -88,4 +88,53 @@ test_that("a column R cannot hold is refused by name when its rows arrive", {
 
   expect_equal(dbColumnInfo(res)$type, "unknown")
   expect_error(dbGetQuery(con, "SELECT '101'::BIT AS x"), "column `x`: BIT")
+})
+
+test_that("a statement returning a column R cannot hold is refused before it runs", {
+  con <- local_con()
+  dbExecute(
+    con,
+    "CREATE TABLE t (x BIT, s STRUCT(u UNION(i INTEGER)), y INTEGER)"
+  )
+  count <- function() dbGetQuery(con, "SELECT count(*) AS n FROM t")$n
+
+  expect_error(
+    dbGetQuery(con, "INSERT INTO t (x, y) VALUES ('1', 1) RETURNING x"),
+    "column `x`: BIT"
+  )
+  expect_error(
+    dbExecute(con, "INSERT INTO t (x, y) VALUES ('1', 1) RETURNING x"),
+    "column `x`: BIT"
+  )
+  expect_error(
+    dbGetQuery(
+      con,
+      "INSERT INTO t (x, y) VALUES (?, ?) RETURNING x",
+      params = list("1", 1L)
+    ),
+    "column `x`: BIT"
+  )
+  # So is one nested in a struct
+  expect_error(
+    dbGetQuery(con, "INSERT INTO t (y) VALUES (1) RETURNING s"),
+    "column `s\\$u`: UNION"
+  )
+  expect_equal(count(), 0)
+})
+
+test_that("a statement returning a column R cannot hold runs through Arrow", {
+  skip_if_not_installed("nanoarrow")
+  con <- local_con()
+  dbExecute(con, "CREATE TABLE t (x BIT, y INTEGER)")
+  count <- function() dbGetQuery(con, "SELECT count(*) AS n FROM t")$n
+
+  res <- dbGetQueryArrow(con, "INSERT INTO t VALUES ('1', 1) RETURNING x")
+  expect_equal(nrow(as.data.frame(res)), 1)
+  expect_equal(count(), 1)
+
+  res <- dbSendQueryArrow(con, "INSERT INTO t VALUES ('10', 2) RETURNING x")
+  expect_equal(dbColumnInfo(res)$type, "unknown")
+  expect_equal(nrow(as.data.frame(dbFetchArrow(res))), 1)
+  dbClearResult(res)
+  expect_equal(count(), 2)
 })
