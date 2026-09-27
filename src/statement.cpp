@@ -32,15 +32,20 @@ static void CheckStatement(const duckdb::stmt_eptr_t &stmt, const char *context)
 	}
 }
 
+// With `empty_pragma`, `stmt` stands in for a PRAGMA that expanded to nothing (see rapi_prepare()),
+// and R is told that it is that PRAGMA and that it returns nothing.
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
-                                     SEXP registered_dfs = R_NilValue) {
+                                     SEXP registered_dfs = R_NilValue, bool empty_pragma = false) {
 	cpp11::writable::list retlist;
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
 	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
+	auto type = empty_pragma ? StatementType::PRAGMA_STATEMENT : stmtholder->stmt->GetStatementType();
+	auto return_type =
+	    empty_pragma ? StatementReturnType::NOTHING : stmtholder->stmt->GetStatementProperties().return_type;
 
-	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
+	retlist.push_back({"type"_nm = StatementTypeToString(type)});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
 
 	cpp11::writable::strings rtypes;
@@ -53,8 +58,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	retlist.push_back({"rtypes"_nm = rtypes});
 	retlist.push_back({"n_param"_nm = n_param});
-	retlist.push_back(
-	    {"return_type"_nm = StatementReturnTypeToString(stmtholder->stmt->GetStatementProperties().return_type)});
+	retlist.push_back({"return_type"_nm = StatementReturnTypeToString(return_type)});
 	retlist.push_back({"registered_dfs"_nm = registered_dfs});
 	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder.release())});
 
@@ -162,10 +166,12 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			}
 		}
 	}
-	if (!last_statement) {
-		rapi_error_with_context("rapi_prepare", "No statements to execute");
-	}
-	auto stmt = conn->conn->Prepare(std::move(last_statement));
+	// The last statement is the call's result. With no fragment left, it was a PRAGMA that expanded to nothing, the
+	// only statement that can: it succeeded and returned nothing. An empty query with the one column the engine gives a
+	// PRAGMA stands in for it, so that R treats it as any other statement that returns nothing.
+	bool empty_pragma = !last_statement;
+	auto stmt = empty_pragma ? conn->conn->Prepare("SELECT CAST(NULL AS BOOLEAN) AS Success LIMIT 0")
+	                         : conn->conn->Prepare(std::move(last_statement));
 
 	signal_handler.HandleInterrupt();
 
@@ -176,7 +182,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->named_param_map.size();
-	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
+	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs, empty_pragma);
 }
 
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result);
