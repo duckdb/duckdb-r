@@ -64,6 +64,9 @@ test_that("both halves of the cpp11 binding carry this flavor's prefix", {
 })
 
 test_that("the cpp11 binding prefix follows the flavor's package name", {
+  source_root <- lts_source_root()
+  skip_if(is.na(source_root), "Not running from the package source tree.")
+
   root <- withr::local_tempdir()
   dir.create(file.path(root, "R"))
   writeLines("Package: duckdb.2.0.dev", file.path(root, "DESCRIPTION"))
@@ -80,7 +83,7 @@ test_that("the cpp11 binding prefix follows the flavor's package name", {
   )
 
   source(
-    file.path(lts_source_root(), "scripts", "flavor-package-name.R"),
+    file.path(source_root, "scripts", "flavor-package-name.R"),
     local = TRUE
   )
 
