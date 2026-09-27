@@ -9,8 +9,9 @@ and wins the parallelism that costs back across packages with a work queue.
 Sequential is the whole point.
 Two simultaneous checks of one package share ports, caches and locks that nothing in the R toolchain
 promises to support, which is where `revdep2`'s false `newly_broken` verdicts came from.
-The engine is [`.github/workflows/revdep4/`](/.github/workflows/revdep4/README.md)'s
-and the machinery under it [`.github/workflows/revdepx/`](/.github/workflows/revdepx/README.md)'s.
+The engine is [`revdep4/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/revdep4/README.md)'s
+and the machinery under it [`revdepx/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/revdepx/README.md)'s.
+Both live with the actions in `cynkra/cynkratemplate`.
 
 **`which` and `depth` decide how much work a run is**, and the workflow documents them with the rest of its inputs.
 `strong` at depth 1 is the default; `most` also takes the packages that merely suggest this one,
@@ -49,7 +50,7 @@ so only revdep4's own runs offer the next plan its baselines and its measured ti
 * **[`revdep2.yaml`](/.github/workflows/revdep2.yaml)**, on dispatch, is revdep4's predecessor:
   the same sharding and reporting, with both halves of a package running at once on one host.
   Its runs are never offered as baselines, because they checked on a different platform;
-  [`.github/workflows/revdep2/`](/.github/workflows/revdep2/README.md) keeps the history of the design.
+  [`revdep2/`](https://github.com/cynkra/cynkratemplate/blob/main/.github/actions/revdep2/README.md) keeps the history of the design.
 
 * **[`revdep.yaml`](/.github/workflows/revdep.yaml)**, on push to a `revdep*` branch and never on `main`,
   builds one job per reverse dependency and uploads the old and new `rcmdcheck` pair only when they differ.
