@@ -50,8 +50,8 @@ Compare `rel_from_df()`, which says
 "Can't convert column `geom` to relational."
 
 **A whole `sf` object fails in sf's code, not ours.**
-sf registers a `dbDataType()` method that declares the column
-`geometry` and writes EWKB hex text into it;
+sf registers a `dbWriteTable()` method that declares the column
+`geometry`, through its `dbDataType()` method, and writes EWKB hex text into it;
 DuckDB 1.5 has a `VARCHAR` → `GEOMETRY` cast that parses *WKT*, so the
 hex arrives as "Failed to parse geometry: Unknown geometry type at
 offset 0".
@@ -155,7 +155,7 @@ So the proposal is: support `wk_wkb` here, and let sf be sf's:
   the `wk_wkb` vector this package hands it.
   Today it warns and returns a `data.frame`, which is the single most
   visible thing in the issue thread and is fixable only in sf.
-* `sf::dbDataType()` declaring `geometry` and writing EWKB hex is what
+* sf's `dbWriteTable()` method, declaring `geometry` and writing EWKB hex text, is what
   makes `dbWriteTable(con, tbl, <sf>)` fail against DuckDB.
   Once a `GEOMETRY` column accepts WKB, that method has a working
   target; until then, the R-side error should at least say what to do

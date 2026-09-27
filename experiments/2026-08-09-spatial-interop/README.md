@@ -62,7 +62,7 @@ and the failures are worse than a refusal:
 
 * An `sf` object handed to `dbWriteTable()` or `sf::st_write()`
   fails with "Failed to parse geometry: Unknown geometry type at
-  offset 0" — sf's own `dbDataType()` method declares the column
+  offset 0" — sf's own `dbWriteTable()` method declares the column
   `geometry` and writes EWKB hex into it, which DuckDB now tries to
   parse as WKT.
   The 2024 report's "Unknown type: '0106…'" has become a parse error;

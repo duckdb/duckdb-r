@@ -50,7 +50,7 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   which drops the CRS because it names the bare type.
 * **An `sf` or `sfc` column is not written, and may not say so.**
   A whole `sf` object handed to `dbWriteTable()` fails inside sf's own
-  `dbDataType()` method, which writes EWKB hex into a column DuckDB
+  `dbWriteTable()` method, which writes EWKB hex into a column DuckDB
   parses as WKT
   ([#1670](https://github.com/duckdb/duckdb-r/issues/1670));
   a bare `sfc` column is worse — a `POINT` column writes *silently* as
