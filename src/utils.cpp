@@ -150,7 +150,9 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 }
 
 Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
+	auto rtype = RApiTypes::DetectRType(valsexp, true);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -160,6 +162,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
 		return RIntegerType::IsNull(int_val) ? Value(LogicalType::INTEGER) : Value::INTEGER(int_val);
+	}
+	case RType::INTEGER64: {
+		auto i64_val = ((int64_t *)NUMERIC_POINTER(valsexp))[idx];
+		return RInteger64Type::IsNull(i64_val) ? Value(LogicalType::BIGINT) : Value::BIGINT(i64_val);
 	}
 	case RType::NUMERIC: {
 		auto dbl_val = NUMERIC_POINTER(valsexp)[idx];
