@@ -79,6 +79,16 @@ using namespace duckdb;
 // nested list rather than a MAP, a `POSIXct` as a naive TIMESTAMP.
 // Handbook: handbook/usage/data-import/README.md
 static void AddScanOptions(vector<duckdb::unique_ptr<ParsedExpression>> &children, ClientContext &context) {
+	auto add = [&](const char *name, bool value) {
+		auto param = make_uniq<ConstantExpression>(Value::BOOLEAN(value));
+		param->SetAlias(name);
+		children.push_back(std::move(param));
+	};
+
+	// As in rapi_register_df(): BIGINT whatever `bigint` says about reading,
+	// so this one needs no connection to decide it.
+	add("integer64", true);
+
 	if (!context.registered_state) {
 		return;
 	}
@@ -88,13 +98,6 @@ static void AddScanOptions(vector<duckdb::unique_ptr<ParsedExpression>> &childre
 	}
 
 	auto &opts = state->convert_opts;
-	auto add = [&](const char *name, bool value) {
-		auto param = make_uniq<ConstantExpression>(Value::BOOLEAN(value));
-		param->SetAlias(name);
-		children.push_back(std::move(param));
-	};
-
-	add("integer64", opts.bigint == ConvertOpts::BigIntType::INTEGER64);
 	add("experimental", opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED);
 	add("map_list_of", opts.map == ConvertOpts::MapShape::LIST_OF);
 	add("timestamptz", opts.posixct == ConvertOpts::PosixctType::TIMESTAMPTZ);

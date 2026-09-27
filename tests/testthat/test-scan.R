@@ -186,3 +186,19 @@ test_that("the environment scan binds with the connection's options (#2646)", {
   scanned_ts <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
   agrees(scanned_ts, "scanned_ts")
 })
+
+test_that("the environment scan takes an `integer64` as BIGINT whatever `bigint` says", {
+  # Registration does since #2819, so a default connection, which reads
+  # BIGINT as numeric, has to write it the same way on both paths.
+  skip_if_not_installed("bit64")
+
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  scanned_i64 <- data.frame(a = bit64::as.integer64(c("9007199254740993", NA)))
+  res <- dbGetQuery(
+    con,
+    "SELECT typeof(a) AS t, a::VARCHAR AS v FROM scanned_i64"
+  )
+  expect_equal(res$t, c("BIGINT", "BIGINT"))
+  expect_equal(res$v, c("9007199254740993", NA))
+})

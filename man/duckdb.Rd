@@ -121,8 +121,9 @@ see the \sQuote{Database instances and driver reuse} section.}
 \item{environment_scan}{Set to \code{TRUE} to treat data frames from the calling environment as tables.
 If a database table with the same name exists, it takes precedence.
 A data frame found this way is converted with the same options as one
-passed to \code{\link[=duckdb_register]{duckdb_register()}}, so the \code{bigint}, \code{map} and \code{posixct}
-arguments of \code{\link[DBI:dbConnect]{dbConnect()}} reach both alike.
+passed to \code{\link[=duckdb_register]{duckdb_register()}}, so the \code{map} and \code{posixct}
+arguments of \code{\link[DBI:dbConnect]{dbConnect()}} reach both alike,
+and an \code{integer64} column arrives as \code{BIGINT} through both.
 The default of this setting may change in a future version.}
 
 \item{drv}{Object returned by \code{duckdb()}}

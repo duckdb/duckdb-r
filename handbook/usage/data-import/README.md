@@ -34,7 +34,8 @@ and an R data frame through registration or the environment scan.
   data frame found by name in the calling environment, and a table of
   that name in the database wins over it.
   Both bind with the connection's conversion options,
-  `bigint` and `map` and `posixct`,
+  `map` and `posixct`,
+  and both take an `integer64` column as `BIGINT` whatever `bigint` says,
   so one data frame reaching the engine two ways
   arrives as one set of types.
   Which types those are is
