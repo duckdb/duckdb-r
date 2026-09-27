@@ -62,7 +62,7 @@ and each type beside the others in [`experiments/2026-09-26-type-catalog/`](/exp
   geoarrow cannot write an `sfc` in the large or view layouts of WKB,
   and DuckDB lands those layouts, as its own export makes them, as `GEOMETRY`.
 * **An `sf` or `sfc` column is not written, and may not say so.**
-  A whole `sf` object handed to `dbWriteTable()` fails inside sf's own `dbDataType()` method,
+  A whole `sf` object handed to `dbWriteTable()` fails inside sf's own `dbWriteTable()` method,
   which writes EWKB hex into a column DuckDB parses as WKT ([#1670](https://github.com/duckdb/duckdb-r/issues/1670));
   a bare `sfc` column is worse: a `POINT` column writes *silently* as `DOUBLE[]`,
   and other geometry types abort with a message naming neither column nor type.
