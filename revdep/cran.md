@@ -1,9 +1,9 @@
 ## revdepcheck results
 
-We checked 130 reverse dependencies, comparing R CMD check results across CRAN and dev versions of this package.
+We checked 373 reverse dependencies, comparing R CMD check results across CRAN and dev versions of this package.
 
- * We saw 2 new problems
- * We failed to check 1 packages
+ * We saw 1 new problems
+ * We failed to check 2 packages
 
 Issues with CRAN packages are summarised below.
 
@@ -13,9 +13,7 @@ Issues with CRAN packages are summarised below.
 * datacaged
   checking tests ... ERROR
 
-* Rduckhts
-  checking tests ... ERROR
-
 ### Failed to check
 
 * freestiler (NA)
+* posologyr  (NA)
