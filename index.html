@@ -67,6 +67,26 @@
 </div>
 <p><a href="https://duckdb.org/" class="external-link">DuckDB</a> is an in-process SQL OLAP database management system. It is designed to support analytical query workloads and is optimized for fast query execution. This repository contains the R bindings for DuckDB.</p>
 <div class="section level2">
+<h2 id="goals-and-non-goals">Goals and non-goals<a class="anchor" aria-label="anchor" href="#goals-and-non-goals"></a>
+</h2>
+<p>duckdb aims to:</p>
+<ul>
+<li>Implement the <a href="https://dbi.r-dbi.org/" class="external-link">DBI</a> interface for DuckDB, from the driver and connections through prepared statements, transactions, and result fetching.</li>
+<li>Install the database along with the package: the DuckDB C++ sources are vendored into <code>src/duckdb/</code> and built here, so nothing has to be installed separately.</li>
+<li>Follow upstream DuckDB closely, with an automated vendoring routine advancing each release series commit by commit, and publish the same source tree under the flavor names listed below.</li>
+<li>Meet the rest of the R ecosystem where it already is: a dbplyr backend, data frames and Arrow objects registered as tables, and CSV files read by the engine directly.</li>
+<li>Leave the file system alone unless asked: downloaded extensions and stored secrets go under the session’s temporary directory unless <code>~/.duckdb</code> already exists, and that directory is never created without consent.</li>
+</ul>
+<p>It is explicitly not trying to:</p>
+<ul>
+<li>Bundle every DuckDB extension. Only <code>parquet</code> and <code>core_functions</code> are linked in; everything else is downloaded by <code>INSTALL</code>, and no companion R package carries extensions.</li>
+<li>Fetch anything on its own. An installed extension autoloads on first use, but autoinstall stays off, so nothing is downloaded without being asked for.</li>
+<li>Expose the relational API as a public interface. Every function there is internal, and duckplyr is the one supported consumer.</li>
+<li>Install the <code>duckdb</code> CLI or library that the user can use outside of R.</li>
+<li>Exercise the bundled C++ engine on CRAN. The test suite and the runnable examples are too heavy for the check farm, so they run on GitHub Actions and r-universe, and elsewhere only when <code>DUCKDB_R_RUN_TESTS</code> asks for them.</li>
+</ul>
+</div>
+<div class="section level2">
 <h2 id="installation-from-cran">Installation from CRAN<a class="anchor" aria-label="anchor" href="#installation-from-cran"></a>
 </h2>
 <p>This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.</p>
