@@ -147,8 +147,8 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 
 ## Limitations
 
-* `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` refuses them,
-  and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
+* `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` and `dbExecute()` refuse a column of one, or of anything nesting one,
+  before the statement runs, and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
   under `bigint = "integer64"`, a `UBIGINT` of 2^63 reads as `NA`, and one past it wraps to a negative number.
 * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
