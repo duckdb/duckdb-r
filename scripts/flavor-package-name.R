@@ -254,3 +254,44 @@ flavor_mainline_readme_offenders <- function(root = ".") {
 
   offenders
 }
+
+# The two halves of the cpp11 binding, and the one flavored name they have to
+# agree on.
+flavor_binding_files <- c("R/cpp11.R", "src/cpp11.cpp")
+
+# The `.Call()` prefix cpp11 derives from `Package:`, with every dot replaced:
+# `duckdb` gives `_duckdb_`, `duckdb.2.0.dev` gives `_duckdb_2_0_dev_`.
+flavor_binding_prefix <- function(root) {
+  paste0("_", gsub(".", "_", flavor_declared_package(root), fixed = TRUE), "_")
+}
+
+# Every entry point in `R/cpp11.R` whose `.Call()` name does not carry this
+# flavor's prefix, as `path:line: source`. Empty when the two halves agree.
+#
+# `cpp11::cpp_register()` writes both halves from `Package:`, so they agree
+# whenever the binding was generated here. They come apart when a commit of
+# `main` that adds a `[[cpp11::register]]` entry point is cherry-picked onto a
+# flavored series (.claude/skills/series-loop/SKILL.md stage 4): the hunk in
+# `src/cpp11.cpp` conflicts, because its context carries the flavored prefix,
+# and gets resolved -- while the hunk in `R/cpp11.R` applies cleanly and keeps
+# `main`'s unflavored name. The commit then installs and fails every test that
+# calls the entry point with `object '_duckdb_<name>' not found`, which names
+# neither the flavor nor the port. Regenerating the binding is the fix.
+flavor_binding_prefix_offenders <- function(root = ".") {
+  prefix <- flavor_binding_prefix(root)
+  path <- "R/cpp11.R"
+  file <- file.path(root, path)
+  if (!file.exists(file)) {
+    return(character())
+  }
+
+  lines <- readLines(file, warn = FALSE)
+  hits <- grep("\\.Call\\(`[^`]+`", lines)
+  names <- sub("^.*\\.Call\\(`([^`]+)`.*$", "\\1", lines[hits])
+  bad <- hits[!startsWith(names, prefix)]
+  if (length(bad) == 0) {
+    return(character())
+  }
+
+  paste0(path, ":", bad, ": ", trimws(lines[bad]))
+}
