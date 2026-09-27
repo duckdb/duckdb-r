@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Fourteen
+# A forward series inherits only the first when its buffer is replayed. Fifteen
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -47,6 +47,9 @@
 #      stopping the stage: the buffer commit's content reached `-dev` by another
 #      route, which is claim 12 arrived at through a conflict. The chunk also
 #      finishes when the operator dropped the pick by hand first.
+#  15. A red commit in flight does not hold back the verified commits below it:
+#      green and its canonical copy take them, and the firing then stops
+#      before stage 5 extends `-dev` onto a tip a repair is about to re-mint.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -257,7 +260,7 @@ git mv inst/types.hpp inst/flavored.hpp
 git commit -qm 'chore: Reflavor'
 git branch emptyres-build-base emptyres-seed
 
-# --- a verified prefix under a red tip (claim 14) ---------------------------
+# --- a verified prefix under a red tip (claim 15) ---------------------------
 # Two commits in flight, the older one green and the newer one red, and a buffer
 # commit waiting behind them. Stage 3 owes the frontier the commit it proved;
 # stage 5 owes the buffer nothing while a repair is pending.

@@ -4,8 +4,9 @@
 # the equivalent `-build` commit, and extend `<S>-dev` from the buffer.
 #
 # Everything here is mechanical and gated; the judgement calls (repairs,
-# review) stay with the skill. Refuses to do anything when a commit in the
-# in-flight range has a failure — run series-check.sh first and repair.
+# review) stay with the skill. A failure in the in-flight range still lets
+# green take the verified commits below it, and then stops the firing before
+# `-dev` is extended — run series-check.sh first and repair.
 #
 # **Stage 5 carries the base series' fixes** onto a forward series as it
 # consumes its buffer. The two branches divide by how far a fix was demanded:
