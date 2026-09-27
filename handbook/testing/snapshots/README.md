@@ -5,18 +5,6 @@ what the recorded snapshot then asserts,
 and how a changed snapshot is accepted — deliberately,
 because accepting one asserts the new output is correct.
 
-**An error or a printed result is asserted by snapshot.**
-`expect_snapshot()` and `expect_snapshot_error()` over
-`expect_error(regexp = )`, `expect_output()`, and their relatives:
-a regexp pins the fragment someone happened to choose
-and stays silent when the rest of the message rots,
-while a snapshot records the whole of it,
-so a wording change has to be read and accepted rather than slipping past.
-The exception is an expectation whose text is a value rather than output —
-a condition class, an error a test raises itself —
-and a test that only needs to know that *something* failed
-says so with a bare `expect_error()`.
-
 `expect_snapshot()` output lives in
 `tests/testthat/_snaps/<file>.md`, one file per test file.
 Much of the recorded text is the *engine's* —
@@ -31,7 +19,11 @@ a printed relational expression, the wording of a message,
 warning or error — belongs in `_snaps/`,
 because a recorded file puts the whole of it in the diff,
 where a regex goes on matching wording nobody would ship.
-An expectation that names one value stays one.
+So an error or a printed result takes `expect_snapshot()`,
+not `expect_error(regexp = )` or `expect_output()`.
+An expectation that names one value stays one:
+a condition's class or field, or an error the test raises itself.
+A test that only needs to know that *something* failed says so with a bare `expect_error()`.
 
 A snapshot must never record the package's own name:
 [`scripts/flavor.patch`](/scripts/flavor.patch) does not rewrite
