@@ -10,9 +10,13 @@ The progress display is the engine calling back into R.
 The C++ side holds the symbol it invokes
 (`get_progress_display_sym` in
 [`src/include/rapi.hpp`](/src/include/rapi.hpp)),
-and [`R/progress_display.R`](/R/progress_display.R) draws it,
-throttled so that a fast query never paints:
-updates closer together than half a second are dropped.
+and [`R/progress_display.R`](/R/progress_display.R) draws it.
+The engine calls it whenever a query's progress moves, thousands of times in a query of a few seconds
+([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
+The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
+Throttling is left to the R side.
+A query paints nothing in its first half second, so a fast query never paints, and at most one line every half second after that.
+Completion bypasses the throttle, so a painted line never outlives its query, and the next query starts its own half second.
 
 ## Interrupting a query
 

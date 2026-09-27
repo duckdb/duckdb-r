@@ -1,6 +1,16 @@
 # Handbook: handbook/usage/interactive/README.md
 
 duckdb_progress_display <- function(x) {
+  if (x >= 100) {
+    # Completion bypasses the throttle, so no painted line outlives its query.
+    if (isTRUE(the$progress_painted)) {
+      cat("\r                     \r")
+    }
+    the$progress_last_time <- NULL
+    the$progress_painted <- NULL
+    return()
+  }
+
   time <- progress_now()
   if (is.null(the$progress_last_time)) {
     the$progress_last_time <- time
@@ -11,12 +21,9 @@ duckdb_progress_display <- function(x) {
     return()
   }
 
-  if (x < 100) {
-    cat(sprintf("\rDuckDB progress: %3d%%", trunc(x)))
-  } else {
-    cat("\r                     \r")
-    the$progress_last_time <- NULL
-  }
+  cat(sprintf("\rDuckDB progress: %3d%%", trunc(x)))
+  the$progress_last_time <- time
+  the$progress_painted <- TRUE
 }
 
 # The clock the display reads, in seconds, apart so that a test can set it.
