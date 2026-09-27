@@ -78,23 +78,22 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 16);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 15);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString(DUCKDB_PACKAGE_NAME));
-	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
-	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
-	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
-	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
-	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
-	SET_VECTOR_ELT(chars, 11, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
-	SET_VECTOR_ELT(chars, 12, vctrs_list_of_str = StringsToSexp({"vctrs_list_of", "vctrs_vctr", "list"}));
-	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
-	SET_VECTOR_ELT(chars, 14, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
-	SET_VECTOR_ELT(chars, 15, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
+	SET_VECTOR_ELT(chars, 5, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
+	SET_VECTOR_ELT(chars, 6, factor_str = Rf_mkString("factor"));
+	SET_VECTOR_ELT(chars, 7, dataframe_str = Rf_mkString("data.frame"));
+	SET_VECTOR_ELT(chars, 8, integer64_str = Rf_mkString("integer64"));
+	SET_VECTOR_ELT(chars, 9, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
+	SET_VECTOR_ELT(chars, 10, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
+	SET_VECTOR_ELT(chars, 11, vctrs_list_of_str = StringsToSexp({"vctrs_list_of", "vctrs_vctr", "list"}));
+	SET_VECTOR_ELT(chars, 12, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
+	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
+	SET_VECTOR_ELT(chars, 14, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -379,6 +378,10 @@ bool rapi_on_r_thread() {
 	return std::this_thread::get_id() == r_thread_id;
 }
 
+SEXP rapi_package_namespace() {
+	return cpp11::safe[cpp11::detail::r_ns_env](DUCKDB_PACKAGE_NAME);
+}
+
 // ALTREP guard depth counter; see the class comment in rapi.hpp.
 std::atomic<int> AltrepGuard::depth {0};
 
@@ -389,7 +392,7 @@ static void rapi_error_pend(const std::string &context, const std::string &messa
                             const cpp11::sexp &raw_message, const cpp11::sexp &extra_info, const char *what) {
 	using namespace cpp11::literals;
 
-	SEXP ns = cpp11::safe[cpp11::detail::r_ns_env](DUCKDB_PACKAGE_NAME);
+	SEXP ns = rapi_package_namespace();
 	if (ns == R_NilValue) {
 		return;
 	}
