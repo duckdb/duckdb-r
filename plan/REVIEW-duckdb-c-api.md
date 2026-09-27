@@ -1,5 +1,8 @@
 # Review: DuckDB API usage in the glue code, C API equivalence, and a migration design
 
+*Handbook: [`architecture/glue/`](/handbook/architecture/glue/README.md) owns the glue this reviews;
+[`meta/plans/`](/handbook/meta/plans/README.md) owns this directory's conventions.*
+
 Date: 2026-07-22.
 Baseline: duckdb-r 1.5.4.9012, vendored DuckDB v1.5.5 (`src/duckdb/`), glue code `src/*.cpp` (~6,800 lines) + `src/include/*.hpp`.
 

@@ -41,4 +41,13 @@ The site builds its home page from the root `README.md`, which has no
 banner — so the header logo above is the only one on the page,
 rather than the second of two.
 
+**A guide is a manual page.**
+The memory recipes are `?duckdb_memory` ([`R/memory.R`](/R/memory.R)),
+a topic with no function behind it, like `?duckdb_storage`:
+it ships in the tarball, `R CMD check` checks it,
+and the site renders it from the same Rd file,
+where an article under `vignettes/articles/` would be the site's alone and need a toolchain of its own.
+Such a page is a secondary document of the leaf it digests and carries that leaf as a source comment;
+`?duckdb_memory` digests [`usage/memory/`](/handbook/usage/memory/README.md).
+
 *To deepen: state where the deploy branch is served from.*

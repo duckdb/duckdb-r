@@ -1,48 +1,46 @@
-# Memory
+# `memory/`
 
-What DuckDB's `memory_limit` bounds and what it does not,
-where larger-than-memory work spills,
-and how to keep results from materializing in R.
+What a query costs in memory on both sides of the R boundary,
+what bounds each side,
+and how far external storage extends what a session can process.
+The routes into and out of the engine are
+[`integrations/`](/handbook/usage/integrations/README.md)'s;
+the leaves here are what each of them allocates, and for how long.
 
-* **`memory_limit` bounds the engine, not R.**
-  A fetched result is R memory:
-  `dbGetQuery()` and a full `dbFetch()` materialize every row
-  as R vectors, outside any engine limit
-  ([#1065](https://github.com/duckdb/duckdb-r/issues/1065)).
-  Writes have shown engine-side overshoot too, tracked in
-  [#97](https://github.com/duckdb/duckdb-r/issues/97).
-* **Stream instead of materializing:**
-  `dbSendQueryArrow()` and `dbFetchArrowChunk()` consume a result
-  batch by batch;
-  see [`integrations/`](/handbook/usage/integrations/README.md).
-  `dbSendQuery()` today executes and buffers eagerly —
-  a known boundary
-  ([#1997](https://github.com/duckdb/duckdb-r/issues/1997)).
-* **Spill:** the engine offloads to `temp_directory` when a query
-  outgrows memory — on by default, as in the CLI.
-  For an in-memory database the package points it at a fresh
-  per-instance directory below the session temporary directory;
-  the engine creates it at first spill and removes it at shutdown,
-  and instances must not share one
-  (spill file names are deterministic,
-  and shutdown cleanup removes what it finds).
-  A file database is left to the engine's own default, `<dbdir>.tmp`
-  beside the file (`src/duckdb/src/main/config.cpp`);
-  the options that override either are
-  [`storage/`](/handbook/usage/storage/README.md)'s.
-  Spill covers query state, not a transaction's own uncommitted
-  writes — those blocks stay pinned, so a very large single append
-  can still fail at `COMMIT` under a tight limit
-  (engine-side; reported once on 1.3.2 and not reproduced since,
-  [#1604](https://github.com/duckdb/duckdb-r/issues/1604) —
-  not even on 1.3.2 itself, per
-  [`experiments/2026-08-temp-storage-spill/`](/experiments/2026-08-temp-storage-spill/README.md),
-  which measured the spill behavior of both connection idioms
-  across four builds).
-* Larger-than-memory data is best left in DuckDB —
-  query it lazily via dbplyr and `collect()` only the reduction;
-  [#72](https://github.com/duckdb/duckdb-r/issues/72) is the long
-  history behind that advice.
+**Two allocators, one sum.**
+The engine's memory is budgeted and backed by disk;
+R's is neither, and no engine setting reaches it.
+A session's footprint is the two together,
+and each side is blind to the other's share.
 
-*To deepen: verify and state the engine's default `memory_limit`
-as shipped, on a vendored build.*
+**Below the buffer pool, data moves one way.**
+Disk and the pool exchange data in both directions,
+so anything the engine holds can be paged, spilled, or written out;
+a result on its way to R only ever moves toward R,
+and an R vector never moves back.
+External storage therefore helps exactly as far as the engine reaches,
+and processing more data than fits means keeping the large side
+engine-side and letting only reductions or batches cross.
+
+```text
+ database file  ◄──► ┌───────────────────────────────┐
+ spill files    ◄──► │ buffer pool — table blocks,   │  budgeted
+ Parquet, CSV   ───► │ query state, temp tables      │
+                     └──────────────┬────────────────┘
+                                    │ execute
+                     ┌──────────────▼────────────────┐
+                     │ result copies in flight:      │  engine heap
+                     │ a collection, or a stream     │
+                     └──────────────┬────────────────┘
+                                    │ convert — whole or batch
+                     ┌──────────────▼────────────────┐
+                     │ R vectors                     │  unbounded, freed
+                     └───────────────────────────────┘  by R's collector
+```
+
+* [`budget/`](budget/) — what `memory_limit` bounds and what escapes it,
+  the engine's ledger, spill, what external storage buys
+* [`reading/`](reading/) — what a result costs on its way into R, per route,
+  and which routes carry more than fits
+* [`writing/`](writing/) — what writing into the engine costs,
+  and what an open transaction holds

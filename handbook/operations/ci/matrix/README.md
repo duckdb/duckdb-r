@@ -10,8 +10,8 @@ and builds the base entries from them —
 so a new R release enters the matrix without a commit.
 
 The base shape: R-devel and the recent releases on Linux amd64,
-fewer of them on macOS, Windows, and Linux arm64,
-plus a coverage entry.
+fewer of them on macOS, Windows, and Linux arm64.
+Coverage is not a matrix entry; the smoke test computes it on every run of [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml).
 Which versions land where is the action's,
 and the reasoning is in its comments.
 
@@ -20,6 +20,8 @@ repository's extension of that base — the named special entries:
 
 * **older Windows** — extends the Windows sweep further back
   than the base shape carries it.
+  Before R 4.5, `R CMD check` on Windows halts at once when `_R_CHECK_THINGS_IN_OTHER_DIRS_` is set, and rcmdcheck calls that a success.
+  The custom after-install action clears the variable for these entries.
 * **engine poisoning** —
   builds the engine with the `-DDUCKDB_R_POISON_ENGINE` tripwire
   and forces `DUCKDB_R_RUN_TESTS=false`,

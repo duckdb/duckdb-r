@@ -4,12 +4,15 @@
 # `scripts/flavor.sh` applies `scripts/flavor.patch`, which renames `duckdb` to
 # `duckdb.1.4`, `duckdb.1.4.dev`, `duckdb.dev`, and so on. See BRANCHES.md.
 #
-# Every hard-coded `duckdb::`, `duckdb:::`, or `"duckdb"` that the patch does not
-# rewrite keeps pointing at the mainline package in those builds -- silently, and
-# usually only noticed by a user. `flavor_package_name_offenders()` returns every
-# such occurrence, so a new one has to be dealt with deliberately:
+# Every hard-coded `duckdb::`, `duckdb:::`, `"duckdb"`, or `library(duckdb)` that
+# the patch does not rewrite keeps pointing at the mainline package in those
+# builds -- silently, and usually only noticed by a user.
+# `flavor_package_name_offenders()` returns every such occurrence, so a new one
+# has to be dealt with deliberately:
 #
 # * in code, ask for the name at run time with `get_package_name()`;
+# * to reach the package from a subprocess, pass `get_package_name()` in and
+#   resolve it there with `asNamespace()`, rather than attaching it by name;
 # * in docs, do not qualify our own objects with `duckdb::`;
 # * if the literal names something else that happens to be spelled the same --
 #   the DuckDB CLI executable, say -- write it in two pieces, as
@@ -94,8 +97,12 @@ flavor_scanned_files <- function(root) {
   glue <- glue[!startsWith(glue, paste0(file.path("src", "duckdb"), "/"))]
   glue <- glue[!startsWith(glue, paste0(file.path("src", "vendor"), "/"))]
 
+  # `library(duckdb)` and `require(duckdb)` name the package without quoting it
+  # and without `::`, so the two patterns above walk straight past them. Every
+  # other way of naming a package -- `requireNamespace()`, `loadNamespace()`,
+  # `::` -- spells it as a string or as a qualifier and is already covered.
   patterns <- c(
-    rep('duckdb:::?|"duckdb"', length(r_level)),
+    rep('duckdb:::?|"duckdb"|(library|require)[(]duckdb[)]', length(r_level)),
     rep('"duckdb"', length(glue))
   )
   names(patterns) <- c(r_level, glue)
@@ -126,6 +133,52 @@ flavor_package_name_offenders <- function(root = ".") {
   offenders
 }
 
+# The package name DESCRIPTION declares: `duckdb` on the mainline flavor, the
+# flavor's own name on a series.
+flavor_declared_package <- function(root) {
+  sub(
+    "^Package: +",
+    "",
+    grep(
+      "^Package: ",
+      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
+      value = TRUE
+    )[[1]]
+  )
+}
+
+# Every reason `scripts/flavor.patch` would not apply to this checkout, as the
+# lines `git apply --check` prints. Empty when the patch applies.
+#
+# The content scan keys on the lines the patch removes, so it stays green while
+# the text *around* a renamed line drifts -- and a hunk whose context has
+# drifted no longer applies, which `scripts/flavor.sh` would otherwise discover
+# only when the next series is seeded (#2647). This is the check that sees it
+# in the change that causes it.
+#
+# Empty on a flavored checkout: the patch has been applied there and is not
+# expected to apply again.
+flavor_patch_failures <- function(root = ".") {
+  if (flavor_declared_package(root) != "duckdb") {
+    return(character())
+  }
+
+  old <- setwd(root)
+  on.exit(setwd(old))
+  out <- suppressWarnings(system2(
+    "git",
+    c("apply", "--check", file.path("scripts", "flavor.patch")),
+    stdout = TRUE,
+    stderr = TRUE
+  ))
+  status <- attr(out, "status")
+  if (is.null(status) || status == 0) {
+    character()
+  } else {
+    as.character(out)
+  }
+}
+
 # The paths `scripts/flavor.patch` renames, as mainline names relative to the
 # package root. A file the patch renames carries the package name in its *name*
 # rather than in its contents, so the scan above cannot see it.
@@ -146,15 +199,7 @@ flavor_renamed_paths <- function(patch_file) {
 #
 # Empty on the mainline flavor, where the mainline name is the right one.
 flavor_unflavored_paths <- function(root = ".") {
-  package <- sub(
-    "^Package: +",
-    "",
-    grep(
-      "^Package: ",
-      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
-      value = TRUE
-    )[[1]]
-  )
+  package <- flavor_declared_package(root)
   if (package == "duckdb") {
     return(character())
   }
@@ -192,15 +237,7 @@ flavor_generated_readmes <- c("README.md", file.path(".github", "README.md"))
 #
 # Empty on the mainline flavor, where the mainline name is the right one.
 flavor_mainline_readme_offenders <- function(root = ".") {
-  package <- sub(
-    "^Package: +",
-    "",
-    grep(
-      "^Package: ",
-      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
-      value = TRUE
-    )[[1]]
-  )
+  package <- flavor_declared_package(root)
   if (package == "duckdb") {
     return(character())
   }
@@ -223,4 +260,45 @@ flavor_mainline_readme_offenders <- function(root = ".") {
   }
 
   offenders
+}
+
+# The two halves of the cpp11 binding, and the one flavored name they have to
+# agree on.
+flavor_binding_files <- c("R/cpp11.R", "src/cpp11.cpp")
+
+# The `.Call()` prefix cpp11 derives from `Package:`, with every dot replaced:
+# `duckdb` gives `_duckdb_`, `duckdb.2.0.dev` gives `_duckdb_2_0_dev_`.
+flavor_binding_prefix <- function(root) {
+  paste0("_", gsub(".", "_", flavor_declared_package(root), fixed = TRUE), "_")
+}
+
+# Every entry point in `R/cpp11.R` whose `.Call()` name does not carry this
+# flavor's prefix, as `path:line: source`. Empty when the two halves agree.
+#
+# `cpp11::cpp_register()` writes both halves from `Package:`, so they agree
+# whenever the binding was generated here. They come apart when a commit of
+# `main` that adds a `[[cpp11::register]]` entry point is cherry-picked onto a
+# flavored series (.claude/skills/series-loop/SKILL.md stage 4): the hunk in
+# `src/cpp11.cpp` conflicts, because its context carries the flavored prefix,
+# and gets resolved -- while the hunk in `R/cpp11.R` applies cleanly and keeps
+# `main`'s unflavored name. The commit then installs and fails every test that
+# calls the entry point with `object '_duckdb_<name>' not found`, which names
+# neither the flavor nor the port. Regenerating the binding is the fix.
+flavor_binding_prefix_offenders <- function(root = ".") {
+  prefix <- flavor_binding_prefix(root)
+  path <- "R/cpp11.R"
+  file <- file.path(root, path)
+  if (!file.exists(file)) {
+    return(character())
+  }
+
+  lines <- readLines(file, warn = FALSE)
+  hits <- grep("\\.Call\\(`[^`]+`", lines)
+  names <- sub("^.*\\.Call\\(`([^`]+)`.*$", "\\1", lines[hits])
+  bad <- hits[!startsWith(names, prefix)]
+  if (length(bad) == 0) {
+    return(character())
+  }
+
+  paste0(path, ":", bad, ": ", trimws(lines[bad]))
 }

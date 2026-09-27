@@ -12,6 +12,8 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+// Handbook: handbook/usage/memory/writing/README.md
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -34,7 +36,9 @@ using namespace duckdb;
 
 	try {
 		named_parameter_map_t parameter_map;
-		parameter_map["integer64"] = convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64;
+		// An integer64 column registers as BIGINT whatever `bigint` says about reading;
+		// read as NUMERIC, its bits would be taken for doubles (handbook/usage/types/README.md).
+		parameter_map["integer64"] = true;
 		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
 		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
 

@@ -46,10 +46,23 @@ and that call is moved onto the scheduling thread by
 ([`src/database.cpp`](/src/database.cpp));
 the batches that follow come from an Arrow C++ reader
 [`R/register.R`](/R/register.R) exports,
-so pulling one never re-enters R.
-The progress display evaluates an R callback,
-but its only caller runs under the client context lock,
-which is to say on the thread that issued the query.
+so pulling one never re-enters R —
+provided the reader does not itself call R.
+nanoarrow's reader over an R connection does,
+and refuses any thread but R's;
+since the export wraps whatever it is given in Arrow's `Scanner`,
+which pulls on Arrow's own pool,
+such a reader cannot feed a registered scan at all,
+`threads = 1` included
+([`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)
+has the measurement and the route that works).
+The progress display evaluates an R callback under the client context lock,
+on the thread that runs the query's tasks:
+the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
+So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
+and a streaming result keeps its display across the R code that runs between fetches
+(`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).
 Materializing a relation
 ([`altrep/`](/handbook/architecture/glue/altrep/README.md))
 evaluates R too,
@@ -62,6 +75,9 @@ which is what makes even a plain read of an R object from a task thread safe.
 The scan still takes such reads —
 a cell out of a list, a `class` attribute,
 a factor cell's levels through R's translation buffer.
+Reads are all a task thread may take, and building a cpp11 vector is not one.
+It allocates, and links the vector into cpp11's one protection list, which two tasks would race on.
+Type detection in [`src/types.cpp`](/src/types.cpp) therefore reads a list cell's names and levels in place.
 So the inventory is not a licence to run R concurrently:
 a producer thread ends the blocking that underwrites it,
 which is why #2583 guards per connection

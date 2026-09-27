@@ -13,6 +13,9 @@ so editing one here puts the copy out of step,
 and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
+Two are authored here and have no counterpart in the template:
+`each.yaml` and `handbook.yaml`.
+A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 
 | Workflow | Fires on | Does |
 |---|---|---|
@@ -20,8 +23,6 @@ which is the part of this a reader can check from the tree.
 | [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags | the check against r-universe dev builds of each dependency, one job per dependency |
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
-| [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) | dispatch; push when its own files change | backstop: harvests undecided commits' records onto the `rcc2` branch ([`per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)) |
-| [`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml) | dispatch | rewrites the `rcc2` branch (dry run by default) |
 | [`fledge.yaml`](/.github/workflows/fledge.yaml) | daily cron; dispatch; push only when this file changes | version bump and `NEWS.md` via fledge ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)) |
 | [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml) | `pull_request_target` | posts formatting suggestions; treats fork code strictly as data |
 | [`commit-suggest.yaml`](/.github/workflows/commit-suggest.yaml) | after an `rcc` run on a PR | turns the run's changes patch into review suggestions |
@@ -31,6 +32,7 @@ which is the part of this a reader can check from the tree.
 | [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | revdep4's predecessor, both halves at once on one host ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
+| [`handbook.yaml`](/.github/workflows/handbook.yaml) | PR; dispatch | the handbook checks, and the carried files against their source ([`meta/local/`](/handbook/meta/local/README.md)) |
 
 **The composite actions these workflows call are not in this repository.**
 They live in

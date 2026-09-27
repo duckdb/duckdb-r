@@ -49,3 +49,47 @@ test_that("TIME WITH TIME ZONE columns are returned as difftime (#1807)", {
   expect_equal(data$c, expected)
   expect_equal(data$d, structure(NA_real_, class = "difftime", units = "secs"))
 })
+
+test_that("dbQuoteLiteral() keeps sub-second precision (#2646)", {
+  con <- local_con()
+
+  x <- as.POSIXct("2024-01-10 13:03:12", tz = "UTC") + 0.25
+  literal <- dbQuoteLiteral(con, x)
+  expect_match(as.character(literal), "13:03:12.25'")
+  # Compared exactly: `expect_equal()`'s tolerance would accept the value
+  # truncated to whole seconds, which is the bug.
+  expect_identical(
+    as.numeric(dbGetQuery(con, paste0("SELECT ", literal, " AS a"))$a),
+    as.numeric(x)
+  )
+
+  # Whole seconds keep the shorter spelling, and NA is still NULL
+  expect_match(
+    as.character(dbQuoteLiteral(
+      con,
+      as.POSIXct("2024-01-10 13:03:12", tz = "UTC")
+    )),
+    "'2024-01-10 13:03:12'::timestamp",
+    fixed = TRUE
+  )
+  expect_equal(
+    as.character(dbQuoteLiteral(con, as.POSIXct(NA, tz = "UTC"))),
+    "NULL::timestamp"
+  )
+})
+
+test_that("dbQuoteLiteral() rounds a `POSIXct` to microseconds on both sides of the epoch", {
+  con <- local_con()
+
+  # Before 1970 the whole seconds round down and the fraction counts up from
+  # there; a fraction that rounds to a full second carries into the minute.
+  x <- .POSIXct(c(-1.25, -0.000001, 59.9999999), tz = "UTC")
+  expect_equal(
+    as.character(dbQuoteLiteral(con, x)),
+    c(
+      "'1969-12-31 23:59:58.75'::timestamp",
+      "'1969-12-31 23:59:59.999999'::timestamp",
+      "'1970-01-01 00:01:00'::timestamp"
+    )
+  )
+})

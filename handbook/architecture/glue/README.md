@@ -13,5 +13,6 @@ its allocator, its collector and its single thread
 are the fixed points every leaf here is written around.
 
 * [`conventions/`](conventions/) — what the glue is made of, and the rules its C++ obeys
+* [`objects/`](objects/): which engine object each DBI object wraps, what it scopes, and what follows
 * [`altrep/`](altrep/) — the unexecuted relation R holds as a data frame
 * [`threading/`](threading/) — which thread may read R, and what keeps each path into it safe

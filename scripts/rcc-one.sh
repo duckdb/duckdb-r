@@ -332,6 +332,16 @@ if (length(readmes) > 0) {
   )
 }
 writeLines("No generated README pointing at the mainline package.")
+
+binding <- flavor_binding_prefix_offenders(".")
+if (length(binding) > 0) {
+  writeLines(binding)
+  stop(
+    "An entry point in R/cpp11.R does not carry this flavor's .Call() prefix; ",
+    "regenerate the binding with cpp11::cpp_register()."
+  )
+}
+writeLines("Both halves of the cpp11 binding carry this flavor's prefix.")
 EOF
 }
 
