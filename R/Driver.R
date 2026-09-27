@@ -97,7 +97,8 @@ driver_registry <- new.env(parent = emptyenv())
 #' calling `duckdb()` again with the same `dbdir` returns the same driver and instance while it is still alive.
 #' This is deliberate.
 #' DuckDB allows only a single read-write handle to a database file at a time,
-#' so opening a second instance of the same file would fail with a lock error.
+#' so opening a second instance of the same file fails with a lock error in another process,
+#' and is not prevented at all within the same one.
 #' Reusing one instance instead lets any number of `dbConnect(duckdb(dbdir = "my.db"))` calls share it.
 #' An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
 #' every `duckdb()` call creates a fresh, isolated instance.
@@ -121,8 +122,11 @@ driver_registry <- new.env(parent = emptyenv())
 #' then create it again.
 #' [dbDisconnect()] closes one connection, and its `shutdown` argument is unused.
 #' Connections keep the instance alive,
-#' so it is released once the last connection to it closes;
-#' a driver that was never connected to releases its instance
+#' so it is released once the last connection to it closes,
+#' unless a result not yet cleared with [dbClearResult()] or an Arrow stream not yet released still uses it.
+#' The cache does not find an instance that only such a result or stream keeps open,
+#' so `duckdb()` with the same `dbdir` then opens a second instance of the file in the same session.
+#' A driver that was never connected to releases its instance
 #' when the driver is garbage-collected or the session ends.
 #' [dbIsValid()] reports whether a driver still holds an instance.
 #'
@@ -397,12 +401,29 @@ is_installed <- function(pkg) {
   as.logical(requireNamespace(pkg, quietly = TRUE)) == TRUE
 }
 
+# The Olson list, read into `the` on first use, not at load time,
+# and read again whenever `TZDIR` has changed since.
+# `OlsonNames()` reads the zoneinfo directory on every call, 1.4 ms on Linux,
+# and `check_tz()` runs on every `dbConnect()`, twice:
+# once directly and once through `duckdb_convert_opts()`.
+# `TZDIR` does change within a session:
+# on macOS, loading lubridate points it from R's own database,
+# which lacks the `Factory` zone, to the system's.
+olson_names <- function() {
+  tzdir <- Sys.getenv("TZDIR")
+  if (!identical(the$olson_tzdir, tzdir)) {
+    the$olson_names <- OlsonNames()
+    the$olson_tzdir <- tzdir
+  }
+  the$olson_names
+}
+
 check_tz <- function(timezone) {
   if (!is.null(timezone) && timezone == "") {
     return("")
   }
 
-  if (is.null(timezone) || !timezone %in% OlsonNames()) {
+  if (is.null(timezone) || !timezone %in% olson_names()) {
     warning(
       "Invalid time zone '",
       timezone,
@@ -474,7 +495,9 @@ has_extension_prefix <- function(path) {
   grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
 }
 
-path_normalize <- function(path) {
+# `call` names the frame the path was passed in, as for `check_flag()`:
+# rlang's `abort()` would otherwise report this helper to someone who called `duckdb()`.
+path_normalize <- function(path, call = parent.frame()) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
   }
@@ -491,10 +514,13 @@ path_normalize <- function(path) {
   # to resolve the path, only to try.
   if (!file.exists(out)) {
     if (!file.create(out, showWarnings = FALSE)) {
-      abort(c(
-        paste0("Can't create the database file `", path, "`."),
-        "Its directory must exist and be writable."
-      ))
+      abort(
+        c(
+          paste0("Can't create the database file `", path, "`."),
+          "Its directory must exist and be writable."
+        ),
+        call = call
+      )
     }
 
     on.exit(unlink(out))

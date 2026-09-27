@@ -27,7 +27,7 @@
 #
 # ## Retention
 #
-# The store keeps `RCC_RETENTION_DAYS` (default 30) of history, records and logs
+# The store keeps `RCC_RETENTION_DAYS` (default 180) of history, records and logs
 # alike, and `rcc-consolidate.sh` enforces it. That is one window rather than
 # two, and it is load-bearing in both directions: a producer must not look
 # further back than the window, or it re-derives every tick what consolidation

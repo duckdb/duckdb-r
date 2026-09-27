@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbBind
 #' @usage NULL
 dbBind__duckdb_result <- function(res, params, ...) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   res@env$rows_fetched <- 0
   res@env$resultset <- data.frame()
 

@@ -4,8 +4,9 @@
 # the equivalent `-build` commit, and extend `<S>-dev` from the buffer.
 #
 # Everything here is mechanical and gated; the judgement calls (repairs,
-# review) stay with the skill. Refuses to do anything when a commit in the
-# in-flight range has a failure — run series-check.sh first and repair.
+# review) stay with the skill. A failure in the in-flight range still lets
+# green take the verified commits below it, and then stops the firing before
+# `-dev` is extended — run series-check.sh first and repair.
 #
 # **Stage 5 carries the base series' fixes** onto a forward series as it
 # consumes its buffer. The two branches divide by how far a fix was demanded:
@@ -392,13 +393,23 @@ verify_counter() { # <worktree> <ref the replay started from>
 }
 
 # --- stage 3: the all-green prefix -------------------------------------------
+#
+# A failure ends the walk the way a missing verdict does, and the prefix below
+# it still counts. Every commit under the red one was decided by a run of its
+# own, a repair replays only the tail above it, and green is the ref r-universe
+# installs -- so refusing the whole stage left verified commits unpublished for
+# as long as the repair took, which is the one cost the frontier exists to
+# avoid. The red is still fatal, one stage later: green and `-build-base` are
+# set first, then the firing stops before stage 5 extends `-dev` onto a tip a
+# repair is about to re-mint (.claude/skills/series-loop/SKILL.md, stages 3 and 5).
 new_green=$(git rev-parse "$green")
+failed= failed_state=
 while IFS= read -r sha; do
   st=$(state_of "$sha")
   case "$st" in
     success) new_green="$sha" ;;
     missing|pending) break ;;
-    *) echo "Error: $sha is '$st' — repair before advancing"; exit 1 ;;
+    *) failed=$sha failed_state=$st; break ;;
   esac
 done < <(git rev-list --reverse "$green..$dev")
 
@@ -469,6 +480,14 @@ if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
   fi
 fi
 
+# A red commit in flight stops the firing here, with the frontier already moved.
+# Stage 2 is going to fold a fix into it and replay everything above, so anything
+# stage 5 appended now would be minted only to be re-minted.
+if [ -n "$failed" ]; then
+  echo "Error: $failed is '$failed_state' — repair before extending -dev" >&2
+  exit 1
+fi
+
 # --- stage 5: extend -dev from the buffer ------------------------------------
 
 # Finish a stopped replay before anything else, and refuse to start a second one
@@ -508,7 +527,7 @@ fi
 # level until a human swaps them. It is more CI on a series about to be retired;
 # it is also the only thing that makes retiring it a check rather than a hope.
 # Pending work does not hold the buffer (.claude/skills/series-loop/SKILL.md stage 5):
-# each.yaml plans every commit in green..tip that has no status, so a longer tip
+# each.yaml plans every commit in green..tip that has no record, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does
 # hold it: stage 2 will fold a fix into that commit and replay everything above,
 # so anything appended now is minted only to be re-minted. The stage-3 walk above
@@ -735,7 +754,19 @@ else
   #
   # One commit at a time, because restamp runs between the picks and reads the
   # parent it is bumping from, and because a carry amends the commit just made.
+  #
+  # A buffer tooling sync is skipped, never picked. `-dev`'s tooling is stage
+  # 4's, which made it `main`'s earlier in this same firing, while the sync's
+  # diff runs from whatever tooling the buffer carried before it -- so once
+  # `main` has moved again, the pick conflicts, or quietly puts back on `-dev`
+  # what `main` removed. And since the sync vendors nothing, the anchor never
+  # passes it: one at the buffer's tail is offered again on every firing until
+  # a vendor commit lands above it. scripts/series-port.sh writes it under
+  # exactly this subject, and scripts/series-check.sh discounts it the same way.
   for c in $remaining; do
+    if [ "$(git log -1 --format=%s "$c")" = "chore(series): Sync buffer tooling with main" ]; then
+      continue
+    fi
     before=$(git -C "$wt" rev-parse HEAD)
     if ! git -C "$wt" cherry-pick --empty=drop "$c"; then
       stop "$wt" "$c" "${CARRY[$c]:--}" pick
@@ -753,8 +784,9 @@ else
   # prose is a finding nothing ever reads back. The header is the one part of
   # the note that is the same every time, so the stage writes it when the note
   # does not, and leaves whichever spelling the note chose alone when it does.
-  # The spelling written here is the colon one, which series-glue.sh reads
-  # today; #2746 is what makes the other three read back as well.
+  # The spelling written here is the colon one. series-glue.sh reads the
+  # section by its opening words under any spelling or case, the same test as
+  # the one below, so a header the note brought reads back as well as this one.
   if [ -n "$DEV_NOTE" ]; then
     if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ]; then
       git worktree remove --force "$wt"

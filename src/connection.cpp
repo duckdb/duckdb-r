@@ -3,6 +3,9 @@
 #include "r_progress_bar_display.hpp"
 #include "rapi.hpp"
 
+#include <mutex>
+#include <vector>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -12,6 +15,22 @@ using namespace duckdb;
 void duckdb::ConnDeleter(ConnWrapper *conn) {
 	cpp11::warning("Connection is garbage-collected, use dbDisconnect() to avoid this.");
 	delete conn;
+}
+
+// The callbacks of displays destroyed off R's thread, where R must not be called:
+// the next display, built on R's thread, releases them.
+static std::mutex orphaned_callbacks_lock;
+static std::vector<SEXP> orphaned_callbacks;
+
+static void ReleaseOrphanedCallbacks() {
+	std::vector<SEXP> callbacks;
+	{
+		std::lock_guard<std::mutex> guard(orphaned_callbacks_lock);
+		callbacks.swap(orphaned_callbacks);
+	}
+	for (auto callback : callbacks) {
+		R_ReleaseObject(callback);
+	}
 }
 
 unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
@@ -25,16 +44,37 @@ void RProgressBarDisplay::Initialize() {
 	auto progress_display = cpp11::safe[Rf_eval](get_progress_display, duckdb_namespace);
 
 	if (Rf_isFunction(progress_display)) {
+		R_PreserveObject(progress_display);
 		progress_callback = progress_display;
 	}
 }
 
-RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
+// The engine builds the display when a query starts, on the thread that issues it, which is R's.
+RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay(), r_thread(std::this_thread::get_id()) {
+	ReleaseOrphanedCallbacks();
 	Initialize();
 }
 
-void RProgressBarDisplay::Update(double percentage) {
+RProgressBarDisplay::~RProgressBarDisplay() {
 	if (progress_callback == R_NilValue) {
+		return;
+	}
+	if (OnRThread()) {
+		R_ReleaseObject(progress_callback);
+		return;
+	}
+	std::lock_guard<std::mutex> guard(orphaned_callbacks_lock);
+	orphaned_callbacks.push_back(progress_callback);
+}
+
+bool RProgressBarDisplay::OnRThread() const {
+	return std::this_thread::get_id() == r_thread;
+}
+
+void RProgressBarDisplay::Update(double percentage) {
+	// The engine updates the display from whichever thread fetches a streaming result,
+	// a thread of arrow's pool among them, and R runs on its own thread only.
+	if (progress_callback == R_NilValue || !OnRThread()) {
 		return;
 	}
 
