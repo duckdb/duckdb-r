@@ -67,11 +67,12 @@ bool rapi_on_r_thread();
 // failure by calling an R function therefore turns one error into unbounded
 // recursion (duckdb/duckdb-r#1796).
 //
-// rapi_error_with_context() normally reports errors by calling the
-// duckdb::rapi_error() R function. While an AltrepGuard is on the stack it
-// throws std::runtime_error instead; BEGIN_CPP11/END_CPP11 catches that,
-// unwinds the C++ frames, and only then raises the error with
-// Rf_errorcall() -- the interface R sanctions for C code.
+// rapi_error_with_context() normally leaves its error pending in `the`,
+// for the rethrow_rapi_*() wrapper around the entry point to raise from R.
+// No wrapper surrounds an ALTREP method,
+// so while an AltrepGuard is on the stack it throws std::runtime_error instead;
+// BEGIN_CPP11/END_CPP11 catches that, unwinds the C++ frames,
+// and only then raises the error with Rf_errorcall(), the interface R sanctions for C code.
 //
 // The guard nests. It relies on its destructor running, so every call into R
 // made below an active guard must go through cpp11::safe[] (which converts a
@@ -105,7 +106,8 @@ private:
 	static std::atomic<int> depth;
 };
 
-// Helper functions to communicate errors via R's stop() function with context information
+// Report an error with its context: left pending for R to raise, and thrown.
+// handbook/architecture/glue/conventions/README.md
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data);
@@ -329,6 +331,8 @@ struct RStrings {
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
 	SEXP crs_sym;
+	SEXP the_sym;
+	SEXP rapi_error_pending_sym; // The field of `the` R/rethrow.R reads.
 
 	static const RStrings &get() {
 		// On demand

@@ -153,7 +153,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		stop("expr_constant: Need value of length one");
 	}
 	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
-	auto const_value = RApiTypes::SexpToValueAt("rapi_expr_constant", val, 0, false);
+	auto const_value = RApiTypes::SexpToValue(val, 0, false);
 	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
@@ -709,7 +709,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		if (RApiTypes::GetVecSize(parameter_sexp) < 1) {
 			stop("rel_from_table_function: Can't have zero-length parameter");
 		}
-		positional_parameters.push_back(RApiTypes::SexpToValueAt("rapi_rel_from_table_function", parameter_sexp, 0));
+		positional_parameters.push_back(RApiTypes::SexpToValue(parameter_sexp, 0));
 	}
 
 	named_parameter_map_t named_parameters;
@@ -723,8 +723,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		if (RApiTypes::GetVecSize(parameter_sexp) != 1) {
 			stop("rel_from_table_function: Need scalar parameter");
 		}
-		named_parameters[names[named_parameter_idx]] =
-		    RApiTypes::SexpToValueAt("rapi_rel_from_table_function", parameter_sexp, 0);
+		named_parameters[names[named_parameter_idx]] = RApiTypes::SexpToValue(parameter_sexp, 0);
 		named_parameter_idx++;
 	}
 

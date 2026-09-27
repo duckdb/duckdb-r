@@ -36,9 +36,19 @@ rethrow_generate <- function() {
     "}"
   )
 
+  # Without rlang there is no `try_fetch()`:
+  # `rethrow_base()` (R/rethrow.R) rebuilds each wrapper on `tryCatch()`,
+  # which still raises the error the glue left pending.
   code_restore <- paste0(
     "rethrow_restore <- function() {\n",
-    paste0("  rethrow_", funs$fun, " <<- ", funs$fun, "\n", collapse = ""),
+    paste0(
+      "  rethrow_",
+      funs$fun,
+      " <<- rethrow_base(",
+      funs$fun,
+      ")\n",
+      collapse = ""
+    ),
     "}"
   )
 

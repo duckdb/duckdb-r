@@ -116,6 +116,8 @@ RStrings::RStrings() {
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 	crs_sym = Rf_install("crs");
 	ptype_sym = Rf_install("ptype");
+	the_sym = Rf_install("the");
+	rapi_error_pending_sym = Rf_install("rapi_error_pending");
 }
 
 LogicalType RStringsType::Get() {
@@ -199,12 +201,14 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 
 		auto ce = Rf_getCharCE(str_val);
 		if (ce != CE_UTF8 && ce != CE_NATIVE) {
-			// The scan reaches this check, and the scan is no place to raise an
-			// R error -- the message would not survive the trip back
-			throw InvalidInputException(
-			    "SexpToValue: Only UTF-8 encoded strings are supported for the data frame scan.");
+			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
 		}
-		return Value(CHAR(str_val));
+		// The engine refuses bytes that are not UTF-8; that refusal is reported like the check above.
+		try {
+			return Value(CHAR(str_val));
+		} catch (Exception &e) {
+			rapi_error_with_context("SexpToValue", e);
+		}
 	}
 	case RTypeId::FACTOR: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
@@ -315,16 +319,6 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	}
 }
 
-Value RApiTypes::SexpToValueAt(const std::string &context, SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	try {
-		return SexpToValue(valsexp, idx, typed_logical_null);
-	} catch (Exception &e) {
-		// An engine exception escaping an entry point reaches R as its JSON.
-		// Only engine exceptions: an R error unwinding through here must go on.
-		rapi_error_with_context(context, ErrorData(e));
-	}
-}
-
 SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	if (val.IsNull()) {
 		return R_NilValue;
@@ -388,72 +382,82 @@ bool rapi_on_r_thread() {
 // ALTREP guard depth counter; see the class comment in rapi.hpp.
 std::atomic<int> AltrepGuard::depth {0};
 
-// Helper functions to communicate errors via R's stop() function
-[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+// Leave the error in `the` for R to raise. Touches the R API but evaluates nothing:
+// `the` is forced by .onLoad(), before any glue call can fail.
+// The fields arrive protected, since this allocates.
+static void rapi_error_pend(const std::string &context, const std::string &message, const cpp11::sexp &error_type,
+                            const cpp11::sexp &raw_message, const cpp11::sexp &extra_info, const char *what) {
+	using namespace cpp11::literals;
+
+	SEXP ns = cpp11::safe[cpp11::detail::r_ns_env](DUCKDB_PACKAGE_NAME);
+	if (ns == R_NilValue) {
+		return;
+	}
+	cpp11::sexp the = cpp11::safe[cpp11::detail::r_env_get](ns, RStrings::get().the_sym);
+
+	// `what` is the text R receives: rethrow_error_from_rapi() matches on it.
+	cpp11::writable::list pending({"context"_nm = context, "message"_nm = message, "error_type"_nm = error_type,
+	                               "raw_message"_nm = raw_message, "extra_info"_nm = extra_info, "what"_nm = what});
+	cpp11::safe[Rf_defineVar](RStrings::get().rapi_error_pending_sym, pending, the);
+}
+
+// Whether an error may be left pending here, which only R's thread may do.
+// Off it, the engine carries the error to the thread that issued the query, whose entry point reports it again.
+// Inside an ALTREP method R may evaluate nothing, and no rethrow_*() is there to read a pending error (AltrepGuard):
+// this throws `plain` instead, which the method's END_CPP11 raises as a plain R error once it has unwound.
+static bool rapi_error_may_pend(const std::string &plain) {
 	if (!rapi_on_r_thread()) {
-		// Reporting an error means calling an R function, and this is not R's
-		// thread. Let the engine carry the message back to it instead.
-		throw InvalidInputException(context + ": " + message);
+		return false;
 	}
-
-	// Inside an ALTREP method R may evaluate nothing, see AltrepGuard. The
-	// method's END_CPP11 raises this as a plain R error once it has unwound.
 	if (AltrepGuard::IsActive()) {
-		throw std::runtime_error(context + ": " + message);
+		throw std::runtime_error(plain);
 	}
+	return true;
+}
 
-	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
-	rapi_error(context, message);
-
-	throw InternalException("Unreachable code after rapi_error()");
+// Report an error without calling R:
+// leave it pending in `the` for the rethrow_rapi_*() wrapper to raise,
+// and throw it as an engine exception.
+// handbook/architecture/glue/conventions/README.md
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	InvalidInputException error(context + ": " + message);
+	if (rapi_error_may_pend(context + ": " + message)) {
+		rapi_error_pend(context, message, R_NilValue, R_NilValue, R_NilValue, error.what());
+	}
+	throw error;
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e) {
-	// Forward to the other overload
+	// An engine exception carries its type and fields in what(), as JSON.
+	if (dynamic_cast<const Exception *>(&e)) {
+		rapi_error_with_context(context, ErrorData(e));
+	}
 	rapi_error_with_context(context, std::string(e.what()));
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
-	// Not on R's thread, see the string overload above; rethrown with its own
-	// type, so the engine carries the structured error back intact.
-	if (!rapi_on_r_thread()) {
-		error_data.Throw(context + ": ");
+	// What ErrorData::Throw() would throw, kept to record its text.
+	Exception error(error_data.ExtraInfo(), error_data.Type(), context + ": " + error_data.RawMessage());
+
+	if (!rapi_error_may_pend(context + ": " + error_data.Message())) {
+		throw error;
 	}
 
-	// Inside an ALTREP method, see the string overload above.
-	if (AltrepGuard::IsActive()) {
-		throw std::runtime_error(context + ": " + error_data.Message());
-	}
-
-	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
-
-	// Extract fields from ErrorData
-	std::string message = error_data.Message();
-	std::string raw_message = error_data.RawMessage();
-
-	// Convert ExceptionType to string
-	std::string error_type = EnumUtil::ToChars(error_data.Type());
-
-	// Convert extra_info to a named character vector, which `rapi_error()` hands
-	// to the caller as the `extra_info` field of the condition.
+	// extra_info becomes a named character vector,
+	// which `rapi_error()` hands to the caller as the `extra_info` field of the condition.
 	const auto &info_map = error_data.ExtraInfo();
-
 	cpp11::writable::strings names(info_map.size());
 	cpp11::writable::strings extra_info(info_map.size());
-
 	size_t i = 0;
 	for (const auto &pair : info_map) {
 		names[i] = pair.first;
 		extra_info[i] = pair.second;
 		i++;
 	}
-
 	extra_info.names() = names;
 
-	// Call R function with all parameters
-	rapi_error(context, message, error_type, raw_message, extra_info);
-
-	throw InternalException("Unreachable code after rapi_error()");
+	cpp11::sexp error_type = cpp11::as_sexp(EnumUtil::ToChars(error_data.Type()));
+	cpp11::sexp raw_message = cpp11::as_sexp(error_data.RawMessage());
+	rapi_error_pend(context, error_data.Message(), error_type, raw_message, extra_info, error.what());
+	throw error;
 }
