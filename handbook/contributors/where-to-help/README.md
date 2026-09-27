@@ -19,7 +19,7 @@ the boundaries that matter when choosing work:
   and needs no build.
 * `documentation` — the answer is a page of this handbook,
   the cheapest kind of contribution to finish
-  ([`meta/handbook/`](/handbook/meta/handbook/README.md#growing-a-leaf)).
+  ([`meta/growth/`](/handbook/meta/growth/README.md)).
 
 Verdicts and closes are the maintainer's —
 [`operations/triage/`](/handbook/operations/triage/README.md) —

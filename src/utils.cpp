@@ -134,8 +134,16 @@ static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 }
 
 R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
+	// A data frame counts its rows in its first column, not in its row names:
+	// the scan also calls this from a task thread for a list of data frames,
+	// and reading compact row names allocates.
 	while (rtype.id() == RTypeId::STRUCT) {
-		rtype = rtype.GetStructChildTypes()[0].second;
+		auto child_rtypes = rtype.GetStructChildTypes();
+		if (child_rtypes.empty()) {
+			// No column to count in, and no values to read
+			return 0;
+		}
+		rtype = child_rtypes[0].second;
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
 	}
@@ -152,7 +160,9 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 }
 
 Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
+	auto rtype = RApiTypes::DetectRType(valsexp, true);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -162,6 +172,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
 		return RIntegerType::IsNull(int_val) ? Value(LogicalType::INTEGER) : Value::INTEGER(int_val);
+	}
+	case RType::INTEGER64: {
+		auto i64_val = ((int64_t *)NUMERIC_POINTER(valsexp))[idx];
+		return RInteger64Type::IsNull(i64_val) ? Value(LogicalType::BIGINT) : Value::BIGINT(i64_val);
 	}
 	case RType::NUMERIC: {
 		auto dbl_val = NUMERIC_POINTER(valsexp)[idx];
@@ -341,8 +355,19 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// ALTREP guard depth counter; see the class comment in rapi.hpp.
+std::atomic<int> AltrepGuard::depth {0};
+
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Inside an ALTREP method, calling back into R via cpp11::function is
+	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
+	// method without unwinding C++ frames. Throw a regular C++ exception so
+	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + message);
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
@@ -356,6 +381,11 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Inside an ALTREP method, see comment in the string overload above.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + error_data.Message());
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 
