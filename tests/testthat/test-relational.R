@@ -1669,9 +1669,12 @@ test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off 
     "caught"
   )
 
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
   expect_error(
     rel_from_altrep_df(data.frame(a = 1)),
-    "Context: rapi_rel_from_altrep_df"
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
   )
 })
 
@@ -1690,6 +1693,8 @@ test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard
       ")"
     )
   ))
+  # Runs the relation, whose result DuckDB holds outside R's heap;
+  # the column's R vector is allocated on its first access
   expect_equal(nrow(df), n_rows)
 
   # A limit the heap cannot grow past fails the column's allocation
@@ -1700,9 +1705,12 @@ test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard
     expect_error(df$d[1])
   })
 
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
   expect_error(
     rel_from_altrep_df(data.frame(a = 1)),
-    "Context: rapi_rel_from_altrep_df"
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
   )
   # The column converts once there is room
   expect_equal(df$d[n_rows], n_rows - 1)
