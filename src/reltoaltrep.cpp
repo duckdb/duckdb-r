@@ -133,8 +133,34 @@ AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, 
     : n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
 }
 
-bool AltrepRelationWrapper::HasQueryResult() const {
-	return (bool)mat_result;
+bool AltrepRelationWrapper::Materialized() const {
+	return materialized;
+}
+
+idx_t AltrepRelationWrapper::RowCount() {
+	if (!materialized) {
+		return GetQueryResult()->RowCount();
+	}
+	return row_count;
+}
+
+void AltrepRelationWrapper::RegisterAltrepColumn() {
+	++altrep_columns;
+}
+
+void AltrepRelationWrapper::MarkColumnAsTransformed() {
+	// Keep track of how many of the ALTREP columns have been transformed
+	// to their R representation
+	D_ASSERT(transformed_columns < altrep_columns);
+	++transformed_columns;
+	// Once all columns have been transformed, the data lives in R vectors,
+	// so the materialized result is released to free the memory early.
+	// Consumers that only need metadata keep working:
+	// the row count is cached in row_count,
+	// and the materialized state remains visible through Materialized().
+	if (transformed_columns == altrep_columns) {
+		mat_result.reset();
+	}
 }
 
 QueryResult *AltrepRelationWrapper::GetQueryResult() {
@@ -143,6 +169,14 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 	}
 
 	if (!mat_result) {
+		if (materialized) {
+			// The result was released after all columns were transformed;
+			// re-executing the query here would be silent and possibly
+			// non-deterministic, so fail loudly instead
+			rapi_error_with_context("GetQueryResult",
+			                        "Internal error: the materialized result has already been released.");
+		}
+
 		if (n_cells == 0) {
 			rapi_error_with_context("GetQueryResult",
 			                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
@@ -239,6 +273,10 @@ void AltrepRelationWrapper::Materialize() {
 		}
 	}
 
+	// Cache the row count so that it remains available
+	// after the materialized result has been released
+	row_count = local_res->RowCount();
+	materialized = true;
 	mat_result = std::move(local_res);
 }
 
@@ -252,7 +290,7 @@ struct AltrepRownamesWrapper {
 	}
 
 	idx_t RowCount() {
-		return rel->GetQueryResult()->RowCount();
+		return rel->RowCount();
 	}
 
 	int32_t *Materialize(idx_t row_count) {
@@ -285,8 +323,7 @@ struct AltrepVectorWrapper {
 	}
 
 	idx_t RowCount() {
-		auto res = rel->GetQueryResult();
-		return res->RowCount();
+		return rel->RowCount();
 	}
 
 	const string &Name() {
@@ -369,6 +406,8 @@ struct AltrepVectorWrapper {
 				duckdb_r_transform(ChunkData(chunk), dest, dest_offset, chunk.size(), convert_opts, FullName());
 				dest_offset += chunk.size();
 			}
+
+			rel->MarkColumnAsTransformed();
 		}
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
@@ -543,7 +582,7 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
 	BEGIN_CPP11
 	AltrepGuard guard;
-	return AltrepVectorWrapper::Get(x)->rel->GetQueryResult()->RowCount();
+	return AltrepVectorWrapper::Get(x)->RowCount();
 	END_CPP11_EX(0)
 }
 
@@ -673,9 +712,6 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		names.push_back(col_name.GetIdentifierName());
 
 		auto &col_type = types[col_idx].second;
-		cpp11::external_pointer<AltrepVectorWrapper> ptr(
-		    new AltrepVectorWrapper(relation_wrapper, col_idx, parent_col_idx));
-		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
 		cpp11::sexp vector_sexp;
 
@@ -688,6 +724,13 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 			vector_sexp =
 			    rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, child_types, convert_opts, child_col_idx);
 		} else {
+			cpp11::external_pointer<AltrepVectorWrapper> ptr(
+			    new AltrepVectorWrapper(relation_wrapper, col_idx, parent_col_idx));
+			R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
+
+			// Register the vector so that the relation wrapper knows
+			// when all ALTREP columns have been transformed
+			relation_wrapper->RegisterAltrepColumn();
 			vector_sexp =
 			    R_new_altrep(LogicalTypeToAltrepType(col_type, col_name.GetIdentifierName()), ptr, R_NilValue);
 			duckdb_r_decorate(col_type, vector_sexp, convert_opts);
@@ -750,7 +793,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 
 	auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 	if (!allow_materialized) {
-		if (wrapper->rel->mat_result.get()) {
+		if (wrapper->rel->Materialized()) {
 			// We return NULL here even for strict = true
 			// because this is expected from df_is_materialized()
 			return nullptr;
@@ -758,6 +801,14 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	}
 
 	return wrapper->rel;
+}
+
+[[cpp11::register]] bool rapi_df_has_query_result(SEXP df) {
+	// Internal introspection for tests:
+	// TRUE while the materialized result is held,
+	// FALSE before materialization and after the result has been released
+	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, true, true);
+	return (bool)wrapper->mat_result;
 }
 
 [[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {
