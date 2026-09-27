@@ -21,32 +21,82 @@ or an \code{arrow_dplyr_query} over it if \code{.data} is grouped.
 for dbplyr tables on a DuckDB connection.
 It sends the query with \code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}
 and hands the stream to \code{arrow::as_record_batch_reader()},
-so the rows arrive batch by batch.
+so the rows arrive batch by batch and the result is not held twice.
 \code{arrow::to_arrow()} materializes the whole result first,
 through \code{dbSendQuery(arrow = TRUE)}.
 
-The reader is its connection's open result until it has been read to the end.
-Another statement on that connection makes the next read an error,
-and a query on that connection that scans the reader never returns.
-Ctrl-C does not stop that query, and the R session has to be ended.
-Tables from \code{arrow::to_duckdb()} share the one connection that arrow keeps
-unless \code{con} is given:
-for such a table, a later \code{to_duckdb()} call is such a statement,
-and \code{to_duckdb()} on the reader with its default \code{con} is such a query.
-Read the reader to the end first, or run the other statement on a separate
-connection.
-
-Unlike \code{arrow::to_arrow()}, the reader is read on Arrow's threads,
-not on R's, and Ctrl-C does not interrupt a read.
+The streaming comes with hard limits, listed under "Limitations" below.
+Use \code{to_arrow_stream()} where a large result goes straight into Arrow
+and nothing else runs on its connection until the reader has been read
+to the end.
+Where that cannot be arranged, use \code{arrow::to_arrow()},
+or run everything else on a second connection.
 }
+\section{Limitations}{
+
+The reader is its connection's open result until it has been read to the
+end.
+\itemize{
+\item \strong{Any other statement on the connection breaks the reader.}
+The next read fails with "The query result was invalidated by another
+statement on its connection".
+dplyr and dbplyr run such statements without being asked:
+\code{dplyr::tbl()} asks for the columns of a table,
+and printing or collecting a lazy table runs its query.
+A second \code{to_arrow_stream()} on the same connection breaks the first
+reader too.
+\item \strong{A query that scans the reader on its own connection never returns.}
+\code{arrow::to_duckdb(reader, con = con)} is such a query,
+and so is a query on \code{con} after \code{duckdb_register_arrow(con, name, reader)}.
+Ctrl-C does not stop it, and the R session has to be killed.
+\item \strong{Tables from \code{arrow::to_duckdb()} share one connection.}
+Without \code{con}, \code{to_duckdb()} uses the one connection that arrow keeps.
+For such a table, any later \code{to_duckdb()} call breaks the reader,
+and \code{to_duckdb()} on the reader itself never returns.
+\item \strong{Writing the reader back to its own connection fails partway.}
+\code{\link[DBI:dbWriteTableArrow]{DBI::dbWriteTableArrow()}} creates the table, then fails and leaves it
+empty.
+\code{\link[DBI:dbAppendTableArrow]{DBI::dbAppendTableArrow()}} appends the first batch of rows, then fails.
+\item \strong{Ctrl-C does not interrupt a read.}
+Arrow reads the reader on its own threads,
+outside the package's interrupt handler.
+\item \strong{Errors arrive late.}
+A query that fails after its first batch fails when that batch is read,
+not in \code{to_arrow_stream()}.
+\item \strong{The reader is read once.}
+Reading it again gives zero rows, not the result again.
+}
+
+A second connection to the same database, such as
+\code{DBI::dbConnect(con@driver)}, neither affects the reader nor is affected by
+it.
+It does not see the first connection's temporary tables or open
+transaction.
+The reader stays readable after \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}},
+and holds on to its query until it has been read to the end or released.
+}
+
 \examples{
 \dontshow{if (simulate_duckdb()$env$examples_enabled() && all(vapply(c("arrow", "dbplyr", "dplyr", "nanoarrow"), requireNamespace, logical(1), quietly = TRUE))) withAutoprint(\{ # examplesIf}
 con <- dbConnect(duckdb())
 dbWriteTable(con, "mtcars", mtcars)
 
+# Read the reader to the end before anything else runs on `con`.
 reader <- to_arrow_stream(dplyr::filter(dplyr::tbl(con, "mtcars"), cyl == 4))
 as.data.frame(reader$read_table())
 
+# Another statement on `con` breaks a reader that has not been read yet.
+reader <- to_arrow_stream(dplyr::tbl(con, "mtcars"))
+dbGetQuery(con, "SELECT 1")
+try(reader$read_table())
+
+# A second connection to the same database leaves the reader alone.
+other <- dbConnect(con@driver)
+reader <- to_arrow_stream(dplyr::tbl(con, "mtcars"))
+dbGetQuery(other, "SELECT count(*) FROM mtcars")
+reader$read_table()$num_rows
+
+dbDisconnect(other)
 dbDisconnect(con)
 \dontshow{\}) # examplesIf}
 }

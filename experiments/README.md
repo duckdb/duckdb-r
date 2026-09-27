@@ -134,6 +134,7 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-27-stream-self-scan/`](2026-09-27-stream-self-scan/):
   what a query does that scans a streaming result on the result's own connection, in R before and after #2775 and in the Python client.
   Also whether an interrupt ends it, where it waits, what works instead, and what writing a stream back to its connection leaves behind.
+  Also what else the reader of `to_arrow_stream()` cannot do on its own connection.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,

@@ -50,3 +50,25 @@ test_that("a statement on its connection invalidates a reader not read to the en
   dbGetQuery(con, "SELECT 1")
   expect_error(reader$read_next_batch(), "invalidated by another statement")
 })
+
+test_that("the reader's documented limits hold", {
+  con <- local_con()
+  dbWriteTable(con, "t", data.frame(i = seq_len(3e6)))
+  dbWriteTable(con, "u", data.frame(j = 1:3))
+  lazy <- dplyr::tbl(con, "t")
+
+  # dbplyr asks for the columns of a new lazy table.
+  reader <- to_arrow_stream(lazy)
+  dplyr::tbl(con, "u")
+  expect_error(reader$read_next_batch(), "invalidated by another statement")
+
+  # A second connection to the same database leaves the reader alone.
+  other <- dbConnect(con@driver)
+  withr::defer(dbDisconnect(other))
+  reader <- to_arrow_stream(lazy)
+  expect_equal(nrow(dplyr::collect(dplyr::tbl(other, "u"))), 3)
+  expect_equal(reader$read_table()$num_rows, 3e6)
+
+  # The reader is read once.
+  expect_equal(reader$read_table()$num_rows, 0)
+})

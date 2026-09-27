@@ -5,6 +5,7 @@ The streams come from `dbGetQueryArrow()` and `to_arrow_stream()`, and the scans
 It records which scans answer, and whether an interrupt ends one that does not.
 It compares the build before [#2775](https://github.com/duckdb/duckdb-r/pull/2775) and the Python client.
 It also records where the scan waits and what works instead.
+Beside that, it records what else the reader of `to_arrow_stream()` cannot do on its own connection.
 
 *When and on what:* 2026-09-27, Linux x86_64 with 4 cores, R 4.5.3.
 duckdb 1.5.5.9028 is the branch of [#2803](https://github.com/duckdb/duckdb-r/pull/2803) on `main` at a1806e4bd.
@@ -18,11 +19,12 @@ The Python client is duckdb 1.5.5 with pyarrow 25.0.1.
 `PRE_2775_LIB` names the library of the older build for it.
 Each case runs in a fresh R session through callr and is killed after ten seconds without an answer.
 The session info names the scratch library that held the newer build as `<fast-path build library>`.
+[`reader.R`](reader.R) is rendered to [`reader.md`](reader.md) the same way, in one session, because none of its cases waits.
 [`run-python.sh`](run-python.sh) runs [`self-scan.py`](self-scan.py) and wrote [`python.txt`](python.txt).
 [`backtraces.sh`](backtraces.sh) wrote [`backtraces.txt`](backtraces.txt).
 
 *What it supports:* the Arrow section of [`usage/integrations/`](/handbook/usage/integrations/README.md).
-It also supports the reference page of `to_arrow_stream()`.
+It also supports the Limitations section of the reference page of `to_arrow_stream()`.
 It replaces the account of the wait in [`2026-09-26-to-arrow-stream/`](/experiments/2026-09-26-to-arrow-stream/README.md).
 That account laid it at the glue's door.
 
@@ -118,6 +120,25 @@ Both write methods are DBI's defaults, and both read the stream on R's thread be
   A stream of ten rows is one batch, read to the end before the first append, and all ten arrive.
 
 These reads happen outside any query, so `IsOpen()` finds the lock free and reports the invalidation.
+
+## What else the reader cannot do on its own connection
+
+From [`reader.md`](reader.md), for a reader from `to_arrow_stream()` over three million rows:
+
+* **Statements that dplyr and dbplyr run.**
+  `dplyr::tbl()` on the same connection asks for the columns of its table, and the reader's next read fails with the invalidation error.
+  Printing a lazy table on that connection does the same, and so does `collect()`.
+* **A second connection to the same database.**
+  `dbConnect(con@driver)` opens one, which sees the same tables.
+  A `collect()` there leaves the reader intact, and it reads all three million rows.
+* **A second read.**
+  `read_table()` gives 3,000,000 rows, and a second `read_table()` gives 0, not an error.
+* **Writing the reader back.**
+  The reader knows its schema, so `dbWriteTableArrow()` creates the table before its first read fails, and the table stays empty.
+  `dbAppendTableArrow()` into an existing table keeps 1,000,000 rows, the first batch, before its second read fails.
+  To the second connection, `dbWriteTableArrow()` writes all three million rows.
+* **Disconnecting.**
+  After `dbDisconnect()` of both connections, the reader still reads all three million rows.
 
 ## An aside: a bare stream
 
