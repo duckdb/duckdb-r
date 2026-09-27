@@ -70,7 +70,7 @@
 #'   or as `integer64` always under `options(arrow.int64_downcast = FALSE)`.
 #' * **`UBIGINT`** exports as `uint64`, and both read it as `numeric`, rounded past 2^53.
 #' * **`HUGEINT`, `UHUGEINT`** export as `decimal128(38, 0)`, and both read them as `numeric`, rounded to a double.
-#'   A value of more than 38 digits does not fit that type and arrives wrong, without an error:
+#'   A `UHUGEINT` of 2^127 or more does not fit the signed 128 bits of that type and arrives as a negative number, without an error:
 #'   the largest `UHUGEINT` reads as `-1`.
 #'   With `arrow_lossless_conversion` they export as `arrow.opaque`, which carries every value and neither reader converts.
 #'   Their text reads them exactly (see [duckdb_types]).
@@ -183,7 +183,7 @@
 #' # Limitations and reference
 #'
 #' * `VARIANT` has no Arrow export.
-#' * The default export writes a `HUGEINT` or `UHUGEINT` of more than 38 digits wrong, without an error;
+#' * The default export writes a `UHUGEINT` of 2^127 or more as a negative number, without an error;
 #'   `arrow_lossless_conversion` carries it as a type neither R reader converts.
 #' * Neither reader converts `INTERVAL`; arrow converts no `UNION`, no view layout and none of the lossless extension types,
 #'   and nanoarrow no `list_view`.

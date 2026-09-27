@@ -69,7 +69,7 @@ arrow reads it as \code{integer} when every value fits and as \code{bit64::integ
 or as \code{integer64} always under \code{options(arrow.int64_downcast = FALSE)}.
 \item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, rounded past 2^53.
 \item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}, rounded to a double.
-A value of more than 38 digits does not fit that type and arrives wrong, without an error:
+A \code{UHUGEINT} of 2^127 or more does not fit the signed 128 bits of that type and arrives as a negative number, without an error:
 the largest \code{UHUGEINT} reads as \code{-1}.
 With \code{arrow_lossless_conversion} they export as \code{arrow.opaque}, which carries every value and neither reader converts.
 Their text reads them exactly (see \link{duckdb_types}).
@@ -197,7 +197,7 @@ and as \code{BLOB} through arrow, which carries it as its own R extension type (
 \section{Limitations and reference}{
 \itemize{
 \item \code{VARIANT} has no Arrow export.
-\item The default export writes a \code{HUGEINT} or \code{UHUGEINT} of more than 38 digits wrong, without an error;
+\item The default export writes a \code{UHUGEINT} of 2^127 or more as a negative number, without an error;
 \code{arrow_lossless_conversion} carries it as a type neither R reader converts.
 \item Neither reader converts \code{INTERVAL}; arrow converts no \code{UNION}, no view layout and none of the lossless extension types,
 and nanoarrow no \code{list_view}.

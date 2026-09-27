@@ -17,8 +17,9 @@
 #'   [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) is a core DuckDB type since 1.5,
 #'   so reading one needs no extension,
 #'   but the geometry functions are still `spatial`'s, and so is the CRS provider that resolves a name like `EPSG:4326`.
-#' * **The column's CRS reaches R either way.**
-#'   It is an attribute on `wk_wkb`, and PROJJSON in the metadata of the `geoarrow.wkb` field an Arrow result carries,
+#' * **The column's CRS reaches R through `"wk"` and through Arrow, not through raw WKB.**
+#'   It is an attribute on `wk_wkb`, and in the metadata of the `geoarrow.wkb` field an Arrow result carries,
+#'   as PROJJSON once `spatial` is loaded and as the identifier without it,
 #'   and [sf::st_crs()] reads the same CRS from both.
 #' * **sf reads a result through GeoArrow in one call.**
 #'   `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's,
@@ -61,7 +62,7 @@
 #'   geoarrow cannot write an `sfc` in the large or view layouts of WKB,
 #'   and DuckDB lands those layouts, as its own export makes them, as `GEOMETRY`.
 #' * **An `sf` or `sfc` column is not written, and may not say so.**
-#'   A whole `sf` object handed to [dbWriteTable()] fails inside sf's own [dbDataType()] method,
+#'   A whole `sf` object handed to [dbWriteTable()] fails inside sf's own `dbWriteTable()` method,
 #'   which writes EWKB hex into a column DuckDB parses as WKT ([#1670](https://github.com/duckdb/duckdb-r/issues/1670));
 #'   a bare `sfc` column is worse: a `POINT` column writes *silently* as `DOUBLE[]`,
 #'   and other geometry types abort with a message naming neither column nor type.

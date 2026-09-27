@@ -34,7 +34,8 @@ except that the \code{INTEGER} minimum, -2147483648, is R's \code{NA_integer_} a
 \item \strong{\code{BIGINT}} (\code{INT8}, \code{LONG}) reads as \code{numeric}, exact up to 2^53,
 or with \code{bigint = "integer64"} as \code{bit64::integer64}, exact except for the minimum, which is \code{integer64}'s \code{NA}.
 An \code{integer64} column or parameter writes \code{BIGINT} whatever \code{bigint} says.
-\item \strong{\code{UBIGINT}} reads as \code{numeric}, or as \code{integer64}, which holds the values below 2^63 and wraps the rest to negative numbers.
+\item \strong{\code{UBIGINT}} reads as \code{numeric}, or as \code{integer64},
+which holds the values below 2^63, reads 2^63 as \code{NA}, and wraps the rest to negative numbers.
 Below 2^63, the \code{integer64} it reads as writes it back through \code{field.types}, and its text writes any value.
 \item \strong{\code{HUGEINT}, \code{UHUGEINT}} read as \code{numeric}, rounded to a double, and \code{bigint} does not change that.
 Their text is exact both ways.
@@ -96,7 +97,8 @@ Its text writes it.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
-\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours, so the months and days are lost.
+\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours,
+so which part was months or days is lost.
 A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}, and the unit is not kept.
 }
 }
@@ -116,7 +118,9 @@ A matrix column writes it; a matrix parameter is refused.
 \item \strong{\code{MAP}} reads as a list of \code{data.frame(key, value)}, which writes a list of structs unless \code{field.types} names the map.
 With \code{map = "list_of"}, the \code{\link[vctrs:list_of]{vctrs::list_of()}} it reads as writes back as \code{MAP} without \code{field.types}
 (\href{https://github.com/duckdb/duckdb-r/issues/200}{#200}).
-Neither its text nor a parameter casts to \code{MAP}.
+Its text casts to \code{MAP} in the query and as a parameter, but does not write it through \code{field.types} or \code{dbAppendTable()},
+which wrap a \code{MAP} column in \code{map_from_entries()}, and that takes a list of structs, not text.
+The list it reads as does not bind as a \code{MAP} parameter.
 \item \strong{\code{STRUCT}} (\code{ROW}) reads as a data frame column, where a \code{NULL} struct is a row of \code{NA}, the same as a struct of \code{NULL}s.
 A data frame column writes it, and a data frame parameter binds a struct per row.
 \item \strong{\code{UNION}} has no R vector, and \code{dbGetQuery()} refuses its column by name.
@@ -147,12 +151,13 @@ Its text reads and writes it exactly.
 \item \code{BIT}, \code{BIGNUM}, \code{TIME_NS} and \code{UNION} have no R vector, so \code{dbGetQuery()} refuses them,
 and \code{\link[dplyr:tbl]{dplyr::tbl()}} cannot open a table holding one.
 \item \code{HUGEINT}, \code{UHUGEINT} and \code{DECIMAL} past a double's precision, and \code{BIGINT} and \code{UBIGINT} past 2^53, read as rounded doubles;
-under \code{bigint = "integer64"}, \code{UBIGINT} past 2^63 wraps to a negative number.
+under \code{bigint = "integer64"}, a \code{UBIGINT} of 2^63 reads as \code{NA}, and one past it wraps to a negative number.
 \item \code{TIMESTAMP_NS} reads to the microsecond, \code{TIMETZ} without its offset,
-\code{INTERVAL} without its months and days, and \code{infinity} as a distant finite date or instant.
+\code{INTERVAL} with a month as 30 days and a day as 24 hours, and \code{infinity} as a distant finite date or instant.
 \item \code{TIME}, \code{TIMETZ}, \code{GEOMETRY} and \code{VARIANT} do not write back as themselves from the value R reads,
 and no R class writes \code{TIME} outside Arrow.
-\item \code{MAP} has no cast from text, an \code{ordered} factor writes an unordered \code{ENUM}, and a \code{factor} parameter binds as \code{VARCHAR}.
+\item \code{MAP} does not write from its text through \code{field.types} or \code{dbAppendTable()},
+an \code{ordered} factor writes an unordered \code{ENUM}, and a \code{factor} parameter binds as \code{VARCHAR}.
 \item A raw vector column is refused with a message naming neither the column nor its class.
 \item \code{\link[DBI:dbCreateTable]{dbCreateTable()}} takes its column types from \code{\link[DBI:dbDataType]{dbDataType()}},
 which says \code{TIME} for \code{difftime} and \code{hms}, \code{DOUBLE} for \code{integer64}, \code{VARCHAR} for \code{factor}, and the element type for a matrix,

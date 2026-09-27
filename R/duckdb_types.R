@@ -36,7 +36,8 @@
 #' * **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53,
 #'   or with `bigint = "integer64"` as `bit64::integer64`, exact except for the minimum, which is `integer64`'s `NA`.
 #'   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says.
-#' * **`UBIGINT`** reads as `numeric`, or as `integer64`, which holds the values below 2^63 and wraps the rest to negative numbers.
+#' * **`UBIGINT`** reads as `numeric`, or as `integer64`,
+#'   which holds the values below 2^63, reads 2^63 as `NA`, and wraps the rest to negative numbers.
 #'   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 #' * **`HUGEINT`, `UHUGEINT`** read as `numeric`, rounded to a double, and `bigint` does not change that.
 #'   Their text is exact both ways.
@@ -96,7 +97,8 @@
 #' * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
 #'   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
 #'   and Arrow writes it directly.
-#' * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours, so the months and days are lost.
+#' * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours,
+#'   so which part was months or days is lost.
 #'   A `difftime` in any unit, or an `hms`, writes `INTERVAL`, and the unit is not kept.
 #'
 #' # Enums and nested types
@@ -115,7 +117,9 @@
 #' * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
 #'   With `map = "list_of"`, the [vctrs::list_of()] it reads as writes back as `MAP` without `field.types`
 #'   ([#200](https://github.com/duckdb/duckdb-r/issues/200)).
-#'   Neither its text nor a parameter casts to `MAP`.
+#'   Its text casts to `MAP` in the query and as a parameter, but does not write it through `field.types` or `dbAppendTable()`,
+#'   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text.
+#'   The list it reads as does not bind as a `MAP` parameter.
 #' * **`STRUCT`** (`ROW`) reads as a data frame column, where a `NULL` struct is a row of `NA`, the same as a struct of `NULL`s.
 #'   A data frame column writes it, and a data frame parameter binds a struct per row.
 #' * **`UNION`** has no R vector, and `dbGetQuery()` refuses its column by name.
@@ -142,12 +146,13 @@
 #' * `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` refuses them,
 #'   and [dplyr::tbl()] cannot open a table holding one.
 #' * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
-#'   under `bigint = "integer64"`, `UBIGINT` past 2^63 wraps to a negative number.
+#'   under `bigint = "integer64"`, a `UBIGINT` of 2^63 reads as `NA`, and one past it wraps to a negative number.
 #' * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
-#'   `INTERVAL` without its months and days, and `infinity` as a distant finite date or instant.
+#'   `INTERVAL` with a month as 30 days and a day as 24 hours, and `infinity` as a distant finite date or instant.
 #' * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
 #'   and no R class writes `TIME` outside Arrow.
-#' * `MAP` has no cast from text, an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
+#' * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
+#'   an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
 #' * A raw vector column is refused with a message naming neither the column nor its class.
 #' * [dbCreateTable()] takes its column types from [dbDataType()],
 #'   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,

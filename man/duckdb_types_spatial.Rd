@@ -16,8 +16,9 @@ returns raw vectors; \code{"wk"} returns \code{wk_wkb}, which \code{\link[sf:st_
 \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETRY}} is a core DuckDB type since 1.5,
 so reading one needs no extension,
 but the geometry functions are still \code{spatial}'s, and so is the CRS provider that resolves a name like \code{EPSG:4326}.
-\item \strong{The column's CRS reaches R either way.}
-It is an attribute on \code{wk_wkb}, and PROJJSON in the metadata of the \code{geoarrow.wkb} field an Arrow result carries,
+\item \strong{The column's CRS reaches R through \code{"wk"} and through Arrow, not through raw WKB.}
+It is an attribute on \code{wk_wkb}, and in the metadata of the \code{geoarrow.wkb} field an Arrow result carries,
+as PROJJSON once \code{spatial} is loaded and as the identifier without it,
 and \code{\link[sf:st_crs]{sf::st_crs()}} reads the same CRS from both.
 \item \strong{sf reads a result through GeoArrow in one call.}
 \code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's,
@@ -62,7 +63,7 @@ a native polygon casts neither through \code{POLYGON_2D} nor directly.
 geoarrow cannot write an \code{sfc} in the large or view layouts of WKB,
 and DuckDB lands those layouts, as its own export makes them, as \code{GEOMETRY}.
 \item \strong{An \code{sf} or \code{sfc} column is not written, and may not say so.}
-A whole \code{sf} object handed to \code{\link[DBI:dbWriteTable]{dbWriteTable()}} fails inside sf's own \code{\link[DBI:dbDataType]{dbDataType()}} method,
+A whole \code{sf} object handed to \code{\link[DBI:dbWriteTable]{dbWriteTable()}} fails inside sf's own \code{dbWriteTable()} method,
 which writes EWKB hex into a column DuckDB parses as WKT (\href{https://github.com/duckdb/duckdb-r/issues/1670}{#1670});
 a bare \code{sfc} column is worse: a \code{POINT} column writes \emph{silently} as \code{DOUBLE[]},
 and other geometry types abort with a message naming neither column nor type.
