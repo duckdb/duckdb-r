@@ -27,8 +27,9 @@ The load-bearing facts:
   `path_normalize()` asks DuckDB through `rapi_canonicalize_path()` rather than calling `normalizePath()`,
   because the identity that decides whether two calls collide on a lock is the engine's.
   DuckDB canonicalizes the longest existing prefix and appends the rest,
-  so a database that does not exist yet resolves without anything being created,
-  and gets the same key it will keep once it does.
+  so a database that does not exist yet resolves without anything being created.
+  `duckdb()` resolves the path once more after the engine has opened it, and files the instance under that key,
+  because a symlink to a database yet to be created resolves only once its target exists.
   Two spellings of one database (relative, symlinked, differently separated) therefore share an instance.
   Only `~` stays R's to expand: DuckDB has its own idea of the home directory, and on Windows it is not R's.
   A path that resolves no further is used as it stands rather than refused:

@@ -319,7 +319,12 @@ duckdb <- function(
   )
 
   if (dbdir != DBDIR_MEMORY) {
-    driver_registry[[dbdir]] <- drv
+    # Resolved again now that the engine has created the file: a symlink to a
+    # database yet to be created resolves only from now on, and every later
+    # call looks the instance up under its target.
+    # Explained in handbook/usage/connections/README.md.
+    drv@dbdir <- path_normalize(dbdir)
+    driver_registry[[drv@dbdir]] <- drv
   }
 
   reg.finalizer(drv@database_ref, onexit = TRUE, rapi_shutdown)

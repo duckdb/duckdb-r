@@ -52,6 +52,29 @@ test_that("a symlinked database resolves to its target", {
   expect_equal(path_normalize(link), path_normalize(target))
 })
 
+test_that("a symlink to a database yet to be created shares one instance", {
+  # The link resolves only once the engine has created its target, so the key
+  # taken before the open is not the one every later call computes.
+  dir <- withr::local_tempdir()
+  target <- file.path(dir, "target.duckdb")
+  link <- file.path(dir, "link.duckdb")
+  skip_if_not(
+    suppressWarnings(file.symlink(target, link)),
+    "symlinks unavailable"
+  )
+
+  drv1 <- duckdb(link)
+  withr::defer(duckdb_shutdown(drv1))
+  expect_equal(drv1@dbdir, path_normalize(target))
+
+  drv2 <- duckdb(link)
+  expect_identical(drv2@database_ref, drv1@database_ref)
+  # The same spelling reaches the same driver through `dbConnect()` as well.
+  con <- dbConnect(drv1, dbdir = link)
+  withr::defer(dbDisconnect(con))
+  expect_identical(con@driver@database_ref, drv1@database_ref)
+})
+
 test_that("a path that cannot be resolved is returned rather than refused (#455)", {
   # Resolving a path can fail for reasons that say nothing about whether the
   # database is usable (on a network drive, for a directory the user may
