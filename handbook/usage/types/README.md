@@ -99,7 +99,8 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
   and Arrow writes it directly.
-* **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours, so the months and days are lost.
+* **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours,
+  so which part was months or days is lost.
   A `difftime` in any unit, or an `hms`, writes `INTERVAL`, and the unit is not kept.
 
 ## Enums and nested types
@@ -150,7 +151,7 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
   under `bigint = "integer64"`, `UBIGINT` past 2^63 wraps to a negative number.
 * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
-  `INTERVAL` without its months and days, and `infinity` as a distant finite date or instant.
+  `INTERVAL` with a month as 30 days and a day as 24 hours, and `infinity` as a distant finite date or instant.
 * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
   and no R class writes `TIME` outside Arrow.
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
