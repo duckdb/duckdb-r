@@ -20,6 +20,8 @@ repository's extension of that base — the named special entries:
 
 * **older Windows** — extends the Windows sweep further back
   than the base shape carries it.
+  Before R 4.5, `R CMD check` on Windows halts at once when `_R_CHECK_THINGS_IN_OTHER_DIRS_` is set, and rcmdcheck calls that a success.
+  The custom after-install action clears the variable for these entries.
 * **engine poisoning** —
   builds the engine with the `-DDUCKDB_R_POISON_ENGINE` tripwire
   and forces `DUCKDB_R_RUN_TESTS=false`,
