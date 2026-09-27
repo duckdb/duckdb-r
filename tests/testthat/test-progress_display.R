@@ -117,3 +117,30 @@ test_that("a progress callback outlives a collection between the reads of a stre
   expect_equal(rows, 500000)
   expect_gt(calls, 0L)
 })
+
+# Drives duckdb_progress_display() on a clock the test sets.
+# The function it returns calls the display with progress `x` at `time`,
+# in seconds, and returns what that call printed: "" for nothing.
+local_progress_clock <- function(frame = parent.frame()) {
+  old_last_time <- the$progress_last_time
+  withr::defer(the$progress_last_time <- old_last_time, envir = frame)
+  the$progress_last_time <- NULL
+
+  now <- 0
+  local_mocked_bindings(progress_now = function() now, .env = frame)
+
+  function(time, x) {
+    now <<- time
+    out <- utils::capture.output(invisible(duckdb_progress_display(x)))
+    paste(out, collapse = "\n")
+  }
+}
+
+test_that("the progress display paints nothing in a query's first half second", {
+  display_at <- local_progress_clock()
+
+  expect_equal(display_at(0, 10), "")
+  expect_equal(display_at(0.25, 20), "")
+  expect_equal(display_at(0.375, 30), "")
+  expect_equal(display_at(0.5, 40), "\rDuckDB progress:  40%")
+})

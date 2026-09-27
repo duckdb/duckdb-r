@@ -1,7 +1,7 @@
 # Handbook: handbook/usage/interactive/README.md
 
 duckdb_progress_display <- function(x) {
-  time <- Sys.time()
+  time <- progress_now()
   if (is.null(the$progress_last_time)) {
     the$progress_last_time <- time
   }
@@ -17,6 +17,11 @@ duckdb_progress_display <- function(x) {
     cat("\r                     \r")
     the$progress_last_time <- NULL
   }
+}
+
+# The clock the display reads, in seconds, apart so that a test can set it.
+progress_now <- function() {
+  as.numeric(Sys.time())
 }
 
 get_progress_display <- function() {
