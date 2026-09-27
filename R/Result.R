@@ -163,9 +163,7 @@ is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
 duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
   # A cleared result has released the statement
   # whose client context the query result still points to.
-  if (!res@env$open) {
-    abort("result set was closed")
-  }
+  check_result_open(res)
   if (chunk_size <= 0) {
     abort("Chunk Size must be higher than 0")
   }
@@ -179,9 +177,7 @@ duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
 duckdb_fetch_record_batch <- function(res, chunk_size = 1000000) {
   # A cleared result has released the statement
   # whose client context the query result still points to.
-  if (!res@env$open) {
-    abort("result set was closed")
-  }
+  check_result_open(res)
   if (chunk_size <= 0) {
     abort("Chunk Size must be higher than 0")
   }
