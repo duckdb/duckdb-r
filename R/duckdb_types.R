@@ -6,18 +6,13 @@
 #' @description
 #' Every DuckDB type as it crosses to R and back:
 #' what a value of the type becomes when read, which R value writes it again, and what to do where neither works.
-#' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
-#' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
-#' and every entry below was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md).
-#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s, and geometry is [`?duckdb_types_spatial`][duckdb_types_spatial]'s.
 #'
 #' @details
 #' # The routes
 #'
 #' **Reading.**
-#' `dbGetQuery()` converts each column by its type, and four `dbConnect()` arguments change the shape,
-#' whose defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`
-#' are set in [`R/dbConnect__duckdb_driver.R`](https://github.com/duckdb/duckdb-r/blob/main/R/dbConnect__duckdb_driver.R).
+#' [dbGetQuery()] converts each column by its type, and four `dbConnect()` arguments change the shape,
+#' with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`.
 #' `dbGetQueryArrow()` hands out the engine's own Arrow export instead,
 #' and what each type becomes there, and in the R readers that convert the stream, is [`?duckdb_types_arrow`][duckdb_types_arrow]'s.
 #' A cast to `VARCHAR` in the query reads any type as text.
@@ -60,7 +55,7 @@
 #'
 #' * **`VARCHAR`** (`CHAR`, `BPCHAR`, `TEXT`, `STRING`) reads as `character`, and `character` writes it.
 #'   A string holding a NUL byte is refused on the way out, pinned by [`tests/testthat/test-null_byte.R`](https://github.com/duckdb/duckdb-r/blob/main/tests/testthat/test-null_byte.R).
-#' * **UTF-8 is required, strictly.**
+#'   **UTF-8 is required, strictly.**
 #'   DuckDB checks string validity and rejects invalid UTF-8;
 #'   this is deliberate engine behavior, not a bug ([#12](https://github.com/duckdb/duckdb-r/issues/12)).
 #'   R is the lenient side: it carries the bytes and prints them,
@@ -146,24 +141,14 @@
 #'   reads as a data frame column whose `address` is a `HUGEINT` read as a double: exact for IPv4, rounded for IPv6.
 #'   Its text reads and writes it exactly.
 #'
-#' # Across types
+#' # Limitations and Reference
 #'
-#' * **`dbCreateTable()` and the write routes disagree for four classes.**
-#'   `dbCreateTable()` takes its column types from `dbDataType()`,
-#'   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,
-#'   where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`.
-#'   A `difftime` column then fails to append into the table it created
-#'   ([`plan/PLAN-type-documentation.md`](https://github.com/duckdb/duckdb-r/blob/main/plan/PLAN-type-documentation.md)).
-#' * **Attribute classes do not cross, in either direction.**
-#'   A `units` column becomes plain `DOUBLE` going in, through `dbWriteTable()`, through `duckdb_register()` or as a bound parameter,
-#'   and comes back plain `numeric`:
-#'   the value survives, the class does not, and nothing warns ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
-#'   Re-applying it on the way out (`units::set_units()`) is the caller's.
-#'   The same holds for a column that reaches the engine through Arrow:
-#'   `arrow` carries `[m^2]` in its schema as an extension type, and DuckDB reads the storage underneath it.
-#' * **Not every column lifts into the relational path** (duckplyr's):
-#'   `rel_from_df()` refuses rather than converts,
-#'   and which columns, and what duckplyr does about a refusal, is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
+#' FIXME: Mention limitations and full list.
+#'
+#' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
+#' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
+#' and every entry below was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md).
+#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s, and geometry is [`?duckdb_types_spatial`][duckdb_types_spatial]'s.
 #'
 #' @name duckdb_types
 NULL

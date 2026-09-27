@@ -127,7 +127,7 @@
 #'   with `arrow_lossless_conversion` it exports as `arrow.json`, which nanoarrow reads as `character` and arrow refuses.
 #' * **`INET`** exports as a struct whose `address` is a `decimal128(38, 0)`, read as a double as through `dbGetQuery()`;
 #'   with `arrow_lossless_conversion` that field becomes `arrow.opaque`, which neither reader converts.
-#' * **`GEOMETRY`**, and the `spatial` extension's own types, cross Arrow as [`?duckdb_types_spatial`][duckdb_types_spatial] says, CRS included.
+#' * **`GEOMETRY`**, and the `spatial` extension's own types, cross Arrow as documented in [duckdb_types_spatial], CRS included.
 #'   What the readers make of `GEOMETRY` depends on the geoarrow package:
 #'   once it is loaded, both convert it to a `geoarrow_vctr`;
 #'   until then, nanoarrow reads its WKB as a `blob` and arrow as an `arrow_binary`.
