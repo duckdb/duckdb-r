@@ -84,7 +84,7 @@ and that is what makes the concurrency work without a lock.
 The store keeps `RCC_RETENTION_DAYS` (180) of history,
 **records and logs alike**,
 and [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) enforces it —
-by hand, so nothing is dropped until an operator dispatches it.
+by hand, so nothing is dropped until an operator runs it.
 Logs are still the bulk of what goes — about a megabyte each against ~2 KB for
 a record — but keeping a verdict for a commit decided months ago and long since
 repaired only postpones the same deletion,
@@ -196,7 +196,7 @@ the retry's, so the planner never rebuilt and the backstop skips commits that
 have a record. It compared run ids for that reason.
 The fan-in is gone, and with it that particular race:
 the leg writes as it decides, so its own verdict is the newest by construction.
-The rule survives in the dispatched backstop, which skips a commit that has a
+The rule survives in the hand-run backstop, which skips a commit that has a
 record at all, and in the loop, which takes the higher run id where a commit
 appears in more than one run.
 
@@ -229,7 +229,7 @@ Measured against a copy of the real branch,
 the clone is under 1% of the branch and a publish takes ~130 ms once warm.
 
 A reader that wants what the branch currently says about a set of commits —
-the dispatched backstop, deciding what it still has to collect — gets it from
+the hand-run backstop, deciding what it still has to collect — gets it from
 the same helper with a different filter: `--filter=blob:limit=16k` brings every
 record and no log, because a record is ~2 KB and a log is ~1 MB.
 One fetch, and every comparison it needs is then local.

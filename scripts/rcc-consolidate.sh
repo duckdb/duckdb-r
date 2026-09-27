@@ -67,7 +67,7 @@ git_out() { git -C "${OUT_DIR}" "$@"; }
 # Every shape this branch can legitimately have, up front. A branch bootstrapped
 # by a leg that has only ever seen successes has no `logs2.d/` at all, so neither
 # directory missing is an error -- but under `set -e` every probe below would
-# abort on it, and an operator dispatching the dry run to *find out* what state
+# abort on it, and an operator running the dry run to *find out* what state
 # the branch is in deserves a report rather than a bare `find` error.
 mkdir -p "${OUT_DIR}/runs2.d" "${OUT_DIR}/logs2.d"
 
