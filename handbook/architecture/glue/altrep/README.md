@@ -41,6 +41,9 @@ every call into R from inside an ALTREP method
 goes through `cpp11::safe[]`,
 never the R API directly,
 or a long-jmp leaves the guard on for the rest of the session.
+The allocations part way through converting a column are the exception.
+They call R directly, because protecting each one would slow down every list column.
+Running out of memory there still leaves the guard on.
 
 *To deepen: state what each ALTREP method does with an unmaterialized
 relation, and what a duplicated one costs.*
