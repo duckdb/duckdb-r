@@ -4,7 +4,7 @@ Every DuckDB type as it crosses to R and back:
 what a value of the type becomes when read, which R value writes it again, and what to do where neither works.
 The mapping is implemented in [`src/types.cpp`](/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
-and every entry below was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md).
+and every entry on this page was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md).
 Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s, and geometry is [`spatial/`](/handbook/usage/spatial/README.md)'s.
 
 ## The routes

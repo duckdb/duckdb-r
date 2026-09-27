@@ -5,7 +5,7 @@ the Arrow type the engine exports it as, what the two R readers make of that,
 which Arrow type writes it again, and which R functions keep Arrow's types on the way in.
 The routes through R vectors are [`types/`](/handbook/usage/types/README.md)'s,
 and how a stream behaves, when it drains and what invalidates it, is [`integrations/`](/handbook/usage/integrations/README.md)'s.
-Every entry below was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
+Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
 in [`experiments/2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md).
 
 ## The routes
