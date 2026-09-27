@@ -50,7 +50,7 @@ void RProgressBarDisplay::Initialize() {
 }
 
 // The engine builds the display when a query starts, on the thread that issues it, which is R's.
-RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay(), r_thread(std::this_thread::get_id()) {
+RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
 	ReleaseOrphanedCallbacks();
 	Initialize();
 }
@@ -59,7 +59,7 @@ RProgressBarDisplay::~RProgressBarDisplay() {
 	if (progress_callback == R_NilValue) {
 		return;
 	}
-	if (OnRThread()) {
+	if (rapi_on_r_thread()) {
 		R_ReleaseObject(progress_callback);
 		return;
 	}
@@ -67,14 +67,10 @@ RProgressBarDisplay::~RProgressBarDisplay() {
 	orphaned_callbacks.push_back(progress_callback);
 }
 
-bool RProgressBarDisplay::OnRThread() const {
-	return std::this_thread::get_id() == r_thread;
-}
-
 void RProgressBarDisplay::Update(double percentage) {
 	// The engine updates the display from whichever thread fetches a streaming result,
 	// a thread of arrow's pool among them, and R runs on its own thread only.
-	if (progress_callback == R_NilValue || !OnRThread()) {
+	if (progress_callback == R_NilValue || !rapi_on_r_thread()) {
 		return;
 	}
 

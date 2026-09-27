@@ -59,7 +59,7 @@ has the measurement and the route that works).
 The progress display evaluates an R callback under the client context lock,
 on the thread that runs the query's tasks:
 the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
-So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+So the display calls R only where `rapi_on_r_thread()` holds, and skips an update anywhere else.
 It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
 and a streaming result keeps its display across the R code that runs between fetches
 (`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).
@@ -87,7 +87,7 @@ rather than trusting this list.
 Wherever the engine may be underneath,
 the glue reports an error through `rapi_error_with_context()` ([`src/utils.cpp`](/src/utils.cpp)),
 and reporting means calling an R function.
-The package records R's thread when it loads,
+`rapi_on_r_thread()` tells R's thread, which the package records when it loads,
 since `R_init_duckdb()` runs there,
 and anywhere else the helper throws the error as an engine exception instead:
 the engine carries it to the thread that issued the query,
