@@ -3,6 +3,7 @@
 #' @usage NULL
 dbClearResult__duckdb_result <- function(res, ...) {
   if (res@env$open) {
+    duckdb_stream_close(res)
     rethrow_rapi_release(res@stmt_lst$ref)
     res@env$open <- FALSE
   } else {
