@@ -4,12 +4,15 @@
 # `scripts/flavor.sh` applies `scripts/flavor.patch`, which renames `duckdb` to
 # `duckdb.1.4`, `duckdb.1.4.dev`, `duckdb.dev`, and so on. See BRANCHES.md.
 #
-# Every hard-coded `duckdb::`, `duckdb:::`, or `"duckdb"` that the patch does not
-# rewrite keeps pointing at the mainline package in those builds -- silently, and
-# usually only noticed by a user. `flavor_package_name_offenders()` returns every
-# such occurrence, so a new one has to be dealt with deliberately:
+# Every hard-coded `duckdb::`, `duckdb:::`, `"duckdb"`, or `library(duckdb)` that
+# the patch does not rewrite keeps pointing at the mainline package in those
+# builds -- silently, and usually only noticed by a user.
+# `flavor_package_name_offenders()` returns every such occurrence, so a new one
+# has to be dealt with deliberately:
 #
 # * in code, ask for the name at run time with `get_package_name()`;
+# * to reach the package from a subprocess, pass `get_package_name()` in and
+#   resolve it there with `asNamespace()`, rather than attaching it by name;
 # * in docs, do not qualify our own objects with `duckdb::`;
 # * if the literal names something else that happens to be spelled the same --
 #   the DuckDB CLI executable, say -- write it in two pieces, as
@@ -94,8 +97,12 @@ flavor_scanned_files <- function(root) {
   glue <- glue[!startsWith(glue, paste0(file.path("src", "duckdb"), "/"))]
   glue <- glue[!startsWith(glue, paste0(file.path("src", "vendor"), "/"))]
 
+  # `library(duckdb)` and `require(duckdb)` name the package without quoting it
+  # and without `::`, so the two patterns above walk straight past them. Every
+  # other way of naming a package -- `requireNamespace()`, `loadNamespace()`,
+  # `::` -- spells it as a string or as a qualifier and is already covered.
   patterns <- c(
-    rep('duckdb:::?|"duckdb"', length(r_level)),
+    rep('duckdb:::?|"duckdb"|(library|require)[(]duckdb[)]', length(r_level)),
     rep('"duckdb"', length(glue))
   )
   names(patterns) <- c(r_level, glue)
