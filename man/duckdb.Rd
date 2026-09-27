@@ -200,7 +200,8 @@ For a file-based \code{dbdir}, the instance is cached, keyed by the (normalized)
 calling \code{duckdb()} again with the same \code{dbdir} returns the same driver and instance while it is still alive.
 This is deliberate.
 DuckDB allows only a single read-write handle to a database file at a time,
-so opening a second instance of the same file would fail with a lock error.
+so opening a second instance of the same file fails with a lock error in another process,
+and is not prevented at all within the same one.
 Reusing one instance instead lets any number of \code{dbConnect(duckdb(dbdir = "my.db"))} calls share it.
 An in-memory database (\verb{:memory:}, the default) has no file to lock and is never cached:
 every \code{duckdb()} call creates a fresh, isolated instance.
@@ -224,8 +225,11 @@ first release the instance with \code{\link[=duckdb_shutdown]{duckdb_shutdown()}
 then create it again.
 \code{\link[DBI:dbDisconnect]{dbDisconnect()}} closes one connection, and its \code{shutdown} argument is unused.
 Connections keep the instance alive,
-so it is released once the last connection to it closes;
-a driver that was never connected to releases its instance
+so it is released once the last connection to it closes,
+unless a result not yet cleared with \code{\link[DBI:dbClearResult]{dbClearResult()}} or an Arrow stream not yet released still uses it.
+The cache does not find an instance that only such a result or stream keeps open,
+so \code{duckdb()} with the same \code{dbdir} then opens a second instance of the file in the same session.
+A driver that was never connected to releases its instance
 when the driver is garbage-collected or the session ends.
 \code{\link[DBI:dbIsValid]{dbIsValid()}} reports whether a driver still holds an instance.
 }

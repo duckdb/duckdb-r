@@ -100,7 +100,7 @@ struct RType {
 	static constexpr const RTypeId LIST_OF_NULLS = RTypeId::LIST_OF_NULLS;
 	static constexpr const RTypeId BLOB = RTypeId::BLOB;
 
-	static RType FACTOR(cpp11::strings levels);
+	static RType FACTOR(SEXP levels);
 	Vector GetFactorLevels() const;
 	size_t GetFactorLevelsCount() const;
 	Value GetFactorValue(int r_value) const;

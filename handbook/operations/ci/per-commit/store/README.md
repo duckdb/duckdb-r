@@ -102,9 +102,8 @@ That the window is *one* number makes it load-bearing in both directions:
 
 ## Consolidation
 
-`rcc-consolidate.sh` is `workflow_dispatch`-only
-([`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml))
-and defaults to a dry run.
+`rcc-consolidate.sh` runs by hand, from an operator's checkout,
+and defaults to a dry run; `APPLY=1` rewrites the branch.
 Two things happen:
 
 1. **Records and logs past the window are dropped**,

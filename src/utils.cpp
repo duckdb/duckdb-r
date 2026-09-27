@@ -139,8 +139,16 @@ static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 }
 
 R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
+	// A data frame counts its rows in its first column, not in its row names:
+	// the scan also calls this from a task thread for a list of data frames,
+	// and reading compact row names allocates.
 	while (rtype.id() == RTypeId::STRUCT) {
-		rtype = rtype.GetStructChildTypes()[0].second;
+		auto child_rtypes = rtype.GetStructChildTypes();
+		if (child_rtypes.empty()) {
+			// No column to count in, and no values to read
+			return 0;
+		}
+		rtype = child_rtypes[0].second;
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
 	}
@@ -157,7 +165,9 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 }
 
 Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
+	auto rtype = RApiTypes::DetectRType(valsexp, true);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -167,6 +177,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
 		return RIntegerType::IsNull(int_val) ? Value(LogicalType::INTEGER) : Value::INTEGER(int_val);
+	}
+	case RType::INTEGER64: {
+		auto i64_val = ((int64_t *)NUMERIC_POINTER(valsexp))[idx];
+		return RInteger64Type::IsNull(i64_val) ? Value(LogicalType::BIGINT) : Value::BIGINT(i64_val);
 	}
 	case RType::NUMERIC: {
 		auto dbl_val = NUMERIC_POINTER(valsexp)[idx];

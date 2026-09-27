@@ -160,27 +160,28 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	stmt->parameters.clear();
 	stmt->parameters.resize(n_param);
 
-	R_len_t n_rows = Rf_length(params[0]);
+	// A data frame binds as STRUCT, one value per row, so the rows are counted by type, not by length.
+	R_len_t n_rows = RApiTypes::GetVecSize(params[0]);
 
 	for (auto param = std::next(params.begin()); param != params.end(); ++param) {
-		if (Rf_length(*param) != n_rows) {
+		if (RApiTypes::GetVecSize(*param) != n_rows) {
 			rapi_error_with_context("rapi_bind", "Bind parameter values need to have the same length");
 		}
 	}
 
 	bool arrow = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
-	bool streaming = convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+	bool allow_stream = convert_opts.allow_stream_result == ConvertOpts::AllowStreamResult::ENABLED;
 
 	// The legacy arrow path (`dbSendQuery(arrow = TRUE)`) materializes results and
 	// has never supported binding multiple rows; preserve that error.
-	if (arrow && !streaming && n_rows != 1) {
+	if (arrow && !allow_stream && n_rows != 1) {
 		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
 	// Streaming arrow results from the same prepared statement cannot coexist
 	// (each Execute() invalidates the previous StreamQueryResult). Materialize
 	// per-row arrow results when binding multiple rows.
-	bool allow_stream_result = arrow && streaming && n_rows == 1;
+	bool allow_stream_result = arrow && allow_stream && n_rows == 1;
 
 	cpp11::writable::list out;
 	out.reserve(n_rows);
@@ -295,6 +296,6 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	CheckStatement(stmt, "rapi_execute");
 
 	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED &&
-	                           convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+	                           convert_opts.allow_stream_result == ConvertOpts::AllowStreamResult::ENABLED;
 	return rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
 }
