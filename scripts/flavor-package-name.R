@@ -126,6 +126,52 @@ flavor_package_name_offenders <- function(root = ".") {
   offenders
 }
 
+# The package name DESCRIPTION declares: `duckdb` on the mainline flavor, the
+# flavor's own name on a series.
+flavor_declared_package <- function(root) {
+  sub(
+    "^Package: +",
+    "",
+    grep(
+      "^Package: ",
+      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
+      value = TRUE
+    )[[1]]
+  )
+}
+
+# Every reason `scripts/flavor.patch` would not apply to this checkout, as the
+# lines `git apply --check` prints. Empty when the patch applies.
+#
+# The content scan keys on the lines the patch removes, so it stays green while
+# the text *around* a renamed line drifts -- and a hunk whose context has
+# drifted no longer applies, which `scripts/flavor.sh` would otherwise discover
+# only when the next series is seeded (#2647). This is the check that sees it
+# in the change that causes it.
+#
+# Empty on a flavored checkout: the patch has been applied there and is not
+# expected to apply again.
+flavor_patch_failures <- function(root = ".") {
+  if (flavor_declared_package(root) != "duckdb") {
+    return(character())
+  }
+
+  old <- setwd(root)
+  on.exit(setwd(old))
+  out <- suppressWarnings(system2(
+    "git",
+    c("apply", "--check", file.path("scripts", "flavor.patch")),
+    stdout = TRUE,
+    stderr = TRUE
+  ))
+  status <- attr(out, "status")
+  if (is.null(status) || status == 0) {
+    character()
+  } else {
+    as.character(out)
+  }
+}
+
 # The paths `scripts/flavor.patch` renames, as mainline names relative to the
 # package root. A file the patch renames carries the package name in its *name*
 # rather than in its contents, so the scan above cannot see it.
@@ -146,15 +192,7 @@ flavor_renamed_paths <- function(patch_file) {
 #
 # Empty on the mainline flavor, where the mainline name is the right one.
 flavor_unflavored_paths <- function(root = ".") {
-  package <- sub(
-    "^Package: +",
-    "",
-    grep(
-      "^Package: ",
-      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
-      value = TRUE
-    )[[1]]
-  )
+  package <- flavor_declared_package(root)
   if (package == "duckdb") {
     return(character())
   }
@@ -192,15 +230,7 @@ flavor_generated_readmes <- c("README.md", file.path(".github", "README.md"))
 #
 # Empty on the mainline flavor, where the mainline name is the right one.
 flavor_mainline_readme_offenders <- function(root = ".") {
-  package <- sub(
-    "^Package: +",
-    "",
-    grep(
-      "^Package: ",
-      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
-      value = TRUE
-    )[[1]]
-  )
+  package <- flavor_declared_package(root)
   if (package == "duckdb") {
     return(character())
   }

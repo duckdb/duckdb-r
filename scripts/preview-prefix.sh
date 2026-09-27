@@ -19,6 +19,11 @@
 # differ and the `DESCRIPTION` merge driver stops resolving them
 # (.claude/skills/series-open/SKILL.md step 3).
 #
+# **A line a released version already names is not a preview line**, whatever
+# branch the series tracks, so it is owed no prefix and reports none: the seed
+# took its version from `main` and keeps it. `v1.5-variegata` and `v1.4-andium`
+# are the two in that state today.
+#
 # Run it on the two `-build`/`-dev` strands of each; `-green` is fast-forward
 # only and takes the stamp when the loop advances over it.
 #
@@ -57,12 +62,23 @@ esac
 
 # The line previewed, from the engine this strand vendors: `2.1.0-dev84198` is
 # upstream `main` declaring 2.1, which is what a series tracking it previews.
+#
+# The same string says whether that line is a preview line at all, which is the
+# test the prefix hangs on: a released version already naming the line means the
+# seed took its version from `main` and no prefix is owed
+# (handbook/operations/releases/versioning/README.md). The patch component
+# carries it -- `2.1.0-dev…` names a line nothing has shipped, while
+# `1.5.6-dev…` says `1.5.5` did -- so this needs no tag lookup and stays
+# readable from the tree it stamps. An explicit --line is never second-guessed.
+released=
 if [ -z "$line" ]; then
   [ -e R/version.R ] ||
     { echo "Error: no R/version.R to read the line from; pass --line <a.b>" >&2; exit 1; }
-  line=$("$gnu_sed" -rn 's/^duckdb_version <- "([0-9]+\.[0-9]+)\..*$/\1/p' R/version.R)
-  [ -n "$line" ] ||
+  engine=$("$gnu_sed" -rn 's/^duckdb_version <- "([0-9]+\.[0-9]+\.[0-9]+).*$/\1/p' R/version.R)
+  [ -n "$engine" ] ||
     { echo "Error: R/version.R names no version; pass --line <a.b>" >&2; exit 1; }
+  line=${engine%.*}
+  [ "${engine##*.}" = 0 ] || released=1
 fi
 
 case "$line" in
@@ -83,6 +99,16 @@ fi
 cur=$("$gnu_sed" -rn 's/^Version: (.*)$/\1/p' DESCRIPTION)
 counter=$(printf '%s\n' "$cur" | "$gnu_sed" -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
 want=$prefix${counter:+.$counter}
+
+# A released line keeps the version it was seeded with, and the prefix owed to a
+# preview line would be a downgrade here -- `1.5.5.9020.47` reporting as owing
+# `1.4.99.9000.47`, which the stamp below would then refuse for not rising.
+if [ -n "$released" ]; then
+  echo "line          $line, released"
+  echo "version       $cur"
+  echo "no prefix owed"
+  exit 0
+fi
 
 echo "previews      $line"
 echo "version       $cur"

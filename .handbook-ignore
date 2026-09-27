@@ -1,0 +1,28 @@
+# Paths the handbook checks skip, one per line: a glob, or `kind: glob`.
+# A bare glob skips the path in every check; `orphan:` exempts it from the
+# orphan check alone, and `em-dash:` from the em dash check alone. A trailing /
+# covers everything below, and * spans directory separators. Write the reason
+# beside each line, and delete what does not apply here.
+# Handbook: /handbook/meta/local/README.md says what this repository does not
+# author, and the shared rules say what needs no backreference; both belong
+# here, by kind.
+
+# The vendored engine is upstream's; what this repository changes about it is
+# the patch stack under patch/.
+src/duckdb/
+
+# Generated documents cannot carry a backreference; the generator does.
+orphan: NEWS.md
+orphan: tests/testthat/_snaps/
+orphan: revdep/
+
+# The two rendered READMEs come from README.Rmd and are read from a tarball
+# that does not carry handbook/, so their pointer into the tree is a full URL
+# rather than a link the checks can resolve.
+orphan: README.md
+orphan: .github/README.md
+
+# The no-em-dash rule is on the local page and binds what is written from now
+# on. The tree predates it, so the check stays off until a sweep clears what is
+# already there.
+em-dash: *

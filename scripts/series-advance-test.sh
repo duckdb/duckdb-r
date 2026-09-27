@@ -40,7 +40,8 @@
 #  12. A replay in which every buffer commit drops as empty reports that nothing
 #      was added, rather than an empty buffer, and leaves the ref where it was.
 #  13. `--dev-note` appends a stage-3 finding to the newest commit the chunk
-#      mints -- taking the replay route so there is one to write it on -- and
+#      mints -- taking the replay route so there is one to write it on -- under
+#      an `R-side fix` header it writes when the note brought none, and
 #      refuses when the chunk minted nothing or the file is not there.
 #  14. A replay whose conflict resolves to nothing is dropped rather than
 #      stopping the stage: the buffer commit's content reached `-dev` by another
@@ -214,6 +215,14 @@ bvendor fff4444 1.0.0.9000.1 j.cpp
 bvendor fff5555 1.0.0.9000.2 k.cpp
 git branch note-build-base base-seed
 
+# --- the same, for a note that brings no header of its own (claim 13) -------
+git checkout -q -b bare-dev base-seed
+git branch bare-green bare-dev
+git checkout -q -b bare-build base-seed
+bvendor fff6666 1.0.0.9000.1 l.cpp
+bvendor fff7777 1.0.0.9000.2 m.cpp
+git branch bare-build-base base-seed
+
 # --- a buffer commit whose content already reached -dev (claim 12) ----------
 # Stage 3 sends a patch/ entry down both paths on purpose, so the replay drops
 # it (`--empty=drop`) and the stage adds nothing. The subject on the -dev side
@@ -248,20 +257,53 @@ git mv inst/types.hpp inst/flavored.hpp
 git commit -qm 'chore: Reflavor'
 git branch emptyres-build-base emptyres-seed
 
+# --- a verified prefix under a red tip (claim 14) ---------------------------
+# Two commits in flight, the older one green and the newer one red, and a buffer
+# commit waiting behind them. Stage 3 owes the frontier the commit it proved;
+# stage 5 owes the buffer nothing while a repair is pending.
+git checkout -q -b red-dev base-seed
+bvendor fff7777 1.0.0.9000.1 l.cpp
+RED_OK=$(git rev-parse HEAD)
+bvendor fff8888 1.0.0.9000.2 m.cpp
+RED_BAD=$(git rev-parse HEAD)
+git branch red-green base-seed
+git checkout -q -b red-build red-dev
+bvendor fff9990 1.0.0.9000.3 n.cpp
+git branch red-build-base base-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
-# anything absent, which is what a freshly pushed commit looks like.
+# anything absent, which is what a freshly pushed commit looks like. The `red`
+# series is the one case that needs real records, so it gets two.
 git checkout -q --orphan rcc2
 git rm -rqf .
-git commit -q --allow-empty -m 'chore: empty store'
+rec() { # <sha> <state>
+  mkdir -p "runs2.d/${1:0:2}"
+  printf '{"commit":"%s","status":{"context":"rcc","state":"%s"}}\n' "$1" "$2" \
+    > "runs2.d/${1:0:2}/$1.ndjson"
+}
+rec "$RED_OK" success
+rec "$RED_BAD" failure
+git add -A
+git commit -q -m 'chore: store stub'
 
 git checkout -q main
 git push -q origin main base-seed base-build base-dev base-green base-build-base \
   base-fwd-build base-fwd-dev base-fwd-green base-fwd-build-base \
   solo-build solo-dev solo-green solo-build-base \
   note-build note-dev note-green note-build-base \
+  bare-build bare-dev bare-green bare-build-base \
   dup-build dup-dev dup-green dup-build-base \
+  red-build red-dev red-green red-build-base \
   emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
+
+# A canonical remote, because `red` is the one series here whose green moves,
+# and the mirror is what r-universe reads. Only `red-green` lives there, the way
+# only green travels out of the fork.
+CANON=$SCRATCH/canonical.git
+git init -q --bare -b main "$CANON"
+git remote add upstream "$CANON"
+git push -q upstream red-green
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
 # Collected, then matched -- never piped straight into `grep -m1`. The grep
@@ -490,6 +532,24 @@ hasnt "the commit below it does not" \
   "$(git log -1 --format=%B origin/note-dev^)" 'macos-oldrel-x86_64 timed out'
 is "and the counter still rose once per vendor commit" \
   "$(git show origin/note-dev:DESCRIPTION | sed -n 's/^Version: //p')" 1.0.0.9000.2
+is "the header the note brought is not doubled" \
+  "$(git log -1 --format=%B origin/note-dev | grep -ci '^R-side fix')" 1
+
+echo
+echo "== --dev-note that brings no header of its own"
+BARE=$SCRATCH/bare-finding.txt
+printf '\nmacos-release-x86_64 timed out at the hour budget.\n' > "$BARE"
+out=$(run bare --dev-note "$BARE")
+has "moves the ref" "$out" 'dev ->'
+git fetch -q origin
+has "the finding still lands" \
+  "$(git log -1 --format=%B origin/bare-dev)" 'macos-release-x86_64 timed out'
+has "under a header the readers anchor on" \
+  "$(git log -1 --format=%B origin/bare-dev)" 'R-side fix'
+is "written exactly once" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -ci '^R-side fix')" 1
+is "in the colon spelling" \
+  "$(git log -1 --format=%B origin/bare-dev | grep -c '^R-side fix:')" 1
 
 echo
 echo "== --dev-note when the chunk minted nothing"
@@ -508,6 +568,22 @@ has "refuses before reading any ref" "$out" 'missing or empty'
 has "and exits non-zero"             "$out" 'EXIT=1'
 git fetch -q origin
 is "leaving dev where it was" "$(git rev-parse origin/note-dev)" "$before"
+
+echo
+echo "== a verified prefix under a red tip"
+before=$(git rev-parse origin/red-dev)
+out=$(run red)
+git fetch -q origin
+is "green takes the commit the run proved" \
+  "$(git rev-parse origin/red-green)" "$RED_OK"
+is "and the canonical copy takes it too" \
+  "$(git --git-dir="$CANON" rev-parse red-green)" "$RED_OK"
+has "the red commit is named"    "$out" "$RED_BAD"
+has "as the reason to stop"      "$out" 'repair before extending'
+has "and the firing exits non-zero" "$out" 'EXIT=1'
+is "dev is left for the repair" "$(git rev-parse origin/red-dev)" "$before"
+is "and the buffer commit is not consumed" \
+  "$(git rev-list --count origin/red-dev..origin/red-build)" 1
 
 echo
 echo "$pass passed, $fail failed"

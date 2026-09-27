@@ -205,6 +205,14 @@ Reusing one instance instead lets any number of \code{dbConnect(duckdb(dbdir = "
 An in-memory database (\verb{:memory:}, the default) has no file to lock and is never cached:
 every \code{duckdb()} call creates a fresh, isolated instance.
 
+The key is the path as \code{\link[=normalizePath]{normalizePath()}} resolves it.
+A database file that does not exist yet is resolved through an empty placeholder
+that \code{duckdb()} creates and removes again,
+so a \code{dbdir} in a directory that cannot be written to fails here rather than in the engine.
+Creating that placeholder is the only step that has to succeed:
+a path \code{normalizePath()} cannot resolve is kept as it stands instead of raising an error
+(a network drive with parent directories the user may not read is the common case).
+
 Because the instance is created once per database file,
 \code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation.
 A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
@@ -214,9 +222,12 @@ To apply different values to a file-based database --
 for example to reopen it read-only, or to send extensions and secrets elsewhere --
 first release the instance with \code{\link[=duckdb_shutdown]{duckdb_shutdown()}}, which also drops it from the cache,
 then create it again.
-\code{\link[DBI:dbDisconnect]{dbDisconnect()}} only closes a connection,
-it does not release the instance, and its \code{shutdown} argument is unused.
-Instances are shut down automatically when the driver is garbage-collected or the session ends.
+\code{\link[DBI:dbDisconnect]{dbDisconnect()}} closes one connection, and its \code{shutdown} argument is unused.
+Connections keep the instance alive,
+so it is released once the last connection to it closes;
+a driver that was never connected to releases its instance
+when the driver is garbage-collected or the session ends.
+\code{\link[DBI:dbIsValid]{dbIsValid()}} reports whether a driver still holds an instance.
 }
 
 \section{DuckDB extensions on Linux}{

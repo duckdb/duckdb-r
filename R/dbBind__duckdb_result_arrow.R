@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbBind
 #' @usage NULL
 dbBind__duckdb_result_arrow <- function(res, params, ...) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   res@env$completed <- FALSE
   res@env$arrow_schema <- NULL
   res@env$query_result <- NULL
@@ -23,7 +21,7 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
     duckdb_convert_opts_impl(
       res@connection@convert_opts,
       arrow = TRUE,
-      streaming = TRUE
+      allow_stream_result = TRUE
     )
   )
   if (length(out) == 0L) {

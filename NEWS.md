@@ -1,5 +1,176 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9028
+
+## Bug fixes
+
+### rcc
+
+- Seed the in-window record the consolidation check asserts on (#2809).
+
+- `check_tz()` reads the Olson list again when `TZDIR` changes (#2810).
+
+- `dbClearResult()` ends the query of an Arrow stream not read to the end (#2793).
+
+### series-glue
+
+- Read the section under every spelling the folds gave it (#2746).
+
+- Keep `rapi_error_with_context()` out of R while an ALTREP method is on the stack (#1796, #1797).
+
+## Features
+
+- Include rfuns extension (hannes/duckdb-rfuns#78, #144).
+
+### series-cutover
+
+- Name the package versions before and after the swap (@krlmlr, #2697).
+
+### series-port
+
+- Take the stage-3 finding when the buffer minted nothing (#2710).
+
+## Documentation
+
+### meta
+
+- Record that an experiment renders its R output as a reprex (#2778).
+
+- Experiment with an `arrow::to_arrow()` replacement on `dbGetQueryArrow()` (#2801).
+
+### series-port
+
+- Name the `-x` trailer where a firing writes its own message (#2780).
+
+### rcc
+
+- Say plainly that the verdict store is live, plan its retirement as D6, and sync the buffer's tooling (#2625).
+
+## Refactoring
+
+- Rename the `streaming` convert option to `allow_stream_result` (#2599).
+
+## Uncategorized
+
+- Feat(ci): Report coverage on pull requests from this repository (cynkra/cynkratemplate#146).
+
+- Feat: Build a binary package in every check job and share it as an artifact (cynkra/cynkratemplate#141).
+
+- Fix(ci): Collect the fleet's workflow fixes after the move to central actions (cynkra/cynkratemplate#139).
+
+
+# duckdb 1.5.5.9027
+
+## Bug fixes
+
+- `dbClearResult()` frees the results of a multi-row bind that were not read yet (#2784).
+
+- An Arrow stream keeps its connection's client context alive (#2790).
+
+- `duckdb_fetch_arrow()` and `duckdb_fetch_record_batch()` refuse a cleared result (#2785).
+
+- Each `dbFetchArrowChunk()` and `dbFetchArrow()` call uses its own `chunk_size` (#2791).
+
+### patch
+
+- Pass the instance-cache counts to the exception without a cast (#2779).
+
+- `dbFetchArrowChunk()` builds the final empty chunk for LIST and INTERVAL columns (#2773, #2774).
+
+- Reading an Arrow stream that another statement invalidated is an error, not the end of the stream (#2772, #2773, #2775).
+
+### connections
+
+- Normalize a database path only as far as it resolves (#455, #2623).
+
+### sql
+
+- Keep sub-second precision in a `POSIXct` literal (#2763).
+
+## Features
+
+- Keep the columns of an Arrow query result for its schema and an empty batch (#2781).
+
+### patch
+
+- Carry the instance-cache fix, and the evidence for its shape (#2759).
+
+## Documentation
+
+- Say what a second read of an Arrow stream and a scan on its own connection do (#2794).
+
+### glue
+
+- State which engine object each DBI object wraps, refuse a context per result, and plan `dbConnect(con)` (#2783).
+
+## Refactoring
+
+- Guard a result through one helper on each side of the glue, and clear test results before the fixture disconnects (#2800).
+
+- Give `the`, the package's session state, a file of its own (#2787).
+
+- Move the Arrow result export from `statement.cpp` to `arrow_export.cpp` (#2776).
+
+## Performance
+
+- `check_tz()` reads the Olson list once per session (#2786).
+
+
+# duckdb 1.5.5.9026
+
+## Chore
+
+### flavor
+
+- Keep `scripts/flavor.patch` applicable, and check that it is (#2647, #2767).
+
+## Documentation
+
+### memory
+
+- Describe a query's memory end to end, in leaves for the budget, reading, and writing (#1065, #2666).
+
+
+# duckdb 1.5.5.9025
+
+## Bug fixes
+
+### preview-prefix
+
+- Report no prefix owed for a line a release already names (#2762).
+
+### driver
+
+- `dbIsValid()` on a driver object no longer connects to the database (#2754).
+
+## Chore
+
+- Point the shared handbook pages at `cynkra/handbook-tools` and carry its checks (#2758).
+
+
+# duckdb 1.5.5.9024
+
+## Bug fixes
+
+### series-advance
+
+- Write the `R-side fix` header a `--dev-note` did not bring (#2752).
+
+### gc
+
+- Own every R value across the allocations that build it (#2750, #2753).
+
+### series-port
+
+- Refuse to sync from a `main` the fork has not mirrored yet (#2747).
+
+## Documentation
+
+- Break lines at meaning boundaries (#2730).
+
+- Name the shared README output format (#2729).
+
+
 # duckdb 1.5.5.9023
 
 ## Bug fixes

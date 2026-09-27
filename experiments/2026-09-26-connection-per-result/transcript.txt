@@ -1,0 +1,82 @@
+=== interleave.R ===
+== A materialized result, with another statement between send and fetch
+  dbGetQuery() in between                        survives
+  dbExecute(INSERT) in between                   survives
+  a second dbSendQuery(), fetched alternately    survives
+== A streaming result (dbSendQueryArrow()), one interference per case
+  nothing in between                             survives
+  dbQuoteIdentifier(), which runs no statement   survives
+  dbExistsTable()                                reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  dbListTables()                                 reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  dbListFields()                                 reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  dbGetQuery("SELECT 1")                         reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  dbExecute(INSERT into another table)           reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  duckdb_register()                              reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  dbAppendTable() (a view, then an INSERT)       reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  dbBegin(); dbRollback()                        reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  a second dbSendQueryArrow()                    reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+  a dbSendQuery(), materialized                  reads as drained: 0 rows, dbHasCompleted() TRUE, no error
+== The DBI chunked loop: read a stream, append each batch through a connection
+  the same connection reads and writes           stops early: 10000 of 100000 rows appended
+  a second connection writes                     survives: 100000 of 100000 rows appended
+== Two streams on two connections to one instance
+  batches from r1, r2, r1, r2                    survives
+
+=== session-state.R ===
+== Set on the first connection, read from the second
+  CREATE TEMP TABLE tt                           fails: Catalog Error: Table with name tt does not exist!
+  duckdb_register("df")                          fails: Catalog Error: Table with name df does not exist!
+  PREPARE p                                      fails: Binder Error: Prepared statement "p" does not exist
+  SET TimeZone, a session setting                reads: Etc/UTC
+  SET threads, a global setting                  reads: 2
+  ATTACH other, an instance-wide change          reads: other
+  USE other, the session's default database      reads: filecd932e03ee7
+  an INSERT inside an open transaction           reads: 0
+  the same INSERT once committed                 reads: 1
+== A stream open on the second connection, statements on the first
+  INSERT INTO t                                  ran; stream yields 1000 more rows
+  CHECKPOINT                                     ran; stream yields 1000 more rows
+  DROP TABLE t                                   ran; stream yields 1000 more rows
+== The same sequence, then FORCE CHECKPOINT on the first connection
+  FORCE CHECKPOINT                               did not return within 20 s, killed
+
+=== context-cost.R ===
+== Time
+# A tibble: 5 × 3
+  expression                                          min   median
+  <bch:expr>                                     <bch:tm> <bch:tm>
+1 engine context: open and close                  15.14µs   16.3µs
+2 DBI connection: dbConnect() and dbDisconnect()   4.77ms   5.05ms
+3 yardstick: SELECT 1 on a warm context          171.73µs 255.02µs
+4 SELECT 1 as a fresh context's first statement  142.13µs 296.21µs
+5 duckdb_register(), one ten-row frame           899.53µs   1.06ms
+== Memory
+  5000 open contexts: 39868 KB resident, 8.0 KB each
+  5000 open contexts, each after one statement: 71468 KB resident, 14.3 KB each
+
+=== result-lifetime.R ===
+  dbIsValid(con) after dbDisconnect()                          FALSE
+  dbIsValid(res) after dbDisconnect()                          TRUE
+  dbFetch(res)$n, the copy taken at send time                  0
+  dbBind(res, 'u'); dbFetch(res)$n, re-executed                0
+  dbIsValid(drv): does the driver still hold the instance      FALSE
+  open the file again from another process                     error: ! in callr subprocess.
+Caused by error in `(function (cond) …`:
+! error in evaluating the argument 'drv' in selecting a method for function 'dbConnect': {"exception_type":"IO","exception_message":"Could not set lock on file \"/tmp/RtmpdUAG69/filed753d2126b6.duckdb\": Conflicting lock is held in /opt/R/4.5.3/lib/R/bin/exec/R (PID 3445). See also https://duckdb.org/docs/stable/connect/concurrency","errno":"11"}
+ℹ Context: rapi_startup
+  dbConnect(duckdb(path)) in this process, and CREATE TABLE u  opened
+  dbBind(res, 'u'); dbFetch(res)$n: does the result's instance see u 0
+  open the file from another process once the result is cleared opened
+
+=== concurrent.cpp ===
+== A query that runs on one thread: SELECT sum(i * i) FROM range(400000000) r(i)
+  threads=4: one query 2.90s | two, sequential 5.68s | two at once on two contexts 2.99s | two at once on one context 5.70s
+  threads=1: one query 2.90s | two, sequential 5.88s | two at once on two contexts 2.93s | two at once on one context 5.85s
+== A query that uses every thread: SELECT sum(i * i) FROM big, 150000000 rows
+  threads=4: one query 0.15s | two, sequential 0.28s | two at once on two contexts 0.30s | two at once on one context 0.30s
+  threads=1: one query 0.41s | two, sequential 0.96s | two at once on two contexts 0.48s | two at once on one context 0.84s
+== A stream parked on context a
+  first batch: 2048 rows, stream type streaming
+  the parallel query on context b meanwhile: 0.14s
+  a's stream afterwards: yields
+  a's stream after a query on context a: {"exception_type":"Invalid Input","exception_message":"Attempting to execute an unsuccessful or closed pending query result"}

@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/memory/writing/README.md
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbWriteTable
 #' @param conn A [duckdb_connection-class] object as returned by [DBI::dbConnect()]

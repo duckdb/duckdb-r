@@ -13,6 +13,9 @@ so editing one here puts the copy out of step,
 and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
+Four are authored here and have no counterpart in the template:
+`each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` and `handbook.yaml`.
+A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 
 | Workflow | Fires on | Does |
 |---|---|---|
@@ -31,6 +34,7 @@ which is the part of this a reader can check from the tree.
 | [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | revdep4's predecessor, both halves at once on one host ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
+| [`handbook.yaml`](/.github/workflows/handbook.yaml) | PR; dispatch | the handbook checks, and the carried files against their source ([`meta/local/`](/handbook/meta/local/README.md)) |
 
 **The composite actions these workflows call are not in this repository.**
 They live in
