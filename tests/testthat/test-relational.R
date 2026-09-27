@@ -2137,20 +2137,31 @@ test_that("a lazy data frame scanned on its own connection before its query ran 
       other <- DBI::dbConnect(ns$duckdb())
       on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
       lazy <- function() {
-        ns$rel_to_altrep(ns$rel_from_sql(con, "SELECT range AS i FROM range(10)"))
+        ns$rel_to_altrep(ns$rel_from_sql(
+          con,
+          "SELECT range AS i FROM range(10)"
+        ))
       }
 
       df <- lazy()
       rel <- message_of(ns$rel_from_df(con, df))
-      scan <- message_of(DBI::dbGetQuery(con, "SELECT sum(i)::INTEGER AS s FROM df"))
+      scan <- message_of(DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      ))
       after <- DBI::dbGetQuery(con, "SELECT 42 AS answer")$answer
 
       # Another connection runs the frame's query on its own connection, which is free
-      from_other <- as.integer(ns$rel_to_altrep(ns$rel_from_df(other, lazy()))$i)
+      from_other <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(other, lazy()))$i
+      )
 
       # Once the query has run, touching the frame converts and queries nothing
       nrow(df)
-      own_after_run <- DBI::dbGetQuery(con, "SELECT sum(i)::INTEGER AS s FROM df")$s
+      own_after_run <- DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      )$s
 
       list(
         rel = rel,
