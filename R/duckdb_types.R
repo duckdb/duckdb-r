@@ -11,18 +11,18 @@
 #' # The routes
 #'
 #' **Reading.**
-#' [dbGetQuery()] converts each column by its type, and four `dbConnect()` arguments change the shape,
+#' [dbGetQuery()] converts each column by its type, and four [dbConnect()] arguments change the shape,
 #' with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`.
-#' `dbGetQueryArrow()` hands out the engine's own Arrow export instead,
-#' and what each type becomes there, and in the R readers that convert the stream, is [`?duckdb_types_arrow`][duckdb_types_arrow]'s.
+#' [dbGetQueryArrow()] hands out the engine's own Arrow export instead,
+#' and what each type becomes there, and in the R readers that convert the stream, is documented in [duckdb_types_arrow].
 #' A cast to `VARCHAR` in the query reads any type as text.
 #'
 #' **Writing.**
-#' `dbWriteTable()` and `duckdb_register()` take a column's type from its R class,
+#' [dbWriteTable()] and [duckdb_register()] take a column's type from its R class,
 #' and `field.types` casts that column to the type it names, from any value that casts.
-#' `dbAppendTable()` casts to the type of the existing column, and a parameter (`params =`) binds by its R class, cast by the query.
+#' [dbAppendTable()] casts to the type of the existing column, and a parameter (`params =`) binds by its R class, cast by the query.
 #' A `character` column holding a value's text form writes every scalar type through `field.types`, because DuckDB parses the text it prints.
-#' Arrow, registered with `duckdb_register_arrow()`, writes the types no R class does.
+#' Arrow, registered with [duckdb_register_arrow()], writes the types no R class does.
 #'
 #' # Numbers
 #'
@@ -35,8 +35,7 @@
 #' * **`UINTEGER`** reads as `numeric`, exactly; `numeric` writes `DOUBLE`, and `field.types` names `UINTEGER`.
 #' * **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53,
 #'   or with `bigint = "integer64"` as `bit64::integer64`, exact except for the minimum, which is `integer64`'s `NA`.
-#'   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says,
-#'   pinned by [`tests/testthat/test-integer64.R`](https://github.com/duckdb/duckdb-r/blob/main/tests/testthat/test-integer64.R).
+#'   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says.
 #' * **`UBIGINT`** reads as `numeric`, or as `integer64`, which holds the values below 2^63 and wraps the rest to negative numbers.
 #'   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 #' * **`HUGEINT`, `UHUGEINT`** read as `numeric`, rounded to a double, and `bigint` does not change that.
@@ -54,7 +53,7 @@
 #' and [bitstring](https://duckdb.org/docs/current/sql/data_types/bitstring) types, and `UUID`:
 #'
 #' * **`VARCHAR`** (`CHAR`, `BPCHAR`, `TEXT`, `STRING`) reads as `character`, and `character` writes it.
-#'   A string holding a NUL byte is refused on the way out, pinned by [`tests/testthat/test-null_byte.R`](https://github.com/duckdb/duckdb-r/blob/main/tests/testthat/test-null_byte.R).
+#'   A string holding a NUL byte is refused on the way out.
 #'   **UTF-8 is required, strictly.**
 #'   DuckDB checks string validity and rejects invalid UTF-8;
 #'   this is deliberate engine behavior, not a bug ([#12](https://github.com/duckdb/duckdb-r/issues/12)).
@@ -68,8 +67,7 @@
 #'   Which is why the cheapest place to fix this is the reader.
 #' * **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors.
 #'   A `blob::blob` or a list of raw vectors writes it.
-#'   A bare raw vector is refused, with an error naming neither the column nor its class
-#'   ([`plan/PLAN-type-documentation.md`](https://github.com/duckdb/duckdb-r/blob/main/plan/PLAN-type-documentation.md)).
+#'   A bare raw vector is refused, with an error naming neither the column nor its class.
 #' * **`BIT`** (`BITSTRING`) has no R vector, and `dbGetQuery()` refuses its column by name.
 #'   Its text reads and writes it.
 #' * **`UUID`** reads as `character`, lowercase and hyphenated.
@@ -89,8 +87,7 @@
 #' * **`TIME_NS`** has no R vector, and `dbGetQuery()` refuses its column by name.
 #'   Arrow reads it, and a cast to `TIME` in the query reads it to the microsecond.
 #'   Its text writes it, and so does Arrow.
-#' * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as the `difftime` of its local time, with the offset dropped,
-#'   pinned by [`tests/testthat/test-timestamp.R`](https://github.com/duckdb/duckdb-r/blob/main/tests/testthat/test-timestamp.R).
+#' * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as the `difftime` of its local time, with the offset dropped.
 #'   Its text writes it.
 #' * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`, and `infinity` reads as a finite instant.
 #'   `POSIXct` writes `TIMESTAMP`, the instant in UTC with its zone label dropped, and `field.types` names the other precisions.
@@ -112,11 +109,11 @@
 #' * **`ARRAY`** (`INTEGER[3]`) reads only with `array = "matrix"`, as a matrix with a row per value;
 #'   without it, the column is refused with that hint.
 #'   A `NULL` array reads as a row of `NA`, the same as an array of `NULL`s,
-#'   and an array holding nested values is refused, pinned by [`tests/testthat/test-array.R`](https://github.com/duckdb/duckdb-r/blob/main/tests/testthat/test-array.R).
+#'   and an array holding nested values is refused.
 #'   A matrix column writes it; a matrix parameter is refused.
 #' * **`LIST`** (`INTEGER[]`) reads as a list of vectors, `NULL` for a `NULL` row, and a list column whose elements share a type writes it.
 #' * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
-#'   With `map = "list_of"`, the `vctrs::list_of()` it reads as writes back as `MAP` without `field.types`
+#'   With `map = "list_of"`, the [vctrs::list_of()] it reads as writes back as `MAP` without `field.types`
 #'   ([#200](https://github.com/duckdb/duckdb-r/issues/200)).
 #'   Neither its text nor a parameter casts to `MAP`.
 #' * **`STRUCT`** (`ROW`) reads as a data frame column, where a `NULL` struct is a row of `NA`, the same as a struct of `NULL`s.
@@ -132,23 +129,41 @@
 #' * **An untyped `NULL` comes back as `NA_integer_`,**
 #'   matching the engine's own `SELECT NULL`;
 #'   mapping it to logical `NA` instead was declined ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
-#'   A typed `NULL`, as a scanned logical column or a bound `NA` parameter, round-trips as logical `NA`,
-#'   and the `expr_constant(NA)` corner is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
-#' * **`GEOMETRY`** and the `spatial` extension's point, line, polygon and box types are [`?duckdb_types_spatial`][duckdb_types_spatial]'s.
+#'   A typed `NULL`, as a scanned logical column or a bound `NA` parameter, round-trips as logical `NA`.
+#' * **`GEOMETRY`** and the `spatial` extension's point, line, polygon and box types are documented in [duckdb_types_spatial].
 #' * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
 #'   Its text writes it through `field.types`.
 #' * **`INET`**, the [`inet` extension's](https://duckdb.org/docs/current/core_extensions/inet) address type,
 #'   reads as a data frame column whose `address` is a `HUGEINT` read as a double: exact for IPv4, rounded for IPv6.
 #'   Its text reads and writes it exactly.
 #'
-#' # Limitations and Reference
+#' # Limitations and reference
 #'
-#' FIXME: Mention limitations and full list.
+#' * `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` refuses them,
+#'   and [dplyr::tbl()] cannot open a table holding one.
+#' * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
+#'   under `bigint = "integer64"`, `UBIGINT` past 2^63 wraps to a negative number.
+#' * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
+#'   `INTERVAL` without its months and days, and `infinity` as a distant finite date or instant.
+#' * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
+#'   and no R class writes `TIME` outside Arrow.
+#' * `MAP` has no cast from text, an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
+#' * A raw vector column is refused with a message naming neither the column nor its class.
+#' * [dbCreateTable()] takes its column types from [dbDataType()],
+#'   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,
+#'   where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`,
+#'   so a `difftime` column fails to append to the table it created.
+#' * Attribute classes do not cross, in either direction, through Arrow too:
+#'   a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
+#'   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
+#' * `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them.
 #'
 #' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
 #' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
-#' and every entry below was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md).
-#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s, and geometry is [`?duckdb_types_spatial`][duckdb_types_spatial]'s.
+#' and every entry on this page was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md).
+#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s, and geometry is documented in [duckdb_types_spatial].
+#'
+#' What `expr_constant(NA)` builds in the relational API is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
 #'
 #' @name duckdb_types
 NULL
