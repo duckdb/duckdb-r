@@ -532,7 +532,7 @@ git -C "$bwt" checkout "$main" -- "${tooling[@]}"
 git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
   -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
 from this ref is main's rather than the seed's. Vendors nothing, so stage 5
-replays it onto -dev and drops it as empty."
+skips it rather than replaying it onto -dev."
 # The same check as the -dev sync's, and it matters more here: vendor-one.sh
 # runs scripts/rconfigure.py and friends from the buffer's own tree. The
 # remedy differs, because the buffer takes no ports.
