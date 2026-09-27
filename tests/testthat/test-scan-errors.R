@@ -17,33 +17,13 @@ test_that("Data frame scan reports a scan-time error with its message", {
 test_that("A scan task off R's thread reports its error without calling R", {
   # `SexpToValue()` has no case for a matrix, so every cell of this list
   # column fails, and so does a task a worker thread took.
-  # Reporting that through R killed the session; the subprocess is so that a
-  # regression is a failure here rather than a suite that stops.
+  # Reporting that through R killed the session.
   # Which task fails first decides the message, so this checks where the
   # error arrived rather than its text.
-  pkg <- get_package_name()
-
-  out <- callr::r(
-    function(pkg) {
-      ns <- asNamespace(pkg)
-
-      con <- DBI::dbConnect(ns$duckdb())
-      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-      DBI::dbExecute(con, "SET threads=4")
-
-      # A million rows per task.
-      n <- 2100000L
-      df <- data.frame(id = seq_len(n))
-      df$l <- rep(list(matrix(1:4, 2)), n)
-      ns$duckdb_register(con, "mats", df)
-
-      err <- tryCatch(
-        DBI::dbGetQuery(con, "SELECT count(*) AS n FROM mats WHERE len(l) > 0"),
-        error = identity
-      )
-      list(class = class(err), context = err$context)
-    },
-    list(pkg = pkg)
+  out <- scan_repeated_cells(
+    list(l = matrix(1:4, 2)),
+    "SELECT count(*) AS n FROM cells WHERE len(l) > 0",
+    n = 2100000L
   )
 
   expect_true("duckdb_error" %in% out$class)
