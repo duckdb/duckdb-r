@@ -37,9 +37,7 @@ It is explicitly not trying to:
   An installed extension autoloads on first use, but autoinstall stays off, so nothing is downloaded without being asked for.
 - Expose the relational API as a public interface.
   Every function there is internal, and duckplyr is the one supported consumer.
-- Hand a prebuilt engine to whoever installs the package.
-  `DUCKDB_R_USE_SYSTEM_LIB` links a released `libduckdb` on Linux and macOS as a development convenience,
-  and nothing fetches one on an installer's behalf.
+- Install the `duckdb` CLI or library that the user can use outside of R.
 - Exercise the bundled C++ engine on CRAN.
   The test suite and the runnable examples are too heavy for the check farm,
   so they run on GitHub Actions and r-universe, and elsewhere only when `DUCKDB_R_RUN_TESTS` asks for them.
