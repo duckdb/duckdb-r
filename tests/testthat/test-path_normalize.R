@@ -88,6 +88,9 @@ test_that("a database in a directory that does not exist fails in `duckdb()`, na
 
   err <- expect_error(open(), "no-such-directory", fixed = TRUE)
   expect_identical(conditionCall(err)[[1]], quote(duckdb))
+  # The engine's message as it reads, not its serialized form.
+  expect_identical(err$error_type, "IO")
+  expect_no_match(conditionMessage(err), "exception_type", fixed = TRUE)
   expect_null(driver_registry[[path_normalize(path)]])
 })
 
