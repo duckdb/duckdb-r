@@ -61,6 +61,22 @@ test_that("a LOAD in a pragma's expansion is refused before any of it runs", {
   expect_true(DBI::dbExistsTable(other, "user_work"))
 })
 
+test_that("a failure inside a pragma's expansion rolls back what it began", {
+  con <- local_con()
+  export_location <- withr::local_tempdir()
+  DBI::dbExecute(con, "CREATE TABLE integers (i INTEGER)")
+  DBI::dbExecute(con, sprintf("EXPORT DATABASE '%s'", export_location))
+  DBI::dbExecute(con, "DROP TABLE integers")
+  csv <- list.files(export_location, pattern = "[.]csv$", full.names = TRUE)
+  writeLines(c("i", "not_an_integer"), csv)
+
+  query <- sprintf("PRAGMA import_database('%s')", export_location)
+  expect_error(DBI::dbExecute(con, query), "not_an_integer")
+
+  # Left open, the aborted transaction failed every later statement.
+  expect_identical(DBI::dbListTables(con), character())
+})
+
 test_that("statements can be splitted apart correctly", {
   con <- local_con()
   expect_snapshot(DBI::dbGetQuery(
