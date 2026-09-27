@@ -75,6 +75,23 @@ test_that("a symlink to a database yet to be created shares one instance", {
   expect_identical(con@driver@database_ref, drv1@database_ref)
 })
 
+test_that("a lower-case drive letter resolves on that drive, not in the working directory", {
+  # The engine walks up to the drive and turns it into its root, and a bare
+  # `c:` is the working directory on that drive rather than its root. Only a
+  # Windows engine knows drive letters: elsewhere `c:` is a relative name.
+  # patch/0043-Accept-a-lower-case-drive-letter-in-Windows-paths.patch
+  skip_if_not(.Platform$OS.type == "windows", "drive letters are Windows-only")
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+  drive <- substr(normalizePath(dir), 1, 1)
+  missing <- basename(tempfile("no-such-directory-"))
+
+  expect_equal(
+    path_normalize(paste0(tolower(drive), ":/", missing, "/db.duckdb")),
+    paste0(toupper(drive), ":\\", missing, "\\db.duckdb")
+  )
+})
+
 test_that("a path that cannot be resolved is returned rather than refused (#455)", {
   # Resolving a path can fail for reasons that say nothing about whether the
   # database is usable (on a network drive, for a directory the user may
