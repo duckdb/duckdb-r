@@ -207,7 +207,10 @@ void ConvertTimestampVector(const Vector &src_vec, size_t count, const SEXP dest
 	}
 }
 
-std::once_flag nanosecond_coercion_warning;
+// Whether this session has warned about coercing nanoseconds.
+// A plain flag: only R's thread converts, and the warning is raised with
+// cpp11::warning(), which a std::call_once() would have to let an exception through.
+static bool nanosecond_coercion_warned = false;
 
 void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::ConvertOpts &convert_opts) {
 	if (type.GetAlias() == R_STRING_TYPE_NAME) {
@@ -493,13 +496,23 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		break;
 	case LogicalTypeId::TIMESTAMP_NS:
 		ConvertTimestampVector<LogicalTypeId::TIMESTAMP_NS>(src_vec, n, dest, dest_offset);
-		std::call_once(nanosecond_coercion_warning, Rf_warning,
-		               "Coercing nanoseconds to a lower resolution may result in a loss of data.");
+		if (!nanosecond_coercion_warned) {
+			nanosecond_coercion_warned = true;
+			// Not Rf_warning(): a warning turned into an error long-jumps,
+			// past the C++ frames above and an ALTREP method's AltrepGuard
+			// (handbook/architecture/glue/altrep/README.md)
+			cpp11::warning("Coercing nanoseconds to a lower resolution may result in a loss of data.");
+		}
 		break;
 	case LogicalTypeId::TIMESTAMP_TZ_NS:
 		ConvertTimestampVector<LogicalTypeId::TIMESTAMP_TZ_NS>(src_vec, n, dest, dest_offset);
-		std::call_once(nanosecond_coercion_warning, Rf_warning,
-		               "Coercing nanoseconds to a lower resolution may result in a loss of data.");
+		if (!nanosecond_coercion_warned) {
+			nanosecond_coercion_warned = true;
+			// Not Rf_warning(): a warning turned into an error long-jumps,
+			// past the C++ frames above and an ALTREP method's AltrepGuard
+			// (handbook/architecture/glue/altrep/README.md)
+			cpp11::warning("Coercing nanoseconds to a lower resolution may result in a loss of data.");
+		}
 		break;
 	case LogicalTypeId::DATE: {
 		auto src_data = FlatVector::GetData<date_t>(src_vec);
