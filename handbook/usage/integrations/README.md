@@ -133,7 +133,8 @@ so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_e
 The wrapper also keeps the connection's client context alive until the stream is released.
 The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
-That includes a query that scans the stream itself, say after `duckdb_register_arrow()`.
+That includes a query that scans the stream itself.
+Registering `arrow::as_record_batch_reader(stream)` with `duckdb_register_arrow()` and querying it is one.
 On the stream's own connection, that query hangs instead of failing.
 It holds the connection while it reads, and each read of the stream waits for the connection.
 Ctrl+C does not end the wait, so the R session has to be killed ([`interactive/`](/handbook/usage/interactive/README.md)).
