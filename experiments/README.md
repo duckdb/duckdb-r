@@ -131,6 +131,11 @@ This file is what names the contents, so nothing here is an orphan.
   each way to read a `GEOMETRY` column into sf through Arrow, each GeoArrow encoding on the way in,
   what the CRS becomes at every step, and the routes that lose the geometry; supports
   [`usage/spatial/`](/handbook/usage/spatial/README.md).
+* [`2026-09-27-review-limits/`](2026-09-27-review-limits/):
+  an `INSTALL` or `LOAD` that stops a whole string, a `PRAGMA`'s expansion left half done while a stream is open,
+  a parameter that invalidates the database, and R values that write as something other than their type,
+  all found in review and left in place; supports
+  [`usage/statements/`](/handbook/usage/statements/README.md) and [`usage/types/`](/handbook/usage/types/README.md).
 * [`2026-09-27-stream-self-scan/`](2026-09-27-stream-self-scan/):
   what a query does that scans a streaming result on the result's own connection, in R before and after #2775 and in the Python client.
   Also whether an interrupt ends it, where it waits, what works instead, and what writing a stream back to its connection leaves behind.

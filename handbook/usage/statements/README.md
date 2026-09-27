@@ -60,8 +60,14 @@ so a `PRAGMA` that generates its SQL from what is there when it runs sees what t
 `create_fts_index` reads a table created earlier in the same string, and `import_database` the files an earlier `EXPORT DATABASE` wrote
 ([#2792](https://github.com/duckdb/duckdb-r/pull/2792)).
 The whole string is parsed before anything runs, so a syntax error anywhere means that nothing runs.
+Under `allow_extensions = FALSE`, an `INSTALL` or `LOAD` anywhere in it stops everything the same way,
+because `rapi_prepare()` checks every statement before the first runs.
 Any other error, a misspelt `PRAGMA` among them, leaves the statements before it in effect,
 because the string runs in no transaction of its own.
+The statements a `PRAGMA` expands to run in one transaction, which a failure rolls back.
+While a streaming result is open on the connection, the engine finds a transaction active and opens none,
+so an `import_database` whose second CSV fails to parse leaves the first table loaded
+([`2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)).
 `dbWithTransaction()` around the call is the way to all or nothing, as is `dbBegin()` before it with `dbRollback()` after a failure.
 A `PRAGMA` inside that transaction sees what the transaction has done so far.
 A `BEGIN TRANSACTION` inside the string is no substitute, because after a syntax error it has not run and `dbRollback()` fails.
@@ -98,6 +104,13 @@ and a field the engine did not supply is absent from the condition too, reading 
 which is why classification code needs a fallback branch.
 The engine, not this package, owns which types and which `extra_info` keys exist,
 so both grow without a release here.
+
+**One character parameter used both inside `typeof()` and in a cast invalidates the database.**
+`dbGetQuery(con, "SELECT typeof($1), $1::VARCHAR", params = list("ok"))` raises `INTERNAL Error: Invalid PhysicalType for GetTypeIdSize`.
+The connection, every new connection to its instance, and a new driver on its file
+then fail until `duckdb_shutdown()` releases the instance.
+The bug is upstream's: `PREPARE` and `EXECUTE` in SQL raise it too
+([`2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md), [`2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)).
 
 *To deepen: state the remaining departures, what `dbWriteTable()` does
 about types it cannot round-trip and which identifiers need quoting the
