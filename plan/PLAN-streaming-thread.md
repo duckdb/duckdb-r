@@ -8,7 +8,7 @@ Builds on the streaming-results work in
 this file proposes what comes after it lands.
 The memory facts as they stand today are owned by
 [`usage/memory/`](/handbook/usage/memory/README.md),
-which thread may touch R by
+and the rule on which thread may touch R by
 [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md);
 where this plan and a leaf disagree, the leaf is right.
 
