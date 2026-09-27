@@ -20,10 +20,13 @@
 #
 # To every reader of the vendor strand the sync commit is invisible: it vendors
 # nothing, so the consumption anchor and the vendored-SHA scans look past it by
-# subject. Stage 5 replays it onto -dev like any other buffer commit, where
-# `cherry-pick --empty=drop` retires it because -dev already carries that
-# tooling. Where `main` moved between the two syncs it conflicts instead, and
-# the resolution is main's tooling — which is what both refs converge on.
+# subject. Stage 5 skips it rather than replaying it onto -dev, whose tooling
+# this stage has already made main's (scripts/series-advance.sh). Replaying it
+# was the first design, and it held only until `main` moved again: the sync's
+# diff runs from the buffer's older tooling, so the pick conflicted or restored
+# what main had removed -- and a sync the anchor never passes was offered again
+# on every firing. The skip reads the subject written below, in series-advance.sh
+# and series-check.sh alike, so a change to it is a change to all three.
 #
 # The script lists EVERY commit on `main` since the series' base that has no
 # patch-id equivalent on <S>-dev (`git cherry`), oldest first, classified by

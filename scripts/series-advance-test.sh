@@ -6,7 +6,7 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Fifteen
+# A forward series inherits only the first when its buffer is replayed. Sixteen
 # things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
@@ -50,6 +50,9 @@
 #  15. A red commit in flight does not hold back the verified commits below it:
 #      green and its canonical copy take them, and the firing then stops
 #      before stage 5 extends `-dev` onto a tip a repair is about to re-mint.
+#  16. A buffer tooling sync is skipped, never replayed: `-dev`'s tooling is
+#      stage 4's, and a sync taken against older tooling would conflict or put
+#      back what `main` removed. The vendor commits above it are consumed.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -274,6 +277,26 @@ git checkout -q -b red-build red-dev
 bvendor fff9990 1.0.0.9000.3 n.cpp
 git branch red-build-base base-seed
 
+# --- a buffer tooling sync above the anchor (claim 16) ----------------------
+# The buffer's sync took main's tooling as it was then; stage 4 has since given
+# -dev main's tooling as it is now, and the two disagree on the same file. A
+# pick of the sync conflicts there; the vendor commit above it is the real work.
+git checkout -q -b tsync-build base-seed
+bvendor ggg1111 1.0.0.9000.1 p.cpp
+TSYNC_V1=$(git rev-parse HEAD)
+mkdir -p .github/workflows
+echo 'jobs: as main had them at the buffer sync' > .github/workflows/w.yaml
+git add -A
+git commit -qm 'chore(series): Sync buffer tooling with main'
+bvendor ggg2222 1.0.0.9000.2 q.cpp
+git checkout -q -b tsync-dev "$TSYNC_V1"
+mkdir -p .github/workflows
+echo 'jobs: as main has them now' > .github/workflows/w.yaml
+git add -A
+git commit -qm 'chore(series): Sync tooling with main'
+git branch tsync-green tsync-dev
+git branch tsync-build-base "$TSYNC_V1"
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like. The `red`
 # series is the one case that needs real records, so it gets two.
@@ -297,6 +320,7 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   bare-build bare-dev bare-green bare-build-base \
   dup-build dup-dev dup-green dup-build-base \
   red-build red-dev red-green red-build-base \
+  tsync-build tsync-dev tsync-green tsync-build-base \
   emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
 
@@ -587,6 +611,19 @@ has "and the firing exits non-zero" "$out" 'EXIT=1'
 is "dev is left for the repair" "$(git rev-parse origin/red-dev)" "$before"
 is "and the buffer commit is not consumed" \
   "$(git rev-list --count origin/red-dev..origin/red-build)" 1
+
+echo
+echo "== a buffer tooling sync above the anchor"
+out=$(run tsync)
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+hasnt "without stopping on the sync" "$out" 'conflicted'
+is "-dev keeps the tooling stage 4 gave it" \
+  "$(git show origin/tsync-dev:.github/workflows/w.yaml)" 'jobs: as main has them now'
+has "the vendor commit above the sync is consumed" \
+  "$(git log -1 --format=%s origin/tsync-dev)" 'duckdb@ggg2222'
+is "and the sync itself never reaches -dev" \
+  "$(git log --format=%s origin/tsync-green..origin/tsync-dev | grep -c 'Sync buffer tooling' || true)" 0
 
 echo
 echo "$pass passed, $fail failed"
