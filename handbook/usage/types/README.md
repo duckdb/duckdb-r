@@ -37,7 +37,8 @@ The [numeric](https://duckdb.org/docs/current/sql/data_types/numeric) and [boole
   or with `bigint = "integer64"` as `bit64::integer64`, exact except for the minimum, which is `integer64`'s `NA`.
   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says,
   pinned by [`tests/testthat/test-integer64.R`](/tests/testthat/test-integer64.R).
-* **`UBIGINT`** reads as `numeric`, or as `integer64`, which holds the values below 2^63 and wraps the rest to negative numbers.
+* **`UBIGINT`** reads as `numeric`, or as `integer64`,
+  which holds the values below 2^63, reads 2^63 as `NA`, and wraps the rest to negative numbers.
   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 * **`HUGEINT`, `UHUGEINT`** read as `numeric`, rounded to a double, and `bigint` does not change that.
   Their text is exact both ways.
@@ -149,7 +150,7 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` refuses them,
   and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
-  under `bigint = "integer64"`, `UBIGINT` past 2^63 wraps to a negative number.
+  under `bigint = "integer64"`, a `UBIGINT` of 2^63 reads as `NA`, and one past it wraps to a negative number.
 * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
   `INTERVAL` with a month as 30 days and a day as 24 hours, and `infinity` as a distant finite date or instant.
 * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
