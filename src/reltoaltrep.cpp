@@ -136,6 +136,11 @@ bool AltrepRelationWrapper::Materialized() const {
 	return materialized;
 }
 
+bool AltrepRelationWrapper::QueryPending() const {
+	// The checks GetQueryResult() makes before it runs the query
+	return mat_error.empty() && !materialized && n_cells != 0;
+}
+
 idx_t AltrepRelationWrapper::RowCount() {
 	if (!materialized) {
 		return GetQueryResult()->RowCount();
@@ -628,6 +633,19 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	AltrepGuard guard;
 	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
+}
+
+bool RelToAltrep::QueriesOn(SEXP x, ClientContext &context) {
+	// Another package's ALTREP vector, or R's own, carries no duckdb_vector tag
+	auto ptr = R_altrep_data1(x);
+	if (TYPEOF(ptr) != EXTPTRSXP || R_ExternalPtrTag(ptr) != RStrings::get().duckdb_vector_sym) {
+		return false;
+	}
+	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(ptr));
+	if (!wrapper || !wrapper->rel->QueryPending()) {
+		return false;
+	}
+	return wrapper->rel->rel->context->TryGetContext().get() == &context;
 }
 
 #if defined(R_HAS_ALTLIST)

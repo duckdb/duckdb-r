@@ -22,6 +22,11 @@ A scan's bind touches every column of the data frame it scans, which materialize
 and an ALTREP method can report a failure there only by long-jumping.
 `TouchColumns()` in [`src/scan.cpp`](/src/scan.cpp) catches it and raises it on as an engine error.
 A jump past the engine's frames would leave the client context locked, and the connection waiting forever on its next statement.
+Materializing runs the frame's query on the frame's own connection,
+which cannot start a query while it is binding the scan, so it would wait forever or fail.
+`TouchColumns()` therefore first refuses a frame whose query has not run yet when the connection binding the scan is its own,
+with an error that says to materialize the frame first.
+Another connection scans it, the query running on the frame's own connection, and so does its own once the query has run.
 
 Raising an R error from inside an ALTREP method
 is the known weak point:

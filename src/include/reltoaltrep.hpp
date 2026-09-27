@@ -13,6 +13,9 @@ struct AltrepRelationWrapper {
 
 	bool Materialized() const;
 
+	// Whether GetQueryResult() would run the query now, rather than return a result or an error it already has
+	bool QueryPending() const;
+
 	MaterializedQueryResult *GetQueryResult();
 
 	void Materialize();
@@ -67,6 +70,9 @@ struct RelToAltrep {
 	static Rboolean RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int));
 
 	static SEXP VectorStringElt(SEXP x, R_xlen_t i);
+
+	// Whether reading `x` would run a lazy data frame's query on `context`; reads pointers only
+	static bool QueriesOn(SEXP x, duckdb::ClientContext &context);
 
 	static R_altrep_class_t rownames_class;
 	static R_altrep_class_t logical_class;
