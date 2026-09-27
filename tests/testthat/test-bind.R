@@ -161,12 +161,33 @@ test_that("various error cases for dbBind()", {
 
 test_that("a data frame binds as STRUCT, one row per row", {
   con <- local_con()
+  sql <- "SELECT (?::STRUCT(i INTEGER, j VARCHAR))::VARCHAR AS v"
+
+  # More columns than rows, and more rows than columns:
+  # counted by its columns, the first read past its end and the second lost a row.
+  res <- dbGetQuery(con, sql, params = list(data.frame(i = 1L, j = "a")))
+  expect_equal(res$v, "{'i': 1, 'j': a}")
 
   res <- dbGetQuery(
     con,
-    "SELECT (?::STRUCT(i INTEGER, j VARCHAR))::VARCHAR AS v",
-    params = list(data.frame(i = 1:2, j = c("a", "b")))
+    sql,
+    params = list(data.frame(i = 1:3, j = c("a", "b", "c")))
+  )
+  expect_equal(
+    res$v,
+    c("{'i': 1, 'j': a}", "{'i': 2, 'j': b}", "{'i': 3, 'j': c}")
   )
 
-  expect_equal(res$v, c("{'i': 1, 'j': a}", "{'i': 2, 'j': b}"))
+  # Next to another parameter, it is the rows that must match
+  sql_w <- paste0(sql, ", ? AS w")
+  res <- dbGetQuery(
+    con,
+    sql_w,
+    params = list(data.frame(i = 1:3, j = c("a", "b", "c")), 4:6)
+  )
+  expect_equal(res$w, 4:6)
+  expect_error(
+    dbGetQuery(con, sql_w, params = list(data.frame(i = 1L, j = "a"), 4:5)),
+    "same length"
+  )
 })
