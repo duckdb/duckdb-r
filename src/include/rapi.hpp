@@ -260,6 +260,13 @@ struct RQueryResult {
 	vector<LogicalType> types;
 	vector<string> names;
 	ClientProperties client_properties;
+	// Data-frame streaming state (dbSendQuery(stream = TRUE)): the unconsumed
+	// tail of the last chunk served by rapi_stream_fetch(), and whether the
+	// underlying result has been drained. A drained StreamQueryResult closes
+	// itself, and fetching from a closed stream throws, so the flag must be
+	// checked before calling Fetch() again.
+	duckdb::unique_ptr<DataChunk> pending_chunk;
+	bool stream_drained = false;
 };
 
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
@@ -361,6 +368,9 @@ cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);
 SEXP rapi_execute(duckdb::stmt_eptr_t, duckdb::ConvertOpts);
 
 void rapi_release(duckdb::stmt_eptr_t);
+
+// Shared guard for every entry point that takes a query result (arrow_export.cpp).
+void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *context);
 
 void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, duckdb::ConvertOpts);
 

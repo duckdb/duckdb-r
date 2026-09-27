@@ -59,7 +59,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 }
 
 // Every entry point that takes a query result asks this first: the pointer may have been released.
-static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *context) {
+void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *context) {
 	if (!qry_res || !qry_res.get()) {
 		rapi_error_with_context(context, "Invalid query result");
 	}
