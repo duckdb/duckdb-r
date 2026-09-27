@@ -64,6 +64,20 @@ test_that("a path that cannot be resolved is returned rather than refused (#455)
   expect_false(file.exists(path))
 })
 
+test_that("a relative path with no working directory fails as a `duckdb_error`", {
+  # The one thing the engine throws on: a working directory removed from under
+  # the session leaves a relative path nothing to resolve against.
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+  unlink(dir, recursive = TRUE)
+  # Windows refuses to remove a directory that is in use.
+  skip_if(dir.exists(dir), "the working directory could not be removed")
+
+  err <- expect_error(path_normalize("db.duckdb"), class = "duckdb_error")
+  # Routed through the engine's error data, not its serialized form.
+  expect_no_match(conditionMessage(err), "exception_type", fixed = TRUE)
+})
+
 test_that("a database in a directory that does not exist fails in `duckdb()`, naming the path", {
   # Normalizing no longer creates anything, so nothing fails there: the engine
   # refuses the open instead, and caches nothing.

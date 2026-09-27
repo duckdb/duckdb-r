@@ -38,13 +38,21 @@ using namespace duckdb;
 //
 // `CanonicalizePath()` canonicalizes the longest existing prefix of the path
 // and appends the rest, so a database that does not exist yet resolves without
-// anything being created. It reports rather than throws when nothing resolves:
-// the caller gets a path back either way.
+// anything being created. It does not throw when nothing resolves: the caller
+// gets a path back either way. It does throw when a relative path has no
+// working directory to resolve against, and that error reaches R as a
+// `duckdb_error` like every other engine error.
 [[cpp11::register]] cpp11::r_string rapi_canonicalize_path(std::string path) {
 	// The `LocalFileSystem` override takes the opener explicitly; only the
 	// `FileSystem` base declaration defaults it.
 	LocalFileSystem fs;
-	return fs.CanonicalizePath(path, nullptr);
+	string result;
+	try {
+		result = fs.CanonicalizePath(path, nullptr);
+	} catch (std::exception &e) {
+		rapi_error_with_context("rapi_canonicalize_path", ErrorData(e));
+	}
+	return result;
 }
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
