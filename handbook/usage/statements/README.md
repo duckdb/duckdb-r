@@ -47,8 +47,8 @@ The departures from that baseline are what this leaf owns:
   [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) adds so
   that the second carries the first's session settings.
   `FORCE CHECKPOINT` on one connection while a stream is parked on another
-  does not return, since it waits for a transaction only the waiting thread
-  can advance (measured in
+  can hang, waiting for a transaction only the waiting thread can advance:
+  after a `DROP TABLE` on that connection it did not return (measured in
   [`experiments/2026-09-26-connection-per-result/`](/experiments/2026-09-26-connection-per-result/README.md)).
   The object each DBI class wraps, and why the stream and the connection
   share a session, is

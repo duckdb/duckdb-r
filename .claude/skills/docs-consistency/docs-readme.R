@@ -185,6 +185,10 @@ groups <- list(
   list(
     owner = "handbook/meta/handbook",
     globs = c("README.md")
+  ),
+  list(
+    owner = "handbook/meta/local",
+    globs = c("render-reprex.R")
   )
 )
 groups <- groups[order(vapply(groups, function(g) g$owner, character(1)))]

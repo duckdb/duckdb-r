@@ -16,8 +16,9 @@ The load-bearing facts:
 * For a file-based `dbdir` the instance is **cached**,
   keyed by the normalized path —
   DuckDB allows only one read-write handle per database file,
-  so reuse is what lets repeated
-  `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
+  which its lock enforces between processes but not within one,
+  so reuse is what keeps repeated
+  `dbConnect(duckdb(dbdir = "my.db"))` calls on one instance.
   An in-memory database is never cached.
 * `dbdir`, `config`, `read_only`, `home`, and `shared_home`
   all describe the *instance*, so they bind when it is created —
@@ -85,19 +86,20 @@ The load-bearing facts:
   or at the end of the session.
 * The engine keeps an instance cache of its own,
   which waits for a shutdown that is finishing
-  and cannot tell that from an instance nothing is shutting down —
-  it spins forever on the second.
+  and cannot tell that from an instance nothing is shutting down,
+  so it spins forever on the second.
   [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
   makes it report instead, measured in
   [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
-  No call from R reaches that cache today — `duckdb()` builds its instance directly —
-  which is what [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would change.
+  No call from R reaches that cache today, because `duckdb()` builds its instance directly.
+  [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would have changed that, and was closed unmerged with its findings open.
 * `dbIsValid()` on a driver reports whether it still holds an instance,
   and opens nothing to find out,
   so a driver whose last connection has closed is no longer valid.
   `duckdb_shutdown()` on such a driver is a silent no-op:
   what it asks for has already happened.
-* An uncleared result keeps the instance alive past `dbDisconnect()`,
+* An uncleared result, or an Arrow stream not yet released,
+  keeps the instance alive past `dbDisconnect()`,
   unknown to the driver, and a new driver on the same file then opens the
   file a second time in this process; the mapping behind that is
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.

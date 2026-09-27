@@ -4,8 +4,9 @@
 # the equivalent `-build` commit, and extend `<S>-dev` from the buffer.
 #
 # Everything here is mechanical and gated; the judgement calls (repairs,
-# review) stay with the skill. Refuses to do anything when a commit in the
-# in-flight range has a failure — run series-check.sh first and repair.
+# review) stay with the skill. A failure in the in-flight range still lets
+# green take the verified commits below it, and then stops the firing before
+# `-dev` is extended — run series-check.sh first and repair.
 #
 # **Stage 5 carries the base series' fixes** onto a forward series as it
 # consumes its buffer. The two branches divide by how far a fix was demanded:
@@ -753,7 +754,19 @@ else
   #
   # One commit at a time, because restamp runs between the picks and reads the
   # parent it is bumping from, and because a carry amends the commit just made.
+  #
+  # A buffer tooling sync is skipped, never picked. `-dev`'s tooling is stage
+  # 4's, which made it `main`'s earlier in this same firing, while the sync's
+  # diff runs from whatever tooling the buffer carried before it -- so once
+  # `main` has moved again, the pick conflicts, or quietly puts back on `-dev`
+  # what `main` removed. And since the sync vendors nothing, the anchor never
+  # passes it: one at the buffer's tail is offered again on every firing until
+  # a vendor commit lands above it. scripts/series-port.sh writes it under
+  # exactly this subject, and scripts/series-check.sh discounts it the same way.
   for c in $remaining; do
+    if [ "$(git log -1 --format=%s "$c")" = "chore(series): Sync buffer tooling with main" ]; then
+      continue
+    fi
     before=$(git -C "$wt" rev-parse HEAD)
     if ! git -C "$wt" cherry-pick --empty=drop "$c"; then
       stop "$wt" "$c" "${CARRY[$c]:--}" pick

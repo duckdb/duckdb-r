@@ -99,6 +99,24 @@ test_that("the query result is released with nested STRUCT columns", {
   expect_equal(df$s$y, as.double(0:999))
 })
 
+test_that("a column whose conversion fails part way fails again on the next access", {
+  # The NUL byte sits in the second chunk,
+  # so the first 2048 rows are converted when the conversion fails
+  rel <- rel_from_sql(
+    con,
+    "SELECT CASE WHEN range = 3000 THEN 'a' || chr(0) || 'b' ELSE 'v' END AS s, range AS i FROM range(5000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  expect_error(df$s[1], "null byte")
+  # Not the partly converted vector, with "" in the rows after the first chunk
+  expect_error(df$s[1], "null byte")
+
+  # The column that failed keeps the engine's copy of the result
+  expect_equal(sum(df$i), sum(0:4999))
+  expect_true(rapi_df_has_query_result(df))
+})
+
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
@@ -1636,6 +1654,66 @@ test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)"
     rel_from_altrep_df(data.frame(a = 1)),
     "Context: rapi_rel_from_altrep_df"
   )
+})
+
+test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  df <- rel_to_altrep(rel_from_sql(con, "SELECT 1 AS a WHERE false"))
+  row_names <- attr(df, "row.names")
+
+  # The ALTREP Max method of empty row names warns,
+  # and an exiting handler long-jumps out of that warning
+  expect_equal(
+    tryCatch(max(row_names), warning = function(w) "caught"),
+    "caught"
+  )
+
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
+  )
+})
+
+test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_on_cran()
+  skip_if_not_installed("rlang")
+
+  # A column 32 MB larger than the free space of R's vector heap
+  vcells <- gc()["Vcells", ]
+  n_rows <- vcells[["gc trigger"]] - vcells[["used"]] + 2^22
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    paste0(
+      "SELECT range::DOUBLE AS d FROM range(",
+      format(n_rows, scientific = FALSE),
+      ")"
+    )
+  ))
+  # Runs the relation, whose result DuckDB holds outside R's heap;
+  # the column's R vector is allocated on its first access
+  expect_equal(nrow(df), n_rows)
+
+  # A limit the heap cannot grow past fails the column's allocation
+  local({
+    old_limit <- mem.maxVSize()
+    on.exit(mem.maxVSize(old_limit))
+    mem.maxVSize(ceiling(gc()["Vcells", "gc trigger"] * 8 / 2^20) + 1)
+    expect_error(df$d[1])
+  })
+
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
+  )
+  # The column converts once there is room
+  expect_equal(df$d[n_rows], n_rows - 1)
 })
 
 test_that("rel_to_view()", {
