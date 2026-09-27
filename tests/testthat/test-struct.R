@@ -428,3 +428,16 @@ test_that("a data frame column with several fields writes as STRUCT", {
   expect_equal(res$t, "STRUCT(i INTEGER, j VARCHAR)")
   expect_equal(dbReadTable(con, "df")$s, df$s)
 })
+
+test_that("a data frame column nesting one of several fields writes as STRUCT", {
+  con <- local_con()
+  df <- data.frame(id = 1:2)
+  df$s <- data.frame(i = 1:2)
+  df$s$t <- data.frame(x = 1:2, y = c("a", "b"))
+
+  dbWriteTable(con, "df", df)
+
+  res <- dbGetQuery(con, "SELECT typeof(s) AS t FROM df LIMIT 1")
+  expect_equal(res$t, "STRUCT(i INTEGER, t STRUCT(x INTEGER, y VARCHAR))")
+  expect_equal(dbReadTable(con, "df")$s, df$s)
+})
