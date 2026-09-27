@@ -84,14 +84,27 @@ test_that("dbBindArrow() runs the query once per row for multi-row streams", {
   expect_equal(df$a, c(1, 2, 3))
 })
 
-test_that("dbClearResult() drops the results of a multi-row bind not read yet", {
+test_that("dbClearResult() frees the results of a multi-row bind not read yet", {
   con <- local_con()
 
   res <- dbSendQueryArrow(con, "SELECT ?::INTEGER AS a")
   dbBind(res, list(1:3))
-  expect_length(res@env$pending_query_results, 2L)
+  pending <- res@env$pending_query_results
+  expect_length(pending, 2L)
 
   expect_equal(dbFetchArrowChunk(res)$length, 1L)
   dbClearResult(res)
   expect_null(res@env$pending_query_results)
+
+  # Freed by dbClearResult() itself, not whenever the garbage collector next runs.
+  for (query_result in pending) {
+    expect_error(
+      rapi_fetch_arrow_array(
+        query_result,
+        nanoarrow::nanoarrow_allocate_array(),
+        10L
+      ),
+      "consumed"
+    )
+  }
 })
