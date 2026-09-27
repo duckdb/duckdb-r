@@ -223,10 +223,11 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	stmt->parameters.clear();
 	stmt->parameters.resize(n_param);
 
-	R_len_t n_rows = Rf_length(params[0]);
+	// A data frame binds as STRUCT, one value per row, so the rows are counted by type, not by length.
+	R_len_t n_rows = RApiTypes::GetVecSize(params[0]);
 
 	for (auto param = std::next(params.begin()); param != params.end(); ++param) {
-		if (Rf_length(*param) != n_rows) {
+		if (RApiTypes::GetVecSize(*param) != n_rows) {
 			rapi_error_with_context("rapi_bind", "Bind parameter values need to have the same length");
 		}
 	}
