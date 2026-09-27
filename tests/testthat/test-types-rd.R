@@ -10,9 +10,12 @@
 test_that("the type reference pages match their handbook leaves", {
   root <- normalizePath(test_path("..", ".."), mustWork = FALSE)
   script <- file.path(root, "scripts", "types-rd.R")
+  # `.git` is a directory in a clone and a file in a worktree.
   skip_if_not(
-    file.exists(script) && dir.exists(file.path(root, "handbook")),
-    "Not running from the package source tree."
+    file.exists(script) &&
+      dir.exists(file.path(root, "handbook")) &&
+      file.exists(file.path(root, ".git")),
+    "Not running from a git checkout of the package source."
   )
   skip_if(Sys.which("git") == "", "git is not available.")
 
