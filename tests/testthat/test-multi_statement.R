@@ -40,6 +40,27 @@ test_that("a pragma sees earlier statements in the same call", {
   )
 })
 
+test_that("a LOAD in a pragma's expansion is refused before any of it runs", {
+  drv <- duckdb(allow_extensions = FALSE)
+  con <- local_con(drv = drv)
+  other <- local_con(drv = drv)
+  import_location <- withr::local_tempdir()
+  writeLines(
+    "CREATE TABLE from_import (i INTEGER); LOAD parquet;",
+    file.path(import_location, "schema.sql")
+  )
+  writeLines("", file.path(import_location, "load.sql"))
+
+  query <- sprintf("PRAGMA import_database('%s')", import_location)
+  expect_error(DBI::dbExecute(con, query), "disabled")
+  expect_false(DBI::dbExistsTable(con, "from_import"))
+
+  # Refused part-way, the expansion's implicit BEGIN stayed open,
+  # and work that followed on the connection was never committed.
+  DBI::dbExecute(con, "CREATE TABLE user_work AS SELECT 1 AS i")
+  expect_true(DBI::dbExistsTable(other, "user_work"))
+})
+
 test_that("statements can be splitted apart correctly", {
   con <- local_con()
   expect_snapshot(DBI::dbGetQuery(

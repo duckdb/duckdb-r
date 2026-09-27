@@ -126,11 +126,18 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			error.AddErrorLocation(query);
 			rapi_error_with_context("rapi_prepare", error);
 		}
+		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk), so its expansion is
+		// checked as a whole before any of it runs: refusing it part-way would leave the implicit BEGIN the
+		// engine wraps the expansion in open, and every later statement on the connection inside it.
+		if (!conn->db->allow_extensions) {
+			for (auto &fragment : fragments) {
+				if (fragment->type == StatementType::LOAD_STATEMENT) {
+					rapi_error_with_context("load_extension", "");
+				}
+			}
+		}
 		for (idx_t j = 0; j < fragments.size(); j++) {
 			auto &fragment = fragments[j];
-			if (!conn->db->allow_extensions && fragment->type == StatementType::LOAD_STATEMENT) {
-				rapi_error_with_context("load_extension", "");
-			}
 			if (i + 1 == statements.size() && j + 1 == fragments.size()) {
 				last_statement = std::move(fragment);
 				break;
