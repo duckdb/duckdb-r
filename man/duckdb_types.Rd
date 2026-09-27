@@ -148,8 +148,8 @@ Its text reads and writes it exactly.
 
 \section{Limitations and reference}{
 \itemize{
-\item \code{BIT}, \code{BIGNUM}, \code{TIME_NS} and \code{UNION} have no R vector, so \code{dbGetQuery()} refuses them,
-and \code{\link[dplyr:tbl]{dplyr::tbl()}} cannot open a table holding one.
+\item \code{BIT}, \code{BIGNUM}, \code{TIME_NS} and \code{UNION} have no R vector, so \code{dbGetQuery()} and \code{\link[DBI:dbExecute]{dbExecute()}} refuse a column of one, or of anything nesting one,
+before the statement runs, and \code{\link[dplyr:tbl]{dplyr::tbl()}} cannot open a table holding one.
 \item \code{HUGEINT}, \code{UHUGEINT} and \code{DECIMAL} past a double's precision, and \code{BIGINT} and \code{UBIGINT} past 2^53, read as rounded doubles;
 under \code{bigint = "integer64"}, a \code{UBIGINT} of 2^63 reads as \code{NA}, and one past it wraps to a negative number.
 \item \code{TIMESTAMP_NS} reads to the microsecond, \code{TIMETZ} without its offset,
