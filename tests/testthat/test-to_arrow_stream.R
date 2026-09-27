@@ -4,6 +4,8 @@ skip_if_not_installed("dplyr")
 skip_if_not_installed("nanoarrow")
 
 test_that("to_arrow_stream() returns what arrow::to_arrow() returns", {
+  # arrow::to_arrow() calls the mainline package by name.
+  skip_on_flavor()
   con <- local_con()
   dbWriteTable(con, "t", data.frame(g = c("a", "b", "a"), x = 1:3))
 
