@@ -11,8 +11,8 @@ Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/READ
 
 **Reading.**
 `dbGetQuery()` converts each column by its type, and four `dbConnect()` arguments change the shape,
-whose defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`
-are set in [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
+with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`,
+set in [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
 `dbGetQueryArrow()` hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
 A cast to `VARCHAR` in the query reads any type as text.
@@ -55,7 +55,7 @@ and [bitstring](https://duckdb.org/docs/current/sql/data_types/bitstring) types,
 
 * **`VARCHAR`** (`CHAR`, `BPCHAR`, `TEXT`, `STRING`) reads as `character`, and `character` writes it.
   A string holding a NUL byte is refused on the way out, pinned by [`tests/testthat/test-null_byte.R`](/tests/testthat/test-null_byte.R).
-* **UTF-8 is required, strictly.**
+  **UTF-8 is required, strictly.**
   DuckDB checks string validity and rejects invalid UTF-8;
   this is deliberate engine behavior, not a bug ([#12](https://github.com/duckdb/duckdb-r/issues/12)).
   R is the lenient side: it carries the bytes and prints them,
@@ -132,8 +132,8 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * **An untyped `NULL` comes back as `NA_integer_`,**
   matching the engine's own `SELECT NULL`;
   mapping it to logical `NA` instead was declined ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
-  A typed `NULL`, as a scanned logical column or a bound `NA` parameter, round-trips as logical `NA`,
-  and the `expr_constant(NA)` corner is [`relational/`](/handbook/usage/relational/README.md)'s.
+  A typed `NULL`, as a scanned logical column or a bound `NA` parameter, round-trips as logical `NA`.
+  The `expr_constant(NA)` corner is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **`GEOMETRY`** and the `spatial` extension's point, line, polygon and box types are [`spatial/`](/handbook/usage/spatial/README.md)'s.
 * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
   Its text writes it through `field.types`.
@@ -141,24 +141,28 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   reads as a data frame column whose `address` is a `HUGEINT` read as a double: exact for IPv4, rounded for IPv6.
   Its text reads and writes it exactly.
 
-## Across types
+## Limitations
 
-* **`dbCreateTable()` and the write routes disagree for four classes.**
-  `dbCreateTable()` takes its column types from `dbDataType()`,
+* `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` refuses them,
+  and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
+* `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
+  under `bigint = "integer64"`, `UBIGINT` past 2^63 wraps to a negative number.
+* `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
+  `INTERVAL` without its months and days, and `infinity` as a distant finite date or instant.
+* `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
+  and no R class writes `TIME` outside Arrow.
+* `MAP` has no cast from text, an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
+* A raw vector column is refused with a message naming neither the column nor its class.
+* `dbCreateTable()` takes its column types from `dbDataType()`,
   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,
-  where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`.
-  A `difftime` column then fails to append into the table it created
+  where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`,
+  so a `difftime` column fails to append to the table it created
   ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).
-* **Attribute classes do not cross, in either direction.**
-  A `units` column becomes plain `DOUBLE` going in, through `dbWriteTable()`, through `duckdb_register()` or as a bound parameter,
-  and comes back plain `numeric`:
-  the value survives, the class does not, and nothing warns ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
-  Re-applying it on the way out (`units::set_units()`) is the caller's.
-  The same holds for a column that reaches the engine through Arrow:
-  `arrow` carries `[m^2]` in its schema as an extension type, and DuckDB reads the storage underneath it.
-* **Not every column lifts into the relational path** (duckplyr's):
-  `rel_from_df()` refuses rather than converts,
-  and which columns, and what duckplyr does about a refusal, is [`relational/`](/handbook/usage/relational/README.md)'s.
+* Attribute classes do not cross, in either direction, through Arrow too:
+  a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
+  ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
+* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them
+  ([`relational/`](/handbook/usage/relational/README.md)).
 
 *To deepen: derive the user-facing reference page from this leaf ([#2566](https://github.com/duckdb/duckdb-r/issues/2566)),
 and measure what `rel_to_df()` and `rel_to_altrep()` make of each type,

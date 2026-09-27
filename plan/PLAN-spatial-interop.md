@@ -5,7 +5,8 @@
 does today, and where the two disagree, the leaf is right.
 The measurements it argues from are
 [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md),
-run on 2026-08-09 against duckdb 1.5.5.9013.
+run on 2026-08-09 against duckdb 1.5.5.9013,
+and [`experiments/2026-09-27-geoarrow/`](/experiments/2026-09-27-geoarrow/README.md) for the GeoArrow route.
 It closes out [#117](https://github.com/duckdb/duckdb-r/issues/117),
 open since 2024 and stated against an engine that has since changed
 underneath it.*
@@ -90,6 +91,12 @@ Two changes in the glue, both small:
 * `DetectRType()` ([`src/types.cpp`](/src/types.cpp)) should recognize
   `sfc` before it descends into the list, the way it already recognizes
   `blob` and `data.frame`, and yield a refusal carrying the class name.
+* A `geoarrow_vctr` column, which `as.data.frame()` gives for a geometry
+  in an Arrow result, is an integer vector of indices into the Arrow data
+  it holds, and writes as those integers without an error, through
+  `dbWriteTable()` and through DBI's default `dbWriteTableArrow()`.
+  `DetectRType()` should refuse a `nanoarrow_vctr` naming the column,
+  or, for a `geoarrow_vctr`, write its WKB as `GEOMETRY`.
 * The `std::exception` path is the more general defect: a non-DuckDB
   exception escaping the register/write path is rendered with no
   content at all.
@@ -181,3 +188,11 @@ the evidence, rather than in a workaround here.
 directly would remove the `arrow` round trip from the one write route
 that carries a CRS, and would fix an `std::exception` on the way.
 It is independent of everything above and not gated on any of it.
+
+So is the CRS on the routes behind `dbSendQuery(arrow = TRUE)`:
+`duckdb_fetch_arrow()`, `duckdb_fetch_record_batch()` and `arrow::to_arrow()`
+fail with an internal error on a column with a CRS,
+because the schema is exported once the materialized query's transaction has ended,
+and exporting a CRS needs an active one.
+Exporting the schema while the query still holds its transaction,
+as `dbGetQueryArrow()` does by streaming, would fix all three.

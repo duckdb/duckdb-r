@@ -41,11 +41,15 @@ Only the routes that let DuckDB scan the Arrow data keep its types:
 and refuses a nanoarrow stream with `Invalid Error: std::exception`;
 `arrow::as_record_batch_reader()` turns one into what it takes.
 Nothing is copied: the result is a view, and `CREATE TABLE ... AS SELECT * FROM` it writes a table.
+A registered `RecordBatchReader` is a stream the first query drains, so a second query of the view sees no rows;
+an arrow `Table` is scanned every time ([`experiments/2026-09-27-geoarrow/`](/experiments/2026-09-27-geoarrow/README.md)).
 Every other route converts through an R data frame, so a column lands as the type its R vector writes ([`types/`](/handbook/usage/types/README.md)).
 `dbWriteTableArrow()`, `dbCreateTableArrow()` and `dbAppendTableArrow()` are DBI's defaults, which do that batch by batch:
 `uint32` and `decimal128` land as `DOUBLE`, `timestamp('ns')` as `TIMESTAMP`, and a dictionary as `VARCHAR`;
 `time64` fails, because the `hms` it converts to writes `INTERVAL`, which does not cast to the `TIME` column `dbCreateTableArrow()` made;
 and `interval_month_day_nano` fails, because nanoarrow has no R vector for it.
+A geometry column fares worst: the `geoarrow_vctr` it converts to is integer-backed, and lands as its indices
+([`spatial/`](/handbook/usage/spatial/README.md)).
 `dbBindArrow()` converts the same way, then binds by position,
 and a stream whose fields have names is refused with "`params` must not be named", so the names must be empty.
 
@@ -175,6 +179,22 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
 * **A matrix column** lands as `ARRAY` through nanoarrow; arrow flattens it into one row per cell.
 * **`wk_wkb`** lands as `GEOMETRY` through nanoarrow once geoarrow is loaded,
   and as `BLOB` through arrow, which carries it as its own R extension type ([`spatial/`](/handbook/usage/spatial/README.md)).
+
+## Limitations
+
+* `VARIANT` has no Arrow export.
+* The default export writes a `HUGEINT` or `UHUGEINT` of more than 38 digits wrong, without an error;
+  `arrow_lossless_conversion` carries it as a type neither R reader converts.
+* Neither reader converts `INTERVAL`; arrow converts no `UNION`, no view layout and none of the lossless extension types,
+  and nanoarrow no `list_view`.
+* Only `duckdb_register_arrow()` and `arrow::to_duckdb()` keep Arrow's types on the way in:
+  the DBI Arrow write methods and `dbBindArrow()` convert through R, and `dbBindArrow()` refuses named fields.
+* `duckdb_register_arrow()` needs the arrow package and refuses a nanoarrow stream, and a registered reader is scanned once.
+* DuckDB refuses `half_float`, `decimal256` and `dense_union`, reads `interval_day_time` wrong,
+  and lands a dictionary as `VARCHAR`, never as `ENUM`.
+* Through Arrow, `hms` writes `TIME` truncated to milliseconds or seconds, and `POSIXct` writes `TIMESTAMPTZ`.
+* `arrow::to_duckdb()` fails on Arrow data that lands as a type R cannot hold, and `to_arrow()` on a table holding one
+  ([`integrations/`](/handbook/usage/integrations/README.md)).
 
 *To deepen: derive the user-facing reference page from this leaf ([#2566](https://github.com/duckdb/duckdb-r/issues/2566)),
 and measure run-end encoded arrays, which neither R package builds

@@ -123,6 +123,10 @@ This file is what names the contents, so nothing here is an orphan.
   every DuckDB type out through Arrow under each export setting, and what nanoarrow and arrow make of it in R;
   every Arrow type and every R class in; and which R functions keep Arrow's types, in each direction; supports
   [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
+* [`2026-09-27-geoarrow/`](2026-09-27-geoarrow/):
+  each way to read a `GEOMETRY` column into sf through Arrow, each GeoArrow encoding on the way in,
+  what the CRS becomes at every step, and the routes that lose the geometry; supports
+  [`usage/spatial/`](/handbook/usage/spatial/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
