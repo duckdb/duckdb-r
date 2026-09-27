@@ -15,6 +15,14 @@ Coverage is not a matrix entry; the smoke test computes it on every run of [`R-C
 Which versions land where is the action's,
 and the reasoning is in its comments.
 
+**The matrix does not run on every event.**
+The smoke test does, but the `versions-matrix` step in
+[`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) is skipped for a
+pull request from a branch of this repository unless the branch is `cran-*`.
+Push, the daily cron, the merge queue and a fork's pull request all get it,
+and so does a `workflow_dispatch` that sets `versions-matrix`,
+which is how a same-repository pull request gets the entries below at all.
+
 [`.github/versions-matrix.R`](/.github/versions-matrix.R) is this
 repository's extension of that base — the named special entries:
 
