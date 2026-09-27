@@ -32,10 +32,11 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   but the geometry *functions* are still `spatial`'s, and so is the CRS
   provider that resolves a name like `EPSG:4326`
   ([`extensions/`](/handbook/usage/extensions/README.md)).
-  The column's CRS reaches R either way:
-  as an attribute on `wk_wkb`, and as PROJJSON in the metadata of the
-  `geoarrow.wkb` field an Arrow result carries — the engine registers
-  that Arrow extension type in both directions.
+  The column's CRS reaches R through `"wk"` and through Arrow, not through raw WKB:
+  as an attribute on `wk_wkb`,
+  and in the metadata of the `geoarrow.wkb` field an Arrow result carries,
+  as PROJJSON once `spatial` is loaded and as the identifier without it;
+  the engine registers that Arrow extension type in both directions.
 * **Writing a geometry means writing WKT, not WKB.**
   A `character` column of `sf::st_as_text()` output with
   `field.types = c(geom = "GEOMETRY")` lands a `GEOMETRY` column in one

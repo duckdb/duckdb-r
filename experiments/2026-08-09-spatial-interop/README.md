@@ -36,7 +36,7 @@ naming a CRS in DDL (`GEOMETRY('EPSG:4326')`) fails with
 "unrecognized coordinate system" until `spatial` is loaded,
 while `ST_SetCRS()` takes the same string without it.
 
-**Reading works, in three shapes, and the CRS survives all of them.**
+**Reading works, in three shapes, and the CRS survives all but raw WKB.**
 `geometry = "blob"` yields raw WKB, `geometry = "wk"` yields `wk_wkb`
 carrying the column's CRS identifier as an attribute,
 and `dbGetQueryArrow()` yields a `geoarrow.wkb` field whose extension
