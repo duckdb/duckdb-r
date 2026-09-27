@@ -49,7 +49,10 @@
 # it is about to re-mint. The note is appended to the newest minted commit's
 # message before the push instead. A note forces the replay route below, because
 # the plain ref move has no commit of its own to carry it, and it is an error to
-# ask for one when the chunk minted nothing.
+# ask for one when the chunk minted nothing. A note that does not open with an
+# `R-side fix` header gets one, because that header is what series-glue.sh and
+# stage 2's mining step anchor on: a note written without it lands in the commit
+# and is read by nothing, which is the one outcome the option exists to prevent.
 #
 # **`--canonical` mirrors the green into the repository r-universe reads.**
 # The series refs live in the fork, but the base flavors are published from the
@@ -505,7 +508,7 @@ fi
 # level until a human swaps them. It is more CI on a series about to be retired;
 # it is also the only thing that makes retiring it a check rather than a hope.
 # Pending work does not hold the buffer (.claude/skills/series-loop/SKILL.md stage 5):
-# each.yaml plans every commit in green..tip that has no status, so a longer tip
+# each.yaml plans every commit in green..tip that has no record, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does
 # hold it: stage 2 will fold a fix into that commit and replay everything above,
 # so anything appended now is minted only to be re-minted. The stage-3 walk above
@@ -745,6 +748,14 @@ else
   # rather than folded in anywhere else: the commit already carries the vendor
   # message the finding is about, and the readers of these findings --
   # series-glue.sh, and stage 2's mining step -- read exactly this message.
+  #
+  # Those readers anchor on an `R-side fix` section, so a note that opens with
+  # prose is a finding nothing ever reads back. The header is the one part of
+  # the note that is the same every time, so the stage writes it when the note
+  # does not, and leaves whichever spelling the note chose alone when it does.
+  # The spelling written here is the colon one. series-glue.sh reads the
+  # section by its opening words under any spelling or case, the same test as
+  # the one below, so a header the note brought reads back as well as this one.
   if [ -n "$DEV_NOTE" ]; then
     if [ "$(git -C "$wt" rev-parse HEAD)" = "$(git rev-parse "$dev")" ]; then
       git worktree remove --force "$wt"
@@ -752,7 +763,12 @@ else
       echo "  to write the finding on. Record it on the next chunk instead." >&2
       exit 1
     fi
-    { git -C "$wt" log -1 --format=%B; echo; cat "$DEV_NOTE"; } > "$wt/.series-advance-note"
+    note_head=
+    if ! sed -n '/[^[:space:]]/{p;q;}' "$DEV_NOTE" | grep -qi '^R-side fix'; then
+      note_head=$'R-side fix:\n\n'
+    fi
+    { git -C "$wt" log -1 --format=%B; echo; printf '%s' "$note_head";
+      cat "$DEV_NOTE"; } > "$wt/.series-advance-note"
     git -C "$wt" commit -q --amend --no-verify -F "$wt/.series-advance-note"
     rm -f "$wt/.series-advance-note"
   fi

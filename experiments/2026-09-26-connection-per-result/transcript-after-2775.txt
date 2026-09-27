@@ -1,0 +1,33 @@
+== A materialized result, with another statement between send and fetch
+  dbGetQuery() in between                        survives
+  dbExecute(INSERT) in between                   survives
+  a second dbSendQuery(), fetched alternately    survives
+== A streaming result (dbSendQueryArrow()), one interference per case
+  nothing in between                             survives
+  dbQuoteIdentifier(), which runs no statement   survives
+  dbExistsTable()                                fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  dbListTables()                                 fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  dbListFields()                                 fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  dbGetQuery("SELECT 1")                         fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  dbExecute(INSERT into another table)           fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  duckdb_register()                              fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  dbAppendTable() (a view, then an INSERT)       fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  dbBegin(); dbRollback()                        fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  a second dbSendQueryArrow()                    fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  a dbSendQuery(), materialized                  fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+== The DBI chunked loop: read a stream, append each batch through a connection
+  the same connection reads and writes           fails: Invalid Input Error: The query result was invalidated by another statement on its connection before it was read to the end. Read it to the end first, or run the other statement on a separate connection.
+ℹ Context: rapi_fetch_arrow_array
+  a second connection writes                     survives: 100000 of 100000 rows appended
+== Two streams on two connections to one instance
+  batches from r1, r2, r1, r2                    survives

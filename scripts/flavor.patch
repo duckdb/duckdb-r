@@ -21,10 +21,10 @@ index 2ee2528d0..7982715b8 100644
  "_PACKAGE"
  NULL
 diff --git a/README.Rmd b/README.Rmd
-index df1f52e..19f0527 100644
+index 7bf9541..cdcda48 100644
 --- a/README.Rmd
 +++ b/README.Rmd
-@@ -41,35 +41,15 @@ knitr::knit_hooks$set(document = function(x, options) {
+@@ -37,36 +37,15 @@ knitr::knit_hooks$set(document = function(x, options) {
  </div>
  <!-- banner:end -->
  
@@ -57,14 +57,15 @@ index df1f52e..19f0527 100644
 -))
 -```
 -
--To check the availability of binaries for your platform, navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
+-To check the availability of binaries for your platform,
+-navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
 +This package is the `duckdb.1.3` flavor of those bindings,
 +and is only available from r-universe.
 +The `Flavors` section below says which upstream series it tracks.
  
  ## Installation from r-universe
  
-@@ -78,20 +58,11 @@ Binaries are available for recent versions of R and for some platforms.
+@@ -75,20 +54,11 @@ Binaries are available for recent versions of R and for some platforms.
  Review <https://docs.r-universe.dev/install/binaries.html> for configuring installation of binary packages on Linux.
  
  ``` r

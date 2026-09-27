@@ -38,7 +38,11 @@ to do, and they run in this order:
   message of the `-dev` commit that answers it, which is where the
   next forward reads it.
 * **Forward-port** — bring `main`'s R-side work onto the series
-  ([`scripts/series-port.sh`](/scripts/series-port.sh)).
+  ([`scripts/series-port.sh`](/scripts/series-port.sh)),
+  and bring every ref's tooling level with `main` —
+  the buffer included, which takes no ports but does take the sync,
+  because a workflow fires from the branch it sits on
+  ([`branches/model/`](/handbook/branches/model/README.md)).
   A series seeded from a release branch rather than from `main` takes
   no wholesale port: its R side belongs to that line, so only the
   tooling sync and fixes named by hand apply.
