@@ -72,8 +72,9 @@ A second connection to the same database, such as
 it.
 It does not see the first connection's temporary tables or open
 transaction.
-The reader stays readable after \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}},
-and holds on to its query until it has been read to the end or released.
+The reader stays readable after \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}}.
+It keeps the database instance open until it is garbage-collected,
+even once it has been read to the end (\code{\link[=duckdb]{duckdb()}}).
 }
 
 \examples{

@@ -57,8 +57,9 @@
 #' it.
 #' It does not see the first connection's temporary tables or open
 #' transaction.
-#' The reader stays readable after [DBI::dbDisconnect()],
-#' and holds on to its query until it has been read to the end or released.
+#' The reader stays readable after [DBI::dbDisconnect()].
+#' It keeps the database instance open until it is garbage-collected,
+#' even once it has been read to the end ([duckdb()]).
 #'
 #' @param .data A dbplyr table on a DuckDB connection, or an Arrow object,
 #'   which is returned unchanged.
