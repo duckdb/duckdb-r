@@ -185,10 +185,10 @@ so a syntax error in any statement means that none of them run.
 Any other error stops at the statement that raised it,
 and the statements before it keep their effect,
 because the string does not run in a transaction of its own.
-For all or nothing,
-wrap the statements in \verb{BEGIN TRANSACTION} and \code{COMMIT}
-and call \code{\link[DBI:dbRollback]{dbRollback()}} if the call fails,
-or send one statement per call.
+For all or nothing, run the call inside \code{\link[DBI:dbWithTransaction]{dbWithTransaction()}},
+or call \code{\link[DBI:dbBegin]{dbBegin()}} before it and \code{\link[DBI:dbRollback]{dbRollback()}} if it fails.
+To know which statements have run when one fails,
+send one statement per call.
 }
 
 \keyword{internal}

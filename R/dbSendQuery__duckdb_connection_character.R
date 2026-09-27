@@ -21,10 +21,10 @@
 #' Any other error stops at the statement that raised it,
 #' and the statements before it keep their effect,
 #' because the string does not run in a transaction of its own.
-#' For all or nothing,
-#' wrap the statements in `BEGIN TRANSACTION` and `COMMIT`
-#' and call [dbRollback()] if the call fails,
-#' or send one statement per call.
+#' For all or nothing, run the call inside [dbWithTransaction()],
+#' or call [dbBegin()] before it and [dbRollback()] if it fails.
+#' To know which statements have run when one fails,
+#' send one statement per call.
 #' @usage NULL
 dbSendQuery__duckdb_connection_character <- function(
   conn,

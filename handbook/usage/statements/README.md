@@ -62,8 +62,9 @@ so a `PRAGMA` that generates its SQL from what is there when it runs sees what t
 The whole string is parsed before anything runs, so a syntax error anywhere means that nothing runs.
 Any other error, a misspelt `PRAGMA` among them, leaves the statements before it in effect,
 because the string runs in no transaction of its own.
-`BEGIN TRANSACTION` and `COMMIT` around the statements, with `dbRollback()` after a failed call, is the way to all or nothing,
-and a `PRAGMA` inside them sees what the transaction has done so far.
+`dbWithTransaction()` around the call is the way to all or nothing, as is `dbBegin()` before it with `dbRollback()` after a failure.
+A `PRAGMA` inside that transaction sees what the transaction has done so far.
+A `BEGIN TRANSACTION` inside the string is no substitute, because after a syntax error it has not run and `dbRollback()` fails.
 The engine's own `Query()` runs a string the same way from DuckDB 2.0,
 except that it also parses each statement only when it reaches it
 ([duckdb/duckdb#23291](https://github.com/duckdb/duckdb/pull/23291)).
