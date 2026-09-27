@@ -308,6 +308,28 @@ struct AltrepRownamesWrapper {
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 };
 
+// Allocate a column's R vector from inside an ALTREP method.
+// Failing for want of memory is the R error such a method meets in practice,
+// and R raises it by long-jumping, which must unwind ~AltrepGuard() on its way
+// (handbook/architecture/glue/altrep/README.md): cpp11::unwind_protect() turns the jump into an exception here.
+// duckdb_r_allocate() also throws, which must not cross R's frames inside that call, so it is carried across.
+static SEXP AllocateAltrepColumn(const LogicalType &type, idx_t nrows, const string &name,
+                                 const ConvertOpts &convert_opts) {
+	std::exception_ptr error;
+	SEXP out = cpp11::unwind_protect([&]() -> SEXP {
+		try {
+			return duckdb_r_allocate(type, nrows, name, convert_opts, "Dataptr");
+		} catch (...) {
+			error = std::current_exception();
+			return R_NilValue;
+		}
+	});
+	if (error) {
+		std::rethrow_exception(error);
+	}
+	return out;
+}
+
 struct AltrepVectorWrapper {
 	// In the absence of nested types, parent_column_index is empty.
 	// For nested types, it contains the sequence of parent indices to reach
@@ -400,7 +422,7 @@ struct AltrepVectorWrapper {
 		if (transformed_vector.data() == R_NilValue) {
 			const auto &convert_opts = rel->rel_eptr->convert_opts;
 
-			transformed_vector = duckdb_r_allocate(Type(), RowCount(), Name(), convert_opts, "Dataptr");
+			transformed_vector = AllocateAltrepColumn(Type(), RowCount(), Name(), convert_opts);
 			// A conversion that throws part way leaves the vector partly filled:
 			// drop it, so that the next access converts again instead of returning it.
 			// It stays set while converting, which is what a nested access sees.
@@ -521,7 +543,9 @@ SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
 	if (n == 0) {
-		Rf_warning("no non-missing arguments to min; returning Inf");
+		// cpp11::warning(), not Rf_warning(): a warning turned into an error long-jumps,
+		// which must unwind ~AltrepGuard() (handbook/architecture/glue/altrep/README.md)
+		cpp11::warning("no non-missing arguments to min; returning Inf");
 		return Rf_ScalarReal(R_PosInf);
 	}
 	return Rf_ScalarInteger(1);
@@ -534,7 +558,7 @@ SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
 	if (n == 0) {
-		Rf_warning("no non-missing arguments to max; returning -Inf");
+		cpp11::warning("no non-missing arguments to max; returning -Inf");
 		return Rf_ScalarReal(R_NegInf);
 	}
 	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {

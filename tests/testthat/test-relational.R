@@ -1656,6 +1656,58 @@ test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)"
   )
 })
 
+test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  df <- rel_to_altrep(rel_from_sql(con, "SELECT 1 AS a WHERE false"))
+  row_names <- attr(df, "row.names")
+
+  # The ALTREP Max method of empty row names warns,
+  # and an exiting handler long-jumps out of that warning
+  expect_equal(
+    tryCatch(max(row_names), warning = function(w) "caught"),
+    "caught"
+  )
+
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df"
+  )
+})
+
+test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_on_cran()
+  skip_if_not_installed("rlang")
+
+  # A column 32 MB larger than the free space of R's vector heap
+  vcells <- gc()["Vcells", ]
+  n_rows <- vcells[["gc trigger"]] - vcells[["used"]] + 2^22
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    paste0(
+      "SELECT range::DOUBLE AS d FROM range(",
+      format(n_rows, scientific = FALSE),
+      ")"
+    )
+  ))
+  expect_equal(nrow(df), n_rows)
+
+  # A limit the heap cannot grow past fails the column's allocation
+  local({
+    old_limit <- mem.maxVSize()
+    on.exit(mem.maxVSize(old_limit))
+    mem.maxVSize(ceiling(gc()["Vcells", "gc trigger"] * 8 / 2^20) + 1)
+    expect_error(df$d[1])
+  })
+
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df"
+  )
+  # The column converts once there is room
+  expect_equal(df$d[n_rows], n_rows - 1)
+})
+
 test_that("rel_to_view()", {
   df1 <- data.frame(a = 1:10, b = 1:10)
   rel1 <- rel_from_df(con, df1)
