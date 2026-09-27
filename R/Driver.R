@@ -488,7 +488,9 @@ has_extension_prefix <- function(path) {
   grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
 }
 
-path_normalize <- function(path) {
+# `call` names the frame the path was passed in, as for `check_flag()`:
+# rlang's `abort()` would otherwise report this helper to someone who called `duckdb()`.
+path_normalize <- function(path, call = parent.frame()) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
   }
@@ -505,10 +507,13 @@ path_normalize <- function(path) {
   # to resolve the path, only to try.
   if (!file.exists(out)) {
     if (!file.create(out, showWarnings = FALSE)) {
-      abort(c(
-        paste0("Can't create the database file `", path, "`."),
-        "Its directory must exist and be writable."
-      ))
+      abort(
+        c(
+          paste0("Can't create the database file `", path, "`."),
+          "Its directory must exist and be writable."
+        ),
+        call = call
+      )
     }
 
     on.exit(unlink(out))
