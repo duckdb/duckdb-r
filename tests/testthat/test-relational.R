@@ -99,6 +99,24 @@ test_that("the query result is released with nested STRUCT columns", {
   expect_equal(df$s$y, as.double(0:999))
 })
 
+test_that("a column whose conversion fails part way fails again on the next access", {
+  # The NUL byte sits in the second chunk,
+  # so the first 2048 rows are converted when the conversion fails
+  rel <- rel_from_sql(
+    con,
+    "SELECT CASE WHEN range = 3000 THEN 'a' || chr(0) || 'b' ELSE 'v' END AS s, range AS i FROM range(5000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  expect_error(df$s[1], "null byte")
+  # Not the partly converted vector, with "" in the rows after the first chunk
+  expect_error(df$s[1], "null byte")
+
+  # The column that failed keeps the engine's copy of the result
+  expect_equal(sum(df$i), sum(0:4999))
+  expect_true(rapi_df_has_query_result(df))
+})
+
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({

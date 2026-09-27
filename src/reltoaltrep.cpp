@@ -401,12 +401,17 @@ struct AltrepVectorWrapper {
 			const auto &convert_opts = rel->rel_eptr->convert_opts;
 
 			transformed_vector = duckdb_r_allocate(Type(), RowCount(), Name(), convert_opts, "Dataptr");
+			// A conversion that throws part way leaves the vector partly filled:
+			// drop it, so that the next access converts again instead of returning it.
+			// It stays set while converting, which is what a nested access sees.
+			duckdb_httplib::detail::scope_exit drop_partial([&]() { transformed_vector = R_NilValue; });
 			idx_t dest_offset = 0;
 			for (const auto &chunk : Chunks()) {
 				SEXP dest = transformed_vector.data();
 				duckdb_r_transform(ChunkData(chunk), dest, dest_offset, chunk.size(), convert_opts, FullName());
 				dest_offset += chunk.size();
 			}
+			drop_partial.release();
 
 			rel->MarkColumnAsTransformed();
 		}
