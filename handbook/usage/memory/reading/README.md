@@ -159,17 +159,20 @@ so the paths differ by which copies they hold and when each is freed.
   [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s).
   Each column converts to a full R vector on its own first touch and
   is cached; untouched columns stay engine-only.
-  The engine collection is never released:
-  it lives alongside the converted vectors for as long as the data
-  frame does, so a fully touched frame holds the result twice until
-  the collector takes it —
-  [#1027](https://github.com/duckdb/duckdb-r/pull/1027) is the open
-  fix, freeing the collection once the last column has converted.
-  Until then, a frame that must live on is cheaper as a plain copy:
-  copying every column out with an ordinary subset and dropping the
-  ALTREP frame releases both of its copies,
-  at the price of a third one while the copy is made
-  (measured in the experiment named below).
+  The engine collection is released once the last column has
+  converted
+  ([#1027](https://github.com/duckdb/duckdb-r/pull/1027),
+  `MarkColumnAsTransformed()` in `AltrepRelationWrapper`):
+  from then on the frame costs its R vectors alone,
+  and its row count and materialized state stay known without it.
+  A partially touched frame still holds both copies,
+  the engine collection and the vectors converted so far,
+  for as long as the data frame does.
+  Touching every column, for instance by copying the frame out with
+  an ordinary subset, is what releases the engine copy early;
+  the frame itself is then no dearer than the plain copy
+  (the experiment named below measured the frame before this release
+  existed, when a fully touched frame held the result twice).
 
 ## More than fits
 
