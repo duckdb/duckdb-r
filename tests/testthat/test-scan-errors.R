@@ -1,22 +1,53 @@
 # Handbook: handbook/architecture/glue/threading/README.md
 
 test_that("Data frame scan reports a scan-time error with its message", {
-  # A list column is typed at bind from its first cell, so a differently
-  # encoded string further down is met only while the scan runs
+  # Registration converts character columns to UTF-8, not the strings in a
+  # list column's cells, so a differently encoded one is met only by the scan.
   con <- local_con()
 
-  n <- 1100000L
-  cells <- as.list(rep("a", n))
-  cells[[n - 10L]] <- iconv("f\u00fcr", "UTF-8", "latin1")
-  df <- data.frame(id = seq_len(n))
-  df$l <- cells
-
+  df <- data.frame(id = 1:3)
+  df$l <- list("a", iconv("f\u00fcr", "UTF-8", "latin1"), "b")
   duckdb_register(con, "with_list", df)
 
-  # A million rows per task, so the bad cell is in a task of its own
   expect_snapshot(error = TRUE, {
     dbGetQuery(con, "SELECT count(*) AS n FROM with_list WHERE len(l) > 0")
   })
+})
+
+test_that("A scan task off R's thread reports its error without calling R", {
+  # `SexpToValue()` has no case for a matrix, so every cell of this list
+  # column fails, and so does a task a worker thread took.
+  # Reporting that through R killed the session; the subprocess is so that a
+  # regression is a failure here rather than a suite that stops.
+  # Which task fails first decides the message, so this checks where the
+  # error arrived rather than its text.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+
+      con <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      DBI::dbExecute(con, "SET threads=4")
+
+      # A million rows per task.
+      n <- 2100000L
+      df <- data.frame(id = seq_len(n))
+      df$l <- rep(list(matrix(1:4, 2)), n)
+      ns$duckdb_register(con, "mats", df)
+
+      err <- tryCatch(
+        DBI::dbGetQuery(con, "SELECT count(*) AS n FROM mats WHERE len(l) > 0"),
+        error = identity
+      )
+      list(class = class(err), context = err$context)
+    },
+    list(pkg = pkg)
+  )
+
+  expect_true("duckdb_error" %in% out$class)
+  expect_equal(out$context, "rapi_execute")
 })
 
 test_that("Errors raised on R's thread keep their context", {
