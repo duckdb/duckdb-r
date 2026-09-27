@@ -18,8 +18,9 @@ and each type beside the others in [`experiments/2026-09-26-type-catalog/`](/exp
   so reading one needs no extension,
   but the geometry functions are still `spatial`'s, and so is the CRS provider that resolves a name like `EPSG:4326`
   ([`extensions/`](/handbook/usage/extensions/README.md)).
-* **The column's CRS reaches R either way.**
-  It is an attribute on `wk_wkb`, and PROJJSON in the metadata of the `geoarrow.wkb` field an Arrow result carries,
+* **The column's CRS reaches R through `"wk"` and through Arrow, not through raw WKB.**
+  It is an attribute on `wk_wkb`, and in the metadata of the `geoarrow.wkb` field an Arrow result carries,
+  as PROJJSON once `spatial` is loaded and as the identifier without it,
   and `sf::st_crs()` reads the same CRS from both.
 * **sf reads a result through GeoArrow in one call.**
   `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's,
