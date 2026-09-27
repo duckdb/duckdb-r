@@ -851,11 +851,13 @@ on a commit no `each-rcc` leg had decided —
 a status with no record, on a ref the model calls untested.
 
 The sync commit vendors nothing,
-so the consumption anchor and the vendored-SHA scans look past it
-by subject, and stage 5 replays it onto `-dev` like any buffer commit,
-where it drops as empty because `-dev` already carries that tooling.
-Where `main` moved between the two syncs it conflicts instead;
-resolve toward `main`'s tooling, which is what both refs converge on.
+so the consumption anchor and the vendored-SHA scans look past it by subject,
+and stage 5 skips it rather than replaying it onto `-dev`,
+whose tooling this stage has already made `main`'s.
+Replaying it held only until `main` moved again.
+The sync's diff runs from the buffer's older tooling,
+so the pick conflicted, or put back on `-dev` what `main` had removed,
+and a sync the anchor never passes was offered again on every firing.
 
 ```sh
 scripts/series-port.sh <S>                  # list candidates + identity check
