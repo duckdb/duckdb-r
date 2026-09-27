@@ -2017,3 +2017,17 @@ test_that("rel_from_df() rejects matrix, S4, and integer64 columns", {
   df$a <- bit64::as.integer64(42)
   expect_error(rel_from_df(con, df), "convert")
 })
+
+test_that("a lazy data frame that fails to materialize in a scan's bind leaves the connection usable", {
+  con2 <- local_con()
+  df <- rel_to_altrep(
+    rel_from_sql(con, "SELECT range AS i FROM range(20)"),
+    n_cells = 0
+  )
+
+  # Bind touches the column, and its ALTREP method fails under the engine
+  expect_error(rel_from_df(con2, df), "Materialization is disabled")
+
+  # A jump past the engine's frames would have left the connection locked
+  expect_equal(dbGetQuery(con2, "SELECT 42 AS answer")$answer, 42)
+})
