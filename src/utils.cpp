@@ -134,8 +134,16 @@ static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 }
 
 R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
+	// A data frame counts its rows in its first column, not in its row names:
+	// the scan also calls this from a task thread for a list of data frames,
+	// and reading compact row names allocates.
 	while (rtype.id() == RTypeId::STRUCT) {
-		rtype = rtype.GetStructChildTypes()[0].second;
+		auto child_rtypes = rtype.GetStructChildTypes();
+		if (child_rtypes.empty()) {
+			// No column to count in, and no values to read
+			return 0;
+		}
+		rtype = child_rtypes[0].second;
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
 	}
