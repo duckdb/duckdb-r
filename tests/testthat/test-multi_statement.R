@@ -21,6 +21,25 @@ test_that("multiple statements can be used in one call", {
   ))
 })
 
+test_that("a pragma sees earlier statements in the same call", {
+  con <- local_con()
+  export_location <- tempfile("duckdb-multi-statement-export-")
+  on.exit(unlink(export_location, recursive = TRUE))
+  DBI::dbExecute(con, "CREATE TABLE integers AS SELECT 42 AS i")
+
+  query <- sprintf(
+    "EXPORT DATABASE '%s'; DROP TABLE integers; PRAGMA import_database('%s')",
+    export_location,
+    export_location
+  )
+  DBI::dbExecute(con, query)
+
+  expect_identical(
+    DBI::dbGetQuery(con, "SELECT i FROM integers"),
+    data.frame(i = 42L)
+  )
+})
+
 test_that("statements can be splitted apart correctly", {
   con <- local_con()
   expect_snapshot(DBI::dbGetQuery(
