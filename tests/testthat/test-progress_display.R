@@ -121,7 +121,7 @@ test_that("a progress callback outlives a collection between the reads of a stre
 # Drives duckdb_progress_display() on a clock the test sets.
 # The function it returns calls the display with progress `x` at `time`,
 # in seconds, and returns what that call printed: "" for nothing.
-local_progress_clock <- function(frame = parent.frame()) {
+local_progress_clock <- function(.local_envir = parent.frame()) {
   old_last_time <- the$progress_last_time
   old_painted <- the$progress_painted
   withr::defer(
@@ -129,13 +129,13 @@ local_progress_clock <- function(frame = parent.frame()) {
       the$progress_last_time <- old_last_time
       the$progress_painted <- old_painted
     },
-    envir = frame
+    envir = .local_envir
   )
   the$progress_last_time <- NULL
   the$progress_painted <- NULL
 
   now <- 0
-  local_mocked_bindings(progress_now = function() now, .env = frame)
+  local_mocked_bindings(progress_now = function() now, .env = .local_envir)
 
   function(time, x) {
     now <<- time
