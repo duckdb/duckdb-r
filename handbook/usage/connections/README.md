@@ -17,9 +17,11 @@ The load-bearing facts:
   keyed by the canonical path, in `driver_registry`.
   An in-memory database is never cached.
 * **That cache is a correctness guard, not an optimization.**
-  The engine's file lock is per-process, and `rapi_startup()` builds a `DuckDB` directly,
+  On POSIX the engine's file lock is per-process, and `rapi_startup()` builds a `DuckDB` directly,
   so a second read-write instance on a file this process already holds opens without complaint.
   The two then diverge: each sees what was committed before it opened and nothing the other writes afterwards.
+  On Windows the engine opens a read-write database file sharing nothing but its deletion
+  (vendored `src/duckdb/src/common/local_file_system.cpp`), which probably refuses the second open; that is not measured.
   `driver_registry` is what keeps one R session to one writer per database,
   so a key that fails to unify two spellings of one file is a data-integrity bug rather than a missed reuse
   ([`2026-08-09-path-canonicalization/`](/experiments/2026-08-09-path-canonicalization/README.md)).
@@ -32,10 +34,12 @@ The load-bearing facts:
   because a symlink to a database yet to be created resolves only once its target exists.
   Two spellings of one database (relative, symlinked, differently separated) therefore share an instance.
   Only `~` stays R's to expand: DuckDB has its own idea of the home directory, and on Windows it is not R's.
-  A path that resolves no further is used as it stands rather than refused:
-  a network drive whose directories the user may traverse but not list
-  is one the engine opens and `normalizePath()` refuses
+  A path that resolves no further is used as it stands rather than refused,
+  so that a network drive whose directories the user may traverse but not list still opens
   ([#455](https://github.com/duckdb/duckdb-r/issues/455)).
+  That the engine opens such a path where `normalizePath()` refuses it rests on the engine's sources,
+  and a runner did not reproduce it
+  ([`2026-08-09-path-canonicalization/`](/experiments/2026-08-09-path-canonicalization/README.md)).
   A path the engine cannot open, in a directory that does not exist for one,
   still fails in `duckdb()` with the engine's error naming it, and leaves nothing cached.
 * `dbdir`, `config`, `read_only`, `home`, and `shared_home`
