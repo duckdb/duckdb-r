@@ -182,3 +182,21 @@ test_that("a query done in its first half second leaves the next its own", {
   expect_equal(display_at(10.25, 20), "")
   expect_equal(display_at(10.5, 30), "\rDuckDB progress:  30%")
 })
+
+test_that("the next query clears the line of a query that never completed", {
+  display_at <- local_progress_clock()
+  rlang::local_options(duckdb.progress_display = TRUE)
+
+  expect_equal(display_at(0, 10), "")
+  expect_equal(display_at(0.5, 50), "\rDuckDB progress:  50%")
+  # The query fails here, and the engine never finishes its display.
+
+  # The engine builds the next query's display, which clears the line.
+  out <- utils::capture.output(display <- get_progress_display())
+  expect_equal(out, "\r                     \r")
+  expect_identical(display, duckdb_progress_display)
+
+  # That query starts its own half second, and completes without painting.
+  expect_equal(display_at(10, 10), "")
+  expect_equal(display_at(10.25, 100), "")
+})

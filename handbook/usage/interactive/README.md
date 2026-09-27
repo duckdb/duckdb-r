@@ -17,10 +17,13 @@ thousands of times in a query of a few seconds
 The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
 Throttling is left to the R side.
 A query paints nothing in its first half second, so a fast query never paints, and at most one line every half second after that.
-Completion bypasses the throttle, so a painted line is cleared when its query completes, and the next query starts its own half second.
+Completion bypasses the throttle, so a painted line is cleared when its query completes.
 Completion is the engine's call to the display's `Finish()`, which never comes for a query that fails or is interrupted,
 and comes with a streamed Arrow result's first chunk, before the reads that report further progress.
-Either way the last line painted stays, and the next query inherits the throttle's state, so it can paint at once.
+Either way the last line painted stays until the next query starts.
+Its display is built by `get_progress_display()`, which clears the line, if nothing was printed after it, and restarts the throttle.
+The display keeps one state for the session, not one per query.
+A query that starts while another connection's stream is still being read clears that stream's line and restarts its throttle too.
 
 ## Interrupting a query
 

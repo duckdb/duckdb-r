@@ -2,12 +2,8 @@
 
 duckdb_progress_display <- function(x) {
   if (x >= 100) {
-    # Completion bypasses the throttle, so no painted line outlives its query.
-    if (isTRUE(the$progress_painted)) {
-      cat("\r                     \r")
-    }
-    the$progress_last_time <- NULL
-    the$progress_painted <- NULL
+    # Completion bypasses the throttle, so a completed query clears its line.
+    progress_display_reset()
     return()
   }
 
@@ -31,12 +27,23 @@ progress_now <- function() {
   as.numeric(Sys.time())
 }
 
+# Clears a painted line and restarts the throttle, at completion and when the
+# next query's display is built, since a failed query never completes.
+progress_display_reset <- function() {
+  if (isTRUE(the$progress_painted)) {
+    cat("\r                     \r")
+  }
+  the$progress_last_time <- NULL
+  the$progress_painted <- NULL
+}
+
 get_progress_display <- function() {
   f <- getOption("duckdb.progress_display", default = is_interactive())
 
   if (is.null(f)) {
     f
   } else if (isTRUE(f)) {
+    progress_display_reset()
     duckdb_progress_display
   } else if (is.logical(f)) {
     NULL
