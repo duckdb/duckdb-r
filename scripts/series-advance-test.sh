@@ -257,11 +257,34 @@ git mv inst/types.hpp inst/flavored.hpp
 git commit -qm 'chore: Reflavor'
 git branch emptyres-build-base emptyres-seed
 
+# --- a verified prefix under a red tip (claim 14) ---------------------------
+# Two commits in flight, the older one green and the newer one red, and a buffer
+# commit waiting behind them. Stage 3 owes the frontier the commit it proved;
+# stage 5 owes the buffer nothing while a repair is pending.
+git checkout -q -b red-dev base-seed
+bvendor fff7777 1.0.0.9000.1 l.cpp
+RED_OK=$(git rev-parse HEAD)
+bvendor fff8888 1.0.0.9000.2 m.cpp
+RED_BAD=$(git rev-parse HEAD)
+git branch red-green base-seed
+git checkout -q -b red-build red-dev
+bvendor fff9990 1.0.0.9000.3 n.cpp
+git branch red-build-base base-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
-# anything absent, which is what a freshly pushed commit looks like.
+# anything absent, which is what a freshly pushed commit looks like. The `red`
+# series is the one case that needs real records, so it gets two.
 git checkout -q --orphan rcc2
 git rm -rqf .
-git commit -q --allow-empty -m 'chore: empty store'
+rec() { # <sha> <state>
+  mkdir -p "runs2.d/${1:0:2}"
+  printf '{"commit":"%s","status":{"context":"rcc","state":"%s"}}\n' "$1" "$2" \
+    > "runs2.d/${1:0:2}/$1.ndjson"
+}
+rec "$RED_OK" success
+rec "$RED_BAD" failure
+git add -A
+git commit -q -m 'chore: store stub'
 
 git checkout -q main
 git push -q origin main base-seed base-build base-dev base-green base-build-base \
@@ -270,8 +293,17 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   note-build note-dev note-green note-build-base \
   bare-build bare-dev bare-green bare-build-base \
   dup-build dup-dev dup-green dup-build-base \
+  red-build red-dev red-green red-build-base \
   emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
 git fetch -q origin
+
+# A canonical remote, because `red` is the one series here whose green moves,
+# and the mirror is what r-universe reads. Only `red-green` lives there, the way
+# only green travels out of the fork.
+CANON=$SCRATCH/canonical.git
+git init -q --bare -b main "$CANON"
+git remote add upstream "$CANON"
+git push -q upstream red-green
 
 run() { set +e; scripts/series-advance.sh "$@" 2>&1; echo "EXIT=$?"; set -e; }
 # Collected, then matched -- never piped straight into `grep -m1`. The grep
@@ -536,6 +568,22 @@ has "refuses before reading any ref" "$out" 'missing or empty'
 has "and exits non-zero"             "$out" 'EXIT=1'
 git fetch -q origin
 is "leaving dev where it was" "$(git rev-parse origin/note-dev)" "$before"
+
+echo
+echo "== a verified prefix under a red tip"
+before=$(git rev-parse origin/red-dev)
+out=$(run red)
+git fetch -q origin
+is "green takes the commit the run proved" \
+  "$(git rev-parse origin/red-green)" "$RED_OK"
+is "and the canonical copy takes it too" \
+  "$(git --git-dir="$CANON" rev-parse red-green)" "$RED_OK"
+has "the red commit is named"    "$out" "$RED_BAD"
+has "as the reason to stop"      "$out" 'repair before extending'
+has "and the firing exits non-zero" "$out" 'EXIT=1'
+is "dev is left for the repair" "$(git rev-parse origin/red-dev)" "$before"
+is "and the buffer commit is not consumed" \
+  "$(git rev-list --count origin/red-dev..origin/red-build)" 1
 
 echo
 echo "$pass passed, $fail failed"
