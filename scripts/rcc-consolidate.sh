@@ -2,8 +2,9 @@
 # Consolidate the orphan `rcc2` branch: drop everything past the retention
 # window, and squash the whole history to two commits.
 #
-# Run by hand, from an operator's checkout, never on a schedule. Everything else that writes to this branch is additive and
-# races safely (scripts/rcc-publish.sh); this one rewrites it, and the one thing
+# Run by hand, from an operator's checkout, never on a schedule.
+# Everything else that writes to this branch is additive and races safely
+# (scripts/rcc-publish.sh); this one rewrites it, and the one thing
 # that makes a rewrite safe is knowing nothing else is mid-flight. A schedule
 # cannot know that. The force-push carries a lease, so if something did land in
 # between, the push is refused rather than silently discarding it.
