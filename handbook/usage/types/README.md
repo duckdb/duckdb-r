@@ -118,7 +118,9 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
   With `map = "list_of"`, the `vctrs::list_of()` it reads as writes back as `MAP` without `field.types`
   ([#200](https://github.com/duckdb/duckdb-r/issues/200)).
-  Neither its text nor a parameter casts to `MAP`.
+  Its text casts to `MAP` in the query and as a parameter, but does not write it through `field.types` or `dbAppendTable()`,
+  which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text.
+  The list it reads as does not bind as a `MAP` parameter.
 * **`STRUCT`** (`ROW`) reads as a data frame column, where a `NULL` struct is a row of `NA`, the same as a struct of `NULL`s.
   A data frame column writes it, and a data frame parameter binds a struct per row.
 * **`UNION`** has no R vector, and `dbGetQuery()` refuses its column by name.
@@ -151,7 +153,8 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   `INTERVAL` without its months and days, and `infinity` as a distant finite date or instant.
 * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
   and no R class writes `TIME` outside Arrow.
-* `MAP` has no cast from text, an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
+* `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
+  an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
 * A raw vector column is refused with a message naming neither the column nor its class.
 * `dbCreateTable()` takes its column types from `dbDataType()`,
   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,

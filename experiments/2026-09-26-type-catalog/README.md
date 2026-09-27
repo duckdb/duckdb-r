@@ -56,7 +56,8 @@ What each type does is the leaf's; what the run found beyond that:
   `VARIANT` is the one type the engine's Arrow export does not implement.
 * **Text is the universal write route for scalars.**
   The value cast to `VARCHAR`, written as `character` with `field.types`, lands the same value for every scalar type;
-  only `MAP` has no cast from text, `UNION` takes its text as the `VARCHAR` member, and the `spatial` extension's
+  only `MAP` fails, because `field.types` wraps a `MAP` column in `map_from_entries()`, which takes no text;
+  `UNION` takes its text as the `VARCHAR` member, and the `spatial` extension's
   point, line, polygon and box types do not parse WKT.
 * **The value R reads writes back as the same type, except for `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT`.**
   `TIME` and `TIMETZ` come back as `difftime`, which writes `INTERVAL`, which does not cast to `TIME`;
