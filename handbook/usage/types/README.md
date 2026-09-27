@@ -133,7 +133,7 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   matching the engine's own `SELECT NULL`;
   mapping it to logical `NA` instead was declined ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
   A typed `NULL`, as a scanned logical column or a bound `NA` parameter, round-trips as logical `NA`.
-  The `expr_constant(NA)` corner is [`relational/`](/handbook/usage/relational/README.md)'s.
+  What `expr_constant(NA)` builds in the relational API is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **`GEOMETRY`** and the `spatial` extension's point, line, polygon and box types are [`spatial/`](/handbook/usage/spatial/README.md)'s.
 * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
   Its text writes it through `field.types`.
