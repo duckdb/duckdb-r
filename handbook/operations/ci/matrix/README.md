@@ -10,8 +10,8 @@ and builds the base entries from them —
 so a new R release enters the matrix without a commit.
 
 The base shape: R-devel and the recent releases on Linux amd64,
-fewer of them on macOS, Windows, and Linux arm64,
-plus a coverage entry.
+fewer of them on macOS, Windows, and Linux arm64.
+Coverage is not a matrix entry; the smoke test computes it on every run of [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml).
 Which versions land where is the action's,
 and the reasoning is in its comments.
 
