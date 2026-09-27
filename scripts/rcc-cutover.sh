@@ -56,7 +56,7 @@
 #                         report only, never written
 #   BRANCH              - the branch to create (default: rcc2)
 #   REMOTE              - remote to push to (default: origin)
-#   RCC_RETENTION_DAYS  - keep records and logs at most this old (default: 30)
+#   RCC_RETENTION_DAYS  - keep records and logs at most this old (default: 180)
 #   APPLY               - if non-empty, commit and push; otherwise report what
 #                         would happen and leave everything alone
 #   FORCE               - if non-empty, push even when BRANCH already exists on

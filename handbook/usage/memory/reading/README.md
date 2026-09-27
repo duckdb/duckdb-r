@@ -120,11 +120,15 @@ so the paths differ by which copies they hold and when each is freed.
   `dbFetchArrow()` hands over the whole stream,
   and what materializes from it is the consumer's choice.
   The stream pins the connection —
-  any other statement invalidates it —
-  `dbClearResult()` frees it eagerly,
-  and a multi-row bind falls back to one materialized result per row
+  any other statement invalidates it,
+  [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md) says why.
+  `dbClearResult()` frees it eagerly, ending its query as the connection's next statement would
+  (`rapi_release_arrow_result()`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+  A multi-row bind falls back to one materialized result per row
   (`rapi_bind()`, [`src/statement.cpp`](/src/statement.cpp)).
-  The surfaces, and that a stream drains once, are
+  `dbFetchArrowChunk()` frees each result it has read to the end and keeps only its columns.
+  `dbClearResult()` frees the ones not read yet.
+  The surfaces, that a stream drains once, and what reading an invalidated one does, are
   [`integrations/`](/handbook/usage/integrations/README.md)'s.
 * **ADBC.**
   The engine's own ADBC driver, compiled into this package's library
@@ -155,17 +159,20 @@ so the paths differ by which copies they hold and when each is freed.
   [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s).
   Each column converts to a full R vector on its own first touch and
   is cached; untouched columns stay engine-only.
-  The engine collection is never released:
-  it lives alongside the converted vectors for as long as the data
-  frame does, so a fully touched frame holds the result twice until
-  the collector takes it —
-  [#1027](https://github.com/duckdb/duckdb-r/pull/1027) is the open
-  fix, freeing the collection once the last column has converted.
-  Until then, a frame that must live on is cheaper as a plain copy:
-  copying every column out with an ordinary subset and dropping the
-  ALTREP frame releases both of its copies,
-  at the price of a third one while the copy is made
-  (measured in the experiment named below).
+  The engine collection is released once the last column has
+  converted
+  ([#1027](https://github.com/duckdb/duckdb-r/pull/1027),
+  `MarkColumnAsTransformed()` in `AltrepRelationWrapper`):
+  from then on the frame costs its R vectors alone,
+  and its row count and materialized state stay known without it.
+  A partially touched frame still holds both copies,
+  the engine collection and the vectors converted so far,
+  for as long as the data frame does.
+  Touching every column, for instance by copying the frame out with
+  an ordinary subset, is what releases the engine copy early;
+  the frame itself is then no dearer than the plain copy
+  (the experiment named below measured the frame before this release
+  existed, when a fully touched frame held the result twice).
 
 ## More than fits
 

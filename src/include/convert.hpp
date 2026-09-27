@@ -21,7 +21,11 @@ struct ConvertOpts {
 
 	enum class ArrowConversion { DISABLED, ENABLED };
 
-	enum class ResultStreaming { DISABLED, ENABLED };
+	// Mirrors DuckDB's PreparedStatement::Execute(allow_stream_result):
+	// whether execution may produce a StreamQueryResult instead of a
+	// MaterializedQueryResult. Distinct from the user-facing `stream`
+	// argument of dbSendQuery(), which expresses intent at the R level.
+	enum class AllowStreamResult { DISABLED, ENABLED };
 
 	enum class ExperimentalFeatures { DISABLED, ENABLED };
 
@@ -36,7 +40,7 @@ struct ConvertOpts {
 	MapShape map = MapShape::DATA_FRAME;
 	PosixctType posixct = PosixctType::TIMESTAMPTZ;
 	ArrowConversion arrow = ArrowConversion::DISABLED;
-	ResultStreaming streaming = ResultStreaming::DISABLED;
+	AllowStreamResult allow_stream_result = AllowStreamResult::DISABLED;
 	ExperimentalFeatures experimental = ExperimentalFeatures::DISABLED;
 	StrictRelational strict_relational = StrictRelational::ENABLED;
 

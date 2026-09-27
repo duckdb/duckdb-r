@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbColumnInfo
 #' @usage NULL
 dbColumnInfo__duckdb_result_arrow <- function(res, ...) {
-  if (!res@env$open) {
-    abort("result has already been cleared")
-  }
+  check_result_open(res)
   data.frame(
     name = res@stmt_lst$names,
     type = res@stmt_lst$rtypes,

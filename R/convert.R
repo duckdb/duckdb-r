@@ -52,7 +52,7 @@ duckdb_convert_opts <- function(
     map = map,
     posixct = posixct,
     arrow = FALSE,
-    streaming = FALSE,
+    allow_stream_result = FALSE,
     experimental = FALSE,
     strict_relational = TRUE
   )
@@ -69,7 +69,7 @@ duckdb_convert_opts_impl <- function(
   map = NULL,
   posixct = NULL,
   arrow = NULL,
-  streaming = NULL,
+  allow_stream_result = NULL,
   experimental = NULL,
   strict_relational = NULL
 ) {
@@ -97,8 +97,8 @@ duckdb_convert_opts_impl <- function(
   if (!is.null(arrow)) {
     x$arrow <- arrow
   }
-  if (!is.null(streaming)) {
-    x$streaming <- streaming
+  if (!is.null(allow_stream_result)) {
+    x$allow_stream_result <- allow_stream_result
   }
   if (!is.null(experimental)) {
     x$experimental <- experimental
