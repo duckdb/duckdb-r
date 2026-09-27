@@ -72,7 +72,7 @@ Now it means re-reading the tip and re-staging the same files.
 | Writer | Frequency | Touches |
 |---|---|---|
 | an `each-rcc` leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
-| `rcc-logs.yaml` | on dispatch | records for commits it finds undecided |
+| [`rcc-logs.sh`](/scripts/rcc-logs.sh) | by hand | records for commits it finds undecided |
 | [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | by hand | **all of it** |
 
 Nobody rewrites anything that is not their own commit's —
@@ -319,11 +319,12 @@ from rebuilding what it has already decided.
 Two writers have been retired since, in the same direction.
 The per-run fan-in reconciled onto the branch whatever a leg could not publish;
 it went once the loop began reading the artifact it was copying from.
-And `rcc-logs.yaml`, which used to tick every 30 minutes,
+And the sweep, `rcc-logs.yaml` ticking every 30 minutes,
 was keeping a copy warm that a firing normally never opens;
-it is dispatched now, and the one gap it alone covers —
+the workflow is gone and [`rcc-logs.sh`](/scripts/rcc-logs.sh) runs by hand,
+the way consolidation does, and the one gap it alone covers —
 a run cancelled whole, so that no leg ever published —
-is the reason to dispatch it.
+is the reason to run it.
 What is left is the leg's own publish, which is where a verdict comes from.
 
 ## Where this is going

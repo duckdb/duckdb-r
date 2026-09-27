@@ -257,7 +257,7 @@ write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
 #
 # Never fatal: the artifact remains, and it is what a firing reads, so the worst
 # a failed publish costs is that the store does not learn this verdict until
-# `rcc-logs.yaml` is dispatched.
+# `scripts/rcc-logs.sh` is run by hand.
 publish_record() { # <sha> <state>
   local sha="$1" state="$2" stage="${workdir}/publish"
   [ -n "${NO_PUBLISH}" ] && return 0
