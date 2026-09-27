@@ -27,7 +27,8 @@ through \code{dbSendQuery(arrow = TRUE)}.
 
 The reader is its connection's open result until it has been read to the end.
 Another statement on that connection makes the next read an error,
-and a query on that connection that scans the reader does not return.
+and a query on that connection that scans the reader never returns.
+Ctrl-C does not stop that query, and the R session has to be ended.
 Tables from \code{arrow::to_duckdb()} share the one connection that arrow keeps
 unless \code{con} is given:
 for such a table, a later \code{to_duckdb()} call is such a statement,

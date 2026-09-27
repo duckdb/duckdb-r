@@ -131,6 +131,10 @@ This file is what names the contents, so nothing here is an orphan.
   each way to read a `GEOMETRY` column into sf through Arrow, each GeoArrow encoding on the way in,
   what the CRS becomes at every step, and the routes that lose the geometry; supports
   [`usage/spatial/`](/handbook/usage/spatial/README.md).
+* [`2026-09-27-stream-self-scan/`](2026-09-27-stream-self-scan/):
+  what a query does that scans a streaming result on the result's own connection, in R before and after #2775 and in the Python client.
+  Also whether an interrupt ends it, where it waits, what works instead, and what writing a stream back to its connection leaves behind.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

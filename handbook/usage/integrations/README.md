@@ -141,9 +141,7 @@ The engine's callbacks read it, so a stream can still be read after `dbDisconnec
 Statements that must run between reads need a connection of their own.
 That includes a query that scans the stream itself.
 Registering `arrow::as_record_batch_reader(stream)` with `duckdb_register_arrow()` and querying it is one.
-On the stream's own connection, that query hangs instead of failing.
-It holds the connection while it reads, and each read of the stream waits for the connection.
-Ctrl+C does not end the wait, so the R session has to be killed ([`interactive/`](/handbook/usage/interactive/README.md)).
+On the stream's own connection it waits for good, as the entry below says.
 A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
@@ -153,15 +151,30 @@ that class directly instead of a data frame to convert afterwards,
 and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
 at a time.
 
+**A query that scans a stream on the stream's own connection waits instead of failing.**
+Starting the query invalidates the stream.
+A read learns that only under the connection's lock, which the query holds until the scan returns.
+Neither the size of the result nor the number of threads changes that.
+Ctrl+C does not end the wait, so the R session has to be killed ([`interactive/`](/handbook/usage/interactive/README.md)).
+The engine's own stream waits the same way, in the Python client and in this package before [#2775](https://github.com/duckdb/duckdb-r/pull/2775).
+A second connection to the same database scans the stream.
+So does its own connection once the stream has been read to the end or the result materialized
+([`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md)).
+Writing a stream back to its own connection fails instead, with the invalidation error.
+DBI's methods for that run statements between their reads.
+`dbWriteTableArrow()` fails before it creates the table.
+`dbAppendTableArrow()` fails at the second batch, after appending the first.
+So a stream longer than one batch leaves a partial copy.
+
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
 `to_arrow()` still reads through the `arrow = TRUE` route, which materializes the whole result first.
 The same reader built from `dbGetQueryArrow()` and `arrow::as_record_batch_reader()` streams instead, and takes on the stream's limits.
 The package exports it as the experimental `to_arrow_stream()` ([`R/to_arrow_stream.R`](/R/to_arrow_stream.R)).
 Tables from `to_duckdb()` share the one connection arrow keeps unless `con` is given.
-So for those, a later `to_duckdb()` invalidates the reader, and `to_duckdb()` with its default `con` hands it back to its own connection.
+So for those, a later `to_duckdb()` invalidates the reader.
+`to_duckdb()` with its default `con` scans the reader on its own connection, where it waits.
 A read runs outside the package's interrupt handler, so Ctrl-C does not stop it, while it stops `to_arrow()`, which reads inside `dbSendQuery()`.
-A statement on its connection invalidates it before it is read to the end, and handed back to that connection with `to_duckdb()` it hangs.
 Arrow's `MakeSafeRecordBatchReader()`, which `to_arrow()` wraps around its reader, reports a read error as the end of the stream.
 So it cannot be kept around a stream, which can fail after its first batch.
 The measurements, on arrow 25.0.1, are in [`experiments/2026-09-26-to-arrow-stream/`](/experiments/2026-09-26-to-arrow-stream/README.md).
