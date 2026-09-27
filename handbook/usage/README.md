@@ -20,6 +20,7 @@ and is what turns the announcement off.
 * [`connections/`](connections/) — `dbConnect()`, instances, shutdown
 * [`statements/`](statements/) — queries, transactions, tables, quoting
 * [`types/`](types/) — the R ↔ DuckDB type mapping
+* [`arrow-types/`](arrow-types/): every type through Arrow, in both directions, and which R functions keep it
 * [`timestamps/`](timestamps/) — timestamps, time zones, and their labels
 * [`spatial/`](spatial/): geometry, its CRS, and the `spatial` extension's types
 * [`extensions/`](extensions/) — what ships, what installs

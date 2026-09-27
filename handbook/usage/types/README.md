@@ -13,9 +13,8 @@ Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/READ
 `dbGetQuery()` converts each column by its type, and four `dbConnect()` arguments change the shape,
 whose defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`
 are set in [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
-`dbGetQueryArrow()` hands out the engine's own Arrow export instead, converted by whatever reads the stream
-([`integrations/`](/handbook/usage/integrations/README.md)); the R classes named below for an Arrow result are nanoarrow's.
-`SET arrow_lossless_conversion = true` makes that export carry `HUGEINT`, `UHUGEINT`, `UUID`, `TIMETZ`, `BIT` and `JSON` as themselves.
+`dbGetQueryArrow()` hands out the engine's own Arrow export instead,
+and what each type becomes there, and in the R readers that convert the stream, is [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
 A cast to `VARCHAR` in the query reads any type as text.
 
 **Writing.**
@@ -23,8 +22,7 @@ A cast to `VARCHAR` in the query reads any type as text.
 and `field.types` casts that column to the type it names, from any value that casts.
 `dbAppendTable()` casts to the type of the existing column, and a parameter (`params =`) binds by its R class, cast by the query.
 A `character` column holding a value's text form writes every scalar type through `field.types`, because DuckDB parses the text it prints.
-`duckdb_register_arrow()` takes an Arrow table whose field types map one to one,
-so it writes the types no R class does: unsigned and narrow integers, `DECIMAL`, `TIME`, `TIME_NS` and `TIMESTAMP_NS`.
+Arrow, registered with `duckdb_register_arrow()`, writes the types no R class does.
 
 ## Numbers
 
@@ -42,11 +40,11 @@ The [numeric](https://duckdb.org/docs/current/sql/data_types/numeric) and [boole
 * **`UBIGINT`** reads as `numeric`, or as `integer64`, which holds the values below 2^63 and wraps the rest to negative numbers.
   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 * **`HUGEINT`, `UHUGEINT`** read as `numeric`, rounded to a double, and `bigint` does not change that.
-  Their text is exact both ways, and so is Arrow, which carries them as `DECIMAL(38,0)`, or as themselves with `arrow_lossless_conversion`.
+  Their text is exact both ways.
 * **`BIGNUM`** (`VARINT`) has no R vector, and `dbGetQuery()` refuses its column by name.
-  Its text reads and writes it, and Arrow carries it (`arrow.opaque`) and registers it back.
+  Its text reads and writes it, and so does Arrow.
 * **`DECIMAL(width, scale)`** (`NUMERIC`) reads as `numeric` at every width, so past a double's 15 to 17 significant digits it rounds.
-  Its text is exact both ways, and an Arrow `decimal128` writes it exactly.
+  Its text is exact both ways, and Arrow writes it exactly.
 * **`FLOAT`** (`REAL`) and **`DOUBLE`** read as `numeric`, and `numeric` writes `DOUBLE`.
   `NaN` reads and writes as `NaN`, never as `NA`, and `NA` is `NULL` in both directions.
 
@@ -68,12 +66,12 @@ and [bitstring](https://duckdb.org/docs/current/sql/data_types/bitstring) types,
   `enc2utf8()` re-encodes only what R has marked, and a string read from a file whose encoding the reader was not told is marked `"unknown"`:
   it passes through untouched, still invalid.
   Which is why the cheapest place to fix this is the reader.
-* **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors, without the `blob` class an Arrow result converts to.
+* **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors.
   A `blob::blob` or a list of raw vectors writes it.
   A bare raw vector is refused, with an error naming neither the column nor its class
   ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).
 * **`BIT`** (`BITSTRING`) has no R vector, and `dbGetQuery()` refuses its column by name.
-  Its text reads and writes it; Arrow carries it as bytes, and back as `BIT` only with `arrow_lossless_conversion`.
+  Its text reads and writes it.
 * **`UUID`** reads as `character`, lowercase and hyphenated.
   `character` writes `VARCHAR`, and `field.types` makes it a `UUID`.
 
@@ -84,25 +82,24 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 
 * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
   `infinity` and `-infinity` read as dates millions of years away, not as `Inf`.
-* **`TIME`** reads as `difftime` in seconds, and an Arrow result converts to `hms`.
+* **`TIME`** reads as `difftime` in seconds.
   No R class writes it: `difftime` and `hms` write `INTERVAL`, which does not cast to `TIME`,
   so `field.types`, `dbAppendTable()` and a parameter all fail with that cast error.
-  Its text writes it through `field.types`, and so does an Arrow `time64`.
+  Its text writes it through `field.types`, and so does Arrow.
 * **`TIME_NS`** has no R vector, and `dbGetQuery()` refuses its column by name.
-  An Arrow result converts it to `hms`, and a cast to `TIME` in the query reads it to the microsecond.
-  Its text writes it, and so does an Arrow `time64[ns]`.
+  Arrow reads it, and a cast to `TIME` in the query reads it to the microsecond.
+  Its text writes it, and so does Arrow.
 * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as the `difftime` of its local time, with the offset dropped,
   pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
-  Its text writes it, and Arrow round-trips it with `arrow_lossless_conversion`.
+  Its text writes it.
 * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`, and `infinity` reads as a finite instant.
   `POSIXct` writes `TIMESTAMP`, the instant in UTC with its zone label dropped, and `field.types` names the other precisions.
 * **`TIMESTAMP_NS`** reads as `POSIXct` truncated to the microsecond, with a warning the first time in a session and never again.
-  `POSIXct` writes it to the microsecond through `field.types`, and an Arrow `timestamp[ns]` writes it directly.
+  `POSIXct` writes it to the microsecond through `field.types`, and Arrow writes it directly.
 * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
-  and an Arrow `timestamp` carrying a zone writes it directly.
+  and Arrow writes it directly.
 * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours, so the months and days are lost.
-  An Arrow result carries the three parts, which nanoarrow does not convert to an R vector.
   A `difftime` in any unit, or an `hms`, writes `INTERVAL`, and the unit is not kept.
 
 ## Enums and nested types
@@ -112,7 +109,6 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 
 * **`ENUM`** reads as `factor`, with every value of the type as a level.
   A `factor` or `ordered` column writes `ENUM` of its levels, and `ordered` is not kept; a `factor` parameter binds as `VARCHAR`.
-  An Arrow result carries a dictionary, which converts to `character` and registers back as `VARCHAR`.
 * **`ARRAY`** (`INTEGER[3]`) reads only with `array = "matrix"`, as a matrix with a row per value;
   without it, the column is refused with that hint.
   A `NULL` array reads as a row of `NA`, the same as an array of `NULL`s,
@@ -126,11 +122,10 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * **`STRUCT`** (`ROW`) reads as a data frame column, where a `NULL` struct is a row of `NA`, the same as a struct of `NULL`s.
   A data frame column writes it, and a data frame parameter binds a struct per row.
 * **`UNION`** has no R vector, and `dbGetQuery()` refuses its column by name.
-  `union_tag()`, `union_extract()` or a cast to `VARCHAR` read it in the query, and an Arrow result converts it to a data frame.
+  `union_tag()`, `union_extract()` or a cast to `VARCHAR` read it in the query, and an Arrow result carries it.
   A column of a member's type writes it through `field.types`, which picks that member; text picks the `VARCHAR` member.
 * **`VARIANT`** reads as a list, each value converted by its own type, and fails on a value whose type R cannot hold.
   A column of the value's type writes it through `field.types`; the list it reads as writes as a `LIST` inside the variant.
-  The engine's Arrow export does not implement it.
 
 ## Everything else
 
@@ -141,7 +136,7 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   and the `expr_constant(NA)` corner is [`relational/`](/handbook/usage/relational/README.md)'s.
 * **`GEOMETRY`** and the `spatial` extension's point, line, polygon and box types are [`spatial/`](/handbook/usage/spatial/README.md)'s.
 * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
-  Its text writes it through `field.types`, and Arrow round-trips it with `arrow_lossless_conversion`.
+  Its text writes it through `field.types`.
 * **`INET`**, the [`inet` extension's](https://duckdb.org/docs/current/core_extensions/inet) address type,
   reads as a data frame column whose `address` is a `HUGEINT` read as a double: exact for IPv4, rounded for IPv6.
   Its text reads and writes it exactly.
@@ -161,9 +156,6 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   Re-applying it on the way out (`units::set_units()`) is the caller's.
   The same holds for a column that reaches the engine through Arrow:
   `arrow` carries `[m^2]` in its schema as an extension type, and DuckDB reads the storage underneath it.
-* **Arrow results are not R vectors at all:**
-  they stay in the stream, and what consumes them is [`integrations/`](/handbook/usage/integrations/README.md)'s
-  ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
 * **Not every column lifts into the relational path** (duckplyr's):
   `rel_from_df()` refuses rather than converts,
   and which columns, and what duckplyr does about a refusal, is [`relational/`](/handbook/usage/relational/README.md)'s.

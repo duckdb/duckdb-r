@@ -3,13 +3,15 @@
 *What it measures:* for every DuckDB type, what a value becomes in R on each read route,
 and whether each write route puts that value back as the same type and value;
 the Arrow round trip of every type, with and without `arrow_lossless_conversion`;
-and the cases where a value changes, collides with `NA`, or fails, before and after the fixes that landed with the record.
+and the cases where a value changes, collides with `NA`, or fails, before and after the fixes the record prompted.
 
 *When and on what:* 2026-09-26, duckdb 1.5.5.9026 (DuckDB 1.5.5, linked through the fast path), Linux,
 with `json`, `inet`, `spatial` and `icu` from the extension store,
 bit64 4.8.6, nanoarrow 0.9.0, arrow 25.0.1, geoarrow 0.4.4, wk 0.9.5.
-The `.md` records without a suffix ran on the build carrying the fixes, at the commit that adds this directory;
-`edges-main.md` ran the same script on its parent, whose code is `main` at 66c7fb1f.
+The `.md` records without a suffix ran on `main` at 66c7fb1f with the five fixes listed below applied;
+`edges-main.md` ran the same script on `main` at 66c7fb1f alone.
+Two of the fixes have since landed on `main` as [#2818](https://github.com/duckdb/duckdb-r/pull/2818) and [#2819](https://github.com/duckdb/duckdb-r/pull/2819),
+and the other three are [#2808](https://github.com/duckdb/duckdb-r/pull/2808).
 The reference list of types is DuckDB's own documentation for that release,
 the pages under [`docs/current/sql/data_types/`](https://github.com/duckdb/duckdb-web/tree/15add337444fcba7a88f48ea5abd33c1358c9d37/docs/current/sql/data_types)
 of `duckdb/duckdb-web` at 15add337 (served at `duckdb.org/docs/current/`, whose `_config.yml` names 1.5.5),
