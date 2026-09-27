@@ -206,6 +206,16 @@ duration_of() { # <sha> -> seconds the shard spent on it, empty if none
   record_field "$1" 's/.*"duration_seconds": *([0-9]+).*/\1/p'
 }
 
+# The stages the shard recorded as failed, which the log cannot always say. A
+# stage that fails before the tests run -- `install` above all, where a glue
+# call site the series' engine no longer offers stops the compile -- leaves a
+# log with no testthat output in it, which is byte for byte what a cancelled
+# leg leaves. Without this the fallback below calls such a commit transient and
+# the loop spends a rerun to be told the same thing.
+failed_stages_of() { # <sha> -> the stages, comma-separated, empty if none
+  record_field "$1" 's/.*"failed_stages": *\[([^]]*)\].*/\1/p' | tr -d '"' | sed 's/,/, /g'
+}
+
 # Positive evidence that a gate reached out over the network and was refused.
 # Checked only after the tree-shaped classifications above it, so a real test
 # failure that happens to mention a URL is not mistaken for a flake.
@@ -261,6 +271,13 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
   elif grep -qE "$net_re" <<<"$log"; then
     gate=$(failed_gate "$log")
     echo "transient|network failure in the ${gate:-unnamed} gate ($(grep -oE "$net_re" <<<"$log" | head -1))"
+  elif [ -n "$(failed_stages_of "$1")" ]; then
+    # The record named a stage, and that is definite: the stage ran and failed
+    # on its merits, so this is a REPAIR however little the log shows. Behind
+    # the rules above, which name the fix more precisely, and behind the network
+    # rule, since a gate refused a download is transient whichever stage it sat
+    # in. Ahead of the fallback, which is only about a leg that decided nothing.
+    echo "stage|the $(failed_stages_of "$1") stage failed, and the gates after it did not run"
   elif ! grep -q "test_local\|testthat" <<<"$log"; then
     echo "transient|cancelled or infra (no test phase in log)"
   else
