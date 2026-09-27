@@ -88,6 +88,20 @@ a producer thread ends the blocking that underwrites it,
 which is why #2583 guards per connection
 rather than trusting this list.
 
+**Reporting an error calls R, even where R may not run.**
+`rapi_error_with_context()` ([`src/utils.cpp`](/src/utils.cpp)) reports by calling the R function `rapi_error()`,
+and the scan reaches it through `SexpToValue()`
+for a list cell it cannot convert: a matrix, or a string in an encoding other than UTF-8.
+From a task thread that call runs R off R's thread,
+and a list column of matrices scanned at four threads kills the session.
+On R's thread it runs R underneath the engine, at bind or in a scan task R's thread happens to take,
+while task threads may still be reading R objects,
+and the engine's `catch (std::exception &)` keeps nothing of cpp11's unwind but its name.
+The same list column scanned at one thread answers `Invalid Error: std::exception`,
+and `dbWriteTable()` of a data frame with a complex column answers the engine's JSON around it.
+[#2588](https://github.com/duckdb/duckdb-r/pull/2588) proposes keeping the helper off R on a task thread,
+and [#2816](https://github.com/duckdb/duckdb-r/pull/2816) taking the call into R out of it.
+
 **The engine runs R code while it holds the client context lock.**
 The replacement scans and the Arrow stream factory in
 [`src/register.cpp`](/src/register.cpp),
