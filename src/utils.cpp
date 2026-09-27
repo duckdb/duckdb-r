@@ -5,6 +5,11 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
+// Handbook: handbook/architecture/glue/conventions/README.md,
+// and handbook/architecture/glue/threading/README.md for the thread guard
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -194,7 +199,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 
 		auto ce = Rf_getCharCE(str_val);
 		if (ce != CE_UTF8 && ce != CE_NATIVE) {
-			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
+			// The scan reaches this check, and the scan is no place to raise an
+			// R error -- the message would not survive the trip back
+			throw InvalidInputException(
+			    "SexpToValue: Only UTF-8 encoded strings are supported for the data frame scan.");
 		}
 		return Value(CHAR(str_val));
 	}
@@ -307,6 +315,16 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	}
 }
 
+Value RApiTypes::SexpToValueAt(const std::string &context, SEXP valsexp, R_len_t idx, bool typed_logical_null) {
+	try {
+		return SexpToValue(valsexp, idx, typed_logical_null);
+	} catch (Exception &e) {
+		// An engine exception escaping an entry point reaches R as its JSON.
+		// Only engine exceptions: an R error unwinding through here must go on.
+		rapi_error_with_context(context, ErrorData(e));
+	}
+}
+
 SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	if (val.IsNull()) {
 		return R_NilValue;
@@ -355,15 +373,31 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// The thread the package was loaded on, which is R's: R_init_duckdb() runs
+// there, and nothing else sets this
+static std::thread::id r_thread_id;
+
+void rapi_record_r_thread() {
+	r_thread_id = std::this_thread::get_id();
+}
+
+bool rapi_on_r_thread() {
+	return std::this_thread::get_id() == r_thread_id;
+}
+
 // ALTREP guard depth counter; see the class comment in rapi.hpp.
 std::atomic<int> AltrepGuard::depth {0};
 
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
-	// Inside an ALTREP method, calling back into R via cpp11::function is
-	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
-	// method without unwinding C++ frames. Throw a regular C++ exception so
-	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
+	if (!rapi_on_r_thread()) {
+		// Reporting an error means calling an R function, and this is not R's
+		// thread. Let the engine carry the message back to it instead.
+		throw InvalidInputException(context + ": " + message);
+	}
+
+	// Inside an ALTREP method R may evaluate nothing, see AltrepGuard. The
+	// method's END_CPP11 raises this as a plain R error once it has unwound.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + message);
 	}
@@ -381,7 +415,13 @@ std::atomic<int> AltrepGuard::depth {0};
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
-	// Inside an ALTREP method, see comment in the string overload above.
+	// Not on R's thread, see the string overload above; rethrown with its own
+	// type, so the engine carries the structured error back intact.
+	if (!rapi_on_r_thread()) {
+		error_data.Throw(context + ": ");
+	}
+
+	// Inside an ALTREP method, see the string overload above.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + error_data.Message());
 	}

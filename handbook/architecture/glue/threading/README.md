@@ -59,7 +59,7 @@ has the measurement and the route that works).
 The progress display evaluates an R callback under the client context lock,
 on the thread that runs the query's tasks:
 the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
-So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+So the display calls R only where `rapi_on_r_thread()` holds, and skips an update anywhere else.
 It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
 and a streaming result keeps its display across the R code that runs between fetches
 (`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).
@@ -82,6 +82,28 @@ So the inventory is not a licence to run R concurrently:
 a producer thread ends the blocking that underwrites it,
 which is why #2583 guards per connection
 rather than trusting this list.
+
+**An error goes through R only on R's thread.**
+Wherever the engine may be underneath,
+the glue reports an error through `rapi_error_with_context()` ([`src/utils.cpp`](/src/utils.cpp)),
+and reporting means calling an R function.
+`rapi_on_r_thread()` tells R's thread, which the package records when it loads,
+since `R_init_duckdb()` runs there,
+and anywhere else the helper throws the error as an engine exception instead:
+the engine carries it to the thread that issued the query,
+whose entry point then reports it through R.
+A list column is what reaches the helper mid-scan,
+through a cell `SexpToValue()` cannot convert, such as a matrix.
+That covers the thread, not the engine.
+On R's thread the helper still calls R when the engine is underneath,
+at bind or in a scan task R's thread happens to take.
+The condition's R code then runs while task threads may still be reading R objects,
+and the engine's own `catch (std::exception &)` keeps nothing of cpp11's unwind but its name:
+`dbWriteTable()` of a data frame with a complex column answers `std::exception`,
+and so does that list column when one thread scans it.
+`SexpToValue()` throws its encoding check outright for that reason,
+and its entry-point callers report it through R with `SexpToValueAt()`.
+[#2816](https://github.com/duckdb/duckdb-r/pull/2816) takes the call into R out of the helper instead.
 
 **The engine runs R code while it holds the client context lock.**
 The replacement scans and the Arrow stream factory in
