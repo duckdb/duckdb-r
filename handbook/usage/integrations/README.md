@@ -119,9 +119,10 @@ without an R data frame in between —
 so a dedicated writer per frame library
 (Polars was the one asked for) is this route, not new C++
 ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-The stream feeds one consumer, draining as it is read,
-so a second pass over the same object sees zero rows
-rather than the result again.
+The stream feeds one consumer, draining as it is read.
+A `$get_next()` loop over it ends in `NULL`.
+A conversion such as `as.data.frame()` or `arrow::as_arrow_table()` releases it.
+A second conversion is then an error ("has already been released"), not the result again.
 It also holds its connection until the engine has seen the end of the result, in a batch shorter than `chunk_size` or in an empty read.
 Another statement on that connection invalidates it.
 The next read is then an error, not an early end that would pass for a complete result
@@ -130,7 +131,12 @@ So a stream whose last batch held exactly `chunk_size` rows is invalidated, alth
 The engine's own Arrow stream reports an invalidated result as ended
 (vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
 so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+The wrapper also keeps the connection's client context alive until the stream is released.
+The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
+That includes a query that scans the stream itself, say after `duckdb_register_arrow()`.
+On the stream's own connection, that query hangs instead of failing.
+It holds the connection while it reads, and each read of the stream waits for the connection.
 A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
@@ -142,6 +148,12 @@ at a time.
 
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
+`to_arrow()` still reads through the `arrow = TRUE` route, which materializes the whole result first.
+The same reader built from `dbGetQueryArrow()` and `arrow::as_record_batch_reader()` streams instead, and takes on the stream's limits.
+A statement on its connection invalidates it before it is read to the end, and handed back to that connection with `to_duckdb()` it hangs.
+Arrow's `MakeSafeRecordBatchReader()`, which `to_arrow()` wraps around its reader, reports a read error as the end of the stream.
+So it cannot be kept around a stream, which can fail after its first batch.
+The measurements, on arrow 25.0.1, are in [`experiments/2026-09-26-to-arrow-stream/`](/experiments/2026-09-26-to-arrow-stream/README.md).
 The DBI Arrow API plan is
 [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
 

@@ -30,7 +30,7 @@ unique_ptr<QueryNode> AltrepDataFrameRelation::GetQueryNode() {
 }
 
 Relation &AltrepDataFrameRelation::GetParent() {
-	if (altrep->HasQueryResult()) {
+	if (altrep->Materialized()) {
 		// here context mutex locked
 		return GetTableRelation();
 	} else {

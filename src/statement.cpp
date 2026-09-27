@@ -24,6 +24,13 @@ using namespace cpp11::literals;
 	}
 }
 
+// Every entry point that takes a statement asks this first: the pointer may have been released by dbClearResult().
+static void CheckStatement(const duckdb::stmt_eptr_t &stmt, const char *context) {
+	if (!stmt || !stmt.get() || !stmt->stmt) {
+		rapi_error_with_context(context, "Invalid statement");
+	}
+}
+
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
                                      SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
@@ -137,9 +144,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
                                           duckdb::ConvertOpts convert_opts) {
-	if (!stmt || !stmt.get() || !stmt->stmt) {
-		rapi_error_with_context("rapi_bind", "Invalid statement");
-	}
+	CheckStatement(stmt, "rapi_bind");
 
 	auto n_param = stmt->stmt->named_param_map.size();
 
@@ -164,18 +169,18 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 
 	bool arrow = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
-	bool streaming = convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+	bool allow_stream = convert_opts.allow_stream_result == ConvertOpts::AllowStreamResult::ENABLED;
 
 	// The legacy arrow path (`dbSendQuery(arrow = TRUE)`) materializes results and
 	// has never supported binding multiple rows; preserve that error.
-	if (arrow && !streaming && n_rows != 1) {
+	if (arrow && !allow_stream && n_rows != 1) {
 		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
 	// Streaming arrow results from the same prepared statement cannot coexist
 	// (each Execute() invalidates the previous StreamQueryResult). Materialize
 	// per-row arrow results when binding multiple rows.
-	bool allow_stream_result = arrow && streaming && n_rows == 1;
+	bool allow_stream_result = arrow && allow_stream && n_rows == 1;
 
 	cpp11::writable::list out;
 	out.reserve(n_rows);
@@ -287,11 +292,9 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 }
 
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
-	if (!stmt || !stmt.get() || !stmt->stmt) {
-		rapi_error_with_context("rapi_execute", "Invalid statement");
-	}
+	CheckStatement(stmt, "rapi_execute");
 
 	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED &&
-	                           convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+	                           convert_opts.allow_stream_result == ConvertOpts::AllowStreamResult::ENABLED;
 	return rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
 }

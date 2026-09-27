@@ -13,6 +13,9 @@ so editing one here puts the copy out of step,
 and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
+Four are authored here and have no counterpart in the template:
+`each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` and `handbook.yaml`.
+A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 
 | Workflow | Fires on | Does |
 |---|---|---|

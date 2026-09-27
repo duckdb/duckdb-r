@@ -25,6 +25,10 @@ This file is what names the contents, so nothing here is an orphan.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-07-altrep-error-path/`](2026-08-07-altrep-error-path/) —
+  which R code runs when an ALTREP method raises an error, what it
+  costs in C stack, and what #1797's guard changes; supports
+  [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md).
 * [`2026-08-08-altrep-scan-threads/`](2026-08-08-altrep-scan-threads/) —
   what a scan returned when it reached a registered ALTREP data frame's
   packed column itself, per thread count and field type, before and
@@ -101,6 +105,10 @@ This file is what names the contents, so nothing here is an orphan.
   keeps open, and what two contexts buy in wall time that one cannot; supports
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)
   and [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
+* [`2026-09-26-to-arrow-stream/`](2026-09-26-to-arrow-stream/):
+  whether `arrow::to_arrow()` can stream from `dbGetQueryArrow()` and still return what it returns today.
+  Also what streaming changes about how long its reader stays valid, and its memory against the materializing route.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
