@@ -93,7 +93,7 @@ rather than trusting this list.
 and the scan reaches it through `SexpToValue()`
 for a list cell it cannot convert: a matrix, or a string in an encoding other than UTF-8.
 From a task thread that call runs R off R's thread,
-and a list column of matrices scanned at four threads kills the session.
+and a list column of matrices scanned at four threads can kill the session.
 On R's thread it runs R underneath the engine, at bind or in a scan task R's thread happens to take,
 while task threads may still be reading R objects,
 and the engine's `catch (std::exception &)` keeps nothing of cpp11's unwind but its name.
