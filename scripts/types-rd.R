@@ -302,8 +302,11 @@ render <- function(page) {
 
   details <- c(body, "# Limitations and reference", "", limitations, reference)
   all <- link_functions(c(description, "", details))
-  # Rd reads % as a comment, and roxygen reads @ as a tag.
-  all <- gsub("@", "@@", gsub("%", "\\%", all, fixed = TRUE), fixed = TRUE)
+  # Roxygen reads @ as a tag.
+  # Rd reads % as a comment, but markdown roxygen escapes it already:
+  # escaping it here as well writes \\% into the Rd,
+  # which renders a backslash and drops the rest of the line.
+  all <- gsub("@", "@@", all, fixed = TRUE)
   description <- all[seq_along(description)]
   details <- all[-seq_len(length(description) + 1)]
 
