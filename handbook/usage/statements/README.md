@@ -56,8 +56,8 @@ The departures from that baseline are what this leaf owns:
 
 **A multi-statement string runs one statement at a time, and stops at the first that fails.**
 Each statement is expanded and prepared only after the ones before it have run,
-so a `PRAGMA` that generates its SQL from the catalog, such as `create_fts_index` or `import_database`,
-sees a table created earlier in the same string
+so a `PRAGMA` that generates its SQL from what is there when it runs sees what they made:
+`create_fts_index` reads a table created earlier in the same string, and `import_database` the files an earlier `EXPORT DATABASE` wrote
 ([#2792](https://github.com/duckdb/duckdb-r/pull/2792)).
 The whole string is parsed before anything runs, so a syntax error anywhere means that nothing runs.
 Any other error, a misspelt `PRAGMA` among them, leaves the statements before it in effect,
