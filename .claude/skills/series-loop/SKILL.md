@@ -440,7 +440,8 @@ is reading; they are the same bytes:
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
 | `Error: R CMD check found WARNINGs` / `ERRORs`, with the `❯ checking …` headers above it naming which checks | `R CMD check --as-cran` is unhappy about the tree, or about the environment CI built it in | read the named checks; fix at origin, or on `main` when the cause is the job's own setup |
 | a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
-| none of the above and no test phase | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
+| the leg's record names a failed stage (`"failed_stages":["install"]`) and no rule above matched | the stage failed on its merits — most often an `install` that a glue call site this series' engine no longer offers stopped | fix the glue at origin; never a rerun |
+| none of the above, no test phase, and no failed stage in the record | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
 
 Never classify by absence of a marker:
 `"Job is waiting for a hosted runner"` appears in every log
