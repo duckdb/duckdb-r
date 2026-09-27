@@ -56,9 +56,13 @@ such a reader cannot feed a registered scan at all,
 `threads = 1` included
 ([`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)
 has the measurement and the route that works).
-The progress display evaluates an R callback,
-but its only caller runs under the client context lock,
-which is to say on the thread that issued the query.
+The progress display evaluates an R callback under the client context lock,
+on the thread that runs the query's tasks:
+the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
+So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
+and a streaming result keeps its display across the R code that runs between fetches
+(`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).
 Materializing a relation
 ([`altrep/`](/handbook/architecture/glue/altrep/README.md))
 evaluates R too,

@@ -85,3 +85,49 @@ test_that("a handle collected while the display is created does not deadlock", {
 
   expect_equal(result, 1)
 })
+
+test_that("a progress callback outlives a collection between the reads of a stream", {
+  skip_if_not_installed("nanoarrow")
+
+  calls <- 0L
+  rlang::local_options(
+    duckdb.progress_display = function(x) calls <<- calls + 1L
+  )
+  con <- local_con()
+  dbExecute(con, "CREATE TABLE t AS SELECT i FROM range(1000000) t(i)")
+
+  # getOption() hands the display a copy of the callback that nothing else
+  # refers to, and a streaming result keeps its display until it is read.
+  stream <- dbGetQueryArrow(
+    con,
+    "SELECT i FROM t WHERE i % 2 = 0",
+    chunk_size = 10000
+  )
+  # Only a display the engine still calls can show that the callback survived,
+  # and an engine that reports no progress while a streaming result is read
+  # never calls it. Ask this one, before anything is collected.
+  rows <- 0
+  calls <- 0L
+  batch <- stream$get_next()
+  reports_while_streaming <- calls > 0L
+  if (!is.null(batch)) {
+    rows <- rows + batch$length
+  }
+
+  # Collect, and reuse the cells a collected callback would have left behind.
+  for (pass in 1:5) {
+    invisible(gc())
+    garbage <- lapply(1:200000, function(i) list(i))
+  }
+  calls <- 0L
+
+  while (!is.null(batch <- stream$get_next())) {
+    rows <- rows + batch$length
+  }
+  expect_equal(rows, 500000)
+  skip_if_not(
+    reports_while_streaming,
+    "the engine reports no progress while a streaming result is read"
+  )
+  expect_gt(calls, 0L)
+})
