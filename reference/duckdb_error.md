@@ -59,7 +59,7 @@ the message is a single line, and the class and the fields are the same.
 ``` r
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpWsmB67/duckdb
+#> ℹ /tmp/RtmpZmJOuV/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
