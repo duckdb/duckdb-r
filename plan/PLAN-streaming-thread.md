@@ -8,8 +8,8 @@ Builds on the streaming-results work in
 this file proposes what comes after it lands.
 The memory facts as they stand today are owned by
 [`usage/memory/`](/handbook/usage/memory/README.md),
-the glue conventions by
-[`architecture/glue/`](/handbook/architecture/glue/README.md);
+which thread may touch R by
+[`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md);
 where this plan and a leaf disagree, the leaf is right.
 
 ## Problem
@@ -266,7 +266,7 @@ engine workers ──► streaming buffer ──► pump thread ──► chunk 
   and the R thread rethrows it on the next pop.
   This is the hard rule that makes the whole design safe,
   and it becomes a stated convention in
-  [`architecture/glue/`](/handbook/architecture/glue/README.md).
+  [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md).
 * Lifecycle: created lazily by the first `dbFetch()` on an eligible
   streaming result; stopped by drain, error,
   `dbBind()`, `dbClearResult()`, the externalptr finalizer,
@@ -627,7 +627,7 @@ extending the existing bullets:
 >   result counts against `memory_limit`, spills instead of failing,
 >   and is freed progressively while it converts to R vectors.]
 
-For [`architecture/glue/`](/handbook/architecture/glue/README.md):
+For [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md):
 
 > **Threads.**
 > The R thread is the only thread that may touch the R API —
