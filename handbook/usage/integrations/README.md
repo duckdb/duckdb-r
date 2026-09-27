@@ -188,7 +188,7 @@ The reader is its connection's open result until it has been read to the end:
 * A query that scans the reader on its own connection never returns, and Ctrl+C does not end it, as the entry above says.
   `to_duckdb(reader, con = con)` is one, and so is a query on `con` after `duckdb_register_arrow()` of the reader.
 * Tables from `to_duckdb()` share the one connection arrow keeps unless `con` is given.
-  For those, a later `to_duckdb()` breaks the reader, and `to_duckdb()` on the reader with its default `con` never returns.
+  For those, a later `to_duckdb()` without `con` breaks the reader, and one on the reader itself never returns.
 * Writing the reader back to its own connection fails partway.
   `dbWriteTableArrow()` leaves an empty table behind, and `dbAppendTableArrow()` the first batch.
 * A read runs outside the package's interrupt handler, so Ctrl+C does not stop it.

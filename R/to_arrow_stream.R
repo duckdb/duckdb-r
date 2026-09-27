@@ -37,8 +37,8 @@
 #'   Ctrl-C does not stop it, and the R session has to be killed.
 #' - **Tables from `arrow::to_duckdb()` share one connection.**
 #'   Without `con`, `to_duckdb()` uses the one connection that arrow keeps.
-#'   For such a table, any later `to_duckdb()` call breaks the reader,
-#'   and `to_duckdb()` on the reader itself never returns.
+#'   For such a table, a later `to_duckdb()` without `con` breaks the reader,
+#'   and one on the reader itself never returns.
 #' - **Writing the reader back to its own connection fails partway.**
 #'   [DBI::dbWriteTableArrow()] creates the table, then fails and leaves it
 #'   empty.
@@ -47,7 +47,7 @@
 #'   Arrow reads the reader on its own threads,
 #'   outside the package's interrupt handler.
 #' - **Errors arrive late.**
-#'   A query that fails after its first batch fails when that batch is read,
+#'   A query that fails after its first batch fails at a later read,
 #'   not in `to_arrow_stream()`.
 #' - **The reader is read once.**
 #'   Reading it again gives zero rows, not the result again.

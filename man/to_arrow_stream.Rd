@@ -51,8 +51,8 @@ and so is a query on \code{con} after \code{duckdb_register_arrow(con, name, rea
 Ctrl-C does not stop it, and the R session has to be killed.
 \item \strong{Tables from \code{arrow::to_duckdb()} share one connection.}
 Without \code{con}, \code{to_duckdb()} uses the one connection that arrow keeps.
-For such a table, any later \code{to_duckdb()} call breaks the reader,
-and \code{to_duckdb()} on the reader itself never returns.
+For such a table, a later \code{to_duckdb()} without \code{con} breaks the reader,
+and one on the reader itself never returns.
 \item \strong{Writing the reader back to its own connection fails partway.}
 \code{\link[DBI:dbWriteTableArrow]{DBI::dbWriteTableArrow()}} creates the table, then fails and leaves it
 empty.
@@ -61,7 +61,7 @@ empty.
 Arrow reads the reader on its own threads,
 outside the package's interrupt handler.
 \item \strong{Errors arrive late.}
-A query that fails after its first batch fails when that batch is read,
+A query that fails after its first batch fails at a later read,
 not in \code{to_arrow_stream()}.
 \item \strong{The reader is read once.}
 Reading it again gives zero rows, not the result again.
