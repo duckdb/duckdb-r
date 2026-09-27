@@ -16,8 +16,9 @@ The load-bearing facts:
 * For a file-based `dbdir` the instance is **cached**,
   keyed by the normalized path —
   DuckDB allows only one read-write handle per database file,
-  so reuse is what lets repeated
-  `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
+  which its lock enforces between processes but not within one,
+  so reuse is what keeps repeated
+  `dbConnect(duckdb(dbdir = "my.db"))` calls on one instance.
   An in-memory database is never cached.
 * `dbdir`, `config`, `read_only`, `home`, and `shared_home`
   all describe the *instance*, so they bind when it is created —
