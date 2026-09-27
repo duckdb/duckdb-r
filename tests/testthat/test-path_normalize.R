@@ -70,3 +70,14 @@ test_that("a path that cannot be created fails, naming the path", {
   )
   expect_match(conditionMessage(err), path, fixed = TRUE)
 })
+
+test_that("a path that cannot be created fails in the name of the caller", {
+  path <- file.path(withr::local_tempdir(), "no-such-directory", "db.duckdb")
+
+  err <- expect_error(duckdb(dbdir = path), "Can't create the database file")
+  # rlang's `abort()` names the call; the base fallback names none at all.
+  call <- conditionCall(err)
+  if (!is.null(call)) {
+    expect_identical(call[[1]], quote(duckdb))
+  }
+})
