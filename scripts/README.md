@@ -72,6 +72,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`README.md`](README.md) | (this index) |
 
+## [`meta/local/`](/handbook/meta/local/README.md)
+
+| File | Purpose |
+|---|---|
+| [`render-reprex.R`](render-reprex.R) | Render an experiment script as a reprex into `<stem>.md` beside it. |
+
 ## [`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)
 
 | File | Purpose |
