@@ -32,8 +32,9 @@ side and the sf seam.
 
 ## What is not, and what it costs today
 
-The experiment's write matrix has nineteen rows and three successes,
-none of them reachable from an `sf` object.
+The experiment's write matrix has nineteen rows,
+and the six that land a `GEOMETRY` column start from WKT, WKB or a `wk_wkb` in Arrow,
+none of them from an `sf` object.
 Three problems, in the order a user meets them.
 
 **An `sfc` column is not refused.**
@@ -41,7 +42,7 @@ A `POINT` column writes silently as `DOUBLE[]`:
 `DetectRType()` walks into the `sfg` list, finds numbers, and types the
 column as a list of doubles.
 The geometry is gone and nothing says so — the worst outcome in the
-matrix, because it is the only one that does not fail.
+matrix, because it is the only `sfc` column `dbWriteTable()` does not fail on.
 `LINESTRING` and `MULTIPOLYGON` fail instead, with
 `Invalid Error: std::exception`, naming neither the column nor the
 type.
