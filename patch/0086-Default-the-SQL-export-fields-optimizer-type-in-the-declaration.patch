@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 01:27:22 +0000
+Subject: [PATCH] Default the SQL export fields' optimizer type in the declaration
+
+ResolvedSQLColumnReference and LogicalPlanSQLExportField gain an
+optimizer_type member, and the exporters brace-initialize the members
+before it at five sites, so -Wmissing-field-initializers reports each.
+Upstream later gives the member a default in its declaration, which
+the warning respects; this is that text.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/include/duckdb/planner/bound_expression_sql_exporter.hpp | 2 +-
+ src/duckdb/src/include/duckdb/planner/logical_plan_sql_exporter.hpp     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/planner/bound_expression_sql_exporter.hpp b/src/duckdb/src/include/duckdb/planner/bound_expression_sql_exporter.hpp
+index 2999a80fce..1ec3412553 100644
+--- a/src/duckdb/src/include/duckdb/planner/bound_expression_sql_exporter.hpp
++++ b/src/duckdb/src/include/duckdb/planner/bound_expression_sql_exporter.hpp
+@@ -31,7 +31,7 @@ struct ResolvedSQLColumnReference {
+ 	//! Type represented by the exported SQL expression.
+ 	LogicalType type;
+ 	//! Optimizer-selected type accepted from the bound plan, when different.
+-	optional<LogicalType> optimizer_type;
++	optional<LogicalType> optimizer_type = {};
+ };
+ 
+ using BoundExpressionSQLBindingResolver =
+diff --git a/src/duckdb/src/include/duckdb/planner/logical_plan_sql_exporter.hpp b/src/duckdb/src/include/duckdb/planner/logical_plan_sql_exporter.hpp
+index 8e42fa673d..385ab89cad 100644
+--- a/src/duckdb/src/include/duckdb/planner/logical_plan_sql_exporter.hpp
++++ b/src/duckdb/src/include/duckdb/planner/logical_plan_sql_exporter.hpp
+@@ -28,7 +28,7 @@ struct LogicalPlanSQLExportField {
+ 	//! Type represented by the exported SQL expression.
+ 	LogicalType type;
+ 	//! Optimizer-selected type accepted from the bound plan, when different.
+-	optional<LogicalType> optimizer_type;
++	optional<LogicalType> optimizer_type = {};
+ };
+ 
+ struct LogicalPlanSQLExportRelation {
