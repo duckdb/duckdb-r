@@ -167,4 +167,28 @@ superseded by \code{convert_opts}.}
 \item{\code{bigint}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how 64-bit integers are returned; superseded by \code{convert_opts}.}
 }}
 
+\section{Multiple statements}{
+
+A \code{statement} can hold several SQL statements separated by semicolons,
+in \code{\link[DBI:dbSendQuery]{dbSendQuery()}}, \code{\link[DBI:dbSendQueryArrow]{dbSendQueryArrow()}},
+and the helpers built on them, such as \code{\link[DBI:dbExecute]{dbExecute()}} and \code{\link[DBI:dbGetQuery]{dbGetQuery()}}.
+They run in order, and each is prepared only after those before it have run,
+so it sees their effects:
+a \code{PRAGMA} that generates SQL, such as \code{create_fts_index},
+finds a table created earlier in the same string.
+Every statement but the last runs when the query is sent,
+\code{params} bind to the last statement only,
+and only the last statement's result is returned.
+
+The whole string is parsed before anything runs,
+so a syntax error in any statement means that none of them run.
+Any other error stops at the statement that raised it,
+and the statements before it keep their effect,
+because the string does not run in a transaction of its own.
+For all or nothing, run the call inside \code{\link[DBI:dbWithTransaction]{dbWithTransaction()}},
+or call \code{\link[DBI:dbBegin]{dbBegin()}} before it and \code{\link[DBI:dbRollback]{dbRollback()}} if it fails.
+To know which statements have run when one fails,
+send one statement per call.
+}
+
 \keyword{internal}
