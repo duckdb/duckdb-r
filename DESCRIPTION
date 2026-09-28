@@ -85,6 +85,7 @@ Config/comment/gha/extra-packages: arrow does not compile against Rtools45,
     Rtools45 has to build it again. It is installed from
     Additional_repositories by .github/workflows/install. Explained in
     handbook/operations/ci/matrix/README.md.
+Config/gha/filter: startsWith(os, "windows")
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

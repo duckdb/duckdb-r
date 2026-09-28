@@ -16,6 +16,7 @@ on:
     branches:
       - main
       - master
+      - claude/windows-test-fixes
   workflow_dispatch:
     inputs:
       ref:
@@ -162,7 +163,7 @@ jobs:
         # Do not run for:
         # - workflow_dispatch if not requested
         # Always run for other events.
-        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || startsWith(github.head_ref, 'cran-')) && (github.event_name != 'workflow_dispatch' || inputs.versions-matrix)
+        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || startsWith(github.head_ref, 'cran-') || github.base_ref == 'claude/windows-test-fixes') && (github.event_name != 'workflow_dispatch' || inputs.versions-matrix)
         uses: cynkra/cynkratemplate/.github/actions/versions-matrix@main
 
       - name: Collect the suggested dependencies into a matrix
