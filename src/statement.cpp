@@ -126,16 +126,33 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			error.AddErrorLocation(query);
 			rapi_error_with_context("rapi_prepare", error);
 		}
+		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk), so its expansion is
+		// checked as a whole before any of it runs: refusing it part-way would leave the implicit BEGIN the
+		// engine wraps the expansion in open, and every later statement on the connection inside it.
+		if (!conn->db->allow_extensions) {
+			for (auto &fragment : fragments) {
+				if (fragment->type == StatementType::LOAD_STATEMENT) {
+					rapi_error_with_context("load_extension", "");
+				}
+			}
+		}
 		for (idx_t j = 0; j < fragments.size(); j++) {
 			auto &fragment = fragments[j];
-			if (!conn->db->allow_extensions && fragment->type == StatementType::LOAD_STATEMENT) {
-				rapi_error_with_context("load_extension", "");
-			}
 			if (i + 1 == statements.size() && j + 1 == fragments.size()) {
 				last_statement = std::move(fragment);
 				break;
 			}
 			auto res = conn->conn->Query(std::move(fragment));
+			if (res->HasError()) {
+				// Mirrors ClientContext::Query(const string &), which rolls back the implicit transaction a PRAGMA's
+				// expansion runs in when one of its statements fails. Query(unique_ptr<SQLStatement>) does so only
+				// for an error raised before execution, and leaves the transaction open and aborted otherwise.
+				// Ahead of HandleInterrupt(), so that an interrupted fragment is rolled back too.
+				auto &transaction = conn->conn->context->transaction;
+				if (transaction.HasActiveTransaction() && transaction.GetAutoRollback()) {
+					transaction.Rollback(res->GetErrorObject());
+				}
+			}
 			signal_handler.HandleInterrupt();
 			if (res->HasError()) {
 				// `GetErrorObject()`, not `GetError()`: the latter is the formatted
@@ -145,10 +162,10 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			}
 		}
 	}
-	if (!last_statement) {
-		rapi_error_with_context("rapi_prepare", "No statements to execute");
-	}
-	auto stmt = conn->conn->Prepare(std::move(last_statement));
+	// The last statement is the call's result. With no fragment left, it was a PRAGMA that expanded to nothing, the
+	// only statement that can, and it returns what any other PRAGMA returns: no rows of one `Success` column.
+	auto stmt = last_statement ? conn->conn->Prepare(std::move(last_statement))
+	                           : conn->conn->Prepare("SELECT CAST(NULL AS BOOLEAN) AS Success LIMIT 0");
 
 	signal_handler.HandleInterrupt();
 
