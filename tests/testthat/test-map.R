@@ -597,6 +597,12 @@ test_that("a list_of map's value type follows `time = \"hms\"` through the conne
 
   con <- local_con(map = "list_of")
   expect_equal(dbDataType(con, seconds), "MAP(STRING, TIME)")
+  # Typed TIME, the value writes INTERVAL, as in any list cell
+  expect_error(
+    dbWriteTable(con, "tbl", data.frame(m = I(seconds))),
+    "INTERVAL -> TIME",
+    fixed = TRUE
+  )
 
   con <- local_con(map = "list_of", time = "hms")
   expect_equal(dbDataType(con, seconds), "MAP(STRING, INTERVAL)")
