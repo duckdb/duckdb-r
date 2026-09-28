@@ -198,6 +198,10 @@ and the `spatial` extension's own types:
   and `infinity` and `-infinity` as a finite date millions of years away or a finite instant, not as `Inf`.
   Which part of an `INTERVAL` was months or days is lost.
 * A `POSIXct` writes with its zone label dropped, and a `difftime` or `hms` without its unit.
+* A `POSIXct` or `difftime` exactly halfway between two microseconds, as a quarter of present-day instants are,
+  writes and binds rounded half away from zero, where `dbQuoteLiteral()` and the engine's `to_timestamp()` round half to even.
+  So an eighth of present-day instants quote one microsecond off the value written, and the literal does not find its row
+  ([`experiments/2026-09-28-microsecond-rounding/`](/experiments/2026-09-28-microsecond-rounding/README.md)).
 * `NaN`, `Inf` and `-Inf` in a `Date`, `difftime` or `POSIXct` stored as double write as far-off negative values, not as `NULL` or infinity:
   on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,
   because only `NA` is taken for missing ([`src/types.cpp`](/src/types.cpp)).
