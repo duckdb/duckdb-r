@@ -4,9 +4,10 @@
 #' DuckDB data types through Arrow
 #'
 #' @description
-#' Every DuckDB type as it crosses to R through Arrow and back:
+#' This page documents every DuckDB type as it crosses to R through Arrow and back:
 #' the Arrow type the engine exports it as, what the two R readers make of that,
 #' which Arrow type writes it again, and which R functions keep Arrow's types on the way in.
+#' See [duckdb_types] for a description of the direct conversion to R vectors.
 #'
 #' @details
 #' # The routes

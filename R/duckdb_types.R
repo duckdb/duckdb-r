@@ -4,8 +4,9 @@
 #' DuckDB data types in R
 #'
 #' @description
-#' Every DuckDB type as it crosses to R and back:
+#' This page documents every DuckDB type as it crosses to R and back:
 #' what a value of the type becomes when read, which R value writes it again, and what to do where neither works.
+#' See [duckdb_types_arrow] for a description of the conversion via Arrow.
 #'
 #' @details
 #' # The routes
