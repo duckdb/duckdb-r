@@ -125,6 +125,20 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 	return aux_;
 }
 
+// An atomic vector without a class or dimensions, whose type DetectRType() finds from its SEXP type alone
+static bool IsPlainVector(SEXP v) {
+	switch (TYPEOF(v)) {
+	case LGLSXP:
+	case INTSXP:
+	case REALSXP:
+	case STRSXP:
+	case RAWSXP:
+		return !OBJECT(v) && !Rf_isMatrix(v);
+	default:
+		return false;
+	}
+}
+
 // A data frame's names, read in place, or R_NilValue unless they are one string per column
 static SEXP DataFrameNames(SEXP df) {
 	SEXP names = GET_NAMES(df);
@@ -259,8 +273,15 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time, bool period_
 				return RType::LIST_OF_NULLS;
 			}
 
+			// A plain vector's type follows from its SEXP type alone,
+			// so a cell as plain as the first and of its SEXP type is of its type
+			auto first = VECTOR_ELT(v, i);
+			auto plain_type = IsPlainVector(first) ? TYPEOF(first) : NILSXP;
 			for (; i < len; ++i) {
 				auto elt = VECTOR_ELT(v, i);
+				if (plain_type != NILSXP && TYPEOF(elt) == plain_type && IsPlainVector(elt)) {
+					continue;
+				}
 				if (elt != R_NilValue) {
 					auto new_type = DetectRType(elt, integer64);
 					if (new_type != type) {
@@ -663,7 +684,8 @@ static string FindInvalidValueAt(SEXP v, const ValuePath &path, bool hms_time, b
 		auto child_hms_time = is_df && hms_time;
 		auto child_period_interval = is_df && period_interval;
 		auto child_in_list = !is_df || in_list;
-		for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
+		auto length = Rf_xlength(v);
+		for (R_xlen_t i = 0; i < length; i++) {
 			SEXP child = VECTOR_ELT(v, i);
 			if (!MayHoldInvalidValue(child, child_hms_time)) {
 				continue;

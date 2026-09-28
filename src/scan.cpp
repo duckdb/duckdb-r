@@ -79,6 +79,8 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	}
 }
 
+static void TouchPeriodSlots(SEXP coldata);
+
 // Materialize `coldata` and everything the scan can reach through it, so that
 // the scan dereferences plain memory. GetColDataPtr() stops at the packed
 // types -- a struct column, a matrix, the cells of a list -- and what reaches
@@ -91,9 +93,11 @@ static void TouchColumn(SEXP coldata) {
 		break;
 	case INTSXP:
 		(void)INTEGER_POINTER(coldata);
+		TouchPeriodSlots(coldata);
 		break;
 	case REALSXP:
 		(void)NUMERIC_POINTER(coldata);
+		TouchPeriodSlots(coldata);
 		break;
 	case CPLXSXP:
 	case RAWSXP:
@@ -115,8 +119,10 @@ static void TouchColumn(SEXP coldata) {
 
 	// The `map_list_of` shape reads the names of a cell with STRING_ELT()
 	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
+}
 
-	// A lubridate Period's parts are its slots, which the scan reads too
+// A lubridate Period's parts are its slots, which the scan reads too
+static void TouchPeriodSlots(SEXP coldata) {
 	if (Rf_isS4(coldata) && Rf_inherits(coldata, "Period")) {
 		for (auto slot_sym : RStrings::get().period_slot_syms) {
 			TouchColumn(Rf_getAttrib(coldata, slot_sym));
