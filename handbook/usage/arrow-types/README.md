@@ -136,7 +136,7 @@ Each Arrow type lands as one DuckDB type when DuckDB scans it:
 * **`na`** lands as a column of type `NULL`.
 * **The extension types** land as the DuckDB type they name:
   `arrow.uuid` as `UUID`, `arrow.json` as `JSON`, `arrow.bool8` as `BOOLEAN`, and `arrow.opaque` as the DuckDB type in its metadata.
-  What the GeoArrow types land as is under Geometry.
+  What the GeoArrow types land as is under Geometry and Limitations.
 
 ### R classes, through Arrow
 
@@ -162,34 +162,25 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
   as PROJJSON once `spatial` is loaded, and as the identifier without it.
   It stays `geoarrow.wkb` under every export setting, `arrow_lossless_conversion` included;
   `arrow_large_buffer_size` makes its storage `large_binary`, and an `arrow_output_version` from `'1.4'` makes it `binary_view`.
-  What the readers make of it depends on the geoarrow package:
-  once it is loaded, both convert it to a `geoarrow_vctr` in each of those layouts, arrow the view one included;
-  until then, nanoarrow reads its WKB as a `blob` and arrow as an `arrow_binary`.
+  With the geoarrow package loaded, both readers convert it to a `geoarrow_vctr` in each of those layouts, arrow the view one included.
 * **sf reads a result through GeoArrow in one call.**
-  `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's, in the large and view layouts too,
+  With geoarrow loaded, `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's,
+  in the large and view layouts too,
   and so do `sf::st_as_sf()` of the result's `arrow::as_arrow_table()`, and `sf::st_as_sfc()` of the `geoarrow_vctr` column of `as.data.frame()`.
-  Those methods are the geoarrow package's, so it has to be loaded first.
 * **The `spatial` extension's own types cross as their storage.**
   `POINT_2D` and the other point and box types export as a `struct`, `LINESTRING_2D` and `LINESTRING_3D` as a `list` of point structs,
   `POLYGON_2D` and `POLYGON_3D` as a list of those lists, and `WKB_BLOB` as `binary`, with `arrow_lossless_conversion` too,
   and each reader converts them as it converts those Arrow types.
-  Registered back, they land as the plain `STRUCT`, `LIST` or `BLOB`.
 * **GeoArrow WKB writes `GEOMETRY` with its CRS.**
   Encode the geometry column as WKB,
-  as `geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))`
-  or as a `wk::as_wkb()` column,
-  and register `arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))` with `duckdb_register_arrow()`;
-  `CREATE TABLE ... AS SELECT` from the view writes a `GEOMETRY` column with the CRS,
-  which reads back into an `sf` equal to the one written; WKB without a CRS lands as plain `GEOMETRY`.
+  as `geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))`,
+  or as a `wk::as_wkb()` column, which nanoarrow infers as `geoarrow.wkb` once geoarrow is loaded.
+  Register `arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))` with `duckdb_register_arrow()`,
+  and a `CREATE TABLE ... AS SELECT` from the view writes a `GEOMETRY` column with the CRS,
+  which reads back into an `sf` equal to the one written.
   With `spatial` loaded, the type names the CRS by its identifier, as `GEOMETRY('EPSG:4267')`;
   without it, it keeps the PROJJSON it came as, and `sf::st_crs()` reads the same CRS from both.
-  nanoarrow infers `geoarrow.wkb` for a `wk_wkb` column once geoarrow is loaded.
-  DuckDB lands the large and view layouts of WKB, as its own export makes them, as `GEOMETRY`.
-* **The other GeoArrow encodings land as their storage.**
-  What nanoarrow infers for an `sf` column, and what `arrow::as_arrow_table()` makes of one, is a native encoding,
-  which lands as its struct storage, as `STRUCT(x DOUBLE, y DOUBLE)[][][]` for a multipolygon.
-  A native point converts in the query as `geometry::POINT_2D::GEOMETRY`.
-  `geoarrow_wkt()` lands as `VARCHAR`, which `::GEOMETRY` parses, and `ST_SetCRS()` gives the CRS back.
+  WKB without a CRS lands as plain `GEOMETRY`, and so do the large and view layouts DuckDB's own export makes.
 * **A `geoarrow_vctr` column holds indices.**
   The `geoarrow_vctr` that `as.data.frame()` gives for a geometry in an Arrow result
   is an integer vector of indices into the Arrow data it holds, and writing it back is a limitation (below).
@@ -228,8 +219,8 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
   An array built as `time64('us')`, as `nanoarrow::as_nanoarrow_array(x, schema = nanoarrow::na_time64("us"))`, keeps the microseconds.
 * nanoarrow refuses an `ordered` factor, and a plain list of vectors, for which it needs a `vctrs::list_of()`;
   arrow flattens a matrix column into one row per cell.
-* Without geoarrow loaded, `sf::st_as_sf()` has no method for an Arrow result,
-  and with it, a `NULL` geometry reads as an empty one.
+* Without geoarrow loaded, nanoarrow reads a geometry's WKB as a `blob`, arrow as an `arrow_binary`,
+  and `sf::st_as_sf()` has no method for an Arrow result; with it, a `NULL` geometry reads as an empty one.
 * The routes behind `dbSendQuery(arrow = TRUE)` fail on a `GEOMETRY` column with a CRS.
   `duckdb_fetch_arrow()`, `duckdb_fetch_record_batch()` and `arrow::to_arrow()`, which reads through them,
   fail with `INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction`,
@@ -237,11 +228,17 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
   ([`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md)).
   `dbGetQueryArrow()` reads it,
   and so do those routes once the query casts the column to the bare type, as `geom::GEOMETRY`, which drops the CRS.
-* The `spatial` extension's own types lose their alias through Arrow, in both directions
+* The `spatial` extension's own types lose their alias through Arrow, in both directions,
+  and registered back land as the plain `STRUCT`, `LIST` or `BLOB`
   ([`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md)).
 * arrow carries a `wk_wkb` column as its own R extension type, which lands as `BLOB`,
   and geoarrow cannot write an `sfc` in the large or view layouts of WKB.
-* Of the GeoArrow encodings, only WKB lands as `GEOMETRY`, and a native polygon casts neither through `POLYGON_2D` nor directly.
+* Of the GeoArrow encodings, only WKB lands as `GEOMETRY`.
+  A native encoding, which is what nanoarrow infers for an `sf` column and what `arrow::as_arrow_table()` makes of one,
+  lands as its struct storage, as `STRUCT(x DOUBLE, y DOUBLE)[][][]` for a multipolygon.
+  A native point converts in the query as `geometry::POINT_2D::GEOMETRY`,
+  and a native polygon casts neither through `POLYGON_2D` nor directly.
+  `geoarrow_wkt()` lands as `VARCHAR`, which `::GEOMETRY` parses, and `ST_SetCRS()` gives the CRS back.
 * A `geoarrow_vctr` column writes its integer indices through `dbWriteTable()` and `dbWriteTableArrow()`,
   which converts through such a data frame, as an `INTEGER` column, `1, 2, 3`, without an error.
   Convert it with `sf::st_as_sfc()` first, or keep it in Arrow.

@@ -111,13 +111,13 @@
 #' * **`GEOMETRY`** reads as WKB.
 #'   With `geometry = "blob"`, the default, it reads as a list of raw vectors;
 #'   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which [sf::st_as_sfc()] converts onward, CRS included.
-#'   The type is core since DuckDB 1.5, so reading one needs no extension,
-#'   but the geometry functions are still `spatial`'s, and so is the CRS provider that resolves a name like `EPSG:4326`.
+#'   The type is core since DuckDB 1.5, so reading one needs no extension;
+#'   the geometry functions are the `spatial` extension's.
 #'   Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see [duckdb_types_arrow]).
-#' * **Text writes `GEOMETRY` through `field.types`.**
-#'   A `character` column of [sf::st_as_text()] output with `field.types = c(geom = "GEOMETRY")` lands a `GEOMETRY` column in one statement,
-#'   because the `VARCHAR` cast parses WKT, and `dbAppendTable()` of the same text into a `GEOMETRY` column works for that reason.
-#'   Spell the CRS into the type, as `"GEOMETRY('EPSG:4267')"`, to keep it.
+#' * **WKT writes `GEOMETRY`.**
+#'   A `character` column of WKT, as [sf::st_as_text()] makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
+#'   and appends to one with `dbAppendTable()`, because the cast from `VARCHAR` parses WKT.
+#'   Naming the CRS in the type, as `"GEOMETRY('EPSG:4267')"`, gives the column its CRS.
 #'   Writing WKB as raw vectors, an `sf` object or an `sfc` column is a limitation (below).
 #' * **The `spatial` extension's own types are aliases, and read as what they alias.**
 #'   `POINT_2D`, `POINT_3D`, `POINT_4D`, `BOX_2D` and `BOX_2DF` are structs, and read as data frame columns;

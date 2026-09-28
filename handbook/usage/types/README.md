@@ -119,14 +119,13 @@ and the `spatial` extension's own types:
 * **`GEOMETRY`** reads as WKB.
   With `geometry = "blob"`, the default, it reads as a list of raw vectors;
   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which `sf::st_as_sfc()` converts onward, CRS included.
-  The type is core since DuckDB 1.5, so reading one needs no extension,
-  but the geometry functions are still `spatial`'s, and so is the CRS provider that resolves a name like `EPSG:4326`
-  ([`extensions/`](/handbook/usage/extensions/README.md)).
+  The type is core since DuckDB 1.5, so reading one needs no extension;
+  the geometry functions are the `spatial` extension's ([`extensions/`](/handbook/usage/extensions/README.md)).
   Arrow carries the column as GeoArrow WKB with its CRS, in both directions ([`arrow-types/`](/handbook/usage/arrow-types/README.md)).
-* **Text writes `GEOMETRY` through `field.types`.**
-  A `character` column of `sf::st_as_text()` output with `field.types = c(geom = "GEOMETRY")` lands a `GEOMETRY` column in one statement,
-  because the `VARCHAR` cast parses WKT, and `dbAppendTable()` of the same text into a `GEOMETRY` column works for that reason.
-  Spell the CRS into the type, as `"GEOMETRY('EPSG:4267')"`, to keep it.
+* **WKT writes `GEOMETRY`.**
+  A `character` column of WKT, as `sf::st_as_text()` makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
+  and appends to one with `dbAppendTable()`, because the cast from `VARCHAR` parses WKT.
+  Naming the CRS in the type, as `"GEOMETRY('EPSG:4267')"`, gives the column its CRS.
   Writing WKB as raw vectors, an `sf` object or an `sfc` column is a limitation (below).
 * **The `spatial` extension's own types are aliases, and read as what they alias.**
   `POINT_2D`, `POINT_3D`, `POINT_4D`, `BOX_2D` and `BOX_2DF` are structs, and read as data frame columns;
@@ -208,22 +207,23 @@ and the `spatial` extension's own types:
   the list it reads as does not bind as a `MAP` parameter.
 * `VARIANT` fails on a value whose type R cannot hold.
 * A `GEOMETRY` column read under the default `geometry = "blob"` loses its CRS,
-  and naming a CRS in a type needs `spatial` loaded.
-* WKB has no cast to `GEOMETRY`, from a `BLOB` column or a `wk_wkb` one.
-  `BLOB` to `GEOMETRY` is unimplemented, so `field.types = c(geom = "GEOMETRY")` over `sf::st_as_binary()` output fails,
-  and so do `dbAppendTable()` and a parameter bound to a `GEOMETRY` cast;
-  a `wk_wkb` column writes as `BLOB` like any other list of raw vectors, dropping its class and its CRS.
-  `ST_GeomFromWKB()` does the conversion instead: per query, bound to `?`,
-  or once through `ALTER TABLE ... ALTER COLUMN ... SET DATA TYPE GEOMETRY USING`, which drops the CRS because it names the bare type.
-  A `CREATE TABLE ... AS SELECT` of `ST_SetCRS()` keeps it.
-* An `sf` object or `sfc` column is not written, and a `POINT` column writes silently as `DOUBLE[]`.
-  A whole `sf` object handed to `dbWriteTable()` fails inside sf's own `dbWriteTable()` method,
+  and naming a CRS in a type, as `EPSG:4326`, needs `spatial` loaded, which resolves the name
+  ([`extensions/`](/handbook/usage/extensions/README.md)).
+* WKB does not write `GEOMETRY`, because `BLOB` has no cast to it:
+  `field.types = c(geom = "GEOMETRY")`, `dbAppendTable()` and a parameter bound to a `GEOMETRY` cast
+  all fail on `sf::st_as_binary()` output,
+  and a `wk_wkb` column writes `BLOB`, without its class or CRS.
+  Convert in SQL with `ST_GeomFromWKB()`, in the query or around a bound `?`,
+  and keep a CRS with `ST_SetCRS()` in a `CREATE TABLE ... AS SELECT`;
+  `ALTER TABLE ... SET DATA TYPE GEOMETRY USING` names the bare type, so the column has no CRS.
+* `sf` does not write.
+  `dbWriteTable()` of an `sf` object fails in sf's own method,
   which writes EWKB hex into a column DuckDB parses as WKT ([#1670](https://github.com/duckdb/duckdb-r/issues/1670));
-  in a bare `sfc` column, geometry types other than `POINT` abort with a message naming neither column nor type.
-  `duckdb_register()` of an `sf` object types its geometry as nested `DOUBLE` arrays, and the view fails when read.
-  Convert to text first, or write through Arrow as GeoArrow WKB; the duckspatial and duckdbfs packages wrap this.
-  What to do about writing geometry is [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md)
-  ([#117](https://github.com/duckdb/duckdb-r/issues/117)).
+  an `sfc` column of points writes silently as `DOUBLE[]`,
+  and of any other geometry type aborts with a message naming neither column nor type;
+  and `duckdb_register()` of an `sf` object types its geometry as nested `DOUBLE` arrays, in a view that fails when read.
+  Write WKT, or GeoArrow WKB through Arrow; the duckspatial and duckdbfs packages wrap this
+  ([`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md), [#117](https://github.com/duckdb/duckdb-r/issues/117)).
 * `sf::st_read()` of a table does not recognize a `GEOMETRY` column, and returns a data frame.
 * WKT does not parse into the `spatial` extension's own types.
 * An `INET` address reads rounded for IPv6.

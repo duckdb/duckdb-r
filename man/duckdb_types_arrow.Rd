@@ -145,7 +145,7 @@ Arrow requires the keys of a map to be non-nullable, and nanoarrow's \code{na_ma
 \item \strong{\code{na}} lands as a column of type \code{NULL}.
 \item \strong{The extension types} land as the DuckDB type they name:
 \code{arrow.uuid} as \code{UUID}, \code{arrow.json} as \code{JSON}, \code{arrow.bool8} as \code{BOOLEAN}, and \code{arrow.opaque} as the DuckDB type in its metadata.
-What the GeoArrow types land as is under Geometry.
+What the GeoArrow types land as is under Geometry and Limitations.
 }
 }
 
@@ -175,34 +175,25 @@ where \code{dbWriteTable()} keeps the days.
 as PROJJSON once \code{spatial} is loaded, and as the identifier without it.
 It stays \code{geoarrow.wkb} under every export setting, \code{arrow_lossless_conversion} included;
 \code{arrow_large_buffer_size} makes its storage \code{large_binary}, and an \code{arrow_output_version} from \code{'1.4'} makes it \code{binary_view}.
-What the readers make of it depends on the geoarrow package:
-once it is loaded, both convert it to a \code{geoarrow_vctr} in each of those layouts, arrow the view one included;
-until then, nanoarrow reads its WKB as a \code{blob} and arrow as an \code{arrow_binary}.
+With the geoarrow package loaded, both readers convert it to a \code{geoarrow_vctr} in each of those layouts, arrow the view one included.
 \item \strong{sf reads a result through GeoArrow in one call.}
-\code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's, in the large and view layouts too,
+With geoarrow loaded, \code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's,
+in the large and view layouts too,
 and so do \code{\link[sf:st_as_sf]{sf::st_as_sf()}} of the result's \code{arrow::as_arrow_table()}, and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} of the \code{geoarrow_vctr} column of \code{as.data.frame()}.
-Those methods are the geoarrow package's, so it has to be loaded first.
 \item \strong{The \code{spatial} extension's own types cross as their storage.}
 \code{POINT_2D} and the other point and box types export as a \code{struct}, \code{LINESTRING_2D} and \code{LINESTRING_3D} as a \code{list} of point structs,
 \code{POLYGON_2D} and \code{POLYGON_3D} as a list of those lists, and \code{WKB_BLOB} as \code{binary}, with \code{arrow_lossless_conversion} too,
 and each reader converts them as it converts those Arrow types.
-Registered back, they land as the plain \code{STRUCT}, \code{LIST} or \code{BLOB}.
 \item \strong{GeoArrow WKB writes \code{GEOMETRY} with its CRS.}
 Encode the geometry column as WKB,
-as \code{geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))}
-or as a \code{\link[wk:as_wkb]{wk::as_wkb()}} column,
-and register \code{arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))} with \code{duckdb_register_arrow()};
-\verb{CREATE TABLE ... AS SELECT} from the view writes a \code{GEOMETRY} column with the CRS,
-which reads back into an \code{sf} equal to the one written; WKB without a CRS lands as plain \code{GEOMETRY}.
+as \code{geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))},
+or as a \code{\link[wk:as_wkb]{wk::as_wkb()}} column, which nanoarrow infers as \code{geoarrow.wkb} once geoarrow is loaded.
+Register \code{arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))} with \code{duckdb_register_arrow()},
+and a \verb{CREATE TABLE ... AS SELECT} from the view writes a \code{GEOMETRY} column with the CRS,
+which reads back into an \code{sf} equal to the one written.
 With \code{spatial} loaded, the type names the CRS by its identifier, as \code{GEOMETRY('EPSG:4267')};
 without it, it keeps the PROJJSON it came as, and \code{\link[sf:st_crs]{sf::st_crs()}} reads the same CRS from both.
-nanoarrow infers \code{geoarrow.wkb} for a \code{wk_wkb} column once geoarrow is loaded.
-DuckDB lands the large and view layouts of WKB, as its own export makes them, as \code{GEOMETRY}.
-\item \strong{The other GeoArrow encodings land as their storage.}
-What nanoarrow infers for an \code{sf} column, and what \code{arrow::as_arrow_table()} makes of one, is a native encoding,
-which lands as its struct storage, as \verb{STRUCT(x DOUBLE, y DOUBLE)[][][]} for a multipolygon.
-A native point converts in the query as \verb{geometry::POINT_2D::GEOMETRY}.
-\code{geoarrow_wkt()} lands as \code{VARCHAR}, which \verb{::GEOMETRY} parses, and \code{ST_SetCRS()} gives the CRS back.
+WKB without a CRS lands as plain \code{GEOMETRY}, and so do the large and view layouts DuckDB's own export makes.
 \item \strong{A \code{geoarrow_vctr} column holds indices.}
 The \code{geoarrow_vctr} that \code{as.data.frame()} gives for a geometry in an Arrow result
 is an integer vector of indices into the Arrow data it holds, and writing it back is a limitation (below).
