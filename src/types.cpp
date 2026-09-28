@@ -133,7 +133,7 @@ static bool IsPlainVector(SEXP v) {
 	case REALSXP:
 	case STRSXP:
 	case RAWSXP:
-		return !OBJECT(v) && !Rf_isMatrix(v);
+		return !Rf_isObject(v) && !Rf_isMatrix(v);
 	default:
 		return false;
 	}

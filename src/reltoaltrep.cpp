@@ -771,9 +771,13 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 			// Register the vector so that the relation wrapper knows
 			// when all ALTREP columns have been transformed
 			relation_wrapper->RegisterAltrepColumn();
-			vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-			if (col_type.id() == LogicalTypeId::INTERVAL &&
-			    convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD) {
+			const bool period = col_type.id() == LogicalTypeId::INTERVAL &&
+			                    convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+			SEXP altrep = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
+			// A Period is an S4 object. Rf_asS4(), the API for the S4 bit, sets it in place
+			// only on a vector nothing refers to yet, and would otherwise duplicate, which materializes.
+			vector_sexp = period ? Rf_asS4(altrep, TRUE, 0) : altrep;
+			if (period) {
 				// duckdb_r_decorate() would size the Period's slots by the row count, which runs the query,
 				// so each slot is a lazy vector of its own
 				const auto &slot_syms = RStrings::get().period_slot_syms;
@@ -786,7 +790,6 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 					Rf_setAttrib(vector_sexp, slot_syms[slot_idx], slot);
 				}
 				SET_CLASS(vector_sexp, RStrings::get().period_str);
-				SET_S4_OBJECT(vector_sexp);
 			} else {
 				duckdb_r_decorate(col_type, vector_sexp, convert_opts);
 			}

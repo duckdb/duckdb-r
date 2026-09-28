@@ -160,6 +160,12 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 
 		return dest_list;
 	}
+	case LogicalTypeId::INTERVAL:
+		if (convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD) {
+			// A Period is an S4 object; see DecoratePeriod().
+			return Rf_asS4(Rf_allocVector(rtype, nrows), TRUE, 0);
+		}
+		return Rf_allocVector(rtype, nrows);
 	default:
 		return Rf_allocVector(rtype, nrows);
 	}
@@ -253,7 +259,11 @@ static void DecoratePeriod(const SEXP dest) {
 		Rf_setAttrib(dest, slot_sym, slot);
 	}
 	SET_CLASS(dest, RStrings::get().period_str);
-	SET_S4_OBJECT(dest);
+	// duckdb_r_allocate() sets the S4 bit when it allocates the vector, because Rf_asS4(),
+	// the API for it, sets it in place only on a vector nothing else refers to yet.
+	if (!Rf_isS4(dest) && Rf_asS4(dest, TRUE, 0) != dest) {
+		cpp11::stop("DecoratePeriod(): the vector to decorate is shared");
+	}
 }
 
 // The value of one slot for one INTERVAL, whose microseconds split into whole hours and minutes,
@@ -492,7 +502,7 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 	bool classed_cells = false;
 	if (TYPEOF(buffer) == VECSXP) {
 		duckdb_r_decorate(child_type, buffer, convert_opts);
-		classed_cells = OBJECT(buffer);
+		classed_cells = Rf_isObject(buffer);
 	}
 
 	// Calculate total number of rows in the final matrix from the length of dest
