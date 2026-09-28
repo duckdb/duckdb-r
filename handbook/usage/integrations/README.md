@@ -54,11 +54,10 @@ the boundaries users keep hitting:
   dbplyr reads the fields through a query R has to convert, and reports "Can't query fields".
   `arrow::to_duckdb()` returns such a `tbl()` and `to_arrow()` takes one, so both fail the same way.
   A `tbl()` over a query that casts the column, as `tbl(con, sql("SELECT b::VARCHAR AS b FROM t"))` for a `BIT` column, opens
-  ([`experiments/2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md)).
+  ([`tests/testthat/test-backend-dbplyr__duckdb_connection.R`](/tests/testthat/test-backend-dbplyr__duckdb_connection.R)).
 * dbplyr refuses a `difftime`, an `hms` or a lubridate `Period` as a value in a verb, with "Cannot translate",
   before the backend sees it and whatever the connection's options say.
-  `!!dbQuoteLiteral(con, x)` passes one, and the options decide the literal:
-  under `time = "hms"` an `hms` is a `TIME`, and under `interval = "Period"` a `Period` is an exact `INTERVAL`
+  `!!dbQuoteLiteral(con, x)` passes one, quoted as the options say ([`types/`](/handbook/usage/types/README.md))
   ([`tests/testthat/test-backend-dbplyr__duckdb_connection.R`](/tests/testthat/test-backend-dbplyr__duckdb_connection.R)).
 * `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
   not `DISTINCT ON` — needs dbplyr support
@@ -209,7 +208,8 @@ Each takes what a DBI call returns:
 * Polars: `polars::as_polars_df(dbGetQueryArrow(con, sql))`.
   It keeps each batch as a chunk, and numbers and characters where the stream put them.
   A string column gains a 16-byte view per value, unless the export already sends views,
-  as it does with `produce_arrow_string_view = true` and an `arrow_output_version` from `'1.4'`.
+  as it does with `produce_arrow_string_view = true` and an `arrow_output_version` from `'1.4'`
+  ([`experiments/2026-09-28-type-rereview/`](/experiments/2026-09-28-type-rereview/README.md)).
 * data.table: `data.table::setDT(dbGetQuery(con, sql))`.
   It makes the data frame a data.table in place and keeps every column, where `as.data.table()` copies each one.
 * collapse: its functions take the data frame as it is, and `collapse::qDT()` makes a data.table that keeps every column.

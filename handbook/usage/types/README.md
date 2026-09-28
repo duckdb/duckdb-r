@@ -99,11 +99,9 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   a limitation (below).
   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the time apart,
   the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
-  lubridate's `%m+%` adds its months and days to a date as DuckDB adds an `INTERVAL`'s,
-  and to a `POSIXct` as DuckDB does to a `TIMESTAMPTZ` in a session `TimeZone` of the `POSIXct`'s zone.
+  lubridate's `%m+%` adds its months and days to a date as DuckDB adds an `INTERVAL`'s.
   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
-  and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
-  under the default, a `Period` of seconds alone writes them, a `DOUBLE`, or an `INTEGER` if they are integers.
+  and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`.
   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
 ## Enums and nested types
@@ -221,8 +219,7 @@ and the `spatial` extension's own types:
 * `TIMESTAMP_NS` reads truncated to the microsecond, with a warning the first time in a session and never again,
   `TIMETZ` without its offset, pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R),
   and `infinity` and `-infinity` as a finite date millions of years away or a finite instant, not as `Inf`.
-  Read as a `difftime`, an `INTERVAL` counts a month as 30 days and a day as 24 hours,
-  so which part was months or days is lost, unless `interval = "Period"`.
+  Read as a `difftime`, which part of an `INTERVAL` was months or days is lost, unless `interval = "Period"`.
   Under it, an `ARRAY` of `INTERVAL` is refused before the statement runs,
   and a `Period` whose parts do not fit is refused naming its column or parameter.
   A `Period` built in R has its seconds rounded to the microsecond on write,
@@ -235,6 +232,7 @@ and the `spatial` extension's own types:
   ([`experiments/2026-09-28-interval-mappings/`](/experiments/2026-09-28-interval-mappings/README.md)).
 * A `Period` with a year, month, day, hour or minute is refused without `interval = "Period"`, naming its column or parameter,
   and so is one in a list cell or a map value under either `interval`, which writes the seconds alone there.
+  Without the option, a `Period` of seconds alone writes them, as a `DOUBLE`, or an `INTEGER` if they are stored as integers.
 * `INTERVAL` has no clock mapping, and `interval = "Period"` is the exact one:
   one clock duration has one precision, so a month does not combine with a day and a month part has no exact form;
   its days would be 86400 seconds, where DuckDB adds a calendar day to a `TIMESTAMPTZ` across a daylight saving change;
@@ -248,13 +246,13 @@ and the `spatial` extension's own types:
   because only `NA` is taken for missing ([`src/types.cpp`](/src/types.cpp)).
 * A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
 * `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
-  and `TIME` does only under `time = "hms"`, the one R route to it outside Arrow.
+  and `TIME` does only under `time = "hms"`, whose `hms` is the one R class that writes it outside Arrow.
+  The list a `VARIANT` reads as writes as a `LIST` inside the variant.
   Under the default `time`, `difftime` and `hms` write `INTERVAL`, which does not cast to `TIME`,
   so `field.types`, `dbAppendTable()` and a parameter all fail with that cast error.
   Under `time = "hms"`, an `hms` writes `TIME` rounded to the microsecond, one in a list cell still writes `INTERVAL`,
   an `hms` no longer appends to an `INTERVAL` column, because `TIME` does not cast to `INTERVAL`,
   and a value outside 00:00:00 to 24:00:00, `NaN` and the infinities included, is refused naming its column or parameter.
-  The list a `VARIANT` reads as writes as a `LIST` inside the variant.
 * No R class writes `TIME_NS`, because DuckDB casts neither `TIME` nor `INTERVAL` to it:
   a `TIME_NS` read back does not append to its column, not even as an `hms` under `time = "hms"`,
   and `field.types` naming it fails on an `hms` or a `difftime` the same way.
@@ -302,4 +300,6 @@ and the `spatial` extension's own types:
   `'::1'::INET` reads as `-1.7e38`, and its text as `::1`.
 
 *To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
-which no record covers beyond an `ARRAY` column ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
+which no record covers beyond an `ARRAY` column and the columns the reading options change
+([`experiments/2026-09-28-relational-convert-opts/`](/experiments/2026-09-28-relational-convert-opts/README.md),
+[`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*

@@ -1118,3 +1118,21 @@ test_that("dbplyr refuses a difftime, hms or Period value in a verb, and `!!dbQu
   expect_identical(out$h, hms::hms(3600))
   expect_identical(out$p, lubridate::period(months = 1))
 })
+
+test_that("tbl() refuses a table holding a type R cannot hold, and opens a query that casts the column", {
+  skip_if_not_installed("dbplyr")
+  skip_if_not_installed("dplyr")
+  con <- local_con()
+  dbExecute(con, "CREATE TABLE t AS SELECT '101'::BIT AS b")
+
+  expect_error(dplyr::tbl(con, "t"), "Can't query fields")
+  out <- dplyr::collect(dplyr::tbl(
+    con,
+    dplyr::sql("SELECT b::VARCHAR AS b FROM t")
+  ))
+  expect_identical(out$b, "101")
+
+  # A TIME_NS column reads into R, so its table opens as it is
+  dbExecute(con, "CREATE TABLE tn AS SELECT '12:00:00'::TIME_NS AS t")
+  expect_s3_class(dplyr::collect(dplyr::tbl(con, "tn"))$t, "difftime")
+})

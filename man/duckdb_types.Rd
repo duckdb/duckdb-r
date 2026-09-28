@@ -88,11 +88,9 @@ and Arrow writes it directly.
 a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 With \code{interval = "Period"} it reads as a \code{lubridate::Period} that keeps the months, the days and the time apart,
 the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
-lubridate's \verb{\%m+\%} adds its months and days to a date as DuckDB adds an \code{INTERVAL}'s,
-and to a \code{POSIXct} as DuckDB does to a \code{TIMESTAMPTZ} in a session \code{TimeZone} of the \code{POSIXct}'s zone.
+lubridate's \verb{\%m+\%} adds its months and days to a date as DuckDB adds an \code{INTERVAL}'s.
 Under that option a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL},
-and \code{dbQuoteLiteral()} quotes a \code{Period} as that \code{INTERVAL};
-under the default, a \code{Period} of seconds alone writes them, a \code{DOUBLE}, or an \code{INTEGER} if they are integers.
+and \code{dbQuoteLiteral()} quotes a \code{Period} as that \code{INTERVAL}.
 A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }
 }
