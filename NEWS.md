@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.6.9000
+
+## Bug fixes
+
+### series
+
+- Read `main` from the canonical repository, not the fork's mirror (#2865).
+
+## Uncategorized
+
+- Merge remote-tracking branch 'upstream/cran-1.5.6'.
+
+
 # duckdb 1.5.6
 
 ## Features
