@@ -1,3 +1,5 @@
+# Derived from igraph/rigraph's .github/workflows/cran-submission.yaml at fe3538b925.
+#
 # Tags the commit and submits the package to CRAN.
 #
 # The `tag` job tags the commit as `v<version>`,
@@ -113,6 +115,13 @@ jobs:
       contents: read
       # The action opens an issue that tracks the submission.
       issues: write
+
+    env:
+      # The action compiles the vendored engine itself, one file at a time unless told otherwise.
+      MAKEFLAGS: -j4
+      # The guard runs the tests and examples that reach the engine on GitHub Actions.
+      # Turned off, the check before the upload sees the package as CRAN does; `rcc` runs them.
+      DUCKDB_R_RUN_TESTS: "false"
 
     steps:
       - uses: actions/checkout@v6
