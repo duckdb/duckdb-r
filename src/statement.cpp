@@ -349,7 +349,47 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	return data_frame;
 }
 
+// Refuse a result column R cannot hold before the statement runs,
+// so that a statement with side effects, such as INSERT ... RETURNING, is not run for rows the conversion then refuses.
+// duckdb_r_typeof() is the judge, and throws the message the conversion would,
+// for a column or for anything nested in it (handbook/usage/types/README.md).
+static void CheckResultTypeForR(const LogicalType &type, const string &name) {
+	switch (type.id()) {
+	case LogicalTypeId::UNKNOWN:
+	case LogicalTypeId::SQLNULL:
+		// Resolved when the parameters are bound, or holding no value to convert
+		return;
+	case LogicalTypeId::LIST:
+		CheckResultTypeForR(ListType::GetChildType(type), name);
+		return;
+	case LogicalTypeId::ARRAY:
+		CheckResultTypeForR(ArrayType::GetChildType(type), name);
+		return;
+	case LogicalTypeId::MAP:
+		CheckResultTypeForR(MapType::KeyType(type), name);
+		CheckResultTypeForR(MapType::ValueType(type), name);
+		return;
+	case LogicalTypeId::STRUCT:
+		for (const auto &child : StructType::GetChildTypes(type)) {
+			CheckResultTypeForR(child.second, name + "$" + child.first);
+		}
+		return;
+	default:
+		(void)duckdb_r_typeof(type, name, "rapi_execute");
+		return;
+	}
+}
+
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result) {
+	// Only the conversion to R vectors needs the check: an Arrow result carries every type.
+	if (convert_opts.arrow != ConvertOpts::ArrowConversion::ENABLED) {
+		const auto &types = stmt->stmt->GetTypes();
+		const auto &names = stmt->stmt->GetNames();
+		for (idx_t col_idx = 0; col_idx < types.size(); col_idx++) {
+			CheckResultTypeForR(types[col_idx], names[col_idx].GetIdentifierName());
+		}
+	}
+
 	auto context = stmt->stmt->TryGetContext();
 	ScopedInterruptHandler signal_handler(context);
 
