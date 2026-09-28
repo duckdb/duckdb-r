@@ -309,6 +309,8 @@ struct RStrings {
 	SEXP tbl_df_tbl_dataframe_str;
 	SEXP wk_wkb_wk_vctr_str;
 	SEXP vctrs_list_of_str;
+	SEXP blob_vctrs_list_of_str;
+	SEXP empty_raw; // Rf_allocVector
 	SEXP cxx_stdlib_libstdcxx_str;
 	SEXP cxx_stdlib_libcxx_str;
 	SEXP cxx_stdlib_unknown_str;

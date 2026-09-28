@@ -17,8 +17,8 @@ Edit the leaves, re-run the script and then roxygen; its `--check`, which CI run
 ## The routes
 
 **Reading.**
-`dbGetQuery()` converts each column by its type, and five `dbConnect()` arguments change the shape,
-with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"` and `time = "difftime"`,
+`dbGetQuery()` converts each column by its type, and six `dbConnect()` arguments change the shape,
+with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"`, `time = "difftime"` and `blob = "list"`,
 set in [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
 `dbGetQueryArrow()` hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
@@ -61,7 +61,8 @@ and [bitstring](https://duckdb.org/docs/current/sql/data_types/bitstring) types,
 
 * **`VARCHAR`** (`CHAR`, `BPCHAR`, `TEXT`, `STRING`) reads as `character`, and `character` writes it;
   non-UTF-8 text is a limitation (below).
-* **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors.
+* **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors, or with `blob = "blob"` as `blob::blob`,
+  pinned by [`tests/testthat/test-blob.R`](/tests/testthat/test-blob.R).
   A `blob::blob` or a list of raw vectors writes it.
 * **`BIT`** (`BITSTRING`) reads and writes through its text.
 * **`UUID`** reads as `character`, lowercase and hyphenated.
@@ -119,7 +120,7 @@ The [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) type, 
 and the `spatial` extension's own types:
 
 * **`GEOMETRY`** reads as WKB.
-  With `geometry = "blob"`, the default, it reads as a list of raw vectors;
+  With `geometry = "blob"`, the default, it reads as a list of raw vectors whatever `blob` says;
   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which `sf::st_as_sfc()` converts onward, CRS included.
   The type is core since DuckDB 1.5, so reading one needs no extension;
   the geometry functions are the `spatial` extension's ([`extensions/`](/handbook/usage/extensions/README.md)).
@@ -133,7 +134,7 @@ and the `spatial` extension's own types:
   `POINT_2D`, `POINT_3D`, `POINT_4D`, `BOX_2D` and `BOX_2DF` are structs, and read as data frame columns;
   `LINESTRING_2D` and `LINESTRING_3D` are lists of point structs, and read as lists of data frames;
   `POLYGON_2D` and `POLYGON_3D` are lists of those rings, and read as lists of lists;
-  `WKB_BLOB` is a `BLOB`, and reads as raw vectors.
+  `WKB_BLOB` is a `BLOB`, and reads as one.
   The same shapes write the plain struct or list, and `field.types` naming the alias casts back to it.
   They cast to and from `GEOMETRY` in the query, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
 

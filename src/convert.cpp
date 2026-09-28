@@ -59,6 +59,14 @@ ConvertOpts::TimeConversion string_to_time_conversion(const std::string &str) {
 	rapi_error_with_context("string_to_time_conversion", "Invalid time value: " + str);
 }
 
+ConvertOpts::BlobConversion string_to_blob_conversion(const std::string &str) {
+	if (str == "list")
+		return ConvertOpts::BlobConversion::LIST;
+	if (str == "blob")
+		return ConvertOpts::BlobConversion::BLOB;
+	rapi_error_with_context("string_to_blob_conversion", "Invalid blob value: " + str);
+}
+
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
 	return use_arrow ? ConvertOpts::ArrowConversion::ENABLED : ConvertOpts::ArrowConversion::DISABLED;
 }
@@ -102,6 +110,9 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 
 	// Extract time
 	time = string_to_time_conversion(as_cpp<std::string>(options["time"]));
+
+	// Extract blob
+	blob = string_to_blob_conversion(as_cpp<std::string>(options["blob"]));
 
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));

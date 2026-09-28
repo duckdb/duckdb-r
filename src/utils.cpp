@@ -97,7 +97,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 17);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 19);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -115,6 +115,8 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 14, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
 	SET_VECTOR_ELT(chars, 15, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
 	SET_VECTOR_ELT(chars, 16, hms_difftime_str = StringsToSexp({"hms", "difftime"}));
+	SET_VECTOR_ELT(chars, 17, blob_vctrs_list_of_str = StringsToSexp({"blob", "vctrs_list_of", "vctrs_vctr", "list"}));
+	SET_VECTOR_ELT(chars, 18, empty_raw = Rf_allocVector(RAWSXP, 0));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);

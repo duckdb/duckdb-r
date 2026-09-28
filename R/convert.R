@@ -7,11 +7,13 @@ duckdb_convert_opts <- function(
   geometry = "blob",
   map = "data.frame",
   time = c("difftime", "hms"),
+  blob = c("list", "blob"),
   call = parent.frame()
 ) {
   tz_out_convert <- match.arg(tz_out_convert)
   timezone_out <- check_tz(timezone_out)
   time <- match.arg(time)
+  blob <- match.arg(blob)
 
   if (bigint == "integer64") {
     if (!is_installed("bit64")) {
@@ -47,6 +49,13 @@ duckdb_convert_opts <- function(
     )
   }
 
+  if (blob == "blob" && !is_installed("blob")) {
+    abort(
+      "The blob package must be installed for `blob = \"blob\"`.",
+      call = call
+    )
+  }
+
   duckdb_convert_opts_impl(
     timezone_out = timezone_out,
     tz_out_convert = tz_out_convert,
@@ -55,6 +64,7 @@ duckdb_convert_opts <- function(
     geometry = geometry,
     map = map,
     time = time,
+    blob = blob,
     arrow = FALSE,
     allow_stream_result = FALSE,
     experimental = FALSE,
@@ -72,6 +82,7 @@ duckdb_convert_opts_impl <- function(
   geometry = NULL,
   map = NULL,
   time = NULL,
+  blob = NULL,
   arrow = NULL,
   allow_stream_result = NULL,
   experimental = NULL,
@@ -97,6 +108,9 @@ duckdb_convert_opts_impl <- function(
   }
   if (!is.null(time)) {
     x$time <- time
+  }
+  if (!is.null(blob)) {
+    x$blob <- blob
   }
   if (!is.null(arrow)) {
     x$arrow <- arrow

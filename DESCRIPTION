@@ -49,6 +49,7 @@ Imports:
 Suggests: 
     arrow (>= 13.0.0),
     bit64,
+    blob,
     callr,
     clock,
     DBItest,

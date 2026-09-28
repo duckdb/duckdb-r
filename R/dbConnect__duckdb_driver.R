@@ -52,6 +52,11 @@
 #'   If `"difftime"` is selected (the default), they are returned as a `difftime` in seconds.
 #'   If `"hms"` is selected, they are returned as [hms::hms()] vectors,
 #'   which requires the \pkg{hms} package.
+#' @param blob How `BLOB` columns should be returned.
+#'   There are two options: `"list"` and `"blob"`.
+#'   If `"list"` is selected (the default), they are returned as a list of raw vectors.
+#'   If `"blob"` is selected, they are returned as [blob::blob()] vectors,
+#'   which requires the \pkg{blob} package.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -88,12 +93,14 @@ dbConnect__duckdb_driver <- function(
   array = "none",
   geometry = "blob",
   map = "data.frame",
-  time = c("difftime", "hms")
+  time = c("difftime", "hms"),
+  blob = c("list", "blob")
 ) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
   time <- match.arg(time)
+  blob <- match.arg(blob)
 
   if (missing(dbdir)) {
     dbdir <- drv@dbdir
@@ -132,7 +139,8 @@ dbConnect__duckdb_driver <- function(
     array = array,
     geometry = geometry,
     map = map,
-    time = time
+    time = time,
+    blob = blob
   )
 
   config <- utils::modifyList(drv@config, config)

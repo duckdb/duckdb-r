@@ -10,8 +10,8 @@ See \link{duckdb_types_arrow} for a description of the conversion via Arrow.
 }
 \section{The routes}{
 \strong{Reading.}
-\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and five \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape,
-with defaults \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"}, \code{geometry = "blob"} and \code{time = "difftime"}.
+\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and six \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape,
+with defaults \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"}, \code{geometry = "blob"}, \code{time = "difftime"} and \code{blob = "list"}.
 \code{\link[DBI:dbGetQueryArrow]{dbGetQueryArrow()}} hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is documented in \link{duckdb_types_arrow}.
 A cast to \code{VARCHAR} in the query reads any type as text.
@@ -53,7 +53,7 @@ and \href{https://duckdb.org/docs/current/sql/data_types/bitstring}{bitstring} t
 \itemize{
 \item \strong{\code{VARCHAR}} (\code{CHAR}, \code{BPCHAR}, \code{TEXT}, \code{STRING}) reads as \code{character}, and \code{character} writes it;
 non-UTF-8 text is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
-\item \strong{\code{BLOB}} (\code{BYTEA}, \code{BINARY}, \code{VARBINARY}) reads as a list of raw vectors.
+\item \strong{\code{BLOB}} (\code{BYTEA}, \code{BINARY}, \code{VARBINARY}) reads as a list of raw vectors, or with \code{blob = "blob"} as \code{blob::blob}.
 A \code{blob::blob} or a list of raw vectors writes it.
 \item \strong{\code{BIT}} (\code{BITSTRING}) reads and writes through its text.
 \item \strong{\code{UUID}} reads as \code{character}, lowercase and hyphenated.
@@ -112,7 +112,7 @@ The \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETR
 and the \code{spatial} extension's own types:
 \itemize{
 \item \strong{\code{GEOMETRY}} reads as WKB.
-With \code{geometry = "blob"}, the default, it reads as a list of raw vectors;
+With \code{geometry = "blob"}, the default, it reads as a list of raw vectors whatever \code{blob} says;
 with \code{geometry = "wk"}, as \code{wk_wkb}, carrying the column's CRS as an attribute, which \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} converts onward, CRS included.
 The type is core since DuckDB 1.5, so reading one needs no extension;
 the geometry functions are the \code{spatial} extension's.
@@ -126,7 +126,7 @@ Writing WKB as raw vectors, an \code{sf} object or an \code{sfc} column is a \hr
 \code{POINT_2D}, \code{POINT_3D}, \code{POINT_4D}, \code{BOX_2D} and \code{BOX_2DF} are structs, and read as data frame columns;
 \code{LINESTRING_2D} and \code{LINESTRING_3D} are lists of point structs, and read as lists of data frames;
 \code{POLYGON_2D} and \code{POLYGON_3D} are lists of those rings, and read as lists of lists;
-\code{WKB_BLOB} is a \code{BLOB}, and reads as raw vectors.
+\code{WKB_BLOB} is a \code{BLOB}, and reads as one.
 The same shapes write the plain struct or list, and \code{field.types} naming the alias casts back to it.
 They cast to and from \code{GEOMETRY} in the query, as \verb{'POINT (1 2)'::GEOMETRY::POINT_2D}.
 }

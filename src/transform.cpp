@@ -227,11 +227,17 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::FLOAT:
 	case LogicalTypeId::DOUBLE:
 	case LogicalTypeId::VARCHAR:
-	case LogicalTypeId::BLOB:
 	case LogicalTypeId::UUID:
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::VARIANT:
 		break; // no extra decoration required, do nothing
+	case LogicalTypeId::BLOB:
+		// A list of raw vectors either way; `blob = "blob"` makes it the `blob::new_blob()` of that list.
+		if (convert_opts.blob == ConvertOpts::BlobConversion::BLOB) {
+			SET_CLASS(dest, RStrings::get().blob_vctrs_list_of_str);
+			Rf_setAttrib(dest, RStrings::get().ptype_sym, RStrings::get().empty_raw);
+		}
+		break;
 	case LogicalTypeId::MAP:
 		if (convert_opts.map == ConvertOpts::MapShape::LIST_OF) {
 			// Build the empty data.frame(key = <K>, value = <V>) prototype.
