@@ -3,8 +3,7 @@
     Code
       bad <- c("timestamp_tz", "timestamp_ns", "timestamp_array", "timestamptz_array",
         "bit", "\"union\"", "fixed_nested_int_array", "fixed_nested_varchar_array",
-        "fixed_struct_array", "fixed_array_of_int_list", "bignum", "time_ns",
-        "geometry", NULL)
+        "fixed_struct_array", "fixed_array_of_int_list", "bignum", NULL)
       as.list(dbGetQuery(con, paste0("SELECT * EXCLUDE (", paste(bad, collapse = ", "),
       ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)")))
     Output
@@ -263,5 +262,218 @@
       $list_of_fixed_int_array[[3]]
       NULL
       
+      
+      $time_ns
+      Time differences in secs
+      [1]     0 86400    NA
+      
+      $geometry
+      $geometry[[1]]
+       [1] 01 01 00 00 00 00 00 00 00 00 00 f8 7f 00 00 00 00 00 00 f8 7f
+      
+      $geometry[[2]]
+        [1] 01 07 00 00 00 0d 00 00 00 01 01 00 00 00 00 00 00 00 00 00 f0 3f 00 00 00
+       [26] 00 00 00 00 40 01 01 00 00 00 00 00 00 00 00 00 f8 7f 00 00 00 00 00 00 f8
+       [51] 7f 01 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+       [76] 00 00 00 00 00 00 00 f0 3f 00 00 00 00 00 00 f0 3f 01 02 00 00 00 00 00 00
+      [101] 00 01 03 00 00 00 01 00 00 00 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+      [126] 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 3f 00 00 00 00
+      [151] 00 00 f0 3f 00 00 00 00 00 00 f0 3f 00 00 00 00 00 00 f0 3f 00 00 00 00 00
+      [176] 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 03 00 00 00 00
+      [201] 00 00 00 01 04 00 00 00 02 00 00 00 01 01 00 00 00 00 00 00 00 00 00 14 40
+      [226] 00 00 00 00 00 00 18 40 01 01 00 00 00 00 00 00 00 00 00 f8 7f 00 00 00 00
+      [251] 00 00 f8 7f 01 05 00 00 00 04 00 00 00 01 02 00 00 00 02 00 00 00 00 00 00
+      [276] 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 3f 00 00 00 00
+      [301] 00 00 f0 3f 01 02 00 00 00 00 00 00 00 01 02 00 00 00 02 00 00 00 00 00 00
+      [326] 00 00 00 00 40 00 00 00 00 00 00 00 40 00 00 00 00 00 00 08 40 00 00 00 00
+      [351] 00 00 08 40 01 02 00 00 00 00 00 00 00 01 05 00 00 00 00 00 00 00 01 06 00
+      [376] 00 00 04 00 00 00 01 03 00 00 00 01 00 00 00 05 00 00 00 00 00 00 00 00 00
+      [401] 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0
+      [426] 3f 00 00 00 00 00 00 f0 3f 00 00 00 00 00 00 f0 3f 00 00 00 00 00 00 f0 3f
+      [451] 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01
+      [476] 03 00 00 00 00 00 00 00 01 03 00 00 00 01 00 00 00 05 00 00 00 00 00 00 00
+      [501] 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+      [526] 00 00 40 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00 40 00 00 00 00 00 00
+      [551] 00 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+      [576] 00 01 03 00 00 00 00 00 00 00 01 06 00 00 00 00 00 00 00 01 07 00 00 00 01
+      [601] 00 00 00 01 01 00 00 00 00 00 00 00 00 00 14 40 00 00 00 00 00 00 18 40 01
+      [626] 07 00 00 00 00 00 00 00
+      
+      $geometry[[3]]
+      NULL
+      
+      
+
+# test_all_types() under bigint = "integer64"
+
+    Code
+      as.list(dbGetQuery(con, "SELECT bigint, ubigint FROM test_all_types()"))
+    Output
+      $bigint
+      integer64
+      [1] <NA>                9223372036854775807 <NA>               
+      
+      $ubigint
+      integer64
+      [1] 0    -1   <NA>
+      
+
+# test_all_types() under array = "matrix"
+
+    Code
+      as.list(dbGetQuery(con,
+        "SELECT fixed_int_array, fixed_varchar_array,\n         struct_of_fixed_array, list_of_fixed_int_array\n       FROM test_all_types()"))
+    Output
+      $fixed_int_array
+           [,1] [,2] [,3]
+      [1,]   NA    2    3
+      [2,]    4    5    6
+      [3,]   NA   NA   NA
+      
+      $fixed_varchar_array
+           [,1] [,2] [,3]
+      [1,] "a"  NA   "c" 
+      [2,] "d"  "e"  "f" 
+      [3,] NA   NA   NA  
+      
+      $struct_of_fixed_array
+        a.1 a.2 a.3  b.1  b.2  b.3
+      1  NA   2   3    a <NA>    c
+      2   4   5   6    d    e    f
+      3  NA  NA  NA <NA> <NA> <NA>
+      
+      $list_of_fixed_int_array
+      $list_of_fixed_int_array[[1]]
+           [,1] [,2] [,3]
+      [1,]   NA    2    3
+      [2,]    4    5    6
+      [3,]   NA    2    3
+      
+      $list_of_fixed_int_array[[2]]
+           [,1] [,2] [,3]
+      [1,]    4    5    6
+      [2,]   NA    2    3
+      [3,]    4    5    6
+      
+      $list_of_fixed_int_array[[3]]
+      NULL
+      
+      
+
+# test_all_types() under map = "list_of"
+
+    Code
+      as.list(dbGetQuery(con, "SELECT map FROM test_all_types()"))
+    Output
+      $map
+      <list_of<
+        data.frame<
+          key  : character
+          value: character
+        >
+      >[3]>
+      [[1]]
+      [1] key   value
+      <0 rows> (or 0-length row.names)
+      
+      [[2]]
+         key        value
+      1 key1 🦆🦆🦆🦆🦆🦆
+      2 key2        goose
+      
+      [[3]]
+      NULL
+      
+      
+
+# test_all_types() under geometry = "wk"
+
+    Code
+      as.list(dbGetQuery(con, "SELECT geometry FROM test_all_types()"))
+    Output
+      $geometry
+      <wk_wkb[3]>
+      [1] <POINT EMPTY>                                                                                                      
+      [2] <GEOMETRYCOLLECTION (POINT (1 2), POINT EMPTY, LINESTRING (0 0, 1 1), LINESTRING EMPTY, POLYGON ((0 0, 0 1, 1 1...>
+      [3] <<null feature>>                                                                                                   
+      
+
+# test_all_types() under time = "hms"
+
+    Code
+      as.list(dbGetQuery(con, "SELECT time, time_tz, time_ns FROM test_all_types()"))
+    Output
+      $time
+      00:00:00
+      24:00:00
+            NA
+      
+      $time_tz
+      00:00:00
+      24:00:00
+            NA
+      
+      $time_ns
+      00:00:00
+      24:00:00
+            NA
+      
+
+# test_all_types() under blob = "blob"
+
+    Code
+      as.list(dbGetQuery(con, "SELECT blob FROM test_all_types()"))
+    Output
+      $blob
+      <blob[3]>
+      [1] blob[29 B] blob[4 B]  <NA>      
+      
+
+# test_all_types() under interval = "Period"
+
+    Code
+      as.list(dbGetQuery(con, "SELECT interval FROM test_all_types()"))
+    Output
+      $interval
+      [1] "0S"                          "999m 999d 0H 0M 999.999999S"
+      [3] NA                           
+      
+
+# test_all_types() under timezone_out = "Europe/Berlin"
+
+    Code
+      as.list(dbGetQuery(con,
+        "SELECT timestamp, timestamp_s, timestamp_ms, timestamp_tz\n       FROM test_all_types() WHERE timestamp IS NULL\n       UNION ALL SELECT\n         TIMESTAMP '2024-07-01 12:00:00.123456',\n         TIMESTAMP_S '2024-07-01 12:00:00',\n         TIMESTAMP_MS '2024-07-01 12:00:00.123',\n         TIMESTAMPTZ '2024-07-01 12:00:00.123456+00'"))
+    Output
+      $timestamp
+      [1] NA                                "2024-07-01 14:00:00.123456 CEST"
+      
+      $timestamp_s
+      [1] NA                         "2024-07-01 14:00:00 CEST"
+      
+      $timestamp_ms
+      [1] NA                                "2024-07-01 14:00:00.122999 CEST"
+      
+      $timestamp_tz
+      [1] NA                               "2024-07-01 12:00:00.123456 UTC"
+      
+
+# test_all_types() under tz_out_convert = "force"
+
+    Code
+      as.list(dbGetQuery(con,
+        "SELECT timestamp, timestamp_s, timestamp_ms, timestamp_tz\n       FROM test_all_types() WHERE timestamp IS NULL\n       UNION ALL SELECT\n         TIMESTAMP '2024-07-01 12:00:00.123456',\n         TIMESTAMP_S '2024-07-01 12:00:00',\n         TIMESTAMP_MS '2024-07-01 12:00:00.123',\n         TIMESTAMPTZ '2024-07-01 12:00:00.123456+00'"))
+    Output
+      $timestamp
+      [1] NA                                "2024-07-01 12:00:00.123456 CEST"
+      
+      $timestamp_s
+      [1] NA                         "2024-07-01 12:00:00 CEST"
+      
+      $timestamp_ms
+      [1] NA                                "2024-07-01 12:00:00.122998 CEST"
+      
+      $timestamp_tz
+      [1] NA                                "2024-07-01 12:00:00.123456 CEST"
       
 
