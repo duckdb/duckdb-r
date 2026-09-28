@@ -371,7 +371,7 @@ test_that("`interval = \"Period\"` round-trips every microsecond, splitting whol
 
   con <- local_con(interval = "Period")
 
-  # A double of seconds holds the microseconds exactly only below about 2^51 of them
+  # Past 2^33 seconds a double of them does not hold each microsecond, and the seconds read are below a minute
   sql <- "SELECT * FROM (VALUES
     (1, to_microseconds(4501218153950999)),
     (2, to_microseconds(9223372036854775807)),
@@ -409,6 +409,43 @@ test_that("`interval = \"Period\"` round-trips every microsecond, splitting whol
     paste("SELECT", dbQuoteLiteral(con, data$a[2]), "AS a")
   )
   expect_identical(quoted$a, data$a[2])
+})
+
+test_that("`interval = \"Period\"` writes each microsecond of a double of seconds below 2^33 of them", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  # 2^33 seconds are some 272 years; a microsecond past them is the first one a double does not hold
+  micros <- c(2^33 * 1e6 - 1, -(2^33 * 1e6 - 1), 2^33 * 1e6 + 1)
+  p <- lubridate::period(
+    hours = c(0, 0, 0, 1194478),
+    seconds = c(micros / 1e6, 2627.249951)
+  )
+  expected <- c(
+    "8589934591999999",
+    "-8589934591999999",
+    "8589934592000002",
+    "4300123427249951"
+  )
+
+  dbWriteTable(con, "tbl", data.frame(i = 1:4, a = p))
+  expect_identical(
+    dbGetQuery(con, "SELECT epoch_us(a)::VARCHAR AS us FROM tbl ORDER BY i")$us,
+    expected
+  )
+
+  # A literal quotes what a write writes
+  sql <- paste0("SELECT epoch_us(", dbQuoteLiteral(con, p), ")::VARCHAR AS us")
+  expect_identical(
+    vapply(
+      sql,
+      function(q) dbGetQuery(con, q)$us,
+      character(1),
+      USE.NAMES = FALSE
+    ),
+    expected
+  )
 })
 
 test_that("NA in any part of a Period writes NULL under `interval = \"Period\"`", {
@@ -491,8 +528,16 @@ test_that("dbQuoteLiteral() quotes a Period as an exact INTERVAL under `interval
     dbQuoteLiteral(con, lubridate::period(days = 2^31)),
     "to quote as one"
   )
+
+  # Microseconds hold 64 signed bits: the double nearest 2^63 / 1e6 seconds
+  # is 9223372036854.775391 of them, which fit, and a second more does not
+  expect_match(
+    as.character(dbQuoteLiteral(con, lubridate::period(seconds = 2^63 / 1e6))),
+    "to_microseconds(9223372036854775391)",
+    fixed = TRUE
+  )
   expect_error(
-    dbQuoteLiteral(con, lubridate::period(seconds = 2^63 / 1e6)),
+    dbQuoteLiteral(con, lubridate::period(seconds = 2^63 / 1e6 + 1)),
     "to quote as one"
   )
 })

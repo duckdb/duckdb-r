@@ -216,7 +216,7 @@ and the `spatial` extension's own types:
   Under it, an `ARRAY` of `INTERVAL` is refused before the statement runs,
   and a `Period` whose parts do not fit is refused naming its column or parameter.
   A `Period` built in R has its seconds rounded to the microsecond on write,
-  and a double of seconds past about 2^51 microseconds, some 71 years, does not hold each one.
+  and a double of seconds past 2^33 of them, some 272 years, does not hold each microsecond.
 * lubridate adds a `Period`'s hours, minutes and seconds as clock time, where DuckDB adds an `INTERVAL`'s microseconds as elapsed time,
   so across a daylight saving change `%m+%` lands an hour off, or on `NA` inside the skipped hour
   ([`experiments/2026-09-28-interval-mappings/`](/experiments/2026-09-28-interval-mappings/README.md)).

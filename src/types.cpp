@@ -504,21 +504,26 @@ static bool AddWithin(int64_t left, int64_t right, int64_t &result) {
 static const double INT64_BELOW = -9223372036854775808.0;
 static const double INT64_ABOVE = std::nextafter(9223372036854775808.0, 0.0);
 
-// The microseconds of a Period, combined in 64-bit integers from its hours, minutes and seconds,
-// so that the hours and minutes a read split off come back exactly; the seconds are rounded to the microsecond
+// The microseconds of a Period, combined in 64-bit integers from its hours, minutes, whole seconds
+// and the fraction of a second left over, which alone is rounded to the microsecond.
+// The parts a read split off come back exactly,
+// and a double of seconds below 2^33, some 272 years, holds each microsecond, which rounding it whole would not.
 bool RPeriodType::Micros(R_xlen_t idx, int64_t &micros) const {
 	auto hours = slots[3][idx];
 	auto minutes = slots[4][idx];
-	auto seconds_micros = round(seconds[idx] * Interval::MICROS_PER_SEC);
+	auto whole_seconds = std::trunc(seconds[idx]);
 	if (!IsWholeWithin(hours, INT64_BELOW / Interval::MICROS_PER_HOUR, INT64_ABOVE / Interval::MICROS_PER_HOUR) ||
 	    !IsWholeWithin(minutes, INT64_BELOW / Interval::MICROS_PER_MINUTE, INT64_ABOVE / Interval::MICROS_PER_MINUTE) ||
-	    !IsWholeWithin(seconds_micros, INT64_BELOW, INT64_ABOVE)) {
+	    !IsWholeWithin(whole_seconds, INT64_BELOW / Interval::MICROS_PER_SEC, INT64_ABOVE / Interval::MICROS_PER_SEC)) {
 		return false;
 	}
+	// Taking off the whole part is exact (Sterbenz), so only this product rounds
+	auto fraction_micros = int64_t(std::round((seconds[idx] - whole_seconds) * Interval::MICROS_PER_SEC));
 	int64_t partial;
 	return AddWithin(int64_t(hours) * Interval::MICROS_PER_HOUR, int64_t(minutes) * Interval::MICROS_PER_MINUTE,
 	                 partial) &&
-	       AddWithin(partial, int64_t(seconds_micros), micros);
+	       AddWithin(partial, int64_t(whole_seconds) * Interval::MICROS_PER_SEC, partial) &&
+	       AddWithin(partial, fraction_micros, micros);
 }
 
 bool RPeriodType::IsValid(R_xlen_t idx) const {

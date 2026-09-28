@@ -142,15 +142,23 @@ period_literal_text <- function(x, call = parent.frame()) {
   if (length(x) == 0) {
     return(character())
   }
-  months <- x@year * 12 + x@month
+  # The seconds split as a write splits them (src/types.cpp):
+  # whole seconds, and the fraction left over rounded to the microsecond, of the same sign
+  seconds <- trunc(x@.Data)
+  fraction <- round((x@.Data - seconds) * 1e6)
+  carry <- trunc(fraction / 1e6)
   parts <- list(
-    months = months,
+    months = x@year * 12 + x@month,
     days = x@day,
     hours = x@hour,
     minutes = x@minute,
-    microseconds = round(x@.Data * 1e6)
+    seconds = seconds + carry,
+    fraction = fraction - carry * 1e6
   )
-  missing <- Reduce(`|`, lapply(parts, is.na))
+  missing <- Reduce(
+    `|`,
+    lapply(list(x@.Data, x@year, x@month, x@day, x@hour, x@minute), is.na)
+  )
 
   # Whole and within the signed 32 or 64 bits the part is held in;
   # a sum of parts past 64 bits is DuckDB's to refuse, which it does with an overflow error
@@ -165,7 +173,8 @@ period_literal_text <- function(x, call = parent.frame()) {
       whole(parts$days, 32) &
       whole(parts$hours, 64, 3600e6) &
       whole(parts$minutes, 64, 60e6) &
-      whole(parts$microseconds, 64))
+      whole(parts$seconds, 64, 1e6) &
+      is.finite(parts$fraction))
   if (any(bad)) {
     abort(
       paste0(
@@ -178,6 +187,21 @@ period_literal_text <- function(x, call = parent.frame()) {
   }
 
   number <- function(v) formatC(v, format = "f", digits = 0)
+  # Spelled digit by digit, since a double past 2^53 does not hold every count of microseconds
+  microseconds <- ifelse(
+    parts$seconds == 0,
+    number(parts$fraction),
+    paste0(
+      number(parts$seconds),
+      formatC(
+        abs(parts$fraction),
+        width = 6,
+        flag = "0",
+        format = "f",
+        digits = 0
+      )
+    )
+  )
   out <- paste0(
     "(to_months(",
     number(parts$months),
@@ -188,7 +212,7 @@ period_literal_text <- function(x, call = parent.frame()) {
     ") + to_minutes(",
     number(parts$minutes),
     ") + to_microseconds(",
-    number(parts$microseconds),
+    microseconds,
     "))"
   )
   out[missing] <- "NULL"
