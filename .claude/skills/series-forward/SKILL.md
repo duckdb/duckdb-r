@@ -42,7 +42,9 @@ and it would start vendoring onto that ref while the replay is still writing it.
    `chore: Add fifth version component` commit appending the counter's `.0` to
    `Version:` — then replay each vendor commit onto it.
    `flavor.sh` needs `krlmlr/cpp11` installed and refuses the whole run without
-   it ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
+   it ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
+   and `cynkratemplate`, installed from GitHub, to render the READMEs
+   ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
    A series seeded from a release branch rather than from `main`
    regenerates on **that** branch,
    whose `scripts/` may be older than `main`'s —

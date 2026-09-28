@@ -63,6 +63,9 @@ and `README.md` and `.github/README.md` are written from it
 ([`meta/handbook/`](/handbook/meta/handbook/README.md)),
 so the rename is spelled once rather than in three files kept in step
 by hand.
+Rendering them needs [`cynkratemplate`](https://github.com/cynkra/cynkratemplate), the output format `README.Rmd` names.
+It is not on CRAN, and `DESCRIPTION` does not list it, so `pak::pak()` leaves it out:
+install it from GitHub, `pak::pak("cynkra/cynkratemplate")`, before the first `flavor.sh` run.
 
 **Changing one flavor for another is a rename, not a second patch.**
 `flavor.sh` builds a flavor onto an unflavored tree and refuses one that
