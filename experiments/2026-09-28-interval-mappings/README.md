@@ -10,7 +10,7 @@ and the record also looks for a conversion between `Period` and clock's duration
 
 *When and on what:* 2026-09-28, Linux x86_64, R 4.5.3, DBI 1.3.0,
 lubridate 1.9.5, clock 0.7.4, nanotime 0.3.15, nanoarrow 0.9.0.
-duckdb 1.5.5.9029 with the commit that adds `interval = "Period"`,
+duckdb 1.5.5.9029 with the commit that adds `interval = "Period"` and the fixes that follow it,
 a fast-path build linking the release `libduckdb` of DuckDB 1.5.5 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)),
 whose time zone support is built in.
 [`mappings.R`](mappings.R) is rendered to [`mappings.md`](mappings.md)
