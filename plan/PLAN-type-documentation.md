@@ -22,19 +22,10 @@ and, in [#2808](https://github.com/duckdb/duckdb-r/pull/2808),
 integer-stored `Date` and `difftime` `NA` written as values, a data frame column of several fields refused by `dbWriteTable()`,
 `dbExistsTable()` blind to a table holding a type R cannot hold,
 and `BIT`, `BIGNUM`, `TIME_NS` and `UNION` refused on the Arrow routes, which need no R vector.
+The user-facing pages #2566 asks for, `?duckdb_types`, `?duckdb_types_arrow` and `?duckdb_types_spatial`,
+are rendered from the three leaves by [`scripts/types-rd.R`](/scripts/types-rd.R), whose `--check` CI runs.
 
-## 1. Derive the reference pages
-
-#2566 asks for a user-facing page generated from the handbook,
-and the handbook is `.Rbuildignore`d ([`meta/local/`](/handbook/meta/local/README.md)), so the page has to stand without it.
-The proposal is a generator in the shape of [`docs-readme.R`](/.claude/skills/docs-consistency/docs-readme.R):
-it reads the per-type sections of [`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md),
-rewrites links into the tree so that they stand without it,
-and writes roxygen blocks that render as `?duckdb_types` and `?duckdb_types_arrow`,
-with `--check` run beside the other generators so that a page and its leaf cannot drift.
-The generated files name their leaves, and each leaf's deepen line loses the item.
-
-## 2. Settle the gaps that are decisions
+## 1. Settle the gaps that are decisions
 
 Each of these is a behaviour the records show and a leaf states;
 none is a few-line fix, because each changes what an existing call returns or adds one.
@@ -63,7 +54,7 @@ none is a few-line fix, because each changes what an existing call returns or ad
   The backend could answer dbplyr's field query from `DESCRIBE`, as `dbListFields()` does,
   so that `tbl()`, `arrow::to_duckdb()` and `to_arrow()` open the table, and fail only on collecting such a column.
 
-## 3. Measure what the records do not cover
+## 2. Measure what the records do not cover
 
 The relational routes (`rel_to_df()`, `rel_to_altrep()`), the environment scan (`duckdb(environment_scan = TRUE)`)
 and `dbQuoteLiteral()` each convert types their own way,

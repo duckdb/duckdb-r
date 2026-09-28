@@ -196,6 +196,5 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
 * `arrow::to_duckdb()` fails on Arrow data that lands as a type R cannot hold, and `to_arrow()` on a table holding one
   ([`integrations/`](/handbook/usage/integrations/README.md)).
 
-*To deepen: derive the user-facing reference page from this leaf ([#2566](https://github.com/duckdb/duckdb-r/issues/2566)),
-and measure run-end encoded arrays, which neither R package builds
+*To deepen: measure run-end encoded arrays, which neither R package builds
 ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
