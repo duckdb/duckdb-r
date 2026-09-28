@@ -38,7 +38,7 @@ Only the routes that let DuckDB scan the Arrow data keep its types:
 \code{\link[=duckdb_register_arrow]{duckdb_register_arrow()}}, and \code{\link[arrow:to_duckdb]{arrow::to_duckdb()}}, which calls it.
 \code{duckdb_register_arrow()} takes whatever \code{arrow::Scanner$create()} scans.
 Nothing is copied: the result is a view, and \verb{CREATE TABLE ... AS SELECT * FROM} it writes a table.
-A registered arrow \code{Table} is scanned by every query, and a \code{RecordBatchReader} by the first only, a limitation (below).
+A registered arrow \code{Table} is scanned by every query, and a \code{RecordBatchReader} by the first only, a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 Every other route converts through an R data frame, so a column lands as the type its R vector writes (see \link{duckdb_types}).
 \code{\link[DBI:dbWriteTableArrow]{dbWriteTableArrow()}}, \code{\link[DBI:dbCreateTableArrow]{dbCreateTableArrow()}} and \code{\link[DBI:dbAppendTableArrow]{dbAppendTableArrow()}} are DBI's defaults, which do that batch by batch.
 \code{\link[DBI:dbBindArrow]{dbBindArrow()}} converts the same way, then binds by position.
@@ -58,13 +58,13 @@ nanoarrow reads it as \code{numeric}, exact up to 2^53.
 arrow reads it as \code{integer} when every value fits and as \code{bit64::integer64} otherwise, exactly,
 or as \code{integer64} always under \code{options(arrow.int64_downcast = FALSE)}.
 \item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, exact up to 2^53.
-\item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}; their rounding is a limitation (below).
+\item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 With \code{arrow_lossless_conversion} they export as \code{arrow.opaque}, which carries every value.
 Their text reads them exactly (see \link{duckdb_types}).
 \item \strong{\code{BIGNUM}} exports as \code{arrow.opaque} under either setting;
 nanoarrow reads its storage bytes as a \code{blob}.
 \item \strong{\code{DECIMAL(width, scale)}} exports as \code{decimal128(width, scale)}, or narrower from output version 1.5,
-and both read it as \code{numeric}; its rounding is a limitation (below).
+and both read it as \code{numeric}; its rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 \item \strong{\code{FLOAT}, \code{DOUBLE}} export as \code{float} and \code{double}, and read as \code{numeric}.
 }
 }
@@ -161,7 +161,7 @@ arrow lands an \code{ordered} one as \code{VARCHAR} too.
 where \code{dbWriteTable()} writes a plain \code{TIMESTAMP}.
 \item \strong{\code{difftime}} infers a \code{duration} and lands as \code{INTERVAL} in hours and below, so 2 days land as \code{48:00:00},
 where \code{dbWriteTable()} keeps the days.
-\item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, the one R route to that type; its truncation is a limitation (below).
+\item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, the one R route to that type; its truncation is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 \item \strong{A plain list of vectors} lands as \code{LIST} through arrow.
 \item \strong{A matrix column} lands as \code{ARRAY} through nanoarrow.
 }
@@ -196,7 +196,7 @@ without it, it keeps the PROJJSON it came as, and \code{\link[sf:st_crs]{sf::st_
 WKB without a CRS lands as plain \code{GEOMETRY}, and so do the large and view layouts DuckDB's own export makes.
 \item \strong{A \code{geoarrow_vctr} column holds indices.}
 The \code{geoarrow_vctr} that \code{as.data.frame()} gives for a geometry in an Arrow result
-is an integer vector of indices into the Arrow data it holds, and writing it back is a limitation (below).
+is an integer vector of indices into the Arrow data it holds, and writing it back is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 }
 }
 

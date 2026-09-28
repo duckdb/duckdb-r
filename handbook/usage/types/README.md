@@ -44,7 +44,7 @@ The [numeric](https://duckdb.org/docs/current/sql/data_types/numeric) and [boole
   or with `bigint = "integer64"` as `bit64::integer64`, exact but for the minimum.
   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says,
   pinned by [`tests/testthat/test-integer64.R`](/tests/testthat/test-integer64.R).
-* **`UBIGINT`** reads as `numeric`, or as `integer64`, which holds the values below 2^63.
+* **`UBIGINT`** reads as `numeric`, or with `bigint = "integer64"` as `integer64`, which holds the values below 2^63.
   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a limitation (below).
   Their text is exact both ways.

@@ -305,6 +305,26 @@ render <- function(page) {
     # A leaf's sections are the page's sections, one level up.
     sub("^### ", "## ", sub("^## ", "# ", for_page(b, page$leaf)))
   }))
+  # The page leaves the limitations to the handbook,
+  # so a breadcrumb to them links there.
+  body <- gsub(
+    "limitation (below)",
+    sprintf(
+      "[limitation](%s/blob/main/%s/README.md#limitations)",
+      github,
+      page$leaf
+    ),
+    body,
+    fixed = TRUE
+  )
+  if (any(grepl("(below)", body, fixed = TRUE))) {
+    stop(
+      source_file,
+      ": a breadcrumb other than \"a limitation (below)\" points below, ",
+      "where the page has nothing",
+      call. = FALSE
+    )
+  }
   if (length(moved)) {
     reference <- c(reference, "", moved)
   }

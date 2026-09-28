@@ -35,12 +35,12 @@ The \href{https://duckdb.org/docs/current/sql/data_types/numeric}{numeric} and \
 \item \strong{\code{BIGINT}} (\code{INT8}, \code{LONG}) reads as \code{numeric}, exact up to 2^53,
 or with \code{bigint = "integer64"} as \code{bit64::integer64}, exact but for the minimum.
 An \code{integer64} column or parameter writes \code{BIGINT} whatever \code{bigint} says.
-\item \strong{\code{UBIGINT}} reads as \code{numeric}, or as \code{integer64}, which holds the values below 2^63.
+\item \strong{\code{UBIGINT}} reads as \code{numeric}, or with \code{bigint = "integer64"} as \code{integer64}, which holds the values below 2^63.
 Below 2^63, the \code{integer64} it reads as writes it back through \code{field.types}, and its text writes any value.
-\item \strong{\code{HUGEINT}, \code{UHUGEINT}} read as \code{numeric}, and \code{bigint} does not change that; their rounding is a limitation (below).
+\item \strong{\code{HUGEINT}, \code{UHUGEINT}} read as \code{numeric}, and \code{bigint} does not change that; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Their text is exact both ways.
 \item \strong{\code{BIGNUM}} (\code{VARINT}) reads and writes through its text, and through Arrow.
-\item \strong{\code{DECIMAL(width, scale)}} (\code{NUMERIC}) reads as \code{numeric} at every width; its rounding is a limitation (below).
+\item \strong{\code{DECIMAL(width, scale)}} (\code{NUMERIC}) reads as \code{numeric} at every width; its rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Its text is exact both ways, and Arrow writes it exactly.
 \item \strong{\code{FLOAT}} (\code{REAL}) and \strong{\code{DOUBLE}} read as \code{numeric}, and \code{numeric} writes \code{DOUBLE}.
 \code{NaN} reads and writes as \code{NaN}, never as \code{NA}, and \code{NA} is \code{NULL} in both directions.
@@ -52,7 +52,7 @@ The \href{https://duckdb.org/docs/current/sql/data_types/text}{text}, \href{http
 and \href{https://duckdb.org/docs/current/sql/data_types/bitstring}{bitstring} types, and \code{UUID}:
 \itemize{
 \item \strong{\code{VARCHAR}} (\code{CHAR}, \code{BPCHAR}, \code{TEXT}, \code{STRING}) reads as \code{character}, and \code{character} writes it;
-non-UTF-8 text is a limitation (below).
+non-UTF-8 text is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 \item \strong{\code{BLOB}} (\code{BYTEA}, \code{BINARY}, \code{VARBINARY}) reads as a list of raw vectors.
 A \code{blob::blob} or a list of raw vectors writes it.
 \item \strong{\code{BIT}} (\code{BITSTRING}) reads and writes through its text.
@@ -121,7 +121,7 @@ Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see \
 A \code{character} column of WKT, as \code{\link[sf:st_as_text]{sf::st_as_text()}} makes it, writes a \code{GEOMETRY} column with \code{field.types = c(geom = "GEOMETRY")}
 and appends to one with \code{dbAppendTable()}, because the cast from \code{VARCHAR} parses WKT.
 Naming the CRS in the type, as \code{"GEOMETRY('EPSG:4267')"}, gives the column its CRS.
-Writing WKB as raw vectors, an \code{sf} object or an \code{sfc} column is a limitation (below).
+Writing WKB as raw vectors, an \code{sf} object or an \code{sfc} column is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 \item \strong{The \code{spatial} extension's own types are aliases, and read as what they alias.}
 \code{POINT_2D}, \code{POINT_3D}, \code{POINT_4D}, \code{BOX_2D} and \code{BOX_2DF} are structs, and read as data frame columns;
 \code{LINESTRING_2D} and \code{LINESTRING_3D} are lists of point structs, and read as lists of data frames;

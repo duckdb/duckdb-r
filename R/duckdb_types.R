@@ -37,12 +37,12 @@
 #' * **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53,
 #'   or with `bigint = "integer64"` as `bit64::integer64`, exact but for the minimum.
 #'   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says.
-#' * **`UBIGINT`** reads as `numeric`, or as `integer64`, which holds the values below 2^63.
+#' * **`UBIGINT`** reads as `numeric`, or with `bigint = "integer64"` as `integer64`, which holds the values below 2^63.
 #'   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
-#' * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a limitation (below).
+#' * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Their text is exact both ways.
 #' * **`BIGNUM`** (`VARINT`) reads and writes through its text, and through Arrow.
-#' * **`DECIMAL(width, scale)`** (`NUMERIC`) reads as `numeric` at every width; its rounding is a limitation (below).
+#' * **`DECIMAL(width, scale)`** (`NUMERIC`) reads as `numeric` at every width; its rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Its text is exact both ways, and Arrow writes it exactly.
 #' * **`FLOAT`** (`REAL`) and **`DOUBLE`** read as `numeric`, and `numeric` writes `DOUBLE`.
 #'   `NaN` reads and writes as `NaN`, never as `NA`, and `NA` is `NULL` in both directions.
@@ -53,7 +53,7 @@
 #' and [bitstring](https://duckdb.org/docs/current/sql/data_types/bitstring) types, and `UUID`:
 #'
 #' * **`VARCHAR`** (`CHAR`, `BPCHAR`, `TEXT`, `STRING`) reads as `character`, and `character` writes it;
-#'   non-UTF-8 text is a limitation (below).
+#'   non-UTF-8 text is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #' * **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors.
 #'   A `blob::blob` or a list of raw vectors writes it.
 #' * **`BIT`** (`BITSTRING`) reads and writes through its text.
@@ -119,7 +119,7 @@
 #'   A `character` column of WKT, as [sf::st_as_text()] makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
 #'   and appends to one with `dbAppendTable()`, because the cast from `VARCHAR` parses WKT.
 #'   Naming the CRS in the type, as `"GEOMETRY('EPSG:4267')"`, gives the column its CRS.
-#'   Writing WKB as raw vectors, an `sf` object or an `sfc` column is a limitation (below).
+#'   Writing WKB as raw vectors, an `sf` object or an `sfc` column is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #' * **The `spatial` extension's own types are aliases, and read as what they alias.**
 #'   `POINT_2D`, `POINT_3D`, `POINT_4D`, `BOX_2D` and `BOX_2DF` are structs, and read as data frame columns;
 #'   `LINESTRING_2D` and `LINESTRING_3D` are lists of point structs, and read as lists of data frames;

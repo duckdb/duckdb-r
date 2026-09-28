@@ -39,7 +39,7 @@
 #' [duckdb_register_arrow()], and [arrow::to_duckdb()], which calls it.
 #' `duckdb_register_arrow()` takes whatever `arrow::Scanner$create()` scans.
 #' Nothing is copied: the result is a view, and `CREATE TABLE ... AS SELECT * FROM` it writes a table.
-#' A registered arrow `Table` is scanned by every query, and a `RecordBatchReader` by the first only, a limitation (below).
+#' A registered arrow `Table` is scanned by every query, and a `RecordBatchReader` by the first only, a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 #' Every other route converts through an R data frame, so a column lands as the type its R vector writes (see [duckdb_types]).
 #' [dbWriteTableArrow()], [dbCreateTableArrow()] and [dbAppendTableArrow()] are DBI's defaults, which do that batch by batch.
 #' [dbBindArrow()] converts the same way, then binds by position.
@@ -59,13 +59,13 @@
 #'   arrow reads it as `integer` when every value fits and as `bit64::integer64` otherwise, exactly,
 #'   or as `integer64` always under `options(arrow.int64_downcast = FALSE)`.
 #' * **`UBIGINT`** exports as `uint64`, and both read it as `numeric`, exact up to 2^53.
-#' * **`HUGEINT`, `UHUGEINT`** export as `decimal128(38, 0)`, and both read them as `numeric`; their rounding is a limitation (below).
+#' * **`HUGEINT`, `UHUGEINT`** export as `decimal128(38, 0)`, and both read them as `numeric`; their rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 #'   With `arrow_lossless_conversion` they export as `arrow.opaque`, which carries every value.
 #'   Their text reads them exactly (see [duckdb_types]).
 #' * **`BIGNUM`** exports as `arrow.opaque` under either setting;
 #'   nanoarrow reads its storage bytes as a `blob`.
 #' * **`DECIMAL(width, scale)`** exports as `decimal128(width, scale)`, or narrower from output version 1.5,
-#'   and both read it as `numeric`; its rounding is a limitation (below).
+#'   and both read it as `numeric`; its rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 #' * **`FLOAT`, `DOUBLE`** export as `float` and `double`, and read as `numeric`.
 #'
 #' ## Text and binary
@@ -150,7 +150,7 @@
 #'   where `dbWriteTable()` writes a plain `TIMESTAMP`.
 #' * **`difftime`** infers a `duration` and lands as `INTERVAL` in hours and below, so 2 days land as `48:00:00`,
 #'   where `dbWriteTable()` keeps the days.
-#' * **`hms`** infers `time32` and lands as `TIME`, the one R route to that type; its truncation is a limitation (below).
+#' * **`hms`** infers `time32` and lands as `TIME`, the one R route to that type; its truncation is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 #' * **A plain list of vectors** lands as `LIST` through arrow.
 #' * **A matrix column** lands as `ARRAY` through nanoarrow.
 #'
@@ -183,7 +183,7 @@
 #'   WKB without a CRS lands as plain `GEOMETRY`, and so do the large and view layouts DuckDB's own export makes.
 #' * **A `geoarrow_vctr` column holds indices.**
 #'   The `geoarrow_vctr` that `as.data.frame()` gives for a geometry in an Arrow result
-#'   is an integer vector of indices into the Arrow data it holds, and writing it back is a limitation (below).
+#'   is an integer vector of indices into the Arrow data it holds, and writing it back is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 #'
 #' # Limitations and reference
 #'
