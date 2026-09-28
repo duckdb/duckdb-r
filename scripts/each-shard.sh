@@ -201,7 +201,7 @@ decided() { grep -qxF -- "$1" "${decided_file}"; }
 
 # --------------------------------------------------------------- publisher ----
 # The run object, once. Every record this leg writes carries it, so the
-# dispatched backstop does not have to reconstruct one; the projection is shared
+# hand-run backstop does not have to reconstruct one; the projection is shared
 # (scripts/rcc-run-fields.jq) so both writers agree byte for byte. A failure
 # here is not worth aborting a five-hour leg over -- fall back to what the
 # environment already tells us, and let the reader see a thinner run object.
@@ -257,7 +257,7 @@ write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
 #
 # Never fatal: the artifact remains, and it is what a firing reads, so the worst
 # a failed publish costs is that the store does not learn this verdict until
-# `rcc-logs.yaml` is dispatched.
+# `scripts/rcc-logs.sh` is run by hand.
 publish_record() { # <sha> <state>
   local sha="$1" state="$2" stage="${workdir}/publish"
   [ -n "${NO_PUBLISH}" ] && return 0
