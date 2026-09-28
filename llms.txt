@@ -311,6 +311,8 @@ files, and inspecting query plans.
   [`duckdb_unregister_arrow()`](https://r.duckdb.org/reference/duckdb_register_arrow.md)
   [`duckdb_list_arrow()`](https://r.duckdb.org/reference/duckdb_register_arrow.md)
   : Register an Arrow data source as a virtual table
+- [`to_arrow_stream()`](https://r.duckdb.org/reference/to_arrow_stream.md)
+  **\[experimental\]** : Stream a dbplyr table on DuckDB into Arrow
 - [`duckdb_read_csv()`](https://r.duckdb.org/reference/duckdb_read_csv.md)
   : Reads a CSV file into DuckDB
 - [`duckdb_explain-class`](https://r.duckdb.org/reference/duckdb_explain-class.md)
