@@ -199,8 +199,8 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
 * `arrow::to_duckdb()` fails on Arrow data that lands as a type R cannot hold, and `to_arrow()` on a table holding one
   ([`integrations/`](/handbook/usage/integrations/README.md)).
 * The DBI Arrow write methods land `uint32` and `decimal128` as `DOUBLE`, `timestamp('ns')` as `TIMESTAMP`, and a dictionary as `VARCHAR`;
-  `time64` fails unless the connection has `time = "hms"`, because the `hms` it converts to otherwise writes `INTERVAL`,
-  which does not cast to the `TIME` column `dbCreateTableArrow()` made;
+  `time32`, which nanoarrow infers for an `hms`, and `time64` fail unless the connection has `time = "hms"`,
+  because the `hms` each converts to otherwise writes `INTERVAL`, which does not cast to the `TIME` column `dbCreateTableArrow()` made;
   and `interval_month_day_nano` fails, because nanoarrow has no R vector for it.
   `dbBindArrow()` refuses a stream whose fields have names, with "`params` must not be named", so the names must be empty.
 * Both readers read `HUGEINT`, `UHUGEINT` and `DECIMAL` rounded to a double, and `UBIGINT` rounded past 2^53;

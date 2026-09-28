@@ -43,6 +43,21 @@ arr <- duckdb:::rel_from_sql(con, arr_sql)
 tryCatch(as.data.frame(arr), error = function(e) conditionMessage(e))
 #> [1] "Use `dbConnect(array = \"matrix\")` to enable arrays to be returned to R.\nℹ Context: duckdb_r_allocate"
 
+## Writing: an hms and a column of named lists, into a view and into a relation --
+df <- data.frame(i = 1:2)
+df$t <- hms::hms(c(1, 2))
+df$m <- list(list(a = 1), list(b = 2))
+types <- "SELECT typeof(t) AS t, typeof(m) AS m FROM %s LIMIT 1"
+duckdb::duckdb_register(con, "registered", df)
+dbGetQuery(con, sprintf(types, "registered"))
+#>      t                                       m
+#> 1 TIME STRUCT("key" VARCHAR, "value" DOUBLE)[]
+duckdb:::rel_sql(duckdb:::rel_from_df(con, df, strict = FALSE), sprintf(types, "_"))
+#> # A data frame: 1 × 2
+#>   t        m         
+#>   <chr>    <chr>     
+#> 1 INTERVAL DOUBLE[][]
+
 dbDisconnect(con)
 ```
 
@@ -95,6 +110,7 @@ sessioninfo::session_info()
 #>  rlang         1.3.0      2026-07-05 [2] RSPM
 #>  rmarkdown     2.32       2026-09-01 [2] RSPM
 #>  sessioninfo   1.2.4      2026-06-04 [2] RSPM
+#>  utf8          1.2.6      2025-06-08 [2] RSPM
 #>  vctrs         0.7.3      2026-04-11 [2] RSPM
 #>  withr         3.0.3      2026-06-19 [2] RSPM
 #>  wk            0.9.5      2025-12-18 [2] RSPM (R 4.5.0)
