@@ -583,6 +583,37 @@ test_that("dbDataType reports MAP for vctrs::list_of with key/value ptype", {
   expect_equal(dbDataType(con, col2), "MAP(DATE, STRING)")
 })
 
+test_that("a list_of map's value type follows `time = \"hms\"` through the connection", {
+  skip_if_not_installed("vctrs")
+  skip_if_not_installed("hms")
+
+  map_of <- function(value) {
+    vctrs::new_list_of(
+      list(data.frame(key = "a", value = value)),
+      ptype = data.frame(key = character(), value = value[0])
+    )
+  }
+  seconds <- map_of(as.difftime(1, units = "secs"))
+
+  con <- local_con(map = "list_of")
+  expect_equal(dbDataType(con, seconds), "MAP(STRING, TIME)")
+
+  con <- local_con(map = "list_of", time = "hms")
+  expect_equal(dbDataType(con, seconds), "MAP(STRING, INTERVAL)")
+  dbWriteTable(con, "tbl", data.frame(m = I(seconds)))
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE tbl")$column_type,
+    "MAP(VARCHAR, INTERVAL)"
+  )
+
+  # An hms in a map value writes INTERVAL, as in any list cell, where its type says TIME
+  expect_error(
+    dbWriteTable(con, "hms", data.frame(m = I(map_of(hms::hms(1))))),
+    "INTERVAL -> TIME",
+    fixed = TRUE
+  )
+})
+
 test_that("dbDataType ignores vctrs::list_of without key/value ptype", {
   skip_if_not_installed("vctrs")
 

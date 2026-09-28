@@ -185,6 +185,9 @@ and the `spatial` extension's own types:
   ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).
   Under `time = "hms"` the two agree on time,
   since a connection's `dbDataType()` then says `INTERVAL` for a `difftime` that is not an `hms`.
+  `dbWriteTable()` types a `list_of` map through `dbDataType()` as well, where a map value writes as a list cell does,
+  so a map of `difftime` or `hms` values fails to write, typed `TIME` and written `INTERVAL`;
+  under `time = "hms"` a `difftime` value is typed `INTERVAL` and writes, and an `hms` one still fails.
   For a data frame column, `dbDataType()` gives its field's type when it has one field and fails when it has several,
   and `dbCreateTable()` and `sqlCreateTable()` with it, where `dbWriteTable()` writes a `STRUCT`.
 * Attribute classes do not cross, in either direction, through Arrow too:

@@ -10,6 +10,11 @@ dbDataType__duckdb_connection <- function(dbObj, obj, ...) {
       FUN.VALUE = "character"
     ))
   }
+  # The key and value types of a `list_of` map are asked of the connection too, so that they see its options
+  map_type <- duckdb_map_type_from_list_of(dbObj, obj)
+  if (!is.null(map_type)) {
+    return(map_type)
+  }
   # Under `time = "hms"`, an hms writes TIME and any other difftime INTERVAL,
   # so the connection answers the difftime the driver would call TIME
   # (handbook/usage/types/README.md).
