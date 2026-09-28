@@ -54,6 +54,8 @@ test_that("test_all_types() under bigint = \"integer64\"", {
   })
 })
 
+# The base snapshot reads these columns under `array = "matrix"` too;
+# this one repeats them so that each option has a snapshot of its own columns.
 test_that("test_all_types() under array = \"matrix\"", {
   skip_on_os("windows")
   skip_if_not(getRversion() >= "4.3")
