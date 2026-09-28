@@ -54,6 +54,7 @@ Suggests:
     DBItest,
     dbplyr (>= 2.6.0),
     dplyr,
+    hms,
     nanoarrow,
     rlang,
     sf,

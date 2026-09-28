@@ -10,8 +10,8 @@ See \link{duckdb_types_arrow} for a description of the conversion via Arrow.
 }
 \section{The routes}{
 \strong{Reading.}
-\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and four \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape,
-with defaults \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"} and \code{geometry = "blob"}.
+\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and five \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape,
+with defaults \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"}, \code{geometry = "blob"} and \code{time = "difftime"}.
 \code{\link[DBI:dbGetQueryArrow]{dbGetQueryArrow()}} hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is documented in \link{duckdb_types_arrow}.
 A cast to \code{VARCHAR} in the query reads any type as text.
@@ -66,11 +66,11 @@ The \href{https://duckdb.org/docs/current/sql/data_types/date}{date}, \href{http
 \href{https://duckdb.org/docs/current/sql/data_types/timestamp}{timestamp} and \href{https://duckdb.org/docs/current/sql/data_types/interval}{interval} types:
 \itemize{
 \item \strong{\code{DATE}} reads as \code{Date}, and a \code{Date} writes it, stored as double or as integer.
-\item \strong{\code{TIME}} reads as \code{difftime} in seconds.
+\item \strong{\code{TIME}} reads as \code{difftime} in seconds, or with \code{time = "hms"} as \code{hms::hms}.
 Its text writes it through \code{field.types}, and so does Arrow.
 \item \strong{\code{TIME_NS}} reads through Arrow, and to the microsecond through a cast to \code{TIME} in the query.
 Its text writes it, and so does Arrow.
-\item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as the \code{difftime} of its local time.
+\item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as \code{TIME} does, as its local time.
 Its text writes it.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}.
 \code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC, and \code{field.types} names the other precisions.

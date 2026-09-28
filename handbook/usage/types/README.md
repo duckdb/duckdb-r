@@ -17,8 +17,8 @@ Edit the leaves, re-run the script and then roxygen; its `--check`, which CI run
 ## The routes
 
 **Reading.**
-`dbGetQuery()` converts each column by its type, and four `dbConnect()` arguments change the shape,
-with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`,
+`dbGetQuery()` converts each column by its type, and five `dbConnect()` arguments change the shape,
+with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"` and `time = "difftime"`,
 set in [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
 `dbGetQueryArrow()` hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
@@ -73,11 +73,12 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 [timestamp](https://duckdb.org/docs/current/sql/data_types/timestamp) and [interval](https://duckdb.org/docs/current/sql/data_types/interval) types:
 
 * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
-* **`TIME`** reads as `difftime` in seconds.
+* **`TIME`** reads as `difftime` in seconds, or with `time = "hms"` as `hms::hms`,
+  pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
   Its text writes it through `field.types`, and so does Arrow.
 * **`TIME_NS`** reads through Arrow, and to the microsecond through a cast to `TIME` in the query.
   Its text writes it, and so does Arrow.
-* **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as the `difftime` of its local time,
+* **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as `TIME` does, as its local time,
   pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
   Its text writes it.
 * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.

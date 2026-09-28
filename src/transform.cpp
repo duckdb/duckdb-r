@@ -192,6 +192,17 @@ void ConvertTimestampVector(const Vector &src_vec, size_t count, const SEXP dest
 	}
 }
 
+// TIME and TIMETZ read as a time of day in seconds:
+// a difftime by default, or an hms with `time = "hms"` (handbook/usage/types/README.md).
+static void DecorateTimeOfDay(const SEXP dest, const duckdb::ConvertOpts &convert_opts) {
+	if (convert_opts.time == ConvertOpts::TimeConversion::HMS) {
+		SET_CLASS(dest, RStrings::get().hms_difftime_str);
+	} else {
+		SET_CLASS(dest, RStrings::get().difftime_str);
+	}
+	Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+}
+
 // Whether this session has warned about coercing nanoseconds.
 // A plain flag: only R's thread converts, and the warning is raised with
 // cpp11::warning(), which a std::call_once() would have to let an exception through.
@@ -306,6 +317,8 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		break;
 	case LogicalTypeId::TIME:
 	case LogicalTypeId::TIME_TZ:
+		DecorateTimeOfDay(dest, convert_opts);
+		break;
 	case LogicalTypeId::INTERVAL:
 		SET_CLASS(dest, RStrings::get().difftime_str);
 		Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
@@ -508,13 +521,12 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
 			}
 		}
-		SET_CLASS(dest, RStrings::get().difftime_str);
-		Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+		DecorateTimeOfDay(dest, convert_opts);
 		break;
 	}
 	case LogicalTypeId::TIME_TZ: {
 		// R has no native time-with-time-zone type, so drop the offset and return
-		// the local time portion as a difftime in seconds. This matches the
+		// the local time portion in seconds, as TIME reads. This matches the
 		// semantics of CAST(TIMETZ AS TIME) in DuckDB.
 		auto src_data = FlatVector::GetData<dtime_tz_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
@@ -526,8 +538,7 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].time().micros) / Interval::MICROS_PER_SEC;
 			}
 		}
-		SET_CLASS(dest, RStrings::get().difftime_str);
-		Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+		DecorateTimeOfDay(dest, convert_opts);
 		break;
 	}
 	case LogicalTypeId::INTERVAL: {

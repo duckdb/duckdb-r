@@ -300,6 +300,7 @@ struct RStrings {
 	SEXP factor_str;
 	SEXP dataframe_str;
 	SEXP difftime_str;
+	SEXP hms_difftime_str;
 	SEXP secs_str;
 	SEXP arrow_str; // StringsToSexp
 	SEXP duckdb_str;
