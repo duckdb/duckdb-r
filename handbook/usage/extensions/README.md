@@ -35,9 +35,8 @@ and how to get more.
   `?duckdb`, section "DuckDB extensions on Linux",
   owns that decision tree
   ([#1107](https://github.com/duckdb/duckdb-r/issues/1107)).
-* **What an extension's values become in R** —
-  spatial's geometry, ICU's timestamps —
-  is [`types/`](/handbook/usage/types/README.md)'s.
+* **What an extension's values become in R** is [`types/`](/handbook/usage/types/README.md)'s,
+  and geometry's is [`spatial/`](/handbook/usage/spatial/README.md)'s.
 * **Community extensions come from a second repository:**
   `INSTALL <name> FROM community` fetches from
   `community-extensions.duckdb.org`,
