@@ -12,54 +12,13 @@
 #' `arrow::to_arrow()` materializes the whole result first,
 #' through `dbSendQuery(arrow = TRUE)`.
 #'
-#' The streaming comes with hard limits, listed under "Limitations" below.
+#' The streaming comes with hard limits, listed in the handbook, in
+#' [`usage/integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md).
 #' Use `to_arrow_stream()` where a large result goes straight into Arrow
 #' and nothing else runs on its connection until the reader has been read
 #' to the end.
 #' Where that cannot be arranged, use `arrow::to_arrow()`,
 #' or run everything else on a second connection.
-#'
-#' @section Limitations:
-#' The reader is its connection's open result until it has been read to the
-#' end.
-#'
-#' - **Any other statement on the connection breaks the reader.**
-#'   The next read fails with "The query result was invalidated by another
-#'   statement on its connection".
-#'   dplyr and dbplyr run such statements without being asked:
-#'   `dplyr::tbl()` asks for the columns of a table,
-#'   and printing or collecting a lazy table runs its query.
-#'   A second `to_arrow_stream()` on the same connection breaks the first
-#'   reader too.
-#' - **A query that scans the reader on its own connection never returns.**
-#'   `arrow::to_duckdb(reader, con = con)` is such a query,
-#'   and so is a query on `con` after `duckdb_register_arrow(con, name, reader)`.
-#'   Ctrl-C does not stop it, and the R session has to be killed.
-#' - **Tables from `arrow::to_duckdb()` share one connection.**
-#'   Without `con`, `to_duckdb()` uses the one connection that arrow keeps.
-#'   For such a table, a later `to_duckdb()` without `con` breaks the reader,
-#'   and one on the reader itself never returns.
-#' - **Writing the reader back to its own connection fails partway.**
-#'   [DBI::dbWriteTableArrow()] creates the table, then fails and leaves it
-#'   empty.
-#'   [DBI::dbAppendTableArrow()] appends the first batch of rows, then fails.
-#' - **Ctrl-C does not interrupt a read.**
-#'   Arrow reads the reader on its own threads,
-#'   outside the package's interrupt handler.
-#' - **Errors arrive late.**
-#'   A query that fails after its first batch fails at a later read,
-#'   not in `to_arrow_stream()`.
-#' - **The reader is read once.**
-#'   Reading it again gives zero rows, not the result again.
-#'
-#' A second connection to the same database, such as
-#' `DBI::dbConnect(con@driver)`, neither affects the reader nor is affected by
-#' it.
-#' It does not see the first connection's temporary tables or open
-#' transaction.
-#' The reader stays readable after [DBI::dbDisconnect()].
-#' It keeps the database instance open until it is garbage-collected,
-#' even once it has been read to the end ([duckdb()]).
 #'
 #' @param .data A dbplyr table on a DuckDB connection, or an Arrow object,
 #'   which is returned unchanged.

@@ -10,7 +10,7 @@ and the routes that lose the geometry on the way.
 sf 1.1-3, geoarrow 0.4.4, nanoarrow 0.9.0, arrow 25.0.1, wk 0.9.5, dbplyr 2.6.0.
 The geometries are the first three counties of sf's `nc.shp`, `MULTIPOLYGON` in EPSG:4267.
 
-*What it supports:* [`usage/spatial/`](/handbook/usage/spatial/README.md),
+*What it supports:* [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md),
 and the open work in [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md).
 
 ## Method
