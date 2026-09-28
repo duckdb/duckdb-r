@@ -623,7 +623,7 @@ string RPeriodType::Format(R_xlen_t idx) const {
 	       FormatRNumber(Seconds(idx)) + "S";
 }
 
-// Whether a Period has parts other than its seconds, which a DOUBLE of its seconds would drop;
+// Whether a Period has parts other than its seconds, which a write of its seconds alone would drop;
 // a part that could not be read counts, so that the write is refused rather than lossy
 bool RPeriodType::HasOtherParts(R_xlen_t idx) const {
 	for (auto &slot : slots) {
@@ -707,8 +707,8 @@ static string FindInvalidValueAt(SEXP v, const ValuePath &path, bool hms_time, b
 	if (Rf_isS4(v) && Rf_inherits(v, "Period")) {
 		RPeriodType period(v);
 		for (R_xlen_t i = 0; i < period.length; i++) {
-			// Written as an INTERVAL, NA in any part is NULL; written as a DOUBLE, only NA seconds are,
-			// and a missing other part is one the DOUBLE would drop
+			// Written as an INTERVAL, NA in any part is NULL; written as its seconds, only NA seconds are,
+			// and a missing other part is one they would drop
 			if (period_interval ? period.IsNull(i) : ISNAN(period.Seconds(i))) {
 				continue;
 			}
@@ -717,9 +717,11 @@ static string FindInvalidValueAt(SEXP v, const ValuePath &path, bool hms_time, b
 				       position(i);
 			}
 			if (!period_interval && period.HasOtherParts(i)) {
-				return "`" + path.ToString() + "` must hold periods of seconds alone to write a `DOUBLE`, not " +
-				       period.Format(i) + position(i) +
-				       (in_list ? " In a list, a `Period` writes a `DOUBLE` whatever `interval` says, "
+				// A DOUBLE of the seconds, or an INTEGER when they are integers, as DetectRType() finds them
+				auto seconds_type = TYPEOF(v) == INTSXP ? "an `INTEGER`" : "a `DOUBLE`";
+				return "`" + path.ToString() + "` must hold periods of seconds alone to write " + seconds_type +
+				       ", not " + period.Format(i) + position(i) +
+				       (in_list ? " In a list, a `Period` writes its seconds alone whatever `interval` says, "
 				                  "so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total."
 				                : " Use `dbConnect(interval = \"Period\")` to write an exact `INTERVAL`, "
 				                  "or `lubridate::period_to_seconds()` for a `DOUBLE` of the total.");
@@ -742,9 +744,9 @@ static string FindInvalidValueAt(SEXP v, const ValuePath &path, bool hms_time, b
 
 // The first value the write routes would refuse, described for an error; empty when there is none.
 // Under `time = "hms"`, an hms that TIME cannot hold; under `interval = "Period"`, a Period that INTERVAL cannot hold;
-// otherwise, a Period with parts other than its seconds, which would write a DOUBLE of its seconds alone.
+// otherwise, a Period with parts other than its seconds, which would write its seconds alone.
 // It searches the fields of a data frame and the cells of a list, which the options do not reach:
-// there an hms writes INTERVAL and a Period a DOUBLE of its seconds, as without them.
+// there an hms writes INTERVAL and a Period its seconds alone, as without them.
 // It reads only what it checks, and names where it looks only once it finds something,
 // so that a column or a cell of another type costs a type test.
 string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval, bool in_list) {

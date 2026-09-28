@@ -90,7 +90,7 @@
 #'   and to a `POSIXct` as DuckDB does to a `TIMESTAMPTZ` in a session `TimeZone` of the `POSIXct`'s zone.
 #'   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
 #'   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
-#'   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
+#'   under the default, a `Period` of seconds alone writes them, a `DOUBLE`, or an `INTEGER` if they are integers.
 #'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'
 #' # Enums and nested types

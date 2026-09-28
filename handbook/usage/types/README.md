@@ -101,7 +101,7 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   and to a `POSIXct` as DuckDB does to a `TIMESTAMPTZ` in a session `TimeZone` of the `POSIXct`'s zone.
   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
-  under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
+  under the default, a `Period` of seconds alone writes them, a `DOUBLE`, or an `INTEGER` if they are integers.
   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
 ## Enums and nested types
@@ -229,7 +229,7 @@ and the `spatial` extension's own types:
   so a day is 24 hours there, and across the change both land an hour off `%m+%`
   ([`experiments/2026-09-28-interval-mappings/`](/experiments/2026-09-28-interval-mappings/README.md)).
 * A `Period` with a year, month, day, hour or minute is refused without `interval = "Period"`, naming its column or parameter,
-  and so is one in a list cell or a map value under either `interval`, which writes a `DOUBLE` of the seconds there.
+  and so is one in a list cell or a map value under either `interval`, which writes the seconds alone there.
 * `INTERVAL` has no clock mapping, and `interval = "Period"` is the exact one:
   one clock duration has one precision, so a month does not combine with a day and a month part has no exact form;
   its days would be 86400 seconds, where DuckDB adds a calendar day to a `TIMESTAMPTZ` across a daylight saving change;

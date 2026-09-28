@@ -16,7 +16,7 @@
       dbWriteTable(con, "cell", cell)
     Condition
       Error in `.local()`:
-      ! Column `l[[1]]` must hold periods of seconds alone to write a `DOUBLE`, not 0y 1m 0d 0H 5M 6.5S (element 2). In a list, a `Period` writes a `DOUBLE` whatever `interval` says, so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total.
+      ! Column `l[[1]]` must hold periods of seconds alone to write a `DOUBLE`, not 0y 1m 0d 0H 5M 6.5S (element 2). In a list, a `Period` writes its seconds alone whatever `interval` says, so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total.
       i Context: rapi_register_df
     Code
       dbGetQuery(con, "SELECT ? AS a", params = list(p))
@@ -31,13 +31,13 @@
       dbAppendTable(con, "tbl", more)
     Condition
       Error in `dbAppendTable()`:
-      ! Column `l[[1]]` must hold periods of seconds alone to write a `DOUBLE`, not 0y 0m 1d 0H 0M 0S (element 1). In a list, a `Period` writes a `DOUBLE` whatever `interval` says, so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total.
+      ! Column `l[[1]]` must hold periods of seconds alone to write a `DOUBLE`, not 0y 0m 1d 0H 0M 0S (element 1). In a list, a `Period` writes its seconds alone whatever `interval` says, so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total.
       i Context: rapi_register_df
     Code
       dbWriteTable(con, "map", map, field.types = c(m = "MAP(VARCHAR, INTERVAL)"))
     Condition
       Error in `.local()`:
-      ! Column `m[[1]]$value` must hold periods of seconds alone to write a `DOUBLE`, not 0y 2m 0d 0H 0M 0S (element 1). In a list, a `Period` writes a `DOUBLE` whatever `interval` says, so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total.
+      ! Column `m[[1]]$value` must hold periods of seconds alone to write a `DOUBLE`, not 0y 2m 0d 0H 0M 0S (element 1). In a list, a `Period` writes its seconds alone whatever `interval` says, so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total.
       i Context: rapi_register_df
 
 # `interval = "Period"` refuses a Period that INTERVAL can't hold, naming its column or parameter

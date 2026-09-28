@@ -90,7 +90,7 @@ lubridate's \verb{\%m+\%} adds its months and days to a date as DuckDB adds an \
 and to a \code{POSIXct} as DuckDB does to a \code{TIMESTAMPTZ} in a session \code{TimeZone} of the \code{POSIXct}'s zone.
 Under that option a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL},
 and \code{dbQuoteLiteral()} quotes a \code{Period} as that \code{INTERVAL};
-under the default, a \code{Period} of seconds alone writes a \code{DOUBLE} of them.
+under the default, a \code{Period} of seconds alone writes them, a \code{DOUBLE}, or an \code{INTEGER} if they are integers.
 A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }
 }

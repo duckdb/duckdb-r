@@ -178,7 +178,8 @@ which requires the \pkg{blob} package.}
 There are two options: \code{"difftime"} and \code{"Period"}.
 If \code{"difftime"} is selected (the default), they are returned as a \code{difftime} in seconds,
 counting a month as 30 days and a day as 24 hours,
-and a \code{Period} writes a \code{DOUBLE} of its seconds, which is refused when it has other parts.
+and a \code{Period} writes its seconds, a \code{DOUBLE}, or an \code{INTEGER} if they are integers,
+which is refused when it has other parts.
 If \code{"Period"} is selected, they are returned as \pkg{lubridate} \link[lubridate:Period-class]{lubridate::Period} objects
 that keep the months, the days, and the hours, minutes and seconds apart,
 which requires the \pkg{lubridate} package,

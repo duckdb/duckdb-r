@@ -486,7 +486,7 @@ test_that("a Period with integer parts writes as one with double parts, and one 
     "not a malformed Period"
   )
 
-  # Under the default, an integer part is one a DOUBLE of the seconds would drop, and so is one it can't read
+  # Under the default, an integer part is one the seconds alone would drop, and so is one it can't read
   con <- local_con()
   expect_error(
     dbWriteTable(con, "tbl", data.frame(a = p)),
@@ -499,6 +499,32 @@ test_that("a Period with integer parts writes as one with double parts, and one 
   expect_error(
     dbWriteTable(con, "malformed", data.frame(a = malformed)),
     "not a malformed Period"
+  )
+
+  # Integer seconds alone write an INTEGER there, as before the option, in a column and in a list cell
+  seconds <- methods::new(
+    "Period",
+    c(5L, 6L),
+    year = 0L,
+    month = 0L,
+    day = 0L,
+    hour = 0L,
+    minute = 0L
+  )
+  df <- data.frame(a = seconds)
+  df$l <- list(seconds, seconds)
+  dbWriteTable(con, "seconds", df)
+  expect_identical(
+    dbGetQuery(
+      con,
+      "SELECT typeof(a) AS a, typeof(l) AS l FROM seconds LIMIT 1"
+    ),
+    data.frame(a = "INTEGER", l = "INTEGER[]")
+  )
+  seconds@month[1] <- 1L
+  expect_error(
+    dbWriteTable(con, "month", data.frame(a = seconds)),
+    "to write an `INTEGER`, not 0y 1m 0d 0H 0M 5S"
   )
 })
 
