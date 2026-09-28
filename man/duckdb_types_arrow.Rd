@@ -4,26 +4,25 @@
 \alias{duckdb_types_arrow}
 \title{DuckDB data types through Arrow}
 \description{
-Every DuckDB type as it crosses to R through Arrow and back:
+This page documents every DuckDB type as it crosses to R through Arrow and back:
 the Arrow type the engine exports it as, what the two R readers make of that,
 which Arrow type writes it again, and which R functions keep Arrow's types on the way in.
+See \link{duckdb_types} for a description of the direct conversion to R vectors.
 }
 \section{The routes}{
 \strong{Reading.}
 Every function that returns Arrow hands out the engine's own export, under the connection's settings:
 \code{\link[DBI:dbGetQueryArrow]{dbGetQueryArrow()}}, \code{\link[DBI:dbFetchArrow]{dbFetchArrow()}} and \code{\link[DBI:dbFetchArrowChunk]{dbFetchArrowChunk()}} after \code{\link[DBI:dbSendQueryArrow]{dbSendQueryArrow()}}, \code{\link[DBI:dbReadTableArrow]{dbReadTableArrow()}},
 \code{\link[=duckdb_fetch_arrow]{duckdb_fetch_arrow()}} and \code{\link[=duckdb_fetch_record_batch]{duckdb_fetch_record_batch()}} after \code{dbSendQuery(arrow = TRUE)}, and \code{\link[arrow:to_arrow]{arrow::to_arrow()}}.
-No R vector exists until a reader converts the stream (\href{https://github.com/duckdb/duckdb-r/issues/642}{#642}),
+No R vector exists until a reader converts the stream,
 and the two readers differ, so each entry below names both:
 nanoarrow's \code{as.data.frame()}, and arrow's \code{as.data.frame()} of \code{\link[arrow:as_arrow_table]{arrow::as_arrow_table()}}.
-A column the reader cannot convert fails the whole data frame, not that column alone.
 
 \strong{The export settings} are DuckDB's, set with \code{SET}, and each changes the Arrow type of some columns:
 \itemize{
 \item \code{arrow_lossless_conversion = true} exports each type that has no exact Arrow counterpart as an extension type that names it,
 so that DuckDB, or another Arrow consumer that knows the name, gets the type back.
-Neither R reader converts those, except where nanoarrow falls back to the storage;
-the entries below say which.
+Where nanoarrow falls back to the storage of one, the entries below say so.
 \item \code{arrow_large_buffer_size = true} gives strings, binary data and lists 64-bit offsets,
 as \code{large_string}, \code{large_binary} and \code{large_list}, which both readers convert as they convert the others.
 \item \code{arrow_output_version}, \code{'1.0'} by default, gates the newer layouts.
@@ -31,52 +30,41 @@ From \code{'1.4'}, binary data exports as \code{binary_view},
 and \code{produce_arrow_string_view = true} and \code{arrow_output_list_view = true} take effect, as \code{string_view} and \code{list_view};
 with an older version those two change nothing.
 From \code{'1.5'}, a \code{DECIMAL} up to width 9 exports as \code{decimal32} and up to width 18 as \code{decimal64}.
-arrow converts none of the view layouts; nanoarrow converts \code{string_view} and \code{binary_view}, and not \code{list_view}.
+nanoarrow converts \code{string_view} and \code{binary_view}.
 }
 
 \strong{Writing.}
 Only the routes that let DuckDB scan the Arrow data keep its types:
 \code{\link[=duckdb_register_arrow]{duckdb_register_arrow()}}, and \code{\link[arrow:to_duckdb]{arrow::to_duckdb()}}, which calls it.
-\code{duckdb_register_arrow()} takes whatever \code{arrow::Scanner$create()} scans, so it needs the arrow package,
-and refuses a nanoarrow stream with \verb{Invalid Error: std::exception};
-\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} turns one into what it takes.
+\code{duckdb_register_arrow()} takes whatever \code{arrow::Scanner$create()} scans.
 Nothing is copied: the result is a view, and \verb{CREATE TABLE ... AS SELECT * FROM} it writes a table.
-A registered \code{RecordBatchReader} is a stream the first query drains, so a second query of the view sees no rows;
-an arrow \code{Table} is scanned every time.
+A registered arrow \code{Table} is scanned by every query, and a \code{RecordBatchReader} by the first only, a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 Every other route converts through an R data frame, so a column lands as the type its R vector writes (see \link{duckdb_types}).
-\code{\link[DBI:dbWriteTableArrow]{dbWriteTableArrow()}}, \code{\link[DBI:dbCreateTableArrow]{dbCreateTableArrow()}} and \code{\link[DBI:dbAppendTableArrow]{dbAppendTableArrow()}} are DBI's defaults, which do that batch by batch:
-\code{uint32} and \code{decimal128} land as \code{DOUBLE}, \code{timestamp('ns')} as \code{TIMESTAMP}, and a dictionary as \code{VARCHAR};
-\code{time64} fails, because the \code{hms} it converts to writes \code{INTERVAL}, which does not cast to the \code{TIME} column \code{dbCreateTableArrow()} made;
-and \code{interval_month_day_nano} fails, because nanoarrow has no R vector for it.
-A geometry column fares worst: the \code{geoarrow_vctr} it converts to is integer-backed, and lands as its indices
-(see \link{duckdb_types_spatial}).
-\code{\link[DBI:dbBindArrow]{dbBindArrow()}} converts the same way, then binds by position,
-and a stream whose fields have names is refused with "\code{params} must not be named", so the names must be empty.
+\code{\link[DBI:dbWriteTableArrow]{dbWriteTableArrow()}}, \code{\link[DBI:dbCreateTableArrow]{dbCreateTableArrow()}} and \code{\link[DBI:dbAppendTableArrow]{dbAppendTableArrow()}} are DBI's defaults, which do that batch by batch.
+\code{\link[DBI:dbBindArrow]{dbBindArrow()}} converts the same way, then binds by position.
 }
 
 \section{Reading}{
 \subsection{Numbers}{
 \itemize{
 \item \strong{\code{BOOLEAN}} exports as \code{bool} and reads as \code{logical};
-with \code{arrow_lossless_conversion}, as \code{arrow.bool8}, which nanoarrow reads as the \code{integer} of its storage and arrow refuses.
+with \code{arrow_lossless_conversion}, as \code{arrow.bool8}, which nanoarrow reads as the \code{integer} of its storage.
 \item \strong{\code{TINYINT}, \code{SMALLINT}, \code{INTEGER}, \code{UTINYINT}, \code{USMALLINT}} export as \code{int8}, \code{int16}, \code{int32}, \code{uint8} and \code{uint16},
 and read as \code{integer}.
 \item \strong{\code{UINTEGER}} exports as \code{uint32}.
 nanoarrow reads it as \code{numeric}; arrow reads it as \code{integer} when every value fits, and as \code{numeric} otherwise.
 \item \strong{\code{BIGINT}} exports as \code{int64}.
-nanoarrow reads it as \code{numeric}, with a warning where a value past 2^53 is rounded.
+nanoarrow reads it as \code{numeric}, exact up to 2^53.
 arrow reads it as \code{integer} when every value fits and as \code{bit64::integer64} otherwise, exactly,
 or as \code{integer64} always under \code{options(arrow.int64_downcast = FALSE)}.
-\item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, rounded past 2^53.
-\item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}, rounded to a double.
-A \code{UHUGEINT} of 2^127 or more does not fit the signed 128 bits of that type and arrives as a negative number, without an error:
-the largest \code{UHUGEINT} reads as \code{-1}.
-With \code{arrow_lossless_conversion} they export as \code{arrow.opaque}, which carries every value and neither reader converts.
+\item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, exact up to 2^53.
+\item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+With \code{arrow_lossless_conversion} they export as \code{arrow.opaque}, which carries every value.
 Their text reads them exactly (see \link{duckdb_types}).
 \item \strong{\code{BIGNUM}} exports as \code{arrow.opaque} under either setting;
-nanoarrow reads its storage bytes as a \code{blob}, and arrow refuses it.
+nanoarrow reads its storage bytes as a \code{blob}.
 \item \strong{\code{DECIMAL(width, scale)}} exports as \code{decimal128(width, scale)}, or narrower from output version 1.5,
-and both read it as \code{numeric}, rounded to a double.
+and both read it as \code{numeric}; its rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 \item \strong{\code{FLOAT}, \code{DOUBLE}} export as \code{float} and \code{double}, and read as \code{numeric}.
 }
 }
@@ -86,28 +74,27 @@ and both read it as \code{numeric}, rounded to a double.
 \item \strong{\code{VARCHAR}} exports as \code{string} and reads as \code{character}.
 \item \strong{\code{BLOB}} exports as \code{binary}; nanoarrow reads it as a \code{blob::blob}, and arrow as an \code{arrow_binary} list of raw vectors.
 \item \strong{\code{BIT}} exports as \code{binary}, the bytes DuckDB stores for the bit string, and reads as a \code{blob} or \code{arrow_binary} of those bytes.
-With \code{arrow_lossless_conversion} it exports as \code{arrow.opaque}, which nanoarrow reads as the same bytes and arrow refuses.
+With \code{arrow_lossless_conversion} it exports as \code{arrow.opaque}, which nanoarrow reads as the same bytes.
 Its text reads it as \code{0} and \code{1} (see \link{duckdb_types}).
 \item \strong{\code{UUID}} exports as \code{string}, lowercase and hyphenated, and reads as \code{character}.
-With \code{arrow_lossless_conversion} it exports as \code{arrow.uuid}, which neither reader converts.
+With \code{arrow_lossless_conversion} it exports as \code{arrow.uuid}.
 }
 }
 
 \subsection{Dates and times}{
 \itemize{
-\item \strong{\code{DATE}} exports as \code{date32} and reads as \code{Date}; \code{infinity} reads as a date millions of years away.
+\item \strong{\code{DATE}} exports as \code{date32} and reads as \code{Date}.
 \item \strong{\code{TIME}} exports as \code{time64('us')} and reads as \code{hms}.
-\item \strong{\code{TIME_NS}} exports as \code{time64('ns')} and reads as \code{hms}, whose double of seconds keeps the nanoseconds only as far as a double does.
-\item \strong{\code{TIMETZ}} exports as the \code{time64('us')} of its local time, with the offset dropped, and reads as \code{hms}.
-With \code{arrow_lossless_conversion} it exports as \code{arrow.opaque}, which keeps the offset and neither reader converts.
+\item \strong{\code{TIME_NS}} exports as \code{time64('ns')} and reads as \code{hms}.
+\item \strong{\code{TIMETZ}} exports as the \code{time64('us')} of its local time and reads as \code{hms}.
+With \code{arrow_lossless_conversion} it exports as \code{arrow.opaque}, which keeps the offset.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}, \code{TIMESTAMP_NS}} export as \code{timestamp} in their own unit, without a zone,
-and read as \code{POSIXct}, whose double loses the nanoseconds.
+and read as \code{POSIXct}.
 The two readers label the same instant differently:
 nanoarrow gives it the zone \code{UTC}, so it prints the stored clock,
 and arrow gives it none, so it prints in R's session zone, a different clock outside UTC.
 \item \strong{\code{TIMESTAMPTZ}} exports as \code{timestamp('us', zone)}, where the zone is DuckDB's \code{TimeZone} setting, and both readers read it as a \code{POSIXct} labelled with that zone.
-\item \strong{\code{INTERVAL}} exports as \code{interval_month_day_nano}, and neither reader converts it,
-so a result holding one fails in R whole; read it through \code{\link[DBI:dbGetQuery]{dbGetQuery()}}, or as text.
+\item \strong{\code{INTERVAL}} exports as \code{interval_month_day_nano}.
 }
 }
 
@@ -115,14 +102,12 @@ so a result holding one fails in R whole; read it through \code{\link[DBI:dbGetQ
 \itemize{
 \item \strong{\code{ENUM}} exports as a dictionary of its values; nanoarrow reads it as \code{character}, and arrow as \code{factor}.
 \item \strong{\code{ARRAY}} exports as a \code{fixed_size_list} and reads as a list of vectors (\code{\link[vctrs:list_of]{vctrs::list_of()}} or \code{arrow_fixed_size_list}),
-without the \code{array = "matrix"} that \code{dbGetQuery()} needs.
+without the \code{array = "matrix"} that \code{\link[DBI:dbGetQuery]{dbGetQuery()}} needs.
 \item \strong{\code{LIST}} exports as \code{list} and reads as a list of vectors (\code{vctrs::list_of()} or \code{arrow_list}).
 \item \strong{\code{MAP}} exports as \code{map} and reads as a list of key and value data frames.
 \item \strong{\code{STRUCT}} exports as \code{struct} and reads as a data frame column, a tibble in arrow's case.
 \item \strong{\code{UNION}} exports as a \code{sparse_union}.
-nanoarrow reads it as a data frame with a column per member, \code{NA} where the value is another member's;
-arrow refuses it.
-\item \strong{\code{VARIANT}} is refused by the engine's export: the stream fails as soon as its schema is read.
+nanoarrow reads it as a data frame with a column per member, \code{NA} where the value is another member's.
 }
 }
 
@@ -130,13 +115,9 @@ arrow refuses it.
 \itemize{
 \item \strong{\code{NULL}}, untyped, exports as \code{int32} and reads as \code{NA_integer_}, as it does through \code{dbGetQuery()}.
 \item \strong{\code{JSON}} exports as \code{string} and reads as \code{character};
-with \code{arrow_lossless_conversion} it exports as \code{arrow.json}, which nanoarrow reads as \code{character} and arrow refuses.
+with \code{arrow_lossless_conversion} it exports as \code{arrow.json}, which nanoarrow reads as \code{character}.
 \item \strong{\code{INET}} exports as a struct whose \code{address} is a \code{decimal128(38, 0)}, read as a double as through \code{dbGetQuery()};
-with \code{arrow_lossless_conversion} that field becomes \code{arrow.opaque}, which neither reader converts.
-\item \strong{\code{GEOMETRY}}, and the \code{spatial} extension's own types, cross Arrow as documented in \link{duckdb_types_spatial}, CRS included.
-What the readers make of \code{GEOMETRY} depends on the geoarrow package:
-once it is loaded, both convert it to a \code{geoarrow_vctr};
-until then, nanoarrow reads its WKB as a \code{blob} and arrow as an \code{arrow_binary}.
+with \code{arrow_lossless_conversion} that field becomes \code{arrow.opaque}.
 }
 }
 }
@@ -147,27 +128,24 @@ until then, nanoarrow reads its WKB as a \code{blob} and arrow as an \code{arrow
 Each Arrow type lands as one DuckDB type when DuckDB scans it:
 \itemize{
 \item \strong{\code{bool}, \code{int8} to \code{int64}, \code{uint8} to \code{uint64}, \code{float}, \code{double}} land as \code{BOOLEAN}, the integer type of the same width and sign,
-\code{FLOAT} and \code{DOUBLE}; \code{half_float} is refused.
-\item \strong{\code{decimal32}, \code{decimal64}, \code{decimal128}} land as \code{DECIMAL} of the same width and scale; \code{decimal256} is refused.
+\code{FLOAT} and \code{DOUBLE}.
+\item \strong{\code{decimal32}, \code{decimal64}, \code{decimal128}} land as \code{DECIMAL} of the same width and scale.
 \item \strong{\code{string}, \code{large_string}, \code{string_view}} land as \code{VARCHAR},
 and \strong{\code{binary}, \code{large_binary}, \code{binary_view}, \code{fixed_size_binary}} as \code{BLOB}.
 \item \strong{\code{date32}, \code{date64}} land as \code{DATE}.
 \item \strong{\code{time32} and \code{time64('us')}} land as \code{TIME}, and \strong{\code{time64('ns')}} as \code{TIME_NS}.
 \item \strong{\code{timestamp}} without a zone lands as \code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP} or \code{TIMESTAMP_NS} by its unit,
 and with a zone as \code{TIMESTAMPTZ}, the same instant.
-\item \strong{\code{duration}} lands as \code{INTERVAL} in any unit, below a microsecond truncated.
+\item \strong{\code{duration}} lands as \code{INTERVAL} in any unit.
 \item \strong{\code{interval_months}} and \strong{\code{interval_month_day_nano}} land as \code{INTERVAL}, each part kept.
-\strong{\code{interval_day_time}} lands wrong: DuckDB reads its two 32-bit fields, days and milliseconds, as one 64-bit count of milliseconds,
-so 2 days and 3000 ms land as \code{3579139:24:48.002}.
 \item \strong{\code{list}, \code{large_list}, \code{list_view}} land as \code{LIST}, and \strong{\code{fixed_size_list}} as \code{ARRAY}.
-\item \strong{\code{struct}} lands as \code{STRUCT}, \strong{\code{map}} as \code{MAP}, and \strong{\code{sparse_union}} as \code{UNION}; \code{dense_union} is refused.
+\item \strong{\code{struct}} lands as \code{STRUCT}, \strong{\code{map}} as \code{MAP}, and \strong{\code{sparse_union}} as \code{UNION}.
 Arrow requires the keys of a map to be non-nullable, and nanoarrow's \code{na_map()} builds nullable ones unless the key type says otherwise.
-\item \strong{A dictionary} lands as \code{VARCHAR}, never as \code{ENUM}.
+\item \strong{A dictionary} lands as \code{VARCHAR}.
 \item \strong{\code{na}} lands as a column of type \code{NULL}.
 \item \strong{The extension types} land as the DuckDB type they name:
-\code{arrow.uuid} as \code{UUID}, \code{arrow.json} as \code{JSON}, \code{arrow.bool8} as \code{BOOLEAN}, \code{arrow.opaque} as the DuckDB type in its metadata,
-and \code{geoarrow.wkb} as \code{GEOMETRY} with its CRS.
-geoarrow's native encodings, such as \code{geoarrow.point}, land as their struct storage, not as \code{GEOMETRY}.
+\code{arrow.uuid} as \code{UUID}, \code{arrow.json} as \code{JSON}, \code{arrow.bool8} as \code{BOOLEAN}, and \code{arrow.opaque} as the DuckDB type in its metadata.
+What the GeoArrow types land as is under Geometry and Limitations.
 }
 }
 
@@ -178,41 +156,57 @@ which differs from what \code{\link[DBI:dbWriteTable]{dbWriteTable()}} gives for
 Where nothing is said below, nanoarrow and arrow infer the type \code{dbWriteTable()} writes.
 \itemize{
 \item \strong{\code{factor}} infers a dictionary and lands as \code{VARCHAR}, where \code{dbWriteTable()} writes \code{ENUM}.
-nanoarrow refuses an \code{ordered} factor, and arrow lands it as \code{VARCHAR}.
+arrow lands an \code{ordered} one as \code{VARCHAR} too.
 \item \strong{\code{POSIXct}} infers a \code{timestamp} with its zone, or R's session zone where it has none, and lands as \code{TIMESTAMPTZ},
 where \code{dbWriteTable()} writes a plain \code{TIMESTAMP}.
 \item \strong{\code{difftime}} infers a \code{duration} and lands as \code{INTERVAL} in hours and below, so 2 days land as \code{48:00:00},
 where \code{dbWriteTable()} keeps the days.
-\item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, the one R route to that type,
-but truncated: nanoarrow infers milliseconds, and arrow whole seconds.
-An array built as \code{time64('us')}, as \code{nanoarrow::as_nanoarrow_array(x, schema = nanoarrow::na_time64("us"))}, keeps the microseconds.
-\item \strong{A plain list of vectors} is refused by nanoarrow, which needs a \code{vctrs::list_of()}, and lands as \code{LIST} through arrow.
-\item \strong{A matrix column} lands as \code{ARRAY} through nanoarrow; arrow flattens it into one row per cell.
-\item \strong{\code{wk_wkb}} lands as \code{GEOMETRY} through nanoarrow once geoarrow is loaded,
-and as \code{BLOB} through arrow, which carries it as its own R extension type (see \link{duckdb_types_spatial}).
+\item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, the one R route to that type; its truncation is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+\item \strong{A plain list of vectors} lands as \code{LIST} through arrow.
+\item \strong{A matrix column} lands as \code{ARRAY} through nanoarrow.
 }
+}
+}
+
+\section{Geometry}{
+\code{GEOMETRY} and the \code{spatial} extension's own types through Arrow, and where the geoarrow and sf packages meet them:
+\itemize{
+\item \strong{\code{GEOMETRY} exports as \code{geoarrow.wkb}, with the column's CRS in the field's metadata,}
+as PROJJSON once \code{spatial} is loaded, and as the identifier without it.
+It stays \code{geoarrow.wkb} under every export setting, \code{arrow_lossless_conversion} included;
+\code{arrow_large_buffer_size} makes its storage \code{large_binary}, and an \code{arrow_output_version} from \code{'1.4'} makes it \code{binary_view}.
+With the geoarrow package loaded, both readers convert it to a \code{geoarrow_vctr} in each of those layouts, arrow the view one included.
+\item \strong{sf reads a result through GeoArrow in one call.}
+With geoarrow loaded, \code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's,
+in the large and view layouts too,
+and so do \code{\link[sf:st_as_sf]{sf::st_as_sf()}} of the result's \code{arrow::as_arrow_table()}, and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} of the \code{geoarrow_vctr} column of \code{as.data.frame()}.
+\item \strong{The \code{spatial} extension's own types cross as their storage.}
+\code{POINT_2D} and the other point and box types export as a \code{struct}, \code{LINESTRING_2D} and \code{LINESTRING_3D} as a \code{list} of point structs,
+\code{POLYGON_2D} and \code{POLYGON_3D} as a list of those lists, and \code{WKB_BLOB} as \code{binary}, with \code{arrow_lossless_conversion} too,
+and each reader converts them as it converts those Arrow types.
+\item \strong{GeoArrow WKB writes \code{GEOMETRY} with its CRS.}
+Encode the geometry column as WKB,
+as \code{geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))},
+or as a \code{\link[wk:as_wkb]{wk::as_wkb()}} column, which nanoarrow infers as \code{geoarrow.wkb} once geoarrow is loaded.
+Register \code{arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))} with \code{duckdb_register_arrow()},
+and a \verb{CREATE TABLE ... AS SELECT} from the view writes a \code{GEOMETRY} column with the CRS,
+which reads back into an \code{sf} equal to the one written.
+With \code{spatial} loaded, the type names the CRS by its identifier, as \code{GEOMETRY('EPSG:4267')};
+without it, it keeps the PROJJSON it came as, and \code{\link[sf:st_crs]{sf::st_crs()}} reads the same CRS from both.
+WKB without a CRS lands as plain \code{GEOMETRY}, and so do the large and view layouts DuckDB's own export makes.
+\item \strong{A \code{geoarrow_vctr} column holds indices.}
+The \code{geoarrow_vctr} that \code{as.data.frame()} gives for a geometry in an Arrow result
+is an integer vector of indices into the Arrow data it holds, and writing it back is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 }
 }
 
 \section{Limitations and reference}{
-\itemize{
-\item \code{VARIANT} has no Arrow export.
-\item The default export writes a \code{UHUGEINT} of 2^127 or more as a negative number, without an error;
-\code{arrow_lossless_conversion} carries it as a type neither R reader converts.
-\item Neither reader converts \code{INTERVAL}; arrow converts no \code{UNION}, no view layout and none of the lossless extension types,
-and nanoarrow no \code{list_view}.
-\item Only \code{duckdb_register_arrow()} and \code{arrow::to_duckdb()} keep Arrow's types on the way in:
-the DBI Arrow write methods and \code{dbBindArrow()} convert through R, and \code{dbBindArrow()} refuses named fields.
-\item \code{duckdb_register_arrow()} needs the arrow package and refuses a nanoarrow stream, and a registered reader is scanned once.
-\item DuckDB refuses \code{half_float}, \code{decimal256} and \code{dense_union}, reads \code{interval_day_time} wrong,
-and lands a dictionary as \code{VARCHAR}, never as \code{ENUM}.
-\item Through Arrow, \code{hms} writes \code{TIME} truncated to milliseconds or seconds, and \code{POSIXct} writes \code{TIMESTAMPTZ}.
-\item \code{arrow::to_duckdb()} fails on Arrow data that lands as a type R cannot hold, and \code{to_arrow()} on a table holding one.
-}
+The limitations are listed in the handbook, in \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md}{\verb{usage/arrow-types/}}.
 
 The routes through R vectors are documented in \link{duckdb_types},
 and how a stream behaves, when it drains and what invalidates it, is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{integrations/}}'s.
 Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
-in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}}.
+in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}},
+and geometry also with geoarrow 0.4.4 and sf 1.1-3 in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-geoarrow/README.md}{\verb{experiments/2026-09-27-geoarrow/}}.
 }
 
