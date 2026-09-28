@@ -104,7 +104,10 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * **`LIST`** (`INTEGER[]`) reads as a list of vectors, `NULL` for a `NULL` row, and a list column whose elements share a type writes it.
 * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
   With `map = "list_of"`, the `vctrs::list_of()` it reads as writes back as `MAP` without `field.types`
-  ([#200](https://github.com/duckdb/duckdb-r/issues/200)).
+  ([#200](https://github.com/duckdb/duckdb-r/issues/200)),
+  and a list column of named lists writes a list of structs, an entry per name,
+  valued by the first element of the name's value, or by `NULL` where that value is `NULL` or empty,
+  pinned by [`tests/testthat/test-map.R`](/tests/testthat/test-map.R).
   Its text casts to `MAP` in the query and as a parameter.
 * **`STRUCT`** (`ROW`) reads as a data frame column.
   A data frame column writes it, and a data frame parameter binds a struct per row.

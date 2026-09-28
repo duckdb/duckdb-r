@@ -200,8 +200,8 @@ static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_d
 				SEXP value_sexp = VECTOR_ELT(val, j);
 				child_list_t<Value> kv;
 				kv.push_back({"key", Value(string(CHAR(nm)))});
-				if (value_sexp == R_NilValue) {
-					// Treat element NULL as a SQL NULL of the column's value type
+				if (value_sexp == R_NilValue || RApiTypes::GetVecSize(value_sexp, true) == 0) {
+					// A NULL or empty value writes a SQL NULL of the value type (handbook/usage/types/README.md)
 					kv.push_back({"value", Value()});
 				} else {
 					kv.push_back({"value", RApiTypes::SexpToValue(value_sexp, 0)});
