@@ -74,7 +74,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cache-version: release-gate-docs-1
-          extra-packages: any::devtools
+          # README.Rmd renders with cynkratemplate::readme_document.
+          extra-packages: any::devtools cynkra/cynkratemplate
 
       - name: Check the generated documentation
         uses: BristolMyersSquibb/blockr.ci/.github/actions/release-docs@5ee8e2be16e71e96628c6c5c60c20c03f1b35155
