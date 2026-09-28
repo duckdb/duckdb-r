@@ -15,7 +15,7 @@ and geometry also with geoarrow 0.4.4 and sf 1.1-3 in [`experiments/2026-09-27-g
 Every function that returns Arrow hands out the engine's own export, under the connection's settings:
 `dbGetQueryArrow()`, `dbFetchArrow()` and `dbFetchArrowChunk()` after `dbSendQueryArrow()`, `dbReadTableArrow()`,
 `duckdb_fetch_arrow()` and `duckdb_fetch_record_batch()` after `dbSendQuery(arrow = TRUE)`, and `arrow::to_arrow()`.
-No R vector exists until a reader converts the stream ([#642](https://github.com/duckdb/duckdb-r/issues/642)),
+No R vector exists until a reader converts the stream,
 and the two readers differ, so each entry below names both:
 nanoarrow's `as.data.frame()`, and arrow's `as.data.frame()` of `arrow::as_arrow_table()`.
 

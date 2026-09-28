@@ -14,7 +14,7 @@ See \link{duckdb_types} for a description of the direct conversion to R vectors.
 Every function that returns Arrow hands out the engine's own export, under the connection's settings:
 \code{\link[DBI:dbGetQueryArrow]{dbGetQueryArrow()}}, \code{\link[DBI:dbFetchArrow]{dbFetchArrow()}} and \code{\link[DBI:dbFetchArrowChunk]{dbFetchArrowChunk()}} after \code{\link[DBI:dbSendQueryArrow]{dbSendQueryArrow()}}, \code{\link[DBI:dbReadTableArrow]{dbReadTableArrow()}},
 \code{\link[=duckdb_fetch_arrow]{duckdb_fetch_arrow()}} and \code{\link[=duckdb_fetch_record_batch]{duckdb_fetch_record_batch()}} after \code{dbSendQuery(arrow = TRUE)}, and \code{\link[arrow:to_arrow]{arrow::to_arrow()}}.
-No R vector exists until a reader converts the stream (\href{https://github.com/duckdb/duckdb-r/issues/642}{#642}),
+No R vector exists until a reader converts the stream,
 and the two readers differ, so each entry below names both:
 nanoarrow's \code{as.data.frame()}, and arrow's \code{as.data.frame()} of \code{\link[arrow:as_arrow_table]{arrow::as_arrow_table()}}.
 

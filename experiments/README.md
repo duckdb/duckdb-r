@@ -141,6 +141,9 @@ This file is what names the contents, so nothing here is an orphan.
   Also whether an interrupt ends it, where it waits, what works instead, and what writing a stream back to its connection leaves behind.
   Also what else the reader of `to_arrow_stream()` cannot do on its own connection.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
+  the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

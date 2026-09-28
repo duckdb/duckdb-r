@@ -26,6 +26,6 @@ and is what turns the announcement off.
 * [`memory/`](memory/) — the engine's budget, reading, writing
 * [`data-import/`](data-import/) — CSV and Parquet ingestion
 * [`storage/`](storage/) — where extensions and secrets live
-* [`integrations/`](integrations/) — dbplyr, duckplyr, and Arrow
+* [`integrations/`](integrations/): dbplyr, duckplyr, Arrow, ADBC, and a result's way into Polars, data.table and collapse
 * [`relational/`](relational/) — the internal lazy-relation API
 * [`interactive/`](interactive/) — what a session does while you work
