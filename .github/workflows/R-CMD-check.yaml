@@ -403,8 +403,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Diagnostic iteration: one entry, the engine as vendored, no check.
-          - { os: windows-latest, r: "4.6", diag: true }
+          - { os: windows-latest, r: devel }
+          - { os: windows-latest, r: "4.6" }
+          - { os: windows-latest, r: "4.5" }
+          - { os: windows-latest, r: "4.4" }
+          - { os: windows-latest, r: "4.3" }
+          - { os: windows-latest, r: "4.2" }
+          - { os: windows-11-arm, r: "4.6" }
 
     steps:
       - uses: actions/checkout@v6
@@ -440,20 +445,12 @@ jobs:
         uses: ./.github/workflows/custom/after-install
         if: hashFiles('.github/workflows/custom/after-install/action.yml') != ''
 
-      # Draft pull request only: the package the step above installed into ../lib,
-      # opened through a symlink whose target does not exist yet.
-      - name: Diagnose a dangling symlink through the engine
-        if: matrix.diag
-        continue-on-error: true
-        run: Rscript .github/diag/symlink-engine.R ../lib
-        shell: bash
-
       # Before the snapshot tests and the check, which reuse its compilation:
       # `load_all()` finds the shared object in `src/`, and `R CMD check` hits ccache.
       - name: Build, install and upload the binary package
         uses: cynkra/cynkratemplate/.github/actions/build-binary@main
         # The covr entries run no check and build an instrumented package of their own.
-        if: ${{ ! matrix.covr && ! matrix.diag }}
+        if: ${{ ! matrix.covr }}
         with:
           # `matrix.os` rather than `runner.os`: ubuntu-24.04 and ubuntu-26.04
           # are both "Linux", and their binaries differ. `matrix.desc` tells
@@ -469,13 +466,13 @@ jobs:
         # to opt out of running the snapshot updater,
         # which runs tests directly via testthat::test_local()
         # and is difficult to disable otherwise.
-        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && env.SKIP_UPDATE_SNAPSHOTS != 'true' && ! matrix.diag
+        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && env.SKIP_UPDATE_SNAPSHOTS != 'true'
         with:
           base: ${{ github.head_ref }}
 
       - name: Run R CMD check
         uses: cynkra/cynkratemplate/.github/actions/check@main
-        if: ${{ ! matrix.covr && ! matrix.diag }}
+        if: ${{ ! matrix.covr }}
         with:
           # Include the architecture: the matrix pairs each arm64 runner with an
           # amd64 one on the same OS and the same R version (ubuntu-26.04-arm /
@@ -490,45 +487,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
 # The status update is taken care of by R-CMD-check-status.yaml
-
-  symlink-probe:
-    # Draft pull request only, not meant to merge: how Windows, the C runtime
-    # and the DuckDB CLI see a symlink whose target does not exist yet,
-    # in minutes rather than after an engine build.
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-
-    if: github.event_name == 'pull_request' && github.base_ref == 'claude/windows-test-fixes'
-
-    name: 'symlink probe: ${{ matrix.os }} (${{ matrix.r }})'
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows-latest, r: "4.6" }
-          - { os: windows-latest, r: "4.2" }
-          - { os: windows-11-arm, r: "4.6" }
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: ${{ matrix.r }}
-
-      - name: Install the DuckDB CLI
-        continue-on-error: true
-        run: |
-          cli="$(scripts/install-duckdb-cli.sh --prefix "$RUNNER_TEMP/duckdb-cli")"
-          if [ -n "$cli" ]; then
-            echo "DUCKDB_CLI_WIN=$(cygpath -w "$cli")" | tee -a "$GITHUB_ENV"
-          fi
-        shell: bash
-
-      - name: Probe a symlink whose target does not exist yet
-        run: Rscript .github/diag/symlink-probe.R
-        shell: bash
 
   rcc-suggests:
     needs:
