@@ -7,7 +7,8 @@ and hands the stream to arrow::as_record_batch_reader(),
 so the rows arrive batch by batch and the result is not held twice.
 arrow::to_arrow() materializes the whole result first,
 through dbSendQuery(arrow = TRUE).
-The streaming comes with hard limits, listed under &quot;Limitations&quot; below.
+The streaming comes with hard limits, listed in the handbook, in
+usage/integrations/.
 Use to_arrow_stream() where a large result goes straight into Arrow
 and nothing else runs on its connection until the reader has been read
 to the end.
@@ -20,7 +21,8 @@ and hands the stream to arrow::as_record_batch_reader(),
 so the rows arrive batch by batch and the result is not held twice.
 arrow::to_arrow() materializes the whole result first,
 through dbSendQuery(arrow = TRUE).
-The streaming comes with hard limits, listed under &quot;Limitations&quot; below.
+The streaming comes with hard limits, listed in the handbook, in
+usage/integrations/.
 Use to_arrow_stream() where a large result goes straight into Arrow
 and nothing else runs on its connection until the reader has been read
 to the end.
@@ -73,7 +75,8 @@ and hands the stream to <code><a href="https://arrow.apache.org/docs/r/reference
 so the rows arrive batch by batch and the result is not held twice.
 <code><a href="https://arrow.apache.org/docs/r/reference/to_arrow.html" class="external-link">arrow::to_arrow()</a></code> materializes the whole result first,
 through <code>dbSendQuery(arrow = TRUE)</code>.</p>
-<p>The streaming comes with hard limits, listed under "Limitations" below.
+<p>The streaming comes with hard limits, listed in the handbook, in
+<a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md" class="external-link"><code>usage/integrations/</code></a>.
 Use <code>to_arrow_stream()</code> where a large result goes straight into Arrow
 and nothing else runs on its connection until the reader has been read
 to the end.
@@ -99,48 +102,6 @@ which is returned unchanged.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An Arrow <code>RecordBatchReader</code>,
 or an <code>arrow_dplyr_query</code> over it if <code>.data</code> is grouped.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="limitations">Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a></h2>
-
-
-<p>The reader is its connection's open result until it has been read to the
-end.</p><ul><li><p><strong>Any other statement on the connection breaks the reader.</strong>
-The next read fails with "The query result was invalidated by another
-statement on its connection".
-dplyr and dbplyr run such statements without being asked:
-<code><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">dplyr::tbl()</a></code> asks for the columns of a table,
-and printing or collecting a lazy table runs its query.
-A second <code>to_arrow_stream()</code> on the same connection breaks the first
-reader too.</p></li>
-<li><p><strong>A query that scans the reader on its own connection never returns.</strong>
-<code>arrow::to_duckdb(reader, con = con)</code> is such a query,
-and so is a query on <code>con</code> after <code>duckdb_register_arrow(con, name, reader)</code>.
-Ctrl-C does not stop it, and the R session has to be killed.</p></li>
-<li><p><strong>Tables from <code><a href="https://arrow.apache.org/docs/r/reference/to_duckdb.html" class="external-link">arrow::to_duckdb()</a></code> share one connection.</strong>
-Without <code>con</code>, <code>to_duckdb()</code> uses the one connection that arrow keeps.
-For such a table, a later <code>to_duckdb()</code> without <code>con</code> breaks the reader,
-and one on the reader itself never returns.</p></li>
-<li><p><strong>Writing the reader back to its own connection fails partway.</strong>
-<code><a href="https://dbi.r-dbi.org/reference/dbWriteTableArrow.html" class="external-link">DBI::dbWriteTableArrow()</a></code> creates the table, then fails and leaves it
-empty.
-<code><a href="https://dbi.r-dbi.org/reference/dbAppendTableArrow.html" class="external-link">DBI::dbAppendTableArrow()</a></code> appends the first batch of rows, then fails.</p></li>
-<li><p><strong>Ctrl-C does not interrupt a read.</strong>
-Arrow reads the reader on its own threads,
-outside the package's interrupt handler.</p></li>
-<li><p><strong>Errors arrive late.</strong>
-A query that fails after its first batch fails at a later read,
-not in <code>to_arrow_stream()</code>.</p></li>
-<li><p><strong>The reader is read once.</strong>
-Reading it again gives zero rows, not the result again.</p></li>
-</ul><p>A second connection to the same database, such as
-<code>DBI::dbConnect(con@driver)</code>, neither affects the reader nor is affected by
-it.
-It does not see the first connection's temporary tables or open
-transaction.
-The reader stays readable after <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">DBI::dbDisconnect()</a></code>.
-It keeps the database instance open until it is garbage-collected,
-even once it has been read to the end (<code><a href="duckdb.html">duckdb()</a></code>).</p>
     </div>
 
     <div class="section level2">
