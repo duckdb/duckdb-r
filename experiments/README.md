@@ -144,6 +144,9 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
   the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-relational-convert-opts/`](2026-09-28-relational-convert-opts/):
+  which routes from a relation to R follow the connection's conversion options, with every option set away from its default.
+  Supports [`usage/relational/`](/handbook/usage/relational/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

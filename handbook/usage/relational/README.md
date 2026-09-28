@@ -92,5 +92,12 @@ and duckplyr is the reverse dependency a behaviour change is checked
 against first
 ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
 
+## Limitations
+
+* `as.data.frame()` of a relation and `rel_sql()` convert with the defaults of the reading options `dbConnect()` takes,
+  whatever the connection set, where `rel_to_altrep()` follows the connection,
+  so they refuse an `ARRAY` column even under `array = "matrix"`
+  ([`experiments/2026-09-28-relational-convert-opts/`](/experiments/2026-09-28-relational-convert-opts/README.md)).
+
 *To deepen: state which verbs duckplyr actually calls, so a change can be
 scoped against real use rather than the whole surface.*
