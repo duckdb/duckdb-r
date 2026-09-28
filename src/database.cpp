@@ -48,7 +48,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		try {
 			config.SetOptionByName(Identifier(key), Value(val));
 		} catch (std::exception &e) {
-			rapi_error_with_context("rapi_startup", e);
+			rapi_error_with_context("rapi_startup", ErrorData(e));
 		}
 	}
 
@@ -79,7 +79,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 			function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 		});
 	} catch (std::exception &e) {
-		rapi_error_with_context("rapi_startup", e);
+		rapi_error_with_context("rapi_startup", ErrorData(e));
 	}
 	D_ASSERT(wrapper->db);
 

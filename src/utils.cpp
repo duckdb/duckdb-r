@@ -1,5 +1,6 @@
 #include "duckdb/common/adbc/adbc-init.hpp"
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/local_file_system.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "include/rfuns_extension.hpp"
 #include "rapi.hpp"
@@ -29,6 +30,29 @@ using namespace duckdb;
 #else
 	return RStrings::get().cxx_stdlib_unknown_str;
 #endif
+}
+
+// Resolve a database path the way the engine itself does, so the driver cache
+// is keyed on what DuckDB considers the database's identity. Explained in
+// handbook/usage/connections/README.md.
+//
+// `CanonicalizePath()` canonicalizes the longest existing prefix of the path
+// and appends the rest, so a database that does not exist yet resolves without
+// anything being created. It does not throw when nothing resolves: the caller
+// gets a path back either way. It does throw when a relative path has no
+// working directory to resolve against, and that error reaches R as a
+// `duckdb_error` like every other engine error.
+[[cpp11::register]] cpp11::r_string rapi_canonicalize_path(std::string path) {
+	// The `LocalFileSystem` override takes the opener explicitly; only the
+	// `FileSystem` base declaration defaults it.
+	LocalFileSystem fs;
+	string result;
+	try {
+		result = fs.CanonicalizePath(path, nullptr);
+	} catch (std::exception &e) {
+		rapi_error_with_context("rapi_canonicalize_path", ErrorData(e));
+	}
+	return result;
 }
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
