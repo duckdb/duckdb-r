@@ -201,7 +201,7 @@ calling \code{duckdb()} again with the same \code{dbdir} returns the same driver
 This is deliberate.
 DuckDB allows only a single read-write handle to a database file at a time,
 so opening a second instance of the same file fails with a lock error in another process,
-and is not prevented at all within the same one.
+and, on Linux and macOS, is not prevented at all within the same one.
 Reusing one instance instead lets any number of \code{dbConnect(duckdb(dbdir = "my.db"))} calls share it.
 An in-memory database (\verb{:memory:}, the default) has no file to lock and is never cached:
 every \code{duckdb()} call creates a fresh, isolated instance.
