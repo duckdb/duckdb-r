@@ -50,7 +50,7 @@ and are not repeated here; this page holds this repository's own.
 * **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`usage/relational/`](/handbook/usage/relational/README.md)).
 * **rewind** — a forward's first pick that vendors an engine older than the seed's, so the strand is taken whole and the glue adapted back ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
 * **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).
-* **seed** — the flavored `main` plus the fifth-component commit a forward's four refs start equal at; an opening cuts its refs from the parent's strands instead ([`branches/model/`](/handbook/branches/model/README.md)).
+* **seed** — the flavored `main` plus the fifth-component commit a forward's `-dev`, `-build` and `-build-base` start at, its green starting below them; an opening cuts its refs from the parent's strands instead ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **series refs** — `-build`, `-dev`, `-green`, `-build-base`, and the vendor strand `-vendor` beside them: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).

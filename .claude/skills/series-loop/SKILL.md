@@ -42,9 +42,10 @@ a forward whose green is an ancestor of its base's green (cutover litter pending
 `<L>-land-*` (a landing),
 and `<S>-vendor` (the vendor strand the buffer is derived from, which stage 1 serves).
 
-**All four refs exist from day one, and green contains the flavor change.**
-A forward's four start equal at the seed tip, topped by a separate `chore: Add fifth version component` commit;
-an opening cuts the build pair and the dev pair from the parent's strands, each at its own cut
+**All four refs exist from day one, and green starts below the flavor commits.**
+A forward's `-dev`, `-build` and `-build-base` start at the seed tip, topped by a separate `chore: Add fifth version component` commit,
+and its green at the commit the seed sits on, so that CI judges the flavor commits first and green crosses them once they pass;
+an opening cuts the build pair and the dev pair from the parent's strands, each at its own cut, below its reflavor
 ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
 There is never a "no green yet" state, and every walk below is bounded by `<S>-green`.
 
@@ -63,6 +64,7 @@ prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6,
+a LATE TAG line for a release the buffer vendored before upstream tagged it,
 and an UNSERVED block for an upstream release line no series covers,
 saying whether `series.yaml` declares its flavor yet,
 and the one the report ends with),
@@ -129,6 +131,7 @@ Run **`main`'s copy of the scripts**, against the strand worktree and then the b
 with the upstream clone checked out at the line the series tracks:
 
 ```sh
+git -C <upstream-clone> fetch --prune --tags origin
 git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
 VENDOR_REPO=<S>-vendor-worktree \
   <main-checkout>/scripts/vendor-one.sh --strand --commits 100 <upstream-clone>
@@ -139,6 +142,8 @@ git -C <S>-vendor-worktree push origin HEAD:<S>-vendor
 * The strand takes the vendoring and nothing else: one commit per upstream commit, no counter, no glue gate.
   The buffer is derived from it: each strand commit picked, the counter stamped, the glue gate run
   ([`branches/model/`](/handbook/branches/model/README.md)).
+* The fetch takes tags because the script reads them from the clone:
+  a commit upstream tagged after it was vendored is re-stamped as a second vendor commit for the same SHA before the walk goes on.
 * The clone's HEAD picks the line; the script refuses a strand whose last vendored commit is off that line.
   Treat the refusal as the answer.
 * The pick **stops at the first glue failure**, the breaking pick at HEAD of the buffer worktree.
@@ -346,6 +351,8 @@ Reference: [`references/7-tooling-prs.md`](references/7-tooling-prs.md).
 * The flavor's declaration PR against `scripts/series.yaml`, opened once after searching open and closed PRs for it;
   cutting the refs stays `series-open/SKILL.md`'s and a human's.
 * A reading that failed, reported as one.
+* A `LATE TAG` line stage 1 did not clear: the buffer has vendored past the tag, and the release branch takes the re-stamp at CUT
+  ([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)); name the series, the tag and the commit.
 * A due cutover, above the `UNSERVED` block, as stage 6's block filled in.
 * Which source served the verdicts, and any record missing from the store and what it was for.
 

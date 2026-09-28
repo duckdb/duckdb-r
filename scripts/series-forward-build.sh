@@ -253,6 +253,16 @@ glue_gate() { # <why>
   exit 3
 }
 
+# What a resumed replay dedupes on: the upstream SHA, and the `(tag ...)` marker
+# beside it, because a late tag is re-stamped by a second vendor commit for the
+# same SHA (scripts/VENDORING.md) and the SHA alone would skip that one.
+upstream_key() {
+  case "$(git log -1 --format=%s "$1")" in
+    *"(tag "*) echo "$(upstream_sha "$1")+tag" ;;
+    *) upstream_sha "$1" ;;
+  esac
+}
+
 # `git cherry-pick -n` leaves no CHERRY_PICK_HEAD, so the in-flight pick is
 # recorded here instead; it is what makes a stopped replay resumable.
 STATE="$(git rev-parse --git-dir)/series-forward-pick"
@@ -493,7 +503,7 @@ fi
 [ -f "$GLUE_BROKEN" ] && glue_gate "the amend of a broken commit"
 
 # Everything already replayed sits in the last $n commits, one per counter step.
-DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_sha "$c"; done | tr '\n' ' ')"
+DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_key "$c"; done | tr '\n' ' ')"
 
 # What HEAD already vendors is not replayed, and neither is anything below it.
 # A range may start above the old base where the new base vendors the commit it
@@ -543,7 +553,7 @@ while IFS=$'\t' read -r c subj; do
         PICKS=()
         continue
       fi
-      case "$DONE" in *" $(upstream_sha "$c") "*) continue ;; esac
+      case "$DONE" in *" $(upstream_key "$c") "*) continue ;; esac
       PICKS+=("$c")
       ;;
     *)
