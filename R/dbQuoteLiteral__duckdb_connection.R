@@ -169,21 +169,29 @@ period_literal_text <- function(x, call = parent.frame()) {
     lapply(list(x@.Data, x@year, x@month, x@day, x@hour, x@minute), is.na)
   )
 
-  # Whole and within the signed 32 or 64 bits the part is held in;
-  # a sum of parts past 64 bits is DuckDB's to refuse, which it does with an overflow error
+  # Whole and within the signed 32 or 64 bits the part is held in, as a write checks (src/types.cpp).
+  # A double compares hours and minutes closely enough,
+  # since the next one past the bound is millions of microseconds past it.
+  # The seconds are compared whole and in microseconds apart, which is exact:
+  # 64 bits of microseconds hold 9223372036854 seconds and 775808 microseconds below zero, and 775807 above.
+  # A sum of parts past 64 bits is DuckDB's to refuse, which it does with an overflow error.
   whole <- function(v, bits, scale = 1) {
     is.finite(v) &
       v == trunc(v) &
       v * scale >= -2^(bits - 1) &
       v * scale < 2^(bits - 1)
   }
+  max_seconds <- 9223372036854
+  seconds_fit <- is.finite(parts$seconds) &
+    (abs(parts$seconds) < max_seconds |
+      (parts$seconds == max_seconds & parts$fraction <= 775807) |
+      (parts$seconds == -max_seconds & parts$fraction >= -775808))
   bad <- !missing &
     !(whole(parts$months, 32) &
       whole(parts$days, 32) &
       whole(parts$hours, 64, 3600e6) &
       whole(parts$minutes, 64, 60e6) &
-      whole(parts$seconds, 64, 1e6) &
-      is.finite(parts$fraction))
+      seconds_fit)
   if (any(bad)) {
     abort(
       paste0(

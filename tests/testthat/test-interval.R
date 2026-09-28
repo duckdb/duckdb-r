@@ -594,6 +594,20 @@ test_that("dbQuoteLiteral() quotes a Period as an exact INTERVAL under `interval
     dbQuoteLiteral(con, lubridate::period(seconds = 2^63 / 1e6 + 1)),
     "to quote as one"
   )
+  # Nor does the next double past it, 9223372036854.777344 seconds, which a write refuses too
+  past <- lubridate::period(seconds = c(2^63 / 1e6 + 2^-9, -2^63 / 1e6 - 2^-9))
+  for (i in 1:2) {
+    expect_error(dbQuoteLiteral(con, past[i]), "to quote as one")
+    expect_error(
+      dbGetQuery(con, "SELECT ? AS a", params = list(past[i])),
+      "must hold periods that fit an `INTERVAL`"
+    )
+  }
+  expect_match(
+    as.character(dbQuoteLiteral(con, lubridate::period(seconds = -2^63 / 1e6))),
+    "to_microseconds(-9223372036854775391)",
+    fixed = TRUE
+  )
 
   # Half a microsecond rounds away from zero, as a write rounds it, where R's round() goes to even
   ties <- lubridate::period(seconds = c(5e-7, -5e-7, 2.5e-6))
