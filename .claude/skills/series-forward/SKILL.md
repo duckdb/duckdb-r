@@ -33,7 +33,8 @@ so a bump on `main` moves nothing under it and only the R-side drift counts.
 Build locally, push once.
 The seed and the replay happen on local branches,
 and the four `-fwd` refs go up in one `git push --atomic`:
-`<S>-fwd-build` at the replay's tip, the other three at the seed tip,
+`<S>-fwd-build` at the replay's tip, `<S>-fwd-dev` and `<S>-fwd-build-base` at the seed tip,
+and `<S>-fwd-green` at the commit the seed sits on, below the flavor commits,
 as [`series-open`](/.claude/skills/series-open/SKILL.md) and [`series-rebase`](/.claude/skills/series-rebase/SKILL.md) push theirs.
 A `-fwd-build` pushed at the seed before the replay is a series the loop can find,
 and it would start vendoring onto that ref while the replay is still writing it.
@@ -84,11 +85,13 @@ and it would start vendoring onto that ref while the replay is still writing it.
      A fix found wanting on the new base is answered with a correction on the forward commit that carries it,
      folded with `series-fold.sh`, so that `-fwd-build` is the better buffer before the loop starts verifying it.
 
-2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
-   the seed tip:
-   green contains the flavor change from day one,
-   so whatever consumes it builds the flavored package;
-   the loop's stage 5 extends `-fwd-dev` from the populated buffer.
+2. **`<S>-fwd-dev` = `<S>-fwd-build-base`** = the seed tip,
+   and **`<S>-fwd-green`** = the commit the seed sits on.
+   Green never takes the flavor commits at birth
+   ([`branches/model/`](/handbook/branches/model/README.md)):
+   they have no runs yet, so CI judges them first,
+   and the loop's stage 3 carries green over them once they pass.
+   The loop's stage 5 extends `-fwd-dev` from the populated buffer.
    Up to the commit the base `-dev` had reached when the forward was built, there is nothing left to carry,
    and the stage recognises a fix the buffer commit already holds;
    above it, where the buffer came from `-build`, it folds the base's fixes in as it always has.

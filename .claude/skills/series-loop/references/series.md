@@ -7,6 +7,10 @@ Equivalence between `-build` and `-dev` commits is by the
 `duckdb/duckdb@<sha>` reference in the commit subject —
 the subject is machine-readable state,
 which is also how `vendor-one.sh` finds its base.
+The `(tag …)` marker beside it counts too:
+a tag upstream pushes after its commit was vendored is re-stamped
+as a second vendor commit for the same SHA
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
 
 **The subject is what decides, never the path.**
 `src/duckdb/` is not a proxy for "vendored here":
@@ -46,18 +50,24 @@ Nor are `<S>-alpha` and `<S>-rc-alpha`, each one stamp commit on a green commit 
 Nor is `<L>-land-dev` with its `<L>-land-green`, a line on its way onto `main`
 ([`series-land/SKILL.md`](/.claude/skills/series-land/SKILL.md)).
 
-**All four refs exist from day one, and green contains the flavor
-change.**
-A forward is bootstrapped with all four refs at the **same commit** —
-the seed tip, "after flavoring", before any vendor commit;
-an opening cuts the build pair and the dev pair from the parent's strands instead, each at its own cut
+**All four refs exist from day one, and green starts below the flavor
+commits.**
+A forward is bootstrapped with three refs at the seed tip,
+"after flavoring", before any vendor commit,
+and green at the commit the seed sits on;
+an opening cuts the build pair and the dev pair from the parent's strands instead, each at its own cut,
+below its reflavor
 ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)):
 
-    <S>-green = <S>-build-base = <S>-build = <S>-dev
+    <S>-build-base = <S>-build = <S>-dev = the seed tip
+    <S>-green = the seed's base, below the flavor commits
 
 Stage 1 then populates `-build`;
-the other three advance as the loop consumes and verifies.
-Whatever consumes `-green` must build the series' *flavored* package,
+the other three advance as the loop consumes and verifies,
+and the first commits green crosses are the flavor commits,
+once CI has judged them
+([`branches/model/`](/handbook/branches/model/README.md)).
+What `-green` serves is the series' *flavored* package,
 so the seed contains the flavor pair, never just the unflavored base,
 topped by a separate `chore: Add fifth version component` commit
 stamping the `.0` — the vendor counter's zero,

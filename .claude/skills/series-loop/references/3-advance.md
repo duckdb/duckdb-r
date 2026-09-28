@@ -6,9 +6,8 @@ the handbook leaf is [`operations/vendoring/series-loop/`](/handbook/operations/
 Fast-forward `<S>-green` to the newest `<S>-dev` commit
 such that every commit in `<S>-green..<that commit>` has a `success` run.
 The range bounds the walk:
-everything at or before `<S>-green` is trusted —
-verified by this loop,
-or accepted as the series' seed on day one —
+everything at or before `<S>-green` is trusted
+(verified by this loop, or the base the seed sits on, on day one)
 and is never re-examined.
 `-green` is fast-forward only —
 if it cannot fast-forward, something rewrote verified history;

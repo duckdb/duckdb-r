@@ -80,6 +80,14 @@ the firing says so too:
 otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
 
+**A `LATE TAG` line that stage 1 did not clear goes into the report too.**
+Stage 1 re-stamps a tagged commit that is still the buffer's newest,
+so a line left after that stage says the buffer has vendored past the tag,
+which no firing can repair:
+the release branch takes the re-stamp at CUT
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
+Name the series, the tag and the commit, so the release does not wait on someone noticing.
+
 **A due cutover is reported the same way, above the `UNSERVED` block.**
 It is the one finding a firing may not act on at all —
 an UNSERVED line at least has its declaration PR —
