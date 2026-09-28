@@ -1,5 +1,5 @@
 ## What each route out of a relation makes of the connection's conversion options,
-## with every option set away from its default.
+## with `bigint`, `array`, `map`, `geometry`, `time`, `blob` and `interval` set away from their defaults.
 library(DBI)
 
 con <- dbConnect(
@@ -9,7 +9,8 @@ con <- dbConnect(
   map = "list_of",
   geometry = "wk",
   time = "hms",
-  blob = "blob"
+  blob = "blob",
+  interval = "Period"
 )
 
 sql <- "SELECT
@@ -17,7 +18,8 @@ sql <- "SELECT
   MAP {'a': 1} AS map,
   'POINT (1 2)'::GEOMETRY AS geom,
   TIME '01:02:03' AS time,
-  '\\xAA'::BLOB AS blob"
+  '\\xAA'::BLOB AS blob,
+  INTERVAL '1 month' AS interval"
 classes <- function(df) vapply(df, function(x) class(x)[[1]], character(1))
 
 ## One column of each type, through each route ---------------------------------

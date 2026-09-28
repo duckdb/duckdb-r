@@ -148,7 +148,7 @@ This file is what names the contents, so nothing here is an orphan.
   which R class can hold a DuckDB `INTERVAL`'s months, days and microseconds, and whose arithmetic matches DuckDB's.
   Supports [`usage/types/`](/handbook/usage/types/README.md).
 * [`2026-09-28-relational-convert-opts/`](2026-09-28-relational-convert-opts/):
-  which routes from a relation to R follow the connection's conversion options, with every option set away from its default.
+  which routes from a relation to R follow the connection's conversion options, with each type option set away from its default.
   Supports [`usage/relational/`](/handbook/usage/relational/README.md).
 
 Adding one: create the directory, name it for the date and the topic,

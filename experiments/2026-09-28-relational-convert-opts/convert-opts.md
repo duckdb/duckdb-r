@@ -1,6 +1,6 @@
 ``` r
 ## What each route out of a relation makes of the connection's conversion options,
-## with every option set away from its default.
+## with `bigint`, `array`, `map`, `geometry`, `time`, `blob` and `interval` set away from their defaults.
 library(DBI)
 
 con <- dbConnect(
@@ -10,7 +10,8 @@ con <- dbConnect(
   map = "list_of",
   geometry = "wk",
   time = "hms",
-  blob = "blob"
+  blob = "blob",
+  interval = "Period"
 )
 
 sql <- "SELECT
@@ -18,7 +19,8 @@ sql <- "SELECT
   MAP {'a': 1} AS map,
   'POINT (1 2)'::GEOMETRY AS geom,
   TIME '01:02:03' AS time,
-  '\\xAA'::BLOB AS blob"
+  '\\xAA'::BLOB AS blob,
+  INTERVAL '1 month' AS interval"
 classes <- function(df) vapply(df, function(x) class(x)[[1]], character(1))
 
 ## One column of each type, through each route ---------------------------------
@@ -29,11 +31,11 @@ rbind(
   as.data.frame = classes(as.data.frame(rel)),
   rel_sql = classes(duckdb:::rel_sql(rel, "SELECT * FROM _"))
 )
-#>               big         map             geom     time       blob  
-#> dbGetQuery    "integer64" "vctrs_list_of" "wk_wkb" "hms"      "blob"
-#> rel_to_altrep "integer64" "vctrs_list_of" "wk_wkb" "hms"      "blob"
-#> as.data.frame "numeric"   "list"          "list"   "difftime" "list"
-#> rel_sql       "numeric"   "list"          "list"   "difftime" "list"
+#>               big         map             geom     time       blob   interval  
+#> dbGetQuery    "integer64" "vctrs_list_of" "wk_wkb" "hms"      "blob" "Period"  
+#> rel_to_altrep "integer64" "vctrs_list_of" "wk_wkb" "hms"      "blob" "Period"  
+#> as.data.frame "numeric"   "list"          "list"   "difftime" "list" "difftime"
+#> rel_sql       "numeric"   "list"          "list"   "difftime" "list" "difftime"
 
 ## An ARRAY column, which the default `array = "none"` refuses ------------------
 arr_sql <- "SELECT [1, 2]::INTEGER[2] AS arr"
@@ -98,11 +100,13 @@ sessioninfo::session_info()
 #>  evaluate      1.0.5      2025-08-27 [2] RSPM
 #>  fastmap       1.2.0      2024-05-15 [2] RSPM
 #>  fs            2.1.0      2026-04-18 [2] RSPM
+#>  generics      0.1.4      2025-05-09 [2] RSPM
 #>  glue          1.8.1      2026-04-17 [2] RSPM
 #>  hms           1.1.4      2025-10-17 [2] RSPM (R 4.5.0)
 #>  htmltools     0.5.9      2025-12-04 [2] RSPM
 #>  knitr         1.52       2026-09-06 [2] RSPM
 #>  lifecycle     1.0.5      2026-01-08 [2] RSPM
+#>  lubridate     1.9.5      2026-02-04 [2] RSPM
 #>  otel          0.2.0      2025-08-29 [2] RSPM
 #>  pillar        1.11.1     2025-09-17 [2] RSPM
 #>  pkgconfig     2.0.3      2019-09-22 [2] RSPM
@@ -110,6 +114,7 @@ sessioninfo::session_info()
 #>  rlang         1.3.0      2026-07-05 [2] RSPM
 #>  rmarkdown     2.32       2026-09-01 [2] RSPM
 #>  sessioninfo   1.2.4      2026-06-04 [2] RSPM
+#>  timechange    0.4.0      2026-01-29 [2] RSPM
 #>  utf8          1.2.6      2025-06-08 [2] RSPM
 #>  vctrs         0.7.3      2026-04-11 [2] RSPM
 #>  withr         3.0.3      2026-06-19 [2] RSPM

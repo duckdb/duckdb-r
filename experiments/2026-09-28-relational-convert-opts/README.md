@@ -3,9 +3,11 @@
 *What it measures:* which routes between a relation and R follow the connection's conversion options:
 `rel_to_altrep()`, `as.data.frame()` of a relation, and `rel_sql()`, beside `dbGetQuery()` of the same query,
 and `rel_from_df()` beside `duckdb_register()` of the same data frame,
-on a connection with `bigint`, `array`, `map`, `geometry`, `time` and `blob` all set away from their defaults.
+on a connection with `bigint`, `array`, `map`, `geometry`, `time`, `blob` and `interval` set away from their defaults;
+the time zone options keep theirs.
 
-*When and on what:* 2026-09-28, Linux x86_64, R 4.5.3, DBI 1.3.0, bit64 4.8.6, vctrs 0.7.3, wk 0.9.5, hms 1.1.4, blob 1.3.0.
+*When and on what:* 2026-09-28, Linux x86_64, R 4.5.3, DBI 1.3.0, bit64 4.8.6, vctrs 0.7.3, wk 0.9.5, hms 1.1.4, blob 1.3.0,
+lubridate 1.9.5.
 duckdb 1.5.5.9029 with the commits that add `time`, `blob` and `interval` and the fixes that follow them,
 a fast-path build linking the release `libduckdb` of DuckDB 1.5.5 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 [`convert-opts.R`](convert-opts.R) is rendered to [`convert-opts.md`](convert-opts.md)
@@ -19,8 +21,8 @@ and the session info names the scratch library that held the build as `<fast-pat
 From [`convert-opts.md`](convert-opts.md):
 
 * **`as.data.frame()` of a relation and `rel_sql()` convert with the default options.**
-  `dbGetQuery()` and `rel_to_altrep()` read the five columns as `integer64`, `vctrs_list_of`, `wk_wkb`, `hms` and `blob`,
-  and the other two as `numeric`, `list`, `list`, `difftime` and `list`.
+  `dbGetQuery()` and `rel_to_altrep()` read the six columns as `integer64`, `vctrs_list_of`, `wk_wkb`, `hms`, `blob` and `Period`,
+  and the other two as `numeric`, `list`, `list`, `difftime`, `list` and `difftime`.
   Both reach `result_to_df()` in [`src/relational.cpp`](/src/relational.cpp), which converts with a default `ConvertOpts()`
   rather than the one the relation carries.
 * **So an `ARRAY` column is refused there under `array = "matrix"`.**
