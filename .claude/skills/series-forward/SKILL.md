@@ -31,7 +31,8 @@ so a bump on `main` moves nothing under it and only the R-side drift counts.
 
 Bootstrap first, populate second —
 like any series,
-the four `-fwd` refs start **equal** at the regenerated seed tip;
+three `-fwd` refs start at the regenerated seed tip
+and `<S>-fwd-green` at the commit the seed sits on;
 the replay then populates `<S>-fwd-build`.
 
 1. **`<S>-fwd-build`**: rebuild `<S>-build` on current `main`.
@@ -51,7 +52,7 @@ the replay then populates `<S>-fwd-build`.
    the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
    so every picked commit inherits whatever the seed was stamped with
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
+   Stamp it in the fifth-component commit, before the `-fwd` refs are created.
    The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
    previewing 2.0 is `1.99.99.9000`.
 
@@ -196,11 +197,13 @@ the replay then populates `<S>-fwd-build`.
    So do not reach for it during the replay,
    and do not put a snapshot or a test fix onto `-fwd-build` by hand.
 
-2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
-   the seed tip:
-   green contains the flavor change from day one,
-   so whatever consumes it builds the flavored package;
-   the loop's stage 5 extends `-fwd-dev` from the populated buffer,
+2. **`<S>-fwd-dev` = `<S>-fwd-build-base`** = the seed tip,
+   and **`<S>-fwd-green`** = the commit the seed sits on.
+   Green never takes the flavor commits at birth
+   ([`branches/model/`](/handbook/branches/model/README.md)):
+   they have no runs yet, so CI judges them first,
+   and the loop's stage 3 carries green over them once they pass.
+   The loop's stage 5 extends `-fwd-dev` from the populated buffer,
    folding in the base series' test-side fixes as it goes.
 
 3. Nothing else is special:

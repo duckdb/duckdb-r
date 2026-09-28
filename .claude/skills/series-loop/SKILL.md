@@ -65,16 +65,21 @@ whose green is an ancestor of its base series' green;
 that is cutover litter pending deletion
 (the base moves on after cutover, so equality cannot be the test).
 
-**All four refs exist from day one, equal, and green contains the flavor
-change.**
-A new series is bootstrapped with all four refs at the **same commit** —
-the seed tip, "after flavoring", before any vendor commit:
+**All four refs exist from day one, and green starts below the flavor
+commits.**
+A new series is bootstrapped with three refs at the seed tip,
+"after flavoring", before any vendor commit,
+and green at the commit the seed sits on:
 
-    <S>-green = <S>-build-base = <S>-build = <S>-dev
+    <S>-build-base = <S>-build = <S>-dev = the seed tip
+    <S>-green = the seed's base, below the flavor commits
 
 Stage 1 then populates `-build`;
-the other three advance as the loop consumes and verifies.
-Whatever consumes `-green` must build the series' *flavored* package,
+the other three advance as the loop consumes and verifies,
+and the first commits green crosses are the flavor commits,
+once CI has judged them
+([`branches/model/`](/handbook/branches/model/README.md)).
+What `-green` serves is the series' *flavored* package,
 so the seed contains the flavor pair, never just the unflavored base,
 topped by a separate `chore: Add fifth version component` commit
 stamping the `.0` — the vendor counter's zero,
@@ -579,9 +584,8 @@ read the one for the sha being repaired.
 Fast-forward `<S>-green` to the newest `<S>-dev` commit
 such that every commit in `<S>-green..<that commit>` has a `success` run.
 The range bounds the walk:
-everything at or before `<S>-green` is trusted —
-verified by this loop,
-or accepted as the series' seed on day one —
+everything at or before `<S>-green` is trusted
+(verified by this loop, or the base the seed sits on, on day one)
 and is never re-examined.
 `-green` is fast-forward only —
 if it cannot fast-forward, something rewrote verified history;
