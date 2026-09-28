@@ -63,7 +63,6 @@ Suggests:
     vctrs,
     wk,
     withr
-Additional_repositories: https://apache.r-universe.dev
 Biarch: true
 Config/build/compilation-database: false
 Config/build/never-clean: true
@@ -78,11 +77,9 @@ Config/comment/gha/extra-packages: arrow does not compile against Rtools45,
     every runner: CRAN archived it, and pak is called with
     dependencies = "all", which resolves Enhances too, so the package is
     in the plan and resolves to nothing. ignore-build-errors does not
-    cover that -- it demotes a failed build, not a failed lookup --
-    and pak reads repos alone, so Additional_repositories does not
-    either. ignore-build-errors stays for the day it returns to CRAN and
-    Rtools45 has to build it again. It is installed from
-    Additional_repositories by .github/workflows/install. Explained in
+    cover that -- it demotes a failed build, not a failed lookup.
+    ignore-build-errors stays for the day it returns to CRAN and
+    Rtools45 has to build it again. Explained in
     handbook/operations/ci/matrix/README.md.
 Config/testthat/edition: 3
 Encoding: UTF-8
