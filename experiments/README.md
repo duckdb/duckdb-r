@@ -144,6 +144,10 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
   the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-matrix-limits/`](2026-09-28-matrix-limits/):
+  a matrix column carrying a class, which writes as that class's scalar type and loses values,
+  and an `ARRAY` column that `rel_to_altrep()` reads with the wrong shape.
+  Supports [`usage/types/`](/handbook/usage/types/README.md) and [`usage/relational/`](/handbook/usage/relational/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
