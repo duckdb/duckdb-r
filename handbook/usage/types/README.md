@@ -206,6 +206,8 @@ and the `spatial` extension's own types:
 * A matrix that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) is refused as a column and as a parameter,
   and an array of more than two dimensions as a column, unless either holds one value per row,
   pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R).
+  As a parameter, that array binds a row per value and loses its shape, and in a list cell either kind flattens to its values.
+  `dbDataType()`, and so `dbCreateTable()`, types a classed matrix as its class's scalar type.
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.

@@ -257,17 +257,20 @@ static bool HasValuesBesideRows(SEXP v) {
 	return TYPEOF(dim) == INTSXP && Rf_xlength(dim) > 0 && Rf_xlength(v) != INTEGER(dim)[0];
 }
 
-// Whether DetectRType() types `v` by its class although it holds other than one value per row, as a `Date` matrix:
-// the scan would count its values as rows (handbook/usage/types/README.md)
-bool RApiTypes::IsClassedArray(SEXP v) {
+// The class DetectRType() types `v` by although it holds other than one value per row, as `Date` for a `Date` matrix,
+// or null: the scan would count its values as rows (handbook/usage/types/README.md)
+static const char *ClassedArrayClass(SEXP v) {
 	if (!HasValuesBesideRows(v)) {
-		return false;
+		return nullptr;
 	}
-	switch (DetectRType(v, false).id()) {
+	switch (RApiTypes::DetectRType(v, false).id()) {
 	case RTypeId::FACTOR:
+		return "factor";
 	case RTypeId::DATE:
 	case RTypeId::DATE_INTEGER:
+		return "Date";
 	case RTypeId::TIMESTAMP:
+		return "POSIXct";
 	case RTypeId::INTERVAL_SECONDS:
 	case RTypeId::INTERVAL_MINUTES:
 	case RTypeId::INTERVAL_HOURS:
@@ -278,10 +281,14 @@ bool RApiTypes::IsClassedArray(SEXP v) {
 	case RTypeId::INTERVAL_HOURS_INTEGER:
 	case RTypeId::INTERVAL_DAYS_INTEGER:
 	case RTypeId::INTERVAL_WEEKS_INTEGER:
-		return true;
+		return "difftime";
 	default:
-		return false;
+		return nullptr;
 	}
+}
+
+bool RApiTypes::IsClassedArray(SEXP v) {
+	return ClassedArrayClass(v) != nullptr;
 }
 
 // Whether `v` is an array of more than two dimensions holding other than one value per row,
@@ -290,22 +297,51 @@ bool RApiTypes::IsHighArray(SEXP v) {
 	return Rf_xlength(Rf_getAttrib(v, R_DimSymbol)) > 2 && HasValuesBesideRows(v);
 }
 
-// The message refusing `v` if IsClassedArray(), naming it and its class, or an empty string
-string RApiTypes::ClassedArrayError(SEXP v, const string &verb, const string &kind, const string &name) {
-	if (!IsClassedArray(v)) {
-		return string();
+// Whether `v` is or holds an array the scan would count by its values:
+// a classed array anywhere, an array of more than two dimensions unless `v` itself is a parameter.
+// A list cell that is not itself a list is left alone, as it writes as its values.
+// On success, `path` leads from `v` to the array, and `cls` is the class it is typed by, or null.
+static bool FindArray(SEXP v, bool column, string &path, const char *&cls) {
+	if (TYPEOF(v) != VECSXP) {
+		cls = ClassedArrayClass(v);
+		return cls || (column && RApiTypes::IsHighArray(v));
 	}
-	return "Can't " + verb + " a matrix or array that carries a class. Affected " + kind + ": `" + name + "` (class `" +
-	       CHAR(STRING_ELT(Rf_getAttrib(v, R_ClassSymbol), 0)) + "`).";
+	bool frame = Rf_inherits(v, "data.frame");
+	SEXP names = Rf_getAttrib(v, R_NamesSymbol);
+	for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
+		SEXP elt = VECTOR_ELT(v, i);
+		if ((frame || TYPEOF(elt) == VECSXP) && FindArray(elt, true, path, cls)) {
+			if (frame && TYPEOF(names) == STRSXP && i < Rf_xlength(names)) {
+				path = "$" + string(CHAR(STRING_ELT(names, i))) + path;
+			} else {
+				path = "[[" + std::to_string(i + 1) + "]]" + path;
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
-// The message refusing a column if IsClassedArray() or IsHighArray(), naming it, or an empty string
-string RApiTypes::ArrayColumnError(SEXP v, const string &name) {
-	auto error = ClassedArrayError(v, "write", "column", name);
-	if (error.empty() && IsHighArray(v)) {
-		error = "Can't write an array of more than two dimensions. Affected column: `" + name + "`.";
+// The message refusing `v` if FindArray(), naming the array by its path from `name`, or an empty string
+static string ArrayError(SEXP v, const string &kind, const string &name, bool column) {
+	string path;
+	const char *cls = nullptr;
+	if (!FindArray(v, column, path, cls)) {
+		return string();
 	}
-	return error;
+	auto affected = "Affected " + kind + ": `" + name + path + "`";
+	if (cls) {
+		return "Can't pass a matrix or array that carries a class to DuckDB. " + affected + " (class `" + cls + "`).";
+	}
+	return "Can't pass an array of more than two dimensions to DuckDB. " + affected + ".";
+}
+
+string RApiTypes::ArrayColumnError(SEXP v, const string &name) {
+	return ArrayError(v, "column", name, true);
+}
+
+string RApiTypes::ArrayParameterError(SEXP v, const string &name) {
+	return ArrayError(v, "parameter", name, false);
 }
 
 LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimental) {

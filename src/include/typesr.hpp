@@ -125,8 +125,8 @@ struct RApiTypes {
 	static RType DetectRType(SEXP v, bool integer64);
 	static bool IsClassedArray(SEXP v);
 	static bool IsHighArray(SEXP v);
-	static string ClassedArrayError(SEXP v, const string &verb, const string &kind, const string &name);
 	static string ArrayColumnError(SEXP v, const string &name);
+	static string ArrayParameterError(SEXP v, const string &name);
 	static LogicalType LogicalTypeFromRType(const RType &rtype, bool experimental);
 	static string DetectLogicalType(const LogicalType &stype, const char *caller);
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);

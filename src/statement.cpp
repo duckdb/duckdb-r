@@ -201,8 +201,8 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 
 	// Refused before the rows are counted in the first parameter
 	for (R_xlen_t param_idx = 0; param_idx < params.size(); param_idx++) {
-		auto error = RApiTypes::ClassedArrayError(params[param_idx], "bind", "parameter",
-		                                          "params[[" + std::to_string(param_idx + 1) + "]]");
+		auto error =
+		    RApiTypes::ArrayParameterError(params[param_idx], "params[[" + std::to_string(param_idx + 1) + "]]");
 		if (!error.empty()) {
 			rapi_error_with_context("rapi_bind", error);
 		}

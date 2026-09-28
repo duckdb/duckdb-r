@@ -494,12 +494,17 @@ expect_column_refused <- function(con, m, affected) {
   expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM appended")$n, 0)
 }
 
-expect_classed_matrix_refused <- function(con, m) {
-  class_note <- paste0(" (class `", class(m)[[1]], "`)")
-  expect_column_refused(con, m, paste0("Affected column: `m`", class_note))
+expect_classed_matrix_refused <- function(con, m, type = class(m)[[1]]) {
+  type_note <- paste0(" (class `", type, "`)")
+  expect_column_refused(con, m, paste0("Affected column: `m`", type_note))
   expect_error(
     dbGetQuery(con, "SELECT $1 AS p", params = list(m)),
-    paste0("Affected parameter: `params[[1]]`", class_note),
+    paste0("Affected parameter: `params[[1]]`", type_note),
+    fixed = TRUE
+  )
+  expect_error(
+    dbGetQuery(con, "SELECT $1 AS p, $2 AS q", params = list(1:2, m)),
+    paste0("Affected parameter: `params[[2]]`", type_note),
     fixed = TRUE
   )
 }
@@ -507,8 +512,9 @@ expect_classed_matrix_refused <- function(con, m) {
 test_that("a matrix that carries a class is refused on every write route", {
   con <- local_con(array = "matrix")
 
-  dates <- as.Date("2024-01-01") + 0:3
-  expect_classed_matrix_refused(con, structure(dates, dim = c(2L, 2L)))
+  dates <- structure(as.Date("2024-01-01") + 0:3, dim = c(2L, 2L))
+  expect_classed_matrix_refused(con, dates)
+  expect_classed_matrix_refused(con, I(dates), "Date")
   times <- as.POSIXct("2024-01-01", tz = "UTC") + 0:3
   expect_classed_matrix_refused(con, structure(times, dim = c(2L, 2L)))
   durations <- as.difftime(c(1, 2, 3, 4), units = "secs")
@@ -517,12 +523,26 @@ test_that("a matrix that carries a class is refused on every write route", {
   expect_classed_matrix_refused(con, structure(levels, dim = c(2L, 2L)))
 })
 
+test_that("an integer-backed classed matrix is refused on every write route", {
+  con <- local_con(array = "matrix")
+
+  expect_classed_matrix_refused(
+    con,
+    structure(1:4, dim = c(2L, 2L), class = "Date")
+  )
+  expect_classed_matrix_refused(
+    con,
+    structure(1:4, dim = c(2L, 2L), class = "difftime", units = "secs")
+  )
+})
+
 test_that("an hms matrix is refused on every write route", {
   skip_if_not_installed("hms")
 
   con <- local_con(array = "matrix")
 
-  expect_classed_matrix_refused(con, structure(hms::hms(1:4), dim = c(2L, 2L)))
+  hms <- structure(hms::hms(1:4), dim = c(2L, 2L))
+  expect_classed_matrix_refused(con, hms, "difftime")
 })
 
 test_that("a classed matrix as the first column is refused before its neighbour is read", {
@@ -544,11 +564,69 @@ test_that("the environment scan refuses a matrix that carries a class", {
   df_classed$m <- structure(as.Date("2024-01-01") + 0:3, dim = c(2L, 2L))
   df_classed$s <- c("a", "b")
 
+  expect_snapshot(error = TRUE, {
+    dbGetQuery(con, "FROM df_classed")
+  })
+})
+
+test_that("rel_from_df() refuses a matrix that carries a class when not strict", {
+  con <- local_con()
+
+  df <- data.frame(m = 1:2)
+  df$m <- structure(as.Date("2024-01-01") + 0:3, dim = c(2L, 2L))
+  df$s <- c("a", "b")
+
+  err <- expect_error(rel_from_df(con, df, strict = FALSE))
+  expect_equal(
+    conditionMessage(err),
+    paste(
+      "Can't pass a matrix or array that carries a class to DuckDB.",
+      "Affected column: `m` (class `Date`)."
+    )
+  )
+})
+
+test_that("an array nested in a data frame is refused by its path", {
+  con <- local_con()
+
+  inner <- data.frame(a = c("x", "y"))
+  inner$m <- structure(as.Date("2024-01-01") + 0:3, dim = c(2L, 2L))
+  inner <- inner[c("m", "a")]
+  df <- data.frame(k = 1:2)
+  df$s <- inner
+  cells <- data.frame(k = 1:2)
+  cells$l <- list(inner, inner)
+
   expect_error(
-    rel_from_sql(con, "FROM df_classed"),
-    "Affected column: `m` (class `Date`)",
+    dbWriteTable(con, "nested", df),
+    "Affected column: `s$m` (class `Date`).",
     fixed = TRUE
   )
+  expect_error(
+    dbGetQuery(con, "SELECT $1 AS p", params = list(inner)),
+    "Affected parameter: `params[[1]]$m` (class `Date`).",
+    fixed = TRUE
+  )
+  expect_error(
+    dbWriteTable(con, "cells", cells),
+    "Affected column: `l[[1]]$m` (class `Date`).",
+    fixed = TRUE
+  )
+
+  inner$m <- array(1:8, c(2L, 2L, 2L))
+  df$s <- inner
+  expect_error(
+    dbWriteTable(con, "nested", df),
+    "more than two dimensions to DuckDB. Affected column: `s$m`.",
+    fixed = TRUE
+  )
+  expect_error(
+    dbGetQuery(con, "SELECT $1 AS p", params = list(inner)),
+    "more than two dimensions to DuckDB. Affected parameter: `params[[1]]$m`.",
+    fixed = TRUE
+  )
+  expect_false(dbExistsTable(con, "nested"))
+  expect_false(dbExistsTable(con, "cells"))
 })
 
 test_that("a plain integer matrix still writes INTEGER[2]", {
@@ -587,8 +665,35 @@ test_that("an array of more than two dimensions is refused as a column", {
   expect_column_refused(
     con,
     array(1:8, c(2L, 2L, 2L)),
-    "Can't write an array of more than two dimensions. Affected column: `m`."
+    "Can't pass an array of more than two dimensions to DuckDB. Affected column: `m`."
   )
+})
+
+test_that("a classed matrix or a larger array without values is refused", {
+  con <- local_con()
+
+  expect_column_refused(
+    con,
+    structure(as.Date(integer(0)), dim = c(2L, 0L)),
+    "Affected column: `m` (class `Date`)."
+  )
+  expect_column_refused(
+    con,
+    array(integer(0), c(2L, 0L, 3L)),
+    "Can't pass an array of more than two dimensions to DuckDB. Affected column: `m`."
+  )
+})
+
+test_that("an array of more than two dimensions with one value per row still writes", {
+  con <- local_con()
+
+  df <- data.frame(s = c("a", "b"))
+  df$m <- array(1:2, c(2L, 1L, 1L))
+  dbWriteTable(con, "tbl", df)
+
+  types <- dbGetQuery(con, "SELECT DISTINCT typeof(m) AS type FROM tbl")$type
+  expect_equal(types, "INTEGER")
+  expect_equal(dbReadTable(con, "tbl")$m, 1:2)
 })
 
 test_that("an array of more than two dimensions still binds and nests as its values", {
