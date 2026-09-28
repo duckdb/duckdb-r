@@ -29,10 +29,13 @@ so a bump on `main` moves nothing under it and only the R-side drift counts.
 
 ## Create the forward series
 
-Bootstrap first, populate second —
-like any series,
-the four `-fwd` refs start **equal** at the regenerated seed tip;
-the replay then populates `<S>-fwd-build`.
+Build locally, push once.
+The seed and the replay happen on local branches,
+and the four `-fwd` refs go up in one `git push --atomic`:
+`<S>-fwd-build` at the replay's tip, the other three at the seed tip,
+as `series-open/SKILL.md` and `series-rebase/SKILL.md` push theirs.
+A `-fwd-build` pushed at the seed before the replay is a series the loop can find,
+and it would start vendoring onto that ref while the replay is still writing it.
 
 1. **`<S>-fwd-build`**: rebuild `<S>-build` on current `main`.
    Regenerate the seed — `scripts/flavor.sh <F>`, plus a separate
@@ -51,7 +54,7 @@ the replay then populates `<S>-fwd-build`.
    the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
    so every picked commit inherits whatever the seed was stamped with
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
+   Stamp it in the fifth-component commit, before the replay reads it back.
    The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
    previewing 2.0 is `1.99.99.9000`.
 
@@ -154,10 +157,14 @@ the replay then populates `<S>-fwd-build`.
    The script names each one and stops before writing anything.
    Work through them in this order:
 
-   1. **Read it.** The refusal rests on two cheap tests,
-      so a change the new base carries in a shape neither recognises
+   1. **Read it.** The refusal rests on three cheap tests,
+      so a change the new base carries in a shape none of them recognises
       is listed too; confirm by reading the base for its effect.
       If it is there, the commit is done.
+      A tooling sync that `main` has moved past since is the common case,
+      and so is one that synced `scripts/flavor.patch`, which the seed rewrites.
+      `git diff --quiet <S>-build main -- $(git show --name-only --format= <sha>)`
+      settles both: every file the commit touched is `main`'s today, and the seed carries `main`.
    2. **Find the commit it belongs to** —
       the first whose tree carries the code it answers, never the commit
       it was written at
@@ -176,7 +183,10 @@ the replay then populates `<S>-fwd-build`.
       which is how it finds its place on a later resume.
    5. **Verify by tree.**
       `git diff --name-only <S>-build <S>-fwd-build -- src/duckdb patch/`
-      must be empty.
+      must be empty, save for the patches `main` added after the old seed.
+      Those arrive with the new seed and belong there:
+      each shows up as its `patch/` file and the vendored files it changes,
+      and the diff over those files must be the diff of the `main` commit that added it.
       This is the check that catches everything above going wrong,
       including a fold that landed in the wrong place.
    `DESCRIPTION` merges on every commit,
