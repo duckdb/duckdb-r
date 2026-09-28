@@ -36,3 +36,5 @@
 
 #include "src/planner/expression/legacy_bound_comparison_expression.cpp"
 
+#include "src/planner/expression/window_range_info.cpp"
+

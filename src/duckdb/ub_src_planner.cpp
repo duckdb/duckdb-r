@@ -4,8 +4,6 @@
 
 #include "src/planner/binding_alias.cpp"
 
-#include "src/planner/bound_expression_sql_exporter.cpp"
-
 #include "src/planner/bound_parameter_map.cpp"
 
 #include "src/planner/bound_result_modifier.cpp"
