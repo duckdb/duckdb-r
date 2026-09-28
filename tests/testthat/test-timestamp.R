@@ -402,6 +402,21 @@ test_that("`time = \"hms\"` no longer appends an hms to an INTERVAL column", {
   )
 })
 
+test_that("`time = \"hms\"` appends Arrow's time32 to a TIME column", {
+  skip_if_not_installed("hms")
+  skip_if_not_installed("nanoarrow")
+
+  con <- local_con(time = "hms")
+
+  # nanoarrow infers `time32("ms")` for an `hms`
+  stream <- function() {
+    nanoarrow::as_nanoarrow_array_stream(data.frame(a = hms::hms(3723)))
+  }
+  dbCreateTableArrow(con, "tbl", stream())
+  dbAppendTableArrow(con, "tbl", stream())
+  expect_identical(dbReadTable(con, "tbl")$a, hms::hms(3723))
+})
+
 test_that("`time = \"hms\"` appends Arrow's time64 to a TIME column", {
   skip_if_not_installed("hms")
   skip_if_not_installed("nanoarrow")
@@ -409,11 +424,22 @@ test_that("`time = \"hms\"` appends Arrow's time64 to a TIME column", {
   con <- local_con(time = "hms")
 
   stream <- function() {
-    nanoarrow::as_nanoarrow_array_stream(data.frame(a = hms::hms(3723)))
+    array <- nanoarrow::as_nanoarrow_array(
+      data.frame(a = hms::hms(3723.5)),
+      schema = nanoarrow::na_struct(list(a = nanoarrow::na_time64("us")))
+    )
+    nanoarrow::basic_array_stream(list(array))
   }
   dbCreateTableArrow(con, "tbl", stream())
+  expect_identical(
+    dbGetQuery(
+      con,
+      "SELECT data_type FROM duckdb_columns() WHERE table_name = 'tbl'"
+    )$data_type,
+    "TIME"
+  )
   dbAppendTableArrow(con, "tbl", stream())
-  expect_identical(dbReadTable(con, "tbl")$a, hms::hms(3723))
+  expect_identical(dbReadTable(con, "tbl")$a, hms::hms(3723.5))
 })
 
 test_that("`time = \"hms\"` needs the hms package", {
