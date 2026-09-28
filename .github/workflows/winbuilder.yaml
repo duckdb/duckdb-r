@@ -1,3 +1,5 @@
+# Derived from igraph/rigraph's .github/workflows/winbuilder.yaml at fe3538b925.
+#
 # Uploads the source package to win-builder (https://win-builder.r-project.org),
 # which checks it on Windows and mails the result to the maintainer in DESCRIPTION
 # 15 to 30 minutes later.
