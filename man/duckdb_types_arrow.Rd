@@ -242,24 +242,7 @@ Convert it with \code{sf::st_as_sfc()} first, or keep it in Arrow.
 }
 
 \section{Limitations and reference}{
-\itemize{
-\item \code{VARIANT} has no Arrow export.
-\item The default export writes a \code{UHUGEINT} of 2^127 or more as a negative number, without an error;
-\code{arrow_lossless_conversion} carries it as a type neither R reader converts.
-\item Neither reader converts \code{INTERVAL}; arrow converts no \code{UNION}, no view layout and none of the lossless extension types,
-and nanoarrow no \code{list_view}.
-\item Only \code{duckdb_register_arrow()} and \code{arrow::to_duckdb()} keep Arrow's types on the way in:
-the DBI Arrow write methods and \code{dbBindArrow()} convert through R, and \code{dbBindArrow()} refuses named fields.
-\item \code{duckdb_register_arrow()} needs the arrow package and refuses a nanoarrow stream, and a registered reader is scanned once.
-\item DuckDB refuses \code{half_float}, \code{decimal256} and \code{dense_union}, reads \code{interval_day_time} wrong,
-and lands a dictionary as \code{VARCHAR}, never as \code{ENUM}.
-\item Through Arrow, \code{hms} writes \code{TIME} truncated to milliseconds or seconds, and \code{POSIXct} writes \code{TIMESTAMPTZ}.
-\item \code{arrow::to_duckdb()} fails on Arrow data that lands as a type R cannot hold, and \code{to_arrow()} on a table holding one.
-\item The routes behind \code{dbSendQuery(arrow = TRUE)}, \code{arrow::to_arrow()} among them, fail on a \code{GEOMETRY} column with a CRS.
-\item Of the GeoArrow encodings, only WKB lands as \code{GEOMETRY}.
-\item A \code{geoarrow_vctr} column writes its integer indices through \code{dbWriteTable()} and \code{dbWriteTableArrow()}.
-\item The \code{spatial} extension's own types lose their alias through Arrow.
-}
+The limitations are listed in the handbook, in \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md}{\verb{usage/arrow-types/}}.
 
 The routes through R vectors are documented in \link{duckdb_types},
 and how a stream behaves, when it drains and what invalidates it, is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{integrations/}}'s.

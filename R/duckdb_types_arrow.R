@@ -228,22 +228,7 @@
 #'
 #' # Limitations and reference
 #'
-#' * `VARIANT` has no Arrow export.
-#' * The default export writes a `UHUGEINT` of 2^127 or more as a negative number, without an error;
-#'   `arrow_lossless_conversion` carries it as a type neither R reader converts.
-#' * Neither reader converts `INTERVAL`; arrow converts no `UNION`, no view layout and none of the lossless extension types,
-#'   and nanoarrow no `list_view`.
-#' * Only `duckdb_register_arrow()` and `arrow::to_duckdb()` keep Arrow's types on the way in:
-#'   the DBI Arrow write methods and `dbBindArrow()` convert through R, and `dbBindArrow()` refuses named fields.
-#' * `duckdb_register_arrow()` needs the arrow package and refuses a nanoarrow stream, and a registered reader is scanned once.
-#' * DuckDB refuses `half_float`, `decimal256` and `dense_union`, reads `interval_day_time` wrong,
-#'   and lands a dictionary as `VARCHAR`, never as `ENUM`.
-#' * Through Arrow, `hms` writes `TIME` truncated to milliseconds or seconds, and `POSIXct` writes `TIMESTAMPTZ`.
-#' * `arrow::to_duckdb()` fails on Arrow data that lands as a type R cannot hold, and `to_arrow()` on a table holding one.
-#' * The routes behind `dbSendQuery(arrow = TRUE)`, `arrow::to_arrow()` among them, fail on a `GEOMETRY` column with a CRS.
-#' * Of the GeoArrow encodings, only WKB lands as `GEOMETRY`.
-#' * A `geoarrow_vctr` column writes its integer indices through `dbWriteTable()` and `dbWriteTableArrow()`.
-#' * The `spatial` extension's own types lose their alias through Arrow.
+#' The limitations are listed in the handbook, in [`usage/arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md).
 #'
 #' The routes through R vectors are documented in [duckdb_types],
 #' and how a stream behaves, when it drains and what invalidates it, is [`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md)'s.

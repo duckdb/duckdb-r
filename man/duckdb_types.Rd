@@ -184,39 +184,7 @@ Its text reads and writes it exactly.
 }
 
 \section{Limitations and reference}{
-\itemize{
-\item \code{BIT}, \code{BIGNUM}, \code{TIME_NS} and \code{UNION} have no R vector, so \code{dbGetQuery()} and \code{\link[DBI:dbExecute]{dbExecute()}} refuse a column of one, or of anything nesting one,
-before the statement runs, and \code{\link[dplyr:tbl]{dplyr::tbl()}} cannot open a table holding one.
-\item An \code{ARRAY} column under the default \code{array = "none"} is refused only once the statement has run,
-so an \verb{INSERT ... RETURNING} of one has inserted its rows by the time it fails.
-\item \code{HUGEINT}, \code{UHUGEINT} and \code{DECIMAL} past a double's precision, and \code{BIGINT} and \code{UBIGINT} past 2^53, read as rounded doubles;
-under \code{bigint = "integer64"}, a \code{UBIGINT} of 2^63 reads as \code{NA}, and one past it wraps to a negative number.
-\item \code{TIMESTAMP_NS} reads to the microsecond, \code{TIMETZ} without its offset,
-\code{INTERVAL} with a month as 30 days and a day as 24 hours, and \code{infinity} as a distant finite date or instant.
-\item \code{NaN}, \code{Inf} and \code{-Inf} in a \code{Date}, \code{difftime} or \code{POSIXct} stored as double write as far-off negative values, not as \code{NULL} or infinity:
-on x86_64, the \code{DATE} 5877642-06-23 (BC), an \code{INTERVAL} of -106751991 days, and a \code{TIMESTAMP} no cast to \code{VARCHAR} accepts,
-because only \code{NA} is taken for missing.
-\item A \code{POSIXct} stored as integer writes, binds and creates \code{INTEGER}, not \code{TIMESTAMP}, and reads back as \code{integer}.
-\item \code{TIME}, \code{TIMETZ}, \code{GEOMETRY} and \code{VARIANT} do not write back as themselves from the value R reads,
-and no R class writes \code{TIME} outside Arrow.
-\item An \code{sf} object or \code{sfc} column is not written, and a \code{POINT} column writes silently as \code{DOUBLE[]}.
-\item WKB has no cast to \code{GEOMETRY}, from a \code{BLOB} column or a \code{wk_wkb} one;
-naming a CRS in a type needs \code{spatial} loaded, and \verb{ALTER ... SET DATA TYPE GEOMETRY} drops the CRS.
-\item \code{\link[sf:st_read]{sf::st_read()}} of a table does not recognize a \code{GEOMETRY} column, and returns a data frame.
-\item \code{MAP} does not write from its text through \code{field.types} or \code{dbAppendTable()},
-an \code{ordered} factor writes an unordered \code{ENUM}, and a \code{factor} parameter binds as \code{VARCHAR}.
-\item A raw vector column is refused with a message naming neither the column nor its class.
-\item \code{\link[DBI:dbCreateTable]{dbCreateTable()}} takes its column types from \code{\link[DBI:dbDataType]{dbDataType()}},
-which says \code{TIME} for \code{difftime} and \code{hms}, \code{DOUBLE} for \code{integer64}, \code{VARCHAR} for \code{factor}, and the element type for a matrix,
-where the write routes give \code{INTERVAL}, \code{BIGINT}, \code{ENUM} and \code{ARRAY},
-so a \code{difftime} column fails to append to the table it created.
-For a data frame column, \code{dbDataType()} gives its field's type when it has one field and fails when it has several,
-and \code{dbCreateTable()} and \code{sqlCreateTable()} with it, where \code{dbWriteTable()} writes a \code{STRUCT}.
-\item Attribute classes do not cross, in either direction, through Arrow too:
-a \code{units} column writes plain \code{DOUBLE} and reads back plain \code{numeric}, and nothing warns
-(\href{https://github.com/duckdb/duckdb-r/issues/590}{#590}).
-\item \code{rel_from_df()}, which duckplyr builds on, refuses some columns rather than converting them.
-}
+The limitations are listed in the handbook, in \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md}{\verb{usage/types/}}.
 
 The mapping is implemented in \href{https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp}{\code{src/types.cpp}} (R vector to \code{LogicalType}) and \href{https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp}{\code{src/transform.cpp}} (the way back).
 The list of types is DuckDB's own \href{https://duckdb.org/docs/current/sql/data_types/overview}{documentation} for the release vendored here,

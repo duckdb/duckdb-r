@@ -4,13 +4,14 @@
 #
 # Each page is one leaf, rendered for someone reading R's help rather than
 # the handbook. The leaf's opening sentence is the description, and its
-# sections are the page's sections, down to its `## Limitations`, which
-# becomes the closing section, "Limitations and reference", followed by the
-# rest of the leaf's opening and any sentence that only points into the
-# repository. Left out: the leaf's heading, its deepen line, and a paragraph
-# that names this script, which is about the pages rather than in them.
+# sections are the page's sections, down to its `## Limitations`, which the
+# page does not repeat: the closing section, "Limitations and reference",
+# points to the leaf for them, followed by the rest of the leaf's opening
+# and any sentence that only points into the repository. Left out: the
+# leaf's heading, its deepen line, and a paragraph that names this script,
+# which is about the pages rather than in them.
 #
-# In the sections and the limitations, a clause citing a file ("pinned by",
+# In the sections, a clause citing a file ("pinned by",
 # "set in") and a link in parentheses to a path in the repository are
 # dropped; a sentence still pointing into the repository moves to the
 # closing section, and one that opens its entry is an error, to be
@@ -180,7 +181,7 @@ sentences <- function(block) {
   unname(split(block, factor(groups, levels = unique(groups))))
 }
 
-# A section or limitations block, for the page: its links rewritten, and a
+# A section, for the page: its links rewritten, and a
 # sentence still pointing into the repository moved out, into `moved`.
 moved <- character()
 for_page <- function(block, dir) {
@@ -271,21 +272,29 @@ render <- function(page) {
   }
   opening <- blocks[seq_len(sections[[1]] - 1)]
   body <- blocks[sections[[1]]:(limits - 1)]
-  limitations <- blocks[-seq_len(limits)]
 
   # The description is the leaf's opening sentence; the rest of the opening
   # says where the page stands in the repository, and closes the page.
   first <- opening[[1]]
   sentence_end <- which(endsWith(first, "."))[[1]]
   description <- first[seq_len(sentence_end)]
-  reference <- c(first[-seq_len(sentence_end)], unlist(opening[-1]))
+  reference <- c(
+    sprintf(
+      "The limitations are listed in the handbook, in [`%s/`](%s/blob/main/%s/README.md).",
+      sub("^handbook/", "", page$leaf),
+      github,
+      page$leaf
+    ),
+    "",
+    first[-seq_len(sentence_end)],
+    unlist(opening[-1])
+  )
 
   as_lines <- function(blocks) unlist(lapply(blocks, function(b) c(b, "")))
   body <- as_lines(lapply(body, function(b) {
     # A leaf's sections are the page's sections, one level up.
     sub("^### ", "## ", sub("^## ", "# ", for_page(b, page$leaf)))
   }))
-  limitations <- as_lines(lapply(limitations, for_page, dir = page$leaf))
   if (length(moved)) {
     reference <- c(reference, "", moved)
   }
@@ -295,7 +304,7 @@ render <- function(page) {
     fixed = TRUE
   )[[1]]
 
-  details <- c(body, "# Limitations and reference", "", limitations, reference)
+  details <- c(body, "# Limitations and reference", "", reference)
   all <- link_functions(c(description, "", details))
   # Roxygen reads @ as a tag.
   # Rd reads % as a comment, but markdown roxygen escapes it already:

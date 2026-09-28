@@ -179,7 +179,7 @@ The DBI Arrow API plan is
 **`to_arrow_stream()` is better than nothing, within hard limits.**
 The package exports that reader as the experimental `to_arrow_stream()` ([`R/to_arrow_stream.R`](/R/to_arrow_stream.R)).
 It holds a large result once where `to_arrow()` holds it twice, but it is no drop-in replacement.
-Its reference page lists the same limits.
+Its reference page points here for them.
 The reader is its connection's open result until it has been read to the end:
 
 * Any other statement on that connection breaks it, and the next read fails with the invalidation error.
@@ -201,6 +201,8 @@ It sees neither the first connection's temporary tables nor its open transaction
 ([`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md)).
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) would let a result own such a connection (`isolated = TRUE`).
 That would lift the first four.
+The reader keeps the database instance open until it is garbage-collected, even once it has been read to the end
+([`connections/`](/handbook/usage/connections/README.md)).
 
 ## ADBC
 
