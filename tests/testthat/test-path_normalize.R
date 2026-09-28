@@ -55,6 +55,10 @@ test_that("a symlinked database resolves to its target", {
 test_that("a symlink to a database yet to be created shares one instance", {
   # The link resolves only once the engine has created its target, so the key
   # taken before the open is not the one every later call computes.
+  # Symlinks are out of scope on Windows, where creating one needs admin rights
+  # or Developer Mode, and the engine does not open a link to a missing target.
+  # See handbook/usage/connections/README.md.
+  skip_on_os("windows")
   dir <- withr::local_tempdir()
   target <- file.path(dir, "target.duckdb")
   link <- file.path(dir, "link.duckdb")

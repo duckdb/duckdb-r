@@ -106,6 +106,9 @@ driver_registry <- new.env(parent = emptyenv())
 #' and two spellings of one database (a relative path, a symlink, a different separator)
 #' share an instance instead of each opening their own.
 #' A path that resolves no further is used as it stands rather than refused.
+#' Symbolic links are not supported on Windows,
+#' where creating one takes administrator rights or Developer Mode:
+#' there, a symlink to a database that does not exist yet fails to open.
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
