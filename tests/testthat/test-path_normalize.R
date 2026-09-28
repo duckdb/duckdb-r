@@ -117,6 +117,17 @@ test_that("a database in a directory that does not exist fails in `duckdb()`, na
   expect_null(driver_registry[[path_normalize(path)]])
 })
 
+test_that("a database in a directory that does not exist fails in `dbConnect()`, naming it", {
+  # `dbConnect()` creates the instance for a `dbdir` of its own through `duckdb()`,
+  # called under the name `dbConnect`, so the error names the user's call.
+  path <- file.path(withr::local_tempdir(), "no-such-directory", "db.duckdb")
+  open <- function() dbConnect(duckdb(), dbdir = path)
+
+  err <- expect_error(open(), "no-such-directory", fixed = TRUE)
+  expect_identical(conditionCall(err)[[1]], quote(dbConnect))
+  expect_null(driver_registry[[path_normalize(path)]])
+})
+
 test_that("two spellings of one database share an instance", {
   # Not a reuse optimization: the engine does not refuse a second read-write
   # instance on a file this process already holds, and two of them diverge
