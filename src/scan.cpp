@@ -479,7 +479,7 @@ identifier_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 	return output;
 }
 
-static bool get_integer64_param(named_parameter_map_t &named_parameters) {
+static bool get_integer64_param(named_argument_map_t &named_parameters) {
 	auto entry = named_parameters.find("integer64");
 	if (entry != named_parameters.end()) {
 		return BooleanValue::Get(entry->second);
@@ -487,7 +487,7 @@ static bool get_integer64_param(named_parameter_map_t &named_parameters) {
 	return false;
 }
 
-static bool get_experimental_param(named_parameter_map_t &named_parameters) {
+static bool get_experimental_param(named_argument_map_t &named_parameters) {
 	auto entry = named_parameters.find("experimental");
 	if (entry != named_parameters.end()) {
 		return BooleanValue::Get(entry->second);
@@ -495,7 +495,7 @@ static bool get_experimental_param(named_parameter_map_t &named_parameters) {
 	return false;
 }
 
-static bool get_map_list_of_param(named_parameter_map_t &named_parameters) {
+static bool get_map_list_of_param(named_argument_map_t &named_parameters) {
 	auto entry = named_parameters.find("map_list_of");
 	if (entry != named_parameters.end()) {
 		return BooleanValue::Get(entry->second);
@@ -568,7 +568,7 @@ static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_
 
 struct DataFrameScanBindData : public TableFunctionData {
 	DataFrameScanBindData(SEXP df_p, idx_t row_count_p, vector<RType> &rtypes_p, vector<data_ptr_t> &dataptrs_p,
-	                      vector<bool> &named_list_map_p, named_parameter_map_t &named_parameters)
+	                      vector<bool> &named_list_map_p, named_argument_map_t &named_parameters)
 	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p), named_list_map(named_list_map_p) {
 		integer64 = get_integer64_param(named_parameters);
 		experimental = get_experimental_param(named_parameters);
@@ -744,9 +744,10 @@ DataFrameScanFunction::DataFrameScanFunction()
                     DataFrameScanInitGlobal, DataFrameScanInitLocal) {
 	cardinality = DataFrameScanCardinality;
 	to_string = DataFrameScanToString;
-	named_parameters["integer64"] = LogicalType::BOOLEAN;
-	named_parameters["experimental"] = LogicalType::BOOLEAN;
-	named_parameters["map_list_of"] = LogicalType::BOOLEAN;
+	GetSignature()
+	    .AddKeywordOnly("integer64", LogicalType::BOOLEAN, Value::BOOLEAN(false))
+	    .AddKeywordOnly("experimental", LogicalType::BOOLEAN, Value::BOOLEAN(false))
+	    .AddKeywordOnly("map_list_of", LogicalType::BOOLEAN, Value::BOOLEAN(false));
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

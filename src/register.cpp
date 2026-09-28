@@ -48,9 +48,10 @@ using namespace duckdb;
 		named_parameter_map_t parameter_map;
 		// An integer64 column registers as BIGINT whatever `bigint` says about reading;
 		// read as NUMERIC, its bits would be taken for doubles (handbook/usage/types/README.md).
-		parameter_map["integer64"] = true;
-		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
-		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
+		parameter_map["integer64"] = Value::BOOLEAN(true);
+		parameter_map["experimental"] =
+		    Value::BOOLEAN(convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED);
+		parameter_map["map_list_of"] = Value::BOOLEAN(convert_opts.map == ConvertOpts::MapShape::LIST_OF);
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(Identifier(name), overwrite, true);
