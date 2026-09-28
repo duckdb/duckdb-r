@@ -20,6 +20,22 @@
 
 using namespace duckdb;
 
+// The named parameters of `r_dataframe_scan` for a connection's options,
+// which duckdb_register() and the environment scan both pass, so that a data frame writes the same through either
+static named_parameter_map_t DataFrameScanParameters(const ConvertOpts &convert_opts) {
+	named_parameter_map_t parameter_map;
+	// An integer64 column registers as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for doubles (handbook/usage/types/README.md).
+	parameter_map["integer64"] = true;
+	parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
+	parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
+	// An hms writes TIME rather than INTERVAL with `time = "hms"` (handbook/usage/types/README.md)
+	parameter_map["time_hms"] = convert_opts.time == ConvertOpts::TimeConversion::HMS;
+	// A lubridate Period writes INTERVAL with `interval = "Period"`
+	parameter_map["interval_period"] = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+	return parameter_map;
+}
+
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
                                           duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
@@ -46,17 +62,7 @@ using namespace duckdb;
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	try {
-		named_parameter_map_t parameter_map;
-		// An integer64 column registers as BIGINT whatever `bigint` says about reading;
-		// read as NUMERIC, its bits would be taken for doubles (handbook/usage/types/README.md).
-		parameter_map["integer64"] = true;
-		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
-		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
-		// An hms writes TIME rather than INTERVAL with `time = "hms"` (handbook/usage/types/README.md)
-		parameter_map["time_hms"] = time_hms;
-		// A lubridate Period writes INTERVAL with `interval = "Period"`
-		parameter_map["interval_period"] = interval_period;
-
+		auto parameter_map = DataFrameScanParameters(convert_opts);
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
 
@@ -129,7 +135,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	}
 
 	// The data frame writes as with duckdb_register() on the connection the query runs on:
-	// with its `time` and `interval`, and refused where rapi_register_df() refuses it
+	// with the parameters it passes, and refused where rapi_register_df() refuses it
 	auto opts_state = context.registered_state->Get<RConvertOptsState>(RConvertOptsState::KEY);
 	auto convert_opts = opts_state ? opts_state->convert_opts : ConvertOpts();
 	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
@@ -155,12 +161,11 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
 	// Named parameters, as `name => value` passes them
-	auto time_hms_param = make_uniq<ConstantExpression>(Value::BOOLEAN(time_hms));
-	time_hms_param->SetAlias("time_hms");
-	children.push_back(std::move(time_hms_param));
-	auto interval_period_param = make_uniq<ConstantExpression>(Value::BOOLEAN(interval_period));
-	interval_period_param->SetAlias("interval_period");
-	children.push_back(std::move(interval_period_param));
+	for (auto &parameter : DataFrameScanParameters(convert_opts)) {
+		auto child = make_uniq<ConstantExpression>(parameter.second);
+		child->SetAlias(parameter.first);
+		children.push_back(std::move(child));
+	}
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 
 	// Signal that this table reference depends on external state (the R data

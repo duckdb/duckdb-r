@@ -92,6 +92,25 @@ test_that("Data frame scan writes with the connection's `time` and `interval`, a
   )
 })
 
+test_that("Data frame scan writes integer64 and named lists as duckdb_register() does", {
+  skip_if_not_installed("bit64")
+
+  x <- data.frame(i = bit64::as.integer64(5))
+  x$m <- list(list(a = 1))
+  types <- "SELECT typeof(i) AS ti, i::VARCHAR AS i, typeof(m) AS tm FROM %s"
+
+  # integer64 writes BIGINT whatever `bigint` says, and named lists write map entries under `map = "list_of"`
+  con <- local_con(drv = duckdb(environment_scan = TRUE), map = "list_of")
+  duckdb_register(con, "registered", x)
+  expected <- data.frame(
+    ti = "BIGINT",
+    i = "5",
+    tm = 'STRUCT("key" VARCHAR, "value" DOUBLE)[]'
+  )
+  expect_identical(dbGetQuery(con, sprintf(types, "registered")), expected)
+  expect_identical(dbGetQuery(con, sprintf(types, "x")), expected)
+})
+
 test_that("Data frame scan refuses a data frame without columns or names, and the connection stays usable", {
   con <- local_con(drv = duckdb(environment_scan = TRUE))
 
