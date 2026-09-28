@@ -71,14 +71,15 @@ Arrow, registered with <code><a href="duckdb_register_arrow.html">duckdb_registe
 <code>integer</code> writes <code>INTEGER</code>, and <code>field.types</code> names the narrower type.</p></li>
 <li><p><strong><code>INTEGER</code></strong> (<code>INT4</code>, <code>INT</code>, <code>SIGNED</code>) reads as <code>integer</code>, exactly but for the minimum, and <code>integer</code> writes it.</p></li>
 <li><p><strong><code>UINTEGER</code></strong> reads as <code>numeric</code>, exactly; <code>numeric</code> writes <code>DOUBLE</code>, and <code>field.types</code> names <code>UINTEGER</code>.</p></li>
-<li><p><strong><code>BIGINT</code></strong> (<code>INT8</code>, <code>LONG</code>) reads as <code>numeric</code>, exact up to 2^53,
-or with <code>bigint = "integer64"</code> as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, exact but for the minimum.
+<li><p><strong><code>BIGINT</code></strong> (<code>INT8</code>, <code>LONG</code>) reads as <code>numeric</code>, exact up to 2^53, and its rounding past that is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
+With <code>bigint = "integer64"</code> it reads as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, exact but for the minimum.
 An <code>integer64</code> column or parameter writes <code>BIGINT</code> whatever <code>bigint</code> says.</p></li>
-<li><p><strong><code>UBIGINT</code></strong> reads as <code>numeric</code>, or with <code>bigint = "integer64"</code> as <code>integer64</code>, which holds the values below 2^63.
+<li><p><strong><code>UBIGINT</code></strong> reads as <code>numeric</code>, exact up to 2^53, and its rounding past that is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
+With <code>bigint = "integer64"</code> it reads as <code>integer64</code>, which holds the values below 2^63.
 Below 2^63, the <code>integer64</code> it reads as writes it back through <code>field.types</code>, and its text writes any value.</p></li>
 <li><p><strong><code>HUGEINT</code>, <code>UHUGEINT</code></strong> read as <code>numeric</code>, and <code>bigint</code> does not change that; their rounding is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
 Their text is exact both ways.</p></li>
-<li><p><strong><code>BIGNUM</code></strong> (<code>VARINT</code>) reads and writes through its text, and through Arrow.</p></li>
+<li><p><strong><code>BIGNUM</code></strong> (<code>VARINT</code>) reads and writes through its text, and Arrow writes it (see <a href="duckdb_types_arrow.html">duckdb_types_arrow</a>).</p></li>
 <li><p><strong><code>DECIMAL(width, scale)</code></strong> (<code>NUMERIC</code>) reads as <code>numeric</code> at every width; its rounding is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
 Its text is exact both ways, and Arrow writes it exactly.</p></li>
 <li><p><strong><code>FLOAT</code></strong> (<code>REAL</code>) and <strong><code>DOUBLE</code></strong> read as <code>numeric</code>, and <code>numeric</code> writes <code>DOUBLE</code>.
@@ -100,10 +101,11 @@ A <code><a href="https://blob.tidyverse.org/reference/blob.html" class="external
     <p>The <a href="https://duckdb.org/docs/current/sql/data_types/date" class="external-link">date</a>, <a href="https://duckdb.org/docs/current/sql/data_types/time" class="external-link">time</a>,
 <a href="https://duckdb.org/docs/current/sql/data_types/timestamp" class="external-link">timestamp</a> and <a href="https://duckdb.org/docs/current/sql/data_types/interval" class="external-link">interval</a> types:</p><ul><li><p><strong><code>DATE</code></strong> reads as <code>Date</code>, and a <code>Date</code> writes it, stored as double or as integer.</p></li>
 <li><p><strong><code>TIME</code></strong> reads as <code>difftime</code> in seconds.
-Its text writes it through <code>field.types</code>, and so does Arrow.</p></li>
+Its text writes it through <code>field.types</code>, and so does Arrow (see <a href="duckdb_types_arrow.html">duckdb_types_arrow</a>).</p></li>
 <li><p><strong><code>TIME_NS</code></strong> reads through Arrow, and to the microsecond through a cast to <code>TIME</code> in the query.
 Its text writes it, and so does Arrow.</p></li>
 <li><p><strong><code>TIMETZ</code></strong> (<code>TIME WITH TIME ZONE</code>) reads as the <code>difftime</code> of its local time.
+The offset it drops is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
 Its text writes it.</p></li>
 <li><p><strong><code>TIMESTAMP_S</code>, <code>TIMESTAMP_MS</code>, <code>TIMESTAMP</code></strong> (<code>DATETIME</code>) read as <code>POSIXct</code>.
 <code>POSIXct</code> writes <code>TIMESTAMP</code>, the instant in UTC, and <code>field.types</code> names the other precisions.</p></li>
@@ -121,19 +123,18 @@ A <code>difftime</code> in any unit, or an <code>hms</code>, writes <code>INTERV
 and the <a href="https://duckdb.org/docs/current/sql/data_types/overview" class="external-link">nested</a> ones:</p><ul><li><p><strong><code>ENUM</code></strong> reads as <code>factor</code>, with every value of the type as a level.
 A <code>factor</code> or <code>ordered</code> column writes <code>ENUM</code> of its levels; a <code>factor</code> parameter binds as <code>VARCHAR</code>.</p></li>
 <li><p><strong><code>ARRAY</code></strong> (<code>INTEGER[3]</code>) reads with <code>array = "matrix"</code>, as a matrix with a row per value.
-A <code>NULL</code> array reads as a row of <code>NA</code>, the same as an array of <code>NULL</code>s.
 A matrix column writes it.</p></li>
 <li><p><strong><code>LIST</code></strong> (<code>INTEGER[]</code>) reads as a list of vectors, <code>NULL</code> for a <code>NULL</code> row, and a list column whose elements share a type writes it.</p></li>
 <li><p><strong><code>MAP</code></strong> reads as a list of <code>data.frame(key, value)</code>, which writes a list of structs unless <code>field.types</code> names the map.
 With <code>map = "list_of"</code>, the <code><a href="https://vctrs.r-lib.org/reference/list_of.html" class="external-link">vctrs::list_of()</a></code> it reads as writes back as <code>MAP</code> without <code>field.types</code>
 (<a href="https://github.com/duckdb/duckdb-r/issues/200" class="external-link">#200</a>).
 Its text casts to <code>MAP</code> in the query and as a parameter.</p></li>
-<li><p><strong><code>STRUCT</code></strong> (<code>ROW</code>) reads as a data frame column, where a <code>NULL</code> struct is a row of <code>NA</code>, the same as a struct of <code>NULL</code>s.
+<li><p><strong><code>STRUCT</code></strong> (<code>ROW</code>) reads as a data frame column.
 A data frame column writes it, and a data frame parameter binds a struct per row.</p></li>
 <li><p><strong><code>UNION</code></strong> reads in the query through <code>union_tag()</code>, <code>union_extract()</code> or a cast to <code>VARCHAR</code>, and an Arrow result carries it.
 A column of a member's type writes it through <code>field.types</code>, which picks that member; text picks the <code>VARCHAR</code> member.</p></li>
 <li><p><strong><code>VARIANT</code></strong> reads as a list, each value converted by its own type.
-A column of the value's type writes it through <code>field.types</code>; the list it reads as writes as a <code>LIST</code> inside the variant.</p></li>
+A column of the value's type writes it through <code>field.types</code>.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="geometry">Geometry<a class="anchor" aria-label="anchor" href="#geometry"></a></h2>
@@ -142,7 +143,7 @@ and the <code>spatial</code> extension's own types:</p><ul><li><p><strong><code>
 With <code>geometry = "blob"</code>, the default, it reads as a list of raw vectors;
 with <code>geometry = "wk"</code>, as <code>wk_wkb</code>, carrying the column's CRS as an attribute, which <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> converts onward, CRS included.
 The type is core since DuckDB 1.5, so reading one needs no extension;
-the geometry functions are the <code>spatial</code> extension's.
+the geometry functions are the <a href="https://duckdb.org/docs/current/core_extensions/spatial/overview" class="external-link"><code>spatial</code> extension's</a>.
 Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see <a href="duckdb_types_arrow.html">duckdb_types_arrow</a>).</p></li>
 <li><p><strong>WKT writes <code>GEOMETRY</code>.</strong>
 A <code>character</code> column of WKT, as <code><a href="https://r-spatial.github.io/sf/reference/st_as_text.html" class="external-link">sf::st_as_text()</a></code> makes it, writes a <code>GEOMETRY</code> column with <code>field.types = c(geom = "GEOMETRY")</code>
@@ -155,7 +156,8 @@ Writing WKB as raw vectors, an <code>sf</code> object or an <code>sfc</code> col
 <code>POLYGON_2D</code> and <code>POLYGON_3D</code> are lists of those rings, and read as lists of lists;
 <code>WKB_BLOB</code> is a <code>BLOB</code>, and reads as raw vectors.
 The same shapes write the plain struct or list, and <code>field.types</code> naming the alias casts back to it.
-They cast to and from <code>GEOMETRY</code> in the query, as <code>'POINT (1 2)'::GEOMETRY::POINT_2D</code>.</p></li>
+They cast to <code>GEOMETRY</code> in the query,
+and the point, linestring, polygon and WKB types cast from it, as <code>'POINT (1 2)'::GEOMETRY::POINT_2D</code>.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="everything-else">Everything else<a class="anchor" aria-label="anchor" href="#everything-else"></a></h2>
@@ -167,7 +169,8 @@ A typed <code>NULL</code>, as a scanned logical column or a bound <code>NA</code
 <li><p><strong><code>JSON</code></strong>, the <a href="https://duckdb.org/docs/current/data/json/json_type" class="external-link"><code>json</code> extension's</a> alias of <code>VARCHAR</code>, reads as <code>character</code>.
 Its text writes it through <code>field.types</code>.</p></li>
 <li><p><strong><code>INET</code></strong>, the <a href="https://duckdb.org/docs/current/core_extensions/inet" class="external-link"><code>inet</code> extension's</a> address type,
-reads as a data frame column whose <code>address</code> is a <code>HUGEINT</code> read as a double, exact for IPv4.
+reads as a data frame column whose <code>address</code> is a <code>HUGEINT</code> read as a double, exact for IPv4;
+an IPv6 address is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
 Its text reads and writes it exactly.</p></li>
 </ul></div>
     <div class="section level2">
@@ -176,11 +179,11 @@ Its text reads and writes it exactly.</p></li>
 <p>The mapping is implemented in <a href="https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp" class="external-link"><code>src/types.cpp</code></a> (R vector to <code>LogicalType</code>) and <a href="https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp" class="external-link"><code>src/transform.cpp</code></a> (the way back).
 The list of types is DuckDB's own <a href="https://duckdb.org/docs/current/sql/data_types/overview" class="external-link">documentation</a> for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md" class="external-link"><code>experiments/2026-09-26-type-catalog/</code></a>,
-<a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md" class="external-link"><code>experiments/2026-09-27-review-limits/</code></a>
+<a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md" class="external-link"><code>experiments/2026-09-27-review-limits/</code></a>,
+<a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md" class="external-link"><code>experiments/2026-09-28-type-rereview/</code></a>
 or, for geometry route by route, <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md" class="external-link"><code>experiments/2026-08-09-spatial-interop/</code></a>.
-Which zone labels a timestamp is <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md" class="external-link"><code>timestamps/</code></a>'s,
-and the geometry functions are the <a href="https://duckdb.org/docs/current/core_extensions/spatial/overview" class="external-link"><code>spatial</code> extension's</a> to document.</p>
-<p>What <code>expr_constant(NA)</code> builds in the relational API is <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md" class="external-link"><code>relational/</code></a>'s.</p>
+Which zone labels a timestamp is documented in the handbook's <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md" class="external-link"><code>timestamps/</code></a>.</p>
+<p>What <code>expr_constant(NA)</code> builds in the relational API is documented in the handbook's <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md" class="external-link"><code>relational/</code></a>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

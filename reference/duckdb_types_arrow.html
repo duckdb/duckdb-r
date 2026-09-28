@@ -77,7 +77,7 @@ Only the routes that let DuckDB scan the Arrow data keep its types:
 <code><a href="duckdb_register_arrow.html">duckdb_register_arrow()</a></code>, and <code><a href="https://arrow.apache.org/docs/r/reference/to_duckdb.html" class="external-link">arrow::to_duckdb()</a></code>, which calls it.
 <code><a href="duckdb_register_arrow.html">duckdb_register_arrow()</a></code> takes whatever <code>arrow::Scanner$create()</code> scans.
 Nothing is copied: the result is a view, and <code>CREATE TABLE ... AS SELECT * FROM</code> it writes a table.
-A registered arrow <code>Table</code> is scanned by every query, and a <code>RecordBatchReader</code> by the first only, a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.
+A registered arrow <code>Table</code> is scanned by every query, and a registered <code>RecordBatchReader</code> is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.
 Every other route converts through an R data frame, so a column lands as the type its R vector writes (see <a href="duckdb_types.html">duckdb_types</a>).
 <code><a href="https://dbi.r-dbi.org/reference/dbWriteTableArrow.html" class="external-link">dbWriteTableArrow()</a></code>, <code><a href="https://dbi.r-dbi.org/reference/dbCreateTableArrow.html" class="external-link">dbCreateTableArrow()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbAppendTableArrow.html" class="external-link">dbAppendTableArrow()</a></code> are DBI's defaults, which do that batch by batch.
 <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBindArrow()</a></code> converts the same way, then binds by position.</p>
@@ -90,16 +90,18 @@ Every other route converts through an R data frame, so a column lands as the typ
 
 <ul><li><p><strong><code>BOOLEAN</code></strong> exports as <code>bool</code> and reads as <code>logical</code>;
 with <code>arrow_lossless_conversion</code>, as <code>arrow.bool8</code>, which nanoarrow reads as the <code>integer</code> of its storage.</p></li>
-<li><p><strong><code>TINYINT</code>, <code>SMALLINT</code>, <code>INTEGER</code>, <code>UTINYINT</code>, <code>USMALLINT</code></strong> export as <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>uint8</code> and <code>uint16</code>,
-and read as <code>integer</code>.</p></li>
+<li><p><strong><code>TINYINT</code>, <code>SMALLINT</code>, <code>UTINYINT</code>, <code>USMALLINT</code></strong> export as <code>int8</code>, <code>int16</code>, <code>uint8</code> and <code>uint16</code>, and read as <code>integer</code>, exactly.</p></li>
+<li><p><strong><code>INTEGER</code></strong> exports as <code>int32</code> and reads as <code>integer</code>, exactly but for the minimum.</p></li>
 <li><p><strong><code>UINTEGER</code></strong> exports as <code>uint32</code>.
 nanoarrow reads it as <code>numeric</code>; arrow reads it as <code>integer</code> when every value fits, and as <code>numeric</code> otherwise.</p></li>
 <li><p><strong><code>BIGINT</code></strong> exports as <code>int64</code>.
 nanoarrow reads it as <code>numeric</code>, exact up to 2^53.
-arrow reads it as <code>integer</code> when every value fits and as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> otherwise, exactly,
+arrow reads it as <code>integer</code> when every value fits and as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> otherwise, exactly but for the minimum,
 or as <code>integer64</code> always under <code>options(arrow.int64_downcast = FALSE)</code>.</p></li>
-<li><p><strong><code>UBIGINT</code></strong> exports as <code>uint64</code>, and both read it as <code>numeric</code>, exact up to 2^53.</p></li>
-<li><p><strong><code>HUGEINT</code>, <code>UHUGEINT</code></strong> export as <code>decimal128(38, 0)</code>, and both read them as <code>numeric</code>; their rounding is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.
+<li><p><strong><code>UBIGINT</code></strong> exports as <code>uint64</code>, and both read it as <code>numeric</code>, exact up to 2^53;
+its rounding past that is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.</p></li>
+<li><p><strong><code>HUGEINT</code>, <code>UHUGEINT</code></strong> export as <code>decimal128(38, 0)</code>, and both read them as <code>numeric</code>;
+their rounding is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>, and so is a <code>UHUGEINT</code> of 2^127 or more reading as negative.
 With <code>arrow_lossless_conversion</code> they export as <code>arrow.opaque</code>, which carries every value.
 Their text reads them exactly (see <a href="duckdb_types.html">duckdb_types</a>).</p></li>
 <li><p><strong><code>BIGNUM</code></strong> exports as <code>arrow.opaque</code> under either setting;
@@ -127,10 +129,11 @@ With <code>arrow_lossless_conversion</code> it exports as <code>arrow.uuid</code
 <ul><li><p><strong><code>DATE</code></strong> exports as <code>date32</code> and reads as <code>Date</code>.</p></li>
 <li><p><strong><code>TIME</code></strong> exports as <code>time64('us')</code> and reads as <code>hms</code>.</p></li>
 <li><p><strong><code>TIME_NS</code></strong> exports as <code>time64('ns')</code> and reads as <code>hms</code>.</p></li>
-<li><p><strong><code>TIMETZ</code></strong> exports as the <code>time64('us')</code> of its local time and reads as <code>hms</code>.
+<li><p><strong><code>TIMETZ</code></strong> exports as the <code>time64('us')</code> of its local time and reads as <code>hms</code>;
+the offset it drops is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.
 With <code>arrow_lossless_conversion</code> it exports as <code>arrow.opaque</code>, which keeps the offset.</p></li>
 <li><p><strong><code>TIMESTAMP_S</code>, <code>TIMESTAMP_MS</code>, <code>TIMESTAMP</code>, <code>TIMESTAMP_NS</code></strong> export as <code>timestamp</code> in their own unit, without a zone,
-and read as <code>POSIXct</code>.
+and read as <code>POSIXct</code>, whose double cannot hold a <code>TIMESTAMP_NS</code>'s nanoseconds, a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.
 The two readers label the same instant differently:
 nanoarrow gives it the zone <code>UTC</code>, so it prints the stored clock,
 and arrow gives it none, so it prints in R's session zone, a different clock outside UTC.</p></li>
@@ -157,8 +160,10 @@ nanoarrow reads it as a data frame with a column per member, <code>NA</code> whe
 <ul><li><p><strong><code>NULL</code></strong>, untyped, exports as <code>int32</code> and reads as <code>NA_integer_</code>, as it does through <code><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery()</a></code>.</p></li>
 <li><p><strong><code>JSON</code></strong> exports as <code>string</code> and reads as <code>character</code>;
 with <code>arrow_lossless_conversion</code> it exports as <code>arrow.json</code>, which nanoarrow reads as <code>character</code>.</p></li>
-<li><p><strong><code>INET</code></strong> exports as a struct whose <code>address</code> is a <code>decimal128(38, 0)</code>, read as a double as through <code><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery()</a></code>;
-with <code>arrow_lossless_conversion</code> that field becomes <code>arrow.opaque</code>.</p></li>
+<li><p><strong><code>INET</code></strong> exports as a struct whose <code>address</code> is the <code>HUGEINT</code> the engine stores, as a <code>decimal128(38, 0)</code>,
+which both read as a double, the same as <code><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery()</a></code> does,
+and its text reads the address (see <a href="duckdb_types.html">duckdb_types</a>).
+With <code>arrow_lossless_conversion</code> that field becomes <code>arrow.opaque</code>.</p></li>
 </ul></div>
 
     </div>
@@ -181,13 +186,12 @@ and with a zone as <code>TIMESTAMPTZ</code>, the same instant.</p></li>
 <li><p><strong><code>duration</code></strong> lands as <code>INTERVAL</code> in any unit.</p></li>
 <li><p><strong><code>interval_months</code></strong> and <strong><code>interval_month_day_nano</code></strong> land as <code>INTERVAL</code>, each part kept.</p></li>
 <li><p><strong><code>list</code>, <code>large_list</code>, <code>list_view</code></strong> land as <code>LIST</code>, and <strong><code>fixed_size_list</code></strong> as <code>ARRAY</code>.</p></li>
-<li><p><strong><code>struct</code></strong> lands as <code>STRUCT</code>, <strong><code>map</code></strong> as <code>MAP</code>, and <strong><code>sparse_union</code></strong> as <code>UNION</code>.
-Arrow requires the keys of a map to be non-nullable, and nanoarrow's <code>na_map()</code> builds nullable ones unless the key type says otherwise.</p></li>
+<li><p><strong><code>struct</code></strong> lands as <code>STRUCT</code>, <strong><code>map</code></strong> as <code>MAP</code>, and <strong><code>sparse_union</code></strong> as <code>UNION</code>.</p></li>
 <li><p><strong>A dictionary</strong> lands as <code>VARCHAR</code>.</p></li>
 <li><p><strong><code>na</code></strong> lands as a column of type <code>NULL</code>.</p></li>
 <li><p><strong>The extension types</strong> land as the DuckDB type they name:
 <code>arrow.uuid</code> as <code>UUID</code>, <code>arrow.json</code> as <code>JSON</code>, <code>arrow.bool8</code> as <code>BOOLEAN</code>, and <code>arrow.opaque</code> as the DuckDB type in its metadata.
-What the GeoArrow types land as is under Geometry and Limitations.</p></li>
+What GeoArrow WKB lands as is under Geometry, and the other GeoArrow encodings are a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations" class="external-link">limitation</a>.</p></li>
 </ul></div>
 
 <div class="section">
@@ -211,14 +215,16 @@ where <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="e
     <div class="section level2">
     <h2 id="geometry">Geometry<a class="anchor" aria-label="anchor" href="#geometry"></a></h2>
     <p><code>GEOMETRY</code> and the <code>spatial</code> extension's own types through Arrow, and where the geoarrow and sf packages meet them:</p><ul><li><p><strong><code>GEOMETRY</code> exports as <code>geoarrow.wkb</code>, with the column's CRS in the field's metadata,</strong>
-as PROJJSON once <code>spatial</code> is loaded, and as the identifier without it.
+as PROJJSON where the core or <code>spatial</code> knows the CRS, and as its identifier otherwise:
+<code>OGC:CRS84</code> exports as PROJJSON without <code>spatial</code>, and <code>EPSG:4267</code> only with it.
 It stays <code>geoarrow.wkb</code> under every export setting, <code>arrow_lossless_conversion</code> included;
 <code>arrow_large_buffer_size</code> makes its storage <code>large_binary</code>, and an <code>arrow_output_version</code> from <code>'1.4'</code> makes it <code>binary_view</code>.
 With the geoarrow package loaded, both readers convert it to a <code>geoarrow_vctr</code> in each of those layouts, arrow the view one included.</p></li>
 <li><p><strong>sf reads a result through GeoArrow in one call.</strong>
 With geoarrow loaded, <code>sf::st_as_sf(dbGetQueryArrow(con, sql))</code> gives an <code>sf</code> whose geometries and CRS equal the source's,
 in the large and view layouts too,
-and so do <code><a href="https://r-spatial.github.io/sf/reference/st_as_sf.html" class="external-link">sf::st_as_sf()</a></code> of the result's <code><a href="https://arrow.apache.org/docs/r/reference/as_arrow_table.html" class="external-link">arrow::as_arrow_table()</a></code>, and <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> of the <code>geoarrow_vctr</code> column of <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code>.</p></li>
+and so do <code><a href="https://r-spatial.github.io/sf/reference/st_as_sf.html" class="external-link">sf::st_as_sf()</a></code> of the result's <code><a href="https://arrow.apache.org/docs/r/reference/as_arrow_table.html" class="external-link">arrow::as_arrow_table()</a></code>,
+and <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> of the <code>geoarrow_vctr</code> column of <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code>.</p></li>
 <li><p><strong>The <code>spatial</code> extension's own types cross as their storage.</strong>
 <code>POINT_2D</code> and the other point and box types export as a <code>struct</code>, <code>LINESTRING_2D</code> and <code>LINESTRING_3D</code> as a <code>list</code> of point structs,
 <code>POLYGON_2D</code> and <code>POLYGON_3D</code> as a list of those lists, and <code>WKB_BLOB</code> as <code>binary</code>, with <code>arrow_lossless_conversion</code> too,
@@ -241,9 +247,10 @@ is an integer vector of indices into the Arrow data it holds, and writing it bac
     <h2 id="limitations-and-reference">Limitations and reference<a class="anchor" aria-label="anchor" href="#limitations-and-reference"></a></h2>
     <p>The limitations are listed in the handbook, in <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md" class="external-link"><code>usage/arrow-types/</code></a>.</p>
 <p>The routes through R vectors are documented in <a href="duckdb_types.html">duckdb_types</a>,
-and how a stream behaves, when it drains and what invalidates it, is <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md" class="external-link"><code>integrations/</code></a>'s.
+and how a stream behaves, when it drains and what invalidates it, is documented in the handbook's <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md" class="external-link"><code>integrations/</code></a>.
 Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
-in <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md" class="external-link"><code>experiments/2026-09-27-arrow-types/</code></a>,
+in <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md" class="external-link"><code>experiments/2026-09-27-arrow-types/</code></a>
+and <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md" class="external-link"><code>experiments/2026-09-28-type-rereview/</code></a>,
 and geometry also with geoarrow 0.4.4 and sf 1.1-3 in <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-geoarrow/README.md" class="external-link"><code>experiments/2026-09-27-geoarrow/</code></a>.</p>
     </div>
 

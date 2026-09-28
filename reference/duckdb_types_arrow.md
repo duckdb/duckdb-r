@@ -61,7 +61,7 @@ which calls it.
 takes whatever `arrow::Scanner$create()` scans. Nothing is copied: the
 result is a view, and `CREATE TABLE ... AS SELECT * FROM` it writes a
 table. A registered arrow `Table` is scanned by every query, and a
-`RecordBatchReader` by the first only, a
+registered `RecordBatchReader` is a
 [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 Every other route converts through an R data frame, so a column lands as
 the type its R vector writes (see
@@ -82,9 +82,11 @@ the same way, then binds by position.
   `arrow_lossless_conversion`, as `arrow.bool8`, which nanoarrow reads
   as the `integer` of its storage.
 
-- **`TINYINT`, `SMALLINT`, `INTEGER`, `UTINYINT`, `USMALLINT`** export
-  as `int8`, `int16`, `int32`, `uint8` and `uint16`, and read as
-  `integer`.
+- **`TINYINT`, `SMALLINT`, `UTINYINT`, `USMALLINT`** export as `int8`,
+  `int16`, `uint8` and `uint16`, and read as `integer`, exactly.
+
+- **`INTEGER`** exports as `int32` and reads as `integer`, exactly but
+  for the minimum.
 
 - **`UINTEGER`** exports as `uint32`. nanoarrow reads it as `numeric`;
   arrow reads it as `integer` when every value fits, and as `numeric`
@@ -94,16 +96,18 @@ the same way, then binds by position.
   exact up to 2^53. arrow reads it as `integer` when every value fits
   and as
   [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
-  otherwise, exactly, or as `integer64` always under
+  otherwise, exactly but for the minimum, or as `integer64` always under
   `options(arrow.int64_downcast = FALSE)`.
 
 - **`UBIGINT`** exports as `uint64`, and both read it as `numeric`,
-  exact up to 2^53.
+  exact up to 2^53; its rounding past that is a
+  [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 
 - **`HUGEINT`, `UHUGEINT`** export as `decimal128(38, 0)`, and both read
   them as `numeric`; their rounding is a
-  [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
-  With `arrow_lossless_conversion` they export as `arrow.opaque`, which
+  [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations),
+  and so is a `UHUGEINT` of 2^127 or more reading as negative. With
+  `arrow_lossless_conversion` they export as `arrow.opaque`, which
   carries every value. Their text reads them exactly (see
   [duckdb_types](https://r.duckdb.org/reference/duckdb_types.md)).
 
@@ -145,15 +149,18 @@ the same way, then binds by position.
 - **`TIME_NS`** exports as `time64('ns')` and reads as `hms`.
 
 - **`TIMETZ`** exports as the `time64('us')` of its local time and reads
-  as `hms`. With `arrow_lossless_conversion` it exports as
-  `arrow.opaque`, which keeps the offset.
+  as `hms`; the offset it drops is a
+  [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
+  With `arrow_lossless_conversion` it exports as `arrow.opaque`, which
+  keeps the offset.
 
 - **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`, `TIMESTAMP_NS`** export
   as `timestamp` in their own unit, without a zone, and read as
-  `POSIXct`. The two readers label the same instant differently:
-  nanoarrow gives it the zone `UTC`, so it prints the stored clock, and
-  arrow gives it none, so it prints in R's session zone, a different
-  clock outside UTC.
+  `POSIXct`, whose double cannot hold a `TIMESTAMP_NS`'s nanoseconds, a
+  [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
+  The two readers label the same instant differently: nanoarrow gives it
+  the zone `UTC`, so it prints the stored clock, and arrow gives it
+  none, so it prints in R's session zone, a different clock outside UTC.
 
 - **`TIMESTAMPTZ`** exports as `timestamp('us', zone)`, where the zone
   is DuckDB's `TimeZone` setting, and both readers read it as a
@@ -197,10 +204,13 @@ the same way, then binds by position.
   `arrow_lossless_conversion` it exports as `arrow.json`, which
   nanoarrow reads as `character`.
 
-- **`INET`** exports as a struct whose `address` is a
-  `decimal128(38, 0)`, read as a double as through
-  [`dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html);
-  with `arrow_lossless_conversion` that field becomes `arrow.opaque`.
+- **`INET`** exports as a struct whose `address` is the `HUGEINT` the
+  engine stores, as a `decimal128(38, 0)`, which both read as a double,
+  the same as
+  [`dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html)
+  does, and its text reads the address (see
+  [duckdb_types](https://r.duckdb.org/reference/duckdb_types.md)). With
+  `arrow_lossless_conversion` that field becomes `arrow.opaque`.
 
 ## Writing
 
@@ -237,9 +247,7 @@ Each Arrow type lands as one DuckDB type when DuckDB scans it:
   **`fixed_size_list`** as `ARRAY`.
 
 - **`struct`** lands as `STRUCT`, **`map`** as `MAP`, and
-  **`sparse_union`** as `UNION`. Arrow requires the keys of a map to be
-  non-nullable, and nanoarrow's `na_map()` builds nullable ones unless
-  the key type says otherwise.
+  **`sparse_union`** as `UNION`.
 
 - **A dictionary** lands as `VARCHAR`.
 
@@ -248,7 +256,9 @@ Each Arrow type lands as one DuckDB type when DuckDB scans it:
 - **The extension types** land as the DuckDB type they name:
   `arrow.uuid` as `UUID`, `arrow.json` as `JSON`, `arrow.bool8` as
   `BOOLEAN`, and `arrow.opaque` as the DuckDB type in its metadata. What
-  the GeoArrow types land as is under Geometry and Limitations.
+  GeoArrow WKB lands as is under Geometry, and the other GeoArrow
+  encodings are a
+  [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 
 ### R classes, through Arrow
 
@@ -288,13 +298,14 @@ writes.
 where the geoarrow and sf packages meet them:
 
 - **`GEOMETRY` exports as `geoarrow.wkb`, with the column's CRS in the
-  field's metadata,** as PROJJSON once `spatial` is loaded, and as the
-  identifier without it. It stays `geoarrow.wkb` under every export
-  setting, `arrow_lossless_conversion` included;
-  `arrow_large_buffer_size` makes its storage `large_binary`, and an
-  `arrow_output_version` from `'1.4'` makes it `binary_view`. With the
-  geoarrow package loaded, both readers convert it to a `geoarrow_vctr`
-  in each of those layouts, arrow the view one included.
+  field's metadata,** as PROJJSON where the core or `spatial` knows the
+  CRS, and as its identifier otherwise: `OGC:CRS84` exports as PROJJSON
+  without `spatial`, and `EPSG:4267` only with it. It stays
+  `geoarrow.wkb` under every export setting, `arrow_lossless_conversion`
+  included; `arrow_large_buffer_size` makes its storage `large_binary`,
+  and an `arrow_output_version` from `'1.4'` makes it `binary_view`.
+  With the geoarrow package loaded, both readers convert it to a
+  `geoarrow_vctr` in each of those layouts, arrow the view one included.
 
 - **sf reads a result through GeoArrow in one call.** With geoarrow
   loaded, `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose
@@ -347,10 +358,13 @@ The limitations are listed in the handbook, in
 
 The routes through R vectors are documented in
 [duckdb_types](https://r.duckdb.org/reference/duckdb_types.md), and how
-a stream behaves, when it drains and what invalidates it, is
-[`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md)'s.
+a stream behaves, when it drains and what invalidates it, is documented
+in the handbook's
+[`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md).
 Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0
 and arrow 25.0.1 in
-[`experiments/2026-09-27-arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md),
+[`experiments/2026-09-27-arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md)
+and
+[`experiments/2026-09-28-type-rereview/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md),
 and geometry also with geoarrow 0.4.4 and sf 1.1-3 in
 [`experiments/2026-09-27-geoarrow/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-geoarrow/README.md).
