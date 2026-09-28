@@ -122,6 +122,8 @@ done
 for s in "${canonical_scripts[@]}"; do
   is "$s --canonical (bare)" "$(rc "$s" --canonical)" 2
 done
+is "series-forward-build.sh --placed (bare)"     "$(rc series-forward-build.sh a b --placed)" 2
+is "series-forward-build.sh --graft-from (bare)" "$(rc series-forward-build.sh a b --graft-from)" 2
 
 echo
 echo "== the remote and the upstream clone are named, never positional"
