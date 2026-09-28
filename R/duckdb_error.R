@@ -1,6 +1,8 @@
 #' DuckDB error conditions
 #'
 #' @description
+#' `r lifecycle::badge("experimental")`
+#'
 #' Every error the database engine raises reaches R as a condition of class `duckdb_error`,
 #' carrying DuckDB's own classification alongside the message.
 #' Catch it with [tryCatch()] or `rlang::try_fetch()` and branch on the fields rather than on the message text,
