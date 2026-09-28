@@ -3,7 +3,7 @@
 %   R/dbAppendTable__duckdb_connection.R, R/dbBegin__duckdb_connection.R,
 %   R/dbCommit__duckdb_connection.R, R/dbDataType__duckdb_connection.R,
 %   R/dbExistsTable__duckdb_connection_ANY.R, R/dbGetInfo__duckdb_connection.R,
-%   R/dbIsValid__duckdb_connection.R,
+%   R/dbIsValid__duckdb_connection.R, R/dbListFields__duckdb_connection_Id.R,
 %   R/dbListFields__duckdb_connection_character.R,
 %   R/dbListTables__duckdb_connection.R,
 %   R/dbQuoteIdentifier__duckdb_connection.R,
@@ -32,6 +32,8 @@
 \alias{dbGetInfo,duckdb_connection-method}
 \alias{dbIsValid__duckdb_connection}
 \alias{dbIsValid,duckdb_connection-method}
+\alias{dbListFields__duckdb_connection_Id}
+\alias{dbListFields,duckdb_connection,Id-method}
 \alias{dbListFields__duckdb_connection_character}
 \alias{dbListFields,duckdb_connection,character-method}
 \alias{dbListTables__duckdb_connection}
@@ -69,6 +71,8 @@
 \S4method{dbGetInfo}{duckdb_connection}(dbObj, ...)
 
 \S4method{dbIsValid}{duckdb_connection}(dbObj, ...)
+
+\S4method{dbListFields}{duckdb_connection,Id}(conn, name, ...)
 
 \S4method{dbListFields}{duckdb_connection,character}(conn, name, ...)
 
