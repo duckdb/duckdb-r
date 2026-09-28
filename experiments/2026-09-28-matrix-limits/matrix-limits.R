@@ -116,7 +116,10 @@ tryCatch(lazy$i[1], error = first_line)
 # So a row budget fails an ARRAY column when the data frame is built,
 tryCatch(
   duckdb:::rel_to_altrep(
-    duckdb:::rel_from_sql(con, "SELECT [range, range]::INTEGER[2] AS a FROM range(10)"),
+    duckdb:::rel_from_sql(
+      con,
+      "SELECT [range, range]::INTEGER[2] AS a FROM range(10)"
+    ),
     n_rows = 2
   ),
   error = first_line
