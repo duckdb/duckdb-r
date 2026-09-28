@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Mon, 28 Sep 2026 12:00:00 +0200
+Subject: [PATCH] Report a dangling symbolic link as missing on Windows
+
+LocalFileSystem::FileExists() on Windows takes a path for an existing
+file when _waccess() succeeds and _wstati64() reports S_IFREG. For a
+symbolic link whose target does not exist yet, both describe the link
+itself in the MinGW-w64 builds R uses, on the windows-latest and
+windows-11-arm runners: _waccess() returns 0, and _wstati64() returns 0
+with S_IFREG. The link therefore counts as an existing file. Opening a
+database through it takes the branch for an existing database, whose
+CreateFileW() with OPEN_EXISTING follows the link and fails with "The
+system cannot find the file specified". The branch for a new database
+opens with OPEN_ALWAYS, which creates the file at the link's target, as
+CREATE_ALWAYS and CREATE_NEW do too. On POSIX, access() and stat()
+follow the link, the path is missing, and the database is created at
+the target. The MSVC-built CLI of the same release reports the link
+missing on the same runners and creates the database through it; the
+source is the same, so the difference lies in the _wstati64() each
+build links.
+
+FileExists() now resolves a path whose attributes carry
+FILE_ATTRIBUTE_REPARSE_POINT the way opening it would, with
+CreateFileW(OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS), and reports it
+missing when that fails with ERROR_FILE_NOT_FOUND or
+ERROR_PATH_NOT_FOUND. Every other path is answered as before, and so is
+a reparse point that fails to open for any other reason.
+
+duckdb-r reaches this through duckdb(), which opens a database file
+through a symbolic link as it is given
+(handbook/usage/connections/README.md).
+
+main needs this too: its FileExists() is the same. v2.0-cyanoptera
+dropped _waccess() and checks what _wstati64() returns, which is 0 for
+such a link, so it needs this as well. The FileExists() hunk applies to
+neither as it stands, so a series vendored from either rebases this
+entry.
+
+Proposed upstream in duckdb/duckdb#<PR> (placeholder: not opened yet)
+against v1.5-variegata, and carried here until a release carries it.
+---
+ src/duckdb/src/common/local_file_system.cpp | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/common/local_file_system.cpp b/src/duckdb/src/common/local_file_system.cpp
+index 73f36c391c..bdc580ae67 100644
+--- a/src/duckdb/src/common/local_file_system.cpp
++++ b/src/duckdb/src/common/local_file_system.cpp
+@@ -105,13 +105,30 @@ static std::wstring NormalizePathAndConvertToUnicode(FileSystem &fs, const strin
+ 	return ConvertPathToUnicode(normalized_path);
+ }
+ 
++// A symbolic link whose target does not exist: _waccess() and _wstati64() may describe the link itself, and report it
++// as an existing file, so the link is resolved the way opening it would be.
++static bool IsDanglingLink(const wchar_t *wpath) {
++	auto attributes = GetFileAttributesW(wpath);
++	if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
++		return false;
++	}
++	HANDLE handle = CreateFileW(wpath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
++	                            FILE_FLAG_BACKUP_SEMANTICS, NULL);
++	if (handle != INVALID_HANDLE_VALUE) {
++		CloseHandle(handle);
++		return false;
++	}
++	auto error = GetLastError();
++	return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
++}
++
+ bool LocalFileSystem::FileExists(const string &filename, optional_ptr<FileOpener> opener) {
+ 	auto unicode_path = NormalizePathAndConvertToUnicode(*this, filename, opener);
+ 	const wchar_t *wpath = unicode_path.c_str();
+ 	if (_waccess(wpath, 0) == 0) {
+ 		struct _stati64 status;
+ 		_wstati64(wpath, &status);
+-		if (status.st_mode & S_IFREG) {
++		if ((status.st_mode & S_IFREG) && !IsDanglingLink(wpath)) {
+ 			return true;
+ 		}
+ 	}

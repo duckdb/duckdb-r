@@ -53,9 +53,6 @@ test_that("a symlinked database resolves to its target", {
 })
 
 test_that("a symlink to a database yet to be created shares one instance", {
-  # Windows creates no file through a symlink whose target is missing,
-  # so there the open fails, as the test below shows on every platform.
-  skip_on_os("windows")
   # The link resolves only once the engine has created its target, so the key
   # taken before the open is not the one every later call computes.
   dir <- withr::local_tempdir()
@@ -79,8 +76,8 @@ test_that("a symlink to a database yet to be created shares one instance", {
 })
 
 test_that("a symlink whose target cannot be created fails in `duckdb()`, naming the link", {
-  # The shape every platform shares with Windows above: the engine cannot
-  # create the target through the link, here because its directory is missing.
+  # The engine cannot create the target through the link, here because its
+  # directory is missing.
   dir <- withr::local_tempdir()
   target <- file.path(dir, "no-such-directory", "target.duckdb")
   link <- file.path(dir, "link.duckdb")
