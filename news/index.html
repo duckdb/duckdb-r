@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9900</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,13 +34,13 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.5.6/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.5.9900" id="duckdb-1559900">duckdb 1.5.5.9900<a class="anchor" aria-label="anchor" href="#duckdb-1559900"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.5.6" id="duckdb-156">duckdb 1.5.6<a class="anchor" aria-label="anchor" href="#duckdb-156"></a></h2>
 <div class="section level3">
-<h3 id="features-1-5-5-9900">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5-9900"></a></h3>
+<h3 id="features-1-5-6">Features<a class="anchor" aria-label="anchor" href="#features-1-5-6"></a></h3>
 <ul><li><p>Update to DuckDB v1.5.6, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.5.6" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.5.6</a> for details.</p></li>
 <li><p>New experimental <code><a href="../reference/to_arrow_stream.html">to_arrow_stream()</a></code> streams a dbplyr table on DuckDB into Arrow batch by batch, where <code><a href="https://arrow.apache.org/docs/r/reference/to_arrow.html" class="external-link">arrow::to_arrow()</a></code> materializes the whole result first (<a href="https://github.com/duckdb/duckdb-r/issues/2803" class="external-link">#2803</a>).</p></li>
 <li><p>A <code>duckdb_error</code> condition carries the fields DuckDB attaches to an error: <code>error_type</code>, <code>raw_message</code>, <code>extra_info</code> and <code>context</code>, see <code><a href="../reference/duckdb_error.html">?duckdb_error</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2714" class="external-link">#2714</a>). Errors raised by the package itself point at the calling function (<a href="https://github.com/duckdb/duckdb-r/issues/2637" class="external-link">#2637</a>).</p></li>
@@ -49,16 +49,16 @@
 <li><p>An Arrow query result exposes its schema, and an empty batch, before the first fetch (<a href="https://github.com/duckdb/duckdb-r/issues/2781" class="external-link">#2781</a>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="compatibility-1-5-5-9900">Compatibility<a class="anchor" aria-label="anchor" href="#compatibility-1-5-5-9900"></a></h3>
+<h3 id="compatibility-1-5-6">Compatibility<a class="anchor" aria-label="anchor" href="#compatibility-1-5-6"></a></h3>
 <ul><li><p>The dbplyr backend needs dbplyr 2.6.0 or later, and warns when an older dbplyr is loaded (<a href="https://github.com/duckdb/duckdb-r/issues/2605" class="external-link">#2605</a>).</p></li>
 <li><p>The installed package no longer ships the cpp11 headers under <code>include/</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2649" class="external-link">#2649</a>).</p></li>
 <li><p>The package compiles without warnings on the clang 23 and R-devel check flavors (<a href="https://github.com/duckdb/duckdb-r/issues/2617" class="external-link">#2617</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2698" class="external-link">#2698</a>).</p></li>
 <li><p><code><a href="../reference/duckdb.html">duckdb()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code> fail instead of silently ignoring settings a cached database instance cannot apply: a different <code>read_only</code>, a differing <code>config</code> entry, or <code>home</code>, <code>shared_home</code>, <code>allow_extensions</code> or <code>environment_scan</code>. <code>dbConnect(drv, dbdir)</code> also fails when <code>drv</code> already owns a different database file. Call <code><a href="../reference/duckdb.html">duckdb_shutdown()</a></code> first, or pass the settings to the <code><a href="../reference/duckdb.html">duckdb()</a></code> call that creates the instance (<a href="https://github.com/duckdb/duckdb-r/issues/2641" class="external-link">#2641</a>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="bug-fixes-1-5-5-9900">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9900"></a></h3>
+<h3 id="bug-fixes-1-5-6">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-6"></a></h3>
 <div class="section level4">
-<h4 id="crashes-and-hangs-1-5-5-9900">Crashes and hangs<a class="anchor" aria-label="anchor" href="#crashes-and-hangs-1-5-5-9900"></a></h4>
+<h4 id="crashes-and-hangs-1-5-6">Crashes and hangs<a class="anchor" aria-label="anchor" href="#crashes-and-hangs-1-5-6"></a></h4>
 <ul><li><p>A data frame parameter binds one struct per row instead of crashing R (<a href="https://github.com/duckdb/duckdb-r/issues/2818" class="external-link">#2818</a>).</p></li>
 <li><p>A list column of data frames or factors no longer crashes or hangs a parallel scan (<a href="https://github.com/duckdb/duckdb-r/issues/2834" class="external-link">#2834</a>), and lazy (ALTREP) vectors inside struct, matrix and list columns are materialized on R’s thread before a scan reads them (<a href="https://github.com/duckdb/duckdb-r/issues/2582" class="external-link">#2582</a>).</p></li>
 <li><p>Writing a named list with an empty value under <code>map = "list_of"</code> no longer crashes (<a href="https://github.com/duckdb/duckdb-r/issues/2866" class="external-link">#2866</a>).</p></li>
@@ -68,7 +68,7 @@
 <li><p>A failure inside a lazy data frame’s ALTREP method no longer strips <code>duckdb_error</code> from later errors or leaves a partly converted column behind (<a href="https://github.com/duckdb/duckdb-r/issues/2829" class="external-link">#2829</a>), and an error raised while such a method runs no longer calls into R (<a href="https://github.com/duckdb/duckdb-r/issues/1796" class="external-link">#1796</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1797" class="external-link">#1797</a>).</p></li>
 </ul></div>
 <div class="section level4">
-<h4 id="types-and-time-zones-1-5-5-9900">Types and time zones<a class="anchor" aria-label="anchor" href="#types-and-time-zones-1-5-5-9900"></a></h4>
+<h4 id="types-and-time-zones-1-5-6">Types and time zones<a class="anchor" aria-label="anchor" href="#types-and-time-zones-1-5-6"></a></h4>
 <ul><li><p><code>TIMESTAMPTZ</code> columns take their <code>tzone</code> attribute from the session’s <code>TimeZone</code> setting, also in lazy relations, and stay in UTC when the icu extension is not available (<a href="https://github.com/duckdb/duckdb-r/issues/184" class="external-link">#184</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2401" class="external-link">#2401</a>).</p></li>
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbQuoteLiteral.html" class="external-link">dbQuoteLiteral()</a></code> keeps the sub-second part of a <code>POSIXct</code> value (<a href="https://github.com/duckdb/duckdb-r/issues/2646" class="external-link">#2646</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2763" class="external-link">#2763</a>).</p></li>
 <li><p><code>integer64</code> columns and parameters are always written as <code>BIGINT</code>, whatever the <code>bigint</code> setting (<a href="https://github.com/duckdb/duckdb-r/issues/2819" class="external-link">#2819</a>).</p></li>
@@ -76,7 +76,7 @@
 <li><p>A table whose columns R cannot hold is still found and listed, and a query returning such a column fails before it runs, naming the column (<a href="https://github.com/duckdb/duckdb-r/issues/2808" class="external-link">#2808</a>).</p></li>
 </ul></div>
 <div class="section level4">
-<h4 id="connections-and-storage-1-5-5-9900">Connections and storage<a class="anchor" aria-label="anchor" href="#connections-and-storage-1-5-5-9900"></a></h4>
+<h4 id="connections-and-storage-1-5-6">Connections and storage<a class="anchor" aria-label="anchor" href="#connections-and-storage-1-5-6"></a></h4>
 <ul><li><p>An in-memory database spills to its own directory below <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> out of the box, created only when a query spills and removed when the instance shuts down. An on-disk database keeps DuckDB’s <code>&lt;dbdir&gt;.tmp</code> default, as the DuckDB CLI does (<a href="https://github.com/duckdb/duckdb-r/issues/2562" class="external-link">#2562</a>).</p></li>
 <li><p><code>~/.duckdb</code> is no longer created for a session that only looks interactive, such as one with <code>options(rlang_interactive = TRUE)</code>. Without a person to answer the prompt, the per-session directory is used (<a href="https://github.com/duckdb/duckdb-r/issues/2550" class="external-link">#2550</a>).</p></li>
 <li><p>A database path is normalized only as far as it resolves, so a path that cannot be resolved is handed to the engine rather than refused (<a href="https://github.com/duckdb/duckdb-r/issues/455" class="external-link">#455</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2623" class="external-link">#2623</a>), and a <code>dbdir</code> that cannot be created is reported against the user’s call (<a href="https://github.com/duckdb/duckdb-r/issues/2822" class="external-link">#2822</a>).</p></li>
@@ -84,25 +84,25 @@
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbIsValid.html" class="external-link">dbIsValid()</a></code> on a driver no longer opens the database (<a href="https://github.com/duckdb/duckdb-r/issues/2754" class="external-link">#2754</a>).</p></li>
 </ul></div>
 <div class="section level4">
-<h4 id="queries-and-results-1-5-5-9900">Queries and results<a class="anchor" aria-label="anchor" href="#queries-and-results-1-5-5-9900"></a></h4>
+<h4 id="queries-and-results-1-5-6">Queries and results<a class="anchor" aria-label="anchor" href="#queries-and-results-1-5-6"></a></h4>
 <ul><li><p>A <code>PRAGMA</code> runs after the statements before it in one query string (<a href="https://github.com/t-kalinowski" class="external-link">@t-kalinowski</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2792" class="external-link">#2792</a>). Its expansion no longer leaves a transaction open or refuses a <code>LOAD</code> halfway, and an empty one can end a query (<a href="https://github.com/duckdb/duckdb-r/issues/2845" class="external-link">#2845</a>).</p></li>
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbListFields.html" class="external-link">dbListFields()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code> read the columns of a table named by <code><a href="https://dbi.r-dbi.org/reference/Id.html" class="external-link">Id()</a></code> correctly (<a href="https://github.com/duckdb/duckdb-r/issues/2848" class="external-link">#2848</a>).</p></li>
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbClearResult.html" class="external-link">dbClearResult()</a></code> frees the unread results of a multi-row bind at once, not at the next garbage collection (<a href="https://github.com/duckdb/duckdb-r/issues/2784" class="external-link">#2784</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2825" class="external-link">#2825</a>), and ends the query of an Arrow stream that was not read to the end (<a href="https://github.com/duckdb/duckdb-r/issues/2793" class="external-link">#2793</a>).</p></li>
 </ul></div>
 <div class="section level4">
-<h4 id="arrow-1-5-5-9900">Arrow<a class="anchor" aria-label="anchor" href="#arrow-1-5-5-9900"></a></h4>
+<h4 id="arrow-1-5-6">Arrow<a class="anchor" aria-label="anchor" href="#arrow-1-5-6"></a></h4>
 <ul><li><p>Reading an Arrow stream that another statement invalidated is an error, not the end of the stream (<a href="https://github.com/duckdb/duckdb-r/issues/2775" class="external-link">#2775</a>), and an Arrow stream keeps its connection’s client context alive (<a href="https://github.com/duckdb/duckdb-r/issues/2790" class="external-link">#2790</a>).</p></li>
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html" class="external-link">dbFetchArrowChunk()</a></code> builds the final empty chunk for <code>LIST</code> and <code>INTERVAL</code> columns (<a href="https://github.com/duckdb/duckdb-r/issues/2774" class="external-link">#2774</a>), and each <code><a href="https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html" class="external-link">dbFetchArrowChunk()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbFetchArrow.html" class="external-link">dbFetchArrow()</a></code> call uses its own <code>chunk_size</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2791" class="external-link">#2791</a>).</p></li>
 <li><p><code><a href="../reference/duckdb_result-class.html">duckdb_fetch_arrow()</a></code> and <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_record_batch()</a></code> refuse a cleared result, as the other result methods do (<a href="https://github.com/duckdb/duckdb-r/issues/2785" class="external-link">#2785</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2821" class="external-link">#2821</a>).</p></li>
 </ul></div>
 </div>
 <div class="section level3">
-<h3 id="performance-1-5-5-9900">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-5-9900"></a></h3>
+<h3 id="performance-1-5-6">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-6"></a></h3>
 <ul><li><p>Release the ALTREP query result after materialization and transformation (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1027" class="external-link">#1027</a>).</p></li>
 <li><p>The list of valid time zones is read once per session, and again when <code>TZDIR</code> changes (<a href="https://github.com/duckdb/duckdb-r/issues/2786" class="external-link">#2786</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2810" class="external-link">#2810</a>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="documentation-1-5-5-9900">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9900"></a></h3>
+<h3 id="documentation-1-5-6">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-6"></a></h3>
 <ul><li><p>New reference pages <code><a href="../reference/duckdb_types.html">?duckdb_types</a></code> and <code><a href="../reference/duckdb_types_arrow.html">?duckdb_types_arrow</a></code> catalog every DuckDB type in and out of R, through R vectors and through Arrow, geometry included (<a href="https://github.com/duckdb/duckdb-r/issues/2836" class="external-link">#2836</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2837" class="external-link">#2837</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2850" class="external-link">#2850</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2861" class="external-link">#2861</a>).</p></li>
 <li><p>The new reference page <code><a href="../reference/duckdb_memory.html">?duckdb_memory</a></code> and the help pages for fetching and writing data describe the memory a query takes (<a href="https://github.com/duckdb/duckdb-r/issues/2666" class="external-link">#2666</a>).</p></li>
 <li><p><code><a href="../reference/duckdb.html">?duckdb</a></code> describes what keeps a database instance open and the limitations known today (<a href="https://github.com/duckdb/duckdb-r/issues/2823" class="external-link">#2823</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2849" class="external-link">#2849</a>).</p></li>

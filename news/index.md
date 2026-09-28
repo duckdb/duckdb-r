@@ -1,6 +1,6 @@
 # Changelog
 
-## duckdb 1.5.5.9900
+## duckdb 1.5.6
 
 ### Features
 
