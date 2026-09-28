@@ -62,6 +62,14 @@ reference:
     parsing the message.
   contents:
   - duckdb_error
+- title: Data types
+  desc: >
+    What each DuckDB type becomes in R and which R value writes it back,
+    through R vectors and through Arrow, and the spatial types.
+  contents:
+  - duckdb_types
+  - duckdb_types_arrow
+  - duckdb_types_spatial
 - title: Storage locations
   desc: >
     Where DuckDB writes extensions, stored secrets, and temporary files, and

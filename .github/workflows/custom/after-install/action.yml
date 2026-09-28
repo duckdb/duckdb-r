@@ -128,6 +128,15 @@ runs:
       run: scripts/warnings.sh glue
       shell: bash
 
+    # The type reference pages are rendered from handbook leaves by
+    # scripts/types-rd.R (handbook/usage/types/README.md), and a leaf edited
+    # without re-running it leaves its page stale. Like the scans around it,
+    # it reads the checkout and nothing else, so it runs in the smoke test only.
+    - name: Check that the type reference pages match their handbook leaves
+      if: github.job == 'rcc-smoke'
+      run: Rscript scripts/types-rd.R --check
+      shell: bash
+
     - name: Check that the package name is hard-coded only where scripts/flavor.patch rewrites it
       if: github.job == 'rcc-smoke'
       run: |
