@@ -32,6 +32,10 @@ Equivalence between `-build` and `-dev` commits is by the
 `duckdb/duckdb@<sha>` reference in the commit subject —
 the subject is machine-readable state,
 which is also how `vendor-one.sh` finds its base.
+The `(tag …)` marker beside it counts too:
+a tag upstream pushes after its commit was vendored is re-stamped
+as a second vendor commit for the same SHA
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
 
 **The subject is what decides, never the path.**
 `src/duckdb/` is not a proxy for "vendored here":
@@ -61,16 +65,21 @@ whose green is an ancestor of its base series' green;
 that is cutover litter pending deletion
 (the base moves on after cutover, so equality cannot be the test).
 
-**All four refs exist from day one, equal, and green contains the flavor
-change.**
-A new series is bootstrapped with all four refs at the **same commit** —
-the seed tip, "after flavoring", before any vendor commit:
+**All four refs exist from day one, and green starts below the flavor
+commits.**
+A new series is bootstrapped with three refs at the seed tip,
+"after flavoring", before any vendor commit,
+and green at the commit the seed sits on:
 
-    <S>-green = <S>-build-base = <S>-build = <S>-dev
+    <S>-build-base = <S>-build = <S>-dev = the seed tip
+    <S>-green = the seed's base, below the flavor commits
 
 Stage 1 then populates `-build`;
-the other three advance as the loop consumes and verifies.
-Whatever consumes `-green` must build the series' *flavored* package,
+the other three advance as the loop consumes and verifies,
+and the first commits green crosses are the flavor commits,
+once CI has judged them
+([`branches/model/`](/handbook/branches/model/README.md)).
+What `-green` serves is the series' *flavored* package,
 so the seed contains the flavor pair, never just the unflavored base,
 topped by a separate `chore: Add fifth version component` commit
 stamping the `.0` — the vendor counter's zero,
@@ -93,6 +102,7 @@ prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6,
+a LATE TAG line for a release the buffer vendored before upstream tagged it,
 and an UNSERVED block for an upstream release line no series covers,
 saying whether `series.yaml` declares its flavor yet,
 and the one the report ends with),
@@ -212,10 +222,17 @@ Read the page before changing anything it owns.
 Run **`main`'s copy of the script**, against the buffer worktree:
 
 ```sh
+git -C <upstream-clone> fetch --prune --tags origin
 git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
 VENDOR_REPO=<S>-build-worktree \
   <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
+
+**The fetch takes tags because the script reads them from the clone.**
+Before it walks on, it asks whether the commit it last vendored has been tagged since,
+and re-stamps that commit when it has;
+a clone that has not fetched the tag answers no,
+and the release keeps its `-dev` stamp.
 
 **The clone's HEAD is what picks the line to vendor**, so check it out first.
 The script reads it as the walk's right-hand side and nothing else names one;
@@ -567,9 +584,8 @@ read the one for the sha being repaired.
 Fast-forward `<S>-green` to the newest `<S>-dev` commit
 such that every commit in `<S>-green..<that commit>` has a `success` run.
 The range bounds the walk:
-everything at or before `<S>-green` is trusted —
-verified by this loop,
-or accepted as the series' seed on day one —
+everything at or before `<S>-green` is trusted
+(verified by this loop, or the base the seed sits on, on day one)
 and is never re-examined.
 `-green` is fast-forward only —
 if it cannot fast-forward, something rewrote verified history;
@@ -1414,6 +1430,14 @@ When the script says it could not read the upstream branches,
 the firing says so too:
 otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
+
+**A `LATE TAG` line that stage 1 did not clear goes into the report too.**
+Stage 1 re-stamps a tagged commit that is still the buffer's newest,
+so a line left after that stage says the buffer has vendored past the tag,
+which no firing can repair:
+the release branch takes the re-stamp at CUT
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
+Name the series, the tag and the commit, so the release does not wait on someone noticing.
 
 **A due cutover is reported the same way, above the `UNSERVED` block.**
 It is the one finding a firing may not act on at all —

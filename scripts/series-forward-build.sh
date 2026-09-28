@@ -85,6 +85,16 @@ n=$(version | sed -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
 
 upstream_sha() { git log -1 --format=%s "$1" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p'; }
 
+# What a resumed replay dedupes on: the upstream SHA, and the `(tag ...)` marker
+# beside it, because a late tag is re-stamped by a second vendor commit for the
+# same SHA (scripts/VENDORING.md) and the SHA alone would skip that one.
+upstream_key() {
+  case "$(git log -1 --format=%s "$1")" in
+    *"(tag "*) echo "$(upstream_sha "$1")+tag" ;;
+    *) upstream_sha "$1" ;;
+  esac
+}
+
 # `git cherry-pick -n` leaves no CHERRY_PICK_HEAD, so the in-flight pick is
 # recorded here instead; it is what makes a stopped replay resumable.
 STATE="$(git rev-parse --git-dir)/series-forward-pick"
@@ -156,7 +166,7 @@ fi
 [ -z "$(git status --porcelain)" ] || { echo "Error: working directory not clean"; exit 1; }
 
 # Everything already replayed sits in the last $n commits, one per counter step.
-DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_sha "$c"; done | tr '\n' ' ')"
+DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_key "$c"; done | tr '\n' ' ')"
 
 PICKS=()
 STRANDED=()
@@ -165,7 +175,7 @@ while IFS=$'\t' read -r c subj; do
   case "$subj" in
     vendor:*)
       seen_vendor=1
-      case "$DONE" in *" $(upstream_sha "$c") "*) continue ;; esac
+      case "$DONE" in *" $(upstream_key "$c") "*) continue ;; esac
       PICKS+=("$c")
       ;;
     *)

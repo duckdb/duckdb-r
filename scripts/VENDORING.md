@@ -174,3 +174,47 @@ so the fix lands *in* the vendor commit, then continue the loop.
 Never run `R CMD build` in a working tree you still need:
 the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
 
+### A tag upstream pushed late
+
+`vendor-one.sh` writes the `(tag vX.Y.Z)` marker only for a tag that exists when it vendors the commit,
+and upstream sometimes pushes the tag later, onto a commit the buffer has already vendored.
+That commit then stamps `vX.Y.Z-devN` in `pragma_version.cpp` and `R/version.R`.
+The stamp is not cosmetic: with `-dev` in the version, `ExtensionHelper::GetVersionDirectoryName()`
+answers the source id instead of the tag, so the build installs extensions from `extensions.duckdb.org/<source id>/` rather than `/vX.Y.Z/`.
+It happened to v1.5.6 on 2026-09-28.
+
+**When the tagged commit is the buffer's newest, the next run repairs it.**
+`vendor-one.sh` checks the commit it last vendored for a tag before it walks on,
+re-vendors it when the tag is there and the marker is not,
+and appends the result as a second vendor commit for the same upstream SHA, marker included.
+The two differ in the version stamp and the fifth version component, and in nothing else.
+The re-stamp is appended rather than amended because the plain commit may already sit under `<S>-green`, which only fast-forwards,
+and it ends the run, as any tag does.
+Stage 5 carries it onto `<S>-dev` like any buffer commit, and CUT goes on as usual.
+A run sees only the tags its upstream clone has, so fetch the clone with `--tags` before stage 1.
+
+Two vendor commits for one SHA is why every script that pairs commits by vendored SHA matches the marker as well:
+`series-advance.sh` and `series-check.sh` for the commit stage 5 consumes from,
+`series-advance.sh` again for the base series' twin a forward mines,
+and `series-forward-build.sh` for what a resumed replay has already done.
+
+**`series-check.sh` reports the condition until it is gone.**
+A `LATE TAG` line under the series names the tag, the upstream commit, and the buffer commit that vendored it without the marker,
+and says whether the next run repairs it or the buffer has vendored past it.
+
+**When the buffer has vendored past it, the release branch takes the re-stamp.**
+Appending the tagged tree above newer vendor commits would revert them, so neither strand can take it.
+In the MERGED step of the [release process](/handbook/operations/releases/process/README.md),
+bring `<S>-dev` onto the release branch up to the plain vendor commit for the tag and no further,
+then re-vendor that same commit there before bumping the version:
+
+```bash
+git -C <upstream clone> fetch --tags origin
+git -C <upstream clone> checkout --detach vX.Y.Z
+scripts/vendor.sh <upstream clone>
+```
+
+`vendor.sh` vendors the clone's `HEAD` as it stands, which is the commit the branch already carries,
+so what it commits is the marker and the version stamp alone.
+The release branch's own checks then judge it, as they judge the version bump.
+

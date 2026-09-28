@@ -47,6 +47,19 @@ A green records that CI passed on a commit, and here it did: the cut moves no
 commit, so `<S>-dev`'s tip *is* the parent's, same tree and same run.
 That is what makes the green honest — not inheritance, but the absence of any
 change to inherit across.
+
+**A new-born green never takes the flavor commits.**
+An opening's reflavor lands above the cut, and a forward, or a rebase of one,
+writes a new seed: the flavor pair and the fifth-component commit, on `main` or
+on the release branch the series was seeded from. None of those commits has a
+run, so `<S>-green` starts below them, at the cut or at the commit the seed sits
+on, and `<S>-dev` above them.
+CI judges the flavor commits like any other, and green crosses them when they pass.
+Under green they would never be judged, and could not be repaired either:
+the loop re-examines nothing at or before green, and green only fast-forwards.
+A flavor commit can need one: `v1.5-variegata-fwd` was seeded with a
+`src/cpp11.dd` still naming the unflavored types header (2026-09-28).
+
 The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
 ([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
