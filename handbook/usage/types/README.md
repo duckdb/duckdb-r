@@ -170,9 +170,11 @@ and the `spatial` extension's own types:
 * `BIT`, `BIGNUM` and `UNION` have no R vector,
   so `dbGetQuery()` and `dbExecute()` refuse a column of one, or of anything nesting one, by name and before the statement runs,
   and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
-* `dbColumnInfo()` names the class a column reads as under the default options, whatever the connection sets:
-  `numeric` for a `BIGINT` read as `integer64`, `difftime` for a `TIME` read as an `hms` or an `INTERVAL` read as a `Period`,
-  `raw` for a `BLOB` read as a `blob`, and `data.frame` for a `MAP` read as a `list_of`.
+* `dbColumnInfo()` names a class from the column's type alone, ignoring the connection's type options,
+  and even under the defaults `BLOB` and `GEOMETRY` say `raw` and `MAP` says `data.frame`, where each reads as a `list`.
+  Under the options, `BIGINT` says `numeric` for an `integer64`, `TIME` and `TIME_NS` say `difftime` for an `hms`,
+  `INTERVAL` says `difftime` for a `Period`, `BLOB` and `GEOMETRY` say `raw` for a `blob` and a `wk_wkb`,
+  and `MAP` says `data.frame` for a `list_of`.
 * `dbCreateTable()` takes its column types from `dbDataType()`,
   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,
   where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`,
