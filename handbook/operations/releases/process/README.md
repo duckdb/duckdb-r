@@ -210,6 +210,11 @@ and the post-tag commits stay queued for the next cycle.
    `<S>-dev`; wait for `each.yaml` to show it **green**.
    If vendoring broke the build, fix it in the same commit and
    force-push `<S>-dev`.
+   Upstream may push the tag only after the loop has vendored its commit, which then carries no marker.
+   The loop then appends a re-stamp of that commit, and `scripts/series-check.sh` prints a `LATE TAG` line until it has.
+   Where the buffer had already vendored past the commit, no re-stamp reaches `<S>-dev`,
+   and the release branch takes it in step 4 instead
+   ([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
 2. Review the pending window — the release branch against the tagged
    commit, which is what the *ahead* badge counts — and confirm it holds
    only the expected vendor commits and intended forward-ports,
@@ -231,6 +236,8 @@ run [`scripts/setup-git.sh`](/scripts/setup-git.sh) first
 if this is a fresh clone or CI runner.
 Because `<S>-dev` descends from its release point,
 the only rewriting is dropping that rename.
+A late tag that no re-stamp reached (step 1) ends the range at the plain vendor commit for the tag,
+and the re-stamp is made on the release branch before the bump.
 
 The package version is **not** derived from the git tag —
 set it explicitly so `DESCRIPTION` matches the upstream tag:
