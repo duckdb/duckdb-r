@@ -38,7 +38,7 @@ Only the routes that let DuckDB scan the Arrow data keep its types:
 \code{\link[=duckdb_register_arrow]{duckdb_register_arrow()}}, and \code{\link[arrow:to_duckdb]{arrow::to_duckdb()}}, which calls it.
 \code{duckdb_register_arrow()} takes whatever \code{arrow::Scanner$create()} scans.
 Nothing is copied: the result is a view, and \verb{CREATE TABLE ... AS SELECT * FROM} it writes a table.
-A registered arrow \code{Table} is scanned by every query, and a \code{RecordBatchReader} by the first only, a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+A registered arrow \code{Table} is scanned by every query, and a registered \code{RecordBatchReader} is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 Every other route converts through an R data frame, so a column lands as the type its R vector writes (see \link{duckdb_types}).
 \code{\link[DBI:dbWriteTableArrow]{dbWriteTableArrow()}}, \code{\link[DBI:dbCreateTableArrow]{dbCreateTableArrow()}} and \code{\link[DBI:dbAppendTableArrow]{dbAppendTableArrow()}} are DBI's defaults, which do that batch by batch.
 \code{\link[DBI:dbBindArrow]{dbBindArrow()}} converts the same way, then binds by position.
@@ -57,8 +57,10 @@ nanoarrow reads it as \code{numeric}; arrow reads it as \code{integer} when ever
 nanoarrow reads it as \code{numeric}, exact up to 2^53.
 arrow reads it as \code{integer} when every value fits and as \code{bit64::integer64} otherwise, exactly but for the minimum,
 or as \code{integer64} always under \code{options(arrow.int64_downcast = FALSE)}.
-\item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, exact up to 2^53.
-\item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+\item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, exact up to 2^53;
+its rounding past that is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+\item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric};
+their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}, and so is a \code{UHUGEINT} of 2^127 or more reading as negative.
 With \code{arrow_lossless_conversion} they export as \code{arrow.opaque}, which carries every value.
 Their text reads them exactly (see \link{duckdb_types}).
 \item \strong{\code{BIGNUM}} exports as \code{arrow.opaque} under either setting;
@@ -86,10 +88,11 @@ With \code{arrow_lossless_conversion} it exports as \code{arrow.uuid}.
 \item \strong{\code{DATE}} exports as \code{date32} and reads as \code{Date}.
 \item \strong{\code{TIME}} exports as \code{time64('us')} and reads as \code{hms}.
 \item \strong{\code{TIME_NS}} exports as \code{time64('ns')} and reads as \code{hms}.
-\item \strong{\code{TIMETZ}} exports as the \code{time64('us')} of its local time and reads as \code{hms}.
+\item \strong{\code{TIMETZ}} exports as the \code{time64('us')} of its local time and reads as \code{hms};
+the offset it drops is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 With \code{arrow_lossless_conversion} it exports as \code{arrow.opaque}, which keeps the offset.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}, \code{TIMESTAMP_NS}} export as \code{timestamp} in their own unit, without a zone,
-and read as \code{POSIXct}.
+and read as \code{POSIXct}, whose double cannot hold a \code{TIMESTAMP_NS}'s nanoseconds, a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 The two readers label the same instant differently:
 nanoarrow gives it the zone \code{UTC}, so it prints the stored clock,
 and arrow gives it none, so it prints in R's session zone, a different clock outside UTC.
@@ -142,12 +145,11 @@ and with a zone as \code{TIMESTAMPTZ}, the same instant.
 \item \strong{\code{interval_months}} and \strong{\code{interval_month_day_nano}} land as \code{INTERVAL}, each part kept.
 \item \strong{\code{list}, \code{large_list}, \code{list_view}} land as \code{LIST}, and \strong{\code{fixed_size_list}} as \code{ARRAY}.
 \item \strong{\code{struct}} lands as \code{STRUCT}, \strong{\code{map}} as \code{MAP}, and \strong{\code{sparse_union}} as \code{UNION}.
-Arrow requires the keys of a map to be non-nullable, and nanoarrow's \code{na_map()} builds nullable ones unless the key type says otherwise.
 \item \strong{A dictionary} lands as \code{VARCHAR}.
 \item \strong{\code{na}} lands as a column of type \code{NULL}.
 \item \strong{The extension types} land as the DuckDB type they name:
 \code{arrow.uuid} as \code{UUID}, \code{arrow.json} as \code{JSON}, \code{arrow.bool8} as \code{BOOLEAN}, and \code{arrow.opaque} as the DuckDB type in its metadata.
-What the GeoArrow types land as is under Geometry and Limitations.
+What GeoArrow WKB lands as is under Geometry, and the other GeoArrow encodings are a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 }
 }
 
@@ -182,7 +184,8 @@ With the geoarrow package loaded, both readers convert it to a \code{geoarrow_vc
 \item \strong{sf reads a result through GeoArrow in one call.}
 With geoarrow loaded, \code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's,
 in the large and view layouts too,
-and so do \code{\link[sf:st_as_sf]{sf::st_as_sf()}} of the result's \code{arrow::as_arrow_table()}, and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} of the \code{geoarrow_vctr} column of \code{as.data.frame()}.
+and so do \code{\link[sf:st_as_sf]{sf::st_as_sf()}} of the result's \code{arrow::as_arrow_table()},
+and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} of the \code{geoarrow_vctr} column of \code{as.data.frame()}.
 \item \strong{The \code{spatial} extension's own types cross as their storage.}
 \code{POINT_2D} and the other point and box types export as a \code{struct}, \code{LINESTRING_2D} and \code{LINESTRING_3D} as a \code{list} of point structs,
 \code{POLYGON_2D} and \code{POLYGON_3D} as a list of those lists, and \code{WKB_BLOB} as \code{binary}, with \code{arrow_lossless_conversion} too,

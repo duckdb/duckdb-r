@@ -34,10 +34,11 @@
 #'   `integer` writes `INTEGER`, and `field.types` names the narrower type.
 #' * **`INTEGER`** (`INT4`, `INT`, `SIGNED`) reads as `integer`, exactly but for the minimum, and `integer` writes it.
 #' * **`UINTEGER`** reads as `numeric`, exactly; `numeric` writes `DOUBLE`, and `field.types` names `UINTEGER`.
-#' * **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53,
-#'   or with `bigint = "integer64"` as `bit64::integer64`, exact but for the minimum.
+#' * **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53, and its rounding past that is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
+#'   With `bigint = "integer64"` it reads as `bit64::integer64`, exact but for the minimum.
 #'   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says.
-#' * **`UBIGINT`** reads as `numeric`, or with `bigint = "integer64"` as `integer64`, which holds the values below 2^63.
+#' * **`UBIGINT`** reads as `numeric`, exact up to 2^53, and its rounding past that is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
+#'   With `bigint = "integer64"` it reads as `integer64`, which holds the values below 2^63.
 #'   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 #' * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Their text is exact both ways.
@@ -67,10 +68,11 @@
 #'
 #' * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
 #' * **`TIME`** reads as `difftime` in seconds.
-#'   Its text writes it through `field.types`, and so does Arrow.
+#'   Its text writes it through `field.types`, and so does Arrow (see [duckdb_types_arrow]).
 #' * **`TIME_NS`** reads through Arrow, and to the microsecond through a cast to `TIME` in the query.
 #'   Its text writes it, and so does Arrow.
 #' * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as the `difftime` of its local time.
+#'   The offset it drops is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Its text writes it.
 #' * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.
 #'   `POSIXct` writes `TIMESTAMP`, the instant in UTC, and `field.types` names the other precisions.
@@ -90,19 +92,18 @@
 #' * **`ENUM`** reads as `factor`, with every value of the type as a level.
 #'   A `factor` or `ordered` column writes `ENUM` of its levels; a `factor` parameter binds as `VARCHAR`.
 #' * **`ARRAY`** (`INTEGER[3]`) reads with `array = "matrix"`, as a matrix with a row per value.
-#'   A `NULL` array reads as a row of `NA`, the same as an array of `NULL`s.
 #'   A matrix column writes it.
 #' * **`LIST`** (`INTEGER[]`) reads as a list of vectors, `NULL` for a `NULL` row, and a list column whose elements share a type writes it.
 #' * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
 #'   With `map = "list_of"`, the [vctrs::list_of()] it reads as writes back as `MAP` without `field.types`
 #'   ([#200](https://github.com/duckdb/duckdb-r/issues/200)).
 #'   Its text casts to `MAP` in the query and as a parameter.
-#' * **`STRUCT`** (`ROW`) reads as a data frame column, where a `NULL` struct is a row of `NA`, the same as a struct of `NULL`s.
+#' * **`STRUCT`** (`ROW`) reads as a data frame column.
 #'   A data frame column writes it, and a data frame parameter binds a struct per row.
 #' * **`UNION`** reads in the query through `union_tag()`, `union_extract()` or a cast to `VARCHAR`, and an Arrow result carries it.
 #'   A column of a member's type writes it through `field.types`, which picks that member; text picks the `VARCHAR` member.
 #' * **`VARIANT`** reads as a list, each value converted by its own type.
-#'   A column of the value's type writes it through `field.types`; the list it reads as writes as a `LIST` inside the variant.
+#'   A column of the value's type writes it through `field.types`.
 #'
 #' # Geometry
 #'
@@ -113,7 +114,7 @@
 #'   With `geometry = "blob"`, the default, it reads as a list of raw vectors;
 #'   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which [sf::st_as_sfc()] converts onward, CRS included.
 #'   The type is core since DuckDB 1.5, so reading one needs no extension;
-#'   the geometry functions are the `spatial` extension's.
+#'   the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview).
 #'   Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see [duckdb_types_arrow]).
 #' * **WKT writes `GEOMETRY`.**
 #'   A `character` column of WKT, as [sf::st_as_text()] makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
@@ -138,7 +139,8 @@
 #' * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
 #'   Its text writes it through `field.types`.
 #' * **`INET`**, the [`inet` extension's](https://duckdb.org/docs/current/core_extensions/inet) address type,
-#'   reads as a data frame column whose `address` is a `HUGEINT` read as a double, exact for IPv4.
+#'   reads as a data frame column whose `address` is a `HUGEINT` read as a double, exact for IPv4;
+#'   an IPv6 address is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Its text reads and writes it exactly.
 #'
 #' # Limitations and reference
@@ -151,8 +153,7 @@
 #' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md),
 #' [`experiments/2026-09-28-type-rereview/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md)
 #' or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md).
-#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s,
-#' and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
+#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s.
 #'
 #' What `expr_constant(NA)` builds in the relational API is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
 #'

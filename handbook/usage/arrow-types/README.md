@@ -39,7 +39,7 @@ Only the routes that let DuckDB scan the Arrow data keep its types:
 `duckdb_register_arrow()`, and `arrow::to_duckdb()`, which calls it.
 `duckdb_register_arrow()` takes whatever `arrow::Scanner$create()` scans ([`R/register.R`](/R/register.R)).
 Nothing is copied: the result is a view, and `CREATE TABLE ... AS SELECT * FROM` it writes a table.
-A registered arrow `Table` is scanned by every query, and a `RecordBatchReader` by the first only, a limitation (below).
+A registered arrow `Table` is scanned by every query, and a registered `RecordBatchReader` is a limitation (below).
 Every other route converts through an R data frame, so a column lands as the type its R vector writes ([`types/`](/handbook/usage/types/README.md)).
 `dbWriteTableArrow()`, `dbCreateTableArrow()` and `dbAppendTableArrow()` are DBI's defaults, which do that batch by batch.
 `dbBindArrow()` converts the same way, then binds by position.
@@ -58,8 +58,10 @@ Every other route converts through an R data frame, so a column lands as the typ
   nanoarrow reads it as `numeric`, exact up to 2^53.
   arrow reads it as `integer` when every value fits and as `bit64::integer64` otherwise, exactly but for the minimum,
   or as `integer64` always under `options(arrow.int64_downcast = FALSE)`.
-* **`UBIGINT`** exports as `uint64`, and both read it as `numeric`, exact up to 2^53.
-* **`HUGEINT`, `UHUGEINT`** export as `decimal128(38, 0)`, and both read them as `numeric`; their rounding is a limitation (below).
+* **`UBIGINT`** exports as `uint64`, and both read it as `numeric`, exact up to 2^53;
+  its rounding past that is a limitation (below).
+* **`HUGEINT`, `UHUGEINT`** export as `decimal128(38, 0)`, and both read them as `numeric`;
+  their rounding is a limitation (below), and so is a `UHUGEINT` of 2^127 or more reading as negative.
   With `arrow_lossless_conversion` they export as `arrow.opaque`, which carries every value.
   Their text reads them exactly ([`types/`](/handbook/usage/types/README.md)).
 * **`BIGNUM`** exports as `arrow.opaque` under either setting;
@@ -83,10 +85,11 @@ Every other route converts through an R data frame, so a column lands as the typ
 * **`DATE`** exports as `date32` and reads as `Date`.
 * **`TIME`** exports as `time64('us')` and reads as `hms`.
 * **`TIME_NS`** exports as `time64('ns')` and reads as `hms`.
-* **`TIMETZ`** exports as the `time64('us')` of its local time and reads as `hms`.
+* **`TIMETZ`** exports as the `time64('us')` of its local time and reads as `hms`;
+  the offset it drops is a limitation (below).
   With `arrow_lossless_conversion` it exports as `arrow.opaque`, which keeps the offset.
 * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`, `TIMESTAMP_NS`** export as `timestamp` in their own unit, without a zone,
-  and read as `POSIXct`.
+  and read as `POSIXct`, whose double cannot hold a `TIMESTAMP_NS`'s nanoseconds, a limitation (below).
   The two readers label the same instant differently:
   nanoarrow gives it the zone `UTC`, so it prints the stored clock,
   and arrow gives it none, so it prints in R's session zone, a different clock outside UTC.
@@ -134,12 +137,11 @@ Each Arrow type lands as one DuckDB type when DuckDB scans it:
 * **`interval_months`** and **`interval_month_day_nano`** land as `INTERVAL`, each part kept.
 * **`list`, `large_list`, `list_view`** land as `LIST`, and **`fixed_size_list`** as `ARRAY`.
 * **`struct`** lands as `STRUCT`, **`map`** as `MAP`, and **`sparse_union`** as `UNION`.
-  Arrow requires the keys of a map to be non-nullable, and nanoarrow's `na_map()` builds nullable ones unless the key type says otherwise.
 * **A dictionary** lands as `VARCHAR`.
 * **`na`** lands as a column of type `NULL`.
 * **The extension types** land as the DuckDB type they name:
   `arrow.uuid` as `UUID`, `arrow.json` as `JSON`, `arrow.bool8` as `BOOLEAN`, and `arrow.opaque` as the DuckDB type in its metadata.
-  What the GeoArrow types land as is under Geometry and Limitations.
+  What GeoArrow WKB lands as is under Geometry, and the other GeoArrow encodings are a limitation (below).
 
 ### R classes, through Arrow
 
@@ -170,7 +172,8 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
 * **sf reads a result through GeoArrow in one call.**
   With geoarrow loaded, `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's,
   in the large and view layouts too,
-  and so do `sf::st_as_sf()` of the result's `arrow::as_arrow_table()`, and `sf::st_as_sfc()` of the `geoarrow_vctr` column of `as.data.frame()`.
+  and so do `sf::st_as_sf()` of the result's `arrow::as_arrow_table()`,
+  and `sf::st_as_sfc()` of the `geoarrow_vctr` column of `as.data.frame()`.
 * **The `spatial` extension's own types cross as their storage.**
   `POINT_2D` and the other point and box types export as a `struct`, `LINESTRING_2D` and `LINESTRING_3D` as a `list` of point structs,
   `POLYGON_2D` and `POLYGON_3D` as a list of those lists, and `WKB_BLOB` as `binary`, with `arrow_lossless_conversion` too,
@@ -199,8 +202,7 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
   `arrow::as_record_batch_reader()` turns one into what it takes.
   A registered reader is scanned once: a `RecordBatchReader` is a stream the first query drains,
   so a second query of the view sees no rows ([`experiments/2026-09-27-geoarrow/`](/experiments/2026-09-27-geoarrow/README.md)).
-* `arrow::to_duckdb()` fails on Arrow data that lands as a type R cannot hold, and `to_arrow()` on a table holding one
-  ([`integrations/`](/handbook/usage/integrations/README.md)).
+* What a type R cannot hold does to `arrow::to_duckdb()` and `to_arrow()` is [`integrations/`](/handbook/usage/integrations/README.md)'s.
 * The DBI Arrow write methods land `uint32` and `decimal128` as `DOUBLE`, `timestamp('ns')` as `TIMESTAMP`, and a dictionary as `VARCHAR`;
   `time64` fails, because the `hms` it converts to writes `INTERVAL`, which does not cast to the `TIME` column `dbCreateTableArrow()` made;
   and `interval_month_day_nano` fails, because nanoarrow has no R vector for it.
