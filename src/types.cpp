@@ -3,6 +3,10 @@
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
+
+#include <cmath>
+#include <sstream>
+
 #include "rapi.hpp"
 #include "typesr.hpp"
 
@@ -109,7 +113,7 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 	return aux_;
 }
 
-RType RApiTypes::DetectRType(SEXP v, bool integer64) {
+RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time) {
 	if (TYPEOF(v) == REALSXP && Rf_inherits(v, "POSIXct")) {
 		return RType::TIMESTAMP;
 	} else if (TYPEOF(v) == REALSXP && Rf_inherits(v, "Date")) {
@@ -123,6 +127,9 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		}
 		SEXP units0 = STRING_ELT(units, 0);
 		if (units0 == RStrings::get().secs) {
+			if (hms_time && Rf_inherits(v, "hms")) {
+				return RType::TIME;
+			}
 			return RType::INTERVAL_SECONDS;
 		} else if (units0 == RStrings::get().mins) {
 			return RType::INTERVAL_MINUTES;
@@ -204,7 +211,7 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 				return RType::UNKNOWN;
 			}
 			for (R_xlen_t i = 0; i < ncol; ++i) {
-				RType child = DetectRType(VECTOR_ELT(v, i), integer64);
+				RType child = DetectRType(VECTOR_ELT(v, i), integer64, hms_time);
 				if (child == RType::UNKNOWN) {
 					return (RType::UNKNOWN);
 				}
@@ -214,6 +221,8 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 
 			return RType::STRUCT(std::move(child_types));
 		} else {
+			// A list cell leaves `hms_time` behind: the scan converts it with SexpToValue(), which does not see it,
+			// so an hms in a list writes INTERVAL (handbook/usage/types/README.md).
 			R_xlen_t len = Rf_xlength(v);
 			R_xlen_t i = 0;
 			auto type = RType();
@@ -272,6 +281,8 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		break;
 	case RType::TIMESTAMP:
 		return LogicalType::TIMESTAMP;
+	case RType::TIME:
+		return LogicalType::TIME;
 	case RType::INTERVAL_SECONDS:
 	case RType::INTERVAL_MINUTES:
 	case RType::INTERVAL_HOURS:
@@ -397,6 +408,59 @@ date_t RDateType::Convert(double val) {
 
 timestamp_t RTimestampType::Convert(double val) {
 	return Timestamp::FromEpochMicroSeconds(round(val * Interval::MICROS_PER_SEC));
+}
+
+// TIME holds 00:00:00 to 24:00:00, to the microsecond, and an hms is rounded to that.
+// NaN and the infinities compare false, so they are not valid either.
+bool RTimeType::IsValid(double val) {
+	auto micros = round(val * Interval::MICROS_PER_SEC);
+	return micros >= 0 && micros <= double(Interval::MICROS_PER_DAY);
+}
+
+// Checked before the scan or the bind, where the error can name the column (FindInvalidTime());
+// what gets here anyway is refused without calling R, since the scan runs on a task thread.
+dtime_t RTimeType::Convert(double val) {
+	if (!IsValid(val)) {
+		throw InvalidInputException("An hms of %s seconds is not a time of day `TIME` can hold", std::to_string(val));
+	}
+	return dtime_t(int64_t(round(val * Interval::MICROS_PER_SEC)));
+}
+
+// The first value that writes TIME and that TIME cannot hold, in `v` or the fields of a data frame `v`,
+// described for an error; empty when there is none.
+string RApiTypes::FindInvalidTime(SEXP v, const string &path) {
+	auto rtype = DetectRType(v, true, true);
+	if (rtype.id() == RTypeId::STRUCT) {
+		SEXP names = GET_NAMES(v);
+		for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
+			auto invalid = FindInvalidTime(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)));
+			if (!invalid.empty()) {
+				return invalid;
+			}
+		}
+		return "";
+	}
+	if (rtype.id() != RTypeId::TIME) {
+		return "";
+	}
+	auto data = NUMERIC_POINTER(v);
+	for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
+		if (!RTimeType::IsNull(data[i]) && !RTimeType::IsValid(data[i])) {
+			// Spelled as R prints it, for the value the caller passed
+			std::ostringstream seconds;
+			if (std::isnan(data[i])) {
+				seconds << "NaN";
+			} else if (std::isinf(data[i])) {
+				seconds << (data[i] > 0 ? "Inf" : "-Inf");
+			} else {
+				seconds.precision(15);
+				seconds << data[i];
+			}
+			return "`" + path + "` must hold times of day from 00:00:00 to 24:00:00 to write `TIME`, not " +
+			       seconds.str() + " seconds (row " + std::to_string(i + 1) + ").";
+		}
+	}
+	return "";
 }
 
 interval_t RIntervalSecondsType::Convert(double val) {

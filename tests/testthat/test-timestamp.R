@@ -129,18 +129,201 @@ test_that("`time = \"hms\"` reaches a relation's columns", {
   expect_identical(df$a, hms::hms(3723))
 })
 
-test_that("an hms read under `time = \"hms\"` writes back as INTERVAL", {
+# Writing with time = "hms" ------------------------------------------------
+
+test_that("an hms writes INTERVAL under the default `time`", {
+  skip_if_not_installed("hms")
+
+  con <- local_con()
+
+  dbWriteTable(con, "tbl", data.frame(a = hms::hms(3723.45)))
+  expect_equal(dbGetQuery(con, "SELECT typeof(a) AS t FROM tbl")$t, "INTERVAL")
+  expect_equal(
+    dbGetQuery(con, "SELECT typeof(?) AS t", params = list(hms::hms(1)))$t,
+    "INTERVAL"
+  )
+})
+
+test_that("`time = \"hms\"` round-trips TIME through hms", {
   skip_if_not_installed("hms")
 
   con <- local_con(time = "hms")
 
-  data <- dbGetQuery(con, "SELECT TIME '01:02:03.45' AS a")
-  dbWriteTable(con, "tbl", data)
-  expect_equal(dbGetQuery(con, "SELECT typeof(a) AS t FROM tbl")$t, "INTERVAL")
-  expect_identical(
-    dbReadTable(con, "tbl")$a,
-    structure(3723.45, class = "difftime", units = "secs")
+  data <- dbGetQuery(
+    con,
+    "SELECT * FROM (VALUES
+       (1, TIME '01:02:03.456789'),
+       (2, NULL),
+       (3, TIME '00:00:00'),
+       (4, TIME '24:00:00')
+     ) AS t(i, a) ORDER BY i"
   )
+  dbWriteTable(con, "tbl", data)
+  expect_equal(
+    dbGetQuery(con, "SELECT DISTINCT typeof(a) AS t FROM tbl")$t,
+    "TIME"
+  )
+  expect_identical(dbReadTable(con, "tbl"), data)
+
+  dbAppendTable(con, "tbl", data)
+  expect_identical(dbGetQuery(con, "SELECT count(a) AS n FROM tbl")$n, 6)
+})
+
+test_that("`time = \"hms\"` keeps an hms and a difftime apart, in both directions", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  data <- data.frame(
+    a = hms::hms(c(3723, NA)),
+    b = as.difftime(c(90000, NA), units = "secs")
+  )
+  expect_equal(dbDataType(con, data), c(a = "TIME", b = "INTERVAL"))
+
+  dbWriteTable(con, "tbl", data)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE tbl")$column_type,
+    c("TIME", "INTERVAL")
+  )
+  expect_identical(dbReadTable(con, "tbl"), data)
+
+  dbCreateTable(con, "tbl2", data)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE tbl2")$column_type,
+    c("TIME", "INTERVAL")
+  )
+  dbAppendTable(con, "tbl2", data)
+  expect_identical(dbReadTable(con, "tbl2"), data)
+
+  bound <- dbGetQuery(
+    con,
+    "SELECT typeof(?) AS a, typeof(?) AS b",
+    params = unname(as.list(data[1, ]))
+  )
+  expect_equal(unlist(bound), c(a = "TIME", b = "INTERVAL"))
+})
+
+test_that("dbDataType() keeps calling a difftime TIME under the default `time`", {
+  skip_if_not_installed("hms")
+
+  con <- local_con()
+
+  expect_equal(
+    dbDataType(
+      con,
+      data.frame(a = hms::hms(1), b = as.difftime(1, units = "secs"))
+    ),
+    c(a = "TIME", b = "TIME")
+  )
+})
+
+test_that("`time = \"hms\"` appends an hms to the TIME column dbCreateTable() makes", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  data <- data.frame(a = hms::hms(c(3723, NA)))
+  dbCreateTable(con, "tbl", data)
+  expect_equal(dbGetQuery(con, "DESCRIBE tbl")$column_type, "TIME")
+  dbAppendTable(con, "tbl", data)
+  expect_identical(dbReadTable(con, "tbl"), data)
+})
+
+test_that("`time = \"hms\"` binds an hms parameter as TIME, and NA as NULL", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  data <- dbGetQuery(
+    con,
+    "SELECT typeof(?) AS t, ? AS a",
+    params = list(hms::hms(c(3723.45, NA)), hms::hms(c(3723.45, NA)))
+  )
+  expect_equal(data$t, c("TIME", "TIME"))
+  expect_identical(data$a, hms::hms(c(3723.45, NA)))
+
+  # A plain difftime still binds as INTERVAL
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT typeof(?) AS t",
+      params = list(as.difftime(1, units = "secs"))
+    )$t,
+    "INTERVAL"
+  )
+})
+
+test_that("`time = \"hms\"` registers an hms column or field as TIME, but not an hms in a list", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  df <- data.frame(a = hms::hms(1:2))
+  df$s <- data.frame(t = hms::hms(3:4))
+  df$l <- list(hms::hms(5), hms::hms(6))
+  duckdb_register(con, "df", df)
+
+  types <- dbGetQuery(con, "DESCRIBE df")$column_type
+  expect_equal(types, c("TIME", "STRUCT(t TIME)", "INTERVAL[]"))
+})
+
+test_that("`time = \"hms\"` rounds an hms to the microsecond", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  data <- dbGetQuery(
+    con,
+    "SELECT ?::VARCHAR AS a",
+    params = list(hms::hms(c(1.0000004, 86400.0000004)))
+  )
+  expect_equal(data$a, c("00:00:01", "24:00:00"))
+})
+
+test_that("`time = \"hms\"` refuses an hms that TIME can't hold, naming its column or parameter", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", data.frame(a = hms::hms(c(1, -1))))
+    dbWriteTable(con, "tbl", data.frame(a = hms::hms(90000)))
+    dbWriteTable(con, "tbl", data.frame(a = hms::hms(Inf)))
+    dbGetQuery(con, "SELECT ? AS a", params = list(hms::hms(NaN)))
+  })
+
+  df <- data.frame(i = 1)
+  df$s <- data.frame(t = hms::hms(-5))
+  expect_error(duckdb_register(con, "df", df), "`s$t`", fixed = TRUE)
+
+  expect_false(dbExistsTable(con, "tbl"))
+})
+
+test_that("`time = \"hms\"` no longer appends an hms to an INTERVAL column", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  dbExecute(con, "CREATE TABLE tbl (a INTERVAL)")
+  expect_error(
+    dbAppendTable(con, "tbl", data.frame(a = hms::hms(1))),
+    "TIME -> INTERVAL",
+    fixed = TRUE
+  )
+})
+
+test_that("`time = \"hms\"` appends Arrow's time64 to a TIME column", {
+  skip_if_not_installed("hms")
+  skip_if_not_installed("nanoarrow")
+
+  con <- local_con(time = "hms")
+
+  stream <- function() {
+    nanoarrow::as_nanoarrow_array_stream(data.frame(a = hms::hms(3723)))
+  }
+  dbCreateTableArrow(con, "tbl", stream())
+  dbAppendTableArrow(con, "tbl", stream())
+  expect_identical(dbReadTable(con, "tbl")$a, hms::hms(3723))
 })
 
 test_that("`time = \"hms\"` needs the hms package", {

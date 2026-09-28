@@ -28,6 +28,7 @@ enum class RTypeId {
 	DATE,
 	DATE_INTEGER,
 	TIMESTAMP,
+	TIME,
 	INTERVAL_SECONDS,
 	INTERVAL_MINUTES,
 	INTERVAL_HOURS,
@@ -86,6 +87,7 @@ struct RType {
 	static constexpr const RTypeId DATE = RTypeId::DATE;
 	static constexpr const RTypeId DATE_INTEGER = RTypeId::DATE_INTEGER;
 	static constexpr const RTypeId TIMESTAMP = RTypeId::TIMESTAMP;
+	static constexpr const RTypeId TIME = RTypeId::TIME;
 	static constexpr const RTypeId INTERVAL_SECONDS = RTypeId::INTERVAL_SECONDS;
 	static constexpr const RTypeId INTERVAL_MINUTES = RTypeId::INTERVAL_MINUTES;
 	static constexpr const RTypeId INTERVAL_HOURS = RTypeId::INTERVAL_HOURS;
@@ -122,12 +124,14 @@ private:
 };
 
 struct RApiTypes {
-	static RType DetectRType(SEXP v, bool integer64);
+	// `hms_time` makes an hms TIME rather than INTERVAL, as `time = "hms"` asks for writing.
+	static RType DetectRType(SEXP v, bool integer64, bool hms_time = false);
 	static LogicalType LogicalTypeFromRType(const RType &rtype, bool experimental);
 	static string DetectLogicalType(const LogicalType &stype, const char *caller);
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
-	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
+	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true, bool hms_time = false);
+	static string FindInvalidTime(SEXP v, const string &path);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 
@@ -163,6 +167,11 @@ struct RDateType : public RDoubleType {
 
 struct RTimestampType : public RDoubleType {
 	static timestamp_t Convert(double val);
+};
+
+struct RTimeType : public RDoubleType {
+	static bool IsValid(double val);
+	static dtime_t Convert(double val);
 };
 
 struct RIntervalSecondsType : public RDoubleType {

@@ -208,6 +208,18 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		}
 	}
 
+	// An hms binds as TIME rather than INTERVAL with `time = "hms"` (handbook/usage/types/README.md)
+	bool time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
+	if (time_hms) {
+		for (R_xlen_t param_idx = 0; param_idx < params.size(); param_idx++) {
+			auto invalid =
+			    RApiTypes::FindInvalidTime(params[param_idx], "params[[" + std::to_string(param_idx + 1) + "]]");
+			if (!invalid.empty()) {
+				rapi_error_with_context("rapi_bind", invalid);
+			}
+		}
+	}
+
 	bool arrow = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
 	bool allow_stream = convert_opts.allow_stream_result == ConvertOpts::AllowStreamResult::ENABLED;
 
@@ -228,7 +240,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	for (idx_t row_idx = 0; row_idx < (size_t)n_rows; ++row_idx) {
 		for (idx_t param_idx = 0; param_idx < (idx_t)params.size(); param_idx++) {
 			SEXP valsexp = params[(size_t)param_idx];
-			auto val = RApiTypes::SexpToValue(valsexp, row_idx);
+			auto val = RApiTypes::SexpToValue(valsexp, row_idx, true, time_hms);
 			stmt->parameters[param_idx] = val;
 		}
 

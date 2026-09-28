@@ -67,6 +67,8 @@ The \href{https://duckdb.org/docs/current/sql/data_types/date}{date}, \href{http
 \itemize{
 \item \strong{\code{DATE}} reads as \code{Date}, and a \code{Date} writes it, stored as double or as integer.
 \item \strong{\code{TIME}} reads as \code{difftime} in seconds, or with \code{time = "hms"} as \code{hms::hms}.
+With \code{time = "hms"}, an \code{hms} column, data frame field or parameter writes it, rounded to the microsecond,
+and a \code{difftime} that is not an \code{hms} keeps writing \code{INTERVAL}.
 Its text writes it through \code{field.types}, and so does Arrow.
 \item \strong{\code{TIME_NS}} reads through Arrow, and to the microsecond through a cast to \code{TIME} in the query.
 Its text writes it, and so does Arrow.
@@ -79,8 +81,8 @@ Its text writes it.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
-\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours.
-A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}.
+\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours.
+A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }
 }
 

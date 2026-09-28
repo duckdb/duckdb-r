@@ -38,6 +38,7 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	case RType::STRING:
 		return ReadOnlyDataPtr(DATAPTR_RO(coldata));
 	case RType::TIMESTAMP:
+	case RType::TIME:
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::INTERVAL_SECONDS:
 	case RType::INTERVAL_MINUTES:
@@ -356,6 +357,11 @@ static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_p
 		AppendColumnSegment<double, timestamp_t, RTimestampType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
+	case RType::TIME: {
+		auto data_ptr = (double *)coldata_ptr;
+		AppendColumnSegment<double, dtime_t, RTimeType>(data_ptr, sexp_offset, v, this_count);
+		break;
+	}
 	case RType::INTERVAL_SECONDS: {
 		auto data_ptr = (double *)coldata_ptr;
 		AppendColumnSegment<double, interval_t, RIntervalSecondsType>(data_ptr, sexp_offset, v, this_count);
@@ -492,6 +498,14 @@ static bool get_experimental_param(named_parameter_map_t &named_parameters) {
 	return false;
 }
 
+static bool get_time_hms_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("time_hms");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
+}
+
 static bool get_map_list_of_param(named_parameter_map_t &named_parameters) {
 	auto entry = named_parameters.find("map_list_of");
 	if (entry != named_parameters.end()) {
@@ -607,6 +621,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	auto integer64 = get_integer64_param(input.named_parameters);
 	auto experimental = get_experimental_param(input.named_parameters);
 	auto map_list_of = get_map_list_of_param(input.named_parameters);
+	auto time_hms = get_time_hms_param(input.named_parameters);
 
 	auto df_names = df.names();
 	vector<RType> rtypes;
@@ -618,7 +633,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 
 		auto coldata = df[col_idx];
 		TouchColumn(coldata);
-		auto rtype = RApiTypes::DetectRType(coldata, integer64);
+		auto rtype = RApiTypes::DetectRType(coldata, integer64, time_hms);
 
 		bool is_named_list_map = false;
 		if (map_list_of && (rtype.id() == RTypeId::LIST || rtype.id() == RTypeId::LIST_OF_NULLS)) {
@@ -743,6 +758,7 @@ DataFrameScanFunction::DataFrameScanFunction()
 	named_parameters["integer64"] = LogicalType::BOOLEAN;
 	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	named_parameters["map_list_of"] = LogicalType::BOOLEAN;
+	named_parameters["time_hms"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

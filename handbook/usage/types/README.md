@@ -76,6 +76,8 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
 * **`TIME`** reads as `difftime` in seconds, or with `time = "hms"` as `hms::hms`,
   pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
+  With `time = "hms"`, an `hms` column, data frame field or parameter writes it, rounded to the microsecond,
+  and a `difftime` that is not an `hms` keeps writing `INTERVAL`.
   Its text writes it through `field.types`, and so does Arrow.
 * **`TIME_NS`** reads through Arrow, and to the microsecond through a cast to `TIME` in the query.
   Its text writes it, and so does Arrow.
@@ -89,8 +91,8 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
   and Arrow writes it directly.
-* **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours.
-  A `difftime` in any unit, or an `hms`, writes `INTERVAL`.
+* **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
+  A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
 ## Enums and nested types
 
@@ -161,6 +163,7 @@ and the `spatial` extension's own types:
   where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`,
   so a `difftime` column fails to append to the table it created
   ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).
+  Under `time = "hms"` the two agree on time, since a connection's `dbDataType()` then says `INTERVAL` for a `difftime` that is not an `hms`.
   For a data frame column, `dbDataType()` gives its field's type when it has one field and fails when it has several,
   and `dbCreateTable()` and `sqlCreateTable()` with it, where `dbWriteTable()` writes a `STRUCT`.
 * Attribute classes do not cross, in either direction, through Arrow too:
@@ -196,10 +199,13 @@ and the `spatial` extension's own types:
   on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,
   because only `NA` is taken for missing ([`src/types.cpp`](/src/types.cpp)).
 * A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
-* `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
-  and no R class writes `TIME` outside Arrow.
-  `difftime` and `hms` write `INTERVAL`, which does not cast to `TIME`,
+* `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
+  and `TIME` does only under `time = "hms"`, the one R route to it outside Arrow.
+  Under the default `time`, `difftime` and `hms` write `INTERVAL`, which does not cast to `TIME`,
   so `field.types`, `dbAppendTable()` and a parameter all fail with that cast error.
+  Under `time = "hms"`, an `hms` in a list cell still writes `INTERVAL`,
+  an `hms` no longer appends to an `INTERVAL` column, because `TIME` does not cast to `INTERVAL`,
+  and a value outside 00:00:00 to 24:00:00, `NaN` and the infinities included, is refused naming its column or parameter.
 * An `ordered` factor writes an unordered `ENUM`.
 * An `ARRAY` column under the default `array = "none"` is refused with a hint to `array = "matrix"`, and only once the statement has run,
   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.

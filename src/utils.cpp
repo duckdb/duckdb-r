@@ -186,10 +186,10 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 	return GetVecSize(rtype, coldata);
 }
 
-Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
+Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null, bool hms_time) {
 	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
 	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
-	auto rtype = RApiTypes::DetectRType(valsexp, true);
+	auto rtype = RApiTypes::DetectRType(valsexp, true, hms_time);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -241,6 +241,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::DATE: {
 		auto d_val = NUMERIC_POINTER(valsexp)[idx];
 		return RDateType::IsNull(d_val) ? Value(LogicalType::DATE) : Value::DATE(RDateType::Convert(d_val));
+	}
+	case RType::TIME: {
+		auto time_val = NUMERIC_POINTER(valsexp)[idx];
+		return RTimeType::IsNull(time_val) ? Value(LogicalType::TIME) : Value::TIME(RTimeType::Convert(time_val));
 	}
 	case RType::DATE_INTEGER: {
 		auto d_val = INTEGER_POINTER(valsexp)[idx];
@@ -323,7 +327,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		auto ncol = Rf_length(valsexp);
 		auto child_rtypes = rtype.GetStructChildTypes();
 		for (R_len_t col = 0; col < ncol; ++col) {
-			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx);
+			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx, true, hms_time);
 			child_values.push_back(std::make_pair(child_rtypes[col].first, value));
 		}
 		return Value::STRUCT(std::move(child_values));

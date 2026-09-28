@@ -159,11 +159,13 @@ that records the SQL key/value types.
 This enables MAP columns to round-trip through \code{\link[DBI:dbWriteTable]{dbWriteTable()}} / \code{\link[DBI:dbCreateTable]{dbCreateTable()}} without specifying \code{field.types},
 and lets scans accept named-list cells as MAP entries.}
 
-\item{time}{How \code{TIME} and \code{TIMETZ} columns should be returned.
+\item{time}{How \code{TIME} and \code{TIMETZ} columns should be returned, and what an \code{hms} writes.
 There are two options: \code{"difftime"} and \code{"hms"}.
-If \code{"difftime"} is selected (the default), they are returned as a \code{difftime} in seconds.
+If \code{"difftime"} is selected (the default), they are returned as a \code{difftime} in seconds,
+and an \code{hms} column or parameter writes \code{INTERVAL}.
 If \code{"hms"} is selected, they are returned as \code{\link[hms:hms]{hms::hms()}} vectors,
-which requires the \pkg{hms} package.}
+which requires the \pkg{hms} package,
+and an \code{hms} column or parameter writes \code{TIME}.}
 
 \item{blob}{How \code{BLOB} columns should be returned.
 There are two options: \code{"list"} and \code{"blob"}.

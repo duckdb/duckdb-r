@@ -67,6 +67,8 @@
 #'
 #' * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
 #' * **`TIME`** reads as `difftime` in seconds, or with `time = "hms"` as `hms::hms`.
+#'   With `time = "hms"`, an `hms` column, data frame field or parameter writes it, rounded to the microsecond,
+#'   and a `difftime` that is not an `hms` keeps writing `INTERVAL`.
 #'   Its text writes it through `field.types`, and so does Arrow.
 #' * **`TIME_NS`** reads through Arrow, and to the microsecond through a cast to `TIME` in the query.
 #'   Its text writes it, and so does Arrow.
@@ -79,8 +81,8 @@
 #' * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
 #'   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
 #'   and Arrow writes it directly.
-#' * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours.
-#'   A `difftime` in any unit, or an `hms`, writes `INTERVAL`.
+#' * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
+#'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'
 #' # Enums and nested types
 #'

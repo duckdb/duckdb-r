@@ -47,11 +47,13 @@
 #'   that records the SQL key/value types.
 #'   This enables MAP columns to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
 #'   and lets scans accept named-list cells as MAP entries.
-#' @param time How `TIME` and `TIMETZ` columns should be returned.
+#' @param time How `TIME` and `TIMETZ` columns should be returned, and what an `hms` writes.
 #'   There are two options: `"difftime"` and `"hms"`.
-#'   If `"difftime"` is selected (the default), they are returned as a `difftime` in seconds.
+#'   If `"difftime"` is selected (the default), they are returned as a `difftime` in seconds,
+#'   and an `hms` column or parameter writes `INTERVAL`.
 #'   If `"hms"` is selected, they are returned as [hms::hms()] vectors,
-#'   which requires the \pkg{hms} package.
+#'   which requires the \pkg{hms} package,
+#'   and an `hms` column or parameter writes `TIME`.
 #' @param blob How `BLOB` columns should be returned.
 #'   There are two options: `"list"` and `"blob"`.
 #'   If `"list"` is selected (the default), they are returned as a list of raw vectors.
