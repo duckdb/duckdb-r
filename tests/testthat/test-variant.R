@@ -189,6 +189,14 @@ test_that("VARIANT handles BLOBs", {
   expect_equal(v, charToRaw("hello"))
 })
 
+test_that("VARIANT reads a BLOB as a blob under `blob = \"blob\"`", {
+  skip_if_not_installed("blob")
+  con <- local_con(blob = "blob")
+
+  res <- dbGetQuery(con, "SELECT 'hello'::BLOB::VARIANT AS v")
+  expect_identical(res$v[[1]], blob::as_blob(charToRaw("hello")))
+})
+
 
 test_that("VARIANT handles MAPs with data", {
   con <- local_con()
