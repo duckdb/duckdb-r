@@ -212,6 +212,9 @@ so a database that does not exist yet gets the key it will keep once created,
 and two spellings of one database (a relative path, a symlink, a different separator)
 share an instance instead of each opening their own.
 A path that resolves no further is used as it stands rather than refused.
+Symbolic links are not supported on Windows,
+where creating one takes administrator rights or Developer Mode:
+there, a symlink to a database that does not exist yet fails to open.
 
 Because the instance is created once per database file,
 \code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation.
