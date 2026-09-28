@@ -1746,7 +1746,7 @@ bool LocalFileSystem::TryCanonicalizeExistingPath(string &input) {
 }
 
 bool LocalFileSystem::PathStartsWithDrive(const string &path) {
-	return path.size() >= 2 && path[0] >= 'A' && path[0] <= 'Z' && path[1] == ':';
+	return path.size() >= 2 && StringUtil::CharacterIsAlpha(path[0]) && path[1] == ':';
 }
 
 bool LocalFileSystem::IsPathAbsolute(const string &path) {
