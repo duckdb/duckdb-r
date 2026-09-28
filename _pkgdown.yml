@@ -54,6 +54,7 @@ reference:
   - backend-duckdb
   - duckdb_register
   - duckdb_register_arrow
+  - to_arrow_stream
   - duckdb_read_csv
   - duckdb_explain-class
 - title: Errors
