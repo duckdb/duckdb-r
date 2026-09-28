@@ -5,7 +5,8 @@ what a value of the type becomes when read, which R value writes it again, and w
 The mapping is implemented in [`src/types.cpp`](/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md),
-[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)
+[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md),
+[`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)
 or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md).
 Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s,
 and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
@@ -99,7 +100,7 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   A `factor` or `ordered` column writes `ENUM` of its levels; a `factor` parameter binds as `VARCHAR`.
 * **`ARRAY`** (`INTEGER[3]`) reads with `array = "matrix"`, as a matrix with a row per value.
   A `NULL` array reads as a row of `NA`, the same as an array of `NULL`s.
-  A matrix column writes it.
+  A matrix column writes it; one that also carries a class is a limitation (below).
 * **`LIST`** (`INTEGER[]`) reads as a list of vectors, `NULL` for a `NULL` row, and a list column whose elements share a type writes it.
 * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
   With `map = "list_of"`, the `vctrs::list_of()` it reads as writes back as `MAP` without `field.types`
@@ -164,8 +165,8 @@ and the `spatial` extension's own types:
 * Attribute classes do not cross, in either direction, through Arrow too:
   a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
-* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them
-  ([`relational/`](/handbook/usage/relational/README.md)).
+* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them,
+  and `rel_to_altrep()` reads an `ARRAY` column with the wrong shape ([`relational/`](/handbook/usage/relational/README.md)).
 * The `INTEGER` minimum, -2147483648, is R's `NA_integer_` and reads as `NA`,
   and under `bigint = "integer64"` so does the `BIGINT` minimum, which is `integer64`'s `NA`.
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's 15 to 17 significant digits,
@@ -203,6 +204,11 @@ and the `spatial` extension's own types:
   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
   An array holding nested values is refused, pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R),
   and so is a matrix parameter.
+* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type.
+  It is never an `ARRAY`, because `RApiTypes::DetectRType()` in [`src/types.cpp`](/src/types.cpp) tests the class before the `dim`.
+  Writing counts rows in the data frame's first column, so anywhere else the matrix keeps only its first column, and nothing warns;
+  as the first column, it writes a row per value, and every other column is read past its end.
+  As a parameter it binds a row per value, where a plain matrix is refused.
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.
@@ -230,4 +236,4 @@ and the `spatial` extension's own types:
 * An `INET` address reads rounded for IPv6.
 
 *To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
-which neither record covers ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
+which no record covers beyond an `ARRAY` column ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*

@@ -92,7 +92,7 @@ and the \href{https://duckdb.org/docs/current/sql/data_types/overview}{nested} o
 A \code{factor} or \code{ordered} column writes \code{ENUM} of its levels; a \code{factor} parameter binds as \code{VARCHAR}.
 \item \strong{\code{ARRAY}} (\code{INTEGER[3]}) reads with \code{array = "matrix"}, as a matrix with a row per value.
 A \code{NULL} array reads as a row of \code{NA}, the same as an array of \code{NULL}s.
-A matrix column writes it.
+A matrix column writes it; one that also carries a class is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 \item \strong{\code{LIST}} (\code{INTEGER[]}) reads as a list of vectors, \code{NULL} for a \code{NULL} row, and a list column whose elements share a type writes it.
 \item \strong{\code{MAP}} reads as a list of \code{data.frame(key, value)}, which writes a list of structs unless \code{field.types} names the map.
 With \code{map = "list_of"}, the \code{\link[vctrs:list_of]{vctrs::list_of()}} it reads as writes back as \code{MAP} without \code{field.types}
@@ -152,7 +152,8 @@ The limitations are listed in the handbook, in \href{https://github.com/duckdb/d
 The mapping is implemented in \href{https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp}{\code{src/types.cpp}} (R vector to \code{LogicalType}) and \href{https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp}{\code{src/transform.cpp}} (the way back).
 The list of types is DuckDB's own \href{https://duckdb.org/docs/current/sql/data_types/overview}{documentation} for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}},
-\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}},
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-matrix-limits/README.md}{\verb{experiments/2026-09-28-matrix-limits/}}
 or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
 Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s,
 and the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's} to document.

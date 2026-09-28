@@ -60,6 +60,7 @@ and duckplyr casts a typed `NULL` where it needs one.
 nothing runs until R touches the values, materialization is budgeted by
 `n_rows` and `n_cells`, and an execution error is stored and re-raised at
 every later access.
+What an `ARRAY` column does instead is a limitation (below).
 The session `TimeZone` that labels `TIMESTAMPTZ` columns is captured
 here, when the data frame is built, not at materialization:
 change the setting in between,
@@ -91,6 +92,16 @@ So a change here is negotiated with duckplyr rather than merely reviewed,
 and duckplyr is the reverse dependency a behaviour change is checked
 against first
 ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
+
+## Limitations
+
+* An `ARRAY` column comes back from `rel_to_altrep()` with the wrong shape under `array = "matrix"`, where `dbGetQuery()` reads it right.
+  The lazy vector's length is the row count ([`src/reltoaltrep.cpp`](/src/reltoaltrep.cpp)),
+  and `duckdb_r_decorate()` in [`src/transform.cpp`](/src/transform.cpp) sets its `dim` as if that length counted values rather than rows.
+  So four rows of an `INTEGER[2]` read as a 2x2 matrix of each row's first element,
+  and a row count the array size does not divide fails in `rel_to_altrep()` itself, under `array = "none"` too.
+  Finding that length runs the relation, so an `ARRAY` column also makes `rel_to_altrep()` run it at once
+  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
 
 *To deepen: state which verbs duckplyr actually calls, so a change can be
 scoped against real use rather than the whole surface.*
