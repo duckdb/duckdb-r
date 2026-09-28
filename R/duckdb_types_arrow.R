@@ -177,28 +177,36 @@
 #'
 #' * **`GEOMETRY` exports as `geoarrow.wkb`, with the column's CRS in the field's metadata,**
 #'   as PROJJSON once `spatial` is loaded, and as the identifier without it.
+#'   It stays `geoarrow.wkb` under every export setting, `arrow_lossless_conversion` included;
+#'   `arrow_large_buffer_size` makes its storage `large_binary`, and an `arrow_output_version` from `'1.4'` makes it `binary_view`.
 #'   What the readers make of it depends on the geoarrow package:
-#'   once it is loaded, both convert it to a `geoarrow_vctr`;
+#'   once it is loaded, both convert it to a `geoarrow_vctr` in each of those layouts,
+#'   arrow the view one included, though it converts no other view layout;
 #'   until then, nanoarrow reads its WKB as a `blob` and arrow as an `arrow_binary`.
 #' * **sf reads a result through GeoArrow in one call.**
-#'   `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's,
-#'   and [sf::st_as_sfc()] does the same for the `geoarrow_vctr` column of `as.data.frame()`.
-#'   Both methods are the geoarrow package's, so it has to be loaded first:
+#'   `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's, in the large and view layouts too,
+#'   and so do [sf::st_as_sf()] of the result's `arrow::as_arrow_table()`, and [sf::st_as_sfc()] of the `geoarrow_vctr` column of `as.data.frame()`.
+#'   Those methods are the geoarrow package's, so it has to be loaded first:
 #'   without it, `st_as_sf()` has no method for the stream.
 #'   A `NULL` geometry reads as an empty one.
 #' * **The routes behind `dbSendQuery(arrow = TRUE)` fail on a CRS.**
 #'   `duckdb_fetch_arrow()`, `duckdb_fetch_record_batch()` and `arrow::to_arrow()`, which reads through them,
-#'   fail with `INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction` for a column with a CRS.
+#'   fail with `INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction` for a column with a CRS,
+#'   because they export the schema once the query's transaction has ended, and exporting a CRS needs an active one.
 #'   `dbGetQueryArrow()` reads it,
 #'   and so do those routes once the query casts the column to the bare type, as `geom::GEOMETRY`, which drops the CRS.
 #' * **The `spatial` extension's own types cross as their storage, without the alias.**
+#'   `POINT_2D` and the other point and box types export as a `struct`, `LINESTRING_2D` and `LINESTRING_3D` as a `list` of point structs,
+#'   `POLYGON_2D` and `POLYGON_3D` as a list of those lists, and `WKB_BLOB` as `binary`, with `arrow_lossless_conversion` too,
+#'   and each reader converts them as it converts those Arrow types.
+#'   Registered back, they land as the plain `STRUCT`, `LIST` or `BLOB`, not as the alias.
 #' * **GeoArrow WKB writes `GEOMETRY` with its CRS.**
 #'   Encode the geometry column as WKB,
 #'   as `geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))`
 #'   or as a [wk::as_wkb()] column,
 #'   and register `arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))` with `duckdb_register_arrow()`;
 #'   `CREATE TABLE ... AS SELECT` from the view writes a `GEOMETRY` column with the CRS,
-#'   which reads back into an `sf` equal to the one written.
+#'   which reads back into an `sf` equal to the one written; WKB without a CRS lands as plain `GEOMETRY`.
 #'   With `spatial` loaded, the type names the CRS by its identifier, as `GEOMETRY('EPSG:4267')`;
 #'   without it, it keeps the PROJJSON it came as, and [sf::st_crs()] reads the same CRS from both.
 #'   nanoarrow infers `geoarrow.wkb` for a `wk_wkb` column once geoarrow is loaded,
@@ -235,6 +243,7 @@
 #' * The routes behind `dbSendQuery(arrow = TRUE)`, `arrow::to_arrow()` among them, fail on a `GEOMETRY` column with a CRS.
 #' * Of the GeoArrow encodings, only WKB lands as `GEOMETRY`.
 #' * A `geoarrow_vctr` column writes its integer indices through `dbWriteTable()` and `dbWriteTableArrow()`.
+#' * The `spatial` extension's own types lose their alias through Arrow.
 #'
 #' The routes through R vectors are documented in [duckdb_types],
 #' and how a stream behaves, when it drains and what invalidates it, is [`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md)'s.

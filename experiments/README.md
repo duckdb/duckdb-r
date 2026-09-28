@@ -122,7 +122,7 @@ This file is what names the contents, so nothing here is an orphan.
   every DuckDB type in its documentation and its extensions, read into R and written back by every route,
   through Arrow with and without lossless export,
   and the values that change, collide with `NA`, or fail, before and after the fixes it prompted; supports
-  [`usage/types/`](/handbook/usage/types/README.md).
+  [`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
 * [`2026-09-27-arrow-types/`](2026-09-27-arrow-types/):
   every DuckDB type out through Arrow under each export setting, and what nanoarrow and arrow make of it in R;
   every Arrow type and every R class in; and which R functions keep Arrow's types, in each direction; supports

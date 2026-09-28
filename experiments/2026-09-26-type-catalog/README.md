@@ -19,7 +19,7 @@ plus the extension pages for [`json`](https://github.com/duckdb/duckdb-web/blob/
 [`inet`](https://github.com/duckdb/duckdb-web/blob/15add337444fcba7a88f48ea5abd33c1358c9d37/docs/current/core_extensions/inet.md)
 and [`spatial`](https://github.com/duckdb/duckdb-web/blob/15add337444fcba7a88f48ea5abd33c1358c9d37/docs/current/core_extensions/spatial/overview.md).
 
-*What it supports:* [`usage/types/`](/handbook/usage/types/README.md),
+*What it supports:* [`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md),
 and the open work in [`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md).
 
 ## Method

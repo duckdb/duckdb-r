@@ -190,28 +190,36 @@ An array built as \code{time64('us')}, as \code{nanoarrow::as_nanoarrow_array(x,
 \itemize{
 \item \strong{\code{GEOMETRY} exports as \code{geoarrow.wkb}, with the column's CRS in the field's metadata,}
 as PROJJSON once \code{spatial} is loaded, and as the identifier without it.
+It stays \code{geoarrow.wkb} under every export setting, \code{arrow_lossless_conversion} included;
+\code{arrow_large_buffer_size} makes its storage \code{large_binary}, and an \code{arrow_output_version} from \code{'1.4'} makes it \code{binary_view}.
 What the readers make of it depends on the geoarrow package:
-once it is loaded, both convert it to a \code{geoarrow_vctr};
+once it is loaded, both convert it to a \code{geoarrow_vctr} in each of those layouts,
+arrow the view one included, though it converts no other view layout;
 until then, nanoarrow reads its WKB as a \code{blob} and arrow as an \code{arrow_binary}.
 \item \strong{sf reads a result through GeoArrow in one call.}
-\code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's,
-and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} does the same for the \code{geoarrow_vctr} column of \code{as.data.frame()}.
-Both methods are the geoarrow package's, so it has to be loaded first:
+\code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's, in the large and view layouts too,
+and so do \code{\link[sf:st_as_sf]{sf::st_as_sf()}} of the result's \code{arrow::as_arrow_table()}, and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} of the \code{geoarrow_vctr} column of \code{as.data.frame()}.
+Those methods are the geoarrow package's, so it has to be loaded first:
 without it, \code{st_as_sf()} has no method for the stream.
 A \code{NULL} geometry reads as an empty one.
 \item \strong{The routes behind \code{dbSendQuery(arrow = TRUE)} fail on a CRS.}
 \code{duckdb_fetch_arrow()}, \code{duckdb_fetch_record_batch()} and \code{arrow::to_arrow()}, which reads through them,
-fail with \verb{INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction} for a column with a CRS.
+fail with \verb{INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction} for a column with a CRS,
+because they export the schema once the query's transaction has ended, and exporting a CRS needs an active one.
 \code{dbGetQueryArrow()} reads it,
 and so do those routes once the query casts the column to the bare type, as \code{geom::GEOMETRY}, which drops the CRS.
 \item \strong{The \code{spatial} extension's own types cross as their storage, without the alias.}
+\code{POINT_2D} and the other point and box types export as a \code{struct}, \code{LINESTRING_2D} and \code{LINESTRING_3D} as a \code{list} of point structs,
+\code{POLYGON_2D} and \code{POLYGON_3D} as a list of those lists, and \code{WKB_BLOB} as \code{binary}, with \code{arrow_lossless_conversion} too,
+and each reader converts them as it converts those Arrow types.
+Registered back, they land as the plain \code{STRUCT}, \code{LIST} or \code{BLOB}, not as the alias.
 \item \strong{GeoArrow WKB writes \code{GEOMETRY} with its CRS.}
 Encode the geometry column as WKB,
 as \code{geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))}
 or as a \code{\link[wk:as_wkb]{wk::as_wkb()}} column,
 and register \code{arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))} with \code{duckdb_register_arrow()};
 \verb{CREATE TABLE ... AS SELECT} from the view writes a \code{GEOMETRY} column with the CRS,
-which reads back into an \code{sf} equal to the one written.
+which reads back into an \code{sf} equal to the one written; WKB without a CRS lands as plain \code{GEOMETRY}.
 With \code{spatial} loaded, the type names the CRS by its identifier, as \code{GEOMETRY('EPSG:4267')};
 without it, it keeps the PROJJSON it came as, and \code{\link[sf:st_crs]{sf::st_crs()}} reads the same CRS from both.
 nanoarrow infers \code{geoarrow.wkb} for a \code{wk_wkb} column once geoarrow is loaded,
@@ -250,6 +258,7 @@ and lands a dictionary as \code{VARCHAR}, never as \code{ENUM}.
 \item The routes behind \code{dbSendQuery(arrow = TRUE)}, \code{arrow::to_arrow()} among them, fail on a \code{GEOMETRY} column with a CRS.
 \item Of the GeoArrow encodings, only WKB lands as \code{GEOMETRY}.
 \item A \code{geoarrow_vctr} column writes its integer indices through \code{dbWriteTable()} and \code{dbWriteTableArrow()}.
+\item The \code{spatial} extension's own types lose their alias through Arrow.
 }
 
 The routes through R vectors are documented in \link{duckdb_types},
