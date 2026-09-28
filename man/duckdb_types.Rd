@@ -69,7 +69,7 @@ The \href{https://duckdb.org/docs/current/sql/data_types/date}{date}, \href{http
 \item \strong{\code{DATE}} reads as \code{Date}, and a \code{Date} writes it, stored as double or as integer.
 \item \strong{\code{TIME}} reads as \code{difftime} in seconds, or with \code{time = "hms"} as \code{hms::hms}.
 With \code{time = "hms"}, an \code{hms} column, data frame field or parameter writes it, rounded to the microsecond,
-and a \code{difftime} that is not an \code{hms} keeps writing \code{INTERVAL}.
+and a \code{difftime} that is not an \code{hms} keeps writing \code{INTERVAL}; \code{\link[DBI:dbQuoteLiteral]{dbQuoteLiteral()}} quotes an \code{hms} as a \code{TIME} there.
 Its text writes it through \code{field.types}, and so does Arrow.
 \item \strong{\code{TIME_NS}} reads as \code{TIME} does, in seconds to the nanosecond.
 Its text writes it through \code{field.types}, and so does Arrow.
@@ -85,7 +85,8 @@ and Arrow writes it directly.
 \item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours.
 With \code{interval = "Period"} it reads as a \code{lubridate::Period} that keeps the months, the days and the seconds apart,
 which lubridate's \verb{\%m+\%} adds to a date or a \code{POSIXct} as DuckDB adds an \code{INTERVAL},
-and there a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL};
+and there a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL},
+and \code{dbQuoteLiteral()} quotes a \code{Period} as that \code{INTERVAL};
 under the default, a \code{Period} of seconds alone writes a \code{DOUBLE} of them.
 A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }

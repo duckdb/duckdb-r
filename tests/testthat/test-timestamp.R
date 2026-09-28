@@ -455,6 +455,37 @@ test_that("dbQuoteLiteral() keeps sub-second precision (#2646)", {
   )
 })
 
+test_that("dbQuoteLiteral() quotes an hms as TIME under `time = \"hms\"`, and as before otherwise", {
+  skip_if_not_installed("hms")
+
+  x <- hms::hms(c(3723.5, NA, 86400, 0.000001))
+
+  con <- local_con()
+  expect_equal(
+    as.character(dbQuoteLiteral(con, x)),
+    c(
+      "to_microseconds(3723500000)",
+      "NULL",
+      "to_microseconds(86400000000)",
+      "to_microseconds(1)"
+    )
+  )
+
+  con <- local_con(time = "hms")
+  expect_equal(
+    as.character(dbQuoteLiteral(con, x)),
+    c(
+      "'01:02:03.5'::TIME",
+      "NULL",
+      "'24:00:00'::TIME",
+      "'00:00:00.000001'::TIME"
+    )
+  )
+  data <- dbGetQuery(con, paste("SELECT", dbQuoteLiteral(con, x[1]), "AS a"))
+  expect_identical(data$a, x[1])
+  expect_error(dbQuoteLiteral(con, hms::hms(-1)), "to quote as `TIME`")
+})
+
 test_that("dbQuoteLiteral() rounds a `POSIXct` to microseconds on both sides of the epoch", {
   con <- local_con()
 

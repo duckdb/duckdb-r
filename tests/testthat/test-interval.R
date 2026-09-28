@@ -399,6 +399,36 @@ test_that("a Period read lazily stays lazy, and writes back once read", {
   )
 })
 
+test_that("dbQuoteLiteral() quotes a Period as an exact INTERVAL under `interval = \"Period\"`, and as before otherwise", {
+  skip_if_not_installed("lubridate")
+
+  x <- c(
+    lubridate::period(months = 14, days = -2, hours = 1, seconds = 0.5),
+    NA
+  )
+
+  con <- local_con()
+  expect_equal(
+    as.character(dbQuoteLiteral(con, x)),
+    c("14m -2d 1H 0M 0.5S", "NULL")
+  )
+
+  con <- local_con(interval = "Period")
+  expect_equal(
+    as.character(dbQuoteLiteral(con, x)),
+    c("(to_months(14) + to_days(-2) + to_microseconds(3600500000))", "NULL")
+  )
+  data <- dbGetQuery(con, paste("SELECT", dbQuoteLiteral(con, x[1]), "AS a"))
+  expect_identical(
+    data$a,
+    lubridate::period(months = 14, days = -2, seconds = 3600.5)
+  )
+  expect_error(
+    dbQuoteLiteral(con, lubridate::period(seconds = Inf)),
+    "to quote as one"
+  )
+})
+
 test_that("`interval = \"Period\"` needs the lubridate package", {
   local_mocked_bindings(is_installed = function(pkg) pkg != "lubridate")
 

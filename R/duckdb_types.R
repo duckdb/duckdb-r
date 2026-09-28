@@ -69,7 +69,7 @@
 #' * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
 #' * **`TIME`** reads as `difftime` in seconds, or with `time = "hms"` as `hms::hms`.
 #'   With `time = "hms"`, an `hms` column, data frame field or parameter writes it, rounded to the microsecond,
-#'   and a `difftime` that is not an `hms` keeps writing `INTERVAL`.
+#'   and a `difftime` that is not an `hms` keeps writing `INTERVAL`; [dbQuoteLiteral()] quotes an `hms` as a `TIME` there.
 #'   Its text writes it through `field.types`, and so does Arrow.
 #' * **`TIME_NS`** reads as `TIME` does, in seconds to the nanosecond.
 #'   Its text writes it through `field.types`, and so does Arrow.
@@ -85,7 +85,8 @@
 #' * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
 #'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
 #'   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
-#'   and there a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`;
+#'   and there a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
+#'   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
 #'   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
 #'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'
