@@ -242,7 +242,8 @@ static void DecorateTimeOfDay(const SEXP dest, const duckdb::ConvertOpts &conver
 }
 
 // An INTERVAL reads as a lubridate Period with `interval = "Period"`, keeping its parts apart
-// (handbook/usage/types/README.md): the seconds are the vector's data, and each slot is a vector of its own.
+// (handbook/usage/types/README.md): the seconds left over after whole hours and minutes are the vector's data,
+// and each slot is a vector of its own.
 // The slots are allocated here and filled by duckdb_r_transform(); the ALTREP route builds them lazily instead.
 static void DecoratePeriod(const SEXP dest) {
 	auto n = Rf_xlength(dest);
@@ -255,16 +256,26 @@ static void DecoratePeriod(const SEXP dest) {
 	SET_S4_OBJECT(dest);
 }
 
-// The value of one slot for one INTERVAL: a DuckDB interval has no years, hours or minutes of its own
+// The value of one slot for one INTERVAL, whose microseconds split into whole hours and minutes,
+// so that the seconds left over are below a minute and a double holds them to the microsecond.
+// Division truncates toward zero, so every part has the sign of the microseconds; a year is never read.
 static double PeriodSlotValue(const interval_t &val, idx_t slot_idx) {
 	switch (slot_idx) {
 	case 1:
 		return val.months;
 	case 2:
 		return val.days;
+	case 3:
+		return static_cast<double>(val.micros / Interval::MICROS_PER_HOUR);
+	case 4:
+		return static_cast<double>(val.micros % Interval::MICROS_PER_HOUR / Interval::MICROS_PER_MINUTE);
 	default:
 		return 0;
 	}
+}
+
+static double PeriodSeconds(const interval_t &val) {
+	return static_cast<double>(val.micros % Interval::MICROS_PER_MINUTE) / Interval::MICROS_PER_SEC;
 }
 
 void duckdb_r_transform_period_slot(const Vector &src_vec, SEXP dest, idx_t dest_offset, idx_t n, idx_t slot_idx) {
@@ -666,12 +677,10 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		auto &mask = FlatVector::Validity(src_vec);
 		double *dest_ptr = ((double *)NUMERIC_POINTER(dest)) + dest_offset;
 		if (convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD) {
-			// The seconds are the data; the slots are filled where DecoratePeriod() gave the vector its own,
+			// The seconds left over are the data; the slots are filled where DecoratePeriod() gave the vector its own,
 			// and the ALTREP route fills them through duckdb_r_transform_period_slot()
 			for (size_t row_idx = 0; row_idx < n; row_idx++) {
-				dest_ptr[row_idx] = !mask.RowIsValid(row_idx)
-				                        ? NA_REAL
-				                        : static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
+				dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? NA_REAL : PeriodSeconds(src_data[row_idx]);
 			}
 			const auto &slot_syms = RStrings::get().period_slot_syms;
 			for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {

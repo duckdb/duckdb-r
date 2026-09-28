@@ -180,7 +180,7 @@ If \code{"difftime"} is selected (the default), they are returned as a \code{dif
 counting a month as 30 days and a day as 24 hours,
 and a \code{Period} writes a \code{DOUBLE} of its seconds, which is refused when it has other parts.
 If \code{"Period"} is selected, they are returned as \pkg{lubridate} \link[lubridate:Period-class]{lubridate::Period} objects
-that keep the months, the days and the seconds apart,
+that keep the months, the days, and the hours, minutes and seconds apart,
 which requires the \pkg{lubridate} package,
 and a \code{Period} column or parameter writes \code{INTERVAL}.}
 

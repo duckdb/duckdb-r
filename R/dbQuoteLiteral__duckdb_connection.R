@@ -137,21 +137,35 @@ time_literal_text <- function(x, call = parent.frame()) {
 
 # An exact `INTERVAL` expression for each value of a Period, part for part,
 # with NA in any part as NULL, as the write routes treat it.
+# The hours and minutes stay apart from the seconds, so that no part passes through a double of microseconds.
 period_literal_text <- function(x, call = parent.frame()) {
   if (length(x) == 0) {
     return(character())
   }
   months <- x@year * 12 + x@month
-  days <- x@day
-  micros <- round((x@hour * 3600 + x@minute * 60 + x@.Data) * 1e6)
-  missing <- is.na(months) | is.na(days) | is.na(micros)
+  parts <- list(
+    months = months,
+    days = x@day,
+    hours = x@hour,
+    minutes = x@minute,
+    microseconds = round(x@.Data * 1e6)
+  )
+  missing <- Reduce(`|`, lapply(parts, is.na))
 
-  # Whole and within the signed 32 or 64 bits the part is held in
-  whole <- function(v, bits) {
-    is.finite(v) & v == trunc(v) & v >= -2^(bits - 1) & v < 2^(bits - 1)
+  # Whole and within the signed 32 or 64 bits the part is held in;
+  # a sum of parts past 64 bits is DuckDB's to refuse, which it does with an overflow error
+  whole <- function(v, bits, scale = 1) {
+    is.finite(v) &
+      v == trunc(v) &
+      v * scale >= -2^(bits - 1) &
+      v * scale < 2^(bits - 1)
   }
   bad <- !missing &
-    !(whole(months, 32) & whole(days, 32) & whole(micros, 64))
+    !(whole(parts$months, 32) &
+      whole(parts$days, 32) &
+      whole(parts$hours, 64, 3600e6) &
+      whole(parts$minutes, 64, 60e6) &
+      whole(parts$microseconds, 64))
   if (any(bad)) {
     abort(
       paste0(
@@ -166,11 +180,15 @@ period_literal_text <- function(x, call = parent.frame()) {
   number <- function(v) formatC(v, format = "f", digits = 0)
   out <- paste0(
     "(to_months(",
-    number(months),
+    number(parts$months),
     ") + to_days(",
-    number(days),
+    number(parts$days),
+    ") + to_hours(",
+    number(parts$hours),
+    ") + to_minutes(",
+    number(parts$minutes),
     ") + to_microseconds(",
-    number(micros),
+    number(parts$microseconds),
     "))"
   )
   out[missing] <- "NULL"

@@ -111,7 +111,7 @@ test_that("`interval = \"Period\"` reads zero rows and nested values as Period",
   )
   expect_identical(data$l[[1]], lubridate::period(months = c(1, NA)))
   expect_identical(data$s$p, lubridate::period(days = 2))
-  expect_identical(data$m[[1]]$value, lubridate::period(seconds = 10800))
+  expect_identical(data$m[[1]]$value, lubridate::period(hours = 3))
 })
 
 test_that("`interval = \"Period\"` holds for every chunk dbFetch() returns", {
@@ -366,6 +366,51 @@ test_that("`interval = \"Period\"` round-trips months and days at the ends of th
   expect_identical(dbReadTable(con, "tbl"), data)
 })
 
+test_that("`interval = \"Period\"` round-trips every microsecond, splitting whole hours and minutes off the seconds", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  # A double of seconds holds the microseconds exactly only below about 2^51 of them
+  sql <- "SELECT * FROM (VALUES
+    (1, to_microseconds(4501218153950999)),
+    (2, to_microseconds(9223372036854775807)),
+    (3, to_microseconds(-9223372036854775808)),
+    (4, INTERVAL '-1 day 01:30:00.5')
+  ) AS t(i, a) ORDER BY i"
+  data <- dbGetQuery(con, sql)
+  expect_identical(
+    data$a,
+    lubridate::period(
+      days = c(0, 0, 0, -1),
+      hours = c(1250338, 2562047788, -2562047788, 1),
+      minutes = c(22, 0, 0, 30),
+      seconds = c(33.950999, 54.775807, -54.775808, 0.5)
+    )
+  )
+
+  dbWriteTable(con, "tbl", data)
+  expect_equal(
+    dbGetQuery(
+      con,
+      paste(
+        "SELECT count(*) AS n FROM tbl JOIN (",
+        sql,
+        ") AS o USING (i)",
+        "WHERE epoch_us(tbl.a) = epoch_us(o.a) AND tbl.a::VARCHAR = o.a::VARCHAR"
+      )
+    )$n,
+    4
+  )
+
+  # And through a literal
+  quoted <- dbGetQuery(
+    con,
+    paste("SELECT", dbQuoteLiteral(con, data$a[2]), "AS a")
+  )
+  expect_identical(quoted$a, data$a[2])
+})
+
 test_that("NA in any part of a Period writes NULL under `interval = \"Period\"`", {
   skip_if_not_installed("lubridate")
 
@@ -416,12 +461,15 @@ test_that("dbQuoteLiteral() quotes a Period as an exact INTERVAL under `interval
   con <- local_con(interval = "Period")
   expect_equal(
     as.character(dbQuoteLiteral(con, x)),
-    c("(to_months(14) + to_days(-2) + to_microseconds(3600500000))", "NULL")
+    c(
+      "(to_months(14) + to_days(-2) + to_hours(1) + to_minutes(0) + to_microseconds(500000))",
+      "NULL"
+    )
   )
   data <- dbGetQuery(con, paste("SELECT", dbQuoteLiteral(con, x[1]), "AS a"))
   expect_identical(
     data$a,
-    lubridate::period(months = 14, days = -2, seconds = 3600.5)
+    lubridate::period(months = 14, days = -2, hours = 1, seconds = 0.5)
   )
   expect_error(
     dbQuoteLiteral(con, lubridate::period(seconds = Inf)),

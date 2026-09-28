@@ -491,6 +491,36 @@ static bool IsWholeWithin(double val, double min, double max) {
 	return std::isfinite(val) && val == std::floor(val) && val >= min && val <= max;
 }
 
+static bool AddWithin(int64_t left, int64_t right, int64_t &result) {
+	if ((right > 0 && left > NumericLimits<int64_t>::Maximum() - right) ||
+	    (right < 0 && left < NumericLimits<int64_t>::Minimum() - right)) {
+		return false;
+	}
+	result = left + right;
+	return true;
+}
+
+// The largest int64 is not a double, and the double just past it is 2^63
+static const double INT64_BELOW = -9223372036854775808.0;
+static const double INT64_ABOVE = std::nextafter(9223372036854775808.0, 0.0);
+
+// The microseconds of a Period, combined in 64-bit integers from its hours, minutes and seconds,
+// so that the hours and minutes a read split off come back exactly; the seconds are rounded to the microsecond
+bool RPeriodType::Micros(R_xlen_t idx, int64_t &micros) const {
+	auto hours = slots[3][idx];
+	auto minutes = slots[4][idx];
+	auto seconds_micros = round(seconds[idx] * Interval::MICROS_PER_SEC);
+	if (!IsWholeWithin(hours, INT64_BELOW / Interval::MICROS_PER_HOUR, INT64_ABOVE / Interval::MICROS_PER_HOUR) ||
+	    !IsWholeWithin(minutes, INT64_BELOW / Interval::MICROS_PER_MINUTE, INT64_ABOVE / Interval::MICROS_PER_MINUTE) ||
+	    !IsWholeWithin(seconds_micros, INT64_BELOW, INT64_ABOVE)) {
+		return false;
+	}
+	int64_t partial;
+	return AddWithin(int64_t(hours) * Interval::MICROS_PER_HOUR, int64_t(minutes) * Interval::MICROS_PER_MINUTE,
+	                 partial) &&
+	       AddWithin(partial, int64_t(seconds_micros), micros);
+}
+
 bool RPeriodType::IsValid(R_xlen_t idx) const {
 	if (IsMalformed()) {
 		return false;
@@ -500,23 +530,20 @@ bool RPeriodType::IsValid(R_xlen_t idx) const {
 			return false;
 		}
 	}
+	int64_t micros;
 	auto months = slots[0][idx] * 12 + slots[1][idx];
-	auto micros = round((slots[3][idx] * 3600 + slots[4][idx] * 60 + seconds[idx]) * Interval::MICROS_PER_SEC);
-	// The largest int64 is not a double, and the double just past it is 2^63
 	return IsWholeWithin(months, NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
 	       IsWholeWithin(slots[2][idx], NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
-	       IsWholeWithin(micros, -9223372036854775808.0, std::nextafter(9223372036854775808.0, 0.0));
+	       Micros(idx, micros);
 }
 
 interval_t RPeriodType::Convert(R_xlen_t idx) const {
-	if (!IsValid(idx)) {
+	interval_t result;
+	if (!IsValid(idx) || !Micros(idx, result.micros)) {
 		throw InvalidInputException("A Period of %s does not fit an `INTERVAL`", Format(idx));
 	}
-	interval_t result;
 	result.months = int32_t(slots[0][idx] * 12 + slots[1][idx]);
 	result.days = int32_t(slots[2][idx]);
-	result.micros =
-	    int64_t(round((slots[3][idx] * 3600 + slots[4][idx] * 60 + seconds[idx]) * Interval::MICROS_PER_SEC));
 	return result;
 }
 

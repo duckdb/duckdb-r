@@ -65,7 +65,7 @@
 #'   counting a month as 30 days and a day as 24 hours,
 #'   and a `Period` writes a `DOUBLE` of its seconds, which is refused when it has other parts.
 #'   If `"Period"` is selected, they are returned as \pkg{lubridate} [lubridate::Period-class] objects
-#'   that keep the months, the days and the seconds apart,
+#'   that keep the months, the days, and the hours, minutes and seconds apart,
 #'   which requires the \pkg{lubridate} package,
 #'   and a `Period` column or parameter writes `INTERVAL`.
 #'

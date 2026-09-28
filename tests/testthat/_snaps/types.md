@@ -435,7 +435,7 @@
       as.list(dbGetQuery(con, "SELECT interval FROM test_all_types()"))
     Output
       $interval
-      [1] "0S"                          "999m 999d 0H 0M 999.999999S"
+      [1] "0S"                          "999m 999d 0H 16M 39.999999S"
       [3] NA                           
       
 

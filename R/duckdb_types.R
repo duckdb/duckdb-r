@@ -83,9 +83,10 @@
 #'   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
 #'   and Arrow writes it directly.
 #' * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
-#'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
-#'   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
-#'   and there a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
+#'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the time apart,
+#'   the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
+#'   lubridate's `%m+%` adds it to a date or a `POSIXct` as DuckDB adds an `INTERVAL`.
+#'   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
 #'   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
 #'   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
 #'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.

@@ -201,6 +201,7 @@ struct RPeriodType {
 	bool HasOtherParts(R_xlen_t idx) const;
 	interval_t Convert(R_xlen_t idx) const;
 	string Format(R_xlen_t idx) const;
+	bool Micros(R_xlen_t idx, int64_t &micros) const;
 
 	R_xlen_t length;
 	const double *seconds;
