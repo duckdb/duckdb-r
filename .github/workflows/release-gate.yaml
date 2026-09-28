@@ -1,3 +1,5 @@
+# Derived from igraph/rigraph's .github/workflows/release-gate.yaml at fe3538b925.
+#
 # Mechanical release checks for `cran-*` branches, as discussed in cynkra/cynkratemplate#147.
 # They run on every push, so that the result describes the commit that will be submitted,
 # not a box ticked a few commits earlier.
@@ -52,7 +54,7 @@ jobs:
 
     name: "Documentation"
 
-    # About 300 help pages of igraph document no return value,
+    # Six help pages of duckdb document no return value,
     # so this job reports without holding up a release.
     continue-on-error: true
 
@@ -60,6 +62,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      # devtools::build_readme() installs the package,
+      # and this links it against the prebuilt libduckdb instead of compiling the engine.
+      - name: Run the repository-specific before-install steps
+        uses: ./.github/workflows/custom/before-install
+        if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
 
       - name: Install R and the package dependencies
         uses: cynkra/cynkratemplate/.github/actions/install@main
