@@ -158,8 +158,8 @@ and every entry on this page was measured on DuckDB 1.5.5, in \href{https://gith
 \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}},
 \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md}{\verb{experiments/2026-09-28-type-rereview/}}
 or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
-Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s.
+Which zone labels a timestamp is documented in the handbook's \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}.
 
-What \code{expr_constant(NA)} builds in the relational API is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md}{\verb{relational/}}'s.
+What \code{expr_constant(NA)} builds in the relational API is documented in the handbook's \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md}{\verb{relational/}}.
 }
 

@@ -210,7 +210,7 @@ is an integer vector of indices into the Arrow data it holds, and writing it bac
 The limitations are listed in the handbook, in \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md}{\verb{usage/arrow-types/}}.
 
 The routes through R vectors are documented in \link{duckdb_types},
-and how a stream behaves, when it drains and what invalidates it, is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{integrations/}}'s.
+and how a stream behaves, when it drains and what invalidates it, is documented in the handbook's \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{integrations/}}.
 Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
 in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}}
 and \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md}{\verb{experiments/2026-09-28-type-rereview/}},

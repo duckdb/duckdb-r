@@ -196,7 +196,7 @@
 #' The limitations are listed in the handbook, in [`usage/arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md).
 #'
 #' The routes through R vectors are documented in [duckdb_types],
-#' and how a stream behaves, when it drains and what invalidates it, is [`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md)'s.
+#' and how a stream behaves, when it drains and what invalidates it, is documented in the handbook's [`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md).
 #' Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
 #' in [`experiments/2026-09-27-arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md)
 #' and [`experiments/2026-09-28-type-rereview/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md),

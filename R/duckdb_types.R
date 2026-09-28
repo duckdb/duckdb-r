@@ -153,9 +153,9 @@
 #' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md),
 #' [`experiments/2026-09-28-type-rereview/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md)
 #' or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md).
-#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s.
+#' Which zone labels a timestamp is documented in the handbook's [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md).
 #'
-#' What `expr_constant(NA)` builds in the relational API is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
+#' What `expr_constant(NA)` builds in the relational API is documented in the handbook's [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md).
 #'
 #' @name duckdb_types
 NULL
