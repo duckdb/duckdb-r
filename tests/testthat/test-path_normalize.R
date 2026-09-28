@@ -52,7 +52,10 @@ test_that("a symlinked database resolves to its target", {
   expect_equal(path_normalize(link), path_normalize(target))
 })
 
-test_that("a symlink to a database yet to be created shares one instance, except on Windows", {
+test_that("a symlink to a database yet to be created shares one instance", {
+  # Windows creates no file through a symlink whose target is missing,
+  # so there the open fails, as the test below shows on every platform.
+  skip_on_os("windows")
   # The link resolves only once the engine has created its target, so the key
   # taken before the open is not the one every later call computes.
   dir <- withr::local_tempdir()
@@ -63,28 +66,16 @@ test_that("a symlink to a database yet to be created shares one instance, except
     "symlinks unavailable"
   )
 
-  if (.Platform$OS.type == "windows") {
-    # A canary, not a skip: Windows creates no file through a symlink whose
-    # target is missing, so the engine's open fails and nothing is cached.
-    # R's own `file.create()` is refused the same way, which makes the gap the
-    # platform's rather than the engine's; the day it closes, this fails.
-    err <- expect_error(duckdb(link), "link.duckdb", fixed = TRUE)
-    expect_identical(err$error_type, "IO")
-    expect_null(driver_registry[[path_normalize(link)]])
-    expect_false(file.exists(target))
-    expect_false(file.create(link, showWarnings = FALSE))
-  } else {
-    drv1 <- duckdb(link)
-    withr::defer(duckdb_shutdown(drv1))
-    expect_equal(drv1@dbdir, path_normalize(target))
+  drv1 <- duckdb(link)
+  withr::defer(duckdb_shutdown(drv1))
+  expect_equal(drv1@dbdir, path_normalize(target))
 
-    drv2 <- duckdb(link)
-    expect_identical(drv2@database_ref, drv1@database_ref)
-    # The same spelling reaches the same driver through `dbConnect()` as well.
-    con <- dbConnect(drv1, dbdir = link)
-    withr::defer(dbDisconnect(con))
-    expect_identical(con@driver@database_ref, drv1@database_ref)
-  }
+  drv2 <- duckdb(link)
+  expect_identical(drv2@database_ref, drv1@database_ref)
+  # The same spelling reaches the same driver through `dbConnect()` as well.
+  con <- dbConnect(drv1, dbdir = link)
+  withr::defer(dbDisconnect(con))
+  expect_identical(con@driver@database_ref, drv1@database_ref)
 })
 
 test_that("a symlink whose target cannot be created fails in `duckdb()`, naming the link", {
