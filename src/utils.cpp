@@ -97,7 +97,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 19);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 20);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -117,6 +117,8 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 16, hms_difftime_str = StringsToSexp({"hms", "difftime"}));
 	SET_VECTOR_ELT(chars, 17, blob_vctrs_list_of_str = StringsToSexp({"blob", "vctrs_list_of", "vctrs_vctr", "list"}));
 	SET_VECTOR_ELT(chars, 18, empty_raw = Rf_allocVector(RAWSXP, 0));
+	SET_VECTOR_ELT(chars, 19, period_str = Rf_mkString("Period"));
+	Rf_setAttrib(period_str, Rf_install("package"), Rf_mkString("lubridate"));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -138,6 +140,11 @@ RStrings::RStrings() {
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 	crs_sym = Rf_install("crs");
 	ptype_sym = Rf_install("ptype");
+	period_slot_syms[0] = Rf_install("year");
+	period_slot_syms[1] = Rf_install("month");
+	period_slot_syms[2] = Rf_install("day");
+	period_slot_syms[3] = Rf_install("hour");
+	period_slot_syms[4] = Rf_install("minute");
 }
 
 LogicalType RStringsType::Get() {
@@ -186,10 +193,10 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 	return GetVecSize(rtype, coldata);
 }
 
-Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null, bool hms_time) {
+Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null, bool hms_time, bool period_interval) {
 	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
 	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
-	auto rtype = RApiTypes::DetectRType(valsexp, true, hms_time);
+	auto rtype = RApiTypes::DetectRType(valsexp, true, hms_time, period_interval);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -241,6 +248,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null,
 	case RType::DATE: {
 		auto d_val = NUMERIC_POINTER(valsexp)[idx];
 		return RDateType::IsNull(d_val) ? Value(LogicalType::DATE) : Value::DATE(RDateType::Convert(d_val));
+	}
+	case RType::INTERVAL_PERIOD: {
+		RPeriodType period(valsexp);
+		return period.IsNull(idx) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(period.Convert(idx));
 	}
 	case RType::TIME: {
 		auto time_val = NUMERIC_POINTER(valsexp)[idx];
@@ -327,7 +338,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null,
 		auto ncol = Rf_length(valsexp);
 		auto child_rtypes = rtype.GetStructChildTypes();
 		for (R_len_t col = 0; col < ncol; ++col) {
-			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx, true, hms_time);
+			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx, true, hms_time, period_interval);
 			child_values.push_back(std::make_pair(child_rtypes[col].first, value));
 		}
 		return Value::STRUCT(std::move(child_values));

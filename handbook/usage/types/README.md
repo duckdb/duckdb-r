@@ -17,9 +17,10 @@ Edit the leaves, re-run the script and then roxygen; its `--check`, which CI run
 ## The routes
 
 **Reading.**
-`dbGetQuery()` converts each column by its type, and six `dbConnect()` arguments change the shape,
-with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"`, `time = "difftime"` and `blob = "list"`,
+`dbGetQuery()` converts each column by its type, and seven `dbConnect()` arguments change the shape,
 set in [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
+Their defaults are `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"`,
+`time = "difftime"`, `blob = "list"` and `interval = "difftime"`.
 `dbGetQueryArrow()` hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
 A cast to `VARCHAR` in the query reads any type as text.
@@ -92,6 +93,10 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
   and Arrow writes it directly.
 * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
+  With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
+  which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
+  and there a `Period` column, data frame field or parameter writes it with each part exact;
+  under the default, a `Period` writes a `DOUBLE` of its seconds alone, a limitation (below).
   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
 ## Enums and nested types
@@ -195,7 +200,9 @@ and the `spatial` extension's own types:
 * `TIMESTAMP_NS` reads truncated to the microsecond, with a warning the first time in a session and never again,
   `TIMETZ` without its offset, pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R),
   and `infinity` and `-infinity` as a finite date millions of years away or a finite instant, not as `Inf`.
-  Which part of an `INTERVAL` was months or days is lost.
+  Which part of an `INTERVAL` was months or days is lost, unless `interval = "Period"`;
+  under it, an `ARRAY` of `INTERVAL` is refused, and so is a `Period` whose parts do not fit, naming its column or parameter.
+  Under the default `interval`, a `Period` writes a `DOUBLE` of its seconds, without its minutes, hours, days, months or years, and nothing warns.
 * A `POSIXct` writes with its zone label dropped, and a `difftime` or `hms` without its unit.
 * `NaN`, `Inf` and `-Inf` in a `Date`, `difftime` or `POSIXct` stored as double write as far-off negative values, not as `NULL` or infinity:
   on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,

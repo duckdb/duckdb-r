@@ -41,7 +41,8 @@ duckdb_adbc()
   geometry = "blob",
   map = "data.frame",
   time = c("difftime", "hms"),
-  blob = c("list", "blob")
+  blob = c("list", "blob"),
+  interval = c("difftime", "Period")
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -172,6 +173,15 @@ There are two options: \code{"list"} and \code{"blob"}.
 If \code{"list"} is selected (the default), they are returned as a list of raw vectors.
 If \code{"blob"} is selected, they are returned as \code{\link[blob:blob]{blob::blob()}} vectors,
 which requires the \pkg{blob} package.}
+
+\item{interval}{How \code{INTERVAL} columns should be returned, and what a \code{Period} writes.
+There are two options: \code{"difftime"} and \code{"Period"}.
+If \code{"difftime"} is selected (the default), they are returned as a \code{difftime} in seconds,
+counting a month as 30 days and a day as 24 hours.
+If \code{"Period"} is selected, they are returned as \pkg{lubridate} \link[lubridate:Period-class]{lubridate::Period} objects
+that keep the months, the days and the seconds apart,
+which requires the \pkg{lubridate} package,
+and a \code{Period} column or parameter writes \code{INTERVAL}.}
 
 \item{conn}{A \code{duckdb_connection} object}
 

@@ -95,6 +95,12 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		auto &child_type = ArrayType::GetChildType(type);
 		if (child_type.IsNested())
 			rapi_error_with_context("duckdb_r_allocate", "Nested arrays cannot be returned to R as column data.");
+		// A Period keeps its parts in slots, which a matrix of its seconds has no room for
+		if (child_type.id() == LogicalTypeId::INTERVAL &&
+		    convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD)
+			rapi_error_with_context("duckdb_r_allocate", "Column `" + name +
+			                                                 "`: an `ARRAY` of `INTERVAL` can't be returned to R "
+			                                                 "with `interval = \"Period\"`.");
 		cpp11::sexp varvalue =
 		    duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
 		return varvalue;
@@ -201,6 +207,41 @@ static void DecorateTimeOfDay(const SEXP dest, const duckdb::ConvertOpts &conver
 		SET_CLASS(dest, RStrings::get().difftime_str);
 	}
 	Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+}
+
+// An INTERVAL reads as a lubridate Period with `interval = "Period"`, keeping its parts apart
+// (handbook/usage/types/README.md): the seconds are the vector's data, and each slot is a vector of its own.
+// The slots are allocated here and filled by duckdb_r_transform(); the ALTREP route builds them lazily instead.
+static void DecoratePeriod(const SEXP dest) {
+	auto n = Rf_xlength(dest);
+	for (auto slot_sym : RStrings::get().period_slot_syms) {
+		cpp11::sexp slot = Rf_allocVector(REALSXP, n);
+		std::fill(REAL(slot), REAL(slot) + n, 0.0);
+		Rf_setAttrib(dest, slot_sym, slot);
+	}
+	SET_CLASS(dest, RStrings::get().period_str);
+	SET_S4_OBJECT(dest);
+}
+
+// The value of one slot for one INTERVAL: a DuckDB interval has no years, hours or minutes of its own
+static double PeriodSlotValue(const interval_t &val, idx_t slot_idx) {
+	switch (slot_idx) {
+	case 1:
+		return val.months;
+	case 2:
+		return val.days;
+	default:
+		return 0;
+	}
+}
+
+void duckdb_r_transform_period_slot(const Vector &src_vec, SEXP dest, idx_t dest_offset, idx_t n, idx_t slot_idx) {
+	auto src_data = FlatVector::GetData<interval_t>(src_vec);
+	auto &mask = FlatVector::Validity(src_vec);
+	double *dest_ptr = NUMERIC_POINTER(dest) + dest_offset;
+	for (size_t row_idx = 0; row_idx < n; row_idx++) {
+		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? NA_REAL : PeriodSlotValue(src_data[row_idx], slot_idx);
+	}
 }
 
 // Whether this session has warned about coercing nanoseconds.
@@ -330,8 +371,12 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		DecorateTimeOfDay(dest, convert_opts);
 		break;
 	case LogicalTypeId::INTERVAL:
-		SET_CLASS(dest, RStrings::get().difftime_str);
-		Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+		if (convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD) {
+			DecoratePeriod(dest);
+		} else {
+			SET_CLASS(dest, RStrings::get().difftime_str);
+			Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+		}
 		break;
 	case LogicalTypeId::BIGINT:
 	case LogicalTypeId::UBIGINT:
@@ -570,6 +615,23 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		auto src_data = FlatVector::GetData<interval_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
 		double *dest_ptr = ((double *)NUMERIC_POINTER(dest)) + dest_offset;
+		if (convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD) {
+			// The seconds are the data; the slots are filled where DecoratePeriod() gave the vector its own,
+			// and the ALTREP route fills them through duckdb_r_transform_period_slot()
+			for (size_t row_idx = 0; row_idx < n; row_idx++) {
+				dest_ptr[row_idx] = !mask.RowIsValid(row_idx)
+				                        ? NA_REAL
+				                        : static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
+			}
+			const auto &slot_syms = RStrings::get().period_slot_syms;
+			for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
+				SEXP slot = Rf_getAttrib(dest, slot_syms[slot_idx]);
+				if (slot != R_NilValue) {
+					duckdb_r_transform_period_slot(src_vec, slot, dest_offset, n, slot_idx);
+				}
+			}
+			break;
+		}
 		for (size_t row_idx = 0; row_idx < n; row_idx++) {
 			if (!mask.RowIsValid(row_idx)) {
 				dest_ptr[row_idx] = NA_REAL;

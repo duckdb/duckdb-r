@@ -12,8 +12,9 @@
 #' # The routes
 #'
 #' **Reading.**
-#' [dbGetQuery()] converts each column by its type, and six [dbConnect()] arguments change the shape,
-#' with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"`, `time = "difftime"` and `blob = "list"`.
+#' [dbGetQuery()] converts each column by its type, and seven [dbConnect()] arguments change the shape.
+#' Their defaults are `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"`,
+#' `time = "difftime"`, `blob = "list"` and `interval = "difftime"`.
 #' [dbGetQueryArrow()] hands out the engine's own Arrow export instead,
 #' and what each type becomes there, and in the R readers that convert the stream, is documented in [duckdb_types_arrow].
 #' A cast to `VARCHAR` in the query reads any type as text.
@@ -82,6 +83,10 @@
 #'   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
 #'   and Arrow writes it directly.
 #' * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
+#'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
+#'   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
+#'   and there a `Period` column, data frame field or parameter writes it with each part exact;
+#'   under the default, a `Period` writes a `DOUBLE` of its seconds alone, a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'
 #' # Enums and nested types

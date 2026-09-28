@@ -113,7 +113,10 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 	return aux_;
 }
 
-RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time) {
+RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time, bool period_interval) {
+	if (period_interval && TYPEOF(v) == REALSXP && Rf_isS4(v) && Rf_inherits(v, "Period")) {
+		return RType::INTERVAL_PERIOD;
+	}
 	if (TYPEOF(v) == REALSXP && Rf_inherits(v, "POSIXct")) {
 		return RType::TIMESTAMP;
 	} else if (TYPEOF(v) == REALSXP && Rf_inherits(v, "Date")) {
@@ -211,7 +214,7 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time) {
 				return RType::UNKNOWN;
 			}
 			for (R_xlen_t i = 0; i < ncol; ++i) {
-				RType child = DetectRType(VECTOR_ELT(v, i), integer64, hms_time);
+				RType child = DetectRType(VECTOR_ELT(v, i), integer64, hms_time, period_interval);
 				if (child == RType::UNKNOWN) {
 					return (RType::UNKNOWN);
 				}
@@ -293,6 +296,7 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 	case RType::INTERVAL_HOURS_INTEGER:
 	case RType::INTERVAL_DAYS_INTEGER:
 	case RType::INTERVAL_WEEKS_INTEGER:
+	case RType::INTERVAL_PERIOD:
 		return LogicalType::INTERVAL;
 	case RType::DATE:
 		return LogicalType::DATE;
@@ -417,7 +421,7 @@ bool RTimeType::IsValid(double val) {
 	return micros >= 0 && micros <= double(Interval::MICROS_PER_DAY);
 }
 
-// Checked before the scan or the bind, where the error can name the column (FindInvalidTime());
+// Checked before the scan or the bind, where the error can name the column (FindInvalidValue());
 // what gets here anyway is refused without calling R, since the scan runs on a task thread.
 dtime_t RTimeType::Convert(double val) {
 	if (!IsValid(val)) {
@@ -426,16 +430,103 @@ dtime_t RTimeType::Convert(double val) {
 	return dtime_t(int64_t(round(val * Interval::MICROS_PER_SEC)));
 }
 
-// The first value that writes TIME and that TIME cannot hold, in `v` or the fields of a data frame `v`,
-// described for an error; empty when there is none.
-string RApiTypes::FindInvalidTime(SEXP v, const string &path) {
-	auto rtype = DetectRType(v, true, true);
+// A number for an error message, spelled as R prints it
+static string FormatRNumber(double val) {
+	if (std::isnan(val)) {
+		return ISNA(val) ? "NA" : "NaN";
+	}
+	if (std::isinf(val)) {
+		return val > 0 ? "Inf" : "-Inf";
+	}
+	std::ostringstream out;
+	out.precision(15);
+	out << val;
+	return out.str();
+}
+
+RPeriodType::RPeriodType(SEXP period) : length(Rf_xlength(period)), seconds(REAL_RO(period)) {
+	const auto &slot_syms = RStrings::get().period_slot_syms;
+	for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
+		SEXP slot = Rf_getAttrib(period, slot_syms[slot_idx]);
+		slots[slot_idx] = TYPEOF(slot) == REALSXP && Rf_xlength(slot) == length ? REAL_RO(slot) : nullptr;
+	}
+}
+
+bool RPeriodType::IsMalformed() const {
+	for (auto slot : slots) {
+		if (!slot) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool RPeriodType::IsNull(R_xlen_t idx) const {
+	return ISNA(seconds[idx]);
+}
+
+static bool IsWholeWithin(double val, double limit) {
+	return std::isfinite(val) && val == std::floor(val) && std::fabs(val) <= limit;
+}
+
+bool RPeriodType::IsValid(R_xlen_t idx) const {
+	if (IsMalformed()) {
+		return false;
+	}
+	for (auto slot : slots) {
+		if (!std::isfinite(slot[idx])) {
+			return false;
+		}
+	}
+	auto months = slots[0][idx] * 12 + slots[1][idx];
+	auto micros = round((slots[3][idx] * 3600 + slots[4][idx] * 60 + seconds[idx]) * Interval::MICROS_PER_SEC);
+	return IsWholeWithin(months, NumericLimits<int32_t>::Maximum()) &&
+	       IsWholeWithin(slots[2][idx], NumericLimits<int32_t>::Maximum()) && IsWholeWithin(micros, 9.2e18);
+}
+
+interval_t RPeriodType::Convert(R_xlen_t idx) const {
+	if (!IsValid(idx)) {
+		throw InvalidInputException("A Period of %s does not fit an `INTERVAL`", Format(idx));
+	}
+	interval_t result;
+	result.months = int32_t(slots[0][idx] * 12 + slots[1][idx]);
+	result.days = int32_t(slots[2][idx]);
+	result.micros =
+	    int64_t(round((slots[3][idx] * 3600 + slots[4][idx] * 60 + seconds[idx]) * Interval::MICROS_PER_SEC));
+	return result;
+}
+
+// Spelled as lubridate prints a Period
+string RPeriodType::Format(R_xlen_t idx) const {
+	if (IsMalformed()) {
+		return "a malformed Period";
+	}
+	return FormatRNumber(slots[0][idx]) + "y " + FormatRNumber(slots[1][idx]) + "m " + FormatRNumber(slots[2][idx]) +
+	       "d " + FormatRNumber(slots[3][idx]) + "H " + FormatRNumber(slots[4][idx]) + "M " +
+	       FormatRNumber(seconds[idx]) + "S";
+}
+
+// The first value that `time = "hms"` or `interval = "Period"` would write and that its type cannot hold,
+// in `v` or the fields of a data frame `v`, described for an error; empty when there is none.
+string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval) {
+	auto rtype = DetectRType(v, true, hms_time, period_interval);
 	if (rtype.id() == RTypeId::STRUCT) {
 		SEXP names = GET_NAMES(v);
 		for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
-			auto invalid = FindInvalidTime(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)));
+			auto invalid =
+			    FindInvalidValue(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)), hms_time, period_interval);
 			if (!invalid.empty()) {
 				return invalid;
+			}
+		}
+		return "";
+	}
+	if (rtype.id() == RTypeId::INTERVAL_PERIOD) {
+		RPeriodType period(v);
+		for (R_xlen_t i = 0; i < period.length; i++) {
+			if (!period.IsNull(i) && !period.IsValid(i)) {
+				return "`" + path + "` must hold periods that fit an `INTERVAL`, not " + period.Format(i) + " (row " +
+				       std::to_string(i + 1) + ").";
 			}
 		}
 		return "";
@@ -446,18 +537,8 @@ string RApiTypes::FindInvalidTime(SEXP v, const string &path) {
 	auto data = NUMERIC_POINTER(v);
 	for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
 		if (!RTimeType::IsNull(data[i]) && !RTimeType::IsValid(data[i])) {
-			// Spelled as R prints it, for the value the caller passed
-			std::ostringstream seconds;
-			if (std::isnan(data[i])) {
-				seconds << "NaN";
-			} else if (std::isinf(data[i])) {
-				seconds << (data[i] > 0 ? "Inf" : "-Inf");
-			} else {
-				seconds.precision(15);
-				seconds << data[i];
-			}
 			return "`" + path + "` must hold times of day from 00:00:00 to 24:00:00 to write `TIME`, not " +
-			       seconds.str() + " seconds (row " + std::to_string(i + 1) + ").";
+			       FormatRNumber(data[i]) + " seconds (row " + std::to_string(i + 1) + ").";
 		}
 	}
 	return "";

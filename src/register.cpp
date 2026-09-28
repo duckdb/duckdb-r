@@ -33,11 +33,13 @@ using namespace duckdb;
 	}
 
 	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
-	if (time_hms) {
+	auto interval_period = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+	if (time_hms || interval_period) {
 		// Checked on R's thread before the engine binds the scan, so that the error can name the column
 		auto names = value.names();
 		for (R_xlen_t col_idx = 0; col_idx < value.ncol(); col_idx++) {
-			auto invalid = RApiTypes::FindInvalidTime(value[col_idx], string(names[col_idx]));
+			auto invalid =
+			    RApiTypes::FindInvalidValue(value[col_idx], string(names[col_idx]), time_hms, interval_period);
 			if (!invalid.empty()) {
 				rapi_error_with_context("rapi_register_df", "Column " + invalid);
 			}
@@ -55,6 +57,8 @@ using namespace duckdb;
 		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
 		// An hms writes TIME rather than INTERVAL with `time = "hms"` (handbook/usage/types/README.md)
 		parameter_map["time_hms"] = time_hms;
+		// A lubridate Period writes INTERVAL with `interval = "Period"`
+		parameter_map["interval_period"] = interval_period;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);

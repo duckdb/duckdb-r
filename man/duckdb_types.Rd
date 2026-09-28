@@ -10,8 +10,9 @@ See \link{duckdb_types_arrow} for a description of the conversion via Arrow.
 }
 \section{The routes}{
 \strong{Reading.}
-\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and six \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape,
-with defaults \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"}, \code{geometry = "blob"}, \code{time = "difftime"} and \code{blob = "list"}.
+\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and seven \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape.
+Their defaults are \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"}, \code{geometry = "blob"},
+\code{time = "difftime"}, \code{blob = "list"} and \code{interval = "difftime"}.
 \code{\link[DBI:dbGetQueryArrow]{dbGetQueryArrow()}} hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is documented in \link{duckdb_types_arrow}.
 A cast to \code{VARCHAR} in the query reads any type as text.
@@ -82,6 +83,10 @@ Its text writes it.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
 \item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours.
+With \code{interval = "Period"} it reads as a \code{lubridate::Period} that keeps the months, the days and the seconds apart,
+which lubridate's \verb{\%m+\%} adds to a date or a \code{POSIXct} as DuckDB adds an \code{INTERVAL},
+and there a \code{Period} column, data frame field or parameter writes it with each part exact;
+under the default, a \code{Period} writes a \code{DOUBLE} of its seconds alone, a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }
 }

@@ -20,6 +20,13 @@ dbDataType__duckdb_connection <- function(dbObj, obj, ...) {
   ) {
     return("INTERVAL")
   }
+  # Under `interval = "Period"`, a lubridate Period writes INTERVAL.
+  if (
+    identical(dbObj@convert_opts$interval, "Period") &&
+      inherits(obj, "Period")
+  ) {
+    return("INTERVAL")
+  }
   dbDataType(dbObj@driver, obj, ...)
 }
 

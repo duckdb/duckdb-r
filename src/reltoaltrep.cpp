@@ -336,9 +336,11 @@ struct AltrepVectorWrapper {
 	// the struct that contains this column.
 	// E.g. for a column `a$b$c`, where `a` is column 3, `b` is field 2 of `a`, and `c` is field 1 of `b`,
 	// we have column_index = 1, parent_column_index = {3, 2}.
+	// A `period_slot` makes the vector that slot of the Period an INTERVAL column reads as, rather than the column
 	AltrepVectorWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p, idx_t column_index_p,
-	                    std::vector<idx_t> parent_column_index_p)
-	    : rel(rel_p), column_index(column_index_p), parent_column_index(std::move(parent_column_index_p)) {
+	                    std::vector<idx_t> parent_column_index_p, idx_t period_slot_p = DConstants::INVALID_INDEX)
+	    : rel(rel_p), column_index(column_index_p), parent_column_index(std::move(parent_column_index_p)),
+	      period_slot(period_slot_p) {
 	}
 
 	static AltrepVectorWrapper *Get(SEXP x) {
@@ -430,7 +432,11 @@ struct AltrepVectorWrapper {
 			idx_t dest_offset = 0;
 			for (const auto &chunk : Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(ChunkData(chunk), dest, dest_offset, chunk.size(), convert_opts, FullName());
+				if (period_slot != DConstants::INVALID_INDEX) {
+					duckdb_r_transform_period_slot(ChunkData(chunk), dest, dest_offset, chunk.size(), period_slot);
+				} else {
+					duckdb_r_transform(ChunkData(chunk), dest, dest_offset, chunk.size(), convert_opts, FullName());
+				}
 				dest_offset += chunk.size();
 			}
 			drop_partial.release();
@@ -448,6 +454,7 @@ struct AltrepVectorWrapper {
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 	idx_t column_index;
 	std::vector<idx_t> parent_column_index;
+	idx_t period_slot;
 	cpp11::sexp transformed_vector;
 };
 
@@ -762,7 +769,24 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 			// when all ALTREP columns have been transformed
 			relation_wrapper->RegisterAltrepColumn();
 			vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-			duckdb_r_decorate(col_type, vector_sexp, convert_opts);
+			if (col_type.id() == LogicalTypeId::INTERVAL &&
+			    convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD) {
+				// duckdb_r_decorate() would size the Period's slots by the row count, which runs the query,
+				// so each slot is a lazy vector of its own
+				const auto &slot_syms = RStrings::get().period_slot_syms;
+				for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
+					cpp11::external_pointer<AltrepVectorWrapper> slot_ptr(
+					    new AltrepVectorWrapper(relation_wrapper, col_idx, parent_col_idx, slot_idx));
+					R_SetExternalPtrTag(slot_ptr, RStrings::get().duckdb_vector_sym);
+					relation_wrapper->RegisterAltrepColumn();
+					cpp11::sexp slot = R_new_altrep(RelToAltrep::real_class, slot_ptr, R_NilValue);
+					Rf_setAttrib(vector_sexp, slot_syms[slot_idx], slot);
+				}
+				SET_CLASS(vector_sexp, RStrings::get().period_str);
+				SET_S4_OBJECT(vector_sexp);
+			} else {
+				duckdb_r_decorate(col_type, vector_sexp, convert_opts);
+			}
 		}
 
 		data_frame.push_back(vector_sexp);

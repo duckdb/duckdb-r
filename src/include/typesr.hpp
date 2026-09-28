@@ -39,6 +39,7 @@ enum class RTypeId {
 	INTERVAL_HOURS_INTEGER,
 	INTERVAL_DAYS_INTEGER,
 	INTERVAL_WEEKS_INTEGER,
+	INTERVAL_PERIOD,
 	INTEGER64,
 	LIST_OF_NULLS,
 	BLOB,
@@ -98,6 +99,7 @@ struct RType {
 	static constexpr const RTypeId INTERVAL_HOURS_INTEGER = RTypeId::INTERVAL_HOURS_INTEGER;
 	static constexpr const RTypeId INTERVAL_DAYS_INTEGER = RTypeId::INTERVAL_DAYS_INTEGER;
 	static constexpr const RTypeId INTERVAL_WEEKS_INTEGER = RTypeId::INTERVAL_WEEKS_INTEGER;
+	static constexpr const RTypeId INTERVAL_PERIOD = RTypeId::INTERVAL_PERIOD;
 	static constexpr const RTypeId INTEGER64 = RTypeId::INTEGER64;
 	static constexpr const RTypeId LIST_OF_NULLS = RTypeId::LIST_OF_NULLS;
 	static constexpr const RTypeId BLOB = RTypeId::BLOB;
@@ -124,14 +126,16 @@ private:
 };
 
 struct RApiTypes {
-	// `hms_time` makes an hms TIME rather than INTERVAL, as `time = "hms"` asks for writing.
-	static RType DetectRType(SEXP v, bool integer64, bool hms_time = false);
+	// `hms_time` makes an hms TIME rather than INTERVAL, as `time = "hms"` asks for writing,
+	// and `period_interval` a lubridate Period INTERVAL rather than DOUBLE, as `interval = "Period"` does.
+	static RType DetectRType(SEXP v, bool integer64, bool hms_time = false, bool period_interval = false);
 	static LogicalType LogicalTypeFromRType(const RType &rtype, bool experimental);
 	static string DetectLogicalType(const LogicalType &stype, const char *caller);
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
-	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true, bool hms_time = false);
-	static string FindInvalidTime(SEXP v, const string &path);
+	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true, bool hms_time = false,
+	                         bool period_interval = false);
+	static string FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 
@@ -172,6 +176,22 @@ struct RTimestampType : public RDoubleType {
 struct RTimeType : public RDoubleType {
 	static bool IsValid(double val);
 	static dtime_t Convert(double val);
+};
+
+// A lubridate Period's parts, read in place: the seconds are its data, and the rest are its slots
+struct RPeriodType {
+	explicit RPeriodType(SEXP period);
+	// Slots that are missing or of another length than the data
+	bool IsMalformed() const;
+	bool IsNull(R_xlen_t idx) const;
+	// Whether the parts make an INTERVAL: finite, whole months and days within 32 bits, and microseconds within 64
+	bool IsValid(R_xlen_t idx) const;
+	interval_t Convert(R_xlen_t idx) const;
+	string Format(R_xlen_t idx) const;
+
+	R_xlen_t length;
+	const double *seconds;
+	const double *slots[5];
 };
 
 struct RIntervalSecondsType : public RDoubleType {
