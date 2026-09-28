@@ -32,6 +32,9 @@ The load-bearing facts:
   so a database that does not exist yet resolves without anything being created.
   `duckdb()` resolves the path once more after the engine has opened it, and files the instance under that key,
   because a symlink to a database yet to be created resolves only once its target exists.
+  Windows creates no file through a symlink whose target is missing, and R's `file.create()` is refused there too,
+  so on Windows such a link fails in `duckdb()` with the engine's error naming it, and caches nothing;
+  [`test-path_normalize.R`](/tests/testthat/test-path_normalize.R) asserts that on every Windows run.
   Two spellings of one database (relative, symlinked, differently separated) therefore share an instance.
   Only `~` stays R's to expand: DuckDB has its own idea of the home directory, and on Windows it is not R's.
   A path that resolves no further is used as it stands rather than refused,
