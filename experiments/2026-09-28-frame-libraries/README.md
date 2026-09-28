@@ -11,7 +11,7 @@ The packages are DBI 1.3.0, nanoarrow 0.9.0, data.table 1.18.6.1, collapse 2.1.8
 polars is 1.9000.9000.9000, the development version that r-universe builds from pola-rs/r-polars at 0ada39de32.
 It carries the prebuilt Rust library of polars 2.0.0-rc.2.
 The release is published on R-multiverse, which the environment this ran in could not reach, so it is not measured.
-duckdb 1.5.5.9029 is 7fd4c2c8fd, the top of the stack of pull requests this record was written on.
+duckdb 1.5.5.9029 is the top of the stack of pull requests this record was written on, merged as [#2850](https://github.com/duckdb/duckdb-r/pull/2850).
 It is a fast-path build linking the release `libduckdb` of DuckDB 1.5.5 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 The Arrow export measured is the engine's, which the release shares with the vendored engine.
 [`frames.R`](frames.R) is rendered to [`frames.md`](frames.md) by [`scripts/render-reprex.R`](/scripts/render-reprex.R).
