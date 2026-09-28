@@ -4,7 +4,8 @@ Every DuckDB type as it crosses to R and back:
 what a value of the type becomes when read, which R value writes it again, and what to do where neither works.
 The mapping is implemented in [`src/types.cpp`](/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
-and every entry on this page was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md).
+and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md)
+or [`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md).
 Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s, and geometry is [`spatial/`](/handbook/usage/spatial/README.md)'s.
 
 The reference pages `?duckdb_types`, `?duckdb_types_arrow` and `?duckdb_types_spatial` are this leaf,
@@ -154,10 +155,16 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 
 * `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` and `dbExecute()` refuse a column of one, or of anything nesting one,
   before the statement runs, and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
+* An `ARRAY` column under the default `array = "none"` is refused only once the statement has run,
+  so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
   under `bigint = "integer64"`, a `UBIGINT` of 2^63 reads as `NA`, and one past it wraps to a negative number.
 * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
   `INTERVAL` with a month as 30 days and a day as 24 hours, and `infinity` as a distant finite date or instant.
+* `NaN`, `Inf` and `-Inf` in a `Date`, `difftime` or `POSIXct` stored as double write as far-off negative values, not as `NULL` or infinity:
+  on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,
+  because only `NA` is taken for missing ([`src/types.cpp`](/src/types.cpp)).
+* A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
 * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
   and no R class writes `TIME` outside Arrow.
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
@@ -168,6 +175,8 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`,
   so a `difftime` column fails to append to the table it created
   ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).
+  For a data frame column, `dbDataType()` gives its field's type when it has one field and fails when it has several,
+  and `dbCreateTable()` and `sqlCreateTable()` with it, where `dbWriteTable()` writes a `STRUCT`.
 * Attribute classes do not cross, in either direction, through Arrow too:
   a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
@@ -175,4 +184,4 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   ([`relational/`](/handbook/usage/relational/README.md)).
 
 *To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
-which the record does not cover ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
+which neither record covers ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*

@@ -145,10 +145,16 @@
 #'
 #' * `BIT`, `BIGNUM`, `TIME_NS` and `UNION` have no R vector, so `dbGetQuery()` and [dbExecute()] refuse a column of one, or of anything nesting one,
 #'   before the statement runs, and [dplyr::tbl()] cannot open a table holding one.
+#' * An `ARRAY` column under the default `array = "none"` is refused only once the statement has run,
+#'   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
 #' * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's precision, and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
 #'   under `bigint = "integer64"`, a `UBIGINT` of 2^63 reads as `NA`, and one past it wraps to a negative number.
 #' * `TIMESTAMP_NS` reads to the microsecond, `TIMETZ` without its offset,
 #'   `INTERVAL` with a month as 30 days and a day as 24 hours, and `infinity` as a distant finite date or instant.
+#' * `NaN`, `Inf` and `-Inf` in a `Date`, `difftime` or `POSIXct` stored as double write as far-off negative values, not as `NULL` or infinity:
+#'   on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,
+#'   because only `NA` is taken for missing.
+#' * A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
 #' * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
 #'   and no R class writes `TIME` outside Arrow.
 #' * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
@@ -158,6 +164,8 @@
 #'   which says `TIME` for `difftime` and `hms`, `DOUBLE` for `integer64`, `VARCHAR` for `factor`, and the element type for a matrix,
 #'   where the write routes give `INTERVAL`, `BIGINT`, `ENUM` and `ARRAY`,
 #'   so a `difftime` column fails to append to the table it created.
+#'   For a data frame column, `dbDataType()` gives its field's type when it has one field and fails when it has several,
+#'   and `dbCreateTable()` and `sqlCreateTable()` with it, where `dbWriteTable()` writes a `STRUCT`.
 #' * Attribute classes do not cross, in either direction, through Arrow too:
 #'   a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
 #'   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
@@ -165,7 +173,8 @@
 #'
 #' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
 #' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
-#' and every entry on this page was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md).
+#' and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md)
+#' or [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md).
 #' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s, and geometry is documented in [duckdb_types_spatial].
 #'
 #' What `expr_constant(NA)` builds in the relational API is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
