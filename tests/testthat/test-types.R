@@ -171,6 +171,8 @@ test_that("test_all_types() under timezone_out = \"Europe/Berlin\"", {
   skip_if_not(getRversion() >= "4.3")
 
   con <- local_con(timezone_out = "Europe/Berlin")
+  # `timestamp_tz` follows the session's zone, which is the machine's unless set
+  dbExecute(con, "SET TimeZone = 'UTC'")
 
   local_edition(3)
   withr::local_options(digits.secs = 6)
@@ -194,6 +196,8 @@ test_that("test_all_types() under tz_out_convert = \"force\"", {
   skip_if_not(getRversion() >= "4.3")
 
   con <- local_con(timezone_out = "Europe/Berlin", tz_out_convert = "force")
+  # `timestamp_tz` follows the session's zone, which is the machine's unless set
+  dbExecute(con, "SET TimeZone = 'UTC'")
 
   local_edition(3)
   withr::local_options(digits.secs = 6)
