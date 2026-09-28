@@ -256,11 +256,11 @@ For a file-based `dbdir`, the instance is cached, keyed by the
 returns the same driver and instance while it is still alive. This is
 deliberate. DuckDB allows only a single read-write handle to a database
 file at a time, so opening a second instance of the same file fails with
-a lock error in another process, and is not prevented at all within the
-same one. Reusing one instance instead lets any number of
-`dbConnect(duckdb(dbdir = "my.db"))` calls share it. An in-memory
-database (`:memory:`, the default) has no file to lock and is never
-cached: every `duckdb()` call creates a fresh, isolated instance.
+a lock error in another process, and, on Linux and macOS, is not
+prevented at all within the same one. Reusing one instance instead lets
+any number of `dbConnect(duckdb(dbdir = "my.db"))` calls share it. An
+in-memory database (`:memory:`, the default) has no file to lock and is
+never cached: every `duckdb()` call creates a fresh, isolated instance.
 
 The key is the path as the *engine* resolves it, not as
 [`normalizePath()`](https://rdrr.io/r/base/normalizePath.html) does.

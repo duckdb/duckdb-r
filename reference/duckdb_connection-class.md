@@ -27,6 +27,9 @@ dbGetInfo(dbObj, ...)
 # S4 method for class 'duckdb_connection'
 dbIsValid(dbObj, ...)
 
+# S4 method for class 'duckdb_connection,Id'
+dbListFields(conn, name, ...)
+
 # S4 method for class 'duckdb_connection,character'
 dbListFields(conn, name, ...)
 

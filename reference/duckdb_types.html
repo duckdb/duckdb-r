@@ -176,10 +176,16 @@ Its text reads and writes it exactly.</p></li>
 
 <ul><li><p><code>BIT</code>, <code>BIGNUM</code>, <code>TIME_NS</code> and <code>UNION</code> have no R vector, so <code><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute()</a></code> refuse a column of one, or of anything nesting one,
 before the statement runs, and <code><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">dplyr::tbl()</a></code> cannot open a table holding one.</p></li>
+<li><p>An <code>ARRAY</code> column under the default <code>array = "none"</code> is refused only once the statement has run,
+so an <code>INSERT ... RETURNING</code> of one has inserted its rows by the time it fails.</p></li>
 <li><p><code>HUGEINT</code>, <code>UHUGEINT</code> and <code>DECIMAL</code> past a double's precision, and <code>BIGINT</code> and <code>UBIGINT</code> past 2^53, read as rounded doubles;
 under <code>bigint = "integer64"</code>, a <code>UBIGINT</code> of 2^63 reads as <code>NA</code>, and one past it wraps to a negative number.</p></li>
 <li><p><code>TIMESTAMP_NS</code> reads to the microsecond, <code>TIMETZ</code> without its offset,
 <code>INTERVAL</code> with a month as 30 days and a day as 24 hours, and <code>infinity</code> as a distant finite date or instant.</p></li>
+<li><p><code>NaN</code>, <code>Inf</code> and <code>-Inf</code> in a <code>Date</code>, <code>difftime</code> or <code>POSIXct</code> stored as double write as far-off negative values, not as <code>NULL</code> or infinity:
+on x86_64, the <code>DATE</code> 5877642-06-23 (BC), an <code>INTERVAL</code> of -106751991 days, and a <code>TIMESTAMP</code> no cast to <code>VARCHAR</code> accepts,
+because only <code>NA</code> is taken for missing.</p></li>
+<li><p>A <code>POSIXct</code> stored as integer writes, binds and creates <code>INTEGER</code>, not <code>TIMESTAMP</code>, and reads back as <code>integer</code>.</p></li>
 <li><p><code>TIME</code>, <code>TIMETZ</code>, <code>GEOMETRY</code> and <code>VARIANT</code> do not write back as themselves from the value R reads,
 and no R class writes <code>TIME</code> outside Arrow.</p></li>
 <li><p><code>MAP</code> does not write from its text through <code>field.types</code> or <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code>,
@@ -188,14 +194,17 @@ an <code>ordered</code> factor writes an unordered <code>ENUM</code>, and a <cod
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbCreateTable.html" class="external-link">dbCreateTable()</a></code> takes its column types from <code><a href="https://dbi.r-dbi.org/reference/dbDataType.html" class="external-link">dbDataType()</a></code>,
 which says <code>TIME</code> for <code>difftime</code> and <code>hms</code>, <code>DOUBLE</code> for <code>integer64</code>, <code>VARCHAR</code> for <code>factor</code>, and the element type for a matrix,
 where the write routes give <code>INTERVAL</code>, <code>BIGINT</code>, <code>ENUM</code> and <code>ARRAY</code>,
-so a <code>difftime</code> column fails to append to the table it created.</p></li>
+so a <code>difftime</code> column fails to append to the table it created.
+For a data frame column, <code><a href="https://dbi.r-dbi.org/reference/dbDataType.html" class="external-link">dbDataType()</a></code> gives its field's type when it has one field and fails when it has several,
+and <code><a href="https://dbi.r-dbi.org/reference/dbCreateTable.html" class="external-link">dbCreateTable()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/sqlCreateTable.html" class="external-link">sqlCreateTable()</a></code> with it, where <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code> writes a <code>STRUCT</code>.</p></li>
 <li><p>Attribute classes do not cross, in either direction, through Arrow too:
 a <code>units</code> column writes plain <code>DOUBLE</code> and reads back plain <code>numeric</code>, and nothing warns
 (<a href="https://github.com/duckdb/duckdb-r/issues/590" class="external-link">#590</a>).</p></li>
 <li><p><code>rel_from_df()</code>, which duckplyr builds on, refuses some columns rather than converting them.</p></li>
 </ul><p>The mapping is implemented in <a href="https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp" class="external-link"><code>src/types.cpp</code></a> (R vector to <code>LogicalType</code>) and <a href="https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp" class="external-link"><code>src/transform.cpp</code></a> (the way back).
 The list of types is DuckDB's own <a href="https://duckdb.org/docs/current/sql/data_types/overview" class="external-link">documentation</a> for the release vendored here,
-and every entry on this page was measured on DuckDB 1.5.5 in <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md" class="external-link"><code>experiments/2026-09-26-type-catalog/</code></a>.
+and every entry on this page was measured on DuckDB 1.5.5, in <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md" class="external-link"><code>experiments/2026-09-26-type-catalog/</code></a>
+or <a href="https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md" class="external-link"><code>experiments/2026-09-27-review-limits/</code></a>.
 Which zone labels a timestamp is <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md" class="external-link"><code>timestamps/</code></a>'s, and geometry is documented in <a href="duckdb_types_spatial.html">duckdb_types_spatial</a>.</p>
 <p>What <code>expr_constant(NA)</code> builds in the relational API is <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md" class="external-link"><code>relational/</code></a>'s.</p>
     </div>

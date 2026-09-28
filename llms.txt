@@ -262,6 +262,7 @@ The DBI connection to a DuckDB database and its methods.
   [`dbExistsTable(`*`<duckdb_connection>`*`,`*`<ANY>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbGetInfo(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbIsValid(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
+  [`dbListFields(`*`<duckdb_connection>`*`,`*`<Id>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbListFields(`*`<duckdb_connection>`*`,`*`<character>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbListTables(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbQuoteIdentifier(`*`<duckdb_connection>`*`,`*`<ANY>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
