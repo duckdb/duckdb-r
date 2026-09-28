@@ -441,3 +441,20 @@ test_that("a data frame column nesting one of several fields writes as STRUCT", 
   expect_equal(res$t, "STRUCT(i INTEGER, t STRUCT(x INTEGER, y VARCHAR))")
   expect_equal(dbReadTable(con, "df")$s, df$s)
 })
+
+test_that("a data frame column without names is refused without reading them", {
+  con <- local_con()
+  df <- data.frame(id = 1)
+  df$s <- structure(list(1), class = "data.frame", row.names = 1L)
+
+  # Refused with a message that says little, but not by R for reading names that aren't there
+  message <- tryCatch(dbWriteTable(con, "df", df), error = conditionMessage)
+  expect_type(message, "character")
+  expect_no_match(message, "STRING_ELT")
+  message <- tryCatch(
+    dbGetQuery(con, "SELECT ? AS a", params = list(df$s)),
+    error = conditionMessage
+  )
+  expect_type(message, "character")
+  expect_no_match(message, "STRING_ELT")
+})

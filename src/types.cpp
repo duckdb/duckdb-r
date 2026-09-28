@@ -125,6 +125,12 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 	return aux_;
 }
 
+// A data frame's names, read in place, or R_NilValue unless they are one string per column
+static SEXP DataFrameNames(SEXP df) {
+	SEXP names = GET_NAMES(df);
+	return TYPEOF(names) == STRSXP && Rf_xlength(names) == Rf_xlength(df) ? names : R_NilValue;
+}
+
 RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time, bool period_interval) {
 	if (period_interval && (TYPEOF(v) == REALSXP || TYPEOF(v) == INTSXP) && Rf_isS4(v) && Rf_inherits(v, "Period")) {
 		return RType::PERIOD(v);
@@ -221,8 +227,8 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time, bool period_
 
 			// Read in place: the scan detects a list cell's type on a task thread,
 			// where no cpp11 vector may be built (handbook/architecture/glue/threading/)
-			SEXP names = GET_NAMES(v);
-			if (TYPEOF(names) != STRSXP || Rf_xlength(names) != ncol) {
+			SEXP names = DataFrameNames(v);
+			if (names == R_NilValue) {
 				return RType::UNKNOWN;
 			}
 			for (R_xlen_t i = 0; i < ncol; ++i) {
@@ -617,7 +623,11 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 	const string position = in_list ? " (element " : " (row ";
 	if (TYPEOF(v) == VECSXP) {
 		auto is_df = Rf_inherits(v, "data.frame");
-		SEXP names = is_df ? GET_NAMES(v) : R_NilValue;
+		SEXP names = is_df ? DataFrameNames(v) : R_NilValue;
+		if (is_df && names == R_NilValue) {
+			// Not a data frame DetectRType() takes, which refuses it
+			return "";
+		}
 		for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
 			auto invalid = is_df ? FindInvalidValue(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)), hms_time,
 			                                        period_interval, in_list)
