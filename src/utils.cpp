@@ -377,16 +377,21 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	// Types stored as per-row VECSXP elements: extract element 0
 	// STRUCT returns a 1-row data frame: return as-is
 	// Scalars return a length-1 vector: return as-is,
-	// as does a BLOB under `blob = "blob"`, which is a length-1 blob there
+	// as does a BLOB under `blob = "blob"` and a GEOMETRY under `geometry = "wk"`,
+	// a length-1 blob or wk_wkb there
 	switch (type.id()) {
 	case LogicalTypeId::BLOB:
 		if (convert_opts.blob == ConvertOpts::BlobConversion::BLOB) {
 			return dest;
 		}
 		return VECTOR_ELT(dest, 0);
+	case LogicalTypeId::GEOMETRY:
+		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
+			return dest;
+		}
+		return VECTOR_ELT(dest, 0);
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
-	case LogicalTypeId::GEOMETRY:
 		return VECTOR_ELT(dest, 0);
 	default:
 		return dest;
