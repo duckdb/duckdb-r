@@ -22,7 +22,7 @@ and the replay cannot put the preview prefix back:
 the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
 so every picked commit inherits whatever the seed was stamped with
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
+Stamp it in the fifth-component commit, before the `-fwd` refs are created.
 The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
 previewing 2.0 is `1.99.99.9000`.
 

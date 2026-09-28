@@ -42,9 +42,10 @@ a forward whose green is an ancestor of its base's green (cutover litter pending
 `<L>-land-*` (a landing),
 and `<S>-fwd-vendor` (the forward's vendor strand).
 
-**All four refs exist from day one, and green contains the flavor change.**
-A forward's four start equal at the seed tip, topped by a separate `chore: Add fifth version component` commit;
-an opening cuts the build pair and the dev pair from the parent's strands, each at its own cut
+**All four refs exist from day one, and green starts below the flavor commits.**
+A forward's `-dev`, `-build` and `-build-base` start at the seed tip, topped by a separate `chore: Add fifth version component` commit,
+and its green at the commit the seed sits on, so that CI judges the flavor commits first and green crosses them once they pass;
+an opening cuts the build pair and the dev pair from the parent's strands, each at its own cut, below its reflavor
 ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
 There is never a "no green yet" state, and every walk below is bounded by `<S>-green`.
 
