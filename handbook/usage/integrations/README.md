@@ -2,7 +2,7 @@
 
 The routes into DuckDB beside plain SQL:
 dplyr pipelines by two different mechanisms, Arrow interchange,
-ADBC, and the frame libraries that take none of them.
+ADBC, and a result's way into Polars, data.table and collapse.
 What a value becomes across the boundary is
 [`types/`](/handbook/usage/types/README.md)'s,
 and through Arrow [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
@@ -117,14 +117,8 @@ So does a result that `dbFetchArrow()` has handed over.
 Both keep the result's columns, `INTERVAL` included
 ([#2773](https://github.com/duckdb/duckdb-r/issues/2773)).
 Only a zero-length `dbBind()` executes nothing, so what it answers has no columns.
-The stream is the interchange:
-any Arrow-C-stream consumer takes a result onward
-without an R data frame in between —
-`polars::as_polars_df()`, `arrow::as_arrow_table()`,
-`nanoarrow::convert_array_stream()` —
-so a dedicated writer per frame library
-(Polars was the one asked for) is this route, not new C++
-([#642](https://github.com/duckdb/duckdb-r/issues/642)).
+The stream is the interchange: any Arrow C stream consumer takes a result onward without an R data frame in between.
+`arrow::as_arrow_table()` and `nanoarrow::convert_array_stream()` are such consumers.
 The stream feeds one consumer, draining as it is read, and a drained stream reads as empty rather than as the result again.
 A `$get_next()` loop over it ends in `NULL`, and a second `nanoarrow::convert_array_stream()` returns zero rows.
 `as.data.frame()` and `arrow::as_arrow_table()` also release it, so a read after either is an error ("has already been released").
@@ -178,7 +172,7 @@ The DBI Arrow API plan is
 **`to_arrow_stream()` is better than nothing, within hard limits.**
 The package exports that reader as the experimental `to_arrow_stream()` ([`R/to_arrow_stream.R`](/R/to_arrow_stream.R)).
 It holds a large result once where `to_arrow()` holds it twice, but it is no drop-in replacement.
-Its reference page lists the same limits.
+Its reference page points here for them.
 The reader is its connection's open result until it has been read to the end:
 
 * Any other statement on that connection leaves it alone, as the entry above says, so the reader still delivers every row.
@@ -198,6 +192,23 @@ It sees neither the first connection's temporary tables nor its open transaction
 ([`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md)).
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) would let a result own such a connection (`isolated = TRUE`).
 That would lift the first four.
+The reader keeps the database instance open until it is garbage-collected, even once it has been read to the end
+([`connections/`](/handbook/usage/connections/README.md)).
+
+**A result goes into Polars, data.table or collapse without a writer of its own.**
+Each takes what a DBI call returns:
+
+* Polars: `polars::as_polars_df(dbGetQueryArrow(con, sql))`.
+  It keeps each batch as a chunk, and numbers and characters where the stream put them.
+  A string column gains a 16-byte view per value, unless the export already sends views (`produce_arrow_string_view`).
+* data.table: `data.table::setDT(dbGetQuery(con, sql))`.
+  It makes the data frame a data.table in place and keeps every column, where `as.data.table()` copies each one.
+* collapse: its functions take the data frame as it is, and `collapse::qDT()` makes a data.table that keeps every column.
+
+Polars keeps Arrow memory, which the stream already is, and data.table and collapse keep R vectors, which `dbGetQuery()` already builds.
+So a writer of its own would build the same memory that these calls reach without one ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
+Measured on data.table 1.18.6.1, collapse 2.1.8 and the development version of polars from r-universe, not its release
+([`experiments/2026-09-28-frame-libraries/`](/experiments/2026-09-28-frame-libraries/README.md)).
 
 ## ADBC
 
@@ -263,16 +274,6 @@ That universe publishes a prebuilt binary for every platform this package
 is checked on — Linux, macOS and Windows, x86_64 and aarch64 —
 so Windows arm64 is no longer the exception it was
 while CRAN was the only source and had no binary for it.
-
-## data.table and collapse
-
-The other frame libraries
-[#642](https://github.com/duckdb/duckdb-r/issues/642) asks for,
-data.table and collapse,
-operate on subclasses of data frames internally.
-Unless this changes fundamentally,
-handing these packages a data frame is good enough:
-any other reader in these packages would still have to build R vectors.
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain

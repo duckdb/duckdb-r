@@ -1,8 +1,8 @@
 # Plan: the type reference, and the gaps the catalog found
 
 *This is a plan: work proposed, not a description of the system.
-[`usage/types/`](/handbook/usage/types/README.md), [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
-and [`usage/spatial/`](/handbook/usage/spatial/README.md) own what each type does today,
+[`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
+own what each type does today, geometry included,
 and where this plan and a leaf disagree, the leaf is right.
 The evidence is [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md)
 and [`experiments/2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md), run on DuckDB 1.5.5.
@@ -22,8 +22,8 @@ and, in [#2808](https://github.com/duckdb/duckdb-r/pull/2808),
 integer-stored `Date` and `difftime` `NA` written as values, a data frame column of several fields refused by `dbWriteTable()`,
 `dbExistsTable()` blind to a table holding a type R cannot hold,
 and `BIT`, `BIGNUM`, `TIME_NS` and `UNION` refused on the Arrow routes, which need no R vector.
-The user-facing pages #2566 asks for, `?duckdb_types`, `?duckdb_types_arrow` and `?duckdb_types_spatial`,
-are rendered from the three leaves by [`scripts/types-rd.R`](/scripts/types-rd.R), whose `--check` CI runs.
+The user-facing pages #2566 asks for, `?duckdb_types` and `?duckdb_types_arrow`,
+are rendered from the two leaves by [`scripts/types-rd.R`](/scripts/types-rd.R), whose `--check` CI runs.
 
 ## 1. Settle the gaps that are decisions
 

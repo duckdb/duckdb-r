@@ -25,54 +25,14 @@ so the rows arrive batch by batch and the result is not held twice.
 \code{arrow::to_arrow()} materializes the whole result first,
 through \code{dbSendQuery(arrow = TRUE)}.
 
-The streaming comes with hard limits, listed under "Limitations" below.
+The streaming comes with hard limits, listed in the handbook, in
+\href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{usage/integrations/}}.
 Use \code{to_arrow_stream()} where a large result goes straight into Arrow
 and nothing else runs on its connection until the reader has been read
 to the end.
 Where that cannot be arranged, use \code{arrow::to_arrow()},
 or run everything else on a second connection.
 }
-\section{Limitations}{
-
-The reader is its connection's open result until it has been read to the
-end.
-\itemize{
-\item \strong{Another statement on the connection leaves the reader alone.}
-This engine keeps a query result independent of whatever statement
-its connection is running,
-so a reader opened before that statement still delivers every row.
-\item \strong{A query that scans the reader on its own connection never returns.}
-\code{arrow::to_duckdb(reader, con = con)} is such a query,
-and so is a query on \code{con} after \code{duckdb_register_arrow(con, name, reader)}.
-Ctrl-C does not stop it, and the R session has to be killed.
-\item \strong{Tables from \code{arrow::to_duckdb()} share one connection.}
-Without \code{con}, \code{to_duckdb()} uses the one connection that arrow keeps.
-For such a table, a later \code{to_duckdb()} without \code{con} breaks the reader,
-and one on the reader itself never returns.
-\item \strong{Writing the reader back to its own connection fails partway.}
-\code{\link[DBI:dbWriteTableArrow]{DBI::dbWriteTableArrow()}} creates the table, then fails and leaves it
-empty.
-\code{\link[DBI:dbAppendTableArrow]{DBI::dbAppendTableArrow()}} appends the first batch of rows, then fails.
-\item \strong{Ctrl-C does not interrupt a read.}
-Arrow reads the reader on its own threads,
-outside the package's interrupt handler.
-\item \strong{Errors arrive late.}
-A query that fails after its first batch fails at a later read,
-not in \code{to_arrow_stream()}.
-\item \strong{The reader is read once.}
-Reading it again gives zero rows, not the result again.
-}
-
-A second connection to the same database, such as
-\code{DBI::dbConnect(con@driver)}, neither affects the reader nor is affected by
-it.
-It does not see the first connection's temporary tables or open
-transaction.
-The reader stays readable after \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}}.
-It keeps the database instance open until it is garbage-collected,
-even once it has been read to the end (\code{\link[=duckdb]{duckdb()}}).
-}
-
 \examples{
 \dontshow{if (simulate_duckdb()$env$examples_enabled() && all(vapply(c("arrow", "dbplyr", "dplyr", "nanoarrow"), requireNamespace, logical(1), quietly = TRUE))) withAutoprint(\{ # examplesIf}
 con <- dbConnect(duckdb())
