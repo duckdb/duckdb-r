@@ -4,7 +4,23 @@
 
 ## Bug fixes
 
+- Write a named list with an empty value under `map = "list_of"` instead of crashing (#2866).
+
+- A `PRAGMA`'s expansion no longer leaves a transaction open or refuses a `LOAD` halfway, and an empty one can end a query (#2845).
+
+- The progress display prints at most every half second (#2844).
+
 - Run `PRAGMA` after earlier statements in one DBI query (@t-kalinowski, #2792).
+
+### flavor
+
+- Normalize the types header the `.dd` files name (#2856).
+
+### types
+
+- `dbListFields()` and `dbAppendTable()` read the columns of a table named by `Id()` from `DESCRIBE` (#2848).
+
+- Keep integer-stored `NA` dates, write multi-field data frame columns, and find tables holding types R cannot hold (#2808).
 
 ### tests
 
@@ -68,13 +84,59 @@
 
 ## Documentation
 
+- Record that a classed matrix column writes as its scalar type, and that `rel_to_altrep()` misreads arrays (#2855).
+
+- Record the limitations the stack's reviews found and left unfixed (#2849).
+
+- Describe how a multi-statement string runs, and what stops it (#2835).
+
 - State the goals and non-goals (#2731).
 
 - Correct the handbook where the pre-release review found it wrong (#2824).
 
+### build
+
+- Record that `load_all()` from source stops on an assert-only helper (#2843).
+
 ### connections
 
+- Point the engine instance cache at #2857, not the closed #2644 (#2858).
+
 - Say in `?duckdb` what else keeps an instance open, and that one process can open a file twice (#2823).
+
+### glue
+
+- Record that reporting an error calls R, even where R may not run (#2840).
+
+### rcc
+
+- The store's sweep is a command an operator runs, not a workflow a firing dispatches (#2838).
+
+### spatial
+
+- Measure the geometry surface end to end, and plan the write side (#2640).
+
+### threading
+
+- Say that allocating off R's thread is avoided, not yet ruled out (#2839).
+
+### types
+
+- Correct the facts and placement a re-review of the type pages found (#2861).
+
+- Two type reference pages, with geometry folded into both and the Arrow page extended (#2850).
+
+- Render `?duckdb_types`, `?duckdb_types_arrow` and `?duckdb_types_spatial` from the handbook (#2837).
+
+- Catalog every DuckDB type in and out of R, through R vectors and through Arrow (#2836).
+
+## Features
+
+- Experimental `to_arrow_stream()` streams a dbplyr table on DuckDB into Arrow (#2803).
+
+### connections
+
+- Key the driver cache on the engine's path, not R's (#2627).
 
 ## Performance
 
@@ -82,7 +144,13 @@
 
 ## Testing
 
+- Skip the symlink-to-a-missing-database test on Windows, where symlinks are out of scope (#2864).
+
 - Compare the `POSIXct` literal round trip exactly, and cover instants before 1970 (#2826).
+
+### progress
+
+- Ask the engine whether it reports progress while a stream is read (#2859).
 
 ## Uncategorized
 
