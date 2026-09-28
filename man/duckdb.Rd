@@ -160,7 +160,7 @@ that records the SQL key/value types.
 This enables MAP columns to round-trip through \code{\link[DBI:dbWriteTable]{dbWriteTable()}} / \code{\link[DBI:dbCreateTable]{dbCreateTable()}} without specifying \code{field.types},
 and lets scans accept named-list cells as MAP entries.}
 
-\item{time}{How \code{TIME} and \code{TIMETZ} columns should be returned, and what an \code{hms} writes.
+\item{time}{How \code{TIME}, \code{TIME_NS} and \code{TIMETZ} columns should be returned, and what an \code{hms} writes.
 There are two options: \code{"difftime"} and \code{"hms"}.
 If \code{"difftime"} is selected (the default), they are returned as a \code{difftime} in seconds,
 and an \code{hms} column or parameter writes \code{INTERVAL}.
