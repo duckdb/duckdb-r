@@ -5,7 +5,8 @@ what a value of the type becomes when read, which R value writes it again, and w
 The mapping is implemented in [`src/types.cpp`](/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md),
-[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)
+[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md),
+[`experiments/2026-09-28-type-rereview/`](/experiments/2026-09-28-type-rereview/README.md)
 or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md).
 Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s,
 and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
@@ -48,7 +49,7 @@ The [numeric](https://duckdb.org/docs/current/sql/data_types/numeric) and [boole
   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a limitation (below).
   Their text is exact both ways.
-* **`BIGNUM`** (`VARINT`) reads and writes through its text, and through Arrow.
+* **`BIGNUM`** (`VARINT`) reads and writes through its text, and Arrow writes it ([`arrow-types/`](/handbook/usage/arrow-types/README.md)).
 * **`DECIMAL(width, scale)`** (`NUMERIC`) reads as `numeric` at every width; its rounding is a limitation (below).
   Its text is exact both ways, and Arrow writes it exactly.
 * **`FLOAT`** (`REAL`) and **`DOUBLE`** read as `numeric`, and `numeric` writes `DOUBLE`.
@@ -134,7 +135,8 @@ and the `spatial` extension's own types:
   `POLYGON_2D` and `POLYGON_3D` are lists of those rings, and read as lists of lists;
   `WKB_BLOB` is a `BLOB`, and reads as raw vectors.
   The same shapes write the plain struct or list, and `field.types` naming the alias casts back to it.
-  They cast to and from `GEOMETRY` in the query, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
+  They cast to `GEOMETRY` in the query,
+  and the point, linestring, polygon and WKB types cast from it, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
 
 ## Everything else
 
@@ -207,9 +209,10 @@ and the `spatial` extension's own types:
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.
 * `VARIANT` fails on a value whose type R cannot hold.
-* A `GEOMETRY` column read under the default `geometry = "blob"` loses its CRS,
-  and naming a CRS in a type, as `EPSG:4326`, needs `spatial` loaded, which resolves the name
-  ([`extensions/`](/handbook/usage/extensions/README.md)).
+* A `GEOMETRY` column read under the default `geometry = "blob"` loses its CRS.
+  A CRS named in a type needs `spatial` loaded, which resolves the name ([`extensions/`](/handbook/usage/extensions/README.md)),
+  unless the core knows it: `GEOMETRY('OGC:CRS84')` binds without `spatial`, and `GEOMETRY('EPSG:4267')` does not.
+  The core knows the systems [`default_coordinate_systems.cpp`](/src/duckdb/src/catalog/default/default_coordinate_systems.cpp) lists.
 * WKB does not write `GEOMETRY`, because `BLOB` has no cast to it:
   `field.types = c(geom = "GEOMETRY")`, `dbAppendTable()` and a parameter bound to a `GEOMETRY` cast
   all fail on `sf::st_as_binary()` output,
@@ -227,7 +230,10 @@ and the `spatial` extension's own types:
   ([`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md), [#117](https://github.com/duckdb/duckdb-r/issues/117)).
 * `sf::st_read()` of a table does not recognize a `GEOMETRY` column, and returns a data frame.
 * WKT does not parse into the `spatial` extension's own types.
-* An `INET` address reads rounded for IPv6.
+* `GEOMETRY` does not cast to `BOX_2D` or `BOX_2DF`, failing with "Unimplemented type for cast";
+  `ST_Extent()` gives a geometry's `BOX_2D`.
+* An IPv6 `INET` address reads as the double of the `HUGEINT` the engine stores, which is the address minus 2^127:
+  `'::1'::INET` reads as `-1.7e38`, and its text as `::1`.
 
 *To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
-which neither record covers ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
+which no record covers ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*

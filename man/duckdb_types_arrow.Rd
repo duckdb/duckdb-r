@@ -50,12 +50,12 @@ Every other route converts through an R data frame, so a column lands as the typ
 \item \strong{\code{BOOLEAN}} exports as \code{bool} and reads as \code{logical};
 with \code{arrow_lossless_conversion}, as \code{arrow.bool8}, which nanoarrow reads as the \code{integer} of its storage.
 \item \strong{\code{TINYINT}, \code{SMALLINT}, \code{INTEGER}, \code{UTINYINT}, \code{USMALLINT}} export as \code{int8}, \code{int16}, \code{int32}, \code{uint8} and \code{uint16},
-and read as \code{integer}.
+and read as \code{integer}, exactly but for the \code{INTEGER} minimum.
 \item \strong{\code{UINTEGER}} exports as \code{uint32}.
 nanoarrow reads it as \code{numeric}; arrow reads it as \code{integer} when every value fits, and as \code{numeric} otherwise.
 \item \strong{\code{BIGINT}} exports as \code{int64}.
 nanoarrow reads it as \code{numeric}, exact up to 2^53.
-arrow reads it as \code{integer} when every value fits and as \code{bit64::integer64} otherwise, exactly,
+arrow reads it as \code{integer} when every value fits and as \code{bit64::integer64} otherwise, exactly but for the minimum,
 or as \code{integer64} always under \code{options(arrow.int64_downcast = FALSE)}.
 \item \strong{\code{UBIGINT}} exports as \code{uint64}, and both read it as \code{numeric}, exact up to 2^53.
 \item \strong{\code{HUGEINT}, \code{UHUGEINT}} export as \code{decimal128(38, 0)}, and both read them as \code{numeric}; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
@@ -116,8 +116,10 @@ nanoarrow reads it as a data frame with a column per member, \code{NA} where the
 \item \strong{\code{NULL}}, untyped, exports as \code{int32} and reads as \code{NA_integer_}, as it does through \code{dbGetQuery()}.
 \item \strong{\code{JSON}} exports as \code{string} and reads as \code{character};
 with \code{arrow_lossless_conversion} it exports as \code{arrow.json}, which nanoarrow reads as \code{character}.
-\item \strong{\code{INET}} exports as a struct whose \code{address} is a \code{decimal128(38, 0)}, read as a double as through \code{dbGetQuery()};
-with \code{arrow_lossless_conversion} that field becomes \code{arrow.opaque}.
+\item \strong{\code{INET}} exports as a struct whose \code{address} is the \code{HUGEINT} the engine stores, as a \code{decimal128(38, 0)},
+which both read as a double, the same as \code{dbGetQuery()} does,
+and its text reads the address (see \link{duckdb_types}).
+With \code{arrow_lossless_conversion} that field becomes \code{arrow.opaque}.
 }
 }
 }
@@ -172,7 +174,8 @@ where \code{dbWriteTable()} keeps the days.
 \code{GEOMETRY} and the \code{spatial} extension's own types through Arrow, and where the geoarrow and sf packages meet them:
 \itemize{
 \item \strong{\code{GEOMETRY} exports as \code{geoarrow.wkb}, with the column's CRS in the field's metadata,}
-as PROJJSON once \code{spatial} is loaded, and as the identifier without it.
+as PROJJSON where the core or \code{spatial} knows the CRS, and as its identifier otherwise:
+\code{OGC:CRS84} exports as PROJJSON without \code{spatial}, and \code{EPSG:4267} only with it.
 It stays \code{geoarrow.wkb} under every export setting, \code{arrow_lossless_conversion} included;
 \code{arrow_large_buffer_size} makes its storage \code{large_binary}, and an \code{arrow_output_version} from \code{'1.4'} makes it \code{binary_view}.
 With the geoarrow package loaded, both readers convert it to a \code{geoarrow_vctr} in each of those layouts, arrow the view one included.
@@ -206,7 +209,8 @@ The limitations are listed in the handbook, in \href{https://github.com/duckdb/d
 The routes through R vectors are documented in \link{duckdb_types},
 and how a stream behaves, when it drains and what invalidates it, is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{integrations/}}'s.
 Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
-in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}},
+in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}}
+and \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md}{\verb{experiments/2026-09-28-type-rereview/}},
 and geometry also with geoarrow 0.4.4 and sf 1.1-3 in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-geoarrow/README.md}{\verb{experiments/2026-09-27-geoarrow/}}.
 }
 

@@ -39,7 +39,7 @@ An \code{integer64} column or parameter writes \code{BIGINT} whatever \code{bigi
 Below 2^63, the \code{integer64} it reads as writes it back through \code{field.types}, and its text writes any value.
 \item \strong{\code{HUGEINT}, \code{UHUGEINT}} read as \code{numeric}, and \code{bigint} does not change that; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Their text is exact both ways.
-\item \strong{\code{BIGNUM}} (\code{VARINT}) reads and writes through its text, and through Arrow.
+\item \strong{\code{BIGNUM}} (\code{VARINT}) reads and writes through its text, and Arrow writes it (see \link{duckdb_types_arrow}).
 \item \strong{\code{DECIMAL(width, scale)}} (\code{NUMERIC}) reads as \code{numeric} at every width; its rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Its text is exact both ways, and Arrow writes it exactly.
 \item \strong{\code{FLOAT}} (\code{REAL}) and \strong{\code{DOUBLE}} read as \code{numeric}, and \code{numeric} writes \code{DOUBLE}.
@@ -128,7 +128,8 @@ Writing WKB as raw vectors, an \code{sf} object or an \code{sfc} column is a \hr
 \code{POLYGON_2D} and \code{POLYGON_3D} are lists of those rings, and read as lists of lists;
 \code{WKB_BLOB} is a \code{BLOB}, and reads as raw vectors.
 The same shapes write the plain struct or list, and \code{field.types} naming the alias casts back to it.
-They cast to and from \code{GEOMETRY} in the query, as \verb{'POINT (1 2)'::GEOMETRY::POINT_2D}.
+They cast to \code{GEOMETRY} in the query,
+and the point, linestring, polygon and WKB types cast from it, as \verb{'POINT (1 2)'::GEOMETRY::POINT_2D}.
 }
 }
 
@@ -152,7 +153,8 @@ The limitations are listed in the handbook, in \href{https://github.com/duckdb/d
 The mapping is implemented in \href{https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp}{\code{src/types.cpp}} (R vector to \code{LogicalType}) and \href{https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp}{\code{src/transform.cpp}} (the way back).
 The list of types is DuckDB's own \href{https://duckdb.org/docs/current/sql/data_types/overview}{documentation} for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}},
-\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}},
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md}{\verb{experiments/2026-09-28-type-rereview/}}
 or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
 Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s,
 and the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's} to document.

@@ -144,6 +144,11 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
   the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-type-rereview/`](2026-09-28-type-rereview/):
+  the type facts a re-review after #2850 found wrong or stated too broadly, from the integer minimums through Arrow
+  to which CRS can be named in a type without `spatial`.
+  Supports [`usage/types/`](/handbook/usage/types/README.md), [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
+  and [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

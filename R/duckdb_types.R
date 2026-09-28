@@ -41,7 +41,7 @@
 #'   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 #' * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Their text is exact both ways.
-#' * **`BIGNUM`** (`VARINT`) reads and writes through its text, and through Arrow.
+#' * **`BIGNUM`** (`VARINT`) reads and writes through its text, and Arrow writes it (see [duckdb_types_arrow]).
 #' * **`DECIMAL(width, scale)`** (`NUMERIC`) reads as `numeric` at every width; its rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Its text is exact both ways, and Arrow writes it exactly.
 #' * **`FLOAT`** (`REAL`) and **`DOUBLE`** read as `numeric`, and `numeric` writes `DOUBLE`.
@@ -126,7 +126,8 @@
 #'   `POLYGON_2D` and `POLYGON_3D` are lists of those rings, and read as lists of lists;
 #'   `WKB_BLOB` is a `BLOB`, and reads as raw vectors.
 #'   The same shapes write the plain struct or list, and `field.types` naming the alias casts back to it.
-#'   They cast to and from `GEOMETRY` in the query, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
+#'   They cast to `GEOMETRY` in the query,
+#'   and the point, linestring, polygon and WKB types cast from it, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
 #'
 #' # Everything else
 #'
@@ -147,7 +148,8 @@
 #' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
 #' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
 #' and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md),
-#' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md)
+#' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md),
+#' [`experiments/2026-09-28-type-rereview/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md)
 #' or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md).
 #' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s,
 #' and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
