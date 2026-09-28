@@ -51,6 +51,8 @@ enum class RTypeId {
 	STRUCT,
 };
 
+struct RPeriodType;
+
 struct RType {
 	RType();
 	RType(RTypeId id);               // NOLINT: Allow implicit conversion from `RTypeId`
@@ -65,6 +67,7 @@ struct RType {
 		id_ = other.id_;
 		size_ = other.size_;
 		aux_ = other.aux_;
+		period_ = other.period_;
 		return *this;
 	}
 	// move assignment
@@ -72,6 +75,7 @@ struct RType {
 		id_ = other.id_;
 		size_ = other.size_;
 		std::swap(aux_, other.aux_);
+		std::swap(period_, other.period_);
 		return *this;
 	}
 
@@ -116,6 +120,11 @@ struct RType {
 	child_list_t<RType> GetStructChildTypes() const;
 
 	static RType MATRIX(const RType &child, R_len_t ncols);
+
+	// A lubridate Period's parts, resolved once where the type is detected, on R's thread,
+	// so that the scan reads them on a task thread without calling R
+	static RType PERIOD(SEXP period);
+	const RPeriodType &GetPeriod() const;
 	RType GetMatrixElementType() const;
 	R_len_t GetMatrixNcols() const;
 
@@ -123,6 +132,7 @@ private:
 	RTypeId id_;
 	R_len_t size_;
 	child_list_t<RType> aux_;
+	shared_ptr<const RPeriodType> period_;
 };
 
 struct RApiTypes {
@@ -184,6 +194,7 @@ struct RPeriodType {
 	explicit RPeriodType(SEXP period);
 	// Slots that are missing or of another length than the data
 	bool IsMalformed() const;
+	// NA or NaN in any part
 	bool IsNull(R_xlen_t idx) const;
 	// Whether the parts make an INTERVAL: finite, whole months and days within 32 bits, and microseconds within 64
 	bool IsValid(R_xlen_t idx) const;

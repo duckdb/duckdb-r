@@ -85,7 +85,7 @@
 #' * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
 #'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
 #'   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
-#'   and there a `Period` column, data frame field or parameter writes it with each part exact;
+#'   and there a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`;
 #'   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
 #'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'

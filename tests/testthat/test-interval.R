@@ -320,6 +320,83 @@ test_that("`interval = \"Period\"` refuses an array of INTERVAL", {
     "can't be returned to R with `interval = \"Period\"`",
     fixed = TRUE
   )
+
+  # Before the statement runs
+  dbExecute(con, "CREATE TABLE tbl (a INTERVAL[2])")
+  expect_error(
+    dbGetQuery(
+      con,
+      "INSERT INTO tbl VALUES ([INTERVAL 1 DAY, NULL]) RETURNING a"
+    ),
+    "can't be returned to R",
+    fixed = TRUE
+  )
+  expect_identical(dbGetQuery(con, "SELECT count(*) AS n FROM tbl")$n, 0)
+
+  # And before a lazy relation reads anything
+  rel <- rel_from_sql(
+    con,
+    "SELECT [INTERVAL 1 DAY, INTERVAL 2 MONTH]::INTERVAL[2] AS a FROM range(4)"
+  )
+  expect_error(rel_to_altrep(rel), "can't be returned to R", fixed = TRUE)
+})
+
+test_that("`interval = \"Period\"` round-trips months and days at the ends of their range", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  data <- dbGetQuery(
+    con,
+    "SELECT * FROM (VALUES
+       (1, to_months(2147483647)),
+       (2, to_months(-2147483648)),
+       (3, to_days(2147483647)),
+       (4, to_days(-2147483648))
+     ) AS t(i, a) ORDER BY i"
+  )
+  expect_identical(
+    data$a,
+    lubridate::period(
+      months = c(2147483647, -2147483648, 0, 0),
+      days = c(0, 0, 2147483647, -2147483648)
+    )
+  )
+  dbWriteTable(con, "tbl", data)
+  expect_identical(dbReadTable(con, "tbl"), data)
+})
+
+test_that("NA in any part of a Period writes NULL under `interval = \"Period\"`", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  p <- lubridate::period(months = c(1, 2))
+  p@day[1] <- NA
+  dbWriteTable(con, "tbl", data.frame(a = p))
+  expect_equal(
+    dbGetQuery(con, "SELECT a::VARCHAR AS a FROM tbl")$a,
+    c(NA, "2 months")
+  )
+})
+
+test_that("a Period read lazily stays lazy, and writes back once read", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    "SELECT INTERVAL '1 month 2 days' AS a FROM range(3)"
+  ))
+  expect_false(df_is_materialized(df))
+
+  # The scan resolves the Period's parts when it binds, on R's thread
+  dbWriteTable(con, "tbl", df)
+  expect_equal(
+    dbGetQuery(con, "SELECT a::VARCHAR AS a FROM tbl")$a,
+    rep("1 month 2 days", 3)
+  )
 })
 
 test_that("`interval = \"Period\"` needs the lubridate package", {

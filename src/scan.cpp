@@ -72,8 +72,8 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
 	case RType::INTERVAL_PERIOD:
-		// The parts are in the slots, read by AppendPeriodColumnSegment()
-		return (data_ptr_t)coldata;
+		// The parts, resolved where the type was detected
+		return ReadOnlyDataPtr(&rtype.GetPeriod());
 	default:
 		rapi_error_with_context("GetColDataPtr", "Unsupported column type for bind");
 	}
@@ -148,9 +148,9 @@ static void AppendColumnSegment(SRC *source_data, idx_t sexp_offset, Vector &res
 	}
 }
 
-// Checked on R's thread before the scan (FindInvalidValue()), so what fails here got past it
-static void AppendPeriodColumnSegment(SEXP source_data, idx_t sexp_offset, Vector &result, idx_t count) {
-	RPeriodType period(source_data);
+// Checked on R's thread before the scan (FindInvalidValue()), so what fails here got past it.
+// The parts were resolved at bind, on R's thread, so nothing here calls R.
+static void AppendPeriodColumnSegment(const RPeriodType &period, idx_t sexp_offset, Vector &result, idx_t count) {
 	auto &result_mask = FlatVector::Validity(result);
 	auto result_data = FlatVector::GetData<interval_t>(result);
 	for (idx_t i = 0; i < count; i++) {
@@ -388,7 +388,7 @@ static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_p
 		break;
 	}
 	case RType::INTERVAL_PERIOD:
-		AppendPeriodColumnSegment((SEXP)coldata_ptr, sexp_offset, v, this_count);
+		AppendPeriodColumnSegment(*(const RPeriodType *)coldata_ptr, sexp_offset, v, this_count);
 		break;
 	case RType::INTERVAL_SECONDS: {
 		auto data_ptr = (double *)coldata_ptr;

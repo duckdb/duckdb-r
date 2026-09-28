@@ -250,7 +250,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null,
 		return RDateType::IsNull(d_val) ? Value(LogicalType::DATE) : Value::DATE(RDateType::Convert(d_val));
 	}
 	case RType::INTERVAL_PERIOD: {
-		RPeriodType period(valsexp);
+		const auto &period = rtype.GetPeriod();
 		return period.IsNull(idx) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(period.Convert(idx));
 	}
 	case RType::TIME: {

@@ -353,6 +353,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		const auto &names = stmt->stmt->GetNames();
 		for (idx_t col_idx = 0; col_idx < types.size(); col_idx++) {
 			CheckResultTypeForR(types[col_idx], names[col_idx]);
+			duckdb_r_check_period_arrays(types[col_idx], names[col_idx], convert_opts, "rapi_execute");
 		}
 	}
 

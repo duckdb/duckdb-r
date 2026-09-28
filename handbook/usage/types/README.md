@@ -96,7 +96,7 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
-  and there a `Period` column, data frame field or parameter writes it with each part exact;
+  and there a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`;
   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
@@ -215,8 +215,11 @@ and the `spatial` extension's own types:
 * `TIMESTAMP_NS` reads truncated to the microsecond, with a warning the first time in a session and never again,
   `TIMETZ` without its offset, pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R),
   and `infinity` and `-infinity` as a finite date millions of years away or a finite instant, not as `Inf`.
-  Which part of an `INTERVAL` was months or days is lost, unless `interval = "Period"`;
-  under it, an `ARRAY` of `INTERVAL` is refused, and so is a `Period` whose parts do not fit, naming its column or parameter.
+  Which part of an `INTERVAL` was months or days is lost, unless `interval = "Period"`.
+  Under it, an `ARRAY` of `INTERVAL` is refused before the statement runs,
+  and a `Period` whose parts do not fit is refused naming its column or parameter.
+  A `Period` holds the microseconds as a double of seconds, exact within about 285 years either way (2^53 microseconds),
+  and its seconds are rounded to the microsecond on write.
 * A `Period` with a year, month, day, hour or minute is refused without `interval = "Period"`, naming its column or parameter,
   and so is one in a list cell or a map value under either `interval`, which writes a `DOUBLE` of the seconds there.
 * A `POSIXct` writes with its zone label dropped, and a `difftime` or `hms` without its unit.

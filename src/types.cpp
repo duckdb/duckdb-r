@@ -25,10 +25,11 @@ RType::RType(RTypeId id) : id_(id), size_(0) {
 RType::RType(RTypeId id, R_len_t size) : id_(id), size_(size) {
 }
 
-RType::RType(const RType &other) : id_(other.id_), size_(other.size_), aux_(other.aux_) {
+RType::RType(const RType &other) : id_(other.id_), size_(other.size_), aux_(other.aux_), period_(other.period_) {
 }
 
-RType::RType(RType &&other) noexcept : id_(other.id_), size_(other.size_), aux_(std::move(other.aux_)) {
+RType::RType(RType &&other) noexcept
+    : id_(other.id_), size_(other.size_), aux_(std::move(other.aux_)), period_(std::move(other.period_)) {
 }
 
 RTypeId RType::id() const {
@@ -86,6 +87,17 @@ RType RType::GetListChildType() const {
 	return aux_.front().second;
 }
 
+RType RType::PERIOD(SEXP period) {
+	RType out = RType(RTypeId::INTERVAL_PERIOD);
+	out.period_ = make_shared_ptr<RPeriodType>(period);
+	return out;
+}
+
+const RPeriodType &RType::GetPeriod() const {
+	D_ASSERT(id_ == RTypeId::INTERVAL_PERIOD && period_);
+	return *period_;
+}
+
 RType RType::MATRIX(const RType &child, R_len_t ncols) {
 	RType out = RType(RTypeId::MATRIX, ncols);
 	out.aux_.push_back(std::make_pair("", child));
@@ -115,7 +127,7 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 
 RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time, bool period_interval) {
 	if (period_interval && TYPEOF(v) == REALSXP && Rf_isS4(v) && Rf_inherits(v, "Period")) {
-		return RType::INTERVAL_PERIOD;
+		return RType::PERIOD(v);
 	}
 	if (TYPEOF(v) == REALSXP && Rf_inherits(v, "POSIXct")) {
 		return RType::TIMESTAMP;
@@ -461,12 +473,22 @@ bool RPeriodType::IsMalformed() const {
 	return false;
 }
 
+// NA or NaN in any part makes the whole Period NULL,
+// where lubridate's is.na() looks at the seconds alone and its constructors put NA in every part at once
 bool RPeriodType::IsNull(R_xlen_t idx) const {
-	return ISNA(seconds[idx]);
+	if (ISNAN(seconds[idx])) {
+		return true;
+	}
+	for (auto slot : slots) {
+		if (slot && ISNAN(slot[idx])) {
+			return true;
+		}
+	}
+	return false;
 }
 
-static bool IsWholeWithin(double val, double limit) {
-	return std::isfinite(val) && val == std::floor(val) && std::fabs(val) <= limit;
+static bool IsWholeWithin(double val, double min, double max) {
+	return std::isfinite(val) && val == std::floor(val) && val >= min && val <= max;
 }
 
 bool RPeriodType::IsValid(R_xlen_t idx) const {
@@ -480,8 +502,10 @@ bool RPeriodType::IsValid(R_xlen_t idx) const {
 	}
 	auto months = slots[0][idx] * 12 + slots[1][idx];
 	auto micros = round((slots[3][idx] * 3600 + slots[4][idx] * 60 + seconds[idx]) * Interval::MICROS_PER_SEC);
-	return IsWholeWithin(months, NumericLimits<int32_t>::Maximum()) &&
-	       IsWholeWithin(slots[2][idx], NumericLimits<int32_t>::Maximum()) && IsWholeWithin(micros, 9.2e18);
+	// The largest int64 is not a double, and the double just past it is 2^63
+	return IsWholeWithin(months, NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
+	       IsWholeWithin(slots[2][idx], NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
+	       IsWholeWithin(micros, -9223372036854775808.0, std::nextafter(9223372036854775808.0, 0.0));
 }
 
 interval_t RPeriodType::Convert(R_xlen_t idx) const {
@@ -544,7 +568,9 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 	if (Rf_isS4(v) && Rf_inherits(v, "Period")) {
 		RPeriodType period(v);
 		for (R_xlen_t i = 0; i < period.length; i++) {
-			if (period.IsNull(i)) {
+			// Written as an INTERVAL, NA in any part is NULL; written as a DOUBLE, only NA seconds are,
+			// and a missing other part is one the DOUBLE would drop
+			if (period_interval ? period.IsNull(i) : ISNAN(period.seconds[i])) {
 				continue;
 			}
 			auto where = period.Format(i) + position + std::to_string(i + 1) + ").";

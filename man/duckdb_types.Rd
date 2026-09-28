@@ -85,7 +85,7 @@ and Arrow writes it directly.
 \item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours.
 With \code{interval = "Period"} it reads as a \code{lubridate::Period} that keeps the months, the days and the seconds apart,
 which lubridate's \verb{\%m+\%} adds to a date or a \code{POSIXct} as DuckDB adds an \code{INTERVAL},
-and there a \code{Period} column, data frame field or parameter writes it with each part exact;
+and there a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL};
 under the default, a \code{Period} of seconds alone writes a \code{DOUBLE} of them.
 A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }

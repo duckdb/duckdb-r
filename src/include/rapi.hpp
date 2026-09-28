@@ -388,6 +388,8 @@ SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, con
 void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_);
 void duckdb_r_df_decorate(SEXP dest, duckdb::idx_t nrows, SEXP class_ = R_NilValue);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, const duckdb::ConvertOpts &convert_opts);
+void duckdb_r_check_period_arrays(const duckdb::LogicalType &type, const duckdb::string &name,
+                                  const duckdb::ConvertOpts &convert_opts, const char *caller);
 // One slot of the lubridate Period an INTERVAL reads as, by its index in RStrings::period_slot_syms
 void duckdb_r_transform_period_slot(const duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset,
                                     duckdb::idx_t n, duckdb::idx_t slot_idx);

@@ -750,6 +750,9 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 
 		auto &col_type = types[col_idx].second;
 
+		// Refused here, while nothing has run, rather than when a lazy column is first read
+		duckdb_r_check_period_arrays(col_type, col_name, convert_opts, "rel_to_altrep");
+
 		cpp11::sexp vector_sexp;
 
 		// Special case: Only STRUCTs have a redundant row names attribute

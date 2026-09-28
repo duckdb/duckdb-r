@@ -83,6 +83,42 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	}
 }
 
+// Refuses an ARRAY of INTERVAL anywhere in `type` under `interval = "Period"`:
+// a Period keeps its parts in slots, which a matrix of its seconds has no room for.
+// The routes call it before they run the statement or build a lazy column, as well as here.
+void duckdb_r_check_period_arrays(const LogicalType &type, const string &name, const duckdb::ConvertOpts &convert_opts,
+                                  const char *caller) {
+	if (convert_opts.interval != ConvertOpts::IntervalConversion::PERIOD) {
+		return;
+	}
+	switch (type.id()) {
+	case LogicalTypeId::LIST:
+		duckdb_r_check_period_arrays(ListType::GetChildType(type), name, convert_opts, caller);
+		return;
+	case LogicalTypeId::MAP:
+		duckdb_r_check_period_arrays(MapType::KeyType(type), name, convert_opts, caller);
+		duckdb_r_check_period_arrays(MapType::ValueType(type), name, convert_opts, caller);
+		return;
+	case LogicalTypeId::STRUCT:
+		for (const auto &child : StructType::GetChildTypes(type)) {
+			duckdb_r_check_period_arrays(child.second, name + "$" + child.first, convert_opts, caller);
+		}
+		return;
+	case LogicalTypeId::ARRAY: {
+		auto &child_type = ArrayType::GetChildType(type);
+		if (child_type.id() == LogicalTypeId::INTERVAL) {
+			rapi_error_with_context(caller, "Column `" + name +
+			                                    "`: an `ARRAY` of `INTERVAL` can't be returned to R with "
+			                                    "`interval = \"Period\"`.");
+		}
+		duckdb_r_check_period_arrays(child_type, name, convert_opts, caller);
+		return;
+	}
+	default:
+		return;
+	}
+}
+
 SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
                        const duckdb::ConvertOpts &convert_opts, const char *caller) {
 	int rtype = duckdb_r_typeof(type, name, caller);
@@ -96,12 +132,7 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		auto &child_type = ArrayType::GetChildType(type);
 		if (child_type.IsNested())
 			rapi_error_with_context("duckdb_r_allocate", "Nested arrays cannot be returned to R as column data.");
-		// A Period keeps its parts in slots, which a matrix of its seconds has no room for
-		if (child_type.id() == LogicalTypeId::INTERVAL &&
-		    convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD)
-			rapi_error_with_context("duckdb_r_allocate", "Column `" + name +
-			                                                 "`: an `ARRAY` of `INTERVAL` can't be returned to R "
-			                                                 "with `interval = \"Period\"`.");
+		duckdb_r_check_period_arrays(type, name, convert_opts, "duckdb_r_allocate");
 		cpp11::sexp varvalue =
 		    duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
 		return varvalue;
