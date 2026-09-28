@@ -33,12 +33,14 @@ pages <- list(
   list(
     leaf = "handbook/usage/types",
     topic = "duckdb_types",
-    title = "DuckDB data types in R"
+    title = "DuckDB data types in R",
+    see = "See [duckdb_types_arrow] for a description of the conversion via Arrow."
   ),
   list(
     leaf = "handbook/usage/arrow-types",
     topic = "duckdb_types_arrow",
-    title = "DuckDB data types through Arrow"
+    title = "DuckDB data types through Arrow",
+    see = "See [duckdb_types] for a description of the direct conversion to R vectors."
   )
 )
 github <- "https://github.com/duckdb/duckdb-r"
@@ -277,7 +279,15 @@ render <- function(page) {
   # says where the page stands in the repository, and closes the page.
   first <- opening[[1]]
   sentence_end <- which(endsWith(first, "."))[[1]]
+  # On the page, the leaf's opening sentence says what the page documents,
+  # and a pointer to the other page follows it.
   description <- first[seq_len(sentence_end)]
+  description[[1]] <- paste0(
+    "This page documents ",
+    tolower(substr(description[[1]], 1, 1)),
+    substring(description[[1]], 2)
+  )
+  description <- c(description, page$see)
   reference <- c(
     sprintf(
       "The limitations are listed in the handbook, in [`%s/`](%s/blob/main/%s/README.md).",
