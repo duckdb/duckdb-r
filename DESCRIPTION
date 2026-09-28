@@ -1,6 +1,6 @@
 Package: duckdb.1.5.dev
 Title: DBI Package for the DuckDB Database Management System
-Version: 1.5.5.9020.57
+Version: 1.5.5.9900.57
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
@@ -47,6 +47,7 @@ Imports:
     methods,
     utils
 Suggests: 
+    adbcdrivermanager,
     arrow (>= 13.0.0),
     bit64,
     callr,
@@ -62,8 +63,6 @@ Suggests:
     vctrs,
     wk,
     withr
-Enhances:
-    adbcdrivermanager
 Additional_repositories: https://apache.r-universe.dev
 Biarch: true
 Config/build/compilation-database: false
