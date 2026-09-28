@@ -107,7 +107,8 @@ The load-bearing facts:
   makes it report instead, measured in
   [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
   No call from R reaches that cache today, because `duckdb()` builds its instance directly.
-  [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would have changed that, and was closed unmerged with its findings open.
+  Handing the driver cache to it is [#2857](https://github.com/duckdb/duckdb-r/issues/2857),
+  which collects what the attempt in [#2644](https://github.com/duckdb/duckdb-r/pull/2644) found.
 * `dbIsValid()` on a driver reports whether it still holds an instance,
   and opens nothing to find out,
   so a driver whose last connection has closed is no longer valid.
