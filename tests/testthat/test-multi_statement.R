@@ -83,14 +83,12 @@ test_that("a pragma that expands to nothing can end a call", {
   DBI::dbExecute(con, sprintf("EXPORT DATABASE '%s'", export_location))
   pragma <- sprintf("PRAGMA import_database('%s')", export_location)
 
-  # The last statement is the call's result, and this one returns nothing.
+  # The last statement is the call's result, as for any other PRAGMA.
   query <- paste("CREATE TABLE integers (i INTEGER);", pragma)
-  expect_warning(
-    result <- DBI::dbGetQuery(con, query),
-    "Should not call dbFetch() on results that do not come from SELECT, got PRAGMA",
-    fixed = TRUE
+  expect_identical(
+    DBI::dbGetQuery(con, query),
+    DBI::dbGetQuery(con, "PRAGMA disable_checkpoint_on_shutdown")
   )
-  expect_identical(result, data.frame())
   expect_true(DBI::dbExistsTable(con, "integers"))
 
   query <- paste("INSERT INTO integers VALUES (1), (2);", pragma)
