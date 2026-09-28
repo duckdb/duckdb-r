@@ -47,7 +47,7 @@ Imports:
     methods,
     utils
 Suggests: 
-    adbcdrivermanager.
+    adbcdrivermanager,
     arrow (>= 13.0.0),
     bit64,
     callr,
