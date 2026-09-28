@@ -173,9 +173,9 @@ If it does not — no such access from this session at all —
 the firing falls back to the `rcc2` store,
 which still works, inside its 180-day window,
 but is now an **emergency route** rather than a warm copy:
-`rcc-logs.yaml` is dispatch-only,
-so a firing that needs the store complete has to ask for it
-and read the answer on a later pass (below).
+the sweep that filled its gaps is no longer a workflow at all
+(duckdb/duckdb-r#2815),
+so a firing that needs the store complete cannot get it, and says so (below).
 Record which one served: the store exists to work around a log access
 problem that may have passed, and retiring it waits on firings
 that report they never had to open it.
@@ -357,26 +357,25 @@ the per-run fan-in, which reconciled onto the branch
 whatever a leg could not publish,
 and the periodic sweep, `rcc-logs.yaml` ticking every 30 minutes.
 Both were copying what a firing now reads at the source.
-So the gap left for the dispatch is the leg that never published:
+So the gap left for the sweep is the leg that never published:
 a run cancelled whole, or a push that failed.
 
-Reaching that gap means asking for the sweep —
-through whatever Actions access the firing has,
-the same routes stage 2 already reads runs through:
-the GitHub tools' run-a-workflow call on `rcc-logs.yaml` at `main`,
-or `gh workflow run rcc-logs.yaml --ref main` where a `gh` exists,
-or the *Run workflow* button.
-A firing with no Actions access at all cannot dispatch it either,
-and is reading a copy nobody is refreshing —
+That gap is an operator's to close, not a firing's.
+`rcc-logs.yaml` went with the rest of the `rcc2` workflows (duckdb/duckdb-r#2815),
+so the sweep is now [`scripts/rcc-logs.sh`](/scripts/rcc-logs.sh) run by hand,
+from a checkout holding the `-dev` refs and staged onto the branch with
+[`scripts/rcc-publish.sh`](/scripts/rcc-publish.sh),
+the way consolidation already runs.
+No firing can ask for it, whatever its Actions access,
+so a firing that needs the copy complete is reading one nobody is refreshing —
 which is worth saying plainly in the report rather than working around.
 
-**Dispatch it and move on.** A run takes 2–13 minutes,
-and nothing in the firing is worth blocking on it:
+**Report it and move on.** Nothing in the firing is worth blocking on it:
 finish the stages that do not depend on the missing record,
-say in the report that the sweep was dispatched and what it was for,
-and let the next firing read the result.
-A record that is still absent on that next pass,
-after a sweep that completed, is a real absence and not a stale copy —
+say in the report which record is missing and what it was for,
+and let a later firing read the result once an operator has swept.
+A record still absent after a sweep that completed
+is a real absence and not a stale copy —
 which is the one question the old schedule could never answer.
 
 `series-check.sh` reads the store and only the store.
@@ -403,8 +402,8 @@ The run list says which kind of waiting it is:
 The store answers this one badly, which is worth the run list even on a firing
 whose verdicts came from the store:
 an absent record can equally mean a queued run, a lost one,
-or a sweep that was never dispatched —
-and with `rcc-logs.yaml` off its schedule the last of those is the common case,
+or a sweep that was never run —
+and with no sweep on a schedule the last of those is the common case,
 not the rare one. The run list separates them; the store's tip cannot.
 
 Only when none of those explains it,
@@ -1146,7 +1145,7 @@ and every verdict that run reaches is readable from it
 as soon as the leg has written it —
 there is nothing to wait for a harvest for.
 The store's own writer (the leg's publish;
-`rcc-logs.yaml` only when dispatched)
+`rcc-logs.sh` only when an operator runs it)
 just fills the fallback copy behind it.
 
 ### 6. Read the forwarding, and suggest a cutover — never perform one
@@ -1498,7 +1497,7 @@ the one case where a decided commit legitimately changes state.
 **Dropping a result by hand is a store-side operation**,
 and only concerns a firing that is reading the store:
 remove `runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`,
-then dispatch `rcc-logs.yaml` to re-derive both from the fresh status,
+then have an operator run `rcc-logs.sh` to re-derive both from the fresh status,
 provided the commit is still inside the store's 180-day window.
 The removal alone no longer does anything:
 nothing sweeps on a schedule to notice the gap,
@@ -1609,9 +1608,9 @@ is what carries the automatic path into a forward series.
   Neither source may be *required*: a firing that has only one of them
   still finishes, and says in its report which one it had.
   The fallback is an emergency route *for the firing*, and is not kept warm:
-  `rcc-logs.yaml` is dispatched, never scheduled,
-  so a firing that needs the copy complete asks for it
-  and reads the answer on a later pass — it never blocks on one.
+  the sweep is `rcc-logs.sh` run by hand, never a workflow and never scheduled,
+  so a firing that needs the copy complete reports the gap
+  instead of waiting on one — it never blocks on one.
   On the CI side the store is nobody's fallback:
   selection reads it and only it,
   which is why the leg's per-commit publish stays automatic.
