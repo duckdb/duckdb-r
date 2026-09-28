@@ -448,6 +448,60 @@ test_that("`interval = \"Period\"` writes each microsecond of a double of second
   )
 })
 
+test_that("a Period with integer parts writes as one with double parts, and one with a part it can't read is refused", {
+  skip_if_not_installed("lubridate")
+
+  # `@<-` and `new()` leave a part integer, and the Period valid
+  p <- lubridate::period(seconds = c(5, 6))
+  p@month <- c(1L, 1L)
+  q <- methods::new(
+    "Period",
+    c(5L, NA),
+    year = 0L,
+    month = 1L,
+    day = 2L,
+    hour = 3L,
+    minute = 4L
+  )
+  expect_true(methods::validObject(p))
+  expect_true(methods::validObject(q))
+  malformed <- lubridate::period(seconds = 5)
+  attr(malformed, "month") <- "a"
+
+  con <- local_con(interval = "Period")
+  dbWriteTable(con, "tbl", data.frame(p = p, q = q))
+  expect_identical(
+    dbGetQuery(con, "SELECT p::VARCHAR AS p, q::VARCHAR AS q FROM tbl"),
+    data.frame(
+      p = c("1 month 00:00:05", "1 month 00:00:06"),
+      q = c("1 month 2 days 03:04:05", NA)
+    )
+  )
+  expect_identical(
+    dbGetQuery(con, "SELECT ?::VARCHAR AS a", params = list(q[1]))$a,
+    "1 month 2 days 03:04:05"
+  )
+  expect_error(
+    dbWriteTable(con, "malformed", data.frame(a = malformed)),
+    "not a malformed Period"
+  )
+
+  # Under the default, an integer part is one a DOUBLE of the seconds would drop, and so is one it can't read
+  con <- local_con()
+  expect_error(
+    dbWriteTable(con, "tbl", data.frame(a = p)),
+    "not 0y 1m 0d 0H 0M 5S"
+  )
+  expect_error(
+    dbGetQuery(con, "SELECT ?::VARCHAR AS a", params = list(q)),
+    "not 0y 1m 2d 3H 4M 5S"
+  )
+  expect_error(
+    dbWriteTable(con, "malformed", data.frame(a = malformed)),
+    "not a malformed Period"
+  )
+})
+
 test_that("NA in any part of a Period writes NULL under `interval = \"Period\"`", {
   skip_if_not_installed("lubridate")
 

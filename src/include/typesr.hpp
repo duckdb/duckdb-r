@@ -189,23 +189,38 @@ struct RTimeType : public RDoubleType {
 	static dtime_t Convert(double val);
 };
 
-// A lubridate Period's parts, read in place: the seconds are its data, and the rest are its slots
+// A lubridate Period's parts, read in place: the seconds are its data, and the rest are its slots.
+// A part is double or integer, as `new()` and `@<-` may leave it, and read as a double, NA as NA_REAL.
 struct RPeriodType {
 	explicit RPeriodType(SEXP period);
-	// Slots that are missing or of another length than the data
+	// Parts that are missing, of another type, or of another length than the data
 	bool IsMalformed() const;
 	// NA or NaN in any part
 	bool IsNull(R_xlen_t idx) const;
 	// Whether the parts make an INTERVAL: finite, whole months and days within 32 bits, and microseconds within 64
 	bool IsValid(R_xlen_t idx) const;
+	// Whether a part other than the seconds is not zero, or is one that could not be read
 	bool HasOtherParts(R_xlen_t idx) const;
 	interval_t Convert(R_xlen_t idx) const;
 	string Format(R_xlen_t idx) const;
 	bool Micros(R_xlen_t idx, int64_t &micros) const;
+	// The seconds, and the year, month, day, hour and minute slots, in that order
+	double Seconds(R_xlen_t idx) const;
+	double Slot(idx_t slot_idx, R_xlen_t idx) const;
 
 	R_xlen_t length;
-	const double *seconds;
-	const double *slots[5];
+
+private:
+	struct Part {
+		const double *real = nullptr;
+		const int *integer = nullptr;
+		bool IsRead() const;
+		double Get(R_xlen_t idx) const;
+	};
+	static Part ReadPart(SEXP part, R_xlen_t length);
+
+	Part seconds;
+	Part slots[5];
 };
 
 struct RIntervalSecondsType : public RDoubleType {

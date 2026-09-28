@@ -126,7 +126,7 @@ child_list_t<RType> RType::GetStructChildTypes() const {
 }
 
 RType RApiTypes::DetectRType(SEXP v, bool integer64, bool hms_time, bool period_interval) {
-	if (period_interval && TYPEOF(v) == REALSXP && Rf_isS4(v) && Rf_inherits(v, "Period")) {
+	if (period_interval && (TYPEOF(v) == REALSXP || TYPEOF(v) == INTSXP) && Rf_isS4(v) && Rf_inherits(v, "Period")) {
 		return RType::PERIOD(v);
 	}
 	if (TYPEOF(v) == REALSXP && Rf_inherits(v, "POSIXct")) {
@@ -456,17 +456,51 @@ static string FormatRNumber(double val) {
 	return out.str();
 }
 
-RPeriodType::RPeriodType(SEXP period) : length(Rf_xlength(period)), seconds(REAL_RO(period)) {
+RPeriodType::Part RPeriodType::ReadPart(SEXP part, R_xlen_t length) {
+	Part result;
+	if (Rf_xlength(part) != length) {
+		return result;
+	}
+	if (TYPEOF(part) == REALSXP) {
+		result.real = REAL_RO(part);
+	} else if (TYPEOF(part) == INTSXP) {
+		result.integer = INTEGER_RO(part);
+	}
+	return result;
+}
+
+bool RPeriodType::Part::IsRead() const {
+	return real || integer;
+}
+
+double RPeriodType::Part::Get(R_xlen_t idx) const {
+	if (real) {
+		return real[idx];
+	}
+	return integer[idx] == NA_INTEGER ? NA_REAL : double(integer[idx]);
+}
+
+RPeriodType::RPeriodType(SEXP period) : length(Rf_xlength(period)), seconds(ReadPart(period, length)) {
 	const auto &slot_syms = RStrings::get().period_slot_syms;
 	for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
-		SEXP slot = Rf_getAttrib(period, slot_syms[slot_idx]);
-		slots[slot_idx] = TYPEOF(slot) == REALSXP && Rf_xlength(slot) == length ? REAL_RO(slot) : nullptr;
+		slots[slot_idx] = ReadPart(Rf_getAttrib(period, slot_syms[slot_idx]), length);
 	}
 }
 
+double RPeriodType::Seconds(R_xlen_t idx) const {
+	return seconds.Get(idx);
+}
+
+double RPeriodType::Slot(idx_t slot_idx, R_xlen_t idx) const {
+	return slots[slot_idx].Get(idx);
+}
+
 bool RPeriodType::IsMalformed() const {
-	for (auto slot : slots) {
-		if (!slot) {
+	if (!seconds.IsRead()) {
+		return true;
+	}
+	for (auto &slot : slots) {
+		if (!slot.IsRead()) {
 			return true;
 		}
 	}
@@ -476,11 +510,11 @@ bool RPeriodType::IsMalformed() const {
 // NA or NaN in any part makes the whole Period NULL,
 // where lubridate's is.na() looks at the seconds alone and its constructors put NA in every part at once
 bool RPeriodType::IsNull(R_xlen_t idx) const {
-	if (ISNAN(seconds[idx])) {
+	if (seconds.IsRead() && ISNAN(seconds.Get(idx))) {
 		return true;
 	}
-	for (auto slot : slots) {
-		if (slot && ISNAN(slot[idx])) {
+	for (auto &slot : slots) {
+		if (slot.IsRead() && ISNAN(slot.Get(idx))) {
 			return true;
 		}
 	}
@@ -509,16 +543,16 @@ static const double INT64_ABOVE = std::nextafter(9223372036854775808.0, 0.0);
 // The parts a read split off come back exactly,
 // and a double of seconds below 2^33, some 272 years, holds each microsecond, which rounding it whole would not.
 bool RPeriodType::Micros(R_xlen_t idx, int64_t &micros) const {
-	auto hours = slots[3][idx];
-	auto minutes = slots[4][idx];
-	auto whole_seconds = std::trunc(seconds[idx]);
+	auto hours = Slot(3, idx);
+	auto minutes = Slot(4, idx);
+	auto whole_seconds = std::trunc(Seconds(idx));
 	if (!IsWholeWithin(hours, INT64_BELOW / Interval::MICROS_PER_HOUR, INT64_ABOVE / Interval::MICROS_PER_HOUR) ||
 	    !IsWholeWithin(minutes, INT64_BELOW / Interval::MICROS_PER_MINUTE, INT64_ABOVE / Interval::MICROS_PER_MINUTE) ||
 	    !IsWholeWithin(whole_seconds, INT64_BELOW / Interval::MICROS_PER_SEC, INT64_ABOVE / Interval::MICROS_PER_SEC)) {
 		return false;
 	}
 	// Taking off the whole part is exact (Sterbenz), so only this product rounds
-	auto fraction_micros = int64_t(std::round((seconds[idx] - whole_seconds) * Interval::MICROS_PER_SEC));
+	auto fraction_micros = int64_t(std::round((Seconds(idx) - whole_seconds) * Interval::MICROS_PER_SEC));
 	int64_t partial;
 	return AddWithin(int64_t(hours) * Interval::MICROS_PER_HOUR, int64_t(minutes) * Interval::MICROS_PER_MINUTE,
 	                 partial) &&
@@ -530,15 +564,15 @@ bool RPeriodType::IsValid(R_xlen_t idx) const {
 	if (IsMalformed()) {
 		return false;
 	}
-	for (auto slot : slots) {
-		if (!std::isfinite(slot[idx])) {
+	for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
+		if (!std::isfinite(Slot(slot_idx, idx))) {
 			return false;
 		}
 	}
 	int64_t micros;
-	auto months = slots[0][idx] * 12 + slots[1][idx];
+	auto months = Slot(0, idx) * 12 + Slot(1, idx);
 	return IsWholeWithin(months, NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
-	       IsWholeWithin(slots[2][idx], NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
+	       IsWholeWithin(Slot(2, idx), NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
 	       Micros(idx, micros);
 }
 
@@ -547,8 +581,8 @@ interval_t RPeriodType::Convert(R_xlen_t idx) const {
 	if (!IsValid(idx) || !Micros(idx, result.micros)) {
 		throw InvalidInputException("A Period of %s does not fit an `INTERVAL`", Format(idx));
 	}
-	result.months = int32_t(slots[0][idx] * 12 + slots[1][idx]);
-	result.days = int32_t(slots[2][idx]);
+	result.months = int32_t(Slot(0, idx) * 12 + Slot(1, idx));
+	result.days = int32_t(Slot(2, idx));
 	return result;
 }
 
@@ -557,15 +591,16 @@ string RPeriodType::Format(R_xlen_t idx) const {
 	if (IsMalformed()) {
 		return "a malformed Period";
 	}
-	return FormatRNumber(slots[0][idx]) + "y " + FormatRNumber(slots[1][idx]) + "m " + FormatRNumber(slots[2][idx]) +
-	       "d " + FormatRNumber(slots[3][idx]) + "H " + FormatRNumber(slots[4][idx]) + "M " +
-	       FormatRNumber(seconds[idx]) + "S";
+	return FormatRNumber(Slot(0, idx)) + "y " + FormatRNumber(Slot(1, idx)) + "m " + FormatRNumber(Slot(2, idx)) +
+	       "d " + FormatRNumber(Slot(3, idx)) + "H " + FormatRNumber(Slot(4, idx)) + "M " +
+	       FormatRNumber(Seconds(idx)) + "S";
 }
 
-// Whether a Period has parts other than its seconds, which a DOUBLE of its seconds would drop
+// Whether a Period has parts other than its seconds, which a DOUBLE of its seconds would drop;
+// a part that could not be read counts, so that the write is refused rather than lossy
 bool RPeriodType::HasOtherParts(R_xlen_t idx) const {
-	for (auto slot : slots) {
-		if (slot && slot[idx] != 0) {
+	for (auto &slot : slots) {
+		if (!slot.IsRead() || slot.Get(idx) != 0) {
 			return true;
 		}
 	}
@@ -594,7 +629,7 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 		}
 		return "";
 	}
-	if (TYPEOF(v) != REALSXP) {
+	if (TYPEOF(v) != REALSXP && TYPEOF(v) != INTSXP) {
 		return "";
 	}
 	if (Rf_isS4(v) && Rf_inherits(v, "Period")) {
@@ -602,7 +637,7 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 		for (R_xlen_t i = 0; i < period.length; i++) {
 			// Written as an INTERVAL, NA in any part is NULL; written as a DOUBLE, only NA seconds are,
 			// and a missing other part is one the DOUBLE would drop
-			if (period_interval ? period.IsNull(i) : ISNAN(period.seconds[i])) {
+			if (period_interval ? period.IsNull(i) : ISNAN(period.Seconds(i))) {
 				continue;
 			}
 			auto where = period.Format(i) + position + std::to_string(i + 1) + ").";
