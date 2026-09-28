@@ -48,8 +48,6 @@ Every other route converts through an R data frame, so a column lands as the typ
 \code{uint32} and \code{decimal128} land as \code{DOUBLE}, \code{timestamp('ns')} as \code{TIMESTAMP}, and a dictionary as \code{VARCHAR};
 \code{time64} fails, because the \code{hms} it converts to writes \code{INTERVAL}, which does not cast to the \code{TIME} column \code{dbCreateTableArrow()} made;
 and \code{interval_month_day_nano} fails, because nanoarrow has no R vector for it.
-A geometry column fares worst: the \code{geoarrow_vctr} it converts to is integer-backed, and lands as its indices
-(see \link{duckdb_types_spatial}).
 \code{\link[DBI:dbBindArrow]{dbBindArrow()}} converts the same way, then binds by position,
 and a stream whose fields have names is refused with "\code{params} must not be named", so the names must be empty.
 }
@@ -133,10 +131,6 @@ arrow refuses it.
 with \code{arrow_lossless_conversion} it exports as \code{arrow.json}, which nanoarrow reads as \code{character} and arrow refuses.
 \item \strong{\code{INET}} exports as a struct whose \code{address} is a \code{decimal128(38, 0)}, read as a double as through \code{dbGetQuery()};
 with \code{arrow_lossless_conversion} that field becomes \code{arrow.opaque}, which neither reader converts.
-\item \strong{\code{GEOMETRY}}, and the \code{spatial} extension's own types, cross Arrow as documented in \link{duckdb_types_spatial}, CRS included.
-What the readers make of \code{GEOMETRY} depends on the geoarrow package:
-once it is loaded, both convert it to a \code{geoarrow_vctr};
-until then, nanoarrow reads its WKB as a \code{blob} and arrow as an \code{arrow_binary}.
 }
 }
 }
@@ -165,9 +159,8 @@ Arrow requires the keys of a map to be non-nullable, and nanoarrow's \code{na_ma
 \item \strong{A dictionary} lands as \code{VARCHAR}, never as \code{ENUM}.
 \item \strong{\code{na}} lands as a column of type \code{NULL}.
 \item \strong{The extension types} land as the DuckDB type they name:
-\code{arrow.uuid} as \code{UUID}, \code{arrow.json} as \code{JSON}, \code{arrow.bool8} as \code{BOOLEAN}, \code{arrow.opaque} as the DuckDB type in its metadata,
-and \code{geoarrow.wkb} as \code{GEOMETRY} with its CRS.
-geoarrow's native encodings, such as \code{geoarrow.point}, land as their struct storage, not as \code{GEOMETRY}.
+\code{arrow.uuid} as \code{UUID}, \code{arrow.json} as \code{JSON}, \code{arrow.bool8} as \code{BOOLEAN}, and \code{arrow.opaque} as the DuckDB type in its metadata.
+What the GeoArrow types land as is under Geometry.
 }
 }
 
@@ -188,9 +181,55 @@ but truncated: nanoarrow infers milliseconds, and arrow whole seconds.
 An array built as \code{time64('us')}, as \code{nanoarrow::as_nanoarrow_array(x, schema = nanoarrow::na_time64("us"))}, keeps the microseconds.
 \item \strong{A plain list of vectors} is refused by nanoarrow, which needs a \code{vctrs::list_of()}, and lands as \code{LIST} through arrow.
 \item \strong{A matrix column} lands as \code{ARRAY} through nanoarrow; arrow flattens it into one row per cell.
-\item \strong{\code{wk_wkb}} lands as \code{GEOMETRY} through nanoarrow once geoarrow is loaded,
-and as \code{BLOB} through arrow, which carries it as its own R extension type (see \link{duckdb_types_spatial}).
 }
+}
+}
+
+\section{Geometry}{
+\code{GEOMETRY} and the \code{spatial} extension's own types through Arrow, and where the geoarrow and sf packages meet them:
+\itemize{
+\item \strong{\code{GEOMETRY} exports as \code{geoarrow.wkb}, with the column's CRS in the field's metadata,}
+as PROJJSON once \code{spatial} is loaded, and as the identifier without it.
+What the readers make of it depends on the geoarrow package:
+once it is loaded, both convert it to a \code{geoarrow_vctr};
+until then, nanoarrow reads its WKB as a \code{blob} and arrow as an \code{arrow_binary}.
+\item \strong{sf reads a result through GeoArrow in one call.}
+\code{sf::st_as_sf(dbGetQueryArrow(con, sql))} gives an \code{sf} whose geometries and CRS equal the source's,
+and \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} does the same for the \code{geoarrow_vctr} column of \code{as.data.frame()}.
+Both methods are the geoarrow package's, so it has to be loaded first:
+without it, \code{st_as_sf()} has no method for the stream.
+A \code{NULL} geometry reads as an empty one.
+\item \strong{The routes behind \code{dbSendQuery(arrow = TRUE)} fail on a CRS.}
+\code{duckdb_fetch_arrow()}, \code{duckdb_fetch_record_batch()} and \code{arrow::to_arrow()}, which reads through them,
+fail with \verb{INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction} for a column with a CRS.
+\code{dbGetQueryArrow()} reads it,
+and so do those routes once the query casts the column to the bare type, as \code{geom::GEOMETRY}, which drops the CRS.
+\item \strong{The \code{spatial} extension's own types cross as their storage, without the alias.}
+\item \strong{GeoArrow WKB writes \code{GEOMETRY} with its CRS.}
+Encode the geometry column as WKB,
+as \code{geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))}
+or as a \code{\link[wk:as_wkb]{wk::as_wkb()}} column,
+and register \code{arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))} with \code{duckdb_register_arrow()};
+\verb{CREATE TABLE ... AS SELECT} from the view writes a \code{GEOMETRY} column with the CRS,
+which reads back into an \code{sf} equal to the one written.
+With \code{spatial} loaded, the type names the CRS by its identifier, as \code{GEOMETRY('EPSG:4267')};
+without it, it keeps the PROJJSON it came as, and \code{\link[sf:st_crs]{sf::st_crs()}} reads the same CRS from both.
+nanoarrow infers \code{geoarrow.wkb} for a \code{wk_wkb} column once geoarrow is loaded,
+and arrow carries one as its own R extension type, which lands as \code{BLOB}.
+\item \strong{The other GeoArrow encodings do not land as \code{GEOMETRY}.}
+What nanoarrow infers for an \code{sf} column, and what \code{arrow::as_arrow_table()} makes of one, is a native encoding,
+which lands as its struct storage, as \verb{STRUCT(x DOUBLE, y DOUBLE)[][][]} for a multipolygon.
+A native point converts in the query as \verb{geometry::POINT_2D::GEOMETRY};
+a native polygon casts neither through \code{POLYGON_2D} nor directly.
+\code{geoarrow_wkt()} lands as \code{VARCHAR}, which \verb{::GEOMETRY} parses, and \code{ST_SetCRS()} gives the CRS back.
+geoarrow cannot write an \code{sfc} in the large or view layouts of WKB,
+and DuckDB lands those layouts, as its own export makes them, as \code{GEOMETRY}.
+\item \strong{A \code{geoarrow_vctr} column writes its indices, silently.}
+The \code{geoarrow_vctr} that \code{as.data.frame()} gives for a geometry in an Arrow result
+is an integer vector of indices into the Arrow data it holds.
+\code{dbWriteTable()} of it, and \code{dbWriteTableArrow()}, which converts through such a data frame,
+write those integers as an \code{INTEGER} column, \verb{1, 2, 3}, without an error.
+Convert it with \code{sf::st_as_sfc()} first, or keep it in Arrow.
 }
 }
 
@@ -208,11 +247,15 @@ the DBI Arrow write methods and \code{dbBindArrow()} convert through R, and \cod
 and lands a dictionary as \code{VARCHAR}, never as \code{ENUM}.
 \item Through Arrow, \code{hms} writes \code{TIME} truncated to milliseconds or seconds, and \code{POSIXct} writes \code{TIMESTAMPTZ}.
 \item \code{arrow::to_duckdb()} fails on Arrow data that lands as a type R cannot hold, and \code{to_arrow()} on a table holding one.
+\item The routes behind \code{dbSendQuery(arrow = TRUE)}, \code{arrow::to_arrow()} among them, fail on a \code{GEOMETRY} column with a CRS.
+\item Of the GeoArrow encodings, only WKB lands as \code{GEOMETRY}.
+\item A \code{geoarrow_vctr} column writes its integer indices through \code{dbWriteTable()} and \code{dbWriteTableArrow()}.
 }
 
 The routes through R vectors are documented in \link{duckdb_types},
 and how a stream behaves, when it drains and what invalidates it, is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{integrations/}}'s.
 Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
-in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}}.
+in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md}{\verb{experiments/2026-09-27-arrow-types/}},
+and geometry also with geoarrow 0.4.4 and sf 1.1-3 in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-geoarrow/README.md}{\verb{experiments/2026-09-27-geoarrow/}}.
 }
 

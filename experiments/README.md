@@ -66,7 +66,7 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-08-09-spatial-interop/`](2026-08-09-spatial-interop/) —
   which route carries a geometry across the R boundary, in each
   direction, what arrives, and what each does to the CRS; supports
-  [`usage/spatial/`](/handbook/usage/spatial/README.md) and
+  [`usage/types/`](/handbook/usage/types/README.md) and
   [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md).
 * [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
   what the published Windows `libduckdb` exports, and how much of what
@@ -122,7 +122,7 @@ This file is what names the contents, so nothing here is an orphan.
   every DuckDB type in its documentation and its extensions, read into R and written back by every route,
   through Arrow with and without lossless export,
   and the values that change, collide with `NA`, or fail, before and after the fixes it prompted; supports
-  [`usage/types/`](/handbook/usage/types/README.md) and [`usage/spatial/`](/handbook/usage/spatial/README.md).
+  [`usage/types/`](/handbook/usage/types/README.md).
 * [`2026-09-27-arrow-types/`](2026-09-27-arrow-types/):
   every DuckDB type out through Arrow under each export setting, and what nanoarrow and arrow make of it in R;
   every Arrow type and every R class in; and which R functions keep Arrow's types, in each direction; supports
@@ -130,7 +130,7 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-27-geoarrow/`](2026-09-27-geoarrow/):
   each way to read a `GEOMETRY` column into sf through Arrow, each GeoArrow encoding on the way in,
   what the CRS becomes at every step, and the routes that lose the geometry; supports
-  [`usage/spatial/`](/handbook/usage/spatial/README.md).
+  [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
 * [`2026-09-27-review-limits/`](2026-09-27-review-limits/):
   an `INSTALL` or `LOAD` that stops a whole string, a `PRAGMA`'s expansion left half done while a stream is open,
   a parameter that invalidates the database, and R values that write as something other than their type,

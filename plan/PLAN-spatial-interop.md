@@ -1,8 +1,8 @@
 # Plan: geometry on the write side, and the sf seam
 
 *This is a plan — work proposed, not a description of the system.
-[`usage/spatial/`](/handbook/usage/spatial/README.md) owns what geometry
-does today, and where the two disagree, the leaf is right.
+[`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
+own what geometry does today, and where this plan and a leaf disagree, the leaf is right.
 The measurements it argues from are
 [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md),
 run on 2026-08-09 against duckdb 1.5.5.9013,
@@ -108,7 +108,7 @@ diagnosable.
 
 ### 2. Give the leaf the shorter route (done)
 
-[`usage/spatial/`](/handbook/usage/spatial/README.md) gives the one-statement WKT route first, with the CRS form beside it,
+[`usage/types/`](/handbook/usage/types/README.md) gives the one-statement WKT route first, with the CRS form beside it,
 and keeps the `ALTER TABLE … ALTER COLUMN … SET DATA TYPE GEOMETRY USING ST_GeomFromWKB()` route
 with the note that it drops the CRS.
 

@@ -49,8 +49,6 @@
 #' `uint32` and `decimal128` land as `DOUBLE`, `timestamp('ns')` as `TIMESTAMP`, and a dictionary as `VARCHAR`;
 #' `time64` fails, because the `hms` it converts to writes `INTERVAL`, which does not cast to the `TIME` column `dbCreateTableArrow()` made;
 #' and `interval_month_day_nano` fails, because nanoarrow has no R vector for it.
-#' A geometry column fares worst: the `geoarrow_vctr` it converts to is integer-backed, and lands as its indices
-#' (see [duckdb_types_spatial]).
 #' [dbBindArrow()] converts the same way, then binds by position,
 #' and a stream whose fields have names is refused with "`params` must not be named", so the names must be empty.
 #'
@@ -126,10 +124,6 @@
 #'   with `arrow_lossless_conversion` it exports as `arrow.json`, which nanoarrow reads as `character` and arrow refuses.
 #' * **`INET`** exports as a struct whose `address` is a `decimal128(38, 0)`, read as a double as through `dbGetQuery()`;
 #'   with `arrow_lossless_conversion` that field becomes `arrow.opaque`, which neither reader converts.
-#' * **`GEOMETRY`**, and the `spatial` extension's own types, cross Arrow as documented in [duckdb_types_spatial], CRS included.
-#'   What the readers make of `GEOMETRY` depends on the geoarrow package:
-#'   once it is loaded, both convert it to a `geoarrow_vctr`;
-#'   until then, nanoarrow reads its WKB as a `blob` and arrow as an `arrow_binary`.
 #'
 #' # Writing
 #'
@@ -156,9 +150,8 @@
 #' * **A dictionary** lands as `VARCHAR`, never as `ENUM`.
 #' * **`na`** lands as a column of type `NULL`.
 #' * **The extension types** land as the DuckDB type they name:
-#'   `arrow.uuid` as `UUID`, `arrow.json` as `JSON`, `arrow.bool8` as `BOOLEAN`, `arrow.opaque` as the DuckDB type in its metadata,
-#'   and `geoarrow.wkb` as `GEOMETRY` with its CRS.
-#'   geoarrow's native encodings, such as `geoarrow.point`, land as their struct storage, not as `GEOMETRY`.
+#'   `arrow.uuid` as `UUID`, `arrow.json` as `JSON`, `arrow.bool8` as `BOOLEAN`, and `arrow.opaque` as the DuckDB type in its metadata.
+#'   What the GeoArrow types land as is under Geometry.
 #'
 #' ## R classes, through Arrow
 #'
@@ -177,8 +170,53 @@
 #'   An array built as `time64('us')`, as `nanoarrow::as_nanoarrow_array(x, schema = nanoarrow::na_time64("us"))`, keeps the microseconds.
 #' * **A plain list of vectors** is refused by nanoarrow, which needs a `vctrs::list_of()`, and lands as `LIST` through arrow.
 #' * **A matrix column** lands as `ARRAY` through nanoarrow; arrow flattens it into one row per cell.
-#' * **`wk_wkb`** lands as `GEOMETRY` through nanoarrow once geoarrow is loaded,
-#'   and as `BLOB` through arrow, which carries it as its own R extension type (see [duckdb_types_spatial]).
+#'
+#' # Geometry
+#'
+#' `GEOMETRY` and the `spatial` extension's own types through Arrow, and where the geoarrow and sf packages meet them:
+#'
+#' * **`GEOMETRY` exports as `geoarrow.wkb`, with the column's CRS in the field's metadata,**
+#'   as PROJJSON once `spatial` is loaded, and as the identifier without it.
+#'   What the readers make of it depends on the geoarrow package:
+#'   once it is loaded, both convert it to a `geoarrow_vctr`;
+#'   until then, nanoarrow reads its WKB as a `blob` and arrow as an `arrow_binary`.
+#' * **sf reads a result through GeoArrow in one call.**
+#'   `sf::st_as_sf(dbGetQueryArrow(con, sql))` gives an `sf` whose geometries and CRS equal the source's,
+#'   and [sf::st_as_sfc()] does the same for the `geoarrow_vctr` column of `as.data.frame()`.
+#'   Both methods are the geoarrow package's, so it has to be loaded first:
+#'   without it, `st_as_sf()` has no method for the stream.
+#'   A `NULL` geometry reads as an empty one.
+#' * **The routes behind `dbSendQuery(arrow = TRUE)` fail on a CRS.**
+#'   `duckdb_fetch_arrow()`, `duckdb_fetch_record_batch()` and `arrow::to_arrow()`, which reads through them,
+#'   fail with `INTERNAL Error: TransactionContext::ActiveTransaction called without active transaction` for a column with a CRS.
+#'   `dbGetQueryArrow()` reads it,
+#'   and so do those routes once the query casts the column to the bare type, as `geom::GEOMETRY`, which drops the CRS.
+#' * **The `spatial` extension's own types cross as their storage, without the alias.**
+#' * **GeoArrow WKB writes `GEOMETRY` with its CRS.**
+#'   Encode the geometry column as WKB,
+#'   as `geoarrow::as_geoarrow_vctr(sf::st_geometry(x), schema = geoarrow::geoarrow_wkb(crs = sf::st_crs(x)))`
+#'   or as a [wk::as_wkb()] column,
+#'   and register `arrow::as_arrow_table(nanoarrow::as_nanoarrow_array_stream(df))` with `duckdb_register_arrow()`;
+#'   `CREATE TABLE ... AS SELECT` from the view writes a `GEOMETRY` column with the CRS,
+#'   which reads back into an `sf` equal to the one written.
+#'   With `spatial` loaded, the type names the CRS by its identifier, as `GEOMETRY('EPSG:4267')`;
+#'   without it, it keeps the PROJJSON it came as, and [sf::st_crs()] reads the same CRS from both.
+#'   nanoarrow infers `geoarrow.wkb` for a `wk_wkb` column once geoarrow is loaded,
+#'   and arrow carries one as its own R extension type, which lands as `BLOB`.
+#' * **The other GeoArrow encodings do not land as `GEOMETRY`.**
+#'   What nanoarrow infers for an `sf` column, and what `arrow::as_arrow_table()` makes of one, is a native encoding,
+#'   which lands as its struct storage, as `STRUCT(x DOUBLE, y DOUBLE)[][][]` for a multipolygon.
+#'   A native point converts in the query as `geometry::POINT_2D::GEOMETRY`;
+#'   a native polygon casts neither through `POLYGON_2D` nor directly.
+#'   `geoarrow_wkt()` lands as `VARCHAR`, which `::GEOMETRY` parses, and `ST_SetCRS()` gives the CRS back.
+#'   geoarrow cannot write an `sfc` in the large or view layouts of WKB,
+#'   and DuckDB lands those layouts, as its own export makes them, as `GEOMETRY`.
+#' * **A `geoarrow_vctr` column writes its indices, silently.**
+#'   The `geoarrow_vctr` that `as.data.frame()` gives for a geometry in an Arrow result
+#'   is an integer vector of indices into the Arrow data it holds.
+#'   `dbWriteTable()` of it, and `dbWriteTableArrow()`, which converts through such a data frame,
+#'   write those integers as an `INTEGER` column, `1, 2, 3`, without an error.
+#'   Convert it with `sf::st_as_sfc()` first, or keep it in Arrow.
 #'
 #' # Limitations and reference
 #'
@@ -194,11 +232,15 @@
 #'   and lands a dictionary as `VARCHAR`, never as `ENUM`.
 #' * Through Arrow, `hms` writes `TIME` truncated to milliseconds or seconds, and `POSIXct` writes `TIMESTAMPTZ`.
 #' * `arrow::to_duckdb()` fails on Arrow data that lands as a type R cannot hold, and `to_arrow()` on a table holding one.
+#' * The routes behind `dbSendQuery(arrow = TRUE)`, `arrow::to_arrow()` among them, fail on a `GEOMETRY` column with a CRS.
+#' * Of the GeoArrow encodings, only WKB lands as `GEOMETRY`.
+#' * A `geoarrow_vctr` column writes its integer indices through `dbWriteTable()` and `dbWriteTableArrow()`.
 #'
 #' The routes through R vectors are documented in [duckdb_types],
 #' and how a stream behaves, when it drains and what invalidates it, is [`integrations/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md)'s.
 #' Every entry on this page was measured on DuckDB 1.5.5, nanoarrow 0.9.0 and arrow 25.0.1
-#' in [`experiments/2026-09-27-arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md).
+#' in [`experiments/2026-09-27-arrow-types/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-arrow-types/README.md),
+#' and geometry also with geoarrow 0.4.4 and sf 1.1-3 in [`experiments/2026-09-27-geoarrow/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-geoarrow/README.md).
 #'
 #' @name duckdb_types_arrow
 NULL

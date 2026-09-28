@@ -131,13 +131,50 @@ A column of the value's type writes it through \code{field.types}; the list it r
 }
 }
 
+\section{Geometry}{
+The \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETRY}} type, its coordinate reference system (CRS),
+and the \code{spatial} extension's own types:
+\itemize{
+\item \strong{\code{GEOMETRY}} reads as WKB.
+With \code{geometry = "blob"}, the default, it reads as a list of raw vectors, and the CRS is lost;
+with \code{geometry = "wk"}, as \code{wk_wkb}, carrying the column's CRS as an attribute, which \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} converts onward, CRS included.
+The type is core since DuckDB 1.5, so reading one needs no extension,
+but the geometry functions are still \code{spatial}'s, and so is the CRS provider that resolves a name like \code{EPSG:4326}.
+Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see \link{duckdb_types_arrow}).
+\item \strong{Text writes \code{GEOMETRY} through \code{field.types}.}
+A \code{character} column of \code{\link[sf:st_as_text]{sf::st_as_text()}} output with \code{field.types = c(geom = "GEOMETRY")} lands a \code{GEOMETRY} column in one statement,
+because the \code{VARCHAR} cast parses WKT, and \code{dbAppendTable()} of the same text into a \code{GEOMETRY} column works for that reason.
+Spell the CRS into the type, as \code{"GEOMETRY('EPSG:4267')"}, to keep it, which needs \code{spatial} loaded.
+\item \strong{WKB has no cast to \code{GEOMETRY}.}
+\code{BLOB} to \code{GEOMETRY} is unimplemented, so the same call over \code{\link[sf:st_as_binary]{sf::st_as_binary()}} output fails,
+and so do \code{dbAppendTable()} and a parameter bound to a \code{GEOMETRY} cast;
+a \code{wk_wkb} column writes as \code{BLOB} like any other list of raw vectors, dropping its class and its CRS.
+\code{ST_GeomFromWKB()} does the conversion instead: per query, bound to \verb{?},
+or once through \verb{ALTER TABLE ... ALTER COLUMN ... SET DATA TYPE GEOMETRY USING}, which drops the CRS because it names the bare type.
+A \verb{CREATE TABLE ... AS SELECT} of \code{ST_SetCRS()} keeps it.
+\item \strong{An \code{sf} object or \code{sfc} column is not written, and may not say so.}
+A whole \code{sf} object handed to \code{dbWriteTable()} fails inside sf's own \code{dbWriteTable()} method,
+which writes EWKB hex into a column DuckDB parses as WKT (\href{https://github.com/duckdb/duckdb-r/issues/1670}{#1670});
+a bare \code{sfc} column is worse: a \code{POINT} column writes \emph{silently} as \code{DOUBLE[]},
+and other geometry types abort with a message naming neither column nor type.
+\code{duckdb_register()} of an \code{sf} object types its geometry as nested \code{DOUBLE} arrays, and the view fails when read.
+Convert to text first, or write through Arrow as GeoArrow WKB; the duckspatial and duckdbfs packages wrap this.
+\item \strong{The \code{spatial} extension's own types are aliases, and read as what they alias.}
+\code{POINT_2D}, \code{POINT_3D}, \code{POINT_4D}, \code{BOX_2D} and \code{BOX_2DF} are structs, and read as data frame columns;
+\code{LINESTRING_2D} and \code{LINESTRING_3D} are lists of point structs, and read as lists of data frames;
+\code{POLYGON_2D} and \code{POLYGON_3D} are lists of those rings, and read as lists of lists;
+\code{WKB_BLOB} is a \code{BLOB}, and reads as raw vectors.
+The same shapes write the plain struct or list, and \code{field.types} naming the alias casts back to it.
+WKT does not parse into them, but they cast to and from \code{GEOMETRY} in the query, as \verb{'POINT (1 2)'::GEOMETRY::POINT_2D}.
+}
+}
+
 \section{Everything else}{
 \itemize{
 \item \strong{An untyped \code{NULL} comes back as \code{NA_integer_},}
 matching the engine's own \verb{SELECT NULL};
 mapping it to logical \code{NA} instead was declined (\href{https://github.com/duckdb/duckdb-r/issues/155}{#155}).
 A typed \code{NULL}, as a scanned logical column or a bound \code{NA} parameter, round-trips as logical \code{NA}.
-\item \strong{\code{GEOMETRY}} and the \code{spatial} extension's point, line, polygon and box types are documented in \link{duckdb_types_spatial}.
 \item \strong{\code{JSON}}, the \href{https://duckdb.org/docs/current/data/json/json_type}{\code{json} extension's} alias of \code{VARCHAR}, reads as \code{character}.
 Its text writes it through \code{field.types}.
 \item \strong{\code{INET}}, the \href{https://duckdb.org/docs/current/core_extensions/inet}{\code{inet} extension's} address type,
@@ -162,6 +199,10 @@ because only \code{NA} is taken for missing.
 \item A \code{POSIXct} stored as integer writes, binds and creates \code{INTEGER}, not \code{TIMESTAMP}, and reads back as \code{integer}.
 \item \code{TIME}, \code{TIMETZ}, \code{GEOMETRY} and \code{VARIANT} do not write back as themselves from the value R reads,
 and no R class writes \code{TIME} outside Arrow.
+\item An \code{sf} object or \code{sfc} column is not written, and a \code{POINT} column writes silently as \code{DOUBLE[]}.
+\item WKB has no cast to \code{GEOMETRY}, from a \code{BLOB} column or a \code{wk_wkb} one;
+naming a CRS in a type needs \code{spatial} loaded, and \verb{ALTER ... SET DATA TYPE GEOMETRY} drops the CRS.
+\item \code{\link[sf:st_read]{sf::st_read()}} of a table does not recognize a \code{GEOMETRY} column, and returns a data frame.
 \item \code{MAP} does not write from its text through \code{field.types} or \code{dbAppendTable()},
 an \code{ordered} factor writes an unordered \code{ENUM}, and a \code{factor} parameter binds as \code{VARCHAR}.
 \item A raw vector column is refused with a message naming neither the column nor its class.
@@ -179,10 +220,14 @@ a \code{units} column writes plain \code{DOUBLE} and reads back plain \code{nume
 
 The mapping is implemented in \href{https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp}{\code{src/types.cpp}} (R vector to \code{LogicalType}) and \href{https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp}{\code{src/transform.cpp}} (the way back).
 The list of types is DuckDB's own \href{https://duckdb.org/docs/current/sql/data_types/overview}{documentation} for the release vendored here,
-and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}}
-or \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}.
-Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s, and geometry is documented in \link{duckdb_types_spatial}.
+and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}},
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}
+or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
+Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s,
+and the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's} to document.
 
+What to do about writing geometry is \href{https://github.com/duckdb/duckdb-r/blob/main/plan/PLAN-spatial-interop.md}{\code{plan/PLAN-spatial-interop.md}}
+(\href{https://github.com/duckdb/duckdb-r/issues/117}{#117}).
 What \code{expr_constant(NA)} builds in the relational API is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md}{\verb{relational/}}'s.
 }
 

@@ -128,13 +128,49 @@
 #' * **`VARIANT`** reads as a list, each value converted by its own type, and fails on a value whose type R cannot hold.
 #'   A column of the value's type writes it through `field.types`; the list it reads as writes as a `LIST` inside the variant.
 #'
+#' # Geometry
+#'
+#' The [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) type, its coordinate reference system (CRS),
+#' and the `spatial` extension's own types:
+#'
+#' * **`GEOMETRY`** reads as WKB.
+#'   With `geometry = "blob"`, the default, it reads as a list of raw vectors, and the CRS is lost;
+#'   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which [sf::st_as_sfc()] converts onward, CRS included.
+#'   The type is core since DuckDB 1.5, so reading one needs no extension,
+#'   but the geometry functions are still `spatial`'s, and so is the CRS provider that resolves a name like `EPSG:4326`.
+#'   Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see [duckdb_types_arrow]).
+#' * **Text writes `GEOMETRY` through `field.types`.**
+#'   A `character` column of [sf::st_as_text()] output with `field.types = c(geom = "GEOMETRY")` lands a `GEOMETRY` column in one statement,
+#'   because the `VARCHAR` cast parses WKT, and `dbAppendTable()` of the same text into a `GEOMETRY` column works for that reason.
+#'   Spell the CRS into the type, as `"GEOMETRY('EPSG:4267')"`, to keep it, which needs `spatial` loaded.
+#' * **WKB has no cast to `GEOMETRY`.**
+#'   `BLOB` to `GEOMETRY` is unimplemented, so the same call over [sf::st_as_binary()] output fails,
+#'   and so do `dbAppendTable()` and a parameter bound to a `GEOMETRY` cast;
+#'   a `wk_wkb` column writes as `BLOB` like any other list of raw vectors, dropping its class and its CRS.
+#'   `ST_GeomFromWKB()` does the conversion instead: per query, bound to `?`,
+#'   or once through `ALTER TABLE ... ALTER COLUMN ... SET DATA TYPE GEOMETRY USING`, which drops the CRS because it names the bare type.
+#'   A `CREATE TABLE ... AS SELECT` of `ST_SetCRS()` keeps it.
+#' * **An `sf` object or `sfc` column is not written, and may not say so.**
+#'   A whole `sf` object handed to `dbWriteTable()` fails inside sf's own `dbWriteTable()` method,
+#'   which writes EWKB hex into a column DuckDB parses as WKT ([#1670](https://github.com/duckdb/duckdb-r/issues/1670));
+#'   a bare `sfc` column is worse: a `POINT` column writes *silently* as `DOUBLE[]`,
+#'   and other geometry types abort with a message naming neither column nor type.
+#'   `duckdb_register()` of an `sf` object types its geometry as nested `DOUBLE` arrays, and the view fails when read.
+#'   Convert to text first, or write through Arrow as GeoArrow WKB; the duckspatial and duckdbfs packages wrap this.
+#' * **The `spatial` extension's own types are aliases, and read as what they alias.**
+#'   `POINT_2D`, `POINT_3D`, `POINT_4D`, `BOX_2D` and `BOX_2DF` are structs, and read as data frame columns;
+#'   `LINESTRING_2D` and `LINESTRING_3D` are lists of point structs, and read as lists of data frames;
+#'   `POLYGON_2D` and `POLYGON_3D` are lists of those rings, and read as lists of lists;
+#'   `WKB_BLOB` is a `BLOB`, and reads as raw vectors.
+#'   The same shapes write the plain struct or list, and `field.types` naming the alias casts back to it.
+#'   WKT does not parse into them, but they cast to and from `GEOMETRY` in the query, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
+#'
 #' # Everything else
 #'
 #' * **An untyped `NULL` comes back as `NA_integer_`,**
 #'   matching the engine's own `SELECT NULL`;
 #'   mapping it to logical `NA` instead was declined ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
 #'   A typed `NULL`, as a scanned logical column or a bound `NA` parameter, round-trips as logical `NA`.
-#' * **`GEOMETRY`** and the `spatial` extension's point, line, polygon and box types are documented in [duckdb_types_spatial].
 #' * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
 #'   Its text writes it through `field.types`.
 #' * **`INET`**, the [`inet` extension's](https://duckdb.org/docs/current/core_extensions/inet) address type,
@@ -157,6 +193,10 @@
 #' * A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
 #' * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads,
 #'   and no R class writes `TIME` outside Arrow.
+#' * An `sf` object or `sfc` column is not written, and a `POINT` column writes silently as `DOUBLE[]`.
+#' * WKB has no cast to `GEOMETRY`, from a `BLOB` column or a `wk_wkb` one;
+#'   naming a CRS in a type needs `spatial` loaded, and `ALTER ... SET DATA TYPE GEOMETRY` drops the CRS.
+#' * [sf::st_read()] of a table does not recognize a `GEOMETRY` column, and returns a data frame.
 #' * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
 #'   an `ordered` factor writes an unordered `ENUM`, and a `factor` parameter binds as `VARCHAR`.
 #' * A raw vector column is refused with a message naming neither the column nor its class.
@@ -173,10 +213,14 @@
 #'
 #' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
 #' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
-#' and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md)
-#' or [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md).
-#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s, and geometry is documented in [duckdb_types_spatial].
+#' and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md),
+#' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md)
+#' or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md).
+#' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s,
+#' and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
 #'
+#' What to do about writing geometry is [`plan/PLAN-spatial-interop.md`](https://github.com/duckdb/duckdb-r/blob/main/plan/PLAN-spatial-interop.md)
+#' ([#117](https://github.com/duckdb/duckdb-r/issues/117)).
 #' What `expr_constant(NA)` builds in the relational API is [`relational/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md)'s.
 #'
 #' @name duckdb_types

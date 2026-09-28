@@ -19,10 +19,9 @@ and is what turns the announcement off.
 * [`installation/`](installation/) — CRAN, r-universe, and the flavors
 * [`connections/`](connections/) — `dbConnect()`, instances, shutdown
 * [`statements/`](statements/) — queries, transactions, tables, quoting
-* [`types/`](types/) — the R ↔ DuckDB type mapping
+* [`types/`](types/): the R ↔ DuckDB type mapping, geometry and its CRS included
 * [`arrow-types/`](arrow-types/): every type through Arrow, in both directions, and which R functions keep it
 * [`timestamps/`](timestamps/) — timestamps, time zones, and their labels
-* [`spatial/`](spatial/): geometry, its CRS, and the `spatial` extension's types
 * [`extensions/`](extensions/) — what ships, what installs
 * [`memory/`](memory/) — the engine's budget, reading, writing
 * [`data-import/`](data-import/) — CSV and Parquet ingestion

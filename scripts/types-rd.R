@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Generate the type reference pages, `?duckdb_types`, `?duckdb_types_arrow`
-# and `?duckdb_types_spatial`, from the handbook leaves that own them.
+# Generate the type reference pages, `?duckdb_types` and `?duckdb_types_arrow`,
+# from the handbook leaves that own them.
 #
 # Each page is one leaf, rendered for someone reading R's help rather than
 # the handbook. The leaf's opening sentence is the description, and its
@@ -38,11 +38,6 @@ pages <- list(
     leaf = "handbook/usage/arrow-types",
     topic = "duckdb_types_arrow",
     title = "DuckDB data types through Arrow"
-  ),
-  list(
-    leaf = "handbook/usage/spatial",
-    topic = "duckdb_types_spatial",
-    title = "Spatial data types in R"
   )
 )
 github <- "https://github.com/duckdb/duckdb-r"
