@@ -95,12 +95,11 @@ against first
 
 ## Limitations
 
-* An `ARRAY` column comes back from `rel_to_altrep()` with the wrong shape under `array = "matrix"`, where `dbGetQuery()` reads it right.
-  The lazy vector's length is the row count ([`src/reltoaltrep.cpp`](/src/reltoaltrep.cpp)),
-  and `duckdb_r_decorate()` in [`src/transform.cpp`](/src/transform.cpp) sets its `dim` as if that length counted values rather than rows.
-  So four rows of an `INTEGER[2]` read as a 2x2 matrix of each row's first element,
+* An `ARRAY` column comes back from `rel_to_altrep()` with the wrong shape, where `dbGetQuery()` reads it right.
+  Under `array = "matrix"`, four rows of an `INTEGER[2]` read as a 2x2 matrix of each row's first element,
   and a row count the array size does not divide fails in `rel_to_altrep()` itself, under `array = "none"` too.
-  Finding that length runs the relation, so an `ARRAY` column also makes `rel_to_altrep()` run it at once
+  An `ARRAY` column also makes `rel_to_altrep()` run the relation at once,
+  so a row or cell budget such as `n_rows` fails it before any value is touched
   ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
 
 *To deepen: state which verbs duckplyr actually calls, so a change can be

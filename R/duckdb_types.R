@@ -147,8 +147,7 @@
 #' The mapping is implemented in [`src/types.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp) (the way back).
 #' The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
 #' and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md),
-#' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md),
-#' [`experiments/2026-09-28-matrix-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-matrix-limits/README.md)
+#' [`experiments/2026-09-27-review-limits/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md)
 #' or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md).
 #' Which zone labels a timestamp is [`timestamps/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md)'s,
 #' and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.

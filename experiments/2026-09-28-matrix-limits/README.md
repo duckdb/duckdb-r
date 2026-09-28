@@ -29,6 +29,8 @@ From [`matrix-limits.md`](matrix-limits.md):
   As the only column it writes all four values as four rows.
   As the first of two columns it also writes four rows, and the other column's last two are read past the end of its two values,
   so they hold whatever memory follows it, different on every run.
+  Beside a character column, reading that memory crashes R, three times in three runs of [`crash.R`](crash.R),
+  which runs on its own because the renderer cannot record a crash.
   A `POSIXct` matrix writes `TIMESTAMP`, and a `difftime` or an `hms` matrix writes `INTERVAL`.
   A `factor` with `dim` set writes `ENUM`, and each of them keeps two rows.
   A plain `integer` matrix writes `INTEGER[2]`, both matrix columns intact.
@@ -49,6 +51,8 @@ From [`matrix-limits.md`](matrix-limits.md):
   Zero rows read as a correct 0x2 matrix.
   An `ARRAY` column also makes `rel_to_altrep()` run the relation as it builds the data frame:
   an error in the query is raised there, where without an array it waits until a value is touched.
+  So does a row budget: with `n_rows = 2` over ten rows, the `ARRAY` column fails when the data frame is built,
+  and a plain column only once its values are touched.
   `rapi_rel_to_altrep_impl()` in [`src/reltoaltrep.cpp`](/src/reltoaltrep.cpp) calls `duckdb_r_decorate()` on each lazy vector it builds.
   For an array, `duckdb_r_decorate()` in [`src/transform.cpp`](/src/transform.cpp) sets `dim` to the length over the size, by the size.
   A lazy vector's length is the relation's row count (`RelToAltrep::VectorLength()`), which runs the relation to find,
@@ -63,3 +67,4 @@ From this directory, with the build under test first in the library path,
 `Rscript ../../scripts/render-reprex.R matrix-limits.R matrix-limits`.
 It needs no network and does not wait.
 The values read past the end of a column differ from run to run.
+[`crash.R`](crash.R) runs on its own, as `Rscript crash.R`, and ends in a segmentation fault.

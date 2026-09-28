@@ -113,6 +113,20 @@ lazy <- duckdb:::rel_to_altrep(duckdb:::rel_from_sql(
   "SELECT error('boom')::INTEGER AS i FROM range(4)"
 ))
 tryCatch(lazy$i[1], error = first_line)
+# So a row budget fails an ARRAY column when the data frame is built,
+tryCatch(
+  duckdb:::rel_to_altrep(
+    duckdb:::rel_from_sql(con, "SELECT [range, range]::INTEGER[2] AS a FROM range(10)"),
+    n_rows = 2
+  ),
+  error = first_line
+)
+# and a plain column only once its values are touched.
+lazy <- duckdb:::rel_to_altrep(
+  duckdb:::rel_from_sql(con, "SELECT range AS a FROM range(10)"),
+  n_rows = 2
+)
+tryCatch(length(lazy$a), error = first_line)
 
 dbDisconnect(con)
 dbDisconnect(con_none)

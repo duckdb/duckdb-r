@@ -152,8 +152,7 @@ The limitations are listed in the handbook, in \href{https://github.com/duckdb/d
 The mapping is implemented in \href{https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp}{\code{src/types.cpp}} (R vector to \code{LogicalType}) and \href{https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp}{\code{src/transform.cpp}} (the way back).
 The list of types is DuckDB's own \href{https://duckdb.org/docs/current/sql/data_types/overview}{documentation} for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}},
-\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}},
-\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-matrix-limits/README.md}{\verb{experiments/2026-09-28-matrix-limits/}}
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}
 or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
 Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s,
 and the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's} to document.

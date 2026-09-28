@@ -5,8 +5,7 @@ what a value of the type becomes when read, which R value writes it again, and w
 The mapping is implemented in [`src/types.cpp`](/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md),
-[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md),
-[`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)
+[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)
 or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md).
 Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s,
 and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
@@ -204,11 +203,12 @@ and the `spatial` extension's own types:
   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
   An array holding nested values is refused, pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R),
   and so is a matrix parameter.
-* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type.
-  It is never an `ARRAY`, because `RApiTypes::DetectRType()` in [`src/types.cpp`](/src/types.cpp) tests the class before the `dim`.
-  Writing counts rows in the data frame's first column, so anywhere else the matrix keeps only its first column, and nothing warns;
-  as the first column, it writes a row per value, and every other column is read past its end.
-  As a parameter it binds a row per value, where a plain matrix is refused.
+* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type,
+  never as an `ARRAY`.
+  Anywhere but first, it keeps only its first column, and nothing warns;
+  as the first column, it writes a row per value and reads every other column past its end, which can crash R.
+  As a parameter it binds a row per value
+  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.

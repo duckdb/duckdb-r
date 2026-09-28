@@ -191,6 +191,22 @@ lazy <- duckdb:::rel_to_altrep(duckdb:::rel_from_sql(
 ))
 tryCatch(lazy$i[1], error = first_line)
 #> [1] "GetQueryResult: Error evaluating duckdb query: Invalid Input Error: boom"
+# So a row budget fails an ARRAY column when the data frame is built,
+tryCatch(
+  duckdb:::rel_to_altrep(
+    duckdb:::rel_from_sql(con, "SELECT [range, range]::INTEGER[2] AS a FROM range(10)"),
+    n_rows = 2
+  ),
+  error = first_line
+)
+#> [1] "GetQueryResult: Materialization would result in more than 2 rows. Use `collect()` or `as_tibble()` to materialize."
+# and a plain column only once its values are touched.
+lazy <- duckdb:::rel_to_altrep(
+  duckdb:::rel_from_sql(con, "SELECT range AS a FROM range(10)"),
+  n_rows = 2
+)
+tryCatch(length(lazy$a), error = first_line)
+#> [1] "GetQueryResult: Materialization would result in more than 2 rows. Use `collect()` or `as_tibble()` to materialize."
 
 dbDisconnect(con)
 dbDisconnect(con_none)
