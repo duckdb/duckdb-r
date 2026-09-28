@@ -336,8 +336,8 @@ files, and inspecting query plans.
 What a failing query raises, and the fields to classify it by instead of
 parsing the message.
 
-- [`duckdb_error`](https://r.duckdb.org/reference/duckdb_error.md) :
-  DuckDB error conditions
+- [`duckdb_error`](https://r.duckdb.org/reference/duckdb_error.md)
+  **\[experimental\]** : DuckDB error conditions
 
 ## Storage locations
 

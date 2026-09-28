@@ -1,6 +1,6 @@
 # Changelog
 
-## duckdb 1.5.5.9029
+## duckdb 1.5.5.9900
 
 ### Features
 
@@ -20,11 +20,6 @@
   ([\#2714](https://github.com/duckdb/duckdb-r/issues/2714)). Errors
   raised by the package itself point at the calling function
   ([\#2637](https://github.com/duckdb/duckdb-r/issues/2637)).
-
-- Reusing a cached database instance reports the settings it cannot
-  apply, such as a different `read_only`, a `config` entry or a storage
-  argument, instead of ignoring them
-  ([\#2641](https://github.com/duckdb/duckdb-r/issues/2641)).
 
 - A database instance is cached under the path the engine resolves, so
   different spellings of one file and symlinks to it share one instance,
@@ -46,10 +41,6 @@
   older dbplyr is loaded
   ([\#2605](https://github.com/duckdb/duckdb-r/issues/2605)).
 
-- `adbcdrivermanager` moves from `Suggests` to `Enhances`, and is
-  installed from <https://apache.r-universe.dev>
-  ([\#2687](https://github.com/duckdb/duckdb-r/issues/2687)).
-
 - The installed package no longer ships the cpp11 headers under
   `include/` ([\#2649](https://github.com/duckdb/duckdb-r/issues/2649)).
 
@@ -58,9 +49,18 @@
   ([\#2617](https://github.com/duckdb/duckdb-r/issues/2617),
   [\#2698](https://github.com/duckdb/duckdb-r/issues/2698)).
 
-- The internal `rel_to_altrep()` used by duckplyr no longer accepts
-  `allow_materialization`, pass `n_cells = 0` instead
-  ([\#2643](https://github.com/duckdb/duckdb-r/issues/2643)).
+- [`duckdb()`](https://r.duckdb.org/reference/duckdb.md) and
+  [`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) fail
+  instead of silently ignoring settings a cached database instance
+  cannot apply: a different `read_only`, a differing `config` entry, or
+  `home`, `shared_home`, `allow_extensions` or `environment_scan`.
+  `dbConnect(drv, dbdir)` also fails when `drv` already owns a different
+  database file. Call
+  [`duckdb_shutdown()`](https://r.duckdb.org/reference/duckdb.md) first,
+  or pass the settings to the
+  [`duckdb()`](https://r.duckdb.org/reference/duckdb.md) call that
+  creates the instance
+  ([\#2641](https://github.com/duckdb/duckdb-r/issues/2641)).
 
 ### Bug fixes
 
@@ -227,18 +227,19 @@
   [\#2850](https://github.com/duckdb/duckdb-r/issues/2850),
   [\#2861](https://github.com/duckdb/duckdb-r/issues/2861)).
 
-- [`?duckdb`](https://r.duckdb.org/reference/duckdb.md) describes what
-  keeps a database instance open, that one process can open a file
-  twice, and the limitations known today
-  ([\#2823](https://github.com/duckdb/duckdb-r/issues/2823),
-  [\#2849](https://github.com/duckdb/duckdb-r/issues/2849)).
-
-- The help pages for fetching and writing data describe the memory a
+- The new reference page
+  [`?duckdb_memory`](https://r.duckdb.org/reference/duckdb_memory.md)
+  and the help pages for fetching and writing data describe the memory a
   query takes
   ([\#2666](https://github.com/duckdb/duckdb-r/issues/2666)).
 
+- [`?duckdb`](https://r.duckdb.org/reference/duckdb.md) describes what
+  keeps a database instance open and the limitations known today
+  ([\#2823](https://github.com/duckdb/duckdb-r/issues/2823),
+  [\#2849](https://github.com/duckdb/duckdb-r/issues/2849)).
+
 - The connection’s help page describes how a string holding several
-  statements runs, and what stops it
+  statements runs
   ([\#2835](https://github.com/duckdb/duckdb-r/issues/2835)).
 
 - The README states the package’s goals and non-goals

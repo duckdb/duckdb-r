@@ -1,5 +1,7 @@
 # DuckDB error conditions
 
+**\[experimental\]**
+
 Every error the database engine raises reaches R as a condition of class
 `duckdb_error`, carrying DuckDB's own classification alongside the
 message. Catch it with
