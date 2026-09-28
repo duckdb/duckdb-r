@@ -522,3 +522,25 @@ test_that("an array of GEOMETRY under `geometry = \"wk\"` is a plain list matrix
   expect_s3_class(x[[1, 2]], "wk_wkb")
   expect_true(is.na(x[[1, 2]]))
 })
+
+test_that("the wk_wkb cells of a GEOMETRY array carry the column's CRS", {
+  skip_if_not_installed("wk")
+
+  con <- local_con(array = "matrix", geometry = "wk")
+
+  # A CRS that needs no `spatial` to resolve
+  scalar <- dbGetQuery(
+    con,
+    "SELECT 'POINT (1 2)'::GEOMETRY('OGC:CRS84') AS g"
+  )$g
+  crs <- attr(scalar, "crs")
+  expect_false(is.null(crs))
+
+  x <- dbGetQuery(
+    con,
+    "SELECT ['POINT (1 2)'::GEOMETRY('OGC:CRS84'), NULL]::GEOMETRY('OGC:CRS84')[2] AS g"
+  )$g
+  expect_null(attr(x, "crs"))
+  expect_identical(attr(x[[1, 1]], "crs"), crs)
+  expect_identical(attr(x[[1, 2]], "crs"), crs)
+})
