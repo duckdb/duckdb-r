@@ -54,6 +54,31 @@ The departures from that baseline are what this leaf owns:
   share a session, is
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.
 
+**A multi-statement string runs one statement at a time, and stops at the first that fails.**
+Each statement is expanded and prepared only after the ones before it have run,
+so a `PRAGMA` that generates its SQL from what is there when it runs sees what they made:
+`create_fts_index` reads a table created earlier in the same string, and `import_database` the files an earlier `EXPORT DATABASE` wrote
+([#2792](https://github.com/duckdb/duckdb-r/pull/2792)).
+The whole string is parsed before anything runs, so a syntax error anywhere means that nothing runs.
+Any other error, a misspelt `PRAGMA` among them, leaves the statements before it in effect,
+because the string runs in no transaction of its own.
+`dbWithTransaction()` around the call is the way to all or nothing, as is `dbBegin()` before it with `dbRollback()` after a failure.
+A `PRAGMA` inside that transaction sees what the transaction has done so far.
+A `BEGIN TRANSACTION` inside the string is no substitute, because after a syntax error it has not run and `dbRollback()` fails.
+The engine's own `Query()` runs a string the same way from DuckDB 2.0,
+except that it also parses each statement only when it reaches it
+([duckdb/duckdb#23291](https://github.com/duckdb/duckdb/pull/23291)).
+
+**Checking every `PRAGMA` before the first statement runs is declined.**
+Binding a `PRAGMA` evaluates its arguments
+([duckdb/duckdb#25875](https://github.com/duckdb/duckdb/issues/25875)),
+so a `nextval()` among them would run once for the check and once for real,
+and a misspelt column in a later statement would still fail after the statements before it had run.
+
+**No helper splits a string into its statements yet.**
+One would have to split with the parser alone,
+because the engine's own splitter, `ExtractStatements()`, expands every `PRAGMA` before any statement runs.
+
 **A failing statement raises `duckdb_error`, and the classification is a field.**
 The engine's exception type, whatever it attached as extra info, the operation that failed,
 and its own unformatted wording ride on the condition as
