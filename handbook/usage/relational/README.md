@@ -60,6 +60,7 @@ and duckplyr casts a typed `NULL` where it needs one.
 nothing runs until R touches the values, materialization is budgeted by
 `n_rows` and `n_cells`, and an execution error is stored and re-raised at
 every later access.
+What an `ARRAY` column does instead is a limitation (below).
 The session `TimeZone` that labels `TIMESTAMPTZ` columns is captured
 here, when the data frame is built, not at materialization:
 change the setting in between,
@@ -100,6 +101,12 @@ against first
   `rel_from_df()` writes with the defaults too, where `duckdb_register()` follows the connection:
   under `time = "hms"` an `hms` column lands as `INTERVAL`, and under `map = "list_of"` named lists land as nested lists
   ([`experiments/2026-09-28-relational-convert-opts/`](/experiments/2026-09-28-relational-convert-opts/README.md)).
+* An `ARRAY` column comes back from `rel_to_altrep()` with the wrong shape, where `dbGetQuery()` reads it right.
+  Under `array = "matrix"`, four rows of an `INTEGER[2]` read as a 2x2 matrix of each row's first element,
+  and a row count the array size does not divide fails in `rel_to_altrep()` itself, under `array = "none"` too.
+  An `ARRAY` column also makes `rel_to_altrep()` run the relation at once,
+  so a row or cell budget such as `n_rows` fails it before any value is touched
+  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
 
 *To deepen: state which verbs duckplyr actually calls, so a change can be
 scoped against real use rather than the whole surface.*

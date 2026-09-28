@@ -147,9 +147,18 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-28-interval-mappings/`](2026-09-28-interval-mappings/):
   which R class can hold a DuckDB `INTERVAL`'s months, days and microseconds, and whose arithmetic matches DuckDB's.
   Supports [`usage/types/`](/handbook/usage/types/README.md).
+* [`2026-09-28-matrix-limits/`](2026-09-28-matrix-limits/):
+  a matrix column carrying a class, which writes as that class's scalar type and loses values,
+  and an `ARRAY` column that `rel_to_altrep()` reads with the wrong shape.
+  Supports [`usage/types/`](/handbook/usage/types/README.md) and [`usage/relational/`](/handbook/usage/relational/README.md).
 * [`2026-09-28-relational-convert-opts/`](2026-09-28-relational-convert-opts/):
   which routes from a relation to R follow the connection's conversion options, with each type option set away from its default.
   Supports [`usage/relational/`](/handbook/usage/relational/README.md).
+* [`2026-09-28-type-rereview/`](2026-09-28-type-rereview/):
+  the type facts a re-review after #2850 found wrong or stated too broadly, from the integer minimums through Arrow
+  to which CRS can be named in a type without `spatial`.
+  Supports [`usage/types/`](/handbook/usage/types/README.md), [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
+  and [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

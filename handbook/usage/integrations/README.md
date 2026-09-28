@@ -208,7 +208,8 @@ Each takes what a DBI call returns:
 
 * Polars: `polars::as_polars_df(dbGetQueryArrow(con, sql))`.
   It keeps each batch as a chunk, and numbers and characters where the stream put them.
-  A string column gains a 16-byte view per value, unless the export already sends views (`produce_arrow_string_view`).
+  A string column gains a 16-byte view per value, unless the export already sends views,
+  as it does with `produce_arrow_string_view = true` and an `arrow_output_version` from `'1.4'`.
 * data.table: `data.table::setDT(dbGetQuery(con, sql))`.
   It makes the data frame a data.table in place and keeps every column, where `as.data.table()` copies each one.
 * collapse: its functions take the data frame as it is, and `collapse::qDT()` makes a data.table that keeps every column.

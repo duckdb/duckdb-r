@@ -5,10 +5,10 @@ what a value of the type becomes when read, which R value writes it again, and w
 The mapping is implemented in [`src/types.cpp`](/src/types.cpp) (R vector to `LogicalType`) and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 The list of types is DuckDB's own [documentation](https://duckdb.org/docs/current/sql/data_types/overview) for the release vendored here,
 and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md),
-[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)
+[`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md),
+[`experiments/2026-09-28-type-rereview/`](/experiments/2026-09-28-type-rereview/README.md)
 or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md).
-Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s,
-and the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview) to document.
+Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s.
 
 The reference pages `?duckdb_types` and `?duckdb_types_arrow` are this leaf and [`arrow-types/`](/handbook/usage/arrow-types/README.md),
 rendered into roxygen under `R/` by [`scripts/types-rd.R`](/scripts/types-rd.R), which leaves this paragraph out.
@@ -41,15 +41,16 @@ The [numeric](https://duckdb.org/docs/current/sql/data_types/numeric) and [boole
   `integer` writes `INTEGER`, and `field.types` names the narrower type.
 * **`INTEGER`** (`INT4`, `INT`, `SIGNED`) reads as `integer`, exactly but for the minimum, and `integer` writes it.
 * **`UINTEGER`** reads as `numeric`, exactly; `numeric` writes `DOUBLE`, and `field.types` names `UINTEGER`.
-* **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53,
-  or with `bigint = "integer64"` as `bit64::integer64`, exact but for the minimum.
+* **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53, and its rounding past that is a limitation (below).
+  With `bigint = "integer64"` it reads as `bit64::integer64`, exact but for the minimum.
   An `integer64` column or parameter writes `BIGINT` whatever `bigint` says,
   pinned by [`tests/testthat/test-integer64.R`](/tests/testthat/test-integer64.R).
-* **`UBIGINT`** reads as `numeric`, or with `bigint = "integer64"` as `integer64`, which holds the values below 2^63.
+* **`UBIGINT`** reads as `numeric`, exact up to 2^53, and its rounding past that is a limitation (below).
+  With `bigint = "integer64"` it reads as `integer64`, which holds the values below 2^63.
   Below 2^63, the `integer64` it reads as writes it back through `field.types`, and its text writes any value.
 * **`HUGEINT`, `UHUGEINT`** read as `numeric`, and `bigint` does not change that; their rounding is a limitation (below).
   Their text is exact both ways.
-* **`BIGNUM`** (`VARINT`) reads and writes through its text, and through Arrow.
+* **`BIGNUM`** (`VARINT`) reads and writes through its text, and Arrow writes it ([`arrow-types/`](/handbook/usage/arrow-types/README.md)).
 * **`DECIMAL(width, scale)`** (`NUMERIC`) reads as `numeric` at every width; its rounding is a limitation (below).
   Its text is exact both ways, and Arrow writes it exactly.
 * **`FLOAT`** (`REAL`) and **`DOUBLE`** read as `numeric`, and `numeric` writes `DOUBLE`.
@@ -79,12 +80,13 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
   With `time = "hms"`, an `hms` column, data frame field or parameter writes it,
   and a `difftime` that is not an `hms` keeps writing `INTERVAL`; `dbQuoteLiteral()` quotes an `hms` as a `TIME` there.
-  Its text writes it through `field.types`, and so does Arrow.
+  Its text writes it through `field.types`, and so does Arrow ([`arrow-types/`](/handbook/usage/arrow-types/README.md)).
 * **`TIME_NS`** reads as `TIME` does, in seconds to the nanosecond,
   pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
   Its text writes it through `field.types`, and so does Arrow.
 * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as `TIME` does, as its local time,
   pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R).
+  The offset it drops is a limitation (below).
   Its text writes it.
 * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.
   `POSIXct` writes `TIMESTAMP`, the instant in UTC, and `field.types` names the other precisions.
@@ -112,7 +114,6 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * **`ENUM`** reads as `factor`, with every value of the type as a level.
   A `factor` or `ordered` column writes `ENUM` of its levels; a `factor` parameter binds as `VARCHAR`.
 * **`ARRAY`** (`INTEGER[3]`) reads with `array = "matrix"`, as a matrix with a row per value.
-  A `NULL` array reads as a row of `NA`, the same as an array of `NULL`s.
   A `BLOB` or `GEOMETRY` array is a list matrix without a class of its own,
   and under `blob = "blob"` or `geometry = "wk"` each cell is a `blob` or a `wk_wkb` of length one.
   A matrix column writes it.
@@ -121,12 +122,12 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
   With `map = "list_of"`, the `vctrs::list_of()` it reads as writes back as `MAP` without `field.types`
   ([#200](https://github.com/duckdb/duckdb-r/issues/200)).
   Its text casts to `MAP` in the query and as a parameter.
-* **`STRUCT`** (`ROW`) reads as a data frame column, where a `NULL` struct is a row of `NA`, the same as a struct of `NULL`s.
+* **`STRUCT`** (`ROW`) reads as a data frame column.
   A data frame column writes it, and a data frame parameter binds a struct per row.
 * **`UNION`** reads in the query through `union_tag()`, `union_extract()` or a cast to `VARCHAR`, and an Arrow result carries it.
   A column of a member's type writes it through `field.types`, which picks that member; text picks the `VARCHAR` member.
 * **`VARIANT`** reads as a list, each value converted by its own type.
-  A column of the value's type writes it through `field.types`; the list it reads as writes as a `LIST` inside the variant.
+  A column of the value's type writes it through `field.types`.
 
 ## Geometry
 
@@ -137,7 +138,8 @@ and the `spatial` extension's own types:
   With `geometry = "blob"`, the default, it reads as a list of raw vectors whatever `blob` says;
   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which `sf::st_as_sfc()` converts onward, CRS included.
   The type is core since DuckDB 1.5, so reading one needs no extension;
-  the geometry functions are the `spatial` extension's ([`extensions/`](/handbook/usage/extensions/README.md)).
+  the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview)
+  ([`extensions/`](/handbook/usage/extensions/README.md)).
   Arrow carries the column as GeoArrow WKB with its CRS, in both directions ([`arrow-types/`](/handbook/usage/arrow-types/README.md)).
 * **WKT writes `GEOMETRY`.**
   A `character` column of WKT, as `sf::st_as_text()` makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
@@ -150,7 +152,8 @@ and the `spatial` extension's own types:
   `POLYGON_2D` and `POLYGON_3D` are lists of those rings, and read as lists of lists;
   `WKB_BLOB` is a `BLOB`, and reads as one.
   The same shapes write the plain struct or list, and `field.types` naming the alias casts back to it.
-  They cast to and from `GEOMETRY` in the query, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
+  They cast to `GEOMETRY` in the query,
+  and the point, linestring, polygon and WKB types cast from it, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.
 
 ## Everything else
 
@@ -162,14 +165,15 @@ and the `spatial` extension's own types:
 * **`JSON`**, the [`json` extension's](https://duckdb.org/docs/current/data/json/json_type) alias of `VARCHAR`, reads as `character`.
   Its text writes it through `field.types`.
 * **`INET`**, the [`inet` extension's](https://duckdb.org/docs/current/core_extensions/inet) address type,
-  reads as a data frame column whose `address` is a `HUGEINT` read as a double, exact for IPv4.
+  reads as a data frame column whose `address` is a `HUGEINT` read as a double, exact for IPv4;
+  an IPv6 address is a limitation (below).
   Its text reads and writes it exactly.
 
 ## Limitations
 
 * `BIT`, `BIGNUM` and `UNION` have no R vector,
-  so `dbGetQuery()` and `dbExecute()` refuse a column of one, or of anything nesting one, by name and before the statement runs,
-  and `dplyr::tbl()` cannot open a table holding one ([`integrations/`](/handbook/usage/integrations/README.md)).
+  so `dbGetQuery()` and `dbExecute()` refuse a column of one, or of anything nesting one, by name and before the statement runs.
+  What that does to `dplyr::tbl()` is [`integrations/`](/handbook/usage/integrations/README.md)'s.
 * `dbColumnInfo()` names a class from the column's type alone, ignoring the connection's type options,
   and even under the defaults `BLOB` and `GEOMETRY` say `raw` and `MAP` says `data.frame`, where each reads as a `list`.
   Under the options, `BIGINT` says `numeric` for an `integer64`, `TIME` and `TIME_NS` say `difftime` for an `hms`,
@@ -190,8 +194,8 @@ and the `spatial` extension's own types:
 * Attribute classes do not cross, in either direction, through Arrow too:
   a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
-* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them
-  ([`relational/`](/handbook/usage/relational/README.md)).
+* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them,
+  and `rel_to_altrep()` reads an `ARRAY` column with the wrong shape ([`relational/`](/handbook/usage/relational/README.md)).
 * The `INTEGER` minimum, -2147483648, is R's `NA_integer_` and reads as `NA`,
   and under `bigint = "integer64"` so does the `BIGINT` minimum, which is `integer64`'s `NA`.
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's 15 to 17 significant digits,
@@ -206,7 +210,8 @@ and the `spatial` extension's own types:
   Repairing means naming the encoding the bytes are actually in, as `iconv(x, from = "latin1", to = "UTF-8")`,
   and `iconv()` yields `NA` for what it cannot convert unless `sub =` says otherwise,
   so a repair that fails shows up as missing data.
-  `enc2utf8()` re-encodes only what R has marked, and a string read from a file whose encoding the reader was not told is marked `"unknown"`:
+  `enc2utf8()` re-encodes only what R has marked,
+  and a string read from a file whose encoding the reader was not told is marked `"unknown"`:
   it passes through untouched, still invalid.
   Which is why the cheapest place to fix this is the reader.
 * A raw vector column is refused with a message naming neither the column nor its class
@@ -249,6 +254,7 @@ and the `spatial` extension's own types:
   Under `time = "hms"`, an `hms` writes `TIME` rounded to the microsecond, one in a list cell still writes `INTERVAL`,
   an `hms` no longer appends to an `INTERVAL` column, because `TIME` does not cast to `INTERVAL`,
   and a value outside 00:00:00 to 24:00:00, `NaN` and the infinities included, is refused naming its column or parameter.
+  The list a `VARIANT` reads as writes as a `LIST` inside the variant.
 * No R class writes `TIME_NS`, because DuckDB casts neither `TIME` nor `INTERVAL` to it:
   a `TIME_NS` read back does not append to its column, not even as an `hms` under `time = "hms"`,
   and `field.types` naming it fails on an `hms` or a `difftime` the same way.
@@ -257,13 +263,22 @@ and the `spatial` extension's own types:
   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
   An array holding nested values is refused, pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R),
   and so is a matrix parameter.
+* A `NULL` array read with `array = "matrix"` and a `NULL` struct both read as a row of `NA`,
+  and cannot be told from an array or a struct of `NULL`s.
+* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type,
+  never as an `ARRAY`.
+  Anywhere but first, it keeps only its first column, and nothing warns;
+  as the first column, it writes a row per value and reads every other column past its end, which can crash R.
+  As a parameter it binds a row per value
+  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.
 * `VARIANT` fails on a value whose type R cannot hold.
-* A `GEOMETRY` column read under the default `geometry = "blob"` loses its CRS,
-  and naming a CRS in a type, as `EPSG:4326`, needs `spatial` loaded, which resolves the name
-  ([`extensions/`](/handbook/usage/extensions/README.md)).
+* A `GEOMETRY` column read under the default `geometry = "blob"` loses its CRS.
+  A CRS named in a type needs `spatial` loaded, which resolves the name ([`extensions/`](/handbook/usage/extensions/README.md)),
+  unless the core knows it: `GEOMETRY('OGC:CRS84')` binds without `spatial`, and `GEOMETRY('EPSG:4267')` does not.
+  The core knows the systems [`default_coordinate_systems.cpp`](/src/duckdb/src/catalog/default/default_coordinate_systems.cpp) lists.
 * WKB does not write `GEOMETRY`, because `BLOB` has no cast to it:
   `field.types = c(geom = "GEOMETRY")`, `dbAppendTable()` and a parameter bound to a `GEOMETRY` cast
   all fail on `sf::st_as_binary()` output,
@@ -281,7 +296,10 @@ and the `spatial` extension's own types:
   ([`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md), [#117](https://github.com/duckdb/duckdb-r/issues/117)).
 * `sf::st_read()` of a table does not recognize a `GEOMETRY` column, and returns a data frame.
 * WKT does not parse into the `spatial` extension's own types.
-* An `INET` address reads rounded for IPv6.
+* `GEOMETRY` does not cast to `BOX_2D` or `BOX_2DF`, failing with "Unimplemented type for cast";
+  `ST_Extent()` gives a geometry's `BOX_2D`.
+* An IPv6 `INET` address reads as the double of the `HUGEINT` the engine stores, which is the address minus 2^127:
+  `'::1'::INET` reads as `-1.7e38`, and its text as `::1`.
 
 *To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
-which neither record covers ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
+which no record covers beyond an `ARRAY` column ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
