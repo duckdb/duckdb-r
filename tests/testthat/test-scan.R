@@ -92,6 +92,17 @@ test_that("Data frame scan writes with the connection's `time` and `interval`, a
   )
 })
 
+test_that("Data frame scan refuses a data frame without columns or names, and the connection stays usable", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  nameless <- structure(list(1, 2), class = "data.frame", row.names = 1L)
+  empty <- data.frame()
+  expect_error(dbGetQuery(con, "FROM nameless"), "one name for each column")
+  expect_equal(dbGetQuery(con, "SELECT 42 AS a"), data.frame(a = 42))
+  expect_error(dbGetQuery(con, "FROM empty"), "at least one column")
+  expect_equal(dbGetQuery(con, "SELECT 42 AS a"), data.frame(a = 42))
+})
+
 test_that("Data frame scan reads a packed ALTREP column that bind materialized", {
   # A registered ALTREP data frame's packed columns reach bind unread, so
   # before duckdb/duckdb-r#2582 the scan materialized them itself, on a DuckDB

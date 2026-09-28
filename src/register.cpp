@@ -119,6 +119,15 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		return nullptr;
 	}
 
+	// DataFrameScanBind() reads a name for each column and the rows of the first:
+	// refused here, where an R error raised there would leave the connection inside the query
+	SEXP names = GET_NAMES(df);
+	if (Rf_xlength(df) == 0 || TYPEOF(names) != STRSXP || Rf_xlength(names) != Rf_xlength(df)) {
+		UNPROTECT(1);
+		throw BinderException("Data frame `%s` must have at least one column, and one name for each column",
+		                      input.table_name);
+	}
+
 	// The data frame writes as with duckdb_register() on the connection the query runs on:
 	// with its `time` and `interval`, and refused where rapi_register_df() refuses it
 	auto opts_state = context.registered_state->Get<RConvertOptsState>(RConvertOptsState::KEY);
@@ -126,12 +135,9 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
 	auto interval_period = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
 	string invalid;
-	SEXP names = GET_NAMES(df);
-	if (TYPEOF(names) == STRSXP && Rf_xlength(names) == Rf_xlength(df)) {
-		for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df) && invalid.empty(); col_idx++) {
-			invalid = RApiTypes::FindInvalidValue(VECTOR_ELT(df, col_idx), CHAR(STRING_ELT(names, col_idx)), time_hms,
-			                                      interval_period);
-		}
+	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df) && invalid.empty(); col_idx++) {
+		invalid = RApiTypes::FindInvalidValue(VECTOR_ELT(df, col_idx), CHAR(STRING_ELT(names, col_idx)), time_hms,
+		                                      interval_period);
 	}
 	if (!invalid.empty()) {
 		UNPROTECT(1);
