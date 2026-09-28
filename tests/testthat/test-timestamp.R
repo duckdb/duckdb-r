@@ -484,6 +484,8 @@ test_that("dbQuoteLiteral() quotes an hms as TIME under `time = \"hms\"`, and as
   data <- dbGetQuery(con, paste("SELECT", dbQuoteLiteral(con, x[1]), "AS a"))
   expect_identical(data$a, x[1])
   expect_error(dbQuoteLiteral(con, hms::hms(-1)), "to quote as `TIME`")
+  expect_error(dbQuoteLiteral(con, hms::hms(NaN)), "not NaN seconds")
+  expect_identical(dbQuoteLiteral(con, hms::hms()), SQL(character()))
 })
 
 test_that("dbQuoteLiteral() rounds a `POSIXct` to microseconds on both sides of the epoch", {

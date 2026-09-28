@@ -427,6 +427,26 @@ test_that("dbQuoteLiteral() quotes a Period as an exact INTERVAL under `interval
     dbQuoteLiteral(con, lubridate::period(seconds = Inf)),
     "to quote as one"
   )
+  expect_identical(dbQuoteLiteral(con, lubridate::period()), SQL(character()))
+
+  # Months and days hold 32 signed bits: -2^31 fits, and 2^31 does not
+  expect_match(
+    as.character(dbQuoteLiteral(con, lubridate::period(months = -2^31))),
+    "to_months(-2147483648)",
+    fixed = TRUE
+  )
+  expect_error(
+    dbQuoteLiteral(con, lubridate::period(months = 2^31)),
+    "to quote as one"
+  )
+  expect_error(
+    dbQuoteLiteral(con, lubridate::period(days = 2^31)),
+    "to quote as one"
+  )
+  expect_error(
+    dbQuoteLiteral(con, lubridate::period(seconds = 2^63 / 1e6)),
+    "to quote as one"
+  )
 })
 
 test_that("`interval = \"Period\"` needs the lubridate package", {

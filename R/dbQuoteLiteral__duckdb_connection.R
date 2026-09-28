@@ -97,10 +97,15 @@ setMethod(
 )
 
 # A `TIME` literal for each value of an hms, rounded to the microsecond as the write routes round it,
-# and refused outside 00:00:00 to 24:00:00, which `TIME` does not hold.
+# and refused outside 00:00:00 to 24:00:00, which `TIME` does not hold, `NaN` and the infinities included;
+# only `NA` is `NULL`, as for the write routes.
 time_literal_text <- function(x, call = parent.frame()) {
+  if (length(x) == 0) {
+    return(character())
+  }
   micros <- round(as.numeric(x) * 1e6)
-  bad <- !is.na(x) & (is.na(micros) | micros < 0 | micros > 86400e6)
+  missing <- is.na(x) & !is.nan(x)
+  bad <- !missing & (!is.finite(micros) | micros < 0 | micros > 86400e6)
   if (any(bad)) {
     abort(
       paste0(
@@ -126,21 +131,27 @@ time_literal_text <- function(x, call = parent.frame()) {
     sub("0+$", "", sprintf(".%06.0f", frac[fractional]))
   )
   out <- paste0("'", out, "'::TIME")
-  out[is.na(micros)] <- "NULL"
+  out[missing] <- "NULL"
   out
 }
 
 # An exact `INTERVAL` expression for each value of a Period, part for part,
 # with NA in any part as NULL, as the write routes treat it.
 period_literal_text <- function(x, call = parent.frame()) {
+  if (length(x) == 0) {
+    return(character())
+  }
   months <- x@year * 12 + x@month
   days <- x@day
   micros <- round((x@hour * 3600 + x@minute * 60 + x@.Data) * 1e6)
   missing <- is.na(months) | is.na(days) | is.na(micros)
 
-  whole <- function(v, limit) is.finite(v) & v == trunc(v) & abs(v) <= limit
+  # Whole and within the signed 32 or 64 bits the part is held in
+  whole <- function(v, bits) {
+    is.finite(v) & v == trunc(v) & v >= -2^(bits - 1) & v < 2^(bits - 1)
+  }
   bad <- !missing &
-    !(whole(months, 2^31) & whole(days, 2^31) & whole(micros, 2^63))
+    !(whole(months, 32) & whole(days, 32) & whole(micros, 64))
   if (any(bad)) {
     abort(
       paste0(
