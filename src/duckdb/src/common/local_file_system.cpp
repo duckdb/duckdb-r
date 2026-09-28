@@ -105,13 +105,30 @@ static std::wstring NormalizePathAndConvertToUnicode(FileSystem &fs, const strin
 	return ConvertPathToUnicode(normalized_path);
 }
 
+// A symbolic link whose target does not exist: _waccess() and _wstati64() may describe the link itself, and report it
+// as an existing file, so the link is resolved the way opening it would be.
+static bool IsDanglingLink(const wchar_t *wpath) {
+	auto attributes = GetFileAttributesW(wpath);
+	if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+		return false;
+	}
+	HANDLE handle = CreateFileW(wpath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+	                            FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (handle != INVALID_HANDLE_VALUE) {
+		CloseHandle(handle);
+		return false;
+	}
+	auto error = GetLastError();
+	return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+}
+
 bool LocalFileSystem::FileExists(const string &filename, optional_ptr<FileOpener> opener) {
 	auto unicode_path = NormalizePathAndConvertToUnicode(*this, filename, opener);
 	const wchar_t *wpath = unicode_path.c_str();
 	if (_waccess(wpath, 0) == 0) {
 		struct _stati64 status;
 		_wstati64(wpath, &status);
-		if (status.st_mode & S_IFREG) {
+		if ((status.st_mode & S_IFREG) && !IsDanglingLink(wpath)) {
 			return true;
 		}
 	}
