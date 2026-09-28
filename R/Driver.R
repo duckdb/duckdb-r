@@ -100,13 +100,12 @@ driver_registry <- new.env(parent = emptyenv())
 #' An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
 #' every `duckdb()` call creates a fresh, isolated instance.
 #'
-#' The key is the path as [normalizePath()] resolves it.
-#' A database file that does not exist yet is resolved through an empty placeholder
-#' that `duckdb()` creates and removes again,
-#' so a `dbdir` in a directory that cannot be written to fails here rather than in the engine.
-#' Creating that placeholder is the only step that has to succeed:
-#' a path `normalizePath()` cannot resolve is kept as it stands instead of raising an error
-#' (a network drive with parent directories the user may not read is the common case).
+#' The key is the path as the *engine* resolves it, not as [normalizePath()] does.
+#' DuckDB canonicalizes the longest part of the path that exists and appends the rest,
+#' so a database that does not exist yet gets the key it will keep once created,
+#' and two spellings of one database (a relative path, a symlink, a different separator)
+#' share an instance instead of each opening their own.
+#' A path that resolves no further is used as it stands rather than refused.
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
@@ -297,16 +296,21 @@ duckdb <- function(
 
   # Always create new database for in-memory,
   # allows isolation and mixing different configs
-  drv <- new(
-    "duckdb_driver",
-    config = config,
-    database_ref = rethrow_rapi_startup(
+  # The wrapper names the frame that called its caller, so it runs one call down,
+  # and an error opening the database names this call.
+  startup <- function() {
+    rethrow_rapi_startup(
       dbdir,
       read_only,
       startup_config,
       environment_scan,
       ax$allow
-    ),
+    )
+  }
+  drv <- new(
+    "duckdb_driver",
+    config = config,
+    database_ref = startup(),
     dbdir = dbdir,
     read_only = read_only,
     convert_opts = convert_opts,
@@ -315,7 +319,12 @@ duckdb <- function(
   )
 
   if (dbdir != DBDIR_MEMORY) {
-    driver_registry[[dbdir]] <- drv
+    # Resolved again now that the engine has created the file: a symlink to a
+    # database yet to be created resolves only from now on, and every later
+    # call looks the instance up under its target.
+    # Explained in handbook/usage/connections/README.md.
+    drv@dbdir <- path_normalize(dbdir)
+    driver_registry[[drv@dbdir]] <- drv
   }
 
   reg.finalizer(drv@database_ref, onexit = TRUE, rapi_shutdown)
@@ -492,37 +501,21 @@ has_extension_prefix <- function(path) {
   grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
 }
 
-# `call` names the frame the path was passed in, as for `check_flag()`:
-# rlang's `abort()` would otherwise report this helper to someone who called `duckdb()`.
-path_normalize <- function(path, call = parent.frame()) {
+# The wrapper's default names the frame that called this helper, `duckdb()` in an error resolving the path.
+path_normalize <- function(path) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
   }
 
+  # The prefix guard stays on this side: `CanonicalizePath()` does not make it,
+  # the engine's cache-key function does, and that is not what is called here.
   if (has_extension_prefix(path)) {
     return(path)
   }
 
-  out <- normalizePath(path, mustWork = FALSE)
-
-  # Stable results are only guaranteed if the file exists, so a database yet to
-  # be created is normalized through an empty placeholder. Creating that file is
-  # the only thing here that has to succeed: neither call asks `normalizePath()`
-  # to resolve the path, only to try.
-  if (!file.exists(out)) {
-    if (!file.create(out, showWarnings = FALSE)) {
-      abort(
-        c(
-          paste0("Can't create the database file `", path, "`."),
-          "Its directory must exist and be writable."
-        ),
-        call = call
-      )
-    }
-
-    on.exit(unlink(out))
-    out <- normalizePath(out, mustWork = FALSE)
-  }
-
-  out
+  # The engine resolves this the same way whether or not the database exists
+  # yet, so nothing has to be created to get a stable key. `~` stays R's to
+  # expand: DuckDB has its own idea of the home directory, and on Windows it is
+  # not R's.
+  rethrow_rapi_canonicalize_path(path.expand(path))
 }
