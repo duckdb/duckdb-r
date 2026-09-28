@@ -28,8 +28,9 @@ Arrow, registered with \code{\link[=duckdb_register_arrow]{duckdb_register_arrow
 The \href{https://duckdb.org/docs/current/sql/data_types/numeric}{numeric} and \href{https://duckdb.org/docs/current/sql/data_types/boolean}{boolean} types:
 \itemize{
 \item \strong{\code{BOOLEAN}} (\code{BOOL}, \code{LOGICAL}) reads as \code{logical}, and \code{logical} writes it.
-\item \strong{\code{TINYINT}, \code{SMALLINT}, \code{INTEGER}, \code{UTINYINT}, \code{USMALLINT}} read as \code{integer}, exactly but for the \code{INTEGER} minimum.
-\code{integer} writes \code{INTEGER}, and \code{field.types} names a narrower type.
+\item \strong{\code{TINYINT}, \code{SMALLINT}, \code{UTINYINT}, \code{USMALLINT}} read as \code{integer}, exactly.
+\code{integer} writes \code{INTEGER}, and \code{field.types} names the narrower type.
+\item \strong{\code{INTEGER}} (\code{INT4}, \code{INT}, \code{SIGNED}) reads as \code{integer}, exactly but for the minimum, and \code{integer} writes it.
 \item \strong{\code{UINTEGER}} reads as \code{numeric}, exactly; \code{numeric} writes \code{DOUBLE}, and \code{field.types} names \code{UINTEGER}.
 \item \strong{\code{BIGINT}} (\code{INT8}, \code{LONG}) reads as \code{numeric}, exact up to 2^53,
 or with \code{bigint = "integer64"} as \code{bit64::integer64}, exact but for the minimum.

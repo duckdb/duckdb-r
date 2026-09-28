@@ -30,8 +30,9 @@
 #' The [numeric](https://duckdb.org/docs/current/sql/data_types/numeric) and [boolean](https://duckdb.org/docs/current/sql/data_types/boolean) types:
 #'
 #' * **`BOOLEAN`** (`BOOL`, `LOGICAL`) reads as `logical`, and `logical` writes it.
-#' * **`TINYINT`, `SMALLINT`, `INTEGER`, `UTINYINT`, `USMALLINT`** read as `integer`, exactly but for the `INTEGER` minimum.
-#'   `integer` writes `INTEGER`, and `field.types` names a narrower type.
+#' * **`TINYINT`, `SMALLINT`, `UTINYINT`, `USMALLINT`** read as `integer`, exactly.
+#'   `integer` writes `INTEGER`, and `field.types` names the narrower type.
+#' * **`INTEGER`** (`INT4`, `INT`, `SIGNED`) reads as `integer`, exactly but for the minimum, and `integer` writes it.
 #' * **`UINTEGER`** reads as `numeric`, exactly; `numeric` writes `DOUBLE`, and `field.types` names `UINTEGER`.
 #' * **`BIGINT`** (`INT8`, `LONG`) reads as `numeric`, exact up to 2^53,
 #'   or with `bigint = "integer64"` as `bit64::integer64`, exact but for the minimum.
