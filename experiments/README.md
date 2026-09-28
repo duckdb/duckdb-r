@@ -144,6 +144,10 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
   the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-matrix-limits/`](2026-09-28-matrix-limits/):
+  a matrix column carrying a class, which writes as that class's scalar type and loses values,
+  and an `ARRAY` column that `rel_to_altrep()` reads with the wrong shape.
+  Supports [`usage/types/`](/handbook/usage/types/README.md) and [`usage/relational/`](/handbook/usage/relational/README.md).
 * [`2026-09-28-type-rereview/`](2026-09-28-type-rereview/):
   the type facts a re-review after #2850 found wrong or stated too broadly, from the integer minimums through Arrow
   to which CRS can be named in a type without `spatial`.
