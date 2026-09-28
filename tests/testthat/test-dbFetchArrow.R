@@ -372,11 +372,11 @@ test_that("an Arrow result carries types R cannot hold", {
 
   res <- dbGetQueryArrow(
     con,
-    "SELECT '13:03:12.123456789'::TIME_NS AS t,
+    "SELECT '101'::BIT AS b,
        union_value(num := 2)::UNION(num INTEGER, str VARCHAR) AS u"
   )
   schema <- nanoarrow::infer_nanoarrow_schema(res)
 
-  expect_equal(schema$children$t$format, "ttn")
+  expect_equal(schema$children$b$format, "z")
   expect_equal(substr(schema$children$u$format, 1, 2), "+u")
 })

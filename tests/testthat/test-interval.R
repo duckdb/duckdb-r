@@ -221,13 +221,23 @@ test_that("`interval = \"Period\"` writes a Period column, field or parameter as
   expect_equal(bound$v, c("1 month 2 days 00:00:03.000001", NA))
 })
 
-test_that("a Period writes DOUBLE under the default `interval`", {
+test_that("a Period writes a DOUBLE of its seconds alone under the default `interval`", {
   skip_if_not_installed("lubridate")
 
   con <- local_con()
 
-  dbWriteTable(con, "tbl", data.frame(a = lubridate::period(months = 1)))
-  expect_equal(dbGetQuery(con, "SELECT typeof(a) AS t FROM tbl")$t, "DOUBLE")
+  p <- lubridate::period(
+    years = 1,
+    months = 2,
+    days = 3,
+    hours = 4,
+    minutes = 5,
+    seconds = 6.5
+  )
+  expect_no_warning(dbWriteTable(con, "tbl", data.frame(a = p)))
+  data <- dbGetQuery(con, "SELECT typeof(a) AS t, a FROM tbl")
+  expect_equal(data$t, "DOUBLE")
+  expect_identical(data$a, 6.5)
 })
 
 test_that("`interval = \"Period\"` refuses a Period that INTERVAL can't hold, naming its column or parameter", {

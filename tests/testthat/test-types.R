@@ -71,7 +71,7 @@ test_that("the value of a classed numeric column survives every route in", {
 test_that("a table whose columns R cannot hold is still found and listed", {
   con <- local_con()
 
-  for (type in c("BIT", "BIGNUM", "TIME_NS", "UNION(a INTEGER)")) {
+  for (type in c("BIT", "BIGNUM", "UNION(a INTEGER)")) {
     dbExecute(con, paste("CREATE OR REPLACE TABLE t (x", type, ", y INTEGER)"))
 
     expect_true(dbExistsTable(con, "t"), info = type)

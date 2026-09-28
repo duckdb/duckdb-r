@@ -351,6 +351,7 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::DATE:
 		return "Date";
 	case LogicalTypeId::TIME:
+	case LogicalTypeId::TIME_NS:
 	case LogicalTypeId::TIME_TZ:
 	case LogicalTypeId::INTERVAL:
 		return "difftime";
@@ -386,7 +387,6 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	// unconverted (handbook/usage/types/README.md).
 	case LogicalTypeId::BIT:
 	case LogicalTypeId::BIGNUM:
-	case LogicalTypeId::TIME_NS:
 	case LogicalTypeId::UNION:
 		return "unknown";
 

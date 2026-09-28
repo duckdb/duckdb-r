@@ -71,8 +71,8 @@ The \href{https://duckdb.org/docs/current/sql/data_types/date}{date}, \href{http
 With \code{time = "hms"}, an \code{hms} column, data frame field or parameter writes it, rounded to the microsecond,
 and a \code{difftime} that is not an \code{hms} keeps writing \code{INTERVAL}.
 Its text writes it through \code{field.types}, and so does Arrow.
-\item \strong{\code{TIME_NS}} reads through Arrow, and to the microsecond through a cast to \code{TIME} in the query.
-Its text writes it, and so does Arrow.
+\item \strong{\code{TIME_NS}} reads as \code{TIME} does, in seconds to the nanosecond.
+Its text writes it through \code{field.types}, and so does Arrow.
 \item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as \code{TIME} does, as its local time.
 Its text writes it.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}.
@@ -98,7 +98,8 @@ but not to a \code{TIMESTAMPTZ} across a daylight saving change, where DuckDB ad
 clock's constructors take 32-bit counts and its arithmetic wraps past 64 bits without an error,
 and \code{rel_to_altrep()} could build a duration lazily only by writing clock's undocumented fields.
 The package reads an \code{INTERVAL} into one exact representation, a \code{Period},
-and converting that to a clock duration is for clock and lubridate to offer, which neither does today, and not for the package to bridge.
+and converting that to a clock duration is for clock and lubridate to offer, which neither does today,
+and not for the package to bridge.
 }
 
 \section{Enums and nested types}{

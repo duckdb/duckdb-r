@@ -54,6 +54,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	case LogicalTypeId::TIMESTAMP_NS:
 	case LogicalTypeId::DATE:
 	case LogicalTypeId::TIME:
+	case LogicalTypeId::TIME_NS:
 	case LogicalTypeId::TIME_TZ:
 	case LogicalTypeId::INTERVAL:
 		return REALSXP;
@@ -198,7 +199,7 @@ void ConvertTimestampVector(const Vector &src_vec, size_t count, const SEXP dest
 	}
 }
 
-// TIME and TIMETZ read as a time of day in seconds:
+// TIME, TIME_NS and TIMETZ read as a time of day in seconds:
 // a difftime by default, or an hms with `time = "hms"` (handbook/usage/types/README.md).
 static void DecorateTimeOfDay(const SEXP dest, const duckdb::ConvertOpts &convert_opts) {
 	if (convert_opts.time == ConvertOpts::TimeConversion::HMS) {
@@ -367,6 +368,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		SET_CLASS(dest, RStrings::get().Date_str);
 		break;
 	case LogicalTypeId::TIME:
+	case LogicalTypeId::TIME_NS:
 	case LogicalTypeId::TIME_TZ:
 		DecorateTimeOfDay(dest, convert_opts);
 		break;
@@ -589,6 +591,23 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
 				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
+			}
+		}
+		DecorateTimeOfDay(dest, convert_opts);
+		break;
+	}
+	case LogicalTypeId::TIME_NS: {
+		// A double of seconds keeps each nanosecond up to 24:00:00 to within 1/128 of one,
+		// so rounding back recovers it (handbook/usage/types/README.md)
+		auto src_data = FlatVector::GetData<dtime_ns_t>(src_vec);
+		auto &mask = FlatVector::Validity(src_vec);
+		double *dest_ptr = ((double *)NUMERIC_POINTER(dest)) + dest_offset;
+		for (size_t row_idx = 0; row_idx < n; row_idx++) {
+			if (!mask.RowIsValid(row_idx)) {
+				dest_ptr[row_idx] = NA_REAL;
+			} else {
+				// dtime_ns_t keeps its nanoseconds in the field dtime_t names `micros`
+				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].micros) / Interval::NANOS_PER_SEC;
 			}
 		}
 		DecorateTimeOfDay(dest, convert_opts);

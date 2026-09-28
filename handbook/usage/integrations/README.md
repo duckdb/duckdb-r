@@ -50,10 +50,10 @@ The backend translates *expressions*, not verbs,
 and literals are escaped by dbplyr —
 the boundaries users keep hitting:
 
-* `tbl()` cannot open a table holding a type R cannot hold, `BIT`, `BIGNUM`, `TIME_NS` or `UNION`:
+* `tbl()` cannot open a table holding a type R cannot hold, `BIT`, `BIGNUM` or `UNION`:
   dbplyr reads the fields through a query R has to convert, and reports "Can't query fields".
   `arrow::to_duckdb()` returns such a `tbl()` and `to_arrow()` takes one, so both fail the same way.
-  A `tbl()` over a query that casts the column, as `tbl(con, sql("SELECT tn::TIME AS tn FROM n"))`, opens
+  A `tbl()` over a query that casts the column, as `tbl(con, sql("SELECT b::VARCHAR AS b FROM t"))` for a `BIT` column, opens
   ([`experiments/2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md)).
 * `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
   not `DISTINCT ON` — needs dbplyr support

@@ -71,8 +71,8 @@
 #'   With `time = "hms"`, an `hms` column, data frame field or parameter writes it, rounded to the microsecond,
 #'   and a `difftime` that is not an `hms` keeps writing `INTERVAL`.
 #'   Its text writes it through `field.types`, and so does Arrow.
-#' * **`TIME_NS`** reads through Arrow, and to the microsecond through a cast to `TIME` in the query.
-#'   Its text writes it, and so does Arrow.
+#' * **`TIME_NS`** reads as `TIME` does, in seconds to the nanosecond.
+#'   Its text writes it through `field.types`, and so does Arrow.
 #' * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as `TIME` does, as its local time.
 #'   Its text writes it.
 #' * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.
@@ -97,7 +97,8 @@
 #' clock's constructors take 32-bit counts and its arithmetic wraps past 64 bits without an error,
 #' and `rel_to_altrep()` could build a duration lazily only by writing clock's undocumented fields.
 #' The package reads an `INTERVAL` into one exact representation, a `Period`,
-#' and converting that to a clock duration is for clock and lubridate to offer, which neither does today, and not for the package to bridge.
+#' and converting that to a clock duration is for clock and lubridate to offer, which neither does today,
+#' and not for the package to bridge.
 #'
 #' # Enums and nested types
 #'

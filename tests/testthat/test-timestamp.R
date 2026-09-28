@@ -129,6 +129,96 @@ test_that("`time = \"hms\"` reaches a relation's columns", {
   expect_identical(df$a, hms::hms(3723))
 })
 
+# Reading TIME_NS -------------------------------------------------------------
+
+test_that("TIME_NS reads as TIME does, keeping each nanosecond to rounding", {
+  con <- local_con()
+
+  data <- dbGetQuery(
+    con,
+    "SELECT '01:02:03.123456789'::TIME_NS AS a, NULL::TIME_NS AS b,
+       '23:59:59.999999999'::TIME_NS AS c, '24:00:00'::TIME_NS AS d"
+  )
+  expect_s3_class(data$a, "difftime")
+  expect_equal(units(data$a), "secs")
+  expect_identical(round(as.numeric(data$a) * 1e9), 3723123456789)
+  expect_identical(
+    data$b,
+    structure(NA_real_, class = "difftime", units = "secs")
+  )
+  expect_identical(round(as.numeric(data$c) * 1e9), 86399999999999)
+  expect_identical(as.numeric(data$d), 86400)
+
+  # Every nanosecond at either end of the day comes back by rounding
+  ns <- dbGetQuery(
+    con,
+    "SELECT n, make_timestamp_ns(n)::TIME_NS AS t FROM (
+       SELECT i AS n FROM range(100000) AS r(i)
+       UNION ALL SELECT 86400000000000 - 1 - i FROM range(100000) AS r(i)
+     )"
+  )
+  expect_identical(round(as.numeric(ns$t) * 1e9), ns$n)
+})
+
+test_that("`time = \"hms\"` reads TIME_NS as hms, on every route", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms", array = "matrix")
+
+  data <- dbGetQuery(
+    con,
+    "SELECT
+       '00:00:01.5'::TIME_NS AS a,
+       ['00:00:02'::TIME_NS, NULL] AS l,
+       {'t': '00:00:03'::TIME_NS} AS s,
+       MAP {'k': '00:00:04'::TIME_NS} AS m,
+       ['00:00:05'::TIME_NS, NULL]::TIME_NS[2] AS arr"
+  )
+  expect_identical(data$a, hms::hms(1.5))
+  expect_identical(data$l[[1]], hms::hms(c(2, NA)))
+  expect_identical(data$s$t, hms::hms(3))
+  expect_identical(data$m[[1]]$value, hms::hms(4))
+  expect_identical(
+    data$arr,
+    structure(c(5, NA), dim = 1:2, class = c("hms", "difftime"), units = "secs")
+  )
+
+  empty <- dbGetQuery(con, "SELECT '00:00:01'::TIME_NS AS a WHERE false")
+  expect_identical(empty$a, hms::hms())
+
+  res <- dbSendQuery(
+    con,
+    "SELECT make_timestamp_ns(i * 1000000000)::TIME_NS AS a FROM range(3) AS r(i) ORDER BY i"
+  )
+  on.exit(dbClearResult(res))
+  expect_identical(dbFetch(res, n = 2)$a, hms::hms(c(0, 1)))
+  expect_identical(dbFetch(res)$a, hms::hms(2))
+
+  df <- rel_to_altrep(rel_from_sql(con, "SELECT '00:00:06'::TIME_NS AS a"))
+  expect_identical(df$a, hms::hms(6))
+})
+
+test_that("no R class writes TIME_NS, and its text does", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  data <- dbGetQuery(con, "SELECT '01:02:03.123456789'::TIME_NS AS a")
+  dbExecute(con, "CREATE TABLE tbl (a TIME_NS)")
+  expect_error(dbAppendTable(con, "tbl", data), "TIME -> TIME_NS", fixed = TRUE)
+
+  dbWriteTable(
+    con,
+    "text",
+    data.frame(a = "01:02:03.123456789"),
+    field.types = c(a = "TIME_NS")
+  )
+  expect_equal(
+    dbGetQuery(con, "SELECT a::VARCHAR AS a FROM text")$a,
+    "01:02:03.123456789"
+  )
+})
+
 # Writing with time = "hms" ------------------------------------------------
 
 test_that("an hms writes INTERVAL under the default `time`", {
