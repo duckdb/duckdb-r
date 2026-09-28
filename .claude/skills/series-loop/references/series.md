@@ -7,6 +7,10 @@ Equivalence between `-build` and `-dev` commits is by the
 `duckdb/duckdb@<sha>` reference in the commit subject —
 the subject is machine-readable state,
 which is also how `vendor-one.sh` finds its base.
+The `(tag …)` marker beside it counts too:
+a tag upstream pushes after its commit was vendored is re-stamped
+as a second vendor commit for the same SHA
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
 
 **The subject is what decides, never the path.**
 `src/duckdb/` is not a proxy for "vendored here":

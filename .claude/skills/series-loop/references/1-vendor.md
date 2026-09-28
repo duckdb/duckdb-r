@@ -11,6 +11,12 @@ VENDOR_REPO=<S>-build-worktree \
   <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
 
+**The fetch takes tags because the script reads them from the clone.**
+Before it walks on, it asks whether the commit it last vendored has been tagged since,
+and re-stamps that commit when it has;
+a clone that has not fetched the tag answers no,
+and the release keeps its `-dev` stamp.
+
 **The clone's HEAD is what picks the line to vendor**, so check it out first.
 The script reads it as the walk's right-hand side and nothing else names one;
 a clone left wherever the last session parked it

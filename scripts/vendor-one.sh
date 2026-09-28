@@ -237,6 +237,15 @@ vendored_sha() {
   echo "$sha"
 }
 
+# The tag upstream put on a commit, empty when it has none: `git describe
+# --tags` answers a bare tag name only at a tagged commit, and appends
+# `-<n>-g<sha>` everywhere else.
+exact_tag() { # <upstream commit>
+  local d
+  d=$(git -C "$upstream_dir" describe --tags "$1" 2>/dev/null) || return 0
+  case "$d" in *-*) ;; *) echo "$d" ;; esac
+}
+
 commits_vendored=0
 
 while [ $commits_vendored -lt $num_commits ]; do
@@ -249,7 +258,30 @@ while [ $commits_vendored -lt $num_commits ]; do
     exit 1
   fi
 
-  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
+  # A tag upstream pushed after `base` was vendored. The walk starts *after*
+  # `base`, so it never sees that commit again, and the series keeps a `-devNNN`
+  # stamp for a release: DUCKDB_VERSION then carries `-dev`, and the engine
+  # installs extensions from the source-id directory instead of `/vX.Y.Z/`.
+  # Observed for v1.5.6 on 2026-09-28. Re-vendor `base` itself with the tag in
+  # view, which changes the version stamp and nothing else. It is appended as a
+  # commit of its own rather than amended, because the plain one may already be
+  # under `-green`, and nothing rewrites that (scripts/VENDORING.md).
+  restamp=
+  late_tag=$(exact_tag "$base")
+  if [ -n "$late_tag" ]; then
+    subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir})
+    case "$(grep -m 1 -F -- "${repo_org}/${repo_name}@${base}" <<<"$subjects" || true)" in
+      *"(tag ${late_tag})"*) ;;
+      *) restamp=$late_tag ;;
+    esac
+  fi
+
+  if [ -n "$restamp" ]; then
+    echo "Upstream tagged ${base} as ${restamp} after it was vendored; re-stamping it"
+    original=$base
+  else
+    original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
+  fi
 
   if [ -z "$original" ]; then
     echo "No more commits to vendor. Done."
@@ -269,9 +301,11 @@ while [ $commits_vendored -lt $num_commits ]; do
   # compare that directly. Off the line, the oldest commit yielded belongs to the
   # other branch, and vendoring it rewrites the tree to whatever that branch
   # carries -- backwards, for a fork whose own line predates the buffer.
+  # A re-stamp walks no line: it vendors `base` again, whichever line it is on.
   oldest=$(head -n 1 <<<"$original")
   oldest_parent=$(git -C "$upstream_dir" rev-parse --verify "${oldest}^" 2>/dev/null || true)
-  if [ "$oldest_parent" != "$(git -C "$upstream_dir" rev-parse --verify "${base}")" ]; then
+  if [ -z "$restamp" ] &&
+    [ "$oldest_parent" != "$(git -C "$upstream_dir" rev-parse --verify "${base}")" ]; then
     echo ""
     echo "=== WRONG UPSTREAM LINE ==="
     echo "The buffer last vendored ${base},"
@@ -344,8 +378,9 @@ while [ $commits_vendored -lt $num_commits ]; do
     done
 
     # Always vendor tags
-    if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
-      message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
+    tag=$(exact_tag "$commit")
+    if [ -n "$tag" ]; then
+      message="vendor: Update vendored sources (tag ${tag}) to ${repo_org}/${repo_name}@$commit"
       is_tag=true
       break
     fi
@@ -405,6 +440,11 @@ while [ $commits_vendored -lt $num_commits ]; do
     echo
     git -C "$upstream_dir" log -1 --format="Date: %ai" "${commit}"
     echo
+    if [ -n "$restamp" ]; then
+      echo "Upstream tagged ${restamp} after this commit was vendored,"
+      echo "so the earlier vendor commit for it stamps a -dev version;"
+      echo "this one differs from it only in the version stamp."
+    fi
     git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
       tee /dev/stderr |
       sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'

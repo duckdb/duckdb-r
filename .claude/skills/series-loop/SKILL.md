@@ -63,6 +63,7 @@ prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6,
+a LATE TAG line for a release the buffer vendored before upstream tagged it,
 and an UNSERVED block for an upstream release line no series covers,
 saying whether `series.yaml` declares its flavor yet,
 and the one the report ends with),
@@ -129,11 +130,14 @@ Run **`main`'s copy of the script**, against the buffer worktree,
 with the upstream clone checked out at the line the series tracks:
 
 ```sh
+git -C <upstream-clone> fetch --prune --tags origin
 git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
 VENDOR_REPO=<S>-build-worktree \
   <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
 
+* The fetch takes tags because the script reads them from the clone:
+  a commit upstream tagged after it was vendored is re-stamped as a second vendor commit for the same SHA before the walk goes on.
 * The clone's HEAD picks the line; the script refuses a buffer whose last vendored commit is off that line.
   Treat the refusal as the answer.
 * The script gates itself and **stops at the first glue failure**, the breaking commit at HEAD.
@@ -338,6 +342,8 @@ Reference: [`references/7-tooling-prs.md`](references/7-tooling-prs.md).
 * The flavor's declaration PR against `scripts/series.yaml`, opened once after searching open and closed PRs for it;
   cutting the refs stays `series-open/SKILL.md`'s and a human's.
 * A reading that failed, reported as one.
+* A `LATE TAG` line stage 1 did not clear: the buffer has vendored past the tag, and the release branch takes the re-stamp at CUT
+  ([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)); name the series, the tag and the commit.
 * A due cutover, above the `UNSERVED` block, as stage 6's block filled in.
 * Which source served the verdicts, and any record missing from the store and what it was for.
 
