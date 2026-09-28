@@ -189,3 +189,30 @@ show(object)
 
   **\[deprecated\]** how 64-bit integers are returned; superseded by
   `convert_opts`.
+
+## Multiple statements
+
+A `statement` can hold several SQL statements separated by semicolons,
+in [`dbSendQuery()`](https://dbi.r-dbi.org/reference/dbSendQuery.html),
+[`dbSendQueryArrow()`](https://dbi.r-dbi.org/reference/dbSendQueryArrow.html),
+and the helpers built on them, such as
+[`dbExecute()`](https://dbi.r-dbi.org/reference/dbExecute.html) and
+[`dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html). They
+run in order, and each is prepared only after those before it have run,
+so it sees their effects: a `PRAGMA` that generates SQL, such as
+`create_fts_index`, finds a table created earlier in the same string.
+Every statement but the last runs when the query is sent, `params` bind
+to the last statement only, and only the last statement's result is
+returned.
+
+The whole string is parsed before anything runs, so a syntax error in
+any statement means that none of them run. Any other error stops at the
+statement that raised it, and the statements before it keep their
+effect, because the string does not run in a transaction of its own. For
+all or nothing, run the call inside
+[`dbWithTransaction()`](https://dbi.r-dbi.org/reference/dbWithTransaction.html),
+or call [`dbBegin()`](https://dbi.r-dbi.org/reference/transactions.html)
+before it and
+[`dbRollback()`](https://dbi.r-dbi.org/reference/transactions.html) if
+it fails. To know which statements have run when one fails, send one
+statement per call.

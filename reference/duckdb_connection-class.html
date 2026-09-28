@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9028</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9029</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -218,6 +218,30 @@ superseded by <code>convert_opts</code>.</p></dd>
 
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="multiple-statements">Multiple statements<a class="anchor" aria-label="anchor" href="#multiple-statements"></a></h2>
+
+
+<p>A <code>statement</code> can hold several SQL statements separated by semicolons,
+in <code><a href="https://dbi.r-dbi.org/reference/dbSendQuery.html" class="external-link">dbSendQuery()</a></code>, <code><a href="https://dbi.r-dbi.org/reference/dbSendQueryArrow.html" class="external-link">dbSendQueryArrow()</a></code>,
+and the helpers built on them, such as <code><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery()</a></code>.
+They run in order, and each is prepared only after those before it have run,
+so it sees their effects:
+a <code>PRAGMA</code> that generates SQL, such as <code>create_fts_index</code>,
+finds a table created earlier in the same string.
+Every statement but the last runs when the query is sent,
+<code>params</code> bind to the last statement only,
+and only the last statement's result is returned.</p>
+<p>The whole string is parsed before anything runs,
+so a syntax error in any statement means that none of them run.
+Any other error stops at the statement that raised it,
+and the statements before it keep their effect,
+because the string does not run in a transaction of its own.
+For all or nothing, run the call inside <code><a href="https://dbi.r-dbi.org/reference/dbWithTransaction.html" class="external-link">dbWithTransaction()</a></code>,
+or call <code><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbBegin()</a></code> before it and <code><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbRollback()</a></code> if it fails.
+To know which statements have run when one fails,
+send one statement per call.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

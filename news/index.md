@@ -1,5 +1,131 @@
 # Changelog
 
+## duckdb 1.5.5.9029
+
+### Bug fixes
+
+- Run `PRAGMA` after earlier statements in one DBI query
+  ([@t-kalinowski](https://github.com/t-kalinowski),
+  [\#2792](https://github.com/duckdb/duckdb-r/issues/2792)).
+
+#### tests
+
+- Reach the package by its flavored name in the instance-cache
+  subprocess, and teach the guard to say so
+  ([\#2799](https://github.com/duckdb/duckdb-r/issues/2799)).
+
+#### series-check
+
+- Call a stage that failed a REPAIR, not a flake
+  ([\#2817](https://github.com/duckdb/duckdb-r/issues/2817)).
+
+#### scan
+
+- A list column of data frames or factors no longer crashes or hangs a
+  parallel scan
+  ([\#2834](https://github.com/duckdb/duckdb-r/issues/2834)).
+
+- A failure inside a lazy data frame’s ALTREP method no longer strips
+  `duckdb_error` from later errors, or leaves a partly converted column
+  behind ([\#2829](https://github.com/duckdb/duckdb-r/issues/2829)).
+
+#### bind
+
+- A data frame parameter binds one struct per row instead of crashing R
+  ([\#2818](https://github.com/duckdb/duckdb-r/issues/2818)).
+
+#### flavor
+
+- Check that both halves of the cpp11 binding carry the flavor’s prefix
+  ([\#2832](https://github.com/duckdb/duckdb-r/issues/2832)).
+
+- The progress display keeps its R callback alive and calls it only on
+  R’s thread ([\#2828](https://github.com/duckdb/duckdb-r/issues/2828)).
+
+#### series-advance
+
+- Skip the buffer’s tooling sync instead of replaying it onto `-dev`
+  ([\#2820](https://github.com/duckdb/duckdb-r/issues/2820)).
+
+- [`dbClearResult()`](https://dbi.r-dbi.org/reference/dbClearResult.html)
+  frees the unread results of a multi-row bind at once, not at the next
+  garbage collection
+  ([\#2825](https://github.com/duckdb/duckdb-r/issues/2825)).
+
+#### ci
+
+- Keep R CMD check from halting on Windows before R 4.5
+  ([\#2827](https://github.com/duckdb/duckdb-r/issues/2827)).
+
+- A `dbdir` that can’t be created is reported against the user’s call,
+  not `path_normalize()`
+  ([\#2822](https://github.com/duckdb/duckdb-r/issues/2822)).
+
+#### types
+
+- Always write `integer64` as `BIGINT` regardless of the `bigint`
+  setting ([\#2819](https://github.com/duckdb/duckdb-r/issues/2819)).
+
+- [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  and
+  [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  report a cleared result as the other result methods do
+  ([\#2821](https://github.com/duckdb/duckdb-r/issues/2821)).
+
+#### series-advance
+
+- Keep the verified prefix under a red commit
+  ([\#2769](https://github.com/duckdb/duckdb-r/issues/2769)).
+
+#### ci
+
+- Restore the repository’s own CI hooks and workflows
+  ([\#2814](https://github.com/duckdb/duckdb-r/issues/2814)).
+
+### Chore
+
+- Update revdep report from revdep4 run 36280085295
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2812](https://github.com/duckdb/duckdb-r/issues/2812)).
+
+### Continuous integration
+
+- Drop the `rcc2` workflows
+  ([\#2815](https://github.com/duckdb/duckdb-r/issues/2815)).
+
+- Run coverage checks after pkgdown push.
+
+### Documentation
+
+- State the goals and non-goals
+  ([\#2731](https://github.com/duckdb/duckdb-r/issues/2731)).
+
+- Correct the handbook where the pre-release review found it wrong
+  ([\#2824](https://github.com/duckdb/duckdb-r/issues/2824)).
+
+#### connections
+
+- Say in [`?duckdb`](https://r.duckdb.org/reference/duckdb.md) what else
+  keeps an instance open, and that one process can open a file twice
+  ([\#2823](https://github.com/duckdb/duckdb-r/issues/2823)).
+
+### Performance
+
+- Release ALTREP query result after materialization & transformation
+  ([@toppyy](https://github.com/toppyy),
+  [\#1027](https://github.com/duckdb/duckdb-r/issues/1027)).
+
+### Testing
+
+- Compare the `POSIXct` literal round trip exactly, and cover instants
+  before 1970
+  ([\#2826](https://github.com/duckdb/duckdb-r/issues/2826)).
+
+### Uncategorized
+
+- Feat(ci): Render `README.md` and `index.md` in CI
+  (cynkra/cynkratemplate#118).
+
 ## duckdb 1.5.5.9028
 
 ### Bug fixes

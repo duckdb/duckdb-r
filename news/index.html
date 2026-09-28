@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9028</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9029</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,88 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9029" id="duckdb-1559029">duckdb 1.5.5.9029<a class="anchor" aria-label="anchor" href="#duckdb-1559029"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9029">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9029"></a></h3>
+<ul><li>Run <code>PRAGMA</code> after earlier statements in one DBI query (<a href="https://github.com/t-kalinowski" class="external-link">@t-kalinowski</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2792" class="external-link">#2792</a>).</li>
+</ul><div class="section level4">
+<h4 id="tests-1-5-5-9029">tests<a class="anchor" aria-label="anchor" href="#tests-1-5-5-9029"></a></h4>
+<ul><li>Reach the package by its flavored name in the instance-cache subprocess, and teach the guard to say so (<a href="https://github.com/duckdb/duckdb-r/issues/2799" class="external-link">#2799</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-check-1-5-5-9029">series-check<a class="anchor" aria-label="anchor" href="#series-check-1-5-5-9029"></a></h4>
+<ul><li>Call a stage that failed a REPAIR, not a flake (<a href="https://github.com/duckdb/duckdb-r/issues/2817" class="external-link">#2817</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="scan-1-5-5-9029">scan<a class="anchor" aria-label="anchor" href="#scan-1-5-5-9029"></a></h4>
+<ul><li><p>A list column of data frames or factors no longer crashes or hangs a parallel scan (<a href="https://github.com/duckdb/duckdb-r/issues/2834" class="external-link">#2834</a>).</p></li>
+<li><p>A failure inside a lazy data frame’s ALTREP method no longer strips <code>duckdb_error</code> from later errors, or leaves a partly converted column behind (<a href="https://github.com/duckdb/duckdb-r/issues/2829" class="external-link">#2829</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bind-1-5-5-9029">bind<a class="anchor" aria-label="anchor" href="#bind-1-5-5-9029"></a></h4>
+<ul><li>A data frame parameter binds one struct per row instead of crashing R (<a href="https://github.com/duckdb/duckdb-r/issues/2818" class="external-link">#2818</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="flavor-1-5-5-9029">flavor<a class="anchor" aria-label="anchor" href="#flavor-1-5-5-9029"></a></h4>
+<ul><li><p>Check that both halves of the cpp11 binding carry the flavor’s prefix (<a href="https://github.com/duckdb/duckdb-r/issues/2832" class="external-link">#2832</a>).</p></li>
+<li><p>The progress display keeps its R callback alive and calls it only on R’s thread (<a href="https://github.com/duckdb/duckdb-r/issues/2828" class="external-link">#2828</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-advance-1-5-5-9029">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-5-9029"></a></h4>
+<ul><li><p>Skip the buffer’s tooling sync instead of replaying it onto <code>-dev</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2820" class="external-link">#2820</a>).</p></li>
+<li><p><code><a href="https://dbi.r-dbi.org/reference/dbClearResult.html" class="external-link">dbClearResult()</a></code> frees the unread results of a multi-row bind at once, not at the next garbage collection (<a href="https://github.com/duckdb/duckdb-r/issues/2825" class="external-link">#2825</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="ci-1-5-5-9029">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-5-9029"></a></h4>
+<ul><li><p>Keep R CMD check from halting on Windows before R 4.5 (<a href="https://github.com/duckdb/duckdb-r/issues/2827" class="external-link">#2827</a>).</p></li>
+<li><p>A <code>dbdir</code> that can’t be created is reported against the user’s call, not <code>path_normalize()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2822" class="external-link">#2822</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="types-1-5-5-9029">types<a class="anchor" aria-label="anchor" href="#types-1-5-5-9029"></a></h4>
+<ul><li><p>Always write <code>integer64</code> as <code>BIGINT</code> regardless of the <code>bigint</code> setting (<a href="https://github.com/duckdb/duckdb-r/issues/2819" class="external-link">#2819</a>).</p></li>
+<li><p><code><a href="../reference/duckdb_result-class.html">duckdb_fetch_arrow()</a></code> and <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_record_batch()</a></code> report a cleared result as the other result methods do (<a href="https://github.com/duckdb/duckdb-r/issues/2821" class="external-link">#2821</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-advance-1-5-5-9029-1">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-5-9029-1"></a></h4>
+<ul><li>Keep the verified prefix under a red commit (<a href="https://github.com/duckdb/duckdb-r/issues/2769" class="external-link">#2769</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="ci-1-5-5-9029-1">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-5-9029-1"></a></h4>
+<ul><li>Restore the repository’s own CI hooks and workflows (<a href="https://github.com/duckdb/duckdb-r/issues/2814" class="external-link">#2814</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="chore-1-5-5-9029">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-5-9029"></a></h3>
+<ul><li>Update revdep report from revdep4 run 36280085295 (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2812" class="external-link">#2812</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-5-9029">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-5-9029"></a></h3>
+<ul><li><p>Drop the <code>rcc2</code> workflows (<a href="https://github.com/duckdb/duckdb-r/issues/2815" class="external-link">#2815</a>).</p></li>
+<li><p>Run coverage checks after pkgdown push.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9029">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9029"></a></h3>
+<ul><li><p>State the goals and non-goals (<a href="https://github.com/duckdb/duckdb-r/issues/2731" class="external-link">#2731</a>).</p></li>
+<li><p>Correct the handbook where the pre-release review found it wrong (<a href="https://github.com/duckdb/duckdb-r/issues/2824" class="external-link">#2824</a>).</p></li>
+</ul><div class="section level4">
+<h4 id="connections-1-5-5-9029">connections<a class="anchor" aria-label="anchor" href="#connections-1-5-5-9029"></a></h4>
+<ul><li>Say in <code><a href="../reference/duckdb.html">?duckdb</a></code> what else keeps an instance open, and that one process can open a file twice (<a href="https://github.com/duckdb/duckdb-r/issues/2823" class="external-link">#2823</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="performance-1-5-5-9029">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-5-9029"></a></h3>
+<ul><li>Release ALTREP query result after materialization &amp; transformation (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1027" class="external-link">#1027</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-1-5-5-9029">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5-9029"></a></h3>
+<ul><li>Compare the <code>POSIXct</code> literal round trip exactly, and cover instants before 1970 (<a href="https://github.com/duckdb/duckdb-r/issues/2826" class="external-link">#2826</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="uncategorized-1-5-5-9029">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-5-9029"></a></h3>
+<ul><li>Feat(ci): Render <code>README.md</code> and <code>index.md</code> in CI (cynkra/cynkratemplate#118).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9028" id="duckdb-1559028">duckdb 1.5.5.9028<a class="anchor" aria-label="anchor" href="#duckdb-1559028"></a></h2>
 <div class="section level3">

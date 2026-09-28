@@ -112,6 +112,18 @@ parsing the message.
 - [`duckdb_error`](https://r.duckdb.org/reference/duckdb_error.md) :
   DuckDB error conditions
 
+## Data types
+
+What each DuckDB type becomes in R and which R value writes it back,
+through R vectors and through Arrow, and the spatial types.
+
+- [`duckdb_types`](https://r.duckdb.org/reference/duckdb_types.md) :
+  DuckDB data types in R
+- [`duckdb_types_arrow`](https://r.duckdb.org/reference/duckdb_types_arrow.md)
+  : DuckDB data types through Arrow
+- [`duckdb_types_spatial`](https://r.duckdb.org/reference/duckdb_types_spatial.md)
+  : Spatial data types in R
+
 ## Storage locations
 
 Where DuckDB writes extensions, stored secrets, and temporary files, and
