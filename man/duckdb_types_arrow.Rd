@@ -49,8 +49,8 @@ Every other route converts through an R data frame, so a column lands as the typ
 \itemize{
 \item \strong{\code{BOOLEAN}} exports as \code{bool} and reads as \code{logical};
 with \code{arrow_lossless_conversion}, as \code{arrow.bool8}, which nanoarrow reads as the \code{integer} of its storage.
-\item \strong{\code{TINYINT}, \code{SMALLINT}, \code{INTEGER}, \code{UTINYINT}, \code{USMALLINT}} export as \code{int8}, \code{int16}, \code{int32}, \code{uint8} and \code{uint16},
-and read as \code{integer}, exactly but for the \code{INTEGER} minimum.
+\item \strong{\code{TINYINT}, \code{SMALLINT}, \code{UTINYINT}, \code{USMALLINT}} export as \code{int8}, \code{int16}, \code{uint8} and \code{uint16}, and read as \code{integer}, exactly.
+\item \strong{\code{INTEGER}} exports as \code{int32} and reads as \code{integer}, exactly but for the minimum.
 \item \strong{\code{UINTEGER}} exports as \code{uint32}.
 nanoarrow reads it as \code{numeric}; arrow reads it as \code{integer} when every value fits, and as \code{numeric} otherwise.
 \item \strong{\code{BIGINT}} exports as \code{int64}.

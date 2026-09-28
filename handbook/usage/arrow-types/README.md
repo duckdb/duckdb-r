@@ -50,8 +50,8 @@ Every other route converts through an R data frame, so a column lands as the typ
 
 * **`BOOLEAN`** exports as `bool` and reads as `logical`;
   with `arrow_lossless_conversion`, as `arrow.bool8`, which nanoarrow reads as the `integer` of its storage.
-* **`TINYINT`, `SMALLINT`, `INTEGER`, `UTINYINT`, `USMALLINT`** export as `int8`, `int16`, `int32`, `uint8` and `uint16`,
-  and read as `integer`, exactly but for the `INTEGER` minimum.
+* **`TINYINT`, `SMALLINT`, `UTINYINT`, `USMALLINT`** export as `int8`, `int16`, `uint8` and `uint16`, and read as `integer`, exactly.
+* **`INTEGER`** exports as `int32` and reads as `integer`, exactly but for the minimum.
 * **`UINTEGER`** exports as `uint32`.
   nanoarrow reads it as `numeric`; arrow reads it as `integer` when every value fits, and as `numeric` otherwise.
 * **`BIGINT`** exports as `int64`.
