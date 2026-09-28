@@ -14,6 +14,11 @@
 #   4. A real merge is not an ancestry-only one: its side commits did reach
 #      main's tree, so they are still offered. The test is the tree, not the
 #      shape of the commit.
+#   5. Release paperwork is held back whether or not it moves `Version:`:
+#      notes written into NEWS.md for main's next release belong to the release
+#      strand, and the series has no section to put them in. A commit that
+#      edits DESCRIPTION without moving the version is package content and is
+#      still offered.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -109,6 +114,22 @@ git commit -qm 'feat: Live work that did reach the tree'
 git checkout -q main
 git merge -q --no-ff -m 'chore: Merge the live line' live-line
 
+# The release strand, in the three shapes that reach `main`: fledge's bump,
+# the notes written beside it before the bump lands, and a DESCRIPTION edit
+# that is not a bump at all.
+printf '# duckdb 1.0.0\n\n- Something a user meets.\n' > NEWS.md
+git add -A
+git commit -qm 'docs(news): Bullets for what merged since the last bump'
+
+printf 'Package: duckdb\nVersion: 1.0.1\n' > DESCRIPTION
+printf '# duckdb 1.0.1\n\n- Something a user meets.\n' > NEWS.md
+git add -A
+git commit -qm 'fledge: Bump version to 1.0.1'
+
+printf 'Package: duckdb\nVersion: 1.0.1\nImports: DBI\n' > DESCRIPTION
+git add -A
+git commit -qm 'chore: Declare the dependency the package gained'
+
 git push -q origin main s-dev
 git push -q upstream main
 
@@ -134,6 +155,22 @@ hasnt "ancestry-only content is not offered" "$out" 'Ancient work that never rea
 hasnt "nor the rest of that lineage" "$out" 'More of the same'
 hasnt "nor the ancestry-only merge itself" "$out" 'Record the old tag on the mainline'
 has "a real merge's content is still offered" "$out" 'Live work that did reach the tree'
+
+# The class of the listed commit whose subject contains the given text.
+klass() { echo "$out" | grep -F -- "$2" | head -n 1 | awk '{print $1}'; }
+is() { # <name> <subject text> <expected class>
+  local got
+  got=$(klass "$1" "$2")
+  if [ "$got" = "$3" ]; then ok "$1"; else no "$1"; echo "       $3 expected, got ${got:-nothing}"; fi
+}
+
+echo
+echo "series-port.sh: what the release strand covers"
+is "fledge's bump is release paperwork" 'Bump version to 1.0.1' VERSION
+is "so are notes written without a bump" \
+  'Bullets for what merged since the last bump' VERSION
+is "a DESCRIPTION edit that is not a bump is package content" \
+  'Declare the dependency the package gained' OTHER
 
 echo
 echo "series-port.sh: which \`main\` answers"
