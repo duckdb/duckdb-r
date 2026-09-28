@@ -47,12 +47,15 @@
 # read from `main` (#2496). Porting fledge's bumps made the fourth component
 # free-run behind `main` instead of staying at the seed, which is the opposite
 # of the model handbook/operations/releases/versioning/ describes. The class is
-# read from the content -- the commit moves `Version:` and carries nothing but
-# release paperwork -- not from the `fledge:` subject, so a bump under another
-# name is caught and a bump riding on real content is not. Dropping one leaves
-# NEWS.md at the state the series was seeded with; that file is the release
-# strand's and already outside the sync commit's path set. Naming a VERSION
-# commit explicitly still ports it, like any other SHA.
+# read from the content -- the commit carries nothing but release paperwork --
+# not from the `fledge:` subject, so a bump under another name is caught and a
+# bump riding on real content is not. The class covers the notes as well as the
+# bump: a commit that writes NEWS.md for `main`'s next release and touches
+# nothing else is the same strand, and the series has neither the section it
+# goes in nor the version that names it. Dropping one leaves NEWS.md at the
+# state the series was seeded with; that file is the release strand's and
+# already outside the sync commit's path set. Naming a VERSION commit
+# explicitly still ports it, like any other SHA.
 #
 # **The subject is what decides a VENDOR commit, never the path.** The patch
 # stack is applied to the vendored tree in place, so CRAN and
@@ -273,27 +276,43 @@ frozen=
 # commit rewrites, so dropping the commit drops nothing the series executes.
 bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 
-# Is this commit a version bump and nothing else? Two questions, both of which
-# have to answer yes:
+# Is this commit release paperwork and nothing else? Two questions, both of
+# which have to answer yes:
 #
-#   * `Version:` moved -- read against the first parent rather than from the
-#     diff, so a merge commit answers as truthfully as an ordinary one. The
-#     content is the fact, not the subject: a bump is one whatever it is called,
-#     and `fledge:` is only today's name for it.
-#   * it carries nothing else. A commit that bumps the version *and* changes the
-#     package is a forward-port that happens to bump, and it is ported like any
-#     other, because a pick is a whole commit and never half of one. `Sync with
-#     main` (4e41675f9) is the shape this guards: a bump riding on 130 files of
-#     tooling, R code, tests and patches, which classifying by the version line
-#     alone would have dropped whole.
+#   * it carries nothing outside the release strand, and something inside it. A
+#     commit that bumps the version *and* changes the package is a forward-port
+#     that happens to bump, and it is ported like any other, because a pick is a
+#     whole commit and never half of one. `Sync with main` (4e41675f9) is the
+#     shape this guards: a bump riding on 130 files of tooling, R code, tests
+#     and patches, which classifying by the version line alone would have
+#     dropped whole.
+#   * where it touches DESCRIPTION, `Version:` moved -- read against the first
+#     parent rather than from the diff, so a merge commit answers as truthfully
+#     as an ordinary one. The content is the fact, not the subject: a bump is
+#     one whatever it is called, and `fledge:` is only today's name for it.
+#     DESCRIPTION also carries the dependency list, so a commit that edits it
+#     without moving the version is package content and ported like any other.
+#
+# **A commit that leaves DESCRIPTION alone is paperwork without a bump.** Notes
+# written into NEWS.md for `main`'s next release are the release strand's just
+# as fledge's bumps are, and the series has neither the section they go in nor
+# the version that names it: the pick conflicts on every series at once and its
+# only honest resolution is the empty commit that retires it. Requiring a moved
+# `Version:` let exactly those through -- 8f48159063 and dcfb3d2c2a, one firing,
+# four series, four hand resolutions (2026-09-28).
 version_bump() { # <sha>
-  local before after f
-  before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
-  after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
-  [ -n "$after" ] && [ "$before" != "$after" ] || return 1
+  local before after f touched= desc=
   while IFS= read -r f; do
     [[ "$f" =~ $bump_paths_re ]] || return 1
+    case "$f" in DESCRIPTION) desc=1 ;; esac
+    touched=1
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
+  [ -n "$touched" ] || return 1
+  if [ -n "$desc" ]; then
+    before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
+    after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
+    [ -n "$after" ] && [ "$before" != "$after" ] || return 1
+  fi
   return 0
 }
 
