@@ -47,6 +47,7 @@ Imports:
     methods,
     utils
 Suggests: 
+    adbcdrivermanager,
     arrow (>= 13.0.0),
     bit64,
     callr,
@@ -62,8 +63,6 @@ Suggests:
     vctrs,
     wk,
     withr
-Enhances:
-    adbcdrivermanager
 Additional_repositories: https://apache.r-universe.dev
 Biarch: true
 Config/build/compilation-database: false
