@@ -67,14 +67,19 @@
 #   series-check.sh                                 # discover all from refs
 #   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
 #
-# --remote and --upstream are spelled the same in every scripts/series-*.sh;
-# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
+# --remote, --upstream and --canonical are spelled the same in every
+# scripts/series-*.sh; see the shared contract in
+# handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
 
-usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]'
+usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>] [--canonical <name>]'
 remote=${SERIES_REMOTE:-origin}
 rcc=${RCC_BRANCH:-rcc2}
+
+# The repository `main` belongs to, which the fork mirrors. Read only for the
+# flavor declaration below, and never written here.
+canonical=${SERIES_CANONICAL-upstream}
 
 # Where the release-line check at the end reads upstream. Branch names are all
 # that check needs, and `git ls-remote` supplies those from the URL alone, so a
@@ -89,6 +94,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -97,6 +103,12 @@ done
 set -- ${args+"${args[@]}"}
 
 git fetch -q "$remote"
+# The flavor declaration is read from the canonical `main`, so refresh that ref
+# too. Best effort: a checkout with no such remote, or no way to reach it, still
+# answers every other question here from the fork alone.
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  git fetch -q "$canonical" main 2>/dev/null || true
+fi
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
 
@@ -330,12 +342,21 @@ flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
 # nothing done at all, and the flavor PR merged with only the refs left to cut
 # (.claude/skills/series-loop/SKILL.md, "What a firing reports").
 #
-# Read from the remote's `main` rather than the working tree: a firing checks
-# out series branches, whose trees lag `main` by whatever stage 4 has not
-# ported yet, and the declaration is `main`'s.
+# Read from a `main` ref rather than the working tree: a firing checks out
+# series branches, whose trees lag `main` by whatever stage 4 has not ported
+# yet, and the declaration is `main`'s.
+#
+# The canonical repository comes first, and the fork's mirror of it second. The
+# question this answers is whether the flavor PR has merged, so a mirror the
+# Pull app has not refreshed yet answers "undeclared" for a PR that merged
+# hours ago -- and the skill's rule on an undeclared line is to open one, which
+# is how a firing would file the same PR twice
+# (.claude/skills/series-loop/SKILL.md, "What a firing reports"). Whichever ref
+# is fresher is right, and only the canonical one is guaranteed to be.
 declaration() { # -> the file, empty and non-zero when no ref carries it
   local r
-  for r in "refs/remotes/$remote/main" refs/heads/main; do
+  for r in ${canonical:+"refs/remotes/$canonical/main"} \
+    "refs/remotes/$remote/main" refs/heads/main; do
     git show "$r:scripts/series.yaml" 2>/dev/null && return 0
   done
   return 1
