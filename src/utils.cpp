@@ -118,7 +118,9 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 17, blob_vctrs_list_of_str = StringsToSexp({"blob", "vctrs_list_of", "vctrs_vctr", "list"}));
 	SET_VECTOR_ELT(chars, 18, empty_raw = Rf_allocVector(RAWSXP, 0));
 	SET_VECTOR_ELT(chars, 19, period_str = Rf_mkString("Period"));
-	Rf_setAttrib(period_str, Rf_install("package"), Rf_mkString("lubridate"));
+	SEXP lubridate_str = PROTECT(Rf_mkString("lubridate"));
+	Rf_setAttrib(period_str, R_PackageSymbol, lubridate_str);
+	UNPROTECT(1);
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
