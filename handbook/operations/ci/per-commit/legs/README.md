@@ -124,7 +124,8 @@ What survives a runner that stops executing steps:
 * **Records a leg never got to publish** — only in the leg's artifact,
   uploaded in its last step, so a lost runner never gets there.
   A firing reads the artifact directly, which is where they are;
-  the store learns of them only if `rcc-logs.yaml` is dispatched.
+  the store learns of them only if an operator runs
+  [`rcc-logs.sh`](/scripts/rcc-logs.sh).
 
 A re-run resumes rather than restarts:
 the leg skips a commit that already carries a decided record,

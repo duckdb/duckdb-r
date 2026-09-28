@@ -69,8 +69,8 @@ publisher, with `rcc` left behind whole. See
 [`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md).
 The writer count has come down twice more since:
 the per-run fan-in and the 30-minute sweep both went in #2578,
-leaving one automatic writer (the leg's own publish),
-one dispatched (`rcc-logs.yaml`) and one manual (consolidation).
+leaving one automatic writer (the leg's own publish)
+and two run by hand: `rcc-logs.sh`, whose workflow went in #2815, and consolidation.
 D6 takes the last of them.
 | Scripts | 26 shell/python executables + 3 data/jq files serve the loop |
 | Skills | 4 (`series-loop`, `series-forward`, `series-rebase`, `series-open`) |

@@ -30,11 +30,11 @@
 # assume; that is a change to make when a firing needs it, not before.
 #
 # The `harvest:` line below is the store's tip, and it is no longer bounded by a
-# schedule: `rcc-logs.yaml` is dispatch-only, so what keeps the tip moving is
-# the legs publishing as they decide commits. An old timestamp therefore means
-# "no leg has decided anything since", which on a quiet series is normal and not
-# a fault. Only a record the dispatched sweep alone could supply -- a run
-# cancelled whole -- is a reason to ask for one.
+# schedule: the sweep is `scripts/rcc-logs.sh` run by hand, so what keeps the
+# tip moving is the legs publishing as they decide commits. An old timestamp
+# therefore means "no leg has decided anything since", which on a quiet series is
+# normal and not a fault. Only a record the sweep alone could supply -- a run
+# cancelled whole -- is a reason to ask an operator for one.
 #
 # The record decides before the log does, for the one thing the log cannot say:
 # a commit the shard's `timeout` killed at its budget (exit 124) stops mid-run
