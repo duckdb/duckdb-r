@@ -1,6 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.5.9029
+# duckdb 1.5.5.9900
 
 ## Features
 
