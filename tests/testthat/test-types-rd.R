@@ -1,5 +1,6 @@
-# The type reference pages, ?duckdb_types and its siblings, are rendered from
-# handbook leaves by scripts/types-rd.R (handbook/usage/types/README.md).
+# The type reference pages, ?duckdb_types and ?duckdb_types_arrow, are
+# rendered from handbook leaves by scripts/types-rd.R
+# (handbook/usage/types/README.md).
 # This test fails when a leaf was edited without re-running the script.
 #
 # The script needs handbook/ and a git checkout, so it only runs from one.

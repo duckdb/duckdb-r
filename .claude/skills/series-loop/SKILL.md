@@ -141,7 +141,20 @@ if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
   git fetch --unshallow origin
 fi
 git fetch --prune --tags origin
+git fetch -q upstream main
 ```
+
+**Both repositories, because `main` is one of them.**
+The series refs live in the fork and `main` belongs to the canonical
+repository, which the fork mirrors on the Pull app's six-hour cycle
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+Every read of `main` a firing makes takes the canonical ref:
+stage 4's port and its tooling sync,
+and the flavor declaration stage 7 reports on.
+A checkout that cannot reach it falls back to whatever the mirror last copied,
+and the scripts say so when they do.
+`upstream` is the remote name, the same one `--canonical` takes everywhere;
+add it where a checkout has none.
 
 `--depth` implies `--single-branch`, and a checkout made that way
 sees no `*-build` refs at all —
@@ -1548,6 +1561,25 @@ is what carries the automatic path into a forward series.
 - **Restore whole directories, not touched files**,
   when replaying over a base that owns them
   (`.github` in particular).
+- **A `.dd` file naming a header the flavor renamed stops the build
+  before the first compile**, and no gate above `install` ever runs:
+  `src/include/deps.mk` includes `src/*.dd`, so
+  `include/duckdb_types.hpp` on a tree carrying
+  `include/duckdb_1_5_dev_types.hpp` is
+  "No rule to make target 'include/duckdb_types.hpp', needed by 'cpp11.o'".
+  The `.dd` files sit outside `scripts/flavor.patch`, the rename surface,
+  so a port that takes a `main` commit touching one writes the mainline
+  name onto a flavored tree, and a later reflavor does not reach it.
+  `flavor.sh` and `reflavor.sh` now normalize them, which leaves the
+  branches seeded before that: check with
+
+  ```sh
+  git grep -n 'include/duckdb_types\.hpp' <ref> -- 'src/*.dd'
+  ```
+
+  and fold the corrected file into the oldest commit above green.
+  `v1.5-variegata-fwd` was seeded this way and its whole first chunk
+  would have come back red (2026-09-28).
 
 ## Invariants
 

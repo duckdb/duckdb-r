@@ -117,4 +117,4 @@ A private context taken by default behind guards was drafted and refused;
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) carries the design and the reasons.
 
 *To deepen: state what the driver-side mapping, a driver that owns its instance, costs against a factory driver
-over the engine's own instance cache, which [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would settle.*
+over the engine's own instance cache, which [#2857](https://github.com/duckdb/duckdb-r/issues/2857) would settle.*
