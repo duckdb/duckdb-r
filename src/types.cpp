@@ -613,14 +613,45 @@ bool RPeriodType::HasOtherParts(R_xlen_t idx) const {
 	return false;
 }
 
-// The first value the write routes would refuse, described for an error; empty when there is none.
-// Under `time = "hms"`, an hms that TIME cannot hold; under `interval = "Period"`, a Period that INTERVAL cannot hold;
-// otherwise, a Period with parts other than its seconds, which would write a DOUBLE of its seconds alone.
-// It searches the fields of a data frame and the cells of a list, which the options do not reach:
-// there an hms writes INTERVAL and a Period a DOUBLE of its seconds, as without them.
-// It reads only what it checks, so that a column of another type costs a type test.
-string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval, bool in_list) {
-	const string position = in_list ? " (element " : " (row ";
+namespace {
+
+// Where FindInvalidValue() is looking: a column or parameter, or a field or element under one,
+// spelled out only for an error, so that a search finding nothing builds no string
+struct ValuePath {
+	const string &root;
+	const ValuePath *parent;
+	// The names of the data frame this is a field of, or R_NilValue for an element of a list
+	SEXP names;
+	R_xlen_t index;
+
+	string ToString() const {
+		if (!parent) {
+			return root;
+		}
+		if (names != R_NilValue) {
+			return parent->ToString() + "$" + CHAR(STRING_ELT(names, index));
+		}
+		return parent->ToString() + "[[" + std::to_string(index + 1) + "]]";
+	}
+};
+
+} // namespace
+
+// Whether a value is one FindInvalidValue() looks into or at: a list, a Period, or under `time = "hms"` a double
+static bool MayHoldInvalidValue(SEXP v, bool hms_time) {
+	switch (TYPEOF(v)) {
+	case VECSXP:
+		return true;
+	case REALSXP:
+		return hms_time || Rf_isS4(v);
+	case INTSXP:
+		return Rf_isS4(v);
+	default:
+		return false;
+	}
+}
+
+static string FindInvalidValueAt(SEXP v, const ValuePath &path, bool hms_time, bool period_interval, bool in_list) {
 	if (TYPEOF(v) == VECSXP) {
 		auto is_df = Rf_inherits(v, "data.frame");
 		SEXP names = is_df ? DataFrameNames(v) : R_NilValue;
@@ -628,20 +659,29 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 			// Not a data frame DetectRType() takes, which refuses it
 			return "";
 		}
+		// A field keeps the options, where an element of a list leaves them behind
+		auto child_hms_time = is_df && hms_time;
+		auto child_period_interval = is_df && period_interval;
+		auto child_in_list = !is_df || in_list;
 		for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
-			auto invalid = is_df ? FindInvalidValue(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)), hms_time,
-			                                        period_interval, in_list)
-			                     : FindInvalidValue(VECTOR_ELT(v, i), path + "[[" + std::to_string(i + 1) + "]]", false,
-			                                        false, true);
+			SEXP child = VECTOR_ELT(v, i);
+			if (!MayHoldInvalidValue(child, child_hms_time)) {
+				continue;
+			}
+			auto invalid = FindInvalidValueAt(child, ValuePath {path.root, &path, names, i}, child_hms_time,
+			                                  child_period_interval, child_in_list);
 			if (!invalid.empty()) {
 				return invalid;
 			}
 		}
 		return "";
 	}
-	if (TYPEOF(v) != REALSXP && TYPEOF(v) != INTSXP) {
+	if (!MayHoldInvalidValue(v, hms_time)) {
 		return "";
 	}
+	auto position = [&](R_xlen_t i) {
+		return (in_list ? " (element " : " (row ") + std::to_string(i + 1) + ").";
+	};
 	if (Rf_isS4(v) && Rf_inherits(v, "Period")) {
 		RPeriodType period(v);
 		for (R_xlen_t i = 0; i < period.length; i++) {
@@ -650,12 +690,13 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 			if (period_interval ? period.IsNull(i) : ISNAN(period.Seconds(i))) {
 				continue;
 			}
-			auto where = period.Format(i) + position + std::to_string(i + 1) + ").";
 			if (period_interval && !period.IsValid(i)) {
-				return "`" + path + "` must hold periods that fit an `INTERVAL`, not " + where;
+				return "`" + path.ToString() + "` must hold periods that fit an `INTERVAL`, not " + period.Format(i) +
+				       position(i);
 			}
 			if (!period_interval && period.HasOtherParts(i)) {
-				return "`" + path + "` must hold periods of seconds alone to write a `DOUBLE`, not " + where +
+				return "`" + path.ToString() + "` must hold periods of seconds alone to write a `DOUBLE`, not " +
+				       period.Format(i) + position(i) +
 				       (in_list ? " In a list, a `Period` writes a `DOUBLE` whatever `interval` says, "
 				                  "so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total."
 				                : " Use `dbConnect(interval = \"Period\")` to write an exact `INTERVAL`, "
@@ -664,17 +705,28 @@ string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bo
 		}
 		return "";
 	}
-	if (!hms_time || DetectRType(v, true, true).id() != RTypeId::TIME) {
+	if (!hms_time || RApiTypes::DetectRType(v, true, true).id() != RTypeId::TIME) {
 		return "";
 	}
 	auto data = NUMERIC_POINTER(v);
 	for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
 		if (!RTimeType::IsNull(data[i]) && !RTimeType::IsValid(data[i])) {
-			return "`" + path + "` must hold times of day from 00:00:00 to 24:00:00 to write `TIME`, not " +
-			       FormatRNumber(data[i]) + " seconds" + position + std::to_string(i + 1) + ").";
+			return "`" + path.ToString() + "` must hold times of day from 00:00:00 to 24:00:00 to write `TIME`, not " +
+			       FormatRNumber(data[i]) + " seconds" + position(i);
 		}
 	}
 	return "";
+}
+
+// The first value the write routes would refuse, described for an error; empty when there is none.
+// Under `time = "hms"`, an hms that TIME cannot hold; under `interval = "Period"`, a Period that INTERVAL cannot hold;
+// otherwise, a Period with parts other than its seconds, which would write a DOUBLE of its seconds alone.
+// It searches the fields of a data frame and the cells of a list, which the options do not reach:
+// there an hms writes INTERVAL and a Period a DOUBLE of its seconds, as without them.
+// It reads only what it checks, and names where it looks only once it finds something,
+// so that a column or a cell of another type costs a type test.
+string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval, bool in_list) {
+	return FindInvalidValueAt(v, ValuePath {path, nullptr, R_NilValue, 0}, hms_time, period_interval, in_list);
 }
 
 interval_t RIntervalSecondsType::Convert(double val) {
