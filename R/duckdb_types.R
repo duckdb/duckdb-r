@@ -93,6 +93,8 @@
 #'   A `factor` or `ordered` column writes `ENUM` of its levels; a `factor` parameter binds as `VARCHAR`.
 #' * **`ARRAY`** (`INTEGER[3]`) reads with `array = "matrix"`, as a matrix with a row per value.
 #'   A `NULL` array reads as a row of `NA`, the same as an array of `NULL`s.
+#'   A `BLOB` or `GEOMETRY` array is a list matrix without a class of its own,
+#'   and under `blob = "blob"` or `geometry = "wk"` each cell is a `blob` or a `wk_wkb` of length one.
 #'   A matrix column writes it.
 #' * **`LIST`** (`INTEGER[]`) reads as a list of vectors, `NULL` for a `NULL` row, and a list column whose elements share a type writes it.
 #' * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.

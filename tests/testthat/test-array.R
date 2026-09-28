@@ -473,3 +473,52 @@ test_that("arrays work correctly in write/read roundtrip after UNION ALL fix", {
   expected_matrix <- matrix(c(4, 7, 5, 8, 6, 9), nrow = 2, ncol = 3)
   expect_equal(result$matrix_col, expected_matrix)
 })
+
+# Arrays of list-typed elements ---------------------------------------------
+
+test_that("an array of BLOB reads as a plain list matrix of raw vectors", {
+  con <- local_con(array = "matrix")
+
+  sql <- "SELECT * FROM (VALUES (1, ['\\xAA'::BLOB, NULL]::BLOB[2]), (2, NULL)) AS t(i, b) ORDER BY i"
+  expect_identical(
+    dbGetQuery(con, sql)$b,
+    matrix(list(as.raw(0xaa), NULL, NULL, NULL), nrow = 2)
+  )
+  expect_identical(
+    dbGetQuery(con, sub("ORDER BY i", "WHERE false", sql, fixed = TRUE))$b,
+    matrix(list(), nrow = 0, ncol = 2)
+  )
+})
+
+test_that("an array of BLOB under `blob = \"blob\"` is a plain list matrix of blobs", {
+  skip_if_not_installed("blob")
+
+  con <- local_con(array = "matrix", blob = "blob")
+
+  sql <- "SELECT * FROM (VALUES (1, ['\\xAA'::BLOB, NULL]::BLOB[2]), (2, NULL)) AS t(i, b) ORDER BY i"
+  na <- blob::blob(NULL)
+  expect_identical(
+    dbGetQuery(con, sql)$b,
+    matrix(list(blob::blob(as.raw(0xaa)), na, na, na), nrow = 2)
+  )
+  expect_identical(
+    dbGetQuery(con, sub("ORDER BY i", "WHERE false", sql, fixed = TRUE))$b,
+    matrix(list(), nrow = 0, ncol = 2)
+  )
+})
+
+test_that("an array of GEOMETRY under `geometry = \"wk\"` is a plain list matrix of wk_wkb", {
+  skip_if_not_installed("wk")
+
+  con <- local_con(array = "matrix", geometry = "wk")
+
+  x <- dbGetQuery(
+    con,
+    "SELECT ['POINT (1 2)'::GEOMETRY, NULL]::GEOMETRY[2] AS g"
+  )$g
+  expect_identical(attributes(x), list(dim = c(1L, 2L)))
+  expect_s3_class(x[[1, 1]], "wk_wkb")
+  expect_equal(wk::wk_coords(x[[1, 1]])[c("x", "y")], data.frame(x = 1, y = 2))
+  expect_s3_class(x[[1, 2]], "wk_wkb")
+  expect_true(is.na(x[[1, 2]]))
+})

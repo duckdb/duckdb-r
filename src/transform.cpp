@@ -274,7 +274,11 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::ARRAY: {
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
-		duckdb_r_decorate(child_type, dest, convert_opts);
+		// A list matrix stays plain: a class such as `blob` or `wk_wkb` cannot describe a vector with a dim,
+		// so TransformArrayVector() puts it on each cell instead.
+		if (TYPEOF(dest) != VECSXP) {
+			duckdb_r_decorate(child_type, dest, convert_opts);
+		}
 		// The class of a matrix and an array is implicit from
 		// the dim attribute so we don't set the class attribute.
 		// See: https://svn.r-project.org/R/trunk/src/main/attrib.c:656
@@ -394,6 +398,14 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 
 	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size, name, convert_opts, "TransformArrayVector");
 
+	// An element of a list matrix whose R vector has a class, a `blob` or a `wk_wkb`,
+	// becomes a vector of length one carrying the class and the attributes that go with it, the ptype or the CRS.
+	bool classed_cells = false;
+	if (TYPEOF(buffer) == VECSXP) {
+		duckdb_r_decorate(child_type, buffer, convert_opts);
+		classed_cells = OBJECT(buffer);
+	}
+
 	// Calculate total number of rows in the final matrix from the length of dest
 	// The dest length should be total_rows * array_size
 	idx_t total_rows = Rf_xlength(dest) / array_size;
@@ -436,7 +448,14 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 		case VECSXP:
 			for (size_t i = 0; i < array_size; i++) {
 				size_t dest_idx = actual_row_idx + i * total_rows;
-				SET_VECTOR_ELT(dest, dest_idx, VECTOR_ELT(buffer, i));
+				if (classed_cells) {
+					cpp11::sexp cell = Rf_allocVector(VECSXP, 1);
+					SET_VECTOR_ELT(cell, 0, VECTOR_ELT(buffer, i));
+					Rf_copyMostAttrib(buffer, cell);
+					SET_VECTOR_ELT(dest, dest_idx, cell);
+				} else {
+					SET_VECTOR_ELT(dest, dest_idx, VECTOR_ELT(buffer, i));
+				}
 			}
 			break;
 		default:
