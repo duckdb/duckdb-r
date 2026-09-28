@@ -206,6 +206,26 @@ vendored_sha() {
   echo "$sha"
 }
 
+# The -build commit equivalent to <ref>'s newest vendor commit for <sha>: the
+# same upstream SHA and the same `(tag ...)` marker. One SHA can have two vendor
+# commits, because a tag upstream pushes after its commit was vendored is
+# re-stamped by a second one on top (scripts/VENDORING.md). Matched by SHA
+# alone, the newer of the two answers for a ref that carries only the older, and
+# stage 5 never consumes the re-stamp. A ref re-stamped by hand, whose buffer has
+# no such twin, falls back to the SHA alone, which is what it always matched.
+build_equivalent() { # <build> <ref> <sha> -> commit, empty if none
+  local subjects newest lines match
+  subjects=$(git log -n "$base_scan_depth" --format=%s "$2" -- src/duckdb || true)
+  newest=$(grep -m 1 "duckdb@$3" <<<"$subjects" || true)
+  lines=$(git log --format='%H %s' "$1" | grep "duckdb@$3" || true)
+  case "$newest" in
+    *"(tag "*) match=$(grep -m 1 -F '(tag ' <<<"$lines" || true) ;;
+    *) match=$(grep -m 1 -v -F '(tag ' <<<"$lines" || true) ;;
+  esac
+  [ -n "$match" ] || match=$(head -n 1 <<<"$lines")
+  echo "${match%% *}"
+}
+
 # Does this commit vendor? The subject decides, never the path -- the same rule
 # the rest of this loop reads state by, and the same predicate series-port.sh
 # classifies with. Matched without a pipe, so `pipefail` cannot turn a match
@@ -283,29 +303,41 @@ case "$S" in
 esac
 
 # Equivalence is by vendored upstream SHA, the key the rest of the loop reads
-# state by. One walk, because the alternative is a walk per buffer commit.
+# state by, and by the `(tag ...)` marker beside it: a late tag is re-stamped by
+# a second vendor commit for the same SHA (scripts/VENDORING.md), and the carry
+# takes the twin's message, so a re-stamp twinned with the plain commit would
+# lose its marker. One walk, because the alternative is a walk per buffer commit.
 declare -A TWIN=()
+twin_key() { # <subject> -> the upstream SHA, `+tag` appended for a tagged one
+  local sha
+  sha=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' <<<"$1")
+  [ -n "$sha" ] || return 0
+  case "$1" in
+    *"(tag "*) echo "$sha+tag" ;;
+    *) echo "$sha" ;;
+  esac
+}
 index_twins() {
   [ -n "$base_dev" ] || return 0
-  local c subj sha
+  local c subj key
   while IFS=$'\t' read -r c subj; do
     case "$subj" in
       vendor:* | *duckdb/duckdb@[0-9a-f]*) ;;
       *) continue ;;
     esac
-    sha=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' <<<"$subj")
-    [ -n "$sha" ] || continue
-    # Oldest wins: a SHA appears once on a healthy series, and where a repair
+    key=$(twin_key "$subj")
+    [ -n "$key" ] || continue
+    # Oldest wins: a key appears once on a healthy series, and where a repair
     # left two, the first is the one the chain was verified on.
-    [ -n "${TWIN[$sha]:-}" ] || TWIN[$sha]=$c
+    [ -n "${TWIN[$key]:-}" ] || TWIN[$key]=$c
   done < <(git log --reverse --format='%H%x09%s' "$base_dev")
 }
 
 twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
-  local sha
-  sha=$(git log -1 --format=%s "$1" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p')
-  [ -n "$sha" ] || return 0
-  echo "${TWIN[$sha]:-}"
+  local key
+  key=$(twin_key "$(git log -1 --format=%s "$1")")
+  [ -n "$key" ] || return 0
+  echo "${TWIN[$key]:-}"
 }
 
 # What the twin folded in beyond vendoring: the paths its own diff touches,
@@ -422,7 +454,7 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
 
   up=$(vendored_sha "$new_green")
   if [ -n "$up" ]; then
-    eq=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$up" | cut -d' ' -f1 || true)
+    eq=$(build_equivalent "$build" "$new_green" "$up")
     if [ -n "$eq" ]; then
       # Set, never advance. -build-base is the one ref of the four that is not
       # fast-forward only: nothing consumes it, and the match is recomputed
@@ -558,7 +590,7 @@ else
   dev_up=$(vendored_sha "$dev")
   [ -n "$dev_up" ] ||
     { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
-  anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
+  anchor=$(build_equivalent "$build" "$dev" "$dev_up")
   [ -n "$anchor" ] ||
     { echo "Error: no -build commit vendors duckdb@$dev_up — mirror the fold in -build first"; exit 1; }
   # `vendored_sha` walks past commits that vendor nothing, and on a -dev that has

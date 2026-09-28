@@ -127,6 +127,10 @@ Date: <author date of the upstream commit>
 A tagged release says so in the subject,
 `vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>`,
 and [`vendor-one.sh`](/scripts/vendor-one.sh) ends its run there.
+A tag upstream pushes after its commit was vendored gets a second vendor commit for the same SHA,
+identical but for the marker and the version stamp,
+so the marker is part of what pairs a `-dev` commit with its `-build` twin
+(the procedure is `scripts/VENDORING.md`'s, "A tag upstream pushed late").
 
 [`vendor-one.sh`](/scripts/vendor-one.sh), [`series-advance.sh`](/scripts/series-advance.sh),
 [`series-port.sh`](/scripts/series-port.sh) and the repair skills

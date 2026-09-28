@@ -32,6 +32,10 @@ Equivalence between `-build` and `-dev` commits is by the
 `duckdb/duckdb@<sha>` reference in the commit subject —
 the subject is machine-readable state,
 which is also how `vendor-one.sh` finds its base.
+The `(tag …)` marker beside it counts too:
+a tag upstream pushes after its commit was vendored is re-stamped
+as a second vendor commit for the same SHA
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
 
 **The subject is what decides, never the path.**
 `src/duckdb/` is not a proxy for "vendored here":
@@ -93,6 +97,7 @@ prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6,
+a LATE TAG line for a release the buffer vendored before upstream tagged it,
 and an UNSERVED block for an upstream release line no series covers,
 saying whether `series.yaml` declares its flavor yet,
 and the one the report ends with),
@@ -212,10 +217,17 @@ Read the page before changing anything it owns.
 Run **`main`'s copy of the script**, against the buffer worktree:
 
 ```sh
+git -C <upstream-clone> fetch --prune --tags origin
 git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
 VENDOR_REPO=<S>-build-worktree \
   <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
+
+**The fetch takes tags because the script reads them from the clone.**
+Before it walks on, it asks whether the commit it last vendored has been tagged since,
+and re-stamps that commit when it has;
+a clone that has not fetched the tag answers no,
+and the release keeps its `-dev` stamp.
 
 **The clone's HEAD is what picks the line to vendor**, so check it out first.
 The script reads it as the walk's right-hand side and nothing else names one;
@@ -1414,6 +1426,14 @@ When the script says it could not read the upstream branches,
 the firing says so too:
 otherwise a question that went unanswered
 reads exactly like an answer of "nothing new".
+
+**A `LATE TAG` line that stage 1 did not clear goes into the report too.**
+Stage 1 re-stamps a tagged commit that is still the buffer's newest,
+so a line left after that stage says the buffer has vendored past the tag,
+which no firing can repair:
+the release branch takes the re-stamp at CUT
+([`scripts/VENDORING.md`](/scripts/VENDORING.md#a-tag-upstream-pushed-late)).
+Name the series, the tag and the commit, so the release does not wait on someone noticing.
 
 **A due cutover is reported the same way, above the `UNSERVED` block.**
 It is the one finding a firing may not act on at all —
