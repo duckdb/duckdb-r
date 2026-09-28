@@ -7,6 +7,11 @@ The list of types is DuckDB's own [documentation](https://duckdb.org/docs/curren
 and every entry on this page was measured on DuckDB 1.5.5 in [`experiments/2026-09-26-type-catalog/`](/experiments/2026-09-26-type-catalog/README.md).
 Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s, and geometry is [`spatial/`](/handbook/usage/spatial/README.md)'s.
 
+The reference pages `?duckdb_types`, `?duckdb_types_arrow` and `?duckdb_types_spatial` are this leaf,
+[`arrow-types/`](/handbook/usage/arrow-types/README.md) and [`spatial/`](/handbook/usage/spatial/README.md),
+rendered into roxygen under `R/` by [`scripts/types-rd.R`](/scripts/types-rd.R), which leaves this paragraph out.
+Edit the leaves, re-run the script and then roxygen; its `--check`, which CI runs, fails while a page is stale.
+
 ## The routes
 
 **Reading.**
@@ -169,6 +174,5 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 * `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them
   ([`relational/`](/handbook/usage/relational/README.md)).
 
-*To deepen: derive the user-facing reference page from this leaf ([#2566](https://github.com/duckdb/duckdb-r/issues/2566)),
-and measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
+*To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
 which the record does not cover ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
