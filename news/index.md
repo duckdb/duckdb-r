@@ -2,1756 +2,247 @@
 
 ## duckdb 1.5.5.9029
 
+### Features
+
+- Update to DuckDB v1.5.6, see
+  <https://github.com/duckdb/duckdb/releases/tag/v1.5.6> for details.
+
+- New experimental
+  [`to_arrow_stream()`](https://r.duckdb.org/reference/to_arrow_stream.md)
+  streams a dbplyr table on DuckDB into Arrow batch by batch, where
+  [`arrow::to_arrow()`](https://arrow.apache.org/docs/r/reference/to_arrow.html)
+  materializes the whole result first
+  ([\#2803](https://github.com/duckdb/duckdb-r/issues/2803)).
+
+- A `duckdb_error` condition carries the fields DuckDB attaches to an
+  error: `error_type`, `raw_message`, `extra_info` and `context`, see
+  [`?duckdb_error`](https://r.duckdb.org/reference/duckdb_error.md)
+  ([\#2714](https://github.com/duckdb/duckdb-r/issues/2714)). Errors
+  raised by the package itself point at the calling function
+  ([\#2637](https://github.com/duckdb/duckdb-r/issues/2637)).
+
+- Reusing a cached database instance reports the settings it cannot
+  apply, such as a different `read_only`, a `config` entry or a storage
+  argument, instead of ignoring them
+  ([\#2641](https://github.com/duckdb/duckdb-r/issues/2641)).
+
+- A database instance is cached under the path the engine resolves, so
+  different spellings of one file and symlinks to it share one instance,
+  and a lower-case Windows drive letter resolves on that drive
+  ([\#2627](https://github.com/duckdb/duckdb-r/issues/2627)).
+
+- The dbplyr backend translates
+  [`clock::date_build()`](https://clock.r-lib.org/reference/date_build.html)
+  and [`difftime()`](https://rdrr.io/r/base/difftime.html)
+  ([\#2621](https://github.com/duckdb/duckdb-r/issues/2621)).
+
+- An Arrow query result exposes its schema, and an empty batch, before
+  the first fetch
+  ([\#2781](https://github.com/duckdb/duckdb-r/issues/2781)).
+
+### Compatibility
+
+- The dbplyr backend needs dbplyr 2.6.0 or later, and warns when an
+  older dbplyr is loaded
+  ([\#2605](https://github.com/duckdb/duckdb-r/issues/2605)).
+
+- `adbcdrivermanager` moves from `Suggests` to `Enhances`, and is
+  installed from <https://apache.r-universe.dev>
+  ([\#2687](https://github.com/duckdb/duckdb-r/issues/2687)).
+
+- The installed package no longer ships the cpp11 headers under
+  `include/` ([\#2649](https://github.com/duckdb/duckdb-r/issues/2649)).
+
+- The package compiles without warnings on the clang 23 and R-devel
+  check flavors
+  ([\#2617](https://github.com/duckdb/duckdb-r/issues/2617),
+  [\#2698](https://github.com/duckdb/duckdb-r/issues/2698)).
+
+- The internal `rel_to_altrep()` used by duckplyr no longer accepts
+  `allow_materialization`, pass `n_cells = 0` instead
+  ([\#2643](https://github.com/duckdb/duckdb-r/issues/2643)).
+
 ### Bug fixes
 
-- Run `PRAGMA` after earlier statements in one DBI query
-  ([@t-kalinowski](https://github.com/t-kalinowski),
-  [\#2792](https://github.com/duckdb/duckdb-r/issues/2792)).
-
-#### tests
-
-- Reach the package by its flavored name in the instance-cache
-  subprocess, and teach the guard to say so
-  ([\#2799](https://github.com/duckdb/duckdb-r/issues/2799)).
-
-#### series-check
-
-- Call a stage that failed a REPAIR, not a flake
-  ([\#2817](https://github.com/duckdb/duckdb-r/issues/2817)).
-
-#### scan
-
-- A list column of data frames or factors no longer crashes or hangs a
-  parallel scan
-  ([\#2834](https://github.com/duckdb/duckdb-r/issues/2834)).
-
-- A failure inside a lazy data frame’s ALTREP method no longer strips
-  `duckdb_error` from later errors, or leaves a partly converted column
-  behind ([\#2829](https://github.com/duckdb/duckdb-r/issues/2829)).
-
-#### bind
+#### Crashes and hangs
 
 - A data frame parameter binds one struct per row instead of crashing R
   ([\#2818](https://github.com/duckdb/duckdb-r/issues/2818)).
 
-#### flavor
+- A list column of data frames or factors no longer crashes or hangs a
+  parallel scan
+  ([\#2834](https://github.com/duckdb/duckdb-r/issues/2834)), and lazy
+  (ALTREP) vectors inside struct, matrix and list columns are
+  materialized on R’s thread before a scan reads them
+  ([\#2582](https://github.com/duckdb/duckdb-r/issues/2582)).
 
-- Check that both halves of the cpp11 binding carry the flavor’s prefix
-  ([\#2832](https://github.com/duckdb/duckdb-r/issues/2832)).
+- Writing a named list with an empty value under `map = "list_of"` no
+  longer crashes
+  ([\#2866](https://github.com/duckdb/duckdb-r/issues/2866)).
+
+- Converting `VARIANT` values to R no longer exposes intermediate
+  objects to the garbage collector
+  ([\#2750](https://github.com/duckdb/duckdb-r/issues/2750),
+  [\#2753](https://github.com/duckdb/duckdb-r/issues/2753)).
 
 - The progress display keeps its R callback alive and calls it only on
-  R’s thread ([\#2828](https://github.com/duckdb/duckdb-r/issues/2828)).
+  R’s thread ([\#2828](https://github.com/duckdb/duckdb-r/issues/2828)),
+  and prints at most every half second
+  ([\#2844](https://github.com/duckdb/duckdb-r/issues/2844)).
 
-#### series-advance
+- Opening a database whose previous instance is still held by a
+  connection or an unfinished result no longer spins at full CPU, it
+  reports that the database is still in use
+  ([\#2759](https://github.com/duckdb/duckdb-r/issues/2759)).
 
-- Skip the buffer’s tooling sync instead of replaying it onto `-dev`
-  ([\#2820](https://github.com/duckdb/duckdb-r/issues/2820)).
+- A failure inside a lazy data frame’s ALTREP method no longer strips
+  `duckdb_error` from later errors or leaves a partly converted column
+  behind ([\#2829](https://github.com/duckdb/duckdb-r/issues/2829)), and
+  an error raised while such a method runs no longer calls into R
+  ([\#1796](https://github.com/duckdb/duckdb-r/issues/1796),
+  [\#1797](https://github.com/duckdb/duckdb-r/issues/1797)).
+
+#### Types and time zones
+
+- `TIMESTAMPTZ` columns take their `tzone` attribute from the session’s
+  `TimeZone` setting, also in lazy relations, and stay in UTC when the
+  icu extension is not available
+  ([\#184](https://github.com/duckdb/duckdb-r/issues/184),
+  [\#2401](https://github.com/duckdb/duckdb-r/issues/2401)).
+
+- [`dbQuoteLiteral()`](https://dbi.r-dbi.org/reference/dbQuoteLiteral.html)
+  keeps the sub-second part of a `POSIXct` value
+  ([\#2646](https://github.com/duckdb/duckdb-r/issues/2646),
+  [\#2763](https://github.com/duckdb/duckdb-r/issues/2763)).
+
+- `integer64` columns and parameters are always written as `BIGINT`,
+  whatever the `bigint` setting
+  ([\#2819](https://github.com/duckdb/duckdb-r/issues/2819)).
+
+- Integer-backed `Date` and `difftime` columns keep their `NA` values,
+  and a data frame column with several fields writes as `STRUCT`
+  ([\#2808](https://github.com/duckdb/duckdb-r/issues/2808)).
+
+- A table whose columns R cannot hold is still found and listed, and a
+  query returning such a column fails before it runs, naming the column
+  ([\#2808](https://github.com/duckdb/duckdb-r/issues/2808)).
+
+#### Connections and storage
+
+- An in-memory database spills to its own directory below
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) out of the box,
+  created only when a query spills and removed when the instance shuts
+  down. An on-disk database keeps DuckDB’s `<dbdir>.tmp` default, as the
+  DuckDB CLI does
+  ([\#2562](https://github.com/duckdb/duckdb-r/issues/2562)).
+
+- `~/.duckdb` is no longer created for a session that only looks
+  interactive, such as one with `options(rlang_interactive = TRUE)`.
+  Without a person to answer the prompt, the per-session directory is
+  used ([\#2550](https://github.com/duckdb/duckdb-r/issues/2550)).
+
+- A database path is normalized only as far as it resolves, so a path
+  that cannot be resolved is handed to the engine rather than refused
+  ([\#455](https://github.com/duckdb/duckdb-r/issues/455),
+  [\#2623](https://github.com/duckdb/duckdb-r/issues/2623)), and a
+  `dbdir` that cannot be created is reported against the user’s call
+  ([\#2822](https://github.com/duckdb/duckdb-r/issues/2822)).
+
+- A `dbdir` that an extension handles, such as a URL, is no longer
+  treated as a file
+  ([\#2641](https://github.com/duckdb/duckdb-r/issues/2641)).
+
+- [`dbIsValid()`](https://dbi.r-dbi.org/reference/dbIsValid.html) on a
+  driver no longer opens the database
+  ([\#2754](https://github.com/duckdb/duckdb-r/issues/2754)).
+
+#### Queries and results
+
+- A `PRAGMA` runs after the statements before it in one query string
+  ([@t-kalinowski](https://github.com/t-kalinowski),
+  [\#2792](https://github.com/duckdb/duckdb-r/issues/2792)). Its
+  expansion no longer leaves a transaction open or refuses a `LOAD`
+  halfway, and an empty one can end a query
+  ([\#2845](https://github.com/duckdb/duckdb-r/issues/2845)).
+
+- [`dbListFields()`](https://dbi.r-dbi.org/reference/dbListFields.html)
+  and
+  [`dbAppendTable()`](https://dbi.r-dbi.org/reference/dbAppendTable.html)
+  read the columns of a table named by
+  [`Id()`](https://dbi.r-dbi.org/reference/Id.html) correctly
+  ([\#2848](https://github.com/duckdb/duckdb-r/issues/2848)).
 
 - [`dbClearResult()`](https://dbi.r-dbi.org/reference/dbClearResult.html)
   frees the unread results of a multi-row bind at once, not at the next
   garbage collection
-  ([\#2825](https://github.com/duckdb/duckdb-r/issues/2825)).
-
-#### ci
-
-- Keep R CMD check from halting on Windows before R 4.5
-  ([\#2827](https://github.com/duckdb/duckdb-r/issues/2827)).
-
-- A `dbdir` that can’t be created is reported against the user’s call,
-  not `path_normalize()`
-  ([\#2822](https://github.com/duckdb/duckdb-r/issues/2822)).
-
-#### types
-
-- Always write `integer64` as `BIGINT` regardless of the `bigint`
-  setting ([\#2819](https://github.com/duckdb/duckdb-r/issues/2819)).
-
-- [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
-  and
-  [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
-  report a cleared result as the other result methods do
-  ([\#2821](https://github.com/duckdb/duckdb-r/issues/2821)).
-
-#### series-advance
-
-- Keep the verified prefix under a red commit
-  ([\#2769](https://github.com/duckdb/duckdb-r/issues/2769)).
-
-#### ci
-
-- Restore the repository’s own CI hooks and workflows
-  ([\#2814](https://github.com/duckdb/duckdb-r/issues/2814)).
-
-### Chore
-
-- Update revdep report from revdep4 run 36280085295
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2812](https://github.com/duckdb/duckdb-r/issues/2812)).
-
-### Continuous integration
-
-- Drop the `rcc2` workflows
-  ([\#2815](https://github.com/duckdb/duckdb-r/issues/2815)).
-
-- Run coverage checks after pkgdown push.
-
-### Documentation
-
-- State the goals and non-goals
-  ([\#2731](https://github.com/duckdb/duckdb-r/issues/2731)).
-
-- Correct the handbook where the pre-release review found it wrong
-  ([\#2824](https://github.com/duckdb/duckdb-r/issues/2824)).
-
-#### connections
-
-- Say in [`?duckdb`](https://r.duckdb.org/reference/duckdb.md) what else
-  keeps an instance open, and that one process can open a file twice
-  ([\#2823](https://github.com/duckdb/duckdb-r/issues/2823)).
-
-### Performance
-
-- Release ALTREP query result after materialization & transformation
-  ([@toppyy](https://github.com/toppyy),
-  [\#1027](https://github.com/duckdb/duckdb-r/issues/1027)).
-
-### Testing
-
-- Compare the `POSIXct` literal round trip exactly, and cover instants
-  before 1970
-  ([\#2826](https://github.com/duckdb/duckdb-r/issues/2826)).
-
-### Uncategorized
-
-- Feat(ci): Render `README.md` and `index.md` in CI
-  (cynkra/cynkratemplate#118).
-
-## duckdb 1.5.5.9028
-
-### Bug fixes
-
-#### rcc
-
-- Seed the in-window record the consolidation check asserts on
-  ([\#2809](https://github.com/duckdb/duckdb-r/issues/2809)).
-
-- `check_tz()` reads the Olson list again when `TZDIR` changes
-  ([\#2810](https://github.com/duckdb/duckdb-r/issues/2810)).
-
-- [`dbClearResult()`](https://dbi.r-dbi.org/reference/dbClearResult.html)
-  ends the query of an Arrow stream not read to the end
+  ([\#2784](https://github.com/duckdb/duckdb-r/issues/2784),
+  [\#2825](https://github.com/duckdb/duckdb-r/issues/2825)), and ends
+  the query of an Arrow stream that was not read to the end
   ([\#2793](https://github.com/duckdb/duckdb-r/issues/2793)).
 
-#### series-glue
+#### Arrow
 
-- Read the section under every spelling the folds gave it
-  ([\#2746](https://github.com/duckdb/duckdb-r/issues/2746)).
-
-- Keep `rapi_error_with_context()` out of R while an ALTREP method is on
-  the stack ([\#1796](https://github.com/duckdb/duckdb-r/issues/1796),
-  [\#1797](https://github.com/duckdb/duckdb-r/issues/1797)).
-
-### Features
-
-- Include rfuns extension (hannes/duckdb-rfuns#78,
-  [\#144](https://github.com/duckdb/duckdb-r/issues/144)).
-
-#### series-cutover
-
-- Name the package versions before and after the swap
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2697](https://github.com/duckdb/duckdb-r/issues/2697)).
-
-#### series-port
-
-- Take the stage-3 finding when the buffer minted nothing
-  ([\#2710](https://github.com/duckdb/duckdb-r/issues/2710)).
-
-### Documentation
-
-#### meta
-
-- Record that an experiment renders its R output as a reprex
-  ([\#2778](https://github.com/duckdb/duckdb-r/issues/2778)).
-
-- Experiment with an
-  [`arrow::to_arrow()`](https://arrow.apache.org/docs/r/reference/to_arrow.html)
-  replacement on
-  [`dbGetQueryArrow()`](https://dbi.r-dbi.org/reference/dbGetQueryArrow.html)
-  ([\#2801](https://github.com/duckdb/duckdb-r/issues/2801)).
-
-#### series-port
-
-- Name the `-x` trailer where a firing writes its own message
-  ([\#2780](https://github.com/duckdb/duckdb-r/issues/2780)).
-
-#### rcc
-
-- Say plainly that the verdict store is live, plan its retirement as D6,
-  and sync the buffer’s tooling
-  ([\#2625](https://github.com/duckdb/duckdb-r/issues/2625)).
-
-### Refactoring
-
-- Rename the `streaming` convert option to `allow_stream_result`
-  ([\#2599](https://github.com/duckdb/duckdb-r/issues/2599)).
-
-### Uncategorized
-
-- Feat(ci): Report coverage on pull requests from this repository
-  (cynkra/cynkratemplate#146).
-
-- Feat: Build a binary package in every check job and share it as an
-  artifact (cynkra/cynkratemplate#141).
-
-- Fix(ci): Collect the fleet’s workflow fixes after the move to central
-  actions (cynkra/cynkratemplate#139).
-
-## duckdb 1.5.5.9027
-
-### Bug fixes
-
-- [`dbClearResult()`](https://dbi.r-dbi.org/reference/dbClearResult.html)
-  frees the results of a multi-row bind that were not read yet
-  ([\#2784](https://github.com/duckdb/duckdb-r/issues/2784)).
-
-- An Arrow stream keeps its connection’s client context alive
+- Reading an Arrow stream that another statement invalidated is an
+  error, not the end of the stream
+  ([\#2775](https://github.com/duckdb/duckdb-r/issues/2775)), and an
+  Arrow stream keeps its connection’s client context alive
   ([\#2790](https://github.com/duckdb/duckdb-r/issues/2790)).
 
-- [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
-  and
-  [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
-  refuse a cleared result
-  ([\#2785](https://github.com/duckdb/duckdb-r/issues/2785)).
-
-- Each
+- [`dbFetchArrowChunk()`](https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html)
+  builds the final empty chunk for `LIST` and `INTERVAL` columns
+  ([\#2774](https://github.com/duckdb/duckdb-r/issues/2774)), and each
   [`dbFetchArrowChunk()`](https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html)
   and
   [`dbFetchArrow()`](https://dbi.r-dbi.org/reference/dbFetchArrow.html)
   call uses its own `chunk_size`
   ([\#2791](https://github.com/duckdb/duckdb-r/issues/2791)).
 
-#### patch
-
-- Pass the instance-cache counts to the exception without a cast
-  ([\#2779](https://github.com/duckdb/duckdb-r/issues/2779)).
-
-- [`dbFetchArrowChunk()`](https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html)
-  builds the final empty chunk for LIST and INTERVAL columns
-  ([\#2773](https://github.com/duckdb/duckdb-r/issues/2773),
-  [\#2774](https://github.com/duckdb/duckdb-r/issues/2774)).
-
-- Reading an Arrow stream that another statement invalidated is an
-  error, not the end of the stream
-  ([\#2772](https://github.com/duckdb/duckdb-r/issues/2772),
-  [\#2773](https://github.com/duckdb/duckdb-r/issues/2773),
-  [\#2775](https://github.com/duckdb/duckdb-r/issues/2775)).
-
-#### connections
-
-- Normalize a database path only as far as it resolves
-  ([\#455](https://github.com/duckdb/duckdb-r/issues/455),
-  [\#2623](https://github.com/duckdb/duckdb-r/issues/2623)).
-
-#### sql
-
-- Keep sub-second precision in a `POSIXct` literal
-  ([\#2763](https://github.com/duckdb/duckdb-r/issues/2763)).
-
-### Features
-
-- Keep the columns of an Arrow query result for its schema and an empty
-  batch ([\#2781](https://github.com/duckdb/duckdb-r/issues/2781)).
-
-#### patch
-
-- Carry the instance-cache fix, and the evidence for its shape
-  ([\#2759](https://github.com/duckdb/duckdb-r/issues/2759)).
-
-### Documentation
-
-- Say what a second read of an Arrow stream and a scan on its own
-  connection do
-  ([\#2794](https://github.com/duckdb/duckdb-r/issues/2794)).
-
-#### glue
-
-- State which engine object each DBI object wraps, refuse a context per
-  result, and plan `dbConnect(con)`
-  ([\#2783](https://github.com/duckdb/duckdb-r/issues/2783)).
-
-### Refactoring
-
-- Guard a result through one helper on each side of the glue, and clear
-  test results before the fixture disconnects
-  ([\#2800](https://github.com/duckdb/duckdb-r/issues/2800)).
-
-- Give `the`, the package’s session state, a file of its own
-  ([\#2787](https://github.com/duckdb/duckdb-r/issues/2787)).
-
-- Move the Arrow result export from `statement.cpp` to
-  `arrow_export.cpp`
-  ([\#2776](https://github.com/duckdb/duckdb-r/issues/2776)).
+- [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  and
+  [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  refuse a cleared result, as the other result methods do
+  ([\#2785](https://github.com/duckdb/duckdb-r/issues/2785),
+  [\#2821](https://github.com/duckdb/duckdb-r/issues/2821)).
 
 ### Performance
 
-- `check_tz()` reads the Olson list once per session
-  ([\#2786](https://github.com/duckdb/duckdb-r/issues/2786)).
+- Release the ALTREP query result after materialization and
+  transformation ([@toppyy](https://github.com/toppyy),
+  [\#1027](https://github.com/duckdb/duckdb-r/issues/1027)).
 
-## duckdb 1.5.5.9026
-
-### Chore
-
-#### flavor
-
-- Keep `scripts/flavor.patch` applicable, and check that it is
-  ([\#2647](https://github.com/duckdb/duckdb-r/issues/2647),
-  [\#2767](https://github.com/duckdb/duckdb-r/issues/2767)).
+- The list of valid time zones is read once per session, and again when
+  `TZDIR` changes
+  ([\#2786](https://github.com/duckdb/duckdb-r/issues/2786),
+  [\#2810](https://github.com/duckdb/duckdb-r/issues/2810)).
 
 ### Documentation
 
-#### memory
-
-- Describe a query’s memory end to end, in leaves for the budget,
-  reading, and writing
-  ([\#1065](https://github.com/duckdb/duckdb-r/issues/1065),
-  [\#2666](https://github.com/duckdb/duckdb-r/issues/2666)).
-
-## duckdb 1.5.5.9025
-
-### Bug fixes
-
-#### preview-prefix
-
-- Report no prefix owed for a line a release already names
-  ([\#2762](https://github.com/duckdb/duckdb-r/issues/2762)).
-
-#### driver
-
-- [`dbIsValid()`](https://dbi.r-dbi.org/reference/dbIsValid.html) on a
-  driver object no longer connects to the database
-  ([\#2754](https://github.com/duckdb/duckdb-r/issues/2754)).
-
-### Chore
-
-- Point the shared handbook pages at `cynkra/handbook-tools` and carry
-  its checks ([\#2758](https://github.com/duckdb/duckdb-r/issues/2758)).
-
-## duckdb 1.5.5.9024
-
-### Bug fixes
-
-#### series-advance
-
-- Write the `R-side fix` header a `--dev-note` did not bring
-  ([\#2752](https://github.com/duckdb/duckdb-r/issues/2752)).
-
-#### gc
-
-- Own every R value across the allocations that build it
-  ([\#2750](https://github.com/duckdb/duckdb-r/issues/2750),
-  [\#2753](https://github.com/duckdb/duckdb-r/issues/2753)).
-
-#### series-port
-
-- Refuse to sync from a `main` the fork has not mirrored yet
-  ([\#2747](https://github.com/duckdb/duckdb-r/issues/2747)).
-
-### Documentation
-
-- Break lines at meaning boundaries
-  ([\#2730](https://github.com/duckdb/duckdb-r/issues/2730)).
-
-- Name the shared README output format
-  ([\#2729](https://github.com/duckdb/duckdb-r/issues/2729)).
-
-## duckdb 1.5.5.9023
-
-### Bug fixes
-
-#### ci
-
-- Align every workflow reference with where the actions now live
-  ([\#2745](https://github.com/duckdb/duckdb-r/issues/2745)).
-
-#### ci
-
-- Point the two duckdb-r workflows at the relocated actions
-  ([\#2743](https://github.com/duckdb/duckdb-r/issues/2743)).
-
-#### series-open
-
-- Stamp the preview prefix on both series, not just the parent
-  ([\#2744](https://github.com/duckdb/duckdb-r/issues/2744)).
-
-### Features
-
-#### series
-
-- Declare the flavors once, and generate what says so
-  ([\#2742](https://github.com/duckdb/duckdb-r/issues/2742)).
-
-#### preview-prefix
-
-- Stamp the parent’s new prefix at the branch cut
-  ([\#2740](https://github.com/duckdb/duckdb-r/issues/2740)).
-
-### Documentation
-
-#### ci
-
-- Point at the actions where they live now
-  ([\#2741](https://github.com/duckdb/duckdb-r/issues/2741)).
-
-## duckdb 1.5.5.9022
-
-### Bug fixes
-
-#### series
-
-- Two ref-hygiene fixes the 2026-09-13 firing paid by hand
-  ([\#2737](https://github.com/duckdb/duckdb-r/issues/2737)).
-
-#### series-advance
-
-- Drop a replayed pick whose conflict resolves to nothing
-  ([\#2734](https://github.com/duckdb/duckdb-r/issues/2734)).
-
-#### build
-
-- Add the types header `src/cpp11.dd` still omits
-  ([\#2732](https://github.com/duckdb/duckdb-r/issues/2732)).
-
-#### series-port
-
-- Skip what `main` merged for its ancestry alone
-  ([\#2725](https://github.com/duckdb/duckdb-r/issues/2725)).
-
-#### build
-
-- Give the glue the cpp11 dependencies its `.dd` files never gained
-  ([\#2719](https://github.com/duckdb/duckdb-r/issues/2719)).
-
-#### versioning
-
-- Decide the preview prefix by the release, not by the branch
-  ([\#2720](https://github.com/duckdb/duckdb-r/issues/2720)).
-
-#### flavor
-
-- Make the rename patch apply exactly, without fuzz or offset
-  ([\#2718](https://github.com/duckdb/duckdb-r/issues/2718)).
-
-#### series-glue
-
-- Anchor a series’ span on its seed, not on the merge base with `main`
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2715](https://github.com/duckdb/duckdb-r/issues/2715)).
-
-#### series
-
-- Give every `series-*` script the same arguments
-  ([\#2709](https://github.com/duckdb/duckdb-r/issues/2709)).
-
-### Features
-
-#### series-open
-
-- An opening is a cut, and both lines are forwarded after it
-  ([\#2736](https://github.com/duckdb/duckdb-r/issues/2736)).
-
-#### series
-
-- Mirror `<S>-green` into the canonical repository
-  ([\#2733](https://github.com/duckdb/duckdb-r/issues/2733)).
-
-- Preserve DuckDB’s structured error fields through the rethrow
-  ([\#2711](https://github.com/duckdb/duckdb-r/issues/2711),
-  [\#2714](https://github.com/duckdb/duckdb-r/issues/2714)).
-
-### Chore
-
-- Remove Copilot setup steps.
-
-- Record the v1.1.3-2 tag on the mainline
-  ([\#2713](https://github.com/duckdb/duckdb-r/issues/2713)).
-
-- Update vendored cpp11, move under `src/` and move `duckdb_types.hpp`
-  into private space
-  ([\#2501](https://github.com/duckdb/duckdb-r/issues/2501),
-  [\#2649](https://github.com/duckdb/duckdb-r/issues/2649)).
-
-### Continuous integration
-
-- Include checks for older versions of Windows
-  ([\#109](https://github.com/duckdb/duckdb-r/issues/109),
-  [\#113](https://github.com/duckdb/duckdb-r/issues/113),
-  [\#120](https://github.com/duckdb/duckdb-r/issues/120)).
-
-- Align with cynkratemplate.
-
-### Documentation
-
-#### readme
-
-- Announce the v2.0-cyanoptera series, and link each flavor to
-  r-universe ([\#2728](https://github.com/duckdb/duckdb-r/issues/2728)).
-
-#### versioning
-
-- Say what the preview prefix buys, and what a patch release does to a
-  version ([\#2723](https://github.com/duckdb/duckdb-r/issues/2723)).
-
-#### branches
-
-- Retire the `dev`/`dev-base` layout and the RESET state it served
-  ([\#2716](https://github.com/duckdb/duckdb-r/issues/2716)).
-
-#### series-open
-
-- Say where to ask for the r-universe registration
-  ([\#2722](https://github.com/duckdb/duckdb-r/issues/2722)).
-
-#### plan
-
-- Record what driving the v2.0 opening established
-  ([\#2721](https://github.com/duckdb/duckdb-r/issues/2721)).
-
-#### series-open
-
-- Derive a new series from the line another series already vendors, and
-  plan the v2.0 opening
-  ([\#2704](https://github.com/duckdb/duckdb-r/issues/2704)).
-
-#### versioning
-
-- Give a preview line the fledge prefix of the line it previews
-  ([\#2703](https://github.com/duckdb/duckdb-r/issues/2703)).
-
-#### revdep
-
-- Name `revdep4` as the route a reverse-dependency check takes
-  ([\#2702](https://github.com/duckdb/duckdb-r/issues/2702)).
-
-### Uncategorized
-
-- Refactor(ci): Serve the actions from this repository instead of
-  copying them (cynkra/cynkratemplate#121).
-
-- Fix(ci): Keep the raw name expression out of the running job’s step
-  list (cynkra/cynkratemplate#119).
-
-- Fix(fledge): Push the bump to the default branch wherever that is
-  allowed (cynkra/cynkratemplate#117).
-
-- Fix(ci): Make a failing `rcc` run say what failed, and link to it
-  (cynkra/cynkratemplate#115).
-
-- Fix(ci): Exempt deprecation warnings from the roxygenize warning gate
-  (cynkra/cynkratemplate#114).
-
-## duckdb 1.5.5.9021
-
-### Bug fixes
-
-#### series-port
-
-- Count only what `main` does not have under the seed
-  ([\#2707](https://github.com/duckdb/duckdb-r/issues/2707)).
-
-#### series
-
-- Say which argument is a remote and which is a path
-  ([\#2685](https://github.com/duckdb/duckdb-r/issues/2685)).
-
-#### series
-
-- Stop counting a buffer commit stage 5 would drop as empty
-  ([\#2682](https://github.com/duckdb/duckdb-r/issues/2682)).
-
-#### vendor
-
-- Read the version upstream `main` would stamp, and refuse a shallow
-  clone ([\#2683](https://github.com/duckdb/duckdb-r/issues/2683)).
-
-#### series
-
-- Name a file the tooling sync deletes and something still calls
-  ([\#2695](https://github.com/duckdb/duckdb-r/issues/2695)).
-
-#### series-converge
-
-- Explain `README.Rmd` alongside the READMEs knitted from it
-  ([\#2699](https://github.com/duckdb/duckdb-r/issues/2699)).
-
-#### patch
-
-- Three vendored fixes for the clang23 and R-devel flavors
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2698](https://github.com/duckdb/duckdb-r/issues/2698)).
-
-#### flavor
-
-- Refresh the README.Rmd hunk the patch no longer matched
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2700](https://github.com/duckdb/duckdb-r/issues/2700)).
-
-#### build
-
-- Ship the `MAKEFLAGS` helper in the tarball, and refuse a value that is
-  not `-jN` ([\#2678](https://github.com/duckdb/duckdb-r/issues/2678)).
-
-- Declare `adbcdrivermanager` as `Enhances`, installed from
-  `Additional_repositories`
-  ([\#2687](https://github.com/duckdb/duckdb-r/issues/2687)).
-
-### Features
-
-#### pull-config
-
-- Derive the fork’s mirror rules from the badges that read them
-  ([\#2696](https://github.com/duckdb/duckdb-r/issues/2696)).
-
-#### series-check
-
-- Report an upstream release line that no series serves
-  ([\#2686](https://github.com/duckdb/duckdb-r/issues/2686)).
-
-#### docs-consistency
-
-- Catch the drift classes a full review found by hand
-  ([\#2668](https://github.com/duckdb/duckdb-r/issues/2668)).
-
-#### series
-
-- Write a stage-3 finding into the commit stage 5 mints
-  ([\#2684](https://github.com/duckdb/duckdb-r/issues/2684)).
-
-#### ci
-
-- Align the `revdep2`, `revdep4` and `revdepx` subsystems with
-  `rigraph`.
-
-### Chore
-
-- Change maintainer
-  ([\#112](https://github.com/duckdb/duckdb-r/issues/112)).
-
-#### skills
-
-- Make the series playbooks real skills, and describe them
-  ([\#2706](https://github.com/duckdb/duckdb-r/issues/2706)).
-
-### Continuous integration
-
-- Track revdep4 run (most, depth 1) before merging to main
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2701](https://github.com/duckdb/duckdb-r/issues/2701)).
-
-- Install dependencies from `Additional_repositories` in the shared
-  action ([\#2688](https://github.com/duckdb/duckdb-r/issues/2688)).
-
-### Documentation
-
-#### series-loop
-
-- Hand over a due cutover as a block, not as one line
-  ([\#2708](https://github.com/duckdb/duckdb-r/issues/2708)).
-
-#### handbook
-
-- Repair drift found by a cover-to-cover review
-  ([\#2667](https://github.com/duckdb/duckdb-r/issues/2667)).
-
-#### series-open
-
-- Give the fork’s mirror configuration a step of its own
-  ([\#2694](https://github.com/duckdb/duckdb-r/issues/2694)).
-
-### Performance
-
-#### revdepx
-
-- Compile the revdeps’ checks through ccache
-  ([@krlmlr](https://github.com/krlmlr),
-  [\#2691](https://github.com/duckdb/duckdb-r/issues/2691)).
-
-### Uncategorized
-
-- Ci: Fail the roxygenize step on roxygen2 warnings
-  ([\#111](https://github.com/duckdb/duckdb-r/issues/111)).
-
-## duckdb 1.5.5.9020
-
-### Bug fixes
-
-#### rcc
-
-- Run the testsuite when `rcc-one.sh` runs outside Actions
-  ([\#2669](https://github.com/duckdb/duckdb-r/issues/2669)).
-
-#### rcc
-
-- Tell a missing `clang-format` apart from a misformatted tree
-  ([\#2671](https://github.com/duckdb/duckdb-r/issues/2671)).
-
-#### flavor
-
-- Run the flavor-rename guard where it can actually fire
-  ([\#2676](https://github.com/duckdb/duckdb-r/issues/2676)).
-
-#### vendor
-
-- Refuse an upstream clone that cannot name a version
-  ([\#2677](https://github.com/duckdb/duckdb-r/issues/2677)).
-
-#### vendor
-
-- Say how a retired patch reaches the vendor commit
-  ([\#2679](https://github.com/duckdb/duckdb-r/issues/2679)).
-
-#### series
-
-- Report what stage 5 added, not what it set out to add
-  ([\#2680](https://github.com/duckdb/duckdb-r/issues/2680)).
-
-#### ci
-
-- Backport kit fixes from `rigraph`, `duckdb-r` and `dm`.
-
-## duckdb 1.5.5.9019
-
-### Bug fixes
-
-#### series
-
-- Register the `ours-version` driver before refusing over it
-  ([\#2665](https://github.com/duckdb/duckdb-r/issues/2665)).
-
-#### series
-
-- Read every universe that publishes a green, not just `duckdb`
-  ([\#2670](https://github.com/duckdb/duckdb-r/issues/2670)).
-
-### Documentation
-
-#### meta
-
-- Make `authoring/` obey itself, name evidence in the rules, and refresh
-  the `meta/` node
-  ([\#2673](https://github.com/duckdb/duckdb-r/issues/2673)).
-
-## duckdb 1.5.5.9018
-
-### Documentation
-
-#### meta
-
-- Consolidate the authoring rules, and split recorded evidence into its
-  own leaf ([\#2672](https://github.com/duckdb/duckdb-r/issues/2672)).
-
-## duckdb 1.5.5.9017
-
-### Bug fixes
-
-#### series
-
-- Make the `ours-version` driver reach the clone that needs it
-  ([\#2663](https://github.com/duckdb/duckdb-r/issues/2663)).
-
-### Features
-
-#### series
-
-- Explain the flavor surface in the convergence check
-  ([\#2661](https://github.com/duckdb/duckdb-r/issues/2661)).
-
-## duckdb 1.5.5.9016
-
-### Bug fixes
-
-#### series
-
-- Refuse to replay when the `ours-version` merge driver is missing
-  ([\#2659](https://github.com/duckdb/duckdb-r/issues/2659)).
-
-#### series-check
-
-- Classify an `R CMD check` gate failure instead of giving up on it
-  ([\#2653](https://github.com/duckdb/duckdb-r/issues/2653)).
-
-#### series-advance
-
-- Carry the twin’s work in a file the buffer also touched
-  ([\#2657](https://github.com/duckdb/duckdb-r/issues/2657)).
-
-### Features
-
-#### series
-
-- Keep forwarding a base series with a live `-fwd`, and check the two
-  converge ([\#2658](https://github.com/duckdb/duckdb-r/issues/2658)).
-
-## duckdb 1.5.5.9015
-
-### Bug fixes
-
-#### ci
-
-- Give the warning gate its own flags, and skip what a dropped
-  `Suggests` cannot support
-  ([\#2652](https://github.com/duckdb/duckdb-r/issues/2652)).
-
-## duckdb 1.5.5.9014
-
-### Bug fixes
-
-#### testing
-
-- Read a double-digit patch release as a release, and say that air runs
-  here ([\#2638](https://github.com/duckdb/duckdb-r/issues/2638)).
-
-#### glue
-
-- Drop the semicolon after two namespace closings
-  ([\#2645](https://github.com/duckdb/duckdb-r/issues/2645)).
-
-#### patch
-
-- Make the vendored tree compile without warnings
-  ([\#2617](https://github.com/duckdb/duckdb-r/issues/2617)).
-
-#### vendoring
-
-- Pin the upstream clone’s abbreviation, so a vendored tree is
-  reproducible
-  ([\#2489](https://github.com/duckdb/duckdb-r/issues/2489),
-  [\#2631](https://github.com/duckdb/duckdb-r/issues/2631)).
-
-#### vendoring
-
-- Say when the glue check could not run, instead of blaming the glue
-  ([\#2513](https://github.com/duckdb/duckdb-r/issues/2513),
-  [\#2629](https://github.com/duckdb/duckdb-r/issues/2629)).
-
-#### scripts
-
-- Let `BASE_SCAN_DEPTH` raise the base scan in all four scanners
-  ([\#2512](https://github.com/duckdb/duckdb-r/issues/2512),
-  [\#2628](https://github.com/duckdb/duckdb-r/issues/2628)).
-
-#### rfuns
-
-- Unshadow two locals
-  ([\#2612](https://github.com/duckdb/duckdb-r/issues/2612)).
-
-#### dbplyr
-
-- Render
-  [`n_distinct()`](https://dplyr.tidyverse.org/reference/n_distinct.html)
-  through the exported `sql_glue()`, and warn on an older dbplyr
-  ([\#1982](https://github.com/duckdb/duckdb-r/issues/1982),
-  [\#2605](https://github.com/duckdb/duckdb-r/issues/2605)).
-
-#### glue
-
-- Drop a stray semicolon after a constructor body
-  ([\#2610](https://github.com/duckdb/duckdb-r/issues/2610)).
-
-#### glue
-
-- Suffix the one shadowing parameter left in a header
-  ([\#2618](https://github.com/duckdb/duckdb-r/issues/2618)).
-
-#### glue
-
-- Build a `string_t` from R’s `const char*` without a cast
-  ([\#2619](https://github.com/duckdb/duckdb-r/issues/2619)).
-
-#### glue
-
-- Widen to R’s double explicitly when copying a column out
-  ([\#2611](https://github.com/duckdb/duckdb-r/issues/2611)).
-
-#### glue
-
-- Stop casting away `const` on R’s read-only data pointers
-  ([\#2609](https://github.com/duckdb/duckdb-r/issues/2609)).
-
-#### glue
-
-- Suffix constructor parameters that shadow their member
-  ([\#2608](https://github.com/duckdb/duckdb-r/issues/2608)).
-
-#### ci
-
-- Read wrapped Config/gha/extra-packages values, bump auxiliary
-  workflows to ubuntu-26.04
-  ([\#2603](https://github.com/duckdb/duckdb-r/issues/2603)).
-
-#### series
-
-- Keep stage 5 alive when the buffer is longer than the chunk
-  ([\#2602](https://github.com/duckdb/duckdb-r/issues/2602)).
-
-#### scan
-
-- Materialize packed columns on R’s thread, not on the scan’s
-  ([\#2582](https://github.com/duckdb/duckdb-r/issues/2582)).
-
-#### signal
-
-- State the interrupt handler’s invariants where they are used
-  ([\#2598](https://github.com/duckdb/duckdb-r/issues/2598)).
-
-### Features
-
-#### build
-
-- Gate the compiler warnings each scope answers for
-  ([\#1829](https://github.com/duckdb/duckdb-r/issues/1829),
-  [\#2620](https://github.com/duckdb/duckdb-r/issues/2620)).
-
-#### relational
-
-- Remove `allow_materialization` from `rel_to_altrep()`
-  ([\#1052](https://github.com/duckdb/duckdb-r/issues/1052),
-  [\#2643](https://github.com/duckdb/duckdb-r/issues/2643)).
-
-#### connections
-
-- Report instance settings a reused database cannot apply, and avoids
-  treating URL-like paths like files
-  ([\#2560](https://github.com/duckdb/duckdb-r/issues/2560),
-  [\#2641](https://github.com/duckdb/duckdb-r/issues/2641)).
-
-#### build
-
-- Make the prebuilt-engine setup work without privileges
-  ([\#22](https://github.com/duckdb/duckdb-r/issues/22),
-  [\#2622](https://github.com/duckdb/duckdb-r/issues/2622)).
-
-#### dbplyr
-
-- Translate
-  [`clock::date_build()`](https://clock.r-lib.org/reference/date_build.html)
-  and [`difftime()`](https://rdrr.io/r/base/difftime.html)
-  ([\#2621](https://github.com/duckdb/duckdb-r/issues/2621)).
-
-#### series
-
-- Fold the base series’ test-side fixes in as stage 5 consumes the
-  buffer ([\#2594](https://github.com/duckdb/duckdb-r/issues/2594)).
-
-### Chore
-
-- Format with air.
-
-### Documentation
-
-#### build
-
-- Say that a vendored edit does not rebuild itself
-  ([\#2648](https://github.com/duckdb/duckdb-r/issues/2648)).
-
-#### testing
-
-- Give the two undocumented testthat helpers a header
-  ([\#2502](https://github.com/duckdb/duckdb-r/issues/2502),
-  [\#2634](https://github.com/duckdb/duckdb-r/issues/2634)).
-
-#### branches
-
-- Point the invariants’ deepen line at what is missing, not at notes
-  `BRANCHES.md` lacks
-  ([\#2516](https://github.com/duckdb/duckdb-r/issues/2516),
-  [\#2633](https://github.com/duckdb/duckdb-r/issues/2633)).
-
-- Convert the stray Rd spellings in roxygen to Markdown
-  ([\#2616](https://github.com/duckdb/duckdb-r/issues/2616),
-  [\#2635](https://github.com/duckdb/duckdb-r/issues/2635)).
-
-#### style
-
-- Spell out the tidyverse rules R here answers to, and the deviations
-  ([\#2613](https://github.com/duckdb/duckdb-r/issues/2613)).
-
-#### testing
-
-- Say when a snapshot is the right tool, not only how to accept one
-  ([\#2624](https://github.com/duckdb/duckdb-r/issues/2624)).
-
-#### interop
-
-- Say what two limits cost a caller, and pin them
-  ([\#590](https://github.com/duckdb/duckdb-r/issues/590),
-  [\#1064](https://github.com/duckdb/duckdb-r/issues/1064),
-  [\#2600](https://github.com/duckdb/duckdb-r/issues/2600)).
-
-#### authoring
-
-- Cut an entry to the shortest correct statement, and split the rest
-  into a leaf
-  ([\#2604](https://github.com/duckdb/duckdb-r/issues/2604)).
-
-#### dbplyr
-
-- Measure what `DISTINCT ON` would buy, and hand it over anyway
-  ([\#384](https://github.com/duckdb/duckdb-r/issues/384),
-  [\#2601](https://github.com/duckdb/duckdb-r/issues/2601)).
-
-#### handbook
-
-- Close the last three days’ issues into their leaves
-  ([\#2595](https://github.com/duckdb/duckdb-r/issues/2595)).
-
-#### plan
-
-- Design a producer thread for streaming results, with a TPC-H fetch
-  benchmark ([\#2583](https://github.com/duckdb/duckdb-r/issues/2583)).
-
-### Code style
-
-#### clang-format
-
-- Never reorder includes
-  ([\#2642](https://github.com/duckdb/duckdb-r/issues/2642)).
-
-### Refactoring
-
-- Raise every error through `abort()`, so it points at the caller
-  ([\#2615](https://github.com/duckdb/duckdb-r/issues/2615),
-  [\#2637](https://github.com/duckdb/duckdb-r/issues/2637)).
-
-- Extract result data-frame allocation into a helper
-  ([\#2585](https://github.com/duckdb/duckdb-r/issues/2585)).
-
-### Performance
-
-#### vendoring
-
-- Keep git’s stat cache valid across a regeneration of the vendored tree
-  ([\#2490](https://github.com/duckdb/duckdb-r/issues/2490),
-  [\#2632](https://github.com/duckdb/duckdb-r/issues/2632)).
-
-### Uncategorized
-
-- Docs(interactive): Give the interrupt its leaf, and answer
-  [\#202](https://github.com/duckdb/duckdb-r/issues/202) down to the
-  client name
-  ([\#2596](https://github.com/duckdb/duckdb-r/issues/2596)).
-
-## duckdb 1.5.5.9013
-
-### Continuous integration
-
-- Skip arrow if uninstallable.
-
-### Testing
-
-#### storage
-
-- Compare spill paths on one separator spelling
-  ([\#2579](https://github.com/duckdb/duckdb-r/issues/2579)).
-
-## duckdb 1.5.5.9012
-
-### Bug fixes
-
-#### flavor
-
-- Answer rather than error when a series has no `README.Rmd`
-  ([\#2576](https://github.com/duckdb/duckdb-r/issues/2576)).
-
-#### flavor
-
-- Catch a generated README that reached a series under the mainline name
-  ([\#2575](https://github.com/duckdb/duckdb-r/issues/2575)).
-
-- Respect the session `TimeZone` for `TIMESTAMPTZ` columns
-  ([\#2401](https://github.com/duckdb/duckdb-r/issues/2401)).
-
-#### storage
-
-- Make temporary storage usable by default, with the CLI’s semantics
-  ([\#1604](https://github.com/duckdb/duckdb-r/issues/1604),
-  [\#2562](https://github.com/duckdb/duckdb-r/issues/2562)).
-
-### Continuous integration
-
-- Wrap the commit status update into an action.
-
-- Route ccache through one-word compiler wrappers on Unix.
-
-- Add context for cherry-picking.
-
-- Route ccache through one-word compiler wrappers on Unix.
-
-- Name every step and restore the log entry `setup-pandoc` swallows.
-
-### Documentation
-
-#### handbook
-
-- Give timestamps and time zones their own leaf
-  ([\#2567](https://github.com/duckdb/duckdb-r/issues/2567)).
-
-#### handbook
-
-- Prefer durable storage for hard-to-reproduce experiment results
-  ([\#2564](https://github.com/duckdb/duckdb-r/issues/2564)).
-
-### Refactoring
-
-#### rcc
-
-- Cut the store’s automatic writers down to the leg’s own publish
-  ([\#2578](https://github.com/duckdb/duckdb-r/issues/2578)).
-
-### Testing
-
-#### explain
-
-- Skip Windows inside each `test_that()` so the snapshot survives
-  ([\#2577](https://github.com/duckdb/duckdb-r/issues/2577)).
-
-## duckdb 1.5.5.9011
-
-### Bug fixes
-
-#### readme
-
-- Vendor the DuckDB logos, and write two READMEs from one source
-  ([\#2517](https://github.com/duckdb/duckdb-r/issues/2517),
-  [\#2518](https://github.com/duckdb/duckdb-r/issues/2518),
-  [\#2558](https://github.com/duckdb/duckdb-r/issues/2558)).
-
-#### flavor
-
-- Catch a renamed file that reached a series under its mainline name
-  ([\#2559](https://github.com/duckdb/duckdb-r/issues/2559)).
-
-#### storage
-
-- Anchor the `~/.duckdb` consent default at
-  [`interactive()`](https://rdrr.io/r/base/interactive.html)
-  ([\#2550](https://github.com/duckdb/duckdb-r/issues/2550)).
-
-#### series-advance
-
-- Set `-build-base`, rather than advance it
-  ([\#2540](https://github.com/duckdb/duckdb-r/issues/2540)).
-
-#### patch
-
-- Fix the re2 clang warnings instead of hiding them
-  ([\#2492](https://github.com/duckdb/duckdb-r/issues/2492)).
-
-#### series-advance
-
-- Clamp the replay anchor to the merge base
-  ([\#2548](https://github.com/duckdb/duckdb-r/issues/2548)).
-
-#### rcc
-
-- Fetch the record a publish replaces, so a retry’s verdict can land
-  ([\#2547](https://github.com/duckdb/duckdb-r/issues/2547)).
-
-#### rcc
-
-- Stop the backstop recording a `pending` status as a verdict
-  ([\#2544](https://github.com/duckdb/duckdb-r/issues/2544)).
-
-#### ci
-
-- Let `adbcdrivermanager` fail to build on Windows arm64
-  ([\#2539](https://github.com/duckdb/duckdb-r/issues/2539)).
-
-### Documentation
-
-#### handbook
-
-- Record the untyped-`NULL` mapping as designed, declining the flip to
-  logical `NA` ([\#155](https://github.com/duckdb/duckdb-r/issues/155),
-  [\#2561](https://github.com/duckdb/duckdb-r/issues/2561)).
-
-#### integrations
-
-- Answer the frame-library request, Arrow and non-Arrow
-  ([\#642](https://github.com/duckdb/duckdb-r/issues/642),
-  [\#2557](https://github.com/duckdb/duckdb-r/issues/2557)).
-
-#### statements
-
-- Move the multi-statement prepare rule to the leaf that owns it
-  ([\#179](https://github.com/duckdb/duckdb-r/issues/179),
-  [\#2555](https://github.com/duckdb/duckdb-r/issues/2555)).
-
-#### connections
-
-- State where the instance’s settings bind, and both ways
-  [`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) gets
-  them wrong ([\#83](https://github.com/duckdb/duckdb-r/issues/83),
-  [\#171](https://github.com/duckdb/duckdb-r/issues/171),
-  [\#2553](https://github.com/duckdb/duckdb-r/issues/2553)).
-
-#### data-import
-
-- Say what a virtual `filename` column changes
-  ([\#1733](https://github.com/duckdb/duckdb-r/issues/1733),
-  [\#2556](https://github.com/duckdb/duckdb-r/issues/2556)).
-
-#### types
-
-- Give the geometry write side its route, not just its absence
-  ([\#1670](https://github.com/duckdb/duckdb-r/issues/1670),
-  [\#2552](https://github.com/duckdb/duckdb-r/issues/2552)).
-
-#### types
-
-- State the UTF-8 repair that works, not the one that looks like it
-  ([\#12](https://github.com/duckdb/duckdb-r/issues/12),
-  [\#2551](https://github.com/duckdb/duckdb-r/issues/2551)).
-
-- Review DuckDB API usage in the glue code and assess a C API migration
-  ([\#2413](https://github.com/duckdb/duckdb-r/issues/2413)).
-
-#### branches
-
-- State the mirrors’ cadence, now that `krlmlr/duckdb-r` is a fork
-  ([\#2494](https://github.com/duckdb/duckdb-r/issues/2494),
-  [\#2542](https://github.com/duckdb/duckdb-r/issues/2542)).
-
-- An entry that wraps its subject applies everywhere, so applying proves
-  nothing ([\#2546](https://github.com/duckdb/duckdb-r/issues/2546)).
-
-- Record the August 2026 forward, and turn the cpp11 gap it walked into
-  into a check
-  ([\#2545](https://github.com/duckdb/duckdb-r/issues/2545),
-  [\#2543](https://github.com/duckdb/duckdb-r/issues/2543)).
-
-### Refactoring
-
-#### series-loop
-
-- Read verdicts from the `each-rcc` runs, keep `rcc2` as the fallback
-  ([\#2549](https://github.com/duckdb/duckdb-r/issues/2549)).
-
-## duckdb 1.5.5.9010
-
-### Bug fixes
-
-#### tests
-
-- Expect the extension install to fail where DuckDB does not cover the
-  platform ([\#2425](https://github.com/duckdb/duckdb-r/issues/2425),
-  [\#2529](https://github.com/duckdb/duckdb-r/issues/2529)).
-
-### Features
-
-- Mirror the fork’s branches with the Pull app, and drop `sync.yaml`
-  ([\#2534](https://github.com/duckdb/duckdb-r/issues/2534)).
-
-#### rcc
-
-- Move the verdict store to `rcc2`, one file per commit
-  ([\#2505](https://github.com/duckdb/duckdb-r/issues/2505)).
-
-### Chore
-
-- Increase retention to 180 days \[ci skip\].
-
-### Continuous integration
-
-- Add sharded `revdep2` workflow.
-
-### Documentation
-
-#### extensions
-
-- Close the remaining gaps the extension issues map to
-  ([\#2425](https://github.com/duckdb/duckdb-r/issues/2425),
-  [\#2536](https://github.com/duckdb/duckdb-r/issues/2536)).
-
-#### handbook
-
-- Record the Windows extension-coverage boundaries the issues keep
-  re-finding ([\#2530](https://github.com/duckdb/duckdb-r/issues/2530)).
-
-### Testing
-
-#### extensions
-
-- Drop the duplicate platform skip that made the canary unreachable
-  ([\#2537](https://github.com/duckdb/duckdb-r/issues/2537)).
-
-#### extensions
-
-- Skip the install test where DuckDB publishes no binaries, and pin the
-  gap ([\#2535](https://github.com/duckdb/duckdb-r/issues/2535)).
-
-### Uncategorized
-
-- Ci: Harden `workflow_run` workflows against untrusted pull requests
-  ([\#106](https://github.com/duckdb/duckdb-r/issues/106)).
-
-- Ci: Pin third-party actions to commits and let Renovate keep them
-  pinned ([\#105](https://github.com/duckdb/duckdb-r/issues/105)).
-
-## duckdb 1.5.5.9009
-
-### Bug fixes
-
-#### flavor
-
-- Name the flavor in the README blurb, and find GNU sed
-  ([\#2510](https://github.com/duckdb/duckdb-r/issues/2510)).
-
-### Continuous integration
-
-- Remove unused pr-commands workflow.
-
-### Documentation
-
-#### plan
-
-- Record what the closed handbook wave verified, and file what it should
-  not have written down
-  ([\#2507](https://github.com/duckdb/duckdb-r/issues/2507)).
-
-#### handbook
-
-- Weigh documenting a limitation against removing it
-  ([\#2509](https://github.com/duckdb/duckdb-r/issues/2509)).
-
-#### handbook
-
-- Complete the leaves the triage closes will link
-  ([\#2523](https://github.com/duckdb/duckdb-r/issues/2523)).
-
-### Uncategorized
-
-- Ci: Pass workflow context through the environment, not into script
-  text ([\#102](https://github.com/duckdb/duckdb-r/issues/102)).
-
-- Ci: Add a Windows arm64 (`windows-11-arm`) check on R-release
-  ([\#99](https://github.com/duckdb/duckdb-r/issues/99)).
-
-## duckdb 1.5.5.9008
-
-### Bug fixes
-
-#### series-advance
-
-- Restamp the vendor counter across a replay
-  ([\#2525](https://github.com/duckdb/duckdb-r/issues/2525)).
-
-#### series-port
-
-- Hold `main`’s version bumps back from a series
-  ([\#2496](https://github.com/duckdb/duckdb-r/issues/2496),
-  [\#2526](https://github.com/duckdb/duckdb-r/issues/2526)).
-
-#### windows
-
-- Export only the registration entry point from the DLL.
-
-#### vendor-one
-
-- Refuse a clone HEAD off the buffer’s upstream line.
-
-#### series-advance
-
-- Drop an empty replay pick instead of aborting the extend.
-
-### Chore
-
-- Drop the CMake scaffolding, and the formatter branch that served it
-  ([\#2511](https://github.com/duckdb/duckdb-r/issues/2511),
-  [\#2520](https://github.com/duckdb/duckdb-r/issues/2520)).
-
-- Auto-update from GitHub Actions
-  ([\#2524](https://github.com/duckdb/duckdb-r/issues/2524)).
-
-### Documentation
-
-#### versioning
-
-- Record the declined max-across-prefixes merge rule
-  ([\#2488](https://github.com/duckdb/duckdb-r/issues/2488),
-  [\#2527](https://github.com/duckdb/duckdb-r/issues/2527)).
-
-#### versioning
-
-- Say when the version counter freezes, and why `build-base` lags.
-
-#### series-loop
-
-- Send a fix to the handbook before it is written.
-
-#### series-loop
-
-- Say where a stage-3 fix goes, and what counts as evidence.
-
-### Uncategorized
-
-- Feat(series-port): Detect a frozen series, and let it skip the port
-  ([\#98](https://github.com/duckdb/duckdb-r/issues/98)).
-
-## duckdb 1.5.5.9007
-
-### Bug fixes
-
-#### each
-
-- Fail the plan when green is off the branch’s lineage.
-
-### Features
-
-#### series-loop
-
-- Read r-universe builds, and fix the Windows unity-build break.
-
-### Documentation
-
-- Fix the clone layout, and the README links CRAN cannot follow
-  ([\#2506](https://github.com/duckdb/duckdb-r/issues/2506)).
-
-#### handbook
-
-- Give the tree a way to grow into its blind spots
-  ([\#2504](https://github.com/duckdb/duckdb-r/issues/2504)).
-
-#### handbook
-
-- Add `usage/relational/`, and give duckplyr its own section
-  ([\#2495](https://github.com/duckdb/duckdb-r/issues/2495)).
-
-#### handbook
-
-- Land the MVP — every leaf written, at reference or core depth
-  ([\#2493](https://github.com/duckdb/duckdb-r/issues/2493)).
-
-### Testing
-
-#### progress
-
-- Pin that a handle collected in a callback cannot re-enter.
-
-## duckdb 1.5.5.9006
-
-### Bug fixes
-
-#### vendor
-
-- Drop the dead knobs, classify patch failures, restore the tree on a
-  no-op run ([\#2491](https://github.com/duckdb/duckdb-r/issues/2491)).
-
-### Documentation
-
-#### vendoring
-
-- Fold by default, extend on pending, require a rising vendor counter.
-
-- Write every upward link from the repository root
-  ([\#2458](https://github.com/duckdb/duckdb-r/issues/2458)).
-
-## duckdb 1.5.5.9005
-
-### Bug fixes
-
-#### rcc
-
-- Do not restore the persistent ccache under R-devel
-  ([\#2455](https://github.com/duckdb/duckdb-r/issues/2455)).
-
-#### vendor
-
-- Bound the base scan and say when it comes up empty
-  ([\#2434](https://github.com/duckdb/duckdb-r/issues/2434)).
-
-#### configure
-
-- Drop a stale `Makevars.system-lib` so a vendored build is one
-  ([\#2446](https://github.com/duckdb/duckdb-r/issues/2446)).
-
-#### rconfigure
-
-- Drop bundled jemalloc from the generated source list.
-
-### Features
-
-#### series-loop
-
-- Set the firing up, and make the tooling PR a stage
-  ([\#2441](https://github.com/duckdb/duckdb-r/issues/2441)).
-
-#### each
-
-- Select work from the verdict store, not from statuses
-  ([\#2440](https://github.com/duckdb/duckdb-r/issues/2440)).
-
-#### series
-
-- Make cutover a manual operation the loop only suggests
-  ([\#2449](https://github.com/duckdb/duckdb-r/issues/2449)).
-
-#### series-loop
-
-- Vendor with `main`’s script, into the buffer worktree
-  ([\#2436](https://github.com/duckdb/duckdb-r/issues/2436)).
-
-### Documentation
-
-- Propose the handbook — a strict topic hierarchy with full cover, first
-  two levels ([\#2454](https://github.com/duckdb/duckdb-r/issues/2454)).
-
-#### scripts
-
-- Give every script an extractable one-line header
-  ([\#2453](https://github.com/duckdb/duckdb-r/issues/2453)).
-
-#### readme
-
-- Fix the `duckdb.1.4.dev` badge ranges
-  ([\#2452](https://github.com/duckdb/duckdb-r/issues/2452)).
-
-#### plan
-
-- Mirror the release branches from the fork, not from `sync.yaml`
-  ([\#2450](https://github.com/duckdb/duckdb-r/issues/2450)).
-
-#### readme
-
-- Point the `duckdb.dev` badges at the cut-over `main` series
-  ([\#2451](https://github.com/duckdb/duckdb-r/issues/2451)).
-
-- Quarantine the superseded loop design and the `main-dev` review
-  ([\#2438](https://github.com/duckdb/duckdb-r/issues/2438)).
-
-#### each
-
-- State that there is no running marker, and why
-  ([\#2439](https://github.com/duckdb/duckdb-r/issues/2439)).
-
-### Refactoring
-
-#### series-port
-
-- Let the subject decide what a vendor commit is
-  ([\#2435](https://github.com/duckdb/duckdb-r/issues/2435)).
-
-#### ci
-
-- Retire the legacy per-commit dispatch path
-  ([\#2442](https://github.com/duckdb/duckdb-r/issues/2442)).
-
-### Uncategorized
-
-- Feat(rcc-one): Bound each stage with its own timeout
-  ([\#97](https://github.com/duckdb/duckdb-r/issues/97)).
-
-## duckdb 1.5.5.9004
-
-### Continuous integration
-
-#### each
-
-- Queue the shards oldest first
-  ([\#2445](https://github.com/duckdb/duckdb-r/issues/2445)).
-
-## duckdb 1.5.5.9003
-
-### Bug fixes
-
-#### series-advance
-
-- Register the version merge driver before the replay.
-
-#### series
-
-- Compute the buffer anchor safely, in both scripts.
-
-#### series
-
-- Anchor the buffer replay on `-dev`’s newest vendor commit.
-
-### Features
-
-#### series
-
-- Bring `-dev` level with `main` as a loop stage — identity over
-  curation.
-
-### Documentation
-
-- Add the vendoring simplification plan, doc routing, and lag badges.
-
-- Document cutover.
-
-- Fix badge.
-
-#### readme
-
-- Flesh out the `Flavors` table, document it in `series-open`
-  ([\#2432](https://github.com/duckdb/duckdb-r/issues/2432)).
-
-#### readme
-
-- Add a `Flavors` section with lag badges and a `Documentation` root.
-
-### Refactoring
-
-#### series
-
-- Read the vendored SHA one way, in one helper — and say what decides.
-
-### Uncategorized
-
-- Test(rcc): Stop `git gc` racing the harness’s own clones, and say why
-  a commit checks itself
-  ([\#93](https://github.com/duckdb/duckdb-r/issues/93)).
-
-## duckdb 1.5.5.9002
-
-### Bug fixes
-
-#### rcc
-
-- Make a verdict’s newest writer win, not its slowest.
-
-- Let `series-cutover.sh` create a base series that does not exist yet
-  ([\#2428](https://github.com/duckdb/duckdb-r/issues/2428)).
-
-#### rcc
-
-- Make writes to the `rcc` branch survive a lost race.
-
-#### rcc-one
-
-- Restore the check action’s CRAN-incoming default.
-
-#### vendor-one
-
-- Make the glue gate work again.
-
-### Features
-
-#### vendoring
-
-- Raise the vendoring limit from 25 to 100 commits.
-
-#### rcc
-
-- Publish each commit’s result as its own file, and consolidate the
-  branch by hand.
-
-#### each
-
-- Number shards along the history, and quote failing stages into the run
-  summary ([\#2427](https://github.com/duckdb/duckdb-r/issues/2427)).
-
-#### each
-
-- Rerun one commit with a retry pair, not an amend.
-
-#### each
-
-- Build every commit as a sharded matrix instead of one run per commit.
-
-### Continuous integration
-
-- Replace workflow vendoring with the routine-driven series loop.
-
-- Harvest rcc logs every 30 minutes.
-
-### Documentation
-
-- Space.
-
-#### skills
-
-- Reset `-fwd-green` to the seed on every rebase.
-
-#### skills
-
-- Split rebasing a forward series out of forwarding one.
-
-- A WIP forward series can always be rebased onto current mainline.
-
-- Agentic-loop plan refinements + main-dev review.
-
-- Describe the forbidden forms in `AGENTS.md` instead of spelling them.
-
-#### vendoring
-
-- Dev-branch invariants, the fork-point rule, and a corrected
-  `VENDORING.md`.
-
-### Refactoring
-
-#### each
-
-- Anchor a retry on the series’ green, not a ref of its own.
-
-#### series-forward
-
-- Replay by cherry-pick instead of rebuilding trees.
-
-- Rename the flavor rename from “lts” to “flavor”.
-
-### Performance
-
-#### each
-
-- Rebalance shards across waves instead of capping at `max-parallel`.
-
-#### each
-
-- Split large shards to trade compute for wall clock.
-
-### Testing
-
-- Derive the expected storage home from the package name.
-
-- Make storage and extension snapshots stable across flavors.
-
-- Skip the httpfs e2e test on development versions.
-
-## duckdb 1.5.5.9001
-
-### Features
-
-- New [`tbl_file()`](https://r.duckdb.org/reference/backend-duckdb.md)
-  and [`tbl_query()`](https://r.duckdb.org/reference/backend-duckdb.md)
-  to explicitly access tables and queries as dbplyr lazy tables
-  ([\#96](https://github.com/duckdb/duckdb-r/issues/96)).
-
-### Continuous integration
-
-- Sync R-CMD-check workflow; drop matrix-env plumbing from custom action
-  ([\#2422](https://github.com/duckdb/duckdb-r/issues/2422)).
-
-### Testing
-
-- Guard the flavor rename against hard-coded package names
-  ([\#2423](https://github.com/duckdb/duckdb-r/issues/2423)).
-
-### Uncategorized
-
-- Ci: Run all smoke-test checks even when one fails
-  ([\#97](https://github.com/duckdb/duckdb-r/issues/97)).
-
-## duckdb 1.5.5.9000
-
-### Continuous integration
-
-- Lock down `format-suggest` egress (audit → block).
-
-### fledge
-
-- CRAN release v1.5.5
-  ([\#2420](https://github.com/duckdb/duckdb-r/issues/2420)).
+- New reference pages
+  [`?duckdb_types`](https://r.duckdb.org/reference/duckdb_types.md) and
+  [`?duckdb_types_arrow`](https://r.duckdb.org/reference/duckdb_types_arrow.md)
+  catalog every DuckDB type in and out of R, through R vectors and
+  through Arrow, geometry included
+  ([\#2836](https://github.com/duckdb/duckdb-r/issues/2836),
+  [\#2837](https://github.com/duckdb/duckdb-r/issues/2837),
+  [\#2850](https://github.com/duckdb/duckdb-r/issues/2850),
+  [\#2861](https://github.com/duckdb/duckdb-r/issues/2861)).
+
+- [`?duckdb`](https://r.duckdb.org/reference/duckdb.md) describes what
+  keeps a database instance open, that one process can open a file
+  twice, and the limitations known today
+  ([\#2823](https://github.com/duckdb/duckdb-r/issues/2823),
+  [\#2849](https://github.com/duckdb/duckdb-r/issues/2849)).
+
+- The help pages for fetching and writing data describe the memory a
+  query takes
+  ([\#2666](https://github.com/duckdb/duckdb-r/issues/2666)).
+
+- The connection’s help page describes how a string holding several
+  statements runs, and what stops it
+  ([\#2835](https://github.com/duckdb/duckdb-r/issues/2835)).
+
+- The README states the package’s goals and non-goals
+  ([\#2731](https://github.com/duckdb/duckdb-r/issues/2731)).
 
 ## duckdb 1.5.5
 
