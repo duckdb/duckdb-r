@@ -163,7 +163,7 @@ jobs:
         # Do not run for:
         # - workflow_dispatch if not requested
         # Always run for other events.
-        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || startsWith(github.head_ref, 'cran-') || github.base_ref == 'claude/windows-test-fixes') && (github.event_name != 'workflow_dispatch' || inputs.versions-matrix)
+        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || startsWith(github.head_ref, 'cran-')) && (github.event_name != 'workflow_dispatch' || inputs.versions-matrix)
         uses: cynkra/cynkratemplate/.github/actions/versions-matrix@main
 
       - name: Collect the suggested dependencies into a matrix
@@ -383,13 +383,12 @@ jobs:
           matrix: ${{ needs.rcc-smoke.outputs.dep-suggests-matrix }}
 
   rcc-full:
-    needs:
-      - rcc-smoke
-
+    # Draft pull request only, not meant to merge: the Windows entries that fail on main,
+    # started at once instead of after the smoke test computes the matrix.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120 # longest run seen: 99 min
 
-    if: ${{ needs.rcc-smoke.outputs.versions-matrix != '' }}
+    if: github.event_name == 'pull_request' && github.base_ref == 'claude/windows-test-fixes'
 
     name: 'rcc: ${{ matrix.os }} (${{ matrix.r }}) ${{ matrix.desc }}'
 
@@ -402,12 +401,18 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix: ${{fromJson(needs.rcc-smoke.outputs.versions-matrix)}}
+      matrix:
+        include:
+          - { os: windows-latest, r: devel }
+          - { os: windows-latest, r: "4.6" }
+          - { os: windows-latest, r: "4.5" }
+          - { os: windows-latest, r: "4.4" }
+          - { os: windows-latest, r: "4.3" }
+          - { os: windows-latest, r: "4.2" }
+          - { os: windows-11-arm, r: "4.6" }
 
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.rcc-smoke.outputs.sha }}
 
       - name: Apply environment variables from the test matrix
         # Generic: matrix entries defined in .github/versions-matrix.R can
