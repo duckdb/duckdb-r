@@ -4,8 +4,9 @@
 \alias{duckdb_types}
 \title{DuckDB data types in R}
 \description{
-Every DuckDB type as it crosses to R and back:
+This page documents every DuckDB type as it crosses to R and back:
 what a value of the type becomes when read, which R value writes it again, and what to do where neither works.
+See \link{duckdb_types_arrow} for a description of the conversion via Arrow.
 }
 \section{The routes}{
 \strong{Reading.}
@@ -27,21 +28,19 @@ Arrow, registered with \code{\link[=duckdb_register_arrow]{duckdb_register_arrow
 The \href{https://duckdb.org/docs/current/sql/data_types/numeric}{numeric} and \href{https://duckdb.org/docs/current/sql/data_types/boolean}{boolean} types:
 \itemize{
 \item \strong{\code{BOOLEAN}} (\code{BOOL}, \code{LOGICAL}) reads as \code{logical}, and \code{logical} writes it.
-\item \strong{\code{TINYINT}, \code{SMALLINT}, \code{INTEGER}, \code{UTINYINT}, \code{USMALLINT}} read as \code{integer}, exactly,
-except that the \code{INTEGER} minimum, -2147483648, is R's \code{NA_integer_} and reads as \code{NA}.
-\code{integer} writes \code{INTEGER}, and \code{field.types} names a narrower type.
+\item \strong{\code{TINYINT}, \code{SMALLINT}, \code{UTINYINT}, \code{USMALLINT}} read as \code{integer}, exactly.
+\code{integer} writes \code{INTEGER}, and \code{field.types} names the narrower type.
+\item \strong{\code{INTEGER}} (\code{INT4}, \code{INT}, \code{SIGNED}) reads as \code{integer}, exactly but for the minimum, and \code{integer} writes it.
 \item \strong{\code{UINTEGER}} reads as \code{numeric}, exactly; \code{numeric} writes \code{DOUBLE}, and \code{field.types} names \code{UINTEGER}.
 \item \strong{\code{BIGINT}} (\code{INT8}, \code{LONG}) reads as \code{numeric}, exact up to 2^53,
-or with \code{bigint = "integer64"} as \code{bit64::integer64}, exact except for the minimum, which is \code{integer64}'s \code{NA}.
+or with \code{bigint = "integer64"} as \code{bit64::integer64}, exact but for the minimum.
 An \code{integer64} column or parameter writes \code{BIGINT} whatever \code{bigint} says.
-\item \strong{\code{UBIGINT}} reads as \code{numeric}, or as \code{integer64},
-which holds the values below 2^63, reads 2^63 as \code{NA}, and wraps the rest to negative numbers.
+\item \strong{\code{UBIGINT}} reads as \code{numeric}, or with \code{bigint = "integer64"} as \code{integer64}, which holds the values below 2^63.
 Below 2^63, the \code{integer64} it reads as writes it back through \code{field.types}, and its text writes any value.
-\item \strong{\code{HUGEINT}, \code{UHUGEINT}} read as \code{numeric}, rounded to a double, and \code{bigint} does not change that.
+\item \strong{\code{HUGEINT}, \code{UHUGEINT}} read as \code{numeric}, and \code{bigint} does not change that; their rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Their text is exact both ways.
-\item \strong{\code{BIGNUM}} (\code{VARINT}) has no R vector, and \code{dbGetQuery()} refuses its column by name.
-Its text reads and writes it, and so does Arrow.
-\item \strong{\code{DECIMAL(width, scale)}} (\code{NUMERIC}) reads as \code{numeric} at every width, so past a double's 15 to 17 significant digits it rounds.
+\item \strong{\code{BIGNUM}} (\code{VARINT}) reads and writes through its text, and through Arrow.
+\item \strong{\code{DECIMAL(width, scale)}} (\code{NUMERIC}) reads as \code{numeric} at every width; its rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Its text is exact both ways, and Arrow writes it exactly.
 \item \strong{\code{FLOAT}} (\code{REAL}) and \strong{\code{DOUBLE}} read as \code{numeric}, and \code{numeric} writes \code{DOUBLE}.
 \code{NaN} reads and writes as \code{NaN}, never as \code{NA}, and \code{NA} is \code{NULL} in both directions.
@@ -52,24 +51,11 @@ Its text is exact both ways, and Arrow writes it exactly.
 The \href{https://duckdb.org/docs/current/sql/data_types/text}{text}, \href{https://duckdb.org/docs/current/sql/data_types/blob}{blob}
 and \href{https://duckdb.org/docs/current/sql/data_types/bitstring}{bitstring} types, and \code{UUID}:
 \itemize{
-\item \strong{\code{VARCHAR}} (\code{CHAR}, \code{BPCHAR}, \code{TEXT}, \code{STRING}) reads as \code{character}, and \code{character} writes it.
-A string holding a NUL byte is refused on the way out.
-\strong{UTF-8 is required, strictly.}
-DuckDB checks string validity and rejects invalid UTF-8;
-this is deliberate engine behavior, not a bug (\href{https://github.com/duckdb/duckdb-r/issues/12}{#12}).
-R is the lenient side: it carries the bytes and prints them,
-so \code{validUTF8()}, not the console, is what agrees with the engine.
-Repairing means naming the encoding the bytes are actually in, as \code{iconv(x, from = "latin1", to = "UTF-8")},
-and \code{iconv()} yields \code{NA} for what it cannot convert unless \verb{sub =} says otherwise,
-so a repair that fails shows up as missing data.
-\code{enc2utf8()} re-encodes only what R has marked, and a string read from a file whose encoding the reader was not told is marked \code{"unknown"}:
-it passes through untouched, still invalid.
-Which is why the cheapest place to fix this is the reader.
+\item \strong{\code{VARCHAR}} (\code{CHAR}, \code{BPCHAR}, \code{TEXT}, \code{STRING}) reads as \code{character}, and \code{character} writes it;
+non-UTF-8 text is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 \item \strong{\code{BLOB}} (\code{BYTEA}, \code{BINARY}, \code{VARBINARY}) reads as a list of raw vectors.
 A \code{blob::blob} or a list of raw vectors writes it.
-A bare raw vector is refused, with an error naming neither the column nor its class.
-\item \strong{\code{BIT}} (\code{BITSTRING}) has no R vector, and \code{dbGetQuery()} refuses its column by name.
-Its text reads and writes it.
+\item \strong{\code{BIT}} (\code{BITSTRING}) reads and writes through its text.
 \item \strong{\code{UUID}} reads as \code{character}, lowercase and hyphenated.
 \code{character} writes \code{VARCHAR}, and \code{field.types} makes it a \code{UUID}.
 }
@@ -80,26 +66,21 @@ The \href{https://duckdb.org/docs/current/sql/data_types/date}{date}, \href{http
 \href{https://duckdb.org/docs/current/sql/data_types/timestamp}{timestamp} and \href{https://duckdb.org/docs/current/sql/data_types/interval}{interval} types:
 \itemize{
 \item \strong{\code{DATE}} reads as \code{Date}, and a \code{Date} writes it, stored as double or as integer.
-\code{infinity} and \code{-infinity} read as dates millions of years away, not as \code{Inf}.
 \item \strong{\code{TIME}} reads as \code{difftime} in seconds.
-No R class writes it: \code{difftime} and \code{hms} write \code{INTERVAL}, which does not cast to \code{TIME},
-so \code{field.types}, \code{dbAppendTable()} and a parameter all fail with that cast error.
 Its text writes it through \code{field.types}, and so does Arrow.
-\item \strong{\code{TIME_NS}} has no R vector, and \code{dbGetQuery()} refuses its column by name.
-Arrow reads it, and a cast to \code{TIME} in the query reads it to the microsecond.
+\item \strong{\code{TIME_NS}} reads through Arrow, and to the microsecond through a cast to \code{TIME} in the query.
 Its text writes it, and so does Arrow.
-\item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as the \code{difftime} of its local time, with the offset dropped.
+\item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as the \code{difftime} of its local time.
 Its text writes it.
-\item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}, and \code{infinity} reads as a finite instant.
-\code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC with its zone label dropped, and \code{field.types} names the other precisions.
-\item \strong{\code{TIMESTAMP_NS}} reads as \code{POSIXct} truncated to the microsecond, with a warning the first time in a session and never again.
+\item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}.
+\code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC, and \code{field.types} names the other precisions.
+\item \strong{\code{TIMESTAMP_NS}} reads as \code{POSIXct}.
 \code{POSIXct} writes it to the microsecond through \code{field.types}, and Arrow writes it directly.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
-\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours,
-so which part was months or days is lost.
-A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}, and the unit is not kept.
+\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours.
+A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}.
 }
 }
 
@@ -108,26 +89,46 @@ The \href{https://duckdb.org/docs/current/sql/data_types/enum}{enum} type,
 and the \href{https://duckdb.org/docs/current/sql/data_types/overview}{nested} ones:
 \itemize{
 \item \strong{\code{ENUM}} reads as \code{factor}, with every value of the type as a level.
-A \code{factor} or \code{ordered} column writes \code{ENUM} of its levels, and \code{ordered} is not kept; a \code{factor} parameter binds as \code{VARCHAR}.
-\item \strong{\code{ARRAY}} (\code{INTEGER[3]}) reads only with \code{array = "matrix"}, as a matrix with a row per value;
-without it, the column is refused with that hint.
-A \code{NULL} array reads as a row of \code{NA}, the same as an array of \code{NULL}s,
-and an array holding nested values is refused.
-A matrix column writes it; a matrix parameter is refused.
+A \code{factor} or \code{ordered} column writes \code{ENUM} of its levels; a \code{factor} parameter binds as \code{VARCHAR}.
+\item \strong{\code{ARRAY}} (\code{INTEGER[3]}) reads with \code{array = "matrix"}, as a matrix with a row per value.
+A \code{NULL} array reads as a row of \code{NA}, the same as an array of \code{NULL}s.
+A matrix column writes it.
 \item \strong{\code{LIST}} (\code{INTEGER[]}) reads as a list of vectors, \code{NULL} for a \code{NULL} row, and a list column whose elements share a type writes it.
 \item \strong{\code{MAP}} reads as a list of \code{data.frame(key, value)}, which writes a list of structs unless \code{field.types} names the map.
 With \code{map = "list_of"}, the \code{\link[vctrs:list_of]{vctrs::list_of()}} it reads as writes back as \code{MAP} without \code{field.types}
 (\href{https://github.com/duckdb/duckdb-r/issues/200}{#200}).
-Its text casts to \code{MAP} in the query and as a parameter, but does not write it through \code{field.types} or \code{dbAppendTable()},
-which wrap a \code{MAP} column in \code{map_from_entries()}, and that takes a list of structs, not text.
-The list it reads as does not bind as a \code{MAP} parameter.
+Its text casts to \code{MAP} in the query and as a parameter.
 \item \strong{\code{STRUCT}} (\code{ROW}) reads as a data frame column, where a \code{NULL} struct is a row of \code{NA}, the same as a struct of \code{NULL}s.
 A data frame column writes it, and a data frame parameter binds a struct per row.
-\item \strong{\code{UNION}} has no R vector, and \code{dbGetQuery()} refuses its column by name.
-\code{union_tag()}, \code{union_extract()} or a cast to \code{VARCHAR} read it in the query, and an Arrow result carries it.
+\item \strong{\code{UNION}} reads in the query through \code{union_tag()}, \code{union_extract()} or a cast to \code{VARCHAR}, and an Arrow result carries it.
 A column of a member's type writes it through \code{field.types}, which picks that member; text picks the \code{VARCHAR} member.
-\item \strong{\code{VARIANT}} reads as a list, each value converted by its own type, and fails on a value whose type R cannot hold.
+\item \strong{\code{VARIANT}} reads as a list, each value converted by its own type.
 A column of the value's type writes it through \code{field.types}; the list it reads as writes as a \code{LIST} inside the variant.
+}
+}
+
+\section{Geometry}{
+The \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETRY}} type, its coordinate reference system (CRS),
+and the \code{spatial} extension's own types:
+\itemize{
+\item \strong{\code{GEOMETRY}} reads as WKB.
+With \code{geometry = "blob"}, the default, it reads as a list of raw vectors;
+with \code{geometry = "wk"}, as \code{wk_wkb}, carrying the column's CRS as an attribute, which \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} converts onward, CRS included.
+The type is core since DuckDB 1.5, so reading one needs no extension;
+the geometry functions are the \code{spatial} extension's.
+Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see \link{duckdb_types_arrow}).
+\item \strong{WKT writes \code{GEOMETRY}.}
+A \code{character} column of WKT, as \code{\link[sf:st_as_text]{sf::st_as_text()}} makes it, writes a \code{GEOMETRY} column with \code{field.types = c(geom = "GEOMETRY")}
+and appends to one with \code{dbAppendTable()}, because the cast from \code{VARCHAR} parses WKT.
+Naming the CRS in the type, as \code{"GEOMETRY('EPSG:4267')"}, gives the column its CRS.
+Writing WKB as raw vectors, an \code{sf} object or an \code{sfc} column is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
+\item \strong{The \code{spatial} extension's own types are aliases, and read as what they alias.}
+\code{POINT_2D}, \code{POINT_3D}, \code{POINT_4D}, \code{BOX_2D} and \code{BOX_2DF} are structs, and read as data frame columns;
+\code{LINESTRING_2D} and \code{LINESTRING_3D} are lists of point structs, and read as lists of data frames;
+\code{POLYGON_2D} and \code{POLYGON_3D} are lists of those rings, and read as lists of lists;
+\code{WKB_BLOB} is a \code{BLOB}, and reads as raw vectors.
+The same shapes write the plain struct or list, and \code{field.types} naming the alias casts back to it.
+They cast to and from \code{GEOMETRY} in the query, as \verb{'POINT (1 2)'::GEOMETRY::POINT_2D}.
 }
 }
 
@@ -137,51 +138,24 @@ A column of the value's type writes it through \code{field.types}; the list it r
 matching the engine's own \verb{SELECT NULL};
 mapping it to logical \code{NA} instead was declined (\href{https://github.com/duckdb/duckdb-r/issues/155}{#155}).
 A typed \code{NULL}, as a scanned logical column or a bound \code{NA} parameter, round-trips as logical \code{NA}.
-\item \strong{\code{GEOMETRY}} and the \code{spatial} extension's point, line, polygon and box types are documented in \link{duckdb_types_spatial}.
 \item \strong{\code{JSON}}, the \href{https://duckdb.org/docs/current/data/json/json_type}{\code{json} extension's} alias of \code{VARCHAR}, reads as \code{character}.
 Its text writes it through \code{field.types}.
 \item \strong{\code{INET}}, the \href{https://duckdb.org/docs/current/core_extensions/inet}{\code{inet} extension's} address type,
-reads as a data frame column whose \code{address} is a \code{HUGEINT} read as a double: exact for IPv4, rounded for IPv6.
+reads as a data frame column whose \code{address} is a \code{HUGEINT} read as a double, exact for IPv4.
 Its text reads and writes it exactly.
 }
 }
 
 \section{Limitations and reference}{
-\itemize{
-\item \code{BIT}, \code{BIGNUM}, \code{TIME_NS} and \code{UNION} have no R vector, so \code{dbGetQuery()} and \code{\link[DBI:dbExecute]{dbExecute()}} refuse a column of one, or of anything nesting one,
-before the statement runs, and \code{\link[dplyr:tbl]{dplyr::tbl()}} cannot open a table holding one.
-\item An \code{ARRAY} column under the default \code{array = "none"} is refused only once the statement has run,
-so an \verb{INSERT ... RETURNING} of one has inserted its rows by the time it fails.
-\item \code{HUGEINT}, \code{UHUGEINT} and \code{DECIMAL} past a double's precision, and \code{BIGINT} and \code{UBIGINT} past 2^53, read as rounded doubles;
-under \code{bigint = "integer64"}, a \code{UBIGINT} of 2^63 reads as \code{NA}, and one past it wraps to a negative number.
-\item \code{TIMESTAMP_NS} reads to the microsecond, \code{TIMETZ} without its offset,
-\code{INTERVAL} with a month as 30 days and a day as 24 hours, and \code{infinity} as a distant finite date or instant.
-\item \code{NaN}, \code{Inf} and \code{-Inf} in a \code{Date}, \code{difftime} or \code{POSIXct} stored as double write as far-off negative values, not as \code{NULL} or infinity:
-on x86_64, the \code{DATE} 5877642-06-23 (BC), an \code{INTERVAL} of -106751991 days, and a \code{TIMESTAMP} no cast to \code{VARCHAR} accepts,
-because only \code{NA} is taken for missing.
-\item A \code{POSIXct} stored as integer writes, binds and creates \code{INTEGER}, not \code{TIMESTAMP}, and reads back as \code{integer}.
-\item \code{TIME}, \code{TIMETZ}, \code{GEOMETRY} and \code{VARIANT} do not write back as themselves from the value R reads,
-and no R class writes \code{TIME} outside Arrow.
-\item \code{MAP} does not write from its text through \code{field.types} or \code{dbAppendTable()},
-an \code{ordered} factor writes an unordered \code{ENUM}, and a \code{factor} parameter binds as \code{VARCHAR}.
-\item A raw vector column is refused with a message naming neither the column nor its class.
-\item \code{\link[DBI:dbCreateTable]{dbCreateTable()}} takes its column types from \code{\link[DBI:dbDataType]{dbDataType()}},
-which says \code{TIME} for \code{difftime} and \code{hms}, \code{DOUBLE} for \code{integer64}, \code{VARCHAR} for \code{factor}, and the element type for a matrix,
-where the write routes give \code{INTERVAL}, \code{BIGINT}, \code{ENUM} and \code{ARRAY},
-so a \code{difftime} column fails to append to the table it created.
-For a data frame column, \code{dbDataType()} gives its field's type when it has one field and fails when it has several,
-and \code{dbCreateTable()} and \code{sqlCreateTable()} with it, where \code{dbWriteTable()} writes a \code{STRUCT}.
-\item Attribute classes do not cross, in either direction, through Arrow too:
-a \code{units} column writes plain \code{DOUBLE} and reads back plain \code{numeric}, and nothing warns
-(\href{https://github.com/duckdb/duckdb-r/issues/590}{#590}).
-\item \code{rel_from_df()}, which duckplyr builds on, refuses some columns rather than converting them.
-}
+The limitations are listed in the handbook, in \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md}{\verb{usage/types/}}.
 
 The mapping is implemented in \href{https://github.com/duckdb/duckdb-r/blob/main/src/types.cpp}{\code{src/types.cpp}} (R vector to \code{LogicalType}) and \href{https://github.com/duckdb/duckdb-r/blob/main/src/transform.cpp}{\code{src/transform.cpp}} (the way back).
 The list of types is DuckDB's own \href{https://duckdb.org/docs/current/sql/data_types/overview}{documentation} for the release vendored here,
-and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}}
-or \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}.
-Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s, and geometry is documented in \link{duckdb_types_spatial}.
+and every entry on this page was measured on DuckDB 1.5.5, in \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-26-type-catalog/README.md}{\verb{experiments/2026-09-26-type-catalog/}},
+\href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}}
+or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
+Which zone labels a timestamp is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}'s,
+and the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's} to document.
 
 What \code{expr_constant(NA)} builds in the relational API is \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md}{\verb{relational/}}'s.
 }

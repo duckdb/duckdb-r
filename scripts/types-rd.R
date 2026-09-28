@@ -1,16 +1,17 @@
 #!/usr/bin/env Rscript
-# Generate the type reference pages, `?duckdb_types`, `?duckdb_types_arrow`
-# and `?duckdb_types_spatial`, from the handbook leaves that own them.
+# Generate the type reference pages, `?duckdb_types` and `?duckdb_types_arrow`,
+# from the handbook leaves that own them.
 #
 # Each page is one leaf, rendered for someone reading R's help rather than
 # the handbook. The leaf's opening sentence is the description, and its
-# sections are the page's sections, down to its `## Limitations`, which
-# becomes the closing section, "Limitations and reference", followed by the
-# rest of the leaf's opening and any sentence that only points into the
-# repository. Left out: the leaf's heading, its deepen line, and a paragraph
-# that names this script, which is about the pages rather than in them.
+# sections are the page's sections, down to its `## Limitations`, which the
+# page does not repeat: the closing section, "Limitations and reference",
+# points to the leaf for them, followed by the rest of the leaf's opening
+# and any sentence that only points into the repository. Left out: the
+# leaf's heading, its deepen line, and a paragraph that names this script,
+# which is about the pages rather than in them.
 #
-# In the sections and the limitations, a clause citing a file ("pinned by",
+# In the sections, a clause citing a file ("pinned by",
 # "set in") and a link in parentheses to a path in the repository are
 # dropped; a sentence still pointing into the repository moves to the
 # closing section, and one that opens its entry is an error, to be
@@ -32,17 +33,14 @@ pages <- list(
   list(
     leaf = "handbook/usage/types",
     topic = "duckdb_types",
-    title = "DuckDB data types in R"
+    title = "DuckDB data types in R",
+    see = "See [duckdb_types_arrow] for a description of the conversion via Arrow."
   ),
   list(
     leaf = "handbook/usage/arrow-types",
     topic = "duckdb_types_arrow",
-    title = "DuckDB data types through Arrow"
-  ),
-  list(
-    leaf = "handbook/usage/spatial",
-    topic = "duckdb_types_spatial",
-    title = "Spatial data types in R"
+    title = "DuckDB data types through Arrow",
+    see = "See [duckdb_types] for a description of the direct conversion to R vectors."
   )
 )
 github <- "https://github.com/duckdb/duckdb-r"
@@ -185,7 +183,7 @@ sentences <- function(block) {
   unname(split(block, factor(groups, levels = unique(groups))))
 }
 
-# A section or limitations block, for the page: its links rewritten, and a
+# A section, for the page: its links rewritten, and a
 # sentence still pointing into the repository moved out, into `moved`.
 moved <- character()
 for_page <- function(block, dir) {
@@ -276,21 +274,57 @@ render <- function(page) {
   }
   opening <- blocks[seq_len(sections[[1]] - 1)]
   body <- blocks[sections[[1]]:(limits - 1)]
-  limitations <- blocks[-seq_len(limits)]
 
   # The description is the leaf's opening sentence; the rest of the opening
   # says where the page stands in the repository, and closes the page.
   first <- opening[[1]]
   sentence_end <- which(endsWith(first, "."))[[1]]
+  # On the page, the leaf's opening sentence says what the page documents,
+  # and a pointer to the other page follows it.
   description <- first[seq_len(sentence_end)]
-  reference <- c(first[-seq_len(sentence_end)], unlist(opening[-1]))
+  description[[1]] <- paste0(
+    "This page documents ",
+    tolower(substr(description[[1]], 1, 1)),
+    substring(description[[1]], 2)
+  )
+  description <- c(description, page$see)
+  reference <- c(
+    sprintf(
+      "The limitations are listed in the handbook, in [`%s/`](%s/blob/main/%s/README.md).",
+      sub("^handbook/", "", page$leaf),
+      github,
+      page$leaf
+    ),
+    "",
+    first[-seq_len(sentence_end)],
+    unlist(opening[-1])
+  )
 
   as_lines <- function(blocks) unlist(lapply(blocks, function(b) c(b, "")))
   body <- as_lines(lapply(body, function(b) {
     # A leaf's sections are the page's sections, one level up.
     sub("^### ", "## ", sub("^## ", "# ", for_page(b, page$leaf)))
   }))
-  limitations <- as_lines(lapply(limitations, for_page, dir = page$leaf))
+  # The page leaves the limitations to the handbook,
+  # so a breadcrumb to them links there.
+  body <- gsub(
+    "limitation (below)",
+    sprintf(
+      "[limitation](%s/blob/main/%s/README.md#limitations)",
+      github,
+      page$leaf
+    ),
+    body,
+    fixed = TRUE
+  )
+  if (any(grepl("(below)", body, fixed = TRUE))) {
+    stop(
+      source_file,
+      ": a breadcrumb other than \"a limitation (below)\" points below, ",
+      "where the page has nothing",
+      call. = FALSE
+    )
+  }
   if (length(moved)) {
     reference <- c(reference, "", moved)
   }
@@ -300,7 +334,7 @@ render <- function(page) {
     fixed = TRUE
   )[[1]]
 
-  details <- c(body, "# Limitations and reference", "", limitations, reference)
+  details <- c(body, "# Limitations and reference", "", reference)
   all <- link_functions(c(description, "", details))
   # Roxygen reads @ as a tag.
   # Rd reads % as a comment, but markdown roxygen escapes it already:
