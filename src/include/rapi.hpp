@@ -17,6 +17,7 @@
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/main/client_context_state.hpp"
 
 #include "convert.hpp"
 
@@ -273,6 +274,15 @@ unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, Replacem
 
 struct ReplacementDataDBWrapper : public ReplacementScanData {
 	DBWrapper *wrapper;
+};
+
+// A connection's conversion options, kept with its client context,
+// where the environment scan finds them to write a data frame as the connection's other routes do
+struct RConvertOptsState : public ClientContextState {
+	explicit RConvertOptsState(ConvertOpts convert_opts_p) : convert_opts(std::move(convert_opts_p)) {
+	}
+	static constexpr const char *KEY = "duckdb_r_convert_opts";
+	const ConvertOpts convert_opts;
 };
 
 cpp11::strings StringsToSexp(vector<std::string> s);

@@ -60,6 +60,38 @@ test_that("Database tables take precedence", {
   expect_equal(dbGetQuery(con, "FROM x"), data.frame(a = 2))
 })
 
+test_that("Data frame scan writes with the connection's `time` and `interval`, and refuses what they refuse", {
+  skip_if_not_installed("hms")
+  skip_if_not_installed("lubridate")
+
+  x <- data.frame(
+    p = lubridate::period(months = 1, seconds = 5),
+    h = hms::hms(3600)
+  )
+
+  con <- local_con(
+    drv = duckdb(environment_scan = TRUE),
+    time = "hms",
+    interval = "Period"
+  )
+  expect_identical(
+    dbGetQuery(
+      con,
+      "SELECT typeof(p) AS tp, p::VARCHAR AS p, typeof(h) AS th FROM x"
+    ),
+    data.frame(tp = "INTERVAL", p = "1 month 00:00:05", th = "TIME")
+  )
+  y <- data.frame(h = hms::hms(-1))
+  expect_error(dbGetQuery(con, "FROM y"), "Column `h` must hold times of day")
+
+  # Under the default `interval`, the Period would lose its month
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+  expect_error(
+    dbGetQuery(con, "FROM x"),
+    "Column `p` must hold periods of seconds alone"
+  )
+})
+
 test_that("Data frame scan reads a packed ALTREP column that bind materialized", {
   # A registered ALTREP data frame's packed columns reach bind unread, so
   # before duckdb/duckdb-r#2582 the scan materialized them itself, on a DuckDB

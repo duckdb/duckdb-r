@@ -119,6 +119,25 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		return nullptr;
 	}
 
+	// The data frame writes as with duckdb_register() on the connection the query runs on:
+	// with its `time` and `interval`, and refused where rapi_register_df() refuses it
+	auto opts_state = context.registered_state->Get<RConvertOptsState>(RConvertOptsState::KEY);
+	auto convert_opts = opts_state ? opts_state->convert_opts : ConvertOpts();
+	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
+	auto interval_period = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+	string invalid;
+	SEXP names = GET_NAMES(df);
+	if (TYPEOF(names) == STRSXP && Rf_xlength(names) == Rf_xlength(df)) {
+		for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df) && invalid.empty(); col_idx++) {
+			invalid = RApiTypes::FindInvalidValue(VECTOR_ELT(df, col_idx), CHAR(STRING_ELT(names, col_idx)), time_hms,
+			                                      interval_period);
+		}
+	}
+	if (!invalid.empty()) {
+		UNPROTECT(1);
+		throw BinderException("Column " + invalid);
+	}
+
 	// Avoid garbage collection of data frame
 	SEXP node = Rf_cons(df, CDR(db_wrapper->registered_dfs));
 	SETCDR(db_wrapper->registered_dfs, node);
@@ -129,6 +148,13 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
+	// Named parameters, as `name => value` passes them
+	auto time_hms_param = make_uniq<ConstantExpression>(Value::BOOLEAN(time_hms));
+	time_hms_param->SetAlias("time_hms");
+	children.push_back(std::move(time_hms_param));
+	auto interval_period_param = make_uniq<ConstantExpression>(Value::BOOLEAN(interval_period));
+	interval_period_param->SetAlias("interval_period");
+	children.push_back(std::move(interval_period_param));
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 
 	// Signal that this table reference depends on external state (the R data
