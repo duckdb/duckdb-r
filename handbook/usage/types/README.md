@@ -164,8 +164,8 @@ and the `spatial` extension's own types:
 * Attribute classes do not cross, in either direction, through Arrow too:
   a `units` column writes plain `DOUBLE` and reads back plain `numeric`, and nothing warns
   ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
-* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them
-  ([`relational/`](/handbook/usage/relational/README.md)).
+* `rel_from_df()`, which duckplyr builds on, refuses some columns rather than converting them,
+  and `rel_to_altrep()` reads an `ARRAY` column with the wrong shape ([`relational/`](/handbook/usage/relational/README.md)).
 * The `INTEGER` minimum, -2147483648, is R's `NA_integer_` and reads as `NA`,
   and under `bigint = "integer64"` so does the `BIGINT` minimum, which is `integer64`'s `NA`.
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's 15 to 17 significant digits,
@@ -203,6 +203,12 @@ and the `spatial` extension's own types:
   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
   An array holding nested values is refused, pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R),
   and so is a matrix parameter.
+* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type,
+  never as an `ARRAY`.
+  Anywhere but first, it keeps only its first column, and nothing warns;
+  as the first column, it writes a row per value and reads every other column past its end, which can crash R.
+  As a parameter it binds a row per value
+  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.
@@ -230,4 +236,4 @@ and the `spatial` extension's own types:
 * An `INET` address reads rounded for IPv6.
 
 *To deepen: measure what `rel_to_df()` and `rel_to_altrep()` make of each type,
-which neither record covers ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
+which no record covers beyond an `ARRAY` column ([`plan/PLAN-type-documentation.md`](/plan/PLAN-type-documentation.md)).*
