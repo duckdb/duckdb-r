@@ -2,7 +2,7 @@
 
 *What it measures:* for each R class that could hold a DuckDB `INTERVAL`, which of its three parts
 (months, days and microseconds) it keeps, and whether its arithmetic matches DuckDB's
-for a month from January 31 and a day across a daylight saving change.
+for a month from January 31, and for a day and for hours across a daylight saving change.
 The classes are lubridate's `Period`, as `interval = "Period"` reads it, clock's durations,
 nanotime's `nanoperiod`, and what nanoarrow makes of the engine's Arrow export,
 and the record also looks for a conversion between `Period` and clock's durations.
@@ -26,9 +26,12 @@ From [`mappings.md`](mappings.md):
 * **DuckDB adds a month from January 31 as February 29, and a day across a daylight saving change as a calendar day.**
   In `Europe/Berlin`, `TIMESTAMPTZ '2024-03-30 12:00:00+01'` plus `INTERVAL 1 DAY` is 12:00 the next day, 23 hours later,
   and plus `INTERVAL 24 HOUR` is 13:00; a plain `TIMESTAMP` plus a day is 24 hours later.
-* **A `Period` keeps all three parts, and lubridate's `%m+%` adds it as DuckDB does.**
-  `INTERVAL '-1 day 01:00:00'` reads as `-1d 0H 0M 3600S`, a microsecond stays in the seconds, and `NULL` reads as `NA`.
+* **A `Period` keeps all three parts, and lubridate's `%m+%` adds its months and days as DuckDB does.**
+  `INTERVAL '-1 day 01:00:00'` reads as `-1d 1H 0M 0S`, a microsecond stays in the seconds, and `NULL` reads as `NA`.
   January 31 `%m+%` a month is February 29, and a day added to the Berlin timestamp above is 12:00 the next day.
+* **Its hours, minutes and seconds lubridate adds as clock time, where DuckDB adds elapsed time.**
+  In Berlin on 2024-03-31, three hours from 00:30 are 04:30 in DuckDB and 03:30 through `%m+%`,
+  and one hour from 01:30 is 03:30 in DuckDB and `NA` through `%m+%`, which lands in the hour the clocks skip.
 * **A clock duration can't hold a month and a day at once.**
   `duration_months(1) + duration_days(1)` is refused, since one duration has one precision,
   and a calendrical one, months, does not combine with a chronological one, days or finer.

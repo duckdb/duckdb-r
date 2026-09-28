@@ -82,10 +82,12 @@ Its text writes it.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
-\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours.
+\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours,
+a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 With \code{interval = "Period"} it reads as a \code{lubridate::Period} that keeps the months, the days and the time apart,
 the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
-lubridate's \verb{\%m+\%} adds it to a date or a \code{POSIXct} as DuckDB adds an \code{INTERVAL}.
+lubridate's \verb{\%m+\%} adds its months and days to a date or a \code{POSIXct} as DuckDB adds an \code{INTERVAL}'s;
+its time is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Under that option a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL},
 and \code{dbQuoteLiteral()} quotes a \code{Period} as that \code{INTERVAL};
 under the default, a \code{Period} of seconds alone writes a \code{DOUBLE} of them.

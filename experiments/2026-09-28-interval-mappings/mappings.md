@@ -38,13 +38,32 @@ period <- dbGetQuery(
   ) AS t(i, a) ORDER BY i"
 )$a
 period
-#> [1] "1m 0d 0H 0M 0S"  "1m 1d 0H 0M 0S"  "-1d 0H 0M 3600S" "1d 0H 0M 1e-06S"
+#> [1] "1m 0d 0H 0M 0S"  "1m 1d 0H 0M 0S"  "-1d 1H 0M 0S"    "1d 0H 0M 1e-06S"
 #> [5] NA
 lubridate::`%m+%`(as.Date("2024-01-31"), period[1])
 #> [1] "2024-02-29"
 t0 <- as.POSIXct("2024-03-30 12:00:00", tz = "Europe/Berlin")
 lubridate::`%m+%`(t0, lubridate::period(days = 1))
 #> [1] "2024-03-31 12:00:00 CEST"
+
+## The time part across a daylight saving change --------------------------------
+## DuckDB adds an INTERVAL's microseconds as elapsed time, lubridate a Period's
+## hours, minutes and seconds as clock time.
+dbExecute(con_period, "SET TimeZone = 'Europe/Berlin'")
+#> [1] 0
+dbGetQuery(
+  con_period,
+  "SELECT
+    (TIMESTAMPTZ '2024-03-31 00:30:00+01' + INTERVAL 3 HOUR)::VARCHAR AS from_0030,
+    (TIMESTAMPTZ '2024-03-31 01:30:00+01' + INTERVAL 1 HOUR)::VARCHAR AS from_0130"
+)
+#>                from_0030              from_0130
+#> 1 2024-03-31 04:30:00+02 2024-03-31 03:30:00+02
+hours <- dbGetQuery(con_period, "SELECT INTERVAL 3 HOUR AS a, INTERVAL 1 HOUR AS b")
+lubridate::`%m+%`(as.POSIXct("2024-03-31 00:30:00", tz = "Europe/Berlin"), hours$a)
+#> [1] "2024-03-31 03:30:00 CEST"
+lubridate::`%m+%`(as.POSIXct("2024-03-31 01:30:00", tz = "Europe/Berlin"), hours$b)
+#> [1] NA
 
 ## clock's durations -------------------------------------------------------------
 tryCatch(clock::duration_months(1) + clock::duration_days(1), error = first_line)

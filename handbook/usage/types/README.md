@@ -93,10 +93,12 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
 * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
   and Arrow writes it directly.
-* **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours.
+* **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours,
+  a limitation (below).
   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the time apart,
   the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
-  lubridate's `%m+%` adds it to a date or a `POSIXct` as DuckDB adds an `INTERVAL`.
+  lubridate's `%m+%` adds its months and days to a date or a `POSIXct` as DuckDB adds an `INTERVAL`'s;
+  its time is a limitation (below).
   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
@@ -209,11 +211,15 @@ and the `spatial` extension's own types:
 * `TIMESTAMP_NS` reads truncated to the microsecond, with a warning the first time in a session and never again,
   `TIMETZ` without its offset, pinned by [`tests/testthat/test-timestamp.R`](/tests/testthat/test-timestamp.R),
   and `infinity` and `-infinity` as a finite date millions of years away or a finite instant, not as `Inf`.
-  Which part of an `INTERVAL` was months or days is lost, unless `interval = "Period"`.
+  Read as a `difftime`, an `INTERVAL` counts a month as 30 days and a day as 24 hours,
+  so which part was months or days is lost, unless `interval = "Period"`.
   Under it, an `ARRAY` of `INTERVAL` is refused before the statement runs,
   and a `Period` whose parts do not fit is refused naming its column or parameter.
   A `Period` built in R has its seconds rounded to the microsecond on write,
   and a double of seconds past about 2^51 microseconds, some 71 years, does not hold each one.
+* lubridate adds a `Period`'s hours, minutes and seconds as clock time, where DuckDB adds an `INTERVAL`'s microseconds as elapsed time,
+  so across a daylight saving change `%m+%` lands an hour off, or on `NA` inside the skipped hour
+  ([`experiments/2026-09-28-interval-mappings/`](/experiments/2026-09-28-interval-mappings/README.md)).
 * A `Period` with a year, month, day, hour or minute is refused without `interval = "Period"`, naming its column or parameter,
   and so is one in a list cell or a map value under either `interval`, which writes a `DOUBLE` of the seconds there.
 * `INTERVAL` has no clock mapping, and `interval = "Period"` is the exact one:
