@@ -44,6 +44,9 @@ df$m <- list(list(a = 1), list(b = 2))
 types <- "SELECT typeof(t) AS t, typeof(m) AS m FROM %s LIMIT 1"
 duckdb::duckdb_register(con, "registered", df)
 dbGetQuery(con, sprintf(types, "registered"))
-duckdb:::rel_sql(duckdb:::rel_from_df(con, df, strict = FALSE), sprintf(types, "_"))
+duckdb:::rel_sql(
+  duckdb:::rel_from_df(con, df, strict = FALSE),
+  sprintf(types, "_")
+)
 
 dbDisconnect(con)

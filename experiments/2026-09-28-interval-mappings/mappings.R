@@ -46,9 +46,18 @@ dbGetQuery(
     (TIMESTAMPTZ '2024-03-31 00:30:00+01' + INTERVAL 3 HOUR)::VARCHAR AS from_0030,
     (TIMESTAMPTZ '2024-03-31 01:30:00+01' + INTERVAL 1 HOUR)::VARCHAR AS from_0130"
 )
-hours <- dbGetQuery(con_period, "SELECT INTERVAL 3 HOUR AS a, INTERVAL 1 HOUR AS b")
-lubridate::`%m+%`(as.POSIXct("2024-03-31 00:30:00", tz = "Europe/Berlin"), hours$a)
-lubridate::`%m+%`(as.POSIXct("2024-03-31 01:30:00", tz = "Europe/Berlin"), hours$b)
+hours <- dbGetQuery(
+  con_period,
+  "SELECT INTERVAL 3 HOUR AS a, INTERVAL 1 HOUR AS b"
+)
+lubridate::`%m+%`(
+  as.POSIXct("2024-03-31 00:30:00", tz = "Europe/Berlin"),
+  hours$a
+)
+lubridate::`%m+%`(
+  as.POSIXct("2024-03-31 01:30:00", tz = "Europe/Berlin"),
+  hours$b
+)
 
 ## A day or a month from a POSIXct, across the same change ----------------------
 ## A POSIXct writes a plain TIMESTAMP of its clock in UTC, which a day or a month keeps;
@@ -67,7 +76,10 @@ for (zone in c("Europe/Berlin", "UTC")) {
 }
 
 ## clock's durations -------------------------------------------------------------
-tryCatch(clock::duration_months(1) + clock::duration_days(1), error = first_line)
+tryCatch(
+  clock::duration_months(1) + clock::duration_days(1),
+  error = first_line
+)
 t0 + 86400
 tryCatch(clock::duration_microseconds(3e9), error = first_line)
 largest <- clock::duration_days(106751991) +
