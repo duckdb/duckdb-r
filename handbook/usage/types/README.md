@@ -97,8 +97,8 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   a limitation (below).
   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the time apart,
   the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
-  lubridate's `%m+%` adds its months and days to a date or a `POSIXct` as DuckDB adds an `INTERVAL`'s;
-  its time is a limitation (below).
+  lubridate's `%m+%` adds its months and days to a date as DuckDB adds an `INTERVAL`'s,
+  and to a `POSIXct` as DuckDB does to a `TIMESTAMPTZ` in a session `TimeZone` of the `POSIXct`'s zone.
   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
@@ -223,7 +223,10 @@ and the `spatial` extension's own types:
   A `Period` built in R has its seconds rounded to the microsecond on write,
   and a double of seconds past 2^33 of them, some 272 years, does not hold each microsecond.
 * lubridate adds a `Period`'s hours, minutes and seconds as clock time, where DuckDB adds an `INTERVAL`'s microseconds as elapsed time,
-  so across a daylight saving change `%m+%` lands an hour off, or on `NA` inside the skipped hour
+  so across a daylight saving change `%m+%` lands an hour off, or on `NA` inside the skipped hour.
+  For a `POSIXct`, its months and days match DuckDB's only on a `TIMESTAMPTZ` in a session `TimeZone` of the `POSIXct`'s zone:
+  a `POSIXct` writes a plain `TIMESTAMP` of its clock in UTC, which a day or a month added in DuckDB keeps,
+  so a day is 24 hours there, and across the change both land an hour off `%m+%`
   ([`experiments/2026-09-28-interval-mappings/`](/experiments/2026-09-28-interval-mappings/README.md)).
 * A `Period` with a year, month, day, hour or minute is refused without `interval = "Period"`, naming its column or parameter,
   and so is one in a list cell or a map value under either `interval`, which writes a `DOUBLE` of the seconds there.

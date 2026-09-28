@@ -86,8 +86,8 @@
 #'   a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the time apart,
 #'   the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
-#'   lubridate's `%m+%` adds its months and days to a date or a `POSIXct` as DuckDB adds an `INTERVAL`'s;
-#'   its time is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
+#'   lubridate's `%m+%` adds its months and days to a date as DuckDB adds an `INTERVAL`'s,
+#'   and to a `POSIXct` as DuckDB does to a `TIMESTAMPTZ` in a session `TimeZone` of the `POSIXct`'s zone.
 #'   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
 #'   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`;
 #'   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.

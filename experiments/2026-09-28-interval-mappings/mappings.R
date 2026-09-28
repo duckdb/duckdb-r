@@ -50,6 +50,22 @@ hours <- dbGetQuery(con_period, "SELECT INTERVAL 3 HOUR AS a, INTERVAL 1 HOUR AS
 lubridate::`%m+%`(as.POSIXct("2024-03-31 00:30:00", tz = "Europe/Berlin"), hours$a)
 lubridate::`%m+%`(as.POSIXct("2024-03-31 01:30:00", tz = "Europe/Berlin"), hours$b)
 
+## A day or a month from a POSIXct, across the same change ----------------------
+## A POSIXct writes a plain TIMESTAMP of its clock in UTC, which a day or a month keeps;
+## taken as a TIMESTAMPTZ, a day or a month keeps the clock in the session's TimeZone.
+t1 <- as.POSIXct("2024-03-15 12:00:00", tz = "Europe/Berlin")
+format(lubridate::`%m+%`(t1, period[1]), usetz = TRUE)
+from_r <- "SELECT
+    ? + INTERVAL 1 DAY AS day_plain,
+    ? + INTERVAL 1 MONTH AS month_plain,
+    timezone('UTC', ?) + INTERVAL 1 DAY AS day_tz,
+    timezone('UTC', ?) + INTERVAL 1 MONTH AS month_tz"
+for (zone in c("Europe/Berlin", "UTC")) {
+  dbExecute(con_period, paste0("SET TimeZone = '", zone, "'"))
+  sums <- dbGetQuery(con_period, from_r, params = list(t0, t1, t0, t1))
+  print(vapply(sums, format, "", tz = "Europe/Berlin", usetz = TRUE))
+}
+
 ## clock's durations -------------------------------------------------------------
 tryCatch(clock::duration_months(1) + clock::duration_days(1), error = first_line)
 t0 + 86400
