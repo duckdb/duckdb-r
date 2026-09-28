@@ -127,7 +127,9 @@ A matrix column writes it.</p></li>
 <li><p><strong><code>LIST</code></strong> (<code>INTEGER[]</code>) reads as a list of vectors, <code>NULL</code> for a <code>NULL</code> row, and a list column whose elements share a type writes it.</p></li>
 <li><p><strong><code>MAP</code></strong> reads as a list of <code>data.frame(key, value)</code>, which writes a list of structs unless <code>field.types</code> names the map.
 With <code>map = "list_of"</code>, the <code><a href="https://vctrs.r-lib.org/reference/list_of.html" class="external-link">vctrs::list_of()</a></code> it reads as writes back as <code>MAP</code> without <code>field.types</code>
-(<a href="https://github.com/duckdb/duckdb-r/issues/200" class="external-link">#200</a>).
+(<a href="https://github.com/duckdb/duckdb-r/issues/200" class="external-link">#200</a>),
+and a list column of named lists writes a list of structs, an entry per name,
+valued by the first element of the name's value, or by <code>NULL</code> where that value is <code>NULL</code> or empty.
 Its text casts to <code>MAP</code> in the query and as a parameter.</p></li>
 <li><p><strong><code>STRUCT</code></strong> (<code>ROW</code>) reads as a data frame column.
 A data frame column writes it, and a data frame parameter binds a struct per row.</p></li>

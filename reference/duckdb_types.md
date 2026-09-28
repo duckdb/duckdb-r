@@ -167,8 +167,11 @@ and the
   `map = "list_of"`, the
   [`vctrs::list_of()`](https://vctrs.r-lib.org/reference/list_of.html)
   it reads as writes back as `MAP` without `field.types`
-  ([\#200](https://github.com/duckdb/duckdb-r/issues/200)). Its text
-  casts to `MAP` in the query and as a parameter.
+  ([\#200](https://github.com/duckdb/duckdb-r/issues/200)), and a list
+  column of named lists writes a list of structs, an entry per name,
+  valued by the first element of the name's value, or by `NULL` where
+  that value is `NULL` or empty. Its text casts to `MAP` in the query
+  and as a parameter.
 
 - **`STRUCT`** (`ROW`) reads as a data frame column. A data frame column
   writes it, and a data frame parameter binds a struct per row.
