@@ -62,7 +62,8 @@
 #' @param interval How `INTERVAL` columns should be returned, and what a `Period` writes.
 #'   There are two options: `"difftime"` and `"Period"`.
 #'   If `"difftime"` is selected (the default), they are returned as a `difftime` in seconds,
-#'   counting a month as 30 days and a day as 24 hours.
+#'   counting a month as 30 days and a day as 24 hours,
+#'   and a `Period` writes a `DOUBLE` of its seconds, which is refused when it has other parts.
 #'   If `"Period"` is selected, they are returned as \pkg{lubridate} [lubridate::Period-class] objects
 #'   that keep the months, the days and the seconds apart,
 #'   which requires the \pkg{lubridate} package,

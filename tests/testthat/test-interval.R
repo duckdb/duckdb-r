@@ -221,23 +221,73 @@ test_that("`interval = \"Period\"` writes a Period column, field or parameter as
   expect_equal(bound$v, c("1 month 2 days 00:00:03.000001", NA))
 })
 
-test_that("a Period writes a DOUBLE of its seconds alone under the default `interval`", {
+test_that("a Period of seconds alone writes DOUBLE under the default `interval`", {
   skip_if_not_installed("lubridate")
 
   con <- local_con()
 
-  p <- lubridate::period(
-    years = 1,
-    months = 2,
-    days = 3,
-    hours = 4,
-    minutes = 5,
-    seconds = 6.5
-  )
-  expect_no_warning(dbWriteTable(con, "tbl", data.frame(a = p)))
+  p <- lubridate::seconds(c(2.5, NA))
+  dbWriteTable(con, "tbl", data.frame(a = p))
   data <- dbGetQuery(con, "SELECT typeof(a) AS t, a FROM tbl")
-  expect_equal(data$t, "DOUBLE")
-  expect_identical(data$a, 6.5)
+  expect_equal(data$t, c("DOUBLE", "DOUBLE"))
+  expect_identical(data$a, c(2.5, NA))
+
+  dbWriteTable(con, "empty", data.frame(a = p[0]))
+  expect_equal(dbGetQuery(con, "DESCRIBE empty")$column_type, "DOUBLE")
+
+  bound <- dbGetQuery(
+    con,
+    "SELECT typeof(?) AS t, ? AS a",
+    params = list(p[1], p[1])
+  )
+  expect_equal(bound$t, "DOUBLE")
+  expect_identical(bound$a, 2.5)
+  expect_equal(dbDataType(con, lubridate::period(months = 1)), "DOUBLE")
+})
+
+test_that("a Period with more than seconds is refused under the default `interval`, on every route", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con()
+
+  p <- lubridate::period(months = 1, minutes = 5, seconds = 6.5)
+  field <- data.frame(i = 1)
+  field$s <- data.frame(p = p)
+  cell <- data.frame(i = 1)
+  cell$l <- list(c(lubridate::seconds(1), p))
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", data.frame(a = c(lubridate::seconds(1), p)))
+    duckdb_register(con, "field", field)
+    dbWriteTable(con, "cell", cell)
+    dbGetQuery(con, "SELECT ? AS a", params = list(p))
+  })
+  expect_false(dbExistsTable(con, "tbl"))
+  expect_false(dbExistsTable(con, "cell"))
+})
+
+test_that("a Period in a list writes its seconds alone under `interval = \"Period\"` too", {
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  seconds <- data.frame(i = 1)
+  seconds$l <- list(lubridate::seconds(c(1, 2.5)))
+  dbWriteTable(con, "tbl", seconds)
+  expect_equal(
+    dbGetQuery(con, "SELECT l::VARCHAR AS l FROM tbl")$l,
+    "[1.0, 2.5]"
+  )
+
+  more <- data.frame(i = 1)
+  more$l <- list(lubridate::period(days = 1))
+  map <- data.frame(i = 1)
+  map$m <- list(data.frame(key = "a", value = lubridate::period(months = 2)))
+  expect_snapshot(error = TRUE, {
+    dbAppendTable(con, "tbl", more)
+    dbWriteTable(con, "map", map, field.types = c(m = "MAP(VARCHAR, INTERVAL)"))
+  })
+  expect_false(dbExistsTable(con, "map"))
 })
 
 test_that("`interval = \"Period\"` refuses a Period that INTERVAL can't hold, naming its column or parameter", {

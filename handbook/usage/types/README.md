@@ -97,7 +97,7 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
   and there a `Period` column, data frame field or parameter writes it with each part exact;
-  under the default, a `Period` writes a `DOUBLE` of its seconds alone, a limitation (below).
+  under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
 **`INTERVAL` has no clock mapping, and `interval = "Period"` is the exact one.**
@@ -217,8 +217,8 @@ and the `spatial` extension's own types:
   and `infinity` and `-infinity` as a finite date millions of years away or a finite instant, not as `Inf`.
   Which part of an `INTERVAL` was months or days is lost, unless `interval = "Period"`;
   under it, an `ARRAY` of `INTERVAL` is refused, and so is a `Period` whose parts do not fit, naming its column or parameter.
-  Under the default `interval`, a `Period` writes a `DOUBLE` of its seconds,
-  without its minutes, hours, days, months or years, and nothing warns.
+* A `Period` with a year, month, day, hour or minute is refused without `interval = "Period"`, naming its column or parameter,
+  and so is one in a list cell or a map value under either `interval`, which writes a `DOUBLE` of the seconds there.
 * A `POSIXct` writes with its zone label dropped, and a `difftime` or `hms` without its unit.
 * `NaN`, `Inf` and `-Inf` in a `Date`, `difftime` or `POSIXct` stored as double write as far-off negative values, not as `NULL` or infinity:
   on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,

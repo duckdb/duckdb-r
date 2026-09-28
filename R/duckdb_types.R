@@ -86,7 +86,7 @@
 #'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the seconds apart,
 #'   which lubridate's `%m+%` adds to a date or a `POSIXct` as DuckDB adds an `INTERVAL`,
 #'   and there a `Period` column, data frame field or parameter writes it with each part exact;
-#'   under the default, a `Period` writes a `DOUBLE` of its seconds alone, a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
+#'   under the default, a `Period` of seconds alone writes a `DOUBLE` of them.
 #'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'
 #' **`INTERVAL` has no clock mapping, and `interval = "Period"` is the exact one.**

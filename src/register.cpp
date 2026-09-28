@@ -34,15 +34,12 @@ using namespace duckdb;
 
 	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
 	auto interval_period = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
-	if (time_hms || interval_period) {
-		// Checked on R's thread before the engine binds the scan, so that the error can name the column
-		auto names = value.names();
-		for (R_xlen_t col_idx = 0; col_idx < value.ncol(); col_idx++) {
-			auto invalid =
-			    RApiTypes::FindInvalidValue(value[col_idx], string(names[col_idx]), time_hms, interval_period);
-			if (!invalid.empty()) {
-				rapi_error_with_context("rapi_register_df", "Column " + invalid);
-			}
+	// Checked on R's thread before the engine binds the scan, so that the error can name the column
+	auto names = value.names();
+	for (R_xlen_t col_idx = 0; col_idx < value.ncol(); col_idx++) {
+		auto invalid = RApiTypes::FindInvalidValue(value[col_idx], string(names[col_idx]), time_hms, interval_period);
+		if (!invalid.empty()) {
+			rapi_error_with_context("rapi_register_df", "Column " + invalid);
 		}
 	}
 

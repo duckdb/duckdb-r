@@ -506,39 +506,69 @@ string RPeriodType::Format(R_xlen_t idx) const {
 	       FormatRNumber(seconds[idx]) + "S";
 }
 
-// The first value that `time = "hms"` or `interval = "Period"` would write and that its type cannot hold,
-// in `v` or the fields of a data frame `v`, described for an error; empty when there is none.
-string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval) {
-	auto rtype = DetectRType(v, true, hms_time, period_interval);
-	if (rtype.id() == RTypeId::STRUCT) {
-		SEXP names = GET_NAMES(v);
+// Whether a Period has parts other than its seconds, which a DOUBLE of its seconds would drop
+bool RPeriodType::HasOtherParts(R_xlen_t idx) const {
+	for (auto slot : slots) {
+		if (slot && slot[idx] != 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The first value the write routes would refuse, described for an error; empty when there is none.
+// Under `time = "hms"`, an hms that TIME cannot hold; under `interval = "Period"`, a Period that INTERVAL cannot hold;
+// otherwise, a Period with parts other than its seconds, which would write a DOUBLE of its seconds alone.
+// It searches the fields of a data frame and the cells of a list, which the options do not reach:
+// there an hms writes INTERVAL and a Period a DOUBLE of its seconds, as without them.
+// It reads only what it checks, so that a column of another type costs a type test.
+string RApiTypes::FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval, bool in_list) {
+	const string position = in_list ? " (element " : " (row ";
+	if (TYPEOF(v) == VECSXP) {
+		auto is_df = Rf_inherits(v, "data.frame");
+		SEXP names = is_df ? GET_NAMES(v) : R_NilValue;
 		for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
-			auto invalid =
-			    FindInvalidValue(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)), hms_time, period_interval);
+			auto invalid = is_df ? FindInvalidValue(VECTOR_ELT(v, i), path + "$" + CHAR(STRING_ELT(names, i)), hms_time,
+			                                        period_interval, in_list)
+			                     : FindInvalidValue(VECTOR_ELT(v, i), path + "[[" + std::to_string(i + 1) + "]]", false,
+			                                        false, true);
 			if (!invalid.empty()) {
 				return invalid;
 			}
 		}
 		return "";
 	}
-	if (rtype.id() == RTypeId::INTERVAL_PERIOD) {
+	if (TYPEOF(v) != REALSXP) {
+		return "";
+	}
+	if (Rf_isS4(v) && Rf_inherits(v, "Period")) {
 		RPeriodType period(v);
 		for (R_xlen_t i = 0; i < period.length; i++) {
-			if (!period.IsNull(i) && !period.IsValid(i)) {
-				return "`" + path + "` must hold periods that fit an `INTERVAL`, not " + period.Format(i) + " (row " +
-				       std::to_string(i + 1) + ").";
+			if (period.IsNull(i)) {
+				continue;
+			}
+			auto where = period.Format(i) + position + std::to_string(i + 1) + ").";
+			if (period_interval && !period.IsValid(i)) {
+				return "`" + path + "` must hold periods that fit an `INTERVAL`, not " + where;
+			}
+			if (!period_interval && period.HasOtherParts(i)) {
+				return "`" + path + "` must hold periods of seconds alone to write a `DOUBLE`, not " + where +
+				       (in_list ? " In a list, a `Period` writes a `DOUBLE` whatever `interval` says, "
+				                  "so use `lubridate::period_to_seconds()` for a `DOUBLE` of the total."
+				                : " Use `dbConnect(interval = \"Period\")` to write an exact `INTERVAL`, "
+				                  "or `lubridate::period_to_seconds()` for a `DOUBLE` of the total.");
 			}
 		}
 		return "";
 	}
-	if (rtype.id() != RTypeId::TIME) {
+	if (!hms_time || DetectRType(v, true, true).id() != RTypeId::TIME) {
 		return "";
 	}
 	auto data = NUMERIC_POINTER(v);
 	for (R_xlen_t i = 0; i < Rf_xlength(v); i++) {
 		if (!RTimeType::IsNull(data[i]) && !RTimeType::IsValid(data[i])) {
 			return "`" + path + "` must hold times of day from 00:00:00 to 24:00:00 to write `TIME`, not " +
-			       FormatRNumber(data[i]) + " seconds (row " + std::to_string(i + 1) + ").";
+			       FormatRNumber(data[i]) + " seconds" + position + std::to_string(i + 1) + ").";
 		}
 	}
 	return "";

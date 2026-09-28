@@ -135,7 +135,8 @@ struct RApiTypes {
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true, bool hms_time = false,
 	                         bool period_interval = false);
-	static string FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval);
+	static string FindInvalidValue(SEXP v, const string &path, bool hms_time, bool period_interval,
+	                               bool in_list = false);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 
@@ -186,6 +187,7 @@ struct RPeriodType {
 	bool IsNull(R_xlen_t idx) const;
 	// Whether the parts make an INTERVAL: finite, whole months and days within 32 bits, and microseconds within 64
 	bool IsValid(R_xlen_t idx) const;
+	bool HasOtherParts(R_xlen_t idx) const;
 	interval_t Convert(R_xlen_t idx) const;
 	string Format(R_xlen_t idx) const;
 
