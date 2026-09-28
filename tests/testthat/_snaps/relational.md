@@ -1580,7 +1580,7 @@
     Code
       expr_constant(list(integer()))
     Message
-      DuckDB Expression: CAST(list_value() AS INTEGER[])
+      DuckDB Expression: CAST("system".main.list_value() AS INTEGER[])
 
 # prudence
 
