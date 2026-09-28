@@ -15,7 +15,7 @@ The geometries are the first three counties of `sf`'s `nc.shp`
 (`MULTIPOLYGON`, EPSG:4267).
 
 *What it supports:*
-[`usage/types/`](/handbook/usage/types/README.md), and
+[`usage/spatial/`](/handbook/usage/spatial/README.md), and
 [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md),
 which proposes what to do about the write side.
 
