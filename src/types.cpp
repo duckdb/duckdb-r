@@ -512,6 +512,10 @@ RPeriodType::RPeriodType(SEXP period) : length(Rf_xlength(period)), seconds(Read
 	for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
 		slots[slot_idx] = ReadPart(Rf_getAttrib(period, slot_syms[slot_idx]), length);
 	}
+	malformed = !seconds.IsRead();
+	for (auto &slot : slots) {
+		malformed = malformed || !slot.IsRead();
+	}
 }
 
 double RPeriodType::Seconds(R_xlen_t idx) const {
@@ -523,15 +527,7 @@ double RPeriodType::Slot(idx_t slot_idx, R_xlen_t idx) const {
 }
 
 bool RPeriodType::IsMalformed() const {
-	if (!seconds.IsRead()) {
-		return true;
-	}
-	for (auto &slot : slots) {
-		if (!slot.IsRead()) {
-			return true;
-		}
-	}
-	return false;
+	return malformed;
 }
 
 // NA or NaN in any part makes the whole Period NULL,
@@ -587,8 +583,9 @@ bool RPeriodType::Micros(R_xlen_t idx, int64_t &micros) const {
 	       AddWithin(partial, fraction_micros, micros);
 }
 
-bool RPeriodType::IsValid(R_xlen_t idx) const {
-	if (IsMalformed()) {
+// The INTERVAL a Period makes, checking each part once; false when one does not fit
+bool RPeriodType::TryConvert(R_xlen_t idx, interval_t &result) const {
+	if (malformed) {
 		return false;
 	}
 	for (idx_t slot_idx = 0; slot_idx < 5; slot_idx++) {
@@ -596,20 +593,28 @@ bool RPeriodType::IsValid(R_xlen_t idx) const {
 			return false;
 		}
 	}
-	int64_t micros;
 	auto months = Slot(0, idx) * 12 + Slot(1, idx);
-	return IsWholeWithin(months, NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
-	       IsWholeWithin(Slot(2, idx), NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) &&
-	       Micros(idx, micros);
+	auto days = Slot(2, idx);
+	if (!IsWholeWithin(months, NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) ||
+	    !IsWholeWithin(days, NumericLimits<int32_t>::Minimum(), NumericLimits<int32_t>::Maximum()) ||
+	    !Micros(idx, result.micros)) {
+		return false;
+	}
+	result.months = int32_t(months);
+	result.days = int32_t(days);
+	return true;
+}
+
+bool RPeriodType::IsValid(R_xlen_t idx) const {
+	interval_t result;
+	return TryConvert(idx, result);
 }
 
 interval_t RPeriodType::Convert(R_xlen_t idx) const {
 	interval_t result;
-	if (!IsValid(idx) || !Micros(idx, result.micros)) {
+	if (!TryConvert(idx, result)) {
 		throw InvalidInputException("A Period of %s does not fit an `INTERVAL`", Format(idx));
 	}
-	result.months = int32_t(Slot(0, idx) * 12 + Slot(1, idx));
-	result.days = int32_t(Slot(2, idx));
 	return result;
 }
 

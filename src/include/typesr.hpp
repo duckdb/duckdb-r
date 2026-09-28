@@ -218,9 +218,12 @@ private:
 		double Get(R_xlen_t idx) const;
 	};
 	static Part ReadPart(SEXP part, R_xlen_t length);
+	bool TryConvert(R_xlen_t idx, interval_t &result) const;
 
 	Part seconds;
 	Part slots[5];
+	// Whether a part could not be read, found once for the whole Period
+	bool malformed;
 };
 
 struct RIntervalSecondsType : public RDoubleType {
