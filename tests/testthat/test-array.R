@@ -475,9 +475,9 @@ test_that("arrays work correctly in write/read roundtrip after UNION ALL fix", {
 })
 
 # Typed by its class, a matrix would count its values as rows,
+# and so would an array of more than two dimensions,
 # so every write route refuses it (handbook/usage/types/README.md)
-expect_classed_matrix_refused <- function(con, m) {
-  class_note <- paste0(" (class `", class(m)[[1]], "`)")
+expect_column_refused <- function(con, m, affected) {
   dbExecute(con, "CREATE OR REPLACE TABLE appended (s VARCHAR, m VARCHAR)")
   for (m_first in c(TRUE, FALSE)) {
     df <- data.frame(s = c("a", "b"))
@@ -485,7 +485,6 @@ expect_classed_matrix_refused <- function(con, m) {
     if (m_first) {
       df <- df[c("m", "s")]
     }
-    affected <- paste0("Affected column: `m`", class_note)
     expect_error(dbWriteTable(con, "written", df), affected, fixed = TRUE)
     expect_error(duckdb_register(con, "registered", df), affected, fixed = TRUE)
     expect_error(dbAppendTable(con, "appended", df), affected, fixed = TRUE)
@@ -493,7 +492,11 @@ expect_classed_matrix_refused <- function(con, m) {
   expect_false(dbExistsTable(con, "written"))
   expect_false(dbExistsTable(con, "registered"))
   expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM appended")$n, 0)
+}
 
+expect_classed_matrix_refused <- function(con, m) {
+  class_note <- paste0(" (class `", class(m)[[1]], "`)")
+  expect_column_refused(con, m, paste0("Affected column: `m`", class_note))
   expect_error(
     dbGetQuery(con, "SELECT $1 AS p", params = list(m)),
     paste0("Affected parameter: `params[[1]]`", class_note),
@@ -558,4 +561,44 @@ test_that("a plain integer matrix still writes INTEGER[2]", {
   types <- dbGetQuery(con, "SELECT DISTINCT typeof(m) AS type FROM tbl")$type
   expect_equal(types, "INTEGER[2]")
   expect_equal(dbReadTable(con, "tbl")$m, matrix(1:4, nrow = 2))
+})
+
+test_that("a classed array with one value per row still writes its class's type", {
+  con <- local_con()
+
+  dates <- as.Date("2024-01-01") + 0:1
+  one_d <- structure(dates, dim = 2L)
+  one_column <- structure(dates, dim = c(2L, 1L))
+  for (d in list(one_d, one_column)) {
+    df <- data.frame(s = c("a", "b"))
+    df$d <- d
+    dbWriteTable(con, "tbl", df, overwrite = TRUE)
+
+    types <- dbGetQuery(con, "SELECT DISTINCT typeof(d) AS type FROM tbl")$type
+    expect_equal(types, "DATE")
+    expect_equal(dbGetQuery(con, "SELECT d FROM tbl")$d, dates)
+    expect_equal(dbGetQuery(con, "SELECT $1 AS p", params = list(d))$p, dates)
+  }
+})
+
+test_that("an array of more than two dimensions is refused as a column", {
+  con <- local_con()
+
+  expect_column_refused(
+    con,
+    array(1:8, c(2L, 2L, 2L)),
+    "Can't write an array of more than two dimensions. Affected column: `m`."
+  )
+})
+
+test_that("an array of more than two dimensions still binds and nests as its values", {
+  con <- local_con()
+
+  a <- array(1:8, c(2L, 2L, 2L))
+  expect_equal(dbGetQuery(con, "SELECT $1 AS p", params = list(a))$p, 1:8)
+
+  df <- data.frame(k = 1:2)
+  df$l <- list(a, a)
+  dbWriteTable(con, "tbl", df)
+  expect_equal(dbReadTable(con, "tbl")$l, list(1:8, 1:8))
 })

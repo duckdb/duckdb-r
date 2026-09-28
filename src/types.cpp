@@ -206,8 +206,8 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 			for (R_xlen_t i = 0; i < ncol; ++i) {
 				SEXP col = VECTOR_ELT(v, i);
 				RType child = DetectRType(col, integer64);
-				// A classed array would count the data frame's rows by its values, so the frame has no type
-				if (child == RType::UNKNOWN || IsClassedArray(col)) {
+				// Such an array would count the data frame's rows by its values, so the frame has no type
+				if (child == RType::UNKNOWN || IsClassedArray(col) || IsHighArray(col)) {
 					return (RType::UNKNOWN);
 				}
 
@@ -251,10 +251,16 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 	return RType::UNKNOWN;
 }
 
-// Whether DetectRType() types `v` by its class although it has a `dim`, as a `Date` matrix:
-// its length then counts values rather than rows, so writing refuses it (handbook/usage/types/README.md)
+// Whether `v` has a `dim` and holds other than one value per row, as a 2x2 matrix
+static bool HasValuesBesideRows(SEXP v) {
+	SEXP dim = Rf_getAttrib(v, R_DimSymbol);
+	return TYPEOF(dim) == INTSXP && Rf_xlength(dim) > 0 && Rf_xlength(v) != INTEGER(dim)[0];
+}
+
+// Whether DetectRType() types `v` by its class although it holds other than one value per row, as a `Date` matrix:
+// the scan would count its values as rows (handbook/usage/types/README.md)
 bool RApiTypes::IsClassedArray(SEXP v) {
-	if (Rf_getAttrib(v, R_DimSymbol) == R_NilValue) {
+	if (!HasValuesBesideRows(v)) {
 		return false;
 	}
 	switch (DetectRType(v, false).id()) {
@@ -278,6 +284,12 @@ bool RApiTypes::IsClassedArray(SEXP v) {
 	}
 }
 
+// Whether `v` is an array of more than two dimensions holding other than one value per row,
+// which DetectRType() types as a vector, so the scan would count its values as rows too
+bool RApiTypes::IsHighArray(SEXP v) {
+	return Rf_xlength(Rf_getAttrib(v, R_DimSymbol)) > 2 && HasValuesBesideRows(v);
+}
+
 // The message refusing `v` if IsClassedArray(), naming it and its class, or an empty string
 string RApiTypes::ClassedArrayError(SEXP v, const string &verb, const string &kind, const string &name) {
 	if (!IsClassedArray(v)) {
@@ -285,6 +297,15 @@ string RApiTypes::ClassedArrayError(SEXP v, const string &verb, const string &ki
 	}
 	return "Can't " + verb + " a matrix or array that carries a class. Affected " + kind + ": `" + name + "` (class `" +
 	       CHAR(STRING_ELT(Rf_getAttrib(v, R_ClassSymbol), 0)) + "`).";
+}
+
+// The message refusing a column if IsClassedArray() or IsHighArray(), naming it, or an empty string
+string RApiTypes::ArrayColumnError(SEXP v, const string &name) {
+	auto error = ClassedArrayError(v, "write", "column", name);
+	if (error.empty() && IsHighArray(v)) {
+		error = "Can't write an array of more than two dimensions. Affected column: `" + name + "`.";
+	}
+	return error;
 }
 
 LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimental) {
