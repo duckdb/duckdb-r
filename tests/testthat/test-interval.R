@@ -594,6 +594,25 @@ test_that("dbQuoteLiteral() quotes a Period as an exact INTERVAL under `interval
     dbQuoteLiteral(con, lubridate::period(seconds = 2^63 / 1e6 + 1)),
     "to quote as one"
   )
+
+  # Half a microsecond rounds away from zero, as a write rounds it, where R's round() goes to even
+  ties <- lubridate::period(seconds = c(5e-7, -5e-7, 2.5e-6))
+  expect_equal(
+    as.character(dbQuoteLiteral(con, ties)),
+    paste0(
+      "(to_months(0) + to_days(0) + to_hours(0) + to_minutes(0) + to_microseconds(",
+      c("1", "-1", "3"),
+      "))"
+    )
+  )
+  dbWriteTable(con, "ties", data.frame(i = 1:3, a = ties))
+  expect_identical(
+    dbGetQuery(
+      con,
+      "SELECT epoch_us(a)::VARCHAR AS us FROM ties ORDER BY i"
+    )$us,
+    c("1", "-1", "3")
+  )
 })
 
 test_that("`interval = \"Period\"` needs the lubridate package", {

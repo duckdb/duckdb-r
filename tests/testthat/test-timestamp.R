@@ -512,6 +512,24 @@ test_that("dbQuoteLiteral() quotes an hms as TIME under `time = \"hms\"`, and as
   expect_error(dbQuoteLiteral(con, hms::hms(-1)), "to quote as `TIME`")
   expect_error(dbQuoteLiteral(con, hms::hms(NaN)), "not NaN seconds")
   expect_identical(dbQuoteLiteral(con, hms::hms()), SQL(character()))
+
+  # Half a microsecond rounds away from zero, as a write rounds it, where R's round() goes to even
+  expect_equal(
+    as.character(dbQuoteLiteral(con, hms::hms(c(5e-7, 1.5e-6, 2.5e-6)))),
+    c(
+      "'00:00:00.000001'::TIME",
+      "'00:00:00.000002'::TIME",
+      "'00:00:00.000003'::TIME"
+    )
+  )
+  # So half a microsecond before 00:00:00 or after 24:00:00 is refused, as a write refuses it
+  for (outside in c(-5e-7, 86400.0000005)) {
+    expect_error(dbQuoteLiteral(con, hms::hms(outside)), "to quote as `TIME`")
+    expect_error(
+      dbGetQuery(con, "SELECT ? AS a", params = list(hms::hms(outside))),
+      "must hold times of day"
+    )
+  }
 })
 
 test_that("dbQuoteLiteral() rounds a `POSIXct` to microseconds on both sides of the epoch", {

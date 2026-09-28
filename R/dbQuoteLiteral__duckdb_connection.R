@@ -96,6 +96,15 @@ setMethod(
   dbQuoteLiteral__duckdb_connection
 )
 
+# Rounds to the nearest whole number, half away from zero, as C's `round()` does in the write routes,
+# where R's `round()` rounds half to even: a literal of a tie then holds what a write of it writes.
+# The whole part comes off exactly, so the comparison with one half is exact too;
+# `NA`, `NaN` and the infinities stay as they are.
+round_half_away <- function(x) {
+  whole <- trunc(x)
+  whole + sign(x) * (is.finite(x) & abs(x - whole) >= 0.5)
+}
+
 # A `TIME` literal for each value of an hms, rounded to the microsecond as the write routes round it,
 # and refused outside 00:00:00 to 24:00:00, which `TIME` does not hold, `NaN` and the infinities included;
 # only `NA` is `NULL`, as for the write routes.
@@ -103,7 +112,7 @@ time_literal_text <- function(x, call = parent.frame()) {
   if (length(x) == 0) {
     return(character())
   }
-  micros <- round(as.numeric(x) * 1e6)
+  micros <- round_half_away(as.numeric(x) * 1e6)
   missing <- is.na(x) & !is.nan(x)
   bad <- !missing & (!is.finite(micros) | micros < 0 | micros > 86400e6)
   if (any(bad)) {
@@ -143,9 +152,9 @@ period_literal_text <- function(x, call = parent.frame()) {
     return(character())
   }
   # The seconds split as a write splits them (src/types.cpp):
-  # whole seconds, and the fraction left over rounded to the microsecond, of the same sign
+  # whole seconds, and the fraction left over rounded to the microsecond, half away from zero, of the same sign
   seconds <- trunc(x@.Data)
-  fraction <- round((x@.Data - seconds) * 1e6)
+  fraction <- round_half_away((x@.Data - seconds) * 1e6)
   carry <- trunc(fraction / 1e6)
   parts <- list(
     months = x@year * 12 + x@month,
