@@ -1087,3 +1087,34 @@ test_that("an escaped POSIXct is sent as the instant it names", {
   )
   expect_equal(escape_at("Europe/Zurich"), "'2025-03-01 17:00:00'::timestamp")
 })
+
+test_that("dbplyr refuses a difftime, hms or Period value in a verb, and `!!dbQuoteLiteral()` passes one", {
+  skip_if_not_installed("dbplyr")
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("hms")
+  skip_if_not_installed("lubridate")
+  con <- local_con(time = "hms", interval = "Period")
+  dbWriteTable(con, "tbl", data.frame(a = 1))
+  tbl <- dplyr::tbl(con, "tbl")
+
+  # A plain difftime too, so this is dbplyr's, whatever the options say
+  values <- list(
+    as.difftime(1, units = "secs"),
+    hms::hms(1),
+    lubridate::period(months = 1)
+  )
+  for (x in values) {
+    expect_error(
+      dplyr::collect(dplyr::mutate(tbl, x = !!x)),
+      "Cannot translate"
+    )
+  }
+
+  out <- dplyr::collect(dplyr::mutate(
+    tbl,
+    h = !!dbQuoteLiteral(con, hms::hms(3600)),
+    p = !!dbQuoteLiteral(con, lubridate::period(months = 1))
+  ))
+  expect_identical(out$h, hms::hms(3600))
+  expect_identical(out$p, lubridate::period(months = 1))
+})

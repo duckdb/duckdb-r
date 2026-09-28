@@ -55,8 +55,11 @@ the boundaries users keep hitting:
   `arrow::to_duckdb()` returns such a `tbl()` and `to_arrow()` takes one, so both fail the same way.
   A `tbl()` over a query that casts the column, as `tbl(con, sql("SELECT b::VARCHAR AS b FROM t"))` for a `BIT` column, opens
   ([`experiments/2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md)).
-* dbplyr refuses an `hms` or a lubridate `Period` as a value in a verb, with "Cannot translate", before the backend sees it.
-  `!!dbQuoteLiteral(con, x)` passes one as the `TIME` or `INTERVAL` it writes under `time = "hms"` or `interval = "Period"`.
+* dbplyr refuses a `difftime`, an `hms` or a lubridate `Period` as a value in a verb, with "Cannot translate",
+  before the backend sees it and whatever the connection's options say.
+  `!!dbQuoteLiteral(con, x)` passes one, and the options decide the literal:
+  under `time = "hms"` an `hms` is a `TIME`, and under `interval = "Period"` a `Period` is an exact `INTERVAL`
+  ([`tests/testthat/test-backend-dbplyr__duckdb_connection.R`](/tests/testthat/test-backend-dbplyr__duckdb_connection.R)).
 * `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
