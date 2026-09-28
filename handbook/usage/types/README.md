@@ -99,6 +99,17 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   under the default, a `Period` writes a `DOUBLE` of its seconds alone, a limitation (below).
   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 
+**`INTERVAL` has no clock mapping, and `interval = "Period"` is the exact one.**
+One clock duration has one precision, and months, a calendrical unit, do not combine with days or microseconds, chronological ones,
+so an `INTERVAL` with a month part would have no exact form, only an error or a 30-day month.
+Its days would be 86400 seconds, which is what DuckDB adds to a `DATE` or a `TIMESTAMP`,
+but not to a `TIMESTAMPTZ` across a daylight saving change, where DuckDB adds a calendar day.
+clock's constructors take 32-bit counts and its arithmetic wraps past 64 bits without an error,
+and `rel_to_altrep()` could build a duration lazily only by writing clock's undocumented fields.
+The package reads an `INTERVAL` into one exact representation, a `Period`,
+and converting that to a clock duration is for clock and lubridate to offer, which neither does today, and not for the package to bridge
+([`experiments/2026-09-28-interval-mappings/`](/experiments/2026-09-28-interval-mappings/README.md)).
+
 ## Enums and nested types
 
 The [enum](https://duckdb.org/docs/current/sql/data_types/enum) type,

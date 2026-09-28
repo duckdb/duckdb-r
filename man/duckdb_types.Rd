@@ -89,6 +89,16 @@ and there a \code{Period} column, data frame field or parameter writes it with e
 under the default, a \code{Period} writes a \code{DOUBLE} of its seconds alone, a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }
+
+\strong{\code{INTERVAL} has no clock mapping, and \code{interval = "Period"} is the exact one.}
+One clock duration has one precision, and months, a calendrical unit, do not combine with days or microseconds, chronological ones,
+so an \code{INTERVAL} with a month part would have no exact form, only an error or a 30-day month.
+Its days would be 86400 seconds, which is what DuckDB adds to a \code{DATE} or a \code{TIMESTAMP},
+but not to a \code{TIMESTAMPTZ} across a daylight saving change, where DuckDB adds a calendar day.
+clock's constructors take 32-bit counts and its arithmetic wraps past 64 bits without an error,
+and \code{rel_to_altrep()} could build a duration lazily only by writing clock's undocumented fields.
+The package reads an \code{INTERVAL} into one exact representation, a \code{Period},
+and converting that to a clock duration is for clock and lubridate to offer, which neither does today, and not for the package to bridge.
 }
 
 \section{Enums and nested types}{
