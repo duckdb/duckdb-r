@@ -37,3 +37,12 @@
       ! {"exception_type":"Invalid","exception_message":"std::exception"}
       i Context: rapi_register_df
 
+# a classed matrix as the first column is refused before its neighbour is read
+
+    Code
+      duckdb_register(con, "r", df)
+    Condition
+      Error:
+      ! Can't write a matrix or array that carries a class. Affected column: `m` (class `Date`).
+      i Context: rapi_register_df
+

@@ -32,6 +32,15 @@ using namespace duckdb;
 		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
 
+	// Refused here as well as in the scan, whose error would reach R as JSON
+	auto df_names = value.names();
+	for (R_xlen_t col_idx = 0; col_idx < value.size(); col_idx++) {
+		auto error = RApiTypes::ClassedArrayError(value[col_idx], "write", "column", df_names[col_idx]);
+		if (!error.empty()) {
+			rapi_error_with_context("rapi_register_df", error);
+		}
+	}
+
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	try {

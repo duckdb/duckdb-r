@@ -473,3 +473,89 @@ test_that("arrays work correctly in write/read roundtrip after UNION ALL fix", {
   expected_matrix <- matrix(c(4, 7, 5, 8, 6, 9), nrow = 2, ncol = 3)
   expect_equal(result$matrix_col, expected_matrix)
 })
+
+# Typed by its class, a matrix would count its values as rows,
+# so every write route refuses it (handbook/usage/types/README.md)
+expect_classed_matrix_refused <- function(con, m) {
+  class_note <- paste0(" (class `", class(m)[[1]], "`)")
+  dbExecute(con, "CREATE OR REPLACE TABLE appended (s VARCHAR, m VARCHAR)")
+  for (m_first in c(TRUE, FALSE)) {
+    df <- data.frame(s = c("a", "b"))
+    df$m <- m
+    if (m_first) {
+      df <- df[c("m", "s")]
+    }
+    affected <- paste0("Affected column: `m`", class_note)
+    expect_error(dbWriteTable(con, "written", df), affected, fixed = TRUE)
+    expect_error(duckdb_register(con, "registered", df), affected, fixed = TRUE)
+    expect_error(dbAppendTable(con, "appended", df), affected, fixed = TRUE)
+  }
+  expect_false(dbExistsTable(con, "written"))
+  expect_false(dbExistsTable(con, "registered"))
+  expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM appended")$n, 0)
+
+  expect_error(
+    dbGetQuery(con, "SELECT $1 AS p", params = list(m)),
+    paste0("Affected parameter: `params[[1]]`", class_note),
+    fixed = TRUE
+  )
+}
+
+test_that("a matrix that carries a class is refused on every write route", {
+  con <- local_con(array = "matrix")
+
+  dates <- as.Date("2024-01-01") + 0:3
+  expect_classed_matrix_refused(con, structure(dates, dim = c(2L, 2L)))
+  times <- as.POSIXct("2024-01-01", tz = "UTC") + 0:3
+  expect_classed_matrix_refused(con, structure(times, dim = c(2L, 2L)))
+  durations <- as.difftime(c(1, 2, 3, 4), units = "secs")
+  expect_classed_matrix_refused(con, structure(durations, dim = c(2L, 2L)))
+  levels <- factor(c("a", "b", "c", "d"))
+  expect_classed_matrix_refused(con, structure(levels, dim = c(2L, 2L)))
+})
+
+test_that("an hms matrix is refused on every write route", {
+  skip_if_not_installed("hms")
+
+  con <- local_con(array = "matrix")
+
+  expect_classed_matrix_refused(con, structure(hms::hms(1:4), dim = c(2L, 2L)))
+})
+
+test_that("a classed matrix as the first column is refused before its neighbour is read", {
+  con <- local_con(array = "matrix")
+
+  df <- data.frame(m = 1:2)
+  df$m <- structure(as.Date("2024-01-01") + 0:3, dim = c(2L, 2L))
+  df$s <- c("a", "b")
+
+  expect_snapshot(error = TRUE, {
+    duckdb_register(con, "r", df)
+  })
+})
+
+test_that("the environment scan refuses a matrix that carries a class", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df_classed <- data.frame(m = 1:2)
+  df_classed$m <- structure(as.Date("2024-01-01") + 0:3, dim = c(2L, 2L))
+  df_classed$s <- c("a", "b")
+
+  expect_error(
+    rel_from_sql(con, "FROM df_classed"),
+    "Affected column: `m` (class `Date`)",
+    fixed = TRUE
+  )
+})
+
+test_that("a plain integer matrix still writes INTEGER[2]", {
+  con <- local_con(array = "matrix")
+
+  df <- data.frame(s = c("a", "b"))
+  df$m <- matrix(1:4, nrow = 2)
+  dbWriteTable(con, "tbl", df)
+
+  types <- dbGetQuery(con, "SELECT DISTINCT typeof(m) AS type FROM tbl")$type
+  expect_equal(types, "INTEGER[2]")
+  expect_equal(dbReadTable(con, "tbl")$m, matrix(1:4, nrow = 2))
+})

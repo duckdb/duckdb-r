@@ -617,6 +617,11 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
+		// Refused before the row count below is taken from the first column
+		auto error = RApiTypes::ClassedArrayError(coldata, "write", "column", names.back());
+		if (!error.empty()) {
+			throw InvalidInputException(error);
+		}
 		TouchColumn(coldata);
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 

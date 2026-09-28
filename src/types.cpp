@@ -204,8 +204,10 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 				return RType::UNKNOWN;
 			}
 			for (R_xlen_t i = 0; i < ncol; ++i) {
-				RType child = DetectRType(VECTOR_ELT(v, i), integer64);
-				if (child == RType::UNKNOWN) {
+				SEXP col = VECTOR_ELT(v, i);
+				RType child = DetectRType(col, integer64);
+				// A classed array would count the data frame's rows by its values, so the frame has no type
+				if (child == RType::UNKNOWN || IsClassedArray(col)) {
 					return (RType::UNKNOWN);
 				}
 
@@ -247,6 +249,42 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		}
 	}
 	return RType::UNKNOWN;
+}
+
+// Whether DetectRType() types `v` by its class although it has a `dim`, as a `Date` matrix:
+// its length then counts values rather than rows, so writing refuses it (handbook/usage/types/README.md)
+bool RApiTypes::IsClassedArray(SEXP v) {
+	if (Rf_getAttrib(v, R_DimSymbol) == R_NilValue) {
+		return false;
+	}
+	switch (DetectRType(v, false).id()) {
+	case RTypeId::FACTOR:
+	case RTypeId::DATE:
+	case RTypeId::DATE_INTEGER:
+	case RTypeId::TIMESTAMP:
+	case RTypeId::INTERVAL_SECONDS:
+	case RTypeId::INTERVAL_MINUTES:
+	case RTypeId::INTERVAL_HOURS:
+	case RTypeId::INTERVAL_DAYS:
+	case RTypeId::INTERVAL_WEEKS:
+	case RTypeId::INTERVAL_SECONDS_INTEGER:
+	case RTypeId::INTERVAL_MINUTES_INTEGER:
+	case RTypeId::INTERVAL_HOURS_INTEGER:
+	case RTypeId::INTERVAL_DAYS_INTEGER:
+	case RTypeId::INTERVAL_WEEKS_INTEGER:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// The message refusing `v` if IsClassedArray(), naming it and its class, or an empty string
+string RApiTypes::ClassedArrayError(SEXP v, const string &verb, const string &kind, const string &name) {
+	if (!IsClassedArray(v)) {
+		return string();
+	}
+	return "Can't " + verb + " a matrix or array that carries a class. Affected " + kind + ": `" + name + "` (class `" +
+	       CHAR(STRING_ELT(Rf_getAttrib(v, R_ClassSymbol), 0)) + "`).";
 }
 
 LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimental) {

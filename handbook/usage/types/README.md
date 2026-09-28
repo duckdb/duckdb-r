@@ -203,12 +203,8 @@ and the `spatial` extension's own types:
   so an `INSERT ... RETURNING` of one has inserted its rows by the time it fails.
   An array holding nested values is refused, pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R),
   and so is a matrix parameter.
-* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type,
-  never as an `ARRAY`.
-  Anywhere but first, it keeps only its first column, and nothing warns;
-  as the first column, it writes a row per value and reads every other column past its end, which can crash R.
-  As a parameter it binds a row per value
-  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
+* A matrix that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) is refused as a column and as a parameter,
+  pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R).
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.
