@@ -14,6 +14,13 @@
 #   4. A real merge is not an ancestry-only one: its side commits did reach
 #      main's tree, so they are still offered. The test is the tree, not the
 #      shape of the commit.
+#
+# And one thing about *which* `main` answers. The series live in a fork whose
+# `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
+# is routinely behind the canonical repository's. The walk reads the canonical
+# one, so a commit merged since the last sync is offered rather than silently
+# reverted by the tooling sync; with no canonical remote to read, the mirror is
+# the fallback and answers with the subset it has.
 
 set -euo pipefail
 
@@ -37,8 +44,10 @@ hasnt() { case "$2" in *"$3"*) no "$1"; echo "     unexpected: $3" ;; *) ok "$1"
 # lineage merged for its ancestry alone, and a lineage merged for its content.
 
 REMOTE=$SCRATCH/remote.git
+CANON=$SCRATCH/canonical.git
 WORK=$SCRATCH/work
 git init -q --bare -b main "$REMOTE"
+git init -q --bare -b main "$CANON"
 
 git init -q -b main "$WORK"
 cd "$WORK"
@@ -46,6 +55,7 @@ git config user.name Test
 git config user.email test@example.invalid
 git config commit.gpgsign false
 git remote add origin "$REMOTE"
+git remote add upstream "$CANON"
 
 mkdir -p scripts .github R
 cp "$HERE/series-port.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
@@ -100,6 +110,18 @@ git checkout -q main
 git merge -q --no-ff -m 'chore: Merge the live line' live-line
 
 git push -q origin main s-dev
+git push -q upstream main
+
+# --- the mirror falls behind ------------------------------------------------
+#
+# One more commit reaches the canonical repository and not the fork's copy of
+# `main`, which is the state the fork is in for most of the Pull app's cycle.
+
+echo 'foo <- function() 3' > R/foo.R
+git add -A
+git commit -qm 'fix: A commit the mirror has not picked up yet'
+git push -q upstream main
+git checkout -q s-dev
 
 # --- the read ---------------------------------------------------------------
 
@@ -112,6 +134,18 @@ hasnt "ancestry-only content is not offered" "$out" 'Ancient work that never rea
 hasnt "nor the rest of that lineage" "$out" 'More of the same'
 hasnt "nor the ancestry-only merge itself" "$out" 'Record the old tag on the mainline'
 has "a real merge's content is still offered" "$out" 'Live work that did reach the tree'
+
+echo
+echo "series-port.sh: which \`main\` answers"
+has "a commit the mirror lacks is offered" "$out" 'A commit the mirror has not picked up yet'
+hasnt "and a behind mirror is not a refusal" "$out" 'commit(s) behind'
+
+# With no canonical remote to read, the mirror answers -- with the subset it
+# has, and saying so, rather than with a refusal.
+out_fork=$(SERIES_CANONICAL= scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_fork"
+hasnt "the fallback offers only what the mirror has" "$out_fork" 'A commit the mirror has not picked up yet'
+has "and still offers what it does have" "$out_fork" 'An ordinary commit the series lacks'
 
 echo
 echo "$pass passed, $fail failed"

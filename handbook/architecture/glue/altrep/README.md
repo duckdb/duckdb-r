@@ -10,8 +10,8 @@ nothing runs until R touches the values,
 materialization is budgeted by `n_rows` and `n_cells`,
 unlimited by default ([`R/relational.R`](/R/relational.R)),
 and an execution error is stored and re-raised at every later access.
-What materializing allocates, and that the engine's copy of the result
-stays with the data frame after conversion, is
+What materializing allocates, and when the engine's copy of the result
+is released after conversion, is
 [`usage/memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
 Touching is R's to do:
 every method that can materialize runs on R's thread and nowhere else,
@@ -41,6 +41,9 @@ every call into R from inside an ALTREP method
 goes through `cpp11::safe[]`,
 never the R API directly,
 or a long-jmp leaves the guard on for the rest of the session.
+The allocations part way through converting a column are the exception.
+They call R directly, because protecting each one would slow down every list column.
+Running out of memory there still leaves the guard on.
 
 *To deepen: state what each ALTREP method does with an unmaterialized
 relation, and what a duplicated one costs.*

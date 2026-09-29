@@ -1398,7 +1398,7 @@ bool LocalFileSystem::TryCanonicalizeExistingPath(string &input) {
 }
 
 bool LocalFileSystem::PathStartsWithDrive(const string &path) {
-	return path.size() >= 2 && path[0] >= 'A' && path[0] <= 'Z' && path[1] == ':';
+	return path.size() >= 2 && StringUtil::CharacterIsAlpha(path[0]) && path[1] == ':';
 }
 
 bool LocalFileSystem::IsPathAbsolute(const string &path) {
@@ -1429,7 +1429,7 @@ string LocalFileSystem::MakePathAbsolute(const string &path_p, optional_ptr<File
 		}
 		// this is "C:" - expand to current working directory if this is the current drive
 		auto working_directory = GetWorkingDirectory();
-		if (working_directory[0] != path[0]) {
+		if (StringUtil::CharacterToUpper(working_directory[0]) != StringUtil::CharacterToUpper(path[0])) {
 			// this is not the drive we are on right now (e.g. referencing D: while in C:)
 			// default to root of drive
 			working_directory = string(1, path[0]) + ":\\";
