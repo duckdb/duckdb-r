@@ -155,6 +155,10 @@ groups <- list(
     globs = c("vendor-rfuns.sh")
   ),
   list(
+    owner = "handbook/usage/types",
+    globs = c("types-rd.R")
+  ),
+  list(
     owner = "handbook/branches/flavors",
     globs = c("flavor*", "reflavor*")
   ),

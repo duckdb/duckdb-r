@@ -31,9 +31,12 @@ so any test or example that still reaches the engine aborts
 `flavor_package_name_offenders()`
 ([`scripts/flavor-package-name.R`](/scripts/flavor-package-name.R))
 scans the tree for the hard-coded package name —
-`duckdb::`, `duckdb:::`, `"duckdb"` on the R surface,
+`duckdb::`, `duckdb:::`, `"duckdb"` and `library(duckdb)` on the R surface,
 the quoted form only in the glue,
 where `duckdb::` is the engine's own namespace.
+The attach form is there because it is the one spelling that is neither quoted nor qualified:
+`library(duckdb)` in a `callr` subprocess turned every series red at once,
+under a guard that read straight past it.
 The allowlist is read out of `scripts/flavor.patch` itself,
 so what the rename accounts for
 cannot drift from what the scan tolerates.
@@ -44,6 +47,9 @@ Resolve a hit, don't silence it:
 `paste0("duck", "db")`
 when the literal genuinely names something else,
 or teach `scripts/flavor.patch` the rename.
+A subprocess takes the name as an argument and resolves it with `asNamespace()`,
+the way `test-shutdown.R` and `test-signal.R` do;
+attaching the package by name inside one cannot work on a flavored build.
 The scan covers what ships;
 `handbook/` is outside it and is written for the mainline flavor
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).

@@ -151,3 +151,9 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`snapshot-accept.sh`](snapshot-accept.sh) | Rebuild a commit, run the suite, accept the named snapshots, re-run to confirm they hold. |
 
+## [`usage/types/`](/handbook/usage/types/README.md)
+
+| File | Purpose |
+|---|---|
+| [`types-rd.R`](types-rd.R) | Generate the type reference pages, `?duckdb_types` and `?duckdb_types_arrow`, from the handbook leaves that own them. |
+
