@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.6.9001
+
+## Features
+
+### series
+
+- Rebuild the rewind at the foot of a forward, gate the glue, and mirror `-dev` without its flavor (@krlmlr, #2875).
+
+## Continuous integration
+
+- Key the build caches by architecture (@krlmlr, #2876).
+
+
 # duckdb 1.5.6.9000
 
 ## Bug fixes
