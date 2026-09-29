@@ -60,6 +60,9 @@ Ignore a forward series
 whose green is an ancestor of its base series' green;
 that is cutover litter pending deletion
 (the base moves on after cutover, so equality cannot be the test).
+`<S>-rc-dev` has no `-build` beside it and is not a series of its own:
+it is the unflavored mirror of `<S>-dev`, derived commit for commit
+([`series-rc/SKILL.md`](series-rc)).
 
 **All four refs exist from day one, equal, and green contains the flavor
 change.**
@@ -1160,6 +1163,14 @@ there is nothing to wait for a harvest for.
 The store's own writer (the leg's publish;
 `rcc-logs.sh` only when an operator runs it)
 just fills the fallback copy behind it.
+
+**Realign the rc strand, last.**
+A series with an `<S>-rc-dev` gets `scripts/series-rc.sh <S> --push`
+after every write this firing made to `<S>-dev`, here or in stages 2 and 4,
+so the unflavored strand never lags the one it mirrors
+([`series-rc/SKILL.md`](series-rc)).
+Its own reds are not repaired on the rc strand:
+a fix goes to `<S>`, and the next realignment carries it.
 
 ### 6. Read the forwarding, and suggest a cutover — never perform one
 

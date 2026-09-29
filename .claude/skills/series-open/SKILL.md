@@ -179,6 +179,10 @@ until now.
 
    Both run beside their live refs as `-fwd-*` and swap in at cutover, so no green
    anyone reads is rewritten.
+   The graft keeps the fork point's R side, so `<P>`'s next forward is the one that
+   aligns it with `main`, and it takes the fork point from `<S>`'s forward rather
+   than rederiving it: `series-forward-build.sh --graft-from <S>-fwd-build`
+   ([`series-forward/SKILL.md`](series-forward)).
 
 6. **Declare `<F>`, and generate what says so.**
 
