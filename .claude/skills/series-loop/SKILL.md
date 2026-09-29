@@ -141,7 +141,20 @@ if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
   git fetch --unshallow origin
 fi
 git fetch --prune --tags origin
+git fetch -q upstream main
 ```
+
+**Both repositories, because `main` is one of them.**
+The series refs live in the fork and `main` belongs to the canonical
+repository, which the fork mirrors on the Pull app's six-hour cycle
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+Every read of `main` a firing makes takes the canonical ref:
+stage 4's port and its tooling sync,
+and the flavor declaration stage 7 reports on.
+A checkout that cannot reach it falls back to whatever the mirror last copied,
+and the scripts say so when they do.
+`upstream` is the remote name, the same one `--canonical` takes everywhere;
+add it where a checkout has none.
 
 `--depth` implies `--single-branch`, and a checkout made that way
 sees no `*-build` refs at all —
