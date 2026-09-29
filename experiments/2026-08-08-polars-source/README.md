@@ -63,9 +63,11 @@ What the run compresses to:
   and — unlike the plain nanoarrow route — bare list columns,
   which `as_polars_df()` converts to a Polars list dtype and DuckDB
   reads back as `INTEGER[]`.
-  It differs on `factor` (`VARCHAR`, losing the `ENUM`),
-  `POSIXct` (`TIMESTAMP WITH TIME ZONE` rather than naive `TIMESTAMP`),
-  and `integer64` (`BIGINT` rather than `DOUBLE`).
+  It differs on `factor` (`VARCHAR`, losing the `ENUM`)
+  and `POSIXct` (`TIMESTAMP WITH TIME ZONE` rather than naive `TIMESTAMP`),
+  and differed on `integer64` (`BIGINT` rather than `DOUBLE`)
+  until [#2819](https://github.com/duckdb/duckdb-r/pull/2819) made `r_dataframe_scan` write `BIGINT` as well.
+  The mapping through Arrow is [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
 * **The export is not the bottleneck.**
   Summing a column of a five-million-row frame:
   0.014 s through `r_dataframe_scan`,
