@@ -33,6 +33,9 @@ The load-bearing facts:
   `duckdb()` resolves the path once more after the engine has opened it, and files the instance under that key,
   because a symlink to a database yet to be created resolves only once its target exists.
   Two spellings of one database (relative, symlinked, differently separated) therefore share an instance.
+  Symlinks are out of scope on Windows, where creating one takes administrator rights or Developer Mode, so few users have them.
+  There the engine does not open a symlink whose target does not exist yet,
+  and `duckdb()` fails with `Cannot open file`, which the test for that case skips.
   Only `~` stays R's to expand: DuckDB has its own idea of the home directory, and on Windows it is not R's.
   A path that resolves no further is used as it stands rather than refused,
   so that a network drive whose directories the user may traverse but not list still opens
@@ -104,7 +107,8 @@ The load-bearing facts:
   makes it report instead, measured in
   [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
   No call from R reaches that cache today, because `duckdb()` builds its instance directly.
-  [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would have changed that, and was closed unmerged with its findings open.
+  Handing the driver cache to it is [#2857](https://github.com/duckdb/duckdb-r/issues/2857),
+  which collects what the attempt in [#2644](https://github.com/duckdb/duckdb-r/pull/2644) found.
 * `dbIsValid()` on a driver reports whether it still holds an instance,
   and opens nothing to find out,
   so a driver whose last connection has closed is no longer valid.

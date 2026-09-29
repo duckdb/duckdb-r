@@ -17,9 +17,16 @@
 # closing section, and one that opens its entry is an error, to be
 # rephrased in the leaf. A link to a leaf that has a page becomes a link
 # to that page, "documented in" it; any other path in the repository, which
-# the built package does not carry, becomes a link to it on GitHub. The
-# first mention of a function this package exports, a DBI function, or
-# `pkg::fun()` from a declared dependency links to its help.
+# the built package does not carry, becomes a link to it on GitHub,
+# "documented in the handbook's" leaf where it is one. A link to the leaf
+# itself, or with an anchor into a leaf that has a page, becomes a link to
+# the leaf on GitHub, anchor included, and stays where it is, as does the
+# breadcrumb "a limitation (below)". The first mention of a function this
+# package exports, a DBI function, or `pkg::fun()` from a declared
+# dependency links to its help.
+#
+# The page has no Limitations section, so the script stops on any other
+# "(below)" and on a sentence naming "Limitations".
 #
 # The output is roxygen under R/, which roxygen renders into man/.
 # Base R only, so that CI can run it on a bare checkout.
@@ -44,9 +51,6 @@ pages <- list(
   )
 )
 github <- "https://github.com/duckdb/duckdb-r"
-# A link to a path in the repository, once rewritten; an issue or a pull
-# request is not one.
-pointer <- "\\]\\(https://github[.]com/duckdb/duckdb-r/(blob|tree)/main/"
 self <- "scripts/types-rd.R"
 
 # --- locate the repository ---------------------------------------------
@@ -98,26 +102,58 @@ leaf_topics <- setNames(
   vapply(pages, `[[`, character(1), "leaf")
 )
 
-# What a link points at: the web, a leaf that has a page, or the repository.
+# A link to a path in the repository, once rewritten; an issue or a pull
+# request is not one, and neither is a link into a leaf that has a page,
+# which stays where it is.
+pointer <- sprintf(
+  "\\]\\(https://github[.]com/duckdb/duckdb-r/(blob|tree)/main/(?!(%s)/README[.]md)",
+  paste(gsub(".", "[.]", names(leaf_topics), fixed = TRUE), collapse = "|")
+)
+
+# What a link points at: the web, a leaf that has a page, a place in the
+# leaf itself or in such a leaf, or the repository. `dir` is the leaf the
+# link is written in.
 link_kind <- function(target, dir) {
-  if (grepl("^[a-z]+:", target) || startsWith(target, "#")) {
+  if (grepl("^[a-z]+:", target)) {
     return(list(kind = "web"))
   }
-  path <- repo_path(sub("#.*$", "", target), dir)
-  leaf <- sub("/(README\\.md)?$", "", path)
-  if (leaf %in% names(leaf_topics)) {
-    return(list(kind = "page", topic = leaf_topics[[leaf]]))
-  }
-  kind <- if (endsWith(path, "/") || dir.exists(path)) "tree" else "blob"
   anchor <- if (grepl("#", target, fixed = TRUE)) {
     sub("^[^#]*", "", target)
   } else {
     ""
   }
+  path <- if (startsWith(target, "#")) {
+    file.path(dir, "README.md")
+  } else {
+    repo_path(sub("#.*$", "", target), dir)
+  }
+  leaf <- sub("/(README\\.md)?$", "", path)
+  if (leaf %in% names(leaf_topics)) {
+    # A help page has no anchors, and a link to the page it is on leads
+    # nowhere, so both go to the leaf on GitHub.
+    if (leaf == dir || nzchar(anchor)) {
+      return(list(
+        kind = "leaf",
+        url = sprintf("%s/blob/main/%s/README.md%s", github, leaf, anchor)
+      ))
+    }
+    return(list(kind = "page", topic = leaf_topics[[leaf]]))
+  }
+  kind <- if (endsWith(path, "/") || dir.exists(path)) "tree" else "blob"
   list(
     kind = "repo",
+    handbook = startsWith(path, "handbook/"),
     url = sprintf("%s/%s/main/%s%s", github, kind, sub("/$", "", path), anchor)
   )
+}
+
+# "is <leaf>'s" and "as <leaf> says" read as "documented in <link>".
+documented_in <- function(before, link, after) {
+  if (grepl("\\b(is|are) $", before) && startsWith(after, "'s")) {
+    paste0(before, "documented in ", link, substring(after, 3))
+  } else if (grepl("\\bas $", before) && startsWith(after, " says")) {
+    paste0(before, "documented in ", link, substring(after, 6))
+  }
 }
 
 # Rewrite the links of a text, the last first so that earlier positions hold.
@@ -143,10 +179,9 @@ rewrite_links <- function(text, dir, body) {
     }
     if (k$kind == "page") {
       page_link <- sprintf("[%s]", k$topic)
-      if (grepl("\\b(is|are) $", before) && startsWith(after, "'s")) {
-        text <- paste0(before, "documented in ", page_link, substring(after, 3))
-      } else if (grepl("\\bas $", before) && startsWith(after, " says")) {
-        text <- paste0(before, "documented in ", page_link, substring(after, 6))
+      documented <- documented_in(before, page_link, after)
+      if (!is.null(documented)) {
+        text <- documented
       } else if (endsWith(before, "(") && startsWith(after, ")")) {
         text <- paste0(before, "see ", page_link, after)
       } else {
@@ -154,12 +189,20 @@ rewrite_links <- function(text, dir, body) {
       }
       next
     }
-    if (body && grepl("(,\\s*|\\s+)(pinned by|set in) $", before)) {
+    url_link <- sprintf("[%s](%s)", link_text, k$url)
+    documented <- if (k$kind == "repo" && k$handbook) {
+      documented_in(before, paste("the handbook's", url_link), after)
+    }
+    if (k$kind == "leaf") {
+      text <- paste0(before, url_link, after)
+    } else if (body && grepl("(,\\s*|\\s+)(pinned by|set in) $", before)) {
       text <- paste0(sub("(,\\s*|\\s+)(pinned by|set in) $", "", before), after)
     } else if (body && endsWith(before, "(") && startsWith(after, ")")) {
       text <- paste0(sub("\\s*\\($", "", before), substring(after, 2))
+    } else if (!is.null(documented)) {
+      text <- documented
     } else {
-      text <- paste0(before, sprintf("[%s](%s)", link_text, k$url), after)
+      text <- paste0(before, url_link, after)
     }
   }
   text
@@ -189,14 +232,14 @@ moved <- character()
 for_page <- function(block, dir) {
   text <- rewrite_links(paste(block, collapse = "\n"), dir, body = TRUE)
   block <- strsplit(text, "\n", fixed = TRUE)[[1]]
-  if (!any(grepl(pointer, block))) {
+  if (!any(grepl(pointer, block, perl = TRUE))) {
     return(block)
   }
   parts <- sentences(block)
   keep <- list()
   for (j in seq_along(parts)) {
     s <- parts[[j]]
-    if (!any(grepl(pointer, s))) {
+    if (!any(grepl(pointer, s, perl = TRUE))) {
       keep <- c(keep, list(s))
     } else if (j == 1) {
       stop(
@@ -305,26 +348,6 @@ render <- function(page) {
     # A leaf's sections are the page's sections, one level up.
     sub("^### ", "## ", sub("^## ", "# ", for_page(b, page$leaf)))
   }))
-  # The page leaves the limitations to the handbook,
-  # so a breadcrumb to them links there.
-  body <- gsub(
-    "limitation (below)",
-    sprintf(
-      "[limitation](%s/blob/main/%s/README.md#limitations)",
-      github,
-      page$leaf
-    ),
-    body,
-    fixed = TRUE
-  )
-  if (any(grepl("(below)", body, fixed = TRUE))) {
-    stop(
-      source_file,
-      ": a breadcrumb other than \"a limitation (below)\" points below, ",
-      "where the page has nothing",
-      call. = FALSE
-    )
-  }
   if (length(moved)) {
     reference <- c(reference, "", moved)
   }
@@ -333,6 +356,45 @@ render <- function(page) {
     "\n",
     fixed = TRUE
   )[[1]]
+
+  # The page leaves the limitations to the handbook,
+  # so a breadcrumb to them links there, wherever it stands.
+  crumbs <- function(x) {
+    gsub(
+      "limitation (below)",
+      sprintf(
+        "[limitation](%s/blob/main/%s/README.md#limitations)",
+        github,
+        page$leaf
+      ),
+      x,
+      fixed = TRUE
+    )
+  }
+  description <- crumbs(description)
+  body <- crumbs(body)
+  reference <- crumbs(reference)
+  from_leaf <- c(description, body, reference)
+  below <- grep("(below)", from_leaf, fixed = TRUE, value = TRUE)
+  if (length(below)) {
+    stop(
+      source_file,
+      ": a breadcrumb other than \"a limitation (below)\" points below, ",
+      "where the page has nothing: ",
+      below[[1]],
+      call. = FALSE
+    )
+  }
+  named <- grep("\\bLimitations\\b", from_leaf, value = TRUE)
+  if (length(named)) {
+    stop(
+      source_file,
+      ": a sentence names the Limitations section, which the page does not have; ",
+      "point to it with \"a limitation (below)\" instead: ",
+      named[[1]],
+      call. = FALSE
+    )
+  }
 
   details <- c(body, "# Limitations and reference", "", reference)
   all <- link_functions(c(description, "", details))

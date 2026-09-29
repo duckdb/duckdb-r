@@ -95,6 +95,7 @@ rather than matching on the message
 The fields survive the rethrow that points the error at the user's call
 ([`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md)),
 and the no-rlang fallback carries the same ones on a plainer message.
+The condition and its fields are experimental, so their names and contents may still change.
 
 **The message stays prose and the rest stays data.**
 `error_type` is the one field also rendered, because it is short and bounded;

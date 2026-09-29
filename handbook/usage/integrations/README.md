@@ -203,7 +203,8 @@ Each takes what a DBI call returns:
 
 * Polars: `polars::as_polars_df(dbGetQueryArrow(con, sql))`.
   It keeps each batch as a chunk, and numbers and characters where the stream put them.
-  A string column gains a 16-byte view per value, unless the export already sends views (`produce_arrow_string_view`).
+  A string column gains a 16-byte view per value, unless the export already sends views,
+  as it does with `produce_arrow_string_view = true` and an `arrow_output_version` from `'1.4'`.
 * data.table: `data.table::setDT(dbGetQuery(con, sql))`.
   It makes the data frame a data.table in place and keeps every column, where `as.data.table()` copies each one.
 * collapse: its functions take the data frame as it is, and `collapse::qDT()` makes a data.table that keeps every column.
@@ -233,13 +234,6 @@ That distinction stopped being academic when CRAN archived
 a `Suggests` that cannot be installed fails the check outright
 (`Package suggested but not available`, an ERROR under `--as-cran`),
 where an `Enhances` that cannot be installed is reported and passed over.
-`Additional_repositories` does not change that,
-and is not an alternative to the move:
-it answers the separate incoming-feasibility NOTE
-about a dependency outside the mainstream repositories,
-so this package carries both —
-the field pointed at `apache.r-universe.dev`,
-which is where the ADBC monorepo publishes the package now.
 
 The move is paid for in coverage, and it is worth knowing the price.
 `--as-cran` runs tests and examples against a restricted library
@@ -268,15 +262,9 @@ It costs everything this package adds:
 the DBI methods, the relational API, registration and the R type
 mapping are this package's rather than the driver's,
 and a second engine in the session shares nothing with this one.
-Both routes need `adbcdrivermanager`, which no longer installs itself:
-it comes from `apache.r-universe.dev`, which is what
-`Additional_repositories` names
+Both routes need `adbcdrivermanager`, which CRAN publishes again
 ([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)
-carries what CI does about that).
-That universe publishes a prebuilt binary for every platform this package
-is checked on — Linux, macOS and Windows, x86_64 and aarch64 —
-so Windows arm64 is no longer the exception it was
-while CRAN was the only source and had no binary for it.
+carries what CI does about installing it).
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain
