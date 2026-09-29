@@ -101,7 +101,7 @@ That is why the base keeps consuming. A base frozen where the forward
 went live can be compared only at the commit it stopped on — the one
 point the two are already known to agree — so every commit the forward
 vendored afterwards had nothing to check against; and past that frontier
-stage 5 finds no twin to match by vendored SHA, so each fix the base had
+the extend stage finds no twin to match by vendored SHA, so each fix the base had
 already proved came back as a red on the forward, at a repair plus a
 replay of everything above it.
 
@@ -130,8 +130,8 @@ Everything else is an option, spelled identically in all of them:
 * `--remote <name>` — the remote of *this* repository carrying the series
   refs. Default `origin`, or `$SERIES_REMOTE`.
 * `--upstream <path>` — a `duckdb/duckdb` checkout on disk, read with
-  `git -C`. Default `$UPSTREAM_CLONE`.
-  Only `series-check.sh` and `series-cutover.sh` read one.
+  `git -C`. Default `$UPSTREAM_CLONE`, and for `series-cut.sh` then `../../../duckdb`.
+  Only `series-check.sh`, `series-cut.sh` and `series-cutover.sh` read one.
 * `--canonical <name>` — the remote of the canonical repository: where
   r-universe publishes the base flavors from, and where `main` itself lives.
   Default `$SERIES_CANONICAL`, then `upstream`, which is what a `gh` clone of a
@@ -167,7 +167,7 @@ fixtures, because every check lands before the first `git` call.
 Uniformity is the property that rots one script at a time,
 each of them working perfectly well on its own while it drifts.
 Where a script reads a worktree rather than the refs of the one it is
-in — `series-glue.sh`, `series-forward-build.sh` — it takes
+in — `series-cut.sh`, `series-glue.sh`, `series-forward-build.sh` — it takes
 `$VENDOR_REPO`, the same knob `vendor-one.sh` takes, so `main`'s copy of
 a script reads the tree the caller is in.
 
@@ -178,7 +178,7 @@ it with `series-open`.
 The report carries the fork point as well, wherever the firing has an
 upstream clone to compute it in, because only the first-parent recipe
 answers that question correctly
-([`scripts/VENDORING.md`](/scripts/VENDORING.md)).
+([`vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 Nothing else in the loop can raise the condition: the stages above walk the
 series they discover, so a line with no refs is absent from all of them
 rather than overdue in one.

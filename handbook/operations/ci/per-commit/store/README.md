@@ -176,7 +176,7 @@ discarding it.
 A record is normally written once, which is what makes every writer idempotent.
 The exception is a **retry**: `retry-<S>-dev` asks for a commit that already has
 a verdict to be judged again on its own SHA, and the point is to overturn it.
-So the newer verdict replaces the older one everywhere —
+So the newer verdict replaces the older one everywhere.
 
 [`rcc-publish.sh`](/scripts/rcc-publish.sh) compares blob ids in the index,
 so re-publishing an identical record costs nothing

@@ -131,10 +131,10 @@ A prefix on `-dev` alone is the split the gate above declines to resolve,
 so it is stamped once, beside the fifth component, and never by the replay:
 the gate keeps our side of `DESCRIPTION` verbatim across differing prefixes,
 so every replayed commit inherits whatever the base was stamped with.
-An opening stamps nothing, because it cuts the parent's strands rather than
-building a base ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md));
-the new line carries the parent's prefix until its first forward.
-That forward is where both lines get theirs —
+An opening cuts the parent's strands rather than building a base,
+so it stamps the prefix onto the strands themselves, the new line's and the parent's both
+([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
+The first forward is where both lines get it into a base:
 [`series-forward`](/.claude/skills/series-forward/SKILL.md) regenerates a seed
 from current `main`, or grafts the fork point's tree, and either way the prefix
 is the stamp that makes the base the new line's rather than the old one's.
