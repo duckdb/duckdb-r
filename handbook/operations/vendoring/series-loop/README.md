@@ -4,7 +4,7 @@ The scheduled routine that vendors every series.
 The procedures are machine-loaded playbooks under
 [`.claude/skills/`](/.claude/skills) —
 [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) with its
-siblings `series-forward`, `series-rebase`, `series-open` —
+siblings `series-forward`, `series-rebase`, `series-open`, `series-rc` —
 linked from here, never restated:
 a reader who wants to *run* the loop follows the link;
 what runs is this page's topic.
@@ -75,6 +75,9 @@ to do, and they run in this order:
   refs, which costs CI on a lineage about to be retired and buys the
   only thing that makes retiring it checkable rather than hopeful
   (below).
+  A series with an `<S>-rc-dev` has it realigned after every write to `<S>-dev`
+  ([`scripts/series-rc.sh`](/scripts/series-rc.sh)): the unflavored mirror is derived,
+  never vendored or repaired on its own.
 * **Read the forwarding, and suggest a cutover** — for every series
   with a forward counterpart,
   [`scripts/series-converge.sh`](/scripts/series-converge.sh) diffs
