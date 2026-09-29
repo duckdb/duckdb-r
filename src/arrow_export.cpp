@@ -126,7 +126,7 @@ RArrowChunkSource::RArrowChunkSource(duckdb::unique_ptr<QueryResult> result_p) :
 	types = owned_result->GetTypes();
 	names = IdentifiersToStrings(owned_result->GetNames());
 	if (CanDrain(*owned_result)) {
-		stream_result = make_uniq<QueryResultStream>(std::move(owned_result));
+		stream_result = make_uniq<QueryResultStream<>>(std::move(owned_result));
 	} else {
 		result = owned_result.get();
 	}
