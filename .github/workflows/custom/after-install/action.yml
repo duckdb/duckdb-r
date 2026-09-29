@@ -3,6 +3,21 @@ name: 'Custom steps to run after R packages are installed'
 runs:
   using: "composite"
   steps:
+    # The install action sets _R_CHECK_THINGS_IN_OTHER_DIRS_=true, and R CMD
+    # check before R 4.5 halts on Windows as soon as it starts with it set: its
+    # snapshot of the other directories reads file.info()[, "uname"], a column
+    # file.info() has on Windows only from R 4.5 on. rcmdcheck then parses no
+    # result and reports the halted check as a success, so the older Windows
+    # entries (handbook/operations/ci/matrix/README.md) checked nothing. Cleared
+    # here, after the install action, for those entries only.
+    - name: Keep R CMD check from halting on Windows before R 4.5
+      if: runner.os == 'Windows'
+      run: |
+        if Rscript --vanilla -e 'quit(status = as.integer(getRversion() >= "4.5.0"))'; then
+          echo '_R_CHECK_THINGS_IN_OTHER_DIRS_=false' | tee -a "$GITHUB_ENV"
+        fi
+      shell: bash
+
     # Must be done after installing R because rtools is installed only then
     - name: Compute cache key
       if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
@@ -113,6 +128,15 @@ runs:
       run: scripts/warnings.sh glue
       shell: bash
 
+    # The type reference pages are rendered from handbook leaves by
+    # scripts/types-rd.R (handbook/usage/types/README.md), and a leaf edited
+    # without re-running it leaves its page stale. Like the scans around it,
+    # it reads the checkout and nothing else, so it runs in the smoke test only.
+    - name: Check that the type reference pages match their handbook leaves
+      if: github.job == 'rcc-smoke'
+      run: Rscript scripts/types-rd.R --check
+      shell: bash
+
     - name: Check that the package name is hard-coded only where scripts/flavor.patch rewrites it
       if: github.job == 'rcc-smoke'
       run: |
@@ -153,4 +177,13 @@ runs:
           )
         }
         writeLines("scripts/flavor.patch applies.")
+        binding <- flavor_binding_prefix_offenders(".")
+        if (length(binding) > 0) {
+          writeLines(binding)
+          stop(
+            "An entry point in R/cpp11.R does not carry this flavor's .Call() ",
+            "prefix; regenerate the binding with cpp11::cpp_register()."
+          )
+        }
+        writeLines("Both halves of the cpp11 binding carry this flavor's prefix.")
       shell: Rscript {0}

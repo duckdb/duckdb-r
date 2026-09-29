@@ -19,11 +19,15 @@ The wrappers are [`src/include/rapi.hpp`](/src/include/rapi.hpp)'s.
   beside the conversion options the connection was opened with.
 * `duckdb_result` wraps `RStatement`: one `PreparedStatement` and its bound parameters,
   with the rows themselves in R, materialized at send time.
-  `duckdb_result_arrow` wraps `RQueryResult`: one streaming `QueryResult`, and the Arrow stream over it once fetching starts.
+  The legacy `arrow = TRUE` route keeps them in the engine instead, a materialized `QueryResult` behind an `RQueryResult`.
+  `duckdb_result_arrow` wraps an `RStatement` too, and an `RQueryResult`: one streaming `QueryResult`,
+  and the Arrow stream over it once fetching starts.
 * A relation wraps `RelationWrapper`: one `Relation` ([`altrep/`](/handbook/architecture/glue/altrep/README.md)).
 
-A prepared statement and a relation each hold a `shared_ptr` to the context they were made on,
-and a context holds its instance, which is the lifetime fact everything below turns on.
+A prepared statement holds a `shared_ptr` to the context it was made on, and so does the Arrow stream over a result.
+A context holds its instance, which is the lifetime fact everything below turns on.
+A relation holds its context only through a `weak_ptr`, `ClientContextWrapper` in the vendored engine.
+After `dbDisconnect()` it fails with "Connection has already been closed", unless something else still holds that context.
 
 **What a context scopes.**
 The engine's session is the context: the transaction, the temporary catalog,
@@ -35,7 +39,7 @@ starting any statement on a context runs its `InitialCleanup()`, which ends the 
 (vendored `src/duckdb/src/main/client_context.cpp`).
 What the instance owns crosses every context: committed data, `ATTACH`, a global `SET`, a loaded extension,
 and this package's Arrow registrations, which live on the `DBWrapper`.
-Each of these was read from a second context in
+Each of these but the random state, a loaded extension and the Arrow registrations was read from a second context in
 [`experiments/2026-09-26-connection-per-result/`](/experiments/2026-09-26-connection-per-result/README.md).
 
 **DBI's session is the engine's session.**
@@ -47,7 +51,7 @@ That is what the mapping buys.
 A materialized result survives any statement on its connection, because its rows are already R's.
 A streaming result is the context's open result,
 `dbSendQueryArrow()`'s today and `dbSendQuery(stream = TRUE)`'s once
-[#2584](https://github.com/duckdb/duckdb-r/pull/2584) lands,
+[#2587](https://github.com/duckdb/duckdb-r/pull/2587) lands,
 and the package's own helpers run statements:
 `dbExistsTable()`, `dbListTables()`, `dbListFields()`, `duckdb_register()`, `dbAppendTable()` and the Connections pane each end it.
 The engine's Arrow stream wrapper reports an ended stream as the end of the stream
@@ -67,20 +71,20 @@ DBI names that second connection a clone, `dbConnect(con)`, and this package has
 **A result outlives its connection, and holds the instance with it.**
 `dbDisconnect()` deletes the `Connection`, and the prepared statement keeps the context,
 so an uncleared result stays valid, fetches, and re-executes on `dbBind()` after the disconnect.
-The instance stays open with it, known to neither the driver, whose `dbIsValid()` says `FALSE`,
+An Arrow stream keeps the context the same way until it is released, one from `dbGetQueryArrow()` included.
+The instance stays open with the context, known to neither the driver, whose `dbIsValid()` says `FALSE`,
 nor the engine's connection count,
 the in-use-result state of
 [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
 For a file that is the lock: another process is refused,
 while this process, whose driver registry has forgotten the instance, opens the file a second time,
 because a POSIX record lock is held per process.
-The two instances neither see nor exclude each other until the result is cleared (measured).
-Clearing every result before disconnecting is what DBI asks for;
-the package does not enforce it, and the plan above lists the enforcement among its open questions.
+The two instances neither see nor exclude each other until the result is cleared (measured), or the stream released.
+Clearing every result before disconnecting is what DBI asks for, and the package does not enforce it.
 
 **A context is cheap, so cost is not the argument.**
 16 µs to open and close, and 8 KB resident, 14 KB once it has run a statement,
-against 255 µs for `SELECT 1` and 5 ms for `dbConnect()` itself (measured).
+against 255 µs for `SELECT 1` and 5 ms for `dbConnect()` with `dbDisconnect()` (measured).
 
 **Parallelism is the engine's, per context.**
 Queries on different contexts run at once; queries on one context queue on its lock.
@@ -113,4 +117,4 @@ A private context taken by default behind guards was drafted and refused;
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) carries the design and the reasons.
 
 *To deepen: state what the driver-side mapping, a driver that owns its instance, costs against a factory driver
-over the engine's own instance cache, which [#2644](https://github.com/duckdb/duckdb-r/pull/2644) would settle.*
+over the engine's own instance cache, which [#2857](https://github.com/duckdb/duckdb-r/issues/2857) would settle.*

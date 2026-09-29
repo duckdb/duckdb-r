@@ -22,6 +22,10 @@ orphan: revdep/
 orphan: README.md
 orphan: .github/README.md
 
+# The submission comment reaches a CRAN maintainer verbatim, so it links to
+# nothing internal; handbook/operations/releases/cran/README.md links to it.
+orphan: cran-comments.md
+
 # The no-em-dash rule is on the local page and binds what is written from now
 # on. The tree predates it, so the check stays off until a sweep clears what is
 # already there.
