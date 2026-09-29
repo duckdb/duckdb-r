@@ -133,7 +133,20 @@ case "${branch}" in
     case "${series}" in
       retry-*) series="${series#retry-}"; retry=1 ;;
     esac
-    if git fetch -q origin \
+    # An rc strand has no green: it is derived from its source series commit for
+    # commit (.claude/skills/series-rc/SKILL.md), so its world is everything above
+    # its own seed, and without that bound the scan would reach into `main`.
+    if [ -z "${retry}" ] && [ "${series%-rc}" != "${series}" ]; then
+      rc_seed="$(git log --first-parent --format=%H \
+        --grep='^chore: Add fifth version component$' -1 HEAD)"
+      if [ -z "${rc_seed}" ]; then
+        echo "RC branch ${branch} has no seed -- planning nothing"
+        plan_nothing
+        exit 0
+      fi
+      RANGE=("${rc_seed}..HEAD")
+      echo "RC branch: scanning ${rc_seed:0:10}..HEAD"
+    elif git fetch -q origin \
         "+refs/heads/${series}-green:refs/remotes/origin/${series}-green" 2>/dev/null; then
       if git merge-base --is-ancestor "refs/remotes/origin/${series}-green" HEAD; then
         RANGE=("refs/remotes/origin/${series}-green..HEAD")

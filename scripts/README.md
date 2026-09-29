@@ -144,6 +144,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
 | [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop/SKILL.md). |
+| [`series-rc.sh`](series-rc.sh) | Derive the release-candidate strand of a series: `<S>-rc-dev`, the package without its flavor, commit for commit (.claude/skills/series-rc/SKILL.md). |
 
 ## [`testing/snapshots/`](/handbook/testing/snapshots/README.md)
 

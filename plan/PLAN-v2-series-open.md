@@ -53,6 +53,8 @@ Both halves were cuts at that point, not replays.
 
 * **v2.0's first forward.** The cut took `main`'s tree entire, so the series stands
   on the fork point's R side; the forward brings it onto current `main`'s.
+  In flight since 2026-09-28 as `v2.0-cyanoptera-fwd`, beside `main-fwd`, whose graft
+  it rebuilt ([`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)); the cutover is a human's.
   Not the flavor — `scripts/reflavor.sh` did that before the push (`3007727026`,
   `9fe4008b6e`), and both strands read `Package: duckdb.2.0.dev`.
   `-green` still reads `duckdb.dev` because it sits at the cut, below the rename,
