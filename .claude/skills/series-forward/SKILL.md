@@ -188,9 +188,10 @@ the replay then populates `<S>-fwd-build`.
 
    **A forward that re-roots is a graft, and grafts nothing but a tree.**
    Where the point is to drop history below a fork point — an opening leaves the
-   parent carrying it ([`series-open/SKILL.md`](series-open)) — the new root is
+   parent carrying it ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)) — the new root is
    one commit whose tree *is* the fork-point commit's, verbatim, parented on
-   current `main`:
+   current `main`, with a subject that opens with `graft:`,
+   which is how `series-forward-build.sh` recognises one at the foot of a range:
 
    ```bash
    git commit-tree <fork-point commit>^{tree} -p <main> -F <message>
@@ -232,8 +233,8 @@ the replay then populates `<S>-fwd-build`.
    The script names each one and stops before writing anything.
    Work through them in this order:
 
-   1. **Read it.** The refusal rests on two cheap tests,
-      so a change the new base carries in a shape neither recognises
+   1. **Read it.** The refusal rests on cheap tests,
+      so a change the new base carries in a shape none of them recognises
       is listed too; confirm by reading the base for its effect.
       If it is there, the commit is done.
    2. **Find the commit it belongs to** —
@@ -348,6 +349,7 @@ prints the difference and sorts it into the two.
 What is explicable is a short, evidenced list —
 `DESCRIPTION`'s `Version:` line, which the replay renumbers;
 `NEWS.md`, the release paperwork stage 4 never ports;
+the READMEs each seed wrote, and the Windows export list where each side's names its own package;
 and the **vendored strand** —
 `src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`
 and the Makevars —
@@ -362,7 +364,7 @@ a forward regenerates the vendored tree from its own patch stack,
 which is what step 1's tree check verifies at replay time.
 
 Everything else is a finding —
-glue, tests, R code, the READMEs, the tooling directories —
+glue, tests, R code, the tooling directories —
 and it belongs to whichever stage should have moved it:
 a carry stage 5 could not make,
 a port that reached one branch and not the other,

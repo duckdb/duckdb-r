@@ -101,7 +101,7 @@ If that check fires, the wrong cpp11 is installed.
 The R test suite never compiles these headers,
 so it proves nothing here.
 Compile the glue instead —
-fifteen translation units, seconds each:
+every `src/*.cpp`, seconds each:
 
 ```bash
 cd src

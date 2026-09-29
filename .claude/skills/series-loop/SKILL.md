@@ -62,7 +62,7 @@ that is cutover litter pending deletion
 (the base moves on after cutover, so equality cannot be the test).
 `<S>-rc-dev` has no `-build` beside it and is not a series of its own:
 it is the unflavored mirror of `<S>-dev`, derived commit for commit
-([`series-rc/SKILL.md`](series-rc)).
+([`series-rc/SKILL.md`](/.claude/skills/series-rc/SKILL.md)).
 
 **All four refs exist from day one, equal, and green contains the flavor
 change.**
@@ -237,8 +237,9 @@ VENDOR_REPO=<S>-build-worktree \
 The script reads it as the walk's right-hand side and nothing else names one;
 a clone left wherever the last session parked it
 vendors that branch onto this series' buffer.
-`main`, `v1.5-variegata` and `v1.4-andium` each track
-the `duckdb/duckdb` branch of the same name (`BRANCHES.md`).
+Every series tracks the `duckdb/duckdb` branch of its own name,
+and a forward `<S>-fwd` tracks `<S>`'s
+([`branches/model/`](/handbook/branches/model/README.md)).
 The script refuses when the buffer's last vendored commit
 is off the clone HEAD's first-parent line,
 which is the shape a wrong ref takes;
@@ -497,14 +498,12 @@ Both treatments, and how to choose, are spelt out in
 
 Before force-pushing a repair,
 **build and check it locally** at the repaired commit
-with `scripts/rcc-one.sh` (#59) —
+with `scripts/rcc-one.sh` —
 the per-commit gate extracted from CI's `rcc-smoke`,
 so the local verdict is CI's verdict, not an approximation of it.
 Run the full gate when time allows,
 or the stages the repair touches when it does not;
 `git clean -fdx -- src/` first either way.
-(Until #59 is available:
-`R CMD INSTALL` plus `testthat::test_local()`.)
 A CI round trip costs ~35 minutes plus queue;
 a local pass costs ~10.
 One local pass that catches a bad repair saves a full cycle,
@@ -1029,7 +1028,7 @@ A commit that has not been judged yet is not a reason to hold the buffer:
 the budget is 100 and the buffer is rarely near it,
 so waiting for a full CI cycle before topping it up
 costs a cycle per firing and buys nothing —
-`each.yaml` plans every commit in `<S>-green..tip` without a status,
+`each.yaml` plans every commit in `<S>-green..tip` without a verdict,
 so a longer tip is simply more work planned in the same pass.
 
 A **known failure** does stop the stage.
@@ -1168,7 +1167,7 @@ just fills the fallback copy behind it.
 A series with an `<S>-rc-dev` gets `scripts/series-rc.sh <S> --push`
 after every write this firing made to `<S>-dev`, here or in stages 2 and 4,
 so the unflavored strand never lags the one it mirrors
-([`series-rc/SKILL.md`](series-rc)).
+([`series-rc/SKILL.md`](/.claude/skills/series-rc/SKILL.md)).
 Its own reds are not repaired on the rc strand:
 a fix goes to `<S>`, and the next realignment carries it.
 
@@ -1187,6 +1186,7 @@ and sorts every differing path into
 what the forwarding explains and what it does not —
 the version counter the replay renumbers,
 the release paperwork stage 4 never ports,
+the READMEs each seed wrote, the Windows export list where each side's names its own package,
 and the vendored strand,
 only while the two still vendor different upstream commits.
 Everything else is a finding, and the stage carries it into the report.
@@ -1235,6 +1235,11 @@ scripts/series-converge.sh <S>
 # r-universe publishes from -- name that remote with --canonical where it is
 # not `upstream`, or the copy keeps serving the pre-cutover lineage.
 scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
+
+# A series with an rc strand: re-derive it from the swapped-in lineage, and
+# drop the forward's (.claude/skills/series-rc/SKILL.md).
+scripts/series-rc.sh <S> --push
+git push origin --delete <S>-fwd-rc-dev
 
 # A retired lineage moves the badge table, and the mirror rules with it.
 scripts/pull-config.sh --check
@@ -1318,7 +1323,8 @@ If an open PR already covers the cause,
 two PRs for one cause split the review
 and neither one carries the whole case.
 If it has been open across several firings, say so in the report —
-§5's health signal is workarounds per month,
+the tooling-fix loop's health signal is workarounds per month
+([`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md), §5),
 and a fix waiting for review is a workaround that keeps being paid.
 Never merge one yourself to get past it.
 
@@ -1458,7 +1464,7 @@ so the commit needs judging again, not repairing.
 
 Amending does rerun it —
 the fresh committer timestamp alone mints a new SHA,
-and `each.yaml` schedules runs for commits without a status —
+and `each.yaml` schedules runs for commits without a verdict —
 but it re-mints every descendant with it.
 The `pkgdown` flake this was written for sat 22 green commits
 below the `main-fwd-dev` tip:
@@ -1485,13 +1491,13 @@ The rerun writes a fresh `rcc` status on the **same SHA**.
 **The tip is what is being asked about.**
 Only it is replanned in spite of its verdict;
 the rest of `<S>-green..tip` keeps the ordinary
-build-it-if-it-has-no-status rule,
+build-it-if-it-has-no-verdict rule,
 so a run lost further down the range comes back in the same pass.
 A retry branch naming a series with no green plans nothing at all:
 without the anchor the scan falls back to
 first-parent history since `SINCE`,
 which reaches past the seed into `main`,
-where no commit carries an `rcc` status —
+where no commit carries an `rcc` verdict —
 14 of them, for the failure this was written for,
 every one queued as a build.
 
@@ -1561,9 +1567,8 @@ is what carries the automatic path into a forward series.
   but an uncommitted *new* file under `src/` would be deleted;
   commit or stage it first.
 - **clang-format must be clean.**
-  The per-commit runs are `workflow_dispatch`;
-  `.github/workflows/commit/action.yml` turns any diff
-  from the style, roxygenize or snapshot steps into `exit 1`.
+  The per-commit gate's `clean` stage (`scripts/rcc-one.sh`) turns any diff
+  from the style, roxygenize or snapshot steps into a failure.
   One unsorted `#include` once turned 858 commits red;
   no local build shows it.
 - **Never `git reset --hard` while HEAD is on a branch you keep** —
