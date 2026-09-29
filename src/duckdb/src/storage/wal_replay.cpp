@@ -1,12 +1,15 @@
 #include "duckdb/catalog/catalog_entry/duck_table_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/duck_catalog.hpp"
+#include "duckdb/common/assert.hpp"
 #include "duckdb/common/checksum.hpp"
 #include "duckdb/common/encryption_functions.hpp"
 #include "duckdb/common/encryption_key_manager.hpp"
+#include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
 #include "duckdb/common/serializer/buffered_file_reader.hpp"
 #include "duckdb/common/serializer/memory_stream.hpp"
+#include "duckdb/common/vector_size.hpp"
 #include "duckdb/common/enums/checkpoint_abort.hpp"
 #include "duckdb/execution/index/art/art.hpp"
 #include "duckdb/execution/index/index_type_set.hpp"
@@ -49,6 +52,7 @@ public:
 	idx_t wal_version = 1;
 	optional_idx current_position;
 	optional_idx checkpoint_position;
+	optional_idx checkpoint_end_position;
 	optional_idx expected_checkpoint_id;
 	WALReplayState replay_state;
 
@@ -378,6 +382,8 @@ void WriteAheadLogReplayer::MergeIntoRecoveryWAL(Connection &con, const ReplaySt
 	// move over the recovery WAL over the main WAL
 	recovery_handle->Sync();
 	recovery_handle.reset();
+	// the main WAL is the target of the move - Windows refuses to replace a file that is still open
+	main_wal_reader.handle.reset();
 
 	if (debug_checkpoint_abort == CheckpointAbort::DEBUG_ABORT_BEFORE_MOVING_RECOVERY) {
 		throw FatalException("Checkpoint aborted before moving recovery file because of PRAGMA checkpoint_abort flag");
@@ -411,6 +417,8 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 	// first deserialize the WAL to look for a checkpoint flag
 	// if there is a checkpoint flag, we might have already flushed the contents of the WAL to disk
 	ReplayState checkpoint_state(database, *con.context, replay_state);
+	idx_t last_wal_flush_end = 0;
+	idx_t checkpoint_truncate_offset = 0;
 	try {
 		idx_t replay_entry_count = 0;
 		while (true) {
@@ -418,7 +426,13 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 			// read the current entry (deserialize only)
 			checkpoint_state.current_position = reader.CurrentOffset();
 			auto deserializer = WriteAheadLogDeserializer::GetEntryDeserializer(checkpoint_state, reader, true);
-			if (deserializer.ReplayEntry()) {
+			auto is_wal_flush = deserializer.ReplayEntry();
+			if (checkpoint_state.checkpoint_position.IsValid() && !checkpoint_state.checkpoint_end_position.IsValid()) {
+				checkpoint_state.checkpoint_end_position = reader.CurrentOffset();
+				checkpoint_truncate_offset = last_wal_flush_end;
+			}
+			if (is_wal_flush) {
+				last_wal_flush_end = reader.CurrentOffset();
 				// check if the file is exhausted
 				if (reader.Finished()) {
 					// we finished reading the file: break
@@ -439,11 +453,21 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 		}
 	} // LCOV_EXCL_STOP
 	unique_ptr<FileHandle> checkpoint_handle;
-	if (checkpoint_state.checkpoint_id.IsValid()) {
+	bool truncate_failed_checkpoint_marker = false;
+	// A serialization error can leave a partially deserialized checkpoint marker in the replay state. Only reconcile
+	// checkpoints after the complete marker entry has been consumed.
+	if (checkpoint_state.checkpoint_id.IsValid() && checkpoint_state.checkpoint_end_position.IsValid()) {
 		if (replay_state == WALReplayState::CHECKPOINT_WAL) {
 			throw InvalidInputException(
 			    "Failure while replaying checkpoint WAL file \"%s\": checkpoint WAL cannot contain a checkpoint marker",
 			    wal_path);
+		}
+		auto checkpoint_end = checkpoint_state.checkpoint_end_position.GetIndex();
+		// The scan stops at either the final WAL_FLUSH or a torn tail. In both cases, current_position is the start of
+		// the final entry attempt. It must directly follow the checkpoint marker.
+		bool checkpoint_marker_at_end = checkpoint_state.current_position.GetIndex() == checkpoint_end;
+		if (!checkpoint_marker_at_end) {
+			throw IOException("WAL checkpoint marker must be at the end of the WAL");
 		}
 		// there is a checkpoint flag
 		// this means a checkpoint was on-going when we crashed
@@ -460,6 +484,9 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 				// the contents of the WAL have already been checkpointed and there is no checkpoint WAL - we are done
 				return nullptr;
 			}
+			if (!storage_manager.GetAttached().IsReadOnly()) {
+				truncate_failed_checkpoint_marker = true;
+			}
 		} else {
 			// we have a checkpoint WAL
 			if (checkpoint_was_successful) {
@@ -471,7 +498,10 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 				}
 				// if this is not a read-only connection we need to finish the checkpoint
 				// overwrite the current WAL with the checkpoint WAL
+				// both files must be closed - Windows refuses to move a file that is still open, and refuses to
+				// replace a target that is still open
 				checkpoint_handle.reset();
+				reader.handle.reset();
 
 				fs.MoveFile(checkpoint_wal, wal_path);
 
@@ -500,12 +530,28 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 		auto expected_id = checkpoint_state.expected_checkpoint_id.GetIndex();
 		WriteAheadLogDeserializer::ThrowVersionError(expected_id - 1, expected_id);
 	}
+	unique_ptr<BufferedFileReader> truncated_wal_reader;
+	if (truncate_failed_checkpoint_marker) {
+		// The failed checkpoint marker is the logical end of the WAL and must not become writable again. Truncate to
+		// the preceding commit boundary, which is zero if the WAL only contained its header before the marker.
+		reader.handle.reset();
+		auto truncate_handle = fs.OpenFile(wal_path, FileFlags::FILE_FLAGS_WRITE);
+		fs.Truncate(*truncate_handle, NumericCast<int64_t>(checkpoint_truncate_offset));
+		truncate_handle->Sync();
+		truncate_handle.reset();
 
+		if (checkpoint_truncate_offset == 0) {
+			return make_uniq<WriteAheadLog>(storage_manager, wal_path);
+		}
+		auto main_handle = fs.OpenFile(wal_path, FileFlags::FILE_FLAGS_READ);
+		truncated_wal_reader = make_uniq<BufferedFileReader>(fs, std::move(main_handle));
+	}
 	// we need to recover from the WAL: actually set up the replay state
 	ReplayState state(database, *con.context, replay_state);
 
 	// reset the reader - we are going to read the WAL from the beginning again
-	reader.Reset();
+	auto &wal_reader = truncated_wal_reader ? *truncated_wal_reader : reader;
+	wal_reader.Reset();
 
 	// replay the WAL
 	// note that everything is wrapped inside a try/catch block here
@@ -515,7 +561,7 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 	try {
 		while (true) {
 			// read the current entry
-			auto deserializer = WriteAheadLogDeserializer::GetEntryDeserializer(state, reader);
+			auto deserializer = WriteAheadLogDeserializer::GetEntryDeserializer(state, wal_reader);
 			if (deserializer.ReplayEntry()) {
 				con.Commit();
 
@@ -525,9 +571,9 @@ unique_ptr<WriteAheadLog> WriteAheadLogReplayer::ReplayLog(unique_ptr<FileHandle
 				}
 				state.replay_index_infos.clear();
 
-				successful_offset = reader.CurrentOffset();
+				successful_offset = wal_reader.CurrentOffset();
 				// check if the file is exhausted
-				if (reader.Finished()) {
+				if (wal_reader.Finished()) {
 					// we finished reading the file: break
 					all_succeeded = true;
 					break;
@@ -1120,11 +1166,18 @@ void WriteAheadLogDeserializer::ReplayRowGroupData() {
 			for (auto &index : indexes.Indexes()) {
 				if (!index.IsBound()) {
 					auto &unbound_index = index.Cast<UnboundIndex>();
-					unbound_index.BufferChunk(chunk, row_id_vector, column_ids, BufferedIndexReplay::INSERT_ENTRY);
+					unbound_index.BufferChunk(chunk, row_id_vector, BufferedIndexReplay::INSERT_ENTRY);
 					continue;
 				}
 				auto &bound_index = index.Cast<BoundIndex>();
-				bound_index.Append(chunk, row_id_vector);
+				// Deleted index entries are removed when the replay transaction commits. Duplicates can temporarily
+				// exist, similar to tuple WAL replay.
+				IndexAppendInfo append_info(IndexAppendMode::INSERT_DUPLICATES, nullptr);
+				auto error = bound_index.Append(chunk, row_id_vector, append_info);
+				if (error.HasError()) {
+					throw InternalException("Failed to append to index '%s' during ROW_GROUP_DATA WAL replay: %s",
+					                        bound_index.GetIndexName(), error.Message());
+				}
 			}
 		}
 	}
@@ -1184,6 +1237,9 @@ void WriteAheadLogDeserializer::ReplayUpdate() {
 }
 
 void WriteAheadLogDeserializer::ReplayCheckpoint() {
+	if (state.checkpoint_position.IsValid()) {
+		throw IOException("WAL cannot contain more than one checkpoint marker");
+	}
 	state.checkpoint_id = deserializer.ReadProperty<MetaBlockPointer>(101, "meta_block");
 	state.checkpoint_position = state.current_position;
 }

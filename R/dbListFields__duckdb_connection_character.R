@@ -2,14 +2,16 @@
 #' @inheritParams DBI::dbListFields
 #' @usage NULL
 dbListFields__duckdb_connection_character <- function(conn, name, ...) {
-  names(dbGetQuery(
+  # DESCRIBE fetches the column metadata as text, so a table whose columns
+  # R cannot receive still lists them (handbook/usage/types/README.md).
+  dbGetQuery(
     conn,
     sqlInterpolate(
       conn,
-      "SELECT * FROM ? WHERE FALSE",
+      "DESCRIBE SELECT * FROM ? WHERE FALSE",
       dbQuoteIdentifier(conn, name)
     )
-  ))
+  )$column_name
 }
 
 #' @rdname duckdb_connection-class

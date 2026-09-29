@@ -1,4 +1,5 @@
 #include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
@@ -80,7 +81,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	vector<unique_ptr<SQLStatement>> statements;
 	try {
-		statements = conn->conn->ExtractStatements(query.c_str());
+		Parser parser(conn->conn->context->GetParserOptions());
+		parser.ParseQuery(query);
+		statements = std::move(parser.statements);
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		error.AddErrorLocation(query);
@@ -112,21 +115,57 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 
-	// if there are multiple statements, we directly execute the statements besides the last one
-	// we only return the result of the last statement to the user, unless one of the previous statements fails
-	for (idx_t i = 0; i + 1 < statements.size(); i++) {
-		auto res = conn->conn->Query(std::move(statements[i]));
-
-		signal_handler.HandleInterrupt();
-
-		if (res->HasError()) {
-			// `GetErrorObject()`, not `GetError()`: the latter is the formatted
-			// message, and rebuilding an `ErrorData` from it would report every
-			// failure as INVALID with no extra info.
-			rapi_error_with_context("rapi_prepare", res->GetErrorObject());
+	unique_ptr<SQLStatement> last_statement;
+	for (idx_t i = 0; i < statements.size(); i++) {
+		vector<unique_ptr<SQLStatement>> fragments;
+		fragments.push_back(std::move(statements[i]));
+		try {
+			conn->conn->context->PreprocessStatements(fragments);
+		} catch (std::exception &ex) {
+			ErrorData error(ex);
+			error.AddErrorLocation(query);
+			rapi_error_with_context("rapi_prepare", error);
+		}
+		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk), so its expansion is
+		// checked as a whole before any of it runs: refusing it part-way would leave the implicit BEGIN the
+		// engine wraps the expansion in open, and every later statement on the connection inside it.
+		if (!conn->db->allow_extensions) {
+			for (auto &fragment : fragments) {
+				if (fragment->type == StatementType::LOAD_STATEMENT) {
+					rapi_error_with_context("load_extension", "");
+				}
+			}
+		}
+		for (idx_t j = 0; j < fragments.size(); j++) {
+			auto &fragment = fragments[j];
+			if (i + 1 == statements.size() && j + 1 == fragments.size()) {
+				last_statement = std::move(fragment);
+				break;
+			}
+			auto res = conn->conn->Query(std::move(fragment));
+			if (res->HasError()) {
+				// Mirrors ClientContext::Query(const string &), which rolls back the implicit transaction a PRAGMA's
+				// expansion runs in when one of its statements fails. Query(unique_ptr<SQLStatement>) does so only
+				// for an error raised before execution, and leaves the transaction open and aborted otherwise.
+				// Ahead of HandleInterrupt(), so that an interrupted fragment is rolled back too.
+				auto &transaction = conn->conn->context->transaction;
+				if (transaction.HasActiveTransaction() && transaction.GetAutoRollback()) {
+					transaction.Rollback(res->GetErrorObject());
+				}
+			}
+			signal_handler.HandleInterrupt();
+			if (res->HasError()) {
+				// `GetErrorObject()`, not `GetError()`: the latter is the formatted
+				// message, and rebuilding an `ErrorData` from it would report every
+				// failure as INVALID with no extra info.
+				rapi_error_with_context("rapi_prepare", res->GetErrorObject());
+			}
 		}
 	}
-	auto stmt = conn->conn->Prepare(std::move(statements.back()));
+	// The last statement is the call's result. With no fragment left, it was a PRAGMA that expanded to nothing, the
+	// only statement that can, and it returns what any other PRAGMA returns: no rows of one `Success` column.
+	auto stmt = last_statement ? conn->conn->Prepare(std::move(last_statement))
+	                           : conn->conn->Prepare("SELECT CAST(NULL AS BOOLEAN) AS Success LIMIT 0");
 
 	signal_handler.HandleInterrupt();
 
@@ -263,7 +302,47 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	return data_frame;
 }
 
+// Refuse a result column R cannot hold before the statement runs,
+// so that a statement with side effects, such as INSERT ... RETURNING, is not run for rows the conversion then refuses.
+// duckdb_r_typeof() is the judge, and throws the message the conversion would,
+// for a column or for anything nested in it (handbook/usage/types/README.md).
+static void CheckResultTypeForR(const LogicalType &type, const string &name) {
+	switch (type.id()) {
+	case LogicalTypeId::UNKNOWN:
+	case LogicalTypeId::SQLNULL:
+		// Resolved when the parameters are bound, or holding no value to convert
+		return;
+	case LogicalTypeId::LIST:
+		CheckResultTypeForR(ListType::GetChildType(type), name);
+		return;
+	case LogicalTypeId::ARRAY:
+		CheckResultTypeForR(ArrayType::GetChildType(type), name);
+		return;
+	case LogicalTypeId::MAP:
+		CheckResultTypeForR(MapType::KeyType(type), name);
+		CheckResultTypeForR(MapType::ValueType(type), name);
+		return;
+	case LogicalTypeId::STRUCT:
+		for (const auto &child : StructType::GetChildTypes(type)) {
+			CheckResultTypeForR(child.second, name + "$" + child.first);
+		}
+		return;
+	default:
+		(void)duckdb_r_typeof(type, name, "rapi_execute");
+		return;
+	}
+}
+
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result) {
+	// Only the conversion to R vectors needs the check: an Arrow result carries every type.
+	if (convert_opts.arrow != ConvertOpts::ArrowConversion::ENABLED) {
+		const auto &types = stmt->stmt->GetTypes();
+		const auto &names = stmt->stmt->GetNames();
+		for (idx_t col_idx = 0; col_idx < types.size(); col_idx++) {
+			CheckResultTypeForR(types[col_idx], names[col_idx]);
+		}
+	}
+
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
 
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, allow_stream_result);
