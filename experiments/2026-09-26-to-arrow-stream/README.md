@@ -185,11 +185,12 @@ The fix stands on its own, because any reader the wrapper holds loses its errors
 
 ## Open problems
 
-* **The own-connection hang is the glue's to report.**
+* **The own-connection hang is the engine's, and refusing is open.**
   `RArrowArrayStreamWrapper::Invalidated()` asks `StreamQueryResult::IsOpen()`, which waits for the client context lock.
   The query scanning the stream holds that lock until the scan returns.
-  The fetch after the check would need the same lock, so the stream cannot be read there at all.
-  What is open is refusing with an error rather than waiting.
+  The engine's own stream asks the same, so the wait is not the glue's check.
+  [`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md) finds it before #2775 and in the Python client.
+  It also names what refusing with an error instead would take.
 * **Reads from arrow's threads were checked against R-backed sources only.**
   They were not checked against every R callback the engine can reach, the progress display among them
   ([`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)).

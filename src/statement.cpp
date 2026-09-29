@@ -126,16 +126,33 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			error.AddErrorLocation(query);
 			rapi_error_with_context("rapi_prepare", error);
 		}
+		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk), so its expansion is
+		// checked as a whole before any of it runs: refusing it part-way would leave the implicit BEGIN the
+		// engine wraps the expansion in open, and every later statement on the connection inside it.
+		if (!conn->db->allow_extensions) {
+			for (auto &fragment : fragments) {
+				if (fragment->type == StatementType::LOAD_STATEMENT) {
+					rapi_error_with_context("load_extension", "");
+				}
+			}
+		}
 		for (idx_t j = 0; j < fragments.size(); j++) {
 			auto &fragment = fragments[j];
-			if (!conn->db->allow_extensions && fragment->type == StatementType::LOAD_STATEMENT) {
-				rapi_error_with_context("load_extension", "");
-			}
 			if (i + 1 == statements.size() && j + 1 == fragments.size()) {
 				last_statement = std::move(fragment);
 				break;
 			}
 			auto res = conn->conn->Query(std::move(fragment));
+			if (res->HasError()) {
+				// Mirrors ClientContext::Query(const string &), which rolls back the implicit transaction a PRAGMA's
+				// expansion runs in when one of its statements fails. Query(unique_ptr<SQLStatement>) does so only
+				// for an error raised before execution, and leaves the transaction open and aborted otherwise.
+				// Ahead of HandleInterrupt(), so that an interrupted fragment is rolled back too.
+				auto &transaction = conn->conn->context->transaction;
+				if (transaction.HasActiveTransaction() && transaction.GetAutoRollback()) {
+					transaction.Rollback(res->GetErrorObject());
+				}
+			}
 			signal_handler.HandleInterrupt();
 			if (res->HasError()) {
 				// `GetErrorObject()`, not `GetError()`: the latter is the formatted
@@ -145,10 +162,10 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			}
 		}
 	}
-	if (!last_statement) {
-		rapi_error_with_context("rapi_prepare", "No statements to execute");
-	}
-	auto stmt = conn->conn->Prepare(std::move(last_statement));
+	// The last statement is the call's result. With no fragment left, it was a PRAGMA that expanded to nothing, the
+	// only statement that can, and it returns what any other PRAGMA returns: no rows of one `Success` column.
+	auto stmt = last_statement ? conn->conn->Prepare(std::move(last_statement))
+	                           : conn->conn->Prepare("SELECT CAST(NULL AS BOOLEAN) AS Success LIMIT 0");
 
 	signal_handler.HandleInterrupt();
 
@@ -285,7 +302,47 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	return data_frame;
 }
 
+// Refuse a result column R cannot hold before the statement runs,
+// so that a statement with side effects, such as INSERT ... RETURNING, is not run for rows the conversion then refuses.
+// duckdb_r_typeof() is the judge, and throws the message the conversion would,
+// for a column or for anything nested in it (handbook/usage/types/README.md).
+static void CheckResultTypeForR(const LogicalType &type, const string &name) {
+	switch (type.id()) {
+	case LogicalTypeId::UNKNOWN:
+	case LogicalTypeId::SQLNULL:
+		// Resolved when the parameters are bound, or holding no value to convert
+		return;
+	case LogicalTypeId::LIST:
+		CheckResultTypeForR(ListType::GetChildType(type), name);
+		return;
+	case LogicalTypeId::ARRAY:
+		CheckResultTypeForR(ArrayType::GetChildType(type), name);
+		return;
+	case LogicalTypeId::MAP:
+		CheckResultTypeForR(MapType::KeyType(type), name);
+		CheckResultTypeForR(MapType::ValueType(type), name);
+		return;
+	case LogicalTypeId::STRUCT:
+		for (const auto &child : StructType::GetChildTypes(type)) {
+			CheckResultTypeForR(child.second, name + "$" + child.first);
+		}
+		return;
+	default:
+		(void)duckdb_r_typeof(type, name, "rapi_execute");
+		return;
+	}
+}
+
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result) {
+	// Only the conversion to R vectors needs the check: an Arrow result carries every type.
+	if (convert_opts.arrow != ConvertOpts::ArrowConversion::ENABLED) {
+		const auto &types = stmt->stmt->GetTypes();
+		const auto &names = stmt->stmt->GetNames();
+		for (idx_t col_idx = 0; col_idx < types.size(); col_idx++) {
+			CheckResultTypeForR(types[col_idx], names[col_idx]);
+		}
+	}
+
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
 
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, allow_stream_result);
