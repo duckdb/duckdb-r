@@ -33,7 +33,7 @@ int32_t duckdb_extension_parquet_describe(duckdb_extension_descriptor *descripto
 	descriptor->version = 1;
 	descriptor->name = "parquet";
 	descriptor->extension_version = EXT_VERSION_PARQUET;
-	descriptor->api_version = "5f2aa376f2";
+	descriptor->api_version = "f0b535509e";
 	descriptor->entry_cpp = (void (*)(void))parquet_duckdb_cpp_init;
 	return 0;
 }
@@ -66,7 +66,7 @@ int32_t duckdb_extension_core_functions_describe(duckdb_extension_descriptor *de
 	descriptor->version = 1;
 	descriptor->name = "core_functions";
 	descriptor->extension_version = EXT_VERSION_CORE_FUNCTIONS;
-	descriptor->api_version = "5f2aa376f2";
+	descriptor->api_version = "f0b535509e";
 	descriptor->entry_cpp = (void (*)(void))core_functions_duckdb_cpp_init;
 	return 0;
 }
