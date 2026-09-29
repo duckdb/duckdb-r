@@ -148,6 +148,12 @@ duckdb_augment_field_types_for_map <- function(conn, value, field.types) {
     if (col_name %in% names(field.types)) {
       next
     }
+    # A data frame column writes as a STRUCT, never a MAP.
+    # `dbDataType()` answers it with one type per field,
+    # and fails outright on one that nests another of several fields.
+    if (is.data.frame(value[[col_name]])) {
+      next
+    }
     inferred <- dbDataType(conn, value[[col_name]])
     if (duckdb_is_map_type(inferred)) {
       field.types[[col_name]] <- inferred

@@ -22,8 +22,9 @@ The vendored engine under `src/duckdb/` is upstream's, and the patch stack under
 Generated here are `man/*.Rd` from the roxygen blocks under `R/`,
 the root [`README.md`](/README.md) and `.github/README.md` from [`README.Rmd`](/README.Rmd) through `make readme`,
 the [`scripts/`](/scripts/README.md) index from the scripts' own headers,
-and the flavor table [`branches/flavors/`](/handbook/branches/flavors/README.md) carries, from
-[`scripts/series.yaml`](/scripts/series.yaml).
+the flavor table [`branches/flavors/`](/handbook/branches/flavors/README.md) carries, from
+[`scripts/series.yaml`](/scripts/series.yaml),
+and the roxygen of the type reference pages, `R/duckdb_types*.R`, from the leaves [`usage/types/`](/handbook/usage/types/README.md) names.
 A generated file's prose is edited in its generator, never in its output,
 and [`.handbook-ignore`](/.handbook-ignore) keeps the checks off what the generators own.
 
@@ -38,6 +39,15 @@ The C++ glue is formatted by clang-format, whose `ColumnLimit` [`.clang-format`]
   A comma, a colon, a semicolon, or a parenthesis says the same thing.
   The rule binds what is written from now on; the tree predates it, so the check is off until a sweep clears what is there,
   and [`.handbook-ignore`](/.handbook-ignore) records that.
+* **An experiment records R output as a reprex.**
+  `reprex::reprex(si = TRUE)` renders the script that was run beside the output it produced,
+  so a reader sees which code produced which line, and the session info says what it ran on.
+  [`scripts/render-reprex.R`](/scripts/render-reprex.R) is that call,
+  writing `<stem>.md` beside the script it rendered.
+  A run that is not one R session records what it is instead:
+  a shell tally, a transcript, a symbol dump.
+  The rule binds what is recorded from now on, and the records already here predate it;
+  several of them, an interrupted session or a run that ends in a signal among them, could not be a reprex at all.
 * **Verify a behavioural claim on a build that can show it.**
   A claim the fast path's release library could distort needs a vendored build
   ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)); for everything the two builds share, either will do.
@@ -56,4 +66,5 @@ The generated documents are held to their sources by the generators that write t
 each invoked with `--check` and each named by the leaf that owns what it generates:
 [`docs-readme.R`](/.claude/skills/docs-consistency/docs-readme.R) for the `scripts/` index,
 [`scripts/series-table.R`](/scripts/series-table.R) for the flavor table,
+[`scripts/types-rd.R`](/scripts/types-rd.R) for the type reference pages,
 and [`scripts/pull-config.sh`](/scripts/pull-config.sh) for the fork's mirror rules.

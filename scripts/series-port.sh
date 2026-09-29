@@ -20,10 +20,13 @@
 #
 # To every reader of the vendor strand the sync commit is invisible: it vendors
 # nothing, so the consumption anchor and the vendored-SHA scans look past it by
-# subject. Stage 5 replays it onto -dev like any other buffer commit, where
-# `cherry-pick --empty=drop` retires it because -dev already carries that
-# tooling. Where `main` moved between the two syncs it conflicts instead, and
-# the resolution is main's tooling — which is what both refs converge on.
+# subject. Stage 5 skips it rather than replaying it onto -dev, whose tooling
+# this stage has already made main's (scripts/series-advance.sh). Replaying it
+# was the first design, and it held only until `main` moved again: the sync's
+# diff runs from the buffer's older tooling, so the pick conflicted or restored
+# what main had removed -- and a sync the anchor never passes was offered again
+# on every firing. The skip reads the subject written below, in series-advance.sh
+# and series-check.sh alike, so a change to it is a change to all three.
 #
 # The script lists EVERY commit on `main` since the series' base that has no
 # patch-id equivalent on <S>-dev (`git cherry`), oldest first, classified by
@@ -117,7 +120,7 @@ apply=
 DEV_NOTE=
 remote=${SERIES_REMOTE:-origin}
 # The repository `main` belongs to, which the fork mirrors. Same name and same
-# default as series-advance.sh's, and read for the staleness check below only.
+# default as series-advance.sh's, and where this script reads `main` from.
 canonical=${SERIES_CANONICAL-upstream}
 args=()
 while [ $# -gt 0 ]; do
@@ -186,15 +189,14 @@ git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
 git fetch -q "$remote"
-dev="$remote/$S-dev" main="$remote/main"
+dev="$remote/$S-dev"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
 
-# The series live in the fork and `main` is the canonical repository's branch,
-# mirrored into the fork by .github/pull.yml. The mirror lags by however long
-# the mirroring takes, and this script's whole output is "what does the series
-# not have that main has" -- so a stale `$remote/main` is not a smaller answer
-# but a wrong one. The sync commit takes that main's tooling tree *verbatim*,
-# which means every commit merged since the mirror last ran is reverted onto
+# `main` is read from the canonical repository, not from the fork's mirror of
+# it. The series live in the fork, but this script's whole output is "what does
+# the series not have that main has", and the sync commit takes that main's
+# tooling tree *verbatim* -- so a mirror that has not caught up is not a smaller
+# answer but a wrong one: every commit merged since it last ran is reverted onto
 # the series, silently and on all of them at once.
 #
 # That is not hypothetical: on 2026-09-14 a firing ported while the fork's main
@@ -204,26 +206,37 @@ git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remo
 # and every `each-rcc` leg on every series died at that step within seconds.
 # Nothing was judged until the mirror was pushed forward and the ports rerun.
 #
-# So ask the canonical repository directly, under the same name and default
-# series-advance.sh mirrors green into. Refuse rather than warn: the damage is
-# a push, and a warning printed above a `--apply` that went on to push anyway
-# is a warning nobody reads until CI is red.
-if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
-  git fetch -q "$canonical" main 2>/dev/null || true
-  canonical_main=$(git rev-parse -q --verify FETCH_HEAD || true)
-  if [ -n "$canonical_main" ] &&
-    ! git merge-base --is-ancestor "$canonical_main" "$main"; then
-    behind=$(git rev-list --count "$main..$canonical_main")
-    echo "Error: $main is $behind commit(s) behind $canonical/main." >&2
-    echo "  The sync commit takes that tree verbatim, so porting now reverts" >&2
-    echo "  every one of them onto $S-dev. Wait for .github/pull.yml to" >&2
-    echo "  mirror, or push the fork's main forward -- it is a fast-forward" >&2
-    echo "  of a mirror, not a rewrite -- and rerun:" >&2
-    echo "    git push $remote $canonical/main:refs/heads/main" >&2
-    echo "  SERIES_CANONICAL='' skips this check." >&2
-    exit 1
+# Reading the canonical tip is what removes that failure mode rather than
+# detecting it. This script used to ask the canonical repository only whether
+# the mirror was stale, and refuse while it was -- which turned the Pull app's
+# six-hour cycle into a six-hour window where no series could be ported at all,
+# against a repository the run could read the whole time
+# (handbook/branches/mirrors/README.md). Nothing here writes to the fork's
+# `main`, and the mirror keeps serving the badges that measure against it.
+main=
+if [ -n "$canonical" ]; then
+  if git remote get-url "$canonical" >/dev/null 2>&1 &&
+    git fetch -q "$canonical" main 2>/dev/null; then
+    # A fetch of a named branch also updates the remote-tracking ref when the
+    # remote carries the usual refspec, and that ref is what messages below
+    # name. FETCH_HEAD is the fallback for a remote configured without one; it
+    # is read here, before any later fetch overwrites it.
+    if git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null; then
+      main="$canonical/main"
+    else
+      main=$(git rev-parse -q --verify FETCH_HEAD || true)
+    fi
   fi
+  [ -n "$main" ] || {
+    echo "Warning: could not read main from '$canonical'; falling back to" >&2
+    echo "  $remote/main, which the mirror may have left behind. Add the" >&2
+    echo "  canonical repository as that remote, or pass --canonical <name>." >&2
+  }
 fi
+# No canonical remote named at all (SERIES_CANONICAL='') or none reachable: the
+# mirror is what is left. It is only ever behind, never ahead, so a fallback
+# offers a subset of the truth -- worth saying and not worth refusing over.
+[ -n "$main" ] || main="$remote/main"
 
 mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
 if [ -z "$mb" ]; then
@@ -527,7 +540,7 @@ if ! git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
   git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
     -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
 from this ref is main's rather than the seed's. Vendors nothing, so stage 5
-replays it onto -dev and drops it as empty."
+skips it rather than replaying it onto -dev."
   # The same check as the -dev sync's, and it matters more here: vendor-one.sh
   # runs scripts/rconfigure.py and friends from the buffer's own tree. The
   # remedy differs, because the buffer takes no ports.

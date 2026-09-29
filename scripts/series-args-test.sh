@@ -93,7 +93,7 @@ remote_scripts=(
   series-port.sh
 )
 upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
-canonical_scripts=(series-advance.sh series-cutover.sh)
+canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-port.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${standalone_scripts[@]}"; do

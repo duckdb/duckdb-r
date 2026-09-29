@@ -63,10 +63,19 @@ This file is what names the contents, so nothing here is an orphan.
   series' `-dev`, what kind, and how much of the raw difference is not a
   fix at all; supports
   [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
+* [`2026-08-09-spatial-interop/`](2026-08-09-spatial-interop/) —
+  which route carries a geometry across the R boundary, in each
+  direction, what arrives, and what each does to the CRS; supports
+  [`usage/types/`](/handbook/usage/types/README.md) and
+  [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md).
 * [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
   what the published Windows `libduckdb` exports, and how much of what
   the glue resolves from the engine is in there; supports
   [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+* [`2026-08-09-path-canonicalization/`](2026-08-09-path-canonicalization/):
+  what DuckDB reports as a database's path once it has opened it,
+  where that differs from `normalizePath()`, and what each costs;
+  supports [`usage/connections/`](/handbook/usage/connections/README.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
@@ -105,6 +114,45 @@ This file is what names the contents, so nothing here is an orphan.
   keeps open, and what two contexts buy in wall time that one cannot; supports
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)
   and [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
+* [`2026-09-26-to-arrow-stream/`](2026-09-26-to-arrow-stream/):
+  whether `arrow::to_arrow()` can stream from `dbGetQueryArrow()` and still return what it returns today.
+  Also what streaming changes about how long its reader stays valid, and its memory against the materializing route.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-26-type-catalog/`](2026-09-26-type-catalog/):
+  every DuckDB type in its documentation and its extensions, read into R and written back by every route,
+  through Arrow with and without lossless export,
+  and the values that change, collide with `NA`, or fail, before and after the fixes it prompted; supports
+  [`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
+* [`2026-09-27-arrow-types/`](2026-09-27-arrow-types/):
+  every DuckDB type out through Arrow under each export setting, and what nanoarrow and arrow make of it in R;
+  every Arrow type and every R class in; and which R functions keep Arrow's types, in each direction; supports
+  [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
+* [`2026-09-27-geoarrow/`](2026-09-27-geoarrow/):
+  each way to read a `GEOMETRY` column into sf through Arrow, each GeoArrow encoding on the way in,
+  what the CRS becomes at every step, and the routes that lose the geometry; supports
+  [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
+* [`2026-09-27-review-limits/`](2026-09-27-review-limits/):
+  an `INSTALL` or `LOAD` that stops a whole string, a `PRAGMA`'s expansion left half done while a stream is open,
+  a parameter that invalidates the database, and R values that write as something other than their type,
+  all found in review and left in place; supports
+  [`usage/statements/`](/handbook/usage/statements/README.md) and [`usage/types/`](/handbook/usage/types/README.md).
+* [`2026-09-27-stream-self-scan/`](2026-09-27-stream-self-scan/):
+  what a query does that scans a streaming result on the result's own connection, in R before and after #2775 and in the Python client.
+  Also whether an interrupt ends it, where it waits, what works instead, and what writing a stream back to its connection leaves behind.
+  Also what else the reader of `to_arrow_stream()` cannot do on its own connection.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
+  the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-matrix-limits/`](2026-09-28-matrix-limits/):
+  a matrix column carrying a class, which writes as that class's scalar type and loses values,
+  and an `ARRAY` column that `rel_to_altrep()` reads with the wrong shape.
+  Supports [`usage/types/`](/handbook/usage/types/README.md) and [`usage/relational/`](/handbook/usage/relational/README.md).
+* [`2026-09-28-type-rereview/`](2026-09-28-type-rereview/):
+  the type facts a re-review after #2850 found wrong or stated too broadly, from the integer minimums through Arrow
+  to which CRS can be named in a type without `spatial`.
+  Supports [`usage/types/`](/handbook/usage/types/README.md), [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
+  and [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
