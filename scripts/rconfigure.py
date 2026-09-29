@@ -6,6 +6,7 @@ The logos land in man/figures/. Called by vendor.sh and vendor-one.sh
 with DUCKDB_PATH set.
 """
 import os
+import re
 import shutil
 import sys
 import platform
@@ -92,6 +93,86 @@ def copy_logos():
             print("  Update logo_files here and README.md together.")
             exit(1)
         shutil.copyfile(source, os.path.join(target_dir, target))
+
+# jemalloc, the allocator DuckDB's own build uses on the platforms it supports
+# it on. Upstream keeps it in third_party/jemalloc/, and its amalgamation lists
+# only the DuckDB-side wrapper (src/common/allocator/allocator_jemalloc.cpp) --
+# the allocator itself is a CMake target (third_party/jemalloc/CMakeLists.txt)
+# that package_build.py never walks. So copy the tree here, the way
+# build_package copies the sources it does know about.
+#
+# src/jemalloc_cpp.cpp is left behind deliberately: it overrides global new and
+# delete, which is DuckDB's OVERRIDE_NEW_DELETE build option and not something
+# an R package may do to the process it is loaded into. The DuckDB Java client
+# excludes it from its vendoring for the same reason.
+#
+# Only sources and headers travel, matching what the rest of the vendored tree
+# carries -- no CMakeLists.txt, and no LICENSE, because the licence terms ride
+# in the package's own LICENSE and DESCRIPTION instead.
+jemalloc_dir = os.path.join('third_party', 'jemalloc')
+jemalloc_skip = ['jemalloc_cpp.cpp']
+
+
+def vendor_jemalloc(target_dir):
+    """Copy the jemalloc tree into the vendored engine.
+
+    Returns the absolute paths of the C sources it copied, which the caller
+    keeps in a make variable of their own.
+    """
+    source_root = os.path.join(duckdb_path, jemalloc_dir)
+    if not os.path.isdir(source_root):
+        print("Could not find the jemalloc sources at {}!".format(source_root))
+        print("  DuckDB moved or dropped third_party/jemalloc; update rconfigure.py.")
+        exit(1)
+
+    target_root = os.path.join(target_dir, jemalloc_dir)
+    sources = []
+    for root, dirs, files in os.walk(source_root):
+        dirs.sort()
+        relative = os.path.relpath(root, source_root)
+        out_dir = target_root if relative == os.curdir else os.path.join(target_root, relative)
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+        for name in sorted(files):
+            if name in jemalloc_skip:
+                continue
+            if not name.endswith('.c') and not name.endswith('.h'):
+                continue
+            out_file = os.path.join(out_dir, name)
+            shutil.copyfile(os.path.join(root, name), out_file)
+            if name.endswith('.c'):
+                sources.append(out_file)
+
+    # Every .c in the tree is one jemalloc's own CMakeLists.txt compiles, so the
+    # walk above needs no roster of its own -- but that is a property of the
+    # upstream tree and not a rule, so say so here rather than find out from a
+    # build. A file upstream ships and does not compile would otherwise be
+    # compiled silently, and one it compiles from elsewhere would go missing.
+    listed = set(re.findall(r'src/([A-Za-z0-9_]+\.c)\b', read_jemalloc_roster(source_root)))
+    copied = set(os.path.basename(x) for x in sources)
+    if listed != copied:
+        print("The jemalloc sources and third_party/jemalloc/CMakeLists.txt disagree.")
+        print("  only in CMakeLists.txt: {}".format(sorted(listed - copied)))
+        print("  only in src/:           {}".format(sorted(copied - listed)))
+        print("  Update rconfigure.py to match what upstream compiles.")
+        exit(1)
+
+    return sources
+
+
+def read_jemalloc_roster(source_root):
+    """The JEMALLOC_C_FILES block of jemalloc's CMakeLists.txt."""
+    cmakelists = os.path.join(source_root, 'CMakeLists.txt')
+    if not os.path.isfile(cmakelists):
+        print("Could not find {}!".format(cmakelists))
+        exit(1)
+    with open_utf8(cmakelists, 'r') as f:
+        text = f.read()
+    if 'set(JEMALLOC_C_FILES' not in text:
+        print("{} no longer declares JEMALLOC_C_FILES.".format(cmakelists))
+        exit(1)
+    return text.split('set(JEMALLOC_C_FILES', 1)[1].split(')', 1)[0]
+
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
 import package_build
@@ -192,14 +273,12 @@ linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
 (source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr)
 
-# Drop the bundled jemalloc sources. The R package does not enable jemalloc
-# (DUCKDB_ENABLE_JEMALLOC is never defined), so duckdb's allocator uses the
-# standard implementation. Upstream's packaging started emitting the jemalloc
-# tree into the source list (duckdb/duckdb#22811), which both fails to compile
-# (jemalloc_cpp.cpp requires DUCKDB_OVERRIDE_NEW_DELETE) and fails to link
-# (jemalloc's constructor references duckdb_malloc_ncpus(), defined only under
-# DUCKDB_ENABLE_JEMALLOC). Excluding the tree restores the previous behaviour.
+# The amalgamation lists src/common/allocator/allocator_jemalloc.cpp but not
+# the allocator it wraps, so vendor that tree here and keep its sources apart
+# from the rest: whether they are compiled at all is ./configure's decision,
+# taken on the build machine, and not one this script can take for it.
 source_list = [x for x in source_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
+jemalloc_sources = vendor_jemalloc(target_dir)
 
 # Walk target_dir, find all source and include files, and terminate with newline,
 # if not already present. Before the restore below, so what it compares against
@@ -222,8 +301,13 @@ script_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
 
 root_path = os.path.dirname(script_path)
 
-duckdb_sources = [package_build.get_relative_path(os.path.join(root_path, 'src'), x) for x in source_list]
-object_list = ' '.join([x.rsplit('.', 1)[0] + '.o' for x in sorted(duckdb_sources)])
+def object_list_of(sources):
+    relative = [package_build.get_relative_path(os.path.join(root_path, 'src'), x) for x in sources]
+    return ' '.join([x.rsplit('.', 1)[0] + '.o' for x in sorted(relative)])
+
+
+object_list = object_list_of(source_list)
+jemalloc_object_list = object_list_of(jemalloc_sources)
 
 
 include_list = ' '.join(['-I' + 'duckdb/' + x for x in include_list])
@@ -235,32 +319,60 @@ include_list += debug_move_flag
 if 'TREAT_WARNINGS_AS_ERRORS' in os.environ:
     include_list += ' -Werror'
 
-with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
-    text = f.read()
+# The jemalloc half of src/Makevars, which only the non-Windows build has:
+# DuckDB does not build jemalloc on Windows, and the wrapper it would compile
+# there stops with an #error. Which of the two Linux and macOS get is
+# ./configure's to decide -- it writes Makevars.jemalloc on the build machine
+# -- so all that is generated here is the include that reads that decision.
+#
+# The rule beneath it mirrors the ones above for Makevars.duckdb and
+# Makevars.system-lib: a development tree that has not run configure still has
+# something to include, because plain `include` is portable where `-include`
+# is a GNU Make extension.
+jemalloc_include = """
+# This file is written by the configure script, which decides whether this
+# platform is one DuckDB builds jemalloc for. An empty file is fine too for
+# development, keeping an old timestamp to avoid pkgbuild removing all .o files.
+Makevars.jemalloc:
+\ttouch -r $$(ls -t *.cpp | head -n 1) "$@"
 
-text = text.replace('{{ HEADER }}', 'Generated by rconfigure.py, do not edit by hand')
-text = text.replace('{{ INCLUDES }}', include_list)
-if len(libraries) == 0:
-    text = text.replace('PKG_LIBS={{ LINK_FLAGS }}\n', '')
-else:
-    text = text.replace('{{ LINK_FLAGS }}', link_flags.strip())
+include Makevars.jemalloc
+"""
 
-with open_utf8(os.path.join('src', 'Makevars'), 'w+') as f:
-    f.write(text)
+
+def write_makevars(target, includes, link_flags_value, jemalloc):
+    with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
+        text = f.read()
+
+    text = text.replace('{{ HEADER }}', 'Generated by rconfigure.py, do not edit by hand')
+    text = text.replace('{{ INCLUDES }}', includes)
+    if link_flags_value is None:
+        text = text.replace('PKG_LIBS={{ LINK_FLAGS }}\n', '')
+    else:
+        text = text.replace('{{ LINK_FLAGS }}', link_flags_value)
+    text = text.replace('{{ JEMALLOC }}\n', jemalloc)
+
+    with open_utf8(os.path.join('src', target), 'w+') as f:
+        f.write(text)
+
+
+write_makevars(
+    'Makevars',
+    include_list,
+    link_flags.strip() if libraries else None,
+    jemalloc_include,
+)
 
 # same dance for Windows
-with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
-    text = f.read()
-
-text = text.replace('{{ HEADER }}', 'Generated by rconfigure.py, do not edit by hand')
-include_list += " -DDUCKDB_PLATFORM_RTOOLS=1"
-text = text.replace('{{ INCLUDES }}', include_list)
-text = text.replace('{{ LINK_FLAGS }}', "-lws2_32 $(DUCKDB_RSTRTMGR_LIB)")
-
-with open_utf8(os.path.join('src', 'Makevars.win'), 'w+') as f:
-    f.write(text)
+write_makevars(
+    'Makevars.win',
+    include_list + " -DDUCKDB_PLATFORM_RTOOLS=1",
+    "-lws2_32 $(DUCKDB_RSTRTMGR_LIB)",
+    '',
+)
 
 text = "SOURCES=" + object_list + '\n'
+text += "SOURCES_JEMALLOC=" + jemalloc_object_list + '\n'
 
 with open_utf8(os.path.join('src', 'include', 'sources.mk'), 'w') as f:
     f.write(text)

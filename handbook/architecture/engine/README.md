@@ -51,9 +51,38 @@ The load-bearing ones:
 * `-DDUCKDB_RSTRTMGR` — Windows restart-manager support,
   set by `configure.win` and off on R < 4.2, which ships no `librstrtmgr.a`.
 * `-DBROTLI_ENCODER_CLEANUP_ON_OOM` — an R package must not `exit()`.
-jemalloc is excluded from the generated source list;
-enabling it deliberately is open
+* `-DDUCKDB_ENABLE_JEMALLOC` — 64-bit glibc Linux only,
+  and the one flag `configure` decides rather than `rconfigure.py`.
+
+**The allocator.**
+DuckDB allocates through `Allocator::DefaultAllocate`:
+`malloc` in `allocator_standard.cpp`, jemalloc in `allocator_jemalloc.cpp`,
+and a build compiles exactly one of the two.
+Upstream builds jemalloc on 64-bit glibc Linux and nowhere else —
+its `CMakeLists.txt` gates the target on exactly that,
+and the wrapper stops with an `#error` everywhere else —
+so macOS, Windows, 32-bit and musl keep the standard allocator
 ([#2365](https://github.com/duckdb/duckdb-r/issues/2365)).
+This package makes the same choice, and makes it in `configure`,
+because `src/Makevars` is generated once on the vendoring machine
+while the platform that decides is the one doing the compiling.
+`configure` probes with the compiler R will use and writes
+`src/Makevars.jemalloc`, which adds the define, the include path
+and `$(SOURCES_JEMALLOC)` —
+a source list of its own, because `src/include/sources.mk` is shared with Windows.
+`DUCKDB_R_DISABLE_JEMALLOC=1` keeps the standard allocator regardless
+([`build/configuration/`](/handbook/build/configuration/README.md)).
+Upstream's amalgamation lists the wrapper and not the allocator,
+so `rconfigure.py` copies `third_party/jemalloc/` itself —
+minus `jemalloc_cpp.cpp`, which overrides global `new` and `delete`:
+that is DuckDB's `OVERRIDE_NEW_DELETE`,
+and not something an R package may do to the process it is loaded into.
+What the swap buys is thread-local caches and per-arena purging
+under parallel execution.
+With the standard allocator `Allocator::SupportsFlush()` is glibc-only,
+`ThreadIdle()` does nothing,
+and `allocator_background_threads` and the flush thresholds are inert settings.
+
 Compiler warnings from the vendored tree are noise the shipped
 build does not silence
 ([#1829](https://github.com/duckdb/duckdb-r/issues/1829));

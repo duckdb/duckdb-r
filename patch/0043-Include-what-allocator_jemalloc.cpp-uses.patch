@@ -1,0 +1,25 @@
+From 055c5037888e28a2a622411bcf385a58557a1898 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 19 Sep 2026 19:27:15 +0000
+Subject: [PATCH] Include what allocator_jemalloc.cpp uses
+
+---
+ src/duckdb/src/common/allocator/allocator_jemalloc.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/common/allocator/allocator_jemalloc.cpp b/src/duckdb/src/common/allocator/allocator_jemalloc.cpp
+index 8dd3409..b8b78dd 100644
+--- a/src/duckdb/src/common/allocator/allocator_jemalloc.cpp
++++ b/src/duckdb/src/common/allocator/allocator_jemalloc.cpp
+@@ -9,6 +9,8 @@
+ 
+ #include "jemalloc/jemalloc.h"
+ #include "duckdb/malloc_ncpus.h"
++#include "duckdb/common/exception.hpp"
++#include "duckdb/common/string_util.hpp"
+ 
+ #else
+ #error "jemalloc support is only available on 64-bit Linux with DUCKDB_ENABLE_JEMALLOC enabled"
+-- 
+2.55.0
+
