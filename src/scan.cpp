@@ -197,8 +197,8 @@ static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_d
 				SEXP value_sexp = VECTOR_ELT(val, j);
 				child_list_t<Value> kv;
 				kv.push_back({"key", Value(string(CHAR(nm)))});
-				if (value_sexp == R_NilValue) {
-					// Treat element NULL as a SQL NULL of the column's value type
+				if (value_sexp == R_NilValue || RApiTypes::GetVecSize(value_sexp, true) == 0) {
+					// A NULL or empty value writes a SQL NULL of the value type (handbook/usage/types/README.md)
 					kv.push_back({"value", Value()});
 				} else {
 					kv.push_back({"value", RApiTypes::SexpToValue(value_sexp, 0)});
@@ -383,27 +383,32 @@ static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_p
 	}
 	case RType::INTERVAL_SECONDS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, interval_t, RIntervalSecondsType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntegerBackedType<RIntervalSecondsType>>(data_ptr, sexp_offset, v,
+		                                                                               this_count);
 		break;
 	}
 	case RType::INTERVAL_MINUTES_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, interval_t, RIntervalMinutesType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntegerBackedType<RIntervalMinutesType>>(data_ptr, sexp_offset, v,
+		                                                                               this_count);
 		break;
 	}
 	case RType::INTERVAL_HOURS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, interval_t, RIntervalHoursType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntegerBackedType<RIntervalHoursType>>(data_ptr, sexp_offset, v,
+		                                                                             this_count);
 		break;
 	}
 	case RType::INTERVAL_DAYS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, interval_t, RIntervalDaysType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntegerBackedType<RIntervalDaysType>>(data_ptr, sexp_offset, v,
+		                                                                            this_count);
 		break;
 	}
 	case RType::INTERVAL_WEEKS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, interval_t, RIntervalWeeksType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntegerBackedType<RIntervalWeeksType>>(data_ptr, sexp_offset, v,
+		                                                                             this_count);
 		break;
 	}
 	case RType::DATE: {
@@ -413,7 +418,7 @@ static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_p
 	}
 	case RType::DATE_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, date_t, RDateType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, date_t, RIntegerBackedType<RDateType>>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
 	case RType::LIST_OF_NULLS:

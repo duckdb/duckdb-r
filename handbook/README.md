@@ -21,7 +21,7 @@ A leaf that paraphrases a plan has created a second copy of a proposal.
 A leaf that copies out a measurement has created a second copy of a record that ages.
 
 * [`usage/`](usage/) — installation and flavors, connections,
-  statements, types, timestamps, extensions, memory, data import,
+  statements, types, Arrow types, timestamps, extensions, memory, data import,
   storage, integrations, the relational API, interactive use
 * [`architecture/`](architecture/) — the R layer, the C++ glue,
   the embedded engine, the `rfuns` extension

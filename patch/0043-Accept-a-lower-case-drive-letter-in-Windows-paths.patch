@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 27 Sep 2026 12:00:00 +0200
+Subject: [PATCH] Accept a lower-case drive letter in Windows paths
+
+LocalFileSystem::PathStartsWithDrive() accepts only 'A' to 'Z', so a path
+spelled with a lower-case drive letter is not recognised as one. The
+effect shows in CanonicalizePath(), which walks up from the full path to
+the longest prefix that exists and turns a bare drive into its root on
+the way. For c:/missing/db.duckdb, where nothing below the root exists,
+the walk arrives at "c:", leaves it as it stands, and asks Windows to
+resolve it. "c:" is drive-relative, so it resolves to the current
+directory on that drive, and the path comes back as
+<current directory>\missing\db.duckdb. A database opened with a
+lower-case drive letter in a directory that does not exist yet is
+thereby created somewhere else, or reported missing under a name the
+caller never gave; the upper-case spelling of the same path is right.
+
+The check now uses StringUtil::CharacterIsAlpha(), as Path's own drive
+parsing does. MakePathAbsolute() compared the drive of a drive-relative
+path (c:db.duckdb) with the working directory's case-sensitively, which
+the first change makes reachable for a lower-case letter: it now
+compares them upper-cased, so a drive-relative path on the current
+drive resolves against the working directory whichever case either is
+spelled in.
+
+duckdb-r reaches this through the driver cache, which keys a database
+on LocalFileSystem::CanonicalizePath() and opens the path it returns
+(handbook/usage/connections/README.md).
+
+main and v2.0-cyanoptera do not need this: their MakePathAbsolute()
+goes through Path, which upper-cases the drive letter before the walk
+starts. The first hunk still applies there and the second does not, so
+a series vendored from either leaves this entry out rather than
+rebasing it.
+
+Proposed upstream in duckdb/duckdb#<PR> (placeholder: not opened yet)
+against v1.5-variegata, and carried here until a release carries it.
+---
+ src/duckdb/src/common/local_file_system.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/common/local_file_system.cpp b/src/duckdb/src/common/local_file_system.cpp
+index 3fd4266371..73f36c391c 100644
+--- a/src/duckdb/src/common/local_file_system.cpp
++++ b/src/duckdb/src/common/local_file_system.cpp
+@@ -1398,7 +1398,7 @@ bool LocalFileSystem::TryCanonicalizeExistingPath(string &input) {
+ }
+ 
+ bool LocalFileSystem::PathStartsWithDrive(const string &path) {
+-	return path.size() >= 2 && path[0] >= 'A' && path[0] <= 'Z' && path[1] == ':';
++	return path.size() >= 2 && StringUtil::CharacterIsAlpha(path[0]) && path[1] == ':';
+ }
+ 
+ bool LocalFileSystem::IsPathAbsolute(const string &path) {
+@@ -1429,7 +1429,7 @@ string LocalFileSystem::MakePathAbsolute(const string &path_p, optional_ptr<File
+ 		}
+ 		// this is "C:" - expand to current working directory if this is the current drive
+ 		auto working_directory = GetWorkingDirectory();
+-		if (working_directory[0] != path[0]) {
++		if (StringUtil::CharacterToUpper(working_directory[0]) != StringUtil::CharacterToUpper(path[0])) {
+ 			// this is not the drive we are on right now (e.g. referencing D: while in C:)
+ 			// default to root of drive
+ 			working_directory = string(1, path[0]) + ":\\";
