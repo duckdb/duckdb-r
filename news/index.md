@@ -1,6 +1,21 @@
 # Changelog
 
+## duckdb 1.5.6.9000
+
+### Bug fixes
+
+#### series
+
+- Read `main` from the canonical repository, not the fork’s mirror
+  ([\#2865](https://github.com/duckdb/duckdb-r/issues/2865)).
+
+### Uncategorized
+
+- Merge remote-tracking branch ‘upstream/cran-1.5.6’.
+
 ## duckdb 1.5.6
+
+CRAN release: 2026-09-29
 
 ### Features
 
