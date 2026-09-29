@@ -316,7 +316,7 @@ void ColumnScanState::Initialize(const QueryContext &context_p, const LogicalTyp
 void CollectionScanState::Initialize(const QueryContext &context, const vector<LogicalType> &types) {
 	auto &column_ids = GetColumnIds();
 	D_ASSERT(column_scans.empty());
-	column_scans.reserve(column_scans.size());
+	column_scans.reserve(column_ids.size());
 	for (idx_t i = 0; i < column_ids.size(); i++) {
 		column_scans.emplace_back(*this);
 	}
@@ -1245,6 +1245,17 @@ bool RowGroup::HasUnloadedDeletes() const {
 	return !deletes_is_loaded;
 }
 
+vector<MetaBlockPointer> RowGroup::GetPersistedDeletePointers() const {
+	if (HasUnloadedDeletes()) {
+		return deletes_pointers;
+	}
+	auto vinfo = version_info.load();
+	if (!vinfo) {
+		return vector<MetaBlockPointer>();
+	}
+	return vinfo->GetStoragePointers();
+}
+
 PerColumnMetadataBlocks RowGroup::ComputePerColumnMetadataBlocks() const {
 	PerColumnMetadataBlocks result;
 	if (column_pointers.empty()) {
@@ -1650,6 +1661,18 @@ PersistentRowGroupData RowGroup::SerializeRowGroupInfo(idx_t row_group_start) co
 	result.start = row_group_start;
 	result.count = count;
 	return result;
+}
+
+void RowGroup::CompressVersionInfo(transaction_t lowest_active_start) {
+	if (HasUnloadedDeletes()) {
+		// deletes were not loaded - they are still stored in their compact serialized form
+		return;
+	}
+	auto vinfo = GetVersionInfo();
+	if (!vinfo) {
+		return;
+	}
+	vinfo->CompressVersionIds(lowest_active_start);
 }
 
 vector<MetaBlockPointer> RowGroup::CheckpointDeletes(RowGroupWriter &writer) {

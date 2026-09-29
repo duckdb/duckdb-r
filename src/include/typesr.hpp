@@ -194,6 +194,15 @@ struct RIntegerType {
 	static int Convert(int val);
 };
 
+// A Date or difftime stored as integer: its NA is NA_integer_, which the double
+// check it inherits would take for a real value.
+template <class T>
+struct RIntegerBackedType : public T {
+	static bool IsNull(int val) {
+		return RIntegerType::IsNull(val);
+	}
+};
+
 struct RInteger64Type {
 	static bool IsNull(int64_t val);
 	static int64_t Convert(int64_t val);

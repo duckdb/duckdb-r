@@ -151,7 +151,10 @@ dbConnect__duckdb_driver <- function(
   # let's make a new instance.
   if (dbdir != drv@dbdir || !rethrow_rapi_lock(drv@database_ref)) {
     rethrow_rapi_unlock(drv@database_ref)
-    drv <- duckdb(dbdir, read_only, bigint, config)
+    # Called under the name `dbConnect`, so that an error `duckdb()` raises against its own call names the user's `dbConnect()`.
+    dbConnect <- duckdb
+    drv <- dbConnect(dbdir, read_only, bigint, config)
+    rm(dbConnect)
   }
 
   conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts)

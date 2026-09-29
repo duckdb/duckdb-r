@@ -2,8 +2,10 @@
 # Collect rcc results and failure logs for commits the verdict store has no
 # record for, and stage them for publication to the orphan `rcc2` branch.
 #
-# The emergency backstop, and only that -- dispatched, never scheduled
-# (.github/workflows/rcc-logs.yaml): the `each-rcc` legs publish their own
+# The emergency backstop, and only that -- run by hand, never scheduled: the
+# workflow that used to dispatch it went with the rest of the `rcc2` workflows
+# (duckdb/duckdb-r#2815), so this runs the way consolidation does, from an
+# operator's checkout. The `each-rcc` legs publish their own
 # verdicts within seconds of deciding them (scripts/each-shard.sh), and that is
 # now the store's only automatic writer. This is what covers the case where the
 # leg never published, because the whole workflow was cancelled -- it can
