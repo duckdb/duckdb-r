@@ -66,7 +66,7 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-08-09-spatial-interop/`](2026-08-09-spatial-interop/) —
   which route carries a geometry across the R boundary, in each
   direction, what arrives, and what each does to the CRS; supports
-  [`usage/spatial/`](/handbook/usage/spatial/README.md) and
+  [`usage/types/`](/handbook/usage/types/README.md) and
   [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md).
 * [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
   what the published Windows `libduckdb` exports, and how much of what
@@ -122,7 +122,7 @@ This file is what names the contents, so nothing here is an orphan.
   every DuckDB type in its documentation and its extensions, read into R and written back by every route,
   through Arrow with and without lossless export,
   and the values that change, collide with `NA`, or fail, before and after the fixes it prompted; supports
-  [`usage/types/`](/handbook/usage/types/README.md) and [`usage/spatial/`](/handbook/usage/spatial/README.md).
+  [`usage/types/`](/handbook/usage/types/README.md) and [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
 * [`2026-09-27-arrow-types/`](2026-09-27-arrow-types/):
   every DuckDB type out through Arrow under each export setting, and what nanoarrow and arrow make of it in R;
   every Arrow type and every R class in; and which R functions keep Arrow's types, in each direction; supports
@@ -130,7 +130,7 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-27-geoarrow/`](2026-09-27-geoarrow/):
   each way to read a `GEOMETRY` column into sf through Arrow, each GeoArrow encoding on the way in,
   what the CRS becomes at every step, and the routes that lose the geometry; supports
-  [`usage/spatial/`](/handbook/usage/spatial/README.md).
+  [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md).
 * [`2026-09-27-review-limits/`](2026-09-27-review-limits/):
   an `INSTALL` or `LOAD` that stops a whole string, a `PRAGMA`'s expansion left half done while a stream is open,
   a parameter that invalidates the database, and R values that write as something other than their type,
@@ -141,6 +141,18 @@ This file is what names the contents, so nothing here is an orphan.
   Also whether an interrupt ends it, where it waits, what works instead, and what writing a stream back to its connection leaves behind.
   Also what else the reader of `to_arrow_stream()` cannot do on its own connection.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-frame-libraries/`](2026-09-28-frame-libraries/):
+  the one call that takes a query result into Polars, data.table and collapse, and whether each keeps the memory the result arrived in.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-09-28-matrix-limits/`](2026-09-28-matrix-limits/):
+  a matrix column carrying a class, which writes as that class's scalar type and loses values,
+  and an `ARRAY` column that `rel_to_altrep()` reads with the wrong shape.
+  Supports [`usage/types/`](/handbook/usage/types/README.md) and [`usage/relational/`](/handbook/usage/relational/README.md).
+* [`2026-09-28-type-rereview/`](2026-09-28-type-rereview/):
+  the type facts a re-review after #2850 found wrong or stated too broadly, from the integer minimums through Arrow
+  to which CRS can be named in a type without `spatial`.
+  Supports [`usage/types/`](/handbook/usage/types/README.md), [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)
+  and [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
