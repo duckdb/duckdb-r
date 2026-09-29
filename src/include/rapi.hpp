@@ -278,7 +278,7 @@ public:
 	// The number of rows written to out, 0 at the end. Throws on an execution error
 	idx_t FetchArray(idx_t batch_size, ArrowArray &out);
 	void FetchSchema(ArrowSchema &out);
-	optional_ptr<QueryResultStream> StreamResult() {
+	optional_ptr<QueryResultStream<>> StreamResult() {
 		return stream_result.get();
 	}
 
@@ -289,7 +289,7 @@ private:
 private:
 	duckdb::unique_ptr<QueryResult> owned_result;
 	optional_ptr<QueryResult> result;
-	duckdb::unique_ptr<QueryResultStream> stream_result;
+	duckdb::unique_ptr<QueryResultStream<>> stream_result;
 	ClientProperties client_properties;
 	vector<LogicalType> types;
 	vector<string> names;
