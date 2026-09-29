@@ -21,7 +21,7 @@
 # template.
 #
 # Usage: series-rc.sh <S> [--remote <name>] [--push]
-#   <S> is the source series, `v2.0-cyanoptera-fwd` for `v2.0-cyanoptera-fwd-rc-*`.
+#   <S> is the source series, `v2.0-cyanoptera-fwd` for `v2.0-cyanoptera-fwd-rc-dev`.
 #   --push writes the strand, leased on what the remote held when this run read it.
 
 set -euo pipefail
