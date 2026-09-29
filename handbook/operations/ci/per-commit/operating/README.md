@@ -82,9 +82,10 @@ Two details make it work in practice:
   not rebuilt.
 * **A leg cannot reach the `rcc2` branch** — logged, never fatal;
   the record is in the leg's artifact, which is what a firing reads,
-  and reaches the store only if `rcc-logs.yaml` is dispatched.
+  and reaches the store only if an operator runs
+  [`rcc-logs.sh`](/scripts/rcc-logs.sh).
 * **The whole run is cancelled** — the legs' own records are already on the
-  branch; dispatch `rcc-logs.yaml` for whatever is left.
+  branch; run [`rcc-logs.sh`](/scripts/rcc-logs.sh) by hand for whatever is left.
 * **The `plan` job fails** — `build` is skipped.
 * **History is force-pushed mid-run** — unreachable SHAs fail checkout
   and are skipped; new SHAs are picked up next run.

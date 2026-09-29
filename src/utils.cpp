@@ -1,5 +1,6 @@
 #include "duckdb/common/adbc/adbc-init.hpp"
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/local_file_system.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "include/rfuns_extension.hpp"
 #include "rapi.hpp"
@@ -29,6 +30,29 @@ using namespace duckdb;
 #else
 	return RStrings::get().cxx_stdlib_unknown_str;
 #endif
+}
+
+// Resolve a database path the way the engine itself does, so the driver cache
+// is keyed on what DuckDB considers the database's identity. Explained in
+// handbook/usage/connections/README.md.
+//
+// `CanonicalizePath()` canonicalizes the longest existing prefix of the path
+// and appends the rest, so a database that does not exist yet resolves without
+// anything being created. It does not throw when nothing resolves: the caller
+// gets a path back either way. It does throw when a relative path has no
+// working directory to resolve against, and that error reaches R as a
+// `duckdb_error` like every other engine error.
+[[cpp11::register]] cpp11::r_string rapi_canonicalize_path(std::string path) {
+	// The `LocalFileSystem` override takes the opener explicitly; only the
+	// `FileSystem` base declaration defaults it.
+	LocalFileSystem fs;
+	string result;
+	try {
+		result = fs.CanonicalizePath(path, nullptr);
+	} catch (std::exception &e) {
+		rapi_error_with_context("rapi_canonicalize_path", ErrorData(e));
+	}
+	return result;
 }
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
@@ -134,8 +158,16 @@ static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 }
 
 R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
+	// A data frame counts its rows in its first column, not in its row names:
+	// the scan also calls this from a task thread for a list of data frames,
+	// and reading compact row names allocates.
 	while (rtype.id() == RTypeId::STRUCT) {
-		rtype = rtype.GetStructChildTypes()[0].second;
+		auto child_rtypes = rtype.GetStructChildTypes();
+		if (child_rtypes.empty()) {
+			// No column to count in, and no values to read
+			return 0;
+		}
+		rtype = child_rtypes[0].second;
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
 	}
@@ -152,7 +184,9 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 }
 
 Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
+	auto rtype = RApiTypes::DetectRType(valsexp, true);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -162,6 +196,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
 		return RIntegerType::IsNull(int_val) ? Value(LogicalType::INTEGER) : Value::INTEGER(int_val);
+	}
+	case RType::INTEGER64: {
+		auto i64_val = ((int64_t *)NUMERIC_POINTER(valsexp))[idx];
+		return RInteger64Type::IsNull(i64_val) ? Value(LogicalType::BIGINT) : Value::BIGINT(i64_val);
 	}
 	case RType::NUMERIC: {
 		auto dbl_val = NUMERIC_POINTER(valsexp)[idx];

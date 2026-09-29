@@ -91,7 +91,7 @@ remote_scripts=(
   series-port.sh
 )
 upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
-canonical_scripts=(series-advance.sh series-cutover.sh)
+canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-port.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${standalone_scripts[@]}"; do
@@ -146,6 +146,14 @@ echo "== --chunk takes a number"
 isnt "series-advance.sh --chunk 25 is not a usage error" \
   "$(rc series-advance.sh s --chunk 25)" 2
 is "series-advance.sh --chunk origin" "$(rc series-advance.sh s --chunk origin)" 2
+
+echo
+echo "== --dev-note takes a file, and only where a commit is minted"
+for s in series-advance.sh series-port.sh; do
+  is "$s --dev-note (bare)" "$(rc "$s" s --dev-note)" 2
+done
+is "series-port.sh --dev-note without --apply" \
+  "$(rc series-port.sh s --dev-note /dev/null)" 2
 
 echo
 echo "== a missing series is a usage error too"

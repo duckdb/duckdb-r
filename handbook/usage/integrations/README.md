@@ -2,9 +2,10 @@
 
 The routes into DuckDB beside plain SQL:
 dplyr pipelines by two different mechanisms, Arrow interchange,
-ADBC, and the frame libraries that take none of them.
+ADBC, and a result's way into Polars, data.table and collapse.
 What a value becomes across the boundary is
-[`types/`](/handbook/usage/types/README.md).
+[`types/`](/handbook/usage/types/README.md)'s,
+and through Arrow [`arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
 
 ## dbplyr
 
@@ -49,6 +50,11 @@ The backend translates *expressions*, not verbs,
 and literals are escaped by dbplyr —
 the boundaries users keep hitting:
 
+* `tbl()` cannot open a table holding a type R cannot hold, `BIT`, `BIGNUM`, `TIME_NS` or `UNION`:
+  dbplyr reads the fields through a query R has to convert, and reports "Can't query fields".
+  `arrow::to_duckdb()` returns such a `tbl()` and `to_arrow()` takes one, so both fail the same way.
+  A `tbl()` over a query that casts the column, as `tbl(con, sql("SELECT tn::TIME AS tn FROM n"))`, opens
+  ([`experiments/2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md)).
 * `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
@@ -111,18 +117,11 @@ So does a result that `dbFetchArrow()` has handed over.
 Both keep the result's columns, `INTERVAL` included
 ([#2773](https://github.com/duckdb/duckdb-r/issues/2773)).
 Only a zero-length `dbBind()` executes nothing, so what it answers has no columns.
-The stream is the interchange:
-any Arrow-C-stream consumer takes a result onward
-without an R data frame in between —
-`polars::as_polars_df()`, `arrow::as_arrow_table()`,
-`nanoarrow::convert_array_stream()` —
-so a dedicated writer per frame library
-(Polars was the one asked for) is this route, not new C++
-([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-The stream feeds one consumer, draining as it is read.
-A `$get_next()` loop over it ends in `NULL`.
-A conversion such as `as.data.frame()` or `arrow::as_arrow_table()` releases it.
-A second conversion is then an error ("has already been released"), not the result again.
+The stream is the interchange: any Arrow C stream consumer takes a result onward without an R data frame in between.
+`arrow::as_arrow_table()` and `nanoarrow::convert_array_stream()` are such consumers.
+The stream feeds one consumer, draining as it is read, and a drained stream reads as empty rather than as the result again.
+A `$get_next()` loop over it ends in `NULL`, and a second `nanoarrow::convert_array_stream()` returns zero rows.
+`as.data.frame()` and `arrow::as_arrow_table()` also release it, so a read after either is an error ("has already been released").
 It also holds its connection until the engine has seen the end of the result, in a batch shorter than `chunk_size` or in an empty read.
 Another statement on that connection invalidates it.
 The next read is then an error, not an early end that would pass for a complete result
@@ -134,9 +133,9 @@ so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_e
 The wrapper also keeps the connection's client context alive until the stream is released.
 The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
-That includes a query that scans the stream itself, say after `duckdb_register_arrow()`.
-On the stream's own connection, that query hangs instead of failing.
-It holds the connection while it reads, and each read of the stream waits for the connection.
+That includes a query that scans the stream itself.
+Registering `arrow::as_record_batch_reader(stream)` with `duckdb_register_arrow()` and querying it is one.
+On the stream's own connection it waits for good, as the entry below says.
 A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
@@ -146,10 +145,74 @@ that class directly instead of a data frame to convert afterwards,
 and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
 at a time.
 
+**A query that scans a stream on the stream's own connection waits instead of failing.**
+Starting the query invalidates the stream.
+A read learns that only under the connection's lock, which the query holds until the scan returns.
+Neither the size of the result nor the number of threads changes that.
+Ctrl+C does not end the wait, so the R session has to be killed ([`interactive/`](/handbook/usage/interactive/README.md)).
+The engine's own stream waits the same way, in the Python client and in this package before [#2775](https://github.com/duckdb/duckdb-r/pull/2775).
+A second connection to the same database scans the stream.
+So does its own connection once the stream has been read to the end or the result materialized
+([`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md)).
+Writing a stream back to its own connection fails instead, with the invalidation error.
+DBI's methods for that run statements between their reads.
+`dbWriteTableArrow()` of a bare stream fails before it creates the table, and of an Arrow reader after, leaving it empty.
+`dbAppendTableArrow()` fails at the second batch, after appending the first.
+So a stream longer than one batch leaves a partial copy.
+
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
+`to_arrow()` still reads through the `arrow = TRUE` route, which materializes the whole result first.
+The same reader built from `dbGetQueryArrow()` and `arrow::as_record_batch_reader()` streams instead, and takes on the stream's limits.
+Arrow's `MakeSafeRecordBatchReader()`, which `to_arrow()` wraps around its reader, reports a read error as the end of the stream.
+So it cannot be kept around a stream, which can fail after its first batch.
+The measurements, on arrow 25.0.1, are in [`experiments/2026-09-26-to-arrow-stream/`](/experiments/2026-09-26-to-arrow-stream/README.md).
 The DBI Arrow API plan is
 [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
+
+**`to_arrow_stream()` is better than nothing, within hard limits.**
+The package exports that reader as the experimental `to_arrow_stream()` ([`R/to_arrow_stream.R`](/R/to_arrow_stream.R)).
+It holds a large result once where `to_arrow()` holds it twice, but it is no drop-in replacement.
+Its reference page points here for them.
+The reader is its connection's open result until it has been read to the end:
+
+* Any other statement on that connection breaks it, and the next read fails with the invalidation error.
+  dplyr and dbplyr run such statements unasked: `tbl()` asks for the columns, and printing or collecting a lazy table runs its query.
+  A second `to_arrow_stream()` on the same connection is one too.
+* A query that scans the reader on its own connection never returns, and Ctrl+C does not end it, as the entry above says.
+  `to_duckdb(reader, con = con)` is one, and so is a query on `con` after `duckdb_register_arrow()` of the reader.
+* Tables from `to_duckdb()` share the one connection arrow keeps unless `con` is given.
+  For those, a later `to_duckdb()` without `con` breaks the reader, and one on the reader itself never returns.
+* Writing the reader back to its own connection fails partway.
+  `dbWriteTableArrow()` leaves an empty table behind, and `dbAppendTableArrow()` the first batch.
+* A read runs outside the package's interrupt handler, so Ctrl+C does not stop it.
+  Ctrl+C does stop `to_arrow()`, which reads inside `dbSendQuery()`.
+* A query that fails after its first batch fails at the read, not in `to_arrow_stream()`.
+* The reader is read once, and a second read gives zero rows, not the result again.
+
+A second connection to the same database, `dbConnect(con@driver)`, is independent of the reader in both directions.
+It sees neither the first connection's temporary tables nor its open transaction
+([`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md)).
+[`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) would let a result own such a connection (`isolated = TRUE`).
+That would lift the first four.
+The reader keeps the database instance open until it is garbage-collected, even once it has been read to the end
+([`connections/`](/handbook/usage/connections/README.md)).
+
+**A result goes into Polars, data.table or collapse without a writer of its own.**
+Each takes what a DBI call returns:
+
+* Polars: `polars::as_polars_df(dbGetQueryArrow(con, sql))`.
+  It keeps each batch as a chunk, and numbers and characters where the stream put them.
+  A string column gains a 16-byte view per value, unless the export already sends views,
+  as it does with `produce_arrow_string_view = true` and an `arrow_output_version` from `'1.4'`.
+* data.table: `data.table::setDT(dbGetQuery(con, sql))`.
+  It makes the data frame a data.table in place and keeps every column, where `as.data.table()` copies each one.
+* collapse: its functions take the data frame as it is, and `collapse::qDT()` makes a data.table that keeps every column.
+
+Polars keeps Arrow memory, which the stream already is, and data.table and collapse keep R vectors, which `dbGetQuery()` already builds.
+So a writer of its own would build the same memory that these calls reach without one ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
+Measured on data.table 1.18.6.1, collapse 2.1.8 and the development version of polars from r-universe, not its release
+([`experiments/2026-09-28-frame-libraries/`](/experiments/2026-09-28-frame-libraries/README.md)).
 
 ## ADBC
 
@@ -171,13 +234,6 @@ That distinction stopped being academic when CRAN archived
 a `Suggests` that cannot be installed fails the check outright
 (`Package suggested but not available`, an ERROR under `--as-cran`),
 where an `Enhances` that cannot be installed is reported and passed over.
-`Additional_repositories` does not change that,
-and is not an alternative to the move:
-it answers the separate incoming-feasibility NOTE
-about a dependency outside the mainstream repositories,
-so this package carries both —
-the field pointed at `apache.r-universe.dev`,
-which is where the ADBC monorepo publishes the package now.
 
 The move is paid for in coverage, and it is worth knowing the price.
 `--as-cran` runs tests and examples against a restricted library
@@ -206,25 +262,9 @@ It costs everything this package adds:
 the DBI methods, the relational API, registration and the R type
 mapping are this package's rather than the driver's,
 and a second engine in the session shares nothing with this one.
-Both routes need `adbcdrivermanager`, which no longer installs itself:
-it comes from `apache.r-universe.dev`, which is what
-`Additional_repositories` names
+Both routes need `adbcdrivermanager`, which CRAN publishes again
 ([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)
-carries what CI does about that).
-That universe publishes a prebuilt binary for every platform this package
-is checked on — Linux, macOS and Windows, x86_64 and aarch64 —
-so Windows arm64 is no longer the exception it was
-while CRAN was the only source and had no binary for it.
-
-## data.table and collapse
-
-The other frame libraries
-[#642](https://github.com/duckdb/duckdb-r/issues/642) asks for,
-data.table and collapse,
-operate on subclasses of data frames internally.
-Unless this changes fundamentally,
-handing these packages a data frame is good enough:
-any other reader in these packages would still have to build R vectors.
+carries what CI does about installing it).
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain

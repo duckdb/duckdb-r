@@ -20,6 +20,10 @@ rapi_arrow_empty_array <- function(qry_res, array_xptr) {
   invisible(.Call(`_duckdb_rapi_arrow_empty_array`, qry_res, array_xptr))
 }
 
+rapi_release_arrow_result <- function(qry_res) {
+  invisible(.Call(`_duckdb_rapi_release_arrow_result`, qry_res))
+}
+
 rapi_record_batch <- function(qry_res, chunk_size) {
   .Call(`_duckdb_rapi_record_batch`, qry_res, chunk_size)
 }
@@ -232,6 +236,10 @@ rapi_rel_to_altrep <- function(rel, n_rows, n_cells) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, n_rows, n_cells)
 }
 
+rapi_df_has_query_result <- function(df) {
+  .Call(`_duckdb_rapi_df_has_query_result`, df)
+}
+
 rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap) {
   .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized, wrap)
 }
@@ -258,6 +266,10 @@ rapi_adbc_init_func <- function() {
 
 rapi_cxx_stdlib <- function() {
   .Call(`_duckdb_rapi_cxx_stdlib`)
+}
+
+rapi_canonicalize_path <- function(path) {
+  .Call(`_duckdb_rapi_canonicalize_path`, path)
 }
 
 rapi_ptr_to_str <- function(extptr) {

@@ -141,7 +141,20 @@ if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
   git fetch --unshallow origin
 fi
 git fetch --prune --tags origin
+git fetch -q upstream main
 ```
+
+**Both repositories, because `main` is one of them.**
+The series refs live in the fork and `main` belongs to the canonical
+repository, which the fork mirrors on the Pull app's six-hour cycle
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+Every read of `main` a firing makes takes the canonical ref:
+stage 4's port and its tooling sync,
+and the flavor declaration stage 7 reports on.
+A checkout that cannot reach it falls back to whatever the mirror last copied,
+and the scripts say so when they do.
+`upstream` is the remote name, the same one `--canonical` takes everywhere;
+add it where a checkout has none.
 
 `--depth` implies `--single-branch`, and a checkout made that way
 sees no `*-build` refs at all —
@@ -173,9 +186,9 @@ If it does not — no such access from this session at all —
 the firing falls back to the `rcc2` store,
 which still works, inside its 180-day window,
 but is now an **emergency route** rather than a warm copy:
-`rcc-logs.yaml` is dispatch-only,
-so a firing that needs the store complete has to ask for it
-and read the answer on a later pass (below).
+the sweep that filled its gaps is no longer a workflow at all
+(duckdb/duckdb-r#2815),
+so a firing that needs the store complete cannot get it, and says so (below).
 Record which one served: the store exists to work around a log access
 problem that may have passed, and retiring it waits on firings
 that report they never had to open it.
@@ -357,26 +370,25 @@ the per-run fan-in, which reconciled onto the branch
 whatever a leg could not publish,
 and the periodic sweep, `rcc-logs.yaml` ticking every 30 minutes.
 Both were copying what a firing now reads at the source.
-So the gap left for the dispatch is the leg that never published:
+So the gap left for the sweep is the leg that never published:
 a run cancelled whole, or a push that failed.
 
-Reaching that gap means asking for the sweep —
-through whatever Actions access the firing has,
-the same routes stage 2 already reads runs through:
-the GitHub tools' run-a-workflow call on `rcc-logs.yaml` at `main`,
-or `gh workflow run rcc-logs.yaml --ref main` where a `gh` exists,
-or the *Run workflow* button.
-A firing with no Actions access at all cannot dispatch it either,
-and is reading a copy nobody is refreshing —
+That gap is an operator's to close, not a firing's.
+`rcc-logs.yaml` went with the rest of the `rcc2` workflows (duckdb/duckdb-r#2815),
+so the sweep is now [`scripts/rcc-logs.sh`](/scripts/rcc-logs.sh) run by hand,
+from a checkout holding the `-dev` refs and staged onto the branch with
+[`scripts/rcc-publish.sh`](/scripts/rcc-publish.sh),
+the way consolidation already runs.
+No firing can ask for it, whatever its Actions access,
+so a firing that needs the copy complete is reading one nobody is refreshing —
 which is worth saying plainly in the report rather than working around.
 
-**Dispatch it and move on.** A run takes 2–13 minutes,
-and nothing in the firing is worth blocking on it:
+**Report it and move on.** Nothing in the firing is worth blocking on it:
 finish the stages that do not depend on the missing record,
-say in the report that the sweep was dispatched and what it was for,
-and let the next firing read the result.
-A record that is still absent on that next pass,
-after a sweep that completed, is a real absence and not a stale copy —
+say in the report which record is missing and what it was for,
+and let a later firing read the result once an operator has swept.
+A record still absent after a sweep that completed
+is a real absence and not a stale copy —
 which is the one question the old schedule could never answer.
 
 `series-check.sh` reads the store and only the store.
@@ -403,8 +415,8 @@ The run list says which kind of waiting it is:
 The store answers this one badly, which is worth the run list even on a firing
 whose verdicts came from the store:
 an absent record can equally mean a queued run, a lost one,
-or a sweep that was never dispatched —
-and with `rcc-logs.yaml` off its schedule the last of those is the common case,
+or a sweep that was never run —
+and with no sweep on a schedule the last of those is the common case,
 not the rare one. The run list separates them; the store's tip cannot.
 
 Only when none of those explains it,
@@ -440,7 +452,8 @@ is reading; they are the same bytes:
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
 | `Error: R CMD check found WARNINGs` / `ERRORs`, with the `❯ checking …` headers above it naming which checks | `R CMD check --as-cran` is unhappy about the tree, or about the environment CI built it in | read the named checks; fix at origin, or on `main` when the cause is the job's own setup |
 | a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
-| none of the above and no test phase | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
+| the leg's record names a failed stage (`"failed_stages":["install"]`) and no rule above matched | the stage failed on its merits — most often an `install` that a glue call site this series' engine no longer offers stopped | fix the glue at origin; never a rerun |
+| none of the above, no test phase, and no failed stage in the record | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
 
 Never classify by absence of a marker:
 `"Job is waiting for a hosted runner"` appears in every log
@@ -739,6 +752,23 @@ The note is appended to the newest commit of the chunk before the push.
 Writing it afterwards costs an amend, a force-push,
 and one `each-rcc` run spent on a commit about to be re-minted.
 
+**An empty buffer mints no vendor commit, and the port stage takes the note
+instead.**
+A firing that finds every buffer level with upstream consumes nothing,
+so stage 5 has no chunk and refuses the note outright —
+while stage 4 still mints the ports and the tooling sync,
+which are then the only `-dev` commits the firing produces.
+`scripts/series-port.sh` takes `--dev-note <file>`
+with the same meaning and the same one-commit target:
+
+```sh
+scripts/series-port.sh <S> --apply --dev-note <file>
+```
+
+Which of the two carries it is whichever one mints;
+the finding goes on the newest `-dev` commit of the firing either way,
+and neither stage is worth an amend after its own push.
+
 **What a fix may be is the handbook's rule, not this skill's.**
 A compiler-warning fix is bound by
 [`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md),
@@ -834,11 +864,13 @@ on a commit no `each-rcc` leg had decided —
 a status with no record, on a ref the model calls untested.
 
 The sync commit vendors nothing,
-so the consumption anchor and the vendored-SHA scans look past it
-by subject, and stage 5 replays it onto `-dev` like any buffer commit,
-where it drops as empty because `-dev` already carries that tooling.
-Where `main` moved between the two syncs it conflicts instead;
-resolve toward `main`'s tooling, which is what both refs converge on.
+so the consumption anchor and the vendored-SHA scans look past it by subject,
+and stage 5 skips it rather than replaying it onto `-dev`,
+whose tooling this stage has already made `main`'s.
+Replaying it held only until `main` moved again.
+The sync's diff runs from the buffer's older tooling,
+so the pick conflicted, or put back on `-dev` what `main` had removed,
+and a sync the anchor never passes was offered again on every firing.
 
 ```sh
 scripts/series-port.sh <S>                  # list candidates + identity check
@@ -1126,7 +1158,7 @@ and every verdict that run reaches is readable from it
 as soon as the leg has written it —
 there is nothing to wait for a harvest for.
 The store's own writer (the leg's publish;
-`rcc-logs.yaml` only when dispatched)
+`rcc-logs.sh` only when an operator runs it)
 just fills the fallback copy behind it.
 
 ### 6. Read the forwarding, and suggest a cutover — never perform one
@@ -1507,7 +1539,7 @@ dropping the record of a commit its own tree broke
 costs a rebuild to learn the same verdict
 and erases the log that said why.
 
-**Do not dispatch `rcc-logs.yaml` behind a drop.**
+**Do not run `rcc-logs.sh` behind a drop.**
 The commit keeps its stale `rcc` status until the rebuild writes a fresh one,
 and that sweep derives records for undecided commits from exactly those,
 so it puts back what the drop removed.
@@ -1558,6 +1590,25 @@ is what carries the automatic path into a forward series.
 - **Restore whole directories, not touched files**,
   when replaying over a base that owns them
   (`.github` in particular).
+- **A `.dd` file naming a header the flavor renamed stops the build
+  before the first compile**, and no gate above `install` ever runs:
+  `src/include/deps.mk` includes `src/*.dd`, so
+  `include/duckdb_types.hpp` on a tree carrying
+  `include/duckdb_1_5_dev_types.hpp` is
+  "No rule to make target 'include/duckdb_types.hpp', needed by 'cpp11.o'".
+  The `.dd` files sit outside `scripts/flavor.patch`, the rename surface,
+  so a port that takes a `main` commit touching one writes the mainline
+  name onto a flavored tree, and a later reflavor does not reach it.
+  `flavor.sh` and `reflavor.sh` now normalize them, which leaves the
+  branches seeded before that: check with
+
+  ```sh
+  git grep -n 'include/duckdb_types\.hpp' <ref> -- 'src/*.dd'
+  ```
+
+  and fold the corrected file into the oldest commit above green.
+  `v1.5-variegata-fwd` was seeded this way and its whole first chunk
+  would have come back red (2026-09-28).
 
 ## Invariants
 
@@ -1618,9 +1669,9 @@ is what carries the automatic path into a forward series.
   Neither source may be *required*: a firing that has only one of them
   still finishes, and says in its report which one it had.
   The fallback is an emergency route *for the firing*, and is not kept warm:
-  `rcc-logs.yaml` is dispatched, never scheduled,
-  so a firing that needs the copy complete asks for it
-  and reads the answer on a later pass — it never blocks on one.
+  the sweep is `rcc-logs.sh` run by hand, never a workflow and never scheduled,
+  so a firing that needs the copy complete reports the gap
+  instead of waiting on one — it never blocks on one.
   On the CI side the store is nobody's fallback:
   selection reads it and only it,
   which is why the leg's per-commit publish stays automatic.

@@ -47,7 +47,7 @@
 # and nothing decides from it -- but it means the commit still *shows* red until
 # its rebuild writes a fresh one, which is expected, not a second thing to fix.
 #
-# And it must not be followed by dispatching `rcc-logs.yaml`. That workflow
+# And it must not be followed by running `scripts/rcc-logs.sh`. That sweep
 # derives records for commits the store has no record for, from exactly those
 # stale statuses, so a sweep behind a drop puts back what the drop removed.
 #
@@ -140,7 +140,7 @@ message="${message}
 
 These commits are undecided again and the next each-rcc run on their branch
 plans them. Their stale rcc statuses stay until that run writes fresh ones;
-rcc-logs.yaml must not be dispatched behind this, or it derives the dropped
+rcc-logs.sh must not be run behind this, or it derives the dropped
 records back from them (scripts/rcc-drop.sh)."
 
 "${here}/rcc-publish.sh" "${message}" "${stage}"

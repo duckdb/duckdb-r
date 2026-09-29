@@ -110,7 +110,18 @@ for c in "${commits[@]}"; do
   # The prose the fold left behind: what upstream changed, and what the glue
   # had to do about it. Absent on a commit that touched glue for another
   # reason -- a cherry-pick from `main`, say -- and that absence is a signal.
-  body=$(git log -1 --format=%b "$c" | sed -n '/^R-side fix:/,$p')
+  #
+  # The header is matched by its opening words alone, because the section has
+  # never had one spelling: `vendor-one.sh` and the skill both call it "an
+  # 'R-side fix' section" and neither prescribes the punctuation, so the folds
+  # wrote `R-side fix:`, `R-side fix` over a `---` underline, `R-side fix
+  # (repair)`, and `R-side fix: <prose on the same line>`. Anchoring on the
+  # colon read 6 of the 14 sections in `main`'s own glue range and dropped the
+  # other 8 in silence -- which is the one failure mode this read must not
+  # have, since mining against a subset carries an intermediate fix forward.
+  # Case-blind as well, like the check series-advance.sh makes before it writes
+  # a header of its own, so the writer and the reader agree on what one is.
+  body=$(git log -1 --format=%b "$c" | awk 'tolower($0) ~ /^r-side fix/ { f = 1 } f')
   [ -n "$body" ] && sed 's/^/    | /' <<<"$body"
   echo
 done
