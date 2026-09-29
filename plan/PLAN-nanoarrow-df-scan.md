@@ -54,9 +54,12 @@ is [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)'s.
   cannot filter: `arrow_scan_dumb`, registered alongside `arrow_scan`
   with `projection_pushdown`, `filter_pushdown` and `filter_prune`
   all false.
-* Type fidelity differs in both directions —
-  better for `integer64`, `hms`, and `POSIXct`,
-  worse for `factor`, and a bare list column is refused outright.
+* Type fidelity differs in both directions:
+  better for `hms` and `POSIXct`,
+  worse for `factor`,
+  and a bare list column is refused unless it is a `vctrs::list_of()`.
+  `integer64` differed too, until [#2819](https://github.com/duckdb/duckdb-r/pull/2819) made `r_dataframe_scan` write `BIGINT` as well.
+  What a value becomes through Arrow is [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
 * The Arrow export costs one and a half to two times the built-in
   scan per query, and it is paid per scan rather than once at
   registration.
@@ -91,7 +94,7 @@ can do rather than assume it can filter.
   no pushdown, a per-scan export, and a different type mapping.
 * **`duckdb_register()` keeps `r_dataframe_scan`.**
   The measurement says the nanoarrow route is up to twice as slow,
-  drops `ENUM` for factors, and refuses list columns.
+  drops `ENUM` for factors, and refuses a bare list column.
   Changing the default would be a regression for the common case;
   the generic in #98 is about reaching more sources, not fewer.
 * **A source consumed on read is refused at registration.**
@@ -103,11 +106,17 @@ can do rather than assume it can filter.
   registered on its own connection, a query over it hangs,
   because the scan holds the connection while each read of the stream waits for it
   ([`usage/integrations/`](/handbook/usage/integrations/README.md) owns the mechanism).
+  `duckdb_register_arrow()` carries the same limitation for a `RecordBatchReader`,
+  which the first query drains, as `usage/arrow-types/` lists.
 * **R errors keep their message.**
   An R condition raised inside a producer currently reaches the caller
   as `Invalid Error: std::exception`.
   The producer calls get a wrapper that catches the R error and
   re-raises it with its own message and the producer's name.
+  The loss is the one [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md) names for the scan's own errors:
+  the engine's `catch (std::exception &)` keeps nothing of cpp11's unwind but its name.
+  [#2816](https://github.com/duckdb/duckdb-r/pull/2816) takes the glue's own report out of R;
+  this decision covers the producer's side of the same seam.
 * **The stream a producer exports is pulled by engine threads.**
   The export call itself is moved onto the scheduling thread,
   but the batches that follow are pulled by whichever worker thread scans them,
@@ -136,6 +145,8 @@ Route both through a helper that evaluates the call with
 
 Standalone: it improves the existing arrow path on its own,
 and every later commit depends on the diagnostics.
+It is the producer-side counterpart of [#2816](https://github.com/duckdb/duckdb-r/pull/2816),
+and the two should share one helper.
 Test: register an arrow source whose exporter stops with a known
 message, and assert the message survives.
 

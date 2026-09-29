@@ -9,8 +9,10 @@ and what the Arrow export costs on a million rows.
 (this repository, built against the prebuilt libduckdb v1.5.5 via
 `DUCKDB_R_USE_SYSTEM_LIB=1`), nanoarrow 0.9.0, R 4.5.3, Linux.
 
-Re-run on 2026-09-26 against duckdb 1.5.5.9027, built from `main` on the same engine
-(`v1.5.5`, source id `d8cdaa33fda`): every result unchanged, timings within jitter.
+Re-run on 2026-09-29 against duckdb 1.5.6.9000, built from `main` on the `v1.5.6` engine
+(source id `069cc9f9b5`): every result unchanged but one, timings within jitter.
+The one is `integer64`, which lands as `BIGINT` on both routes now,
+since [#2819](https://github.com/duckdb/duckdb-r/pull/2819) made `r_dataframe_scan` write it so whatever `bigint` says.
 
 *What it supports:*
 [`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md),
@@ -57,12 +59,14 @@ What the run compresses to:
   produces one fails on the first projection —
   the source has no columns to subset and nothing to replay.
 * **Type fidelity differs in both directions.**
-  nanoarrow is better on `integer64` (`BIGINT`, not `DOUBLE`),
-  on `hms` (`TIME`, not `INTERVAL`),
-  and on `POSIXct` (`TIMESTAMP WITH TIME ZONE`, not naive `TIMESTAMP`).
+  nanoarrow is better on `hms` (`TIME`, not `INTERVAL`)
+  and on `POSIXct` (`TIMESTAMP WITH TIME ZONE`, not naive `TIMESTAMP`),
+  and was better on `integer64` (`BIGINT`, not `DOUBLE`)
+  until [#2819](https://github.com/duckdb/duckdb-r/pull/2819) made `r_dataframe_scan` write `BIGINT` as well.
   It is worse on `factor` (`VARCHAR`, losing the `ENUM`)
   and it refuses a bare list column outright,
-  which `r_dataframe_scan` maps to `INTEGER[]`.
+  which `r_dataframe_scan` maps to `INTEGER[]` and nanoarrow takes only as a `vctrs::list_of()`.
+  The mapping through Arrow is [`usage/arrow-types/`](/handbook/usage/arrow-types/README.md)'s.
   Everything else — logical, integer, double, character, `Date`,
   `difftime`, `blob`, and a nested data frame — agrees.
 * **An R error inside the producer arrives as `std::exception`.**

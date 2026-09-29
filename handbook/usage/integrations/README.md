@@ -219,6 +219,8 @@ a result leaves as nanoarrow, but a source can only enter through the
 `arrow` package,
 because `duckdb_register_arrow()` hard-codes `arrow::Scanner$create()`
 and `arrow::Expression$…` in the closures it hands to C++.
+A nanoarrow stream enters today only as the arrow `Table` built from it,
+and a registered reader is drained by the first query, both of which `arrow-types/` lists.
 What a registered object holds in memory,
 and why a stream over an R connection cannot be one,
 is [`memory/writing/`](/handbook/usage/memory/writing/README.md)'s.
