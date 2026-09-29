@@ -18,11 +18,20 @@ runs:
         fi
       shell: bash
 
-    # Must be done after installing R because rtools is installed only then
+    # Must be done after installing R because rtools is installed only then.
+    #
+    # This key and the ccache key below both carry runner.arch. The matrix
+    # pairs each arm64 runner with an amd64 one on the same OS and R version
+    # (ubuntu-26.04-arm / ubuntu-26.04), and Ubuntu's g++ prints the same
+    # --version line on both, so without the architecture the two entries
+    # share one archive. Whichever saves it first hands its object files to
+    # the other, whose link then fails with "file in wrong format". ccache
+    # checks the compiler itself and so never reuses a foreign object, but a
+    # shared key still has the two entries overwrite each other's cache.
     - name: Compute cache key
       if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
-        echo "DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY=duckdb-tar-R$(Rscript --vanilla -e 'cat(format(getRversion()))')-${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-${{ hashFiles('src/duckdb/**') }}" | tee -a $GITHUB_ENV
+        echo "DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY=duckdb-tar-R$(Rscript --vanilla -e 'cat(format(getRversion()))')-${{ runner.os }}-${{ runner.arch }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-${{ hashFiles('src/duckdb/**') }}" | tee -a $GITHUB_ENV
         echo "DUCKDB_R_PREBUILT_ARCHIVE=${{ runner.temp }}/duckdb.tar" | tee -a $GITHUB_ENV
       shell: bash
 
@@ -55,7 +64,7 @@ runs:
     - name: Compute ccache key
       if: env.DUCKDB_R_USE_SYSTEM_LIB != '1' && env.DUCKDB_R_UNRELEASED != '1'
       run: |
-        echo "GHA_CCACHE_KEY=${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-R-$(Rscript --vanilla -e 'cat(format(getRversion()))')" | tee -a $GITHUB_ENV
+        echo "GHA_CCACHE_KEY=${{ runner.os }}-${{ runner.arch }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-R-$(Rscript --vanilla -e 'cat(format(getRversion()))')" | tee -a $GITHUB_ENV
       shell: bash
 
     - name: Install persistent ccache
