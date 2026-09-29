@@ -60,9 +60,13 @@
 
 #include "src/main/relation.cpp"
 
+#include "src/main/result_format.cpp"
+
 #include "src/main/result_set_manager.cpp"
 
 #include "src/main/result_unit.cpp"
+
+#include "src/main/retained_result_collection.cpp"
 
 #include "src/main/statement_iterator.cpp"
 
