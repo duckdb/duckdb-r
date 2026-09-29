@@ -381,9 +381,11 @@ base_engine=$(engine HEAD)
 PICKS=()
 OWN=()
 seen_vendor=
+foot=''
 while IFS=$'\t' read -r c subj; do
   case "$subj" in
     vendor:*)
+      [ -n "$seen_vendor" ] || foot=$(git rev-parse "$c~1")
       seen_vendor=1
       if [ -n "$base_engine" ] && [[ "$(upstream_sha "$c")" == "$base_engine"* ]]; then
         PICKS=()
@@ -408,13 +410,17 @@ done < <(git log --reverse --format='%H%x09%s' "$OLDBASE..$OLD")
 # `patch/` entry the base buffer carried onto a 2.0 engine reverse-applies to
 # the seed whenever `main` carries the same entry for its release, and the
 # rewind then takes it out again. Only ancestry still answers there.
+#
+# The graft is rebuilt once, as the first commit: a replay whose counter has
+# left the seed's `.0` has it already, and a resumed run passing the same
+# `--graft-from` carries on.
 rewinds='' graft=''
-if [ ${#PICKS[@]} -gt 0 ]; then
-  foot=$(git rev-parse "${PICKS[0]}~1")
-  if [ "$(engine "$foot")" != "$(engine HEAD)" ]; then
-    rewinds=1
-    is_graft "$foot" && graft=$foot
-  fi
+if [ ${#PICKS[@]} -gt 0 ] && [ "$(engine "${PICKS[0]}~1")" != "$(engine HEAD)" ]; then
+  rewinds=1
+fi
+if [ -n "$foot" ] && is_graft "$foot" && [ "$n" -eq 0 ]; then
+  graft=$foot
+  rewinds=1
 fi
 if [ -n "$graft" ] && [ -z "$GRAFT_FROM" ]; then
   echo "Error: $OLDBASE..$OLD stands on a graft, $(git rev-parse --short "$graft"):" \
@@ -423,8 +429,8 @@ if [ -n "$graft" ] && [ -z "$GRAFT_FROM" ]; then
   echo "  first and name its buffer with --graft-from <S>-fwd-build." >&2
   exit 1
 fi
-if [ -n "$GRAFT_FROM" ] && [ -z "$graft" ]; then
-  echo "Error: --graft-from given, but the replay does not start on a graft" >&2
+if [ -n "$GRAFT_FROM" ] && ! { [ -n "$foot" ] && is_graft "$foot"; }; then
+  echo "Error: --graft-from given, but $OLDBASE..$OLD does not stand on a graft" >&2
   exit 1
 fi
 STRANDED=()
@@ -473,7 +479,11 @@ EOF
   exit 1
 fi
 
-[ ${#PICKS[@]} -gt 0 ] || { rm -f "$PLACED"; echo "Nothing to replay: $OLDBASE..$OLD is already on HEAD"; exit 0; }
+[ ${#PICKS[@]} -gt 0 ] || {
+  rm -f "$PLACED" "$GLUE_STATE" "$glue_failures"
+  echo "Nothing to replay: $OLDBASE..$OLD is already on HEAD"
+  exit 0
+}
 echo "replaying ${#PICKS[@]} vendor commit(s) onto $(git rev-parse --short HEAD), counter at $n"
 
 if [ -n "$graft" ]; then
@@ -502,5 +512,5 @@ for c in "${PICKS[@]}"; do
 done
 
 glue_gate "the last pick"
-rm -f "$PLACED" "$GLUE_STATE" "$GLUE_BROKEN"
+rm -f "$PLACED" "$GLUE_STATE" "$GLUE_BROKEN" "$glue_failures"
 echo "DONE: ${#PICKS[@]} vendor commit(s) replayed -> $(git rev-parse --short HEAD)"
