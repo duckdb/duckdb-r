@@ -144,6 +144,20 @@ test_that("check_tz() reads the Olson list from the session cache", {
   expect_warning(check_tz("UTC"), "Invalid time zone 'UTC'", fixed = TRUE)
 })
 
+test_that("check_tz() reads the Olson list again once `TZDIR` changes", {
+  # On macOS, loading lubridate changes `TZDIR` in the middle of a session.
+  check_tz("UTC")
+
+  # A database that knows only one zone.
+  tzdir <- withr::local_tempdir()
+  dir.create(file.path(tzdir, "Mars"))
+  file.create(file.path(tzdir, "Mars", "Olympus"))
+  withr::local_envvar(TZDIR = tzdir)
+
+  expect_silent(expect_identical(check_tz("Mars/Olympus"), "Mars/Olympus"))
+  expect_warning(check_tz("UTC"), "Invalid time zone 'UTC'", fixed = TRUE)
+})
+
 test_that("dbConnect fails when tz_out_convert is misspecified", {
   drv <- duckdb()
   on.exit(duckdb_shutdown(drv))

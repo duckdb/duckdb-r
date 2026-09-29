@@ -38,3 +38,17 @@ test_that("we can retrieve an interval", {
   res <- dbGetQuery(con, "SELECT NULL::INTERVAL i")
   expect_true(is.na(res$i))
 })
+
+test_that("an integer-backed difftime column keeps its NA, in every unit", {
+  con <- local_con()
+
+  for (units in c("secs", "mins", "hours", "days", "weeks")) {
+    df <- data.frame(
+      i = structure(c(5L, NA), class = "difftime", units = units)
+    )
+    duckdb_register(con, "df", df, overwrite = TRUE)
+
+    res <- dbGetQuery(con, "SELECT i IS NULL AS n FROM df")
+    expect_equal(res$n, c(FALSE, TRUE), info = units)
+  }
+})

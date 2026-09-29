@@ -30,6 +30,10 @@ Little of this is codified; what is settled:
 * Never edit generated or vendored files
   ([`architecture/`](/handbook/architecture/README.md),
   [`operations/vendoring/`](/handbook/operations/vendoring/README.md)).
+* Regenerate `man/*.Rd` with roxygen2 installed from GitHub, `pak::pak("r-lib/roxygen2")`, not with the CRAN release.
+  `DESCRIPTION` records the development version in `Config/roxygen2/version`,
+  and CI's roxygen step installs `r-lib/roxygen2` too
+  ([`.github/workflows/R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml)).
 * A script only ever run on a CI runner may assume GNU tools;
   one a contributor may run on their own machine will meet macOS,
   where `sed` is BSD.
