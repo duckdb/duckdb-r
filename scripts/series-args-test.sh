@@ -76,6 +76,7 @@ scripts=(
   series-forward-build.sh
   series-glue.sh
   series-port.sh
+  series-rc.sh
 )
 # preview-prefix.sh and reflavor.sh act on the worktree they are run in and name
 # no series, so they take neither --remote nor --upstream; the usage contract and
@@ -89,6 +90,7 @@ remote_scripts=(
   series-cutover.sh
   series-glue.sh
   series-port.sh
+  series-rc.sh
 )
 upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
 canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-port.sh)

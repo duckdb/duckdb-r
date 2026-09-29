@@ -66,6 +66,12 @@ and the model's "no CI" holds because something maintains it.
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.
+**`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
+so that the package a release ships as plain `duckdb` has verdicts of its own.
+It is one ref: no buffer, since it is derived rather than vendored,
+and no `-green` or `-build-base`, since nothing publishes it.
+CI judges it from its own seed up, and the loop realigns it rather than serving it
+([`series-rc`](/.claude/skills/series-rc/SKILL.md)).
 **The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
 and both counts stay linear by construction —
 `-green` is always an ancestor of `-dev`, and `-build-base` of `-build`:
