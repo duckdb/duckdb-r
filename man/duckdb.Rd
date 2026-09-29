@@ -201,18 +201,20 @@ calling \code{duckdb()} again with the same \code{dbdir} returns the same driver
 This is deliberate.
 DuckDB allows only a single read-write handle to a database file at a time,
 so opening a second instance of the same file fails with a lock error in another process,
-and is not prevented at all within the same one.
+and, on Linux and macOS, is not prevented at all within the same one.
 Reusing one instance instead lets any number of \code{dbConnect(duckdb(dbdir = "my.db"))} calls share it.
 An in-memory database (\verb{:memory:}, the default) has no file to lock and is never cached:
 every \code{duckdb()} call creates a fresh, isolated instance.
 
-The key is the path as \code{\link[=normalizePath]{normalizePath()}} resolves it.
-A database file that does not exist yet is resolved through an empty placeholder
-that \code{duckdb()} creates and removes again,
-so a \code{dbdir} in a directory that cannot be written to fails here rather than in the engine.
-Creating that placeholder is the only step that has to succeed:
-a path \code{normalizePath()} cannot resolve is kept as it stands instead of raising an error
-(a network drive with parent directories the user may not read is the common case).
+The key is the path as the \emph{engine} resolves it, not as \code{\link[=normalizePath]{normalizePath()}} does.
+DuckDB canonicalizes the longest part of the path that exists and appends the rest,
+so a database that does not exist yet gets the key it will keep once created,
+and two spellings of one database (a relative path, a symlink, a different separator)
+share an instance instead of each opening their own.
+A path that resolves no further is used as it stands rather than refused.
+Symbolic links are not supported on Windows,
+where creating one takes administrator rights or Developer Mode:
+there, a symlink to a database that does not exist yet fails to open.
 
 Because the instance is created once per database file,
 \code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation.

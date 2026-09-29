@@ -4,6 +4,8 @@
 \alias{duckdb_error}
 \title{DuckDB error conditions}
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Every error the database engine raises reaches R as a condition of class \code{duckdb_error},
 carrying DuckDB's own classification alongside the message.
 Catch it with \code{\link[=tryCatch]{tryCatch()}} or \code{rlang::try_fetch()} and branch on the fields rather than on the message text,
