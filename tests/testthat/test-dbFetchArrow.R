@@ -366,3 +366,17 @@ test_that("a stream can be read after its connection is gone", {
 
   expect_equal(nrow(as.data.frame(stream)), 2L)
 })
+
+test_that("an Arrow result carries types R cannot hold", {
+  con <- local_con()
+
+  res <- dbGetQueryArrow(
+    con,
+    "SELECT '13:03:12.123456789'::TIME_NS AS t,
+       union_value(num := 2)::UNION(num INTEGER, str VARCHAR) AS u"
+  )
+  schema <- nanoarrow::infer_nanoarrow_schema(res)
+
+  expect_equal(schema$children$t$format, "ttn")
+  expect_equal(substr(schema$children$u$format, 1, 2), "+u")
+})

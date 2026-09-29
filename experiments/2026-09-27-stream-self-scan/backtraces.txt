@@ -1,0 +1,321 @@
+=== Python: self-scan.py own-connection
+[New LWP 2961]
+[New LWP 2960]
+[New LWP 2959]
+[New LWP 2958]
+[New LWP 2957]
+[New LWP 2956]
+[New LWP 2955]
+[New LWP 2954]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+0x00007f93f1898d71 in __futex_abstimed_wait_common64 (private=32767, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x1ea4fb20) at ./nptl/futex-internal.c:57
+
+Thread 9 (Thread 0x7f93ec9ff6c0 (LWP 2954) "python3"):
+#0  0x00007f93f1898d71 in __futex_abstimed_wait_common64 (private=<optimized out>, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x1e0e52f8) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=<optimized out>, abstime=0x0, clockid=0, expected=0, futex_word=0x1e0e52f8) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x1e0e52f8, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=<optimized out>) at ./nptl/futex-internal.c:139
+#3  0x00007f93f18a4f1f in do_futex_wait (sem=sem@entry=0x1e0e52f8, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:111
+#4  0x00007f93f18a4fb8 in __new_sem_wait_slow64 (sem=0x1e0e52f8, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:183
+#5  0x00007f93efc2aa15 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#7  0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#8  0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 8 (Thread 0x7f93ec1fe6c0 (LWP 2955) "python3"):
+#0  0x00007f93f1898d71 in __futex_abstimed_wait_common64 (private=<optimized out>, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x1e0e52f8) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=<optimized out>, abstime=0x0, clockid=0, expected=0, futex_word=0x1e0e52f8) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x1e0e52f8, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=<optimized out>) at ./nptl/futex-internal.c:139
+#3  0x00007f93f18a4f1f in do_futex_wait (sem=sem@entry=0x1e0e52f8, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:111
+#4  0x00007f93f18a4fb8 in __new_sem_wait_slow64 (sem=0x1e0e52f8, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:183
+#5  0x00007f93efc2aa15 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#7  0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#8  0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 7 (Thread 0x7f93eb9fd6c0 (LWP 2956) "python3"):
+#0  0x00007f93f1898d71 in __futex_abstimed_wait_common64 (private=<optimized out>, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x1e0e52f8) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=<optimized out>, abstime=0x0, clockid=0, expected=0, futex_word=0x1e0e52f8) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x1e0e52f8, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=<optimized out>) at ./nptl/futex-internal.c:139
+#3  0x00007f93f18a4f1f in do_futex_wait (sem=sem@entry=0x1e0e52f8, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:111
+#4  0x00007f93f18a4fb8 in __new_sem_wait_slow64 (sem=0x1e0e52f8, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:183
+#5  0x00007f93efc2aa15 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#7  0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#8  0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 6 (Thread 0x7f93eaefc6c0 (LWP 2957) "python3"):
+#0  futex_wait (private=0, expected=2, futex_word=0x1e80ba80) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x1e80ba80, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f93f18a0101 in lll_mutex_lock_optimized (mutex=0x1e80ba80) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x1e80ba80) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f93ef30871e in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#5  0x00007f93ef308f71 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93ef308ffc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#7  0x00007f93efa4c795 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#8  0x00007f93efc22972 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#9  0x00007f93efc27faa in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#10 0x00007f93efc20cb6 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#11 0x00007f93efc2a526 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#12 0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#13 0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#14 0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 5 (Thread 0x7f93ea6fb6c0 (LWP 2958) "python3"):
+#0  futex_wait (private=0, expected=2, futex_word=0x1e80ba80) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x1e80ba80, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f93f18a0101 in lll_mutex_lock_optimized (mutex=0x1e80ba80) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x1e80ba80) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f93ef30871e in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#5  0x00007f93ef308f71 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93ef308ffc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#7  0x00007f93efa4c795 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#8  0x00007f93efc22972 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#9  0x00007f93efc27faa in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#10 0x00007f93efc20cb6 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#11 0x00007f93efc2a526 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#12 0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#13 0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#14 0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 4 (Thread 0x7f93e9efa6c0 (LWP 2959) "python3"):
+#0  futex_wait (private=0, expected=2, futex_word=0x1e80ba80) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x1e80ba80, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f93f18a0101 in lll_mutex_lock_optimized (mutex=0x1e80ba80) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x1e80ba80) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f93ef30871e in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#5  0x00007f93ef308f71 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93ef308ffc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#7  0x00007f93efa4c795 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#8  0x00007f93efc22972 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#9  0x00007f93efc27faa in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#10 0x00007f93efc20cb6 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#11 0x00007f93efc2a526 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#12 0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#13 0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#14 0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 3 (Thread 0x7f93e3bff6c0 (LWP 2960) "jemalloc_bg_thd"):
+#0  0x00007f93f1898d71 in __futex_abstimed_wait_common64 (private=32659, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7f93e4216630) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=32659, abstime=0x0, clockid=0, expected=0, futex_word=0x7f93e4216630) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7f93e4216630, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f93f189b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7f93e4216678, cond=0x7f93e4216608) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7f93e4216608, mutex=0x7f93e4216678) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f93e5a88142 in background_thread_entry () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#6  0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#7  0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 2 (Thread 0x7f93e23206c0 (LWP 2961) "python3"):
+#0  futex_wait (private=0, expected=2, futex_word=0x1e554390) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x1e554390, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f93f18a0101 in lll_mutex_lock_optimized (mutex=0x1e554390) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x1e554390) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f93efba5370 in duckdb::ClientContext::LockContext() () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#5  0x00007f93efbc5613 in duckdb::StreamQueryResult::LockContext() () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#6  0x00007f93efbc5823 in duckdb::StreamQueryResult::IsOpen() () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#7  0x00007f93ef42e1a0 in duckdb::ResultArrowArrayStreamWrapper::MyStreamGetNext(ArrowArrayStream*, ArrowArray*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#8  0x00007f93e48fa252 in arrow::(anonymous namespace)::ArrayStreamBatchReader<false>::ReadNext(std::shared_ptr<arrow::RecordBatch>*) [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#9  0x00007f93e48f1868 in arrow::(anonymous namespace)::ExportedArrayStream<arrow::RecordBatchReader, false>::StaticGetNext(ArrowArrayStream*, ArrowArray*) [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#10 0x00007f93e48fa252 in arrow::(anonymous namespace)::ArrayStreamBatchReader<false>::ReadNext(std::shared_ptr<arrow::RecordBatch>*) [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#11 0x00007f93e963ad15 in arrow::Result<std::shared_ptr<arrow::RecordBatch> > arrow::Iterator<std::shared_ptr<arrow::RecordBatch> >::Next<arrow::FunctionIterator<arrow::MakeIteratorFromReader<arrow::RecordBatchReader>(std::shared_ptr<arrow::RecordBatchReader> const&)::{lambda()#1}, std::shared_ptr<arrow::RecordBatch> > >(void*) () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow_dataset.so.2500
+#12 0x00007f93e9648bd9 in arrow::internal::FnOnce<void ()>::FnImpl<arrow::BackgroundGenerator<std::shared_ptr<arrow::RecordBatch> >::State::DoRestartTask(std::shared_ptr<arrow::BackgroundGenerator<std::shared_ptr<arrow::RecordBatch> >::State>, arrow::util::Mutex::Guard)::{lambda()#1}>::invoke() () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow_dataset.so.2500
+#13 0x00007f93e4fdb7f6 in arrow::internal::FnOnce<void ()>::FnImpl<arrow::internal::ThreadPool::SpawnReal(arrow::internal::TaskHints, arrow::internal::FnOnce<void ()>, arrow::StopToken, arrow::internal::FnOnce<void (arrow::Status const&)>&&)::{unnamed type#1}>::invoke() [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#14 0x00007f93e4fdb1c4 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<arrow::internal::ThreadPool::LaunchWorkersUnlocked(int)::{lambda()#1}> > >::_M_run() [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#15 0x00007f93ed2ecdb4 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#16 0x00007f93f189caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#17 0x00007f93f1929c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 1 (Thread 0x7f93f1b4c080 (LWP 2952) "python3"):
+#0  0x00007f93f1898d71 in __futex_abstimed_wait_common64 (private=32767, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x1ea4fb20) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=32767, abstime=0x0, clockid=0, expected=0, futex_word=0x1ea4fb20) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x1ea4fb20, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f93f189b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x1ea4fad0, cond=0x1ea4faf8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x1ea4faf8, mutex=0x1ea4fad0) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f93ed2b9047 in std::condition_variable::wait(std::unique_lock<std::mutex>&) () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#6  0x00007f93e4fd1bb3 in arrow::FutureImpl::Wait() () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#7  0x00007f93e9637ee3 in arrow::Result<arrow::dataset::TaggedRecordBatch> arrow::Iterator<arrow::dataset::TaggedRecordBatch>::Next<arrow::GeneratorIterator<arrow::dataset::TaggedRecordBatch> >(void*) () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow_dataset.so.2500
+#8  0x00007f93e95ef26b in arrow::dataset::(anonymous namespace)::ScannerRecordBatchReader::ReadNext(std::shared_ptr<arrow::RecordBatch>*) [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow_dataset.so.2500
+#9  0x00007f93e48f1868 in arrow::(anonymous namespace)::ExportedArrayStream<arrow::RecordBatchReader, false>::StaticGetNext(ArrowArrayStream*, ArrowArray*) [clone .lto_priv.0] () from /usr/local/lib/python3.11/dist-packages/pyarrow/libarrow.so.2500
+#10 0x00007f93ef42917d in duckdb::ArrowArrayStreamWrapper::GetNextChunk() () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#11 0x00007f93ef308898 in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#12 0x00007f93ef308f71 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#13 0x00007f93ef308ffc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#14 0x00007f93efa4c795 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#15 0x00007f93efc22972 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#16 0x00007f93efc27faa in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#17 0x00007f93efc20cb6 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#18 0x00007f93efc2a0a4 in duckdb::Executor::ExecuteTask(bool) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#19 0x00007f93efbe1d90 in duckdb::ClientContext::ExecuteTaskInternal(duckdb::ClientContextLock&, duckdb::BaseQueryResult&, bool) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#20 0x00007f93efbe1f53 in duckdb::PendingQueryResult::ExecuteTask() () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#21 0x00007f93ee2bad12 in duckdb::DuckDBPyConnection::CompletePendingQuery(duckdb::PendingQueryResult&) () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#22 0x00007f93ee2bc95d in ?? () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#23 0x00007f93ee2d2282 in ?? () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#24 0x00007f93ee2f01a3 in ?? () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#25 0x00007f93ee25d761 in ?? () from /usr/local/lib/python3.11/dist-packages/_duckdb.cpython-311-x86_64-linux-gnu.so
+#26 0x000000000054b549 in ?? ()
+#27 0x000000000054b421 in PyObject_Vectorcall ()
+#28 0x000000000053c76d in _PyEval_EvalFrameDefault ()
+#29 0x000000000060ff5d in ?? ()
+[Inferior 1 (process 2952) detached]
+=== R, build before #2775
+[New LWP 2990]
+[New LWP 2989]
+[New LWP 2988]
+[New LWP 2987]
+[New LWP 2986]
+[New LWP 2985]
+[New LWP 2980]
+[New LWP 2979]
+[New LWP 2978]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+0x00007f787fa98d71 in __futex_abstimed_wait_common64 (private=853851947, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x558b67f27b68) at ./nptl/futex-internal.c:57
+
+Thread 10 (Thread 0x7f787a7ff6c0 (LWP 2978) "R"):
+#0  0x00007f787fa98d71 in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7f787f1f4fe0) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0x7f787f1f4fe0) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7f787f1f4fe0, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f787fa9b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7f787f1f4f90, cond=0x7f787f1f4fb8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7f787f1f4fb8, mutex=0x7f787f1f4f90) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f787d1bcafb in ?? () from /usr/lib/x86_64-linux-gnu/libopenblas.so.0
+#6  0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#7  0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 9 (Thread 0x7f7879ffe6c0 (LWP 2979) "R"):
+#0  0x00007f787fa98d71 in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7f787f1f5060) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0x7f787f1f5060) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7f787f1f5060, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f787fa9b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7f787f1f5010, cond=0x7f787f1f5038) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7f787f1f5038, mutex=0x7f787f1f5010) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f787d1bcafb in ?? () from /usr/lib/x86_64-linux-gnu/libopenblas.so.0
+#6  0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#7  0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 8 (Thread 0x7f78715ff6c0 (LWP 2980) "R"):
+#0  0x00007f787fa98d71 in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7f787f1f50e0) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0x7f787f1f50e0) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7f787f1f50e0, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f787fa9b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7f787f1f5090, cond=0x7f787f1f50b8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7f787f1f50b8, mutex=0x7f787f1f5090) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f787d1bcafb in ?? () from /usr/lib/x86_64-linux-gnu/libopenblas.so.0
+#6  0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#7  0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 7 (Thread 0x7f78575ff6c0 (LWP 2985) "R"):
+#0  0x00007f787faecadf in __GI___clock_nanosleep (clock_id=clock_id@entry=0, flags=flags@entry=0, req=0x7f7860bc1610, rem=0x0) at ../sysdeps/unix/sysv/linux/clock_nanosleep.c:78
+#1  0x00007f787faf9a27 in __GI___nanosleep (req=<optimized out>, rem=<optimized out>) at ../sysdeps/unix/sysv/linux/nanosleep.c:25
+#2  0x00007f7860b9f092 in ?? () from /root/R/x86_64-pc-linux-gnu-library/4.5/cli/libs/cli.so
+#3  0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#4  0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 6 (Thread 0x7f7856dfe6c0 (LWP 2986) "R"):
+#0  futex_wait (private=0, expected=2, futex_word=0x558b675932c0) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x558b675932c0, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f787faa0101 in lll_mutex_lock_optimized (mutex=0x558b675932c0) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x558b675932c0) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f7859102ade in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /root/.local/lib/libduckdb.so
+#5  0x00007f7859103331 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#6  0x00007f78591033bc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#7  0x00007f785996dd15 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /root/.local/lib/libduckdb.so
+#8  0x00007f7859b55bf2 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /root/.local/lib/libduckdb.so
+#9  0x00007f7859b5b22a in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#10 0x00007f7859b53f36 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#11 0x00007f7859b5d7a6 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /root/.local/lib/libduckdb.so
+#12 0x00007f787acecdb4 in ?? () from /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+#13 0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#14 0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 5 (Thread 0x7f78565fd6c0 (LWP 2987) "R"):
+#0  futex_wait (private=0, expected=2, futex_word=0x558b675932c0) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x558b675932c0, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f787faa0101 in lll_mutex_lock_optimized (mutex=0x558b675932c0) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x558b675932c0) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f7859102ade in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /root/.local/lib/libduckdb.so
+#5  0x00007f7859103331 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#6  0x00007f78591033bc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#7  0x00007f785996dd15 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /root/.local/lib/libduckdb.so
+#8  0x00007f7859b55bf2 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /root/.local/lib/libduckdb.so
+#9  0x00007f7859b5b22a in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#10 0x00007f7859b53f36 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#11 0x00007f7859b5d7a6 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /root/.local/lib/libduckdb.so
+#12 0x00007f787acecdb4 in ?? () from /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+#13 0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#14 0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 4 (Thread 0x7f7855dfc6c0 (LWP 2988) "R"):
+#0  futex_wait (private=0, expected=2, futex_word=0x558b675932c0) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x558b675932c0, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f787faa0101 in lll_mutex_lock_optimized (mutex=0x558b675932c0) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x558b675932c0) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f7859102ade in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /root/.local/lib/libduckdb.so
+#5  0x00007f7859103331 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#6  0x00007f78591033bc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#7  0x00007f785996dd15 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /root/.local/lib/libduckdb.so
+#8  0x00007f7859b55bf2 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /root/.local/lib/libduckdb.so
+#9  0x00007f7859b5b22a in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#10 0x00007f7859b53f36 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#11 0x00007f7859b5d7a6 in duckdb::TaskScheduler::ExecuteForever(std::atomic<bool>*) () from /root/.local/lib/libduckdb.so
+#12 0x00007f787acecdb4 in ?? () from /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+#13 0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#14 0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 3 (Thread 0x7f78501ff6c0 (LWP 2989) "jemalloc_bg_thd"):
+#0  0x00007f787fa98d71 in __futex_abstimed_wait_common64 (private=32632, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7f7850816630) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=32632, abstime=0x0, clockid=0, expected=0, futex_word=0x7f7850816630) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7f7850816630, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f787fa9b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7f7850816678, cond=0x7f7850816608) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7f7850816608, mutex=0x7f7850816678) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f7853f57205 in ?? () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#6  0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#7  0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 2 (Thread 0x7f784f53e6c0 (LWP 2990) "R"):
+#0  futex_wait (private=0, expected=2, futex_word=0x558b63d5b6a0) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x558b63d5b6a0, private=0) at ./nptl/lowlevellock.c:49
+#2  0x00007f787faa0101 in lll_mutex_lock_optimized (mutex=0x558b63d5b6a0) at ./nptl/pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x558b63d5b6a0) at ./nptl/pthread_mutex_lock.c:93
+#4  0x00007f7859ad76f0 in duckdb::ClientContext::LockContext() () from /root/.local/lib/libduckdb.so
+#5  0x00007f7859af7993 in duckdb::StreamQueryResult::LockContext() () from /root/.local/lib/libduckdb.so
+#6  0x00007f7859af7ba3 in duckdb::StreamQueryResult::IsOpen() () from /root/.local/lib/libduckdb.so
+#7  0x00007f78592341a0 in duckdb::ResultArrowArrayStreamWrapper::MyStreamGetNext(ArrowArrayStream*, ArrowArray*) () from /root/.local/lib/libduckdb.so
+#8  0x00007f78532e5c52 in ?? () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#9  0x00007f7852484386 in arrow::Result<std::shared_ptr<arrow::RecordBatch> > arrow::Iterator<std::shared_ptr<arrow::RecordBatch> >::Next<arrow::FunctionIterator<arrow::MakeIteratorFromReader<arrow::RecordBatchReader>(std::shared_ptr<arrow::RecordBatchReader> const&)::{lambda()#1}, std::shared_ptr<arrow::RecordBatch> > >(void*) () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#10 0x00007f785249271c in arrow::BackgroundGenerator<std::shared_ptr<arrow::RecordBatch> >::WorkerTask(std::shared_ptr<arrow::BackgroundGenerator<std::shared_ptr<arrow::RecordBatch> >::State>) () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#11 0x00007f7852492d96 in arrow::internal::FnOnce<void ()>::FnImpl<arrow::BackgroundGenerator<std::shared_ptr<arrow::RecordBatch> >::State::DoRestartTask(std::shared_ptr<arrow::BackgroundGenerator<std::shared_ptr<arrow::RecordBatch> >::State>, arrow::util::Mutex::Guard)::{lambda()#1}>::invoke() () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#12 0x00007f78538de908 in ?? () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#13 0x00007f787acecdb4 in ?? () from /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+#14 0x00007f787fa9caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#15 0x00007f787fb29c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 1 (Thread 0x7f787cdc3800 (LWP 2971) "R"):
+#0  0x00007f787fa98d71 in __futex_abstimed_wait_common64 (private=853851947, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x558b67f27b68) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=853851947, abstime=0x0, clockid=0, expected=0, futex_word=0x558b67f27b68) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x558b67f27b68, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007f787fa9b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x558b67f27b18, cond=0x558b67f27b40) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x558b67f27b40, mutex=0x558b67f27b18) at ./nptl/pthread_cond_wait.c:627
+#5  0x00007f78538a9ecb in arrow::FutureImpl::Wait() () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#6  0x00007f7852477418 in arrow::Result<arrow::dataset::TaggedRecordBatch> arrow::Iterator<arrow::dataset::TaggedRecordBatch>::Next<arrow::GeneratorIterator<arrow::dataset::TaggedRecordBatch> >(void*) () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#7  0x00007f7852461056 in ?? () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#8  0x00007f78532f80f5 in ?? () from /root/R/x86_64-pc-linux-gnu-library/4.5/arrow/libs/arrow.so
+#9  0x00007f785922f17d in duckdb::ArrowArrayStreamWrapper::GetNextChunk() () from /root/.local/lib/libduckdb.so
+#10 0x00007f7859102c58 in duckdb::ArrowTableFunction::ArrowScanParallelStateNext(duckdb::ClientContext&, duckdb::FunctionData const*, duckdb::ArrowScanLocalState&, duckdb::ArrowScanGlobalState&) () from /root/.local/lib/libduckdb.so
+#11 0x00007f7859103331 in duckdb::ArrowTableFunction::ArrowScanInitLocalInternal(duckdb::ClientContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#12 0x00007f78591033bc in duckdb::ArrowTableFunction::ArrowScanInitLocal(duckdb::ExecutionContext&, duckdb::TableFunctionInitInput&, duckdb::GlobalTableFunctionState*) () from /root/.local/lib/libduckdb.so
+#13 0x00007f785996dd15 in duckdb::PhysicalTableScan::GetLocalSourceState(duckdb::ExecutionContext&, duckdb::GlobalSourceState&) const () from /root/.local/lib/libduckdb.so
+#14 0x00007f7859b55bf2 in duckdb::PipelineExecutor::PipelineExecutor(duckdb::ClientContext&, duckdb::Pipeline&) () from /root/.local/lib/libduckdb.so
+#15 0x00007f7859b5b22a in duckdb::PipelineTask::ExecuteTask(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#16 0x00007f7859b53f36 in duckdb::ExecutorTask::Execute(duckdb::TaskExecutionMode) () from /root/.local/lib/libduckdb.so
+#17 0x00007f7859b5d324 in duckdb::Executor::ExecuteTask(bool) () from /root/.local/lib/libduckdb.so
+#18 0x00007f7859b14110 in duckdb::ClientContext::ExecuteTaskInternal(duckdb::ClientContextLock&, duckdb::BaseQueryResult&, bool) () from /root/.local/lib/libduckdb.so
+#19 0x00007f7859b1434c in duckdb::PendingQueryResult::ExecuteInternal(duckdb::ClientContextLock&) () from /root/.local/lib/libduckdb.so
+#20 0x00007f7859b15666 in duckdb::ClientContext::Execute(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, duckdb::shared_ptr<duckdb::PreparedStatementData, true>&, duckdb::PendingQueryParameters const&) () from /root/.local/lib/libduckdb.so
+#21 0x00007f7859b1b5bc in duckdb::PreparedStatement::Execute(std::unordered_map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, duckdb::BoundParameterData, duckdb::CaseInsensitiveStringHashFunction, duckdb::CaseInsensitiveStringEquality, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, duckdb::BoundParameterData> > >&, bool) () from /root/.local/lib/libduckdb.so
+#22 0x00007f7859b1ba10 in duckdb::PreparedStatement::Execute(duckdb::vector<duckdb::Value, true, std::allocator<duckdb::Value> >&, bool) () from /root/.local/lib/libduckdb.so
+#23 0x00007f78601a5570 in rapi_execute_impl (stmt=0x558b659ae6b0, convert_opts=..., allow_stream_result=false) at statement.cpp:263
+#24 0x00007f78601a6055 in rapi_execute (stmt=..., convert_opts=...) at statement.cpp:297
+#25 0x00007f786022a056 in _duckdb_rapi_execute (stmt=0x558b64a36ed0, convert_opts=<optimized out>) at cpp11.cpp:447
+#26 0x00007f787ff03c7a in R_doDotCall (fun=<optimized out>, nargs=nargs@entry=2, cargs=cargs@entry=0x7ffc0cad30f0, call=call@entry=0x558b6557aa00) at dotcode.c:757
+#27 0x00007f787ff04207 in do_dotcall (call=0x558b6557aa00, op=<optimized out>, args=<optimized out>, env=<optimized out>) at dotcode.c:1437
+#28 0x00007f787ff526cd in Rf_eval (e=<optimized out>, rho=rho@entry=0x558b64a50728) at eval.c:1260
+#29 0x00007f787ff55dcc in do_begin (call=0x558b6557aa70, op=0x558b611bf310, args=0x558b6557aa38, rho=0x558b64a50728) at eval.c:2996
+[Inferior 1 (process 2971) detached]

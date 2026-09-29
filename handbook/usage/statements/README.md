@@ -47,12 +47,43 @@ The departures from that baseline are what this leaf owns:
   [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md) adds so
   that the second carries the first's session settings.
   `FORCE CHECKPOINT` on one connection while a stream is parked on another
-  does not return, since it waits for a transaction only the waiting thread
-  can advance (measured in
+  can hang, waiting for a transaction only the waiting thread can advance:
+  after a `DROP TABLE` on that connection it did not return (measured in
   [`experiments/2026-09-26-connection-per-result/`](/experiments/2026-09-26-connection-per-result/README.md)).
   The object each DBI class wraps, and why the stream and the connection
   share a session, is
   [`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)'s.
+
+**A multi-statement string runs one statement at a time, and stops at the first that fails.**
+Each statement is expanded and prepared only after the ones before it have run,
+so a `PRAGMA` that generates its SQL from what is there when it runs sees what they made:
+`create_fts_index` reads a table created earlier in the same string, and `import_database` the files an earlier `EXPORT DATABASE` wrote
+([#2792](https://github.com/duckdb/duckdb-r/pull/2792)).
+The whole string is parsed before anything runs, so a syntax error anywhere means that nothing runs.
+Under `allow_extensions = FALSE`, an `INSTALL` or `LOAD` anywhere in it stops everything the same way,
+because `rapi_prepare()` checks every statement before the first runs.
+Any other error, a misspelt `PRAGMA` among them, leaves the statements before it in effect,
+because the string runs in no transaction of its own.
+The statements a `PRAGMA` expands to run in one transaction, which a failure rolls back.
+While a streaming result is open on the connection, the engine finds a transaction active and opens none,
+so an `import_database` whose second CSV fails to parse leaves the first table loaded
+([`2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)).
+`dbWithTransaction()` around the call is the way to all or nothing, as is `dbBegin()` before it with `dbRollback()` after a failure.
+A `PRAGMA` inside that transaction sees what the transaction has done so far.
+A `BEGIN TRANSACTION` inside the string is no substitute, because after a syntax error it has not run and `dbRollback()` fails.
+The engine's own `Query()` runs a string the same way from DuckDB 2.0,
+except that it also parses each statement only when it reaches it
+([duckdb/duckdb#23291](https://github.com/duckdb/duckdb/pull/23291)).
+
+**Checking every `PRAGMA` before the first statement runs is declined.**
+Binding a `PRAGMA` evaluates its arguments
+([duckdb/duckdb#25875](https://github.com/duckdb/duckdb/issues/25875)),
+so a `nextval()` among them would run once for the check and once for real,
+and a misspelt column in a later statement would still fail after the statements before it had run.
+
+**No helper splits a string into its statements yet.**
+One would have to split with the parser alone,
+because the engine's own splitter, `ExtractStatements()`, expands every `PRAGMA` before any statement runs.
 
 **A failing statement raises `duckdb_error`, and the classification is a field.**
 The engine's exception type, whatever it attached as extra info, the operation that failed,
@@ -64,6 +95,7 @@ rather than matching on the message
 The fields survive the rethrow that points the error at the user's call
 ([`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md)),
 and the no-rlang fallback carries the same ones on a plainer message.
+The condition and its fields are experimental, so their names and contents may still change.
 
 **The message stays prose and the rest stays data.**
 `error_type` is the one field also rendered, because it is short and bounded;
@@ -73,6 +105,13 @@ and a field the engine did not supply is absent from the condition too, reading 
 which is why classification code needs a fallback branch.
 The engine, not this package, owns which types and which `extra_info` keys exist,
 so both grow without a release here.
+
+**One character parameter used both inside `typeof()` and in a cast invalidates the database.**
+`dbGetQuery(con, "SELECT typeof($1), $1::VARCHAR", params = list("ok"))` raises `INTERNAL Error: Invalid PhysicalType for GetTypeIdSize`.
+The connection, every new connection to its instance, and a new driver on its file
+then fail until `duckdb_shutdown()` releases the instance.
+The bug is upstream's: `PREPARE` and `EXECUTE` in SQL raise it too
+([`2026-09-27-arrow-types/`](/experiments/2026-09-27-arrow-types/README.md), [`2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md)).
 
 *To deepen: state the remaining departures, what `dbWriteTable()` does
 about types it cannot round-trip and which identifiers need quoting the

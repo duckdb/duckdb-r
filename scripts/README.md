@@ -72,6 +72,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`README.md`](README.md) | (this index) |
 
+## [`meta/local/`](/handbook/meta/local/README.md)
+
+| File | Purpose |
+|---|---|
+| [`render-reprex.R`](render-reprex.R) | Render an experiment script as a reprex into `<stem>.md` beside it. |
+
 ## [`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)
 
 | File | Purpose |
@@ -144,4 +150,10 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | File | Purpose |
 |---|---|
 | [`snapshot-accept.sh`](snapshot-accept.sh) | Rebuild a commit, run the suite, accept the named snapshots, re-run to confirm they hold. |
+
+## [`usage/types/`](/handbook/usage/types/README.md)
+
+| File | Purpose |
+|---|---|
+| [`types-rd.R`](types-rd.R) | Generate the type reference pages, `?duckdb_types` and `?duckdb_types_arrow`, from the handbook leaves that own them. |
 

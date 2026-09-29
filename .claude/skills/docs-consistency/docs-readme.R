@@ -155,6 +155,10 @@ groups <- list(
     globs = c("vendor-rfuns.sh")
   ),
   list(
+    owner = "handbook/usage/types",
+    globs = c("types-rd.R")
+  ),
+  list(
     owner = "handbook/branches/flavors",
     globs = c("flavor*", "reflavor*")
   ),
@@ -185,6 +189,10 @@ groups <- list(
   list(
     owner = "handbook/meta/handbook",
     globs = c("README.md")
+  ),
+  list(
+    owner = "handbook/meta/local",
+    globs = c("render-reprex.R")
   )
 )
 groups <- groups[order(vapply(groups, function(g) g$owner, character(1)))]

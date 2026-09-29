@@ -45,6 +45,15 @@ rethrow_rapi_arrow_empty_array <- function(qry_res, array_xptr, call = parent.fr
   )
 }
 
+rethrow_rapi_release_arrow_result <- function(qry_res, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_release_arrow_result(qry_res),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_record_batch <- function(qry_res, chunk_size, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_record_batch(qry_res, chunk_size),
@@ -522,6 +531,15 @@ rethrow_rapi_rel_to_altrep <- function(rel, n_rows, n_cells, call = parent.frame
   )
 }
 
+rethrow_rapi_df_has_query_result <- function(df, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_df_has_query_result(df),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_from_altrep_df(df, strict, allow_materialized, wrap),
@@ -585,6 +603,15 @@ rethrow_rapi_cxx_stdlib <- function(call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_canonicalize_path <- function(path, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_canonicalize_path(path),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_ptr_to_str <- function(extptr, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_ptr_to_str(extptr),
@@ -609,6 +636,7 @@ rethrow_restore <- function() {
   rethrow_rapi_arrow_schema <<- rapi_arrow_schema
   rethrow_rapi_fetch_arrow_array <<- rapi_fetch_arrow_array
   rethrow_rapi_arrow_empty_array <<- rapi_arrow_empty_array
+  rethrow_rapi_release_arrow_result <<- rapi_release_arrow_result
   rethrow_rapi_record_batch <<- rapi_record_batch
   rethrow_rapi_connect <<- rapi_connect
   rethrow_rapi_disconnect <<- rapi_disconnect
@@ -662,6 +690,7 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_to_view <<- rapi_rel_to_view
   rethrow_rapi_rel_insert <<- rapi_rel_insert
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
+  rethrow_rapi_df_has_query_result <<- rapi_df_has_query_result
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release
   rethrow_rapi_prepare <<- rapi_prepare
@@ -669,6 +698,7 @@ rethrow_restore <- function() {
   rethrow_rapi_execute <<- rapi_execute
   rethrow_rapi_adbc_init_func <<- rapi_adbc_init_func
   rethrow_rapi_cxx_stdlib <<- rapi_cxx_stdlib
+  rethrow_rapi_canonicalize_path <<- rapi_canonicalize_path
   rethrow_rapi_ptr_to_str <<- rapi_ptr_to_str
   rethrow_rapi_load_rfuns <<- rapi_load_rfuns
 }
