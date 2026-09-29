@@ -11,6 +11,7 @@
 #                      green holds, but the buffer may still extend onto -dev
 #   RETRY <sha> <why>  the oldest failure, and nothing in the commit caused it
 #   REPAIR <sha> <why>  the oldest failure and its classification
+#   IDLE               nothing in flight and nothing buffered
 #
 # A forward series that has caught up with the green it replaces additionally
 # gets a CUTOVER line: the command to run, for a human to run. The loop never
@@ -385,9 +386,9 @@ upstream_branches() {
 }
 
 # The fork point of a release line: the newest commit on the first-parent chain
-# of both upstream branches (scripts/VENDORING.md, "Starting a New Dev Line: the
-# Fork-Point Rule"). Not `git merge-base`, which upstream's back-merges of the
-# release branch into `main` drag forward by weeks; a series seeded from that
+# of both upstream branches (handbook/operations/vendoring/model/). Not
+# `git merge-base`, which upstream's back-merges of the release branch into
+# `main` drag forward by weeks; a series seeded from that
 # answer jumps the commits in between in one step, and none of them is ever
 # built against the glue. Printed only when a clone can compute it, because a
 # wrong fork point is worse than none.
@@ -577,7 +578,7 @@ elif [ ${#unserved[@]} -gt 0 ]; then
     if [ -n "$fp" ]; then
       echo "          Fork point $fp,"
       echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
-      echo "          git merge-base answers here (scripts/VENDORING.md)."
+      echo "          git merge-base answers here (handbook/operations/vendoring/model/)."
     fi
     # Which half of the opening is still owed. Declaring the flavor is a file
     # edit and a firing may open the PR for it; cutting the refs is not, and

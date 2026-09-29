@@ -6,6 +6,7 @@ How the to-do list is computed is
 [`selection/`](/handbook/operations/ci/per-commit/selection/README.md)'s.
 
 * **Commits considered** — `<S>-green..HEAD` on a series branch,
+  everything above its seed on an rc strand,
   else first-parent history since `SINCE`; undecided ones only.
 * **Marker written** — a commit status, context `rcc`,
   `pending` before a commit and `success`/`failure` after it,

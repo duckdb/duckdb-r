@@ -55,6 +55,12 @@ the replay then populates `<S>-fwd-build`.
    The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
    previewing 2.0 is `1.99.99.9000`.
 
+   **A seed on a released `main` takes fledge's first dev version as its fourth component.**
+   On the day of a release `main` carries the bare `1.5.6`,
+   and appending the counter's `.0` would leave four components where the replay reads five.
+   The seed takes `1.5.6.9000.0`, the version `main`'s own next bump writes,
+   which also rises past every version the old chain published, `1.5.5.9020.57` among them.
+
    **The forward series takes the whole of the new base.**
    The replay is a cherry-pick, not a tree reconstruction:
    a vendor commit's diff is already exactly what vendoring changed —
@@ -117,22 +123,75 @@ the replay then populates `<S>-fwd-build`.
    the original author survives the replay, only the committer changes.
    `scripts/series-forward-build.sh <old-build> <old-base>`
    does exactly this, run on the fresh seed —
-   `<old-base>` only delimits the range.
+   `<old-base>` only delimits the range, and the old seed's base is always right.
+
+   **Where the replay starts is read from the trees, not chosen.**
    A range starting above the old base is legitimate
    where the new base already vendors the commit the range starts at,
    and nowhere else:
    a range that starts higher lands its first commit on whatever the base
    happens to vendor, walking the engine backwards where that is older.
+   So the script reads the engine the seed vendors
+   (`DUCKDB_SOURCE_ID` in the vendored `pragma_version.cpp`)
+   and starts above the vendor commit naming it, if the range has one.
+   That is a release line once `main` has vendored its release:
+   `v1.5-variegata` vendored `069cc9f9b5` before `main` shipped it as 1.5.6,
+   and its forward onto that `main` replays nothing below it.
    For a line tracking upstream `main`,
    what establishes such a base is upstream's back-merge of a release branch,
    and until one lands the whole buffer replays
    ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
 
+   **A preview line's buffer opens on a rewind, and the script rebuilds it.**
+   A preview line seeds on `main`, which vendors a released engine,
+   so its first vendor commit walks back to where the lines fork:
+   `v2.0-cyanoptera` from 1.5.5 to `duckdb/duckdb@ee0b06f6f0`, January's fork point.
+   That commit's diff is taken against the engine the *old* seed vendored,
+   and a new seed on a newer release has another one:
+   picked, it lays 1.5.5's delta over 1.5.6's tree.
+   Where the old parent of the first pick vendors another engine than the seed,
+   the script takes that commit's vendored strand whole
+   (`src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`)
+   and replays only the rest of its diff, the glue the rewind adapted.
+   The Makevars stay a diff, because they are generated from `src/Makevars.in`, which is `main`'s.
+   The seed's patches go with the seed's strand:
+   they were written for the release, and the base series never had them at this commit,
+   so the strand stays equal to the base buffer's at every commit, which is what the tree check reads.
+   It also means the seed is no evidence about the buffer's own `patch/` commits in such a range,
+   and the script lists every one of them rather than judging one carried
+   because `main` holds the same entry for its release.
+
+   **`main`'s glue meets the fork point's engine there, and some of it is newer.**
+   R-side work written against the release calls what the release has,
+   and the fork point is months older:
+   forwarding onto 1.5.6, `PreprocessStatements()`, `GetAutoRollback()` and `CanonicalizePath()`
+   were all missing at `ee0b06f6f0`.
+   Nothing conflicts, so the script gates the glue as `vendor-one.sh` does
+   (after the rewind, after every pick whose old commit adapted glue, and at the end)
+   and stops with HEAD on the commit to amend.
+   Step each call back to what the fork point offers,
+   and restore it in the vendor commit that brings the API back,
+   usually upstream's merge of the release branch into its `main`:
+
+   ```sh
+   git log --reverse --format='%h %s' -S<api> <rewind>..<S>-build -- src/duckdb/src/include | head -1
+   ```
+
+   Replay to that commit (the script's `<old-build>` may be any commit of the range), amend the restore,
+   and carry on, naming both ends in `R-side fix` sections.
+   The pair then travels:
+   the next forward replays the rewind's glue diff and the restore's like any others,
+   and only glue `main` gained since needs a new pair.
+   A gate that fails between two gated commits names the last commit that passed;
+   the break is in that range, often an upstream change the old glue never touched,
+   as `CheckResultTypeForR()` met upstream's `Identifier`.
+
    **A forward that re-roots is a graft, and grafts nothing but a tree.**
    Where the point is to drop history below a fork point — an opening leaves the
-   parent carrying it ([`series-open/SKILL.md`](series-open)) — the new root is
+   parent carrying it ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)) — the new root is
    one commit whose tree *is* the fork-point commit's, verbatim, parented on
-   current `main`:
+   current `main`, with a subject that opens with `graft:`,
+   which is how `series-forward-build.sh` recognises one at the foot of a range:
 
    ```bash
    git commit-tree <fork-point commit>^{tree} -p <main> -F <message>
@@ -145,6 +204,26 @@ the replay then populates `<S>-fwd-build`.
    that range's own base — stamping the counter on each. `Version:` is the graft's
    only edit, taking the prefix of the line the series now previews.
 
+   **That separate move is the next ordinary forward, and it takes the graft from the child.**
+   A graft carries the glue of every commit below the fork point,
+   and none of those commits is in its range any more,
+   so a rewind that takes only the first pick's strand leaves all of it behind:
+   108 compile errors against a 2.0 engine.
+   The series the opening cut owns that history,
+   so forward it first and name its buffer:
+
+   ```sh
+   scripts/series-forward-build.sh --graft-from v2.0-cyanoptera-fwd-build main-build <old-base>
+   ```
+
+   The script rebuilds the graft as one vendor commit naming the fork point:
+   the strand is the graft's,
+   and the rest is what the child's forward changed between its seed and the commit vendoring the fork point,
+   so every conflict with the new `main` was resolved there, once.
+   It refuses a range that stands on a graft without `--graft-from`, and the option without a graft.
+   After that forward the parent's buffer opens on an ordinary rewind,
+   and the forward after it needs nothing from the child.
+
    **It refuses to start while the buffer carries a change
    the new base does not have.**
    `-build` takes no ports, so a non-vendor commit above its first
@@ -154,8 +233,8 @@ the replay then populates `<S>-fwd-build`.
    The script names each one and stops before writing anything.
    Work through them in this order:
 
-   1. **Read it.** The refusal rests on two cheap tests,
-      so a change the new base carries in a shape neither recognises
+   1. **Read it.** The refusal rests on cheap tests,
+      so a change the new base carries in a shape none of them recognises
       is listed too; confirm by reading the base for its effect.
       If it is there, the commit is done.
    2. **Find the commit it belongs to** —
@@ -183,6 +262,12 @@ the replay then populates `<S>-fwd-build`.
    so register the merge driver first (`scripts/setup-git.sh`);
    on a conflict the script stops with the tree in place,
    and rerunning it after `git add` continues where it stopped.
+   Expect one on `src/Makevars` and `src/Makevars.win` wherever a pick moved the include list,
+   for as long as the base buffer still keeps cpp11 under `inst/include`:
+   take the pick's line with `-I../inst/include` spelled `-Ivendor`, as the seed's template writes it.
+   A pick resumed after a conflict is gated whatever it touched, because its resolution is new glue;
+   a glue conflict usually resolves to what the base `<S>-dev` carries in that place,
+   since it met the same code through a port.
 
    **The buffer stays at what compiles, and that is the whole split.**
    `-fwd-build` inherits what the base buffer had —
@@ -264,6 +349,7 @@ prints the difference and sorts it into the two.
 What is explicable is a short, evidenced list —
 `DESCRIPTION`'s `Version:` line, which the replay renumbers;
 `NEWS.md`, the release paperwork stage 4 never ports;
+the READMEs each seed wrote, and the Windows export list where each side's names its own package;
 and the **vendored strand** —
 `src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`
 and the Makevars —
@@ -278,7 +364,7 @@ a forward regenerates the vendored tree from its own patch stack,
 which is what step 1's tree check verifies at replay time.
 
 Everything else is a finding —
-glue, tests, R code, the READMEs, the tooling directories —
+glue, tests, R code, the tooling directories —
 and it belongs to whichever stage should have moved it:
 a carry stage 5 could not make,
 a port that reached one branch and not the other,

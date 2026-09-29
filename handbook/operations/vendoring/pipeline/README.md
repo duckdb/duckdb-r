@@ -135,5 +135,5 @@ So it is not prose: do not reword it,
 and do not squash vendor commits without keeping the newest SHA in the subject.
 
 *To deepen: absorb `scripts/VENDORING.md`'s remaining sections —
-vendoring by hand, creating a patch, the two properties of the
-regenerated tree, and the fork-point rule for a new dev line.*
+vendoring by hand, creating a patch, and the commit-by-commit loop
+verified locally.*

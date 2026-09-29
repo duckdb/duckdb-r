@@ -38,7 +38,7 @@ every series is a series-loop series now, and none of the four below is that bas
 | `<S>-build` | append; force-push to repair | the buffer: one commit per upstream commit, glue compiling, no CI |
 | `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds; `-build` consumed in bounded chunks plus forward-ports from `main` |
 | `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
-| `<S>-build-base` | forward only | the `-build` commit equivalent to `-green` |
+| `<S>-build-base` | set; force-push | the `-build` commit equivalent to `-green` |
 
 All four exist from a series' first day, so there is never a "no green yet" state.
 An opening cuts the parent's strands at the fork point and writes all four there
@@ -66,6 +66,15 @@ and the model's "no CI" holds because something maintains it.
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.
+**`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
+so that the package a release ships as plain `duckdb` has verdicts of its own.
+It is one ref: no buffer, since it is derived rather than vendored,
+and no `-green` or `-build-base`, since nothing publishes it.
+CI judges it from its own seed up, and the loop realigns it rather than serving it
+([`series-rc`](/.claude/skills/series-rc/SKILL.md)).
+**`retry-<S>-dev` is the rerun ledger**: pushed at one commit of `<S>-dev` to have it judged again on its own SHA,
+one per series, and never deleted
+([`series-loop`](/.claude/skills/series-loop/SKILL.md), *Rerun one commit*).
 **The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
 and both counts stay linear by construction —
 `-green` is always an ancestor of `-dev`, and `-build-base` of `-build`:

@@ -64,6 +64,8 @@ they land as below.
 Push all four in one `git push --atomic`
 with a per-ref `--force-with-lease`,
 so a half-moved series is never observable.
+A series with an rc strand realigns it after the push
+([`series-rc/SKILL.md`](/.claude/skills/series-rc/SKILL.md)).
 
 Ported commits (stage 4 of the loop)
 whose content `main` has meanwhile absorbed
@@ -156,7 +158,7 @@ and the next one has to be manufactured.
 - **The seed is replayed, never regenerated.**
   Rerunning `scripts/flavor.sh` would re-run `cpp11::cpp_register()`,
   whose output is not stable across cpp11 versions
-  (`series-open/SKILL.md`), so it can quietly differ from the seed
+  ([`vendor-cpp11/SKILL.md`](/.claude/skills/vendor-cpp11/SKILL.md)), so it can quietly differ from the seed
   the series was built and verified on.
   Replaying the recorded seed commits has no such freedom.
   Worth confirming after a rebase, cheaply:
