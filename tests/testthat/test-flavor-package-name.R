@@ -53,3 +53,43 @@ test_that("scripts/flavor.patch applies to the unflavored tree", {
 
   expect_equal(flavor_patch_failures(root), character())
 })
+
+test_that("both halves of the cpp11 binding carry this flavor's prefix", {
+  root <- lts_source_root()
+  skip_if(is.na(root), "Not running from the package source tree.")
+
+  source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
+
+  expect_equal(flavor_binding_prefix_offenders(root), character())
+})
+
+test_that("the cpp11 binding prefix follows the flavor's package name", {
+  source_root <- lts_source_root()
+  skip_if(is.na(source_root), "Not running from the package source tree.")
+
+  root <- withr::local_tempdir()
+  dir.create(file.path(root, "R"))
+  writeLines("Package: duckdb.2.0.dev", file.path(root, "DESCRIPTION"))
+  writeLines(
+    c(
+      "rapi_flavored <- function() {",
+      "  .Call(`_duckdb_2_0_dev_rapi_flavored`)",
+      "}",
+      "rapi_unflavored <- function() {",
+      "  .Call(`_duckdb_rapi_unflavored`)",
+      "}"
+    ),
+    file.path(root, "R", "cpp11.R")
+  )
+
+  source(
+    file.path(source_root, "scripts", "flavor-package-name.R"),
+    local = TRUE
+  )
+
+  expect_equal(flavor_binding_prefix(root), "_duckdb_2_0_dev_")
+  expect_equal(
+    flavor_binding_prefix_offenders(root),
+    "R/cpp11.R:5: .Call(`_duckdb_rapi_unflavored`)"
+  )
+})

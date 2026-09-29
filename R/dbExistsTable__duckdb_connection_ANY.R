@@ -11,11 +11,14 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
   exists <- FALSE
   tryCatch(
     {
+      # DESCRIBE fetches the column metadata as text, so a table whose
+      # columns R cannot receive is found all the same
+      # (handbook/usage/types/README.md).
       dbGetQuery(
         conn,
         sqlInterpolate(
           conn,
-          "SELECT * FROM ? WHERE FALSE",
+          "DESCRIBE SELECT * FROM ? WHERE FALSE",
           dbQuoteIdentifier(conn, name)
         )
       )
