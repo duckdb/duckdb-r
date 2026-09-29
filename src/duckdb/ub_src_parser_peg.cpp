@@ -22,6 +22,8 @@
 
 #include "src/parser/peg/parser_packrat.cpp"
 
+#include "src/parser/peg/passthrough_dialect.cpp"
+
 #include "src/parser/peg/peg_parser.cpp"
 
 #include "src/parser/peg/sql_formatter.cpp"
