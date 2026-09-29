@@ -61,6 +61,10 @@ Measured evidence:
   The factory external pointer and the source object go into the
   relation's protection list, so `rel_to_altrep()` can materialize
   long after the R-level handle is gone.
+  It owns the factory, not the connection:
+  a relation holds its context through a `weak_ptr`,
+  and fails after `dbDisconnect()` with "Connection has already been closed"
+  ([`architecture/glue/objects/`](/handbook/architecture/glue/objects/README.md)).
   `make_external_prot<RelationWrapper>()` already takes that list.
   What materialization evaluates is [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s,
   and the thread rule is [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md)'s:

@@ -10,8 +10,8 @@ behaves around binding, lifetime, filter pushdown, and cost.
 `DUCKDB_R_USE_SYSTEM_LIB=1`), arrow 25.0.0, nanoarrow 0.9.0,
 R 4.5.3, Linux.
 
-Re-run on 2026-09-26 against duckdb 1.5.5.9027, built from `main` on the same engine
-(`v1.5.5`, source id `d8cdaa33fda`): every result unchanged, timings within jitter.
+Re-run on 2026-09-29 against duckdb 1.5.6.9000, built from `main` on the `v1.5.6` engine
+(source id `069cc9f9b5`): every result unchanged, timings within jitter.
 The one difference is the form of the error that surfaces at first access:
 since [#1797](https://github.com/duckdb/duckdb-r/pull/1797) it is raised without the `duckdb_error` class,
 the context named in front of the message rather than in a bullet below it
