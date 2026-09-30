@@ -1148,6 +1148,12 @@ so the next firing simply reaches the same stop.
 Starting a fresh run beside a stopped one is refused,
 because it would replay over a resolution somebody made.
 
+**A carry into the glue that applies cleanly is compiled before it is kept.**
+The three-way merge keeps both the twin's hunk and the buffer's own version of the same adaptation
+when their context differs, which duplicates code rather than conflicting.
+So `series-advance.sh` syntax-checks the glue after such a carry
+and stops the same way, with the carry staged and the failing files named.
+
 **A resolution that comes out empty is a resolution.**
 The buffer commit's content reached `-dev` by another route —
 a buffer whose flavor rename still names the path a port has since moved,
