@@ -8,6 +8,8 @@
 
 #include "src/main/client_context.cpp"
 
+#include "src/main/client_context_execution.cpp"
+
 #include "src/main/client_context_file_opener.cpp"
 
 #include "src/main/client_context_wrapper.cpp"
