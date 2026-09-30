@@ -2,6 +2,8 @@
 
 #include "src/planner/sql_export/logical_plan_sql_exporter.cpp"
 
+#include "src/planner/sql_export/sql_export_composition.cpp"
+
 #include "src/planner/sql_export/sql_export_constants.cpp"
 
 #include "src/planner/sql_export/sql_export_cte.cpp"
