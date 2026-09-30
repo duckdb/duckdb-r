@@ -24,6 +24,8 @@
 
 #include "src/main/capi/v2/capi_v2_file_system.cpp"
 
+#include "src/main/capi/v2/capi_v2_func.cpp"
+
 #include "src/main/capi/v2/capi_v2_func_aggregate.cpp"
 
 #include "src/main/capi/v2/capi_v2_func_cast.cpp"
