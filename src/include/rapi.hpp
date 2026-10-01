@@ -16,7 +16,9 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
-#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/arrow/arrow.hpp"
+#include "duckdb/main/query_result_stream.hpp"
+#include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 
 #include "convert.hpp"
 
@@ -248,6 +250,54 @@ typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
 
 typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
+// Pulls chunks from a query result and converts them to Arrow arrays of at most batch_size rows.
+// A result that can be drained is streamed; any other is read from its collection.
+class RArrowChunkSource {
+public:
+	explicit RArrowChunkSource(duckdb::unique_ptr<QueryResult> result);
+	explicit RArrowChunkSource(QueryResult &result);
+
+public:
+	// The number of rows written to out, 0 at the end. Throws on an execution error
+	idx_t FetchArray(idx_t batch_size, ArrowArray &out);
+	void FetchSchema(ArrowSchema &out);
+	optional_ptr<QueryResultStream<>> StreamResult() {
+		return stream_result.get();
+	}
+
+private:
+	void Initialize();
+	bool LoadNextChunk();
+
+private:
+	duckdb::unique_ptr<QueryResult> owned_result;
+	optional_ptr<QueryResult> result;
+	duckdb::unique_ptr<QueryResultStream<>> stream_result;
+	ClientProperties client_properties;
+	vector<LogicalType> types;
+	vector<string> names;
+	unordered_map<idx_t, const duckdb::shared_ptr<ArrowTypeExtensionData>> extension_types;
+	duckdb::unique_ptr<DataChunk> current_chunk;
+	idx_t offset = 0;
+	bool finished = false;
+};
+
+// An Arrow C stream over a query result, converting on the consumer thread
+struct RResultArrowStream {
+	RResultArrowStream(duckdb::unique_ptr<QueryResult> result, idx_t batch_size);
+
+	ArrowArrayStream stream;
+	RArrowChunkSource source;
+	idx_t batch_size;
+	ErrorData last_error;
+
+private:
+	static int GetSchema(ArrowArrayStream *stream, ArrowSchema *out);
+	static int GetNext(ArrowArrayStream *stream, ArrowArray *out);
+	static const char *GetLastError(ArrowArrayStream *stream);
+	static void Release(ArrowArrayStream *stream);
+};
+
 // The engine's Arrow stream over a query result, behind one that reports a streaming result
 // invalidated by another statement on its connection as an error, where the engine reports the end of the stream
 // (handbook/usage/integrations/README.md).
@@ -259,7 +309,7 @@ struct RArrowArrayStreamWrapper {
 	// which a streaming result lets go of once it has seen its end, and a disconnect frees.
 	// Declared before `engine`, so the context outlives it.
 	duckdb::shared_ptr<ClientContext> context;
-	ResultArrowArrayStreamWrapper engine;
+	RResultArrowStream engine;
 	ErrorData last_error;
 
 private:
