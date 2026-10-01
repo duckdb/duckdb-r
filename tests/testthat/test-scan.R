@@ -150,3 +150,55 @@ test_that("Data frames scan survives garbage collection", {
   withr::defer(dbClearResult(res))
   expect_equal(dbFetch(res), data.frame(a = 1))
 })
+
+test_that("the environment scan binds with the connection's options (#2646)", {
+  # The replacement scan runs inside the engine, which is handed the
+  # database rather than the connection the options live on; without them
+  # the same data frame arrives as different types depending on how it was
+  # named -- and an `integer64` arrives as the double its bits spell.
+  skip_if_not_installed("bit64")
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(
+    drv = duckdb(environment_scan = TRUE),
+    bigint = "integer64",
+    map = "list_of"
+  )
+
+  types <- function(name) {
+    dbGetQuery(con, paste0("DESCRIBE FROM ", name))$column_type
+  }
+  agrees <- function(df, name) {
+    duckdb_register(con, "registered", df)
+    withr::defer(duckdb_unregister(con, "registered"))
+    expect_equal(types(name), types("registered"))
+  }
+
+  big <- bit64::as.integer64("9007199254740993")
+  scanned_i64 <- data.frame(a = big)
+  agrees(scanned_i64, "scanned_i64")
+  expect_equal(dbGetQuery(con, "FROM scanned_i64")$a, big)
+
+  scanned_map <- data.frame(row = 1L)
+  scanned_map$m <- list(list(k = 1L))
+  agrees(scanned_map, "scanned_map")
+
+  scanned_ts <- data.frame(a = as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+  agrees(scanned_ts, "scanned_ts")
+})
+
+test_that("the environment scan takes an `integer64` as BIGINT whatever `bigint` says", {
+  # Registration does since #2819, so a default connection, which reads
+  # BIGINT as numeric, has to write it the same way on both paths.
+  skip_if_not_installed("bit64")
+
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  scanned_i64 <- data.frame(a = bit64::as.integer64(c("9007199254740993", NA)))
+  res <- dbGetQuery(
+    con,
+    "SELECT typeof(a) AS t, a::VARCHAR AS v FROM scanned_i64"
+  )
+  expect_equal(res$t, c("BIGINT", "BIGINT"))
+  expect_equal(res$v, c("9007199254740993", NA))
+})
