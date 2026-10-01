@@ -95,10 +95,13 @@ done
 git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh"; exit 1; }
 
-version() { sed -rn 's/^Version: (.*)$/\1/p' DESCRIPTION; }
+version() { git show HEAD:DESCRIPTION | sed -rn 's/^Version: (.*)$/\1/p'; }
 
-# The counter is state, read back from the tree: the seed stamps `.0` and every
+# The counter is state, read back from HEAD: the seed stamps `.0` and every
 # replayed commit stamps the next number, so HEAD says how far the replay got.
+# Never from the working tree, where a stopped pick has left `DESCRIPTION` as
+# the merge driver resolved it, with the old chain's counter wherever that is
+# higher.
 prefix=$(version | sed -rn 's/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
 n=$(version | sed -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
 [ -n "$prefix" ] ||
