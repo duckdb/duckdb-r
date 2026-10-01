@@ -1,10 +1,8 @@
 #include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/arrow/arrow_converter.hpp"
-#include "duckdb/common/arrow/arrow_util.hpp"
-#include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/common/arrow/arrow_appender.hpp"
+#include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/main/buffered_data/buffered_data.hpp"
-#include "duckdb/main/chunk_scan_state/query_result.hpp"
 #include "rapi.hpp"
 
 #include <cerrno>
@@ -43,67 +41,6 @@ struct AppendableRList {
 	idx_t capacity = 1000;
 	idx_t size = 0;
 };
-
-bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
-                     ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
-                     idx_t chunk_size) {
-	auto count =
-	    ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data,
-	                          ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
-	if (count == 0) {
-		return false;
-	}
-	ArrowConverter::ToArrowSchema(&arrow_schema, scan_state.Types(), IdentifiersToStrings(scan_state.Names()), options);
-	batches_list.PrepAppend();
-	batches_list.Append(cpp11::safe[Rf_eval](batch_import_from_c, arrow_namespace));
-	return true;
-}
-
-// Every entry point that takes a query result asks this first: the pointer may have been released.
-static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *context) {
-	if (!qry_res || !qry_res.get()) {
-		rapi_error_with_context(context, "Invalid query result");
-	}
-}
-
-// Turn a DuckDB result set into an Arrow Table
-[[cpp11::register]] SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size) {
-	CheckQueryResult(qry_res, "rapi_execute_arrow");
-	if (!qry_res->result) {
-		rapi_error_with_context("rapi_execute_arrow", "Result has already been consumed");
-	}
-	auto result = qry_res->result.get();
-	// somewhat dark magic below
-	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
-	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
-
-	// export schema setup
-	ArrowSchema arrow_schema;
-	cpp11::doubles schema_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_schema))));
-	cpp11::sexp schema_import_from_c(Rf_lang2(RStrings::get().ImportSchema_sym, schema_ptr_sexp));
-
-	// export data setup
-	ArrowArray arrow_data;
-	cpp11::doubles data_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_data))));
-	cpp11::sexp batch_import_from_c(Rf_lang3(RStrings::get().ImportRecordBatch_sym, data_ptr_sexp, schema_ptr_sexp));
-	// create data batches
-	AppendableRList batches_list;
-
-	QueryResultChunkScanState scan_state(*result);
-	while (FetchArrowChunk(scan_state, result->client_properties, batches_list, arrow_data, arrow_schema,
-	                       batch_import_from_c, arrow_namespace, chunk_size)) {
-	}
-
-	SET_LENGTH(batches_list.the_list, batches_list.size);
-	ArrowConverter::ToArrowSchema(&arrow_schema, result->GetTypes(), IdentifiersToStrings(result->GetNames()),
-	                              result->client_properties);
-	cpp11::sexp schema_arrow_obj(cpp11::safe[Rf_eval](schema_import_from_c, arrow_namespace));
-
-	// create arrow::Table
-	cpp11::sexp from_record_batches(
-	    Rf_lang3(RStrings::get().Table__from_record_batches_sym, batches_list.the_list, schema_arrow_obj));
-	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
-}
 
 static bool CanDrain(QueryResult &result) {
 	if (result.HasError()) {
@@ -264,6 +201,65 @@ void RResultArrowStream::Release(ArrowArrayStream *stream) {
 	}
 }
 
+static bool FetchArrowChunk(RArrowChunkSource &source, AppendableRList &batches_list, ArrowArray &arrow_data,
+                            ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
+                            idx_t chunk_size) {
+	auto count = source.FetchArray(chunk_size, arrow_data);
+	if (count == 0) {
+		return false;
+	}
+	source.FetchSchema(arrow_schema);
+	batches_list.PrepAppend();
+	batches_list.Append(cpp11::safe[Rf_eval](batch_import_from_c, arrow_namespace));
+	return true;
+}
+
+// Every entry point that takes a query result asks this first: the pointer may have been released.
+static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *context) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context(context, "Invalid query result");
+	}
+}
+
+// Turn a DuckDB result set into an Arrow Table
+[[cpp11::register]] SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size) {
+	CheckQueryResult(qry_res, "rapi_execute_arrow");
+	if (!qry_res->result) {
+		rapi_error_with_context("rapi_execute_arrow", "Result has already been consumed");
+	}
+	auto result = qry_res->result.get();
+	// somewhat dark magic below
+	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
+	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
+
+	// export schema setup
+	ArrowSchema arrow_schema;
+	cpp11::doubles schema_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_schema))));
+	cpp11::sexp schema_import_from_c(Rf_lang2(RStrings::get().ImportSchema_sym, schema_ptr_sexp));
+
+	// export data setup
+	ArrowArray arrow_data;
+	cpp11::doubles data_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_data))));
+	cpp11::sexp batch_import_from_c(Rf_lang3(RStrings::get().ImportRecordBatch_sym, data_ptr_sexp, schema_ptr_sexp));
+	// create data batches
+	AppendableRList batches_list;
+
+	RArrowChunkSource source(*result);
+	while (FetchArrowChunk(source, batches_list, arrow_data, arrow_schema, batch_import_from_c, arrow_namespace,
+	                       chunk_size)) {
+	}
+
+	SET_LENGTH(batches_list.the_list, batches_list.size);
+	ArrowConverter::ToArrowSchema(&arrow_schema, result->GetTypes(), IdentifiersToStrings(result->GetNames()),
+	                              result->client_properties);
+	cpp11::sexp schema_arrow_obj(cpp11::safe[Rf_eval](schema_import_from_c, arrow_namespace));
+
+	// create arrow::Table
+	cpp11::sexp from_record_batches(
+	    Rf_lang3(RStrings::get().Table__from_record_batches_sym, batches_list.the_list, schema_arrow_obj));
+	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
+}
+
 RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::shared_ptr<ClientContext> context_p,
                                                    duckdb::unique_ptr<QueryResult> result, idx_t batch_size)
     : context(std::move(context_p)), engine(std::move(result), batch_size) {
@@ -332,7 +328,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		return;
 	}
 	// The Arrow C data interface requires a release callback to mark the struct released by nulling `release`,
-	// as the engine's own callbacks do (vendored src/duckdb/src/common/arrow/arrow_wrapper.cpp).
+	// as the engine's own callbacks do.
 	stream->release = nullptr;
 	duckdb::unique_ptr<RArrowArrayStreamWrapper> wrapper(
 	    reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data));
