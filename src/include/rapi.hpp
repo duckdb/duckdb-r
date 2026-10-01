@@ -16,8 +16,9 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
-#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/main/query_result_stream.hpp"
+#include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 
 #include "convert.hpp"
 
