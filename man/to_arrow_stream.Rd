@@ -19,18 +19,18 @@ or an \code{arrow_dplyr_query} over it if \code{.data} is grouped.
 
 \code{to_arrow_stream()} is a streaming counterpart of \code{arrow::to_arrow()}
 for dbplyr tables on a DuckDB connection.
-It sends the query with \code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}
+ It sends the query with \code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}
 and hands the stream to \code{arrow::as_record_batch_reader()},
 so the rows arrive batch by batch and the result is not held twice.
-\code{arrow::to_arrow()} materializes the whole result first,
+ \code{arrow::to_arrow()} materializes the whole result first,
 through \code{dbSendQuery(arrow = TRUE)}.
 
 The streaming comes with hard limits, listed in the handbook, in
 \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/integrations/README.md}{\verb{usage/integrations/}}.
-Use \code{to_arrow_stream()} where a large result goes straight into Arrow
+ Use \code{to_arrow_stream()} where a large result goes straight into Arrow
 and nothing else runs on its connection until the reader has been read
 to the end.
-Where that cannot be arranged, use \code{arrow::to_arrow()},
+ Where that cannot be arranged, use \code{arrow::to_arrow()},
 or run everything else on a second connection.
 }
 \examples{

@@ -28,16 +28,16 @@ simulate_duckdb(...)
 }
 \description{
 This is a SQL backend for dbplyr tailored to take into account DuckDB's possibilities.
-This mainly follows the backend for PostgreSQL, but contains more mapped functions.
+ This mainly follows the backend for PostgreSQL, but contains more mapped functions.
 
 \code{tbl_file()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}} to directly access files on disk.
-It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the request,
+ It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the request,
 and paths with special characters are supported.
 
 \code{tbl_function()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}} to create a lazy table from a table-generating function,
 useful for reading nonstandard CSV files or other data sources.
-It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the query.
-See \url{https://duckdb.org/docs/data/overview} for details on data importing functions.
+ It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the query.
+ See \url{https://duckdb.org/docs/data/overview} for details on data importing functions.
 
 As an alternative, use \code{dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))} for custom SQL queries.
 

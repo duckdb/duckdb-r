@@ -19,11 +19,11 @@ Currently, the connection is established with \code{duckdb(environment_scan = TR
 so that data frames are automatically available as tables,
 timestamps are returned in the local timezone,
 and DuckDB's array type is returned as an R matrix.
-The details of how the connection is established are subject to change.
-In particular, returning the output as a tibble or other object may be supported in the future.
+ The details of how the connection is established are subject to change.
+ In particular, returning the output as a tibble or other object may be supported in the future.
 
 This connection is intended for interactive use.
-There is no way for this or other packages to comprehensively track the state of this connection,
+ There is no way for this or other packages to comprehensively track the state of this connection,
 so scripts and packages should manage their own connections.
 }
 \examples{

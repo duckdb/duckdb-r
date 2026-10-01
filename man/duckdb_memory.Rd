@@ -6,7 +6,7 @@
 \description{
 A result that fits comfortably in the database can still be too large for R,
 and a data frame that fits in R can still be copied on its way into the database.
-This page shows memory-efficient ways for reading and writing:
+ This page shows memory-efficient ways for reading and writing:
 \itemize{
 \item Memory limits
 \item Streamed reading via Arrow
@@ -14,11 +14,11 @@ This page shows memory-efficient ways for reading and writing:
 }
 
 The routes below keep R's share to one batch, or one data frame, at a time.
-Follow these recipes to process datasets larger than memory.
+ Follow these recipes to process datasets larger than memory.
 }
 \section{Set the limit where it takes effect}{
 DuckDB and R allocate from two different budgets.
-The engine's memory is bounded by \code{memory_limit} and can spill to disk;
+ The engine's memory is bounded by \code{memory_limit} and can spill to disk;
 R's vectors are unbounded and only spilled to the system swap space, if at all.
 
 The engine's limit is set on the driver or on a live connection.
@@ -32,9 +32,9 @@ dbExecute(con, "SET memory_limit = '2GB'")
 
 \section{Reading: stream, and release each batch}{
 Reading via Arrow stream never holds the result whole.
-Execution starts at \code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}} and pauses at a bounded buffer.
-Each \code{\link[DBI:dbFetchArrowChunk]{DBI::dbFetchArrowChunk()}} hands over one batch that can be converted using \code{as.data.frame()}.
-For best results, release a batch immediately via \code{nanoarrow::nanoarrow_pointer_release()};
+ Execution starts at \code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}} and pauses at a bounded buffer.
+ Each \code{\link[DBI:dbFetchArrowChunk]{DBI::dbFetchArrowChunk()}} hands over one batch that can be converted using \code{as.data.frame()}.
+ For best results, release a batch immediately via \code{nanoarrow::nanoarrow_pointer_release()};
 \link{duckdb_result_arrow} says what the release does and what happens without it.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{rs <- dbSendQueryArrow(con, "SELECT * FROM huge")
@@ -52,7 +52,7 @@ dbClearResult(rs)
 \section{Writing: hand the data frame over, and let the engine scan it}{
 \code{\link[DBI:dbWriteTable]{DBI::dbWriteTable()}} copies nothing on the R side:
 it registers the data frame as a view that the engine scans in place, creates the table from that scan, and unregisters.
-\code{\link[DBI:dbAppendTable]{DBI::dbAppendTable()}} does the same into an existing table,
+ \code{\link[DBI:dbAppendTable]{DBI::dbAppendTable()}} does the same into an existing table,
 so data that arrives in pieces is appended piece by piece with the same cost.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{dbWriteTable(con, "t", df)        # one frame
@@ -76,7 +76,7 @@ DuckDB supports readers for various formats, bypassing R memory entirely.
 
 Data that arrives as an Arrow stream, from a pipe, a socket or another library's reader,
 goes in through \code{\link[DBI:dbWriteTableArrow]{DBI::dbWriteTableArrow()}}, or \code{\link[DBI:dbAppendTableArrow]{DBI::dbAppendTableArrow()}} into an existing table.
-Both pull one batch on R's thread and append it as a data frame.
+ Both pull one batch on R's thread and append it as a data frame.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{stream <- nanoarrow::read_nanoarrow(file("data.arrows", "rb"))
 dbWriteTableArrow(con, "t", stream)

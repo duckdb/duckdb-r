@@ -84,7 +84,7 @@ special values.}
 }
 \description{
 Methods for accessing result sets for queries on DuckDB connections.
-Implements \link[DBI:DBIResult-class]{DBIResult}.
+ Implements \link[DBI:DBIResult-class]{DBIResult}.
 }
 \section{Slots}{
 
