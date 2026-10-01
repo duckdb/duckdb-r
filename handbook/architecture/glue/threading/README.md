@@ -59,7 +59,7 @@ has the measurement and the route that works).
 The progress display evaluates an R callback under the client context lock,
 on the thread that runs the query's tasks:
 the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
-So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+So the display calls R only where `rapi_on_r_thread()` holds, and skips an update anywhere else.
 It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
 and a streaming result keeps its display across the R code that runs between fetches
 (`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).
@@ -72,35 +72,38 @@ Underneath all three sits the same load-bearing fact:
 for the length of a query,
 R's thread is blocked inside the engine and mutates nothing,
 which is what makes even a plain read of an R object from a task thread safe.
-The scan still takes such reads:
-a cell out of a list, a `class` attribute, a factor cell's levels.
+The scan still takes such reads —
+a cell out of a list, a `class` attribute,
+a factor cell's levels through R's translation buffer.
 Reads are all a task thread may take, and building a cpp11 vector is not one.
 It allocates, and links the vector into cpp11's one protection list, which two tasks would race on.
 Type detection in [`src/types.cpp`](/src/types.cpp) therefore reads a list cell's names and levels in place.
-Keeping every R allocation off the task threads is the aim, and not every path meets it yet.
-A factor level that is neither UTF-8 nor ASCII, latin1 for instance, is not read in place:
-`RType::FACTOR()` translates it with `Rf_translateCharUTF8()`, which allocates from R's buffers,
-and two tasks doing that at once crash a parallel scan of a list column of such factors.
-[`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md) sets out to keep R's thread and the engine's apart,
-with R's the only thread that touches the R API, and its first task audits paths like this one.
 So the inventory is not a licence to run R concurrently:
 a producer thread ends the blocking that underwrites it,
 which is why #2583 guards per connection
 rather than trusting this list.
 
-**Reporting an error calls R, even where R may not run.**
-`rapi_error_with_context()` ([`src/utils.cpp`](/src/utils.cpp)) reports by calling the R function `rapi_error()`,
-and the scan reaches it through `SexpToValue()`
-for a list cell it cannot convert: a matrix, or a string in an encoding other than UTF-8.
-From a task thread that call runs R off R's thread,
-and a list column of matrices scanned at four threads can kill the session.
-On R's thread it runs R underneath the engine, at bind or in a scan task R's thread happens to take,
-while task threads may still be reading R objects,
-and the engine's `catch (std::exception &)` keeps nothing of cpp11's unwind but its name.
-The same list column scanned at one thread answers `Invalid Error: std::exception`,
-and `dbWriteTable()` of a data frame with a complex column answers the engine's JSON around it.
-[#2588](https://github.com/duckdb/duckdb-r/pull/2588) proposes keeping the helper off R on a task thread,
-and [#2816](https://github.com/duckdb/duckdb-r/pull/2816) taking the call into R out of it.
+**An error goes through R only on R's thread.**
+Wherever the engine may be underneath,
+the glue reports an error through `rapi_error_with_context()` ([`src/utils.cpp`](/src/utils.cpp)),
+and reporting means calling an R function.
+`rapi_on_r_thread()` tells R's thread, which the package records when it loads,
+since `R_init_duckdb()` runs there,
+and anywhere else the helper throws the error as an engine exception instead:
+the engine carries it to the thread that issued the query,
+whose entry point then reports it through R.
+A list column is what reaches the helper mid-scan,
+through a cell `SexpToValue()` cannot convert, such as a matrix.
+That covers the thread, not the engine.
+On R's thread the helper still calls R when the engine is underneath,
+at bind or in a scan task R's thread happens to take.
+The condition's R code then runs while task threads may still be reading R objects,
+and the engine's own `catch (std::exception &)` keeps nothing of cpp11's unwind but its name:
+`dbWriteTable()` of a data frame with a complex column answers `std::exception`,
+and so does that list column when one thread scans it.
+`SexpToValue()` throws its encoding check outright for that reason,
+and its entry-point callers report it through R with `SexpToValueAt()`.
+[#2816](https://github.com/duckdb/duckdb-r/pull/2816) takes the call into R out of the helper instead.
 
 **The engine runs R code while it holds the client context lock.**
 The replacement scans and the Arrow stream factory in
