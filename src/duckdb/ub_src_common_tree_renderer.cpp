@@ -1,3 +1,5 @@
+#include "src/common/tree_renderer/compact_tree_renderer.cpp"
+
 #include "src/common/tree_renderer/graphviz_tree_renderer.cpp"
 
 #include "src/common/tree_renderer/html_tree_renderer.cpp"
