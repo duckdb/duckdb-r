@@ -7,8 +7,9 @@ The repair procedures are the series loop's playbooks
 
 Start read-only:
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints one
-verdict per series — the script's own list, and a `CUTOVER` line
-where a forward counterpart has caught up —
+verdict per series — the script's own list, a `CUTOVER` line
+where a forward counterpart has caught up, and a `PATCH DRIFT` line
+where `-dev` and `-build` carry different `patch/` stacks —
 from the harvest on the orphan `rcc2` branch,
 which stores one record per commit and failing commits'
 logs ([`ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
