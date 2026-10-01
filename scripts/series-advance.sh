@@ -298,7 +298,10 @@ index_twins() {
     # Oldest wins: a SHA appears once on a healthy series, and where a repair
     # left two, the first is the one the chain was verified on.
     [ -n "${TWIN[$sha]:-}" ] || TWIN[$sha]=$c
-  done < <(git log --reverse --format='%H%x09%s' "$base_dev")
+  done < <(git log --reverse --format='%H%x09%s' "$base_dev" --not "$green")
+  # Bounded by this series' green, whose ancestry is `main`'s history: a base
+  # series rewound to an older fork point vendors SHAs `main` vendored long
+  # ago, and oldest-wins would otherwise pick `main`'s commit over the series'.
 }
 
 twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
