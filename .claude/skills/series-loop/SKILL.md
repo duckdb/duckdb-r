@@ -1578,6 +1578,25 @@ is what carries the automatic path into a forward series.
 - **Restore whole directories, not touched files**,
   when replaying over a base that owns them
   (`.github` in particular).
+- **Every buffer still keeps cpp11 where it kept it before #2649**,
+  so every vendor commit stage 5 replays conflicts on
+  `src/Makevars` and `src/Makevars.win`.
+  `scripts/rconfigure.py` is tooling and the buffer sync keeps it level with
+  `main`, but `src/Makevars.in` — the template it generates those two from —
+  is not, and neither is the vendored cpp11 tree it names.
+  So a buffer generates `-Iinclude -I../inst/include` while `-dev` carries
+  `-Iinclude -Ivendor`, and the one `PKG_CPPFLAGS` line collides on every pick.
+  Resolve toward `-dev`: the buffer's own next vendor run rewrites the file
+  anyway, and `-dev` is where the cpp11 headers actually are.
+  `git rerere` settles the repeats within one clone and a firing runs in a
+  fresh one, so the cost is two resolutions per replayed vendor commit, per
+  firing, on every series (`main-build`, `main-fwd-build`,
+  `v1.4-andium-build`, `v1.5-variegata-build`, `v2.0-cyanoptera-build`
+  all carry `inst/include/cpp11`, 2026-09-27).
+  Ending it is re-vendoring cpp11 onto each buffer
+  (`.claude/skills/vendor-cpp11/SKILL.md`), not a wider tooling sync:
+  moving the include path without moving the headers
+  would break the vendor gate's glue compile on the buffer.
 - **A `.dd` file naming a header the flavor renamed stops the build
   before the first compile**, and no gate above `install` ever runs:
   `src/include/deps.mk` includes `src/*.dd`, so
