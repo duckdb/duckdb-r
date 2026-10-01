@@ -16,8 +16,9 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
-#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/main/query_result_stream.hpp"
+#include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 
 #include "convert.hpp"
 
@@ -278,7 +279,7 @@ public:
 	// The number of rows written to out, 0 at the end. Throws on an execution error
 	idx_t FetchArray(idx_t batch_size, ArrowArray &out);
 	void FetchSchema(ArrowSchema &out);
-	optional_ptr<QueryResultStream> StreamResult() {
+	optional_ptr<QueryResultStream<>> StreamResult() {
 		return stream_result.get();
 	}
 
@@ -289,7 +290,7 @@ private:
 private:
 	duckdb::unique_ptr<QueryResult> owned_result;
 	optional_ptr<QueryResult> result;
-	duckdb::unique_ptr<QueryResultStream> stream_result;
+	duckdb::unique_ptr<QueryResultStream<>> stream_result;
 	ClientProperties client_properties;
 	vector<LogicalType> types;
 	vector<string> names;
