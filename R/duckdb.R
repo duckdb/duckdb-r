@@ -16,9 +16,9 @@ duckdb_error_field_values <- function(
   fields[!vapply(fields, is.null, logical(1))]
 }
 
-# Internal error function for C++ layer, base half of the pair below.
+# Raises an error the C++ glue left pending, base half of the pair below.
 # Reachable under this name so that the no-rlang path can be tested with rlang installed;
-# `rapi_error()` is what the glue calls, and `.onLoad()` points it at whichever half applies.
+# `rapi_error()` is what raises the error the glue left pending, and `.onLoad()` points it at whichever half applies.
 rapi_error_base <- function(
   context,
   message,
@@ -84,6 +84,6 @@ rapi_error_rlang <- function(
   rlang::abort(error_parts, class = "duckdb_error", !!!fields)
 }
 
-# What the C++ glue looks up.
+# What `rapi_error_raise_pending()` calls with the error the glue left pending.
 # `.onLoad()` swaps in `rapi_error_rlang()` where rlang is installed; without it the base half above stands.
 rapi_error <- rapi_error_base

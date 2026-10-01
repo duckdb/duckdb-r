@@ -6,6 +6,11 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
+// Handbook: handbook/architecture/glue/conventions/README.md,
+// and handbook/architecture/glue/threading/README.md for the thread guard
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -97,23 +102,22 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 16);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 15);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString(DUCKDB_PACKAGE_NAME));
-	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
-	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
-	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
-	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
-	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
-	SET_VECTOR_ELT(chars, 11, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
-	SET_VECTOR_ELT(chars, 12, vctrs_list_of_str = StringsToSexp({"vctrs_list_of", "vctrs_vctr", "list"}));
-	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
-	SET_VECTOR_ELT(chars, 14, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
-	SET_VECTOR_ELT(chars, 15, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
+	SET_VECTOR_ELT(chars, 5, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
+	SET_VECTOR_ELT(chars, 6, factor_str = Rf_mkString("factor"));
+	SET_VECTOR_ELT(chars, 7, dataframe_str = Rf_mkString("data.frame"));
+	SET_VECTOR_ELT(chars, 8, integer64_str = Rf_mkString("integer64"));
+	SET_VECTOR_ELT(chars, 9, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
+	SET_VECTOR_ELT(chars, 10, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
+	SET_VECTOR_ELT(chars, 11, vctrs_list_of_str = StringsToSexp({"vctrs_list_of", "vctrs_vctr", "list"}));
+	SET_VECTOR_ELT(chars, 12, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
+	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
+	SET_VECTOR_ELT(chars, 14, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -135,6 +139,8 @@ RStrings::RStrings() {
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 	crs_sym = Rf_install("crs");
 	ptype_sym = Rf_install("ptype");
+	the_sym = Rf_install("the");
+	rapi_error_pending_sym = Rf_install("rapi_error_pending");
 }
 
 LogicalType RStringsType::Get() {
@@ -220,7 +226,12 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		if (ce != CE_UTF8 && ce != CE_NATIVE) {
 			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
 		}
-		return Value(CHAR(str_val));
+		// The engine refuses bytes that are not UTF-8; that refusal is reported like the check above.
+		try {
+			return Value(CHAR(str_val));
+		} catch (Exception &e) {
+			rapi_error_with_context("SexpToValue", e);
+		}
 	}
 	case RTypeId::FACTOR: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
@@ -379,65 +390,101 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// The thread the package was loaded on, which is R's: R_init_duckdb() runs
+// there, and nothing else sets this
+static std::thread::id r_thread_id;
+
+void rapi_record_r_thread() {
+	r_thread_id = std::this_thread::get_id();
+}
+
+bool rapi_on_r_thread() {
+	return std::this_thread::get_id() == r_thread_id;
+}
+
+SEXP rapi_package_namespace() {
+	return cpp11::safe[cpp11::detail::r_ns_env](DUCKDB_PACKAGE_NAME);
+}
+
 // ALTREP guard depth counter; see the class comment in rapi.hpp.
 std::atomic<int> AltrepGuard::depth {0};
 
-// Helper functions to communicate errors via R's stop() function
-[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
-	// Inside an ALTREP method, calling back into R via cpp11::function is
-	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
-	// method without unwinding C++ frames. Throw a regular C++ exception so
-	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
-	if (AltrepGuard::IsActive()) {
-		throw std::runtime_error(context + ": " + message);
+// Leave the error in `the` for R to raise. Touches the R API but evaluates nothing:
+// `the` is forced by .onLoad(), before any glue call can fail.
+// The fields arrive protected, since this allocates.
+static void rapi_error_pend(const std::string &context, const std::string &message, const cpp11::sexp &error_type,
+                            const cpp11::sexp &raw_message, const cpp11::sexp &extra_info, const char *what) {
+	using namespace cpp11::literals;
+
+	SEXP ns = rapi_package_namespace();
+	if (ns == R_NilValue) {
+		return;
 	}
+	cpp11::sexp the = cpp11::safe[cpp11::detail::r_env_get](ns, RStrings::get().the_sym);
 
-	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
-	rapi_error(context, message);
+	// `what` is the text R receives: rethrow_error_from_rapi() matches on it.
+	cpp11::writable::list pending({"context"_nm = context, "message"_nm = message, "error_type"_nm = error_type,
+	                               "raw_message"_nm = raw_message, "extra_info"_nm = extra_info, "what"_nm = what});
+	cpp11::safe[Rf_defineVar](RStrings::get().rapi_error_pending_sym, pending, the);
+}
 
-	throw InternalException("Unreachable code after rapi_error()");
+// Whether an error may be left pending here, which only R's thread may do.
+// Off it, the engine carries the error to the thread that issued the query, whose entry point reports it again.
+// Inside an ALTREP method R may evaluate nothing, and no rethrow_*() is there to read a pending error (AltrepGuard):
+// this throws `plain` instead, which the method's END_CPP11 raises as a plain R error once it has unwound.
+static bool rapi_error_may_pend(const std::string &plain) {
+	if (!rapi_on_r_thread()) {
+		return false;
+	}
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(plain);
+	}
+	return true;
+}
+
+// Report an error without calling R:
+// leave it pending in `the` for the rethrow_rapi_*() wrapper to raise,
+// and throw it as an engine exception.
+// handbook/architecture/glue/conventions/README.md
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	InvalidInputException error(context + ": " + message);
+	if (rapi_error_may_pend(context + ": " + message)) {
+		rapi_error_pend(context, message, R_NilValue, R_NilValue, R_NilValue, error.what());
+	}
+	throw error;
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e) {
-	// Forward to the other overload
+	// An engine exception carries its type and fields in what(), as JSON.
+	if (dynamic_cast<const Exception *>(&e)) {
+		rapi_error_with_context(context, ErrorData(e));
+	}
 	rapi_error_with_context(context, std::string(e.what()));
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
-	// Inside an ALTREP method, see comment in the string overload above.
-	if (AltrepGuard::IsActive()) {
-		throw std::runtime_error(context + ": " + error_data.Message());
+	// What ErrorData::Throw() would throw, kept to record its text.
+	Exception error(error_data.ExtraInfo(), error_data.Type(), context + ": " + error_data.RawMessage());
+
+	if (!rapi_error_may_pend(context + ": " + error_data.Message())) {
+		throw error;
 	}
 
-	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
-
-	// Extract fields from ErrorData
-	std::string message = error_data.Message();
-	std::string raw_message = error_data.RawMessage();
-
-	// Convert ExceptionType to string
-	std::string error_type = EnumUtil::ToChars(error_data.Type());
-
-	// Convert extra_info to a named character vector, which `rapi_error()` hands
-	// to the caller as the `extra_info` field of the condition.
+	// extra_info becomes a named character vector,
+	// which `rapi_error()` hands to the caller as the `extra_info` field of the condition.
 	const auto &info_map = error_data.ExtraInfo();
-
 	cpp11::writable::strings names(info_map.size());
 	cpp11::writable::strings extra_info(info_map.size());
-
 	size_t i = 0;
 	for (const auto &pair : info_map) {
 		names[i] = pair.first;
 		extra_info[i] = pair.second;
 		i++;
 	}
-
 	extra_info.names() = names;
 
-	// Call R function with all parameters
-	rapi_error(context, message, error_type, raw_message, extra_info);
-
-	throw InternalException("Unreachable code after rapi_error()");
+	cpp11::sexp error_type = cpp11::as_sexp(EnumUtil::ToChars(error_data.Type()));
+	cpp11::sexp raw_message = cpp11::as_sexp(error_data.RawMessage());
+	rapi_error_pend(context, error_data.Message(), error_type, raw_message, extra_info, error.what());
+	throw error;
 }
