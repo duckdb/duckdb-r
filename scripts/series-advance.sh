@@ -662,6 +662,34 @@ else
     exit 1
   }
 
+  # A carry that applies cleanly can still break the glue. The three-way merge
+  # sees the twin's hunk and the buffer's own adaptation of the same upstream
+  # change as two unrelated additions when their context differs, and keeps
+  # both: `v2.0-cyanoptera-fwd-dev` got a second `TIMESTAMP_TZ_NS` case in
+  # `src/transform.cpp`, and `install` failed on a duplicate `case` label. So a
+  # carry into the glue is syntax-checked the way vendor-one.sh checks a vendor
+  # commit, and a failure stops the run like a conflict, with the carry staged.
+  # A check that cannot run (no `./configure`, no R) warns and carries on.
+  carry_glue_gate() { # <worktree> <buffer commit> <twin>
+    local wt=$1 flags bad
+    flags=$(cd "$wt" && { [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1 || true; } &&
+      (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
+      grep -m 1 -E -- '-c cpp11\.cpp' |
+      sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//' || true)
+    if [ -z "$flags" ]; then
+      echo "Warning: could not derive the glue compile flags in $wt; carry not checked" >&2
+      return 0
+    fi
+    bad=$(cd "$wt/src" && printf '%s\n' *.cpp | FLAGS="$flags" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
+      sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {} | sort | tr '\n' ' ')
+    git -C "$wt" clean -fdxq -- src/
+    [ -n "$bad" ] || return 0
+    echo >&2
+    echo "The carry applied without a conflict, but the glue no longer compiles: $bad" >&2
+    echo "Look for the twin's hunk duplicating an adaptation the buffer already has." >&2
+    stop "$wt" "$2" "$3" carry
+  }
+
   # Fold the base series' test-side fix into the commit that needs it -- never
   # stacked above it, so every commit of -dev stays independently green and the
   # chain stays bisectable. Three-way, so the failure mode is a conflict in the
@@ -682,6 +710,9 @@ else
       stop "$wt" "$c" "$d" carry
     fi
     rm -f "$patch"
+    if printf '%s\n' "${paths[@]}" | grep -qE '^src/'; then
+      carry_glue_gate "$wt" "$c" "$d"
+    fi
     {
       git log -1 --format=%B "$d"
       echo "Carried from \`$base_dev\` at $(git rev-parse --short "$d"):"
