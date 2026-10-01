@@ -53,6 +53,9 @@
 #  16. A buffer tooling sync is skipped, never replayed: `-dev`'s tooling is
 #      stage 4's, and a sync taken against older tooling would conflict or put
 #      back what `main` removed. The vendor commits above it are consumed.
+#  17. A twin is looked up above the forward's green only: `main`'s history
+#      below the seed may vendor the same SHA, and its commit is not the fix
+#      the base series folded.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -110,6 +113,13 @@ scripts/setup-git.sh >/dev/null
 
 desc() { printf 'Package: duckdb\nVersion: %s\n' "$1" > DESCRIPTION; }
 verfile() { echo "duckdb_version <- \"$1\"" > R/version.R; }
+
+# `main`'s history, below every seed, already vendored a SHA the base series
+# vendors again after rewinding to an older fork point (claim 17).
+echo 'main history of the snapshot' > tests/testthat/_snaps/sql.md
+desc 0.9.0
+git add -A
+git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@aaaaaaa (#1)'
 
 desc 1.0.0.9000.0
 verfile seed
