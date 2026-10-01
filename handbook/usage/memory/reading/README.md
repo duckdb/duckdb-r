@@ -94,9 +94,12 @@ so the paths differ by which copies they hold and when each is freed.
   arrow `RecordBatchReader` (`rapi_record_batch()`, same file),
   which reads it batch by batch and frees it when the reader is
   collected.
-  The route is slated for retirement in favor of the DBI Arrow API
-  ([#2587](https://github.com/duckdb/duckdb-r/pull/2587)
-  refuses to combine it with `stream = TRUE` and names the migration).
+  The route is deprecated in favor of the DBI Arrow API.
+  `dbSendQuery()` warns when user code or a test asks for it,
+  not when another package's code does, as `arrow::to_arrow()` still does
+  (`deprecate_soft()`, [`R/dbSendQuery__duckdb_connection_character.R`](/R/dbSendQuery__duckdb_connection_character.R)).
+  [#2587](https://github.com/duckdb/duckdb-r/pull/2587)
+  refuses to combine it with `stream = TRUE` and names the migration.
 * **`dbSendQueryArrow()` + `dbFetchArrow()` /
   `dbFetchArrowChunk()`.**
   The one DBI route that streams today.
