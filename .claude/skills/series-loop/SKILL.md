@@ -918,12 +918,19 @@ and how far its own vendoring has run,
 and what `main` is at today is read from `main`
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 Here the **content** decides, not the subject:
-the commit moves `Version:` and carries nothing but release paperwork,
+the commit carries nothing but release paperwork,
 so a bump under a subject other than `fledge:` is held back too,
 and a bump riding on real content is not —
 that one is a forward-port that happens to bump,
 ported whole like any other,
 because a pick is never half a commit.
+The notes are that strand as much as the bump is:
+a commit that writes `NEWS.md` for `main`'s next release and touches nothing else
+is held back on the same reasoning,
+because the series has neither the section it goes in nor the version that names it,
+and the pick's only honest resolution is the empty commit that retires it.
+Where DESCRIPTION *is* touched the version still has to move,
+since that file also carries the dependency list.
 
 Port volume threatens nothing either:
 the readers of the strand — `vendored_sha()` in stage 5,
