@@ -79,6 +79,23 @@ test_that("a symlink to a database yet to be created shares one instance", {
   expect_identical(con@driver@database_ref, drv1@database_ref)
 })
 
+test_that("a symlink whose target cannot be created fails in `duckdb()`, naming the link", {
+  # The engine cannot create the target through the link, here because its
+  # directory is missing.
+  dir <- withr::local_tempdir()
+  target <- file.path(dir, "no-such-directory", "target.duckdb")
+  link <- file.path(dir, "link.duckdb")
+  skip_if_not(
+    suppressWarnings(file.symlink(target, link)),
+    "symlinks unavailable"
+  )
+
+  err <- expect_error(duckdb(link), "link.duckdb", fixed = TRUE)
+  expect_identical(err$error_type, "IO")
+  expect_null(driver_registry[[path_normalize(link)]])
+  expect_null(driver_registry[[path_normalize(target)]])
+})
+
 test_that("a lower-case drive letter resolves on that drive, not in the working directory", {
   # The engine walks up to the drive and turns it into its root, and a bare
   # `c:` is the working directory on that drive rather than its root. Only a

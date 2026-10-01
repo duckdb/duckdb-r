@@ -32,6 +32,9 @@ The load-bearing facts:
   so a database that does not exist yet resolves without anything being created.
   `duckdb()` resolves the path once more after the engine has opened it, and files the instance under that key,
   because a symlink to a database yet to be created resolves only once its target exists.
+  The engine creates that target through the link on Windows too,
+  because [`patch/0044-Report-a-dangling-symbolic-link-as-missing-on-Windows.patch`](/patch/0044-Report-a-dangling-symbolic-link-as-missing-on-Windows.patch)
+  makes its check for an existing file follow the link there, as it does on POSIX.
   Two spellings of one database (relative, symlinked, differently separated) therefore share an instance.
   Symlinks are out of scope on Windows, where creating one takes administrator rights or Developer Mode, so few users have them.
   There the engine does not open a symlink whose target does not exist yet,
