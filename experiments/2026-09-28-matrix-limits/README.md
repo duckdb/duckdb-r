@@ -14,8 +14,7 @@ What is measured is the glue's code, which the release does not change.
 by [`scripts/render-reprex.R`](/scripts/render-reprex.R),
 and the session info names the scratch library that held the build as `<fast-path build library>`.
 
-*What it supports:* the classed matrix limitation in [`usage/types/`](/handbook/usage/types/README.md),
-and the `ARRAY` limitation in [`usage/relational/`](/handbook/usage/relational/README.md).
+*What it supports:* the `ARRAY` limitation in [`usage/relational/`](/handbook/usage/relational/README.md).
 
 ## Findings
 

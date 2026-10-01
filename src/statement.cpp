@@ -199,6 +199,15 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	stmt->parameters.clear();
 	stmt->parameters.resize(n_param);
 
+	// Refused before the rows are counted in the first parameter
+	for (R_xlen_t param_idx = 0; param_idx < params.size(); param_idx++) {
+		auto error =
+		    RApiTypes::ArrayParameterError(params[param_idx], "params[[" + std::to_string(param_idx + 1) + "]]");
+		if (!error.empty()) {
+			rapi_error_with_context("rapi_bind", error);
+		}
+	}
+
 	// A data frame binds as STRUCT, one value per row, so the rows are counted by type, not by length.
 	R_len_t n_rows = RApiTypes::GetVecSize(params[0]);
 
