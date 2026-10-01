@@ -19,6 +19,7 @@ A cast to \code{VARCHAR} in the query reads any type as text.
 \strong{Writing.}
 \code{\link[DBI:dbWriteTable]{dbWriteTable()}} and \code{\link[=duckdb_register]{duckdb_register()}} take a column's type from its R class,
 and \code{field.types} casts that column to the type it names, from any value that casts.
+\code{dbConnect(posixct = )} chooses the type a \code{POSIXct} writes, as a column and as a parameter, with default \code{"timestamptz"}.
 \code{\link[DBI:dbAppendTable]{dbAppendTable()}} casts to the type of the existing column, and a parameter (\verb{params =}) binds by its R class, cast by the query.
 A \code{character} column holding a value's text form writes every scalar type through \code{field.types}, because DuckDB parses the text it prints.
 Arrow, registered with \code{\link[=duckdb_register_arrow]{duckdb_register_arrow()}}, writes the types no R class does.
@@ -75,11 +76,11 @@ Its text writes it, and so does Arrow.
 The offset it drops is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Its text writes it.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}.
-\code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC, and \code{field.types} names the other precisions.
+Under \code{posixct = "timestamp"}, \code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC, and \code{field.types} names the other precisions.
 \item \strong{\code{TIMESTAMP_NS}} reads as \code{POSIXct}.
 \code{POSIXct} writes it to the microsecond through \code{field.types}, and Arrow writes it directly.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
-\code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
+\code{POSIXct} writes it, the instant it names, under the default \code{posixct = "timestamptz"},
 and Arrow writes it directly.
 \item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours.
 A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}.
@@ -160,7 +161,7 @@ and every entry on this page was measured on DuckDB 1.5.5, in \href{https://gith
 \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-27-review-limits/README.md}{\verb{experiments/2026-09-27-review-limits/}},
 \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-09-28-type-rereview/README.md}{\verb{experiments/2026-09-28-type-rereview/}}
 or, for geometry route by route, \href{https://github.com/duckdb/duckdb-r/blob/main/experiments/2026-08-09-spatial-interop/README.md}{\verb{experiments/2026-08-09-spatial-interop/}}.
-Which zone labels a timestamp is documented in the handbook's \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}.
+Which zone labels a timestamp, and which type a \code{POSIXct} writes, is documented in the handbook's \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/timestamps/README.md}{\verb{timestamps/}}.
 
 What \code{expr_constant(NA)} builds in the relational API is documented in the handbook's \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/relational/README.md}{\verb{relational/}}.
 }

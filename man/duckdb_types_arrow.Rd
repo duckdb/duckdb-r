@@ -161,8 +161,8 @@ Where nothing is said below, nanoarrow and arrow infer the type \code{dbWriteTab
 \itemize{
 \item \strong{\code{factor}} infers a dictionary and lands as \code{VARCHAR}, where \code{dbWriteTable()} writes \code{ENUM}.
 arrow lands an \code{ordered} one as \code{VARCHAR} too.
-\item \strong{\code{POSIXct}} infers a \code{timestamp} with its zone, or R's session zone where it has none, and lands as \code{TIMESTAMPTZ},
-where \code{dbWriteTable()} writes a plain \code{TIMESTAMP}.
+\item \strong{\code{POSIXct}} infers a \code{timestamp} with its zone, or R's session zone where it has none, and lands as \code{TIMESTAMPTZ}
+whatever \code{dbConnect(posixct = )} says, where \code{dbWriteTable()} writes a plain \code{TIMESTAMP} under \code{posixct = "timestamp"}.
 \item \strong{\code{difftime}} infers a \code{duration} and lands as \code{INTERVAL} in hours and below, so 2 days land as \code{48:00:00},
 where \code{dbWriteTable()} keeps the days.
 \item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, the one R route to that type; its truncation is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.

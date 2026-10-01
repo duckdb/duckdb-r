@@ -384,7 +384,7 @@
       test_datetime <- as.POSIXct("2020-01-01 01:23:45 UTC", tz = "UTC")
       escape(test_datetime)
     Output
-      <SQL> '2020-01-01 01:23:45'::timestamp
+      <SQL> '2020-01-01 01:23:45+00:00'::timestamptz
     Code
       escape("2020-01-01 01:23:45 UTC")
     Output
@@ -393,7 +393,7 @@
       test_datetime_tz <- as.POSIXct("2020-01-01 18:23:45 UTC", tz = "America/Los_Angeles")
       escape(test_datetime_tz)
     Output
-      <SQL> '2020-01-02 02:23:45'::timestamp
+      <SQL> '2020-01-02 02:23:45+00:00'::timestamptz
     Code
       escape("2020-01-01 18:23:45 PST")
     Output

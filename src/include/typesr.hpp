@@ -28,6 +28,7 @@ enum class RTypeId {
 	DATE,
 	DATE_INTEGER,
 	TIMESTAMP,
+	TIMESTAMP_TZ,
 	INTERVAL_SECONDS,
 	INTERVAL_MINUTES,
 	INTERVAL_HOURS,
@@ -86,6 +87,7 @@ struct RType {
 	static constexpr const RTypeId DATE = RTypeId::DATE;
 	static constexpr const RTypeId DATE_INTEGER = RTypeId::DATE_INTEGER;
 	static constexpr const RTypeId TIMESTAMP = RTypeId::TIMESTAMP;
+	static constexpr const RTypeId TIMESTAMP_TZ = RTypeId::TIMESTAMP_TZ;
 	static constexpr const RTypeId INTERVAL_SECONDS = RTypeId::INTERVAL_SECONDS;
 	static constexpr const RTypeId INTERVAL_MINUTES = RTypeId::INTERVAL_MINUTES;
 	static constexpr const RTypeId INTERVAL_HOURS = RTypeId::INTERVAL_HOURS;
@@ -122,12 +124,14 @@ private:
 };
 
 struct RApiTypes {
-	static RType DetectRType(SEXP v, bool integer64);
+	// `timestamptz` picks the type a POSIXct column maps to: TIMESTAMP_TZ when set,
+	// TIMESTAMP otherwise. Handbook: handbook/usage/timestamps/README.md
+	static RType DetectRType(SEXP v, bool integer64, bool timestamptz = false);
 	static LogicalType LogicalTypeFromRType(const RType &rtype, bool experimental);
 	static string DetectLogicalType(const LogicalType &stype, const char *caller);
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
-	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
+	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true, bool timestamptz = false);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 

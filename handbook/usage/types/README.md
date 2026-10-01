@@ -8,7 +8,7 @@ and every entry on this page was measured on DuckDB 1.5.5, in [`experiments/2026
 [`experiments/2026-09-27-review-limits/`](/experiments/2026-09-27-review-limits/README.md),
 [`experiments/2026-09-28-type-rereview/`](/experiments/2026-09-28-type-rereview/README.md)
 or, for geometry route by route, [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md).
-Which zone labels a timestamp is [`timestamps/`](/handbook/usage/timestamps/README.md)'s.
+Which zone labels a timestamp, and which type a `POSIXct` writes, is [`timestamps/`](/handbook/usage/timestamps/README.md)'s.
 
 The reference pages `?duckdb_types` and `?duckdb_types_arrow` are this leaf and [`arrow-types/`](/handbook/usage/arrow-types/README.md),
 rendered into roxygen under `R/` by [`scripts/types-rd.R`](/scripts/types-rd.R), which leaves this paragraph out.
@@ -27,6 +27,7 @@ A cast to `VARCHAR` in the query reads any type as text.
 **Writing.**
 `dbWriteTable()` and `duckdb_register()` take a column's type from its R class,
 and `field.types` casts that column to the type it names, from any value that casts.
+`dbConnect(posixct = )` chooses the type a `POSIXct` writes, as a column and as a parameter, with default `"timestamptz"`.
 `dbAppendTable()` casts to the type of the existing column, and a parameter (`params =`) binds by its R class, cast by the query.
 A `character` column holding a value's text form writes every scalar type through `field.types`, because DuckDB parses the text it prints.
 Arrow, registered with `duckdb_register_arrow()`, writes the types no R class does.
@@ -83,11 +84,11 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   The offset it drops is a limitation (below).
   Its text writes it.
 * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.
-  `POSIXct` writes `TIMESTAMP`, the instant in UTC, and `field.types` names the other precisions.
+  Under `posixct = "timestamp"`, `POSIXct` writes `TIMESTAMP`, the instant in UTC, and `field.types` names the other precisions.
 * **`TIMESTAMP_NS`** reads as `POSIXct`.
   `POSIXct` writes it to the microsecond through `field.types`, and Arrow writes it directly.
 * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
-  `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
+  `POSIXct` writes it, the instant it names, under the default `posixct = "timestamptz"`,
   and Arrow writes it directly.
 * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours.
   A `difftime` in any unit, or an `hms`, writes `INTERVAL`.
@@ -199,9 +200,13 @@ and the `spatial` extension's own types:
   Which part of an `INTERVAL` was months or days is lost.
 * A `POSIXct` writes with its zone label dropped, and a `difftime` or `hms` without its unit.
 * `NaN`, `Inf` and `-Inf` in a `Date`, `difftime` or `POSIXct` stored as double write as far-off negative values, not as `NULL` or infinity:
-  on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,
+  on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMPTZ` in 290309 (BC),
+  or under `posixct = "timestamp"` a `TIMESTAMP` no cast to `VARCHAR` accepts,
   because only `NA` is taken for missing ([`src/types.cpp`](/src/types.cpp)).
-* A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
+* A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not a timestamp, and reads back as `integer`.
+* Under the default `posixct`, a `POSIXct` that `field.types` or `dbAppendTable()` casts to a naive `TIMESTAMP`
+  is stored as its wall clock in the session `TimeZone`, which reads back as UTC,
+  so the instant moves where icu is loaded and the session zone is not UTC ([`timestamps/`](/handbook/usage/timestamps/README.md)).
 * `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads.
   `difftime` and `hms` write `INTERVAL`, which does not cast to `TIME`,
   so `field.types`, `dbAppendTable()` and a parameter all fail with that cast error.
