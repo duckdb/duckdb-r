@@ -2,8 +2,6 @@
 
 #include "src/main/attached_database.cpp"
 
-#include "src/main/chunk_scan_state.cpp"
-
 #include "src/main/client_config.cpp"
 
 #include "src/main/client_context.cpp"
