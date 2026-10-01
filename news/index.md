@@ -1,5 +1,21 @@
 # Changelog
 
+## duckdb 1.5.6.9001
+
+### Features
+
+#### series
+
+- Rebuild the rewind at the foot of a forward, gate the glue, and mirror
+  `-dev` without its flavor ([@krlmlr](https://github.com/krlmlr),
+  [\#2875](https://github.com/duckdb/duckdb-r/issues/2875)).
+
+### Continuous integration
+
+- Key the build caches by architecture
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2876](https://github.com/duckdb/duckdb-r/issues/2876)).
+
 ## duckdb 1.5.6.9000
 
 ### Bug fixes
