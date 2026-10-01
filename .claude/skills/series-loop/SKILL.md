@@ -1616,6 +1616,48 @@ is what carries the automatic path into a forward series.
   and fold the corrected file into the oldest commit above green.
   `v1.5-variegata-fwd` was seeded this way and its whole first chunk
   would have come back red (2026-09-28).
+- **`src/cpp11.cpp` conflicts on every port that adds an entry point,
+  and the answer is to regenerate it rather than to merge it.**
+  `cpp11::cpp_register()` writes both halves of the binding
+  from `DESCRIPTION:Package`,
+  so every flavor spells the same entry point differently —
+  `_duckdb_rapi_execute` on `main`,
+  `_duckdb_dev_rapi_execute`, `_duckdb_1_5_dev_rapi_execute`,
+  `_duckdb_2_0_dev_rapi_execute` on the series —
+  and the whole `CallEntries[]` table therefore differs from `main`'s
+  line for line.
+  A ported commit that registers a new function conflicts there on every
+  series, and hand-merging it is 150 aligned lines of generated code
+  for the sake of one entry.
+  Check out the series' side, regenerate, and stage both halves:
+
+  ```sh
+  git checkout HEAD -- src/cpp11.cpp
+  R -q -e 'cpp11::cpp_register()'
+  git add src/cpp11.cpp R/cpp11.R
+  ```
+
+  `R/cpp11.R` usually merges cleanly and is wrong when it does —
+  it carries `main`'s unflavored `.Call()` name — so it is regenerated
+  and staged with the other half whether or not git flagged it.
+  `fix(flavor): Check that both halves of the cpp11 binding carry the
+  flavor's prefix` (#2832) is what catches a miss, one CI cycle later.
+  The generator needs the `krlmlr/cpp11` fork, because CRAN's writes
+  `_duckdb.2.0.dev_rapi_execute` for a flavor carrying dots, which is not
+  a C identifier, and it needs `decor`:
+
+  ```sh
+  R -q -e 'install.packages(c("cpp11", "decor"), repos = c("https://krlmlr.r-universe.dev", getOption("repos")))'
+  ```
+
+  `git rerere` does not absorb the repeats across series the way it does
+  for `src/Makevars`: each flavor is its own preimage,
+  so one resolution is owed per series per port that registers anything.
+  The 2026-09-28 firing paid it four times, for `feat(connections): Key
+  the driver cache on the engine's path, not R's` (#2627), which adds
+  `rapi_canonicalize_path()`.
+  Teaching `scripts/series-port.sh` to regenerate and continue by itself
+  is the fix; this entry is what the next firing needs until it exists.
 
 ## Invariants
 
