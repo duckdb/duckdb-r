@@ -272,7 +272,6 @@ void AltrepRelationWrapper::Materialize() {
 		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
 		return;
 	}
-	D_ASSERT(local_res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
 
 	if (max_rows < MAX_SIZE_T) {
 		if (local_res->RowCount() > max_rows) {
