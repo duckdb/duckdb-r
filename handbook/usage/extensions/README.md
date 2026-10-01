@@ -4,6 +4,13 @@ Which DuckDB extensions the package ships,
 what loads and installs by itself,
 and how to get more.
 
+* **`icu` is loaded at connect when it is already installed.**
+  `dbConnect()` needs the session `TimeZone` setting, which icu owns,
+  to align the zone both sides read a naive wall clock in
+  ([`timestamps/`](/handbook/usage/timestamps/README.md)).
+  It asks `duckdb_extensions()` first and loads only what is on disk,
+  so the connection never installs, never reaches the network, and
+  gives up quietly where icu is absent or extensions are off.
 * **Bundled: `parquet` and `core_functions`, nothing else.**
   The authoritative list is the set of
   `-DDUCKDB_EXTENSION_*_LINKED` defines in the committed

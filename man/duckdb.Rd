@@ -129,7 +129,10 @@ The default of this setting may change in a future version.}
 \item{timezone_out}{The time zone in which plain \code{TIMESTAMP} columns (without time zone) are returned to R, defaults to \code{"UTC"}.
 If you want to display datetime values in the local timezone,
 set to \code{\link[=Sys.timezone]{Sys.timezone()}} or \code{""}.
-\code{TIMESTAMPTZ} columns follow the session's \code{TimeZone} setting instead.}
+\code{TIMESTAMPTZ} columns follow the session's \code{TimeZone} setting instead,
+which \code{dbConnect()} sets to \code{"UTC"} where the icu extension is
+available, so that both timestamp types read a naive wall clock the
+same way. Run \verb{SET TimeZone} on the connection to choose another.}
 
 \item{tz_out_convert}{How to convert timestamp columns to the timezone specified in \code{timezone_out}.
 There are two options: \code{"with"}, and \code{"force"}.
