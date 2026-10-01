@@ -1148,6 +1148,12 @@ so the next firing simply reaches the same stop.
 Starting a fresh run beside a stopped one is refused,
 because it would replay over a resolution somebody made.
 
+**A carry into the glue that applies cleanly is compiled before it is kept.**
+The three-way merge keeps both the twin's hunk and the buffer's own version of the same adaptation
+when their context differs, which duplicates code rather than conflicting.
+So `series-advance.sh` syntax-checks the glue after such a carry
+and stops the same way, with the carry staged and the failing files named.
+
 **A resolution that comes out empty is a resolution.**
 The buffer commit's content reached `-dev` by another route —
 a buffer whose flavor rename still names the path a port has since moved,
@@ -1572,6 +1578,25 @@ is what carries the automatic path into a forward series.
 - **Restore whole directories, not touched files**,
   when replaying over a base that owns them
   (`.github` in particular).
+- **Every buffer still keeps cpp11 where it kept it before #2649**,
+  so every vendor commit stage 5 replays conflicts on
+  `src/Makevars` and `src/Makevars.win`.
+  `scripts/rconfigure.py` is tooling and the buffer sync keeps it level with
+  `main`, but `src/Makevars.in` — the template it generates those two from —
+  is not, and neither is the vendored cpp11 tree it names.
+  So a buffer generates `-Iinclude -I../inst/include` while `-dev` carries
+  `-Iinclude -Ivendor`, and the one `PKG_CPPFLAGS` line collides on every pick.
+  Resolve toward `-dev`: the buffer's own next vendor run rewrites the file
+  anyway, and `-dev` is where the cpp11 headers actually are.
+  `git rerere` settles the repeats within one clone and a firing runs in a
+  fresh one, so the cost is two resolutions per replayed vendor commit, per
+  firing, on every series (`main-build`, `main-fwd-build`,
+  `v1.4-andium-build`, `v1.5-variegata-build`, `v2.0-cyanoptera-build`
+  all carry `inst/include/cpp11`, 2026-09-27).
+  Ending it is re-vendoring cpp11 onto each buffer
+  (`.claude/skills/vendor-cpp11/SKILL.md`), not a wider tooling sync:
+  moving the include path without moving the headers
+  would break the vendor gate's glue compile on the buffer.
 - **A `.dd` file naming a header the flavor renamed stops the build
   before the first compile**, and no gate above `install` ever runs:
   `src/include/deps.mk` includes `src/*.dd`, so
@@ -1591,6 +1616,48 @@ is what carries the automatic path into a forward series.
   and fold the corrected file into the oldest commit above green.
   `v1.5-variegata-fwd` was seeded this way and its whole first chunk
   would have come back red (2026-09-28).
+- **`src/cpp11.cpp` conflicts on every port that adds an entry point,
+  and the answer is to regenerate it rather than to merge it.**
+  `cpp11::cpp_register()` writes both halves of the binding
+  from `DESCRIPTION:Package`,
+  so every flavor spells the same entry point differently —
+  `_duckdb_rapi_execute` on `main`,
+  `_duckdb_dev_rapi_execute`, `_duckdb_1_5_dev_rapi_execute`,
+  `_duckdb_2_0_dev_rapi_execute` on the series —
+  and the whole `CallEntries[]` table therefore differs from `main`'s
+  line for line.
+  A ported commit that registers a new function conflicts there on every
+  series, and hand-merging it is 150 aligned lines of generated code
+  for the sake of one entry.
+  Check out the series' side, regenerate, and stage both halves:
+
+  ```sh
+  git checkout HEAD -- src/cpp11.cpp
+  R -q -e 'cpp11::cpp_register()'
+  git add src/cpp11.cpp R/cpp11.R
+  ```
+
+  `R/cpp11.R` usually merges cleanly and is wrong when it does —
+  it carries `main`'s unflavored `.Call()` name — so it is regenerated
+  and staged with the other half whether or not git flagged it.
+  `fix(flavor): Check that both halves of the cpp11 binding carry the
+  flavor's prefix` (#2832) is what catches a miss, one CI cycle later.
+  The generator needs the `krlmlr/cpp11` fork, because CRAN's writes
+  `_duckdb.2.0.dev_rapi_execute` for a flavor carrying dots, which is not
+  a C identifier, and it needs `decor`:
+
+  ```sh
+  R -q -e 'install.packages(c("cpp11", "decor"), repos = c("https://krlmlr.r-universe.dev", getOption("repos")))'
+  ```
+
+  `git rerere` does not absorb the repeats across series the way it does
+  for `src/Makevars`: each flavor is its own preimage,
+  so one resolution is owed per series per port that registers anything.
+  The 2026-09-28 firing paid it four times, for `feat(connections): Key
+  the driver cache on the engine's path, not R's` (#2627), which adds
+  `rapi_canonicalize_path()`.
+  Teaching `scripts/series-port.sh` to regenerate and continue by itself
+  is the fix; this entry is what the next firing needs until it exists.
 
 ## Invariants
 
