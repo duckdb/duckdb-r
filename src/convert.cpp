@@ -51,6 +51,30 @@ ConvertOpts::MapShape string_to_map_shape(const std::string &str) {
 	rapi_error_with_context("string_to_map_shape", "Invalid map value: " + str);
 }
 
+ConvertOpts::TimeConversion string_to_time_conversion(const std::string &str) {
+	if (str == "difftime")
+		return ConvertOpts::TimeConversion::DIFFTIME;
+	if (str == "hms")
+		return ConvertOpts::TimeConversion::HMS;
+	rapi_error_with_context("string_to_time_conversion", "Invalid time value: " + str);
+}
+
+ConvertOpts::BlobConversion string_to_blob_conversion(const std::string &str) {
+	if (str == "list")
+		return ConvertOpts::BlobConversion::LIST;
+	if (str == "blob")
+		return ConvertOpts::BlobConversion::BLOB;
+	rapi_error_with_context("string_to_blob_conversion", "Invalid blob value: " + str);
+}
+
+ConvertOpts::IntervalConversion string_to_interval_conversion(const std::string &str) {
+	if (str == "difftime")
+		return ConvertOpts::IntervalConversion::DIFFTIME;
+	if (str == "Period")
+		return ConvertOpts::IntervalConversion::PERIOD;
+	rapi_error_with_context("string_to_interval_conversion", "Invalid interval value: " + str);
+}
+
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
 	return use_arrow ? ConvertOpts::ArrowConversion::ENABLED : ConvertOpts::ArrowConversion::DISABLED;
 }
@@ -91,6 +115,15 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 
 	// Extract map
 	map = string_to_map_shape(as_cpp<std::string>(options["map"]));
+
+	// Extract time
+	time = string_to_time_conversion(as_cpp<std::string>(options["time"]));
+
+	// Extract blob
+	blob = string_to_blob_conversion(as_cpp<std::string>(options["blob"]));
+
+	// Extract interval
+	interval = string_to_interval_conversion(as_cpp<std::string>(options["interval"]));
 
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));

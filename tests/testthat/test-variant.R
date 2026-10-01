@@ -189,6 +189,24 @@ test_that("VARIANT handles BLOBs", {
   expect_equal(v, charToRaw("hello"))
 })
 
+test_that("VARIANT reads a GEOMETRY as a wk_wkb under `geometry = \"wk\"`", {
+  skip_if_not_installed("wk")
+  con <- local_con(geometry = "wk")
+
+  v <- dbGetQuery(con, "SELECT 'POINT (1 2)'::GEOMETRY::VARIANT AS v")$v[[1]]
+  column <- dbGetQuery(con, "SELECT 'POINT (1 2)'::GEOMETRY AS v")$v
+  expect_s3_class(v, "wk_wkb")
+  expect_identical(v, column)
+})
+
+test_that("VARIANT reads a BLOB as a blob under `blob = \"blob\"`", {
+  skip_if_not_installed("blob")
+  con <- local_con(blob = "blob")
+
+  res <- dbGetQuery(con, "SELECT 'hello'::BLOB::VARIANT AS v")
+  expect_identical(res$v[[1]], blob::as_blob(charToRaw("hello")))
+})
+
 
 test_that("VARIANT handles MAPs with data", {
   con <- local_con()

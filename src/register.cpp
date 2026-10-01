@@ -20,6 +20,22 @@
 
 using namespace duckdb;
 
+// The named parameters of `r_dataframe_scan` for a connection's options,
+// which duckdb_register() and the environment scan both pass, so that a data frame writes the same through either
+static named_parameter_map_t DataFrameScanParameters(const ConvertOpts &convert_opts) {
+	named_parameter_map_t parameter_map;
+	// An integer64 column registers as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for doubles (handbook/usage/types/README.md).
+	parameter_map["integer64"] = true;
+	parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
+	parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
+	// An hms writes TIME rather than INTERVAL with `time = "hms"` (handbook/usage/types/README.md)
+	parameter_map["time_hms"] = convert_opts.time == ConvertOpts::TimeConversion::HMS;
+	// A lubridate Period writes INTERVAL with `interval = "Period"`
+	parameter_map["interval_period"] = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+	return parameter_map;
+}
+
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
                                           duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
@@ -32,16 +48,21 @@ using namespace duckdb;
 		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
 
+	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
+	auto interval_period = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+	// Checked on R's thread before the engine binds the scan, so that the error can name the column
+	auto names = value.names();
+	for (R_xlen_t col_idx = 0; col_idx < value.ncol(); col_idx++) {
+		auto invalid = RApiTypes::FindInvalidValue(value[col_idx], string(names[col_idx]), time_hms, interval_period);
+		if (!invalid.empty()) {
+			rapi_error_with_context("rapi_register_df", "Column " + invalid);
+		}
+	}
+
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	try {
-		named_parameter_map_t parameter_map;
-		// An integer64 column registers as BIGINT whatever `bigint` says about reading;
-		// read as NUMERIC, its bits would be taken for doubles (handbook/usage/types/README.md).
-		parameter_map["integer64"] = true;
-		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
-		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
-
+		auto parameter_map = DataFrameScanParameters(convert_opts);
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
 
@@ -104,6 +125,31 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		return nullptr;
 	}
 
+	// DataFrameScanBind() reads a name for each column and the rows of the first:
+	// refused here, where an R error raised there would leave the connection inside the query
+	SEXP names = GET_NAMES(df);
+	if (Rf_xlength(df) == 0 || TYPEOF(names) != STRSXP || Rf_xlength(names) != Rf_xlength(df)) {
+		UNPROTECT(1);
+		throw BinderException("Data frame `%s` must have at least one column, and one name for each column",
+		                      input.table_name);
+	}
+
+	// The data frame writes as with duckdb_register() on the connection the query runs on:
+	// with the parameters it passes, and refused where rapi_register_df() refuses it
+	auto opts_state = context.registered_state->Get<RConvertOptsState>(RConvertOptsState::KEY);
+	auto convert_opts = opts_state ? opts_state->convert_opts : ConvertOpts();
+	auto time_hms = convert_opts.time == ConvertOpts::TimeConversion::HMS;
+	auto interval_period = convert_opts.interval == ConvertOpts::IntervalConversion::PERIOD;
+	string invalid;
+	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df) && invalid.empty(); col_idx++) {
+		invalid = RApiTypes::FindInvalidValue(VECTOR_ELT(df, col_idx), CHAR(STRING_ELT(names, col_idx)), time_hms,
+		                                      interval_period);
+	}
+	if (!invalid.empty()) {
+		UNPROTECT(1);
+		throw BinderException("Column " + invalid);
+	}
+
 	// Avoid garbage collection of data frame
 	SEXP node = Rf_cons(df, CDR(db_wrapper->registered_dfs));
 	SETCDR(db_wrapper->registered_dfs, node);
@@ -114,6 +160,12 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
+	// Named parameters, as `name => value` passes them
+	for (auto &parameter : DataFrameScanParameters(convert_opts)) {
+		auto child = make_uniq<ConstantExpression>(parameter.second);
+		child->SetAlias(parameter.first);
+		children.push_back(std::move(child));
+	}
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 
 	// Signal that this table reference depends on external state (the R data

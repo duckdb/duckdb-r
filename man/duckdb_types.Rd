@@ -10,8 +10,9 @@ See \link{duckdb_types_arrow} for a description of the conversion via Arrow.
 }
 \section{The routes}{
 \strong{Reading.}
-\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and four \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape,
-with defaults \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"} and \code{geometry = "blob"}.
+\code{\link[DBI:dbGetQuery]{dbGetQuery()}} converts each column by its type, and seven \code{\link[DBI:dbConnect]{dbConnect()}} arguments change the shape.
+Their defaults are \code{bigint = "numeric"}, \code{array = "none"}, \code{map = "data.frame"}, \code{geometry = "blob"},
+\code{time = "difftime"}, \code{blob = "list"} and \code{interval = "difftime"}.
 \code{\link[DBI:dbGetQueryArrow]{dbGetQueryArrow()}} hands out the engine's own Arrow export instead,
 and what each type becomes there, and in the R readers that convert the stream, is documented in \link{duckdb_types_arrow}.
 A cast to \code{VARCHAR} in the query reads any type as text.
@@ -54,7 +55,7 @@ and \href{https://duckdb.org/docs/current/sql/data_types/bitstring}{bitstring} t
 \itemize{
 \item \strong{\code{VARCHAR}} (\code{CHAR}, \code{BPCHAR}, \code{TEXT}, \code{STRING}) reads as \code{character}, and \code{character} writes it;
 non-UTF-8 text is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
-\item \strong{\code{BLOB}} (\code{BYTEA}, \code{BINARY}, \code{VARBINARY}) reads as a list of raw vectors.
+\item \strong{\code{BLOB}} (\code{BYTEA}, \code{BINARY}, \code{VARBINARY}) reads as a list of raw vectors, or with \code{blob = "blob"} as \code{blob::blob}.
 A \code{blob::blob} or a list of raw vectors writes it.
 \item \strong{\code{BIT}} (\code{BITSTRING}) reads and writes through its text.
 \item \strong{\code{UUID}} reads as \code{character}, lowercase and hyphenated.
@@ -67,11 +68,13 @@ The \href{https://duckdb.org/docs/current/sql/data_types/date}{date}, \href{http
 \href{https://duckdb.org/docs/current/sql/data_types/timestamp}{timestamp} and \href{https://duckdb.org/docs/current/sql/data_types/interval}{interval} types:
 \itemize{
 \item \strong{\code{DATE}} reads as \code{Date}, and a \code{Date} writes it, stored as double or as integer.
-\item \strong{\code{TIME}} reads as \code{difftime} in seconds.
+\item \strong{\code{TIME}} reads as \code{difftime} in seconds, or with \code{time = "hms"} as \code{hms::hms}.
+With \code{time = "hms"}, an \code{hms} column, data frame field or parameter writes it,
+and a \code{difftime} that is not an \code{hms} keeps writing \code{INTERVAL}; \code{\link[DBI:dbQuoteLiteral]{dbQuoteLiteral()}} quotes an \code{hms} as a \code{TIME} there.
 Its text writes it through \code{field.types}, and so does Arrow (see \link{duckdb_types_arrow}).
-\item \strong{\code{TIME_NS}} reads through Arrow, and to the microsecond through a cast to \code{TIME} in the query.
-Its text writes it, and so does Arrow.
-\item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as the \code{difftime} of its local time.
+\item \strong{\code{TIME_NS}} reads as \code{TIME} does, in seconds to the nanosecond.
+Its text writes it through \code{field.types}, and so does Arrow.
+\item \strong{\code{TIMETZ}} (\verb{TIME WITH TIME ZONE}) reads as \code{TIME} does, as its local time.
 The offset it drops is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Its text writes it.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}.
@@ -81,8 +84,14 @@ Its text writes it.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
-\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours.
-A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}.
+\item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds whatever \code{time} says, counting a month as 30 days and a day as 24 hours,
+a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
+With \code{interval = "Period"} it reads as a \code{lubridate::Period} that keeps the months, the days and the time apart,
+the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
+lubridate's \verb{\%m+\%} adds its months and days to a date as DuckDB adds an \code{INTERVAL}'s.
+Under that option a \code{Period} column, data frame field or parameter writes it part for part, \code{NA} in any part as \code{NULL},
+and \code{dbQuoteLiteral()} quotes a \code{Period} as that \code{INTERVAL}.
+A \code{difftime} in any unit, or an \code{hms} under the default \code{time}, writes \code{INTERVAL}.
 }
 }
 
@@ -93,6 +102,8 @@ and the \href{https://duckdb.org/docs/current/sql/data_types/overview}{nested} o
 \item \strong{\code{ENUM}} reads as \code{factor}, with every value of the type as a level.
 A \code{factor} or \code{ordered} column writes \code{ENUM} of its levels; a \code{factor} parameter binds as \code{VARCHAR}.
 \item \strong{\code{ARRAY}} (\code{INTEGER[3]}) reads with \code{array = "matrix"}, as a matrix with a row per value.
+A \code{BLOB} or \code{GEOMETRY} array is a list matrix without a class of its own,
+and under \code{blob = "blob"} or \code{geometry = "wk"} each cell is a \code{blob} or a \code{wk_wkb} of length one.
 A matrix column writes it.
 \item \strong{\code{LIST}} (\code{INTEGER[]}) reads as a list of vectors, \code{NULL} for a \code{NULL} row, and a list column whose elements share a type writes it.
 \item \strong{\code{MAP}} reads as a list of \code{data.frame(key, value)}, which writes a list of structs unless \code{field.types} names the map.
@@ -115,7 +126,7 @@ The \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETR
 and the \code{spatial} extension's own types:
 \itemize{
 \item \strong{\code{GEOMETRY}} reads as WKB.
-With \code{geometry = "blob"}, the default, it reads as a list of raw vectors;
+With \code{geometry = "blob"}, the default, it reads as a list of raw vectors whatever \code{blob} says;
 with \code{geometry = "wk"}, as \code{wk_wkb}, carrying the column's CRS as an attribute, which \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} converts onward, CRS included.
 The type is core since DuckDB 1.5, so reading one needs no extension;
 the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's}.
@@ -129,7 +140,7 @@ Writing WKB as raw vectors, an \code{sf} object or an \code{sfc} column is a \hr
 \code{POINT_2D}, \code{POINT_3D}, \code{POINT_4D}, \code{BOX_2D} and \code{BOX_2DF} are structs, and read as data frame columns;
 \code{LINESTRING_2D} and \code{LINESTRING_3D} are lists of point structs, and read as lists of data frames;
 \code{POLYGON_2D} and \code{POLYGON_3D} are lists of those rings, and read as lists of lists;
-\code{WKB_BLOB} is a \code{BLOB}, and reads as raw vectors.
+\code{WKB_BLOB} is a \code{BLOB}, and reads as one.
 The same shapes write the plain struct or list, and \code{field.types} naming the alias casts back to it.
 They cast to \code{GEOMETRY} in the query,
 and the point, linestring, polygon and WKB types cast from it, as \verb{'POINT (1 2)'::GEOMETRY::POINT_2D}.
