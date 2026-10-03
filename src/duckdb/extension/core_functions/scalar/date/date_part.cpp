@@ -2434,11 +2434,20 @@ ScalarFunctionSet GetCachedDatepartFunction() {
 	    OP::template PropagateStatistics<timestamp_t>);
 }
 
+void SetNonDecreasingExceptInterval(ScalarFunctionSet &functions) {
+	functions.ApplyToFunctions([](ScalarFunction &function) {
+		// Interval components need not preserve the normalized interval ordering.
+		if (function.GetSignature().GetParameter(0).GetType() != LogicalType::INTERVAL) {
+			function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+		}
+	});
+}
+
 } // namespace
 
 ScalarFunctionSet YearFun::GetFunctions() {
 	auto set = GetCachedDatepartFunction<DatePart::YearOperator>();
-	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	SetNonDecreasingExceptInterval(set);
 	return set;
 }
 
@@ -2452,19 +2461,19 @@ ScalarFunctionSet DayFun::GetFunctions() {
 
 ScalarFunctionSet DecadeFun::GetFunctions() {
 	auto set = GetDatePartFunction<DatePart::DecadeOperator>();
-	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	SetNonDecreasingExceptInterval(set);
 	return set;
 }
 
 ScalarFunctionSet CenturyFun::GetFunctions() {
 	auto set = GetDatePartFunction<DatePart::CenturyOperator>();
-	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	SetNonDecreasingExceptInterval(set);
 	return set;
 }
 
 ScalarFunctionSet MillenniumFun::GetFunctions() {
 	auto set = GetDatePartFunction<DatePart::MillenniumOperator>();
-	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	SetNonDecreasingExceptInterval(set);
 	return set;
 }
 
@@ -2527,7 +2536,7 @@ ScalarFunctionSet TimezoneMinuteFun::GetFunctions() {
 
 ScalarFunctionSet EpochFun::GetFunctions() {
 	auto set = GetTimePartFunction<DatePart::EpochOperator, double>(LogicalType::DOUBLE, "temporal");
-	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	SetNonDecreasingExceptInterval(set);
 	return set;
 }
 
@@ -2586,7 +2595,7 @@ ScalarFunctionSet EpochMsFun::GetFunctions() {
 	inverse_fun.GetSignature().AddParameter("temporal", LogicalType::BIGINT);
 	operator_set.AddFunction(inverse_fun);
 
-	operator_set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	SetNonDecreasingExceptInterval(operator_set);
 	// these overflow at the representable extremes, so the failure must be reportable
 	operator_set.SetFallible();
 	return operator_set;
