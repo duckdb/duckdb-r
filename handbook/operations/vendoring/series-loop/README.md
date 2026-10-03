@@ -48,6 +48,15 @@ to do, and they run in this order:
   tooling sync and fixes named by hand apply.
   That is read from the lineage under the seed rather than configured,
   so opening or retiring a release line changes no script.
+  A `patch/` entry the port brings to `-dev` does nothing there,
+  because a vendor run applies the buffer's stack, so the port carries
+  it on to `<S>-build`
+  ([`scripts/series-patch-sync.sh`](/scripts/series-patch-sync.sh))
+  by test-applying it against the buffer's tree, never by the file list.
+  One that neither applies nor reverses is *stale* and waits for the
+  code it answers. One that would supersede an entry of the buffer's
+  own, and one both stacks carry in different versions (*edited*), are
+  reported and never carried, because either is a judgement.
 * **Extend `<S>-dev`** — consume the buffer in bounded chunks,
   at most 100 commits per firing
   ([`scripts/series-advance.sh`](/scripts/series-advance.sh)).
