@@ -141,7 +141,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	vector<unique_ptr<SQLStatement>> statements;
 	try {
-		Parser parser(conn->conn->context->GetParserOptions());
+		Parser parser(*conn->conn->context);
 		parser.ParseQuery(query);
 		statements = std::move(parser.statements);
 	} catch (std::exception &ex) {
