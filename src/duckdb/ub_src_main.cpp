@@ -48,6 +48,8 @@
 
 #include "src/main/parse_iterator.cpp"
 
+#include "src/main/parser_context.cpp"
+
 #include "src/main/prepared_statement.cpp"
 
 #include "src/main/prepared_statement_data.cpp"
