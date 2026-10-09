@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 26 Sep 2026 12:00:00 +0200
+Subject: [PATCH] Define D_ASSERT_IS_ENABLED whenever D_ASSERT is live
+
+assert.hpp has two branches. A release build takes the one that includes
+<assert.h> and defines D_ASSERT as assert; a debug build takes the one
+that routes D_ASSERT through DuckDBAssertInternal() and defines
+D_ASSERT_IS_ENABLED, so that code needed only by an assertion can be
+compiled out of a release build.
+
+The two disagree when NDEBUG is undefined and DEBUG is not defined.
+assert() then checks its condition, so every D_ASSERT is live, while
+D_ASSERT_IS_ENABLED stays undefined and the code it guards is compiled
+out -- including a helper that a D_ASSERT calls. Where such a helper
+exists this is a compile error rather than a silent difference:
+src/function/variant/variant_shredding.cpp guards IsVariantStringType()
+and calls it from the D_ASSERT in WriteShreddedString().
+
+That combination is not exotic. R's pkgbuild compiles a package with
+-UNDEBUG -Wall -pedantic -g -O0 for devtools::load_all(), so the R
+package fails to build on that file while R CMD INSTALL of the same tree
+succeeds.
+
+Define D_ASSERT_IS_ENABLED in the <assert.h> branch too whenever NDEBUG
+is not defined. The macro then means on both branches what its name
+says, and assert-only code is compiled exactly when the assertions that
+need it are checked.
+
+Staged in krlmlr/duckdb on branch assert-is-enabled-without-ndebug, to
+go to duckdb/duckdb from there, and carried here until a release carries
+it.
+---
+diff --git a/src/duckdb/src/include/duckdb/common/assert.hpp b/src/duckdb/src/include/duckdb/common/assert.hpp
+index 4bf4b90..0e8fd13 100644
+--- a/src/duckdb/src/include/duckdb/common/assert.hpp
++++ b/src/duckdb/src/include/duckdb/common/assert.hpp
+@@ -25,6 +25,11 @@
+ //! Only the 'else' condition is supposed to check the assertions
+ #include <assert.h>
+ #define D_ASSERT assert
++//! assert() checks its condition whenever NDEBUG is not defined, so the
++//! assert-only code that D_ASSERT_IS_ENABLED guards has to be compiled here too
++#ifndef NDEBUG
++#define D_ASSERT_IS_ENABLED
++#endif
+ namespace duckdb {
+ DUCKDB_API void DuckDBAssertInternal(bool condition, const char *condition_name, const char *file, int linenr);
+ }
