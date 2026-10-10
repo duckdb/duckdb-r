@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.6.9003
+
+## Chore
+
+- Auto-update from GitHub Actions (#2884).
+
+
 # duckdb 1.5.6.9002
 
 ## Bug fixes
