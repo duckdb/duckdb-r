@@ -44,9 +44,14 @@ merge_ver() {   # $1=ours $2=theirs  ->  merged
   local c3 c4 out
   c3=$(( a[3] > b[3] ? a[3] : b[3] ))   # 4th component: R-client counter
   c4=$(( a[4] > b[4] ? a[4] : b[4] ))   # 5th component: vendor counter
+  # A side that carries a fifth component keeps it, even at zero: a series seed
+  # stamps `.0`, and dropping it leaves the vendor counter off the version.
+  local five=
+  case "$1" in *.*.*.*.*) five=1 ;; esac
+  case "$2" in *.*.*.*.*) five=1 ;; esac
   out="${a[0]}.${a[1]}.${a[2]}"
-  if [ "$c3" -ne 0 ] || [ "$c4" -ne 0 ]; then out="$out.$c3"; fi
-  if [ "$c4" -ne 0 ]; then out="$out.$c4"; fi
+  if [ "$c3" -ne 0 ] || [ "$c4" -ne 0 ] || [ -n "$five" ]; then out="$out.$c3"; fi
+  if [ "$c4" -ne 0 ] || [ -n "$five" ]; then out="$out.$c4"; fi
   printf '%s' "$out"
 }
 
