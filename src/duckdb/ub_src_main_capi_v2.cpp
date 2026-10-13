@@ -8,6 +8,8 @@
 
 #include "src/main/capi/v2/capi_v2_column_data_collection.cpp"
 
+#include "src/main/capi/v2/capi_v2_config.cpp"
+
 #include "src/main/capi/v2/capi_v2_connection.cpp"
 
 #include "src/main/capi/v2/capi_v2_custom_type.cpp"
@@ -22,6 +24,8 @@
 
 #include "src/main/capi/v2/capi_v2_extension.cpp"
 
+#include "src/main/capi/v2/capi_v2_factory.cpp"
+
 #include "src/main/capi/v2/capi_v2_file_system.cpp"
 
 #include "src/main/capi/v2/capi_v2_func.cpp"
@@ -31,6 +35,8 @@
 #include "src/main/capi/v2/capi_v2_func_cast.cpp"
 
 #include "src/main/capi/v2/capi_v2_func_copy.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_docs.cpp"
 
 #include "src/main/capi/v2/capi_v2_func_properties.cpp"
 
