@@ -1,5 +1,40 @@
 # Changelog
 
+## duckdb 1.5.6.9003
+
+### Chore
+
+- Auto-update from GitHub Actions
+  ([\#2884](https://github.com/duckdb/duckdb-r/issues/2884)).
+
+## duckdb 1.5.6.9002
+
+### Bug fixes
+
+#### series-advance
+
+- Look a carry’s twin up above the forward’s green
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2877](https://github.com/duckdb/duckdb-r/issues/2877)).
+
+#### series-advance
+
+- Compile the glue after a carry that touches it
+  ([@krlmlr](https://github.com/krlmlr),
+  [\#2880](https://github.com/duckdb/duckdb-r/issues/2880)).
+
+### Documentation
+
+#### series-loop
+
+- Record how to resolve the cpp11 binding conflict a port brings
+  ([\#2851](https://github.com/duckdb/duckdb-r/issues/2851)).
+
+#### series-loop
+
+- Record the cpp11 include path the buffers still generate
+  ([\#2847](https://github.com/duckdb/duckdb-r/issues/2847)).
+
 ## duckdb 1.5.6.9001
 
 ### Features
