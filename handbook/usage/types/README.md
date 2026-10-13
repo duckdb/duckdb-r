@@ -83,14 +83,14 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   The offset it drops is a limitation (below).
   Its text writes it.
 * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.
-  `POSIXct` writes `TIMESTAMP`, the instant in UTC, and `field.types` names the other precisions.
+  `POSIXct` writes `TIMESTAMP`, the instant in UTC to the nearest microsecond, a tie to even, and `field.types` names the other precisions.
 * **`TIMESTAMP_NS`** reads as `POSIXct`.
   `POSIXct` writes it to the microsecond through `field.types`, and Arrow writes it directly.
 * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
   and Arrow writes it directly.
 * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours.
-  A `difftime` in any unit, or an `hms`, writes `INTERVAL`.
+  A `difftime` in any unit, or an `hms`, writes `INTERVAL`, to the nearest microsecond, a tie to even.
 
 ## Enums and nested types
 

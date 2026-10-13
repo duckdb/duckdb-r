@@ -6,6 +6,8 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <cmath>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -395,28 +397,36 @@ date_t RDateType::Convert(double val) {
 	return date_t((int32_t)std::floor(val));
 }
 
+// A value halfway between two microseconds rounds to the even one, as R's
+// round() in dbQuoteLiteral() and the engine's own to_timestamp() do; C's
+// round() would take it away from zero. R leaves the rounding mode at its
+// default, round to nearest, which is the mode std::nearbyint() follows.
+static int64_t RoundMicros(double micros) {
+	return int64_t(std::nearbyint(micros));
+}
+
 timestamp_t RTimestampType::Convert(double val) {
-	return Timestamp::FromEpochMicroSeconds(round(val * Interval::MICROS_PER_SEC));
+	return Timestamp::FromEpochMicroSeconds(RoundMicros(val * Interval::MICROS_PER_SEC));
 }
 
 interval_t RIntervalSecondsType::Convert(double val) {
-	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_SEC)));
+	return Interval::FromMicro(RoundMicros(val * Interval::MICROS_PER_SEC));
 }
 
 interval_t RIntervalMinutesType::Convert(double val) {
-	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_MINUTE)));
+	return Interval::FromMicro(RoundMicros(val * Interval::MICROS_PER_MINUTE));
 }
 
 interval_t RIntervalHoursType::Convert(double val) {
-	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_HOUR)));
+	return Interval::FromMicro(RoundMicros(val * Interval::MICROS_PER_HOUR));
 }
 
 interval_t RIntervalDaysType::Convert(double val) {
-	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_DAY)));
+	return Interval::FromMicro(RoundMicros(val * Interval::MICROS_PER_DAY));
 }
 
 interval_t RIntervalWeeksType::Convert(double val) {
-	return Interval::FromMicro(int64_t(round(val * (Interval::MICROS_PER_DAY * Interval::DAYS_PER_WEEK))));
+	return Interval::FromMicro(RoundMicros(val * (Interval::MICROS_PER_DAY * Interval::DAYS_PER_WEEK)));
 }
 
 bool RIntegerType::IsNull(int val) {

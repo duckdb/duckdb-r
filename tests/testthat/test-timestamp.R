@@ -93,3 +93,50 @@ test_that("dbQuoteLiteral() rounds a `POSIXct` to microseconds on both sides of 
     )
   )
 })
+
+test_that("a half microsecond rounds to even when written, as when quoted", {
+  con <- local_con()
+
+  # 2.5 and 3.5 microseconds are ties; both rules agree on 3.5, and only
+  # half to even takes 2.5 to 2.
+  s <- c(2.5e-6, 3.5e-6, -2.5e-6, -3.5e-6)
+  df <- data.frame(
+    i = seq_along(s),
+    x = .POSIXct(s, tz = "UTC"),
+    d = as.difftime(s, units = "secs")
+  )
+  dbWriteTable(con, "ties", df)
+  written <- dbGetQuery(
+    con,
+    "SELECT epoch_us(x) AS x, to_microseconds(0) + d AS d FROM ties ORDER BY i"
+  )
+  expect_identical(written$x, c(2, 4, -2, -4))
+  expect_identical(as.numeric(written$d, units = "secs") * 1e6, c(2, 4, -2, -4))
+
+  # A literal quoted from each value finds the row written from it
+  for (k in seq_along(s)) {
+    for (col in c("x", "d")) {
+      lit <- dbQuoteLiteral(con, df[[col]][k])
+      n <- dbGetQuery(
+        con,
+        paste0("SELECT count(*) AS n FROM ties WHERE ", col, " = ", lit)
+      )$n
+      expect_identical(n, 1, info = paste(col, k))
+    }
+  }
+
+  # A present-day instant on a tie, where the two rules used to disagree
+  x <- .POSIXct(1700000000.0000025, tz = "UTC")
+  dbExecute(
+    con,
+    "CREATE TABLE now AS SELECT ?::TIMESTAMP AS x",
+    params = list(x)
+  )
+  expect_identical(
+    dbGetQuery(
+      con,
+      paste("SELECT count(*) AS n FROM now WHERE x =", dbQuoteLiteral(con, x))
+    )$n,
+    1
+  )
+})
