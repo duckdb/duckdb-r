@@ -75,6 +75,7 @@ duckdb_connection <- function(duckdb_driver, debug, convert_opts) {
     bigint = convert_opts$bigint
   )
   out@reserved_words <- get_reserved_words(out)
+  duckdb_align_session_timezone(out)
   out
 }
 
