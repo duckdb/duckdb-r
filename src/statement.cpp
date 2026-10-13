@@ -1,7 +1,5 @@
 #include "duckdb/common/types/timestamp.hpp"
-#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/parser/parser.hpp"
-#include "duckdb/parser/statement/explain_statement.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
@@ -123,20 +121,13 @@ static void CheckStatement(const duckdb::stmt_eptr_t &stmt, const char *context)
 	}
 }
 
-static bool IsExplainAnalyze(const SQLStatement &statement) {
-	if (statement.type != StatementType::EXPLAIN_STATEMENT) {
-		return false;
-	}
-	return statement.Cast<ExplainStatement>().explain_type == ExplainType::EXPLAIN_ANALYZE;
-}
-
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
-                                     SEXP registered_dfs = R_NilValue, bool explain_analyze = false) {
+                                     SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = make_uniq<RStatement>(std::move(stmt), explain_analyze);
+	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(IdentifiersToStrings(stmtholder->stmt->GetNames()))});
@@ -264,7 +255,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	}
 	// The last statement is the call's result. With no fragment left, it was a PRAGMA that expanded to nothing, the
 	// only statement that can, and it returns what any other PRAGMA returns: no rows of one `Success` column.
-	bool explain_analyze = last_statement && IsExplainAnalyze(*last_statement);
 	auto stmt = last_statement ? conn->conn->Prepare(std::move(last_statement))
 	                           : conn->conn->Prepare("SELECT CAST(NULL AS BOOLEAN) AS Success LIMIT 0");
 
@@ -277,7 +267,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->GetParameterCount();
-	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs, explain_analyze);
+	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result);
@@ -449,14 +439,6 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 
 	auto context = stmt->stmt->TryGetContext();
 	ScopedInterruptHandler signal_handler(context);
-
-	// EXPLAIN ANALYZE renders the query profiler's output, and the profiler only
-	// arms itself when the statement the engine plans is the EXPLAIN itself. The
-	// prepared-statement API plans an EXECUTE, so arm it here; the profiler
-	// disarms itself at the end of the query.
-	if (stmt->explain_analyze && context) {
-		QueryProfiler::Get(*context).StartExplainAnalyze();
-	}
 
 	// A streamed result is submitted, and runs as it is read. Only a SELECT that returns rows streams,
 	// read from the statement as written, because a prepared execution reports the EXECUTE that runs it;
