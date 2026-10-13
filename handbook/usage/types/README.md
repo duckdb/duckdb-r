@@ -90,7 +90,7 @@ The [date](https://duckdb.org/docs/current/sql/data_types/date), [time](https://
   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
   and Arrow writes it directly.
 * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours.
-  A `difftime` in any unit, or an `hms`, writes `INTERVAL`.
+  A `difftime` in any unit, or an `hms`, writes `INTERVAL`, to the nearest microsecond, a tie to even.
 
 ## Enums and nested types
 

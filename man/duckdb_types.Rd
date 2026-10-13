@@ -82,7 +82,7 @@ Its text writes it.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
 \item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours.
-A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}.
+A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}, to the nearest microsecond, a tie to even.
 }
 }
 
