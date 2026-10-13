@@ -108,14 +108,14 @@ Its text writes it, and so does Arrow.</p></li>
 The offset it drops is a <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations" class="external-link">limitation</a>.
 Its text writes it.</p></li>
 <li><p><strong><code>TIMESTAMP_S</code>, <code>TIMESTAMP_MS</code>, <code>TIMESTAMP</code></strong> (<code>DATETIME</code>) read as <code>POSIXct</code>.
-<code>POSIXct</code> writes <code>TIMESTAMP</code>, the instant in UTC, and <code>field.types</code> names the other precisions.</p></li>
+<code>POSIXct</code> writes <code>TIMESTAMP</code>, the instant in UTC to the nearest microsecond, a tie to even, and <code>field.types</code> names the other precisions.</p></li>
 <li><p><strong><code>TIMESTAMP_NS</code></strong> reads as <code>POSIXct</code>.
 <code>POSIXct</code> writes it to the microsecond through <code>field.types</code>, and Arrow writes it directly.</p></li>
 <li><p><strong><code>TIMESTAMPTZ</code></strong> (<code>TIMESTAMP WITH TIME ZONE</code>) reads as <code>POSIXct</code>.
 <code>POSIXct</code> writes the plain <code>TIMESTAMP</code> of the same instant; <code>field.types</code> makes it <code>TIMESTAMPTZ</code>,
 and Arrow writes it directly.</p></li>
 <li><p><strong><code>INTERVAL</code></strong> reads as <code>difftime</code> in seconds, counting a month as 30 days and a day as 24 hours.
-A <code>difftime</code> in any unit, or an <code>hms</code>, writes <code>INTERVAL</code>.</p></li>
+A <code>difftime</code> in any unit, or an <code>hms</code>, writes <code>INTERVAL</code>, to the nearest microsecond, a tie to even.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="enums-and-nested-types">Enums and nested types<a class="anchor" aria-label="anchor" href="#enums-and-nested-types"></a></h2>
