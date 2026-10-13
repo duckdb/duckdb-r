@@ -243,13 +243,10 @@ private:
 
 struct RStatement {
 	RStatement() = delete;
-	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p, bool explain_analyze_p = false)
-	    : stmt(std::move(stmt_p)), explain_analyze(explain_analyze_p) {
+	explicit RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
 	}
 	~RStatement();
 	duckdb::unique_ptr<PreparedStatement> stmt;
-	//! Whether the prepared statement is an EXPLAIN ANALYZE, which needs the profiler
-	bool explain_analyze;
 	vector<Value> parameters;
 };
 
