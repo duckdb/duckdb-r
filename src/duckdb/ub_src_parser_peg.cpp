@@ -12,6 +12,8 @@
 
 #include "src/parser/peg/matcher_factory.cpp"
 
+#include "src/parser/peg/matcher_first_set.cpp"
+
 #include "src/parser/peg/matcher_process.cpp"
 
 #include "src/parser/peg/matcher_stack.cpp"
