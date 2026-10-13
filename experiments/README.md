@@ -76,6 +76,12 @@ This file is what names the contents, so nothing here is an orphan.
   what DuckDB reports as a database's path once it has opened it,
   where that differs from `normalizePath()`, and what each costs;
   supports [`usage/connections/`](/handbook/usage/connections/README.md).
+* [`2026-08-rcc2-read-path/`](2026-08-rcc2-read-path/) —
+  whether the `rcc2` verdict store can be retired: how often its gap has
+  been felt, whether the commit status D6 would read instead agrees with
+  the record it would replace, what the branch costs to keep, and who
+  else writes the `rcc` context; gathered for
+  [`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
