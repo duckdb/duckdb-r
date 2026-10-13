@@ -42,6 +42,7 @@ using namespace duckdb;
 		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
 
+	EndOpenResults(*conn->conn->context);
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	try {
@@ -69,6 +70,7 @@ using namespace duckdb;
 		return;
 	}
 
+	EndOpenResults(*conn->conn->context);
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
