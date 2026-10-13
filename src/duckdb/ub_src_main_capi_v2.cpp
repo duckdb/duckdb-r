@@ -56,6 +56,8 @@
 
 #include "src/main/capi/v2/capi_v2_instance.cpp"
 
+#include "src/main/capi/v2/capi_v2_log_sink.cpp"
+
 #include "src/main/capi/v2/capi_v2_logging.cpp"
 
 #include "src/main/capi/v2/capi_v2_logical_type.cpp"
