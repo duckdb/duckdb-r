@@ -199,13 +199,15 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 
 		// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-		// A query of the same connection would wait for the lock that query holds, so it fails instead.
+		// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
+		// any open result of its connection is ended: ending one takes that lock too.
 		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
 		auto &context = *rel->context->GetContext();
 		if (ScopedInterruptHandler::IsActiveFor(context)) {
 			rapi_error_with_context("GetQueryResult",
 			                        "Cannot materialize a relation of the connection that is running the query.");
 		}
+		EndOpenResults(context);
 		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
 		if (!ScopedInterruptHandler::IsActive()) {
 			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
