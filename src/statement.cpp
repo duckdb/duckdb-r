@@ -460,19 +460,15 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		QueryProfiler::Get(*context).StartExplainAnalyze();
 	}
 
-	// A streamed result is submitted, and runs as it is read. Only a SELECT that returns rows streams,
-	// read from the statement as written, because a prepared execution reports the EXECUTE that runs it;
-	// any other is run to completion here, as the engine's own ADBC driver does
+	// A streamed result is submitted, and runs as it is read. Whether it streams is decided by the statement as
+	// written, because a prepared execution reports the EXECUTE that runs it, as the engine's own ADBC driver does
 	// (ExecuteArrow() in the vendored src/common/adbc/adbc.cpp).
 	duckdb::unique_ptr<QueryResult> generic_result;
 	bool streamed = false;
 	if (allow_stream_result) {
 		generic_result = stmt->stmt->Submit(stmt->parameters);
-		auto &properties = stmt->stmt->GetStatementProperties();
-		bool streams = stmt->stmt->GetStatementType() == StatementType::SELECT_STATEMENT &&
-		               properties.return_type == StatementReturnType::QUERY_RESULT;
 		if (!generic_result->HasError()) {
-			streamed = streams;
+			streamed = StreamsByDefault(stmt->stmt->GetStatementType(), generic_result->GetStatementProperties());
 			if (!streamed) {
 				generic_result->Complete();
 			}
