@@ -1,4 +1,7 @@
 .onLoad <- function(...) {
+  # First, before anything could reach the glue: it leaves its errors in `the`.
+  rapi_error_pending_reset()
+
   s3_register("dbplyr::dbplyr_edition", "duckdb_connection")
   s3_register("dbplyr::db_connection_describe", "duckdb_connection")
   s3_register("dbplyr::sql_translation", "duckdb_connection")
@@ -28,9 +31,10 @@
     inform <<- rlang::inform
     arg_match <<- rlang::arg_match
   } else {
+    # `rapi_error` already is `rapi_error_base`,
+    # and the wrappers are rebuilt on `tryCatch()`,
+    # which still raises the glue's pending error.
     rethrow_restore()
-    # `rapi_error` already is `rapi_error_base`, and without `try_fetch()` there is nothing to rethrow through --
-    # the condition reaches the caller as the base half built it, fields and all.
   }
 
   invisible()

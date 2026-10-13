@@ -133,3 +133,82 @@ test_that("a field the engine did not supply is absent, not NULL-valued", {
   expect_false("error_type" %in% names(err))
   expect_null(err$error_type)
 })
+
+test_that("the no-rlang wrappers still raise the glue's error with its fields", {
+  # Without rlang, `rethrow_restore()` wraps with `rethrow_base()`,
+  # and `rapi_error()` stays `rapi_error_base()`.
+  # The glue leaves its error pending either way,
+  # so the base spelling has to raise it too.
+  local_mocked_bindings(rapi_error = rapi_error_base)
+  con <- local_con()
+  prepare <- rethrow_base(rapi_prepare)
+
+  err <- expect_error(prepare(con@conn_ref, "SELEC 1", environment()))
+  expect_s3_class(err, "duckdb_error")
+  expect_equal(err$context, "rapi_prepare")
+  expect_equal(err$error_type, "PARSER")
+})
+
+test_that("a pending error nobody raised does not take over another one", {
+  # The glue leaves each error in `the` for `rethrow_error_from_rapi()`.
+  # One the engine caught and never passed on stays behind,
+  # and must not be mistaken for the next error that reaches R,
+  # here one raised with `stop()` that leaves nothing pending of its own.
+  old <- the$rapi_error_pending
+  withr::defer(the$rapi_error_pending <- old)
+  the$rapi_error_pending <- list(
+    context = "stale",
+    message = "stale",
+    what = "stale"
+  )
+
+  err <- expect_error(expr_constant(1:2))
+  expect_null(err$context)
+  expect_null(the$rapi_error_pending)
+})
+
+test_that("a message longer than R receives still finds its pending error", {
+  # `END_CPP11` cuts the exception's text at 8191 bytes,
+  # so the pending error is matched on a prefix.
+  con <- local_con()
+  long <- strrep("x", 10000)
+
+  err <- expect_error(dbGetQuery(con, paste0("SELECT '", long, "'::INTEGER")))
+  expect_equal(err$error_type, "CONVERSION")
+  expect_equal(err$context, "rapi_execute")
+})
+
+test_that("only a single message is matched against a pending error", {
+  e <- structure(
+    class = c("error", "condition"),
+    list(message = character(), call = NULL)
+  )
+
+  expect_false(rapi_error_pending_matches(list(what = "x"), e))
+})
+
+test_that("an error left pending survives a garbage collection", {
+  # Every allocation collects, so a field the glue has built but not yet
+  # protected is freed before the pending error holds it.
+  con <- local_con()
+  old <- the$rapi_error_pending
+  withr::defer(the$rapi_error_pending <- old)
+
+  gctorture2(1, inhibit_release = TRUE)
+  tryCatch(
+    rapi_prepare(con@conn_ref, "SELEC 1", environment()),
+    error = function(e) NULL,
+    finally = gctorture(FALSE)
+  )
+
+  pending <- the$rapi_error_pending
+  expect_equal(pending$error_type, "PARSER")
+  expect_type(pending$raw_message, "character")
+})
+
+test_that("a failed startup carries the engine's classification", {
+  err <- expect_error(duckdb(config = list(no_such_option = "1")))
+  expect_s3_class(err, "duckdb_error")
+  expect_equal(err$context, "rapi_startup")
+  expect_equal(err$error_type, "INVALID_INPUT")
+})

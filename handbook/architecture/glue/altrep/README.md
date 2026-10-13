@@ -18,23 +18,18 @@ every method that can materialize runs on R's thread and nowhere else,
 which is [`threading/`](/handbook/architecture/glue/threading/README.md)'s
 to hold.
 
-Raising an R error from inside an ALTREP method
-is the known weak point:
-`rapi_error_with_context()` reports through an R function,
-so duckdb's and rlang's closures run
-with the method still on the C stack,
-where R allows neither allocation nor re-entry.
-The report is also the deepest point of the call,
-and it costs about 70 KB of C stack that way
-against about 9 KB through `Rf_errorcall()` —
-so in between, the failure that was already diagnosed
-is replaced by *C stack usage is too close to the limit*
-([`experiments/2026-08-07-altrep-error-path/`](/experiments/2026-08-07-altrep-error-path/README.md)
-measures both).
-Guarded by
-([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
-[#1797](https://github.com/duckdb/duckdb-r/pull/1797)),
-at the cost of the `duckdb_error` class on those paths.
+An error inside an ALTREP method stays a plain R error.
+The glue leaves its errors pending for the `rethrow_rapi_*()` wrapper around an entry point to raise
+([`conventions/`](/handbook/architecture/glue/conventions/README.md)),
+but R calls an ALTREP method wherever it needs a length or a pointer, and no wrapper is on the stack there.
+So while an `AltrepGuard` is live, `rapi_error_with_context()` throws a plain exception,
+and the method's `END_CPP11` raises it with `Rf_errorcall()`, without the `duckdb_error` class
+([#1796](https://github.com/duckdb/duckdb-r/issues/1796), [#1797](https://github.com/duckdb/duckdb-r/pull/1797)).
+Raised through an R function instead, duckdb's and rlang's closures ran with the method still on the C stack,
+where R allows neither allocation nor re-entry, and at the deepest point of the call:
+about 70 KB of C stack against about 9 KB through `Rf_errorcall()`,
+so in between the failure already diagnosed was replaced by *C stack usage is too close to the limit*
+([`experiments/2026-08-07-altrep-error-path/`](/experiments/2026-08-07-altrep-error-path/README.md) measures both).
 A guard that counts down from a destructor
 binds everything below it:
 every call into R from inside an ALTREP method

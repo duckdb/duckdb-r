@@ -38,8 +38,10 @@ unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
 }
 
 void RProgressBarDisplay::Initialize() {
-	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
-	cpp11::environment duckdb_namespace(getNamespace(RStrings::get().duckdb_str));
+	SEXP duckdb_namespace = rapi_package_namespace();
+	if (duckdb_namespace == R_NilValue) {
+		return;
+	}
 	cpp11::sexp get_progress_display(Rf_lang1(RStrings::get().get_progress_display_sym));
 	auto progress_display = cpp11::safe[Rf_eval](get_progress_display, duckdb_namespace);
 
@@ -50,7 +52,7 @@ void RProgressBarDisplay::Initialize() {
 }
 
 // The engine builds the display when a query starts, on the thread that issues it, which is R's.
-RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay(), r_thread(std::this_thread::get_id()) {
+RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
 	ReleaseOrphanedCallbacks();
 	Initialize();
 }
@@ -59,7 +61,7 @@ RProgressBarDisplay::~RProgressBarDisplay() {
 	if (progress_callback == R_NilValue) {
 		return;
 	}
-	if (OnRThread()) {
+	if (rapi_on_r_thread()) {
 		R_ReleaseObject(progress_callback);
 		return;
 	}
@@ -67,14 +69,10 @@ RProgressBarDisplay::~RProgressBarDisplay() {
 	orphaned_callbacks.push_back(progress_callback);
 }
 
-bool RProgressBarDisplay::OnRThread() const {
-	return std::this_thread::get_id() == r_thread;
-}
-
 void RProgressBarDisplay::Update(double percentage) {
 	// The engine updates the display from whichever thread fetches a streaming result,
 	// a thread of arrow's pool among them, and R runs on its own thread only.
-	if (progress_callback == R_NilValue || !OnRThread()) {
+	if (progress_callback == R_NilValue || !rapi_on_r_thread()) {
 		return;
 	}
 

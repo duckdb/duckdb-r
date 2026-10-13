@@ -31,9 +31,7 @@
       dbWriteTable(con, "tbl", df)
     Condition
       Error in `.local()`:
-      ! Can't convert R type to logical type
-      i Context: SexpToLogicalType
-      Error in `.local()`:
-      ! {"exception_type":"Invalid","exception_message":"std::exception"}
+      ! Invalid Input Error: SexpToLogicalType: Can't convert R type to logical type
       i Context: rapi_register_df
+      i Error type: INVALID_INPUT
 
