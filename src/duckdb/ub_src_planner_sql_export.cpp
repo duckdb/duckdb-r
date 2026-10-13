@@ -8,6 +8,8 @@
 
 #include "src/planner/sql_export/sql_export_cte.cpp"
 
+#include "src/planner/sql_export/sql_export_dml.cpp"
+
 #include "src/planner/sql_export/sql_export_functions.cpp"
 
 #include "src/planner/sql_export/sql_export_joins.cpp"
