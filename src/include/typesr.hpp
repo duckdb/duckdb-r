@@ -128,6 +128,9 @@ struct RApiTypes {
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
+	// SexpToValue() for an entry point, which reports through R what the scan
+	// can only throw
+	static Value SexpToValueAt(const std::string &context, SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 

@@ -107,32 +107,10 @@ test_that("Data frame scan reads list cells of data frames and factors from seve
   # The scan converts a list cell on a DuckDB task thread, and it detected a
   # data frame cell's or a factor cell's type through cpp11 vectors, which
   # allocate and link themselves into cpp11's one protection list. Two tasks
-  # on one list column raced on it, and the session crashed or hung. The
-  # subprocess and its timeout are so that a regression is a failure here
-  # rather than a suite that stops.
-  pkg <- get_package_name()
-
-  out <- callr::r(
-    function(pkg) {
-      ns <- asNamespace(pkg)
-
-      con <- DBI::dbConnect(ns$duckdb())
-      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-      DBI::dbExecute(con, "SET threads=4")
-
-      n <- 2000000
-      df <- data.frame(id = seq_len(n))
-      df$d <- rep(list(data.frame(a = 1:2)), n)
-      df$f <- rep(list(factor(c("x", "y"))), n)
-      ns$duckdb_register(con, "cells", df)
-
-      DBI::dbGetQuery(
-        con,
-        "SELECT sum(len(d))::INTEGER AS d, sum(len(f))::INTEGER AS f FROM cells"
-      )
-    },
-    list(pkg = pkg),
-    timeout = 120
+  # on one list column raced on it, and the session crashed or hung.
+  out <- scan_repeated_cells(
+    list(d = data.frame(a = 1:2), f = factor(c("x", "y"))),
+    "SELECT sum(len(d))::INTEGER AS d, sum(len(f))::INTEGER AS f FROM cells"
   )
 
   expect_equal(out, data.frame(d = 4000000L, f = 4000000L))

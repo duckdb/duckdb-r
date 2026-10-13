@@ -53,6 +53,11 @@
 #define DUCKDB_R_POISON_GUARD() ((void)0)
 #endif
 
+// Record the thread the package loads on, and ask about it later. Only R's
+// thread may call into R: handbook/architecture/glue/threading/README.md
+void rapi_record_r_thread();
+bool rapi_on_r_thread();
+
 // ALTREP re-entrancy guard.
 //
 // R calls ALTREP methods from arbitrary points inside the interpreter, and
@@ -74,16 +79,13 @@
 // long-jmp past the guard would leave the counter stuck and silently degrade
 // every later error.
 //
-// The counter is shared across threads rather than thread_local. Only R's
-// evaluator enters an ALTREP method, so only the R thread ever writes it -- but
-// rapi_error_with_context() is also reached from DuckDB's data frame scan,
-// which runs in parallel (`DataFrameScanFunc`, src/scan.cpp). Relaxed atomics
-// make that read race-free at no cost. A thread_local counter would instead
-// read 0 on a worker thread and send it into R from a non-R thread, which is
-// worse than what the guard prevents; sharing sends it down the throwing branch
-// instead. That is a mitigation, not a cure -- a worker that reaches the helper
-// while no ALTREP method is active still calls into R, which is the rule in
-// handbook/architecture/glue/threading/, not something this guard can hold.
+// Only R's evaluator enters an ALTREP method, so only R's thread writes the
+// counter, and only R's thread reads it: rapi_error_with_context() asks
+// rapi_on_r_thread() first, and a task thread throws there without looking.
+// The counter is a relaxed atomic all the same, which costs nothing and keeps
+// IsActive() safe to ask from anywhere. It is not thread_local: in a shared
+// object every access would be a __tls_get_addr() call, on methods R calls
+// once per element.
 class AltrepGuard {
 public:
 	AltrepGuard() {
