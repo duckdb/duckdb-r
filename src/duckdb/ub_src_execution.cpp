@@ -24,6 +24,8 @@
 
 #include "src/execution/physical_plan_generator.cpp"
 
+#include "src/execution/radix_ht_adaptivity.cpp"
+
 #include "src/execution/radix_partitioned_hashtable.cpp"
 
 #include "src/execution/row_id_deduplicator.cpp"
