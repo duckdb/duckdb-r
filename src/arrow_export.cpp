@@ -42,11 +42,10 @@ struct AppendableRList {
 	idx_t size = 0;
 };
 
+// Whether the result streams was decided when it was submitted (rapi_execute_impl()):
+// a result run to completion is retained.
 static bool CanDrain(QueryResult &result) {
 	if (result.HasError()) {
-		return false;
-	}
-	if (result.GetStatementProperties().result_eagerness == ResultEagerness::FORCED) {
 		return false;
 	}
 	if (!result.HasBufferedData()) {
