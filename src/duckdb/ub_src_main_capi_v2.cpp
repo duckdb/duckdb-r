@@ -12,6 +12,8 @@
 
 #include "src/main/capi/v2/capi_v2_connection.cpp"
 
+#include "src/main/capi/v2/capi_v2_custom_option.cpp"
+
 #include "src/main/capi/v2/capi_v2_custom_type.cpp"
 
 #include "src/main/capi/v2/capi_v2_data_chunk.cpp"
@@ -37,6 +39,10 @@
 #include "src/main/capi/v2/capi_v2_func_copy.cpp"
 
 #include "src/main/capi/v2/capi_v2_func_docs.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_macro.cpp"
+
+#include "src/main/capi/v2/capi_v2_func_pragma.cpp"
 
 #include "src/main/capi/v2/capi_v2_func_properties.cpp"
 
