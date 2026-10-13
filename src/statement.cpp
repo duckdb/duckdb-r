@@ -452,23 +452,18 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 	ScopedInterruptHandler signal_handler(context);
 
-	// A streamed result is submitted, and runs as it is read. Only a SELECT that returns rows streams,
-	// read from the statement as written, because a prepared execution reports the EXECUTE that runs it;
-	// any other is run to completion here, as the engine's own ADBC driver does
+	// A streamed result is submitted, and runs as it is read. Whether it streams is decided by the statement as
+	// written, because a prepared execution reports the EXECUTE that runs it, as the engine's own ADBC driver does
 	// (ExecuteArrow() in the vendored src/common/adbc/adbc.cpp).
 	duckdb::unique_ptr<QueryResult> generic_result;
 	bool streamed = false;
 	if (allow_stream_result) {
 		generic_result = stmt->stmt->Submit(stmt->parameters);
-		// A reader that may stop early also needs a statement that writes nothing: a stream abandoned before
-		// its end is rolled back, and that would take the transaction it runs in with it. What IsReadOnly()
-		// reads, since this engine declares it non-const.
-		auto &properties = stmt->stmt->GetStatementProperties();
-		bool streams = stmt->stmt->GetStatementType() == StatementType::SELECT_STATEMENT &&
-		               properties.return_type == StatementReturnType::QUERY_RESULT &&
-		               properties.modified_databases.empty();
 		if (!generic_result->HasError()) {
-			streamed = streams;
+			// A reader that may stop early: a SELECT that writes is completed rather than streamed, since a stream
+			// abandoned before its end is rolled back, with the transaction it runs in.
+			streamed = StreamsByDefault(stmt->stmt->GetStatementType(), generic_result->GetStatementProperties(),
+			                            /* reads_to_the_end = */ false);
 			if (!streamed) {
 				generic_result->Complete();
 			}
