@@ -75,6 +75,7 @@ scripts=(
   series-cutover.sh
   series-forward-build.sh
   series-glue.sh
+  series-patch-sync.sh
   series-port.sh
   series-rc.sh
 )
@@ -89,6 +90,7 @@ remote_scripts=(
   series-cut.sh
   series-cutover.sh
   series-glue.sh
+  series-patch-sync.sh
   series-port.sh
   series-rc.sh
 )
@@ -135,6 +137,7 @@ is "series-cutover.sh <S> <remote> <path>" "$(rc series-cutover.sh s origin /tmp
 is "series-converge.sh <S> <remote>"       "$(rc series-converge.sh s origin)" 2
 is "series-advance.sh <S> <chunk>"         "$(rc series-advance.sh s 25)" 2
 is "series-glue.sh <S> <extra>"            "$(rc series-glue.sh s x)" 2
+is "series-patch-sync.sh <S> <extra>"      "$(rc series-patch-sync.sh s x)" 2
 for s in "${remote_scripts[@]}"; do
   is "$s accepts --remote" "$(out "$s" --help | grep -c -- '--remote <name>')" 1
 done
@@ -161,7 +164,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-converge.sh series-cutover.sh series-glue.sh series-port.sh; do
+for s in series-advance.sh series-converge.sh series-cutover.sh series-glue.sh series-patch-sync.sh series-port.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.
