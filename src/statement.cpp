@@ -78,6 +78,7 @@ RStatement::~RStatement() {
 // A query result not run to its end ends its query on destruction, which takes the client context lock.
 // Parked in this order, the stream and the result go before the context they read.
 RQueryResult::~RQueryResult() {
+	Untrack();
 	if (RCallbackScope::Active()) {
 		if (stream_wrapper) {
 			RCallbackScope::Defer(std::move(stream_wrapper));
@@ -88,6 +89,13 @@ RQueryResult::~RQueryResult() {
 		if (context) {
 			RCallbackScope::Defer(std::move(context));
 		}
+	}
+}
+
+void RQueryResult::EndForAnotherStatement() {
+	if (result) {
+		invalidated = true;
+		result->Close();
 	}
 }
 
@@ -155,6 +163,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	if (!conn || !conn.get() || !conn->conn) {
 		rapi_error_with_context("rapi_prepare", "Invalid connection");
 	}
+	EndOpenResults(*conn->conn->context);
 
 	// Create ScopedInterruptHandler to prevent deadlock when called re-entrantly
 	// during progress bar callbacks. This will throw "ScopedInterruptHandler already active"
@@ -438,6 +447,9 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 
 	auto context = stmt->stmt->TryGetContext();
+	if (context) {
+		EndOpenResults(*context);
+	}
 	ScopedInterruptHandler signal_handler(context);
 
 	// EXPLAIN ANALYZE renders the query profiler's output, and the profiler only
@@ -453,13 +465,17 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	// any other is run to completion here, as the engine's own ADBC driver does
 	// (ExecuteArrow() in the vendored src/common/adbc/adbc.cpp).
 	duckdb::unique_ptr<QueryResult> generic_result;
+	bool streamed = false;
 	if (allow_stream_result) {
 		generic_result = stmt->stmt->Submit(stmt->parameters);
 		auto &properties = stmt->stmt->GetStatementProperties();
 		bool streams = stmt->stmt->GetStatementType() == StatementType::SELECT_STATEMENT &&
 		               properties.return_type == StatementReturnType::QUERY_RESULT;
-		if (!generic_result->HasError() && !streams) {
-			generic_result->Complete();
+		if (!generic_result->HasError()) {
+			streamed = streams;
+			if (!streamed) {
+				generic_result->Complete();
+			}
 		}
 	} else {
 		generic_result = stmt->stmt->Execute(stmt->parameters);
@@ -476,7 +492,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		auto query_result = make_uniq<RQueryResult>(context, std::move(generic_result));
+		auto query_result = make_uniq<RQueryResult>(std::move(context), std::move(generic_result), streamed);
 		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {

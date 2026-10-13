@@ -198,6 +198,7 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 			Rprintf("duckplyr: materializing\n");
 		}
 
+		EndOpenResults(*rel->context->GetContext());
 		ScopedInterruptHandler signal_handler(rel->context->GetContext());
 
 		// We need to temporarily allow a deeper execution stack
