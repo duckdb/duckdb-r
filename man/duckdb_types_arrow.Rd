@@ -165,7 +165,8 @@ arrow lands an \code{ordered} one as \code{VARCHAR} too.
 where \code{dbWriteTable()} writes a plain \code{TIMESTAMP}.
 \item \strong{\code{difftime}} infers a \code{duration} and lands as \code{INTERVAL} in hours and below, so 2 days land as \code{48:00:00},
 where \code{dbWriteTable()} keeps the days.
-\item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, the one R route to that type; its truncation is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+\item \strong{\code{hms}} infers \code{time32} and lands as \code{TIME}, where \code{dbWriteTable()} writes \code{INTERVAL} unless the connection has \code{time = "hms"};
+its truncation is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
 \item \strong{A plain list of vectors} lands as \code{LIST} through arrow.
 \item \strong{A matrix column} lands as \code{ARRAY} through nanoarrow.
 }

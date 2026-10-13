@@ -155,7 +155,8 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
   where `dbWriteTable()` writes a plain `TIMESTAMP`.
 * **`difftime`** infers a `duration` and lands as `INTERVAL` in hours and below, so 2 days land as `48:00:00`,
   where `dbWriteTable()` keeps the days.
-* **`hms`** infers `time32` and lands as `TIME`, the one R route to that type; its truncation is a limitation (below).
+* **`hms`** infers `time32` and lands as `TIME`, where `dbWriteTable()` writes `INTERVAL` unless the connection has `time = "hms"`;
+  its truncation is a limitation (below).
 * **A plain list of vectors** lands as `LIST` through arrow.
 * **A matrix column** lands as `ARRAY` through nanoarrow.
 
@@ -204,7 +205,8 @@ Where nothing is said below, nanoarrow and arrow infer the type `dbWriteTable()`
   so a second query of the view sees no rows ([`experiments/2026-09-27-geoarrow/`](/experiments/2026-09-27-geoarrow/README.md)).
 * What a type R cannot hold does to `arrow::to_duckdb()` and `to_arrow()` is [`integrations/`](/handbook/usage/integrations/README.md)'s.
 * The DBI Arrow write methods land `uint32` and `decimal128` as `DOUBLE`, `timestamp('ns')` as `TIMESTAMP`, and a dictionary as `VARCHAR`;
-  `time64` fails, because the `hms` it converts to writes `INTERVAL`, which does not cast to the `TIME` column `dbCreateTableArrow()` made;
+  `time32`, which nanoarrow infers for an `hms`, and `time64` fail unless the connection has `time = "hms"`,
+  because the `hms` each converts to otherwise writes `INTERVAL`, which does not cast to the `TIME` column `dbCreateTableArrow()` made;
   and `interval_month_day_nano` fails, because nanoarrow has no R vector for it.
   `dbBindArrow()` refuses a stream whose fields have names, with "`params` must not be named", so the names must be empty.
 * The `INTEGER` minimum, -2147483648, is R's `NA_integer_` and reads as `NA` in both readers,

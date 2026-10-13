@@ -12,8 +12,9 @@
 #' # The routes
 #'
 #' **Reading.**
-#' [dbGetQuery()] converts each column by its type, and four [dbConnect()] arguments change the shape,
-#' with defaults `bigint = "numeric"`, `array = "none"`, `map = "data.frame"` and `geometry = "blob"`.
+#' [dbGetQuery()] converts each column by its type, and seven [dbConnect()] arguments change the shape.
+#' Their defaults are `bigint = "numeric"`, `array = "none"`, `map = "data.frame"`, `geometry = "blob"`,
+#' `time = "difftime"`, `blob = "list"` and `interval = "difftime"`.
 #' [dbGetQueryArrow()] hands out the engine's own Arrow export instead,
 #' and what each type becomes there, and in the R readers that convert the stream, is documented in [duckdb_types_arrow].
 #' A cast to `VARCHAR` in the query reads any type as text.
@@ -55,7 +56,7 @@
 #'
 #' * **`VARCHAR`** (`CHAR`, `BPCHAR`, `TEXT`, `STRING`) reads as `character`, and `character` writes it;
 #'   non-UTF-8 text is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
-#' * **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors.
+#' * **`BLOB`** (`BYTEA`, `BINARY`, `VARBINARY`) reads as a list of raw vectors, or with `blob = "blob"` as `blob::blob`.
 #'   A `blob::blob` or a list of raw vectors writes it.
 #' * **`BIT`** (`BITSTRING`) reads and writes through its text.
 #' * **`UUID`** reads as `character`, lowercase and hyphenated.
@@ -67,11 +68,13 @@
 #' [timestamp](https://duckdb.org/docs/current/sql/data_types/timestamp) and [interval](https://duckdb.org/docs/current/sql/data_types/interval) types:
 #'
 #' * **`DATE`** reads as `Date`, and a `Date` writes it, stored as double or as integer.
-#' * **`TIME`** reads as `difftime` in seconds.
+#' * **`TIME`** reads as `difftime` in seconds, or with `time = "hms"` as `hms::hms`.
+#'   With `time = "hms"`, an `hms` column, data frame field or parameter writes it,
+#'   and a `difftime` that is not an `hms` keeps writing `INTERVAL`; [dbQuoteLiteral()] quotes an `hms` as a `TIME` there.
 #'   Its text writes it through `field.types`, and so does Arrow (see [duckdb_types_arrow]).
-#' * **`TIME_NS`** reads through Arrow, and to the microsecond through a cast to `TIME` in the query.
-#'   Its text writes it, and so does Arrow.
-#' * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as the `difftime` of its local time.
+#' * **`TIME_NS`** reads as `TIME` does, in seconds to the nanosecond.
+#'   Its text writes it through `field.types`, and so does Arrow.
+#' * **`TIMETZ`** (`TIME WITH TIME ZONE`) reads as `TIME` does, as its local time.
 #'   The offset it drops is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
 #'   Its text writes it.
 #' * **`TIMESTAMP_S`, `TIMESTAMP_MS`, `TIMESTAMP`** (`DATETIME`) read as `POSIXct`.
@@ -81,8 +84,14 @@
 #' * **`TIMESTAMPTZ`** (`TIMESTAMP WITH TIME ZONE`) reads as `POSIXct`.
 #'   `POSIXct` writes the plain `TIMESTAMP` of the same instant; `field.types` makes it `TIMESTAMPTZ`,
 #'   and Arrow writes it directly.
-#' * **`INTERVAL`** reads as `difftime` in seconds, counting a month as 30 days and a day as 24 hours.
-#'   A `difftime` in any unit, or an `hms`, writes `INTERVAL`.
+#' * **`INTERVAL`** reads as `difftime` in seconds whatever `time` says, counting a month as 30 days and a day as 24 hours,
+#'   a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations).
+#'   With `interval = "Period"` it reads as a `lubridate::Period` that keeps the months, the days and the time apart,
+#'   the time as whole hours and minutes and the seconds left over, which a double holds to the microsecond.
+#'   lubridate's `%m+%` adds its months and days to a date as DuckDB adds an `INTERVAL`'s.
+#'   Under that option a `Period` column, data frame field or parameter writes it part for part, `NA` in any part as `NULL`,
+#'   and `dbQuoteLiteral()` quotes a `Period` as that `INTERVAL`.
+#'   A `difftime` in any unit, or an `hms` under the default `time`, writes `INTERVAL`.
 #'
 #' # Enums and nested types
 #'
@@ -92,6 +101,8 @@
 #' * **`ENUM`** reads as `factor`, with every value of the type as a level.
 #'   A `factor` or `ordered` column writes `ENUM` of its levels; a `factor` parameter binds as `VARCHAR`.
 #' * **`ARRAY`** (`INTEGER[3]`) reads with `array = "matrix"`, as a matrix with a row per value.
+#'   A `BLOB` or `GEOMETRY` array is a list matrix without a class of its own,
+#'   and under `blob = "blob"` or `geometry = "wk"` each cell is a `blob` or a `wk_wkb` of length one.
 #'   A matrix column writes it.
 #' * **`LIST`** (`INTEGER[]`) reads as a list of vectors, `NULL` for a `NULL` row, and a list column whose elements share a type writes it.
 #' * **`MAP`** reads as a list of `data.frame(key, value)`, which writes a list of structs unless `field.types` names the map.
@@ -113,7 +124,7 @@
 #' and the `spatial` extension's own types:
 #'
 #' * **`GEOMETRY`** reads as WKB.
-#'   With `geometry = "blob"`, the default, it reads as a list of raw vectors;
+#'   With `geometry = "blob"`, the default, it reads as a list of raw vectors whatever `blob` says;
 #'   with `geometry = "wk"`, as `wk_wkb`, carrying the column's CRS as an attribute, which [sf::st_as_sfc()] converts onward, CRS included.
 #'   The type is core since DuckDB 1.5, so reading one needs no extension;
 #'   the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview).
@@ -127,7 +138,7 @@
 #'   `POINT_2D`, `POINT_3D`, `POINT_4D`, `BOX_2D` and `BOX_2DF` are structs, and read as data frame columns;
 #'   `LINESTRING_2D` and `LINESTRING_3D` are lists of point structs, and read as lists of data frames;
 #'   `POLYGON_2D` and `POLYGON_3D` are lists of those rings, and read as lists of lists;
-#'   `WKB_BLOB` is a `BLOB`, and reads as raw vectors.
+#'   `WKB_BLOB` is a `BLOB`, and reads as one.
 #'   The same shapes write the plain struct or list, and `field.types` naming the alias casts back to it.
 #'   They cast to `GEOMETRY` in the query,
 #'   and the point, linestring, polygon and WKB types cast from it, as `'POINT (1 2)'::GEOMETRY::POINT_2D`.

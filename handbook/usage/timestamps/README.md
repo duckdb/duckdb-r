@@ -54,8 +54,8 @@ the wider type mapping is
   [`integrations/`](/handbook/usage/integrations/README.md)'s
   ([#1064](https://github.com/duckdb/duckdb-r/issues/1064)).
 * **`TIMETZ` flattens.**
-  Its per-row offsets have no `POSIXct` home
-  and drop to `difftime` seconds;
+  Its per-row offsets have no `POSIXct` home and are dropped,
+  leaving the local time, which reads as `TIME` does;
   the verification record behind this leaf,
   [`plan/history/2026-05-timestamptz-icu.md`](/plan/history/2026-05-timestamptz-icu.md),
   carries that scenario and the rest of the history.

@@ -97,7 +97,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 16);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 20);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -114,6 +114,13 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
 	SET_VECTOR_ELT(chars, 14, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
 	SET_VECTOR_ELT(chars, 15, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
+	SET_VECTOR_ELT(chars, 16, hms_difftime_str = StringsToSexp({"hms", "difftime"}));
+	SET_VECTOR_ELT(chars, 17, blob_vctrs_list_of_str = StringsToSexp({"blob", "vctrs_list_of", "vctrs_vctr", "list"}));
+	SET_VECTOR_ELT(chars, 18, empty_raw = Rf_allocVector(RAWSXP, 0));
+	SET_VECTOR_ELT(chars, 19, period_str = Rf_mkString("Period"));
+	SEXP lubridate_str = PROTECT(Rf_mkString("lubridate"));
+	Rf_setAttrib(period_str, R_PackageSymbol, lubridate_str);
+	UNPROTECT(1);
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -135,6 +142,11 @@ RStrings::RStrings() {
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 	crs_sym = Rf_install("crs");
 	ptype_sym = Rf_install("ptype");
+	period_slot_syms[0] = Rf_install("year");
+	period_slot_syms[1] = Rf_install("month");
+	period_slot_syms[2] = Rf_install("day");
+	period_slot_syms[3] = Rf_install("hour");
+	period_slot_syms[4] = Rf_install("minute");
 }
 
 LogicalType RStringsType::Get() {
@@ -183,10 +195,10 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 	return GetVecSize(rtype, coldata);
 }
 
-Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
+Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null, bool hms_time, bool period_interval) {
 	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
 	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
-	auto rtype = RApiTypes::DetectRType(valsexp, true);
+	auto rtype = RApiTypes::DetectRType(valsexp, true, hms_time, period_interval);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -238,6 +250,14 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::DATE: {
 		auto d_val = NUMERIC_POINTER(valsexp)[idx];
 		return RDateType::IsNull(d_val) ? Value(LogicalType::DATE) : Value::DATE(RDateType::Convert(d_val));
+	}
+	case RType::INTERVAL_PERIOD: {
+		const auto &period = rtype.GetPeriod();
+		return period.IsNull(idx) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(period.Convert(idx));
+	}
+	case RType::TIME: {
+		auto time_val = NUMERIC_POINTER(valsexp)[idx];
+		return RTimeType::IsNull(time_val) ? Value(LogicalType::TIME) : Value::TIME(RTimeType::Convert(time_val));
 	}
 	case RType::DATE_INTEGER: {
 		auto d_val = INTEGER_POINTER(valsexp)[idx];
@@ -320,7 +340,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		auto ncol = Rf_length(valsexp);
 		auto child_rtypes = rtype.GetStructChildTypes();
 		for (R_len_t col = 0; col < ncol; ++col) {
-			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx);
+			auto value = SexpToValue(VECTOR_ELT(valsexp, col), idx, true, hms_time, period_interval);
 			child_values.push_back(std::make_pair(child_rtypes[col].first, value));
 		}
 		return Value::STRUCT(std::move(child_values));
@@ -356,12 +376,22 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 
 	// Types stored as per-row VECSXP elements: extract element 0
 	// STRUCT returns a 1-row data frame: return as-is
-	// Scalars return a length-1 vector: return as-is
+	// Scalars return a length-1 vector: return as-is,
+	// as does a BLOB under `blob = "blob"` and a GEOMETRY under `geometry = "wk"`,
+	// a length-1 blob or wk_wkb there
 	switch (type.id()) {
+	case LogicalTypeId::BLOB:
+		if (convert_opts.blob == ConvertOpts::BlobConversion::BLOB) {
+			return dest;
+		}
+		return VECTOR_ELT(dest, 0);
+	case LogicalTypeId::GEOMETRY:
+		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
+			return dest;
+		}
+		return VECTOR_ELT(dest, 0);
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
-	case LogicalTypeId::BLOB:
-	case LogicalTypeId::GEOMETRY:
 		return VECTOR_ELT(dest, 0);
 	default:
 		return dest;

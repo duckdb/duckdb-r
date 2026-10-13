@@ -95,6 +95,12 @@ against first
 
 ## Limitations
 
+* `as.data.frame()` of a relation and `rel_sql()` convert with the defaults of the reading options `dbConnect()` takes,
+  whatever the connection set, where `rel_to_altrep()` follows the connection,
+  so they refuse an `ARRAY` column even under `array = "matrix"`.
+  `rel_from_df()` writes with the defaults too, where `duckdb_register()` follows the connection:
+  under `time = "hms"` an `hms` column lands as `INTERVAL`, and under `map = "list_of"` named lists land as nested lists
+  ([`experiments/2026-09-28-relational-convert-opts/`](/experiments/2026-09-28-relational-convert-opts/README.md)).
 * An `ARRAY` column comes back from `rel_to_altrep()` with the wrong shape, where `dbGetQuery()` reads it right.
   Under `array = "matrix"`, four rows of an `INTEGER[2]` read as a 2x2 matrix of each row's first element,
   and a row count the array size does not divide fails in `rel_to_altrep()` itself, under `array = "none"` too.

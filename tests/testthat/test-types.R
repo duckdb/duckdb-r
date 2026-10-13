@@ -22,8 +22,6 @@ test_that("test_all_types() output", {
       "fixed_struct_array",
       "fixed_array_of_int_list",
       "bignum",
-      "time_ns",
-      "geometry",
       NULL
     )
 
@@ -34,6 +32,188 @@ test_that("test_all_types() output", {
         paste(bad, collapse = ", "),
         ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"
       )
+    ))
+  })
+})
+
+test_that("test_all_types() under bigint = \"integer64\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+  skip_if_not_installed("bit64")
+
+  con <- local_con(bigint = "integer64")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT bigint, ubigint FROM test_all_types()"
+    ))
+  })
+})
+
+# The base snapshot reads these columns under `array = "matrix"` too;
+# this one repeats them so that each option has a snapshot of its own columns.
+test_that("test_all_types() under array = \"matrix\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+
+  con <- local_con(array = "matrix")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT fixed_int_array, fixed_varchar_array,
+         struct_of_fixed_array, list_of_fixed_int_array
+       FROM test_all_types()"
+    ))
+  })
+})
+
+test_that("test_all_types() under map = \"list_of\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT map FROM test_all_types()"
+    ))
+  })
+})
+
+test_that("test_all_types() under geometry = \"wk\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+  skip_if_not_installed("wk")
+
+  con <- local_con(geometry = "wk")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT geometry FROM test_all_types()"
+    ))
+  })
+})
+
+test_that("test_all_types() under time = \"hms\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+  skip_if_not_installed("hms")
+
+  con <- local_con(time = "hms")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT time, time_tz, time_ns FROM test_all_types()"
+    ))
+  })
+})
+
+test_that("test_all_types() under blob = \"blob\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+  skip_if_not_installed("blob")
+
+  con <- local_con(blob = "blob")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT blob FROM test_all_types()"
+    ))
+  })
+})
+
+test_that("test_all_types() under interval = \"Period\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+  skip_if_not_installed("lubridate")
+
+  con <- local_con(interval = "Period")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT interval FROM test_all_types()"
+    ))
+  })
+})
+
+# The extreme values print in local mean time outside UTC, which depends on the
+# time zone database, and `tz_out_convert = "force"` turns them into `NA`,
+# so these two read the `NULL` row and an ordinary value.
+test_that("test_all_types() under timezone_out = \"Europe/Berlin\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+
+  con <- local_con(timezone_out = "Europe/Berlin")
+  # `timestamp_tz` follows the session's zone, which is the machine's unless set
+  dbExecute(con, "SET TimeZone = 'UTC'")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT timestamp, timestamp_s, timestamp_ms, timestamp_tz
+       FROM test_all_types() WHERE timestamp IS NULL
+       UNION ALL SELECT
+         TIMESTAMP '2024-07-01 12:00:00.123456',
+         TIMESTAMP_S '2024-07-01 12:00:00',
+         TIMESTAMP_MS '2024-07-01 12:00:00.123',
+         TIMESTAMPTZ '2024-07-01 12:00:00.123456+00'"
+    ))
+  })
+})
+
+test_that("test_all_types() under tz_out_convert = \"force\"", {
+  skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
+
+  con <- local_con(timezone_out = "Europe/Berlin", tz_out_convert = "force")
+  # `timestamp_tz` follows the session's zone, which is the machine's unless set
+  dbExecute(con, "SET TimeZone = 'UTC'")
+
+  local_edition(3)
+  withr::local_options(digits.secs = 6)
+
+  expect_snapshot({
+    as.list(dbGetQuery(
+      con,
+      "SELECT timestamp, timestamp_s, timestamp_ms, timestamp_tz
+       FROM test_all_types() WHERE timestamp IS NULL
+       UNION ALL SELECT
+         TIMESTAMP '2024-07-01 12:00:00.123456',
+         TIMESTAMP_S '2024-07-01 12:00:00',
+         TIMESTAMP_MS '2024-07-01 12:00:00.123',
+         TIMESTAMPTZ '2024-07-01 12:00:00.123456+00'"
     ))
   })
 })
@@ -71,7 +251,7 @@ test_that("the value of a classed numeric column survives every route in", {
 test_that("a table whose columns R cannot hold is still found and listed", {
   con <- local_con()
 
-  for (type in c("BIT", "BIGNUM", "TIME_NS", "UNION(a INTEGER)")) {
+  for (type in c("BIT", "BIGNUM", "UNION(a INTEGER)")) {
     dbExecute(con, paste("CREATE OR REPLACE TABLE t (x", type, ", y INTEGER)"))
 
     expect_true(dbExistsTable(con, "t"), info = type)

@@ -47,6 +47,28 @@
 #'   that records the SQL key/value types.
 #'   This enables MAP columns to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
 #'   and lets scans accept named-list cells as MAP entries.
+#' @param time How `TIME`, `TIME_NS` and `TIMETZ` columns should be returned, and what an `hms` writes.
+#'   There are two options: `"difftime"` and `"hms"`.
+#'   If `"difftime"` is selected (the default), they are returned as a `difftime` in seconds,
+#'   and an `hms` column or parameter writes `INTERVAL`.
+#'   If `"hms"` is selected, they are returned as [hms::hms()] vectors,
+#'   which requires the \pkg{hms} package,
+#'   and an `hms` column or parameter writes `TIME`.
+#' @param blob How `BLOB` columns should be returned.
+#'   There are two options: `"list"` and `"blob"`.
+#'   If `"list"` is selected (the default), they are returned as a list of raw vectors.
+#'   If `"blob"` is selected, they are returned as [blob::blob()] vectors,
+#'   which requires the \pkg{blob} package.
+#' @param interval How `INTERVAL` columns should be returned, and what a `Period` writes.
+#'   There are two options: `"difftime"` and `"Period"`.
+#'   If `"difftime"` is selected (the default), they are returned as a `difftime` in seconds,
+#'   counting a month as 30 days and a day as 24 hours,
+#'   and a `Period` writes its seconds, a `DOUBLE`, or an `INTEGER` if they are integers,
+#'   which is refused when it has other parts.
+#'   If `"Period"` is selected, they are returned as \pkg{lubridate} [lubridate::Period-class] objects
+#'   that keep the months, the days, and the hours, minutes and seconds apart,
+#'   which requires the \pkg{lubridate} package,
+#'   and a `Period` column or parameter writes `INTERVAL`.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -82,11 +104,17 @@ dbConnect__duckdb_driver <- function(
   bigint = "numeric",
   array = "none",
   geometry = "blob",
-  map = "data.frame"
+  map = "data.frame",
+  time = c("difftime", "hms"),
+  blob = c("list", "blob"),
+  interval = c("difftime", "Period")
 ) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
+  time <- match.arg(time)
+  blob <- match.arg(blob)
+  interval <- match.arg(interval)
 
   if (missing(dbdir)) {
     dbdir <- drv@dbdir
@@ -124,7 +152,10 @@ dbConnect__duckdb_driver <- function(
     bigint = bigint,
     array = array,
     geometry = geometry,
-    map = map
+    map = map,
+    time = time,
+    blob = blob,
+    interval = interval
   )
 
   config <- utils::modifyList(drv@config, config)

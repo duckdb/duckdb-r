@@ -112,6 +112,8 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	// Set progress display config
 	auto &client_context = *conn_wrapper->conn->context;
 	SetDefaultConfigArguments(client_context);
+	client_context.registered_state->Insert(RConvertOptsState::KEY,
+	                                        make_shared_ptr<RConvertOptsState>(conn_wrapper->convert_opts));
 
 	// The connection now holds a reference to the database.
 	// This reference is released when the connection is closed.

@@ -154,7 +154,8 @@
 #'   where `dbWriteTable()` writes a plain `TIMESTAMP`.
 #' * **`difftime`** infers a `duration` and lands as `INTERVAL` in hours and below, so 2 days land as `48:00:00`,
 #'   where `dbWriteTable()` keeps the days.
-#' * **`hms`** infers `time32` and lands as `TIME`, the one R route to that type; its truncation is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
+#' * **`hms`** infers `time32` and lands as `TIME`, where `dbWriteTable()` writes `INTERVAL` unless the connection has `time = "hms"`;
+#'   its truncation is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
 #' * **A plain list of vectors** lands as `LIST` through arrow.
 #' * **A matrix column** lands as `ARRAY` through nanoarrow.
 #'
