@@ -129,6 +129,18 @@ test_that("dbBind() with one row of parameters streams the Arrow result", {
   expect_error(dbFetchArrowChunk(res, chunk_size = 6000000), "late")
 })
 
+test_that("a timeout is reported on every read, not as an invalidation by another statement", {
+  con <- local_con()
+  dbExecute(con, "SET threads = 1")
+  dbExecute(con, "SET max_execution_time = 300")
+
+  res <- dbSendQueryArrow(con, "SELECT count(*) AS n FROM range(300000000) a, range(1000) b")
+  withr::defer(dbClearResult(res))
+
+  expect_error(dbFetchArrowChunk(res, chunk_size = 10), "maximum execution time")
+  expect_error(dbFetchArrowChunk(res, chunk_size = 10), "maximum execution time")
+})
+
 test_that("dbClearResult() ends the query of a stream not read to the end", {
   drv <- duckdb()
   con <- dbConnect(drv)
