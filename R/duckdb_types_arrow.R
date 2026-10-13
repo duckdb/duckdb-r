@@ -150,8 +150,8 @@
 #'
 #' * **`factor`** infers a dictionary and lands as `VARCHAR`, where `dbWriteTable()` writes `ENUM`.
 #'   arrow lands an `ordered` one as `VARCHAR` too.
-#' * **`POSIXct`** infers a `timestamp` with its zone, or R's session zone where it has none, and lands as `TIMESTAMPTZ`,
-#'   where `dbWriteTable()` writes a plain `TIMESTAMP`.
+#' * **`POSIXct`** infers a `timestamp` with its zone, or R's session zone where it has none, and lands as `TIMESTAMPTZ`
+#'   whatever `dbConnect(posixct = )` says, where `dbWriteTable()` writes a plain `TIMESTAMP` under `posixct = "timestamp"`.
 #' * **`difftime`** infers a `duration` and lands as `INTERVAL` in hours and below, so 2 days land as `48:00:00`,
 #'   where `dbWriteTable()` keeps the days.
 #' * **`hms`** infers `time32` and lands as `TIME`, the one R route to that type; its truncation is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
