@@ -46,7 +46,7 @@ static bool CanDrain(QueryResult &result) {
 	if (result.HasError()) {
 		return false;
 	}
-	if (result.GetStatementProperties().result_eagerness == ResultEagerness::FORCED) {
+	if (!StreamsByDefault(result.GetStatementType(), result.GetStatementProperties())) {
 		return false;
 	}
 	if (!result.HasBufferedData()) {
