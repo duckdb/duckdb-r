@@ -1,0 +1,19 @@
+pos 202 502ffdc78b SUMMARY files=1 tests=266 failed=2 error=1 skipped=0
+pos 1 35bffea55c INSTALL FAILED
+pos 405 322fd6b97f SUMMARY files=1 tests=266 failed=4 error=1 skipped=0
+FAILING:
+              file                                                        test
+ test-relational.R   lag() and lead() take a default with or without an offset
+ test-relational.R rel_to_csv() and rel_to_parquet() refuse an empty file name
+pos 1 35bffea55c INSTALL FAILED
+pos 653 d1260cfd2f SUMMARY files=2 tests=41 failed=4 error=0 skipped=1
+FAILING:
+          file                                                      test
+ test-factor.R      levels that differ only in case are different levels
+ test-struct.R field names that differ only in case are different fields
+pos 1033 de4dfaa4c9 SUMMARY files=2 tests=108 failed=0 error=1 skipped=0
+FAILING:
+               file
+ test-fetch_arrow.R
+                                                                  test
+ a result of dbSendQuery() can be fetched after its connection is gone

@@ -1,0 +1,243 @@
+Loading required package: DBI
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ | F W  S  OK | Context
+
+⠏ |          0 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |          4 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |          8 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         12 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |         18 | dbFetchArrow                                                   
+⠧ |         28 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         42 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |         47 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         53 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |         58 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         62 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |         64 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |         67 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |         71 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ |         76 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ |         80 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |         81 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         83 | dbFetchArrow                                                   
+⠸ |         84 | dbFetchArrow                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+✔ |         86 | dbFetchArrow [4.2s]
+
+⠏ |          0 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |          3 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |          4 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |          9 | fetch_arrow                                                    
+⠏ | 1        9 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ | 1       13 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ | 1       16 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ | 1       19 | fetch_arrow                                                    duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ | 1       22 | fetch_arrow                                                    
+✖ | 1       22 | fetch_arrow [36.0s]
+────────────────────────────────────────────────────────────────────────────────
+Error ('test-fetch_arrow.R:132:3'): a result of dbSendQuery() can be fetched after its connection is gone
+<callr_timeout_error/callr_error/rlib_error_3_0/rlib_error/error/condition>
+Error in `"get_result(output = out, options)"`: ! callr timed out
+Backtrace:
+    ▆
+ 1. └─callr::r(...) at test-fetch_arrow.R:132:3
+ 2.   └─callr:::get_result(output = out, options)
+ 3.     └─throw(new_callr_crash_error(output))
+────────────────────────────────────────────────────────────────────────────────
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 40.3 s
+
+── Failed tests ────────────────────────────────────────────────────────────────
+Error ('test-fetch_arrow.R:132:3'): a result of dbSendQuery() can be fetched after its connection is gone
+<callr_timeout_error/callr_error/rlib_error_3_0/rlib_error/error/condition>
+Error in `"get_result(output = out, options)"`: ! callr timed out
+Backtrace:
+    ▆
+ 1. └─callr::r(...) at test-fetch_arrow.R:132:3
+ 2.   └─callr:::get_result(output = out, options)
+ 3.     └─throw(new_callr_crash_error(output))
+
+[ FAIL 1 | WARN 0 | SKIP 0 | PASS 108 ]
+
+SUMMARY files=2 tests=108 failed=0 error=1 skipped=0
+FAILING:
+               file
+ test-fetch_arrow.R
+                                                                  test
+ a result of dbSendQuery() can be fetched after its connection is gone

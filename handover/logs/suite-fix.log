@@ -1,0 +1,2528 @@
+Loading required package: DBI
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ | F W  S  OK | Context
+
+⠏ |          0 | adbc                                                           
+⠼ |          5 | adbc                                                           
+✔ |          5 | adbc
+
+⠏ |          0 | ambiguous_prepare                                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | ambiguous_prepare                                              
+✔ |          2 | ambiguous_prepare
+
+⠏ |          0 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |          3 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |         11 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         13 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |         19 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ |         20 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |         21 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         22 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         23 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |         27 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ |         30 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         33 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ |         36 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |         39 | array                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |         44 | array                                                          
+✔ |         44 | array [2.5s]
+
+⠏ |          0 | arrow_stream                                                   duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | arrow_stream                                                   
+⠙ |          2 | arrow_stream                                                   
+✔ |          2 | arrow_stream
+
+⠏ |          0 | arrow                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |          2 | arrow                                                          
+⠹ |          3 | arrow                                                          
+⠼ |          5 | arrow                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |          8 | arrow                                                          
+⠏ |         10 | arrow                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         12 | arrow                                                          
+✔ |         13 | arrow [1.5s]
+
+⠏ |          0 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |          9 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |         19 | backend-dbplyr__duckdb_connection                              
+⠸ |         34 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |         44 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         52 | backend-dbplyr__duckdb_connection                              
+⠹ |         63 | backend-dbplyr__duckdb_connection                              
+⠦ |         77 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |         79 | backend-dbplyr__duckdb_connection                              
+⠋ |         91 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |         98 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |        102 | backend-dbplyr__duckdb_connection                              
+⠼ |        115 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |        121 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |        124 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |        132 | backend-dbplyr__duckdb_connection                              
+⠼ |        145 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |        155 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |        165 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |        169 | backend-dbplyr__duckdb_connection                              
+⠸ |        174 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |        178 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |        179 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ |        180 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |        182 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |        183 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |        185 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ |        186 | backend-dbplyr__duckdb_connection                              duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+✔ |        189 | backend-dbplyr__duckdb_connection [4.0s]
+
+⠏ |          0 | bind                                                           duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | bind                                                           
+⠧ |         18 | bind                                                           
+⠇ |         29 | bind                                                           duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |         41 | bind                                                           duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+i This message has been shown 60 times and will not be shown again this session.
+
+⠏ |         50 | bind                                                           
+⠦ |         57 | bind                                                           
+⠹ |         63 | bind                                                           
+⠏ |         70 | bind                                                           
+⠴ |         76 | bind                                                           
+✔ |         82 | bind [1.1s]
+
+⠏ |          0 | config_keyvalue                                                
+⠹ |          3 | config_keyvalue                                                
+✔ |          5 | config_keyvalue
+
+⠏ |          0 | connect                                                        
+⠹ |      2   1 | connect                                                        
+⠸ |      2   2 | connect                                                        
+⠼ |      2   3 | connect                                                        
+⠴ |      2   4 | connect                                                        
+⠦ |      2   5 | connect                                                        
+⠧ |      2   6 | connect                                                        
+⠏ |      2   8 | connect                                                        
+⠙ |      2  10 | connect                                                        
+⠸ |      2  12 | connect                                                        
+⠴ |      2  14 | connect                                                        
+✔ |      2  14 | connect [3.0s]
+
+⠏ |          0 | date                                                           
+⠙ |          2 | date                                                           
+✔ |          2 | date
+
+⠏ |          0 | dbBindArrow                                                    
+⠋ |          1 | dbBindArrow                                                    
+⠙ |          2 | dbBindArrow                                                    
+⠹ |          3 | dbBindArrow                                                    
+⠦ |          7 | dbBindArrow                                                    
+✔ |         11 | dbBindArrow
+
+⠏ |          0 | dbExistsTable__duckdb_connection_ANY                           
+⠋ |          1 | dbExistsTable__duckdb_connection_ANY                           
+⠹ |          3 | dbExistsTable__duckdb_connection_ANY                           
+⠼ |          5 | dbExistsTable__duckdb_connection_ANY                           
+⠴ |          6 | dbExistsTable__duckdb_connection_ANY                           
+⠏ |         10 | dbExistsTable__duckdb_connection_ANY                           
+✔ |         12 | dbExistsTable__duckdb_connection_ANY
+
+⠏ |          0 | dbFetchArrow                                                   
+⠼ |          5 | dbFetchArrow                                                   
+⠙ |         12 | dbFetchArrow                                                   
+⠏ |         30 | dbFetchArrow                                                   
+⠹ |         43 | dbFetchArrow                                                   
+⠹ |         53 | dbFetchArrow                                                   
+⠇ |         59 | dbFetchArrow                                                   
+⠙ |         62 | dbFetchArrow                                                   
+⠴ |         66 | dbFetchArrow                                                   
+⠼ |         75 | dbFetchArrow                                                   
+⠴ |         76 | dbFetchArrow                                                   
+⠏ |         80 | dbFetchArrow                                                   
+⠋ |         81 | dbFetchArrow                                                   
+⠹ |         83 | dbFetchArrow                                                   
+⠸ |         84 | dbFetchArrow                                                   
+✔ |         86 | dbFetchArrow [3.0s]
+
+⠏ |          0 | dbinfo                                                         
+✔ |          5 | dbinfo
+
+⠏ |          0 | dbIsValid                                                      
+⠴ |          6 | dbIsValid                                                      
+✔ |         10 | dbIsValid
+
+⠏ |          0 | DBItest                                                        
+⠋ |      1   0 | DBItest                                                        
+⠙ |      1   1 | DBItest                                                        
+⠧ |      1  47 | DBItest                                                        
+⠧ |      1  77 | DBItest                                                        
+⠹ |      2  91 | DBItest                                                        
+⠦ |      2 115 | DBItest                                                        
+⠦ |      2 155 | DBItest                                                        
+⠙ |      2 180 | DBItest                                                        
+⠧ |      2 196 | DBItest                                                        
+⠧ |      2 206 | DBItest                                                        
+⠙ |      2 220 | DBItest                                                        
+⠙ |      2 240 | DBItest                                                        
+⠦ |      2 255 | DBItest                                                        
+⠇ |      2 277 | DBItest                                                        
+⠇ |      2 297 | DBItest                                                        
+⠹ |      2 321 | DBItest                                                        
+⠹ |      2 341 | DBItest                                                        
+⠦ |      2 355 | DBItest                                                        
+⠼ |      2 373 | DBItest                                                        
+⠦ |      2 385 | DBItest                                                        
+⠦ |      2 395 | DBItest                                                        
+⠦ |      2 415 | DBItest                                                        
+⠧ |      2 436 | DBItest                                                        
+⠋ |      2 459 | DBItest                                                        
+⠼ |      2 473 | DBItest                                                        
+⠸ |      2 482 | DBItest                                                        
+⠙ |      2 490 | DBItest                                                        
+⠋ |      2 499 | DBItest                                                        
+⠦ |      2 505 | DBItest                                                        
+⠏ |      2 518 | DBItest                                                        
+⠼ |      2 543 | DBItest                                                        
+⠸ |      2 562 | DBItest                                                        
+⠇ |      2 587 | DBItest                                                        
+⠋ |      2 609 | DBItest                                                        
+⠸ |      2 632 | DBItest                                                        
+⠙ |      2 650 | DBItest                                                        
+⠋ |      2 669 | DBItest                                                        
+⠼ |      2 693 | DBItest                                                        
+⠸ |      2 712 | DBItest                                                        
+⠹ |      2 731 | DBItest                                                        
+⠧ |      2 756 | DBItest                                                        
+⠼ |      2 773 | DBItest                                                        
+⠧ |      2 796 | DBItest                                                        
+⠦ |      2 815 | DBItest                                                        
+⠴ |      2 834 | DBItest                                                        
+⠧ |      2 856 | DBItest                                                        
+⠴ |      2 874 | DBItest                                                        
+⠦ |      2 895 | DBItest                                                        
+⠇ |      2 917 | DBItest                                                        
+⠇ |      2 937 | DBItest                                                        
+⠦ |      2 965 | DBItest                                                        
+⠙ |      2 990 | DBItest                                                        
+⠇ |      3 1006 | DBItest                                                       
+⠴ |      3 1023 | DBItest                                                       
+⠦ |      3 1044 | DBItest                                                       
+⠙ |      3 1069 | DBItest                                                       
+⠋ |      3 1088 | DBItest                                                       
+⠋ |      3 1108 | DBItest                                                       
+⠋ |      3 1128 | DBItest                                                       
+⠏ |      3 1147 | DBItest                                                       
+⠙ |      3 1189 | DBItest                                                       
+⠇ |      3 1206 | DBItest                                                       
+⠋ |      3 1218 | DBItest                                                       
+⠸ |      3 1221 | DBItest                                                       
+⠹ |      3 1230 | DBItest                                                       
+⠸ |      3 1241 | DBItest                                                       
+⠹ |      3 1250 | DBItest                                                       
+⠸ |      3 1261 | DBItest                                                       
+⠼ |      3 1272 | DBItest                                                       
+⠹ |      3 1280 | DBItest                                                       
+⠙ |      3 1289 | DBItest                                                       
+⠋ |      3 1298 | DBItest                                                       
+⠦ |      3 1304 | DBItest                                                       
+⠋ |      3 1308 | DBItest                                                       
+⠦ |      3 1314 | DBItest                                                       
+⠏ |      3 1327 | DBItest                                                       
+⠸ |      3 1341 | DBItest                                                       
+⠋ |      3 1358 | DBItest                                                       
+⠹ |      3 1370 | DBItest                                                       
+⠸ |      3 1381 | DBItest                                                       
+⠴ |      3 1393 | DBItest                                                       
+⠙ |      3 1409 | DBItest                                                       
+⠹ |      3 1430 | DBItest                                                       
+⠋ |      5 1436 | DBItest                                                       
+⠧ |      5 1453 | DBItest                                                       
+⠹ |      5 1468 | DBItest                                                       
+⠸ |      5 1479 | DBItest                                                       
+⠦ |      5 1492 | DBItest                                                       
+⠋ |      5 1506 | DBItest                                                       
+⠼ |      5 1520 | DBItest                                                       
+⠇ |      5 1534 | DBItest                                                       
+⠹ |      5 1548 | DBItest                                                       
+⠦ |      5 1562 | DBItest                                                       
+⠦ |      5 1582 | DBItest                                                       
+⠙ |      5 1597 | DBItest                                                       
+⠧ |      5 1613 | DBItest                                                       
+⠏ |      5 1625 | DBItest                                                       
+⠇ |      5 1634 | DBItest                                                       
+⠸ |      5 1649 | DBItest                                                       
+⠦ |      5 1662 | DBItest                                                       
+⠴ |      5 1671 | DBItest                                                       
+⠏ |      5 1685 | DBItest                                                       
+⠸ |      5 1699 | DBItest                                                       
+⠧ |      5 1713 | DBItest                                                       
+⠙ |      5 1727 | DBItest                                                       
+⠏ |      5 1745 | DBItest                                                       
+⠸ |      5 1759 | DBItest                                                       
+⠴ |      5 1771 | DBItest                                                       
+⠦ |      5 1782 | DBItest                                                       
+⠧ |      5 1793 | DBItest                                                       
+⠦ |      5 1802 | DBItest                                                       
+⠏ |      5 1815 | DBItest                                                       
+⠇ |      5 1824 | DBItest                                                       
+⠦ |      5 1832 | DBItest                                                       
+⠙ |      5 1837 | DBItest                                                       
+⠸ |      5 1849 | DBItest                                                       
+⠹ |      5 1858 | DBItest                                                       
+⠇ |      5 1864 | DBItest                                                       
+⠴ |      5 1871 | DBItest                                                       
+⠹ |      5 1878 | DBItest                                                       
+⠋ |      5 1886 | DBItest                                                       
+⠧ |      5 1893 | DBItest                                                       
+⠸ |      5 1899 | DBItest                                                       
+⠇ |      5 1904 | DBItest                                                       
+⠼ |      5 1910 | DBItest                                                       
+⠙ |      5 1917 | DBItest                                                       
+⠏ |      5 1925 | DBItest                                                       
+⠦ |      5 1932 | DBItest                                                       
+⠧ |      5 1933 | DBItest                                                       
+⠇ |      5 1934 | DBItest                                                       
+⠋ |      5 1936 | DBItest                                                       
+⠙ |      5 1937 | DBItest                                                       
+⠸ |      5 1939 | DBItest                                                       
+⠙ |      5 1947 | DBItest                                                       
+⠙ |      5 1957 | DBItest                                                       
+⠙ |      5 1967 | DBItest                                                       
+⠇ |      5 1974 | DBItest                                                       
+⠋ |      5 1986 | DBItest                                                       
+⠋ |      5 1996 | DBItest                                                       
+⠇ |      5 2004 | DBItest                                                       
+⠸ |      5 2009 | DBItest                                                       
+⠙ |      5 2017 | DBItest                                                       
+⠹ |      5 2028 | DBItest                                                       
+⠹ |      5 2038 | DBItest                                                       
+⠹ |      5 2048 | DBItest                                                       
+⠹ |      5 2058 | DBItest                                                       
+⠴ |      5 2061 | DBItest                                                       
+⠸ |      5 2069 | DBItest                                                       
+⠙ |      5 2077 | DBItest                                                       
+⠙ |      5 2087 | DBItest                                                       
+⠇ |      5 2094 | DBItest                                                       
+⠴ |      5 2101 | DBItest                                                       
+⠸ |      5 2109 | DBItest                                                       
+⠋ |      5 2116 | DBItest                                                       
+⠧ |      5 2123 | DBItest                                                       
+⠴ |      5 2131 | DBItest                                                       
+⠹ |      5 2138 | DBItest                                                       
+⠏ |      5 2145 | DBItest                                                       
+⠦ |      5 2152 | DBItest                                                       
+⠸ |      5 2159 | DBItest                                                       
+⠧ |      5 2173 | DBItest                                                       
+⠇ |      5 2184 | DBItest                                                       
+⠇ |      5 2194 | DBItest                                                       
+⠦ |      5 2202 | DBItest                                                       
+⠹ |      5 2208 | DBItest                                                       
+⠏ |      5 2215 | DBItest                                                       
+⠦ |      5 2222 | DBItest                                                       
+⠸ |      5 2229 | DBItest                                                       
+⠋ |      5 2236 | DBItest                                                       
+⠧ |      5 2243 | DBItest                                                       
+⠼ |      5 2250 | DBItest                                                       
+⠙ |      5 2257 | DBItest                                                       
+⠇ |      5 2264 | DBItest                                                       
+⠴ |      5 2271 | DBItest                                                       
+⠹ |      5 2278 | DBItest                                                       
+⠏ |      5 2285 | DBItest                                                       
+⠦ |      5 2292 | DBItest                                                       
+⠸ |      5 2299 | DBItest                                                       
+⠋ |      5 2306 | DBItest                                                       
+⠧ |      5 2313 | DBItest                                                       
+⠼ |      5 2320 | DBItest                                                       
+⠙ |      5 2327 | DBItest                                                       
+⠇ |      5 2334 | DBItest                                                       
+⠴ |      5 2341 | DBItest                                                       
+⠹ |      5 2348 | DBItest                                                       
+⠏ |      5 2355 | DBItest                                                       
+⠦ |      5 2362 | DBItest                                                       
+⠸ |      5 2369 | DBItest                                                       
+⠋ |      5 2376 | DBItest                                                       
+⠧ |      5 2383 | DBItest                                                       
+⠼ |      5 2390 | DBItest                                                       
+⠸ |      5 2399 | DBItest                                                       
+⠇ |      5 2404 | DBItest                                                       
+⠴ |      5 2411 | DBItest                                                       
+⠹ |      5 2418 | DBItest                                                       
+⠏ |      5 2425 | DBItest                                                       
+⠦ |      5 2432 | DBItest                                                       
+⠸ |      5 2439 | DBItest                                                       
+⠋ |      5 2446 | DBItest                                                       
+⠧ |      5 2453 | DBItest                                                       
+⠦ |      5 2462 | DBItest                                                       
+⠹ |      5 2468 | DBItest                                                       
+⠏ |      5 2475 | DBItest                                                       
+⠴ |      5 2481 | DBItest                                                       
+⠹ |      5 2488 | DBItest                                                       
+⠏ |      5 2495 | DBItest                                                       
+⠦ |      5 2502 | DBItest                                                       
+⠧ |      5 2513 | DBItest                                                       
+⠋ |      5 2516 | DBItest                                                       
+⠧ |      5 2523 | DBItest                                                       
+⠼ |      5 2530 | DBItest                                                       
+⠙ |      5 2537 | DBItest                                                       
+⠇ |      5 2544 | DBItest                                                       
+⠴ |      5 2551 | DBItest                                                       
+⠹ |      5 2558 | DBItest                                                       
+⠏ |      5 2565 | DBItest                                                       
+⠦ |      5 2572 | DBItest                                                       
+⠸ |      5 2579 | DBItest                                                       
+⠋ |      5 2586 | DBItest                                                       
+⠧ |      5 2593 | DBItest                                                       
+⠼ |      5 2600 | DBItest                                                       
+⠹ |      5 2608 | DBItest                                                       
+⠇ |      5 2614 | DBItest                                                       
+⠴ |      5 2621 | DBItest                                                       
+⠸ |      5 2629 | DBItest                                                       
+⠏ |      5 2635 | DBItest                                                       
+⠦ |      5 2642 | DBItest                                                       
+⠸ |      5 2649 | DBItest                                                       
+⠋ |      5 2656 | DBItest                                                       
+⠧ |      5 2663 | DBItest                                                       
+⠼ |      5 2670 | DBItest                                                       
+⠙ |      5 2677 | DBItest                                                       
+⠇ |      5 2684 | DBItest                                                       
+⠴ |      5 2691 | DBItest                                                       
+⠸ |      5 2699 | DBItest                                                       
+⠋ |      5 2706 | DBItest                                                       
+⠇ |      5 2714 | DBItest                                                       
+⠴ |      5 2721 | DBItest                                                       
+⠹ |      5 2728 | DBItest                                                       
+⠏ |      5 2735 | DBItest                                                       
+⠧ |      5 2743 | DBItest                                                       
+⠦ |      5 2752 | DBItest                                                       
+⠧ |      5 2763 | DBItest                                                       
+⠴ |      5 2771 | DBItest                                                       
+⠴ |      5 2781 | DBItest                                                       
+⠸ |      5 2789 | DBItest                                                       
+⠸ |      5 2799 | DBItest                                                       
+⠦ |      5 2802 | DBItest                                                       
+⠴ |      5 2811 | DBItest                                                       
+⠇ |      5 2824 | DBItest                                                       
+⠴ |      5 2831 | DBItest                                                       
+⠹ |      5 2838 | DBItest                                                       
+⠋ |      5 2846 | DBItest                                                       
+⠧ |      5 2853 | DBItest                                                       
+⠼ |      5 2860 | DBItest                                                       
+⠹ |      5 2868 | DBItest                                                       
+⠋ |      5 2876 | DBItest                                                       
+⠇ |      5 2884 | DBItest                                                       
+⠦ |      5 2892 | DBItest                                                       
+⠴ |      7 2899 | DBItest                                                       
+⠦ |      7 2900 | DBItest                                                       
+⠸ |      7 2907 | DBItest                                                       
+⠋ |      7 2914 | DBItest                                                       
+⠇ |      7 2922 | DBItest                                                       
+⠴ |      7 2929 | DBItest                                                       
+⠹ |      7 2936 | DBItest                                                       
+⠋ |      7 2944 | DBItest                                                       
+⠧ |      7 2951 | DBItest                                                       
+⠼ |      7 2958 | DBItest                                                       
+⠙ |      7 2965 | DBItest                                                       
+⠇ |      7 2972 | DBItest                                                       
+⠴ |      7 2979 | DBItest                                                       
+⠹ |      7 2986 | DBItest                                                       
+⠏ |      7 2993 | DBItest                                                       
+⠦ |      7 3000 | DBItest                                                       
+⠸ |      7 3007 | DBItest                                                       
+⠋ |      7 3014 | DBItest                                                       
+⠧ |      7 3021 | DBItest                                                       
+⠼ |      7 3028 | DBItest                                                       
+⠹ |      7 3036 | DBItest                                                       
+⠋ |      7 3044 | DBItest                                                       
+⠧ |      7 3051 | DBItest                                                       
+⠼ |      7 3058 | DBItest                                                       
+⠹ |      7 3066 | DBItest                                                       
+⠏ |      7 3073 | DBItest                                                       
+⠦ |      7 3080 | DBItest                                                       
+⠼ |      7 3088 | DBItest                                                       
+⠙ |      7 3095 | DBItest                                                       
+⠇ |      7 3102 | DBItest                                                       
+⠦ |      7 3110 | DBItest                                                       
+⠸ |      7 3117 | DBItest                                                       
+⠋ |      7 3124 | DBItest                                                       
+⠇ |      7 3132 | DBItest                                                       
+⠴ |      7 3139 | DBItest                                                       
+⠹ |      7 3146 | DBItest                                                       
+⠋ |      7 3154 | DBItest                                                       
+⠧ |      7 3161 | DBItest                                                       
+⠼ |      7 3168 | DBItest                                                       
+⠹ |      7 3176 | DBItest                                                       
+⠏ |      7 3183 | DBItest                                                       
+⠦ |      7 3190 | DBItest                                                       
+⠼ |      7 3198 | DBItest                                                       
+⠙ |      7 3205 | DBItest                                                       
+⠇ |      7 3212 | DBItest                                                       
+⠦ |      7 3220 | DBItest                                                       
+⠸ |      7 3227 | DBItest                                                       
+⠋ |      7 3234 | DBItest                                                       
+⠇ |      7 3242 | DBItest                                                       
+⠇ |      7 3252 | DBItest                                                       
+⠇ |      7 3262 | DBItest                                                       
+⠧ |      7 3271 | DBItest                                                       
+⠏ |      7 3273 | DBItest                                                       
+⠏ |      7 3283 | DBItest                                                       
+⠧ |      7 3291 | DBItest                                                       
+⠏ |      7 3293 | DBItest                                                       
+⠇ |      7 3302 | DBItest                                                       
+⠋ |      7 3304 | DBItest                                                       
+⠇ |      7 3312 | DBItest                                                       
+⠦ |      7 3320 | DBItest                                                       
+⠴ |      7 3329 | DBItest                                                       
+⠸ |      7 3337 | DBItest                                                       
+⠙ |      7 3345 | DBItest                                                       
+⠋ |      7 3354 | DBItest                                                       
+⠏ |      7 3363 | DBItest                                                       
+⠦ |      7 3370 | DBItest                                                       
+⠇ |      7 3372 | DBItest                                                       
+⠇ |      7 3382 | DBItest                                                       
+⠴ |      7 3389 | DBItest                                                       
+⠹ |      7 3396 | DBItest                                                       
+⠋ |      7 3404 | DBItest                                                       
+⠧ |      7 3411 | DBItest                                                       
+⠼ |      7 3418 | DBItest                                                       
+⠹ |      7 3426 | DBItest                                                       
+⠏ |      7 3433 | DBItest                                                       
+⠦ |      7 3440 | DBItest                                                       
+⠸ |      7 3447 | DBItest                                                       
+⠋ |      7 3454 | DBItest                                                       
+⠧ |      7 3461 | DBItest                                                       
+⠼ |      7 3468 | DBItest                                                       
+⠙ |      7 3475 | DBItest                                                       
+⠇ |      7 3482 | DBItest                                                       
+⠴ |      7 3489 | DBItest                                                       
+⠹ |      7 3496 | DBItest                                                       
+⠏ |      7 3503 | DBItest                                                       
+⠦ |      7 3510 | DBItest                                                       
+⠸ |      7 3517 | DBItest                                                       
+⠋ |      7 3524 | DBItest                                                       
+⠧ |      7 3531 | DBItest                                                       
+⠼ |      7 3538 | DBItest                                                       
+⠙ |      7 3545 | DBItest                                                       
+⠇ |      7 3552 | DBItest                                                       
+⠴ |      7 3559 | DBItest                                                       
+⠹ |      7 3566 | DBItest                                                       
+⠏ |      7 3573 | DBItest                                                       
+⠦ |      7 3580 | DBItest                                                       
+⠸ |      7 3587 | DBItest                                                       
+⠋ |      7 3594 | DBItest                                                       
+⠧ |      7 3601 | DBItest                                                       
+⠼ |      7 3608 | DBItest                                                       
+⠙ |      7 3615 | DBItest                                                       
+⠇ |      7 3622 | DBItest                                                       
+⠴ |      7 3629 | DBItest                                                       
+⠹ |      7 3636 | DBItest                                                       
+⠏ |      7 3643 | DBItest                                                       
+⠦ |      7 3650 | DBItest                                                       
+⠸ |      7 3657 | DBItest                                                       
+⠋ |      7 3664 | DBItest                                                       
+⠧ |      7 3671 | DBItest                                                       
+⠼ |      7 3678 | DBItest                                                       
+⠙ |      7 3685 | DBItest                                                       
+⠇ |      7 3692 | DBItest                                                       
+⠴ |      7 3699 | DBItest                                                       
+⠹ |      7 3706 | DBItest                                                       
+⠏ |      7 3713 | DBItest                                                       
+⠦ |      7 3720 | DBItest                                                       
+⠸ |      7 3727 | DBItest                                                       
+⠋ |      7 3734 | DBItest                                                       
+⠧ |      7 3741 | DBItest                                                       
+⠼ |      7 3748 | DBItest                                                       
+⠙ |      7 3755 | DBItest                                                       
+⠇ |      7 3762 | DBItest                                                       
+⠼ |      7 3768 | DBItest                                                       
+⠴ |      7 3769 | DBItest                                                       
+⠹ |      7 3776 | DBItest                                                       
+⠏ |      7 3783 | DBItest                                                       
+⠦ |      7 3790 | DBItest                                                       
+⠸ |      7 3797 | DBItest                                                       
+⠋ |      7 3804 | DBItest                                                       
+⠧ |      7 3811 | DBItest                                                       
+⠼ |      7 3818 | DBItest                                                       
+⠙ |      7 3825 | DBItest                                                       
+⠇ |      7 3832 | DBItest                                                       
+⠴ |      7 3839 | DBItest                                                       
+⠹ |      7 3846 | DBItest                                                       
+⠏ |      7 3853 | DBItest                                                       
+⠦ |      7 3860 | DBItest                                                       
+⠸ |      7 3867 | DBItest                                                       
+⠋ |      7 3874 | DBItest                                                       
+⠧ |      7 3881 | DBItest                                                       
+⠼ |      7 3888 | DBItest                                                       
+⠙ |      7 3895 | DBItest                                                       
+⠇ |      7 3902 | DBItest                                                       
+⠴ |      7 3909 | DBItest                                                       
+⠙ |      7 3915 | DBItest                                                       
+⠹ |      7 3916 | DBItest                                                       
+⠏ |      7 3923 | DBItest                                                       
+⠦ |      7 3930 | DBItest                                                       
+⠸ |      7 3937 | DBItest                                                       
+⠋ |      7 3944 | DBItest                                                       
+⠧ |      7 3951 | DBItest                                                       
+⠼ |      7 3958 | DBItest                                                       
+⠙ |      7 3965 | DBItest                                                       
+⠇ |      7 3972 | DBItest                                                       
+⠴ |      7 3979 | DBItest                                                       
+⠹ |      7 3986 | DBItest                                                       
+⠋ |      7 3994 | DBItest                                                       
+⠧ |      7 4001 | DBItest                                                       
+⠼ |      7 4008 | DBItest                                                       
+⠙ |      7 4015 | DBItest                                                       
+⠇ |      7 4022 | DBItest                                                       
+⠴ |      7 4029 | DBItest                                                       
+⠸ |      7 4037 | DBItest                                                       
+⠙ |      7 4045 | DBItest                                                       
+⠏ |      7 4053 | DBItest                                                       
+⠋ |      7 4054 | DBItest                                                       
+⠏ |      7 4063 | DBItest                                                       
+⠙ |      7 4065 | DBItest                                                       
+⠋ |      7 4074 | DBItest                                                       
+⠹ |      7 4076 | DBItest                                                       
+⠙ |      7 4085 | DBItest                                                       
+⠸ |      7 4087 | DBItest                                                       
+⠹ |      7 4096 | DBItest                                                       
+⠦ |      7 4100 | DBItest                                                       
+⠙ |      7 4105 | DBItest                                                       
+⠴ |      7 4109 | DBItest                                                       
+⠋ |      7 4114 | DBItest                                                       
+⠦ |      7 4120 | DBItest                                                       
+⠹ |      7 4126 | DBItest                                                       
+⠧ |      7 4131 | DBItest                                                       
+⠏ |      7 4133 | DBItest                                                       
+⠸ |      7 4137 | DBItest                                                       
+⠦ |      7 4140 | DBItest                                                       
+⠏ |      7 4143 | DBItest                                                       
+⠹ |      7 4146 | DBItest                                                       
+⠦ |      7 4150 | DBItest                                                       
+⠙ |      7 4155 | DBItest                                                       
+⠸ |      7 4157 | DBItest                                                       
+⠴ |      7 4159 | DBItest                                                       
+⠙ |      8 4164 | DBItest                                                       
+⠦ |      8 4169 | DBItest                                                       
+⠙ |      9 4173 | DBItest                                                       
+⠹ |      9 4174 | DBItest                                                       
+⠼ |      9 4176 | DBItest                                                       
+⠦ |      9 4178 | DBItest                                                       
+⠧ |      9 4179 | DBItest                                                       
+⠏ |      9 4181 | DBItest                                                       
+⠇ |      9 4190 | DBItest                                                       
+⠙ |      9 4193 | DBItest                                                       
+⠼ |      9 4196 | DBItest                                                       
+⠦ |      9 4198 | DBItest                                                       
+⠋ |      9 4202 | DBItest                                                       
+⠧ |     10 4208 | DBItest                                                       
+⠙ |     10 4212 | DBItest                                                       
+⠧ |     10 4218 | DBItest                                                       
+⠙ |     10 4222 | DBItest                                                       
+⠸ |     10 4224 | DBItest                                                       
+⠧ |     10 4228 | DBItest                                                       
+⠋ |     11 4230 | DBItest                                                       
+⠇ |     11 4238 | DBItest                                                       
+⠏ |     11 4249 | DBItest                                                       
+⠧ |     11 4257 | DBItest                                                       
+⠼ |     11 4264 | DBItest                                                       
+⠙ |     11 4271 | DBItest                                                       
+⠇ |     11 4278 | DBItest                                                       
+⠋ |     11 4290 | DBItest                                                       
+⠋ |     11 4300 | DBItest                                                       
+⠏ |     11 4309 | DBItest                                                       
+⠏ |     11 4319 | DBItest                                                       
+⠹ |     11 4322 | DBItest                                                       
+⠋ |     11 4330 | DBItest                                                       
+⠏ |     11 4339 | DBItest                                                       
+⠸ |     11 4353 | DBItest                                                       
+⠹ |     11 4362 | DBItest                                                       
+⠙ |     11 4371 | DBItest                                                       
+⠙ |     11 4381 | DBItest                                                       
+⠙ |     11 4391 | DBItest                                                       
+⠙ |     11 4401 | DBItest                                                       
+⠸ |     11 4413 | DBItest                                                       
+⠴ |     11 4425 | DBItest                                                       
+⠦ |     11 4436 | DBItest                                                       
+⠴ |     11 4445 | DBItest                                                       
+⠦ |     11 4456 | DBItest                                                       
+⠧ |     11 4467 | DBItest                                                       
+⠼ |     11 4474 | DBItest                                                       
+⠏ |     11 4479 | DBItest                                                       
+⠇ |     11 4488 | DBItest                                                       
+⠏ |     11 4499 | DBItest                                                       
+⠇ |     11 4508 | DBItest                                                       
+⠋ |     11 4520 | DBItest                                                       
+⠏ |     11 4529 | DBItest                                                       
+⠇ |     11 4538 | DBItest                                                       
+⠧ |     11 4547 | DBItest                                                       
+⠧ |     11 4557 | DBItest                                                       
+⠏ |     11 4569 | DBItest                                                       
+⠏ |     11 4579 | DBItest                                                       
+⠇ |     11 4588 | DBItest                                                       
+⠇ |     11 4598 | DBItest                                                       
+⠇ |     11 4608 | DBItest                                                       
+⠇ |     11 4618 | DBItest                                                       
+⠇ |     11 4628 | DBItest                                                       
+⠧ |     11 4637 | DBItest                                                       
+⠇ |     11 4648 | DBItest                                                       
+⠴ |     11 4655 | DBItest                                                       
+⠦ |     11 4666 | DBItest                                                       
+⠧ |     11 4677 | DBItest                                                       
+⠼ |     11 4684 | DBItest                                                       
+⠸ |     11 4693 | DBItest                                                       
+⠼ |     11 4704 | DBItest                                                       
+⠴ |     11 4715 | DBItest                                                       
+⠸ |     11 4723 | DBItest                                                       
+⠹ |     11 4732 | DBItest                                                       
+⠦ |     11 4736 | DBItest                                                       
+⠸ |     11 4743 | DBItest                                                       
+⠹ |     11 4752 | DBItest                                                       
+⠹ |     11 4762 | DBItest                                                       
+⠸ |     11 4773 | DBItest                                                       
+⠴ |     11 4785 | DBItest                                                       
+⠦ |     11 4796 | DBItest                                                       
+⠦ |     11 4806 | DBItest                                                       
+⠴ |     11 4815 | DBItest                                                       
+⠼ |     11 4824 | DBItest                                                       
+⠸ |     11 4833 | DBItest                                                       
+⠹ |     11 4842 | DBItest                                                       
+⠹ |     11 4852 | DBItest                                                       
+⠋ |     11 4860 | DBItest                                                       
+⠙ |     11 4871 | DBItest                                                       
+⠼ |     11 4884 | DBItest                                                       
+⠋ |     11 4890 | DBItest                                                       
+⠏ |     11 4899 | DBItest                                                       
+⠹ |     11 4912 | DBItest                                                       
+⠦ |     11 4926 | DBItest                                                       
+⠦ |     11 4936 | DBItest                                                       
+⠧ |     11 4947 | DBItest                                                       
+⠧ |     11 4957 | DBItest                                                       
+⠧ |     11 4967 | DBItest                                                       
+⠧ |     11 4977 | DBItest                                                       
+⠴ |     11 4985 | DBItest                                                       
+⠴ |     11 4995 | DBItest                                                       
+⠇ |     11 5008 | DBItest                                                       
+⠙ |     11 5021 | DBItest                                                       
+⠼ |     11 5034 | DBItest                                                       
+⠼ |     11 5044 | DBItest                                                       
+⠼ |     11 5054 | DBItest                                                       
+⠦ |     11 5066 | DBItest                                                       
+⠇ |     11 5078 | DBItest                                                       
+⠧ |     11 5087 | DBItest                                                       
+⠹ |     11 5102 | DBItest                                                       
+⠹ |     11 5112 | DBItest                                                       
+⠴ |     11 5125 | DBItest                                                       
+⠸ |     11 5133 | DBItest                                                       
+⠧ |     11 5137 | DBItest                                                       
+⠴ |     11 5145 | DBItest                                                       
+⠹ |     11 5152 | DBItest                                                       
+⠙ |     11 5161 | DBItest                                                       
+⠋ |     11 5170 | DBItest                                                       
+⠏ |     11 5179 | DBItest                                                       
+⠏ |     11 5189 | DBItest                                                       
+⠇ |     11 5198 | DBItest                                                       
+⠴ |     11 5205 | DBItest                                                       
+⠴ |     11 5215 | DBItest                                                       
+⠹ |     12 5221 | DBItest                                                       
+⠏ |     12 5228 | DBItest                                                       
+⠇ |     12 5237 | DBItest                                                       
+⠸ |     12 5242 | DBItest                                                       
+⠇ |     12 5247 | DBItest                                                       
+⠼ |     12 5253 | DBItest                                                       
+⠸ |     12 5262 | DBItest                                                       
+⠋ |     12 5269 | DBItest                                                       
+⠴ |     12 5274 | DBItest                                                       
+⠧ |     12 5276 | DBItest                                                       
+⠼ |     12 5283 | DBItest                                                       
+⠹ |     12 5291 | DBItest                                                       
+⠦ |     12 5295 | DBItest                                                       
+⠙ |     12 5300 | DBItest                                                       
+⠹ |     12 5301 | DBItest                                                       
+⠹ |     12 5311 | DBItest                                                       
+⠴ |     12 5314 | DBItest                                                       
+⠸ |     12 5322 | DBItest                                                       
+⠹ |     12 5331 | DBItest                                                       
+⠼ |     12 5333 | DBItest                                                       
+⠴ |     12 5344 | DBItest                                                       
+⠙ |     12 5350 | DBItest                                                       
+⠇ |     12 5357 | DBItest                                                       
+⠼ |     12 5363 | DBItest                                                       
+⠴ |     12 5374 | DBItest                                                       
+⠼ |     12 5383 | DBItest                                                       
+⠸ |     12 5392 | DBItest                                                       
+⠸ |     12 5402 | DBItest                                                       
+⠹ |     12 5411 | DBItest                                                       
+⠙ |     12 5420 | DBItest                                                       
+⠋ |     12 5429 | DBItest                                                       
+⠏ |     12 5438 | DBItest                                                       
+⠦ |     12 5445 | DBItest                                                       
+⠧ |     12 5456 | DBItest                                                       
+⠴ |     12 5464 | DBItest                                                       
+⠹ |     12 5471 | DBItest                                                       
+⠇ |     12 5477 | DBItest                                                       
+⠼ |     12 5483 | DBItest                                                       
+⠙ |     12 5490 | DBItest                                                       
+⠦ |     12 5495 | DBItest                                                       
+⠸ |     12 5502 | DBItest                                                       
+⠹ |     12 5511 | DBItest                                                       
+⠼ |     12 5513 | DBItest                                                       
+⠦ |     12 5515 | DBItest                                                       
+⠏ |     12 5518 | DBItest                                                       
+⠏ |     12 5528 | DBItest                                                       
+⠸ |     12 5532 | DBItest                                                       
+⠸ |     12 5542 | DBItest                                                       
+⠧ |     12 5546 | DBItest                                                       
+⠧ |     12 5556 | DBItest                                                       
+⠼ |     12 5563 | DBItest                                                       
+⠧ |     12 5566 | DBItest                                                       
+⠦ |     12 5575 | DBItest                                                       
+⠴ |     12 5584 | DBItest                                                       
+⠴ |     12 5594 | DBItest                                                       
+⠙ |     12 5600 | DBItest                                                       
+⠸ |     12 5602 | DBItest                                                       
+⠋ |     12 5609 | DBItest                                                       
+⠧ |     12 5616 | DBItest                                                       
+⠴ |     12 5624 | DBItest                                                       
+⠹ |     12 5631 | DBItest                                                       
+⠏ |     12 5638 | DBItest                                                       
+⠧ |     12 5646 | DBItest                                                       
+⠴ |     12 5654 | DBItest                                                       
+⠸ |     12 5662 | DBItest                                                       
+⠙ |     12 5670 | DBItest                                                       
+⠏ |     12 5678 | DBItest                                                       
+⠇ |     12 5687 | DBItest                                                       
+⠧ |     12 5696 | DBItest                                                       
+⠦ |     12 5705 | DBItest                                                       
+⠴ |     13 5713 | DBItest                                                       
+⠧ |     14 5714 | DBItest                                                       
+⠼ |     14 5721 | DBItest                                                       
+⠸ |     14 5730 | DBItest                                                       
+⠙ |     14 5738 | DBItest                                                       
+⠸ |     14 5740 | DBItest                                                       
+⠋ |     14 5747 | DBItest                                                       
+⠧ |     14 5754 | DBItest                                                       
+⠴ |     14 5762 | DBItest                                                       
+⠹ |     14 5769 | DBItest                                                       
+⠏ |     14 5776 | DBItest                                                       
+⠧ |     14 5784 | DBItest                                                       
+⠼ |     14 5791 | DBItest                                                       
+⠙ |     14 5798 | DBItest                                                       
+⠇ |     14 5805 | DBItest                                                       
+⠴ |     14 5812 | DBItest                                                       
+⠹ |     14 5819 | DBItest                                                       
+⠏ |     14 5826 | DBItest                                                       
+⠦ |     14 5833 | DBItest                                                       
+⠸ |     14 5840 | DBItest                                                       
+⠋ |     14 5847 | DBItest                                                       
+⠧ |     14 5854 | DBItest                                                       
+⠼ |     14 5861 | DBItest                                                       
+⠙ |     14 5868 | DBItest                                                       
+⠏ |     14 5876 | DBItest                                                       
+⠧ |     14 5884 | DBItest                                                       
+⠼ |     14 5891 | DBItest                                                       
+⠙ |     14 5898 | DBItest                                                       
+⠏ |     14 5906 | DBItest                                                       
+⠦ |     14 5913 | DBItest                                                       
+⠸ |     14 5920 | DBItest                                                       
+⠙ |     14 5928 | DBItest                                                       
+⠇ |     14 5935 | DBItest                                                       
+⠴ |     14 5942 | DBItest                                                       
+⠸ |     14 5950 | DBItest                                                       
+⠋ |     14 5957 | DBItest                                                       
+⠧ |     14 5964 | DBItest                                                       
+⠦ |     16 5971 | DBItest                                                       
+⠇ |     17 5972 | DBItest                                                       
+⠴ |     17 5979 | DBItest                                                       
+⠹ |     17 5986 | DBItest                                                       
+⠋ |     17 5994 | DBItest                                                       
+⠧ |     17 6001 | DBItest                                                       
+⠼ |     17 6008 | DBItest                                                       
+⠹ |     17 6016 | DBItest                                                       
+⠏ |     17 6023 | DBItest                                                       
+⠦ |     17 6030 | DBItest                                                       
+⠼ |     17 6038 | DBItest                                                       
+⠙ |     17 6045 | DBItest                                                       
+⠇ |     17 6052 | DBItest                                                       
+⠦ |     17 6060 | DBItest                                                       
+⠸ |     17 6067 | DBItest                                                       
+⠋ |     17 6074 | DBItest                                                       
+⠇ |     17 6082 | DBItest                                                       
+⠦ |     17 6090 | DBItest                                                       
+⠋ |     17 6094 | DBItest                                                       
+⠇ |     17 6102 | DBItest                                                       
+⠦ |     17 6110 | DBItest                                                       
+⠏ |     17 6113 | DBItest                                                       
+⠧ |     17 6121 | DBItest                                                       
+⠴ |     17 6129 | DBItest                                                       
+⠼ |     17 6138 | DBItest                                                       
+⠹ |     17 6146 | DBItest                                                       
+⠋ |     17 6154 | DBItest                                                       
+⠏ |     17 6163 | DBItest                                                       
+⠦ |     17 6170 | DBItest                                                       
+⠸ |     17 6177 | DBItest                                                       
+⠙ |     17 6185 | DBItest                                                       
+⠇ |     17 6192 | DBItest                                                       
+⠴ |     17 6199 | DBItest                                                       
+⠹ |     17 6206 | DBItest                                                       
+⠏ |     17 6213 | DBItest                                                       
+⠦ |     17 6220 | DBItest                                                       
+⠸ |     17 6227 | DBItest                                                       
+⠋ |     17 6234 | DBItest                                                       
+⠧ |     17 6241 | DBItest                                                       
+⠼ |     17 6248 | DBItest                                                       
+⠙ |     17 6255 | DBItest                                                       
+⠇ |     17 6262 | DBItest                                                       
+⠴ |     17 6269 | DBItest                                                       
+⠹ |     17 6276 | DBItest                                                       
+⠏ |     17 6283 | DBItest                                                       
+⠦ |     17 6290 | DBItest                                                       
+⠸ |     17 6297 | DBItest                                                       
+⠋ |     17 6304 | DBItest                                                       
+⠧ |     17 6311 | DBItest                                                       
+⠼ |     17 6318 | DBItest                                                       
+⠙ |     17 6325 | DBItest                                                       
+⠇ |     17 6332 | DBItest                                                       
+⠴ |     17 6339 | DBItest                                                       
+⠹ |     17 6346 | DBItest                                                       
+⠏ |     17 6353 | DBItest                                                       
+⠦ |     17 6360 | DBItest                                                       
+⠸ |     17 6367 | DBItest                                                       
+⠋ |     17 6374 | DBItest                                                       
+⠧ |     17 6381 | DBItest                                                       
+⠼ |     17 6388 | DBItest                                                       
+⠙ |     17 6395 | DBItest                                                       
+⠇ |     17 6402 | DBItest                                                       
+⠴ |     17 6409 | DBItest                                                       
+⠹ |     17 6416 | DBItest                                                       
+⠏ |     17 6423 | DBItest                                                       
+⠦ |     17 6430 | DBItest                                                       
+⠸ |     17 6437 | DBItest                                                       
+⠋ |     17 6444 | DBItest                                                       
+⠧ |     17 6451 | DBItest                                                       
+⠼ |     17 6458 | DBItest                                                       
+⠙ |     17 6465 | DBItest                                                       
+⠇ |     17 6472 | DBItest                                                       
+⠴ |     17 6479 | DBItest                                                       
+⠹ |     17 6486 | DBItest                                                       
+⠏ |     17 6493 | DBItest                                                       
+⠦ |     17 6500 | DBItest                                                       
+⠸ |     17 6507 | DBItest                                                       
+⠋ |     17 6514 | DBItest                                                       
+⠧ |     17 6521 | DBItest                                                       
+⠼ |     17 6528 | DBItest                                                       
+⠙ |     17 6535 | DBItest                                                       
+⠇ |     17 6542 | DBItest                                                       
+⠴ |     17 6549 | DBItest                                                       
+⠹ |     17 6556 | DBItest                                                       
+⠏ |     17 6563 | DBItest                                                       
+⠦ |     17 6570 | DBItest                                                       
+⠸ |     17 6577 | DBItest                                                       
+⠋ |     17 6584 | DBItest                                                       
+⠧ |     17 6591 | DBItest                                                       
+⠼ |     17 6598 | DBItest                                                       
+⠙ |     17 6605 | DBItest                                                       
+⠇ |     17 6612 | DBItest                                                       
+⠴ |     17 6619 | DBItest                                                       
+⠹ |     17 6626 | DBItest                                                       
+⠏ |     17 6633 | DBItest                                                       
+⠦ |     17 6640 | DBItest                                                       
+⠸ |     17 6647 | DBItest                                                       
+⠋ |     17 6654 | DBItest                                                       
+⠧ |     17 6661 | DBItest                                                       
+⠼ |     17 6668 | DBItest                                                       
+⠙ |     17 6675 | DBItest                                                       
+⠇ |     17 6682 | DBItest                                                       
+⠴ |     17 6689 | DBItest                                                       
+⠹ |     17 6696 | DBItest                                                       
+⠏ |     17 6703 | DBItest                                                       
+⠦ |     17 6710 | DBItest                                                       
+⠸ |     17 6717 | DBItest                                                       
+⠋ |     17 6724 | DBItest                                                       
+⠧ |     17 6731 | DBItest                                                       
+⠼ |     17 6738 | DBItest                                                       
+⠙ |     17 6745 | DBItest                                                       
+⠏ |     17 6753 | DBItest                                                       
+⠼ |     17 6758 | DBItest                                                       
+⠸ |     17 6767 | DBItest                                                       
+⠇ |     17 6772 | DBItest                                                       
+⠧ |     17 6781 | DBItest                                                       
+⠇ |     17 6792 | DBItest                                                       
+⠇ |     17 6802 | DBItest                                                       
+⠴ |     17 6809 | DBItest                                                       
+⠸ |     17 6817 | DBItest                                                       
+⠋ |     17 6824 | DBItest                                                       
+⠼ |     17 6828 | DBItest                                                       
+⠙ |     17 6835 | DBItest                                                       
+⠦ |     18 6839 | DBItest                                                       
+⠼ |     18 6847 | DBItest                                                       
+⠴ |     18 6858 | DBItest                                                       
+⠸ |     18 6866 | DBItest                                                       
+⠙ |     18 6874 | DBItest                                                       
+⠇ |     18 6881 | DBItest                                                       
+⠴ |     18 6888 | DBItest                                                       
+⠹ |     18 6895 | DBItest                                                       
+⠏ |     18 6902 | DBItest                                                       
+⠦ |     18 6909 | DBItest                                                       
+⠸ |     18 6916 | DBItest                                                       
+⠋ |     18 6923 | DBItest                                                       
+⠧ |     18 6930 | DBItest                                                       
+⠼ |     18 6937 | DBItest                                                       
+⠙ |     18 6944 | DBItest                                                       
+⠇ |     18 6951 | DBItest                                                       
+⠴ |     18 6958 | DBItest                                                       
+⠹ |     18 6965 | DBItest                                                       
+⠋ |     18 6973 | DBItest                                                       
+⠴ |     18 6978 | DBItest                                                       
+⠏ |     18 6982 | DBItest                                                       
+⠧ |     18 6990 | DBItest                                                       
+⠦ |     18 6999 | DBItest                                                       
+⠸ |     18 7006 | DBItest                                                       
+⠋ |     18 7013 | DBItest                                                       
+⠧ |     18 7020 | DBItest                                                       
+⠴ |     18 7028 | DBItest                                                       
+⠹ |     18 7035 | DBItest                                                       
+⠏ |     18 7042 | DBItest                                                       
+⠧ |     18 7050 | DBItest                                                       
+⠼ |     18 7057 | DBItest                                                       
+⠙ |     18 7064 | DBItest                                                       
+⠇ |     18 7071 | DBItest                                                       
+⠴ |     18 7078 | DBItest                                                       
+⠹ |     18 7085 | DBItest                                                       
+⠏ |     18 7092 | DBItest                                                       
+⠦ |     18 7099 | DBItest                                                       
+⠸ |     18 7106 | DBItest                                                       
+⠋ |     18 7113 | DBItest                                                       
+⠧ |     18 7120 | DBItest                                                       
+⠼ |     18 7127 | DBItest                                                       
+⠹ |     18 7135 | DBItest                                                       
+⠏ |     18 7142 | DBItest                                                       
+⠧ |     18 7150 | DBItest                                                       
+⠼ |     18 7157 | DBItest                                                       
+⠙ |     18 7164 | DBItest                                                       
+⠏ |     18 7172 | DBItest                                                       
+⠦ |     18 7179 | DBItest                                                       
+⠸ |     18 7186 | DBItest                                                       
+⠙ |     18 7194 | DBItest                                                       
+⠇ |     18 7201 | DBItest                                                       
+⠴ |     18 7208 | DBItest                                                       
+⠸ |     18 7216 | DBItest                                                       
+⠋ |     18 7223 | DBItest                                                       
+⠧ |     18 7230 | DBItest                                                       
+⠦ |     20 7237 | DBItest                                                       
+⠇ |     21 7238 | DBItest                                                       
+⠴ |     21 7245 | DBItest                                                       
+⠼ |     21 7254 | DBItest                                                       
+⠙ |     21 7261 | DBItest                                                       
+⠧ |     21 7267 | DBItest                                                       
+⠼ |     21 7274 | DBItest                                                       
+⠹ |     21 7282 | DBItest                                                       
+⠏ |     21 7289 | DBItest                                                       
+⠦ |     21 7296 | DBItest                                                       
+⠼ |     21 7304 | DBItest                                                       
+⠙ |     21 7311 | DBItest                                                       
+⠇ |     21 7318 | DBItest                                                       
+⠦ |     21 7326 | DBItest                                                       
+⠸ |     21 7333 | DBItest                                                       
+⠋ |     21 7340 | DBItest                                                       
+⠇ |     21 7348 | DBItest                                                       
+⠇ |     21 7358 | DBItest                                                       
+⠧ |     21 7367 | DBItest                                                       
+⠸ |     21 7373 | DBItest                                                       
+⠏ |     21 7379 | DBItest                                                       
+⠧ |     21 7387 | DBItest                                                       
+⠴ |     21 7395 | DBItest                                                       
+⠼ |     21 7404 | DBItest                                                       
+⠹ |     21 7412 | DBItest                                                       
+⠋ |     21 7420 | DBItest                                                       
+⠏ |     21 7429 | DBItest                                                       
+⠦ |     21 7436 | DBItest                                                       
+⠸ |     21 7443 | DBItest                                                       
+⠙ |     21 7451 | DBItest                                                       
+⠇ |     21 7458 | DBItest                                                       
+⠴ |     21 7465 | DBItest                                                       
+⠹ |     21 7472 | DBItest                                                       
+⠏ |     21 7479 | DBItest                                                       
+⠦ |     21 7486 | DBItest                                                       
+⠸ |     21 7493 | DBItest                                                       
+⠋ |     21 7500 | DBItest                                                       
+⠧ |     21 7507 | DBItest                                                       
+⠼ |     21 7514 | DBItest                                                       
+⠙ |     21 7521 | DBItest                                                       
+⠇ |     21 7528 | DBItest                                                       
+⠴ |     21 7535 | DBItest                                                       
+⠹ |     21 7542 | DBItest                                                       
+⠏ |     21 7549 | DBItest                                                       
+⠦ |     21 7556 | DBItest                                                       
+⠸ |     21 7563 | DBItest                                                       
+⠋ |     21 7570 | DBItest                                                       
+⠧ |     21 7577 | DBItest                                                       
+⠼ |     21 7584 | DBItest                                                       
+⠙ |     21 7591 | DBItest                                                       
+⠇ |     21 7598 | DBItest                                                       
+⠴ |     21 7605 | DBItest                                                       
+⠹ |     21 7612 | DBItest                                                       
+⠏ |     21 7619 | DBItest                                                       
+⠦ |     21 7626 | DBItest                                                       
+⠸ |     21 7633 | DBItest                                                       
+⠋ |     21 7640 | DBItest                                                       
+⠧ |     21 7647 | DBItest                                                       
+⠼ |     21 7654 | DBItest                                                       
+⠙ |     21 7661 | DBItest                                                       
+⠇ |     21 7668 | DBItest                                                       
+⠴ |     21 7675 | DBItest                                                       
+⠹ |     21 7682 | DBItest                                                       
+⠏ |     21 7689 | DBItest                                                       
+⠦ |     21 7696 | DBItest                                                       
+⠸ |     21 7703 | DBItest                                                       
+⠋ |     21 7710 | DBItest                                                       
+⠧ |     21 7717 | DBItest                                                       
+⠼ |     21 7724 | DBItest                                                       
+⠙ |     21 7731 | DBItest                                                       
+⠇ |     21 7738 | DBItest                                                       
+⠴ |     21 7745 | DBItest                                                       
+⠹ |     21 7752 | DBItest                                                       
+⠏ |     21 7759 | DBItest                                                       
+⠦ |     21 7766 | DBItest                                                       
+⠸ |     21 7773 | DBItest                                                       
+⠋ |     21 7780 | DBItest                                                       
+⠧ |     21 7787 | DBItest                                                       
+⠼ |     21 7794 | DBItest                                                       
+⠙ |     21 7801 | DBItest                                                       
+⠇ |     21 7808 | DBItest                                                       
+⠴ |     21 7815 | DBItest                                                       
+⠹ |     21 7822 | DBItest                                                       
+⠏ |     21 7829 | DBItest                                                       
+⠦ |     21 7836 | DBItest                                                       
+⠸ |     21 7843 | DBItest                                                       
+⠋ |     21 7850 | DBItest                                                       
+⠧ |     21 7857 | DBItest                                                       
+⠼ |     21 7864 | DBItest                                                       
+⠙ |     21 7871 | DBItest                                                       
+⠇ |     21 7878 | DBItest                                                       
+⠴ |     21 7885 | DBItest                                                       
+⠹ |     21 7892 | DBItest                                                       
+⠏ |     21 7899 | DBItest                                                       
+⠦ |     21 7906 | DBItest                                                       
+⠸ |     21 7913 | DBItest                                                       
+⠋ |     21 7920 | DBItest                                                       
+⠧ |     21 7927 | DBItest                                                       
+⠼ |     21 7934 | DBItest                                                       
+⠙ |     21 7941 | DBItest                                                       
+⠇ |     21 7948 | DBItest                                                       
+⠴ |     21 7955 | DBItest                                                       
+⠹ |     21 7962 | DBItest                                                       
+⠏ |     21 7969 | DBItest                                                       
+⠦ |     21 7976 | DBItest                                                       
+⠸ |     21 7983 | DBItest                                                       
+⠋ |     21 7990 | DBItest                                                       
+⠧ |     21 7997 | DBItest                                                       
+⠼ |     21 8004 | DBItest                                                       
+⠙ |     21 8011 | DBItest                                                       
+⠏ |     21 8019 | DBItest                                                       
+⠦ |     21 8026 | DBItest                                                       
+⠹ |     21 8032 | DBItest                                                       
+⠇ |     21 8038 | DBItest                                                       
+⠙ |     21 8041 | DBItest                                                       
+⠋ |     21 8050 | DBItest                                                       
+⠇ |     21 8058 | DBItest                                                       
+⠸ |     21 8063 | DBItest                                                       
+⠙ |     21 8071 | DBItest                                                       
+⠏ |     21 8079 | DBItest                                                       
+⠧ |     21 8087 | DBItest                                                       
+⠦ |     22 8095 | DBItest                                                       
+⠧ |     22 8106 | DBItest                                                       
+⠇ |     22 8117 | DBItest                                                       
+⠧ |     22 8126 | DBItest                                                       
+⠋ |     22 8149 | DBItest                                                       
+⠼ |     22 8173 | DBItest                                                       
+⠦ |     22 8195 | DBItest                                                       
+⠙ |     22 8220 | DBItest                                                       
+⠦ |     22 8245 | DBItest                                                       
+✔ |     23 8264 | DBItest [136.0s]
+
+⠏ |          0 | dbListFields                                                   
+⠹ |          3 | dbListFields                                                   
+⠴ |          6 | dbListFields                                                   
+⠦ |          7 | dbListFields                                                   
+✔ |          9 | dbListFields
+
+⠏ |          0 | dbplyr-version                                                 
+⠴ |          6 | dbplyr-version                                                 
+⠹ |         13 | dbplyr-version                                                 
+⠸ |         14 | dbplyr-version                                                 
+✔ |         14 | dbplyr-version
+
+⠏ |          0 | dbQuoteIdentifier__duckdb_connection                           
+⠙ |          2 | dbQuoteIdentifier__duckdb_connection                           
+✔ |          6 | dbQuoteIdentifier__duckdb_connection
+
+⠏ |          0 | dbSendQueryArrow                                               
+⠸ |          4 | dbSendQueryArrow                                               
+⠦ |          7 | dbSendQueryArrow                                               
+⠹ |         13 | dbSendQueryArrow                                               
+⠼ |         15 | dbSendQueryArrow                                               
+⠦ |         17 | dbSendQueryArrow                                               
+⠧ |         18 | dbSendQueryArrow                                               
+✔ |         20 | dbSendQueryArrow
+
+⠏ |          0 | dbwritetable                                                   
+⠋ |          1 | dbwritetable                                                   
+✔ |          1 | dbwritetable
+
+⠏ |          0 | duckdb-extensions                                              
+✔ |      1   5 | duckdb-extensions
+
+⠏ |          0 | error-handling                                                 
+⠸ |          4 | error-handling                                                 
+⠇ |          9 | error-handling                                                 
+⠼ |         15 | error-handling                                                 
+⠋ |         21 | error-handling                                                 
+⠸ |         24 | error-handling                                                 
+⠧ |         28 | error-handling                                                 
+✔ |         36 | error-handling
+
+⠏ |          0 | explain                                                        
+⠙ |          2 | explain                                                        
+⠴ |          6 | explain                                                        
+✔ |          7 | explain
+
+⠏ |          0 | extension_path                                                 
+✔ |          4 | extension_path
+
+⠏ |          0 | extensions-libcxx                                              
+⠴ |          6 | extensions-libcxx                                              
+⠙ |         12 | extensions-libcxx                                              
+⠇ |         19 | extensions-libcxx                                              
+⠦ |         27 | extensions-libcxx                                              
+⠴ |         36 | extensions-libcxx                                              
+⠦ |         47 | extensions-libcxx                                              
+⠹ |         53 | extensions-libcxx                                              
+⠴ |         56 | extensions-libcxx                                              
+⠧ |         58 | extensions-libcxx                                              
+⠋ |         61 | extensions-libcxx                                              
+✔ |         62 | extensions-libcxx [1.3s]
+
+⠏ |          0 | factor                                                         
+⠙ |          2 | factor                                                         
+⠸ |          4 | factor                                                         
+⠼ |          5 | factor                                                         
+⠦ |          7 | factor                                                         
+⠧ |      1   7 | factor                                                         
+⠇ |      1   8 | factor                                                         
+⠋ |      1  10 | factor                                                         
+✔ |      1  11 | factor [1.3s]
+
+⠏ |          0 | fetch_arrow                                                    
+⠙ |          2 | fetch_arrow                                                    
+⠸ |          4 | fetch_arrow                                                    
+⠦ |          7 | fetch_arrow                                                    
+⠇ |          9 | fetch_arrow                                                    
+⠏ |         10 | fetch_arrow                                                    
+⠋ |         11 | fetch_arrow                                                    
+⠸ |         14 | fetch_arrow                                                    
+⠦ |         17 | fetch_arrow                                                    
+⠇ |         19 | fetch_arrow                                                    
+⠹ |         23 | fetch_arrow                                                    
+✔ |         24 | fetch_arrow [8.9s]
+
+⠏ |          0 | fetch                                                          
+✔ |          2 | fetch
+
+⠏ |          0 | fixtures                                                       
+⠼ |          5 | fixtures                                                       
+✔ |          6 | fixtures
+
+⠏ |          0 | flavor-package-name                                            
+⠋ |          1 | flavor-package-name                                            
+⠸ |          4 | flavor-package-name                                            
+✔ |          7 | flavor-package-name
+
+⠏ |          0 | geometry                                                       
+⠼ |          5 | geometry                                                       
+⠏ |         10 | geometry                                                       
+⠹ |         13 | geometry                                                       
+⠋ |      1  20 | geometry                                                       
+✔ |      1  21 | geometry
+
+⠏ |          0 | helper-skip                                                    
+⠇ |          9 | helper-skip                                                    
+✔ |      1  16 | helper-skip
+
+⠏ |          0 | instance-cache                                                 
+⠋ |          1 | instance-cache                                                 
+✔ |          2 | instance-cache [1.4s]
+
+⠏ |          0 | instance-settings                                              
+⠹ |          3 | instance-settings                                              
+⠴ |          6 | instance-settings                                              
+⠇ |          9 | instance-settings                                              
+⠋ |         11 | instance-settings                                              
+⠧ |         18 | instance-settings                                              
+✔ |         18 | instance-settings
+
+⠏ |          0 | integer64                                                      
+⠙ |          2 | integer64                                                      
+⠼ |          5 | integer64                                                      
+✔ |          5 | integer64
+
+⠏ |          0 | interval                                                       
+⠴ |          6 | interval                                                       
+✔ |         10 | interval
+
+⠏ |          0 | list                                                           
+⠴ |          6 | list                                                           
+⠇ |          9 | list                                                           
+✔ |          9 | list
+
+⠏ |          0 | map                                                            
+⠹ |          3 | map                                                            
+⠸ |          4 | map                                                            
+⠦ |          7 | map                                                            
+⠙ |         12 | map                                                            
+⠸ |         14 | map                                                            
+⠧ |         18 | map                                                            
+⠋ |         21 | map                                                            
+⠹ |         23 | map                                                            
+⠼ |         25 | map                                                            
+⠦ |         27 | map                                                            
+⠇ |         29 | map                                                            
+⠼ |         35 | map                                                            
+⠦ |         37 | map                                                            
+⠋ |         41 | map                                                            
+⠸ |         44 | map                                                            
+⠧ |         48 | map                                                            
+⠸ |         54 | map                                                            
+⠧ |         58 | map                                                            
+⠙ |         62 | map                                                            
+⠹ |         63 | map                                                            
+⠧ |         68 | map                                                            
+⠇ |         69 | map                                                            
+⠼ |         75 | map                                                            
+⠇ |         79 | map                                                            
+⠋ |         81 | map                                                            
+⠙ |         82 | map                                                            
+⠇ |         89 | map                                                            
+⠏ |         90 | map                                                            
+⠙ |         92 | map                                                            
+⠼ |         95 | map                                                            
+⠦ |         97 | map                                                            
+⠇ |         99 | map                                                            
+⠋ |        101 | map                                                            
+⠹ |        103 | map                                                            
+⠼ |        105 | map                                                            
+✔ |        109 | map [5.4s]
+
+⠏ |          0 | multi_statement                                                
+⠋ |          1 | multi_statement                                                
+⠙ |          2 | multi_statement                                                
+⠸ |          4 | multi_statement                                                
+⠼ |          5 | multi_statement                                                
+⠧ |          8 | multi_statement                                                
+⠏ | 1        9 | multi_statement                                                
+⠋ | 1       10 | multi_statement                                                
+⠙ | 1       11 | multi_statement                                                
+✖ | 1       12 | multi_statement [1.2s]
+────────────────────────────────────────────────────────────────────────────────
+Error ('test-multi_statement.R:88:3'): a pragma that expands to nothing can end a call
+Error in `duckdb_post_execute(res, out)`: is.data.frame(out) is not TRUE
+Backtrace:
+     ▆
+  1. ├─testthat::expect_identical(...) at test-multi_statement.R:88:3
+  2. │ └─testthat::quasi_label(enquo(object), label)
+  3. │   └─rlang::eval_bare(expr, quo_get_env(quo))
+  4. ├─DBI::dbGetQuery(con, query)
+  5. └─DBI::dbGetQuery(con, query)
+  6.   └─DBI (local) .local(conn, statement, ...)
+  7.     ├─DBI::dbSendQuery(conn, statement, ...)
+  8.     └─duckdb::dbSendQuery(conn, statement, ...)
+  9.       └─duckdb (local) .local(conn, statement, ...)
+ 10.         └─duckdb:::duckdb_result(...)
+ 11.           └─duckdb:::duckdb_execute(res)
+ 12.             └─duckdb:::duckdb_post_execute(res, out)
+ 13.               └─base::stopifnot(is.data.frame(out))
+────────────────────────────────────────────────────────────────────────────────
+
+⠏ |          0 | null_byte                                                      
+✔ |          1 | null_byte
+
+⠏ |          0 | numeric                                                        
+✔ |          1 | numeric
+
+⠏ |          0 | parquet                                                        
+⠙ |          2 | parquet                                                        
+⠼ |          5 | parquet                                                        
+⠧ |          8 | parquet                                                        
+✔ |          8 | parquet
+
+⠏ |          0 | path_normalize                                                 
+⠸ |          4 | path_normalize                                                 
+⠇ |          9 | path_normalize                                                 
+⠙ |         12 | path_normalize                                                 
+⠦ |      1  16 | path_normalize                                                 
+⠸ |      1  23 | path_normalize                                                 
+⠦ |      1  26 | path_normalize                                                 
+✔ |      1  27 | path_normalize [1.0s]
+
+⠏ |          0 | progress_display                                               
+⠸ |          4 | progress_display                                               
+⠏ |         10 | progress_display                                               
+⠋ |         11 | progress_display                                               
+⠦ |      1  16 | progress_display                                               
+⠹ |      1  22 | progress_display                                               
+⠋ |      1  30 | progress_display                                               
+✔ |      1  31 | progress_display [4.4s]
+
+⠏ |          0 | read                                                           
+⠋ |          1 | read                                                           
+⠹ |          3 | read                                                           
+⠼ |          5 | read                                                           
+⠦ |          7 | read                                                           
+⠇ |          9 | read                                                           
+⠋ |         11 | read                                                           
+⠸ |         14 | read                                                           
+⠼ |         15 | read                                                           
+⠴ |         16 | read                                                           
+⠦ |         17 | read                                                           
+⠇ |         19 | read                                                           
+⠋ |         21 | read                                                           
+⠼ |         25 | read                                                           
+⠦ |         27 | read                                                           
+✔ |         27 | read [2.1s]
+
+⠏ |          0 | readonly                                                       
+⠋ |          1 | readonly                                                       
+⠙ |          2 | readonly                                                       
+⠹ |          3 | readonly                                                       
+✔ |          3 | readonly [3.8s]
+
+⠏ |          0 | register_arrow                                                 
+⠋ |          1 | register_arrow                                                 
+⠸ |          4 | register_arrow                                                 
+⠦ |          7 | register_arrow                                                 
+⠏ |         10 | register_arrow                                                 
+⠹ |         13 | register_arrow                                                 
+⠼ |         15 | register_arrow                                                 
+⠧ |         18 | register_arrow                                                 
+⠼ |         25 | register_arrow                                                 
+⠧ |         28 | register_arrow                                                 
+⠼ |         35 | register_arrow                                                 
+⠇ |         39 | register_arrow                                                 
+⠦ |         47 | register_arrow                                                 
+⠙ |         52 | register_arrow                                                 
+⠦ |         57 | register_arrow                                                 
+⠇ |         59 | register_arrow                                                 
+⠼ |         65 | register_arrow                                                 
+⠧ |         68 | register_arrow                                                 
+⠼ |         75 | register_arrow                                                 
+⠇ |         79 | register_arrow                                                 
+⠙ |         82 | register_arrow                                                 
+⠧ |         88 | register_arrow                                                 
+⠴ |         96 | register_arrow                                                 
+⠋ |        101 | register_arrow                                                 
+⠦ |        107 | register_arrow                                                 
+⠏ |        110 | register_arrow                                                 
+⠴ |        116 | register_arrow                                                 
+⠋ |        121 | register_arrow                                                 
+⠧ |        128 | register_arrow                                                 
+⠦ |        137 | register_arrow                                                 
+⠙ |        142 | register_arrow                                                 
+⠧ |        148 | register_arrow                                                 
+⠴ |        156 | register_arrow                                                 
+⠏ |        160 | register_arrow                                                 
+⠦ |        167 | register_arrow                                                 
+⠇ |        169 | register_arrow                                                 
+⠦ |        177 | register_arrow                                                 
+⠧ |        178 | register_arrow                                                 
+⠹ |        183 | register_arrow                                                 
+⠋ |        191 | register_arrow                                                 
+⠸ |        194 | register_arrow                                                 
+⠋ |        201 | register_arrow                                                 
+⠸ |        204 | register_arrow                                                 
+⠋ |        211 | register_arrow                                                 
+⠸ |        214 | register_arrow                                                 
+⠏ |        220 | register_arrow                                                 
+⠸ |        224 | register_arrow                                                 
+⠦ |        227 | register_arrow                                                 
+⠋ |        231 | register_arrow                                                 
+⠹ |        233 | register_arrow                                                 
+⠴ |        236 | register_arrow                                                 
+⠼ |        245 | register_arrow                                                 
+⠸ |        254 | register_arrow                                                 
+⠋ |        261 | register_arrow                                                 
+⠦ |      1 266 | register_arrow                                                 
+⠋ |      1 270 | register_arrow                                                 
+✔ |      1 271 | register_arrow [7.4s]
+
+⠏ |          0 | register_readonly                                              
+⠋ |          1 | register_readonly                                              
+✔ |          1 | register_readonly
+
+⠏ |          0 | register                                                       
+⠹ |          3 | register                                                       
+⠦ |          7 | register                                                       
+⠙ |         12 | register                                                       
+⠼ |         15 | register                                                       
+✔ |         17 | register
+
+⠏ |          0 | rel_api                                                        
+⠋ |          1 | rel_api                                                        
+⠹ |          3 | rel_api                                                        
+⠸ |          4 | rel_api                                                        
+⠴ |          6 | rel_api                                                        
+⠧ |          8 | rel_api                                                        
+⠏ |         10 | rel_api                                                        
+⠙ |         12 | rel_api                                                        
+⠸ |         14 | rel_api                                                        
+⠴ |         16 | rel_api                                                        
+⠦ |         17 | rel_api                                                        
+⠇ |         19 | rel_api                                                        
+⠋ |         21 | rel_api                                                        
+⠹ |         23 | rel_api                                                        
+⠼ |         25 | rel_api                                                        
+⠦ |         27 | rel_api                                                        
+⠇ |         29 | rel_api                                                        
+⠋ |         31 | rel_api                                                        
+⠙ |         32 | rel_api                                                        
+⠸ |         34 | rel_api                                                        
+⠴ |         36 | rel_api                                                        
+⠧ |         38 | rel_api                                                        
+⠏ |         40 | rel_api                                                        
+⠙ |         42 | rel_api                                                        
+⠸ |         44 | rel_api                                                        
+⠴ |         46 | rel_api                                                        
+⠧ |         48 | rel_api                                                        
+⠏ |         50 | rel_api                                                        
+⠙ |         52 | rel_api                                                        
+⠸ |         54 | rel_api                                                        
+⠴ |         56 | rel_api                                                        
+⠧ |         58 | rel_api                                                        
+⠏ |         60 | rel_api                                                        
+⠙ |         62 | rel_api                                                        
+⠸ |         64 | rel_api                                                        
+⠴ |         66 | rel_api                                                        
+⠧ |         68 | rel_api                                                        
+⠏ |         70 | rel_api                                                        
+⠙ |         72 | rel_api                                                        
+⠸ |         74 | rel_api                                                        
+⠴ |         76 | rel_api                                                        
+⠧ |         78 | rel_api                                                        
+⠏ |         80 | rel_api                                                        
+⠙ |         82 | rel_api                                                        
+⠼ |         85 | rel_api                                                        
+⠦ |         87 | rel_api                                                        
+⠇ |         89 | rel_api                                                        
+⠋ |         91 | rel_api                                                        
+⠹ |         93 | rel_api                                                        
+⠼ |         95 | rel_api                                                        
+⠦ |         97 | rel_api                                                        
+⠇ |         99 | rel_api                                                        
+⠋ |        101 | rel_api                                                        
+⠹ |        103 | rel_api                                                        
+⠸ |        104 | rel_api                                                        
+⠴ |        106 | rel_api                                                        
+⠧ |        108 | rel_api                                                        
+⠏ |        110 | rel_api                                                        
+⠙ |        112 | rel_api                                                        
+⠸ |        114 | rel_api                                                        
+⠴ |        116 | rel_api                                                        
+⠧ |        118 | rel_api                                                        
+⠏ |        120 | rel_api                                                        
+⠙ |        122 | rel_api                                                        
+⠸ |        124 | rel_api                                                        
+⠴ |        126 | rel_api                                                        
+⠧ |        128 | rel_api                                                        
+⠇ |        129 | rel_api                                                        
+⠋ |        131 | rel_api                                                        
+⠹ |        133 | rel_api                                                        
+⠼ |        135 | rel_api                                                        
+⠦ |        137 | rel_api                                                        
+⠇ |        139 | rel_api                                                        
+⠋ |        141 | rel_api                                                        
+⠹ |        143 | rel_api                                                        
+⠼ |        145 | rel_api                                                        
+⠴ |        146 | rel_api                                                        
+⠧ |        148 | rel_api                                                        
+⠏ |        150 | rel_api                                                        
+⠙ |        152 | rel_api                                                        
+⠹ |        153 | rel_api                                                        
+⠼ |        155 | rel_api                                                        
+⠦ |        157 | rel_api                                                        
+⠇ |        159 | rel_api                                                        
+⠋ |        161 | rel_api                                                        
+⠹ |        163 | rel_api                                                        
+⠼ |        165 | rel_api                                                        
+⠦ |        167 | rel_api                                                        
+⠇ |        169 | rel_api                                                        
+⠏ |        170 | rel_api                                                        
+⠙ |        172 | rel_api                                                        
+⠸ |        174 | rel_api                                                        
+⠴ |        176 | rel_api                                                        
+⠦ |        177 | rel_api                                                        
+⠇ |        179 | rel_api                                                        
+⠋ |        181 | rel_api                                                        
+⠹ |        183 | rel_api                                                        
+⠼ |        185 | rel_api                                                        
+⠦ |        187 | rel_api                                                        
+⠇ |        189 | rel_api                                                        
+⠋ |        191 | rel_api                                                        
+⠹ |        193 | rel_api                                                        
+⠼ |        195 | rel_api                                                        
+⠦ |        197 | rel_api                                                        
+⠧ |        198 | rel_api                                                        
+⠏ |        200 | rel_api                                                        
+⠙ |        202 | rel_api                                                        
+⠸ |        204 | rel_api                                                        
+⠴ |        206 | rel_api                                                        
+⠧ |        208 | rel_api                                                        
+⠏ |        210 | rel_api                                                        
+⠙ |        212 | rel_api                                                        
+⠸ |        214 | rel_api                                                        
+⠴ |        216 | rel_api                                                        
+⠧ |        218 | rel_api                                                        
+⠏ |        220 | rel_api                                                        
+⠙ |        222 | rel_api                                                        
+✔ |        222 | rel_api [16.8s]
+
+⠏ |          0 | relational                                                     
+⠋ |          1 | relational                                                     
+⠦ |          7 | relational                                                     
+⠹ |         13 | relational                                                     
+⠹ |         23 | relational                                                     
+⠏ |         30 | relational                                                     
+⠇ |         39 | relational                                                     
+⠦ |         47 | relational                                                     
+⠙ |         52 | relational                                                     
+⠴ |         56 | relational                                                     
+⠇ |         59 | relational                                                     
+⠼ |         65 | relational                                                     
+⠦ |         67 | relational                                                     
+⠧ |         68 | relational                                                     
+⠋ |         71 | relational                                                     
+⠹ |         73 | relational                                                     
+⠼ |         75 | relational                                                     
+⠦ |         77 | relational                                                     
+⠇ |         79 | relational                                                     
+⠋ |         81 | relational                                                     
+⠹ |         83 | relational                                                     
+⠼ |         85 | relational                                                     
+⠦ |         87 | relational                                                     
+⠇ |         89 | relational                                                     
+⠴ |         96 | relational                                                     
+⠙ |        102 | relational                                                     
+⠇ |        109 | relational                                                     
+⠸ |        114 | relational                                                     
+⠦ |        117 | relational                                                     
+⠏ |        120 | relational                                                     
+⠸ |        124 | relational                                                     
+⠇ |        129 | relational                                                     
+⠹ |        133 | relational                                                     
+⠼ |        135 | relational                                                     
+⠧ |        138 | relational                                                     
+⠋ |        141 | relational                                                     
+⠼ |        145 | relational                                                     
+⠏ |        150 | relational                                                     
+⠸ |        154 | relational                                                     
+⠧ |        158 | relational                                                     
+⠋ |        161 | relational                                                     
+⠸ |        164 | relational                                                     
+⠏ |        170 | relational                                                     
+⠼ |        175 | relational                                                     
+⠧ |        178 | relational                                                     
+⠋ |        181 | relational                                                     
+⠸ |        184 | relational                                                     
+⠧ |        188 | relational                                                     
+⠙ |        192 | relational                                                     
+⠴ |        196 | relational                                                     
+⠋ |        201 | relational                                                     
+⠴ |        206 | relational                                                     
+⠋ |        211 | relational                                                     
+⠙ |        212 | relational                                                     
+⠸ |        214 | relational                                                     
+⠏ |        220 | relational                                                     
+⠴ |        226 | relational                                                     
+⠙ |        232 | relational                                                     
+⠧ |        238 | relational                                                     
+⠼ |        245 | relational                                                     
+⠙ |        252 | relational                                                     
+⠼ |        255 | relational                                                     
+⠧ |        258 | relational                                                     
+⠙ |        262 | relational                                                     
+⠸ |        264 | relational                                                     
+⠴ |        266 | relational                                                     
+⠦ |        267 | relational                                                     
+⠧ |        268 | relational                                                     
+⠇ |        269 | relational                                                     
+⠏ |        270 | relational                                                     
+⠹ |        273 | relational                                                     
+✔ |        273 | relational [13.0s]
+
+⠏ |          0 | rfuns-minmax                                                   
+⠹ |          3 | rfuns-minmax                                                   
+⠼ |          5 | rfuns-minmax                                                   
+⠦ |          7 | rfuns-minmax                                                   
+✔ |          7 | rfuns-minmax
+
+⠏ |          0 | rfuns-mixed-types                                              
+✔ |          5 | rfuns-mixed-types
+
+⠏ |          0 | rfuns-narm                                                     
+⠹ |          3 | rfuns-narm                                                     
+⠦ |          7 | rfuns-narm                                                     
+✔ |          8 | rfuns-narm
+
+⠏ |          0 | rfuns-sum                                                      
+⠋ |          1 | rfuns-sum                                                      
+⠼ |          5 | rfuns-sum                                                      
+✔ |          6 | rfuns-sum
+
+⠏ |          0 | rfuns                                                          
+✔ |          2 | rfuns
+
+⠏ |          0 | scan                                                           
+⠙ |          2 | scan                                                           
+⠸ |          4 | scan                                                           
+⠦ |          7 | scan                                                           
+⠇ |          9 | scan                                                           
+⠏ |         10 | scan                                                           
+⠋ |         11 | scan                                                           
+⠙ |         12 | scan                                                           
+✔ |         12 | scan [13.7s]
+
+⠏ |          0 | shutdown                                                       
+⠋ |          1 | shutdown                                                       
+✔ |          1 | shutdown [2.4s]
+
+⠏ |          0 | signal                                                         
+⠋ |          1 | signal                                                         
+⠙ |          2 | signal                                                         
+⠦ |          7 | signal                                                         
+✔ |          7 | signal [1.5s]
+
+⠏ |          0 | sql                                                            
+⠼ |          5 | sql                                                            
+⠸ |         14 | sql                                                            
+⠼ |         15 | sql                                                            
+⠧ |         18 | sql                                                            
+⠋ |         21 | sql                                                            
+⠸ |         24 | sql                                                            
+⠼ |         25 | sql                                                            
+⠇ |         29 | sql                                                            
+⠴ |         36 | sql                                                            
+⠇ |         39 | sql                                                            
+✔ |         39 | sql [1.2s]
+
+⠏ |          0 | storage-cli-e2e                                                
+✔ |      2   0 | storage-cli-e2e
+
+⠏ |          0 | storage-e2e                                                    
+⠹ |          3 | storage-e2e                                                    
+⠴ |          6 | storage-e2e                                                    
+✔ |      1   7 | storage-e2e
+
+⠏ |          0 | storage-home                                                   
+⠴ |          6 | storage-home                                                   
+⠼ |         15 | storage-home                                                   
+⠹ |         23 | storage-home                                                   
+⠋ |         31 | storage-home                                                   
+⠏ |         40 | storage-home                                                   
+⠹ |         43 | storage-home                                                   
+⠴ |         46 | storage-home                                                   
+⠇ |         49 | storage-home                                                   x
+
+⠴ |         56 | storage-home                                                   x
+
+⠋ |         61 | storage-home                                                   
+✔ |         62 | storage-home [4.0s]
+
+⠏ |          0 | storage-message-once                                           
+⠸ |          4 | storage-message-once                                           duckdb keeps downloaded extensions and secrets in a temporary directory:
+i /tmp/RtmpiYAL1G/duckdb
+This is removed when the R session ends.
+* Extensions are re-downloaded each session.
+* Secrets are lost.
+i Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+i Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |          8 | storage-message-once                                           
+✔ |          9 | storage-message-once
+
+⠏ |          0 | storage-seams                                                  
+✔ |          2 | storage-seams
+
+⠏ |          0 | storage-secret                                                 
+✔ |          3 | storage-secret
+
+⠏ |          0 | storage-shared-home                                            
+⠸ |          4 | storage-shared-home                                            
+✔ |          5 | storage-shared-home
+
+⠏ |          0 | storage-status                                                 
+⠧ |          8 | storage-status                                                 
+✔ |         12 | storage-status
+
+⠏ |          0 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         13 | struct                                                         
+⠼ |         15 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |         18 | struct                                                         
+⠏ |         20 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         22 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |         24 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ |         26 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |         28 | struct                                                         
+✔ |         29 | struct [1.6s]
+
+⠏ |          0 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |          3 | tbl__duckdb_connection                                         
+⠴ |          6 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |          9 | tbl__duckdb_connection                                         
+⠙ |         12 | tbl__duckdb_connection                                         
+⠴ |         16 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |      2  17 | tbl__duckdb_connection                                         
+⠋ |      2  19 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |      2  21 | tbl__duckdb_connection                                         
+⠦ |      2  25 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |      2  27 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |      2  29 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |      2  31 | tbl__duckdb_connection                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ |      2  34 | tbl__duckdb_connection                                         
+✔ |      2  34 | tbl__duckdb_connection [1.8s]
+
+⠏ |          0 | timestamp                                                      duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | timestamp                                                      duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |          4 | timestamp                                                      duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |          9 | timestamp                                                      duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         12 | timestamp                                                      duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         13 | timestamp                                                      
+⠙ |         22 | timestamp                                                      
+✔ |         23 | timestamp
+
+⠏ |          0 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |          3 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |          5 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |          9 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         12 | timezone                                                       
+⠦ |         27 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         32 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ |         36 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ |         40 | timezone                                                       
+⠙ |         42 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |      1  46 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |      4  48 | timezone                                                       duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+✔ |      6  50 | timezone [1.8s]
+
+⠏ |          0 | to_arrow_stream                                                duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | to_arrow_stream                                                
+⠼ |          5 | to_arrow_stream                                                duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |          8 | to_arrow_stream                                                duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠏ |         10 | to_arrow_stream                                                duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         13 | to_arrow_stream                                                
+✔ |         16 | to_arrow_stream [1.1s]
+
+⠏ |          0 | types-rd                                                       
+⠋ |          1 | types-rd                                                       
+✔ |          1 | types-rd
+
+⠏ |          0 | types                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | types                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |          2 | types                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | types                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         13 | types                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |         15 | types                                                          
+⠇ |         19 | types                                                          duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |         22 | types                                                          
+✔ |         24 | types
+
+⠏ |          0 | variant                                                        duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |          5 | variant                                                        duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |         11 | variant                                                        duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |         17 | variant                                                        duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+i This message has been shown 60 times and will not be shown again this session.
+
+⠋ |         21 | variant                                                        
+⠇ |         29 | variant                                                        
+⠹ |         33 | variant                                                        
+⠧ |         38 | variant                                                        
+⠏ |         40 | variant                                                        
+⠼ |         45 | variant                                                        
+✔ |         48 | variant [1.2s]
+
+⠏ |          0 | viewer                                                         
+⠹ |          3 | viewer                                                         
+⠦ |          7 | viewer                                                         
+⠏ |         10 | viewer                                                         
+⠙ |         12 | viewer                                                         
+⠼ |         15 | viewer                                                         
+✔ |         15 | viewer
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 267.6 s
+
+── Skipped tests (43) ──────────────────────────────────────────────────────────
+• {sf} cannot be loaded (1): 'test-geometry.R:73:3'
+• DBItest::run_tests(): by request: arrow_send_query_stale_warning,
+  arrow_send_query_only_one_result_set, arrow_write_table_arrow_roundtrip_time,
+  arrow_write_table_arrow_roundtrip_timestamp_extended,
+  arrow_append_table_arrow_roundtrip_time,
+  arrow_append_table_arrow_roundtrip_timestamp_extended (1):
+  'test-DBItest.R:4:3'
+• DBItest::run_tests(): by request: bind_factor, arrow_bind_factor,
+  column_info_consistent (1): 'test-DBItest.R:4:3'
+• DBItest::run_tests(): by request: constructor, connect_bigint_integer,
+  connect_bigint_character, connect_bigint_integer64 (1): 'test-DBItest.R:4:3'
+• DBItest::run_tests(): by request: package_dependencies, package_name (1):
+  'test-DBItest.R:4:3'
+• DBItest::run_tests(): by request: read_table, read_table_empty,
+  read_table_row_names_na_missing, append_roundtrip_64_bit_numeric,
+  append_roundtrip_64_bit_character, append_roundtrip_64_bit_roundtrip,
+  append_roundtrip_factor, write_table_error, overwrite_table,
+  overwrite_table_missing, append_table, append_table_new,
+  table_visible_in_other_connection_1, table_visible_in_other_connection_2,
+  table_visible_in_other_connection_3, roundtrip_64_bit_character,
+  roundtrip_character, roundtrip_factor, write_table_row_names_true_missing,
+  write_table_row_names_na_missing, write_table_row_names_string_missing (1):
+  'test-DBItest.R:4:3'
+• DBItest::run_tests(): by request: reexport (1): 'test-DBItest.R:4:3'
+• DBItest::run_tests(): by request: send_query_stale_warning,
+  send_query_only_one_result_set, send_statement_stale_warning,
+  send_statement_only_one_result_set, data_date_current, data_time_current,
+  data_date_current_typed, data_64_bit_numeric_warning, data_64_bit_lossless
+  (1): 'test-DBItest.R:4:3'
+• drive letters are Windows-only (1): 'test-path_normalize.R:87:3'
+• empty test (1): 'test-factor.R:82:1'
+• ICU not loaded (1): 'test-register_arrow.R:902:3'
+• interactive() is not TRUE (2): 'test-connect.R:5:3', 'test-connect.R:15:3'
+• Internal: Need to enhance test_arrow_roundtrip() (6): 'test-DBItest.R:4:3',
+  'test-DBItest.R:4:3', 'test-DBItest.R:4:3', 'test-DBItest.R:4:3',
+  'test-DBItest.R:4:3', 'test-DBItest.R:4:3'
+• No DuckDB CLI found (set DUCKDB_CLI or put `duckdb` on PATH). (2):
+  'test-storage-cli-e2e.R:93:3', 'test-storage-cli-e2e.R:117:3'
+• No schemas available (1): 'test-DBItest.R:4:3'
+• not rcc (1): 'test-helper-skip.R:51:3'
+• packageVersion("dbplyr") >= "2.4.0" is TRUE (2):
+  'test-tbl__duckdb_connection.R:57:3', 'test-tbl__duckdb_connection.R:83:3'
+• Skip on development versions. (8): 'test-duckdb-extensions.R:2:3',
+  'test-storage-e2e.R:106:3', 'test-timezone.R:303:3', 'test-timezone.R:321:3',
+  'test-timezone.R:344:3', 'test-timezone.R:370:3', 'test-timezone.R:388:3',
+  'test-timezone.R:415:3'
+• the engine reports no progress after a stream's first read (1):
+  'test-progress_display.R:133:3'
+• tweak: temporary_tables (9): 'test-DBItest.R:4:3', 'test-DBItest.R:4:3',
+  'test-DBItest.R:4:3', 'test-DBItest.R:4:3', 'test-DBItest.R:4:3',
+  'test-DBItest.R:4:3', 'test-DBItest.R:4:3', 'test-DBItest.R:4:3',
+  'test-DBItest.R:4:3'
+
+── Failed tests ────────────────────────────────────────────────────────────────
+Error ('test-multi_statement.R:88:3'): a pragma that expands to nothing can end a call
+Error in `duckdb_post_execute(res, out)`: is.data.frame(out) is not TRUE
+Backtrace:
+     ▆
+  1. ├─testthat::expect_identical(...) at test-multi_statement.R:88:3
+  2. │ └─testthat::quasi_label(enquo(object), label)
+  3. │   └─rlang::eval_bare(expr, quo_get_env(quo))
+  4. ├─DBI::dbGetQuery(con, query)
+  5. └─DBI::dbGetQuery(con, query)
+  6.   └─DBI (local) .local(conn, statement, ...)
+  7.     ├─DBI::dbSendQuery(conn, statement, ...)
+  8.     └─duckdb::dbSendQuery(conn, statement, ...)
+  9.       └─duckdb (local) .local(conn, statement, ...)
+ 10.         └─duckdb:::duckdb_result(...)
+ 11.           └─duckdb:::duckdb_execute(res)
+ 12.             └─duckdb:::duckdb_post_execute(res, out)
+ 13.               └─base::stopifnot(is.data.frame(out))
+
+[ FAIL 1 | WARN 0 | SKIP 43 | PASS 10471 ]
+
+SUMMARY files=78 tests=10513 failed=0 error=1 skipped=43
+FAILING:
+                   file                                            test
+ test-multi_statement.R a pragma that expands to nothing can end a call

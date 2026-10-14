@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /workspace/v2 && git checkout -q --detach land-v2-pass3
+/home/user/duckdb-r/scripts/series-fold.sh land-v2-pass3 \
+  --fold "$(cat /workspace/fix-1620.txt):Landing v2 (findings 1 and 4): an Arrow result with \`allow_stream_result\` and one bound row is submitted rather than run to completion, and streams through the glue's own \`RArrowChunkSource\` over a \`QueryResultStream\`; only a SELECT that returns rows, as written, streams, and any other statement is completed (\`src/statement.cpp\`, \`src/arrow_export.cpp\`); a query result or stream that a finalizer frees inside a callback is parked like a statement (\`RCallbackScope::Defer()\`). The tests this commit skipped run again: the #2772 invalidation tests, \`dbClearResult()\` ending a stream, and the \`to_arrow_stream()\` invalidation assertions, without \`arrow_result_streams()\`." && echo "FOLD DONE $(git rev-parse HEAD)" || /workspace/bin/fold-loop.sh

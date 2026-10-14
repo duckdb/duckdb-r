@@ -1,0 +1,240 @@
+Loading required package: DBI
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ | F W  S  OK | Context
+
+⠏ |          0 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | relational                                                     
+⠦ |          7 | relational                                                     
+⠇ |          9 | relational                                                     
+⠴ |         16 | relational                                                     
+⠙ |         22 | relational                                                     
+⠹ |         33 | relational                                                     
+⠏ |         40 | relational                                                     
+⠦ |         47 | relational                                                     
+⠸ |         54 | relational                                                     
+⠦ |         57 | relational                                                     
+⠹ |         63 | relational                                                     
+⠦ |         67 | relational                                                     
+⠏ |         70 | relational                                                     
+⠹ |         73 | relational                                                     
+⠼ |         75 | relational                                                     
+⠦ |         77 | relational                                                     
+⠏ |         80 | relational                                                     
+⠹ |         83 | relational                                                     
+⠼ |         85 | relational                                                     
+⠧ |         88 | relational                                                     
+⠏ |         90 | relational                                                     
+⠇ |         99 | relational                                                     
+⠼ |        105 | relational                                                     
+⠋ |        111 | relational                                                     
+⠼ |        115 | relational                                                     
+⠇ |        119 | relational                                                     
+⠙ |        122 | relational                                                     
+⠦ |        127 | relational                                                     
+⠋ |        131 | relational                                                     
+⠴ |        136 | relational                                                     
+⠇ |        139 | relational                                                     
+⠸ |        144 | relational                                                     
+⠦ |        147 | relational                                                     
+⠹ |        153 | relational                                                     
+⠦ |        157 | relational                                                     
+⠏ |        160 | relational                                                     
+⠹ |        163 | relational                                                     
+⠼ | 1      164 | relational                                                     
+⠇ | 3      166 | relational                                                     
+⠹ | 3      170 | relational                                                     
+⠦ | 3      174 | relational                                                     
+⠋ | 3      178 | relational                                                     
+⠴ | 3      183 | relational                                                     
+⠇ | 3      186 | relational                                                     
+⠙ | 3      189 | relational                                                     
+⠇ | 3      196 | relational                                                     
+⠸ | 3      201 | relational                                                     
+⠴ | 3      203 | relational                                                     
+⠦ | 3      204 | relational                                                     
+⠇ | 3      206 | relational                                                     
+⠼ | 5      210 | relational                                                     
+⠋ | 5      216 | relational                                                     
+⠦ | 5      222 | relational                                                     
+⠹ | 5      228 | relational                                                     
+⠹ | 5      238 | relational                                                     
+⠦ | 5      242 | relational                                                     
+⠏ | 5      245 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ | 5      248 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ | 5      252 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ | 5      256 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ | 5      258 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ | 5      259 | relational                                                     duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ | 5      261 | relational                                                     
+✖ | 5      263 | relational [10.7s]
+────────────────────────────────────────────────────────────────────────────────
+Failure ('test-relational.R:1240:3'): lag() and lead() take a default with or without an offset
+Expected `shifted("lag", default = int)` to equal `c(0, 1, 2, 3)`.
+Differences:
+  `actual`: 1.0 2.0 3.0 4.0
+`expected`: 0.0 1.0 2.0 3.0
+
+
+Failure ('test-relational.R:1241:3'): lag() and lead() take a default with or without an offset
+Expected `shifted("lead", default = int)` to equal `c(2, 3, 4, 0)`.
+Differences:
+  `actual`: 1.0 2.0 3.0 4.0
+`expected`: 2.0 3.0 4.0 0.0
+
+
+Error ('test-relational.R:1232:5'): lag() and lead() take a default with or without an offset
+Error in `shifted("lag", default = dbl)`: {"exception_type":"Binder","exception_message":"No function matches the given name and argument types 'lag(INTEGER, DOUBLE)'. You might need to add explicit type casts.\n\tCandidate functions:\n\tlag(ANY, BIGINT, ANY) -> ANY\n\tlag(ANY, BIGINT) -> ANY\n\tlag(ANY) -> ANY\n","error_subtype":"NO_MATCHING_FUNCTION","catalog":"system","schema":"main","call":"lag(INTEGER, DOUBLE)","candidates":"lag(ANY, BIGINT, ANY) -> ANY,lag(ANY, BIGINT) -> ANY,lag(ANY) -> ANY","name":"lag"}
+Backtrace:
+     ▆
+  1. ├─testthat::expect_equal(...) at test-relational.R:1242:3
+  2. │ └─testthat::quasi_label(enquo(object), label)
+  3. │   └─rlang::eval_bare(expr, quo_get_env(quo))
+  4. ├─duckdb (local) shifted("lag", default = dbl)
+  5. │ └─duckdb:::rel_project(rel_a, list(expr_reference("a"), window)) at test-relational.R:1232:5
+  6. │   └─duckdb:::rethrow_rapi_rel_project(rel, exprs)
+  7. │     ├─rlang::try_fetch(...)
+  8. │     │ ├─base::tryCatch(...)
+  9. │     │ │ └─base (local) tryCatchList(expr, classes, parentenv, handlers)
+ 10. │     │ │   └─base (local) tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 11. │     │ │     └─base (local) doTryCatch(return(expr), name, parentenv, handler)
+ 12. │     │ └─base::withCallingHandlers(...)
+ 13. │     └─duckdb:::rapi_rel_project(rel, exprs)
+ 14. └─base::.handleSimpleError(...)
+ 15.   └─rlang (local) h(simpleError(msg, call))
+ 16.     └─handlers[[1L]](cnd)
+ 17.       └─duckdb:::rethrow_error_from_rapi(e, call)
+ 18.         └─rlang::abort(msg, call = call)
+
+Failure ('test-relational.R:1762:3'): rel_to_csv() and rel_to_parquet() refuse an empty file name
+Expected `rel_to_csv(rel, "")` to throw a error.
+
+Failure ('test-relational.R:1764:3'): rel_to_csv() and rel_to_parquet() refuse an empty file name
+Expected `list.files(all.files = TRUE, no.. = TRUE)` to equal `character()`.
+Differences:
+`actual`:   "data_0.csv"
+`expected`:             
+
+────────────────────────────────────────────────────────────────────────────────
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 10.8 s
+
+── Failed tests ────────────────────────────────────────────────────────────────
+Failure ('test-relational.R:1240:3'): lag() and lead() take a default with or without an offset
+Expected `shifted("lag", default = int)` to equal `c(0, 1, 2, 3)`.
+Differences:
+  `actual`: 1.0 2.0 3.0 4.0
+`expected`: 0.0 1.0 2.0 3.0
+
+
+Failure ('test-relational.R:1241:3'): lag() and lead() take a default with or without an offset
+Expected `shifted("lead", default = int)` to equal `c(2, 3, 4, 0)`.
+Differences:
+  `actual`: 1.0 2.0 3.0 4.0
+`expected`: 2.0 3.0 4.0 0.0
+
+
+Error ('test-relational.R:1232:5'): lag() and lead() take a default with or without an offset
+Error in `shifted("lag", default = dbl)`: {"exception_type":"Binder","exception_message":"No function matches the given name and argument types 'lag(INTEGER, DOUBLE)'. You might need to add explicit type casts.\n\tCandidate functions:\n\tlag(ANY, BIGINT, ANY) -> ANY\n\tlag(ANY, BIGINT) -> ANY\n\tlag(ANY) -> ANY\n","error_subtype":"NO_MATCHING_FUNCTION","catalog":"system","schema":"main","call":"lag(INTEGER, DOUBLE)","candidates":"lag(ANY, BIGINT, ANY) -> ANY,lag(ANY, BIGINT) -> ANY,lag(ANY) -> ANY","name":"lag"}
+Backtrace:
+     ▆
+  1. ├─testthat::expect_equal(...) at test-relational.R:1242:3
+  2. │ └─testthat::quasi_label(enquo(object), label)
+  3. │   └─rlang::eval_bare(expr, quo_get_env(quo))
+  4. ├─duckdb (local) shifted("lag", default = dbl)
+  5. │ └─duckdb:::rel_project(rel_a, list(expr_reference("a"), window)) at test-relational.R:1232:5
+  6. │   └─duckdb:::rethrow_rapi_rel_project(rel, exprs)
+  7. │     ├─rlang::try_fetch(...)
+  8. │     │ ├─base::tryCatch(...)
+  9. │     │ │ └─base (local) tryCatchList(expr, classes, parentenv, handlers)
+ 10. │     │ │   └─base (local) tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 11. │     │ │     └─base (local) doTryCatch(return(expr), name, parentenv, handler)
+ 12. │     │ └─base::withCallingHandlers(...)
+ 13. │     └─duckdb:::rapi_rel_project(rel, exprs)
+ 14. └─base::.handleSimpleError(...)
+ 15.   └─rlang (local) h(simpleError(msg, call))
+ 16.     └─handlers[[1L]](cnd)
+ 17.       └─duckdb:::rethrow_error_from_rapi(e, call)
+ 18.         └─rlang::abort(msg, call = call)
+
+Failure ('test-relational.R:1762:3'): rel_to_csv() and rel_to_parquet() refuse an empty file name
+Expected `rel_to_csv(rel, "")` to throw a error.
+
+Failure ('test-relational.R:1764:3'): rel_to_csv() and rel_to_parquet() refuse an empty file name
+Expected `list.files(all.files = TRUE, no.. = TRUE)` to equal `character()`.
+Differences:
+`actual`:   "data_0.csv"
+`expected`:             
+
+
+[ FAIL 5 | WARN 0 | SKIP 0 | PASS 263 ]
+
+SUMMARY files=1 tests=266 failed=4 error=1 skipped=0
+FAILING:
+              file                                                        test
+ test-relational.R   lag() and lead() take a default with or without an offset
+ test-relational.R rel_to_csv() and rel_to_parquet() refuse an empty file name

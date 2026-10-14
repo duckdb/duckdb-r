@@ -1,0 +1,5 @@
+Loading required package: DBI
+Error: package or namespace load failed for ‘duckdb’ in dyn.load(file, DLLpath = DLLpath, ...):
+ unable to load shared object '/workspace/lib-b/duckdb/libs/duckdb.so':
+  /workspace/lib-b/duckdb/libs/duckdb.so: undefined symbol: _ZTIN6duckdb16VariantShreddingE
+Execution halted

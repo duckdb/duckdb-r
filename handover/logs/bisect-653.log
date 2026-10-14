@@ -1,0 +1,170 @@
+Loading required package: DBI
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ | F W  S  OK | Context
+
+⠏ |          0 | factor                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠋ |          1 | factor                                                         
+⠙ |          2 | factor                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ |          4 | factor                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ |          5 | factor                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | factor                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ |      1   7 | factor                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠇ |      1   8 | factor                                                         
+⠙ | 1    1  10 | factor                                                         
+✖ | 1    1  10 | factor [2.2s]
+────────────────────────────────────────────────────────────────────────────────
+Failure ('test-factor.R:104:3'): levels that differ only in case are different levels
+Expected `err` to be an S3 object.
+Actual OO type: none.
+────────────────────────────────────────────────────────────────────────────────
+
+⠏ |          0 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ |          2 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠦ |          7 | struct                                                         
+⠋ |         11 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠹ |         13 | struct                                                         
+⠼ |         15 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ | 1       17 | struct                                                         
+⠇ | 2       17 | struct                                                         
+⠏ | 3       17 | struct                                                         
+⠋ | 3       18 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠙ | 3       19 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠸ | 3       21 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠼ | 3       22 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠴ | 3       23 | struct                                                         duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+i /root/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+i Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+i See ?duckdb_storage for details and alternatives.
+
+⠧ | 3       25 | struct                                                         
+✖ | 3       26 | struct [3.3s]
+────────────────────────────────────────────────────────────────────────────────
+Failure ('test-struct.R:223:3'): field names that differ only in case are different fields
+Expected `err` to be an S3 object.
+Actual OO type: none.
+
+Failure ('test-struct.R:225:3'): field names that differ only in case are different fields
+Expected `err` to be an S3 object.
+Actual OO type: none.
+
+Failure ('test-struct.R:226:3'): field names that differ only in case are different fields
+Expected `dbExistsTable(con, "df")` to be FALSE.
+Differences:
+`actual`:   TRUE 
+`expected`: FALSE
+
+────────────────────────────────────────────────────────────────────────────────
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 5.6 s
+
+── Skipped tests (1) ───────────────────────────────────────────────────────────
+• empty test (1): 'test-factor.R:82:1'
+
+── Failed tests ────────────────────────────────────────────────────────────────
+Failure ('test-factor.R:104:3'): levels that differ only in case are different levels
+Expected `err` to be an S3 object.
+Actual OO type: none.
+
+Failure ('test-struct.R:223:3'): field names that differ only in case are different fields
+Expected `err` to be an S3 object.
+Actual OO type: none.
+
+Failure ('test-struct.R:225:3'): field names that differ only in case are different fields
+Expected `err` to be an S3 object.
+Actual OO type: none.
+
+Failure ('test-struct.R:226:3'): field names that differ only in case are different fields
+Expected `dbExistsTable(con, "df")` to be FALSE.
+Differences:
+`actual`:   TRUE 
+`expected`: FALSE
+
+
+[ FAIL 4 | WARN 0 | SKIP 1 | PASS 36 ]
+
+SUMMARY files=2 tests=41 failed=4 error=0 skipped=1
+FAILING:
+          file                                                      test
+ test-factor.R      levels that differ only in case are different levels
+ test-struct.R field names that differ only in case are different fields

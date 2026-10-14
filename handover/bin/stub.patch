@@ -1,0 +1,25 @@
+commit 67a1a0b5f95ae66622f14d3c9366addd21097901
+Author: Claude <noreply@anthropic.com>
+Date:   Wed Oct 14 19:56:16 2026 +0000
+
+    fix: Compile on an engine without the transaction invalidation policy
+
+diff --git a/src/connection.cpp b/src/connection.cpp
+index e184fe92f3..f8f1483053 100644
+--- a/src/connection.cpp
++++ b/src/connection.cpp
+@@ -147,10 +147,10 @@ static void SetDefaultConfigArguments(ClientContext &context) {
+ 	if (!conn || !conn.get() || !conn->conn) {
+ 		rapi_error_with_context("rapi_connection_set_invalidation_policy", "Invalid connection");
+ 	}
+-	auto &transaction = conn->conn->context->transaction;
+-	auto previous = EnumUtil::ToString(transaction.GetInvalidationPolicy());
+-	transaction.SetInvalidationPolicy(EnumUtil::FromString<TransactionInvalidationPolicy>(policy));
+-	return previous;
++	// This engine has no transaction invalidation policy, which arrives with duckdb/duckdb@3ac07aebe5;
++	// the R side asks for it only from DuckDB 2.0 on (probe_table() in R/dbExistsTable__duckdb_connection_ANY.R).
++	rapi_error_with_context("rapi_connection_set_invalidation_policy",
++	                        "This engine has no transaction invalidation policy to set to " + policy);
+ }
+ 
+ [[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {
