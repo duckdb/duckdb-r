@@ -122,6 +122,43 @@ test_that("duckdb_fetch_record_batch() can be read after its connection is gone"
   expect_equal(reader$read_table()$num_rows, 3L)
 })
 
+test_that("a result of dbSendQuery() can be fetched after its connection is gone", {
+  skip_if_not_installed("callr")
+
+  # The Arrow conversion reads the client context, and reading one that is gone
+  # crashed or wedged the session; the subprocess and its timeout turn that into
+  # a failure here.
+  pkg <- get_package_name()
+  rows <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con <- DBI::dbConnect(ns$duckdb())
+      res <- suppressWarnings(
+        DBI::dbSendQuery(con, "SELECT i FROM range(3) t(i)", arrow = TRUE),
+        classes = "deprecatedWarning"
+      )
+      DBI::dbDisconnect(con)
+      invisible(gc())
+
+      table <- ns$duckdb_fetch_arrow(res)
+      DBI::dbClearResult(res)
+      table$num_rows
+    },
+    list(pkg = pkg),
+    timeout = 30
+  )
+  expect_equal(rows, 3L)
+
+  # A plain result holds its rows from dbSendQuery() on.
+  con <- dbConnect(duckdb())
+  res <- dbSendQuery(con, "SELECT i FROM range(3) t(i)")
+  dbDisconnect(con)
+  invisible(gc())
+
+  expect_equal(dbFetch(res), data.frame(i = c(0, 1, 2)))
+  dbClearResult(res)
+})
+
 test_that("duckdb_fetch_arrow() record_batch_reader multiple vectors per chunk", {
   skip_if_not_installed("arrow", "4.0.1")
   con <- local_con()

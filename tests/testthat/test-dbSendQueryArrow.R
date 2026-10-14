@@ -63,6 +63,40 @@ test_that("dbSendQueryArrow() does not materialize a large streaming query", {
   expect_true(dbIsValid(res))
 })
 
+test_that("dbSendQueryArrow() streams: an error late in the result waits for the fetch that reaches it", {
+  con <- local_con()
+  # One thread, so that the scan runs no further ahead than the stream buffers.
+  dbExecute(con, "SET threads = 1")
+
+  # A result run to completion fails here, in dbSendQueryArrow() itself.
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT CASE WHEN i < 5000000 THEN i ELSE error('late') END AS i
+    FROM range(6000000) t(i)"
+  )
+  withr::defer(dbClearResult(res))
+
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 1024)$length, 1024L)
+  expect_error(dbFetchArrowChunk(res, chunk_size = 6000000), "late")
+})
+
+test_that("dbBind() with one row of parameters streams the Arrow result", {
+  con <- local_con()
+  dbExecute(con, "SET threads = 1")
+
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT CASE WHEN i < ? THEN i ELSE error('late') END AS i
+    FROM range(6000000) t(i)"
+  )
+  withr::defer(dbClearResult(res))
+
+  # A result run to completion fails here, in dbBind().
+  dbBind(res, list(5000000))
+  expect_equal(dbFetchArrowChunk(res, chunk_size = 1024)$length, 1024L)
+  expect_error(dbFetchArrowChunk(res, chunk_size = 6000000), "late")
+})
+
 test_that("dbClearResult() ends the query of a stream not read to the end", {
   skip_if_arrow_result_not_streamed()
   drv <- duckdb()
