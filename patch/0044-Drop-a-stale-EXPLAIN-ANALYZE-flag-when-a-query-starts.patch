@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 14 Oct 2026 23:15:30 +0000
+Subject: [PATCH] Drop a stale EXPLAIN ANALYZE flag when a query starts
+
+QueryProfiler::StartQuery() sets is_explain_analyze when the statement
+it starts is an EXPLAIN ANALYZE, and EndQuery() clears it, but only for
+a running profiler. Two paths leave the flag set with no EndQuery() to
+clear it:
+
+* A query that fails is rolled back in EndQueryInternal() before the
+  profiler is ended, and TransactionContext::Rollback() calls
+  QueryProfiler::Reset(), which stops the profiler. EndQuery() then
+  finds it idle and returns early. This covers an error raised while the
+  query runs, a prepared statement that fails to rebind, and a table
+  dropped between prepare and execute, through Query() and through a
+  prepared statement alike. Inside an explicit transaction nothing is
+  rolled back before EndQuery(), and nothing leaks.
+* CreatePreparedStatementInternal() calls StartQuery() with the flag
+  while preparing, without starting the profiler, so a prepare that
+  fails to bind, or a prepared EXPLAIN ANALYZE that is never executed,
+  leaves the flag behind.
+
+The next query on the connection then runs as an EXPLAIN ANALYZE:
+IsEnabled() is true whatever enable_profiling says, GetSaveLocation()
+is empty, and EndQuery() emits nothing, so with enable_profiling and
+profiling_output set, that query's profile is never written. It clears
+the flag in turn, so one query is affected per EXPLAIN ANALYZE that did
+not complete.
+
+StartQuery() now clears the flag when the profiler is idle, before
+setting it from the statement it starts, so a query is an EXPLAIN
+ANALYZE only if its own statement is one. A running profiler keeps the
+flag, so the StartQuery() calls made while planning or rebinding a
+query that has already started are unchanged, and executing a prepared
+EXPLAIN ANALYZE sets the flag again when it starts.
+
+duckdb-r reaches this on every query: DBI's dbGetQuery() prepares and
+then executes, and the glue runs all but the last statement of a
+multi-statement query through Connection::Query()
+(tests/testthat/test-explain.R).
+
+v2.0-cyanoptera and duckdb/duckdb main keep the Reset() in Rollback()
+and the early return in EndQuery(), and a duckdb-r build of
+v2.0-cyanoptera leaks after the failures that happen once a query has
+started. The same change fixes them there, but this hunk does not apply
+as is, because StartQuery() resets the byte counters first, so a series
+vendored from either branch rebases this entry rather than carrying it.
+duckdb-r's v2.0 glue marks the profiler with StartExplainAnalyze()
+before it executes a prepared EXPLAIN ANALYZE, and that mark still
+reaches the engine with the change in place.
+
+Proposed upstream in duckdb/duckdb#<PR> (placeholder: not opened yet)
+against v1.5-variegata, and carried here until a release carries it.
+---
+ src/duckdb/src/main/query_profiler.cpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/duckdb/src/main/query_profiler.cpp b/src/duckdb/src/main/query_profiler.cpp
+index 5735e6439f..b80b2e4776 100644
+--- a/src/duckdb/src/main/query_profiler.cpp
++++ b/src/duckdb/src/main/query_profiler.cpp
+@@ -113,6 +113,13 @@ void QueryProfiler::Reset() {
+ 
+ void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, bool start_at_optimizer) {
+ 	lock_guard<std::mutex> guard(lock);
++	if (!running) {
++		// A query that starts on an idle profiler is an EXPLAIN ANALYZE only if its own statement is one.
++		// EndQuery() clears the flag only for a running profiler, and a failed query's rollback resets it first,
++		// so a failed EXPLAIN ANALYZE, or one prepared and never run, would leave the flag set, and the next query
++		// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output.
++		is_explain_analyze = false;
++	}
+ 	if (is_explain_analyze_p) {
+ 		StartExplainAnalyze();
+ 	}

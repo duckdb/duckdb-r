@@ -32,6 +32,44 @@ test_that("EXPLAIN ANALYZE outputs query tree", {
   expect_true(grepl("DUMMY_SCAN", rs$explain_value))
 })
 
+test_that("an unfinished EXPLAIN ANALYZE leaves the next query profiled", {
+  # The engine marks its profiler for EXPLAIN ANALYZE when the statement is
+  # prepared and when it starts, and clears the mark only at the end of a
+  # query that is still profiling; a failure rolls back and stops it first.
+  # A mark left over makes the next query run as an EXPLAIN ANALYZE, which
+  # writes no profile (patch/0044).
+  con <- local_con()
+  out <- withr::local_tempfile(fileext = ".json")
+  DBI::dbExecute(con, "PRAGMA enable_profiling = 'json'")
+  DBI::dbExecute(con, paste0("PRAGMA profiling_output = '", out, "'"))
+
+  next_query_profiled <- function() {
+    unlink(out)
+    DBI::dbGetQuery(con, "SELECT 42")
+    file.exists(out)
+  }
+
+  expect_true(next_query_profiled())
+
+  # Fails while it runs
+  expect_error(
+    DBI::dbGetQuery(con, "EXPLAIN ANALYZE SELECT error('boom')"),
+    "boom"
+  )
+  expect_true(next_query_profiled())
+
+  # Fails while it is prepared
+  expect_error(
+    DBI::dbGetQuery(con, "EXPLAIN ANALYZE FROM nonexistent"),
+    "nonexistent"
+  )
+  expect_true(next_query_profiled())
+
+  # Prepared, never run
+  DBI::dbClearResult(DBI::dbSendQuery(con, "EXPLAIN ANALYZE SELECT ?"))
+  expect_true(next_query_profiled())
+})
+
 test_that("zero length input is smoothly skipped", {
   skip_on_os("windows")
   con <- local_con()

@@ -113,6 +113,13 @@ void QueryProfiler::Reset() {
 
 void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, bool start_at_optimizer) {
 	lock_guard<std::mutex> guard(lock);
+	if (!running) {
+		// A query that starts on an idle profiler is an EXPLAIN ANALYZE only if its own statement is one.
+		// EndQuery() clears the flag only for a running profiler, and a failed query's rollback resets it first,
+		// so a failed EXPLAIN ANALYZE, or one prepared and never run, would leave the flag set, and the next query
+		// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output.
+		is_explain_analyze = false;
+	}
 	if (is_explain_analyze_p) {
 		StartExplainAnalyze();
 	}
