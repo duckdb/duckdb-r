@@ -1,5 +1,26 @@
 # Changelog
 
+## duckdb 1.5.6.9004
+
+### Bug fixes
+
+- A `POSIXct` or `difftime` halfway between two microseconds writes
+  rounded to even, as
+  [`dbQuoteLiteral()`](https://dbi.r-dbi.org/reference/dbQuoteLiteral.html)
+  quotes it ([\#2887](https://github.com/duckdb/duckdb-r/issues/2887)).
+
+#### series
+
+- Keep a zero fifth version component through the `ours-version` merge
+  driver ([\#2886](https://github.com/duckdb/duckdb-r/issues/2886)).
+
+### Features
+
+#### series
+
+- Carry `patch/` entries onto the buffer as part of porting
+  ([\#2660](https://github.com/duckdb/duckdb-r/issues/2660)).
+
 ## duckdb 1.5.6.9003
 
 ### Chore
