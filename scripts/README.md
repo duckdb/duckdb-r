@@ -142,6 +142,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
 | [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
 | [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
+| [`series-fold-test.sh`](series-fold-test.sh) | Check scripts/series-fold.sh offline, against a synthetic landing built here: no network, no fixtures on disk. |
+| [`series-fold.sh`](series-fold.sh) | Fold fixes into the landing commits that introduced their defects, and replay everything above them (.claude/skills/series-land/SKILL.md, step 4). |
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
 | [`series-land-test.sh`](series-land-test.sh) | Check the landing of a series on `main`, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk. |
