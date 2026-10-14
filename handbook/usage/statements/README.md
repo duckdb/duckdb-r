@@ -85,6 +85,23 @@ and a misspelt column in a later statement would still fail after the statements
 One would have to split with the parser alone,
 because the engine's own splitter, `ExtractStatements()`, expands every `PRAGMA` before any statement runs.
 
+**From DuckDB 2.0 a failing statement aborts an open transaction, and asking whether a table exists does not.**
+2.0's `default_transaction_invalidation_policy` is `ALL_ERRORS_INVALIDATE_TRANSACTION`,
+where 1.x left a transaction usable after a catalog, binder or parser error,
+so after a misspelt table name inside `dbBegin()` every later statement in the transaction fails.
+`dbExistsTable()` asks by binding `SELECT * FROM` the name, which is how it finds a file path that a replacement scan resolves.
+Inside a transaction, on an engine with the policy,
+it relaxes the transaction's policy for that one statement and puts the transaction's own policy back afterwards,
+so `dbWriteTable()`, `duckdb_read_csv()` and dplyr's `copy_to()` work inside a transaction
+([#2892](https://github.com/duckdb/duckdb-r/issues/2892)).
+It sets the policy as `BEGIN` does rather than through `SET`, so `lock_configuration` does not refuse it.
+A path to a file that is not there still aborts the transaction, on every engine, because no policy exempts an IO error.
+In a transaction that has already failed, `dbExistsTable()` raises the engine's error rather than answer.
+A driver created with `config = list(default_transaction_invalidation_policy = "SYNTACTIC_ERRORS_DO_NOT_INVALIDATE")`
+gives every statement 1.x's behaviour, an option 1.x itself refuses as unrecognized.
+The alternatives and what each costs are measured in
+[`2026-10-14-exists-table-transaction/`](/experiments/2026-10-14-exists-table-transaction/README.md).
+
 **A failing statement raises `duckdb_error`, and the classification is a field.**
 The engine's exception type, whatever it attached as extra info, the operation that failed,
 and its own unformatted wording ride on the condition as
