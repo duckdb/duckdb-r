@@ -46,7 +46,7 @@ static bool CanDrain(QueryResult &result) {
 	if (result.HasError()) {
 		return false;
 	}
-	if (!StreamsByDefault(result.GetStatementType(), result.GetStatementProperties())) {
+	if (!StreamsByDefault(result.GetStatementType(), result)) {
 		return false;
 	}
 	if (!result.HasBufferedData()) {
