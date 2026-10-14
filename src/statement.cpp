@@ -3,6 +3,7 @@
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/explain_statement.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
+#include "duckdb/planner/statement_preprocessor.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
 #include "signal.hpp"
@@ -179,18 +180,20 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	for (idx_t i = 0; i < statements.size(); i++) {
 		vector<unique_ptr<SQLStatement>> fragments;
 		fragments.push_back(std::move(statements[i]));
-		try {
-			conn->conn->context->PreprocessStatements(fragments);
-		} catch (std::exception &ex) {
-			ErrorData error(ex);
-			error.AddErrorLocation(query);
-			rapi_error_with_context("rapi_prepare", error);
-		}
-		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk), so its expansion is
-		// checked as a whole before any of it runs: refusing it part-way would leave the implicit BEGIN the
-		// engine wraps the expansion in open, and every later statement on the connection inside it.
-		if (!conn->db->allow_extensions) {
-			for (auto &fragment : fragments) {
+		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk). The engine expands it
+		// while running it, so a copy is expanded here and checked as a whole before any of it runs.
+		if (!conn->db->allow_extensions && fragments[0]->type == StatementType::PRAGMA_STATEMENT) {
+			auto &context = *conn->conn->context;
+			PreprocessedStatement expanded;
+			try {
+				context.RunFunctionInTransaction(
+				    [&] { expanded = StatementPreprocessor(context).ExpandStatement(fragments[0]->Copy()); });
+			} catch (std::exception &ex) {
+				ErrorData error(ex);
+				error.AddErrorLocation(query);
+				rapi_error_with_context("rapi_prepare", error);
+			}
+			for (auto &fragment : expanded.statements) {
 				if (fragment->type == StatementType::LOAD_STATEMENT) {
 					rapi_error_with_context("load_extension", "");
 				}
