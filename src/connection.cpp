@@ -129,6 +129,15 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	}
 }
 
+// Whether a transaction begun by BEGIN is open: a statement's own transaction,
+// and the one a streaming result holds, are not.
+[[cpp11::register]] bool rapi_connection_in_transaction(duckdb::conn_eptr_t conn) {
+	if (!conn || !conn.get() || !conn->conn) {
+		rapi_error_with_context("rapi_connection_in_transaction", "Invalid connection");
+	}
+	return !conn->conn->IsAutoCommit();
+}
+
 [[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {
 	// Check connection validity without acquiring ClientContext locks
 	// This avoids the "ScopedInterruptHandler already active" issue when

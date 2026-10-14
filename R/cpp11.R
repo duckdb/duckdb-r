@@ -36,6 +36,10 @@ rapi_disconnect <- function(conn) {
   invisible(.Call(`_duckdb_rapi_disconnect`, conn))
 }
 
+rapi_connection_in_transaction <- function(conn) {
+  .Call(`_duckdb_rapi_connection_in_transaction`, conn)
+}
+
 rapi_connection_valid <- function(conn) {
   .Call(`_duckdb_rapi_connection_valid`, conn)
 }

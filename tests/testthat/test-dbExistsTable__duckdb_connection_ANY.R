@@ -49,13 +49,23 @@ test_that("an aborted transaction is an error, not a missing table", {
   expect_error(dbExistsTable(con, "t"), "aborted")
 })
 
-test_that("a locked configuration still finds a table inside a transaction", {
+test_that("a locked configuration finds a table outside a transaction", {
+  con <- local_con(drv = duckdb(config = list(lock_configuration = "true")))
+  dbWriteTable(con, "t", data.frame(a = 1))
+
+  expect_true(dbExistsTable(con, "t"))
+  expect_false(dbExistsTable(con, "nope"))
+})
+
+test_that("a locked configuration inside a transaction is a clear error", {
   con <- local_con(drv = duckdb(config = list(lock_configuration = "true")))
   dbWriteTable(con, "t", data.frame(a = 1))
 
   dbBegin(con)
   on.exit(dbRollback(con))
+  # DuckDB 1.x leaves the transaction usable after a failed lookup,
+  # so there is no policy to relax and nothing to refuse.
+  skip_if_not(can_relax_invalidation_policy(con))
 
-  expect_true(dbExistsTable(con, "t"))
-  expect_identical(dbReadTable(con, "t"), data.frame(a = 1))
+  expect_error(dbExistsTable(con, "t"), "configuration is locked")
 })
