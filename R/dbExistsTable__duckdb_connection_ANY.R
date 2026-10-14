@@ -8,6 +8,8 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
   if (length(name) != 1) {
     abort("Can only have a single name argument")
   }
+  # Outside the probe, so that a name that cannot be quoted is an error.
+  quoted <- dbQuoteIdentifier(conn, name)
   # A probe that fails must leave an open transaction usable,
   # which from DuckDB 2.0 takes relaxing its policy while the probe runs
   # (handbook/usage/statements/README.md).
@@ -32,11 +34,7 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
       # (handbook/usage/types/README.md).
       dbGetQuery(
         conn,
-        sqlInterpolate(
-          conn,
-          "DESCRIBE SELECT * FROM ? WHERE FALSE",
-          dbQuoteIdentifier(conn, name)
-        )
+        sqlInterpolate(conn, "DESCRIBE SELECT * FROM ? WHERE FALSE", quoted)
       )
       TRUE
     },
