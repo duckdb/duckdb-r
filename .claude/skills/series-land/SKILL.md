@@ -120,6 +120,14 @@ scripts/series-land.sh <S> --remote origin --canonical upstream          # build
 scripts/series-land.sh <S> --remote origin --canonical upstream --push   # and write both refs
 ```
 
+**Tests that pin what the line must keep go underneath, not into the series afterwards.**
+A pull request of tests written on `main`'s engine, one commit on the frozen `main`,
+is the landing's base: `--base <its branch>`.
+Its commit lands with the vendor commits, CI judges it from `main` up,
+and the tree check expects it merged into the series' package,
+so the series has to carry it too before the landing can pass:
+port it by name, `scripts/series-port.sh <S> --apply <sha>`.
+
 [`scripts/series-land.sh`](/scripts/series-land.sh) replays with
 [`scripts/series-forward-build.sh`](/scripts/series-forward-build.sh) in a worktree it keeps,
 so everything that script stops on stops here, and a rerun resumes:
@@ -166,6 +174,18 @@ Its checks could only fail, because the R side compiles against no engine there,
 and without workflow files the pull request starts nothing that builds or tests it.
 It is never merged: a finding is fixed on the series, the landing is rebuilt,
 and `--review --push` rewrites the branch, which the pull request follows.
+
+**Findings converge in iterations before the series takes them.**
+An iteration is a landing branch of its own, `<L>-land-v<n>`, with no `-dev` suffix so nothing builds it,
+made from the previous one by folding each fix into the landing commit that introduced the defect,
+so that every commit from there on carries it and every intermediate commit passes;
+nothing is stacked on top of the vendor commits.
+It is checked by the glue gate at every commit it changed and by building its tip and running the suite.
+Each gets a review pull request of its own,
+`--review --landing <L>-land-v<n> --suffix -v<n>`,
+read by a reviewer with a clean context;
+the next iteration answers what that review found, until a review finds nothing.
+The fixes then go onto the series, and the landing is built from it as above.
 
 ## 5. Let CI judge every commit
 

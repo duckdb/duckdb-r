@@ -58,12 +58,20 @@
 # Committer dates are pinned to the base's, so a rebuild from the same inputs
 # mints the same SHAs and CI does not judge a commit twice.
 #
-# **`<L>-land-green` bounds the per-commit build.** It is pushed at the base, so
+# **The base may sit above `main`.** `--base` names a commit `main` fast-forwards
+# to, whose own commits land with the vendor commits: tests that pin what the
+# line must keep, written on `main`'s engine and merged by the landing rather
+# than before it. The landing is then `main`, those commits, and the vendor
+# commits, in that order, and the tree check expects the series' package with
+# the base's own change merged in.
+#
+# **`<L>-land-green` bounds the per-commit build.** It is pushed at `main`, so
 # scripts/each-plan.sh scans `<L>-land-green..<L>-land-dev` as it scans any
-# series, and `--status` advances it over the commits CI has passed, the way
-# stage 3 advances a series' green (scripts/series-advance.sh). The landing is
-# ready when the two refs are equal. There is no `-land-build`, so the loop's
-# discovery never mistakes the pair for a series.
+# series, the base's own commits included, and `--status` advances it over the
+# commits CI has passed, the way stage 3 advances a series' green
+# (scripts/series-advance.sh). The landing is ready when the two refs are equal.
+# There is no `-land-build`, so the loop's discovery never mistakes the pair for
+# a series.
 #
 # **`--review` writes what a reviewer of `main` reads.** The landing's own diff
 # is the engine's, hundreds of thousands of lines; what changes for `main`'s
@@ -80,16 +88,20 @@
 # landing itself.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
-#                       [--placed <sha>]... [--no-check-glue] [--attended]
+#                       [--base <ref>] [--placed <sha>]... [--no-check-glue] [--attended]
 #        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
-#        series-land.sh <S> --review [--remote <name>] [--canonical <name>] [--push]
+#        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
+#                       [--canonical <name>] [--push]
 #        series-land.sh <S> --abort
 #   <S> is the series whose rc strand lands, `v2.0-cyanoptera-fwd` for
 #   `v2.0-cyanoptera-fwd-rc-dev`; the refs are named for its line,
 #   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
-#   --review pushes `<L>-land-review` to --canonical.
+#   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
+#   --remote or the landing --landing names: an iteration reviewed before the
+#   series carries it, for example `--landing <L>-land-v2 --suffix -v2`.
+#   --base defaults to `main`; a ref the clone lacks is fetched from --canonical.
 #   --placed and --no-check-glue are passed to series-forward-build.sh.
 #
 # --remote and --canonical are spelled the same in every scripts/series-*.sh;
@@ -99,18 +111,21 @@ set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' review='' abort='' attended=''
+push='' status='' review='' abort='' attended='' base_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
+    --base) [ $# -ge 2 ] || argerr; base_arg=$2; shift 2 ;;
+    --landing) [ $# -ge 2 ] || argerr; landing_arg=$2; shift 2 ;;
+    --suffix) [ $# -ge 2 ] || argerr; suffix=$2; shift 2 ;;
     --placed) [ $# -ge 2 ] || argerr; fwd_args+=(--placed "$2"); shift 2 ;;
     --no-check-glue) fwd_args+=(--no-check-glue); shift ;;
     --attended) attended=1; shift ;;
@@ -174,6 +189,20 @@ strand=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Mak
 strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
+# Is <tip> a landing on main: main, then the base's own commits, then vendor
+# commits only? A fix is folded into the commit that introduced the defect, so
+# that every commit passes; nothing sits on top. Prints the first commit out of
+# place.
+out_of_place() { # <tip>
+  local c subj seen=''
+  while IFS=$'\t' read -r c subj; do
+    case "$subj" in
+      vendor:*) seen=1 ;;
+      *) [ -z "$seen" ] || { echo "$c $subj"; return; } ;;
+    esac
+  done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
+}
+
 # --- --status: what CI has decided, and green over the passed prefix ----------
 
 rcc=${RCC_BRANCH:-rcc2}
@@ -223,8 +252,7 @@ if [ -n "$status" ]; then
     fi
   fi
   if [ "$new_green" = "$dev" ]; then
-    if [ "$(git merge-base "$main" "$dev")" = "$main" ] &&
-      [ -z "$(git log --format=%s "$main..$dev" | grep -v '^vendor:' || true)" ]; then
+    if git merge-base --is-ancestor "$main" "$dev" && [ -z "$(out_of_place "$dev")" ]; then
       echo "READY: every commit has passed, and main ($(git rev-parse --short "$main")) fast-forwards to it:"
       echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/main"
     else
@@ -239,19 +267,25 @@ fi
 # --- --review: the landing without its engine, for a draft pull request ------
 
 if [ -n "$review" ]; then
-  git rev-parse -q --verify "$dev_ref" >/dev/null ||
-    { echo "Error: no $L-land-dev on $remote to review; build and --push it first" >&2; exit 1; }
-  tip=$(git rev-parse "$dev_ref")
+  rb="$L-land-review$suffix"
+  if [ -n "$landing_arg" ]; then
+    tip=$(git rev-parse -q --verify "$landing_arg^{commit}" ||
+      { git fetch -q "$remote" "$landing_arg" && git rev-parse FETCH_HEAD; })
+  else
+    git rev-parse -q --verify "$dev_ref" >/dev/null ||
+      { echo "Error: no $L-land-dev on $remote to review; build and --push it first" >&2; exit 1; }
+    tip=$(git rev-parse "$dev_ref")
+  fi
   base=$main
-  if ! git merge-base --is-ancestor "$base" "$tip" ||
-    [ -n "$(git log --format=%s "$base..$tip" | grep -v '^vendor:' || true)" ]; then
-    echo "Error: $L-land-dev is not main $(git rev-parse --short "$base") plus vendor commits" >&2
+  if ! git merge-base --is-ancestor "$base" "$tip" || [ -n "$(out_of_place "$tip")" ]; then
+    echo "Error: the landing $(git rev-parse --short "$tip") is not main $(git rev-parse --short "$base")," \
+      "the base's own commits, and vendor commits" >&2
     exit 1
   fi
   if [ -f "$STATE" ]; then
     read -r kwt _ < "$STATE"
     if [ -d "$kwt" ] && [ "$(git -C "$kwt" rev-parse HEAD)" != "$tip" ]; then
-      echo "Note: the kept build is not what $remote holds; reviewing $L-land-dev $(git rev-parse --short "$tip")"
+      echo "Note: the kept build is not the landing reviewed here, $(git rev-parse --short "$tip")"
     fi
   fi
 
@@ -288,11 +322,20 @@ builds or tests it.")
         git hash-object -w --stdin)
       git update-index --cacheinfo "100644,$blob,DESCRIPTION"
     fi
-    up=$(git log -1 --format=%s "$c" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]{10}).*$|\1|p')
+    subj=$(git log -1 --format=%s "$c")
+    up=''
+    case "$subj" in
+      vendor:*) up=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]{1,10}).*$|\1|p' <<<"$subj") ;;
+    esac
     head=$(
-      { echo "review: The R side of duckdb/duckdb ${up:-$(git rev-parse --short "$c")}"
-        echo
-        git log -1 --format=%B "$c"
+      { if [[ "$subj" == vendor:* ]]; then
+          echo "review: The R side of duckdb/duckdb ${up:-$(git rev-parse --short "$c")}"
+          echo
+          git log -1 --format=%B "$c"
+        else
+          # The base's own commit, as it lands.
+          git log -1 --format=%B "$c"
+        fi
         echo "Landing-commit: $c"; } |
         GIT_AUTHOR_NAME=$(git log -1 --format=%an "$c") GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae "$c") \
         GIT_AUTHOR_DATE=$(git log -1 --format=%ad --date=raw "$c") \
@@ -302,26 +345,25 @@ builds or tests it.")
   done
   unset GIT_INDEX_FILE
 
-  echo "=== $L-land-review"
+  echo "=== $rb"
   echo "  $picked of $(git rev-list --count "$base..$tip") landing commits change the R side;" \
     "on main $(git rev-parse --short "$base") -> $(git rev-parse --short "$head")"
   echo "  $(git diff --shortstat "$base" "$head" -- . ':(exclude).github/workflows')"
 
   slug=$(git remote get-url "$canonical" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')
-  old=$(git ls-remote "$canonical" "refs/heads/$L-land-review" | cut -f1)
+  old=$(git ls-remote "$canonical" "refs/heads/$rb" | cut -f1)
   if [ "$old" = "$head" ]; then
-    echo "$L-land-review: already on $canonical"
+    echo "$rb: already on $canonical"
   elif [ -z "$push" ]; then
-    echo "Not pushed; --push writes $L-land-review to $canonical."
+    echo "Not pushed; --push writes $rb to $canonical."
     exit 0
   else
-    git push -q "$canonical" "--force-with-lease=refs/heads/$L-land-review:$old" \
-      "+$head:refs/heads/$L-land-review"
-    echo "$L-land-review -> $(git rev-parse --short "$head") on $canonical"
+    git push -q "$canonical" "--force-with-lease=refs/heads/$rb:$old" "+$head:refs/heads/$rb"
+    echo "$rb -> $(git rev-parse --short "$head") on $canonical"
   fi
   echo "Open it as a draft, never to be merged:"
-  echo "  gh pr create --repo $slug --draft --base main --head $L-land-review \\"
-  echo "    --title \"Review: the R side of the $L landing\""
+  echo "  gh pr create --repo $slug --draft --base main --head $rb \\"
+  echo "    --title \"Review: the R side of the $L landing${suffix:+, ${suffix#-}}\""
   exit 0
 fi
 
@@ -341,13 +383,30 @@ seed_of() {
 }
 write_state() { echo "$wt $base $src $seed $prefix $S" > "$STATE"; }
 
+# The base the build is asked for: `main`, or a commit above it.
+base_req=$main
+if [ -n "$base_arg" ]; then
+  base_req=$(git rev-parse -q --verify "$base_arg^{commit}" ||
+    { git fetch -q "$canonical" "$base_arg" && git rev-parse FETCH_HEAD; })
+fi
+git merge-base --is-ancestor "$main" "$base_req" || {
+  echo "Error: --base $base_arg is not above main $(git rev-parse --short "$main")," \
+    "so main could not fast-forward onto a landing built on it" >&2
+  exit 1
+}
+
 if [ -f "$STATE" ]; then
   read -r wt base src seed prefix kept < "$STATE"
   [ "$kept" = "$S" ] ||
     { echo "Error: the kept build lands ${kept:-another series}, not $S; --abort it first" >&2; exit 1; }
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
-  if [ "$main" != "$base" ]; then
-    echo "Error: main moved from $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
+  if [ -n "$base_arg" ] && [ "$base_req" != "$base" ]; then
+    echo "Error: the kept build stands on $(git rev-parse --short "$base"), not on --base $base_arg;" \
+      "--abort it first" >&2
+    exit 1
+  fi
+  if ! git merge-base --is-ancestor "$main" "$base"; then
+    echo "Error: main moved from below $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
     echo "  since this landing was started, so it can no longer fast-forward main." >&2
     echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
@@ -372,11 +431,12 @@ else
   prefix=$(git show "$seed:DESCRIPTION" |
     sed -rn 's/^Version: ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
   [ -n "$prefix" ] || { echo "Error: the seed of $S-rc-dev has no five-component version" >&2; exit 1; }
-  base=$main
+  base=$base_req
   wt=$(mktemp -d "${TMPDIR:-/tmp}/series-land-$L-XXXXXX")
   git worktree add --detach -q "$wt" "$base"
   write_state
-  echo "$L: building on main $(git rev-parse --short "$base"), up to $S-rc-dev" \
+  echo "$L: building on $(git rev-parse --short "$base")" \
+    "($(git rev-list --count "$main..$base") commits above main), up to $S-rc-dev" \
     "$(git rev-parse --short "$src"), stamping $prefix.<n> in $wt"
 fi
 
@@ -466,6 +526,16 @@ fi
 
 # --- the same package as the series ------------------------------------------
 
+# The series' package, with whatever the base adds above `main` merged in.
+expect=$src
+if [ "$base" != "$main" ]; then
+  if ! expect=$(git merge-tree --write-tree --merge-base="$main" "$src" "$base" | head -n 1); then
+    echo "Error: the base's own commits conflict with $S-rc-dev $(git rev-parse --short "$src");" \
+      "the series has to carry what they change before it can land on them" >&2
+    exit 1
+  fi
+fi
+
 version_of() { git show "$1:DESCRIPTION" | sed -n 's/^Version: //p'; }
 row() { printf '%s\t%s\t%s' "$@"; } # <path> <added/deleted> [<why>]
 explained=() unexplained=()
@@ -475,23 +545,25 @@ while IFS=$'\t' read -r add del path; do
       explained+=("$(row "$path" "$add/$del" "main's by construction; no port carries it")") ;;
     DESCRIPTION)
       why=''
-      [ "$(version_of "$tip")" = "$(version_of "$src")" ] ||
-        why="version $(version_of "$tip") here, $(version_of "$src") on the series"
+      [ "$(version_of "$tip")" = "$(version_of "$expect")" ] ||
+        why="version $(version_of "$tip") here, $(version_of "$expect") on the series"
       unexplained+=("$(row "$path" "$add/$del" "$why")")
       ;;
     *) unexplained+=("$(row "$path" "$add/$del")") ;;
   esac
-done < <(git diff --numstat "$tip" "$src")
+done < <(git diff --numstat "$tip" "$expect")
 
 echo "=== $L-land-dev"
-echo "  $n vendor commits on main $(git rev-parse --short "$base") -> $(git rev-parse --short "$tip")"
+echo "  $n vendor commits on $(git rev-parse --short "$base") -> $(git rev-parse --short "$tip")"
+[ "$base" = "$main" ] ||
+  echo "  the base is main $(git rev-parse --short "$main") and $(git rev-list --count "$main..$base") commit(s) of its own"
 echo "  built up to $S-rc-dev $(git rev-parse --short "$src")"
 if [ ${#explained[@]} -gt 0 ]; then
   echo
   echo "  explained (${#explained[@]}):"
   printf '%s\n' "${explained[@]}" | awk -F'\t' '{ printf "    %-44s %-9s %s\n", $1, $2, $3 }'
 fi
-deleted=$(git diff --diff-filter=D --name-only "$base" "$tip" -- . "${strand_excludes[@]}")
+deleted=$(git diff --diff-filter=D --name-only "$main" "$tip" -- . "${strand_excludes[@]}")
 if [ -n "$deleted" ]; then
   echo
   echo "  deleted from main, outside the vendored strand; the series lacks them too:"
@@ -517,9 +589,9 @@ fi
 old_dev=$(git rev-parse -q --verify "$dev_ref" || true)
 old_green=$(git rev-parse -q --verify "$green_ref" || true)
 # Green keeps what CI has already passed when the chain under it is the same,
-# and starts at the base otherwise.
-new_green=$base
-if [ -n "$old_green" ] && git merge-base --is-ancestor "$base" "$old_green" 2>/dev/null &&
+# and starts at `main` otherwise, so the base's own commits are judged too.
+new_green=$main
+if [ -n "$old_green" ] && git merge-base --is-ancestor "$main" "$old_green" 2>/dev/null &&
   git merge-base --is-ancestor "$old_green" "$tip"; then
   new_green=$old_green
 fi

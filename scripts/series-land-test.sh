@@ -29,7 +29,10 @@
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
-#  11. A `main` that moved stops a kept build and is not READY, and a rebuild
+#  11. A landing stands on a base above `main`: the base's own commit lands
+#      with it, is expected by the tree check, is judged by CI from `main` up,
+#      and shows in the review as it is.
+#  12. A `main` that moved stops a kept build and is not READY, and a rebuild
 #      on it that the series has not ported is refused before anything is
 #      pushed, `DESCRIPTION` included.
 #
@@ -191,7 +194,7 @@ echo
 echo "== a build without --push writes no ref"
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
-has "it reports the landing" "$out" "3 vendor commits on main $(git rev-parse --short "$M")"
+has "it reports the landing" "$out" "3 vendor commits on $(git rev-parse --short "$M")"
 has "and that it was not pushed" "$out" "Not pushed; --push writes v2.0-x-land-dev"
 is "no land-dev on the fork" "$(git ls-remote origin refs/heads/v2.0-x-land-dev | wc -l)" 0
 rout=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
@@ -359,10 +362,77 @@ scripts/series-rc.sh v2.0-x-fwd --push >/dev/null 2>&1
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the kept build follows the moved strand" "$out" "following it"
-has "and lands the new commit too" "$out" "4 vendor commits on main"
+has "and lands the new commit too" "$out" "4 vendor commits on $(git rev-parse --short "$M")"
 hasnt "and is the series' package" "$out" "DIVERGED"
 
-# --- 11: main moves ---------------------------------------------------------
+# --- 11: a base above main ---------------------------------------------------
+
+echo
+echo "== a landing stands on a base above main"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+git checkout -q -b pin "$M"
+echo 'test_that("a pinned expectation", expect_true(TRUE))' > tests/testthat/test-pin.R
+commit 'test: Pin what the line must keep (#10)'
+PIN=$(git rev-parse HEAD)
+git push -q upstream pin
+git checkout -q main
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base pin --push 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "it builds on the base" "$out" "4 vendor commits on $(git rev-parse --short "$PIN")"
+has "and names the base's own commits" "$out" "1 commit(s) of its own"
+hasnt "the base's own change is expected by the check" "$out" "UNEXPLAINED"
+git fetch -q origin
+LTIP=$(git rev-parse origin/v2.0-x-land-dev)
+is "the base's commit lands with it" "$(git rev-parse "$LTIP~4")" "$PIN"
+is "green starts at main, so CI judges that commit too" "$(git rev-parse origin/v2.0-x-land-green)" "$M"
+
+git checkout -q rcc2
+for c in $(git rev-list "$M..$LTIP"); do rec "$c" success; done
+commit 'chore: store stub, the landing on a base'
+git push -q origin rcc2
+git checkout -q main
+out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the base's commit counts among those CI passed" "$out" "5 of 5 commits above v2.0-x-land-green passed"
+has "and main fast-forwards across both" "$out" "git push upstream $LTIP:refs/heads/main"
+
+out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+git fetch -q upstream v2.0-x-land-review
+is "the review shows the base's commit as it lands" \
+  "$(git log --format=%s "$M..upstream/v2.0-x-land-review" | grep -c '^test: Pin what the line must keep')" 1
+
+# An iteration reviewed before the series carries it: the fix folded into the
+# commit that introduced the defect, and everything above it replayed.
+git checkout -q -b land-v2 "$LTIP"
+git checkout -q --detach "$LTIP~3"
+echo 'glue 2, adapted to bbbb222, and fixed' > src/glue.cpp
+git add src/glue.cpp
+git commit -q --amend --no-edit
+git cherry-pick "$LTIP~3..$LTIP" >/dev/null
+git branch -f land-v2 HEAD
+git push -q origin "land-v2:refs/heads/v2.0-x-land-v2"
+git checkout -q main
+out=$(scripts/series-land.sh v2.0-x-fwd --review --landing v2.0-x-land-v2 --suffix -v2 --push 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "an iteration gets a review branch of its own" "$out" "v2.0-x-land-review-v2 ->"
+has "and a title that names it" "$out" "the R side of the v2.0-x landing, v2"
+git fetch -q upstream v2.0-x-land-review-v2
+R1=$(git log --format=%H -F --grep='The R side of duckdb/duckdb bbbb222' upstream/v2.0-x-land-review-v2)
+is "with the folded fix in the commit that introduced it" \
+  "$(git show "$R1:src/glue.cpp")" 'glue 2, adapted to bbbb222, and fixed'
+
+# A fix stacked on top of the vendor commits is not a landing.
+git checkout -q -b land-v3 land-v2
+echo 'one more' > src/more.cpp
+commit 'fix: A commit on top'
+git push -q origin "land-v3:refs/heads/v2.0-x-land-v3"
+git checkout -q main
+out=$(scripts/series-land.sh v2.0-x-fwd --review --landing v2.0-x-land-v3 --suffix -v3 2>&1) && st=0 || st=$?
+is "a commit on top of the vendor commits is refused" "$st" 1
+LAND_BEFORE=$LTIP
+
+# --- 12: main moves ---------------------------------------------------------
 
 echo
 echo "== a main that moved is not landed on blindly"
@@ -377,7 +447,7 @@ has "and says main moved" "$out" "NOT READY"
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "the kept build refuses" "$st" 1
-has "and says main moved" "$out" "Error: main moved from $(git rev-parse --short "$M")"
+has "and says main moved" "$out" "Error: main moved from below $(git rev-parse --short "$PIN")"
 
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) && st=0 || st=$?
@@ -387,7 +457,7 @@ has "it names the path" "$out" "R/foo.R"
 has "and DESCRIPTION, whose difference is not its version" "$out" "    DESCRIPTION"
 has "and refuses to push" "$out" "DIVERGED"
 git fetch -q origin
-is "land-dev is where it was" "$(git rev-parse origin/v2.0-x-land-dev)" "$TIP"
+is "land-dev is where it was" "$(git rev-parse origin/v2.0-x-land-dev)" "$LAND_BEFORE"
 
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
