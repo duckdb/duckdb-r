@@ -8,7 +8,23 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
   if (length(name) != 1) {
     abort("Can only have a single name argument")
   }
-  exists <- FALSE
+  # A probe that fails must leave an open transaction usable,
+  # which from DuckDB 2.0 takes relaxing its policy while the probe runs
+  # (handbook/usage/statements/README.md).
+  if (can_relax_invalidation_policy(conn)) {
+    dbExecute(
+      conn,
+      "SET current_transaction_invalidation_policy = 'SYNTACTIC_ERRORS_DO_NOT_INVALIDATE'"
+    )
+    on.exit(tryCatch(
+      dbExecute(
+        conn,
+        "SET current_transaction_invalidation_policy = 'STANDARD_POLICY'"
+      ),
+      # A transaction the probe aborted takes its policy from the next BEGIN.
+      error = function(e) NULL
+    ))
+  }
   tryCatch(
     {
       # DESCRIBE fetches the column metadata as text, so a table whose
@@ -22,11 +38,39 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
           dbQuoteIdentifier(conn, name)
         )
       )
-      exists <- TRUE
+      TRUE
     },
-    error = function(c) {}
+    error = function(c) {
+      # In a transaction that had already failed, nothing was looked up.
+      if (identical(c$error_type, "TRANSACTION")) {
+        stop(c)
+      }
+      FALSE
+    }
   )
-  exists
+}
+
+# Whether the probe can relax the transaction's policy.
+# The engine has the policy from DuckDB 2.0, asked once per session
+# of the first connection that needs to know;
+# a locked configuration refuses the change, and refusing aborts the
+# transaction, asked every time because a connection can lock it at any point.
+can_relax_invalidation_policy <- function(conn) {
+  if (is.null(the$invalidation_policy)) {
+    the$invalidation_policy <- nrow(dbGetQuery(
+      conn,
+      "SELECT 1 FROM duckdb_settings() WHERE name IN (
+         'default_transaction_invalidation_policy',
+         'current_transaction_invalidation_policy'
+       )"
+    )) ==
+      2
+  }
+  the$invalidation_policy &&
+    !dbGetQuery(
+      conn,
+      "SELECT current_setting('lock_configuration') AS locked"
+    )$locked
 }
 
 #' @rdname duckdb_connection-class
