@@ -223,33 +223,13 @@ register at load time the way dbplyr's do —
 all on classes this package defines for the purpose.
 It is the one route here that does not go through DBI at all.
 
-Those three methods are why the dependency is an `Enhances` and not a
-`Suggests`:
-providing methods for another package's generics is what the field is for,
-and `Enhances` is the one optional field `R CMD check` does not insist on
-installing.
-That distinction stopped being academic when CRAN archived
-`adbcdrivermanager`
-([apache/arrow-adbc#4638](https://github.com/apache/arrow-adbc/issues/4638)) —
-a `Suggests` that cannot be installed fails the check outright
-(`Package suggested but not available`, an ERROR under `--as-cran`),
-where an `Enhances` that cannot be installed is reported and passed over.
-
-The move is paid for in coverage, and it is worth knowing the price.
-`--as-cran` runs tests and examples against a restricted library
-that `tools:::setRlibs()` builds from
-`Depends`, `Imports`, `Suggests` and `LinkingTo`.
-It never reads `Enhances`,
-and no environment variable changes that —
-neither `_R_CHECK_SUGGESTS_ONLY_` nor `_R_CHECK_DEPENDS_ONLY_` does;
-only dropping `--as-cran` does.
-So the package is installed on the machine
-and absent from the library the check's tests see,
-which is exactly what `Enhances` claims about it.
-`test-adbc.R` therefore skips under `--as-cran`,
-here and on CRAN alike,
-where it used to run while the dependency was a `Suggests`.
-Exercising that route again means running it outside the check.
+**`adbcdrivermanager` is a `Suggests`, so the check exercises this route.**
+Methods for another package's generics are what `Enhances` is for,
+but `--as-cran` runs tests and examples against a library of `Depends`, `Imports`, `Suggests` and `LinkingTo` (`tools:::setRlibs()`).
+As a `Suggests`, the package is in that library wherever it is installed.
+So this repository's `--as-cran` checks run `test-adbc.R` and the `duckdb_adbc()` example.
+CRAN runs neither, because the CRAN guard keeps the engine off its farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
+In exchange, a check without the package fails (`Package suggested but not available`) unless `_R_CHECK_FORCE_SUGGESTS_` is false.
 
 The driver manager also loads a DuckDB ADBC driver that is *not* this
 package's — a library built by whatever toolchain the platform's own
@@ -262,9 +242,8 @@ It costs everything this package adds:
 the DBI methods, the relational API, registration and the R type
 mapping are this package's rather than the driver's,
 and a second engine in the session shares nothing with this one.
-Both routes need `adbcdrivermanager`, which CRAN publishes again
-([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)
-carries what CI does about installing it).
+Both routes need `adbcdrivermanager`, which CRAN publishes.
+What CI does on a runner where it will not build is [`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)'s.
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain
