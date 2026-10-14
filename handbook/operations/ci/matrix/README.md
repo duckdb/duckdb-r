@@ -55,30 +55,11 @@ A reference carries pak parameters,
 so `<package>=?ignore-build-errors` demotes a failed source build
 of that one package to a warning
 and drops it from the installation plan.
-This package says that about `arrow`,
-which does not compile against Rtools45;
+This package says that about `arrow` and `adbcdrivermanager`,
+neither of which compiles against Rtools45;
 the field's `Config/comment/…` twin records why.
-
-That parameter reaches a build that fails, and only that.
-`adbcdrivermanager` fails a step earlier since CRAN archived it
-([apache/arrow-adbc#4638](https://github.com/apache/arrow-adbc/issues/4638)):
-nothing resolves the name, so there is no build to demote,
-and a dependency that resolves to nothing takes the whole entry with it —
-`Can't find package called adbcdrivermanager`, before any check begins.
-Declaring it an `Enhances` does not take it out of pak's way.
-The action calls pak with `dependencies = "all"`,
-which resolves `Enhances` alongside the rest,
-so the package stays in the plan whichever optional field holds it.
-
-The parameter that does reach it is `=?ignore-unavailable`,
-which drops a package no repository carries instead of failing the solve.
-So the reference stays in the field and carries both —
-`adbcdrivermanager=?ignore-unavailable&ignore-build-errors` —
-the second half held for the day it returns to CRAN
-and Rtools45 has to build it again.
-
-`DESCRIPTION` names no repository beyond the ones CI configures,
-because CRAN carries `adbcdrivermanager` again.
+The parameter reaches a build that fails, and only that.
+A package that no configured repository carries fails the solve before any build, and dropping it takes `=?ignore-unavailable` instead.
 
 The condition is the build, not the platform,
 which is what makes this the right lever:
@@ -87,8 +68,7 @@ so every runner that has a binary still checks against it,
 and the one that does not picks it back up
 the day it builds again — with no commit here.
 
-Dropping an optional dependency — `Suggests` or `Enhances` — is safe
-because the check is written for it:
+Dropping a `Suggests` is safe because the check is written for it:
 tests guard with `skip_if_not_installed()`,
 examples with `requireNamespace()`,
 and `rcc` downgrades `RCMDCHECK_ERROR_ON` to `warning`
