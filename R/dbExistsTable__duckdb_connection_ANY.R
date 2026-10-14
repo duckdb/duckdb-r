@@ -8,7 +8,8 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
   if (length(name) != 1) {
     abort("Can only have a single name argument")
   }
-  # Outside the probe, so that a name that cannot be quoted is an error.
+  # Quoted outside the probe, so a name that cannot be quoted is an error
+  # rather than a table that does not exist.
   quoted <- dbQuoteIdentifier(conn, name)
   tryCatch(
     probe_table(conn, quoted),
