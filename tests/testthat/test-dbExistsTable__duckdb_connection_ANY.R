@@ -49,23 +49,33 @@ test_that("an aborted transaction is an error, not a missing table", {
   expect_error(dbExistsTable(con, "t"), "aborted")
 })
 
-test_that("a locked configuration finds a table outside a transaction", {
-  con <- local_con(drv = duckdb(config = list(lock_configuration = "true")))
-  dbWriteTable(con, "t", data.frame(a = 1))
+test_that("asking keeps a policy the transaction was given", {
+  # DuckDB 1.x has no policy to give; once main vendors 2.0, the skip goes
+  # (https://github.com/duckdb/duckdb-r/issues/2895).
+  skip_if(numeric_version(sub("-.*", "", get_duckdb_version())) < "2.0.0")
+  con <- local_con()
 
-  expect_true(dbExistsTable(con, "t"))
+  dbBegin(con)
+  on.exit(dbRollback(con))
+  dbExecute(
+    con,
+    "SET current_transaction_invalidation_policy = 'SYNTACTIC_ERRORS_DO_NOT_INVALIDATE'"
+  )
   expect_false(dbExistsTable(con, "nope"))
+
+  # Under that policy, a misspelt table name leaves the transaction usable.
+  expect_error(dbGetQuery(con, "SELECT * FROM nope"), "nope")
+  expect_identical(dbGetQuery(con, "SELECT 1 AS a"), data.frame(a = 1L))
 })
 
-test_that("a locked configuration inside a transaction is a clear error", {
+test_that("a locked configuration does not keep the policy from relaxing", {
   con <- local_con(drv = duckdb(config = list(lock_configuration = "true")))
   dbWriteTable(con, "t", data.frame(a = 1))
 
   dbBegin(con)
   on.exit(dbRollback(con))
-  # DuckDB 1.x leaves the transaction usable after a failed lookup,
-  # so there is no policy to relax and nothing to refuse.
-  skip_if_not(can_relax_invalidation_policy(con))
 
-  expect_error(dbExistsTable(con, "t"), "configuration is locked")
+  expect_true(dbExistsTable(con, "t"))
+  expect_false(dbExistsTable(con, "nope"))
+  expect_identical(dbReadTable(con, "t"), data.frame(a = 1))
 })
