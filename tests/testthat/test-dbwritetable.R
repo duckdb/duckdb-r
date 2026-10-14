@@ -1,6 +1,4 @@
 test_that("dbWriteTable can write tables with keyword column names", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   # NB: name is a reserved word, will need to be escaped as part of writing operation

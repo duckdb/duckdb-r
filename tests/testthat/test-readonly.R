@@ -1,6 +1,4 @@
 test_that("read_only flag and shutdown works as expected", {
-  skip_if_not(TEST_RE2)
-
   dbdir <- tempfile()
   pkg <- get_package_name()
 

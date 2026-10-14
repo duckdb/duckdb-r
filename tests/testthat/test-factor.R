@@ -1,6 +1,4 @@
 test_that("factors can be round tripped", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   df0 <- data.frame(
@@ -21,8 +19,6 @@ test_that("factors can be round tripped", {
 
 
 test_that("iris can be round-tripped", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   duckdb_register(con, "iris", iris)
@@ -35,8 +31,6 @@ test_that("iris can be round-tripped", {
 })
 
 test_that("non-utf things can be read", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   horrid_string <- iconv("Mühleisen", "utf8", "latin1")
@@ -67,8 +61,6 @@ test_that("non-utf things can be read", {
 
 
 test_that("single value factors round trip correctly, issue 2627", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   df1 <- data.frame(year = as.factor(rep("1998", 5)))

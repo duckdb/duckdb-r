@@ -5,9 +5,9 @@ if (rlang::is_installed("dbplyr")) {
 }
 
 test_that("Parquet files can be registered with dplyr::tbl()", {
-  skip_if_not(TEST_RE2)
-
   skip_if_not_installed("dbplyr")
+
+  con <- local_con()
 
   tab0 <- dplyr::tbl(con, "data/userdata1.parquet")
   expect_true(inherits(tab0, "tbl_duckdb_connection"))
@@ -103,8 +103,6 @@ test_that("Object cache can be enabled for parquet files with tbl_file() and tbl
 
 
 test_that("CSV files can be registered with dplyr::tbl()", {
-  skip_if_not(TEST_RE2)
-
   skip_if_not_installed("dbplyr")
 
   path <- file.path(tempdir(), "duckdbtest.csv")
@@ -155,9 +153,9 @@ test_that("Files use the default connection", {
 
 
 test_that("Other replacement scans or functions can be registered with dplyr::tbl()", {
-  skip_if_not(TEST_RE2)
-
   skip_if_not_installed("dbplyr")
+
+  con <- local_con()
 
   obj <- dplyr::tbl(con, "duckdb_keywords()")
   expect_true(inherits(obj, "tbl_duckdb_connection"))

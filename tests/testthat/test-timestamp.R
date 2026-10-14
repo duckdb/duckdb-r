@@ -1,6 +1,4 @@
 test_that("fractional seconds can be roundtripped", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   df <- data.frame(

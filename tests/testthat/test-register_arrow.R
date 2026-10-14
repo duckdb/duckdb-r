@@ -8,8 +8,6 @@ skip_if_not(
 )
 
 test_that("duckdb_register_arrow() works", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = FALSE)
@@ -35,8 +33,6 @@ test_that("duckdb_register_arrow() works", {
 })
 
 test_that("duckdb_register_arrow() works with record_batch_readers", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = TRUE)
@@ -60,8 +56,6 @@ test_that("duckdb_register_arrow() works with record_batch_readers", {
 })
 
 test_that("duckdb_register_arrow() works with scanner", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = FALSE)

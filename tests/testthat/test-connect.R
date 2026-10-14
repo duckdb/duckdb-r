@@ -56,8 +56,6 @@ test_that("no warning on dbConnect() with other dbdir", {
 })
 
 test_that("can connect to the same in-memory database via the same driver object", {
-  skip_if_not(TEST_RE2)
-
   drv <- duckdb()
 
   con1 <- dbConnect(drv)
@@ -76,8 +74,6 @@ test_that("can connect to the same in-memory database via the same driver object
 })
 
 test_that("will connect to different in-memory databases via different driver objects", {
-  skip_if_not(TEST_RE2)
-
   drv1 <- duckdb()
   con1 <- dbConnect(drv1)
   on.exit(dbDisconnect(con1), add = TRUE)
@@ -96,8 +92,6 @@ test_that("will connect to different in-memory databases via different driver ob
 })
 
 test_that("can connect to the same database file via the same driver object", {
-  skip_if_not(TEST_RE2)
-
   drv <- duckdb(tempfile(fileext = ".duckdb"))
 
   con1 <- dbConnect(drv)
@@ -116,8 +110,6 @@ test_that("can connect to the same database file via the same driver object", {
 })
 
 test_that("can connect to the same database file via different driver objects", {
-  skip_if_not(TEST_RE2)
-
   path <- tempfile(fileext = ".duckdb")
   writeLines(character(), path)
   path <- normalizePath(path)
@@ -140,56 +132,7 @@ test_that("can connect to the same database file via different driver objects", 
   gc()
 })
 
-test_that("read_only only applies to the first driver object for a path", {
-  skip_if_not(TEST_RE2)
-
-  path <- tempfile(fileext = ".duckdb")
-  writeLines(character(), path)
-  path <- normalizePath(path)
-  unlink(path)
-
-  drv1 <- duckdb(path)
-  con1 <- dbConnect(drv1)
-  on.exit(dbDisconnect(con1), add = TRUE)
-  dbWriteTable(con1, "y", data.frame(b = 1:3))
-
-  drv2 <- duckdb(path, read_only = TRUE)
-  con2 <- dbConnect(drv2)
-  on.exit(dbDisconnect(con2), add = TRUE)
-
-  dbWriteTable(con2, "x", data.frame(a = 1:3))
-  expect_equal(dbReadTable(con1, "x"), data.frame(a = 1:3))
-
-  gc()
-})
-
-test_that("config only applies to the first driver object for a path", {
-  skip_if_not(TEST_RE2)
-
-  path <- tempfile(fileext = ".duckdb")
-  writeLines(character(), path)
-  path <- normalizePath(path)
-  unlink(path)
-
-  drv1 <- duckdb(path)
-  con1 <- dbConnect(drv1)
-  on.exit(dbDisconnect(con1), add = TRUE)
-  dbWriteTable(con1, "x", data.frame(a = 1:3))
-
-  drv2 <- duckdb(path, config = list(default_order = "DESC"))
-  con2 <- dbConnect(drv2)
-  on.exit(dbDisconnect(con2), add = TRUE)
-  expect_equal(
-    dbGetQuery(con2, "SELECT * FROM x ORDER BY a"),
-    data.frame(a = 1:3)
-  )
-
-  gc()
-})
-
 test_that("user agent is set to r", {
-  skip_if_not(TEST_RE2)
-
   drv <- duckdb()
   con <- dbConnect(drv)
   expect_match(

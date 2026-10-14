@@ -121,14 +121,13 @@ test_that("statements can be splitted apart correctly", {
 })
 
 test_that("export/import database works", {
-  skip_if_not(TEST_RE2)
-
   export_location <- file.path(tempdir(), "duckdb_test_export")
   if (!file.exists(export_location)) {
     dir.create(export_location)
   }
 
-  con <- local_con()
+  # Closed by hand once exported, so not a local_con().
+  con <- dbConnect(duckdb())
   DBI::dbExecute(con, "CREATE TABLE integers(i integer)")
   DBI::dbExecute(con, "insert into integers select * from range(10)")
   DBI::dbExecute(con, "CREATE TABLE integers2(i INTEGER)")

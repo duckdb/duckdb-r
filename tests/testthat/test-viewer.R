@@ -1,6 +1,4 @@
 test_that("rs_list_object_types", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   object_types <- rs_list_object_types(con)
@@ -13,8 +11,6 @@ test_that("rs_list_object_types", {
 })
 
 test_that("rs_list_objects", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   objects <- rs_list_objects(con)
@@ -46,8 +42,6 @@ test_that("rs_list_objects", {
 })
 
 test_that("rs_list_columns", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   objects <- rs_list_objects(con)
@@ -75,8 +69,6 @@ test_that("rs_list_columns", {
 })
 
 test_that("rs_viewer", {
-  skip_if_not(TEST_RE2)
-
   con <- local_con()
 
   dbWriteTable(con, "mtcars", mtcars)
@@ -93,8 +85,6 @@ test_that("rs_actions", {
 })
 
 test_that("mock observer hooray", {
-  skip_if_not(TEST_RE2)
-
   called_connection_opened <- FALSE
   called_connection_closed <- FALSE
   called_connection_updated <- FALSE
@@ -114,7 +104,8 @@ test_that("mock observer hooray", {
     connectionObserver = mock,
     duckdb.force_rstudio_connection_pane = TRUE
   )
-  con <- local_con()
+  # Closed by hand to observe the close, so not a local_con().
+  con <- dbConnect(duckdb())
   expect_true(called_connection_opened)
 
   dbWriteTable(con, "mtcars", mtcars)
