@@ -1,7 +1,8 @@
-# Covers `helper-skip.R`'s one condition that is a function of a string rather
-# than of the build: which vendored versions count as a release. The other skip
-# conditions ask about the running engine, the flavor, or the environment, and
-# a test can only assert what the run it is in happens to be.
+# Covers the conditions in `helper-skip.R` that are a function of their input
+# rather than of the build: which vendored versions count as a release, and
+# which environments run the tests behind `TEST_RE2`. The other skip conditions
+# ask about the running engine or the flavor, and a test can only assert what
+# the run it is in happens to be.
 
 test_that("a release version is told from a snapshot between releases", {
   expect_true(is_release_version("1.5.5"))
@@ -22,4 +23,27 @@ test_that("a release version is told from a snapshot between releases", {
   expect_false(is_release_version("1.5.5.9013"))
   expect_false(is_release_version("v1.5.5"))
   expect_false(is_release_version(""))
+})
+
+test_that("the tests behind `TEST_RE2` run everywhere but in the R-hub workflow", {
+  withr::local_envvar(DUCKDB_R_TEST_RE2 = NA, GITHUB_WORKFLOW = NA)
+  expect_true(test_re2_enabled())
+
+  withr::local_envvar(GITHUB_WORKFLOW = "rcc")
+  expect_true(test_re2_enabled())
+
+  withr::local_envvar(GITHUB_WORKFLOW = "R-hub")
+  expect_false(test_re2_enabled())
+
+  # The variable wins both ways.
+  withr::local_envvar(DUCKDB_R_TEST_RE2 = "true")
+  expect_true(test_re2_enabled())
+  withr::local_envvar(DUCKDB_R_TEST_RE2 = "off", GITHUB_WORKFLOW = "rcc")
+  expect_false(test_re2_enabled())
+})
+
+test_that("the rcc workflow runs the tests behind `TEST_RE2`", {
+  # A skip that no run lifts lets its tests rot (handbook/testing/suite/README.md).
+  skip_if_not(identical(Sys.getenv("GITHUB_WORKFLOW"), "rcc"), "not rcc")
+  expect_true(TEST_RE2)
 })

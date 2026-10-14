@@ -91,3 +91,26 @@ skip_if_no_icu <- function() {
     "No extension binaries published for this platform"
   )
 }
+
+# Whether to run the tests that reach DuckDB's re2: those that call
+# `skip_if_not(TEST_RE2)`, and the `TEST_RE2` block of `test-DBItest.R`.
+#
+# On in every run but the R-hub workflow, whose CRAN check flavours re2 once
+# tripped (https://github.com/duckdb/duckdb-r/issues/121).
+# `DUCKDB_R_TEST_RE2` overrides that, read like `DUCKDB_R_RUN_TESTS`.
+# Why it defaults to on is handbook/testing/suite/README.md's;
+# covered by `test-helper-skip.R`.
+test_re2_enabled <- function() {
+  value <- tolower(trimws(Sys.getenv("DUCKDB_R_TEST_RE2", "")))
+  if (value %in% c("true", "1", "yes", "on")) {
+    return(TRUE)
+  }
+  if (value %in% c("false", "0", "no", "off")) {
+    return(FALSE)
+  }
+  Sys.getenv("GITHUB_WORKFLOW") != "R-hub"
+}
+
+# A value rather than a call, because duckplyr generates `test-rel_api.R`
+# with `skip_if_not(TEST_RE2)` in it.
+TEST_RE2 <- test_re2_enabled()
