@@ -27,7 +27,8 @@
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
-#      an attended rebuild stops there so it can be forgotten and redone.
+#      an attended rebuild stops there so it can be forgotten and redone. A
+#      kept build follows the rc strand when the series moves on.
 #  11. A `main` that moved stops a kept build and is not READY, and a rebuild
 #      on it that the series has not ported is refused before anything is
 #      pushed, `DESCRIPTION` included.
@@ -346,6 +347,20 @@ git -C "$WT" add tests/testthat/test-bar.R
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --attended 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "redone, the landing is the series' again" "$out" "v2.0-x-land-dev: already on origin"
+
+# The series vendors one more commit while the build waits.
+git checkout -q s
+engine eeee555 1.99.99-dev4
+desc duckdb.2.0.dev 1.99.99.9000.4
+commit 'vendor: Update vendored sources to duckdb/duckdb@eeee555'
+git push -q origin s:refs/heads/v2.0-x-fwd-dev
+git checkout -q main
+scripts/series-rc.sh v2.0-x-fwd --push >/dev/null 2>&1
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the kept build follows the moved strand" "$out" "following it"
+has "and lands the new commit too" "$out" "4 vendor commits on main"
+hasnt "and is the series' package" "$out" "DIVERGED"
 
 # --- 11: main moves ---------------------------------------------------------
 
