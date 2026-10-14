@@ -50,15 +50,30 @@
 # ready when the two refs are equal. There is no `-land-build`, so the loop's
 # discovery never mistakes the pair for a series.
 #
+# **`--review` writes what a reviewer of `main` reads.** The landing's own diff
+# is the engine's, hundreds of thousands of lines; what changes for `main`'s
+# maintainers is everything else, the glue, R code and tests the series changed
+# on the way. `<L>-land-review` is that alone: the landing's base, one commit
+# that removes every workflow, and then, for each landing commit that changes
+# anything outside the vendored strand, that change and nothing more, under the
+# upstream commit that asked for it. Without its engine the R side compiles
+# against nothing, so a check there could only fail, and without workflow files
+# a pull request starts none. It goes to the canonical repository, where it is
+# opened as a draft pull request against `main` and never merged: `main` takes
+# the landing itself.
+#
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
 #                       [--placed <sha>]... [--no-check-glue]
 #        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
+#        series-land.sh <S> --review [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --abort
 #   <S> is the series whose rc strand lands, `v2.0-cyanoptera-fwd` for
 #   `v2.0-cyanoptera-fwd-rc-dev`; the refs are named for its line,
 #   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
+#   --review reads the kept build, or `<L>-land-dev` on --remote when there is
+#   none, and pushes `<L>-land-review` to --canonical.
 #   --placed and --no-check-glue are passed to series-forward-build.sh.
 #
 # --remote and --canonical are spelled the same in every scripts/series-*.sh;
@@ -68,12 +83,12 @@ set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status] [--push] [--placed <sha>]... [--no-check-glue] [--abort]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review] [--push] [--placed <sha>]... [--no-check-glue] [--abort]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' abort=''
+push='' status='' review='' abort=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -84,6 +99,7 @@ while [ $# -gt 0 ]; do
     --no-check-glue) fwd_args+=(--no-check-glue); shift ;;
     --push) push=1; shift ;;
     --status) status=1; shift ;;
+    --review) review=1; shift ;;
     --abort) abort=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
@@ -128,8 +144,6 @@ main=$(git rev-parse "refs/remotes/$canonical/main" 2>/dev/null || git rev-parse
 dev_ref="refs/remotes/$remote/$L-land-dev"
 green_ref="refs/remotes/$remote/$L-land-green"
 git fetch -q "$remote" "+refs/heads/$L-land-*:refs/remotes/$remote/$L-land-*"
-
-is_vendor() { git log -1 --format=%s "$1" | grep -q '^vendor:'; }
 
 # --- --status: what CI has decided, and green over the passed prefix ----------
 
@@ -190,6 +204,94 @@ if [ -n "$status" ]; then
       exit 1
     fi
   fi
+  exit 0
+fi
+
+# --- --review: the landing without its engine, for a draft pull request ------
+
+if [ -n "$review" ]; then
+  if [ -f "$STATE" ]; then
+    read -r wt base _ < "$STATE"
+    tip=$(git -C "$wt" rev-parse HEAD)
+  elif git rev-parse -q --verify "$dev_ref" >/dev/null; then
+    tip=$(git rev-parse "$dev_ref")
+    base=$main
+  else
+    echo "Error: no kept build and no $L-land-dev on $remote to review" >&2
+    exit 1
+  fi
+  git merge-base --is-ancestor "$base" "$tip" ||
+    { echo "Error: the landing does not stand on main $(git rev-parse --short "$base")" >&2; exit 1; }
+
+  # The vendored strand, as series-forward-build.sh takes it whole, with the
+  # Makevars generated from it, and `DESCRIPTION`, whose `Version:` every landing
+  # commit moves; a change to any other line of it is still carried below.
+  strand=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win)
+  excludes=(':(exclude).github/workflows' ':(exclude)DESCRIPTION')
+  for p in "${strand[@]}"; do excludes+=(":(exclude)$p"); done
+  unversioned() { git show "$1:DESCRIPTION" | grep -v '^Version:'; }
+  main_version=$(git show "$base:DESCRIPTION" | sed -n 's/^Version: //p')
+
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+  export GIT_INDEX_FILE="$work/index"
+  export GIT_COMMITTER_DATE
+  GIT_COMMITTER_DATE=$(git log -1 --format=%cd --date=raw "$base")
+
+  git read-tree "$base"
+  git ls-files -z -- .github/workflows | xargs -0 -r git update-index --force-remove --
+  head=$(git commit-tree "$(git write-tree)" -p "$base" -m "ci: Remove every workflow from this review branch
+
+The branch carries the R side of the $L landing without its engine,
+so it compiles against nothing, and it is never merged.
+Without workflow files a pull request from it starts no run.")
+
+  picked=0
+  for c in $(git rev-list --reverse --first-parent "$base..$tip"); do
+    git diff --binary "$c~1" "$c" -- . "${excludes[@]}" > "$work/diff"
+    desc=''
+    [ "$(unversioned "$c")" = "$(unversioned "$c~1")" ] || desc=1
+    [ -s "$work/diff" ] || [ -n "$desc" ] || continue
+    [ -s "$work/diff" ] && git apply --cached --binary "$work/diff"
+    if [ -n "$desc" ]; then
+      blob=$(git show "$c:DESCRIPTION" | sed "s/^Version: .*/Version: $main_version/" |
+        git hash-object -w --stdin)
+      git update-index --cacheinfo "100644,$blob,DESCRIPTION"
+    fi
+    up=$(git log -1 --format=%s "$c" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]{10}).*$|\1|p')
+    head=$(
+      { echo "review: The R side of duckdb/duckdb ${up:-$(git rev-parse --short "$c")}"
+        echo
+        git log -1 --format=%B "$c"
+        echo "Landing-commit: $c"; } |
+        GIT_AUTHOR_NAME=$(git log -1 --format=%an "$c") GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae "$c") \
+        GIT_AUTHOR_DATE=$(git log -1 --format=%ad --date=raw "$c") \
+        git commit-tree "$(git write-tree)" -p "$head"
+    )
+    picked=$((picked + 1))
+  done
+  unset GIT_INDEX_FILE
+
+  echo "=== $L-land-review"
+  echo "  $picked of $(git rev-list --count "$base..$tip") landing commits change the R side;" \
+    "on main $(git rev-parse --short "$base") -> $(git rev-parse --short "$head")"
+  echo "  $(git diff --shortstat "$base" "$head" -- . ':(exclude).github/workflows')"
+
+  slug=$(git remote get-url "$canonical" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')
+  old=$(git ls-remote "$canonical" "refs/heads/$L-land-review" | cut -f1)
+  if [ "$old" = "$head" ]; then
+    echo "$L-land-review: already on $canonical"
+  elif [ -z "$push" ]; then
+    echo "Not pushed; --push writes $L-land-review to $canonical."
+    exit 0
+  else
+    git push -q "$canonical" "--force-with-lease=refs/heads/$L-land-review:$old" \
+      "+$head:refs/heads/$L-land-review"
+    echo "$L-land-review -> $(git rev-parse --short "$head") on $canonical"
+  fi
+  echo "Open it as a draft, never to be merged:"
+  echo "  gh pr create --repo $slug --draft --base main --head $L-land-review \\"
+  echo "    --title \"Review: the R side of the $L landing\""
   exit 0
 fi
 

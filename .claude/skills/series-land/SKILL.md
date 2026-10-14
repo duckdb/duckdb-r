@@ -29,8 +29,11 @@ its live forward `v2.0-cyanoptera-fwd` while one exists, because that is the one
   It is pushed at the frozen `main` and advanced over the commits that passed;
   the landing is ready when it equals `<L>-land-dev`.
 
+* **`<L>-land-review`**, in the canonical repository: the same landing without its engine,
+  for a draft pull request that is read and never merged (step 4).
+
 There is no `<L>-land-build`, so the loop never mistakes the pair for a series.
-Both are deleted once `main` has taken the landing.
+All three are deleted once `main` has taken the landing.
 
 ## Before you start
 
@@ -130,7 +133,26 @@ Fix it on the series, realign its rc strand, and rebuild with `--abort` first; n
 Committer dates are pinned to the frozen `main`'s, so a rebuild from the same inputs mints the same SHAs
 and CI does not judge a commit twice.
 
-## 4. Let CI judge every commit
+## 4. Open the R side for review
+
+The landing's own diff is the engine's, hundreds of thousands of lines.
+What changes for `main`'s maintainers is the rest: the glue, R code and tests the series changed on the way.
+
+```sh
+scripts/series-land.sh <S> --remote origin --canonical upstream --review --push
+gh pr create --repo duckdb/duckdb-r --draft --base main --head <L>-land-review \
+  --title "Review: the R side of the <L> landing"
+```
+
+`<L>-land-review` is the frozen `main`, one commit that removes every workflow,
+and one commit for each landing commit that changes anything outside the vendored strand,
+carrying that change alone under the upstream commit that asked for it.
+Its checks could only fail, because the R side compiles against no engine there,
+and without workflow files the pull request starts none.
+It is never merged: a finding is fixed on the series, the landing is rebuilt,
+and `--review --push` rewrites the branch, which the pull request follows.
+
+## 5. Let CI judge every commit
 
 Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-land-dev`.
 Read and advance it with
@@ -147,7 +169,7 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
   amend with an `R-side fix` section, and rerun the build, which replays everything above it.
   A fix the series lacks too goes onto the series as well, or the tree check refuses the push.
 
-## 5. Fast-forward `main`
+## 6. Fast-forward `main`
 
 When `--status` prints `READY`, every commit has passed and `main` is still the commit the landing stands on.
 Lift the freeze, push, and put it back until the step below is done:
@@ -164,7 +186,7 @@ git ls-remote upstream refs/heads/main
 The push is a plain one, so git refuses it unless it is a fast-forward.
 It needs the existing `main` ruleset's admin bypass, because it is not a pull request.
 
-## 6. After the landing
+## 7. After the landing
 
 Delete the freeze, so that `main` takes pull requests again:
 
@@ -187,5 +209,6 @@ Then the series:
 * **Forward `<L>`, and the series tracking upstream `main`, onto the new `main`**
   ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
   The new seed already vendors what the landing vendored, so `<L>`'s forward replays only what came after.
-* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork, and the kept worktree with
-  `scripts/series-land.sh <S> --abort`.
+* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork,
+  `<L>-land-review` in the canonical repository with its draft pull request closed,
+  and the kept worktree with `scripts/series-land.sh <S> --abort`.

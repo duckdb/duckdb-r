@@ -23,6 +23,8 @@
 #      resolved once is resolved again by rerere without stopping.
 #   9. --status advances green over the commits the store passed, names the
 #      first one it has not, and prints the fast-forward once every one passed.
+#      --review writes the landing's R side alone onto `main`, one commit per
+#      landing commit that changes it, with every workflow removed first.
 #  10. A `main` that moved stops a kept build, and a rebuild on it that the
 #      series has not ported is refused before anything is pushed.
 #
@@ -69,7 +71,7 @@ git config commit.gpgsign false
 git remote add origin "$FORK"
 git remote add upstream "$CANON"
 
-mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat
+mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat .github/workflows
 for s in series-land.sh series-forward-build.sh series-rc.sh setup-git.sh merge-version.sh; do
   cp "$HERE/$s" scripts/
 done
@@ -89,6 +91,7 @@ desc duckdb 1.5.5.9000
 engine aaaa111 1.5.5
 echo 'rename duckdb.1.3 duckdb_1_3' > scripts/flavor.patch
 echo 'tool v1' > scripts/tool.sh
+echo 'on: pull_request' > .github/workflows/ci.yaml
 echo 'pkg <- "duckdb"' > R/package.R
 echo 'foo <- function() 1' > R/foo.R
 echo 'glue 1' > src/glue.cpp
@@ -283,6 +286,25 @@ out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "every commit passed" "$out" "READY: every commit has passed"
 has "and it prints the fast-forward" "$out" "git push upstream $TIP:refs/heads/main"
+
+echo
+echo "== --review writes the R side alone"
+out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "it counts the commits that change the R side" "$out" "3 of 3 landing commits change the R side"
+has "and prints the draft pull request" "$out" "gh pr create --repo"
+git fetch -q upstream v2.0-x-land-review
+REV=$(git rev-parse upstream/v2.0-x-land-review)
+is "it stands on main" "$(git rev-parse "$REV~4")" "$M"
+is "its first commit removes every workflow" "$(git ls-tree -r --name-only "$REV~3" -- .github/workflows | wc -l)" 0
+is "the engine is main's" "$(git show "$REV:src/duckdb/engine.cpp")" "engine aaaa112"
+is "and so is the version" "$(git show "$REV:DESCRIPTION" | sed -n 's/^Version: //p')" "1.5.6.9001"
+is "everything else is the landing's" \
+  "$(git diff --name-only "$REV" "$TIP" -- . ':(exclude)src/duckdb' ':(exclude)R/version.R' \
+    ':(exclude)DESCRIPTION' ':(exclude).github/workflows')" ""
+is "no subject reads as a vendor commit" "$(git log --format=%s "$M..$REV" | grep -c 'duckdb/duckdb@' || true)" 0
+is "each names the landing commit it halves" \
+  "$(git log -1 --format=%B "$REV" | sed -n 's/^Landing-commit: //p')" "$TIP"
 
 # --- 10: main moves ---------------------------------------------------------
 
