@@ -1,5 +1,29 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.99.99.9000.2160
+
+## Breaking changes
+
+- The vendored engine is a development snapshot of DuckDB v2.0, `2.0.0-dev87994` (duckdb/duckdb@0f5ff0a9d6).
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`.
+- An error's `LINE` context underlines the whole offending token, not just its first character.
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
+- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE AS` makes a `NULL`-typed column of it.
+- The progress display is quiet past an Arrow stream's first batch.
+
+## Features
+
+- `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
+- `TUPLE` columns read as data frames, `GEOMETRY` columns as lists of raw vectors, and an empty `STRUCT` as a data frame without columns.
+- A `SELECT` that writes, one calling `nextval()` for instance, runs to completion before `dbSendQueryArrow()` returns rather than streaming, so a result of it ended early no longer rolls back the transaction it runs in.
+
+## Bug fixes
+
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name.
+- A read of an Arrow result that failed fails again on every later read, rather than reporting the result's end.
+- A query that exceeded `max_execution_time` reports that on every read of its Arrow result, rather than an invalidation by another statement.
+
 # duckdb 1.5.6.9005
 
 ## Bug fixes
