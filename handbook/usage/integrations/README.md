@@ -214,6 +214,24 @@ So a writer of its own would build the same memory that these calls reach withou
 Measured on data.table 1.18.6.1, collapse 2.1.8 and the development version of polars from r-universe, not its release
 ([`experiments/2026-09-28-frame-libraries/`](/experiments/2026-09-28-frame-libraries/README.md)).
 
+The inbound direction is the asymmetric one:
+a result leaves as nanoarrow, but a source can only enter through the
+`arrow` package,
+because `duckdb_register_arrow()` hard-codes `arrow::Scanner$create()`
+and `arrow::Expression$…` in the closures it hands to C++.
+A nanoarrow stream enters today only as the arrow `Table` built from it,
+and a registered reader is drained by the first query, both of which `arrow-types/` lists.
+What a registered object holds in memory,
+and why a stream over an R connection cannot be one,
+is [`memory/writing/`](/handbook/usage/memory/writing/README.md)'s.
+Registering through nanoarrow instead is
+[`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md),
+and what stops it being a drop-in is filter pushdown:
+`arrow_scan` declares `filter_pushdown = true` and nothing above the
+scan re-applies the filter,
+so a producer with no compute layer needs `arrow_scan_dumb` instead
+([`experiments/2026-08-08-nanoarrow-df-scan/`](/experiments/2026-08-08-nanoarrow-df-scan/README.md)).
+
 ## ADBC
 
 `duckdb_adbc()` ([`R/Driver.R`](/R/Driver.R)) hands the engine to
