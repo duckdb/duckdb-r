@@ -69,6 +69,7 @@ out() { # <script> <args...> -> first line of stdout; the usage goes there
 # takes no --remote; the option spelling and the exit status are still shared.
 scripts=(
   series-advance.sh
+  series-alpha.sh
   series-check.sh
   series-converge.sh
   series-cut.sh
@@ -85,6 +86,7 @@ scripts=(
 standalone_scripts=(preview-prefix.sh reflavor.sh)
 remote_scripts=(
   series-advance.sh
+  series-alpha.sh
   series-check.sh
   series-converge.sh
   series-cut.sh
@@ -128,6 +130,7 @@ for s in "${canonical_scripts[@]}"; do
 done
 is "series-forward-build.sh --placed (bare)"     "$(rc series-forward-build.sh a b --placed)" 2
 is "series-forward-build.sh --graft-from (bare)" "$(rc series-forward-build.sh a b --graft-from)" 2
+is "series-alpha.sh --alpha (bare)"              "$(rc series-alpha.sh s --alpha)" 2
 
 echo
 echo "== the remote and the upstream clone are named, never positional"
@@ -164,7 +167,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-converge.sh series-cutover.sh series-glue.sh series-patch-sync.sh series-port.sh; do
+for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-patch-sync.sh series-port.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.

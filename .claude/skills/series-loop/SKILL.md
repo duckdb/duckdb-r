@@ -63,6 +63,8 @@ that is cutover litter pending deletion
 `<S>-rc-dev` has no `-build` beside it and is not a series of its own:
 it is the unflavored mirror of `<S>-dev`, derived commit for commit
 ([`series-rc/SKILL.md`](series-rc)).
+Nor are `<S>-alpha` and `<S>-rc-alpha`, each one stamp commit on a green commit or its rc twin
+([`series-alpha/SKILL.md`](series-alpha)).
 
 **All four refs exist from day one, equal, and green contains the flavor
 change.**
@@ -1226,6 +1228,13 @@ so the unflavored strand never lags the one it mirrors
 ([`series-rc/SKILL.md`](series-rc)).
 Its own reds are not repaired on the rc strand:
 a fix goes to `<S>`, and the next realignment carries it.
+
+**Then realign the alpha strand.**
+A series with an `<S>-alpha` gets `scripts/series-alpha.sh <S> --push` on every firing, after its rc strand,
+because it moves when upstream publishes an alpha as well as when `<S>-green` does
+([`series-alpha/SKILL.md`](series-alpha)).
+An alpha whose commit green has not vendored yet writes nothing, and one with a gap in its extensions stops the script;
+both go into the report, and neither is repaired here.
 
 ### 6. Read the forwarding, and suggest a cutover — never perform one
 

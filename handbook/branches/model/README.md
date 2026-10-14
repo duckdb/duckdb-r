@@ -72,6 +72,11 @@ It is one ref: no buffer, since it is derived rather than vendored,
 and no `-green` or `-build-base`, since nothing publishes it.
 CI judges it from its own seed up, and the loop realigns it rather than serving it
 ([`series-rc`](/.claude/skills/series-rc/SKILL.md)).
+**`<S>-alpha` is a green commit stamped with the version of upstream's alpha build of its engine**,
+and `<S>-rc-alpha` the same stamp on its rc twin,
+because upstream publishes extensions under that version and never under the commit a `-dev` stamp looks in.
+Each is one commit on a verified one, moved by the loop when a newer alpha appears
+([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
 **The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
 and both counts stay linear by construction —
 `-green` is always an ancestor of `-dev`, and `-build-base` of `-build`:
