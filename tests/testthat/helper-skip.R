@@ -12,9 +12,9 @@
 # fails (handbook/testing/suite/README.md).
 
 # Skip where the vendored engine is a development snapshot rather than a
-# release. `get_duckdb_version()` reports a bare three-component version only at
-# a tag; anything else is a snapshot between releases, which has no published
-# extension binaries and no released libduckdb to match.
+# release. `get_duckdb_version()` reports `X.Y.Z-devN` for a snapshot between
+# releases, which has no published extension binaries and no released libduckdb
+# to match; a tag and an upstream alpha build (`X.Y.Z-alphaN`) have both.
 # https://github.com/r-lib/testthat/issues/2236
 skip_on_dev_version <- function() {
   if (!is_release_version(get_duckdb_version())) {
@@ -24,14 +24,23 @@ skip_on_dev_version <- function() {
 
 # Is this version string a release, rather than a snapshot between releases?
 #
-# Three numbers and nothing else. Every component is `[0-9]+` rather than a
-# single digit: DuckDB has already shipped a two-digit component (`0.10.0`), and
-# a patch release reaches two digits the same way -- which a single-digit
-# pattern reads as a snapshot, skipping tests that should have run on a release.
+# Three numbers, optionally with a suffix that is not `-dev`: the engine draws
+# the line in the same place (`VersioningUtils::IsReleaseVersion()`), and looks
+# up extensions under the version for a release and under the commit for
+# anything else. An alpha stamp is how a series build reaches the extensions
+# upstream publishes (.claude/skills/series-alpha/SKILL.md).
+# Every component is `[0-9]+` rather than a single digit: DuckDB has already
+# shipped a two-digit component (`0.10.0`), and a patch release reaches two
+# digits the same way -- which a single-digit pattern reads as a snapshot,
+# skipping tests that should have run on a release.
 # Covered by `test-helper-skip.R`, because nothing else here can be: the
 # condition this feeds is a property of the build.
 is_release_version <- function(version) {
-  grepl("^[0-9]+[.][0-9]+[.][0-9]+$", version)
+  grepl(
+    "^[0-9]+[.][0-9]+[.][0-9]+(-(?!dev)[a-z]+[0-9]*)?$",
+    version,
+    perl = TRUE
+  )
 }
 
 # Skip on every flavor but the mainline one.

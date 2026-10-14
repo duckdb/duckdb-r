@@ -18,6 +18,10 @@ test_that("a release version is told from a snapshot between releases", {
   # A snapshot between releases, which is what the skip is for.
   expect_false(is_release_version("1.5.4-dev157"))
 
+  # An upstream alpha build is a release to the engine, which looks up its
+  # extensions under the version.
+  expect_true(is_release_version("2.0.0-alpha46057"))
+
   # Not three bare components at all.
   expect_false(is_release_version("1.5"))
   expect_false(is_release_version("1.5.5.9013"))
