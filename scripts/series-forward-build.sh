@@ -23,9 +23,10 @@
 #
 # The fifth version component is renumbered as a true counter, one per replayed
 # commit, so it counts this chain rather than carrying the old one's numbering.
-# A landing replays onto `main` itself, whose version has four components, so
-# `--prefix` names the prefix to stamp and the counter starts at zero there
-# (scripts/series-land.sh); a resumed landing reads both back from HEAD.
+# A landing replays onto `main` itself, whose version is `main`'s own, so
+# `--prefix` names the prefix to stamp, and the counter starts at zero on any
+# HEAD that does not carry that prefix yet (scripts/series-land.sh); a resumed
+# landing reads both back from HEAD.
 #
 # The foot of the range is read from the trees rather than taken on trust, so a
 # new seed vendoring a newer release than the old one needs no hand work:
@@ -58,8 +59,8 @@
 #   the range was cut for (graft_pick), `v2.0-cyanoptera-fwd-build` for `main`.
 #   Required when the range stands on a graft, and refused otherwise.
 #   --no-check-glue skips the glue gate (glue_gate), as vendor-one.sh's does.
-#   --prefix is the four-component version to stamp when HEAD has no fifth
-#   component; ignored once HEAD has one.
+#   --prefix is the four-component version to stamp; the counter restarts at
+#   zero unless HEAD already carries that prefix.
 
 set -euo pipefail
 
@@ -112,7 +113,9 @@ version() { git show HEAD:DESCRIPTION | sed -rn 's/^Version: (.*)$/\1/p'; }
 # replayed commit stamps the next number, so HEAD says how far the replay got.
 prefix=$(version | sed -rn 's/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
 n=$(version | sed -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
-if [ -z "$prefix" ] && [ -n "$PREFIX" ]; then
+# `main` has carried five components of its own, and a counter read off them
+# would continue `main`'s numbering rather than start the landing's.
+if [ -n "$PREFIX" ] && [ "$prefix" != "$PREFIX" ]; then
   [[ "$PREFIX" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
     { echo "Error: --prefix $PREFIX is not four version components"; exit 2; }
   prefix=$PREFIX

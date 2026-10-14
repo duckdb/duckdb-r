@@ -4,8 +4,8 @@
 # (.claude/skills/series-land/SKILL.md).
 #
 # A line moves onto `main` when `main` starts releasing it. The series already
-# holds the history `main` needs -- one commit per upstream commit, each judged
-# by CI with the R-side fix it needed folded in -- but on a lineage of its own:
+# holds the history `main` needs (one commit per upstream commit, each judged
+# by CI with the R-side fix it needed folded in), but on a lineage of its own:
 # its seed is an older `main`, everything `main` gained since arrived as ports,
 # and the package carries a flavor. None of that may reach `main`, which only
 # ever fast-forwards, so the landing is a forward onto `main` itself, with three
@@ -30,15 +30,30 @@
 # series' tooling syncs are placed here by subject, because `main` holds newer
 # tooling than any of them.
 #
+# **A conflict resolved once is resolved for every rebuild.** setup-git.sh turns
+# rerere on, and a stop that rerere resolved completely is continued here rather
+# than handed back. A resolution rerere replayed is named again if the landing
+# then fails its tree check, because a wrong one is replayed as faithfully as a
+# right one; `--attended` stops at every conflict with rerere's answer filled in
+# and unstaged, where `git rerere forget <path>` drops it.
+#
+# **A resumed build follows the rc strand.** A series repaired or extended while
+# the build waits is realigned (scripts/series-rc.sh) and taken from where the
+# build stands: the replay skips upstream commits it has already landed and
+# takes the rest, and the tree check compares against the strand as it is now.
+#
 # **The landing is checked against the series before it is pushed.** Its tip
 # and the rc commit it was built up to must be the same package: the same tree,
-# except where the landing takes `main`'s side by construction -- `NEWS.md`, the
-# release paperwork no port carries, and the three READMEs, which no port
-# carries either (scripts/series-converge.sh has the evidence for both classes),
-# plus `DESCRIPTION`'s `Version:` line. A difference anywhere else is a commit
-# `main` has that the series never ported, or a fix on one side only, and the
-# commits CI would judge would not be the package the series proved. The push is
-# refused until it is resolved.
+# except where the landing takes `main`'s side by construction. That is
+# `NEWS.md`, the release paperwork no port carries, and the three READMEs, which
+# no port carries either (scripts/series-converge.sh has the evidence for both
+# classes). `DESCRIPTION` agrees whole, version included, because the counter
+# restarts on `main` exactly as it did on the series. A difference anywhere else
+# is a commit `main` has that the series never ported, or a fix on one side
+# only, and the commits CI would judge would not be the package the series
+# proved. The push is refused until it is resolved. What the check cannot see is
+# a file the series lost as well, so the files the landing deletes from `main`
+# outside the vendored strand are listed beside it.
 #
 # Committer dates are pinned to the base's, so a rebuild from the same inputs
 # mints the same SHAs and CI does not judge a commit twice.
@@ -56,14 +71,16 @@
 # on the way. `<L>-land-review` is that alone: the landing's base, one commit
 # that removes every workflow, and then, for each landing commit that changes
 # anything outside the vendored strand, that change and nothing more, under the
-# upstream commit that asked for it. Without its engine the R side compiles
-# against nothing, so a check there could only fail, and without workflow files
-# a pull request starts none. It goes to the canonical repository, where it is
-# opened as a draft pull request against `main` and never merged: `main` takes
-# the landing itself.
+# upstream commit that asked for it. It is written from the pushed
+# `<L>-land-dev`, never from a kept build that may be stopped or unchecked.
+# Without its engine the R side compiles against nothing, so a check there could
+# only fail, and without workflow files a pull request starts nothing that
+# builds or tests it. It goes to the canonical repository, where it is opened as
+# a draft pull request against `main` and never merged: `main` takes the
+# landing itself.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
-#                       [--placed <sha>]... [--no-check-glue]
+#                       [--placed <sha>]... [--no-check-glue] [--attended]
 #        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --review [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --abort
@@ -72,8 +89,7 @@
 #   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
-#   --review reads the kept build, or `<L>-land-dev` on --remote when there is
-#   none, and pushes `<L>-land-review` to --canonical.
+#   --review pushes `<L>-land-review` to --canonical.
 #   --placed and --no-check-glue are passed to series-forward-build.sh.
 #
 # --remote and --canonical are spelled the same in every scripts/series-*.sh;
@@ -83,12 +99,12 @@ set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review] [--push] [--placed <sha>]... [--no-check-glue] [--abort]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' review='' abort=''
+push='' status='' review='' abort='' attended=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -97,6 +113,7 @@ while [ $# -gt 0 ]; do
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     --placed) [ $# -ge 2 ] || argerr; fwd_args+=(--placed "$2"); shift 2 ;;
     --no-check-glue) fwd_args+=(--no-check-glue); shift ;;
+    --attended) attended=1; shift ;;
     --push) push=1; shift ;;
     --status) status=1; shift ;;
     --review) review=1; shift ;;
@@ -107,21 +124,26 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ ${#args[@]} -eq 1 ] || argerr
+[ $((${status:-0} + ${review:-0} + ${abort:-0})) -le 1 ] || argerr
 S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
 esac
 L=${S%-fwd}
 here=$(cd "$(dirname "$0")" && pwd)
+# Pathspecs below are the repository's, wherever this was started from.
+cd "$(git rev-parse --show-toplevel)"
 
 # A stopped or finished build lives here: the worktree it kept, the `main` it
-# stands on, the rc commit it builds up to, that strand's seed, and the prefix.
+# stands on, the rc commit it builds up to, that strand's seed, the prefix, and
+# the series it lands.
 STATE="$(git rev-parse --git-dir)/series-land-$L"
 
 if [ -n "$abort" ]; then
   if [ -f "$STATE" ]; then
     read -r awt _ < "$STATE"
     [ -d "$awt" ] && git worktree remove --force "$awt"
+    git worktree prune
     rm -f "$STATE"
     echo "$L: the kept landing build is discarded; refs on $remote are untouched"
   else
@@ -143,7 +165,14 @@ main=$(git rev-parse "refs/remotes/$canonical/main" 2>/dev/null || git rev-parse
 
 dev_ref="refs/remotes/$remote/$L-land-dev"
 green_ref="refs/remotes/$remote/$L-land-green"
+rc="refs/remotes/$remote/$S-rc-dev"
 git fetch -q "$remote" "+refs/heads/$L-land-*:refs/remotes/$remote/$L-land-*"
+
+# The vendored strand, as series-forward-build.sh takes it whole, with the
+# Makevars generated from it.
+strand=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win)
+strand_excludes=()
+for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
 # --- --status: what CI has decided, and green over the passed prefix ----------
 
@@ -210,25 +239,25 @@ fi
 # --- --review: the landing without its engine, for a draft pull request ------
 
 if [ -n "$review" ]; then
-  if [ -f "$STATE" ]; then
-    read -r wt base _ < "$STATE"
-    tip=$(git -C "$wt" rev-parse HEAD)
-  elif git rev-parse -q --verify "$dev_ref" >/dev/null; then
-    tip=$(git rev-parse "$dev_ref")
-    base=$main
-  else
-    echo "Error: no kept build and no $L-land-dev on $remote to review" >&2
+  git rev-parse -q --verify "$dev_ref" >/dev/null ||
+    { echo "Error: no $L-land-dev on $remote to review; build and --push it first" >&2; exit 1; }
+  tip=$(git rev-parse "$dev_ref")
+  base=$main
+  if ! git merge-base --is-ancestor "$base" "$tip" ||
+    [ -n "$(git log --format=%s "$base..$tip" | grep -v '^vendor:' || true)" ]; then
+    echo "Error: $L-land-dev is not main $(git rev-parse --short "$base") plus vendor commits" >&2
     exit 1
   fi
-  git merge-base --is-ancestor "$base" "$tip" ||
-    { echo "Error: the landing does not stand on main $(git rev-parse --short "$base")" >&2; exit 1; }
+  if [ -f "$STATE" ]; then
+    read -r kwt _ < "$STATE"
+    if [ -d "$kwt" ] && [ "$(git -C "$kwt" rev-parse HEAD)" != "$tip" ]; then
+      echo "Note: the kept build is not what $remote holds; reviewing $L-land-dev $(git rev-parse --short "$tip")"
+    fi
+  fi
 
-  # The vendored strand, as series-forward-build.sh takes it whole, with the
-  # Makevars generated from it, and `DESCRIPTION`, whose `Version:` every landing
-  # commit moves; a change to any other line of it is still carried below.
-  strand=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win)
-  excludes=(':(exclude).github/workflows' ':(exclude)DESCRIPTION')
-  for p in "${strand[@]}"; do excludes+=(":(exclude)$p"); done
+  # `DESCRIPTION` is left out of the diffs because every landing commit moves its
+  # `Version:`; a change to any other line of it is carried below.
+  excludes=(':(exclude).github/workflows' ':(exclude)DESCRIPTION' "${strand_excludes[@]}")
   unversioned() { git show "$1:DESCRIPTION" | grep -v '^Version:'; }
   main_version=$(git show "$base:DESCRIPTION" | sed -n 's/^Version: //p')
 
@@ -244,7 +273,8 @@ if [ -n "$review" ]; then
 
 The branch carries the R side of the $L landing without its engine,
 so it compiles against nothing, and it is never merged.
-Without workflow files a pull request from it starts no run.")
+Without workflow files a pull request from it starts nothing that
+builds or tests it.")
 
   picked=0
   for c in $(git rev-list --reverse --first-parent "$base..$tip"); do
@@ -297,8 +327,24 @@ fi
 
 # --- the build -----------------------------------------------------------------
 
+# An rc strand behind its source would land a package CI judged as an older one;
+# series-rc.sh recomputes it and says whether the remote holds that.
+check_aligned() {
+  "$here/series-rc.sh" "$S" --remote "$remote" >/dev/null || {
+    echo "Error: $S-rc-dev is not aligned with $S-dev on $remote;" \
+      "realign it first: scripts/series-rc.sh $S --push" >&2
+    exit 1
+  }
+}
+seed_of() {
+  git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 "$1"
+}
+write_state() { echo "$wt $base $src $seed $prefix $S" > "$STATE"; }
+
 if [ -f "$STATE" ]; then
-  read -r wt base src seed prefix < "$STATE"
+  read -r wt base src seed prefix kept < "$STATE"
+  [ "$kept" = "$S" ] ||
+    { echo "Error: the kept build lands ${kept:-another series}, not $S; --abort it first" >&2; exit 1; }
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
   if [ "$main" != "$base" ]; then
     echo "Error: main moved from $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
@@ -306,19 +352,22 @@ if [ -f "$STATE" ]; then
     echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
   fi
+  git fetch -q "$remote" "+refs/heads/$S-rc-dev:refs/remotes/$remote/$S-rc-dev"
+  if [ "$(git rev-parse "$rc")" != "$src" ]; then
+    check_aligned
+    [ "$(seed_of "$rc")" = "$seed" ] ||
+      { echo "Error: $S-rc-dev has a new seed; --abort and rebuild" >&2; exit 1; }
+    echo "$L: $S-rc-dev moved from $(git rev-parse --short "$src") to $(git rev-parse --short "$rc");" \
+      "following it"
+    src=$(git rev-parse "$rc")
+    write_state
+  fi
   echo "$L: resuming the build in $wt, on main $(git rev-parse --short "$base")," \
     "up to $(git rev-parse --short "$src")"
 else
-  rc="refs/remotes/$remote/$S-rc-dev"
-  # An rc strand behind its source would land a package CI judged as an older
-  # one; series-rc.sh recomputes it and says whether the remote holds that.
-  "$here/series-rc.sh" "$S" --remote "$remote" >/dev/null || {
-    echo "Error: $S-rc-dev is not aligned with $S-dev on $remote;" \
-      "realign it first: scripts/series-rc.sh $S --push" >&2
-    exit 1
-  }
+  check_aligned
   src=$(git rev-parse "$rc")
-  seed=$(git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 "$src")
+  seed=$(seed_of "$src")
   [ -n "$seed" ] || { echo "Error: $S-rc-dev has no seed" >&2; exit 1; }
   prefix=$(git show "$seed:DESCRIPTION" |
     sed -rn 's/^Version: ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
@@ -326,7 +375,7 @@ else
   base=$main
   wt=$(mktemp -d "${TMPDIR:-/tmp}/series-land-$L-XXXXXX")
   git worktree add --detach -q "$wt" "$base"
-  echo "$wt $base $src $seed $prefix" > "$STATE"
+  write_state
   echo "$L: building on main $(git rev-parse --short "$base"), up to $S-rc-dev" \
     "$(git rev-parse --short "$src"), stamping $prefix.<n> in $wt"
 fi
@@ -365,17 +414,33 @@ done < <(git rev-list --reverse "$seed..$src")
 
 export GIT_COMMITTER_DATE
 GIT_COMMITTER_DATE=$(git log -1 --format=%cd --date=raw "$base")
-# A conflict resolved once is resolved for every rebuild: setup-git.sh turns
-# rerere on, and staging what it replays lets a stop it fully resolved be
-# continued here rather than handed back. Set for this run's git alone.
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=rerere.autoUpdate GIT_CONFIG_VALUE_0=true
-pick_state="$(git -C "$wt" rev-parse --absolute-git-dir)/series-forward-pick"
+
+# rerere stages what it replays unless the build is attended, appended to
+# whatever configuration the environment already passes and only for the
+# replay itself.
+cfg=()
+if [ -z "$attended" ]; then
+  i=${GIT_CONFIG_COUNT:-0}
+  cfg=("GIT_CONFIG_COUNT=$((i + 1))" "GIT_CONFIG_KEY_$i=rerere.autoUpdate" "GIT_CONFIG_VALUE_$i=true")
+fi
+wt_git=$(git -C "$wt" rev-parse --absolute-git-dir)
+pick_state="$wt_git/series-forward-pick"
+# Every path rerere answered in this build, for the tree check to name.
+replayed_log="$wt_git/series-land-rerere"
 last_stop=''
 while :; do
-  st=0
-  VENDOR_REPO="$wt" "$here/series-forward-build.sh" "$src" "$seed" --prefix "$prefix" \
-    ${placed+"${placed[@]}"} ${fwd_args+"${fwd_args[@]}"} || st=$?
-  if [ "$st" -ne 1 ] || [ ! -f "$pick_state" ] ||
+  set +e
+  env ${cfg+"${cfg[@]}"} VENDOR_REPO="$wt" "$here/series-forward-build.sh" "$src" "$seed" \
+    --prefix "$prefix" ${placed+"${placed[@]}"} ${fwd_args+"${fwd_args[@]}"} 2>&1 |
+    tee "$wt_git/series-land-run"
+  st=${PIPESTATUS[0]}
+  set -e
+  answered=$(sed -nE "s/^(Resolved|Staged) '(.*)' using previous resolution\.$/\2/p" \
+    "$wt_git/series-land-run")
+  [ -z "$answered" ] || echo "$answered" >> "$replayed_log"
+  # Continued only where rerere answered the stop, so a pick that failed some
+  # other way without leaving a conflict is never committed half applied.
+  if [ -n "$attended" ] || [ "$st" -ne 1 ] || [ ! -f "$pick_state" ] || [ -z "$answered" ] ||
     [ -n "$(git -C "$wt" diff --name-only --diff-filter=U)" ] ||
     [ "$(cat "$pick_state")" = "$last_stop" ]; then
     break
@@ -401,7 +466,6 @@ fi
 
 # --- the same package as the series ------------------------------------------
 
-version_lines() { git show "$1:DESCRIPTION" | grep -v '^Version:'; }
 version_of() { git show "$1:DESCRIPTION" | sed -n 's/^Version: //p'; }
 row() { printf '%s\t%s\t%s' "$@"; } # <path> <added/deleted> [<why>]
 explained=() unexplained=()
@@ -410,12 +474,10 @@ while IFS=$'\t' read -r add del path; do
     NEWS.md | README.Rmd | README.md | .github/README.md)
       explained+=("$(row "$path" "$add/$del" "main's by construction; no port carries it")") ;;
     DESCRIPTION)
-      if [ "$(version_lines "$tip")" = "$(version_lines "$src")" ]; then
-        explained+=("$(row "$path" "$add/$del" \
-          "the version: $(version_of "$tip") here, $(version_of "$src") on the series")")
-      else
-        unexplained+=("$(row "$path" "$add/$del")")
-      fi
+      why=''
+      [ "$(version_of "$tip")" = "$(version_of "$src")" ] ||
+        why="version $(version_of "$tip") here, $(version_of "$src") on the series"
+      unexplained+=("$(row "$path" "$add/$del" "$why")")
       ;;
     *) unexplained+=("$(row "$path" "$add/$del")") ;;
   esac
@@ -429,14 +491,26 @@ if [ ${#explained[@]} -gt 0 ]; then
   echo "  explained (${#explained[@]}):"
   printf '%s\n' "${explained[@]}" | awk -F'\t' '{ printf "    %-44s %-9s %s\n", $1, $2, $3 }'
 fi
+deleted=$(git diff --diff-filter=D --name-only "$base" "$tip" -- . "${strand_excludes[@]}")
+if [ -n "$deleted" ]; then
+  echo
+  echo "  deleted from main, outside the vendored strand; the series lacks them too:"
+  echo "    ${deleted//$'\n'/$'\n'    }"
+fi
 if [ ${#unexplained[@]} -gt 0 ]; then
   echo
   echo "  UNEXPLAINED (${#unexplained[@]}):"
-  printf '%s\n' "${unexplained[@]}" | awk -F'\t' '{ printf "    %-44s %s\n", $1, $2 }'
+  printf '%s\n' "${unexplained[@]}" | awk -F'\t' '{ printf "    %-44s %-9s %s\n", $1, $2, $3 }'
+  if [ -s "$replayed_log" ]; then
+    echo
+    echo "  rerere replayed a resolution for: $(sort -u "$replayed_log" | tr '\n' ' ')"
+    echo "  A wrong one is replayed as faithfully as a right one: rebuild with"
+    echo "  --abort and --attended, and drop it with 'git rerere forget <path>' at its stop."
+  fi
   echo
   echo "DIVERGED: the landing is not the package $S-rc-dev holds."
-  echo "  Port what main has to $S and realign its rc strand, or fold the fix the"
-  echo "  landing lacks; then --abort and rebuild. Nothing was pushed."
+  echo "  Port what main has to $S and realign its rc strand, or fix the series where"
+  echo "  the landing differs from it; rerun to follow the strand. Nothing was pushed."
   exit 1
 fi
 

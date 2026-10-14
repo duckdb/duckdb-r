@@ -99,10 +99,14 @@ The loop keeps running: it reads `main` and writes no ref there.
 ## 2. Park `<P>` on the frozen `main`
 
 The baseline is what `<P>` releases from now, so it takes the R side `main` released it with.
-It is a branch of its own, outside the freeze:
+It is a branch of its own, outside the freeze, and it may hold commits `main` never took,
+from before `<P>` released from `main`.
+Read them first, keep them under a dated name, then move the baseline:
 
 ```sh
 git fetch upstream main <P>
+git log --oneline upstream/main..upstream/<P>
+git push upstream upstream/<P>:refs/heads/<P>-before-land-$(date -u +%Y%m%d)
 git push --force-with-lease=<P>:$(git rev-parse upstream/<P>) upstream upstream/main:refs/heads/<P>
 ```
 
@@ -120,7 +124,8 @@ scripts/series-land.sh <S> --remote origin --canonical upstream --push   # and w
 [`scripts/series-forward-build.sh`](/scripts/series-forward-build.sh) in a worktree it keeps,
 so everything that script stops on stops here, and a rerun resumes:
 
-* **a conflict**: resolve it in the kept worktree, `git add`, rerun;
+* **a conflict**: resolve it in the kept worktree the way the series resolved it, `git add`, rerun.
+  rerere records the resolution, and a rebuild that meets the same conflict continues on its own;
 * **a commit that vendors nothing and is not `main`'s**: decide where its change belongs and pass `--placed <sha>`.
   Ports of commits `main` already has are placed by their `-x` trailer, and tooling syncs by their subject;
 * **the glue gate**: fix the glue in the commit that broke it and rerun.
@@ -129,7 +134,16 @@ The build ends with the tree check:
 the landing's tip must be the package the rc strand holds,
 except for `NEWS.md` and the READMEs, which are `main`'s by construction.
 Anything else is something `main` has and the series lacks, or the other way round.
-Fix it on the series, realign its rc strand, and rebuild with `--abort` first; nothing is pushed until the check passes.
+Fix it on the series and realign its rc strand; a rerun follows the strand from where the build stands.
+Nothing is pushed until the check passes.
+Two things the check cannot see are reported beside it:
+
+* **files the landing deletes from `main`** outside the vendored strand, which the series lacks too.
+  Each is a test or a file the series lost on the way; restore it on the series before pushing.
+* **resolutions rerere replayed**, named when the check fails.
+  A wrong one is replayed as faithfully as a right one:
+  rebuild with `--abort` and then `--attended`, which stops at every conflict with rerere's answer unstaged,
+  and drop the wrong one there with `git rerere forget <path>`.
 
 Committer dates are pinned to the frozen `main`'s, so a rebuild from the same inputs mints the same SHAs
 and CI does not judge a commit twice.
@@ -149,7 +163,7 @@ gh pr create --repo duckdb/duckdb-r --draft --base main --head <L>-land-review \
 and one commit for each landing commit that changes anything outside the vendored strand,
 carrying that change alone under the upstream commit that asked for it.
 Its checks could only fail, because the R side compiles against no engine there,
-and without workflow files the pull request starts none.
+and without workflow files the pull request starts nothing that builds or tests it.
 It is never merged: a finding is fixed on the series, the landing is rebuilt,
 and `--review --push` rewrites the branch, which the pull request follows.
 
@@ -166,20 +180,23 @@ which moves `<L>-land-green` over the commits that passed and names the first th
 A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series-loop/SKILL.md)):
 
 * **the infrastructure's fault**: push `retry-<L>-land-dev` at the commit, once;
-* **the tree's fault**: in the kept worktree, `git reset --hard` to the red commit, fold the fix in,
-  amend with an `R-side fix` section, and rerun the build, which replays everything above it.
-  A fix the series lacks too goes onto the series as well, or the tree check refuses the push.
+* **the tree's fault**: fix it on the series, as stage 2 would, and realign its rc strand.
+  In the kept worktree, `git reset --hard` to the parent of the red commit,
+  then rerun the build: it follows the realigned strand and replays from there,
+  so the landing never carries a fix the series does not.
 
 ## 6. Fast-forward `main`
 
 When `--status` prints `READY`, every commit has passed and `main` is still the commit the landing stands on.
+Push the SHA that line names, not whatever the branch holds by then,
+so a repair pushed in between cannot reach `main` unjudged.
 Lift the freeze, push, and put it back until the step below is done:
 
 ```sh
-git fetch origin <L>-land-dev
+sha=<the SHA the READY line names>
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
 gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=disabled
-git push upstream origin/<L>-land-dev:refs/heads/main
+git push upstream $sha:refs/heads/main
 gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=active
 git ls-remote upstream refs/heads/main
 ```
@@ -192,8 +209,12 @@ It needs the existing `main` ruleset's admin bypass, because it is not a pull re
 Delete the freeze, so that `main` takes pull requests again:
 
 ```sh
+id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
 gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 ```
+
+The nightly fledge run may open its version pull request first, against a version it does not expect;
+close it in favour of the one below.
 
 The first pull request on `main`:
 

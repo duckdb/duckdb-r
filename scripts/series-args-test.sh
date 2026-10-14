@@ -134,6 +134,7 @@ is "series-forward-build.sh --placed (bare)"     "$(rc series-forward-build.sh a
 is "series-forward-build.sh --graft-from (bare)" "$(rc series-forward-build.sh a b --graft-from)" 2
 is "series-forward-build.sh --prefix (bare)"     "$(rc series-forward-build.sh a b --prefix)" 2
 is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed)" 2
+is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
 is "series-alpha.sh --alpha (bare)"              "$(rc series-alpha.sh s --alpha)" 2
 
 echo

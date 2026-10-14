@@ -295,10 +295,9 @@ releases_from() { # <series> -> its `releases_from`, empty when undeclared
       /^    releases_from:/ { rf = $2 }
       END { if (ser == s) print rf }'
 }
-parked=$(releases_from "${S%-fwd}")
-if [ -n "$parked" ] && [ "$parked" != main ]; then
-  frozen=1
-fi
+parked=$(releases_from "${S%-fwd}" | head -n 1)
+[ "$parked" != main ] || parked=''
+[ -z "$parked" ] || frozen=1
 
 # Files a version bump is allowed to carry and still be nothing but a bump:
 # DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both

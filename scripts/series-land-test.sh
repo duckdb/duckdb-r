@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check the landing of a series on `main`, offline, against a synthetic fork,
-# canonical repository and clone built here -- no network, no fixtures on disk.
+# canonical repository and clone built here: no network, no fixtures on disk.
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
 # the series' vendor commits and nothing else, and that its tip is the package
@@ -16,8 +16,9 @@
 #   5. A tooling sync the base cannot reverse-apply is placed by its subject
 #      rather than stranding the run, and a port `main` carries is not replayed.
 #   6. The tree check explains what the landing takes from `main` by
-#      construction -- `NEWS.md` and the READMEs -- and nothing else, and the
-#      counter reproduces the series' version, so `DESCRIPTION` agrees.
+#      construction, `NEWS.md` and the READMEs, and nothing else; the counter
+#      reproduces the series' version even where `main` carries five components
+#      of its own, so `DESCRIPTION` agrees.
 #   7. --push writes `<L>-land-dev` and `<L>-land-green` at the base together.
 #   8. A rebuild from the same inputs mints the same SHAs, and the conflict
 #      resolved once is resolved again by rerere without stopping.
@@ -25,8 +26,11 @@
 #      first one it has not, and prints the fast-forward once every one passed.
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
-#  10. A `main` that moved stops a kept build, and a rebuild on it that the
-#      series has not ported is refused before anything is pushed.
+#  10. A resolution rerere replays wrongly is named when the check fails, and
+#      an attended rebuild stops there so it can be forgotten and redone.
+#  11. A `main` that moved stops a kept build and is not READY, and a rebuild
+#      on it that the series has not ported is refused before anything is
+#      pushed, `DESCRIPTION` included.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -115,9 +119,9 @@ echo 'tool v2' > scripts/tool.sh
 commit 'ci: A tooling change (#4)'
 echo 'tool v3' > scripts/tool.sh
 commit 'ci: Another tooling change (#5)'
-desc duckdb 1.5.6.9001
-echo '# duckdb 1.5.6.9001' > NEWS.md
-commit 'fledge: Bump version to 1.5.6.9001 (#6)'
+desc duckdb 1.5.6.9001.7
+echo '# duckdb 1.5.6.9001.7' > NEWS.md
+commit 'fledge: Bump version to 1.5.6.9001.7 (#6)'
 echo 'readme on main' > README.md
 commit 'docs: The README main renders today (#7)'
 M=$(git rev-parse HEAD)
@@ -189,6 +193,9 @@ out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
 has "it reports the landing" "$out" "3 vendor commits on main $(git rev-parse --short "$M")"
 has "and that it was not pushed" "$out" "Not pushed; --push writes v2.0-x-land-dev"
 is "no land-dev on the fork" "$(git ls-remote origin refs/heads/v2.0-x-land-dev | wc -l)" 0
+rout=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+is "nothing to review before the landing is pushed" "$st" 1
+has "and it says so" "$rout" "build and --push it first"
 
 TIP=$(git -C "$WT" rev-parse HEAD)
 
@@ -298,7 +305,7 @@ REV=$(git rev-parse upstream/v2.0-x-land-review)
 is "it stands on main" "$(git rev-parse "$REV~4")" "$M"
 is "its first commit removes every workflow" "$(git ls-tree -r --name-only "$REV~3" -- .github/workflows | wc -l)" 0
 is "the engine is main's" "$(git show "$REV:src/duckdb/engine.cpp")" "engine aaaa112"
-is "and so is the version" "$(git show "$REV:DESCRIPTION" | sed -n 's/^Version: //p')" "1.5.6.9001"
+is "and so is the version" "$(git show "$REV:DESCRIPTION" | sed -n 's/^Version: //p')" "1.5.6.9001.7"
 is "everything else is the landing's" \
   "$(git diff --name-only "$REV" "$TIP" -- . ':(exclude)src/duckdb' ':(exclude)R/version.R' \
     ':(exclude)DESCRIPTION' ':(exclude).github/workflows')" ""
@@ -309,14 +316,49 @@ sleep 1 # a date not pinned would differ by now
 out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
 has "a rerun mints the same branch" "$out" "v2.0-x-land-review: already on upstream"
 
-# --- 10: main moves ---------------------------------------------------------
+# --- 10: a wrong resolution, replayed --------------------------------------
+
+echo
+echo "== a resolution rerere replays wrongly is named, and can be redone"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+rm -rf "$(git rev-parse --git-common-dir)/rr-cache"
+scripts/series-land.sh v2.0-x-fwd --no-check-glue >/dev/null 2>&1 || true
+read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+printf 'a\nb wrong\nc\n' > "$WT/tests/testthat/test-bar.R"
+git -C "$WT" add tests/testthat/test-bar.R
+scripts/series-land.sh v2.0-x-fwd --no-check-glue >/dev/null 2>&1 || true
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "the replayed rebuild is refused" "$st" 1
+has "the check names the path" "$out" "tests/testthat/test-bar.R"
+has "and says rerere answered it" "$out" "rerere replayed a resolution for: tests/testthat/test-bar.R"
+
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --attended 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "an attended rebuild stops at the conflict" "$st" 1
+has "with rerere's answer filled in" "$out" "Resolved 'tests/testthat/test-bar.R' using previous resolution"
+read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+git -C "$WT" rerere forget tests/testthat/test-bar.R >/dev/null 2>&1
+printf 'a\nb v2 main\nc\n' > "$WT/tests/testthat/test-bar.R"
+git -C "$WT" add tests/testthat/test-bar.R
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --attended 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "redone, the landing is the series' again" "$out" "v2.0-x-land-dev: already on origin"
+
+# --- 11: main moves ---------------------------------------------------------
 
 echo
 echo "== a main that moved is not landed on blindly"
 git checkout -q main
 echo 'foo <- function() 3' > R/foo.R
+printf 'Imports: DBI\n' >> DESCRIPTION
 commit 'fix: A fix the series never ported (#8)'
 git push -q upstream main
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+is "the pushed landing is not ready on it" "$st" 1
+has "and says main moved" "$out" "NOT READY"
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "the kept build refuses" "$st" 1
@@ -327,6 +369,7 @@ out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) && st=0 || 
 [ -z "${KEEP:-}" ] || echo "$out"
 is "a rebuild the series does not match fails" "$st" 1
 has "it names the path" "$out" "R/foo.R"
+has "and DESCRIPTION, whose difference is not its version" "$out" "    DESCRIPTION"
 has "and refuses to push" "$out" "DIVERGED"
 git fetch -q origin
 is "land-dev is where it was" "$(git rev-parse origin/v2.0-x-land-dev)" "$TIP"
