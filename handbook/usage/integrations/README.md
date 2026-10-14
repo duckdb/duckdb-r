@@ -127,15 +127,16 @@ Another statement on that connection invalidates it.
 The next read is then an error, not an early end that would pass for a complete result
 ([#2772](https://github.com/duckdb/duckdb-r/issues/2772)).
 So a stream whose last batch held exactly `chunk_size` rows is invalidated, although every row has arrived.
-The engine's own Arrow stream reports an invalidated result as ended
-(vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
-so the glue wraps it and checks first (`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+The glue drains the result itself and checks before each read whether another statement ended it
+(`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+The engine refuses any statement on a connection while a result is open there,
+so the glue ends the connection's open results first (`EndOpenResults()`).
 The wrapper also keeps the connection's client context alive until the stream is released.
 The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
 That includes a query that scans the stream itself.
 Registering `arrow::as_record_batch_reader(stream)` with `duckdb_register_arrow()` and querying it is one.
-On the stream's own connection it waits for good, as the entry below says.
+On the stream's own connection it fails, as the entry below says.
 A multi-row `dbBind()` is not affected, because its results are materialized.
 Reach for the stream where the result should not be held twice;
 what every route holds, and for how long, is
@@ -145,12 +146,9 @@ that class directly instead of a data frame to convert afterwards,
 and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
 at a time.
 
-**A query that scans a stream on the stream's own connection waits instead of failing.**
-Starting the query invalidates the stream.
-A read learns that only under the connection's lock, which the query holds until the scan returns.
-Neither the size of the result nor the number of threads changes that.
-Ctrl+C does not end the wait, so the R session has to be killed ([`interactive/`](/handbook/usage/interactive/README.md)).
-The engine's own stream waits the same way, in the Python client and in this package before [#2775](https://github.com/duckdb/duckdb-r/pull/2775).
+**A query that scans a stream on the stream's own connection fails.**
+Starting the query ends the stream, and the scan's first read fails with the invalidation error.
+With the v1.5 engine the scan waited for good instead, and Ctrl+C did not end the wait.
 A second connection to the same database scans the stream.
 So does its own connection once the stream has been read to the end or the result materialized
 ([`2026-09-27-stream-self-scan/`](/experiments/2026-09-27-stream-self-scan/README.md)).
@@ -179,10 +177,10 @@ The reader is its connection's open result until it has been read to the end:
 * Any other statement on that connection breaks it, and the next read fails with the invalidation error.
   dplyr and dbplyr run such statements unasked: `tbl()` asks for the columns, and printing or collecting a lazy table runs its query.
   A second `to_arrow_stream()` on the same connection is one too.
-* A query that scans the reader on its own connection never returns, and Ctrl+C does not end it, as the entry above says.
+* A query that scans the reader on its own connection fails with the invalidation error, as the entry above says.
   `to_duckdb(reader, con = con)` is one, and so is a query on `con` after `duckdb_register_arrow()` of the reader.
 * Tables from `to_duckdb()` share the one connection arrow keeps unless `con` is given.
-  For those, a later `to_duckdb()` without `con` breaks the reader, and one on the reader itself never returns.
+  For those, a later `to_duckdb()` without `con` breaks the reader, and one on the reader itself fails.
 * Writing the reader back to its own connection fails partway.
   `dbWriteTableArrow()` leaves an empty table behind, and `dbAppendTableArrow()` the first batch.
 * A read runs outside the package's interrupt handler, so Ctrl+C does not stop it.

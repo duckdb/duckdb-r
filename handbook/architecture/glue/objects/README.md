@@ -20,11 +20,13 @@ The wrappers are [`src/include/rapi.hpp`](/src/include/rapi.hpp)'s.
 * `duckdb_result` wraps `RStatement`: one `PreparedStatement` and its bound parameters,
   with the rows themselves in R, materialized at send time.
   The legacy `arrow = TRUE` route keeps them in the engine instead, a materialized `QueryResult` behind an `RQueryResult`.
-  `duckdb_result_arrow` wraps an `RStatement` too, and an `RQueryResult`: one streaming `QueryResult`,
-  and the Arrow stream over it once fetching starts.
+  `duckdb_result_arrow` wraps an `RStatement` too, and an `RQueryResult`: one submitted `QueryResult`,
+  and the Arrow stream the glue drains from it once fetching starts.
 * A relation wraps `RelationWrapper`: one `Relation` ([`altrep/`](/handbook/architecture/glue/altrep/README.md)).
 
-A prepared statement holds a `shared_ptr` to the context it was made on, and so does the Arrow stream over a result.
+A prepared statement holds the context it was made on only through a `weak_ptr`.
+An `RQueryResult` holds the context its statement ran on through a `shared_ptr`, taken at execute time,
+and so does the Arrow stream over it.
 A context holds its instance, which is the lifetime fact everything below turns on.
 A relation holds its context only through a `weak_ptr`, `ClientContextWrapper` in the vendored engine.
 After `dbDisconnect()` it fails with "Connection has already been closed", unless something else still holds that context.
@@ -34,9 +36,11 @@ The engine's session is the context: the transaction, the temporary catalog,
 which holds temp tables and the temporary views `duckdb_register()` creates
 (`rapi_register_df()` in [`src/register.cpp`](/src/register.cpp)),
 the session settings (`SET` without `GLOBAL`), the `PREPARE`d statements, the `USE`d default database, the random state,
-and one active query with at most one open streaming result:
-starting any statement on a context runs its `InitialCleanup()`, which ends the query before it and closes that stream
-(vendored `src/duckdb/src/main/client_context.cpp`).
+and one active query with at most one open result.
+The engine refuses any statement on a context while a result is open there
+(`InitialCleanup()` in vendored `src/duckdb/src/main/client_context.cpp`),
+so the glue ends the context's open Arrow results before it starts one
+(`EndOpenResults()` in [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
 What the instance owns crosses every context: committed data, `ATTACH`, a global `SET`, a loaded extension,
 and this package's Arrow registrations, which live on the `DBWrapper`.
 Each of these but the random state, a loaded extension and the Arrow registrations was read from a second context in
@@ -54,11 +58,10 @@ A streaming result is the context's open result,
 [#2587](https://github.com/duckdb/duckdb-r/pull/2587) lands,
 and the package's own helpers run statements:
 `dbExistsTable()`, `dbListTables()`, `dbListFields()`, `duckdb_register()`, `dbAppendTable()` and the Connections pane each end it.
-The engine's Arrow stream wrapper reports an ended stream as the end of the stream
-(`MyStreamGetNext()` in vendored `src/duckdb/src/common/arrow/arrow_wrapper.cpp`),
+Before [#2775](https://github.com/duckdb/duckdb-r/pull/2775) an ended stream read as the end of the stream,
 which is what the experiment above met: an empty batch, `dbHasCompleted()` saying `TRUE`,
 and the DBI chunked loop that appends each batch through the same connection stopping after its first batch and reporting success.
-Since [#2775](https://github.com/duckdb/duckdb-r/pull/2775) the glue wraps that stream and reports the ended result as an error instead
+The glue reports the ended result as an error instead
 (`RArrowArrayStreamWrapper` in [`src/arrow_export.cpp`](/src/arrow_export.cpp);
 what the error says, and when a stream counts as read to the end, is
 [`usage/integrations/`](/handbook/usage/integrations/README.md)'s),
@@ -69,9 +72,11 @@ DBI names that second connection a clone, `dbConnect(con)`, and this package has
 [`plan/PLAN-connection-clone.md`](/plan/PLAN-connection-clone.md).
 
 **A result outlives its connection, and holds the instance with it.**
-`dbDisconnect()` deletes the `Connection`, and the prepared statement keeps the context,
-so an uncleared result stays valid, fetches, and re-executes on `dbBind()` after the disconnect.
-An Arrow stream keeps the context the same way until it is released, one from `dbGetQueryArrow()` included.
+`dbDisconnect()` deletes the `Connection`, and with it the context, unless a result of the Arrow route still holds it.
+A `dbSendQuery()` result keeps its rows in R and still fetches them,
+but `dbBind()` fails: "Attempting to execute a prepared statement after its connection was closed!".
+A `dbSendQueryArrow()` result keeps the context it ran on, and fetches,
+and an Arrow stream keeps it the same way until it is released, one from `dbGetQueryArrow()` included.
 The instance stays open with the context, known to neither the driver, whose `dbIsValid()` says `FALSE`,
 nor the engine's connection count,
 the in-use-result state of

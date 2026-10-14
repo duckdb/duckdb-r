@@ -1,5 +1,21 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.99.99.9000.2160
+
+## Breaking changes
+
+- The vendored engine is a development snapshot of DuckDB v2.0, `2.0.0-dev87994` (duckdb/duckdb@0f5ff0a9d6).
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`.
+- An error's `LINE` context underlines the whole offending token, not just its first character.
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
+
+## Features
+
+- `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
+- `TUPLE` columns read as data frames, `GEOMETRY` columns as lists of raw vectors, and an empty `STRUCT` as a data frame without columns.
+
+
 # duckdb 1.5.6.9004
 
 ## Bug fixes
