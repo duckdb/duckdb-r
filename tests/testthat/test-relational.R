@@ -1219,6 +1219,35 @@ test_that("Window lead function works as expected", {
   expect_equal(res, expected_result)
 })
 
+test_that("lag() and lead() take a default with or without an offset", {
+  rel_a <- rel_from_df(con, data.frame(a = 1:4))
+  shifted <- function(name, offset = NULL, default = NULL) {
+    fun <- expr_function(name, list(expr_reference("a")))
+    window <- expr_window(
+      fun,
+      offset_expr = offset,
+      default_expr = default,
+      alias = "w"
+    )
+    proj <- rel_project(rel_a, list(expr_reference("a"), window))
+    rel_to_altrep(rel_order(proj, list(expr_reference("a"))))$w
+  }
+  int <- expr_constant(0L)
+  dbl <- expr_constant(-1)
+  two <- expr_constant(2L)
+
+  # Without an offset, the default is the third argument, not the second.
+  expect_equal(shifted("lag", default = int), c(0, 1, 2, 3))
+  expect_equal(shifted("lead", default = int), c(2, 3, 4, 0))
+  expect_equal(shifted("lag", default = dbl), c(-1, 1, 2, 3))
+  expect_equal(shifted("lead", default = dbl), c(2, 3, 4, -1))
+
+  expect_equal(shifted("lag", offset = two, default = int), c(0, 0, 1, 2))
+  expect_equal(shifted("lead", offset = two, default = int), c(3, 4, 0, 0))
+  expect_equal(shifted("lag", offset = two, default = dbl), c(-1, -1, 1, 2))
+  expect_equal(shifted("lead", offset = two, default = dbl), c(3, 4, -1, -1))
+})
+
 test_that("Window function with string aggregate works", {
   #   select j, s, string_agg(s, '|') over (partition by b) from a order by j, s;
   rel_a <- rel_from_df(
@@ -1723,6 +1752,16 @@ test_that("rel_to_view()", {
 
   expect_equal(dbGetQuery(con, "SELECT * FROM test_view"), df1)
   expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
+})
+
+test_that("rel_to_csv() and rel_to_parquet() refuse an empty file name", {
+  # An empty name must not fall back to a default file in the working directory.
+  withr::local_dir(withr::local_tempdir())
+  rel <- rel_from_df(con, data.frame(a = 1L))
+
+  expect_error(rel_to_csv(rel, ""))
+  expect_error(rel_to_parquet(rel, ""))
+  expect_equal(list.files(all.files = TRUE, no.. = TRUE), character())
 })
 
 test_that("logical", {

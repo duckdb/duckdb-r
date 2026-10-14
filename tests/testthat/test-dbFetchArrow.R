@@ -262,6 +262,27 @@ test_that("dbSendQueryArrow() + dbFetchArrowChunk() streams large queries", {
   expect_equal(chunk$length, 1024L)
 })
 
+test_that("dbFetchArrow() hands over a stream that reads the result as it goes", {
+  con <- local_con()
+  # One thread, so that the scan runs no further ahead than the stream buffers.
+  dbExecute(con, "SET threads = 1")
+
+  # A result run to completion fails in dbSendQueryArrow() already.
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT CASE WHEN i < 5000000 THEN i ELSE error('late') END AS i
+    FROM range(6000000) t(i)"
+  )
+  stream <- dbFetchArrow(res, chunk_size = 1000000)
+  dbClearResult(res)
+
+  expect_equal(stream$get_next()$length, 1000000L)
+  expect_error(
+    while (!is.null(stream$get_next())) {},
+    "late"
+  )
+})
+
 test_that("dbColumnInfo() still works on an arrow result and matches the schema", {
   con <- local_con()
   dbExecute(con, "CREATE TABLE t (a INTEGER, b VARCHAR, c DOUBLE)")
@@ -365,6 +386,52 @@ test_that("a stream can be read after its connection is gone", {
   invisible(gc())
 
   expect_equal(nrow(as.data.frame(stream)), 2L)
+})
+
+test_that("a result can be fetched after its connection is gone", {
+  con <- dbConnect(duckdb())
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(3) t(i)")
+  dbDisconnect(con)
+  invisible(gc())
+
+  expect_equal(dbFetchArrowChunk(res)$length, 3L)
+  expect_equal(dbFetchArrowChunk(res)$length, 0L)
+  dbClearResult(res)
+
+  con <- dbConnect(duckdb())
+  res <- dbSendQueryArrow(con, "SELECT i FROM range(3) t(i)")
+  dbDisconnect(con)
+  invisible(gc())
+
+  stream <- dbFetchArrow(res)
+  dbClearResult(res)
+  expect_equal(nrow(as.data.frame(stream)), 3L)
+})
+
+test_that("a result reads its schema after its connection is gone, under lossless conversion", {
+  skip_if_not_installed("callr")
+
+  # Under lossless conversion, BOOLEAN is an extension type, and the schema
+  # reads the client context. Reading one that is gone crashed or wedged the
+  # session; the subprocess and its timeout turn that into a failure here.
+  pkg <- get_package_name()
+  rows <- callr::r(
+    function(pkg) {
+      con <- DBI::dbConnect(asNamespace(pkg)$duckdb())
+      DBI::dbExecute(con, "SET arrow_lossless_conversion = true")
+      res <- DBI::dbSendQueryArrow(con, "SELECT true AS b")
+      DBI::dbDisconnect(con)
+      invisible(gc())
+
+      chunk <- DBI::dbFetchArrowChunk(res)
+      DBI::dbClearResult(res)
+      chunk$length
+    },
+    list(pkg = pkg),
+    timeout = 30
+  )
+
+  expect_equal(rows, 1L)
 })
 
 test_that("an Arrow result carries types R cannot hold", {

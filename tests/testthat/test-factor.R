@@ -86,3 +86,23 @@ test_that("huge-cardinality factors do not cause strange crashes, issue 3639", {
   df <- data.frame(col1 = factor(sample(5000, 10^6, replace = TRUE)))
   duckdb_register(con, "df", df)
 })
+
+test_that("levels that differ only in case are different levels", {
+  con <- local_con()
+
+  df <- data.frame(f = factor(c("a", "A", "a")))
+  dbWriteTable(con, "df", df)
+  expect_equal(dbReadTable(con, "df"), df)
+
+  # Two factor cells whose levels differ in case differ in type, like two
+  # cells with different levels, and a list column of them has no single type.
+  # The error can arrive as a second one reading "std::exception"
+  # (see test-struct.R), so catch whichever arrives.
+  cells <- data.frame(id = 1:2)
+  cells$f <- list(factor("a"), factor("A"))
+  err <- tryCatch(duckdb_register(con, "cells_reg", cells), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  err <- tryCatch(dbWriteTable(con, "cells", cells), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  expect_false(dbExistsTable(con, "cells"))
+})

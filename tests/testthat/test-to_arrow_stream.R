@@ -43,6 +43,25 @@ test_that("to_arrow_stream() refuses a simulated or a closed connection", {
   expect_error(to_arrow_stream(lazy), "to be open")
 })
 
+test_that("the reader reads the result as it goes", {
+  con <- local_con()
+  # One thread, so that the scan runs no further ahead than the stream buffers.
+  dbExecute(con, "SET threads = 1")
+
+  # A result run to completion fails in to_arrow_stream() already.
+  lazy <- dplyr::tbl(
+    con,
+    dplyr::sql(
+      "SELECT CASE WHEN i < 5000000 THEN i ELSE error('late') END AS i
+      FROM range(6000000) t(i)"
+    )
+  )
+  reader <- to_arrow_stream(lazy)
+
+  expect_equal(reader$read_next_batch()$num_rows, 1000000)
+  expect_error(reader$read_table(), "late")
+})
+
 test_that("a statement on its connection invalidates a reader not read to the end", {
   con <- local_con()
 

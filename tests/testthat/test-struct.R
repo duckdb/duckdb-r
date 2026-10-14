@@ -211,6 +211,27 @@ test_that("nested lists of atomic values can be written", {
   expect_s3_class(err, "duckdb_error")
 })
 
+test_that("field names that differ only in case are different fields", {
+  con <- local_con()
+
+  # Two cells whose fields differ in case differ in type, like two cells
+  # whose fields differ in name, and a list column of them has no single type.
+  # The error can arrive as a second one, see the test above.
+  df <- data.frame(id = 1:2)
+  df$s <- list(data.frame(a = 1L), data.frame(A = 2L))
+  err <- tryCatch(duckdb_register(con, "df_reg", df), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  err <- tryCatch(dbWriteTable(con, "df", df), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  expect_false(dbExistsTable(con, "df"))
+
+  # One cell holds both as two fields.
+  df <- data.frame(id = 1:2)
+  df$s <- list(data.frame(a = 1L, A = "x"), data.frame(a = 2L, A = "y"))
+  dbWriteTable(con, "both", df)
+  expect_equal(dbReadTable(con, "both"), df)
+})
+
 test_that("nested and packed columns work in full", {
   skip_if_not(TEST_RE2)
 
