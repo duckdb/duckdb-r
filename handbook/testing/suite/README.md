@@ -66,3 +66,11 @@ the test asserts the download error rather than skipping,
 so the day the gap closes it is the assertion that fails,
 on the platform itself.
 A skip would have gone on passing silently.
+
+**The re2 tests are skipped in R-hub's runs only.**
+Tests that reach DuckDB's re2 call `skip_if_not(TEST_RE2)`,
+and [`helper-skip.R`](/tests/testthat/helper-skip.R) sets the flag for every run but the R-hub workflow,
+whose CRAN check flavours re2 once tripped ([#121](https://github.com/duckdb/duckdb-r/issues/121)).
+`DUCKDB_R_TEST_RE2` overrides that for a run, either way.
+A test fails if the `rcc` workflow runs without them,
+because a skip that no run lifts lets its tests rot unseen.
