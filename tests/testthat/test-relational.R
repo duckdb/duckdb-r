@@ -2095,3 +2095,91 @@ test_that("rel_from_df() rejects matrix, S4, and integer64 columns", {
   df$a <- bit64::as.integer64(42)
   expect_error(rel_from_df(con, df), "convert")
 })
+
+test_that("a lazy data frame that fails to materialize in a scan's bind leaves the connection usable", {
+  con2 <- local_con()
+  df <- rel_to_altrep(
+    rel_from_sql(con, "SELECT range AS i FROM range(20)"),
+    n_cells = 0
+  )
+
+  # Bind touches the column, and its ALTREP method fails under the engine
+  expect_error(rel_from_df(con2, df), "Materialization is disabled")
+
+  # A jump past the engine's frames would have left the connection locked
+  expect_equal(dbGetQuery(con2, "SELECT 42 AS answer")$answer, 42)
+})
+
+test_that("a lazy data frame scanned on its own connection before its query ran is refused, not hung", {
+  # Touching the frame in bind would start its query on the connection binding the scan.
+  # rel_from_df() waited forever there, and the environment scan failed with an internal
+  # error that left the connection unusable; the subprocess and its timeout make a regression
+  # a failure here rather than a suite that stops.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      # The messages are formatted here, and the snapshot must not depend on the platform's bullets
+      options(cli.unicode = FALSE)
+      ns <- asNamespace(pkg)
+      message_of <- function(code) {
+        tryCatch(
+          {
+            code
+            "no error"
+          },
+          error = conditionMessage
+        )
+      }
+
+      con <- DBI::dbConnect(ns$duckdb(environment_scan = TRUE))
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      other <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
+      lazy <- function() {
+        ns$rel_to_altrep(ns$rel_from_sql(
+          con,
+          "SELECT range AS i FROM range(10)"
+        ))
+      }
+
+      df <- lazy()
+      rel <- message_of(ns$rel_from_df(con, df))
+      scan <- message_of(DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      ))
+      after <- DBI::dbGetQuery(con, "SELECT 42 AS answer")$answer
+
+      # Another connection runs the frame's query on its own connection, which is free
+      from_other <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(other, lazy()))$i
+      )
+
+      # Once the query has run, touching the frame converts and queries nothing
+      nrow(df)
+      own_after_run <- DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      )$s
+
+      list(
+        rel = rel,
+        scan = scan,
+        after = after,
+        from_other = from_other,
+        own_after_run = own_after_run
+      )
+    },
+    list(pkg = pkg),
+    timeout = 60
+  )
+
+  expect_snapshot({
+    writeLines(out$rel)
+    writeLines(out$scan)
+  })
+  expect_equal(out$after, 42)
+  expect_equal(out$from_other, 0:9)
+  expect_equal(out$own_after_run, 45L)
+})

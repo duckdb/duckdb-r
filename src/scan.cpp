@@ -1,6 +1,7 @@
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "rapi.hpp"
+#include "reltoaltrep.hpp"
 #include "typesr.hpp"
 
 // Handbook: handbook/architecture/glue/threading/README.md
@@ -111,6 +112,126 @@ static void TouchColumn(SEXP coldata) {
 
 	// The `map_list_of` shape reads the names of a cell with STRING_ELT()
 	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
+}
+
+// Whether TouchColumn() would reach an ALTREP method, the only thing in it that can fail;
+// the same walk, reading pointers only
+static bool TouchReachesAltrep(SEXP coldata) {
+	if (ALTREP(coldata)) {
+		return true;
+	}
+	switch (TYPEOF(coldata)) {
+	case LGLSXP:
+	case INTSXP:
+	case REALSXP:
+	case CPLXSXP:
+	case RAWSXP:
+	case STRSXP:
+		break;
+	case VECSXP: {
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			if (TouchReachesAltrep(VECTOR_ELT(coldata, cell_idx))) {
+				return true;
+			}
+		}
+		break;
+	}
+	default:
+		return false;
+	}
+	return TouchReachesAltrep(Rf_getAttrib(coldata, R_NamesSymbol));
+}
+
+// Refuse a lazy data frame whose query has not run and belongs to the connection binding this scan:
+// touching it would start that query on a connection busy with this one
+// (handbook/architecture/glue/altrep/README.md). The walk of TouchReachesAltrep(), reading pointers only.
+static void RefuseOwnLazyFrame(ClientContext &context, SEXP coldata) {
+	if (ALTREP(coldata)) {
+		if (RelToAltrep::QueriesOn(coldata, context)) {
+			throw InvalidInputException(
+			    "A lazy data frame can't be scanned on its own connection before its query has run: the connection "
+			    "is busy with this query. Materialize the data frame first, for instance with `nrow()`, or use "
+			    "`rel_from_altrep_df()` to reach its relation.");
+		}
+		return;
+	}
+	switch (TYPEOF(coldata)) {
+	case LGLSXP:
+	case INTSXP:
+	case REALSXP:
+	case CPLXSXP:
+	case RAWSXP:
+	case STRSXP:
+		break;
+	case VECSXP: {
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			RefuseOwnLazyFrame(context, VECTOR_ELT(coldata, cell_idx));
+		}
+		break;
+	}
+	default:
+		return;
+	}
+	RefuseOwnLazyFrame(context, Rf_getAttrib(coldata, R_NamesSymbol));
+}
+
+static SEXP TouchColumnsBody(void *df) {
+	TouchColumn(static_cast<SEXP>(df));
+	return R_NilValue;
+}
+
+struct TouchColumnError {
+	bool failed = false;
+	std::string message;
+};
+
+// Keep the message of the error condition, reading it without evaluating anything
+static SEXP TouchColumnHandler(SEXP cond, void *error_p) {
+	auto &error = *static_cast<TouchColumnError *>(error_p);
+	error.failed = true;
+	try {
+		error.message = "Materializing a column of the data frame failed";
+		SEXP names = Rf_getAttrib(cond, R_NamesSymbol);
+		if (TYPEOF(cond) == VECSXP && TYPEOF(names) == STRSXP) {
+			for (R_xlen_t i = 0; i < Rf_xlength(names) && i < Rf_xlength(cond); i++) {
+				SEXP value = VECTOR_ELT(cond, i);
+				if (strcmp(CHAR(STRING_ELT(names, i)), "message") == 0 && TYPEOF(value) == STRSXP &&
+				    Rf_xlength(value) > 0) {
+					error.message = Rf_translateCharUTF8(STRING_ELT(value, 0));
+					break;
+				}
+			}
+		}
+	} catch (...) {
+		// No exception may cross R's frames; the default message stands
+	}
+	return R_NilValue;
+}
+
+// Touch every column of `df`, the data frame a scan binds.
+// An ALTREP method, a lazy data frame's failing to materialize say, reports a failure by long-jumping,
+// and bind runs underneath the engine, which holds the client context lock:
+// a jump from here would leave the lock held, and the connection hanging on its next statement.
+// So the walk runs under an exiting error handler, the innermost one,
+// and its message is thrown on as an engine error;
+// any other jump, an interrupt say, cpp11::unwind_protect() turns into an exception.
+// Nothing in the walk throws or owns a C++ object, so a jump skips nothing.
+static void TouchColumns(ClientContext &context, SEXP df) {
+	// Plain vectors are memory already, and touching them cannot fail
+	if (!TouchReachesAltrep(df)) {
+		TouchColumn(df);
+		return;
+	}
+
+	RefuseOwnLazyFrame(context, df);
+
+	TouchColumnError error;
+	cpp11::unwind_protect([&] { R_tryCatchError(TouchColumnsBody, (void *)df, TouchColumnHandler, &error); });
+	if (error.failed) {
+		throw InvalidInputException(error.message);
+	}
 }
 
 struct DedupPointerEnumType {
@@ -613,11 +734,12 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	vector<data_ptr_t> data_ptrs;
 	vector<bool> named_list_map;
 
+	TouchColumns(context, df);
+
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
-		TouchColumn(coldata);
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 
 		bool is_named_list_map = false;
