@@ -65,8 +65,9 @@ out() { # <script> <args...> -> first line of stdout; the usage goes there
 }
 
 # Every series script, and what a valid first positional looks like for it.
-# series-forward-build.sh names two refs rather than a series, which is why it
-# takes no --remote; the option spelling and the exit status are still shared.
+# series-forward-build.sh and series-tests.sh name two refs rather than a series,
+# which is why they take no --remote; the option spelling and the exit status
+# are still shared.
 scripts=(
   series-advance.sh
   series-alpha.sh
@@ -80,6 +81,7 @@ scripts=(
   series-patch-sync.sh
   series-port.sh
   series-rc.sh
+  series-tests.sh
 )
 # preview-prefix.sh and reflavor.sh act on the worktree they are run in and name
 # no series, so they take neither --remote nor --upstream; the usage contract and
@@ -149,6 +151,8 @@ is "series-converge.sh <S> <remote>"       "$(rc series-converge.sh s origin)" 2
 is "series-advance.sh <S> <chunk>"         "$(rc series-advance.sh s 25)" 2
 is "series-glue.sh <S> <extra>"            "$(rc series-glue.sh s x)" 2
 is "series-patch-sync.sh <S> <extra>"      "$(rc series-patch-sync.sh s x)" 2
+is "series-tests.sh <base>"                "$(rc series-tests.sh a)" 2
+is "series-tests.sh <base> <tip> <extra>"  "$(rc series-tests.sh a b c)" 2
 for s in "${remote_scripts[@]}"; do
   is "$s accepts --remote" "$(out "$s" --help | grep -c -- '--remote <name>')" 1
 done
