@@ -186,6 +186,12 @@ the replay then populates `<S>-fwd-build`.
    the break is in that range, often an upstream change the old glue never touched,
    as `CheckResultTypeForR()` met upstream's `Identifier`.
 
+   **`main`'s tests meet that engine too, and are gated rather than rewound.**
+   A test asking for behaviour the fork point lacks gets `skip_if_engine_before()` in the stage 2 repair on `-dev`,
+   never a deletion or a rewritten expectation ([`series-loop/SKILL.md`](series-loop), stage 2).
+   That engine gate names the engine that brings the behaviour back,
+   so the test runs again there whether or not the gate's removal travels with the forward.
+
    **A forward that re-roots is a graft, and grafts nothing but a tree.**
    Where the point is to drop history below a fork point — an opening leaves the
    parent carrying it ([`series-open/SKILL.md`](series-open)) — the new root is
@@ -276,7 +282,8 @@ the replay then populates `<S>-fwd-build`.
    That second half is not replayed here and is not missing either:
    the loop's stage 5 folds it in from the base `<S>-dev`
    as each buffer commit is consumed (`series-loop/SKILL.md`),
-   glue included where a test rather than the compiler demanded it.
+   glue included where a test rather than the compiler demanded it,
+   and a test the base stopped running excluded, which the forward keeps as `main` wrote it.
    So do not reach for it during the replay,
    and do not put a snapshot or a test fix onto `-fwd-build` by hand.
 

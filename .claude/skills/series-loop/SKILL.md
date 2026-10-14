@@ -474,6 +474,21 @@ If other failures have a demonstrably different cause,
 they may be fixed in the same pass;
 otherwise let CI re-judge the tail.
 
+**A test the engine cannot pass yet is gated, never deleted or rewritten.**
+At a rewind the engine is older than the one `main`'s tests were written against,
+so a red there can be a test asking for behaviour that has not arrived yet.
+Put `skip_if_engine_before("<version>", "<why>")` on a line of its own at the top of each such `test_that()` body.
+The version is the engine (`R/version.R`) of the upstream commit that brings the behaviour back.
+Fold it into the offending commit like any repair.
+Do not delete the file or the block, rewrite what it expects, or skip it with no version to end the skip:
+each travels with its vendor commit into every forward and landing, and a later restore does not
+([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+Where the series already holds the commit at that version, take the gate out there in the same pass,
+as a glue rewind is paired with its restore ([`series-forward`](series-forward)).
+A gate whose removal never comes is inert, and a landing asks for it then.
+`series-check.sh` prints a `TESTS` line for a series whose vendor commit stopped a test `main` runs.
+That is this stage's work as much as a red is: restore each in the commit that took it, gating it where that engine cannot pass it.
+
 **A transiently broken upstream commit is folded into the next one,
 when the next one fixes it.**
 Squash the adjacent pair, and only that pair.
@@ -1146,7 +1161,16 @@ So as each buffer commit is consumed,
 `series-advance.sh` looks its base twin up by vendored SHA
 and folds into the same commit
 whatever that twin's tree holds and its own `-build` commit's does not,
+short of a test it would stop,
 with the twin's message and a `Carried from` trailer.
+
+**A carry never stops a test the forward runs.**
+A twin folded at a rewind may have deleted a test or skipped one for good,
+and the base's restore of it, where it made one, is a commit of its own that no twin lookup finds.
+So a path under `tests/` whose carry would take a test away keeps what the forward has,
+and the commit message names it under `Not carried`.
+CI then judges the commit, and a red there is gated as stage 2 says.
+An engine gate carries like any fix, because it re-arms its test by itself.
 
 **The carry is a difference, not a list of directories,
 and `src/` is not compile-only territory.**
