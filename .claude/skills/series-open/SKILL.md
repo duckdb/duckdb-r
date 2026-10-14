@@ -310,6 +310,10 @@ That move is what earns the outgoing line a mirror and a rule, on the day it
 parks rather than on the day it was opened, and `pull-config.sh` reports it as
 soon as the badge base moves: step 7 arriving by itself rather than being
 remembered.
+The same `releases_from` freezes the line's R side: `scripts/series-port.sh`
+takes only the tooling sync for a line declared parked, which matters when the
+line parks because another one lands on `main`
+([`series-land`](/.claude/skills/series-land/SKILL.md)).
 
 What is left of the walk-backwards problem when `<S>` releases is
 [`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.

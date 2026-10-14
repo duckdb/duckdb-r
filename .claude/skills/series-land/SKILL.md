@@ -1,0 +1,191 @@
+---
+name: series-land
+description: Land a release line on `main`, so that `main` starts releasing it. Freeze `main`, build `<L>-land-dev` from the series' rc strand as vendor commits only, let CI judge every commit, fast-forward `main` onto it, and park the line `main` released before. Use when `main` is to take a line that has its own series (v2.0 replacing v1.5), or when asked to land, move or promote a series onto `main`.
+---
+
+# Landing a line on `main`
+
+*Handbook: [`operations/releases/process/`](/handbook/operations/releases/process/README.md),
+the release process, of which this is the change of line.*
+
+`main` releases one line at a time.
+When the next one has a series of its own, `main` takes it by **fast-forwarding onto that series' vendor commits**:
+every upstream commit the series vendored, with the R-side fix CI demanded folded into it,
+replayed without the flavor onto `main` itself and judged by CI one by one.
+Nothing else reaches `main`:
+no flavor, no seed, and no port, because everything a port carries is `main`'s already.
+The line `main` released before parks on its own baseline and keeps its series,
+which from then on takes `main`'s tooling and none of its R side.
+
+`<L>` is the line, `v2.0-cyanoptera`; `<S>` is the series that lands,
+its live forward `v2.0-cyanoptera-fwd` while one exists, because that is the one standing on today's `main`.
+`<P>` is the line `main` releases until the landing, `v1.5-variegata`.
+
+## The refs
+
+* **`<L>-land-dev`**, in the fork: `main` plus the vendor commits, and nothing else.
+  CI judges it like any `-dev` ([`scripts/each-plan.sh`](/scripts/each-plan.sh)).
+* **`<L>-land-green`**, in the fork: where CI's judgement starts.
+  It is pushed at the frozen `main` and advanced over the commits that passed;
+  the landing is ready when it equals `<L>-land-dev`.
+
+There is no `<L>-land-build`, so the loop never mistakes the pair for a series.
+Both are deleted once `main` has taken the landing.
+
+## Before you start
+
+* **The series is current.**
+  `<S>` has taken every port of `main`, and its rc strand is aligned
+  ([`series-rc`](/.claude/skills/series-rc/SKILL.md)); the build refuses an rc strand behind its source,
+  and its tree check refuses a series that lacks something `main` has.
+* **The convergence findings are settled**, when `<S>` is a forward
+  ([`series-forward`](/.claude/skills/series-forward/SKILL.md), `scripts/series-converge.sh <L>`).
+  The landing carries the forward's tree, so whatever the forward lost against its base is lost on `main` too.
+* **`<P>` is declared parked** in [`scripts/series.yaml`](/scripts/series.yaml):
+  its `releases_from` names its own baseline, not `main`.
+  That declaration is what keeps `main`'s new R side out of `<P>`'s series
+  ([`scripts/series-port.sh`](/scripts/series-port.sh)),
+  because its seed sits on `main`'s own history, which no lineage test can tell from a live line's.
+  It lands on `main` before the freeze, with `.github/pull.yml`'s rule for the baseline
+  (`scripts/pull-config.sh --check`) and the regenerated badge table.
+
+## 1. Freeze `main`
+
+Every commit of the landing stands on one `main` commit, so `main` must not move until it fast-forwards.
+A ruleset with no bypass list stops every update, pull requests and admins included.
+A human runs these, and reads each output before the next.
+
+Inspect: the rulesets on `main`, and the commit it freezes at.
+
+```sh
+R=duckdb/duckdb-r
+gh api repos/$R/rulesets --jq '.[] | [.id, .name, .enforcement] | @tsv'
+gh api repos/$R/commits/main --jq .sha
+```
+
+Freeze:
+
+```sh
+gh api -X POST repos/duckdb/duckdb-r/rulesets --input - <<'EOF'
+{
+  "name": "freeze main",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+  "rules": [
+    {"type": "update", "parameters": {"update_allows_fetch_and_merge": false}},
+    {"type": "deletion"},
+    {"type": "non_fast_forward"}
+  ]
+}
+EOF
+```
+
+Verify: an `update` row from the new ruleset, and `never`.
+
+```sh
+gh api repos/duckdb/duckdb-r/rules/branches/main --jq '.[] | [.type, .ruleset_id] | @tsv'
+id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
+gh api repos/duckdb/duckdb-r/rulesets/$id --jq .current_user_can_bypass
+```
+
+The loop keeps running: it reads `main` and writes no ref there.
+
+## 2. Park `<P>` on the frozen `main`
+
+The baseline is what `<P>` releases from now, so it takes the R side `main` released it with.
+It is a branch of its own, outside the freeze:
+
+```sh
+git fetch upstream main <P>
+git push --force-with-lease=<P>:$(git rev-parse upstream/<P>) upstream upstream/main:refs/heads/<P>
+```
+
+The Pull app mirrors it into the fork within six hours ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+A forward of `<P>` still in flight is cut over or deleted now; none is started again.
+
+## 3. Build the landing
+
+```sh
+scripts/series-land.sh <S> --remote origin --canonical upstream          # build and check
+scripts/series-land.sh <S> --remote origin --canonical upstream --push   # and write both refs
+```
+
+[`scripts/series-land.sh`](/scripts/series-land.sh) replays with
+[`scripts/series-forward-build.sh`](/scripts/series-forward-build.sh) in a worktree it keeps,
+so everything that script stops on stops here, and a rerun resumes:
+
+* **a conflict**: resolve it in the kept worktree, `git add`, rerun;
+* **a commit that vendors nothing and is not `main`'s**: decide where its change belongs and pass `--placed <sha>`.
+  Ports of commits `main` already has are placed by their `-x` trailer, and tooling syncs by their subject;
+* **the glue gate**: fix the glue in the commit that broke it and rerun.
+
+The build ends with the tree check:
+the landing's tip must be the package the rc strand holds,
+except for `NEWS.md` and the READMEs, which are `main`'s by construction.
+Anything else is something `main` has and the series lacks, or the other way round.
+Fix it on the series, realign its rc strand, and rebuild with `--abort` first; nothing is pushed until the check passes.
+
+Committer dates are pinned to the frozen `main`'s, so a rebuild from the same inputs mints the same SHAs
+and CI does not judge a commit twice.
+
+## 4. Let CI judge every commit
+
+Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-land-dev`.
+Read and advance it with
+
+```sh
+scripts/series-land.sh <S> --status --push
+```
+
+which moves `<L>-land-green` over the commits that passed and names the first that has not.
+A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series-loop/SKILL.md)):
+
+* **the infrastructure's fault**: push `retry-<L>-land-dev` at the commit, once;
+* **the tree's fault**: in the kept worktree, `git reset --hard` to the red commit, fold the fix in,
+  amend with an `R-side fix` section, and rerun the build, which replays everything above it.
+  A fix the series lacks too goes onto the series as well, or the tree check refuses the push.
+
+## 5. Fast-forward `main`
+
+When `--status` prints `READY`, every commit has passed and `main` is still the commit the landing stands on.
+Lift the freeze, push, and put it back until the step below is done:
+
+```sh
+git fetch origin <L>-land-dev
+id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
+gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=disabled
+git push upstream origin/<L>-land-dev:refs/heads/main
+gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=active
+git ls-remote upstream refs/heads/main
+```
+
+The push is a plain one, so git refuses it unless it is a fast-forward.
+It needs the existing `main` ruleset's admin bypass, because it is not a pull request.
+
+## 6. After the landing
+
+Delete the freeze, so that `main` takes pull requests again:
+
+```sh
+gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
+```
+
+The first pull request on `main`:
+
+* **The CRAN row** in `scripts/series.yaml`: `duckdb` now tracks `<L>`.
+  Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 7).
+* **`main`'s version.** The landing ends on the series' version, `1.99.99.9000.<n>`,
+  which is the preview prefix `main` carries while it previews the line
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+  `main`'s own counter is the fourth component, so the first bump sets it explicitly,
+  `fledge::bump_version("1.99.99.9001")`, which also drops the vendor counter.
+
+Then the series:
+
+* **Forward `<L>`, and the series tracking upstream `main`, onto the new `main`**
+  ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
+  The new seed already vendors what the landing vendored, so `<L>`'s forward replays only what came after.
+* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork, and the kept worktree with
+  `scripts/series-land.sh <S> --abort`.

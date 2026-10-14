@@ -4,7 +4,7 @@ The scheduled routine that vendors every series.
 The procedures are machine-loaded playbooks under
 [`.claude/skills/`](/.claude/skills) —
 [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) with its
-siblings `series-forward`, `series-rebase`, `series-open`, `series-rc`, `series-alpha` —
+siblings `series-forward`, `series-rebase`, `series-open`, `series-rc`, `series-alpha`, `series-land` —
 linked from here, never restated:
 a reader who wants to *run* the loop follows the link;
 what runs is this page's topic.
@@ -48,6 +48,10 @@ to do, and they run in this order:
   tooling sync and fixes named by hand apply.
   That is read from the lineage under the seed rather than configured,
   so opening or retiring a release line changes no script.
+  The exception is a line that parks when another lands on `main`:
+  its seed sits on `main`'s own history, so it is declared instead,
+  by naming its own baseline as `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml)
+  ([`series-land`](/.claude/skills/series-land/SKILL.md)).
   A `patch/` entry the port brings to `-dev` does nothing there,
   because a vendor run applies the buffer's stack, so the port carries
   it on to `<S>-build`
