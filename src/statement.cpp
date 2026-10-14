@@ -1,6 +1,7 @@
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
+#include "duckdb/planner/statement_preprocessor.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
 
@@ -219,18 +220,20 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	for (idx_t i = 0; i < statements.size(); i++) {
 		vector<unique_ptr<SQLStatement>> fragments;
 		fragments.push_back(std::move(statements[i]));
-		try {
-			conn->conn->context->PreprocessStatements(fragments);
-		} catch (std::exception &ex) {
-			ErrorData error(ex);
-			error.AddErrorLocation(query);
-			rapi_error_with_context("rapi_prepare", error);
-		}
-		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk), so its expansion is
-		// checked as a whole before any of it runs: refusing it part-way would leave the implicit BEGIN the
-		// engine wraps the expansion in open, and every later statement on the connection inside it.
-		if (!conn->db->allow_extensions) {
-			for (auto &fragment : fragments) {
+		// A PRAGMA can expand to a LOAD (import_database runs the SQL it reads from disk). The engine expands it
+		// while running it, so a copy is expanded here and checked as a whole before any of it runs.
+		if (!conn->db->allow_extensions && fragments[0]->type == StatementType::PRAGMA_STATEMENT) {
+			auto &context = *conn->conn->context;
+			PreprocessedStatement expanded;
+			try {
+				context.RunFunctionInTransaction(
+				    [&] { expanded = StatementPreprocessor(context).ExpandStatement(fragments[0]->Copy()); });
+			} catch (std::exception &ex) {
+				ErrorData error(ex);
+				error.AddErrorLocation(query);
+				rapi_error_with_context("rapi_prepare", error);
+			}
+			for (auto &fragment : expanded.statements) {
 				if (fragment->type == StatementType::LOAD_STATEMENT) {
 					rapi_error_with_context("load_extension", "");
 				}
@@ -262,10 +265,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			}
 		}
 	}
-	// The last statement is the call's result. With no fragment left, it was a PRAGMA that expanded to nothing, the
-	// only statement that can, and it returns what any other PRAGMA returns: no rows of one `Success` column.
-	auto stmt = last_statement ? conn->conn->Prepare(std::move(last_statement))
-	                           : conn->conn->Prepare("SELECT CAST(NULL AS BOOLEAN) AS Success LIMIT 0");
+	// The last statement is the call's result; a PRAGMA that expands to nothing is answered where it runs.
+	auto stmt = conn->conn->Prepare(std::move(last_statement));
 
 	signal_handler.HandleInterrupt();
 
@@ -462,7 +463,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		if (!generic_result->HasError()) {
 			// A reader that may stop early: a SELECT that writes is completed rather than streamed, since a stream
 			// abandoned before its end is rolled back, with the transaction it runs in.
-			streamed = StreamsByDefault(stmt->stmt->GetStatementType(), generic_result->GetStatementProperties(),
+			streamed = StreamsByDefault(stmt->stmt->GetStatementType(), *generic_result,
 			                            /* reads_to_the_end = */ false);
 			if (!streamed) {
 				generic_result->Complete();
@@ -488,6 +489,17 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		return query_resultsexp;
 	} else {
 		auto result = generic_result.get();
+
+		// A PRAGMA that expanded to nothing has no columns, and returns what any other PRAGMA returns:
+		// no rows of one `Success` column, as before the engine expanded it while running it.
+		if (result->ColumnCount() == 0 && stmt->stmt->GetStatementType() == StatementType::PRAGMA_STATEMENT) {
+			vector<LogicalType> types {LogicalType::BOOLEAN};
+			vector<Identifier> names {Identifier("Success")};
+			cpp11::writable::list data_frame = duckdb_r_allocate_df(types, names, 0, convert_opts, "rapi_execute");
+			SET_NAMES(data_frame, StringsToSexp({"Success"}));
+			duckdb_r_df_decorate(data_frame, 0, RStrings::get().dataframe_str);
+			return data_frame;
+		}
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
 		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
