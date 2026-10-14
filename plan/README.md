@@ -31,6 +31,7 @@ when the two disagree, the handbook leaf is right.
 | Cloning a connection with its session, `dbConnect(con)`, so a stream survives the next statement on the original, and why not a private context behind every result | [`PLAN-connection-clone.md`](PLAN-connection-clone.md) |
 | Geometry on the write side: stopping the silent `sfc` loss, writing `wk_wkb` as `GEOMETRY`, and which half of #117 belongs to sf | [`PLAN-spatial-interop.md`](PLAN-spatial-interop.md) |
 | The type gaps the catalogs found that are decisions rather than fixes, and the routes they have not measured yet | [`PLAN-type-documentation.md`](PLAN-type-documentation.md) |
+| Adding `rel_from_arrow()`, a relational scan of an Arrow or nanoarrow source | [`PLAN-rel-from-arrow.md`](PLAN-rel-from-arrow.md) |
 
 ## `done/` — plans that came true
 
