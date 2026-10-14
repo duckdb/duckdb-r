@@ -240,7 +240,7 @@ if [ -n "$review" ]; then
 
   git read-tree "$base"
   git ls-files -z -- .github/workflows | xargs -0 -r git update-index --force-remove --
-  head=$(git commit-tree "$(git write-tree)" -p "$base" -m "ci: Remove every workflow from this review branch
+  head=$(GIT_AUTHOR_DATE=$GIT_COMMITTER_DATE git commit-tree "$(git write-tree)" -p "$base" -m "ci: Remove every workflow from this review branch
 
 The branch carries the R side of the $L landing without its engine,
 so it compiles against nothing, and it is never merged.
@@ -252,7 +252,7 @@ Without workflow files a pull request from it starts no run.")
     desc=''
     [ "$(unversioned "$c")" = "$(unversioned "$c~1")" ] || desc=1
     [ -s "$work/diff" ] || [ -n "$desc" ] || continue
-    [ -s "$work/diff" ] && git apply --cached --binary "$work/diff"
+    [ -s "$work/diff" ] && git apply --cached --binary --whitespace=nowarn "$work/diff"
     if [ -n "$desc" ]; then
       blob=$(git show "$c:DESCRIPTION" | sed "s/^Version: .*/Version: $main_version/" |
         git hash-object -w --stdin)

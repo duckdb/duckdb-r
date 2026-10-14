@@ -305,6 +305,9 @@ is "everything else is the landing's" \
 is "no subject reads as a vendor commit" "$(git log --format=%s "$M..$REV" | grep -c 'duckdb/duckdb@' || true)" 0
 is "each names the landing commit it halves" \
   "$(git log -1 --format=%B "$REV" | sed -n 's/^Landing-commit: //p')" "$TIP"
+sleep 1 # a date not pinned would differ by now
+out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
+has "a rerun mints the same branch" "$out" "v2.0-x-land-review: already on upstream"
 
 # --- 10: main moves ---------------------------------------------------------
 
