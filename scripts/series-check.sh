@@ -20,6 +20,11 @@
 # PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
 # an entry that never reached it is one the next vendor run will not apply.
 #
+# A series one of whose vendor commits stopped a test `main` runs, or left an
+# expired engine gate in one, gets a TESTS line (scripts/series-tests.sh): the
+# change travels with that commit into every forward and landing, and a restore
+# made later as a commit of its own travels with neither.
+#
 # Classification is by positive evidence only (.claude/skills/series-loop/SKILL.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
@@ -405,6 +410,13 @@ fork_point() { # <upstream branch> -> sha, empty without a clone
     <(git -C "$upstream" rev-list --first-parent "$rel_ref")
 }
 
+# The tests every series is held to are `main`'s: the canonical copy where this
+# run could fetch it, the fork's mirror otherwise.
+main_ref=''
+for r in ${canonical:+"refs/remotes/$canonical/main"} "refs/remotes/$remote/main"; do
+  if git rev-parse -q --verify "$r" >/dev/null; then main_ref=$r; break; fi
+done
+
 tip=$(rcc_tip) || { echo "no $rcc branch on $remote"; exit 1; }
 echo "harvest: $(git log -1 --format='%ci (%ar)' "$tip")"
 echo
@@ -545,6 +557,26 @@ for S in "${series[@]}"; do
     fi
     echo "               scripts/series-patch-sync.sh $S --remote $remote says which of these it can carry;"
     echo "               after a port, what is left is what it declined — stage 3 work"
+  fi
+
+  # A test `main` runs that a vendor commit of this series stopped, deleted or
+  # skipped without an engine gate, and a gate that has expired and is due to
+  # go (handbook/operations/vendoring/series-loop/README.md). A landing refuses
+  # each, so it is named on every firing, while the commit that took it may
+  # still be above green. Only a vendor commit's, because a test `main` added
+  # since the last port is stage 4's, and only what the tip still lacks.
+  if [ -n "$main_ref" ]; then
+    lost=$("$(dirname "$0")/series-tests.sh" "$main_ref" "$dev" --vendored --porcelain 2>/dev/null || true)
+    lost=$(awk -F'\t' '$1 ~ /^(deleted|block|snapshot|skip|expired)$/' <<<"$lost")
+    if [ -n "$lost" ]; then
+      echo "  TESTS  $(grep -c . <<<"$lost") of main's test(s) stopped or still gated by a vendor commit of $S-dev:"
+      while IFS=$'\t' read -r k p w c; do
+        printf '         %-8s %s, by %s\n' "$k" "$p" "$(git log -1 --format='%h %s' "$c" | cut -c1-72)"
+        [ "$k" = deleted ] || printf '                  %s\n' "${w:0:110}"
+      done <<<"$lost"
+      echo "         Restore each in the commit that took it, or gate it (.claude/skills/series-loop/SKILL.md stage 2):"
+      echo "         scripts/series-tests.sh ${main_ref#refs/remotes/} $dev"
+    fi
   fi
 
   # Suggested, never done: a firing reports a ready cutover and stops

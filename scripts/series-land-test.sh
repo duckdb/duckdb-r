@@ -4,7 +4,7 @@
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
 # the series' vendor commits and nothing else, and that its tip is the package
-# the series' rc strand holds. Ten things are checked.
+# the series' rc strand holds. Thirteen things are checked.
 #
 #   1. Without --push the build writes no ref, and says what it would write.
 #   2. Only vendor commits land, on `main` itself, unflavored.
@@ -32,7 +32,10 @@
 #  11. A landing stands on a base above `main`: the base's own commit lands
 #      with it, is expected by the tree check, is judged by CI from `main` up,
 #      and shows in the review as it is.
-#  12. A `main` that moved stops a kept build and is not READY, and a rebuild
+#  12. The tests are held to the base's: a landing whose tip runs them all says
+#      so, and one that stops a test the base runs is refused before anything
+#      is pushed, naming the test and the commit, though the tree check passes.
+#  13. A `main` that moved stops a kept build and is not READY, and a rebuild
 #      on it that the series has not ported is refused before anything is
 #      pushed, `DESCRIPTION` included.
 #
@@ -80,7 +83,7 @@ git remote add origin "$FORK"
 git remote add upstream "$CANON"
 
 mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat .github/workflows
-for s in series-land.sh series-forward-build.sh series-rc.sh setup-git.sh merge-version.sh; do
+for s in series-land.sh series-forward-build.sh series-rc.sh series-tests.sh setup-git.sh merge-version.sh; do
   cp "$HERE/$s" scripts/
 done
 chmod +x scripts/*.sh
@@ -238,6 +241,7 @@ is "the tip carries the series' version" "$(git show "$TIP:DESCRIPTION" | sed -n
   "$(git show "$RC:DESCRIPTION" | sed -n 's/^Version: //p')"
 hasnt "so DESCRIPTION is no difference at all" "$out" "DESCRIPTION"
 hasnt "nothing is unexplained" "$out" "UNEXPLAINED"
+has "and every test main runs, the landing runs" "$out" "TESTS KEPT"
 is "the trees agree everywhere else" \
   "$(git diff --name-only "$TIP" "$RC" -- . ':(exclude)NEWS.md' ':(exclude)README.md' ':(exclude)DESCRIPTION')" ""
 
@@ -304,6 +308,7 @@ out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it counts the commits that change the R side" "$out" "3 of 3 landing commits change the R side"
 has "and prints the draft pull request" "$out" "gh pr create --repo"
+has "with what the landing does to the tests" "$out" "changed   tests/testthat/test-foo.R"
 git fetch -q upstream v2.0-x-land-review
 REV=$(git rev-parse upstream/v2.0-x-land-review)
 is "it stands on main" "$(git rev-parse "$REV~4")" "$M"
@@ -432,7 +437,29 @@ out=$(scripts/series-land.sh v2.0-x-fwd --review --landing v2.0-x-land-v3 --suff
 is "a commit on top of the vendor commits is refused" "$st" 1
 LAND_BEFORE=$LTIP
 
-# --- 12: main moves ---------------------------------------------------------
+# --- 12: a test the base runs, which the series stopped ----------------------
+
+echo
+echo "== a landing that stops a test its base runs is not pushed"
+git checkout -q s
+engine ffff666 1.99.99-dev5
+git rm -q tests/testthat/test-bar.R
+desc duckdb.2.0.dev 1.99.99.9000.5
+commit 'vendor: Update vendored sources to duckdb/duckdb@ffff666'
+git push -q origin s:refs/heads/v2.0-x-fwd-dev
+git checkout -q main
+scripts/series-rc.sh v2.0-x-fwd --push >/dev/null 2>&1
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "the build is refused" "$st" 1
+has "the report names the test" "$out" "deleted   tests/testthat/test-bar.R"
+has "and the commit that stopped it" "$out" "duckdb/duckdb@ffff666"
+hasnt "though the series lacks it too" "$out" "DIVERGED"
+has "and nothing is pushed" "$out" "Nothing was pushed"
+git fetch -q origin
+is "land-dev is where it was" "$(git rev-parse origin/v2.0-x-land-dev)" "$LAND_BEFORE"
+
+# --- 13: main moves ---------------------------------------------------------
 
 echo
 echo "== a main that moved is not landed on blindly"

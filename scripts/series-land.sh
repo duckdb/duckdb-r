@@ -55,6 +55,17 @@
 # a file the series lost as well, so the files the landing deletes from `main`
 # outside the vendored strand are listed beside it.
 #
+# **The tests are held to `main`'s, not to the series'.** A test the series
+# stopped running is one the tree check passes, because the series lacks it
+# too: `v2.0-cyanoptera-fwd` deleted `tests/testthat/test-variant.R` at its
+# rewind and skipped four more for good (duckdb/duckdb-r#2899).
+# scripts/series-tests.sh compares the landing's tests with its base's, the
+# frozen `main` and any tests pinned above it, and the push is refused while one
+# is lost: a deleted file, block or snapshot, a skip the base does not make, and
+# an engine gate too, live or expired, which `main` never takes. What a test expects may differ, and every such path is
+# listed with the commits that moved it, so a review reads the landing's test
+# changes off one report rather than out of its commits.
+#
 # Committer dates are pinned to the base's, so a rebuild from the same inputs
 # mints the same SHAs and CI does not judge a commit twice.
 #
@@ -85,7 +96,8 @@
 # only fail, and without workflow files a pull request starts nothing that
 # builds or tests it. It goes to the canonical repository, where it is opened as
 # a draft pull request against `main` and never merged: `main` takes the
-# landing itself.
+# landing itself. It prints the test report the build gated on, for the pull
+# request's description.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
 #                       [--base <ref>] [--placed <sha>]... [--no-check-glue] [--attended]
@@ -349,6 +361,11 @@ builds or tests it.")
   echo "  $picked of $(git rev-list --count "$base..$tip") landing commits change the R side;" \
     "on main $(git rev-parse --short "$base") -> $(git rev-parse --short "$head")"
   echo "  $(git diff --shortstat "$base" "$head" -- . ':(exclude).github/workflows')"
+  # What the tests take from the landing, by the commits that made it, which is
+  # the part of the review a reader of `main` most needs named.
+  echo
+  "$here/series-tests.sh" "$base" "$tip" --strict | sed 's/^/  /' || true
+  echo
 
   slug=$(git remote get-url "$canonical" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')
   old=$(git ls-remote "$canonical" "refs/heads/$rb" | cut -f1)
@@ -563,10 +580,10 @@ if [ ${#explained[@]} -gt 0 ]; then
   echo "  explained (${#explained[@]}):"
   printf '%s\n' "${explained[@]}" | awk -F'\t' '{ printf "    %-44s %-9s %s\n", $1, $2, $3 }'
 fi
-deleted=$(git diff --diff-filter=D --name-only "$main" "$tip" -- . "${strand_excludes[@]}")
+deleted=$(git diff --diff-filter=D --name-only "$main" "$tip" -- . "${strand_excludes[@]}" ':(exclude)tests')
 if [ -n "$deleted" ]; then
   echo
-  echo "  deleted from main, outside the vendored strand; the series lacks them too:"
+  echo "  deleted from main, outside the vendored strand and the tests; the series lacks them too:"
   echo "    ${deleted//$'\n'/$'\n'    }"
 fi
 if [ ${#unexplained[@]} -gt 0 ]; then
@@ -583,6 +600,19 @@ if [ ${#unexplained[@]} -gt 0 ]; then
   echo "DIVERGED: the landing is not the package $S-rc-dev holds."
   echo "  Port what main has to $S and realign its rc strand, or fix the series where"
   echo "  the landing differs from it; rerun to follow the strand. Nothing was pushed."
+  exit 1
+fi
+
+# The tree check holds the landing to the series, so it cannot see a test the
+# series lost as well. This holds it to the base, `main` and any tests pinned
+# above it: every test the base runs, the landing runs, with no skip the base
+# does not make, an engine gate included.
+echo
+if ! "$here/series-tests.sh" "$base" "$tip" --strict | sed 's/^/  /'; then
+  echo
+  echo "The landing would stop tests its base runs. Restore each on $S, in the vendor"
+  echo "  commit that took it, or drop the gate, realign the rc strand, and rerun."
+  echo "  Nothing was pushed."
   exit 1
 fi
 
