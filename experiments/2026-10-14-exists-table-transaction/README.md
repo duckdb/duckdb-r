@@ -23,7 +23,7 @@ Four builds, each rendered from [`candidates.R`](candidates.R) by [`scripts/rend
 * [`v2.0-fix.md`](v2.0-fix.md): the same source with the branch's `R/dbExistsTable__duckdb_connection_ANY.R`,
   whose session info still names r-universe as the source it came from.
 
-The branch builds are c374d4e of https://github.com/duckdb/duckdb-r/pull/2893.
+The branch builds are e5e13b9 of https://github.com/duckdb/duckdb-r/pull/2893.
 The session info names the scratch library that held a branch build as `<branch build library>`.
 
 *What it supports:* the transaction entry in [`usage/statements/`](/handbook/usage/statements/README.md).
@@ -53,12 +53,13 @@ From the matrix in each record:
 * **The lookup, then the second connection** answers every name right and is the only way that aborts nothing for a missing file.
   A miss costs the lookup, a connection and the probe.
 * **The branch** answers what the probe answers, on both engines, and aborts nothing on 2.0 for a missing table.
-  It relaxes the policy only inside a transaction, which `Connection::IsAutoCommit()` reports through the glue.
+  It relaxes the policy only inside a transaction, which `Connection::IsAutoCommit()` reports through the glue,
+  and sets it as `BEGIN` does rather than through `SET`, putting back the policy it replaced.
 
 A path to a file that is not there aborts the transaction on both engines whichever way the probe is sent,
 because no policy exempts an IO error.
-On 2.0 the relaxed probe then fails to restore the policy and raises "Current transaction is aborted",
-the script's and the branch's alike.
+On 2.0 the script's relaxed probe then fails to restore the policy through `SET`, and raises;
+the branch puts the policy back without a statement, and answers `FALSE`.
 
 ## A transaction that has already failed
 
@@ -71,9 +72,8 @@ Under `lock_configuration`, 2.0 refuses the `SET` with "Cannot change configurat
 and the refusal aborts the transaction even when the table exists.
 The engine's own handling of a multi-statement string in a transaction still runs,
 though it sets the same option (`AddStatements()` in `statement_preprocessor.cpp`).
-The branch relaxes the policy only inside a transaction, so outside one it answers as before.
-Inside one on 2.0 it raises "Can't look up a table inside a transaction while the configuration is locked",
-with the engine's refusal as the cause, and the refusal has aborted the transaction.
+The branch sets the policy without a `SET`, so under the lock it finds an existing table and answers `FALSE` for a missing one,
+and the transaction stays usable.
 
 ## An instance with 1.x's policy
 
@@ -85,10 +85,9 @@ and the user's own query on a missing table no longer aborts it either.
 
 Milliseconds per call, the mean of 200, for a table that exists and one that does not:
 
-* On 2.0, the branch costs 3.6 for a hit outside a transaction, where the probe costs 3.1,
-  and 7.9 inside one, where the probe costs 2.9, for the two statements that set the policy.
-  On 1.5.6 it adds no statement, and the two cost the same within half a millisecond.
-* A miss costs 36 to 58 for every way that raises an error, and 3.5 to 8 for the catalog lookup, which raises none.
+* The branch sends no statement beyond the probe, on either engine,
+  and a hit costs within a millisecond of what the probe alone costs, inside a transaction and outside one.
+* A miss costs 35 to 58 for every way that raises an error, and 3 to 8 for the catalog lookup, which raises none.
 * A single run each, so differences of a millisecond or two are noise.
 
 ## Replicating

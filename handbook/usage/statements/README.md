@@ -91,14 +91,11 @@ where 1.x left a transaction usable after a catalog, binder or parser error,
 so after a misspelt table name inside `dbBegin()` every later statement in the transaction fails.
 `dbExistsTable()` asks by binding `SELECT * FROM` the name, which is how it finds a file path that a replacement scan resolves.
 Inside a transaction, on an engine with the policy,
-it relaxes the transaction's policy for that one statement and resets it to the default afterwards,
+it relaxes the transaction's policy for that one statement and puts the transaction's own policy back afterwards,
 so `dbWriteTable()`, `duckdb_read_csv()` and dplyr's `copy_to()` work inside a transaction
 ([#2892](https://github.com/duckdb/duckdb-r/issues/2892)).
-A path to a file that is not there still aborts the transaction, on every engine, because no policy exempts an IO error,
-and on 2.0 `dbExistsTable()` then raises "Current transaction is aborted".
-Under `lock_configuration`, 2.0 refuses relaxing the policy, and the refusal aborts the transaction,
-so there `dbExistsTable()` inside a transaction raises an error that names the lock;
-outside one it answers as usual, and looking tables up before `dbBegin()` is the way around it.
+It sets the policy as `BEGIN` does rather than through `SET`, so `lock_configuration` does not refuse it.
+A path to a file that is not there still aborts the transaction, on every engine, because no policy exempts an IO error.
 In a transaction that has already failed, `dbExistsTable()` raises the engine's error rather than answer.
 A driver created with `config = list(default_transaction_invalidation_policy = "SYNTACTIC_ERRORS_DO_NOT_INVALIDATE")`
 gives every statement 1.x's behaviour, an option 1.x itself refuses as unrecognized.
