@@ -196,6 +196,9 @@ An iteration is a landing branch of its own, `<L>-land-v<n>`, with no `-dev` suf
 made from the previous one by folding each fix into the landing commit that introduced the defect,
 so that every commit from there on carries it and every intermediate commit passes;
 nothing is stacked on top of the vendor commits.
+A fix is written as a commit on the commit it folds into,
+and [`scripts/series-fold.sh`](/scripts/series-fold.sh) folds it there and replays everything above,
+adding a note to the folded commit's message.
 It is checked by the glue gate at every commit it changed and by building its tip and running the suite.
 Each gets a review pull request of its own,
 `--review --landing <L>-land-v<n> --suffix -v<n>`,
