@@ -23,6 +23,9 @@ Four builds, each rendered from [`candidates.R`](candidates.R) by [`scripts/rend
 * [`v2.0-fix.md`](v2.0-fix.md): the same source with the branch's `R/dbExistsTable__duckdb_connection_ANY.R`,
   whose session info still names r-universe as the source it came from.
 
+The branch builds are bb30a06 of https://github.com/duckdb/duckdb-r/pull/2893,
+which asked `duckdb_settings()` whether the engine has the policy where the pull request now compares engine versions;
+the statements each call sends are the same.
 The session info names the scratch library that held a branch build as `<branch build library>`.
 
 *What it supports:* the transaction entry in [`usage/statements/`](/handbook/usage/statements/README.md).

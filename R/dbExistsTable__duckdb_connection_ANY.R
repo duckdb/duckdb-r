@@ -49,22 +49,12 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
 }
 
 # Whether the probe can relax the transaction's policy.
-# The engine has the policy from DuckDB 2.0, asked once per session
-# of the first connection that needs to know;
-# a locked configuration refuses the change, and refusing aborts the
+# The engine has the policy from DuckDB 2.0; once main vendors 2.0, the version
+# check goes (https://github.com/duckdb/duckdb-r/issues/2895).
+# A locked configuration refuses the change, and refusing aborts the
 # transaction, asked every time because a connection can lock it at any point.
 can_relax_invalidation_policy <- function(conn) {
-  if (is.null(the$invalidation_policy)) {
-    the$invalidation_policy <- nrow(dbGetQuery(
-      conn,
-      "SELECT 1 FROM duckdb_settings() WHERE name IN (
-         'default_transaction_invalidation_policy',
-         'current_transaction_invalidation_policy'
-       )"
-    )) ==
-      2
-  }
-  the$invalidation_policy &&
+  numeric_version(sub("-.*", "", get_duckdb_version())) >= "2.0.0" &&
     !dbGetQuery(
       conn,
       "SELECT current_setting('lock_configuration') AS locked"
