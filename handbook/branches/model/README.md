@@ -77,6 +77,13 @@ and `<S>-rc-alpha` the same stamp on its rc twin,
 because upstream publishes extensions under that version and never under the commit a `-dev` stamp looks in.
 Each is one commit on a verified one, moved by the loop when a newer alpha appears
 ([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
+**`<L>-land-dev` is a line on its way onto `main`**: the frozen `main` plus the series' vendor commits, unflavored,
+which `main` fast-forwards onto once CI has passed every one.
+`<L>-land-green` marks how far CI has passed it, starting at the frozen `main`.
+The pair exists only while a landing is in flight, and has no buffer, so the loop never serves it.
+`<L>-land-review`, in the canonical repository, is the landing without its engine,
+which a draft pull request shows for review and never merges
+([`series-land`](/.claude/skills/series-land/SKILL.md)).
 **The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
 and both counts stay linear by construction —
 `-green` is always an ancestor of `-dev`, and `-build-base` of `-build`:

@@ -83,7 +83,7 @@
 # frozen R side is not a frozen CI. The freeze is not a refusal, though: a fix
 # the build genuinely needs is picked by name, and --list shows the walk when
 # you are looking for one. Frozen is detected from the lineage under the seed,
-# not configured; see the seed check below.
+# or declared when a line parks on its own baseline; see the seed check below.
 #
 # A conflict stops the sequence in place and keeps the worktree: resolving it
 # is the routine's judgement. Continue the sequence there, push, and rerun
@@ -277,6 +277,28 @@ under=0
 frozen=
 [ "$under" != 0 ] && frozen=1
 
+# A line that parks when another one lands on `main` is the case the lineage
+# cannot see. Its seed sits on `main`'s own history, and `main` keeps that
+# history when it fast-forwards onto the new line
+# (.claude/skills/series-land/SKILL.md), so nothing under the seed is foreign
+# and the walk would offer the new line's R side as a backlog. The parking is
+# recorded where the badge table and the mirror rules already read it:
+# `releases_from` in `main`'s scripts/series.yaml, which names the line's own
+# baseline once it stops releasing from `main` (handbook/branches/mirrors/).
+# Read from `main` for the reason series-check.sh reads it there: a series'
+# tree lags `main` by whatever this stage has not ported yet.
+releases_from() { # <series> -> its `releases_from`, empty when undeclared
+  { git show "$main:scripts/series.yaml" 2>/dev/null || true; } |
+    awk -v s="$1" '
+      /^  - / { if (ser == s) print rf; ser = ""; rf = "" }
+      /^    series:/ { ser = $2 }
+      /^    releases_from:/ { rf = $2 }
+      END { if (ser == s) print rf }'
+}
+parked=$(releases_from "${S%-fwd}" | head -n 1)
+[ "$parked" != main ] || parked=''
+[ -z "$parked" ] || frozen=1
+
 # Files a version bump is allowed to carry and still be nothing but a bump:
 # DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
 # belong to the release strand, and neither is in the tooling set the sync
@@ -373,7 +395,7 @@ declare -A klass=()
 # is the cost the freeze exists to remove. --list asks for it anyway, which is
 # what to do when the series needs a fix `main` already has.
 if [ -n "$frozen" ] && [ -z "$list" ]; then
-  echo "$S: frozen — nothing is ported by default; tooling follows main." \
+  echo "$S: frozen${parked:+ (parked on $parked)}; nothing is ported by default, and tooling follows main." \
     "Name a fix the build needs with --apply <sha>, or --list to see candidates"
 else
   declare -A ported=()
