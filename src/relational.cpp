@@ -301,6 +301,11 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 		// Run all column checks at once
 		check_column_validity(col, col_name, convert_opts.strict_relational, convert_opts.timezone_out);
+		// Refused here as well as in the scan, whose error would reach R as JSON
+		auto error = RApiTypes::ArrayColumnError(col, col_name);
+		if (!error.empty()) {
+			stop("%s", error.c_str());
+		}
 	}
 
 	named_parameter_map_t other_params;

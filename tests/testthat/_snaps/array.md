@@ -37,3 +37,22 @@
       ! {"exception_type":"Invalid","exception_message":"std::exception"}
       i Context: rapi_register_df
 
+# a classed matrix as the first column is refused before its neighbour is read
+
+    Code
+      duckdb_register(con, "r", df)
+    Condition
+      Error:
+      ! Can't pass a matrix or array that carries a class to DuckDB. Affected column: `m` (class `Date`).
+      i Context: rapi_register_df
+
+# the environment scan refuses a matrix that carries a class
+
+    Code
+      dbGetQuery(con, "FROM df_classed")
+    Condition
+      Error in `dbSendQuery()`:
+      ! Invalid Input Error: Can't pass a matrix or array that carries a class to DuckDB. Affected column: `m` (class `Date`).
+      i Context: rapi_prepare
+      i Error type: INVALID_INPUT
+
