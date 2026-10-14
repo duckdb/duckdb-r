@@ -49,8 +49,9 @@ All three are deleted once `main` has taken the landing.
   That declaration is what keeps `main`'s new R side out of `<P>`'s series
   ([`scripts/series-port.sh`](/scripts/series-port.sh)),
   because its seed sits on `main`'s own history, which no lineage test can tell from a live line's.
-  It lands on `main` before the freeze, with `.github/pull.yml`'s rule for the baseline
-  (`scripts/pull-config.sh --check`) and the regenerated badge table.
+  It lands on `main` with `.github/pull.yml`'s rule for the baseline
+  (`scripts/pull-config.sh --check`) and the regenerated badge table,
+  before the freeze or as the first merge after the landing, so nothing with the new line's R side merges ahead of it.
 
 ## 1. Freeze `main`
 
