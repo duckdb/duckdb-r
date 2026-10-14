@@ -6,8 +6,8 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Sixteen
-# things are checked.
+# A forward series inherits only the first when its buffer is replayed.
+# Eighteen things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
 #      with that fix in the same commit -- not stacked above it -- carrying the
@@ -56,6 +56,10 @@
 #  17. A twin is looked up above the forward's green only: `main`'s history
 #      below the seed may vendor the same SHA, and its commit is not the fix
 #      the base series folded.
+#  18. A carry never stops a test the forward runs: a twin that deleted a test
+#      file or skipped a test for good leaves the forward's copy where it is,
+#      and the commit message says so, while an engine gate and a snapshot
+#      fold in the same twin carry as usual.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -101,7 +105,7 @@ git config commit.gpgsign false
 git remote add origin "$REMOTE"
 
 mkdir -p scripts src/duckdb src/include tests/testthat/_snaps R patch
-cp "$HERE/series-advance.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
+cp "$HERE/series-advance.sh" "$HERE/series-tests.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
 
@@ -307,6 +311,33 @@ git commit -qm 'chore(series): Sync tooling with main'
 git branch tsync-green tsync-dev
 git branch tsync-build-base "$TSYNC_V1"
 
+# --- a base whose rewind took tests away, and its forward (claim 18) --------
+# The seed runs three tests; the base twin of the one buffer commit deletes the
+# first, skips the second for good, gates the third and folds a snapshot, as a
+# rewind did on `v2.0-cyanoptera-fwd`.
+git checkout -q -b loss-seed base-seed
+for t in gone skip gate; do
+  printf 'test_that("%s", {\n  expect_true(TRUE)\n})\n' "$t" > "tests/testthat/test-$t.R"
+done
+git add -A
+git commit -qm 'test: Three tests main runs'
+git checkout -q -b loss-build loss-seed
+bvendor ace1111 1.0.0.9000.1 o.cpp
+git checkout -q -b loss-dev loss-seed
+bvendor ace1111 1.0.0.9000.1 o.cpp
+git rm -q tests/testthat/test-gone.R
+printf 'test_that("skip", {\n  skip_on_cran()\n  expect_true(TRUE)\n})\n' > tests/testthat/test-skip.R
+printf 'test_that("gate", {\n  skip_if_engine_before("9.9.9-dev1", "not yet")\n  expect_true(TRUE)\n})\n' \
+  > tests/testthat/test-gate.R
+echo 'snapshot one, as ace1111 renders it' > tests/testthat/_snaps/sql.md
+amend 'Rewound: test-gone.R removed, test-skip.R skipped, test-gate.R gated.'
+git branch loss-green loss-dev
+git branch loss-build-base loss-build
+git branch loss-fwd-build loss-build
+git branch loss-fwd-build-base loss-build
+git branch loss-fwd-dev loss-seed
+git branch loss-fwd-green loss-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like. The `red`
 # series is the one case that needs real records, so it gets two.
@@ -331,7 +362,9 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   dup-build dup-dev dup-green dup-build-base \
   red-build red-dev red-green red-build-base \
   tsync-build tsync-dev tsync-green tsync-build-base \
-  emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
+  emptyres-build emptyres-dev emptyres-green emptyres-build-base \
+  loss-build loss-dev loss-green loss-build-base \
+  loss-fwd-build loss-fwd-dev loss-fwd-green loss-fwd-build-base rcc2
 git fetch -q origin
 
 # A canonical remote, because `red` is the one series here whose green moves,
@@ -634,6 +667,22 @@ has "the vendor commit above the sync is consumed" \
   "$(git log -1 --format=%s origin/tsync-dev)" 'duckdb@ggg2222'
 is "and the sync itself never reaches -dev" \
   "$(git log --format=%s origin/tsync-green..origin/tsync-dev | grep -c 'Sync buffer tooling' || true)" 0
+
+echo
+echo "== a carry that would stop a test the forward runs"
+out=$(run loss-fwd)
+[ -z "${KEEP:-}" ] || echo "$out"
+git fetch -q origin
+L=$(at loss-fwd ace1111)
+has "the chunk completes" "$out" 'EXIT=0'
+has "it names what it kept" "$out" 'kept tests/testthat/test-gone.R'
+is "a deleted test is still there" "$(git show "$L:tests/testthat/test-gone.R" | head -n 1)" 'test_that("gone", {'
+hasnt "a test skipped for good is not skipped" "$(git show "$L:tests/testthat/test-skip.R")" 'skip_on_cran'
+has "a gated test carries its gate" "$(git show "$L:tests/testthat/test-gate.R")" 'skip_if_engine_before("9.9.9-dev1"'
+is "and the snapshot fold carries" "$(git show "$L:tests/testthat/_snaps/sql.md")" 'snapshot one, as ace1111 renders it'
+has "the message says what was not carried" "$(git log -1 --format=%B "$L")" \
+  'Not carried, because it would stop a test this series runs:'
+has "naming the path" "$(git log -1 --format=%B "$L")" "\`tests/testthat/test-skip.R\`"
 
 echo
 echo "$pass passed, $fail failed"

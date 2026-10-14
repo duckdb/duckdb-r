@@ -35,6 +35,15 @@
 # Carried glue is reported as it goes, because glue the base `-dev` has and the
 # base `-build` lacks is buffer drift and wants mirroring there.
 #
+# **A carry never stops a test the forward runs.** A twin folded at a rewind may
+# delete a test or skip one for good, where its engine could not pass it, and
+# the base's restore of it, if any, is a commit of its own that no carry finds:
+# `v2.0-cyanoptera-fwd` took `tests/testthat/test-variant.R`'s deletion this way
+# and never its restore (duckdb/duckdb-r#2899). So a path under `tests/` whose
+# carry would take a test away keeps what the forward has, read by
+# scripts/series-tests.sh, and is named in the commit message; an engine gate,
+# which re-arms its test by itself, carries like any fix.
+#
 # **This stage is attended.** A carry the series has moved out from under stops
 # the run with the conflict in a worktree that is kept, because resolving it is
 # judgement and guessing costs a wrong commit on a chain CI is about to judge.
@@ -702,7 +711,7 @@ else
   # commit's own vendor message extended with what was adapted, so taking it
   # keeps the prose with the change it explains.
   apply_carry() { # <worktree> <buffer commit> <twin>
-    local wt=$1 c=$2 d=$3 paths patch
+    local wt=$1 c=$2 d=$3 paths patch tpaths=() kept=() p out st=0
     mapfile -t paths < <(carry_paths "$c" "$d")
     [ ${#paths[@]} -gt 0 ] || return 0
     patch=$wt/.series-advance-carry.patch
@@ -713,6 +722,28 @@ else
       stop "$wt" "$c" "$d" carry
     fi
     rm -f "$patch"
+    # A carry never takes a test away (handbook/operations/vendoring/series-loop/).
+    # The twin may have deleted a test file or a `test_that()` block, or skipped
+    # one for good, because its engine at a rewind asked for that; the loss
+    # travels with its vendor commit, and the base's later restore, a commit of
+    # its own, does not. So a path under `tests/` whose carry would stop a test
+    # this commit runs keeps what this commit has, an engine gate being the one
+    # skip that carries, and CI judges the commit: a red there is gated in stage 2.
+    mapfile -t tpaths < <(printf '%s\n' "${paths[@]}" | grep '^tests/' || true)
+    if [ ${#tpaths[@]} -gt 0 ]; then
+      out=$("$(dirname "$0")/series-tests.sh" "$(git -C "$wt" rev-parse HEAD)" \
+        "$(git -C "$wt" write-tree)" --porcelain -- "${tpaths[@]}") || st=$?
+      if [ "$st" -gt 1 ]; then
+        echo "Error: $S: could not read what the carry does to the tests" >&2
+        stop "$wt" "$c" "$d" carry
+      fi
+      mapfile -t kept < <(awk -F'\t' '$1 ~ /^(deleted|block|snapshot|skip)$/ { print $2 }' <<<"$out" | sort -u)
+      for p in ${kept+"${kept[@]}"}; do
+        git -C "$wt" checkout -q HEAD -- "$p"
+        echo "  kept $p as $(git -C "$wt" rev-parse --short HEAD) has it: the carry from" \
+          "$(git rev-parse --short "$d") would stop a test there"
+      done
+    fi
     if printf '%s\n' "${paths[@]}" | grep -qE '^src/'; then
       carry_glue_gate "$wt" "$c" "$d"
     fi
@@ -721,6 +752,10 @@ else
       echo "Carried from \`$base_dev\` at $(git rev-parse --short "$d"):"
       echo "the test-side fix folded there for this same upstream commit,"
       echo "so the forward starts from what the base series proved."
+      if [ ${#kept[@]} -gt 0 ]; then
+        echo "Not carried, because it would stop a test this series runs:"
+        for p in "${kept[@]}"; do echo "\`$p\`"; done
+      fi
     } > "$wt/.series-advance-msg"
     git -C "$wt" commit -q --amend --no-verify \
       --author="$(git log -1 --format='%an <%ae>' "$d")" -F "$wt/.series-advance-msg"
