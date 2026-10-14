@@ -146,12 +146,25 @@ Fix it on the series and realign its rc strand; a rerun follows the strand from 
 Nothing is pushed until the check passes.
 Two things the check cannot see are reported beside it:
 
-* **files the landing deletes from `main`** outside the vendored strand, which the series lacks too.
-  Each is a test or a file the series lost on the way; restore it on the series before pushing.
+* **files the landing deletes from `main`** outside the vendored strand and the tests, which the series lacks too.
+  Each is a file the series lost on the way; restore it on the series before pushing.
 * **resolutions rerere replayed**, named when the check fails.
   A wrong one is replayed as faithfully as a right one:
   rebuild with `--abort` and then `--attended`, which stops at every conflict with rerere's answer unstaged,
   and drop the wrong one there with `git rerere forget <path>`.
+
+**The tests are held to the base's, and the push waits for them.**
+The tree check compares the landing with the series, so a test the series stopped running passes it.
+[`scripts/series-tests.sh`](/scripts/series-tests.sh) compares the landing's tests with its base's,
+the frozen `main` and any tests pinned above it,
+and the build refuses to push while one is lost:
+a deleted file, block or snapshot entry, a skip the base does not make, or an engine gate, live or expired.
+Restore each on the series in the vendor commit that took it, or take a gate out at the commit whose engine it names,
+then realign the rc strand and rerun ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+What a test expects may differ, and the report lists every such path with the commits that moved it,
+marking one that a rewind changed and nothing put back.
+A test that `main`'s engine passes and the new line's cannot is not the landing's to decide:
+it is adapted in the base, written to hold on both engines, and ported to the series like any pinned test.
 
 Committer dates are pinned to the frozen `main`'s, so a rebuild from the same inputs mints the same SHAs
 and CI does not judge a commit twice.
@@ -166,6 +179,9 @@ scripts/series-land.sh <S> --remote origin --canonical upstream --review --push
 gh pr create --repo duckdb/duckdb-r --draft --base main --head <L>-land-review \
   --title "Review: the R side of the <L> landing"
 ```
+
+The run prints the build's test report as well; it belongs in the pull request's description,
+because it is the one place a reviewer reads every test change the landing makes at once.
 
 `<L>-land-review` is the frozen `main`, one commit that removes every workflow,
 and one commit for each landing commit that changes anything outside the vendored strand,

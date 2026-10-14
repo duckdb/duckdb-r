@@ -80,6 +80,7 @@ to do, and they run in this order:
   glue, each otherwise a red costing a repair plus a replay of
   everything above it
   ([`experiments/2026-08-09-series-carry-scope/`](/experiments/2026-08-09-series-carry-scope/README.md)).
+  A test the twin stopped running stays as the forward has it, because a series never stops a test `main` runs.
   This stage is **attended**: a carry the series has moved out from
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
@@ -133,6 +134,24 @@ a vendor diff taken after the entry landed is neutral in the region it
 touched, so it applies to a tree that lacks it.
 The tooling delta nothing reports, and nothing needs to:
 the port stage brings it back on the next firing.
+
+**A series never stops a test `main` runs.**
+Its tests are `main`'s, arrived by port, and an engine change may alter what one expects: a snapshot redrawn, an error worded anew.
+What it may not do is take one away, by deleting a file or a block or by adding a skip `main` does not make.
+Such a change travels in the vendor commit it was folded into, through every forward's carry and into a landing.
+A restore made later as a commit of its own travels with none of them, because they take vendor commits only.
+That is how `tests/testthat/test-variant.R` left `v2.0-cyanoptera-fwd` at the mainline rewind while its base restored it in `f71f91a176`.
+It reached the landing review beside four tests skipped from `2.0.0-dev84770` on, with no version to end the skip
+([#2899](https://github.com/duckdb/duckdb-r/pull/2899)).
+An engine older than the tests, which a rewind's always is, gets a gate instead.
+`skip_if_engine_before()` in [`helper-skip.R`](/tests/testthat/helper-skip.R) names the engine that brings the behaviour back.
+The test runs again there by itself, with nothing left for a replay to lose
+([`series-loop`](/.claude/skills/series-loop/SKILL.md), stage 2).
+[`scripts/series-tests.sh`](/scripts/series-tests.sh) reads what a tree takes from `main`'s tests, and three places act on it:
+
+* stage 5's carry leaves a test where it is rather than take it away;
+* `series-check.sh` names one that a vendor commit took, on every firing;
+* a landing refuses to push one, an expired gate included ([`series-land`](/.claude/skills/series-land/SKILL.md)).
 
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints each
 series' verdict read-only and is always safe to run
