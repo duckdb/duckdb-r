@@ -214,6 +214,22 @@ So a writer of its own would build the same memory that these calls reach withou
 Measured on data.table 1.18.6.1, collapse 2.1.8 and the development version of polars from r-universe, not its release
 ([`experiments/2026-09-28-frame-libraries/`](/experiments/2026-09-28-frame-libraries/README.md)).
 
+Polars is also the frame library
+[#98](https://github.com/duckdb/duckdb-r/issues/98) names for the inbound direction.
+Nothing here registers it:
+`duckdb_register()` takes a data frame,
+and `duckdb_register_arrow()` takes what the `arrow` package owns.
+It is reachable all the same,
+because polars implements `as_nanoarrow_array_stream()` for its eager
+and lazy frames,
+and the closures the registration seam takes are ordinary R functions —
+which is also how a `LazyFrame` can be handed the filter DuckDB pushes
+down
+([`experiments/2026-08-08-polars-source/`](/experiments/2026-08-08-polars-source/README.md)).
+Making that an interface rather than a trick is
+[`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md);
+polars not being on CRAN is what keeps it from being a method here.
+
 ## ADBC
 
 `duckdb_adbc()` ([`R/Driver.R`](/R/Driver.R)) hands the engine to
