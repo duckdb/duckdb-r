@@ -114,7 +114,8 @@ test_that("mock observer hooray", {
     connectionObserver = mock,
     duckdb.force_rstudio_connection_pane = TRUE
   )
-  con <- local_con()
+  # Closed by hand to observe the close, so not a local_con().
+  con <- dbConnect(duckdb())
   expect_true(called_connection_opened)
 
   dbWriteTable(con, "mtcars", mtcars)
