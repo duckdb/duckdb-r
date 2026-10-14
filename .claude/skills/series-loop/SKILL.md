@@ -65,6 +65,8 @@ it is the unflavored mirror of `<S>-dev`, derived commit for commit
 ([`series-rc/SKILL.md`](series-rc)).
 Nor are `<S>-alpha` and `<S>-rc-alpha`, each one stamp commit on a green commit or its rc twin
 ([`series-alpha/SKILL.md`](series-alpha)).
+Nor is `<L>-land-dev` with its `<L>-land-green`, a line on its way onto `main`
+([`series-land/SKILL.md`](series-land)).
 
 **All four refs exist from day one, equal, and green contains the flavor
 change.**
@@ -1007,6 +1009,9 @@ which belongs to another engine's R side,
 is not a backlog it is behind on.
 `scripts/series-port.sh` reads that off the lineage under the seed
 and skips the walk for such a series,
+and does the same for a line `main`'s `scripts/series.yaml` declares parked on its own baseline,
+which is how a line parks when another lands on `main` ([`series-land/SKILL.md`](series-land)):
+its seed sits on `main`'s own history, where the lineage cannot see the difference,
 so the sync commit is their whole default port
 and their tooling still follows `main`:
 a frozen R side is not a frozen CI,

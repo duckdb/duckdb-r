@@ -148,5 +148,52 @@ hasnt "the fallback offers only what the mirror has" "$out_fork" 'A commit the m
 has "and still offers what it does have" "$out_fork" 'An ordinary commit the series lacks'
 
 echo
+echo "series-port.sh: a line parked in \`main\`'s declaration"
+# The series is seeded on `main`, so its lineage says it is not frozen, and a
+# line parked by a landing is in exactly that shape: `main` keeps the history
+# its seed sits on. The declaration is what says it parked.
+git checkout -q main
+cat > scripts/series.yaml <<'EOF'
+flavors:
+  - flavor: duckdb.test
+    kind: dev
+    series: s
+    releases_from: s-baseline
+    publishes_from: s-green
+
+  - flavor: duckdb.other
+    kind: dev
+    series: other
+    releases_from: main
+    publishes_from: other-green
+EOF
+git add scripts/series.yaml
+git commit -qm 'chore: Park the line of series s'
+git push -q upstream main
+git checkout -q s-dev
+out_parked=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_parked"
+has "a parked line is frozen" "$out_parked" "s: frozen (parked on s-baseline)"
+hasnt "and offers no R-side commit" "$out_parked" 'An ordinary commit the series lacks'
+
+# Its forward is the same line, parked with it.
+git push -q origin s-dev:refs/heads/s-fwd-dev
+out_fwd=$(scripts/series-port.sh s-fwd 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_fwd"
+has "and so is its forward" "$out_fwd" "s-fwd: frozen (parked on s-baseline)"
+
+# A line declared on `main` is live, and says nothing about parking.
+git checkout -q main
+sed -i 's/releases_from: s-baseline/releases_from: main/' scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Release the line of series s from main again'
+git push -q upstream main
+git checkout -q s-dev
+out_live=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_live"
+hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
+has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
+
+echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

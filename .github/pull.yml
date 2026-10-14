@@ -52,3 +52,10 @@ rules:
     upstream: duckdb:v1.4-andium-lts
     mergeMethod: hardreset
     mergeUnstable: true
+
+  # The line `main` released before v2.0 landed there: its baseline is the
+  # base of the `duckdb.1.5.dev` badge, and what that series seeds from.
+  - base: v1.5-variegata
+    upstream: duckdb:v1.5-variegata
+    mergeMethod: hardreset
+    mergeUnstable: true
