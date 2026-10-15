@@ -57,6 +57,7 @@ git rebase --onto main "$(git merge-base main <old-dev-seed>)"
 
 git rebase --onto seed <old-dev-seed>   <S>-fwd-dev
 git rebase --onto seed <old-build-seed> <S>-fwd-build
+git rebase --onto seed <old-build-seed> <S>-fwd-vendor   # where the forward wrote one
 ```
 
 `-fwd-green` and `-fwd-build-base` carry no commits of their own;

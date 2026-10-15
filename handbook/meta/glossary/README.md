@@ -64,6 +64,7 @@ and are not repeated here; this page holds this repository's own.
 * **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
 * **twin** — the commit on another ref that vendors the same upstream SHA, matched by subject ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
+* **vendor strand** (`-fwd-vendor`) — a forward's replay of the old `-build` onto its seed: pure vendoring on the new base, read against `-fwd-build` to see what `-dev` taught ([`branches/model/`](/handbook/branches/model/README.md)).
 * **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 * **verdict store** / **`rcc2` branch** — the orphan branch holding each commit's build verdict and log, one file per commit, and what per-commit CI selects its work from ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Its predecessor `rcc` is retired, and kept whole in the archive.
 * **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).

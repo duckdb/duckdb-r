@@ -22,14 +22,25 @@
 # What is printed for each is the commit's own change to those paths,
 # `git diff <commit>^ <commit> -- <paths>`, as a stat, or in full with --diff.
 #
+# On a forward, the same question is asked of the new base: `<S>-fwd-build` is
+# the replay of `-dev`, and `<S>-fwd-vendor` the replay of `-build` onto the same
+# seed, pure vendoring's diffs on today's `main` (handbook/branches/model/README.md).
+# `--vendor` reads `-build` against `-vendor` instead of `-dev` against `-build`,
+# which is what the forward carries beyond pure vendoring, commit by commit,
+# after `main`'s delta and the replay's adaptations have met it. That is the
+# report a correction to the forward's buffer is judged from
+# (.claude/skills/series-forward/SKILL.md).
+#
 # **Read-only.** It writes no ref, makes no commit, and touches no worktree.
 #
-# Usage: series-learned.sh <series> [--remote <name>] [--since <ref>] [--diff]
-#   <series>  the series, `v2.0-cyanoptera`; its `-dev` and `-build` are read
-#   --since   the commit the walk of `-dev` starts above; the series' seed by
-#             default, `chore: Add fifth version component`, and where a cut
-#             series has none, its merge base with `main`
+# Usage: series-learned.sh <series> [--remote <name>] [--since <ref>] [--diff] [--vendor]
+#   <series>  the series, `v2.0-cyanoptera`; its `-dev` and `-build` are read,
+#             or with --vendor its `-build` and `-vendor`, `v2.0-cyanoptera-fwd`
+#   --since   the commit the walk starts above; the series' seed by default,
+#             `chore: Add fifth version component`, and where a cut series has
+#             none, its merge base with `main`
 #   --diff    print each commit's learned change in full, not as a stat
+#   --vendor  read `<S>-build` against `<S>-vendor`
 #
 # --remote is spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
@@ -38,17 +49,19 @@
 
 set -euo pipefail
 
-usage='usage: series-learned.sh <series> [--remote <name>] [--since <ref>] [--diff]'
+usage='usage: series-learned.sh <series> [--remote <name>] [--since <ref>] [--diff] [--vendor]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
 since=''
 full=''
+upper=dev lower=build
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --since) [ $# -ge 2 ] || argerr; since=$2; shift 2 ;;
     --diff) full=1; shift ;;
+    --vendor) upper=build lower=vendor; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -56,8 +69,10 @@ while [ $# -gt 0 ]; do
 done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
-dev="$remote/$S-dev"
-build="$remote/$S-build"
+# The strand that learned, and the one it learned beyond: `-dev` over `-build`,
+# or on a forward with --vendor, `-build` over `-vendor`.
+dev="$remote/$S-$upper"
+build="$remote/$S-$lower"
 
 for r in "$dev" "$build"; do
   git rev-parse -q --verify "$r^{commit}" >/dev/null || {
@@ -69,7 +84,7 @@ done
 if [ -z "$since" ]; then
   since=$(git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 "$dev")
   [ -n "$since" ] || since=$(git merge-base "$dev" "$remote/main" 2>/dev/null || true)
-  [ -n "$since" ] || { echo "Error: $S-dev has no seed and no merge base with $remote/main; pass --since" >&2; exit 2; }
+  [ -n "$since" ] || { echo "Error: $S-$upper has no seed and no merge base with $remote/main; pass --since" >&2; exit 2; }
 fi
 git rev-parse -q --verify "$since^{commit}" >/dev/null || { echo "Error: --since $since is not a commit" >&2; exit 2; }
 
@@ -98,7 +113,7 @@ learned_paths() { # <dev commit> <build twin>
     done
 }
 
-echo "=== what $S-dev learned beyond $S-build, above $(git rev-parse --short "$since")"
+echo "=== what $S-$upper learned beyond $S-$lower, above $(git rev-parse --short "$since")"
 echo
 total=0 learned=0 untwinned=0
 declare -A FILES=()
@@ -109,7 +124,7 @@ while IFS=$'\t' read -r d subj; do
   c=${TWIN[$sha]:-}
   if [ -z "$c" ]; then
     untwinned=$((untwinned + 1))
-    echo "--- $(git rev-parse --short "$d")  duckdb/duckdb@${sha:0:10}: no twin on $S-build"
+    echo "--- $(git rev-parse --short "$d")  duckdb/duckdb@${sha:0:10}: no twin on $S-$lower"
     echo
     continue
   fi
@@ -132,7 +147,7 @@ while IFS=$'\t' read -r d subj; do
 done < <(git log --reverse --first-parent --format='%H%x09%s' "$since..$dev")
 
 echo "$learned of $total vendor commit(s) learned something beyond the buffer" \
-  "${untwinned:+; $untwinned with no twin on $S-build}" | sed 's/ ;/;/'
+  "${untwinned:+; $untwinned with no twin on $S-$lower}" | sed 's/ ;/;/'
 if [ ${#FILES[@]} -gt 0 ]; then
   echo
   echo "files, by how often a commit learned something in them:"

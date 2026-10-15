@@ -3,8 +3,8 @@
 # human to run.
 #
 # A cutover swaps the four `<S>-fwd-*` refs into the series' place and then
-# deletes them, together with the forward's derived strands, its retry ledger
-# and the forward green's copy in the canonical repository
+# deletes them, together with the forward's vendor strand, its derived strands,
+# its retry ledger and the forward green's copy in the canonical repository
 # (scripts/series-cutover.sh). The deletions are best effort: a git proxy may
 # refuse them, a run may be interrupted after the swap, and an older cutover
 # predates the derived strands. What stays is cutover litter -- refs whose tips
@@ -17,9 +17,10 @@
 # is live, and nothing of it is offered. Where no `<S>-fwd-dev` exists at all,
 # every remaining `<S>-fwd-*` ref and the ledger are litter by definition.
 #
-# Nothing here is lost by deletion: the replaced lineages are the heads of the
-# closed archive pull requests the cutover opened, the forward's tips are the
-# series' refs, and the derived strands are recomputed from `<S>-dev`
+# Nothing here is lost by deletion: the replaced lineages and the vendor strand
+# are the heads of the closed archive pull requests the cutover opened, the
+# forward's tips are the series' refs, and the derived strands are recomputed
+# from `<S>-dev`
 # (scripts/series-rc.sh, scripts/series-alpha.sh). Nothing here deletes
 # anything either: the commands are printed, and a human runs them.
 #
@@ -67,7 +68,7 @@ fi
 
 echo "=== $S on $remote: green $(git rev-parse --short "refs/remotes/$remote/$S-green")"
 fwd_refs=()
-for r in build dev green build-base rc-dev alpha rc-alpha; do
+for r in build dev green build-base vendor rc-dev alpha rc-alpha; do
   have "$remote" "$S-fwd-$r" && fwd_refs+=("$S-fwd-$r")
 done
 have "$remote" "retry-$S-fwd-dev" && fwd_refs+=("retry-$S-fwd-dev")

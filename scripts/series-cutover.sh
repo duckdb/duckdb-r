@@ -14,7 +14,9 @@
 # `<S>-dev` (green is on it) and `<S>-build` (build-base is on it) in the fork,
 # and the copy of `<S>-green` in the canonical repository -- is the head of a
 # draft pull request opened and closed on the spot, against the forward ref
-# that takes its place. GitHub keeps a pull request's head as `refs/pull/<n>/head`
+# that takes its place; so is `<S>-fwd-vendor`, the forward's replay of the old
+# buffer (handbook/branches/model/README.md), which the cleanup deletes and
+# nothing else reaches. GitHub keeps a pull request's head as `refs/pull/<n>/head`
 # for as long as the pull request exists, closed or not, so the commits stay
 # reachable and the pull request is where to find them; nothing is merged, and
 # the deletion of the `-fwd` refs afterwards loses nothing, because their tips
@@ -425,6 +427,11 @@ if [ -n "$archive" ]; then
     done
     [ -n "$covered" ] || { kept+=("$r"); archives+=("$remote $S-$r $S-fwd-$r"); }
   done
+  # The vendor strand is the forward's own and goes with its refs; its history
+  # is the replay of the old buffer, kept against the forward's buffer.
+  if git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-vendor" >/dev/null; then
+    archives+=("$remote $S-fwd-vendor $S-fwd-build")
+  fi
   if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
     git rev-parse -q --verify "refs/remotes/$canonical/$S-green" >/dev/null; then
     if git rev-parse -q --verify "refs/remotes/$canonical/$S-fwd-green" >/dev/null; then
@@ -450,11 +457,11 @@ fi
 echo
 
 # The cleanup the swap leaves: the forward's refs, whose tips are the series'
-# now, its derived strands and retry ledger, and the forward green's copy in the
-# canonical repository. scripts/series-prune.sh lists whatever this could not
-# delete.
+# now, its vendor strand, its derived strands and retry ledger, and the forward
+# green's copy in the canonical repository. scripts/series-prune.sh lists
+# whatever this could not delete.
 leftovers=()
-for r in build dev green build-base rc-dev alpha rc-alpha; do
+for r in build dev green build-base vendor rc-dev alpha rc-alpha; do
   git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-$r" >/dev/null && leftovers+=("$S-fwd-$r")
 done
 git rev-parse -q --verify "refs/remotes/$remote/retry-$S-fwd-dev" >/dev/null && leftovers+=("retry-$S-fwd-dev")
