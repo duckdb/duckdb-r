@@ -62,11 +62,11 @@ that is cutover litter pending deletion
 (the base moves on after cutover, so equality cannot be the test).
 `<S>-rc-dev` has no `-build` beside it and is not a series of its own:
 it is the unflavored mirror of `<S>-dev`, derived commit for commit
-([`series-rc/SKILL.md`](series-rc)).
+([`series-rc/SKILL.md`](/.claude/skills/series-rc/SKILL.md)).
 Nor are `<S>-alpha` and `<S>-rc-alpha`, each one stamp commit on a green commit or its rc twin
-([`series-alpha/SKILL.md`](series-alpha)).
+([`series-alpha/SKILL.md`](/.claude/skills/series-alpha/SKILL.md)).
 Nor is `<L>-land-dev` with its `<L>-land-green`, a line on its way onto `main`
-([`series-land/SKILL.md`](series-land)).
+([`series-land/SKILL.md`](/.claude/skills/series-land/SKILL.md)).
 
 **All four refs exist from day one, equal, and green contains the flavor
 change.**
@@ -92,7 +92,8 @@ every walk below is bounded by `<S>-green`, from the first firing on.
 
 Set up first, then work through the stages in order;
 each stage is skippable when it has nothing to do, the setup is not.
-Six scripts carry the mechanical parts:
+The scripts carry the mechanical parts, and [`scripts/README.md`](/scripts/README.md) indexes every one;
+the ones a firing runs or reads on every pass:
 `scripts/series-check.sh`
 (read-only — walks every series, classifies from the `rcc2` store,
 which is stage 2's fallback source, not its first one;
@@ -241,8 +242,9 @@ VENDOR_REPO=<S>-build-worktree \
 The script reads it as the walk's right-hand side and nothing else names one;
 a clone left wherever the last session parked it
 vendors that branch onto this series' buffer.
-`main`, `v1.5-variegata` and `v1.4-andium` each track
-the `duckdb/duckdb` branch of the same name (`BRANCHES.md`).
+Every line tracks the `duckdb/duckdb` branch of its own name,
+and its forward tracks the same branch
+([`branches/model/`](/handbook/branches/model/README.md)).
 The script refuses when the buffer's last vendored commit
 is off the clone HEAD's first-parent line,
 which is the shape a wrong ref takes;
@@ -488,7 +490,7 @@ Do not delete the file or the block, rewrite what it expects, or skip it with no
 each travels with its vendor commit into every forward and landing, and a later restore does not
 ([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 Where the series already holds the commit at that version, take the gate out there in the same pass,
-as a glue rewind is paired with its restore ([`series-forward`](series-forward)).
+as a glue rewind is paired with its restore ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 A gate whose removal never comes is inert, and a landing asks for it then.
 `series-check.sh` prints a `TESTS` line for a series whose vendor commit stopped a test `main` runs.
 That is this stage's work as much as a red is: restore each in the commit that took it, gating it where that engine cannot pass it.
@@ -520,14 +522,12 @@ Both treatments, and how to choose, are spelt out in
 
 Before force-pushing a repair,
 **build and check it locally** at the repaired commit
-with `scripts/rcc-one.sh` (#59) —
+with `scripts/rcc-one.sh` —
 the per-commit gate extracted from CI's `rcc-smoke`,
 so the local verdict is CI's verdict, not an approximation of it.
 Run the full gate when time allows,
 or the stages the repair touches when it does not;
 `git clean -fdx -- src/` first either way.
-(Until #59 is available:
-`R CMD INSTALL` plus `testthat::test_local()`.)
 A CI round trip costs ~35 minutes plus queue;
 a local pass costs ~10.
 One local pass that catches a bad repair saves a full cycle,
@@ -1037,7 +1037,7 @@ is not a backlog it is behind on.
 `scripts/series-port.sh` reads that off the lineage under the seed
 and skips the walk for such a series,
 and does the same for a line `main`'s `scripts/series.yaml` declares parked on its own baseline,
-which is how a line parks when another lands on `main` ([`series-land/SKILL.md`](series-land)):
+which is how a line parks when another lands on `main` ([`series-land/SKILL.md`](/.claude/skills/series-land/SKILL.md)):
 its seed sits on `main`'s own history, where the lineage cannot see the difference,
 so the sync commit is their whole default port
 and their tooling still follows `main`:
@@ -1112,7 +1112,7 @@ A commit that has not been judged yet is not a reason to hold the buffer:
 the budget is 100 and the buffer is rarely near it,
 so waiting for a full CI cycle before topping it up
 costs a cycle per firing and buys nothing —
-`each.yaml` plans every commit in `<S>-green..tip` without a status,
+`each.yaml` plans every commit in `<S>-green..tip` without a verdict,
 so a longer tip is simply more work planned in the same pass.
 
 A **known failure** does stop the stage.
@@ -1271,14 +1271,14 @@ just fills the fallback copy behind it.
 A series with an `<S>-rc-dev` gets `scripts/series-rc.sh <S> --push`
 after every write this firing made to `<S>-dev`, here or in stages 2 and 4,
 so the unflavored strand never lags the one it mirrors
-([`series-rc/SKILL.md`](series-rc)).
+([`series-rc/SKILL.md`](/.claude/skills/series-rc/SKILL.md)).
 Its own reds are not repaired on the rc strand:
 a fix goes to `<S>`, and the next realignment carries it.
 
 **Then realign the alpha strand.**
 A series with an `<S>-alpha` gets `scripts/series-alpha.sh <S> --push` on every firing, after its rc strand,
 because it moves when upstream publishes an alpha as well as when `<S>-green` does
-([`series-alpha/SKILL.md`](series-alpha)).
+([`series-alpha/SKILL.md`](/.claude/skills/series-alpha/SKILL.md)).
 An alpha whose commit green has not vendored yet writes nothing, and one with a gap in its extensions stops the script;
 both go into the report, and neither is repaired here.
 
@@ -1435,7 +1435,8 @@ If an open PR already covers the cause,
 two PRs for one cause split the review
 and neither one carries the whole case.
 If it has been open across several firings, say so in the report —
-§5's health signal is workarounds per month,
+the tooling-fix loop's health signal is workarounds per month
+([`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md), §5),
 and a fix waiting for review is a workaround that keeps being paid.
 Never merge one yourself to get past it.
 
@@ -1575,7 +1576,7 @@ so the commit needs judging again, not repairing.
 
 Amending does rerun it —
 the fresh committer timestamp alone mints a new SHA,
-and `each.yaml` schedules runs for commits without a status —
+and `each.yaml` schedules runs for commits without a verdict —
 but it re-mints every descendant with it.
 The `pkgdown` flake this was written for sat 22 green commits
 below the `main-fwd-dev` tip:
@@ -1602,13 +1603,13 @@ The rerun writes a fresh `rcc` status on the **same SHA**.
 **The tip is what is being asked about.**
 Only it is replanned in spite of its verdict;
 the rest of `<S>-green..tip` keeps the ordinary
-build-it-if-it-has-no-status rule,
+build-it-if-it-has-no-verdict rule,
 so a run lost further down the range comes back in the same pass.
 A retry branch naming a series with no green plans nothing at all:
 without the anchor the scan falls back to
 first-parent history since `SINCE`,
 which reaches past the seed into `main`,
-where no commit carries an `rcc` status —
+where no commit carries an `rcc` verdict —
 14 of them, for the failure this was written for,
 every one queued as a build.
 
@@ -1678,9 +1679,8 @@ is what carries the automatic path into a forward series.
   but an uncommitted *new* file under `src/` would be deleted;
   commit or stage it first.
 - **clang-format must be clean.**
-  The per-commit runs are `workflow_dispatch`;
-  `.github/workflows/commit/action.yml` turns any diff
-  from the style, roxygenize or snapshot steps into `exit 1`.
+  The per-commit gate's `clean` stage (`scripts/rcc-one.sh`) turns any diff
+  from the style, roxygenize or snapshot steps into a failure.
   One unsorted `#include` once turned 858 commits red;
   no local build shows it.
 - **Never `git reset --hard` while HEAD is on a branch you keep** —
