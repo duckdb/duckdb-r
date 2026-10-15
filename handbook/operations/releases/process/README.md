@@ -292,7 +292,8 @@ coordinate at the **cluster** level:
 * **CUT runs per line, pipelined, CRAN line first.**
   Submit the CRAN line early because its acceptance is asynchronous;
   the r-universe-only LTS line finishes alongside with no CRAN tail.
-* **The preview line** — the one tracking upstream `main` —
+* **A line on its way onto `main`** — the release-branch series whose line `main` releases next,
+  having previewed it while it tracked upstream `main` —
   lives in a long-running TRACK/STABILIZE:
   its STABILIZE *is* the upstream release-candidate window.
   Its CUT is a **landing**: `main` fast-forwards onto the series' vendor commits,
@@ -303,7 +304,7 @@ coordinate at the **cluster** level:
   ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)),
   and the series never descends from today's `main`, whose later work it took as ports,
   so a fast-forward onto the series itself is not available.
-  Either way the durations differ from an ordinary line's and the machine does
+  The durations differ from an ordinary line's and the machine does
   not, and the one other addition is that vendor-coupled glue may be *born* on
   the line's `<S>-dev`, the documented exception to R-side work being born on
   `main`.

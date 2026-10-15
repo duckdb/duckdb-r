@@ -140,7 +140,7 @@ The pair exists only while a landing is in flight, and has no buffer, so the loo
 which a draft pull request shows for review and never merges
 ([`series-land`](/.claude/skills/series-land/SKILL.md)).
 **`retry-<S>-dev` is the rerun ledger**: pushed at one commit of `<S>-dev` to have it judged again on its own SHA,
-one per series, and never deleted
+one per series, and never deleted while its series serves; a forward's goes with the forward's refs at the cutover
 ([`series-loop`](/.claude/skills/series-loop/SKILL.md), *Rerun one commit*).
 **The badges in the root [`README.md`](/README.md) count the gaps between these refs**,
 and both counts stay linear by construction —

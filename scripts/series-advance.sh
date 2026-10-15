@@ -487,6 +487,22 @@ fi
 # builds the canonical copy, so what it published was a commit behind with it.
 # An already-equal push is a no-op that says so, which is the cheapest possible
 # way to keep asking the question.
+#
+# A base green travels as a plain push, fast-forward only. A forward's green is
+# a WIP ref that a rebase resets to a new seed (.claude/skills/series-rebase/SKILL.md),
+# and nothing publishes its copy, so that copy follows under a lease on what the
+# canonical repository held when this run read it: never silently over a green
+# somebody else wrote, and never a reason to stop the firing.
+mirror_green() {
+  local cur
+  case "$S" in
+    *-fwd)
+      cur=$(git ls-remote "$canonical" "refs/heads/$S-green" | cut -f1)
+      git push "--force-with-lease=refs/heads/$S-green:$cur" "$canonical" "$new_green:refs/heads/$S-green"
+      ;;
+    *) git push "$canonical" "$new_green:refs/heads/$S-green" ;;
+  esac
+}
 if [ -n "$canonical" ]; then
   if ! git remote get-url "$canonical" >/dev/null 2>&1; then
     # Fatal only when this firing promoted something: then the missing remote
@@ -501,7 +517,7 @@ if [ -n "$canonical" ]; then
       echo "  the mirroring off deliberately." >&2
       exit 1
     fi
-  elif git push "$canonical" "$new_green:refs/heads/$S-green"; then
+  elif mirror_green; then
     echo "green mirrored to $canonical"
   else
     echo "Error: $S-green would not fast-forward in $canonical." >&2
