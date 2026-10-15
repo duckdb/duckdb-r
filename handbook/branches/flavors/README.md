@@ -90,6 +90,23 @@ a reader on another flavor substitutes its name.
 
 ## Where r-universe is told
 
+A cutover, from the generation that is published to the one that has caught up:
+
+```mermaid
+sequenceDiagram
+  participant Loop as series loop
+  participant H as a human
+  participant U as universe repository
+  participant M as duckdb/duckdb-r main
+  Loop->>H: CUTOVER line: #60;G#62;-green covers the published green
+  H->>H: series-cutover.sh #60;G#62;: coverage, convergence, review diff
+  H->>U: pull request: branch of the flavor becomes #60;G#62;-green
+  H->>M: pull request: publishes_from becomes #60;G#62;-green
+  U-->>Loop: r-universe builds #60;G#62;-green
+  M-->>Loop: the loop serves #60;G#62; as the published generation
+  Note over Loop,M: no ref moved; the old generation freezes, and is pruned later by a human
+```
+
 A universe is a repository of its own, `<user>/<user>.r-universe.dev`,
 whose `packages.json` gives each package a `url` and a `branch`.
 The registration lives outside this repo, so adding a flavor is a pull request

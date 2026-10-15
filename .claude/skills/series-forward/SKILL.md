@@ -253,13 +253,13 @@ the replay then populates `<G>-build`.
 
    **`main`'s tests meet that engine too, and are gated rather than rewound.**
    A test asking for behaviour the fork point lacks gets `skip_if_engine_before()` in the stage 2 repair on `-dev`,
-   never a deletion or a rewritten expectation ([`series-loop/SKILL.md`](series-loop), stage 2).
+   never a deletion or a rewritten expectation ([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md), stage 2).
    That engine gate names the engine that brings the behaviour back,
    so the test runs again there whether or not the gate's removal travels with the forward.
 
    **A forward that re-roots is a graft, and grafts nothing but a tree.**
    Where the point is to drop history below a fork point — an opening leaves the
-   parent carrying it ([`series-open/SKILL.md`](series-open)) — the new root is
+   parent carrying it ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)) — the new root is
    one commit whose tree *is* the fork-point commit's, verbatim, parented on
    current `main`:
 

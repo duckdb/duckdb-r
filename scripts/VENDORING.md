@@ -8,8 +8,8 @@ What is left here is what those leaves do not carry yet:
 driving the scripts by hand, and creating a patch.
 Every heading below is a candidate for absorption,
 and this file goes away when the last one lands.
-For the branch model and the series invariants see
-[BRANCHES.md](/BRANCHES.md);
+For the series invariants see
+[BRANCHES.md](/BRANCHES.md#series-invariants);
 for the design notes behind the series loop see
 [superseded/vendoring-loop.md](/plan/superseded/vendoring-loop.md).
 
@@ -21,8 +21,8 @@ What this file used to carry, and where each part lives now:
   [`branches/model/`](/handbook/branches/model/README.md),
   and the published flavors
   [`branches/flavors/`](/handbook/branches/flavors/README.md)
-* what the two vendor scripts share — the dirty-tree refusal, the base
-  scan, the more-than-one-file rule, the version bump, what
+* what the two vendor scripts do — the dirty-tree refusal, the base
+  scan, the more-than-one-file rule, `vendor-one.sh`'s version bump, what
   `rconfigure.py` regenerates, and the patch stack —
   [`vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 * the version counters and the merge driver —
@@ -53,7 +53,6 @@ Three things an operator needs beyond what it states:
   Unless it is already called `duckdb`, it is cloned into `./duckdb` in
   the package root — which is `.gitignore`d — and that clone is `rm -rf`ed
   when the script exits.
-  In CI `actions/checkout` creates it there instead.
 * **How far `vendor-one.sh` goes.**
   `--commits N` repeats the walk up to `N` times (the routine uses 100),
   stopping early when no candidates remain — or at a tag:
@@ -104,8 +103,7 @@ patch -p1 < patch/00NN-my-fix.patch
 ### Commit-by-commit vendoring, verified locally
 
 This is the local equivalent of what CI does,
-and the loop to use when replaying a long stretch of upstream history
-(the replay [`series-open`](/.claude/skills/series-open/SKILL.md) drives when it splits a new line).
+and the loop to use when replaying a long stretch of upstream history.
 Check the upstream clone out at the **last** commit you want vendored,
 so that the walk terminates by itself:
 

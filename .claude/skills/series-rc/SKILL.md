@@ -71,6 +71,13 @@ and it is fixed on `main` in the flavor tooling or in the code the flavor touche
 
 The strand is derived, never vendored, repaired, ported or advanced on its own.
 
+**An rc commit has no retry ledger.**
+`retry-<S>-rc-dev` plans nothing, because the planner anchors a retry on a green and an rc strand has none
+([`operations/ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
+An rc commit red for the infrastructure's reasons is judged again by dispatching `each-rcc` on `<S>-rc-dev`
+with `force=true` and `max-commits` set to how many commits from the tip to replan, one for the tip alone;
+a red of the tree's is a fix on the source strand, which realigning re-mints.
+
 ## At a cutover, and after
 
 A cutover points r-universe at another generation's green and moves no ref

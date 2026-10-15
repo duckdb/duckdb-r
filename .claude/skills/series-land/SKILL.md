@@ -24,6 +24,16 @@ because that is the one standing on today's `main` (`scripts/series-lib.sh`).
 
 ## The refs
 
+```mermaid
+flowchart LR
+  F["frozen main"] --> B["base: main, or tests<br>pinned above it"]
+  RC["#60;S#62;-rc-dev: the series<br>without its flavor"] -->|"replay vendor commits,<br>series-forward-build.sh"| LD["#60;L#62;-land-dev"]
+  B --> LD
+  LD -->|"CI judges each commit;<br>a fix is folded in with series-fold.sh"| LG["#60;L#62;-land-green"]
+  LG -->|"READY: fast-forward"| M2["main, releasing #60;L#62;"]
+  LD -.->|"R side only,<br>--review"| R["#60;L#62;-land-review:<br>a draft pull request, never merged"]
+```
+
 * **`<L>-land-dev`**, in the fork: `main` plus the vendor commits, and nothing else.
   CI judges it like any `-dev` ([`scripts/each-plan.sh`](/scripts/each-plan.sh)).
 * **`<L>-land-green`**, in the fork: where CI's judgement starts.
