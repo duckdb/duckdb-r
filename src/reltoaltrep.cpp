@@ -198,11 +198,21 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 			Rprintf("duckplyr: materializing\n");
 		}
 
-		ScopedInterruptHandler signal_handler(rel->context->GetContext());
+		// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
+		// A query of the same connection would wait for the lock that query holds, so it fails instead.
+		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
+		auto &context = *rel->context->GetContext();
+		if (ScopedInterruptHandler::IsActiveFor(context)) {
+			rapi_error_with_context("GetQueryResult",
+			                        "Cannot materialize a relation of the connection that is running the query.");
+		}
+		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
+		if (!ScopedInterruptHandler::IsActive()) {
+			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
+		}
 
 		// We need to temporarily allow a deeper execution stack
 		// https://github.com/duckdb/duckdb-r/issues/101
-		auto &context = *rel->context->GetContext();
 		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
 		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
 		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
@@ -227,9 +237,10 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
 		reset_max_expression_depth.release();
 
-		signal_handler.HandleInterrupt();
-
-		signal_handler.Disable();
+		if (signal_handler) {
+			signal_handler->HandleInterrupt();
+			signal_handler->Disable();
+		}
 	}
 	D_ASSERT(mat_result);
 	return (MaterializedQueryResult *)mat_result.get();

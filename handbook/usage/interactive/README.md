@@ -37,6 +37,9 @@ Only one such handler is installed at a time, so a DuckDB call entered
 while another is running — from a progress display callback, say —
 fails with `Connection already working on another query` rather than
 deadlocking.
+A query that materializes an ALTREP relation while it binds a data frame scan is the exception:
+a relation of another connection runs under the outer call's handler,
+and one of the same connection fails, since its query holds the lock it would wait for.
 
 **It reaches work the engine executes** — scans, joins, aggregations,
 anything running as executor tasks — because the engine reads the
