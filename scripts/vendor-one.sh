@@ -19,6 +19,8 @@ set -o pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=vendor-lib.sh
 . "$here/vendor-lib.sh"
+# shellcheck source=series-lib.sh
+. "$here/series-lib.sh" # series_stage_vendor_paths
 
 cd "${VENDOR_REPO:-$here/..}"
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
@@ -210,7 +212,7 @@ glue_failures=/tmp/vendor-one-glue-failures.txt
 # scripts/series-lib.sh; scripts/vendor.sh has its own copy.
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}" | tee /dev/stderr)
+  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}" | tee >(cat >&2))
   sha=$(sed -rn "$series_sha_sed" <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
@@ -388,11 +390,13 @@ while [ $commits_vendored -lt $num_commits ]; do
       break
     fi
 
-    # The engine file always differs, so "more than one" is the test for a
-    # real change, over the directory holding the tree and the stamp, or for a
-    # strand commit over the paths it stages.
+    # The engine file and the version stamp differ on every upstream commit, so
+    # a real change is anything else that moved: over the directory holding the
+    # tree and the stamp, or for a strand commit over the paths it stages.
     if [ "$strand" = true ]; then changed=("${series_vendor_paths[@]}"); else changed=("${series_scan_dir}"); fi
-    if [ "$(git status --porcelain -- "${changed[@]}" | wc -l)" -gt 1 ]; then
+    moved=$(git status --porcelain -- "${changed[@]}" | awk '{ print $NF }' |
+      { grep -vxF -e "$series_engine_file" -e "$series_stamp_file" || true; } | wc -l)
+    if [ "$moved" -gt 0 ]; then
       message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
       break
     fi
@@ -461,7 +465,7 @@ while [ $commits_vendored -lt $num_commits ]; do
       echo "this one differs from it only in the version stamp."
     fi
     git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
-      tee /dev/stderr |
+      tee >(cat >&2) |
       sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'
   ) | git commit --file /dev/stdin || {
     echo "Error: Failed to commit changes"

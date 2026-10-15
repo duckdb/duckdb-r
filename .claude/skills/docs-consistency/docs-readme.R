@@ -114,7 +114,7 @@ groups <- list(
   list(
     owner = "handbook/operations/vendoring/pipeline",
     globs = c(
-      "VENDORING.md", "vendor.sh", "vendor-one.sh", "vendor-lib.sh", "rconfigure.py",
+      "VENDORING.md", "vendor.sh", "vendor-one.sh", "vendor-one-test.sh", "vendor-lib.sh", "rconfigure.py",
       "merge-version.sh", "setup-git.sh"
     )
   ),
