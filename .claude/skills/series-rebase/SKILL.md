@@ -13,12 +13,12 @@ and only one of them is a rebase.
 
 **Forwarding** (`series-forward/SKILL.md`) is `<S>` → `<S>-fwd`,
 across lineages:
-`-fwd-build` is replayed out of the base series' buffer
+`-fwd-build` is replayed out of the base series' `-dev`, and its buffer above that,
 by `scripts/series-forward-build.sh`,
 which filters the `vendor:` commits out of a branch that also carries
 commits belonging to `main` and renumbers the fifth component;
 `-fwd-dev` starts empty at the seed
-for the loop to rederive, mining the base `-dev` for what it proved.
+for the loop to extend and CI to judge again on the new base.
 
 **Rebasing** — this skill — is `<S>-fwd` → `<S>-fwd`, one lineage.
 A `-fwd` branch has already been through that filter:

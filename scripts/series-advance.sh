@@ -354,8 +354,20 @@ twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
 #     shape of a fix.
 #
 # Tooling is stage 4's, ported from `main` rather than carried sideways.
+#
+# **A buffer replayed from the base `-dev` already holds its twin's fix.**
+# scripts/series-forward-build.sh replays `<S>-dev`'s vendor commits, fixes
+# folded in, onto a seed `main` has moved under, so the buffer's blob differs
+# from the twin's wherever `main`'s drift touched the same file and the blob test
+# cannot see that the fix is in it. The twin's own change to the path
+# reverse-applying to the buffer commit's tree can: such a path is carried
+# already, and is left out. What this stage still carries is above the point
+# the base `-dev` had reached when the forward was built, where the buffer came
+# from `-build`, and whatever the base folded since.
 carry_paths() { # <buffer commit> <base -dev commit>
-  local c=$1 d=$2 f
+  local c=$1 d=$2 f idx
+  idx=$(mktemp)
+  GIT_INDEX_FILE=$idx git read-tree "$c"
   { git show --format= --name-only --no-renames "$d" | sort -u |
       grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
       grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
@@ -367,8 +379,15 @@ carry_paths() { # <buffer commit> <base -dev commit>
            = "$(git rev-parse --quiet --verify "$d:$f" 2>/dev/null)" ]; then
         continue
       fi
+      # The twin's change already in the buffer's tree, under a blob `main`
+      # moved on: the same double application, seen through the diff.
+      if git diff --binary "$d^" "$d" -- "$f" |
+        GIT_INDEX_FILE=$idx git apply --cached --reverse --check - 2>/dev/null; then
+        continue
+      fi
       printf '%s\n' "$f"
     done
+  rm -f "$idx"
 }
 
 # Glue the base `-dev` has and the base `-build` lacks *entirely* -- a fix
