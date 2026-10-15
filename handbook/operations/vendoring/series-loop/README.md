@@ -55,10 +55,10 @@ to do, and they run in this order:
   by naming its own baseline as `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml)
   ([`series-land`](/.claude/skills/series-land/SKILL.md)).
   A `patch/` entry the port brings to `-dev` does nothing there,
-  because a vendor run applies the buffer's stack, so the port carries
-  it on to `<S>-build`
-  ([`scripts/series-patch-sync.sh`](/scripts/series-patch-sync.sh))
-  by test-applying it against the buffer's tree, never by the file list.
+  because a vendor run applies the strand's stack, so the port carries
+  it on to `<S>-vendor`, from where the next pick brings it to the buffer
+  ([`scripts/series-patch-sync.sh`](/scripts/series-patch-sync.sh)),
+  by test-applying it against the strand's tree, never by the file list.
   One that neither applies nor reverses is *stale* and waits for the
   code it answers. One that would supersede an entry of the buffer's
   own, and one both stacks carry in different versions (*edited*), are
@@ -244,6 +244,23 @@ Where a script reads a worktree rather than the refs of the one it is
 in — `series-cut.sh`, `series-glue.sh`, `series-forward-build.sh` — it takes
 `$VENDOR_REPO`, the same knob `vendor-one.sh` takes, so `main`'s copy of
 a script reads the tree the caller is in.
+
+**A second repository configures the engine and keeps the scripts.**
+The engine's names live in one file, [`scripts/series-config.sh`](/scripts/series-config.sh), and the scripts read them from nowhere else:
+the upstream repository as a vendor subject names it, the vendored tree and the directory a base scan walks,
+the vendored strand, the generator that regenerates it from an upstream checkout,
+what a vendor-strand commit carries and what the buffer regenerates after a pick,
+what vendoring regenerates, the tooling stage 4 ports, the glue and the probe files its compile lines are read off,
+the release tags and branches upstream names, the package `main` publishes,
+how a tree records the engine it vendors and the version it stamps, the seed's subject,
+and the estimator `each-plan.sh` weighs commits with.
+[`scripts/series-lib.sh`](/scripts/series-lib.sh) holds the helpers every script shares, the base scan and the vendor predicate among them,
+and [`scripts/vendor-lib.sh`](/scripts/vendor-lib.sh) the glue gate;
+[`scripts/series-lib-test.sh`](/scripts/series-lib-test.sh) checks the helpers against whatever the configuration says.
+A series that carries no flavor has no rc strand, and `series-land.sh --source <ref>` builds its landing up to that ref as it stands.
+Two exit statuses follow from the split: a glue gate that could not run exits 8 in `vendor-one.sh` and `series-forward-build.sh` alike,
+and a generator that fails before the commit exits 7, which this repository's generator never does
+([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
 
 **A firing also reports the series that does not exist.**
 An upstream release line newer than every series served here, with no refs

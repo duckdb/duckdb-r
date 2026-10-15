@@ -61,6 +61,8 @@
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 # Byte order for `sort` and `comm` alike, whatever the caller's locale.
 export LC_ALL=C
 
@@ -96,31 +98,12 @@ fi
 [ -z "$vendored" ] || [ -n "$range" ] ||
   { echo "Error: --vendored needs two commits, to find the vendor commits between them" >&2; exit 2; }
 
-# The engine a tree vendors, as `R/version.R` declares it.
-engine_of() {
-  { git show "$1:R/version.R" 2>/dev/null || true; } |
-    sed -nE 's/^duckdb_version <- "(.*)"$/\1/p'
-}
-
-# Does engine $1 predate version $2? The reading `engine_before()` in
-# tests/testthat/helper-skip.R makes, so a gate expires here where it expires in
-# the suite: a release never predates anything, nor does a string that is not a
-# version, and a development snapshot `X.Y.Z-devN` precedes the release
-# `X.Y.Z`.
-engine_before() { # <engine> <version>
-  local re='^([0-9]+)\.([0-9]+)\.([0-9]+)(-dev([0-9]+))?$' i
-  local -a e v
-  [[ $1 =~ $re ]] || return 1
-  [ -n "${BASH_REMATCH[4]}" ] || return 1
-  e=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]}")
-  [[ $2 =~ $re ]] || return 1
-  v=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-999999999999}")
-  for i in 0 1 2 3; do
-    ((10#${e[i]} < 10#${v[i]})) && return 0
-    ((10#${e[i]} > 10#${v[i]})) && return 1
-  done
-  return 1
-}
+# The engine a tree vendors, as its version stamp declares it, and whether one
+# engine predates a version: both the repository's (scripts/series-config.sh),
+# the second read as `engine_before()` in tests/testthat/helper-skip.R reads it,
+# so a gate expires here where it expires in the suite.
+engine_of() { series_stamped_version "$1"; }
+engine_before() { series_version_before "$@"; }
 
 base_engine=$(engine_of "$base")
 tip_engine=$(engine_of "$tip")
@@ -154,21 +137,17 @@ commit_engine() {
   [ -n "${ENGINE[$1]+x}" ] || ENGINE[$1]=$(engine_of "$1")
   echo "${ENGINE[$1]}"
 }
-is_vendor() {
-  case "$(git log -1 --format=%s "$1")" in
-    vendor:* | *duckdb/duckdb@[0-9a-f]*) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+is_vendor() { series_is_vendor "$(git log -1 --format=%s "$1")"; }
 rewinds() { # <commit>: does it vendor an engine older than <base>'s?
   local e
   e=$(commit_engine "$1")
   [ -n "$e" ] && [ -n "$base_engine" ] && engine_before "$e" "$base_engine"
 }
 label() { # <commit> -> "<short> <upstream SHA or subject>, <engine>[, a rewind]"
-  local s up e r=''
+  local s up sha e r=''
   s=$(git log -1 --format=%s "$1")
-  up=$(sed -nE 's|^.*duckdb/duckdb@([0-9a-f]{7,10}).*$|duckdb/duckdb@\1|p' <<<"$s")
+  up=$(series_marker_of "$s")
+  [ -z "$up" ] || { sha=${up##*@}; up="${up%@*}@${sha:0:10}"; }
   e=$(commit_engine "$1")
   if rewinds "$1"; then r=', a rewind'; fi
   printf '%s %s%s%s' "$(git rev-parse --short "$1")" "${up:-${s:0:48}}" "${e:+, $e}" "$r"
