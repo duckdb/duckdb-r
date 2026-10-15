@@ -113,6 +113,46 @@ static void TouchColumn(SEXP coldata) {
 	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
 }
 
+struct TouchColumnsData {
+	SEXP df;
+	string error;
+};
+
+static SEXP TouchColumns(void *data_p) {
+	auto df = static_cast<TouchColumnsData *>(data_p)->df;
+	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df); col_idx++) {
+		TouchColumn(VECTOR_ELT(df, col_idx));
+	}
+	return R_NilValue;
+}
+
+static SEXP TouchColumnsError(SEXP cond, void *data_p) {
+	auto &error = static_cast<TouchColumnsData *>(data_p)->error;
+	SEXP message = TYPEOF(cond) == VECSXP && Rf_xlength(cond) > 0 ? VECTOR_ELT(cond, 0) : R_NilValue;
+	if (TYPEOF(message) == STRSXP && Rf_xlength(message) > 0) {
+		error = CHAR(STRING_ELT(message, 0));
+	} else {
+		error = "Reading a column of the data frame failed with an R error";
+	}
+	return R_NilValue;
+}
+
+// Touching an ALTREP column runs its class's code, which reports a failure as an R error.
+// That error must not long-jump across the binder's frames: their destructors would not run,
+// and the client context lock and the interrupt handler would stay held for the rest of the session.
+// So it is caught here and rethrown as an exception, and so is any other jump, which is dropped.
+static void TouchColumnsOrThrow(SEXP df) {
+	TouchColumnsData data {df, string()};
+	try {
+		cpp11::unwind_protect([&]() { R_tryCatchError(TouchColumns, &data, TouchColumnsError, &data); });
+	} catch (cpp11::unwind_exception &) {
+		throw InvalidInputException("Reading a column of the data frame was interrupted");
+	}
+	if (!data.error.empty()) {
+		throw InvalidInputException(data.error);
+	}
+}
+
 struct DedupPointerEnumType {
 	static bool IsNull(SEXP val) {
 		return val == NA_STRING;
@@ -613,11 +653,12 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	vector<data_ptr_t> data_ptrs;
 	vector<bool> named_list_map;
 
+	TouchColumnsOrThrow(df);
+
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
-		TouchColumn(coldata);
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 
 		bool is_named_list_map = false;
