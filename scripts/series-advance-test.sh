@@ -8,7 +8,7 @@
 # including glue, which is why the carry is a difference and not an allow-list.
 # A forward series inherits only the first when its buffer is replayed out of
 # `-build`, and both when it is replayed out of `-dev`
-# (scripts/series-forward-build.sh). Nineteen things are checked.
+# (scripts/series-forward-build.sh). Twenty things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
 #      with that fix in the same commit -- not stacked above it -- carrying the
@@ -65,6 +65,10 @@
 #      fix is in the buffer commit under a blob `main`'s drift moved on, the
 #      twin's own change reverse-applies there, and the chunk is a plain ref
 #      move with no provenance trailer.
+#  20. A late tag's re-stamp -- a second vendor commit for the upstream SHA
+#      `-dev` already vendored, carrying `(tag ...)` -- is consumed rather than
+#      taken for the anchor, and a forward series keeps its marker when the base
+#      has a twin for the plain commit only.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -367,6 +371,31 @@ git branch kept-fwd-dev kept-seed
 git branch kept-fwd-green kept-seed
 git branch kept-fwd-build-base kept-seed
 
+# --- a late tag's re-stamp on the buffer (claim 20) -------------------------
+# Upstream tagged abc1111 after the buffer vendored it, so vendor-one.sh
+# appended a second vendor commit for the same SHA, differing in the version
+# stamp alone. -dev carries the plain one with a fold in it, which puts it off
+# the buffer's line, so stage 5 has to find the anchor by subject. The forward
+# counterpart was replayed from that buffer before the base -dev took the
+# re-stamp, so the base has a twin for the plain commit only.
+git checkout -q -b late-build base-seed
+bvendor abc1111 1.0.0.9000.1 r.cpp
+LATE_V1=$(git rev-parse HEAD)
+echo 'vendored abc1111, stamped with the tag' > src/duckdb/r.cpp
+desc 1.0.0.9000.2
+verfile v9.9.9
+git add -A
+git commit -qm 'vendor: Update vendored sources (tag v9.9.9) to duckdb/duckdb@abc1111'
+git checkout -q -b late-dev "$LATE_V1"
+echo 'snapshot one, per the new engine' > tests/testthat/_snaps/sql.md
+amend 'Snapshot corrected for the new engine output.'
+git branch late-green late-dev
+git branch late-build-base "$LATE_V1"
+git branch late-fwd-build late-build
+git branch late-fwd-dev base-seed
+git branch late-fwd-green base-seed
+git branch late-fwd-build-base base-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like. The `red`
 # series is the one case that needs real records, so it gets two.
@@ -394,7 +423,9 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   emptyres-build emptyres-dev emptyres-green emptyres-build-base \
   loss-build loss-dev loss-green loss-build-base \
   loss-fwd-build loss-fwd-dev loss-fwd-green loss-fwd-build-base \
-  kept-dev kept-fwd-build kept-fwd-dev kept-fwd-green kept-fwd-build-base rcc2
+  kept-dev kept-fwd-build kept-fwd-dev kept-fwd-green kept-fwd-build-base \
+  late-build late-dev late-green late-build-base \
+  late-fwd-build late-fwd-dev late-fwd-green late-fwd-build-base rcc2
 git fetch -q origin
 
 # A canonical remote, because `red` is the one series here whose green moves,
@@ -697,6 +728,37 @@ has "the vendor commit above the sync is consumed" \
   "$(git log -1 --format=%s origin/tsync-dev)" 'duckdb@ggg2222'
 is "and the sync itself never reaches -dev" \
   "$(git log --format=%s origin/tsync-green..origin/tsync-dev | grep -c 'Sync buffer tooling' || true)" 0
+
+# The forward first: once the base -dev takes the re-stamp, it has a tagged
+# twin too, and the case this checks is the one where it does not.
+echo
+echo "== a late tag's re-stamp, on a forward whose base has only the plain twin"
+out=$(run late-fwd)
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+is "both buffer commits are consumed" \
+  "$(git rev-list --count origin/late-fwd-green..origin/late-fwd-dev)" 2
+has "the plain one takes its twin's fold" \
+  "$(git log -1 --format=%B origin/late-fwd-dev~1)" 'Carried from'
+is "the re-stamp keeps its own subject" \
+  "$(git log -1 --format=%s origin/late-fwd-dev)" \
+  'vendor: Update vendored sources (tag v9.9.9) to duckdb/duckdb@abc1111'
+
+echo
+echo "== a late tag's re-stamp above the commit -dev vendored"
+out=$(run late)
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+hasnt "without reading the buffer as empty" "$out" 'buffer empty'
+is "the re-stamp is consumed" \
+  "$(git log -1 --format=%s origin/late-dev)" \
+  'vendor: Update vendored sources (tag v9.9.9) to duckdb/duckdb@abc1111'
+is "carrying the tag's stamp" "$(git show origin/late-dev:R/version.R)" \
+  'duckdb_version <- "v9.9.9"'
+is "and the counter rose for it" \
+  "$(git show origin/late-dev:DESCRIPTION | sed -n 's/^Version: //p')" 1.0.0.9000.2
+out=$(run late)
+has "a second run finds nothing left to consume" "$out" 'buffer empty'
 
 echo
 echo "== a carry that would stop a test the forward runs"
