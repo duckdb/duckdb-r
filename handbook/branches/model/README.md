@@ -71,17 +71,20 @@ flowchart LR
   build -.->|"stage 5 consumes, 100 at a time"| dev
 ```
 
-A series and its forward, and what a cutover does with them;
+A series, its forward and the forward's vendor strand, and what a cutover does with them;
 r-universe builds `<S>-green` throughout, and the names never change:
 
 ```mermaid
 flowchart LR
   S["#60;S#62;-*: serving,<br>on an older main"]
   F["#60;S#62;-fwd-*: the forward,<br>rebuilt on current main"]
+  V["#60;S#62;-fwd-vendor: the vendor strand,<br>the old -build replayed onto the same seed,<br>no CI, read once"]
   S -->|"series-forward: replay -dev,<br>the loop verifies again"| F
+  S -.->|"series-forward: replay -build;<br>series-learned.sh --vendor reads<br>the forward against it"| V
   S -->|"archive: closed pull requests<br>keep -dev, -build and the canonical green"| A["refs/pull/#60;n#62;/head"]
   F -->|"one atomic leased push:<br>the four refs take the forward's tips"| S2["#60;S#62;-*: serving,<br>on current main"]
   F -.->|"deleted afterwards;<br>litter goes by series-prune.sh"| X[" "]
+  V -.->|"deleted with the -fwd refs"| X
   classDef gone stroke-dasharray: 4 3
   class X gone
 ```
