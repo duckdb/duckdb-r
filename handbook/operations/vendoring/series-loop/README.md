@@ -17,8 +17,10 @@ A firing serves every series discovered from the refs
 Setup always runs; every stage after it is skipped when it has nothing
 to do, and they run in this order:
 
-* **Vendor onto `<S>-build`** — extend the buffer with `vendor-one.sh`,
-  fixing glue where the gate stops;
+* **Vendor onto `<S>-vendor`, and derive `<S>-build`** — extend the strand with `vendor-one.sh --strand`,
+  one commit per upstream commit and nothing of the buffer's,
+  then pick each onto the buffer with [`scripts/series-vendor.sh`](/scripts/series-vendor.sh), stamping the counter and running the glue gate,
+  fixing glue in the buffer commit where the gate stops;
   red never blocks the buffer.
 * **Repair the oldest `<S>-dev` failure** — read each commit's verdict
   and log from the `each-rcc` run that decided it, falling back to the
@@ -119,7 +121,7 @@ One firing, in the order above, for every series it serves:
 ```mermaid
 flowchart TD
   S0["0 setup: every ref, both repositories,<br>how results are read"] --> S1
-  S1["1 vendor onto #60;S#62;-build<br>vendor-one.sh, glue gate"] --> S2
+  S1["1 vendor onto #60;S#62;-vendor,<br>pick onto #60;S#62;-build: stamp, glue gate"] --> S2
   S2["2 repair the oldest red on #60;S#62;-dev<br>fold the fix in, replay the tail"] --> S3
   S3["3 advance #60;S#62;-green over successes,<br>set -build-base, mirror green,<br>read r-universe"] --> S4
   S4["4 port main onto #60;S#62;-dev,<br>sync tooling onto both"] --> S5
@@ -155,6 +157,8 @@ What the base learned beyond pure vendoring travels with it, and is read before 
 what `-dev` carries that its `-build` twin does not,
 and a fix found wanting is corrected after the replay, folded into the commit that carries it
 ([`scripts/series-fold.sh`](/scripts/series-fold.sh)).
+The vendor strand needs no replay: `series-vendor.sh --forward` rebases it onto the seed, a rewind's foot written whole,
+and `series-learned.sh --vendor` reads the forward's buffer against it on the new base.
 A pick that would stop a test the seed runs keeps the seed's copy and says so, for the reason below.
 The buffer's own `patch/` entries do not travel with the replay, and a series
 seeded from a release branch regenerates its seed on that branch, with

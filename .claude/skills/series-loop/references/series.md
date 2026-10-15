@@ -35,8 +35,8 @@ each firing lists `refs/heads/*-build`,
 and every `<X>-build` with a sibling `<X>-dev` is a series it serves —
 base and forward (`<S>-fwd-*`, see `series-forward/SKILL.md`) alike,
 in one pass over all of them.
-A forward's `<S>-fwd-vendor` is no series and gets no stage:
-it is the vendor strand the forward wrote once, read by a human and nothing else
+A series' `<S>-vendor` is no series and gets no stage of its own:
+it is the vendor strand stage 1 vendors onto and derives the buffer from
 ([`branches/model/`](/handbook/branches/model/README.md)).
 Ignore a forward series
 whose green is an ancestor of its base series' green;

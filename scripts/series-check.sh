@@ -608,6 +608,28 @@ for S in "${series[@]}"; do
     echo "               after a port, what is left is what it declined — stage 3 work"
   fi
 
+  # The vendor strand the buffer is derived from (handbook/branches/model/README.md):
+  # absent on a series opened before it existed, ahead of the buffer while
+  # stage 1's picks are due, or behind it where something vendored onto the
+  # buffer directly. Read by newest vendored SHA, like every twin here.
+  vendor="$remote/$S-vendor"
+  if ! git rev-parse -q --verify "$vendor" >/dev/null; then
+    echo "  VENDOR  $S has no vendor strand; derive it once from the buffer:"
+    echo "          scripts/series-vendor.sh $S --init --remote $remote --push"
+  else
+    v_up=$(vendored_sha "$vendor" 2>/dev/null)
+    b_up=$(vendored_sha "$build" 2>/dev/null)
+    if [ "$v_up" != "$b_up" ]; then
+      if [ -n "$b_up" ] && at=$(git log -1 --format=%H --fixed-strings --grep="@$b_up" "$vendor") && [ -n "$at" ]; then
+        echo "  VENDOR  $S-vendor is $(git rev-list --count "$at..$vendor") commit(s) ahead of $S-build; stage 1 picks them:"
+        echo "          scripts/series-vendor.sh $S --remote $remote --push   # from a worktree at $S-build"
+      else
+        echo "  VENDOR  $S-build vendors ${b_up:0:10}, which $S-vendor does not: something vendored onto the buffer directly."
+        echo "          Vendor onto the strand (vendor-one.sh --strand) and pick; the buffer never leads it."
+      fi
+    fi
+  fi
+
   # A test `main` runs that a vendor commit of this series stopped, deleted or
   # skipped without an engine gate, and a gate that has expired and is due to
   # go (handbook/operations/vendoring/series-loop/README.md). A landing refuses
