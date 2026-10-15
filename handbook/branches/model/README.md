@@ -31,7 +31,7 @@ an archive that nothing reads and nothing writes to.
 The `<S>-dev-base` refs of the older `dev`/`dev-base` layout are there:
 every series is a series-loop series now, and none of the four below is that baseline.
 
-**The four refs** of a series `<S>`, all in the fork:
+**The four refs** of a series `<S>`, all in the fork, and the vendor strand they are derived from:
 
 | Ref | Moves by | Meaning |
 |---|---|---|
@@ -39,24 +39,27 @@ every series is a series-loop series now, and none of the four below is that bas
 | `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds; `-build` consumed in bounded chunks plus forward-ports from `main` |
 | `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | set; force-push | the `-build` commit equivalent to `-green` |
-| `<S>-fwd-vendor` | written once by the forward; force-push | the **vendor strand** of a forward: the old `-build` replayed onto the forward's seed, pure vendoring's diffs on the new base, no CI, nothing consumes it |
+| `<S>-vendor` | append; force-push to amend a patch | the **vendor strand**: pure vendoring, one commit per upstream commit, vendored once; what the buffer is derived from, and what a forward carries by a rebase. No CI, nothing publishes it |
 
-The vendor strand exists on a forward only, because only there do two readings of the same upstream commits stand side by side.
-`<S>-build` is what pure vendoring produces plus the glue each engine needed to compile;
-`<S>-dev` is the same commits with what CI demanded afterwards folded in,
-and `<S>-fwd-build` is the replay of `-dev`, so the forward carries every one of those fixes,
-the sound ones and the expedient ones alike.
-`<S>-fwd-vendor` is the replay of `-build` onto the same seed:
-what the forward would carry had it taken nothing from `-dev`,
-and what a fresh vendoring of the same commits onto today's `main` would produce,
-without the cost of one, which [`vendor-one.sh`](/scripts/vendor-one.sh) pays at about fifteen seconds per commit.
-Its vendored strand equals `<S>-fwd-build`'s at every twin, by construction of the replay;
-everything else that differs between the two is what `-dev` taught, now on the new base,
+The vendor strand is what vendoring alone produces.
+[`vendor-one.sh --strand`](/scripts/vendor-one.sh) writes one commit per upstream commit onto `<S>-vendor`:
+the regenerated tree with the patch stack applied and the files generated from it, never the counter and never the glue.
+`<S>-build` is derived from it commit by commit ([`scripts/series-vendor.sh`](/scripts/series-vendor.sh)):
+the strand commit cherry-picked, the fifth component stamped, the glue gate run,
+so a glue fix is the buffer's own and the two share the vendored tree at every twin.
+Each upstream commit is vendored once.
+A forward carries the strand onto its seed by a plain rebase, each commit a `git apply` of a pure vendoring diff,
+where the seed vendors an engine the strand has;
+where it does not, a rewind, the strand's first commit is written on the seed whole and the rest cherry-picked above it.
+What `<S>-fwd-build` carries beyond the strand is what `-dev` taught, now on the new base,
 and [`scripts/series-learned.sh`](/scripts/series-learned.sh) `--vendor` prints it commit by commit,
 for a human to judge before the loop verifies the forward and to answer with a correction to `<S>-fwd-build`
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
-It is a buffer like `-build`: no CI runs on it, and nothing after the forward's opening reads it,
-so it is deleted with the `-fwd` refs at the cutover, archived as a closed pull request's head like the rest.
+A `patch/` entry belongs to the strand, since the tree it is applied to does, so a patch fix amends the strand commit and is picked again;
+[`scripts/series-check.sh`](/scripts/series-check.sh) says when the buffer and the strand are out of step.
+A series opened before the strand existed derives one from its buffer once, with nothing re-vendored.
+No CI runs on it, nothing publishes it, and it is not mirrored;
+a cutover swaps it with the four and archives the replaced lineage like theirs.
 
 The refs of one series, as the loop moves them; the `-dev` line below green is what CI has passed,
 above it what is in flight, and the buffer runs ahead of both:
@@ -68,6 +71,8 @@ flowchart LR
   green -->|"in flight: judged commit by commit"| dev["#60;S#62;-dev tip"]
   seed --> bb["#60;S#62;-build-base: the -build commit<br>equivalent to -green, set each firing"]
   bb -->|"buffered: vendored, no CI"| build["#60;S#62;-build tip"]
+  seed --> vendor["#60;S#62;-vendor tip: pure vendoring,<br>one commit per upstream commit"]
+  vendor -.->|"series-vendor.sh picks,<br>stamps and gates"| build
   build -.->|"stage 5 consumes, 100 at a time"| dev
 ```
 
@@ -78,13 +83,13 @@ r-universe builds `<S>-green` throughout, and the names never change:
 flowchart LR
   S["#60;S#62;-*: serving,<br>on an older main"]
   F["#60;S#62;-fwd-*: the forward,<br>rebuilt on current main"]
-  V["#60;S#62;-fwd-vendor: the vendor strand,<br>the old -build replayed onto the same seed,<br>no CI, read once"]
+  V["#60;S#62;-fwd-vendor: the vendor strand<br>rebased onto the new seed"]
   S -->|"series-forward: replay -dev,<br>the loop verifies again"| F
-  S -.->|"series-forward: replay -build;<br>series-learned.sh --vendor reads<br>the forward against it"| V
-  S -->|"archive: closed pull requests<br>keep -dev, -build and the canonical green"| A["refs/pull/#60;n#62;/head"]
-  F -->|"one atomic leased push:<br>the four refs take the forward's tips"| S2["#60;S#62;-*: serving,<br>on current main"]
+  S -.->|"series-vendor.sh --forward: rebase,<br>a rewind's foot written whole;<br>series-learned.sh --vendor reads<br>the forward against it"| V
+  S -->|"archive: closed pull requests<br>keep -dev, -build, -vendor and the canonical green"| A["refs/pull/#60;n#62;/head"]
+  F -->|"one atomic leased push:<br>the four refs and the strand<br>take the forward's tips"| S2["#60;S#62;-*: serving,<br>on current main"]
+  V --> S2
   F -.->|"deleted afterwards;<br>litter goes by series-prune.sh"| X[" "]
-  V -.->|"deleted with the -fwd refs"| X
   classDef gone stroke-dasharray: 4 3
   class X gone
 ```
@@ -120,7 +125,7 @@ The names are static, so nothing outside the two repositories learns of a cutove
 and the lineages the swap replaces are kept first,
 each as the head of a draft pull request opened and closed on the spot,
 which GitHub keeps reachable as `refs/pull/<n>/head` for as long as it exists:
-the fork's `<S>-dev` and `<S>-build`, and the canonical repository's copy of `<S>-green`.
+the fork's `<S>-dev`, `<S>-build` and `<S>-vendor`, and the canonical repository's copy of `<S>-green`.
 The `-fwd` refs go afterwards, their tips being the series' refs by then,
 and what a refused deletion leaves is **cutover litter**, listed by
 [`scripts/series-prune.sh`](/scripts/series-prune.sh) for a human to remove.

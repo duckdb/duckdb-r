@@ -59,6 +59,13 @@ Three things an operator needs beyond what it states:
   a candidate that `git describe --tags` resolves exactly is always
   vendored, its subject gets a `(tag vX.Y.Z)` marker, and the run ends
   there.
+* **What a strand commit is.**
+  `--strand` writes a commit for the series' vendor strand
+  ([`branches/model/`](/handbook/branches/model/README.md)):
+  the regenerated tree, the patch stack applied to it and the files generated from it,
+  with no counter bump and no glue gate.
+  The loop derives the buffer from it with [`series-vendor.sh`](series-vendor.sh),
+  which stamps and gates each pick.
 * **How deep the base scan looks.**
   Twenty commits, the same bound `vendored_sha()` uses in
   [`series-advance.sh`](series-advance.sh); `BASE_SCAN_DEPTH` raises it.
