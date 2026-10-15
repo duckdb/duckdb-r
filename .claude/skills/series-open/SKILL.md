@@ -62,7 +62,8 @@ until now.
    version in the series name.
 
    It writes `<S>-build` and `<S>-build-base` at `<P>-build`'s cut, `<S>-dev` and
-   `<S>-green` at `<P>-dev`'s. Local refs only; nothing is pushed until step 4.
+   `<S>-green` at `<P>-dev`'s, and `<S>-vendor` at `<P>-vendor`'s where the parent
+   has a vendor strand. Local refs only; nothing is pushed until step 4.
    No `-fwd` refs yet — a forward counterpart protects a green consumers are
    already reading, and nobody is reading this one. Step 5 creates them.
 
@@ -141,7 +142,7 @@ until now.
    and need a fresh r-universe registration every time
    ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
-4. **Push all four refs, together — and `<P>`'s two stamped strands with them.**
+4. **Push all four refs and the vendor strand together — and `<P>`'s two stamped strands with them.**
    `git push --atomic`, as `--next` spells it.
    Step 3 moved `<P>-build` and `<P>-dev` as well, and a pair that lands split
    is a pair whose prefixes differ, which is where the merge driver gives up. The loop discovers series from

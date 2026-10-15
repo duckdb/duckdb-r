@@ -34,6 +34,7 @@ repo_name=${project}
 upstream_basedir=""
 num_commits=1
 check_glue=true
+strand=false
 
 # Matches the bound in vendored_sha() (scripts/series-advance.sh).
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
@@ -45,6 +46,13 @@ while [ $# -gt 0 ]; do
       shift 2
       ;;
     --no-check-glue)
+      check_glue=false
+      shift
+      ;;
+    --strand)
+      # A commit for the vendor strand (scripts/series-vendor.sh): what vendoring
+      # writes and nothing of the buffer's -- no counter, no glue gate.
+      strand=true
       check_glue=false
       shift
       ;;
@@ -394,9 +402,13 @@ while [ $commits_vendored -lt $num_commits ]; do
   version_array[4]=$((version_array[4] + 1))
   new_version=$(IFS=.; echo "${version_array[*]}")
 
-  echo "Updating version from $version to $new_version"
-  sed -i.bak -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
-  rm DESCRIPTION.bak
+  if [ "$strand" = true ]; then
+    echo "Strand commit: the counter stays at $version"
+  else
+    echo "Updating version from $version to $new_version"
+    sed -i.bak -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
+    rm DESCRIPTION.bak
+  fi
 
   git add .
 
