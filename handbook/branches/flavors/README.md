@@ -94,17 +94,17 @@ A cutover, from the generation that is published to the one that has caught up:
 
 ```mermaid
 sequenceDiagram
-  participant Loop as series loop
+  participant SL as series loop
   participant H as a human
   participant U as universe repository
   participant M as duckdb/duckdb-r main
-  Loop->>H: CUTOVER line: #60;G#62;-green covers the published green
+  SL->>H: CUTOVER line: #60;G#62;-green covers the published green
   H->>H: series-cutover.sh #60;G#62;: coverage, convergence, review diff
   H->>U: pull request: branch of the flavor becomes #60;G#62;-green
   H->>M: pull request: publishes_from becomes #60;G#62;-green
-  U-->>Loop: r-universe builds #60;G#62;-green
-  M-->>Loop: the loop serves #60;G#62; as the published generation
-  Note over Loop,M: no ref moved; the old generation freezes, and is pruned later by a human
+  U-->>SL: r-universe builds #60;G#62;-green
+  M-->>SL: the loop serves #60;G#62; as the published generation
+  Note over SL,M: No ref moved. The old generation freezes, and a human prunes it later
 ```
 
 A universe is a repository of its own, `<user>/<user>.r-universe.dev`,
