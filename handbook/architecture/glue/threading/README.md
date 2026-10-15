@@ -122,6 +122,11 @@ because a callback cannot know what R will collect inside it;
 [`tests/testthat/test-progress_display.R`](/tests/testthat/test-progress_display.R)
 and [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pin it with an abandoned handle finalized
 from inside the display's callback lookup and from inside the materialize callback.
+Nor may an R error raised in any of them long-jump past the engine's frames,
+whose destructors release that lock and the package's interrupt handler.
+The bind of a data frame scan catches one from an ALTREP column with `R_tryCatchError()`
+and rethrows it as an engine error, which reaches R as an ordinary one,
+as [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pins.
 
 *To deepen: name the scan's remaining task-thread reads per call site,
 as #2583's audit settles each.*

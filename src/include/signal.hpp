@@ -48,6 +48,11 @@ public:
 	void HandleInterrupt() const;
 	void Disable();
 
+	//! Whether an instance is installed: a query is running, on this connection or another one.
+	static bool IsActive();
+	//! Whether the installed instance belongs to `context`, whose query then holds its lock.
+	static bool IsActiveFor(const ClientContext &context);
+
 private:
 	static void signal_handler(int signum);
 };
