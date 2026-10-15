@@ -94,6 +94,10 @@
 # handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
+# shellcheck source=vendor-lib.sh
+. "$(dirname "$0")/vendor-lib.sh"
 
 usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--canonical <name>] [--dev-note <file>]
        series-advance.sh <series> --continue [--dev-note <file>]
@@ -187,65 +191,12 @@ state_of() {
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }
 
-# How deep the base scan looks, and the one knob that raises it. The same
-# default, and the same variable, as scripts/vendor.sh and scripts/vendor-one.sh
-# read: a branch deep enough to need the bound raised needs it raised for every
-# script that scans, so one export unblocks the run rather than half of it.
-base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-
-# The upstream SHA a ref has vendored. The pathspec narrows the walk, the
-# subject decides: commits that touch src/duckdb without vendoring are ordinary
-# (the patch stack is applied to the vendored tree in place), so look past them
-# — 20 deep, far more than a series stacks above its buffer, and bounded so
-# git ends the walk itself rather than being killed by a closing pipe.
-#
-# Empty is the answer being absent, not a wrong answer: callers refuse on it,
-# and the reason is on stderr for a human to act on.
-vendored_sha() {
-  local subjects sha n
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
-  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
-  if [ -z "$sha" ]; then
-    n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge "$base_scan_depth" ]; then
-      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
-    else
-      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
-    fi
-  fi
-  echo "$sha"
-}
-
-# The -build commit equivalent to <ref>'s newest vendor commit for <sha>: the
-# same upstream SHA and the same `(tag ...)` marker. One SHA can have two vendor
-# commits, because a tag upstream pushes after its commit was vendored is
-# re-stamped by a second one on top (scripts/VENDORING.md). Matched by SHA
-# alone, the newer of the two answers for a ref that carries only the older, and
-# stage 5 never consumes the re-stamp. A ref re-stamped by hand, whose buffer has
-# no such twin, falls back to the SHA alone, which is what it always matched.
-build_equivalent() { # <build> <ref> <sha> -> commit, empty if none
-  local subjects newest lines match
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$2" -- src/duckdb || true)
-  newest=$(grep -m 1 "duckdb@$3" <<<"$subjects" || true)
-  lines=$(git log --format='%H %s' "$1" | grep "duckdb@$3" || true)
-  case "$newest" in
-    *"(tag "*) match=$(grep -m 1 -F '(tag ' <<<"$lines" || true) ;;
-    *) match=$(grep -m 1 -v -F '(tag ' <<<"$lines" || true) ;;
-  esac
-  [ -n "$match" ] || match=$(head -n 1 <<<"$lines")
-  echo "${match%% *}"
-}
-
 # Does this commit vendor? The subject decides, never the path -- the same rule
 # the rest of this loop reads state by, and the same predicate series-port.sh
-# classifies with. Matched without a pipe, so `pipefail` cannot turn a match
-# into a miss when the reader closes first.
+# classifies with (series_is_vendor() in scripts/series-lib.sh, which also
+# holds the base scan, series_vendored_sha(), and its bound).
 vendors() { # <repo> <commit>
-  case "$(git -C "$1" log -1 --format=%s "$2")" in
-    vendor:* | *duckdb/duckdb@[0-9a-f]*) return 0 ;;
-    *) return 1 ;;
-  esac
+  series_is_vendor "$(git -C "$1" log -1 --format=%s "$2")"
 }
 
 # Is $1 a strictly greater version than $2? Component-wise and numeric, so a
@@ -317,26 +268,15 @@ esac
 # state by, and by the `(tag ...)` marker beside it: a late tag is re-stamped by
 # a second vendor commit for the same SHA (scripts/VENDORING.md), and the carry
 # takes the twin's message, so a re-stamp twinned with the plain commit would
-# lose its marker. One walk, because the alternative is a walk per buffer commit.
+# lose its marker (series_twin_key() in scripts/series-lib.sh). One walk,
+# because the alternative is a walk per buffer commit.
 declare -A TWIN=()
-twin_key() { # <subject> -> the upstream SHA, `+tag` appended for a tagged one
-  local sha
-  sha=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' <<<"$1")
-  [ -n "$sha" ] || return 0
-  case "$1" in
-    *"(tag "*) echo "$sha+tag" ;;
-    *) echo "$sha" ;;
-  esac
-}
 index_twins() {
   [ -n "$base_dev" ] || return 0
   local c subj key
   while IFS=$'\t' read -r c subj; do
-    case "$subj" in
-      vendor:* | *duckdb/duckdb@[0-9a-f]*) ;;
-      *) continue ;;
-    esac
-    key=$(twin_key "$subj")
+    series_is_vendor "$subj" || continue
+    key=$(series_twin_key "$subj")
     [ -n "$key" ] || continue
     # Oldest wins: a key appears once on a healthy series, and where a repair
     # left two, the first is the one the chain was verified on.
@@ -349,7 +289,7 @@ index_twins() {
 
 twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
   local key
-  key=$(twin_key "$(git log -1 --format=%s "$1")")
+  key=$(series_twin_key "$(git log -1 --format=%s "$1")")
   [ -n "$key" ] || return 0
   echo "${TWIN[$key]:-}"
 }
@@ -402,10 +342,7 @@ carry_paths() { # <buffer commit> <base -dev commit>
   local c=$1 d=$2 f idx
   idx=$(mktemp)
   GIT_INDEX_FILE=$idx git read-tree "$c"
-  { git show --format= --name-only --no-renames "$d" | sort -u |
-      grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
-      grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
-      true; } |
+  git show --format= --name-only --no-renames "$d" | sort -u | series_carry_filter |
     while IFS= read -r f; do
       # Same blob on both sides: the buffer already carries exactly this, and
       # re-applying it is the double application the difference exists to avoid.
@@ -436,8 +373,7 @@ glue_paths() { # <buffer commit> <base -dev commit>
   comm -13 \
     <(git show --format= --name-only --no-renames "$1" | sort -u) \
     <(git show --format= --name-only --no-renames "$2" | sort -u) |
-    grep -E '^src/' | grep -vE '^src/duckdb/' |
-    grep -vxE 'src/include/sources\.mk|src/Makevars(\.win|\.in)?' || true
+    series_carry_filter | grep -E '^src/' || true
 }
 
 # Check the counter rather than assume it: a replay that silently froze it
@@ -485,9 +421,9 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
   echo "green -> $(git rev-parse --short "$new_green")"
   green_moved=1
 
-  up=$(vendored_sha "$new_green")
+  up=$(series_vendored_sha "$new_green")
   if [ -n "$up" ]; then
-    eq=$(build_equivalent "$build" "$new_green" "$up")
+    eq=$(series_build_equivalent "$build" "$new_green" "$up")
     if [ -n "$eq" ]; then
       # Set, never advance. -build-base is the one ref of the four that is not
       # fast-forward only: nothing consumes it, and the match is recomputed
@@ -636,13 +572,13 @@ mb=$(git merge-base "$dev" "$build")
 if [ "$mb" = "$(git rev-parse "$dev")" ]; then
   anchor=$mb
 else
-  dev_up=$(vendored_sha "$dev")
+  dev_up=$(series_vendored_sha "$dev")
   [ -n "$dev_up" ] ||
     { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
-  anchor=$(build_equivalent "$build" "$dev" "$dev_up")
+  anchor=$(series_build_equivalent "$build" "$dev" "$dev_up")
   [ -n "$anchor" ] ||
-    { echo "Error: no -build commit vendors duckdb@$dev_up — mirror the fold in -build first"; exit 1; }
-  # `vendored_sha` walks past commits that vendor nothing, and on a -dev that has
+    { echo "Error: no -build commit vendors $series_upstream_repo@$dev_up — mirror the fold in -build first"; exit 1; }
+  # `series_vendored_sha` walks past commits that vendor nothing, and on a -dev that has
   # none of its own it walks past the seed too — answering with what the branch
   # the seed was cut from had vendored. That is every series on its first firing
   # once stage 4 has ported: -dev is the seed plus tooling picks, so the fast
@@ -749,22 +685,23 @@ else
   # both: `v2.0-cyanoptera-fwd-dev` got a second `TIMESTAMP_TZ_NS` case in
   # `src/transform.cpp`, and `install` failed on a duplicate `case` label. So a
   # carry into the glue is syntax-checked the way vendor-one.sh checks a vendor
-  # commit, and a failure stops the run like a conflict, with the carry staged.
-  # A check that cannot run (no `./configure`, no R) warns and carries on.
+  # commit (glue_compiles() in scripts/vendor-lib.sh), and a failure stops the
+  # run like a conflict, with the carry staged. A check that cannot run (no
+  # `./configure`, no R) warns and carries on.
   carry_glue_gate() { # <worktree> <buffer commit> <twin>
-    local wt=$1 flags bad
-    flags=$(cd "$wt" && { [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1 || true; } &&
-      (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-      grep -m 1 -E -- '-c cpp11\.cpp' |
-      sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//' || true)
-    if [ -z "$flags" ]; then
-      echo "Warning: could not derive the glue compile flags in $wt; carry not checked" >&2
-      return 0
-    fi
-    bad=$(cd "$wt/src" && printf '%s\n' *.cpp | FLAGS="$flags" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
-      sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {} | sort | tr '\n' ' ')
+    local wt=$1 st=0 failures bad
+    failures=$(mktemp)
+    (cd "$wt" && glue_compiles "$failures") || st=$?
     git -C "$wt" clean -fdxq -- src/
-    [ -n "$bad" ] || return 0
+    bad=$(tr '\n' ' ' < "$failures")
+    rm -f "$failures"
+    case "$st" in
+      0) return 0 ;;
+      2)
+        echo "Warning: could not derive the glue compile flags in $wt; carry not checked" >&2
+        return 0
+        ;;
+    esac
     echo >&2
     echo "The carry applied without a conflict, but the glue no longer compiles: $bad" >&2
     echo "Look for the twin's hunk duplicating an adaptation the buffer already has." >&2
