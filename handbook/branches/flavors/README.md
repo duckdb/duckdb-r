@@ -90,6 +90,27 @@ a reader on another flavor substitutes its name.
 
 ## Where r-universe is told
 
+A cutover, once the forward has caught up with the series it replaces.
+The universe is not in the picture: the entry's branch is `<S>-green` before and after:
+
+```mermaid
+sequenceDiagram
+  participant SL as series loop
+  participant H as a human
+  participant F as fork
+  participant C as duckdb/duckdb-r
+  SL->>H: CUTOVER line: #60;S#62;-fwd-green covers #60;S#62;-green
+  H->>H: series-cutover.sh #60;S#62; --prepare: coverage, convergence, review diff
+  H->>F: draft pull requests, closed at once: #60;S#62;-dev and #60;S#62;-build as they stand
+  H->>C: draft pull request, closed at once: the copy of #60;S#62;-green as it stands
+  H->>F: one atomic leased push: the four refs take the forward's tips
+  H->>C: #60;S#62;-green forced to the new green, under a lease
+  H->>F: the -fwd refs, strands and ledger deleted
+  H->>C: #60;S#62;-fwd-green deleted
+  C-->>SL: r-universe builds #60;S#62;-green, now the forward's history
+  Note over SL,C: The replaced history is each closed pull request's head. What a refused deletion leaves, series-prune.sh lists
+```
+
 A universe is a repository of its own, `<user>/<user>.r-universe.dev`,
 whose `packages.json` gives each package a `url` and a `branch`.
 The registration lives outside this repo, so adding a flavor is a pull request

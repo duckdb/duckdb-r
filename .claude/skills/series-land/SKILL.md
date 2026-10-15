@@ -23,6 +23,16 @@ its live forward `v2.0-cyanoptera-fwd` while one exists, because that is the one
 
 ## The refs
 
+```mermaid
+flowchart LR
+  F["frozen main"] --> B["base: main, or tests<br>pinned above it"]
+  RC["#60;S#62;-rc-dev: the series<br>without its flavor"] -->|"replay vendor commits,<br>series-forward-build.sh"| LD["#60;L#62;-land-dev"]
+  B --> LD
+  LD -->|"CI judges each commit;<br>a fix is folded in with series-fold.sh"| LG["#60;L#62;-land-green"]
+  LG -->|"READY: fast-forward"| M2["main, releasing #60;L#62;"]
+  LD -.->|"R side only,<br>--review"| R["#60;L#62;-land-review:<br>a draft pull request, never merged"]
+```
+
 * **`<L>-land-dev`**, in the fork: `main` plus the vendor commits, and nothing else.
   CI judges it like any `-dev` ([`scripts/each-plan.sh`](/scripts/each-plan.sh)).
 * **`<L>-land-green`**, in the fork: where CI's judgement starts.
@@ -258,7 +268,7 @@ close it in favour of the one below.
 The first pull request on `main`:
 
 * **The CRAN row** in `scripts/series.yaml`: `duckdb` now tracks `<L>`.
-  Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 7).
+  Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 6).
 * **`main`'s version.** The landing ends on the series' version, `1.99.99.9000.<n>`,
   which is the preview prefix `main` carries while it previews the line
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
