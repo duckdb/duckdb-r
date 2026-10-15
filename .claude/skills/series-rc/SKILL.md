@@ -72,6 +72,10 @@ The strand is derived, never vendored, repaired, ported or advanced on its own.
 
 ## At cutover
 
-[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs and knows nothing of an rc strand.
-In the same session, cut `<S>-rc-dev` from the swapped-in `<S>` and delete `<S>-fwd-rc-dev`,
+[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs
+and deletes `<S>-fwd-rc-dev` with them, since the strand is derived and its source is `<S>-dev` now;
+it cuts nothing.
+In the same session, cut `<S>-rc-dev` from the swapped-in `<S>`,
 so no rc strand outlives its source.
+A `<S>-fwd-rc-dev` the deletion could not remove is cutover litter, and
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) lists it.

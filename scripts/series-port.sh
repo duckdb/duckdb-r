@@ -330,7 +330,7 @@ version_bump() { # <sha>
 }
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
-  local f t= o=
+  local f t='' o=''
   if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
   if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do

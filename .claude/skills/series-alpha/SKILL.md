@@ -71,6 +71,9 @@ the gap is upstream's, and it is reported rather than worked around.
 
 ## At cutover
 
-[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs and knows nothing of an alpha strand.
-In the same session, cut `<S>-alpha` from the swapped-in `<S>`
-and delete `<S>-fwd-alpha` and `<S>-fwd-rc-alpha`, so no alpha strand outlives its source.
+[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs
+and deletes `<S>-fwd-alpha` and `<S>-fwd-rc-alpha` with them, since both are derived and their source is `<S>-dev` now;
+it cuts nothing.
+In the same session, cut `<S>-alpha` from the swapped-in `<S>`, so no alpha strand outlives its source.
+A strand the deletion could not remove is cutover litter, and
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) lists it.

@@ -70,9 +70,18 @@ put an `rcc` status on a commit no per-commit leg had decided.
 So the port stage syncs the buffer's tooling too
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 and the model's "no CI" holds because something maintains it.
-Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
-verified from scratch and swapped in by a human-run cutover;
+Rebasing a series happens *beside* it as a `<S>-fwd` counterpart, one at a time,
+verified from scratch and swapped in by a human-run **cutover**
+([`series-forward`](/.claude/skills/series-forward/SKILL.md));
 a serving `-green` never moves sideways on its own.
+The names are static, so nothing outside the two repositories learns of a cutover,
+and the lineages the swap replaces are kept first,
+each as the head of a draft pull request opened and closed on the spot,
+which GitHub keeps reachable as `refs/pull/<n>/head` for as long as it exists:
+the fork's `<S>-dev` and `<S>-build`, and the canonical repository's copy of `<S>-green`.
+The `-fwd` refs go afterwards, their tips being the series' refs by then,
+and what a refused deletion leaves is **cutover litter**, listed by
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) for a human to remove.
 **`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
 so that the package a release ships as plain `duckdb` has verdicts of its own.
 It is one ref: no buffer, since it is derived rather than vendored,

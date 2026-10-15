@@ -106,7 +106,10 @@ to do, and they run in this order:
   into the report and to the stage that should have moved them. A
   caught-up counterpart is *reported* with the cutover command, never
   executed; that move is a human's, and the script prints the same
-  comparison before it asks for confirmation.
+  comparison and the review of the forward's R side before it asks for
+  confirmation, archives what it replaces as closed pull requests, and
+  deletes the forward's refs in both repositories afterwards
+  ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 * **Report what the tooling got wrong** — a firing that had to work
   around a script opens a pull request against it,
   so the next firing does not have to.
@@ -188,7 +191,8 @@ Everything else is an option, spelled identically in all of them:
   An empty `SERIES_CANONICAL` turns the mirroring off; an unset one does not.
   Only `series-advance.sh` and `series-cutover.sh` write one; `series-port.sh`
   and `series-check.sh` read `main` from it, and fall back to the fork's mirror
-  with a word on stderr when they cannot
+  with a word on stderr when they cannot, and `series-prune.sh` reads the
+  forward green's copy from it
   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * `-h`, `--help` — the usage, on stdout, exit 0, before the script
   touches git.

@@ -30,7 +30,9 @@ The families, in one breath:
   the one exception is vendor-coupled glue on the preview line,
   born beside the vendor commit that forces it.
 * **CI / green** — a `-green` ref only ever fast-forwards to
-  commits with recorded successful runs.
+  commits with recorded successful runs; the one sideways move, a cutover,
+  keeps every lineage it replaces as a closed pull request's head before
+  it moves anything ([`model/`](/handbook/branches/model/README.md)).
 * **Forward convergence** — at the end of a forwarding, `<S>-dev` and
   `<S>-fwd-dev` are identical, or every difference between them is
   explicable. A forward is the same series rebuilt on a newer `main`
