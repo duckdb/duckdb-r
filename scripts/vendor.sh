@@ -55,7 +55,7 @@ fi
 # changelog nobody chose. The same rule, and the same bound, as vendored_sha()
 # in scripts/series-advance.sh; scripts/vendor-one.sh has its own copy.
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
+subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee >(cat >&2))
 base=$(sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' <<<"$subjects" | head -n 1)
 if [ -z "$base" ]; then
   n=$(grep -c . <<<"$subjects" || true)
@@ -87,6 +87,7 @@ for commit in $original; do
   # stdin is a terminal.
   # scripts/vendor-one.sh has the same three-way split and the same exit 4.
   for f in patch/*.patch; do
+    [ -e "$f" ] || continue # an empty stack leaves the glob unmatched
     if patch -i "$f" -p1 --forward --dry-run; then
       patch -i "$f" -p1 --forward --no-backup-if-mismatch
     elif patch -i "$f" -p1 --reverse --forward --dry-run; then
@@ -148,7 +149,7 @@ git add .
   git -C "$upstream_dir" log -1 --format="Date: %ai" "${commit}"
   echo
   git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
-    tee /dev/stderr |
+    tee >(cat >&2) |
     sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'
 ) | git commit --file /dev/stdin
 

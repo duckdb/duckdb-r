@@ -256,7 +256,7 @@ and reaches `main` when `main`'s engine reaches the code.
 **A `patch/` entry has to reach the buffer too.**
 Stage 4 ports `main` onto `<S>-dev` and stops there;
 `<S>-build` carries no ports by design (stage 1).
-But `vendor-one.sh` applies the **buffer's** `patch/*.patch`
+But `vendor-one.sh` applies the **strand's** `patch/*.patch`
 to each tree it regenerates,
 so a patch that only ever landed on `-dev`
 is absent the next time the buffer vendors,

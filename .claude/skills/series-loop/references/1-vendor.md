@@ -16,6 +16,10 @@ git -C <S>-vendor-worktree push origin HEAD:<S>-vendor
 The strand takes the vendoring and nothing else: one commit per upstream commit,
 the regenerated tree with the patch stack applied and the files generated from it, no counter, no glue gate
 ([`branches/model/`](/handbook/branches/model/README.md)).
+`--strand` stages the configured vendor paths alone and restores whatever else the generator wrote,
+and tells the generator which of the two it is writing
+(`series_generate_tree()` and `series_generate_derived()` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+the patch stack applied between the two).
 The buffer is derived from it by [`scripts/series-vendor.sh`](/scripts/series-vendor.sh):
 each strand commit cherry-picked, the fifth component stamped, the glue gate run,
 so a glue fix is the buffer's own and the two share the vendored tree at every twin.
