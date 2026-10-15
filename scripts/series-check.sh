@@ -617,8 +617,8 @@ for S in "${series[@]}"; do
     echo "  VENDOR  $S has no vendor strand; derive it once from the buffer:"
     echo "          scripts/series-vendor.sh $S --init --remote $remote --push"
   else
-    v_up=$(vendored_sha "$vendor" 2>/dev/null)
-    b_up=$(vendored_sha "$build" 2>/dev/null)
+    v_up=$(series_vendored_sha "$vendor" 2>/dev/null)
+    b_up=$(series_vendored_sha "$build" 2>/dev/null)
     if [ "$v_up" != "$b_up" ]; then
       if [ -n "$b_up" ] && at=$(git log -1 --format=%H --fixed-strings --grep="@$b_up" "$vendor") && [ -n "$at" ]; then
         echo "  VENDOR  $S-vendor is $(git rev-list --count "$at..$vendor") commit(s) ahead of $S-build; stage 1 picks them:"

@@ -11,7 +11,7 @@
 #   The default extends `<S>-build` from `<S>-vendor`, in the worktree it is run
 #   from, which must stand at `<S>-build`: every strand commit above the
 #   buffer's newest twin is cherry-picked onto HEAD, what the buffer alone
-#   carries is regenerated (nothing here: the Makevars travel with the strand),
+#   carries is regenerated (`series_regenerate()` in scripts/series-config.sh),
 #   a vendor commit's counter is stamped, and the glue gate runs. Broken glue
 #   stops with the pick at HEAD for the fix to be amended in; a rerun continues
 #   from there. --count bounds the picks; --push pushes HEAD to `<S>-build`.
@@ -34,9 +34,13 @@
 #   scripts/series-*.sh (handbook/operations/vendoring/series-loop/README.md).
 #
 # Exit status: 2 usage; 1 refused, or a pick that conflicts; 3 broken glue,
-# with the pick at HEAD; 6 the glue check could not run.
+# with the pick at HEAD; 8 the glue check could not run, as vendor-one.sh says it.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
+# shellcheck source=vendor-lib.sh
+. "$(dirname "$0")/vendor-lib.sh"
 
 usage='usage: series-vendor.sh <S> [--remote <name>] [--count <n>] [--no-check-glue] [--push]
        series-vendor.sh <S> --init [--remote <name>] [--push]
@@ -63,34 +67,20 @@ done
 S=${args[0]}
 case "$count" in '' | *[!0-9]*) [ -z "$count" ] || argerr ;; esac
 
-# What a strand commit carries: the vendored tree, the patch stack applied to
-# it, and the files vendoring regenerates from it and from `src/Makevars.in`.
-# Everything else a buffer commit holds, the counter and the glue the gate
-# demanded, is the buffer's own.
-VENDOR_PATHS=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win man/figures)
-
-# What the buffer regenerates after a pick, beyond the counter: nothing here,
-# because every generated file is the strand's. A repository whose generator
-# reads the R side as well regenerates it here.
-regenerate() { :; }
+# What a strand commit carries, and what the buffer regenerates after a pick,
+# are the configuration's (scripts/series-config.sh): `series_vendor_paths` and
+# `series_regenerate()`. Everything else a buffer commit holds, the counter and
+# the glue the gate demanded, is the buffer's own.
 
 cd "$(git rev-parse --show-toplevel)"
 git fetch -q "$remote"
 vendor_ref="refs/remotes/$remote/$S-vendor"
 build_ref="refs/remotes/$remote/$S-build"
 
-# The seed a ref stands on, which the strand starts above.
-seed_of() { git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 "$1"; }
-
-# Does a subject say its commit vendored? The subject decides, never the path.
-is_vendor() { # <subject>
-  case "$1" in vendor:* | *duckdb/duckdb@[0-9a-f]*) return 0 ;; *) return 1 ;; esac
-}
-
 # An ERE over the vendor paths, each matched as itself or as a directory.
 vendor_re=''
-for p in "${VENDOR_PATHS[@]}"; do
-  vendor_re="${vendor_re:+$vendor_re|}$(printf '%s' "$p" | sed 's/[.]/\\./g')"
+for p in "${series_vendor_paths[@]}"; do
+  vendor_re="${vendor_re:+$vendor_re|}$(series_re_of "$p")"
 done
 vendor_re="^($vendor_re)(/|\$)"
 
@@ -131,24 +121,9 @@ stamp() {
   rm -f DESCRIPTION.bak
 }
 
-# The glue gate, as vendor-one.sh runs it after a vendor commit.
+# The glue gate, as vendor-one.sh runs it after a vendor commit (glue_compiles()
+# in scripts/vendor-lib.sh); the files that failed, for the banner.
 glue_failures=$(mktemp)
-glue_compile_flags() {
-  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1 || true
-  (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-    grep -m 1 -E -- '-c cpp11\.cpp' |
-    sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
-}
-glue_compiles() { # 0 compiles, 1 some file does not, 2 the check could not run
-  local flags
-  flags=$(glue_compile_flags)
-  [ -n "$flags" ] || return 2
-  # shellcheck disable=SC2016,SC2251  # the sh child expands $FLAGS and $1; the negation is the verdict
-  (cd src && printf '%s\n' *.cpp | FLAGS="$flags" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
-    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee "$glue_failures" |
-    { ! grep -q .; }
-}
 
 # --- --init: the strand derived from the buffer ------------------------------
 
@@ -158,7 +133,7 @@ if [ "$mode" = init ]; then
     echo "Error: $S-vendor exists on $remote; --init derives a strand once, from a buffer that has none" >&2
     exit 1
   fi
-  seed=$(seed_of "$build_ref")
+  seed=$(series_seed_of "$build_ref")
   [ -n "$seed" ] || { echo "Error: $S-build has no seed to start the strand above" >&2; exit 1; }
   prev=$seed
   n=0
@@ -185,10 +160,9 @@ if [ "$mode" = forward ]; then
   git rev-parse -q --verify "$vendor_ref" >/dev/null || { echo "Error: no $S-vendor on $remote" >&2; exit 1; }
   seed=$(git rev-parse -q --verify "$seed_arg^{commit}") ||
     { echo "Error: --forward $seed_arg is not a commit" >&2; exit 1; }
-  vseed=$(seed_of "$vendor_ref")
+  vseed=$(series_seed_of "$vendor_ref")
   [ -n "$vseed" ] || { echo "Error: $S-vendor has no seed" >&2; exit 1; }
-  engine=$(git show "$seed:src/duckdb/src/function/table/version/pragma_version.cpp" 2>/dev/null |
-    sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p')
+  engine=$(series_engine_of "$seed")
   anchor=''
   if [ -n "$engine" ]; then
     anchor=$(git log --format='%H %s' "$vseed..$vendor_ref" | grep -m 1 -F "@$engine" | cut -d' ' -f1 || true)
@@ -275,21 +249,21 @@ for c in $todo; do
     echo "Resolve it, 'git cherry-pick --continue', and rerun." >&2
     exit 1
   }
-  regenerate
-  if is_vendor "$subj"; then stamp; fi
+  series_regenerate
+  if series_is_vendor "$subj"; then stamp; fi
   git add -A
   git commit -q --amend --no-edit
   picked=$((picked + 1))
   if [ "$check_glue" = true ]; then
     glue_status=0
-    glue_compiles || glue_status=$?
+    glue_compiles "$glue_failures" || glue_status=$?
     if [ "$glue_status" = 2 ]; then
       echo
       echo "=== GLUE CHECK COULD NOT RUN at $(git rev-parse --short HEAD) ==="
-      echo "Deriving the compile flags needs src/Makevars.rstrtmgr, which only ./configure"
-      echo "writes; run ./configure and read its output, then rerun, or pass --no-check-glue."
+      echo "Deriving the compile flags needs the Makevars ./configure completes${series_configured_file:+ ($series_configured_file)};"
+      echo "run ./configure and read its output, then rerun, or pass --no-check-glue."
       echo "Nothing was compiled, so this says nothing about the commit at HEAD."
-      exit 6
+      exit 8
     elif [ "$glue_status" != 0 ]; then
       echo
       echo "=== GLUE BROKEN by $(git rev-parse --short HEAD) ==="

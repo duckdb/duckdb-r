@@ -39,6 +39,19 @@ series_scan_dir=src/duckdb
 series_strand=(src/duckdb patch R/version.R src/include/sources.mk)
 series_makevars=(src/Makevars src/Makevars.win)
 
+# What a vendor-strand commit carries (scripts/series-vendor.sh): the vendored
+# tree, the patch stack applied to it, and every file vendoring writes from the
+# tree and from the templates it fills, which here is all of them, the logos
+# included. Never the counter, never the glue.
+series_vendor_paths=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win man/figures)
+
+# What the buffer regenerates after a strand commit is picked onto it, beyond
+# the counter: nothing here, because every generated file is the strand's. A
+# repository whose generator reads the R side as well, so that its output is
+# the seed's and not the strand's, regenerates those files here, in the buffer
+# worktree, and names them in `series_regenerated`.
+series_regenerate() { :; }
+
 # What vendoring regenerates, which differs between any two vendor runs of the
 # same upstream commit and is never carried as a fix (scripts/series-advance.sh):
 # files, and directories.
@@ -115,15 +128,15 @@ series_canonical_repo=duckdb/duckdb-r
 # release instead, and a repository vendoring one writes that ordering here.
 series_version_before() { # <engine> <version>
   local re='^([0-9]+)\.([0-9]+)\.([0-9]+)(-dev([0-9]+))?$' i
-  local -a engine version
+  local -a lhs rhs
   [[ $1 =~ $re ]] || return 1
   [ -n "${BASH_REMATCH[4]}" ] || return 1
-  engine=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]}")
+  lhs=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]}")
   [[ $2 =~ $re ]] || return 1
-  version=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-999999999999}")
+  rhs=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-999999999999}")
   for i in 0 1 2 3; do
-    ((10#${engine[i]} < 10#${version[i]})) && return 0
-    ((10#${engine[i]} > 10#${version[i]})) && return 1
+    ((10#${lhs[i]} < 10#${rhs[i]})) && return 0
+    ((10#${lhs[i]} > 10#${rhs[i]})) && return 1
   done
   return 1
 }

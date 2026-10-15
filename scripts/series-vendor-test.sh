@@ -21,6 +21,8 @@
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=series-lib.sh
+. "$HERE/series-lib.sh"
 
 SCRATCH=$(mktemp -d)
 [ -n "${KEEP:-}" ] || trap 'rm -rf "$SCRATCH"' EXIT
@@ -47,7 +49,7 @@ git config commit.gpgsign false
 git remote add origin "$REMOTE"
 
 mkdir -p scripts R src/duckdb/src/function/table/version src/include patch man/figures
-cp "$HERE/series-vendor.sh" scripts/
+for s in series-vendor.sh series-config.sh series-lib.sh vendor-lib.sh; do cp "$HERE/$s" scripts/; done
 chmod +x scripts/*.sh
 
 desc() { printf 'Package: %s\nVersion: %s\n' "$1" "$2" > DESCRIPTION; }
@@ -59,7 +61,7 @@ engine() { # <id> <R version>
   echo "PKG_CPPFLAGS=-I$1" > src/Makevars
 }
 commit() { git add -A; git commit -qm "$1"; git rev-parse HEAD; }
-vendor_paths() { git ls-tree -r "$1" -- src/duckdb patch R/version.R src/include src/Makevars man/figures | awk '{ print $3, $4 }'; }
+vendor_paths() { git ls-tree -r "$1" -- "${series_vendor_paths[@]}" | awk '{ print $3, $4 }'; }
 same_vendor() { [ "$(vendor_paths "$1")" = "$(vendor_paths "$2")" ]; }
 
 desc duckdb 1.5.5.9000
