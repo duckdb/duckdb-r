@@ -17,11 +17,12 @@
 #      cleanup plan, writes the review diff, and moves nothing.
 #   3. A cutover whose archive fails swaps nothing; one against a remote that
 #      is not on GitHub refuses too, unless --no-archive.
-#   4. The cutover, confirmed on a terminal: three archive pull requests opened
-#      as drafts and closed (-dev and -build in the fork, green's copy in the
-#      canonical repository), the four refs swapped to the forward's tips,
-#      the canonical green forced to the new one, and the forward's refs, its
-#      rc strand, its retry ledger and its canonical copy deleted.
+#   4. The cutover, confirmed on a terminal: four archive pull requests opened
+#      as drafts and closed (-dev, -build and the vendor strand in
+#      the fork, green's copy in the canonical repository), the four refs and
+#      the vendor strand swapped to the forward's tips, the canonical green
+#      forced to the new one, and the forward's refs, its vendor strand, its rc
+#      strand, its retry ledger and its canonical copy deleted.
 #   5. series-check.sh ignores what a refused deletion leaves as cutover litter.
 #   6. series-prune.sh lists that litter with the commands that remove it and
 #      runs none of them; it offers nothing of a live forward.
@@ -56,8 +57,9 @@ hasnt() { case "$2" in *"$3"*) no "$1"; echo "     unexpected: $3" ;; *) ok "$1"
 # A series `v9.9-x` seeded on an older `main`, two vendor commits deep, and its
 # forward seeded on the current `main`, three deep: the forward covers the
 # series. Both have a green at their tip, a buffer one commit ahead of green on
-# the series, an rc strand and a retry ledger on the forward. The canonical
-# repository holds `main` and both greens, as the loop's mirroring leaves them.
+# the series, an rc strand, a retry ledger and a vendor strand on the forward.
+# The canonical repository holds `main` and both greens, as the loop's
+# mirroring leaves them.
 
 FORK=$SCRATCH/fork.git
 CANON=$SCRATCH/canonical.git
@@ -162,6 +164,8 @@ series v9.9-x "$OLD_MAIN" 2 3 9000
 series v9.9-x-fwd "$MAIN" 3 3 9001
 git branch -f v9.9-x-fwd-rc-dev v9.9-x-fwd-dev
 git branch -f retry-v9.9-x-fwd-dev v9.9-x-fwd-dev
+git branch -f v9.9-x-vendor v9.9-x-build~1
+git branch -f v9.9-x-fwd-vendor v9.9-x-fwd-build~1
 
 # The store stub, empty: every commit reads `missing`.
 git checkout -q --orphan rcc2
@@ -171,9 +175,9 @@ commit 'chore: store stub'
 
 git checkout -q main
 git push -q origin rcc2 \
-  v9.9-x-build v9.9-x-dev v9.9-x-green v9.9-x-build-base \
+  v9.9-x-build v9.9-x-dev v9.9-x-green v9.9-x-build-base v9.9-x-vendor \
   v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base \
-  v9.9-x-fwd-rc-dev retry-v9.9-x-fwd-dev
+  v9.9-x-fwd-rc-dev retry-v9.9-x-fwd-dev v9.9-x-fwd-vendor
 git push -q upstream v9.9-x-green v9.9-x-fwd-green
 git fetch -q origin
 git fetch -q upstream
@@ -196,6 +200,7 @@ NEW_DEV=$(git rev-parse origin/v9.9-x-fwd-dev)
 NEW_BUILD=$(git rev-parse origin/v9.9-x-fwd-build)
 NEW_GREEN=$(git rev-parse origin/v9.9-x-fwd-green)
 NEW_BB=$(git rev-parse origin/v9.9-x-fwd-build-base)
+NEW_VENDOR=$(git rev-parse v9.9-x-fwd-vendor)
 
 echo "=== 1. without a terminal the cutover refuses, and names --prepare"
 before_fork=$(heads origin); before_canon=$(heads upstream)
@@ -223,9 +228,10 @@ has "the archive plan names -dev in the fork" "$out" "v9.9-x-dev -> v9.9-x-fwd-d
 has "and -build" "$out" "v9.9-x-build -> v9.9-x-fwd-build in test/fork"
 hasnt "but not green, which is on -dev" "$out" "v9.9-x-green -> v9.9-x-fwd-green in test/fork"
 hasnt "nor build-base, which is on -build" "$out" "v9.9-x-build-base ->"
+has "and the vendor strand against the forward's" "$out" "v9.9-x-vendor -> v9.9-x-fwd-vendor in test/fork"
 has "and green's copy in the canonical repository" "$out" "v9.9-x-green -> v9.9-x-fwd-green in test/canonical"
 has "the cleanup names the forward's refs and strands" "$out" \
-  "deleted after the swap: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-rc-dev retry-v9.9-x-fwd-dev on origin"
+  "deleted after the swap: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev retry-v9.9-x-fwd-dev on origin"
 has "and the canonical copy" "$out" "v9.9-x-fwd-green on upstream"
 has "and says nothing happened" "$out" "Prepared; nothing was opened, pushed or deleted."
 is "the review diff is written" "$([ -s "$OUT/review.diff" ] && echo yes)" yes
@@ -264,7 +270,8 @@ has "the run finishes" "$out" "EXIT=0"
 has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
 has "-dev archived in the fork" "$out" "archived v9.9-x-dev as test/fork#101 (closed; its head is refs/pull/101/head there)"
 has "-build was archived already, and is not archived twice" "$out" "already archived v9.9-x-build as test/fork#99 (its head is refs/pull/99/head there)"
-has "green's copy archived in the canonical repository" "$out" "archived v9.9-x-green as test/canonical#102"
+has "the vendor strand archived in the fork" "$out" "archived v9.9-x-vendor as test/fork#102"
+has "green's copy archived in the canonical repository" "$out" "archived v9.9-x-green as test/canonical#103"
 has "the canonical green moved" "$out" "canonical v9.9-x-green -> ${NEW_GREEN:0:7}"
 has "the strands are to be re-cut" "$out" "scripts/series-rc.sh v9.9-x --push"
 has "the fork's universe entry is named" "$out" "The fork's universe still names v9.9-x-fwd-green"
@@ -275,13 +282,15 @@ has "the -dev pull request is a draft from -dev against -fwd-dev" "$log" \
 has "naming the tip it keeps" "$log" "$OLD_DEV"
 has "and is closed" "$log" "api -X PATCH repos/test/fork/pulls/101 -f state=closed"
 hasnt "the -build pull request is not opened again" "$log" "-f head=v9.9-x-build -f base=v9.9-x-fwd-build -F draft=true"
+has "the vendor strand's pull request" "$log" "-f head=v9.9-x-vendor -f base=v9.9-x-fwd-vendor -F draft=true"
 has "the canonical green's pull request" "$log" "api -X POST repos/test/canonical/pulls -f title=chore(series): Archive v9.9-x-green before its cutover -f head=v9.9-x-green -f base=v9.9-x-fwd-green"
-is "three lookups, two pull requests opened and closed, nothing else" "$(grep -c -- "-X " "$GH_LOG")" 7
+is "four lookups, three pull requests opened and closed, nothing else" "$(grep -c -- "-X " "$GH_LOG")" 10
 is "-dev is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$NEW_DEV"
 is "-build is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-build | cut -f1)" "$NEW_BUILD"
 is "-green is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
 is "-build-base is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-build-base | cut -f1)" "$NEW_BB"
-is "the forward's refs, its rc strand and its ledger are gone" "$(git ls-remote origin 'refs/heads/*fwd*' | wc -l)" 0
+is "-vendor is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-vendor | cut -f1)" "$NEW_VENDOR"
+is "the forward's refs, its vendor strand, its rc strand and its ledger are gone" "$(git ls-remote origin 'refs/heads/*fwd*' | wc -l)" 0
 is "the canonical green is the forward's" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
 is "and the canonical copy of the forward's green is gone" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | wc -l)" 0
 is "the old -dev is still an object in the fork" "$(git -C "$FORK" cat-file -t "$OLD_DEV")" commit
@@ -292,7 +301,7 @@ echo "=== 5. series-check.sh ignores cutover litter"
 # A refused deletion leaves the forward's refs at the series' tips; and an
 # older cutover left its rc strand behind.
 git push -q origin "$NEW_GREEN:refs/heads/v9.9-x-fwd-green" "$NEW_DEV:refs/heads/v9.9-x-fwd-dev" \
-  "$NEW_BUILD:refs/heads/v9.9-x-fwd-build" "$NEW_DEV:refs/heads/v9.9-x-fwd-rc-dev"
+  "$NEW_BUILD:refs/heads/v9.9-x-fwd-build" "$NEW_DEV:refs/heads/v9.9-x-fwd-rc-dev" "$NEW_BUILD~1:refs/heads/v9.9-x-fwd-vendor"
 git push -q upstream "$NEW_GREEN:refs/heads/v9.9-x-fwd-green"
 git fetch -q origin
 out=$(run scripts/series-check.sh --canonical '')
@@ -313,7 +322,8 @@ has "the forward reads as swapped in" "$out" "v9.9-x-fwd-green ${NEW_GREEN:0:7} 
 has "the litter is listed" "$out" "cutover litter:"
 has "the rc strand among it" "$out" "  v9.9-x-fwd-rc-dev"
 has "and the canonical copy" "$out" "  v9.9-x-fwd-green on upstream"
-has "the deletion in the fork" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-rc-dev"
+has "the vendor strand among it too" "$out" "  v9.9-x-fwd-vendor"
+has "the deletion in the fork" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev"
 has "and in the canonical repository" "$out" "git push --delete upstream v9.9-x-fwd-green"
 has "and nothing was run" "$out" "Nothing above was run."
 is "the fork's refs are untouched" "$(heads origin)" "$before_fork"
