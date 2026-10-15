@@ -37,14 +37,15 @@ The failure classes, and what each needs:
   fix the glue and fold it into that vendor commit.
   The gate names the files it could not compile,
   and only that banner (`GLUE BROKEN`, exit 3) implicates the commit at HEAD.
-* **The glue gate could not run** (`GLUE CHECK COULD NOT RUN`, exit 6, shared with the clone refusals below) —
+* **The glue gate could not run** (`GLUE CHECK COULD NOT RUN`, exit 8, in `vendor-one.sh` and `series-forward-build.sh` alike) —
   the compile flags come from `R CMD SHLIB -n`,
   which needs the `src/Makevars.rstrtmgr` only `./configure` writes,
   so this says `./configure` failed and nothing was compiled.
   It is a local setup problem: run `./configure` and read its output.
   The vendor commit is not implicated, and amending it fixes nothing.
+  Exit 7 is unused here, left for a generator that fails before the commit in a repository whose vendoring runs one.
 * **The upstream clone cannot name a version** (`SHALLOW UPSTREAM CLONE` or
-  `NO VERSION IN THE UPSTREAM CLONE`, exit 6 as well):
+  `NO VERSION IN THE UPSTREAM CLONE`, exit 6):
   a shallow or tagless clone would stamp a `DUCKDB_VERSION` no extension repository serves,
   so `vendor-one.sh` refuses before it vendors anything.
   Fetch the history and the tags into the source clone, as the banner prints, and rerun.

@@ -14,7 +14,13 @@ set -o pipefail
 # script against another worktree. Only *this* script comes from `main` that
 # way: everything it invokes by relative path -- `scripts/rconfigure.py`,
 # `patch/*.patch`, `./configure` -- stays the target tree's.
-cd "${VENDOR_REPO:-$(dirname "$0")/..}"
+# The engine's names and the glue gate come from this script's own tree, as the
+# script does, before the change of directory below.
+here=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=vendor-lib.sh
+. "$here/vendor-lib.sh"
+
+cd "${VENDOR_REPO:-$here/..}"
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
   echo "Error: $PWD is not a git worktree" >&2
   exit 1
@@ -24,18 +30,18 @@ toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
   exit 1
 }
 
-project=duckdb
-vendor_base_dir=src/duckdb
+repo_org=${series_upstream_repo%%/*}
+repo_name=${series_upstream_repo##*/}
+project=${repo_name}
+vendor_base_dir=${series_vendor_dir}
 vendor_dir=${vendor_base_dir}
-repo_org=${project}
-repo_name=${project}
 
 
 upstream_basedir=""
 num_commits=1
 check_glue=true
 
-# Matches the bound in vendored_sha() (scripts/series-advance.sh).
+# Matches the bound in series_vendored_sha() (scripts/series-lib.sh).
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 
 while [ $# -gt 0 ]; do
@@ -179,47 +185,19 @@ fi
 
 start=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
-glue_compile_flags() {
-  # src/Makevars includes Makevars.rstrtmgr, which only ./configure writes and
-  # .gitignore keeps out of the tree; without it `make -n` stops before it ever
-  # prints a compile line.
-  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
-  (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-    grep -m 1 -E -- '-c cpp11\.cpp' |
-    sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
-}
-
-# The glue files that failed to compile, one per line. Written only by the run
-# that got as far as compiling, and read only after that run reported 1 -- so
-# the list a banner prints is always the list this check produced, never one an
-# earlier run in the same container left behind.
+# The glue files that failed to compile, one per line, as glue_compiles()
+# (scripts/vendor-lib.sh) writes them. Written only by the run that got as far
+# as compiling, and read only after that run reported 1 -- so the list a banner
+# prints is always the list this check produced, never one an earlier run in
+# the same container left behind.
 glue_failures=/tmp/vendor-one-glue-failures.txt
-
-# 0 the glue compiles, 1 some file does not, 2 the check could not run. The
-# three are distinct because the caller acts differently on each: only 1 says
-# anything about the commit at HEAD.
-glue_compiles() {
-  local flags
-  flags=$(glue_compile_flags)
-  if [ -z "$flags" ]; then
-    echo "Error: could not derive glue compile flags (R CMD SHLIB -n)" >&2
-    return 2
-  fi
-  # `eval` because R quotes its include path (-I"/usr/share/R/include"); plain
-  # expansion word-splits without removing the quotes, so g++ never finds R.h
-  # and every glue file looks broken.
-  (cd src && ls *.cpp | FLAGS="$flags" xargs -P 4 -I{} \
-    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee "$glue_failures" |
-    { ! grep -q .; }
-}
 
 # The upstream SHA the branch has vendored, and the base of the next walk.
 # Answering empty is not an option: an empty base makes the range below read
 # `..${start}`, whose missing left side git resolves to the upstream clone's
 # HEAD -- a range nobody chose, and one that silently vendors the wrong span.
-# The same rule, and the same bound, as vendored_sha() in
-# scripts/series-advance.sh; scripts/vendor.sh has its own copy.
+# The same rule, and the same bound, as series_vendored_sha() in
+# scripts/series-lib.sh; scripts/vendor.sh has its own copy.
 vendored_sha() {
   local subjects sha n
   subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
@@ -462,7 +440,7 @@ while [ $commits_vendored -lt $num_commits ]; do
     # Not `! glue_compiles`, which would collapse "the check could not run" into
     # "the glue is broken" and send the operator to fix code that compiles.
     glue_status=0
-    glue_compiles || glue_status=$?
+    glue_compiles "$glue_failures" || glue_status=$?
     if [ "$glue_status" = 2 ]; then
       echo ""
       echo "=== GLUE CHECK COULD NOT RUN at $(git rev-parse --short HEAD) (upstream ${commit}) ==="
@@ -473,8 +451,11 @@ while [ $commits_vendored -lt $num_commits ]; do
       echo "Run ./configure and read its output, then rerun this script;"
       echo "--no-check-glue skips the check altogether."
       # Its own code, below the ones already spoken for: 3 is broken glue, 4 a
-      # broken patch, 5 the wrong upstream line.
-      exit 6
+      # broken patch, 5 the wrong upstream line, 6 a clone that cannot name a
+      # version. 7 is left free for a generator that fails before the commit,
+      # which a repository whose vendoring runs one takes, so the two stay in
+      # step (handbook/operations/vendoring/troubleshooting/README.md).
+      exit 8
     elif [ "$glue_status" != 0 ]; then
       echo ""
       echo "=== GLUE BROKEN by $(git rev-parse --short HEAD) (upstream ${commit}) ==="

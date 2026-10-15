@@ -100,6 +100,10 @@
 #   zero unless HEAD already carries that prefix.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
+# shellcheck source=vendor-lib.sh
+. "$(dirname "$0")/vendor-lib.sh"
 
 usage='usage: series-forward-build.sh <old-ref> <old-base-ref> [--buffer <old-build>] [--placed <sha>]... [--graft-from <ref>] [--prefix <a.b.c.d>] [--no-check-glue] [--no-keep-tests]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -168,26 +172,22 @@ fi
 [ -n "$prefix" ] ||
   { echo "Error: HEAD's DESCRIPTION has no five-component version (seed the series first)"; exit 1; }
 
-upstream_sha() { git log -1 --format=%s "$1" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p'; }
+upstream_sha() { series_sha_of "$(git log -1 --format=%s "$1")"; }
 
-# The engine a tree vendors, as the tree itself records it: the abbreviated
-# upstream SHA the vendored `pragma_version.cpp` carries. Read from the tree
-# rather than from a subject because the commits that matter here -- a seed, a
-# graft -- vendor nothing and name no SHA.
-engine() {
-  git show "$1:src/duckdb/src/function/table/version/pragma_version.cpp" 2>/dev/null |
-    sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p'
-}
+# The engine a tree vendors, as the tree itself records it (scripts/series-config.sh).
+# Read from the tree rather than from a subject because the commits that matter
+# here -- a seed, a graft -- vendor nothing and name no SHA.
+engine() { series_engine_of "$1"; }
 
 # The vendored strand a rewinding pick takes whole (see rewind_pick): the
-# engine's tree, the patch stack applied to it, and the two files generated
-# from nothing but that tree. The Makevars are generated as well, but from
+# engine's tree, the patch stack applied to it, and the files generated from
+# nothing but that tree. The Makevars are generated as well, but from
 # `src/Makevars.in`, which is `main`'s, so they travel as a diff.
-STRAND=(src/duckdb patch R/version.R src/include/sources.mk)
+STRAND=("${series_strand[@]}")
 
 # The glue gate: the check vendor-one.sh runs after every vendor commit
-# (glue_compiles() there), syntax-checking the glue against the vendored
-# headers. The replay needs it for a reason vendoring never had. The old buffer
+# (glue_compiles() in scripts/vendor-lib.sh), syntax-checking the glue against
+# the vendored headers. The replay needs it for a reason vendoring never had. The old buffer
 # was gated against the glue of *its* seed, and the new seed brings `main`'s
 # glue as it is today, written against today's release: at the foot of a
 # rewind it meets an engine older than the calls it makes, and further up an
@@ -205,41 +205,26 @@ GLUE_STATE="$(git rev-parse --git-dir)/series-forward-glue"
 GLUE_BROKEN="$(git rev-parse --git-dir)/series-forward-glue-broken"
 glue_failures="$(git rev-parse --git-dir)/series-forward-glue-failures"
 
-glue_compile_flags() {
-  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
-  (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-    grep -m 1 -E -- '-c cpp11\.cpp' |
-    sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
-}
-
-glue_compiles() { # 0 compiles, 1 some file does not, 2 the check could not run
-  local flags
-  flags=$(glue_compile_flags)
-  [ -n "$flags" ] || return 2
-  (cd src && printf '%s\n' *.cpp | FLAGS="$flags" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
-    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee "$glue_failures" |
-    { ! grep -q .; }
-}
-
 touches_strand() { git show --format= --name-only "$1" -- "${STRAND[@]}" | grep -q .; }
 
 touches_glue() {
-  git show --format= --name-only "$1" -- src ':(exclude)src/duckdb' \
-    ':(exclude)src/include/sources.mk' ':(exclude)src/Makevars' ':(exclude)src/Makevars.win' | grep -q .
+  local p excludes=()
+  for p in "$series_vendor_dir" "${series_regenerated[@]}"; do excludes+=(":(exclude)$p"); done
+  git show --format= --name-only "$1" -- src "${excludes[@]}" | grep -q .
 }
 
 glue_gate() { # <why>
   [ "$CHECK_GLUE" = true ] || return 0
   local st=0 last=
-  glue_compiles || st=$?
+  glue_compiles "$glue_failures" || st=$?
   case "$st" in
     0) git rev-parse HEAD > "$GLUE_STATE"; rm -f "$GLUE_BROKEN"; return 0 ;;
     2)
       echo "Error: the glue check could not run at $(git rev-parse --short HEAD) ($1):"
       echo "  deriving the compile flags needs src/Makevars.rstrtmgr, which ./configure writes;"
       echo "  run ./configure and read its output, or pass --no-check-glue"
-      exit 6
+      # The same status vendor-one.sh gives the same stop.
+      exit 8
       ;;
   esac
   [ -f "$GLUE_STATE" ] && last=$(git rev-parse --short "$(cat "$GLUE_STATE")")
@@ -256,12 +241,7 @@ glue_gate() { # <why>
 # What a resumed replay dedupes on: the upstream SHA, and the `(tag ...)` marker
 # beside it, because a late tag is re-stamped by a second vendor commit for the
 # same SHA (scripts/VENDORING.md) and the SHA alone would skip that one.
-upstream_key() {
-  case "$(git log -1 --format=%s "$1")" in
-    *"(tag "*) echo "$(upstream_sha "$1")+tag" ;;
-    *) upstream_sha "$1" ;;
-  esac
-}
+upstream_key() { series_twin_key "$(git log -1 --format=%s "$1")"; }
 
 # `git cherry-pick -n` leaves no CHERRY_PICK_HEAD, so the in-flight pick is
 # recorded here instead; it is what makes a stopped replay resumable.
@@ -441,8 +421,9 @@ graft_source() {
   local e=$1 base c subj seed='' f='' inside=''
   base=$(git merge-base "$GRAFT_FROM" HEAD) || return 0
   while IFS=$'\t' read -r c subj; do
+    # shellcheck disable=SC2254
     case "$subj" in
-      vendor:*)
+      vendor:* | $series_vendor_glob)
         [ -n "$seed" ] || seed=$(git rev-parse "$c~1")
         [ -n "$inside" ] && break
         [[ "$(upstream_sha "$c")" == "$e"* ]] && { f=$c; inside=1; }
@@ -465,7 +446,7 @@ commit_graft() { # <graft> <commit vendoring its engine on GRAFT_FROM> <seed tip
   sed -i -r "s/^(Version: ).*$/\1$prefix.$n/" DESCRIPTION
   git add DESCRIPTION
   git commit -q --no-verify -F - <<MSG
-vendor: Update vendored sources to duckdb/duckdb@$(upstream_sha "$2")
+vendor: Update vendored sources to $series_upstream_repo@$(upstream_sha "$2")
 
 The fork point, which the old buffer held as a graft,
 \`$(git log -1 --format=%s "$1")\` ($(git rev-parse --short "$1")),
@@ -524,14 +505,14 @@ walk() {
   git log --reverse --format='%H%x09%s' "$OLDBASE..$OLD"
   [ -n "$BUFFER" ] || return 0
   local top anchor
-  top=$(git log --format=%s "$OLDBASE..$OLD" | sed -rn 's|^vendor:.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' | head -n 1)
+  top=$(git log --format=%s "$OLDBASE..$OLD" | sed -rn "$series_sha_sed" | head -n 1)
   if [ -z "$top" ]; then
     git log --reverse --format='%H%x09%s' "$OLDBASE..$BUFFER"
     return 0
   fi
-  anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 "duckdb/duckdb@$top" | cut -d' ' -f1 || true)
+  anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 -F "$series_upstream_repo@$top" | cut -d' ' -f1 || true)
   if [ -z "$anchor" ]; then
-    echo "Error: no commit of $BUFFER vendors duckdb/duckdb@$top, the newest commit $OLD vendors;" >&2
+    echo "Error: no commit of $BUFFER vendors $series_upstream_repo@$top, the newest commit $OLD vendors;" >&2
     echo "  mirror the fold onto the buffer first (.claude/skills/series-loop/SKILL.md, stage 2)" >&2
     exit 1
   fi
@@ -545,8 +526,9 @@ OWN=()
 seen_vendor=
 foot=''
 while IFS=$'\t' read -r c subj; do
+  # shellcheck disable=SC2254
   case "$subj" in
-    vendor:*)
+    vendor:* | $series_vendor_glob)
       [ -n "$seen_vendor" ] || foot=$(git rev-parse "$c~1")
       seen_vendor=1
       if [ -n "$base_engine" ] && [[ "$(upstream_sha "$c")" == "$base_engine"* ]]; then

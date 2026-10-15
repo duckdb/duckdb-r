@@ -241,6 +241,20 @@ in — `series-cut.sh`, `series-glue.sh`, `series-forward-build.sh` — it takes
 `$VENDOR_REPO`, the same knob `vendor-one.sh` takes, so `main`'s copy of
 a script reads the tree the caller is in.
 
+**A second repository configures the engine and keeps the scripts.**
+The engine's names live in one file, [`scripts/series-config.sh`](/scripts/series-config.sh), and the scripts read them from nowhere else:
+the upstream repository as a vendor subject names it, the vendored tree and the directory a base scan walks,
+the vendored strand and what vendoring regenerates, the tooling stage 4 ports, the glue and the file its compile flags are read off,
+how a tree records the engine it vendors and the version it stamps, the seed's subject,
+and the estimator `each-plan.sh` weighs commits with.
+[`scripts/series-lib.sh`](/scripts/series-lib.sh) holds the helpers every script shares, the base scan and the vendor predicate among them,
+and [`scripts/vendor-lib.sh`](/scripts/vendor-lib.sh) the glue gate;
+[`scripts/series-lib-test.sh`](/scripts/series-lib-test.sh) checks the helpers against whatever the configuration says.
+A series that carries no flavor has no rc strand, and `series-land.sh --source <ref>` builds its landing up to that ref as it stands.
+Two exit statuses follow from the split: a glue gate that could not run exits 8 in `vendor-one.sh` and `series-forward-build.sh` alike,
+and 7 is left free for a generator that fails before the commit, which this repository's vendoring has none of
+([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
+
 **A firing also reports the series that does not exist.**
 An upstream release line newer than every series served here, with no refs
 of its own, is named at the end of every firing's report until someone opens

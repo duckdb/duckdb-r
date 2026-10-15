@@ -48,6 +48,8 @@
 # Exit status: 0, whatever it finds; 2 on a usage or lookup error.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-learned.sh <series> [--remote <name>] [--since <ref>] [--diff] [--vendor]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -82,30 +84,25 @@ for r in "$dev" "$build"; do
 done
 
 if [ -z "$since" ]; then
-  since=$(git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 "$dev")
+  since=$(series_seed_of "$dev")
   [ -n "$since" ] || since=$(git merge-base "$dev" "$remote/main" 2>/dev/null || true)
   [ -n "$since" ] || { echo "Error: $S-$upper has no seed and no merge base with $remote/main; pass --since" >&2; exit 2; }
 fi
 git rev-parse -q --verify "$since^{commit}" >/dev/null || { echo "Error: --since $since is not a commit" >&2; exit 2; }
 
-upstream_sha() { sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' <<<"$1"; }
-
 # The buffer's commit for each upstream SHA, oldest first where a repair left
 # two, as scripts/series-advance.sh indexes twins.
 declare -A TWIN=()
 while IFS=$'\t' read -r c subj; do
-  case "$subj" in vendor:* | *duckdb/duckdb@[0-9a-f]*) ;; *) continue ;; esac
-  sha=$(upstream_sha "$subj")
+  series_is_vendor "$subj" || continue
+  sha=$(series_sha_of "$subj")
   [ -n "$sha" ] && [ -z "${TWIN[$sha]:-}" ] && TWIN[$sha]=$c
 done < <(git log --reverse --format='%H%x09%s' "$build")
 
 # The paths a `-dev` commit learned: the carry's filter, from the twin's side.
 learned_paths() { # <dev commit> <build twin>
   local d=$1 c=$2 f
-  { git show --format= --name-only --no-renames "$d" | sort -u |
-      grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
-      grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
-      true; } |
+  git show --format= --name-only --no-renames "$d" | sort -u | series_carry_filter |
     while IFS= read -r f; do
       [ "$(git rev-parse --quiet --verify "$c:$f" 2>/dev/null)" \
         != "$(git rev-parse --quiet --verify "$d:$f" 2>/dev/null)" ] || continue
@@ -118,13 +115,13 @@ echo
 total=0 learned=0 untwinned=0
 declare -A FILES=()
 while IFS=$'\t' read -r d subj; do
-  case "$subj" in vendor:* | *duckdb/duckdb@[0-9a-f]*) ;; *) continue ;; esac
+  series_is_vendor "$subj" || continue
   total=$((total + 1))
-  sha=$(upstream_sha "$subj")
+  sha=$(series_sha_of "$subj")
   c=${TWIN[$sha]:-}
   if [ -z "$c" ]; then
     untwinned=$((untwinned + 1))
-    echo "--- $(git rev-parse --short "$d")  duckdb/duckdb@${sha:0:10}: no twin on $S-$lower"
+    echo "--- $(git rev-parse --short "$d")  $series_upstream_repo@${sha:0:10}: no twin on $S-$lower"
     echo
     continue
   fi
@@ -132,7 +129,7 @@ while IFS=$'\t' read -r d subj; do
   [ ${#paths[@]} -gt 0 ] || continue
   learned=$((learned + 1))
   for f in "${paths[@]}"; do FILES[$f]=$((${FILES[$f]:-0} + 1)); done
-  echo "--- $(git rev-parse --short "$d")  duckdb/duckdb@${sha:0:10}  (twin $(git rev-parse --short "$c"))"
+  echo "--- $(git rev-parse --short "$d")  $series_upstream_repo@${sha:0:10}  (twin $(git rev-parse --short "$c"))"
   # The prose the repair left, where the message has an `R-side fix` section:
   # its first paragraph, which names what was adapted and why.
   git log -1 --format=%B "$d" |

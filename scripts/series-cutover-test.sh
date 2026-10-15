@@ -98,7 +98,7 @@ git config remote.upstream.github test/canonical
 
 mkdir -p scripts R src/duckdb tests/testthat
 for s in series-cutover.sh series-converge.sh series-prune.sh series-check.sh series-advance.sh \
-  series-tests.sh setup-git.sh merge-version.sh; do
+  series-tests.sh setup-git.sh merge-version.sh series-config.sh series-lib.sh vendor-lib.sh; do
   cp "$HERE/$s" scripts/
 done
 chmod +x scripts/*.sh

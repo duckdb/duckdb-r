@@ -87,6 +87,8 @@
 # handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>] [--canonical <name>]'
 remote=${SERIES_REMOTE:-origin}
@@ -101,7 +103,7 @@ canonical=${SERIES_CANONICAL-upstream}
 # firing with no clone still gets it; a clone is preferred because it also
 # answers with the fork point.
 upstream=${UPSTREAM_CLONE:-}
-upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+upstream_url=${UPSTREAM_URL:-https://github.com/$series_upstream_repo}
 
 argerr() { echo "$usage" >&2; exit 2; }
 args=()
@@ -126,44 +128,6 @@ if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
 fi
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
-
-# How deep the base scan looks; see scripts/series-advance.sh for why the four
-# scanning scripts share the variable and the default.
-base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-
-# See scripts/series-advance.sh: the pathspec narrows the walk, the subject
-# decides, and an empty answer explains itself on stderr.
-vendored_sha() {
-  local subjects sha n
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
-  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
-  if [ -z "$sha" ]; then
-    n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge "$base_scan_depth" ]; then
-      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
-    else
-      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
-    fi
-  fi
-  echo "$sha"
-}
-
-# The -build commit equivalent to <ref>'s newest vendor commit for <sha>, tag
-# marker included; the same rule, and the same reasons, as build_equivalent()
-# in scripts/series-advance.sh.
-build_equivalent() { # <build> <ref> <sha> -> commit, empty if none
-  local subjects newest lines match
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$2" -- src/duckdb || true)
-  newest=$(grep -m 1 "duckdb@$3" <<<"$subjects" || true)
-  lines=$(git log --format='%H %s' "$1" | grep "duckdb@$3" || true)
-  case "$newest" in
-    *"(tag "*) match=$(grep -m 1 -F '(tag ' <<<"$lines" || true) ;;
-    *) match=$(grep -m 1 -v -F '(tag ' <<<"$lines" || true) ;;
-  esac
-  [ -n "$match" ] || match=$(head -n 1 <<<"$lines")
-  echo "${match%% *}"
-}
 
 # How many commits of a buffer range are still work for stage 5.
 #
@@ -417,13 +381,12 @@ upstream_tags() {
 # one it vendored in time leaves no `-dev` behind it.
 late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
   local v tag sha lines
-  v=$(git show "$1:R/version.R" 2>/dev/null |
-    sed -nr 's/^duckdb_version <- "([0-9]+\.[0-9]+\.[0-9]+)-dev[0-9]+"$/\1/p')
+  v=$(series_release_of_stamp "$(series_stamped_version "$1")")
   [ -n "$v" ] || return 0
   tag=v$v
   sha=$(awk -v t="$tag" '$2 == t { print $1; exit }' <<<"$tags")
   [ -n "$sha" ] || return 0
-  lines=$(git log --format='%H %s' "$1" | grep "duckdb@$sha" || true)
+  lines=$(git log --format='%H %s' "$1" | grep -F "@$sha" || true)
   [ -n "$lines" ] || return 0
   if grep -qF "(tag $tag)" <<<"$lines"; then return 0; fi
   echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
@@ -505,11 +468,11 @@ for S in "${series[@]}"; do
       # seed was built on — `main`'s own vendor commits sit below that seed and
       # must not answer for the forward chain. A base green that vendors nothing
       # asks for no coverage, exactly as in series-cutover.sh.
-      base_up=$(vendored_sha "$remote/$base-green")
+      base_up=$(series_vendored_sha "$remote/$base-green")
       # Collected, not piped into grep: `grep -q` leaves early, and under
       # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
-      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- src/duckdb || true)
-      if [ -z "$base_up" ] || grep -q "duckdb@$base_up" <<<"$fwd_vendored"; then
+      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- "$series_scan_dir" || true)
+      if [ -z "$base_up" ] || grep -qF "@$base_up" <<<"$fwd_vendored"; then
         cutover=$base
       fi
     fi ;;
@@ -526,8 +489,8 @@ for S in "${series[@]}"; do
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
     buffered=$(consumable_count "$dev..$build" "$dev")
   else
-    dev_up=$(vendored_sha "$dev")
-    anchor=$(build_equivalent "$build" "$dev" "${dev_up:-NONE}")
+    dev_up=$(series_vendored_sha "$dev")
+    anchor=$(series_build_equivalent "$build" "$dev" "${dev_up:-NONE}")
     if [ -n "$anchor" ]; then
       buffered=$(consumable_count "$anchor..$build" "$dev")
     else
@@ -649,13 +612,13 @@ for S in "${series[@]}"; do
   late=$(late_tag "$build")
   if [ -n "$late" ]; then
     read -r lt_tag lt_sha lt_commit <<<"$late"
-    echo "  LATE TAG  upstream tagged $lt_tag on duckdb/duckdb@${lt_sha:0:10} after $S-build"
+    echo "  LATE TAG  upstream tagged $lt_tag on $series_upstream_repo@${lt_sha:0:10} after $S-build"
     echo "            vendored it as $(git rev-parse --short "$lt_commit"), which stamps a -dev version."
-    if [ "$(vendored_sha "$build")" = "$lt_sha" ]; then
+    if [ "$(series_vendored_sha "$build")" = "$lt_sha" ]; then
       echo "            It is the buffer's newest vendor commit, so stage 1 re-stamps it;"
       echo "            fetch the upstream clone's tags first (scripts/vendor-one.sh)."
     else
-      above=$(git log --format=%s "$lt_commit..$build" -- src/duckdb | grep -c 'duckdb/duckdb@' || true)
+      above=$(git log --format=%s "$lt_commit..$build" -- "$series_scan_dir" | grep -cE "$series_marker_ere" || true)
       echo "            $above vendor commit(s) sit above it, so no run re-stamps it by itself:"
       echo "            scripts/VENDORING.md, \"A tag upstream pushed late\"."
     fi
@@ -673,7 +636,7 @@ for S in "${series[@]}"; do
     # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
     echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
-    echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
+    echo "             --upstream ${upstream:-<path to a $series_upstream_repo checkout>}"
     echo "           It archives the replaced lineages in closed pull requests, then"
     echo "           swaps; --prepare prints its gates and review and moves nothing."
     echo "           Coverage is only half of it; what the two branches carry is"

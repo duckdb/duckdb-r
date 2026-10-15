@@ -31,12 +31,14 @@
 # shared contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-cut.sh <series> [--parent <series>] [--remote <name>] [--upstream <path>] [--flavor <name>] [--check] [--next]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
-upstream=${UPSTREAM_CLONE:-../../../duckdb}
+upstream=${UPSTREAM_CLONE:-../../../${series_upstream_repo##*/}}
 parent=main
 flavor=
 check=
@@ -64,7 +66,7 @@ cd "$toplevel"
 
 # `-e` rather than `-d`: in a linked worktree `.git` is a file naming the real one.
 [ -e "$upstream/.git" ] ||
-  { echo "Error: $upstream is not a duckdb/duckdb checkout (--upstream)" >&2; exit 1; }
+  { echo "Error: $upstream is not a $series_upstream_repo checkout (--upstream)" >&2; exit 1; }
 
 # The new series is named for the branch it tracks, and so is its parent.
 U=$S
@@ -109,7 +111,7 @@ fork=$(awk 'NR==FNR{a[$0];next} $0 in a{print; exit}' "$work/pu" "$work/u")
   { echo "Error: $U and $PU share no first-parent commit" >&2; exit 1; }
 
 # --- each strand's cut -------------------------------------------------------
-# A strand's cut is its newest commit whose `duckdb/duckdb@<sha>` subject names a
+# A strand's cut is its newest commit whose `<owner>/<repo>@<sha>` subject names a
 # commit on the new branch's first-parent chain. Below it the two lines are one
 # history, so everything there is already vendored, glued and judged.
 cut_of() { # <strand ref> -> sha
@@ -118,7 +120,7 @@ cut_of() { # <strand ref> -> sha
   # commit reads `vendor: Update vendored sources (tag v1.5.5) to duckdb/duckdb@`,
   # and a release branch is cut precisely around a tag. `main-dev` carries 19 of
   # them; anchoring on `to ` would step the cut silently past one.
-  awk -F'|' '$2 ~ /^vendor: Update vendored sources .*duckdb\/duckdb@/ {
+  awk -F'|' -v re="^vendor: Update vendored sources .*$series_upstream_repo@" '$2 ~ re {
     n = split($2, a, "@"); print $1, a[n] }' "$work/strand" > "$work/vendored"
   awk 'NR==FNR{c[$0];next} ($2 in c){print $1; exit}' "$chain" "$work/vendored"
 }

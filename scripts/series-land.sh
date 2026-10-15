@@ -117,6 +117,9 @@
 #   --remote or the landing --landing names: an iteration reviewed before the
 #   series carries it, for example `--landing <L>-land-v2 --suffix -v2`.
 #   --base defaults to `main`; a ref the clone lacks is fetched from --canonical.
+#   --source names the ref the landing is built up to, on --remote, in place of
+#   `<S>-rc-dev`: it is taken as it stands, with no realignment, for a series
+#   that carries no flavor and so has no rc strand.
 #   --placed and --no-check-glue are passed to series-forward-build.sh.
 #
 # --remote and --canonical are spelled the same in every scripts/series-*.sh;
@@ -125,13 +128,15 @@
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' review='' abort='' attended='' base_arg='' landing_arg='' suffix=''
+push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -139,6 +144,7 @@ while [ $# -gt 0 ]; do
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     --base) [ $# -ge 2 ] || argerr; base_arg=$2; shift 2 ;;
+    --source) [ $# -ge 2 ] || argerr; source_arg=$2; shift 2 ;;
     --landing) [ $# -ge 2 ] || argerr; landing_arg=$2; shift 2 ;;
     --suffix) [ $# -ge 2 ] || argerr; suffix=$2; shift 2 ;;
     --placed) [ $# -ge 2 ] || argerr; fwd_args+=(--placed "$2"); shift 2 ;;
@@ -195,12 +201,15 @@ main=$(git rev-parse "refs/remotes/$canonical/main" 2>/dev/null || git rev-parse
 
 dev_ref="refs/remotes/$remote/$L-land-dev"
 green_ref="refs/remotes/$remote/$L-land-green"
-rc="refs/remotes/$remote/$S-rc-dev"
+# The strand the landing is built up to: the rc strand, realigned with `-dev`
+# before the build (check_aligned), or the ref --source names, taken as it is.
+src_name=${source_arg:-$S-rc-dev}
+rc="refs/remotes/$remote/$src_name"
 git fetch -q "$remote" "+refs/heads/$L-land-*:refs/remotes/$remote/$L-land-*"
 
 # The vendored strand, as series-forward-build.sh takes it whole, with the
 # Makevars generated from it.
-strand=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win)
+strand=("${series_strand[@]}" "${series_makevars[@]}")
 strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
@@ -211,8 +220,9 @@ for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 out_of_place() { # <tip>
   local c subj seen=''
   while IFS=$'\t' read -r c subj; do
+    # shellcheck disable=SC2254
     case "$subj" in
-      vendor:*) seen=1 ;;
+      vendor:* | $series_vendor_glob) seen=1 ;;
       *) [ -z "$seen" ] || { echo "$c $subj"; return; } ;;
     esac
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
@@ -339,12 +349,10 @@ builds or tests it.")
     fi
     subj=$(git log -1 --format=%s "$c")
     up=''
-    case "$subj" in
-      vendor:*) up=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]{1,10}).*$|\1|p' <<<"$subj") ;;
-    esac
+    if series_is_vendor "$subj"; then up=$(series_sha_of "$subj"); up=${up:0:10}; fi
     head=$(
-      { if [[ "$subj" == vendor:* ]]; then
-          echo "review: The R side of duckdb/duckdb ${up:-$(git rev-parse --short "$c")}"
+      { if series_is_vendor "$subj"; then
+          echo "review: The R side of $series_upstream_repo ${up:-$(git rev-parse --short "$c")}"
           echo
           git log -1 --format=%B "$c"
         else
@@ -392,14 +400,12 @@ fi
 # An rc strand behind its source would land a package CI judged as an older one;
 # series-rc.sh recomputes it and says whether the remote holds that.
 check_aligned() {
+  [ -z "$source_arg" ] || return 0
   "$here/series-rc.sh" "$S" --remote "$remote" >/dev/null || {
     echo "Error: $S-rc-dev is not aligned with $S-dev on $remote;" \
       "realign it first: scripts/series-rc.sh $S --push" >&2
     exit 1
   }
-}
-seed_of() {
-  git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 "$1"
 }
 write_state() { echo "$wt $base $src $seed $prefix $S" > "$STATE"; }
 
@@ -431,12 +437,12 @@ if [ -f "$STATE" ]; then
     echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
   fi
-  git fetch -q "$remote" "+refs/heads/$S-rc-dev:refs/remotes/$remote/$S-rc-dev"
+  git fetch -q "$remote" "+refs/heads/$src_name:refs/remotes/$remote/$src_name"
   if [ "$(git rev-parse "$rc")" != "$src" ]; then
     check_aligned
-    [ "$(seed_of "$rc")" = "$seed" ] ||
-      { echo "Error: $S-rc-dev has a new seed; --abort and rebuild" >&2; exit 1; }
-    echo "$L: $S-rc-dev moved from $(git rev-parse --short "$src") to $(git rev-parse --short "$rc");" \
+    [ "$(series_seed_of "$rc")" = "$seed" ] ||
+      { echo "Error: $src_name has a new seed; --abort and rebuild" >&2; exit 1; }
+    echo "$L: $src_name moved from $(git rev-parse --short "$src") to $(git rev-parse --short "$rc");" \
       "following it"
     src=$(git rev-parse "$rc")
     write_state
@@ -446,17 +452,17 @@ if [ -f "$STATE" ]; then
 else
   check_aligned
   src=$(git rev-parse "$rc")
-  seed=$(seed_of "$src")
-  [ -n "$seed" ] || { echo "Error: $S-rc-dev has no seed" >&2; exit 1; }
+  seed=$(series_seed_of "$src")
+  [ -n "$seed" ] || { echo "Error: $src_name has no seed" >&2; exit 1; }
   prefix=$(git show "$seed:DESCRIPTION" |
     sed -rn 's/^Version: ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
-  [ -n "$prefix" ] || { echo "Error: the seed of $S-rc-dev has no five-component version" >&2; exit 1; }
+  [ -n "$prefix" ] || { echo "Error: the seed of $src_name has no five-component version" >&2; exit 1; }
   base=$base_req
   wt=$(mktemp -d "${TMPDIR:-/tmp}/series-land-$L-XXXXXX")
   git worktree add --detach -q "$wt" "$base"
   write_state
   echo "$L: building on $(git rev-parse --short "$base")" \
-    "($(git rev-list --count "$main..$base") commits above main), up to $S-rc-dev" \
+    "($(git rev-list --count "$main..$base") commits above main), up to $src_name" \
     "$(git rev-parse --short "$src"), stamping $prefix.<n> in $wt"
 fi
 
@@ -528,7 +534,7 @@ fi
 expect=$src
 if [ "$base" != "$main" ]; then
   if ! expect=$(git merge-tree --write-tree --merge-base="$main" "$src" "$base" | head -n 1); then
-    echo "Error: the base's own commits conflict with $S-rc-dev $(git rev-parse --short "$src");" \
+    echo "Error: the base's own commits conflict with $src_name $(git rev-parse --short "$src");" \
       "the series has to carry what they change before it can land on them" >&2
     exit 1
   fi
@@ -555,7 +561,7 @@ echo "=== $L-land-dev"
 echo "  $n vendor commits on $(git rev-parse --short "$base") -> $(git rev-parse --short "$tip")"
 [ "$base" = "$main" ] ||
   echo "  the base is main $(git rev-parse --short "$main") and $(git rev-list --count "$main..$base") commit(s) of its own"
-echo "  built up to $S-rc-dev $(git rev-parse --short "$src")"
+echo "  built up to $src_name $(git rev-parse --short "$src")"
 if [ ${#explained[@]} -gt 0 ]; then
   echo
   echo "  explained (${#explained[@]}):"
@@ -578,7 +584,7 @@ if [ ${#unexplained[@]} -gt 0 ]; then
     echo "  --abort and --attended, and drop it with 'git rerere forget <path>' at its stop."
   fi
   echo
-  echo "DIVERGED: the landing is not the package $S-rc-dev holds."
+  echo "DIVERGED: the landing is not the package $src_name holds."
   echo "  Port what main has to $S and realign its rc strand, or fix the series where"
   echo "  the landing differs from it; rerun to follow the strand. Nothing was pushed."
   exit 1

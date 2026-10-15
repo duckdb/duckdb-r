@@ -63,7 +63,7 @@
 # excluding them by path made exactly those fixes wait for a forward — the
 # one thing this script exists to end. The readers of the vendor strand look
 # past such commits by subject and say so when their bound is exhausted
-# (vendored_sha() in scripts/series-advance.sh and scripts/series-check.sh,
+# (series_vendored_sha() in scripts/series-lib.sh,
 # the base scans in scripts/vendor-one.sh and scripts/vendor.sh), so a ported
 # commit under src/duckdb/ is invisible to them whether or not this class
 # names it. After the picks, whatever tooling
@@ -113,6 +113,8 @@
 # contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [--dev-note <file>] [sha...]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -166,14 +168,14 @@ fi
 # flavored `README.Rmd`, and taking main's copy would put the mainline name at
 # the top of every flavored series' front page — the defect #2517 and #2518
 # were about, in the file most likely to be read.
-tooling=(.github scripts .claude ':(exclude).github/README.md')
-paths_re='^(\.github/|scripts/|\.claude/)'
+tooling=("${series_tooling[@]}" ':(exclude).github/README.md')
+paths_re=$(series_tooling_re)
 flavored_docs_re='^\.github/README\.md$'
 # A vendor commit is one whose subject says it vendored: the `vendor:` prefix
 # vendor-one.sh writes, or the `<owner>/<repo>@<sha>` reference that carries the
 # upstream commit as machine-readable state. Same rule as every other reader of
 # the strand — see the header on why the path is not the rule.
-vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
+vendor_subject_re="^vendor:|$series_marker_ere"
 
 # scripts/flavor.sh's first commit, and so the foot of every seed
 # (series-open step 2, series-forward step 1).

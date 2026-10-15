@@ -27,6 +27,8 @@
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than minting an empty SHA.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-rc.sh <S> [--remote <name>] [--push]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -55,8 +57,7 @@ git rev-parse -q --verify "refs/remotes/$remote/$S-dev" >/dev/null ||
 subject() { git log -1 --format=%s "$1"; }
 
 # The seed tip, the flavor pair under it, and the `main` commit under that.
-seed=$(git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 \
-  "refs/remotes/$remote/$S-dev")
+seed=$(series_seed_of "refs/remotes/$remote/$S-dev")
 [ -n "$seed" ] || { echo "Error: no seed on $S-dev" >&2; exit 1; }
 case "$(subject "$seed~1")" in "chore: Update version to "*) ;; *) bad=1 ;; esac
 case "$(subject "$seed~2")" in "chore: Update flavor patch to "*) ;; *) bad=1 ;; esac

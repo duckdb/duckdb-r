@@ -52,6 +52,7 @@ and are not repeated here; this page holds this repository's own.
 * **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).
 * **seed** — the flavored `main` plus the fifth-component commit a forward's `-dev`, `-build` and `-build-base` start at, its green starting below them; an opening cuts its refs from the parent's strands instead ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
+* **series configuration** — [`scripts/series-config.sh`](/scripts/series-config.sh), the one file naming the engine a repository vendors, which every series script reads through `series-lib.sh` ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **series refs** — `-build`, `-dev`, `-green`, `-build-base`: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).
 * **session TimeZone** — the icu-owned setting DuckDB renders `TIMESTAMPTZ` in, and the zone that labels those columns in R ([`usage/timestamps/`](/handbook/usage/timestamps/README.md)).

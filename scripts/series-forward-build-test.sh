@@ -72,7 +72,8 @@ git config user.email test@example.invalid
 git config commit.gpgsign false
 
 mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat patch
-for s in series-forward-build.sh series-learned.sh series-tests.sh setup-git.sh merge-version.sh; do
+for s in series-forward-build.sh series-learned.sh series-tests.sh setup-git.sh merge-version.sh \
+  series-config.sh series-lib.sh vendor-lib.sh; do
   cp "$HERE/$s" scripts/
 done
 chmod +x scripts/*.sh

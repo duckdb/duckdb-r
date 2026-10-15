@@ -86,6 +86,8 @@
 # between vendored upstream SHAs); without it the gate degrades to a warning.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>] [--out <dir>] [--prepare] [--no-archive]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -137,25 +139,6 @@ if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
     git fetch -q "$canonical" "$S-fwd-green" 2>/dev/null || true
   git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null && main_ref="refs/remotes/$canonical/main"
 fi
-
-# See scripts/series-advance.sh: the pathspec narrows the walk, the subject
-# decides, and an empty answer explains itself on stderr.
-base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-vendored_sha() {
-  local subjects sha n
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
-  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
-  if [ -z "$sha" ]; then
-    n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge "$base_scan_depth" ]; then
-      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
-    else
-      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
-    fi
-  fi
-  echo "$sha"
-}
 
 # One field of a branch's DESCRIPTION, empty when the ref or the field is not
 # there. Both fields this script reads are per-branch: the flavor rename writes
@@ -263,11 +246,11 @@ done
   echo "Note: ${missing[*]} missing on $remote, will be created from $S-fwd-*"
 
 if git rev-parse -q --verify "refs/remotes/$remote/$S-green" >/dev/null; then
-  old_up=$(vendored_sha "refs/remotes/$remote/$S-green")
+  old_up=$(series_vendored_sha "refs/remotes/$remote/$S-green")
 else
   old_up=
 fi
-new_up=$(vendored_sha "refs/remotes/$remote/$S-fwd-green")
+new_up=$(series_vendored_sha "refs/remotes/$remote/$S-fwd-green")
 echo "old green vendors: ${old_up:-<nothing>}"
 echo "new green vendors: ${new_up:-<nothing>}"
 
@@ -285,7 +268,7 @@ if [ -n "$old_up" ]; then
     # as the path is exactly that case.
     git -C "$upstream" rev-parse --git-dir >/dev/null 2>&1 || {
       echo "Error: $upstream is not a git checkout"
-      echo "  The third argument is a path to a duckdb/duckdb clone, not a remote."
+      echo "  The third argument is a path to a $series_upstream_repo clone, not a remote."
       exit 1
     }
     git -C "$upstream" merge-base --is-ancestor "$old_up" "$new_up" || {
@@ -406,9 +389,11 @@ fi
 echo
 [ -n "$out" ] || out=$(mktemp -d "${TMPDIR:-/tmp}/series-cutover-$S-XXXXXX")
 mkdir -p "$out"
-excludes=(':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)src/include/sources.mk'
-  ':(exclude)src/Makevars' ':(exclude)src/Makevars.win' ':(exclude)man/figures' ':(exclude)DESCRIPTION'
-  ':(exclude)NEWS.md' ':(exclude)README.Rmd' ':(exclude)README.md' ':(exclude).github/README.md')
+excludes=(':(exclude)DESCRIPTION' ':(exclude)NEWS.md' ':(exclude)README.Rmd' ':(exclude)README.md'
+  ':(exclude).github/README.md')
+for x in "$series_vendor_dir" "${series_regenerated[@]}" "${series_regenerated_dirs[@]}"; do
+  excludes+=(":(exclude)$x")
+done
 new_green_ref="refs/remotes/$remote/$S-fwd-green"
 echo "review: what $S-fwd-green changes against main $(git rev-parse --short "$main_ref"), outside the engine"
 git diff --stat=100 "$main_ref" "$new_green_ref" -- . "${excludes[@]}" | sed 's/^/  /'

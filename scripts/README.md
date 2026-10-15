@@ -126,6 +126,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and the logos. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
+| [`vendor-lib.sh`](vendor-lib.sh) | The glue gate: whether the glue compiles against the headers the tree vendors. |
 | [`vendor-one.sh`](vendor-one.sh) | Vendors DuckDB sources commit-by-commit from the upstream repository. |
 | [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |
 
@@ -140,6 +141,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-alpha.sh`](series-alpha.sh) | Derive the alpha strand of a series: `<S>-alpha`, a green commit stamped with the version of upstream's alpha build of its engine, so that `INSTALL` finds th... |
 | [`series-args-test.sh`](series-args-test.sh) | Check the argument contract every scripts/series-*.sh shares, offline. |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
+| [`series-config.sh`](series-config.sh) | What this repository tells the series tooling about the engine it vendors, and nothing else. |
 | [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
 | [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
 | [`series-cutover-test.sh`](series-cutover-test.sh) | Check a cutover, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk, and a `gh` that records what ... |
@@ -152,6 +154,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-land-test.sh`](series-land-test.sh) | Check the landing of a series on `main`, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk. |
 | [`series-land.sh`](series-land.sh) | Land a series on `main`: build `<L>-land-dev`, every vendor commit of the series replayed without its flavor onto the `main` it will fast-forward (.claude/sk... |
 | [`series-learned.sh`](series-learned.sh) | What a series' `-dev` learned beyond its buffer: for every vendor commit, the fix the loop folded into it that its `-build` twin does not carry. |
+| [`series-lib-test.sh`](series-lib-test.sh) | Check scripts/series-lib.sh against scripts/series-config.sh, offline: the vendor predicate, the markers, the version ordering, the path filters, and the wal... |
+| [`series-lib.sh`](series-lib.sh) | The helpers every series script shares, reading scripts/series-config.sh: which commit vendors, what it vendors, where a walk starts. |
 | [`series-patch-sync.sh`](series-patch-sync.sh) | Carry `patch/` entries from `<S>-dev` onto `<S>-build`, the way stage 5 carries tests and glue onto a forward series. |
 | [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop/SKILL.md). |
