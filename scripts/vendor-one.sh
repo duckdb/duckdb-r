@@ -320,18 +320,18 @@ while [ $commits_vendored -lt $num_commits ]; do
       exit 1
     }
 
-    # The tree is not deleted here: rconfigure.py moves it aside itself and puts
-    # back the inode of every regenerated file that did not change, so a file
-    # whose content is the same keeps its stat cache entry and every later git
-    # command over ~3550 files stays cheap -- which this loop pays twice per
-    # candidate, kept or skipped. Files upstream dropped still go: they are in
-    # the tree that was moved aside, and never come back from it.
-    echo "R: configure"
+    # The tree is not deleted here: the generator (scripts/series-config.sh)
+    # replaces it, and a generator that keeps the inode of every file that did
+    # not change, as rconfigure.py does, keeps every later git command over
+    # thousands of files cheap -- which this loop pays twice per candidate,
+    # kept or skipped. Files upstream dropped still go, by the generator's own
+    # hand.
+    echo "Regenerating the tree"
     series_generate_tree "$upstream_dir" || {
       echo ""
       echo "=== GENERATOR FAILED regenerating the tree for upstream ${commit} ==="
       echo "Nothing was committed; the regenerated files are in the working tree."
-      echo "Fix the generator's input, 'git checkout -- .', and rerun this script."
+      echo "Fix the generator's input, 'git checkout -- . && git clean -fd', and rerun this script."
       rm -rf "$upstream_dir"
       exit 7
     }
@@ -341,6 +341,7 @@ while [ $commits_vendored -lt $num_commits ]; do
     # stdin is a terminal.
     # scripts/vendor.sh has the same three-way split and the same exit 4.
     for f in patch/*.patch; do
+      [ -e "$f" ] || continue # an empty stack leaves the glob unmatched
       if patch -i "$f" -p1 --forward --dry-run; then
         patch -i "$f" -p1 --forward --no-backup-if-mismatch
       elif patch -i "$f" -p1 --reverse --forward --dry-run; then
@@ -355,15 +356,15 @@ while [ $commits_vendored -lt $num_commits ]; do
         echo "The regenerated sources for ${commit} are in the working tree,"
         echo "uncommitted, and the upstream clone is kept."
         echo "Rebase $f against them, keeping the rebased patch outside the tree,"
-        echo "then 'git checkout -- .', put it back, and rerun this script."
+        echo "then 'git checkout -- . && git clean -fd', put it back, and rerun this script."
         echo "Delete it only after confirming its change is genuinely upstream --"
         echo "the effect it had, however upstream reached it, not this diff."
         echo "A deletion has to ride in the vendor commit for ${commit}, and this"
         echo "script refuses to start on a dirty tree, so land it in three steps:"
-        echo "  git checkout -- . && git rm $f && git commit -m 'tmp: retire patch'"
+        echo "  git checkout -- . && git clean -fd && git rm $f && git commit -m 'tmp: retire patch'"
         echo "  $0 ${strand_flag:+$strand_flag }--commits 1 <upstream>"
-        echo "  git reset --soft HEAD~2 && git commit   # keep the vendor message,"
-        echo "                                          # add an 'R-side fix' section"
+        echo "  git reset --soft HEAD~2 && git commit -c HEAD@{1}   # keep the vendor message; add an"
+        echo "                                                     # 'R-side fix' section, or -F <file>"
         exit 4
       fi
     done
@@ -443,8 +444,13 @@ while [ $commits_vendored -lt $num_commits ]; do
 
   if [ "$strand" = true ]; then
     # The strand's paths and nothing else; what the generator wrote beyond them
-    # is restored after the commit (scripts/series-config.sh).
-    git add -A -- "${series_vendor_paths[@]}"
+    # is restored after the commit (scripts/series-config.sh). A path in neither
+    # the tree nor the index, `patch/` once its last entry retired, is skipped
+    # rather than refused as an unmatched pathspec.
+    for p in "${series_vendor_paths[@]}"; do
+      git ls-files --error-unmatch -- "$p" >/dev/null 2>&1 || compgen -G "$p" >/dev/null || continue
+      git add -A -- "$p"
+    done
   else
     git add .
   fi

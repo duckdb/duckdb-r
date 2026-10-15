@@ -87,6 +87,7 @@ for commit in $original; do
   # stdin is a terminal.
   # scripts/vendor-one.sh has the same three-way split and the same exit 4.
   for f in patch/*.patch; do
+    [ -e "$f" ] || continue # an empty stack leaves the glob unmatched
     if patch -i "$f" -p1 --forward --dry-run; then
       patch -i "$f" -p1 --forward --no-backup-if-mismatch
     elif patch -i "$f" -p1 --reverse --forward --dry-run; then
