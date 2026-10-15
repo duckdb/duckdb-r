@@ -8,7 +8,9 @@ Regenerate the seed — `scripts/flavor.sh <F>`, plus a separate
 `chore: Add fifth version component` commit appending the counter's `.0` to
 `Version:` — then replay each vendor commit onto it.
 `flavor.sh` needs `krlmlr/cpp11` installed and refuses the whole run without
-it ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
+it ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
+and `cynkratemplate`, installed from GitHub, to render the READMEs
+([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 A series seeded from a release branch rather than from `main`
 regenerates on **that** branch,
 whose `scripts/` may be older than `main`'s —
@@ -267,9 +269,13 @@ The script names each one and stops before writing anything.
 Work through them in this order:
 
 1. **Read it.** The refusal rests on three cheap tests,
-   so a change the new base carries in a shape neither recognises
+   so a change the new base carries in a shape none of them recognises
    is listed too; confirm by reading the base for its effect.
    If it is there, the commit is done.
+   A tooling sync that `main` has moved past since is the common case,
+   and so is one that synced `scripts/flavor.patch`, which the seed rewrites.
+   `git diff --quiet <S>-build main -- $(git show --name-only --format= <sha>)`
+   settles both: every file the commit touched is `main`'s today, and the seed carries `main`.
 2. **Find the commit it belongs to** —
    the first whose tree carries the code it answers, never the commit
    it was written at
@@ -288,7 +294,10 @@ Work through them in this order:
    which is how it finds its place on a later resume.
 5. **Verify by tree.**
    `git diff --name-only <S>-build <S>-fwd-build -- src/duckdb patch/`
-   must be empty.
+   must be empty, save for the patches `main` added after the old seed.
+   Those arrive with the new seed and belong there:
+   each shows up as its `patch/` file and the vendored files it changes,
+   and the diff over those files must be the diff of the `main` commit that added it.
    This is the check that catches everything above going wrong,
    including a fold that landed in the wrong place.
 `DESCRIPTION` merges on every commit,
