@@ -182,7 +182,7 @@ until now.
    The graft keeps the fork point's R side, so `<P>`'s next forward is the one that
    aligns it with `main`, and it takes the fork point from `<S>`'s forward rather
    than rederiving it: `series-forward-build.sh --graft-from <S>-fwd-build`
-   ([`series-forward/SKILL.md`](series-forward)).
+   ([`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
 
 6. **Declare `<F>`, and generate what says so.**
 
