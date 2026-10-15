@@ -79,6 +79,16 @@ test_that("a table whose columns R cannot hold is still found and listed", {
   }
 })
 
+test_that("a column of NULLs is described as the integer column it arrives as", {
+  con <- local_con()
+
+  res <- dbSendQuery(con, "SELECT NULL AS x")
+  on.exit(dbClearResult(res))
+
+  expect_equal(dbColumnInfo(res)$type, "integer")
+  expect_identical(dbFetch(res)$x, NA_integer_)
+})
+
 test_that("a column R cannot hold is refused by name", {
   skip_if_not_installed("nanoarrow")
   con <- local_con()
