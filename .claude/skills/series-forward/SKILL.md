@@ -30,10 +30,13 @@ so a bump on `main` moves nothing under it and only the R-side drift counts.
 
 ## Create the forward series
 
-Bootstrap first, populate second —
-like any series,
-the four `-fwd` refs start **equal** at the regenerated seed tip;
-the replay then populates `<S>-fwd-build`.
+Build locally, push once.
+The seed and the replay happen on local branches,
+and the four `-fwd` refs go up in one `git push --atomic`:
+`<S>-fwd-build` at the replay's tip, the other three at the seed tip,
+as [`series-open`](/.claude/skills/series-open/SKILL.md) and [`series-rebase`](/.claude/skills/series-rebase/SKILL.md) push theirs.
+A `-fwd-build` pushed at the seed before the replay is a series the loop can find,
+and it would start vendoring onto that ref while the replay is still writing it.
 
 1. **`<S>-fwd-build`**: rebuild `<S>-dev`, and the buffer above it, on current `main`.
    The whole of step 1, with the reasoning behind each rule and every stop the replay makes,
