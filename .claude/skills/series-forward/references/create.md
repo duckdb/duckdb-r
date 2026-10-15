@@ -220,6 +220,7 @@ That engine gate names the engine that brings the behaviour back,
 so the test runs again there whether or not the gate's removal travels with the forward.
 
 **A forward that re-roots is a graft, and grafts nothing but a tree.**
+Its subject starts with `graft:`, which is how `series-forward-build.sh` recognises one.
 Where the point is to drop history below a fork point — an opening leaves the
 parent carrying it ([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)) — the new root is
 one commit whose tree *is* the fork-point commit's, verbatim, parented on
@@ -265,7 +266,7 @@ and the replay has nowhere to put it.
 The script names each one and stops before writing anything.
 Work through them in this order:
 
-1. **Read it.** The refusal rests on two cheap tests,
+1. **Read it.** The refusal rests on three cheap tests,
    so a change the new base carries in a shape neither recognises
    is listed too; confirm by reading the base for its effect.
    If it is there, the commit is done.

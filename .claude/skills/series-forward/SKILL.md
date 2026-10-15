@@ -170,6 +170,8 @@ prints the difference and sorts it into the two.
 What is explicable is a short, evidenced list —
 `DESCRIPTION`'s `Version:` line, which the replay renumbers;
 `NEWS.md`, the release paperwork stage 4 never ports;
+the flavored docs, `README.Rmd`, `README.md` and `.github/README.md`, which are per-branch by design;
+the Windows export list, `src/*-win.def`, while the two vendor different engines;
 and the **vendored strand** —
 `src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`
 and the Makevars —
@@ -184,7 +186,7 @@ a forward regenerates the vendored tree from its own patch stack,
 which is what step 1's tree check verifies at replay time.
 
 Everything else is a finding —
-glue, tests, R code, the READMEs, the tooling directories —
+glue, tests, R code, the tooling directories —
 and it belongs to whichever stage should have moved it:
 a carry stage 5 could not make,
 a port that reached one branch and not the other,

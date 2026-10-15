@@ -42,9 +42,11 @@ a forward whose green is an ancestor of its base's green (cutover litter pending
 `<L>-land-*` (a landing),
 and `<S>-fwd-vendor` (the forward's vendor strand).
 
-**All four refs exist from day one, equal, at the seed tip, and green contains the flavor change**,
-topped by a separate `chore: Add fifth version component` commit;
-there is never a "no green yet" state, and every walk below is bounded by `<S>-green`.
+**All four refs exist from day one, and green contains the flavor change.**
+A forward's four start equal at the seed tip, topped by a separate `chore: Add fifth version component` commit;
+an opening cuts the build pair and the dev pair from the parent's strands, each at its own cut
+([`series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
+There is never a "no green yet" state, and every walk below is bounded by `<S>-green`.
 
 Reference: [`references/series.md`](references/series.md).
 
@@ -68,7 +70,8 @@ and the one the report ends with),
 (stages 3 and 5 — fast-forwards `-green`,
 sets `-build-base` to the vendored-SHA match,
 extends `-dev` by ≤ 100;
-refuses on any failure, and on a `-green` that would not fast-forward),
+advances `-green` over the verified prefix and then stops on a red above it,
+and refuses a `-green` that would not fast-forward),
 `scripts/series-port.sh <S>`
 (stage 4 — brings `<S>-dev` level with `main`:
 cherry-picks plus a tooling sync),

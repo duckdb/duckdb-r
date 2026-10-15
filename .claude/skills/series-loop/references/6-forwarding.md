@@ -16,6 +16,8 @@ and sorts every differing path into
 what the forwarding explains and what it does not —
 the version counter the replay renumbers,
 the release paperwork stage 4 never ports,
+the flavored READMEs, which are per-branch by design,
+the Windows export list while the engines differ,
 and the vendored strand,
 only while the two still vendor different upstream commits.
 Everything else is a finding, and the stage carries it into the report.
