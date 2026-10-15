@@ -1,6 +1,6 @@
 ---
 name: series-forward
-description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
+description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it from the series' own `-dev`, so its commits keep what the series proved, and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
 ---
 
 # Forwarding a series to a newer base
@@ -15,7 +15,8 @@ and rebasing them in place would rewrite `<S>-green` —
 the one ref consumers depend on.
 So the rebase happens **beside** the series, not in it:
 a forward counterpart is built as a sibling series,
-verified from scratch by the ordinary loop,
+out of the commits the series has already had judged,
+verified again by the ordinary loop on the new base,
 and swapped in atomically once it has caught up.
 
 **A release is the largest instance of `main` moving, and not a rule of its own.**
@@ -34,7 +35,7 @@ like any series,
 the four `-fwd` refs start **equal** at the regenerated seed tip;
 the replay then populates `<S>-fwd-build`.
 
-1. **`<S>-fwd-build`**: rebuild `<S>-build` on current `main`.
+1. **`<S>-fwd-build`**: rebuild `<S>-dev`, and the buffer above it, on current `main`.
    Regenerate the seed — `scripts/flavor.sh <F>`, plus a separate
    `chore: Add fifth version component` commit appending the counter's `.0` to
    `Version:` — then replay each vendor commit onto it.
@@ -107,6 +108,43 @@ the replay then populates `<S>-fwd-build`.
    on the platforms the gate never covered —
    travel in those same messages, and are read in the same pass.
 
+   **Read what the base learned, and judge it, in the same pass.**
+
+   ```sh
+   scripts/series-learned.sh <S>          # per commit, what -dev carries beyond its -build twin
+   scripts/series-learned.sh <S> --diff   # the changes themselves
+   ```
+
+   `-build` is what pure vendoring produces plus the glue each engine needed to compile;
+   `-dev` is the same commits with what CI demanded afterwards folded in,
+   and the replay below takes `-dev`, so every one of those fixes travels, the sound ones and the expedient ones alike.
+   The report is the difference, one commit at a time: the paths the fix touched, the `R-side fix` prose that explains it,
+   and the files ranked by how often a fix landed in them,
+   35 commits of 2160 on `v2.0-cyanoptera`.
+   Read each by its merits.
+   A fix that should not travel as it is gets a correction *after* the replay,
+   written as a commit on the forward commit that carries it and folded there with
+   [`scripts/series-fold.sh`](/scripts/series-fold.sh), which replays everything above and surfaces where later commits leaned on it;
+   a snapshot or a skip taken at a rewind gets the engine gate stage 2 would have written.
+   Nothing is edited on the replay by hand, and nothing is dropped from it:
+   a `-dev` commit dropped in favour of its buffer twin leaves every later commit's diff standing on a fix that is no longer there.
+
+   **The forward keeps `<S>-dev`'s commits as they are, wherever it can.**
+   The replay's source is `<S>-dev`, not `<S>-build`:
+   a `-dev` vendor commit carries the R-side fix CI demanded for it, folded in by stage 2 of the loop,
+   while its `-build` twin carries only what the glue gate demanded.
+   Replaying `-build` rebuilt the compile side and left everything the series had learned afterwards
+   to be rediscovered on the forward, one red commit at a time, or to be lost where the loop's carry did not reach:
+   `v2.0-cyanoptera-fwd` took 2160 commits that way, 63 of them with a carry,
+   and ended with `tests/testthat/test-variant.R` deleted and seven more tests changed or skipped against its base
+   ([#2900](https://github.com/duckdb/duckdb-r/pull/2900)),
+   and with glue conflicts resolved differently from how the base had resolved the same ones.
+   Replaying `-dev` makes every forward commit's tree the old, verified tree plus `main`'s delta since the old seed,
+   so the work the base did survives by construction,
+   and the only new work is where that delta meets the series.
+   That is what a landing already does with the rc strand ([`series-land`](/.claude/skills/series-land/SKILL.md)),
+   and the two share one replay.
+
    Only `vendor:` subjects are replayed —
    a `-dev` branch's non-vendor commits belong to `main`
    and are already in the seed.
@@ -116,14 +154,35 @@ the replay then populates `<S>-fwd-build`.
    the seed carries their content,
    the replay leaves them behind,
    and that is where a port's life ends.
+   The script places a port by the `main` commit its `-x` trailer names, and a sync by its subject;
+   what is neither is named, below.
    The fifth version component is renumbered as a true counter,
    one per replayed commit,
    so it counts this chain rather than carrying the old one's numbering.
    Keep every commit message;
    the original author survives the replay, only the committer changes.
-   `scripts/series-forward-build.sh <old-build> <old-base>`
+
+   ```sh
+   scripts/series-forward-build.sh <S>-dev <old-base> --buffer <S>-build
+   ```
+
    does exactly this, run on the fresh seed —
    `<old-base>` only delimits the range, and the old seed's base is always right.
+   `--buffer` names the base's buffer, whose vendor commits above the newest upstream commit `<S>-dev` vendors
+   are replayed after `-dev`'s:
+   `-dev` covers only what the base has consumed, and the buffer beyond its tip still comes from `-build`,
+   compile side only, for the loop's stage 5 to carry into as the base consumes it.
+   The script refuses a `-dev` whose newest vendor commit has no twin on the buffer,
+   which is a fold made in a repair and not mirrored (`series-loop/SKILL.md`, stage 2).
+
+   **A pick never stops a test the seed runs.**
+   The seed carries `main`'s tests, and a `-dev` commit folded at a rewind may have deleted one or skipped it for good,
+   where its engine could not pass it;
+   the base's later restore is a commit of its own, which no replay of vendor commits takes
+   ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+   So the script keeps the seed's copy of such a path, names it on stdout and in the commit's message,
+   and lets an engine gate through, since that re-arms its test by itself.
+   CI then judges the commit, and a red there is gated in stage 2 as any red at a rewind is.
 
    **Where the replay starts is read from the trees, not chosen.**
    A range starting above the old base is legitimate
@@ -274,25 +333,22 @@ the replay then populates `<S>-fwd-build`.
    a glue conflict usually resolves to what the base `<S>-dev` carries in that place,
    since it met the same code through a port.
 
-   **The buffer stays at what compiles, and that is the whole split.**
-   `-fwd-build` inherits what the base buffer had —
-   the vendored tree and the glue that makes it compile,
-   that being what the vendor gate checks —
-   and nothing of what the base series learned afterwards.
-   That second half is not replayed here and is not missing either:
-   the loop's stage 5 folds it in from the base `<S>-dev`
-   as each buffer commit is consumed (`series-loop/SKILL.md`),
-   glue included where a test rather than the compiler demanded it,
-   and a test the base stopped running excluded, which the forward keeps as `main` wrote it.
-   So do not reach for it during the replay,
-   and do not put a snapshot or a test fix onto `-fwd-build` by hand.
+   **Adapt where the new base asks, and minimally.**
+   The glue gate stops where `main`'s glue and the series' engine disagree, and that fix is folded into the commit it stopped on, as above.
+   Everything else the forward learns, it learns from per-commit CI once `-fwd-dev` is extended:
+   a red there gets the smallest fix that answers it, folded into the commit that introduced the defect with
+   [`scripts/series-fold.sh`](/scripts/series-fold.sh), the rule a landing follows too ([`series-land`](/.claude/skills/series-land/SKILL.md), step 4),
+   and mirrored onto `-fwd-build` where it is glue (`series-loop/SKILL.md`, stage 2).
+   Do not put a snapshot or a test fix onto `-fwd-build` by hand ahead of a verdict.
 
 2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
    the seed tip:
    green contains the flavor change from day one,
    so whatever consumes it builds the flavored package;
-   the loop's stage 5 extends `-fwd-dev` from the populated buffer,
-   folding in the base series' test-side fixes as it goes.
+   the loop's stage 5 extends `-fwd-dev` from the populated buffer.
+   Up to the commit the base `-dev` had reached when the forward was built, there is nothing left to carry,
+   and the stage recognises a fix the buffer commit already holds;
+   above it, where the buffer came from `-build`, it folds the base's fixes in as it always has.
 
 3. Nothing else is special:
    a forward series is a series,
@@ -328,6 +384,24 @@ all four refs replayed as they stand, nothing rederived.
 A series that has cut over is no longer WIP:
 its green serves consumers,
 and moving it means a new forward series, not a rebase.
+
+## What the forward guarantees
+
+> Every commit of `<S>-fwd-build` replayed from `<S>-dev` has the tree of its `-dev` twin plus `main`'s delta since the old seed,
+> except where the glue gate or the test guard adapted it, and each adaptation is named in the commit.
+
+Work the base series did survives by construction, and the only new work is where `main`'s delta meets the series.
+Three limits bound that claim, and each is somebody's work rather than a gap in the claim:
+
+* **The glue gate is a compile check.**
+  It does not see behaviour `main`'s delta changes, so per-commit CI still judges every commit of `-fwd-dev`,
+  and a red there gets a minimal fix folded into the commit that introduced it (above).
+  "Adapt minimally" covers a test failure as much as a build failure.
+* **Keeping `-dev` keeps its defects along with its fixes.**
+  The forward is no better than its base where `main` did not move;
+  improvement over the incumbent comes from `main`'s side alone, and a defect the base carries is fixed on the base, where stage 2 fixes one.
+* **`-dev` covers only what the base has consumed.**
+  The buffer beyond its tip is replayed from `-build`, compile side only, and the loop's carry serves it as before.
 
 ## What a forwarding has to end up with
 
@@ -374,6 +448,8 @@ and it belongs to whichever stage should have moved it:
 a carry stage 5 could not make,
 a port that reached one branch and not the other,
 a fix folded on one and not the other.
+A forward replayed from `-dev` starts with none of these up to the commit the base had reached,
+so what the read shows afterwards is what the two lineages did since, and a test the replay kept.
 The swap does not resolve a finding; it inherits it,
 onto the lineage r-universe builds from.
 

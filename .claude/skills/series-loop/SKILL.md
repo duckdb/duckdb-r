@@ -470,6 +470,10 @@ Repair the **oldest** failure first — later reds usually inherit it.
 Fold the fix into the offending commit
 (extend its message with what was adapted: tests, R code, patches),
 replay the tail, force-push `<S>-dev`.
+Write the fix as a commit on the offending commit and let
+[`scripts/series-fold.sh`](/scripts/series-fold.sh) do the folding and the replay:
+it keeps the commit's author and message, adds the fix's note above the trailers,
+and stops on a conflict where a later commit leaned on what the fix changed.
 If other failures have a demonstrably different cause,
 they may be fixed in the same pass;
 otherwise let CI re-judge the tail.
@@ -543,7 +547,12 @@ are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
 
-**Stage 5 now carries the test-side half by itself**
+**A forward replayed from the base `-dev` already carries them**
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)),
+up to the commit the base had reached when the forward was built,
+so a red there is new: `main`'s delta meeting the series,
+or a fix of the base's that was wrong and travelled.
+Above that commit the buffer came from `-build`, and stage 5 carries the test-side half by itself
 (duckdb/duckdb-r#2594),
 so what reaches this stage is what it could not:
 a carry that conflicted and was resolved by hand,
@@ -552,6 +561,8 @@ A commit that already carries a `Carried from` trailer
 has the base series' fix in it,
 so a red on that commit is something else —
 check the trailer before mining anything.
+`scripts/series-learned.sh <S>` prints what the base `-dev` learned beyond its buffer, commit by commit,
+and is the read that answers whether a fix is there to mine at all.
 
 **Read the whole set before carrying any one of it across.**
 `scripts/series-glue.sh <S>` prints every glue adaptation the series holds,
@@ -1147,9 +1158,11 @@ The cost is real — CI on a lineage about to be retired, twice over —
 and it buys the only thing that makes retiring it a check
 rather than a hope.
 
-**On a forward series, the base's fixes are folded in here.**
-`<S>-fwd-build` was replayed out of `<S>-build`,
-which holds what the code needs to **compile** —
+**On a forward series, the base's fixes are folded in here, where the buffer lacks them.**
+`<S>-fwd-build` is replayed out of `<S>-dev` up to the commit the base had reached,
+fixes folded in, and out of `<S>-build` above it
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
+`-build` holds what the code needs to **compile** —
 that being what the vendor gate checks at every commit —
 and nothing of what CI demanded after that.
 Those live on the base `<S>-dev`,
@@ -1163,6 +1176,9 @@ and folds into the same commit
 whatever that twin's tree holds and its own `-build` commit's does not,
 short of a test it would stop,
 with the twin's message and a `Carried from` trailer.
+A buffer commit replayed from the twin itself holds the fix already,
+under a blob `main`'s drift may have moved on;
+the stage recognises it by the twin's change reverse-applying there, and carries nothing twice.
 
 **A carry never stops a test the forward runs.**
 A twin folded at a rewind may have deleted a test or skipped one for good,
