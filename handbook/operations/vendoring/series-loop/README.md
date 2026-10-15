@@ -114,6 +114,22 @@ to do, and they run in this order:
   around a script opens a pull request against it,
   so the next firing does not have to.
 
+One firing, in the order above, for every series it serves:
+
+```mermaid
+flowchart TD
+  S0["0 setup: every ref, both repositories,<br>how results are read"] --> S1
+  S1["1 vendor onto #60;S#62;-build<br>vendor-one.sh, glue gate"] --> S2
+  S2["2 repair the oldest red on #60;S#62;-dev<br>fold the fix in, replay the tail"] --> S3
+  S3["3 advance #60;S#62;-green over successes,<br>set -build-base, mirror green,<br>read r-universe"] --> S4
+  S4["4 port main onto #60;S#62;-dev,<br>sync tooling onto both"] --> S5
+  S5["5 extend #60;S#62;-dev from the buffer,<br>carry the base's fixes, realign rc and alpha"] --> S6
+  S6["6 read the forwarding;<br>report a caught-up forward, suggest the cutover"] --> S7
+  S7["7 open a pull request for what<br>the tooling got wrong"]
+  CI["per-commit CI judges<br>#60;S#62;-green..#60;S#62;-dev"] -.-> S2
+  S5 -.->|push| CI
+```
+
 **A forwarding ends where the two lineages agree.**
 A forward series is the same series rebuilt on a newer `main`, so its
 history differs by construction and its content must not: at the end of
@@ -182,17 +198,18 @@ Everything else is an option, spelled identically in all of them:
 * `--remote <name>` — the remote of *this* repository carrying the series
   refs. Default `origin`, or `$SERIES_REMOTE`.
 * `--upstream <path>` — a `duckdb/duckdb` checkout on disk, read with
-  `git -C`. Default `$UPSTREAM_CLONE`.
-  Only `series-check.sh` and `series-cutover.sh` read one.
+  `git -C`. Default `$UPSTREAM_CLONE`, and for `series-cut.sh` then `../../../duckdb`.
+  Only `series-check.sh`, `series-cut.sh` and `series-cutover.sh` read one.
 * `--canonical <name>` — the remote of the canonical repository: where
   r-universe publishes the base flavors from, and where `main` itself lives.
   Default `$SERIES_CANONICAL`, then `upstream`, which is what a `gh` clone of a
   fork calls the repository it was forked from.
   An empty `SERIES_CANONICAL` turns the mirroring off; an unset one does not.
-  Only `series-advance.sh` and `series-cutover.sh` write one; `series-port.sh`
-  and `series-check.sh` read `main` from it, and fall back to the fork's mirror
-  with a word on stderr when they cannot, and `series-prune.sh` reads the
-  forward green's copy from it
+  Only `series-advance.sh`, `series-cutover.sh` and `series-land.sh` (its
+  `--review --push`, and the fast-forward of `main` it prints) write one;
+  `series-port.sh`, `series-check.sh` and `series-land.sh` read `main` from it,
+  and fall back to the fork's mirror with a word on stderr when they cannot,
+  and `series-prune.sh` reads the forward green's copy from it
   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * `-h`, `--help` — the usage, on stdout, exit 0, before the script
   touches git.
@@ -220,7 +237,7 @@ fixtures, because every check lands before the first `git` call.
 Uniformity is the property that rots one script at a time,
 each of them working perfectly well on its own while it drifts.
 Where a script reads a worktree rather than the refs of the one it is
-in — `series-glue.sh`, `series-forward-build.sh` — it takes
+in — `series-cut.sh`, `series-glue.sh`, `series-forward-build.sh` — it takes
 `$VENDOR_REPO`, the same knob `vendor-one.sh` takes, so `main`'s copy of
 a script reads the tree the caller is in.
 
@@ -231,7 +248,7 @@ it with `series-open`.
 The report carries the fork point as well, wherever the firing has an
 upstream clone to compute it in, because only the first-parent recipe
 answers that question correctly
-([`scripts/VENDORING.md`](/scripts/VENDORING.md)).
+([`vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 Nothing else in the loop can raise the condition: the stages above walk the
 series they discover, so a line with no refs is absent from all of them
 rather than overdue in one.
@@ -243,5 +260,6 @@ release branch was cut from: below the fork point the two are one history.
 So an opening cuts that series' strands there rather than walking, and the walk
 is only what the release branch has of its own
 ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
-Opening `v2.0-cyanoptera` this way left 193 commits to walk instead of 3612
+Opening `v2.0-cyanoptera` this way left the release branch's own commits to walk, a week's worth on the day,
+where a replay from the parent's seed would have walked every commit since the fork point
 ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).

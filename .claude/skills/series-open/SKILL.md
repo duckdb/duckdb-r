@@ -153,13 +153,13 @@ until now.
    **This hands the walk over.** Nobody vendors `<U>` by hand afterwards: the
    loop's stage 1 runs `vendor-one.sh --commits 100` against the buffer of every
    series it discovers, which is now this one
-   ([`series-loop/SKILL.md`](series-loop)). Opening v2.0 pushed four refs and the
+   ([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)). Opening v2.0 pushed four refs and the
    next firing had walked the buffer 25 commits and `-dev` 72, unasked.
    `series-cut.sh` reports how many are left to walk; that number is the loop's
    backlog, not a task.
 
 5. **Open both forwards.** Two invocations of
-   [`series-forward/SKILL.md`](series-forward), neither waiting on the other:
+   [`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md), neither waiting on the other:
 
    * **`<S>` onto current `main`.** The cut left it on the fork point's R side,
      months behind: every R-side fix `main` took after the fork is missing from
@@ -182,7 +182,7 @@ until now.
    The graft keeps the fork point's R side, so `<P>`'s next forward is the one that
    aligns it with `main`, and it takes the fork point from `<S>`'s forward rather
    than rederiving it: `series-forward-build.sh --graft-from <S>-fwd-build`
-   ([`series-forward/SKILL.md`](series-forward)).
+   ([`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
 
 6. **Declare `<F>`, and generate what says so.**
 
@@ -202,7 +202,7 @@ until now.
    **The entry may already be there.** A loop firing that saw the line cut
    opens the declaration PR by itself, so this step is often merging or
    reviewing that one rather than writing the entry
-   ([`series-loop/SKILL.md`](series-loop), "What a firing reports").
+   ([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md), "What a firing reports").
    The loop never cuts the refs — only steps 1–5 above do.
 
 7. **Update the fork's mirror configuration — derived, not remembered.**
@@ -220,9 +220,10 @@ until now.
    names the URL that triggers a sync, so it takes effect today rather than within
    six hours ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
-   Nothing else lives outside the refs: the loop discovers every series from them
-   and writes the mirror configuration too, from the same detection
-   ([`series-loop/SKILL.md`](series-loop)).
+   Nothing else lives outside the refs: the loop discovers every series from them,
+   and reports the rule the mirror configuration is missing on the firing that sees a series change,
+   as a change to `main` like any other, since the script is read-only
+   ([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
 
 8. **Register the new flavor with r-universe.**
    `<F>` is a package nothing in this repository creates: a universe is configured
@@ -239,7 +240,7 @@ until now.
    over it. [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it
    took. Until then the series is covered by the per-commit gate alone, which is
    Linux on one R version, and stage 3 of the loop has nothing to read back
-   ([`series-loop/SKILL.md`](series-loop)).
+   ([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
 
 ## Declaring the flavor
 
@@ -316,4 +317,5 @@ line parks because another one lands on `main`
 ([`series-land`](/.claude/skills/series-land/SKILL.md)).
 
 What is left of the walk-backwards problem when `<S>` releases is
-[`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)'s.
+[`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)'s:
+a forward reads where its replay starts from the trees.

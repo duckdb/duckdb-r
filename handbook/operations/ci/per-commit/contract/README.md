@@ -6,6 +6,7 @@ How the to-do list is computed is
 [`selection/`](/handbook/operations/ci/per-commit/selection/README.md)'s.
 
 * **Commits considered** — `<S>-green..HEAD` on a series branch,
+  everything above its seed on an rc strand,
   else first-parent history since `SINCE`; undecided ones only.
 * **Marker written** — a commit status, context `rcc`,
   `pending` before a commit and `success`/`failure` after it,
@@ -43,6 +44,18 @@ How the to-do list is computed is
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
 * **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
   `workflow_call`.
+
+```mermaid
+flowchart LR
+  push["push to #60;S#62;-dev"] --> plan["plan: #60;S#62;-green..HEAD<br>minus what rcc2 has decided"]
+  plan --> legs["legs: one job per shard,<br>rcc-one.sh per commit"]
+  legs --> art["the run: artifact + job log"]
+  legs --> store["rcc2: one record and<br>one log per commit"]
+  store --> plan
+  art --> firing["a loop firing: reads the run first"]
+  store -.->|fallback| firing
+  store --> check["series-check.sh, series-advance.sh"]
+```
 
 The snapshot branches are load-bearing, so `rcc-one.sh` reproduces them
 rather than just leaving the accepted snapshots in the tree.
