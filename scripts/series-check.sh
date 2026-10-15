@@ -475,50 +475,8 @@ for r in ${canonical:+"refs/remotes/$canonical/main"} "refs/remotes/$remote/main
   if git rev-parse -q --verify "$r" >/dev/null; then main_ref=$r; break; fi
 done
 
-# Upstream's `v*` tags as `<commit> <tag>`, from the clone when there is one and
-# from the remote otherwise. An annotated tag is peeled to its commit, which is
-# what a vendor subject names. Read once, because every series asks.
-upstream_tags() {
-  if [ -n "$upstream" ]; then
-    git -C "$upstream" for-each-ref \
-      --format='%(if)%(*objectname)%(then)%(*objectname)%(else)%(objectname)%(end) %(refname:lstrip=2)' \
-      'refs/tags/v*' 2>/dev/null || true
-  else
-    git ls-remote --tags "$upstream_url" 'v*' 2>/dev/null |
-      awk '{ t = $2; sub("^refs/tags/", "", t)
-             if (sub("\\^\\{\\}$", "", t)) peeled[t] = $1; else plain[t] = $1 }
-           END { for (t in plain) print (t in peeled ? peeled[t] : plain[t]), t }' || true
-  fi
-}
-
-# A release the buffer vendored before upstream tagged it
-# (scripts/VENDORING.md, "A tag upstream pushed late"). The buffer's tip still
-# stamps `X.Y.Z-devN` although `vX.Y.Z` exists, and the tagged commit is one it
-# vendored with no `(tag vX.Y.Z)` marker. The version names the one tag worth
-# asking about: a tag the buffer has not reached yet is the walk's to stamp, and
-# one it vendored in time leaves no `-dev` behind it.
-late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
-  local v tag sha lines
-  v=$(git show "$1:R/version.R" 2>/dev/null |
-    sed -nr 's/^duckdb_version <- "([0-9]+\.[0-9]+\.[0-9]+)-dev[0-9]+"$/\1/p')
-  [ -n "$v" ] || return 0
-  tag=v$v
-  sha=$(awk -v t="$tag" '$2 == t { print $1; exit }' <<<"$tags")
-  [ -n "$sha" ] || return 0
-  lines=$(git log --format='%H %s' "$1" | grep "duckdb@$sha" || true)
-  [ -n "$lines" ] || return 0
-  if grep -qF "(tag $tag)" <<<"$lines"; then return 0; fi
-  echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
-}
-
 tip=$(rcc_tip) || { echo "no $rcc branch on $remote"; exit 1; }
 echo "harvest: $(git log -1 --format='%ci (%ar)' "$tip")"
-tags=$(upstream_tags)
-if [ -z "$tags" ]; then
-  # Said, because a reading that failed reads exactly like no late tag at all.
-  echo "tags:    could not read upstream tags from ${upstream:-$upstream_url};"
-  echo "         no LATE TAG line below means missing data, not a clean result"
-fi
 tags=$(upstream_tags)
 if [ -z "$tags" ]; then
   # Said, because a reading that failed reads exactly like no late tag at all.
