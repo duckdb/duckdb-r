@@ -1,13 +1,17 @@
 #!/bin/bash
-# Fold fixes into the landing commits that introduced their defects, and replay
-# everything above them (.claude/skills/series-land/SKILL.md, step 4).
+# Fold fixes into the commits that introduced their defects, and replay
+# everything above them: the landing commits of an iteration
+# (.claude/skills/series-land/SKILL.md, step 4), or the vendor commits of a
+# series' `-dev` under repair (.claude/skills/series-loop/SKILL.md, stage 2).
 #
 # An iteration of a landing answers a review by folding each fix into the
 # commit that introduced the defect, so that every commit from there on carries
 # it and every intermediate commit passes; nothing is stacked on top of the
-# vendor commits, which scripts/series-land.sh refuses. A fix is written as a
-# commit whose parent is the commit it folds into, on any branch, so it applies
-# where it was written; the replay carries it up through every commit above.
+# vendor commits, which scripts/series-land.sh refuses. A repair on `-dev`
+# follows the same rule, so that every commit of the chain stays independently
+# green. A fix is written as a commit whose parent is the commit it folds into,
+# on any branch, so it applies where it was written; the replay carries it up
+# through every commit above.
 #
 # The fold is one `git rebase --interactive` over the landing's first-parent
 # chain, from the lowest target up: each target is picked, and the fix is
@@ -22,11 +26,12 @@
 # (scripts/setup-git.sh), so a resolution made once is made again on a rerun.
 # A fix that no longer applies at its target stops the replay the same way.
 #
-# Usage: series-fold.sh <landing> --fold <target>=<fix>[:<note>]... [--exec <cmd>]
+# Usage: series-fold.sh <tip> --fold <target>=<fix>[:<note>]... [--exec <cmd>]
 #        series-fold.sh --continue | --abort
-#   <landing>  the tip to rewrite, any commit-ish; it is not moved, the result
-#              is left detached in the current worktree and printed
-#   --fold     fold commit <fix> into landing commit <target>; <fix> must have
+#   <tip>      the tip to rewrite, a landing or a `-dev`, any commit-ish; it is
+#              not moved, the result is left detached in the current worktree
+#              and printed
+#   --fold     fold commit <fix> into commit <target> of the chain; <fix> must have
 #              <target> as its parent; the note defaults to the fix's subject
 #   --exec     run <cmd> after every replayed commit from the lowest target up,
 #              as `git rebase --exec` does: a failure stops the replay there
@@ -42,7 +47,7 @@ set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
 
-usage='usage: series-fold.sh <landing> --fold <target>=<fix>[:<note>]... [--exec <cmd>] | --continue | --abort'
+usage='usage: series-fold.sh <tip> --fold <target>=<fix>[:<note>]... [--exec <cmd>] | --continue | --abort'
 argerr() { echo "$usage" >&2; exit 2; }
 
 self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")

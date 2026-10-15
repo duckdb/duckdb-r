@@ -27,8 +27,11 @@
 # the vendored strand whole, a non-vendor commit `main` does not carry stops the
 # run before anything is replayed, a conflict stops it with the tree kept, and
 # the glue gate syntax-checks the glue where a pick could have broken it. The
-# series' tooling syncs are placed here by subject, because `main` holds newer
-# tooling than any of them.
+# series' ports and tooling syncs are placed by the replay itself, by their
+# `-x` trailer and their subject. Its test guard is off here: the landing holds
+# the tests to the base with scripts/series-tests.sh below, and refuses with the
+# series named, which a copy kept quietly in the replay would hide behind the
+# tree check.
 #
 # **A conflict resolved once is resolved for every rebuild.** setup-git.sh turns
 # rerere on, and a stop that rerere resolved completely is continued here rather
@@ -461,33 +464,11 @@ fi
 # shared .git/config, and the command it names is the worktree's own.
 VENDOR_REPO="$wt" "$here/setup-git.sh" >/dev/null
 
-# Two kinds of commit on the series vendor nothing and are `main`'s already, so
-# they are placed here rather than left to the replay's content tests, which a
-# port resolved by hand defeats:
-#
-#   * a port names the `main` commit it was picked from (series-port.sh picks
-#     with -x), and one that the base descends from is in the base by ancestry,
-#     the one test that cannot be wrong;
-#   * a tooling sync changes only what `main` holds newer; series-port.sh
-#     writes the subject.
-#
-# What a by-hand resolution changed beyond `main`'s commit is not lost to this:
-# it is in the series' tree and not in the landing's, so the tree check below
-# names it.
-placed=()
-while IFS= read -r c; do
-  case "$(git log -1 --format=%s "$c")" in
-    vendor:*) continue ;;
-    "chore(series): Sync tooling with main" | "chore(series): Sync buffer tooling with main")
-      placed+=(--placed "$c")
-      continue
-      ;;
-  esac
-  from=$(git log -1 --format=%B "$c" | sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p' | tail -n 1)
-  if [ -n "$from" ] && git merge-base --is-ancestor "$from" "$base" 2>/dev/null; then
-    placed+=(--placed "$c")
-  fi
-done < <(git rev-list --reverse "$seed..$src")
+# The series' ports and tooling syncs vendor nothing and are `main`'s already;
+# the replay places them by their `-x` trailer and their subject
+# (series-forward-build.sh, placed_by_rule). What a by-hand resolution changed
+# beyond `main`'s commit is not lost to this: it is in the series' tree and not
+# in the landing's, so the tree check below names it.
 
 export GIT_COMMITTER_DATE
 GIT_COMMITTER_DATE=$(git log -1 --format=%cd --date=raw "$base")
@@ -508,7 +489,7 @@ last_stop=''
 while :; do
   set +e
   env ${cfg+"${cfg[@]}"} VENDOR_REPO="$wt" "$here/series-forward-build.sh" "$src" "$seed" \
-    --prefix "$prefix" ${placed+"${placed[@]}"} ${fwd_args+"${fwd_args[@]}"} 2>&1 |
+    --prefix "$prefix" --no-keep-tests ${fwd_args+"${fwd_args[@]}"} 2>&1 |
     tee "$wt_git/series-land-run"
   st=${PIPESTATUS[0]}
   set -e

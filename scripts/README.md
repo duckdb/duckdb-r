@@ -143,11 +143,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
 | [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
 | [`series-fold-test.sh`](series-fold-test.sh) | Check scripts/series-fold.sh offline, against a synthetic landing built here: no network, no fixtures on disk. |
-| [`series-fold.sh`](series-fold.sh) | Fold fixes into the landing commits that introduced their defects, and replay everything above them (.claude/skills/series-land/SKILL.md, step 4). |
-| [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
+| [`series-fold.sh`](series-fold.sh) | Fold fixes into the commits that introduced their defects, and replay everything above them: the landing commits of an iteration (.claude/skills/series-land/... |
+| [`series-forward-build-test.sh`](series-forward-build-test.sh) | Check the forward replay, offline, against a synthetic base series and seed built here: no network, no fixtures on disk. |
+| [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-dev`, and then of the old `<S>-build` above it, onto HEAD, which must be the freshly fla... |
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
 | [`series-land-test.sh`](series-land-test.sh) | Check the landing of a series on `main`, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk. |
 | [`series-land.sh`](series-land.sh) | Land a series on `main`: build `<L>-land-dev`, every vendor commit of the series replayed without its flavor onto the `main` it will fast-forward (.claude/sk... |
+| [`series-learned.sh`](series-learned.sh) | What a series' `-dev` learned beyond its buffer: for every vendor commit, the fix the loop folded into it that its `-build` twin does not carry. |
 | [`series-patch-sync.sh`](series-patch-sync.sh) | Carry `patch/` entries from `<S>-dev` onto `<S>-build`, the way stage 5 carries tests and glue onto a forward series. |
 | [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop/SKILL.md). |

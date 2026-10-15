@@ -14,6 +14,7 @@ and are not repeated here; this page holds this repository's own.
 * **archive** — `krlmlr/duckdb-r-old`, holding the refs the fork does not carry; nothing reads it and nothing writes to it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **autoload / autoinstall** — an *installed* extension loads on first use; nothing downloads without being asked ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 * **buffer** — a series' `-build` ref: vendored ahead of CI, deliberately untested ([`branches/model/`](/handbook/branches/model/README.md)).
+* **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **CRAN guard** — the gate that keeps the bundled engine off CRAN's check farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
 * **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place ([`branches/model/`](/handbook/branches/model/README.md)).
@@ -25,7 +26,8 @@ and are not repeated here; this page holds this repository's own.
 * **fast path** — linking a prebuilt engine library instead of compiling the vendored sources ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **flavor** — a mechanical rename publishing the one source tree under another package name ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 * **flavor-name guard** — the scan for the package name hard-coded where the rename cannot reach ([`testing/guards/`](/handbook/testing/guards/README.md)).
-* **forward counterpart** (`-fwd`) — the rebased series verified beside the one it will replace ([`branches/model/`](/handbook/branches/model/README.md)).
+* **fold** — putting a fix into the commit that introduced its defect and replaying everything above, so every commit stays independently green ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **forward counterpart** (`-fwd`) — the series rebuilt on a newer `main` out of its own `-dev`, verified beside the one it will replace ([`branches/model/`](/handbook/branches/model/README.md)).
 * **forward-port** — bringing `main`'s R-side work onto a series as cherry-picks ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **glue** — the C++ translation units in `src/` that bridge R and the engine ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
 * **glue gate** — the syntax check of the glue against freshly vendored headers ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
