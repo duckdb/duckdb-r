@@ -1656,6 +1656,65 @@ test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)"
   )
 })
 
+test_that("a statement finalized in the materialize callback of a scan does not deadlock", {
+  skip_if_not_installed("callr")
+
+  # Binding the scan of a data frame holds the client context lock, and touching
+  # an unmaterialized ALTREP column there evaluates the materialize callback.
+  # R runs the finalizers that are pending at that point, and a statement's
+  # finalizer and its release take that same lock (handbook/architecture/glue/threading/README.md).
+  #
+  # A regression deadlocks rather than failing, so run it in a subprocess with
+  # a time limit instead of wedging the whole test run.
+  pkg <- get_package_name()
+
+  result <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con <- DBI::dbConnect(ns$duckdb())
+      other <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
+
+      df <- ns$rel_to_altrep(ns$rel_from_df(other, data.frame(a = 1:3)))
+
+      # The statement goes unreachable together with a sentinel,
+      # whose finalizer shows that the callback ran the pending ones.
+      finalized <- FALSE
+      local({
+        res <- DBI::dbSendQuery(con, "SELECT 1")
+        sentinel <- new.env()
+        reg.finalizer(sentinel, function(e) finalized <<- TRUE)
+        NULL
+      })
+
+      in_callback <- NA
+      options(duckdb.materialize_callback = function(rel) {
+        gc()
+        in_callback <<- finalized
+        # A statement starts here, and releases what earlier finalizers parked
+        DBI::dbGetQuery(other, "SELECT 1")
+      })
+
+      # R runs pending finalizers every 1024 evaluations, and from gc().
+      # Run them now, then collect through an allocation large enough to reach every generation:
+      # this leaves the finalizers pending instead of running them.
+      for (i in 1:1024) {
+        NULL
+      }
+      x <- numeric(2e7)
+
+      rel <- ns$rel_from_df(con, df)
+      list(in_callback = in_callback, a = as.data.frame(rel)$a)
+    },
+    args = list(pkg),
+    timeout = 60
+  )
+
+  expect_true(result$in_callback)
+  expect_equal(result$a, 1:3)
+})
+
 test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off (#1796)", {
   skip_if_not_installed("rlang")
 
