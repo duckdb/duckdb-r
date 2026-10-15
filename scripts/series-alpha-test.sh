@@ -83,7 +83,7 @@ git config user.email test@example.invalid
 git config commit.gpgsign false
 git remote add origin "$REMOTE"
 mkdir -p scripts R src/duckdb/src/function/table/version
-cp "$HERE/series-alpha.sh" "$HERE/series-lib.sh" scripts/
+cp "$HERE/series-alpha.sh" scripts/
 
 PRAGMA=src/duckdb/src/function/table/version/pragma_version.cpp
 LOADER=src/duckdb/generated_extension_loader_package_build.cpp

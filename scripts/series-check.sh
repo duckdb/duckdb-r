@@ -12,12 +12,9 @@
 #   RETRY <sha> <why>  the oldest failure, and nothing in the commit caused it
 #   REPAIR <sha> <why>  the oldest failure and its classification
 #
-# A generation that has caught up with the green r-universe publishes
-# additionally gets a CUTOVER line: the command that prepares the pull request a
-# human decides on. The loop never points r-universe at another generation
-# itself (.claude/skills/series-loop/SKILL.md). A generation the loop no longer
-# serves, neither of its line's two newest and not the published one, reads
-# FROZEN and gets no verdict (scripts/series-lib.sh).
+# A forward series that has caught up with the green it replaces additionally
+# gets a CUTOVER line: the command to run, for a human to run. The loop never
+# swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
 #
 # A series whose `-dev` carries `patch/` entries its `-build` lacks gets a
 # PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
@@ -84,8 +81,6 @@
 # handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
-# shellcheck source=series-lib.sh
-. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>] [--canonical <name>]'
 remote=${SERIES_REMOTE:-origin}
@@ -336,7 +331,7 @@ release_line_re='^v[0-9]+\.[0-9]+-[A-Za-z0-9-]+$'
 # `major.minor` as one number, so lines are compared as versions rather than as
 # strings -- a string compare puts `v1.10` below `v1.9`, and the floor below
 # would then fall silent on the newer line.
-line_rank() { # v<major>.<minor>-<codename>[-v<NNN>|-fwd] -> integer
+line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
   local v=${1#v} major minor
   major=${v%%.*}; minor=${v#*.}; minor=${minor%%-*}
   echo $((major * 1000 + minor))
@@ -431,38 +426,30 @@ for S in "${series[@]}"; do
   for r in "$green" "$dev" "$build"; do
     git rev-parse -q --verify "$r" >/dev/null || { echo "$S: missing ${r#"$remote"/}, skipping"; continue 2; }
   done
-  # A generation the loop no longer serves: neither of its line's two newest,
-  # and not the one r-universe publishes (scripts/series-lib.sh, series_served).
-  # Frozen is a verdict of its own, printed and left there: nothing vendors,
-  # repairs or extends it, and scripts/series-prune.sh says when it may go.
-  line=$(series_line "$S")
-  published=$(series_published "${main_ref:-$remote/main}" "$line")
-  if ! series_served "$S" "$remote" "$published"; then
-    echo "=== $S: FROZEN — generation $(series_gen "$S") of $line; the loop serves" \
-      "$(series_generations "$line" "$remote" | head -n 2 | tr '\n' ' ')${published:+and the published $published}"
-    echo
-    continue
-  fi
-  # Ready to publish once this generation's green vendors the upstream commit
-  # the published generation's green vendors: coverage may never regress.
-  # Tested by subject, like every other equivalence here, and bounded by the
-  # mainline the seed was built on — `main`'s own vendor commits sit below that
-  # seed and must not answer for the chain. A published green that vendors
-  # nothing asks for no coverage, exactly as in series-cutover.sh. Only a
-  # generation newer than the published one can be ready.
+  # cutover litter: a forward series whose green is an ancestor of its base's
+  # (the base moves on after cutover, so equality cannot be the test)
   cutover=""
-  if [ -n "$published" ] && [ "$published" != "$S" ] &&
-    [ "$(series_gen "$S")" != "" ] &&
-    { [ -z "$(series_gen "$published")" ] || [ "$(series_gen "$S")" -gt "$(series_gen "$published")" ]; } &&
-    git rev-parse -q --verify "$remote/$published-green" >/dev/null; then
-    base_up=$(vendored_sha "$remote/$published-green")
-    # Collected, not piped into grep: `grep -q` leaves early, and under
-    # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
-    gen_vendored=$(git log --format=%s "$remote/main..$green" -- src/duckdb || true)
-    if [ -z "$base_up" ] || grep -q "duckdb@$base_up" <<<"$gen_vendored"; then
-      cutover=$published
-    fi
-  fi
+  case "$S" in *-fwd)
+    base=${S%-fwd}
+    if git rev-parse -q --verify "$remote/$base-green" >/dev/null; then
+      if git merge-base --is-ancestor "$green" "$remote/$base-green"; then
+        echo "$S: green is an ancestor of $base's — cutover litter, ignoring"; continue
+      fi
+      # Ready to cut over once the forward green vendors the upstream commit the
+      # base green vendors: coverage may never regress. Tested by subject, like
+      # every other equivalence here, and bounded by the mainline the forward
+      # seed was built on — `main`'s own vendor commits sit below that seed and
+      # must not answer for the forward chain. A base green that vendors nothing
+      # asks for no coverage, exactly as in series-cutover.sh.
+      base_up=$(vendored_sha "$remote/$base-green")
+      # Collected, not piped into grep: `grep -q` leaves early, and under
+      # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
+      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- src/duckdb || true)
+      if [ -z "$base_up" ] || grep -q "duckdb@$base_up" <<<"$fwd_vendored"; then
+        cutover=$base
+      fi
+    fi ;;
+  esac
 
   inflight=$(git rev-list --count "$green..$dev")
   # the buffer counts from -dev's consumption anchor on -build: the -dev tip
@@ -485,7 +472,7 @@ for S in "${series[@]}"; do
   fi
   echo "=== $S: $inflight in flight, $buffered buffered, green=$(git rev-parse --short "$green") dev=$(git rev-parse --short "$dev")"
 
-  verdict="ADVANCE" oldest="" why="" missing=0
+  oldest="" why="" missing=0
   while IFS= read -r sha; do
     st=$(state_of "$sha")
     case "$st" in
@@ -601,15 +588,15 @@ for S in "${series[@]}"; do
     # one: the block a firing hands over is meant to be pasted whole, and a
     # placeholder in the argument that decides whether the coverage gate runs
     # at all is the one word nobody can substitute from the report alone
-    # (.claude/skills/series-loop/SKILL.md stage 6). A cutover is a pull request
-    # pointing r-universe at this generation's green, which the script prepares
-    # together with the review of what the generation changed; it moves no ref.
-    echo "  CUTOVER  $S covers $cutover's green — a human decides, by pull request, never a firing:"
-    echo "           scripts/series-cutover.sh $S --remote $remote \\"
+    # (.claude/skills/series-loop/SKILL.md stage 6).
+    echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
+    echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
     echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
+    echo "           It archives the replaced lineages in closed pull requests, then"
+    echo "           swaps; --prepare prints its gates and review and moves nothing."
     echo "           Coverage is only half of it; what the two branches carry is"
-    echo "           the other half, and the cutover prints it with the review:"
-    echo "           scripts/series-converge.sh $S --remote $remote"
+    echo "           the other half, and the cutover prints it before it asks:"
+    echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done
 
@@ -645,11 +632,11 @@ while IFS= read -r b; do
   grep -qE "$release_line_re" <<<"$b" || continue
   [ "$(line_rank "$b")" -gt "$floor" ] || continue
   # Served is the same question every other stage asks, asked of one branch:
-  # does a series of that line exist, its first refs or any generation of it
-  # (scripts/series-lib.sh)?
+  # does a series of that name exist? A line may be served by a `-fwd` series
+  # alone, which is one that started as a forward and has no base to replace.
   served=
   for S in "${all_series[@]}"; do
-    [ "$(series_line "$S")" = "$b" ] && { served=1; break; }
+    case "$S" in "$b" | "$b-fwd") served=1; break ;; esac
   done
   [ -n "$served" ] || unserved+=("$b")
 done <<<"$branches"

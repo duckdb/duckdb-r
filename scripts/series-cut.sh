@@ -229,8 +229,8 @@ Next, in order -- the cut is not complete until the rename is in:
   # 3. Open both forwards -- series-forward/SKILL.md, twice, neither waiting
   #    on the other:
   #      series $S: onto current main, ordinary regenerated seed
-  #      series $parent: onto current main, grafted per strand, as its next
-  #        generation (scripts/series-lib.sh): its -build at $(git rev-parse --short "$cut_build"), its -dev at $(git rev-parse --short "$cut_dev").
+  #      series $parent: onto current main, grafted per strand --
+  #        $parent-fwd-build at $(git rev-parse --short "$cut_build"), $parent-fwd-dev at $(git rev-parse --short "$cut_dev").
   #        Each strand grafts its own cut; everything below is $S's now.
 
   # 4. Declare the flavor $F -- one entry in scripts/series.yaml -- then

@@ -70,9 +70,10 @@
 # does. The push is a plain one, fast-forward only, and a refusal stops the
 # firing rather than being forced: green is the verified frontier, and the only
 # thing that legitimately moves it off its lineage is a cutover, which does the
-# that mirrors it (scripts/series-cutover.sh). Every generation's green travels,
-# because a cutover is a pull request naming the next generation's green in the
-# canonical repository, and the ref has to be there for it to name.
+# mirror itself (scripts/series-cutover.sh). Every series' green travels, the
+# forward's too: nothing publishes `<S>-fwd-green` from there, but the cutover
+# archives the replaced copy against it and deletes it afterwards, so both
+# copies of a line's history live where r-universe reads.
 # The push runs on every firing, not only on the ones where green moved: an
 # idle series whose copy fell behind for some other reason would otherwise
 # never be asked about again, and the push is a no-op when the two agree.
@@ -93,8 +94,6 @@
 # handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
-# shellcheck source=series-lib.sh
-. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--canonical <name>] [--dev-note <file>]
        series-advance.sh <series> --continue [--dev-note <file>]
@@ -281,16 +280,18 @@ restamp() { # <worktree> <buffer commit>
 
 # --- the base series' test-side fixes ----------------------------------------
 #
-# Only a generation has a base to mine: it reads the `-dev` of the generation it
-# was built from, `<S>-v001` reading `<S>-v000`'s and `<S>-v000` the line's
-# first refs (scripts/series-lib.sh). A line's first refs are the thing being
-# built, and a base whose refs are gone answers empty too; the stage then
-# behaves exactly as it did before this existed.
+# Only a forward series has a base to mine: `<S>-fwd` reads `<S>-dev`. A base
+# series' own `-dev` is the thing being built, and after a cutover the ref is
+# gone -- both answer empty here, and the stage then behaves exactly as it did
+# before this existed.
 base_dev=
-base_series=$(series_base "$S" "$remote")
-if [ -n "$base_series" ] && git rev-parse -q --verify "$remote/$base_series-dev" >/dev/null; then
-  base_dev="$remote/$base_series-dev"
-fi
+case "$S" in
+  *-fwd)
+    if git rev-parse -q --verify "$remote/${S%-fwd}-dev" >/dev/null; then
+      base_dev="$remote/${S%-fwd}-dev"
+    fi
+    ;;
+esac
 
 # Equivalence is by vendored upstream SHA, the key the rest of the loop reads
 # state by. One walk, because the alternative is a walk per buffer commit.
@@ -435,7 +436,7 @@ verify_counter() { # <worktree> <ref the replay started from>
 # set first, then the firing stops before stage 5 extends `-dev` onto a tip a
 # repair is about to re-mint (.claude/skills/series-loop/SKILL.md, stages 3 and 5).
 new_green=$(git rev-parse "$green")
-failed= failed_state=
+failed='' failed_state=''
 while IFS= read -r sha; do
   st=$(state_of "$sha")
   case "$st" in
@@ -477,14 +478,6 @@ fi
 # to move too. No `+` and no lease: a plain push is fast-forward only, and a
 # refusal here means the two repositories disagree about verified history, which
 # is a thing to look at rather than to overwrite.
-#
-# Every generation's green travels, not only the published one's: r-universe
-# builds the published generation from the canonical repository, and a cutover
-# is a pull request pointing it at the next generation's green
-# (.claude/skills/series-forward/SKILL.md), so that ref has to be there already,
-# fast-forwarded by the firings that promoted it, for the pull request to have
-# anything to name. Nothing publishes the others; they cost a ref each and buy
-# a cutover that writes no ref.
 #
 # It runs whether or not green moved this firing, because the two copies can
 # disagree for reasons this firing had no part in: a green promoted before the

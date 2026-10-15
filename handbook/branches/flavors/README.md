@@ -96,24 +96,17 @@ The registration lives outside this repo, so adding a flavor is a pull request
 against that one ([`series-open`](/.claude/skills/series-open/SKILL.md)),
 and [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it took.
 
-**Every base flavor names `duckdb/duckdb-r`, and a `.dev` one names the published generation's green**,
-`<S>-green` for the line's first refs or `<L>-v<NNN>-green` for a later generation
-([`branches/model/`](/handbook/branches/model/README.md)).
+**Every base flavor names `duckdb/duckdb-r`, and a `.dev` one names `<S>-green`.**
 r-universe reads ownership from that URL, so a `duckdb.*` package built from the
 fork is published as the fork owner's.
 The `-green` refs are therefore mirrored from the fork into the canonical
-repository, every generation's, which is the only strand that travels that way
+repository, every series' including the forward's, which is the only strand that travels that way
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
-**A cutover is the pull request that moves that entry to a newer generation's green**,
-with its twin here, `publishes_from` in [`scripts/series.yaml`](/scripts/series.yaml),
-and nothing else: no ref is swapped or deleted
-([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
-The entry's `branch` is the one fact a cutover changes,
-which is why the generation's green has to be in the canonical repository before the pull request names it.
-
-The fork's own universe carries the newest unpublished generation's green of each line and nothing else.
-Such a generation is a rebuild nobody installs, published only so a cutover
+The fork's own universe carries the `-fwd-green` refs and nothing else.
+A forward counterpart is a rebuild nobody installs, published only so a cutover
 can be verified across fifteen targets before it happens,
-so it belongs where it is built and not beside the flavor it will become;
-a forward moves the entry on to the generation it creates.
+so it belongs where it is built and not beside the flavor it will become.
+A cutover changes no entry in either universe:
+the branch names are static, and the swap puts the forward's history under the name the entry already holds
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).

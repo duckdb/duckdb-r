@@ -62,8 +62,8 @@ the config keeps it fresh afterwards and never creates it.
 
 ## The copy that goes the other way
 
-One strand per series travels from the fork *to* the canonical repository:
-`<S>-green`, of every generation of a line.
+One branch per series travels from the fork *to* the canonical repository:
+`<S>-green`, the forward's `<S>-fwd-green` included.
 r-universe reads ownership from the URL of the branch it builds,
 so a `duckdb.*` flavor built from `krlmlr/duckdb-r` is published as krlmlr's,
 and the universe that ought to own the package carries an entry pointing out of it
@@ -76,11 +76,11 @@ so no package is configured in two places.
 Only `<S>-green`.
 The buffer and `-dev` are working branches nothing installs,
 and duplicating either is the thing this avoids.
-Every generation's green travels, not only the published one's,
-because a cutover is a pull request naming the next generation's green in the canonical repository
-([`flavors/`](/handbook/branches/flavors/README.md)),
-and the branch has to be there, fast-forwarded by the firings that promoted it, for the request to name it;
-an unpublished generation's copy costs one ref and is built by nothing until then.
+A `-fwd-green` is a rebuild published from the fork's own universe
+to verify a cutover before it happens, and nothing publishes its copy here;
+it travels so that the cutover can archive the replaced copy of `<S>-green` against it in this repository,
+and it is deleted here with the fork's `-fwd` refs once the swap has made its tip `<S>-green`
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 
 **It is a fast-forward, and a refusal is a finding.**
 [`scripts/series-advance.sh`](/scripts/series-advance.sh) pushes it plainly
@@ -90,11 +90,13 @@ so git rejects anything that is not a forward,
 and the rejection stops the firing rather than being forced:
 green is the verified frontier, and two repositories disagreeing about it
 is something to read.
-There is no exception.
-A cutover used to move green onto a lineage the old green was no ancestor of, and forced this copy itself;
-it points r-universe at another generation's green now and moves no ref
-([`series-forward`](/.claude/skills/series-forward/SKILL.md)),
-so every copy here only ever fast-forwards, and a pruning deletes one rather than moving it.
+The exception is a cutover, which moves green onto the forward lineage
+the old green is no ancestor of.
+That is the one legitimate non-fast-forward,
+so [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) forces the copy itself,
+under a lease and after the swap, rather than leaving the next firing to trip on it,
+and only after the copy it replaces has become the head of a closed pull request here,
+so the move loses no history.
 
 Unlike the mirrors above, this one is ours to push:
 Pull carries branches from the canonical repository into the fork and never back.

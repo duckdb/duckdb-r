@@ -2,9 +2,7 @@
 # Plan the sharded per-commit `rcc` build for the checked-out branch.
 #
 # Selects the undecided commits -- on a series branch those in
-# `<S>-green..HEAD` with no verdict on the `rcc2` branch, where `<S>` is a line
-# or any generation of it, `v2.0-cyanoptera-v001-dev` scanning from
-# `v2.0-cyanoptera-v001-green` (scripts/series-lib.sh), elsewhere the
+# `<S>-green..HEAD` with no verdict on the `rcc2` branch, elsewhere the
 # first-parent history on or after $SINCE without one -- and
 # partitions them into contiguous, cost-balanced shards (see
 # `scripts/each-partition.py`, which also decides how many shards are worth

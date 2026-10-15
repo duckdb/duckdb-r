@@ -1,6 +1,6 @@
 ---
 name: series-rc
-description: Cut and keep aligned the release-candidate strand of a series, `<S>-rc-dev`, which carries the package without its flavor, commit for commit of `<S>-dev`. Use when asked to cut an rc series from a `-dev` of a line or a generation, when a firing has moved `<S>-dev` of a series that has an rc strand, or when checking that an rc strand is aligned.
+description: Cut and keep aligned the release-candidate strand of a series, `<S>-rc-dev`, which carries the package without its flavor, commit for commit of `<S>-dev`. Use when asked to cut an rc series from a `-dev` or `-fwd-dev`, when a firing has moved `<S>-dev` of a series that has an rc strand, or when checking that an rc strand is aligned.
 ---
 
 # The release-candidate strand
@@ -13,8 +13,7 @@ so that it installs beside the released `duckdb`
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 A release is built as plain `duckdb`, and a flavored green says nothing about the name that ships.
 `<S>-rc-dev` is the same series without the flavor, one commit for each commit of `<S>-dev`.
-`<S>` may be a line's first refs or any generation of it, so `v2.0-cyanoptera-v001` has `v2.0-cyanoptera-v001-rc-dev`
-(`scripts/series-lib.sh`).
+`<S>` may be a base series or a forward one, so `v2.0-cyanoptera-fwd` has `v2.0-cyanoptera-fwd-rc-dev`.
 
 **It is one ref.**
 No `-rc-build`: CI never builds a buffer, and the rc strand is derived from `<S>-dev`, not vendored.
@@ -43,7 +42,7 @@ Two files are spelled back rather than reversed:
 `DESCRIPTION`, whose `Package:` line is the flavor's only change there, beside a `Version:` every commit moves,
 and `scripts/flavor.patch`, which the loop's tooling sync overwrites with `main`'s template.
 
-The source needs a seed `flavor.sh` wrote: every generation has one, and so does a line once it has been forwarded.
+The source needs a seed `flavor.sh` wrote: every `-fwd` series has one, and so does a series once it has been forwarded.
 A series cut by [`series-open`](/.claude/skills/series-open/SKILL.md) and reflavored afterwards has no single flavor diff,
 so the script refuses it; cut its rc from its forward.
 A commit that edits a flavored region stops the run with the commit named,
@@ -71,10 +70,12 @@ and it is fixed on `main` in the flavor tooling or in the code the flavor touche
 
 The strand is derived, never vendored, repaired, ported or advanced on its own.
 
-## At a cutover, and after
+## At cutover
 
-A cutover points r-universe at another generation's green and moves no ref
-([`series-forward`](/.claude/skills/series-forward/SKILL.md)), so an rc strand is untouched by it:
-each generation has its own, `<L>-v<NNN>-rc-dev`, realigned for as long as the loop serves the generation.
-When a generation is pruned, its rc strand goes with it, in the commands
-[`scripts/series-prune.sh`](/scripts/series-prune.sh) prints, so no rc strand outlives its source.
+[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs
+and deletes `<S>-fwd-rc-dev` with them, since the strand is derived and its source is `<S>-dev` now;
+it cuts nothing.
+In the same session, cut `<S>-rc-dev` from the swapped-in `<S>`,
+so no rc strand outlives its source.
+A `<S>-fwd-rc-dev` the deletion could not remove is cutover litter, and
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) lists it.

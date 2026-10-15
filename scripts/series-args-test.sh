@@ -142,6 +142,7 @@ is "series-forward-build.sh --prefix (bare)"     "$(rc series-forward-build.sh a
 is "series-forward-build.sh --buffer (bare)"     "$(rc series-forward-build.sh a b --buffer)" 2
 is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed)" 2
 is "series-learned.sh --since (bare)"            "$(rc series-learned.sh s --since)" 2
+is "series-cutover.sh --out (bare)"              "$(rc series-cutover.sh s --out)" 2
 is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
 is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
 is "series-land.sh --landing (bare)"             "$(rc series-land.sh s --landing)" 2
@@ -153,8 +154,6 @@ echo "== the remote and the upstream clone are named, never positional"
 # The regression this suite is for: these are the old spellings, and taking them
 # quietly is how a remote name reached `git -C`.
 is "series-cutover.sh <S> <remote> <path>" "$(rc series-cutover.sh s origin /tmp)" 2
-is "series-cutover.sh --out (bare)"          "$(rc series-cutover.sh s --out)" 2
-is "series-prune.sh --archive (bare)"        "$(rc series-prune.sh s --archive)" 2
 is "series-converge.sh <S> <remote>"       "$(rc series-converge.sh s origin)" 2
 is "series-advance.sh <S> <chunk>"         "$(rc series-advance.sh s 25)" 2
 is "series-glue.sh <S> <extra>"            "$(rc series-glue.sh s x)" 2
