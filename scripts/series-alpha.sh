@@ -32,6 +32,8 @@
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than minting an empty SHA.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-alpha.sh <S> [--remote <name>] [--alpha <sha10>/<version>] [--push]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -102,9 +104,9 @@ done
 # The vendor commit of that engine on green, and the newest commit above it that
 # still carries it: green is linear by invariant, so that is the one under the
 # next vendor commit.
-vendored=$(git log --first-parent -1 --format=%H --grep="^vendor: .*duckdb/duckdb@$sha10" "$green")
+vendored=$(git log --first-parent -1 --format=%H --grep="^vendor: .*$series_upstream_repo@$sha10" "$green")
 if [ -z "$vendored" ]; then
-  echo "$S: $version is duckdb/duckdb@$sha10, which $S-green has not vendored; nothing to stamp yet"
+  echo "$S: $version is $series_upstream_repo@$sha10, which $S-green has not vendored; nothing to stamp yet"
   exit 0
 fi
 later=$(git rev-list --first-parent --reverse --grep='^vendor: ' "$vendored..$green")
@@ -114,8 +116,8 @@ else
   base=$(git rev-parse "$green")
 fi
 
-pragma=src/duckdb/src/function/table/version/pragma_version.cpp
-loader=src/duckdb/generated_extension_loader_package_build.cpp
+pragma=$series_engine_file
+loader=$series_vendor_dir/generated_extension_loader_package_build.cpp
 define() { git show "$1:$pragma" | sed -n "s/^#define $2 \"\\(.*\\)\"\$/\\1/p"; }
 
 source_id=$(define "$base" DUCKDB_SOURCE_ID)
@@ -147,7 +149,7 @@ stamp_tree() {
   git read-tree "$c"
   edit "$c" "$pragma" "s/^#define DUCKDB_VERSION \"$dev\"\$/#define DUCKDB_VERSION \"$version\"/;
     s/^#define DUCKDB_PATCH_VERSION \"$patch-$devn\"\$/#define DUCKDB_PATCH_VERSION \"$patch-$suffix\"/"
-  edit "$c" R/version.R "s/^duckdb_version <- \"${dev#v}\"\$/duckdb_version <- \"${version#v}\"/"
+  edit "$c" "$series_stamp_file" "s/^duckdb_version <- \"${dev#v}\"\$/duckdb_version <- \"${version#v}\"/"
   # A C++ extension records the version it was built for, which is the commit
   # under a `-dev` stamp and the version under a release one.
   if git cat-file -e "$c:$loader" 2>/dev/null; then
@@ -155,9 +157,9 @@ stamp_tree() {
   fi
   local t
   t=$(git write-tree)
-  if git grep -q -F -e "$devn" "$t" -- src/duckdb R/version.R; then
+  if git grep -q -F -e "$devn" "$t" -- "$series_vendor_dir" "$series_stamp_file"; then
     echo "Error: the stamp left $devn behind:" >&2
-    git grep -n -F -e "$devn" "$t" -- src/duckdb R/version.R >&2
+    git grep -n -F -e "$devn" "$t" -- "$series_vendor_dir" "$series_stamp_file" >&2
     return 1
   fi
   echo "$t"
@@ -170,7 +172,7 @@ mint() {
   printf '%s\n' \
     "chore: Stamp the engine as $version" \
     "" \
-    "Upstream built duckdb/duckdb@$sha10 as $version and published its extensions" \
+    "Upstream built $series_upstream_repo@$sha10 as $version and published its extensions" \
     "under that version; a -dev stamp looks them up under the commit instead." \
     "Only the version stamp differs from the parent (scripts/series-alpha.sh)." \
     "" \

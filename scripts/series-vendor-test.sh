@@ -21,6 +21,8 @@
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=series-lib.sh
+. "$HERE/series-lib.sh"
 
 SCRATCH=$(mktemp -d)
 [ -n "${KEEP:-}" ] || trap 'rm -rf "$SCRATCH"' EXIT
@@ -31,6 +33,7 @@ fail=0
 ok() { pass=$((pass + 1)); echo "  ok   $1"; }
 no() { fail=$((fail + 1)); echo "  FAIL $1"; }
 yes() { if "${@:2}"; then ok "$1"; else no "$1"; fi; }
+hasnt() { case "$2" in *"$3"*) no "$1"; echo "     unexpected: $3" ;; *) ok "$1" ;; esac; }
 is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "       got:  $2"; echo "       want: $3"; fi; }
 has() { case "$2" in *"$3"*) ok "$1" ;; *) no "$1"; echo "       missing: $3"; printf '%s\n' "$2" | sed 's/^/       | /' ;; esac; }
 
@@ -47,7 +50,7 @@ git config commit.gpgsign false
 git remote add origin "$REMOTE"
 
 mkdir -p scripts R src/duckdb/src/function/table/version src/include patch man/figures
-cp "$HERE/series-vendor.sh" scripts/
+for s in series-vendor.sh series-config.sh series-lib.sh vendor-lib.sh; do cp "$HERE/$s" scripts/; done
 chmod +x scripts/*.sh
 
 desc() { printf 'Package: %s\nVersion: %s\n' "$1" "$2" > DESCRIPTION; }
@@ -59,7 +62,7 @@ engine() { # <id> <R version>
   echo "PKG_CPPFLAGS=-I$1" > src/Makevars
 }
 commit() { git add -A; git commit -qm "$1"; git rev-parse HEAD; }
-vendor_paths() { git ls-tree -r "$1" -- src/duckdb patch R/version.R src/include src/Makevars man/figures | awk '{ print $3, $4 }'; }
+vendor_paths() { git ls-tree -r "$1" -- "${series_vendor_paths[@]}" | awk '{ print $3, $4 }'; }
 same_vendor() { [ "$(vendor_paths "$1")" = "$(vendor_paths "$2")" ]; }
 
 desc duckdb 1.5.5.9000
@@ -89,7 +92,17 @@ engine bbbb001 2.0.0-dev1; bump 1
 V1=$(commit 'vendor: Update vendored sources to duckdb/duckdb@bbbb001 (#2)')
 engine bbbb002 2.0.0-dev2; bump 2
 echo 'glue 2, as bbbb002 needs' > src/glue.cpp
-V2=$(commit 'vendor: Update vendored sources to duckdb/duckdb@bbbb002 (#3)')
+git add -A
+git commit -q -F - <<'EOF'
+vendor: Update vendored sources to duckdb/duckdb@bbbb002 (#3)
+
+Date: 2026-01-02
+
+R-side fix
+----------
+The glue reads two, as bbbb002 answers.
+EOF
+V2=$(git rev-parse HEAD)
 echo 'patched' >> src/duckdb/engine.cpp
 echo 'diff' > patch/0001-fix.patch
 P1=$(commit 'chore(patch): Carry 0001-fix.patch onto the buffer')
@@ -121,6 +134,9 @@ is "each strand commit carries its twin's vendor paths blob for blob" "$n" 4
 is "and never the counter" "$(git show "$VENDOR:DESCRIPTION" | sed -n 's/^Version: //p')" 1.99.99.9000.0
 is "nor the glue" "$(git show "$VENDOR:src/glue.cpp")" "glue 1"
 is "the authors travel" "$(git log -1 --format=%an "$VENDOR")" Test
+hasnt "the message stops before the R-side fix section, which explains glue the strand lacks" \
+  "$(git log -1 --format=%B "$VENDOR~2")" "R-side fix"
+has "and keeps what precedes it" "$(git log -1 --format=%B "$VENDOR~2")" "Date: 2026-01-02"
 out=$(run v2.0-x --init)
 has "a second --init refuses" "$out" "EXIT=1"
 has "and says why" "$out" "v2.0-x-vendor exists on origin"

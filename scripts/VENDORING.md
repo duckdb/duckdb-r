@@ -67,8 +67,8 @@ Three things an operator needs beyond what it states:
   The loop derives the buffer from it with [`series-vendor.sh`](series-vendor.sh),
   which stamps and gates each pick.
 * **How deep the base scan looks.**
-  Twenty commits, the same bound `vendored_sha()` uses in
-  [`series-advance.sh`](series-advance.sh); `BASE_SCAN_DEPTH` raises it.
+  Twenty commits, the same bound `series_vendored_sha()` uses in
+  [`series-lib.sh`](series-lib.sh); `BASE_SCAN_DEPTH` raises it.
 
 ### Local setup
 
