@@ -79,6 +79,28 @@ test_that("a table whose columns R cannot hold is still found and listed", {
   }
 })
 
+test_that("a tuple holding a column R cannot hold is refused before it runs", {
+  con <- local_con()
+  tuples <- tryCatch(
+    {
+      dbGetQuery(con, "SELECT struct_values({'a': 1}) AS v")
+      TRUE
+    },
+    error = function(e) FALSE
+  )
+  skip_if_not(tuples, "This engine has no struct_values()")
+
+  dbExecute(con, "CREATE TABLE t (x BIT, y INTEGER)")
+  expect_error(
+    dbGetQuery(
+      con,
+      "INSERT INTO t (y) VALUES (1) RETURNING struct_values({'b': x}) AS v"
+    ),
+    "BIT"
+  )
+  expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM t")$n, 0)
+})
+
 test_that("a column R cannot hold is refused by name", {
   skip_if_not_installed("nanoarrow")
   con <- local_con()
