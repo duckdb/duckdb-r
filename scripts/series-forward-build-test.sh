@@ -5,7 +5,7 @@
 # The claim scripts/series-forward-build.sh makes is that a forward keeps the
 # base series' `-dev` commits as they are wherever it can, and adapts only where
 # the new base asks it to; scripts/series-learned.sh is what shows those commits
-# before they travel. Nine things are checked.
+# before they travel. Ten things are checked.
 #
 #   1. A non-vendor commit of the buffer's own, a `patch/` entry, refuses the
 #      run before anything is replayed, and names the command that places it;
@@ -28,6 +28,11 @@
 #   9. series-learned.sh names, per vendor commit of `-dev`, what it carries
 #      beyond its `-build` twin, leaves the glue both have unreported, and ranks
 #      the files; --diff prints the change itself.
+#  10. The forward's vendor strand: the series' strand, derived once from its
+#      buffer and carried onto the new seed by series-vendor.sh, vendors the
+#      same engine as `-fwd-build` at every twin and carries none of the fixes,
+#      and `series-learned.sh <S>-fwd --vendor` reports those fixes, on the new
+#      base, exactly as 9 reported them on the old one.
 #
 # Usage:
 #   scripts/series-forward-build-test.sh
@@ -68,7 +73,7 @@ git config user.email test@example.invalid
 git config commit.gpgsign false
 
 mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat patch
-for s in series-forward-build.sh series-learned.sh series-tests.sh setup-git.sh merge-version.sh; do
+for s in series-forward-build.sh series-learned.sh series-vendor.sh series-tests.sh setup-git.sh merge-version.sh; do
   cp "$HERE/$s" scripts/
 done
 chmod +x scripts/*.sh
@@ -310,6 +315,43 @@ has "every commit learned something here" "$out" "3 of 3 vendor commit(s) learne
 has "each names its twin" "$out" "(twin $(git rev-parse --short s-build~3))"
 out=$(scripts/series-learned.sh v2.0-x --diff 2>&1) || true
 has "--diff prints the change itself" "$out" "+test 2, as bbbb222 answers"
+
+echo
+echo "=== 10. the vendor strand is pure vendoring on the new base, and --vendor reads the forward against it"
+git checkout -q --detach fwd-seed
+out=$(fwd s-dev "$B" --buffer s-build --placed "$PATCH")
+has "the forward's buffer is replayed" "$out" "EXIT=0"
+git branch -f fwd-build HEAD
+out=$(scripts/series-vendor.sh v2.0-x --init --push 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "the series' strand is derived from its buffer" "$st" 0
+out=$(scripts/series-vendor.sh v2.0-x --forward fwd-seed 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "and carried onto the forward's seed" "$st" 0
+has "as a rewind, since the seed vendors an engine the strand does not have" "$out" "a rewind"
+git branch -f fwd-vendor v2.0-x-fwd-vendor
+is "five commits: one per vendor commit of -build, and its patch entry" "$(git rev-list --count "$NEWSEED..fwd-vendor")" 5
+same=0; differ=0
+for c in $(git rev-list --reverse "$NEWSEED..fwd-vendor"); do
+  sha=$(git log -1 --format=%s "$c" | sed -n 's/.*@//p')
+  [ -n "$sha" ] || continue
+  twin=$(git log --format=%H --grep="@$sha" "$NEWSEED..fwd-build")
+  if git diff --quiet "$c" "$twin" -- src/duckdb R/version.R; then same=$((same + 1)); else differ=$((differ + 1)); fi
+done
+is "the vendored strand is the same as -fwd-build's at every twin" "$same/$differ" "4/0"
+hasnt "the vendor strand carries no test fix" "$(git show fwd-vendor:tests/testthat/test-bar.R)" "as bbbb222 answers"
+git push -q origin fwd-build:refs/heads/v2.0-x-fwd-build fwd-vendor:refs/heads/v2.0-x-fwd-vendor
+git fetch -q origin
+out=$(scripts/series-learned.sh v2.0-x-fwd --vendor 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "it exits 0" "$st" 0
+has "it reads -build against -vendor" "$out" "=== what v2.0-x-fwd-build learned beyond v2.0-x-fwd-vendor, above $(git rev-parse --short "$NEWSEED")"
+has "the rewind commit's test fix is there on the new base" "$out" "tests/testthat/test-foo.R"
+has "and the gate" "$out" "tests/testthat/test-gate.R"
+has "the second's test change" "$out" "tests/testthat/test-bar.R"
+has "the third's glue" "$out" "src/rapi.cpp"
+has "the glue the gate demanded is learned too, since the strand carries none" "$out" "src/glue.cpp"
+has "three of four commits learned something; the buffer's own commit above -dev did not" "$out" "3 of 4 vendor commit(s) learned something"
 
 echo
 echo "$pass passed, $fail failed"
