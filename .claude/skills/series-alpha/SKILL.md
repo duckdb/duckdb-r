@@ -69,8 +69,11 @@ the gap is upstream's, and it is reported rather than worked around.
   An alpha lags the green tip by days, so publishing it would trade the newer engine for working extensions;
   that trade is a human's, made in `publishes_from` in [`scripts/series.yaml`](/scripts/series.yaml).
 
-## At cutover
+## At a cutover, and after
 
-[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs and knows nothing of an alpha strand.
-In the same session, cut `<S>-alpha` from the swapped-in `<S>`
-and delete `<S>-fwd-alpha` and `<S>-fwd-rc-alpha`, so no alpha strand outlives its source.
+A cutover points r-universe at another generation's green and moves no ref
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)), so an alpha strand is untouched by it:
+each generation that has one keeps it, `<L>-v<NNN>-alpha` and `<L>-v<NNN>-rc-alpha`,
+realigned for as long as the loop serves the generation, and cut on a newly published generation once, by hand.
+When a generation is pruned, its alpha strands go with it, in the commands
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) prints, so no alpha strand outlives its source.

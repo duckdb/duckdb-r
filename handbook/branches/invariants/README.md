@@ -30,10 +30,15 @@ The families, in one breath:
   the one exception is vendor-coupled glue on the preview line,
   born beside the vendor commit that forces it.
 * **CI / green** — a `-green` ref only ever fast-forwards to
-  commits with recorded successful runs.
-* **Forward convergence** — at the end of a forwarding, `<S>-dev` and
-  `<S>-fwd-dev` are identical, or every difference between them is
-  explicable. A forward is the same series rebuilt on a newer `main`
+  commits with recorded successful runs, in both repositories;
+  a cutover, which used to be the one sideways move, moves no ref.
+* **Generations** — a generation, once created, is never rewritten
+  beyond the loop's own repairs above its green, and goes only by a
+  pruning a human runs once it is older than the published one
+  ([`model/`](/handbook/branches/model/README.md)).
+* **Forward convergence** — at the end of a forwarding, a generation's
+  `-dev` and its base's are identical, or every difference between them is
+  explicable. A generation is the same series rebuilt on a newer `main`
   ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)),
   so the histories differ by construction and only the trees carry the
   claim. Up to the commit the base had reached when the forward was
@@ -65,7 +70,7 @@ Forward convergence sits between the two families:
 it is **measured on every firing and enforced by nobody**.
 [`scripts/series-converge.sh`](/scripts/series-converge.sh) reports it,
 and [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) prints the
-same reading immediately before it asks to swap the refs —
+same reading beside the review it prepares for the cutover's pull requests —
 but neither refuses, because the invariant's second half is
 *explicable*, and whether a difference is explicable is a judgement no
 script can make. What the tooling can do, and does, is keep the list of

@@ -6,7 +6,8 @@
 #
 # Fields: flavor is the package name; kind is CRAN, LTS or dev; upstream is the
 # duckdb/duckdb branch the line tracks; publishes_from is the branch r-universe
-# builds, with repo saying which repository holds it; badges lists the version
+# builds, the published generation's green (handbook/branches/model/), with repo
+# saying which repository holds it; badges lists the version
 # sources shown, in order. A dev flavor adds series, the prefix of its four
 # refs, and releases_from, the branch it is measured ahead of -- which is also
 # the branch it seeds and forward-ports from, so the fork mirrors it

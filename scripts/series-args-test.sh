@@ -81,6 +81,7 @@ scripts=(
   series-learned.sh
   series-patch-sync.sh
   series-port.sh
+  series-prune.sh
   series-rc.sh
   series-tests.sh
 )
@@ -100,10 +101,11 @@ remote_scripts=(
   series-learned.sh
   series-patch-sync.sh
   series-port.sh
+  series-prune.sh
   series-rc.sh
 )
 upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
-canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh)
+canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh series-prune.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${standalone_scripts[@]}"; do
@@ -151,6 +153,8 @@ echo "== the remote and the upstream clone are named, never positional"
 # The regression this suite is for: these are the old spellings, and taking them
 # quietly is how a remote name reached `git -C`.
 is "series-cutover.sh <S> <remote> <path>" "$(rc series-cutover.sh s origin /tmp)" 2
+is "series-cutover.sh --out (bare)"          "$(rc series-cutover.sh s --out)" 2
+is "series-prune.sh --archive (bare)"        "$(rc series-prune.sh s --archive)" 2
 is "series-converge.sh <S> <remote>"       "$(rc series-converge.sh s origin)" 2
 is "series-advance.sh <S> <chunk>"         "$(rc series-advance.sh s 25)" 2
 is "series-glue.sh <S> <extra>"            "$(rc series-glue.sh s x)" 2
@@ -183,7 +187,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh; do
+for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.

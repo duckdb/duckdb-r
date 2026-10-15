@@ -110,6 +110,8 @@
 # contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [--dev-note <file>] [sha...]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -295,7 +297,7 @@ releases_from() { # <series> -> its `releases_from`, empty when undeclared
       /^    releases_from:/ { rf = $2 }
       END { if (ser == s) print rf }'
 }
-parked=$(releases_from "${S%-fwd}" | head -n 1)
+parked=$(releases_from "$(series_line "$S")" | head -n 1)
 [ "$parked" != main ] || parked=''
 [ -z "$parked" ] || frozen=1
 

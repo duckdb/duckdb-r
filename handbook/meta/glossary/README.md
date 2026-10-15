@@ -17,7 +17,8 @@ and are not repeated here; this page holds this repository's own.
 * **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **CRAN guard** — the gate that keeps the bundled engine off CRAN's check farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
-* **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover** — the pull requests that point r-universe at a newer generation's green, after a human review of what it changed; it moves no ref ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+* **frozen** — a generation the loop no longer serves: neither of its line's two newest nor the published one ([`branches/model/`](/handbook/branches/model/README.md)).
 * **DBI** — R's database-interface standard, which the package implements as a driver ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **dbplyr backend** — the methods that translate dplyr expressions into DuckDB SQL ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
@@ -27,7 +28,8 @@ and are not repeated here; this page holds this repository's own.
 * **flavor** — a mechanical rename publishing the one source tree under another package name ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 * **flavor-name guard** — the scan for the package name hard-coded where the rename cannot reach ([`testing/guards/`](/handbook/testing/guards/README.md)).
 * **fold** — putting a fix into the commit that introduced its defect and replaying everything above, so every commit stays independently green ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
-* **forward counterpart** (`-fwd`) — the series rebuilt on a newer `main` out of its own `-dev`, verified beside the one it will replace ([`branches/model/`](/handbook/branches/model/README.md)).
+* **forward counterpart** (`-fwd`) — the older spelling of a line's generation `v000` ([`branches/model/`](/handbook/branches/model/README.md)).
+* **generation** (`<L>-v<NNN>`) — one full set of a line's series refs, the same series rebuilt on a newer `main` beside the newest one before it, never rewritten ([`branches/model/`](/handbook/branches/model/README.md)).
 * **forward-port** — bringing `main`'s R-side work onto a series as cherry-picks ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **glue** — the C++ translation units in `src/` that bridge R and the engine ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
 * **glue gate** — the syntax check of the glue against freshly vendored headers ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
@@ -38,6 +40,8 @@ and are not repeated here; this page holds this repository's own.
 * **mirror** — a fork branch whose only motion is to take a canonical branch's tip, by hard reset ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * **nanoarrow array stream** — the zero-copy, batch-by-batch result format of the Arrow API ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+* **published generation** — the generation of a line whose green r-universe builds, named by `publishes_from` in `scripts/series.yaml` ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+* **prune** — retiring a frozen generation older than the published one: archived, then deleted, by a human from `series-prune.sh`'s commands ([`branches/model/`](/handbook/branches/model/README.md)).
 * **preview line** — a series serving an upstream line that has no release yet: the one tracking upstream `main`, and a release branch cut ahead of its own release ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
 * **preview prefix** — the version prefix a preview line carries, fledge's for the line it previews ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **register** — expose an R data frame as a scannable table without copying ([`usage/data-import/`](/handbook/usage/data-import/README.md)); Arrow objects register the same way ([`usage/integrations/`](/handbook/usage/integrations/README.md)).

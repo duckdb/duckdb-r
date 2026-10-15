@@ -11,7 +11,7 @@
 # expression over shields.io URLs. That made the rule list depend on how a badge
 # was spelled: when *ahead* moved to the canonical repository the refs it named
 # stopped being the fork's, and a derivation reading them would have unmirrored
-# `v1.4-andium` -- the branch `v1.4-andium-fwd` regenerates its seed from.
+# `v1.4-andium` -- the branch a new generation of `v1.4-andium` regenerates its seed from.
 #
 # It is wanted when a series changes -- one opened, one parked, one retired --
 # because that is when the badge table moves and the rule list moves with it.
@@ -38,7 +38,7 @@
 # is not `main`. The badge names it; the seeding is why it is carried. So the
 # rule list is what it was before the badges moved, and a reading that dropped
 # `v1.4-andium` on the strength of the moved badge would have unmirrored the
-# branch `v1.4-andium-fwd` regenerates its seed from.
+# branch a new generation of `v1.4-andium` regenerates its seed from.
 #
 # A series' own refs -- `-dev`, `-green`, `-build`, `-build-base` -- are never
 # mirrors and never get a rule: every rule hard-resets, so one that reached a

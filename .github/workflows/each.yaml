@@ -1,6 +1,7 @@
 # Helper workflow to build every commit on a branch that has no rcc result yet.
 #
-# On a series branch (`<S>-dev` with a sibling `<S>-green`), only commits in
+# On a series branch (`<S>-dev` with a sibling `<S>-green`, `<S>` a line or one
+#   of its generations such as `v2.0-cyanoptera-v001`), only commits in
 #   `<S>-green..HEAD` are considered -- the series loop's world; nothing is built
 #   when green is not an ancestor of HEAD. On branches without a green sibling,
 #   the first-parent history since $SINCE is scanned. Either way, a commit is

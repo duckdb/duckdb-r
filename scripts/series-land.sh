@@ -108,9 +108,9 @@
 #        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
 #                       [--canonical <name>] [--push]
 #        series-land.sh <S> --abort
-#   <S> is the series whose rc strand lands, `v2.0-cyanoptera-fwd` for
-#   `v2.0-cyanoptera-fwd-rc-dev`; the refs are named for its line,
-#   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
+#   <S> is the series whose rc strand lands, `v2.0-cyanoptera-v001` for
+#   `v2.0-cyanoptera-v001-rc-dev`; the refs are named for its line,
+#   `v2.0-cyanoptera-land-*`, on --remote (scripts/series-lib.sh). `main` is read from --canonical.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
@@ -125,6 +125,8 @@
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than reading as empty.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -159,7 +161,7 @@ S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
 esac
-L=${S%-fwd}
+L=$(series_line "$S")
 here=$(cd "$(dirname "$0")" && pwd)
 # Pathspecs below are the repository's, wherever this was started from.
 cd "$(git rev-parse --show-toplevel)"

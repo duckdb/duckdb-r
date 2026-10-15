@@ -25,9 +25,9 @@ every series' working refs live there,
 beside mirrors of the canonical branches
 they are seeded from and measured against
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
-The fork carries only the refs the loop serves;
-what it does not carry stands in `krlmlr/duckdb-r-old`,
-an archive that nothing reads and nothing writes to.
+The fork carries only the refs the loop serves and the generations beside them;
+what it no longer carries stands in `krlmlr/duckdb-r-old`,
+an archive that nothing reads, and that only a pruning writes to, by hand.
 The `<S>-dev-base` refs of the older `dev`/`dev-base` layout are there:
 every series is a series-loop series now, and none of the four below is that baseline.
 
@@ -36,9 +36,24 @@ every series is a series-loop series now, and none of the four below is that bas
 | Ref | Moves by | Meaning |
 |---|---|---|
 | `<S>-build` | append; force-push to repair | the buffer: one commit per upstream commit, glue compiling, no CI |
-| `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds; `-build` consumed in bounded chunks plus forward-ports from `main` |
+| `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds from the published generation; `-build` consumed in bounded chunks plus forward-ports from `main` |
 | `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | forward only | the `-build` commit equivalent to `-green` |
+
+**A line is served by generations**, and `<S>` names one of them.
+A line `<L>`, `v2.0-cyanoptera`, has its first refs `<L>-*` and then one set of the four per generation,
+`<L>-v<NNN>-*`, three digits from `v000`, each the same series rebuilt on a newer `main` beside the newest one before it
+([`series-forward`](/.claude/skills/series-forward/SKILL.md));
+the derived strands, `-rc-dev`, `-alpha` and `-rc-alpha`, take the same infix,
+and [`scripts/series-lib.sh`](/scripts/series-lib.sh) is where the names are read.
+The older spelling `<L>-fwd-*` is generation `v000` wherever it exists, so that nothing live is renamed.
+A generation is never rewritten: its refs move by the loop's rules above, the same for every generation,
+nothing points a ref of one generation at another's lineage, and no step of the scheme needs a force-push.
+The loop serves the two newest generations of a line and the **published** one,
+the one whose green `publishes_from` names in [`scripts/series.yaml`](/scripts/series.yaml);
+every other generation is **frozen**, and goes only when it is older than the published one,
+by a pruning a human runs from [`scripts/series-prune.sh`](/scripts/series-prune.sh)'s report,
+archived before it is deleted.
 
 There is no fifth ref for what vendoring alone brings, without the glue, and one was declined:
 every file pure vendoring writes is a function of the upstream commit and the patch stack,
@@ -70,9 +85,11 @@ put an `rcc` status on a commit no per-commit leg had decided.
 So the port stage syncs the buffer's tooling too
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 and the model's "no CI" holds because something maintains it.
-Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
-verified from scratch and swapped in by a human-run cutover;
-a serving `-green` never moves sideways on its own.
+Rebasing a series happens *beside* it as its line's next generation,
+verified again by the loop and published by a human-run **cutover**,
+which is a pull request pointing r-universe at the new generation's green
+([`flavors/`](/handbook/branches/flavors/README.md)) and moves no ref;
+a `-green` never moves sideways, not even then.
 **`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
 so that the package a release ships as plain `duckdb` has verdicts of its own.
 It is one ref: no buffer, since it is derived rather than vendored,

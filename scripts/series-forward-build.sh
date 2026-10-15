@@ -1,7 +1,8 @@
 #!/bin/bash
-# Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-dev`,
-# and then of the old `<S>-build` above it, onto HEAD, which must be the
-# freshly flavored seed on current `main` (.claude/skills/series-forward/SKILL.md).
+# Populate the buffer of a line's next generation, `<L>-v<NNN>-build`: replay
+# every vendor commit of the newest generation's `-dev`, and then of its `-build`
+# above that, onto HEAD, which must be the freshly flavored seed on current
+# `main` (.claude/skills/series-forward/SKILL.md, scripts/series-lib.sh).
 #
 # The replay is a cherry-pick, not a tree reconstruction. A vendor commit's diff
 # is exactly what vendoring changed -- `src/duckdb/`, the version bookkeeping,
@@ -92,7 +93,7 @@
 #   per commit. The acknowledgement is remembered for the rest of the replay,
 #   so a resumed run does not need it again.
 #   --graft-from names the forwarded buffer of the series a graft at the foot of
-#   the range was cut for (graft_pick), `v2.0-cyanoptera-fwd-build` for `main`.
+#   the range was cut for (graft_pick), `v2.0-cyanoptera-v001-build` for `main`.
 #   Required when the range stands on a graft, and refused otherwise.
 #   --no-check-glue skips the glue gate (glue_gate), as vendor-one.sh's does.
 #   --no-keep-tests lets a pick take a test away that HEAD runs (keep_tests).
@@ -580,7 +581,7 @@ if [ -n "$graft" ] && [ -z "$GRAFT_FROM" ]; then
   echo "Error: $OLDBASE..$OLD stands on a graft, $(git rev-parse --short "$graft"):" \
     "$(git log -1 --format=%s "$graft")" >&2
   echo "  Its tree carries the glue of the series it was cut for; forward that series" >&2
-  echo "  first and name its buffer with --graft-from <S>-fwd-build." >&2
+  echo "  first and name its buffer with --graft-from <its newest generation>-build." >&2
   exit 1
 fi
 if [ -n "$GRAFT_FROM" ] && ! { [ -n "$foot" ] && is_graft "$foot"; }; then

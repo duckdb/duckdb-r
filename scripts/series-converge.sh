@@ -1,13 +1,13 @@
 #!/bin/bash
-# Does a forward series still carry the same package as the series it replaces?
+# Does a generation still carry the same package as the one it was built from?
 #
-# A forward series is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward/SKILL.md). Its *history* differs by construction -- a
+# A generation is the same series rebuilt on a newer `main`
+# (.claude/skills/series-forward/SKILL.md, scripts/series-lib.sh). Its *history* differs by construction -- a
 # regenerated seed, version counters renumbered as a true counter, the ported
 # commits the replay leaves behind -- and its *content* must not. So the
 # statement a cutover rests on is about trees, not ancestry:
 #
-#   at the end of a forwarding, `<S>-dev` and `<S>-fwd-dev` are identical, or
+#   at the end of a forwarding, the two generations' `-dev` are identical, or
 #   every difference between them is explicable.
 #
 # This prints the difference and sorts it into those two, so "explicable" is
@@ -107,8 +107,8 @@
 # firing proves a new class benign, it adds it with the evidence.
 #
 # Usage: series-converge.sh <series> [--remote <name>] [--no-fetch]
-#   series-converge.sh main            # the base name
-#   series-converge.sh main-fwd        # or the forward's; the same comparison
+#   series-converge.sh main-v001       # a generation, against the one it was built from
+#   series-converge.sh main            # a line's first refs, against its first generation
 #
 # --remote is spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
@@ -118,6 +118,8 @@
 # that has just fetched (scripts/series-cutover.sh).
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-converge.sh <series> [--remote <name>] [--no-fetch]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -136,12 +138,20 @@ done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
 
-# Either name asks the same question, so neither is wrong to type.
-S=${S%-fwd}
-dev="$remote/$S-dev"
-fwd="$remote/$S-fwd-dev"
-
 [ -z "$fetch" ] || git fetch -q "$remote"
+
+# A generation is compared with the one it was built from, and a line's first
+# refs with their first generation (scripts/series-lib.sh), so either end of a
+# forwarding asks the same question and neither is wrong to type.
+if [ -n "$(series_gen "$S")" ]; then
+  B=$(series_base "$S" "$remote")
+  F=$S
+else
+  B=$S
+  F=$(series_gen_name "$S" 0 "$remote")
+fi
+dev="$remote/$B-dev"
+fwd="$remote/$F-dev"
 
 for r in "$dev" "$fwd"; do
   git rev-parse -q --verify "$r" >/dev/null || {
@@ -229,9 +239,9 @@ if [ -n "$dev_up" ] && [ "$dev_up" = "$fwd_up" ]; then
   same=1
 fi
 
-printf '=== %s\n' "$S"
-printf '  %-26s %s  vendors %s\n' "$S-dev" "$(git rev-parse --short "$dev")" "${dev_up:0:10}"
-printf '  %-26s %s  vendors %s\n' "$S-fwd-dev" "$(git rev-parse --short "$fwd")" "${fwd_up:0:10}"
+printf '=== %s\n' "$F"
+printf '  %-26s %s  vendors %s\n' "$B-dev" "$(git rev-parse --short "$dev")" "${dev_up:0:10}"
+printf '  %-26s %s  vendors %s\n' "$F-dev" "$(git rev-parse --short "$fwd")" "${fwd_up:0:10}"
 if [ -z "$same" ]; then
   echo "  The two are not on the same upstream commit, so this is an interim read:"
   echo "  the vendored strand (src/duckdb/, patch/, and the files generated from"

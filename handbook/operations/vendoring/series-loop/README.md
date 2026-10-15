@@ -12,7 +12,8 @@ what runs is this page's topic.
 The loop is a scheduled **agent routine**, not a workflow —
 nothing under `.github/workflows/` starts it,
 and its schedule lives with the routine, outside this tree.
-A firing serves every series discovered from the refs
+A firing serves every series discovered from the refs,
+of a line's generations the two newest and the published one
 ([`branches/model/`](/handbook/branches/model/README.md)).
 Setup always runs; every stage after it is skipped when it has nothing
 to do, and they run in this order:
@@ -87,10 +88,10 @@ to do, and they run in this order:
   This stage is **attended**: a carry the series has moved out from
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
-  A live forward counterpart does **not** hold the base series back: it
-  consumes, ports and verifies at full speed until a human swaps the
-  refs, which costs CI on a lineage about to be retired and buys the
-  only thing that makes retiring it checkable rather than hopeful
+  A newer generation does **not** hold the one it was built from back: that
+  one consumes, ports and verifies at full speed for as long as the loop
+  serves it, which costs CI on a lineage about to be superseded and buys
+  the only thing that makes superseding it checkable rather than hopeful
   (below).
   A series with an `<S>-rc-dev` has it realigned after every write to `<S>-dev`
   ([`scripts/series-rc.sh`](/scripts/series-rc.sh)): the unflavored mirror is derived,
@@ -98,23 +99,24 @@ to do, and they run in this order:
   A series with an `<S>-alpha` has it realigned after that
   ([`scripts/series-alpha.sh`](/scripts/series-alpha.sh)):
   it moves when upstream publishes an alpha whose commit `<S>-green` has vendored.
-* **Read the forwarding, and suggest a cutover** — for every series
-  with a forward counterpart,
-  [`scripts/series-converge.sh`](/scripts/series-converge.sh) diffs
-  `<S>-dev` against `<S>-fwd-dev` and sorts each differing path into
+* **Read the forwarding, and report a generation ready to publish** — for
+  every generation the firing serves,
+  [`scripts/series-converge.sh`](/scripts/series-converge.sh) diffs its
+  `-dev` against its base's and sorts each differing path into
   what the forwarding explains and what it does not; the findings go
   into the report and to the stage that should have moved them. A
-  caught-up counterpart is *reported* with the cutover command, never
-  executed; that move is a human's, and the script prints the same
-  comparison before it asks for confirmation.
+  caught-up generation is *reported* with the command that prepares the
+  cutover's pull requests and review, never run; publishing is a human's,
+  by pull request, and moves no ref
+  ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 * **Report what the tooling got wrong** — a firing that had to work
   around a script opens a pull request against it,
   so the next firing does not have to.
 
 **A forwarding ends where the two lineages agree.**
-A forward series is the same series rebuilt on a newer `main`, so its
+A generation is the same series rebuilt on a newer `main`, so its
 history differs by construction and its content must not: at the end of
-a forwarding `<S>-dev` and `<S>-fwd-dev` are identical, or every
+a forwarding its `-dev` and its base's are identical, or every
 difference between them is explicable
 ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
 That is why the base keeps consuming. A base frozen where the forward
@@ -126,7 +128,7 @@ already proved came back as a red on the forward, at a repair plus a
 replay of everything above it.
 
 **A forward keeps what the series proved, and the rest is placed by hand.**
-`<S>-fwd-build` is replayed from the `vendor:` commits of `<S>-dev`,
+A new generation's `-build` is replayed from the `vendor:` commits of the newest generation's `-dev`,
 each with the fix CI demanded for it folded in,
 and then from the buffer's above the newest commit `-dev` vendors,
 so every replayed commit's tree is the verified tree plus `main`'s delta since the old seed
@@ -186,8 +188,8 @@ Everything else is an option, spelled identically in all of them:
   Default `$SERIES_CANONICAL`, then `upstream`, which is what a `gh` clone of a
   fork calls the repository it was forked from.
   An empty `SERIES_CANONICAL` turns the mirroring off; an unset one does not.
-  Only `series-advance.sh` and `series-cutover.sh` write one; `series-port.sh`
-  and `series-check.sh` read `main` from it, and fall back to the fork's mirror
+  Only `series-advance.sh` writes one; `series-port.sh`, `series-check.sh`,
+  `series-cutover.sh` and `series-prune.sh` read `main` from it, and fall back to the fork's mirror
   with a word on stderr when they cannot
   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * `-h`, `--help` — the usage, on stdout, exit 0, before the script
@@ -200,7 +202,7 @@ Everything else is an option, spelled identically in all of them:
 
 The reason it is worth a rule is
 [`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s story:
-a cutover takes a remote of this repository *and* a path to a checkout,
+a cutover's script takes a remote of this repository *and* a path to a checkout,
 a `gh` clone calls one of its remotes `upstream`,
 and while both were positional the swap was a `git -C` that failed,
 read as an ancestry answer, reported as `coverage would regress`.

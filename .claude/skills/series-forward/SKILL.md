@@ -1,6 +1,6 @@
 ---
 name: series-forward
-description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it from the series' own `-dev`, so its commits keep what the series proved, and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
+description: Forward a line onto a newer `main` by building its next generation, `<L>-v<NNN>-*`, beside the newest one from that generation's own `-dev`, so its commits keep what the series proved, and pointing r-universe at it by pull request once it has caught up, so no ref anyone reads is ever rewritten. Covers the generation scheme, the cutover and pruning. Use when `main` has moved under a series and its branches need the newer base, when asked to forward a series, to cut over to a generation, or to prune old ones.
 ---
 
 # Forwarding a series to a newer base
@@ -14,10 +14,16 @@ The series' branches are built on yesterday's `main`,
 and rebasing them in place would rewrite `<S>-green` —
 the one ref consumers depend on.
 So the rebase happens **beside** the series, not in it:
-a forward counterpart is built as a sibling series,
-out of the commits the series has already had judged,
+the next **generation** of the line is built as a sibling series,
+out of the commits the newest generation has already had judged,
 verified again by the ordinary loop on the new base,
-and swapped in atomically once it has caught up.
+and published in its turn, by a pull request that points r-universe at its green once it has caught up.
+Nothing is swapped and nothing is rewritten; the generations below stay where they are
+([Generations](#generations), below).
+
+`<L>` is the line, `v2.0-cyanoptera`; `<S>` is its newest generation, the one the forward is built from,
+and `<G>` the generation it creates, `scripts/series-lib.sh`'s `series_next`:
+`v2.0-cyanoptera-v001` for a line whose newest is `v2.0-cyanoptera-fwd`, which is its `v000` under the older spelling.
 
 **A release is the largest instance of `main` moving, and not a rule of its own.**
 Nothing schedules a forward; what makes one due is drift worth resolving.
@@ -28,14 +34,14 @@ A preview line is the exception, its prefix being deliberately not `main`'s
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
 so a bump on `main` moves nothing under it and only the R-side drift counts.
 
-## Create the forward series
+## Create the next generation
 
 Bootstrap first, populate second —
 like any series,
-the four `-fwd` refs start **equal** at the regenerated seed tip;
-the replay then populates `<S>-fwd-build`.
+the four `<G>-*` refs start **equal** at the regenerated seed tip;
+the replay then populates `<G>-build`.
 
-1. **`<S>-fwd-build`**: rebuild `<S>-dev`, and the buffer above it, on current `main`.
+1. **`<G>-build`**: rebuild `<S>-dev`, and the buffer above it, on current `main`.
    Regenerate the seed — `scripts/flavor.sh <F>`, plus a separate
    `chore: Add fifth version component` commit appending the counter's `.0` to
    `Version:` — then replay each vendor commit onto it.
@@ -52,7 +58,7 @@ the replay then populates `<S>-fwd-build`.
    the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
    so every picked commit inherits whatever the seed was stamped with
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
+   Stamp it in the fifth-component commit, before the four `<G>-*` refs are created equal.
    The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
    previewing 2.0 is `1.99.99.9000`.
 
@@ -277,7 +283,7 @@ the replay then populates `<S>-fwd-build`.
    so forward it first and name its buffer:
 
    ```sh
-   scripts/series-forward-build.sh --graft-from v2.0-cyanoptera-fwd-build main-build <old-base>
+   scripts/series-forward-build.sh --graft-from v2.0-cyanoptera-v001-build main-dev <old-base> --buffer main-build
    ```
 
    The script rebuilds the graft as one vendor commit naming the fork point:
@@ -313,12 +319,12 @@ the replay then populates `<S>-fwd-build`.
       without it.
    4. **Fold each change into its commit, then replay the tail.**
       Detach at the commit, apply the change, `git commit --amend`,
-      and `git rebase --onto HEAD <that commit> <S>-fwd-build`.
+      and `git rebase --onto HEAD <that commit> <G>-build`.
       Amending rather than inserting is what keeps the counter equal to
       the number of commits the script wrote,
       which is how it finds its place on a later resume.
    5. **Verify by tree.**
-      `git diff --name-only <S>-build <S>-fwd-build -- src/duckdb patch/`
+      `git diff --name-only <S>-build <G>-build -- src/duckdb patch/`
       must be empty.
       This is the check that catches everything above going wrong,
       including a fold that landed in the wrong place.
@@ -335,66 +341,72 @@ the replay then populates `<S>-fwd-build`.
 
    **Adapt where the new base asks, and minimally.**
    The glue gate stops where `main`'s glue and the series' engine disagree, and that fix is folded into the commit it stopped on, as above.
-   Everything else the forward learns, it learns from per-commit CI once `-fwd-dev` is extended:
+   Everything else the forward learns, it learns from per-commit CI once `<G>-dev` is extended:
    a red there gets the smallest fix that answers it, folded into the commit that introduced the defect with
    [`scripts/series-fold.sh`](/scripts/series-fold.sh), the rule a landing follows too ([`series-land`](/.claude/skills/series-land/SKILL.md), step 4),
-   and mirrored onto `-fwd-build` where it is glue (`series-loop/SKILL.md`, stage 2).
-   Do not put a snapshot or a test fix onto `-fwd-build` by hand ahead of a verdict.
+   and mirrored onto `<G>-build` where it is glue (`series-loop/SKILL.md`, stage 2).
+   Do not put a snapshot or a test fix onto `<G>-build` by hand ahead of a verdict.
 
-2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
+2. **`<G>-dev` = `<G>-green` = `<G>-build-base`** =
    the seed tip:
    green contains the flavor change from day one,
    so whatever consumes it builds the flavored package;
-   the loop's stage 5 extends `-fwd-dev` from the populated buffer.
+   the loop's stage 5 extends `<G>-dev` from the populated buffer.
    Up to the commit the base `-dev` had reached when the forward was built, there is nothing left to carry,
    and the stage recognises a fix the buffer commit already holds;
    above it, where the buffer came from `-build`, it folds the base's fixes in as it always has.
 
-3. Nothing else is special:
-   a forward series is a series,
+3. Push the four refs together, `git push --atomic`, plain pushes creating new names,
+   and register `<G>-green` in the fork's universe, `krlmlr.r-universe.dev`,
+   in place of the generation it was built from
+   ([`branches/flavors/`](/handbook/branches/flavors/README.md)):
+   that universe builds the newest generation across the platforms the gate never sees,
+   so the cutover below can be judged on fifteen targets rather than one.
+   Nothing else is special:
+   a generation is a series,
    and the loop discovers and drives it like any other.
-   **The base series keeps consuming too**, at full speed,
-   vendoring, repairing, porting and extending as if no forward existed;
-   `<S>-green` still serves consumers, unchanged, on the old lineage.
-   The two run level until a human swaps them,
+   **The generation it was built from keeps consuming too**, at full speed,
+   vendoring, repairing, porting and extending as if nothing had been built on it,
+   for as long as the loop serves it ([Generations](#generations));
+   the published green still serves consumers, unchanged, on its own lineage.
+   The two run level until the new one is published,
    which is what the invariant below needs
    and what the loop's stage 5 used to prevent.
 
-## A WIP forward series is not pinned to its base
+## An unpublished generation is not pinned to its base
 
-Until cutover, a forward series is work in progress:
-nothing consumes its refs —
-the base `<S>-green` is still the serving ref —
+Until it is published, a generation is work in progress:
+nothing installs from its refs —
+the published green is still the serving ref —
 so the fast-forward-only discipline that protects a serving green
-does not yet bind the `-fwd` refs.
-A WIP forward series can therefore **always be moved
+does not yet bind it beyond the loop's own rules.
+Such a generation can therefore **always be moved
 onto the current mainline**,
 and this is the normal way to pick up `main`-side fine-tuning —
 CI changes, script fixes, R-side work —
-that landed while the forward series was being built or verified.
+that landed while the generation was being built or verified.
 
-That move is a rebase of the series onto itself, `series-rebase/SKILL.md`,
-and it is not this skill.
-Forwarding is `<S>` → `<S>-fwd`, across lineages:
-`-fwd-build` is replayed out of the base series' buffer
-and `-fwd-dev` starts empty, for the loop to rederive.
-A rebase is `<S>-fwd` → `<S>-fwd`, one lineage,
-all four refs replayed as they stand, nothing rederived.
+That move is this skill again, from the unpublished generation:
+its `-dev` keeps every commit and every repair folded in,
+so the next generation is the rebase a `-fwd` series used to get in place,
+and it leaves the generation it was built from where it stands rather than rewriting it
+([`series-rebase`](/.claude/skills/series-rebase/SKILL.md) says what an in-place rebase paid for once).
+Whether it is worth a generation is the same question as for any forward:
+`main`'s motion has to matter to the series, since each one costs a CI pass over the chain.
 
-A series that has cut over is no longer WIP:
-its green serves consumers,
-and moving it means a new forward series, not a rebase.
+A generation that has been published is no longer work in progress:
+its green serves consumers, and it moves the same way, by the next generation.
 
 ## What the forward guarantees
 
-> Every commit of `<S>-fwd-build` replayed from `<S>-dev` has the tree of its `-dev` twin plus `main`'s delta since the old seed,
+> Every commit of `<G>-build` replayed from `<S>-dev` has the tree of its `-dev` twin plus `main`'s delta since the old seed,
 > except where the glue gate or the test guard adapted it, and each adaptation is named in the commit.
 
 Work the base series did survives by construction, and the only new work is where `main`'s delta meets the series.
 Three limits bound that claim, and each is somebody's work rather than a gap in the claim:
 
 * **The glue gate is a compile check.**
-  It does not see behaviour `main`'s delta changes, so per-commit CI still judges every commit of `-fwd-dev`,
+  It does not see behaviour `main`'s delta changes, so per-commit CI still judges every commit of `<G>-dev`,
   and a red there gets a minimal fix folded into the commit that introduced it (above).
   "Adapt minimally" covers a test failure as much as a build failure.
 * **Keeping `-dev` keeps its defects along with its fixes.**
@@ -411,7 +423,7 @@ and its content must not.
 That is the invariant:
 
 > At the end of a forwarding,
-> `<S>-dev` and `<S>-fwd-dev` are **identical**,
+> `<S>-dev` and `<G>-dev` are **identical**,
 > or every difference between them is **explicable**.
 
 Read it as a claim about trees, never about ancestry —
@@ -422,10 +434,10 @@ are content the new seed already carries.
 Ancestry says nothing here; the working trees say everything.
 
 ```sh
-scripts/series-converge.sh <S>
+scripts/series-converge.sh <G>
 ```
 
-prints the difference and sorts it into the two.
+prints the difference against the generation `<G>` was built from and sorts it into the two.
 What is explicable is a short, evidenced list —
 `DESCRIPTION`'s `Version:` line, which the replay renumbers;
 `NEWS.md`, the release paperwork stage 4 never ports;
@@ -465,65 +477,151 @@ so the twin's copy cannot overwrite what the buffer just regenerated;
 that says nothing about whether the two branches may differ there,
 and on the live series they do not.
 
-## Cut over — by hand, always
+## Cut over: a pull request, never a ref move
 
-When `<S>-fwd-green` vendors at least the upstream commit
-`<S>-green` vendors —
+Cutting over is **pointing r-universe at `<G>-green`**.
+The flavor's entry in the universe's `packages.json` names the green it builds,
+and `publishes_from` in [`scripts/series.yaml`](/scripts/series.yaml) says the same here,
+so a cutover is two pull requests, one in each repository, and nothing else:
+no ref is swapped, deleted or renamed, in either repository,
+and the generation that was published stays exactly where it is
+([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+A human starts one, by asking for it; the loop reports that a generation is ready and stops there
+(`series-loop/SKILL.md`, stage 6).
+
+When `<G>-green` vendors at least the upstream commit the published green vendors —
 coverage may never regress — run
 
 ```sh
-scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
+scripts/series-cutover.sh <G> --remote origin --upstream ../../../duckdb --out <dir>
 ```
 
-**A human runs this, never the loop.**
-The series loop reports a ready cutover and stops there
-(`series-loop/SKILL.md`, stage 6),
-and the script refuses to run without a terminal
-and a typed confirmation.
 Pass the upstream clone:
 without it the coverage gate degrades to a warning,
-and a warning is not what should authorize
-retiring the lineage consumers are reading.
+and a warning is not what should authorize pointing consumers at another lineage.
+The script gathers what the decision rests on and writes what the pull requests change; it moves no ref:
 
-The report names the package on both sides —
-`Package:` once, and `Version:` for each of the four refs,
-before and after —
-so the confirmation is given with the version
-consumers will be offered on screen.
-A version that would go **backwards** is warned about, not refused:
-the replay renumbers the fifth component
-as a counter of its own chain,
-which starts well below the one the base series accumulated,
-and the fourth component usually covers it
-because the forward is seeded on a newer `main`.
-Where it does not, r-universe, which publishes from `<S>-green`, has no upgrade to offer
-until the new chain climbs past the old one's counter —
-a cost rather than a corruption,
-and whether it is worth paying is the judgement
-the typed confirmation already asks for.
-On a preview line it never does, and a version going back is normal there:
-the prefix is pinned to the line being previewed rather than taken from `main`
-([`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh)),
-so only the restarted counter differs.
+* **coverage**: the new green covers the published one, by ancestry in the upstream clone;
+* **convergence**: [`scripts/series-converge.sh`](/scripts/series-converge.sh) against the generation `<G>` was built from,
+  whose findings a cutover inherits rather than resolves;
+* **the package on both sides**: `Package:` and `Version:` of the two greens.
+  A version that would go **backwards** is warned about, not refused:
+  the replay renumbers the fifth component as a counter of its own chain,
+  which starts well below the one the older generation accumulated,
+  and the fourth component usually covers it because the generation is seeded on a newer `main`.
+  Where it does not, r-universe has no upgrade to offer until the new chain climbs past the old one's counter —
+  a cost rather than a corruption, and whether it is worth paying is the judgement the pull request asks for.
+  On a preview line it never does, and a version going back is normal there:
+  the prefix is pinned to the line being previewed rather than taken from `main`
+  ([`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh)),
+  so only the restarted counter differs;
+* **the canonical copy**: whether `duckdb/duckdb-r` carries `<G>-green` yet.
+  The loop mirrors every generation's green there on each firing
+  ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)),
+  and r-universe builds from that copy, so the pull request has to find it there;
+* **the review**: everything `<G>-green` changes against current `main` outside the engine,
+  as a stat on screen and as `review.diff` in `--out`;
+* **the two changes**: the `packages.json` entry and the `publishes_from` line,
+  written to `--out`, and `--apply` writes the latter into this checkout and regenerates the tables.
 
-It swaps all four refs in a single `git push --atomic`
-with a per-ref lease,
-so consumers never observe a half-replaced series,
-then deletes the `-fwd` refs.
-A base ref that does not exist yet is **created** rather than swapped,
-leased as "must not exist" —
-a series opened directly as `-fwd`
-has no counterpart to replace,
-and its first cutover is what brings `<S>-*` into being.
-The swap is the **one sanctioned non-fast-forward move
-of a serving green ref**;
-a WIP `-fwd-green` may be reset by a rebase (above),
-but a green that consumers read
-moves fast-forward only, before and after the swap.
+**The review is the cutover's substance, and it is read in full before either pull request is opened.**
+The generation's seed is a recent `main`, so the diff is the series' own work:
+the R side, `src/` outside `src/duckdb/`, the tests, and the patch stack.
+Read it as a reviewer of `main` would read a landing's review branch
+([`series-land`](/.claude/skills/series-land/SKILL.md), step 4), and hold it to the same rules:
 
-If the remote refuses ref deletion (some git proxies do),
-remove the `-fwd` refs via the forge UI.
-Until they are gone,
-the loop ignores a forward series
-whose green is an ancestor of its base series' green —
-that is cutover litter, not work.
+* **glue**: every adaptation answers an upstream change named in an `R-side fix` section,
+  and nothing is suppressed that [`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md) says is not;
+* **R code**: a change born on the series rather than on `main` is the documented exception
+  ([`branches/invariants/`](/handbook/branches/invariants/README.md)), vendor-coupled and named as such, or it is a finding for `main`;
+* **tests**: no test `main` runs is deleted, rewritten or skipped without an engine gate,
+  and an expired gate is due to go ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md));
+  `scripts/series-tests.sh <main> <G>-green` is the same read, sorted;
+* **the patch stack**: every entry is a prototype of an upstream change, filed or due to be
+  ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)),
+  and `series-check.sh`'s `PATCH DRIFT` line is empty for `<G>`.
+
+A finding is fixed on the generation, folded into the commit that introduced it ([`scripts/series-fold.sh`](/scripts/series-fold.sh)),
+and the cutover waits for CI to judge the fix.
+Then the two pull requests, in this order:
+
+1. **The universe.** In `<user>/<user>.r-universe.dev`'s `packages.json`, the flavor's `branch` becomes `<G>-green`;
+   the `--out` directory holds the exact entry. The universe rebuilds the package from the new green within the hour,
+   and [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says what it made of it.
+2. **The declaration**, against `main` here: `publishes_from: <G>-green`, the regenerated flavor tables,
+   and a rendered README; `--apply` writes the first and runs the generator.
+   Merged, it is what tells the loop which generation is published, and so which one it keeps serving ([Generations](#generations)).
+
+Until both have merged, the published generation is the one before, and the loop serves both.
+
+## Generations
+
+A line `<L>` is served by **generations**, each a full set of series refs and each the same series rebuilt on a newer `main`.
+`scripts/series-lib.sh` is the one place the names are read, and every `scripts/series-*.sh` reads them from there.
+
+**Names.**
+The line's first refs are `<L>-build`, `<L>-dev`, `<L>-green` and `<L>-build-base`.
+Every generation after them is `<L>-v<NNN>-*`, three digits, numbered from `v000`:
+`v2.0-cyanoptera-v001-dev`, `v2.0-cyanoptera-v001-green`.
+A generation's derived strands take the same infix,
+`<L>-v<NNN>-rc-dev` ([`series-rc`](/.claude/skills/series-rc/SKILL.md)),
+`<L>-v<NNN>-alpha` and `<L>-v<NNN>-rc-alpha` ([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)),
+and its retry ledger is `retry-<L>-v<NNN>-dev` (`series-loop/SKILL.md`).
+A landing is named for the line, `<L>-land-*`, whichever generation it is built from
+([`series-land`](/.claude/skills/series-land/SKILL.md)).
+The older spelling `<L>-fwd-*` is generation `v000` wherever it exists and no `<L>-v000-*` does,
+so that nothing live is renamed: the next generation of such a line is `v001`.
+A series name, as every script takes one, is `<L>` for the first refs and `<L>-v<NNN>` or `<L>-fwd` for a generation.
+
+**Each generation is built from the newest one before it**, by this skill, and the newest is `series_next`'s answer.
+A generation's base, the one it is compared and mined against, is the generation below it;
+the first refs are generation 0's base.
+
+**A generation is never rewritten.**
+Its refs move only by the loop's own rules, the same for every generation:
+`-green` fast-forwards over verified commits, `-dev` and `-build` take the loop's repairs above green,
+and `-build-base` is set to the match.
+Nothing in the scheme points a ref of one generation at another's lineage,
+deletes a ref anything reads, or renames one:
+a cutover is a pull request, a forward creates names, and pruning deletes only what nothing reads any more.
+No step here needs a force-push, and an agent has none to give.
+
+**The loop serves the two newest generations of a line, and the published one.**
+Everything else is **frozen**: nothing vendors, repairs, ports or extends it,
+and `series-check.sh` says `FROZEN` beside it rather than a verdict.
+Two is what keeps the loop's cost from growing with the number of generations,
+and the published one is kept however old it is,
+because the convergence read needs the published lineage to keep moving
+(`series-loop/SKILL.md`, stage 5), and because its green serves consumers until the cutover merges.
+The handbook's own reading of "the last two" is therefore the newest two *plus* the published one, where those differ:
+a third generation created before the second is published freezes the first refs only once something newer is published.
+
+**Prune what is frozen and older than the published generation.**
+A frozen generation newer than the published one is superseded, and may be the next to publish; it stays.
+One older than the published generation has given everything it had to the generation above it,
+replayed commit for commit, and costs refs in two repositories and an entry in the fork's universe:
+
+```sh
+scripts/series-prune.sh <L> --remote origin --canonical upstream --archive archive
+```
+
+prints, for each such generation, the push that copies its refs to the archive, `krlmlr/duckdb-r-old`,
+and the deletions that follow, in the fork and of the green's copy in the canonical repository, and runs none of them.
+A human runs them, after the two checks the script cannot make:
+that no landing is being built from the generation, and that the fork's universe no longer names its green.
+Pruning is the one time refs of a generation go away, and it is never part of a cutover.
+
+**Where today's series stand, and what moves them onto the scheme.**
+Nothing is renamed.
+`v2.0-cyanoptera-fwd`, `main-fwd`, `v1.5-variegata-fwd` and `v1.4-andium-fwd` are their lines' generation `v000` under the older spelling,
+and every script reads them as such;
+the first refs of each line, `v2.0-cyanoptera-*` and the rest, are what r-universe publishes today, and stay so.
+From here:
+
+1. the next forward of a line creates `<L>-v001-*` from `<L>-fwd-dev`, as above, and registers `<L>-v001-green` in the fork's universe
+   in place of `<L>-fwd-green`;
+2. the loop's next firing mirrors every generation's green into the canonical repository, where the cutover will name it;
+3. a cutover, when a generation is ready and a human asks for it, is the two pull requests above and moves nothing;
+4. `<L>-fwd-*` and the first refs go when they are frozen and older than the published generation, by `series-prune.sh`'s commands, run by a human.
+
+None of this is run by a firing, and nothing here is run by the change that introduces the scheme.

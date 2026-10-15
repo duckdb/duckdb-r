@@ -1,65 +1,80 @@
 #!/bin/bash
-# Atomically replace a series with its forward counterpart.
+# Prepare a cutover: the pull requests that point r-universe at a newer
+# generation's green, and the review of what that generation changed.
 #
-# A forward series <S>-fwd-* is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward/SKILL.md). Once its green ref covers at least the
-# upstream commits the old green covered, this script swaps all four series
-# refs in one atomic push, so consumers of <S>-green never observe a
-# half-replaced series. The swap is the one sanctioned non-fast-forward move
-# of a green ref.
+# A line is served by generations, `<L>`, `<L>-v000`, `<L>-v001` and so on, each
+# the same series rebuilt on a newer `main` beside the one before it
+# (.claude/skills/series-forward/SKILL.md, scripts/series-lib.sh). r-universe
+# builds the package from one generation's green, the one `publishes_from` names
+# in scripts/series.yaml and in the universe's `packages.json`. A cutover is
+# changing that name: nothing is swapped, nothing is deleted, and no ref moves.
+# The generation that was published stays where it is, and is pruned later by a
+# human (scripts/series-prune.sh).
 #
-# It is also the one move the series loop never makes: the loop reports a ready
-# cutover and stops (.claude/skills/series-loop/SKILL.md), because retiring the
-# lineage r-universe builds from is a decision, not a stage. This script is the
-# mechanical half of that rule — it runs from a terminal, on a typed
-# confirmation, and nowhere else.
+# This script moves no ref either. It gathers what the decision rests on and
+# writes what the two pull requests change:
 #
-# A base series ref that does not exist yet is created rather than swapped:
-# a series that started as -fwd has no counterpart to replace.
+#   * the coverage gate: the new green vendors at least the upstream commit the
+#     published green vendors, so verification never goes backwards. An ancestry
+#     check in the upstream clone; without one it degrades to a warning;
+#   * the convergence read against the generation this one was built from
+#     (scripts/series-converge.sh), whose findings a cutover inherits rather
+#     than resolves;
+#   * the package on both sides: `Package:` and `Version:` of the two greens,
+#     and a warning where the version would not move forward, since r-universe
+#     installs by version and has no upgrade to offer until the new chain's
+#     counter climbs past the old one's;
+#   * whether the canonical repository carries the new green yet, which the
+#     loop's firings mirror (scripts/series-advance.sh) and the universe needs;
+#   * the review: everything the generation changed against current `main`
+#     outside the engine -- the R side, `src/` outside `src/duckdb/`, the tests
+#     and the patch stack -- as a stat here and as a full diff in --out, which is
+#     what a reviewer reads before pointing consumers at it;
+#   * the changes themselves: the `packages.json` entry for the universe that
+#     publishes the flavor, and the `publishes_from` line of scripts/series.yaml,
+#     which --apply writes into this checkout for the pull request against `main`.
 #
-# The report names the package on both sides -- `Package:` once, and `Version:`
-# for each of the four refs, before and after -- because the swap moves both:
-# the forward regenerates its own flavor commits, and the replay renumbers the
-# fifth component as a counter of its own chain. A version that goes backwards
-# is the one cost of the swap that nothing else on screen shows.
+# Usage: series-cutover.sh <generation> [--remote <name>] [--canonical <name>]
+#                          [--upstream <path>] [--out <dir>] [--apply]
+#   series-cutover.sh v2.0-cyanoptera-v001 --upstream ../../../duckdb
 #
-# Usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]
-#   series-cutover.sh main --upstream ../../../duckdb
+#   --remote <name>   a remote of *this* repository carrying the series refs;
+#                     default `origin`, or $SERIES_REMOTE.
+#   --canonical <name> the remote of the canonical repository, where `main` and
+#                     scripts/series.yaml are read from and where r-universe
+#                     reads the green; default `upstream`, or $SERIES_CANONICAL.
+#   --upstream <path> a `duckdb/duckdb` checkout on disk, for the coverage gate.
+#                     Never a remote name, whatever it is called.
+#   --out <dir>       where the review diff and the two changes are written;
+#                     default a fresh temporary directory, named at the end.
+#   --apply           rewrite `publishes_from` in scripts/series.yaml here and
+#                     regenerate the flavor tables (scripts/series-table.R), for
+#                     the pull request against `main`. Writes files, never refs.
 #
-# `--canonical <name>` names the repository r-universe publishes the base
-# flavors from -- default `upstream`, as in series-advance.sh -- which carries a
-# copy of `<S>-green` and nothing else
-# (scripts/series-advance.sh). A cutover is the one move that takes green off
-# its lineage, so it is the one place that copy is forced -- under a lease, and
-# after the swap, so the canonical repository is never ahead of the fork.
-#
-# The two are different kinds of thing, and a `gh` clone carries names that made
-# them easy to swap while both were positional:
-#   --remote <name>   a remote of *this* repository -- the one carrying the
-#                     series refs. A clone made with `gh` has both `origin`
-#                     and `upstream`; pass whichever holds `<series>-green`.
-#   --upstream <path> a filesystem path to a `duckdb/duckdb` checkout, read
-#                     with `git -C`. Never a remote name, whatever it is
-#                     called.
-# Both are spelled the same in every scripts/series-*.sh; see the shared
+# The options are spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
 #
-# The upstream clone is needed for the coverage gate (an ancestry check
-# between vendored upstream SHAs); without it the gate degrades to a warning.
+# Exit status: 0 when the cutover may be proposed, 1 when the gate refuses it,
+# 2 on a usage or lookup error.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>]'
+usage='usage: series-cutover.sh <generation> [--remote <name>] [--canonical <name>] [--upstream <path>] [--out <dir>] [--apply]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
 upstream=${UPSTREAM_CLONE:-}
+out='' apply=''
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    --out) [ $# -ge 2 ] || argerr; out=$2; shift 2 ;;
+    --apply) apply=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -67,266 +82,211 @@ while [ $# -gt 0 ]; do
 done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
+here=$(cd "$(dirname "$0")" && pwd)
+cd "$(git rev-parse --show-toplevel)"
 
-# Fail before the fetch, not after it: an unattended firing has no terminal, so
-# there is nothing for it to confirm with and no reason to do any work first.
-if [ ! -t 0 ] || [ ! -t 1 ]; then
-  echo "Error: cutover is a manual operation; run this script from a terminal." >&2
-  echo "  The series loop reports a ready cutover and stops; a human runs it." >&2
-  echo "  See .claude/skills/series-forward/SKILL.md and series-loop." >&2
-  exit 1
-fi
+[ -n "$(series_gen "$S")" ] || {
+  echo "Error: $S is a line's first refs, not a generation; name the generation to publish" >&2
+  exit 2
+}
+line=$(series_line "$S")
 
 git fetch -q "$remote"
+# `main` and the declaration are the canonical repository's; the fork's mirror
+# may lag by a cycle (handbook/branches/mirrors/README.md).
+main_ref=''
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  git fetch -q "$canonical" main 2>/dev/null || true
+  git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null && main_ref="refs/remotes/$canonical/main"
+fi
+if [ -z "$main_ref" ]; then
+  echo "Warning: could not read main from '$canonical'; reading the fork's mirror" >&2
+  main_ref="refs/remotes/$remote/main"
+fi
+
+for r in build dev green build-base; do
+  git rev-parse -q --verify "refs/remotes/$remote/$S-$r" >/dev/null ||
+    { echo "Error: $S-$r does not exist on $remote" >&2; exit 2; }
+done
+
+flavor=$(series_yaml_field "$main_ref" "$line" flavor)
+[ -n "$flavor" ] || { echo "Error: scripts/series.yaml on main declares no flavor for the line $line" >&2; exit 2; }
+published=$(series_published "$main_ref" "$line")
+[ -n "$published" ] || { echo "Error: the flavor $flavor publishes from no generation of $line" >&2; exit 2; }
+repo=$(series_yaml_field "$main_ref" "$line" repo)
+if [ "$published" = "$S" ]; then
+  echo "$flavor already publishes from $S-green; nothing to cut over."
+  exit 0
+fi
 
 # See scripts/series-advance.sh: the pathspec narrows the walk, the subject
 # decides, and an empty answer explains itself on stderr.
+base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
   sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge 20 ]; then
-      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise the bound in this helper" >&2
+    if [ "$n" -ge "$base_scan_depth" ]; then
+      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
     else
       echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
     fi
   fi
   echo "$sha"
 }
-
-# One field of a branch's DESCRIPTION, empty when the ref or the field is not
-# there. Both fields this script reads are per-branch: the flavor rename writes
-# `Package:`, and the replay renumbers the fifth component of `Version:`.
-#
-# A missing ref is ordinary here -- a series opened as `-fwd` has no base refs
-# at all -- so `git show`'s failure is swallowed rather than left to `pipefail`,
-# which would otherwise make an empty answer end the run.
-desc_field() {
-  git show "$1:DESCRIPTION" 2>/dev/null | sed -n "s/^$2: *//p" | head -n 1 || true
-}
+desc_field() { git show "$1:DESCRIPTION" 2>/dev/null | sed -n "s/^$2: *//p" | head -n 1 || true; }
 
 # GNU sort, wherever it is called: on Linux that is `sort`, on macOS it is
-# `gsort` and the system `sort` is BSD's. Prefer `gsort`, then verify -- the
-# same choice, and the same reason, scripts/flavor.sh makes for `sed`. Empty
-# when neither is GNU, which is a comparison not made rather than a wrong one.
-if command -v gsort >/dev/null 2>&1; then
-  gnu_sort='gsort'
-else
-  gnu_sort='sort'
-fi
-case "$("$gnu_sort" --version 2>/dev/null || true)" in
-  *"GNU coreutils"*) ;;
-  *) gnu_sort= ;;
-esac
-
-# Where two dotted versions sort against each other, as -1, 0 or 1. `sort -V`
-# compares them component by component and numerically, so 1.5.5.9013.36 sorts
-# below 1.5.5.9020.12 rather than by string order, and a missing component
-# ranks below a present one: 1.5.5.9020 below 1.5.5.9020.1.
-version_cmp() {
+# `gsort` and the system `sort` is BSD's. Empty when neither is GNU, which is a
+# comparison not made rather than a wrong one.
+if command -v gsort >/dev/null 2>&1; then gnu_sort='gsort'; else gnu_sort='sort'; fi
+case "$("$gnu_sort" --version 2>/dev/null || true)" in *"GNU coreutils"*) ;; *) gnu_sort= ;; esac
+version_cmp() { # <a> <b> -> -1, 0, 1
   local sorted
   [ "$1" != "$2" ] || { printf '%s\n' 0; return; }
   sorted=$(printf '%s\n%s\n' "$1" "$2" | "$gnu_sort" -V)
   if [ "${sorted%%$'\n'*}" = "$1" ]; then printf '%s\n' -1; else printf '%s\n' 1; fi
 }
 
-for r in build dev green build-base; do
-  git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-$r" >/dev/null ||
-    { echo "Error: $S-fwd-$r does not exist on $remote"; exit 1; }
-done
+old_green="refs/remotes/$remote/$published-green"
+new_green="refs/remotes/$remote/$S-green"
+git rev-parse -q --verify "$old_green" >/dev/null ||
+  { echo "Error: $published-green, the published green, does not exist on $remote" >&2; exit 2; }
 
-# A base series ref may legitimately be missing: a series started as -fwd has
-# no counterpart to replace, and the cutover creates the ref rather than
-# swapping it. Only the forward refs are required.
-missing=()
-for r in build dev green build-base; do
-  git rev-parse -q --verify "refs/remotes/$remote/$S-$r" >/dev/null ||
-    missing+=("$S-$r")
-done
-[ ${#missing[@]} -eq 0 ] ||
-  echo "Note: ${missing[*]} missing on $remote, will be created from $S-fwd-*"
+echo "=== cutover of $flavor: $published -> $S"
+echo
 
-if git rev-parse -q --verify "refs/remotes/$remote/$S-green" >/dev/null; then
-  old_up=$(vendored_sha "refs/remotes/$remote/$S-green")
-else
-  old_up=
-fi
-new_up=$(vendored_sha "refs/remotes/$remote/$S-fwd-green")
-echo "old green vendors: ${old_up:-<nothing>}"
-echo "new green vendors: ${new_up:-<nothing>}"
-
-# Coverage gate: the forward green must vendor at least what the old green
-# vendored, so verification never moves backwards at cutover.
+rc=0
+# --- coverage -----------------------------------------------------------------
+old_up=$(vendored_sha "$old_green")
+new_up=$(vendored_sha "$new_green")
+echo "published green $published-green $(git rev-parse --short "$old_green") vendors ${old_up:-<nothing>}"
+echo "next green      $S-green $(git rev-parse --short "$new_green") vendors ${new_up:-<nothing>}"
 if [ -n "$old_up" ]; then
   if [ -z "$new_up" ]; then
-    echo "Error: old green vendors $old_up but forward green vendors nothing"
+    echo "REFUSED: the published green vendors $old_up and the next green vendors nothing"
     exit 1
   fi
   if [ -n "$upstream" ]; then
-    # Separate "git could not run there" from "the ancestry says no": both
-    # reach the `||` below, and reporting a regression for a path that is not
-    # a checkout sends the reader after the wrong thing. A remote name passed
-    # as the path is exactly that case.
     git -C "$upstream" rev-parse --git-dir >/dev/null 2>&1 || {
-      echo "Error: $upstream is not a git checkout"
-      echo "  The third argument is a path to a duckdb/duckdb clone, not a remote."
-      exit 1
+      echo "Error: $upstream is not a git checkout; --upstream is a path to a duckdb/duckdb clone, not a remote" >&2
+      exit 2
     }
-    git -C "$upstream" merge-base --is-ancestor "$old_up" "$new_up" || {
-      echo "Error: forward green does not cover old green; coverage would regress"
+    if git -C "$upstream" merge-base --is-ancestor "$old_up" "$new_up"; then
+      echo "coverage: the next green covers the published one"
+    else
+      echo "REFUSED: $S-green does not cover $published-green; coverage would regress"
       exit 1
-    }
-  else
-    echo "Warning: no upstream clone given, coverage gate not verified"
-  fi
-fi
-
-# Convergence: the coverage gate above asks whether the forward has vendored far
-# enough, which is a statement about how much upstream it reaches and none at all
-# about what it carries. This asks the other half -- whether the two branches
-# still hold the same package -- and prints it here so the operator confirms with
-# it on screen. It reports rather than refuses: the invariant's second half is
-# *explicable*, and whether a difference is explicable is a judgement no script
-# can make -- which is why this prints and the human decides.
-echo
-rc=0
-"$(dirname "$0")/series-converge.sh" "$S" --remote "$remote" --no-fetch || rc=$?
-# 1 is a divergence to read; 2 is the comparison not being available at all --
-# a series that started as `-fwd` has no `<S>-dev` to compare against, and the
-# script has already said so on its own.
-if [ "$rc" -eq 1 ]; then
-  echo
-  echo "  ^ read these before confirming. A swap does not resolve them: it makes"
-  echo "    them the serving branch's, on the lineage r-universe builds from."
-fi
-echo
-
-# The package the swap publishes, named on both sides. `Package:` and
-# `Version:` are what a consumer installs, and the swap moves both: the name
-# because the forward regenerates its own flavor commits, the version because
-# the replay renumbers the fifth component as a counter of its own chain. So
-# each ref is shown with the version it carries before and after, and a name
-# that changes is called out rather than left to be read off four lines.
-old_pkg=$(desc_field "refs/remotes/$remote/$S-dev" Package)
-new_pkg=$(desc_field "refs/remotes/$remote/$S-fwd-dev" Package)
-if [ -z "$old_pkg" ] || [ "$old_pkg" = "$new_pkg" ]; then
-  echo "package: ${new_pkg:-<none>}"
-else
-  echo "package: $old_pkg -> $new_pkg"
-  echo "  ^ the swap renames the package. A series and its forward are flavored"
-  echo "    the same; a name that moved means the forward was seeded with"
-  echo "    another flavor, and the swap would publish a different package."
-fi
-
-leases=()
-refspecs=()
-echo "refs to swap:"
-for r in build dev green build-base; do
-  new=$(git rev-parse "refs/remotes/$remote/$S-fwd-$r")
-  # An empty expected value leases the ref as "must not exist yet", which is
-  # what a base ref from `missing` needs. The refspecs carry no leading `+`:
-  # a forced refspec defeats --force-with-lease outright, and the lease alone
-  # already authorizes the non-fast-forward swap.
-  cur=$(git rev-parse -q --verify "refs/remotes/$remote/$S-$r") || cur=
-  leases+=("--force-with-lease=refs/heads/$S-$r:$cur")
-  refspecs+=("$new:refs/heads/$S-$r")
-  short=${cur:0:7}
-  oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
-  newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
-  printf '  %-26s %-7s %-16s ->  %-7s %s\n' \
-    "$S-$r" "${short:-<new>}" "${oldv:--}" "${new:0:7}" "${newv:--}"
-done
-
-# A version that does not move forward -- back, or not at all -- is the swap's
-# one cost that nothing else on screen shows. `<S>-green` is what r-universe
-# publishes (handbook/branches/mirrors/README.md), so its version is the one
-# consumers are offered, and the replay's renumbering starts the fifth component
-# well below what the base series accumulated. Usually the fourth component
-# covers it, because the forward is seeded on a newer `main` whose version has
-# moved on since; where it does not, r-universe has nothing to offer as an
-# upgrade until the new chain's counter climbs past the old one's. That is a
-# cost rather than a corruption, and whether it is worth paying is a judgement,
-# so this names it and leaves the decision with the confirmation.
-#
-# On a preview line the fourth component never covers it: the prefix is pinned
-# to the line being previewed rather than taken from `main`
-# (scripts/preview-prefix.sh), so the forward keeps it and only the restarted
-# counter differs. A version going back is normal there, and the warning says so.
-#
-# Without a GNU sort the versions are still printed and simply not compared:
-# the swap is not worth blocking over a missing coreutils, and a comparison
-# made with the wrong tool would read as a clean bill.
-if [ -z "$gnu_sort" ]; then
-  echo "Note: no GNU sort here, so the versions above were not compared."
-  echo "  Read them: a $S-green version that does not move forward is an upgrade"
-  echo "  r-universe cannot offer. Install GNU coreutils as 'gsort' -- on"
-  echo "  macOS, 'brew install coreutils'."
-else
-  for r in dev green; do
-    oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
-    newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
-    if [ -z "$oldv" ] || [ -z "$newv" ]; then continue; fi
-    case "$(version_cmp "$oldv" "$newv")" in
-      -1) continue ;;
-      # Equal is the same problem wearing the other face: two different trees
-      # published under one version, so whoever already has it never sees the
-      # replacement at all.
-      0) echo "Warning: $S-$r keeps version $oldv across the swap." ;;
-      1) echo "Warning: $S-$r would go from $oldv back to $newv." ;;
-    esac
-    if [ "$r" = green ]; then
-      echo "  r-universe publishes from this ref and has no upgrade to offer"
-      echo "  until the forward chain's counter passes $oldv. On a preview line"
-      echo "  that is normal: its prefix is pinned to the line it previews, so"
-      echo "  only the counter moves, and the replay restarts it."
     fi
-  done
-fi
-
-# The gate above says the swap is allowed; this asks whether it is wanted. It
-# comes last so the operator confirms with the coverage lines, the package
-# versions and the four ref moves on screen, and it takes the series name
-# rather than a keystroke because the mistake worth catching is cutting over
-# the wrong series.
-printf 'Replace series %s with %s-fwd-*? Type the series name to confirm: ' "$S" "$S"
-read -r confirm
-[ "$confirm" = "$S" ] || { echo "Aborted; nothing was pushed."; exit 1; }
-
-git push --atomic "${leases[@]}" "$remote" "${refspecs[@]}"
-if [ ${#missing[@]} -eq 4 ]; then
-  echo "Series $S created from its forward counterpart."
-else
-  echo "Series $S replaced by its forward counterpart."
-fi
-
-# The canonical repository carries a copy of green for r-universe to publish
-# from, and the swap just moved green onto a lineage the old one is no more an
-# ancestor of. This is the only place that copy is forced: the loop's own mirror
-# is fast-forward only and would stop the next firing on exactly this
-# divergence. After the swap, never before, so the canonical copy is never ahead
-# of the fork -- and under a lease, so a green nobody here wrote is not
-# overwritten silently.
-if [ -n "$canonical" ]; then
-  new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
-  git fetch -q "$canonical" "$S-green" 2>/dev/null || true
-  cur=$(git rev-parse -q --verify FETCH_HEAD) || cur=
-  if [ "$cur" = "$new_green" ]; then
-    echo "canonical $S-green already at $(git rev-parse --short "$new_green")"
-  elif git push --force-with-lease="refs/heads/$S-green:$cur" \
-      "$canonical" "$new_green:refs/heads/$S-green"; then
-    echo "canonical $S-green -> $(git rev-parse --short "$new_green")"
   else
-    echo "Warning: could not move $S-green in $canonical; r-universe still" >&2
-    echo "  publishes the pre-cutover lineage until it is moved by hand." >&2
+    echo "Warning: no upstream clone given, coverage not verified; pass --upstream <path>"
   fi
 fi
+echo
 
-# Best-effort: some git proxies refuse deletions. Until these refs are gone,
-# the loop ignores a forward series whose refs equal its base series.
-if ! git push "$remote" ":refs/heads/$S-fwd-build" ":refs/heads/$S-fwd-dev" \
-    ":refs/heads/$S-fwd-green" ":refs/heads/$S-fwd-build-base"; then
-  echo "Warning: could not delete $S-fwd-* refs; remove them via the forge UI"
+# --- convergence ---------------------------------------------------------------
+# What the two generations carry, against the one this was built from: a
+# difference is inherited by the cutover, never resolved by it.
+"$here/series-converge.sh" "$S" --remote "$remote" --no-fetch || rc=$?
+if [ "$rc" -eq 1 ]; then
+  echo "  ^ a cutover inherits these onto the lineage r-universe builds from."
+  rc=0
+elif [ "$rc" -ne 0 ]; then
+  exit "$rc"
 fi
+echo
+
+# --- the package on both sides ----------------------------------------------
+old_pkg=$(desc_field "$old_green" Package); new_pkg=$(desc_field "$new_green" Package)
+oldv=$(desc_field "$old_green" Version); newv=$(desc_field "$new_green" Version)
+echo "package: ${old_pkg:-<none>} ${oldv:--}  ->  ${new_pkg:-<none>} ${newv:--}"
+[ "$old_pkg" = "$new_pkg" ] || echo "  ^ the name changes, and r-universe would publish a different package"
+if [ -n "$gnu_sort" ] && [ -n "$oldv" ] && [ -n "$newv" ]; then
+  case "$(version_cmp "$oldv" "$newv")" in
+    0) echo "Warning: the version does not move; whoever has $oldv never sees the replacement" ;;
+    1) echo "Warning: the version goes back, from $oldv to $newv; r-universe has no upgrade to offer"
+       echo "  until the new chain's counter passes $oldv. Normal on a preview line, whose prefix is pinned." ;;
+  esac
+fi
+echo
+
+# --- the canonical copy ------------------------------------------------------
+# r-universe builds from the canonical repository, where the loop mirrors every
+# generation's green (scripts/series-advance.sh); the pull request names a
+# branch that has to be there.
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  canon=$(git ls-remote "$canonical" "refs/heads/$S-green" | cut -f1)
+  if [ -z "$canon" ]; then
+    echo "canonical: $S-green is not in $canonical yet; the next firing mirrors it, or push it plainly:"
+    echo "  git push $canonical $(git rev-parse "$new_green"):refs/heads/$S-green"
+  elif [ "$canon" = "$(git rev-parse "$new_green")" ]; then
+    echo "canonical: $S-green is at $(git rev-parse --short "$new_green") in $canonical, level with the fork"
+  else
+    echo "canonical: $S-green is at ${canon:0:10} in $canonical, behind the fork's $(git rev-parse --short "$new_green"); the next firing fast-forwards it"
+  fi
+  echo
+fi
+
+# --- the review ---------------------------------------------------------------
+# Everything the generation changed against today's `main`, engine aside: the
+# glue, the R side, the tests and the patch stack. The generation's seed is a
+# recent `main`, so this is the series' own work, which a reviewer reads before
+# consumers are pointed at it. The stat here, the diff in --out.
+[ -n "$out" ] || out=$(mktemp -d "${TMPDIR:-/tmp}/series-cutover-$S-XXXXXX")
+mkdir -p "$out"
+excludes=(':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)src/include/sources.mk'
+  ':(exclude)src/Makevars' ':(exclude)src/Makevars.win' ':(exclude)man/figures' ':(exclude)DESCRIPTION'
+  ':(exclude)NEWS.md' ':(exclude)README.Rmd' ':(exclude)README.md' ':(exclude).github/README.md')
+echo "review: what $S-green changes against main $(git rev-parse --short "$main_ref"), outside the engine"
+git diff --stat=100 "$main_ref" "$new_green" -- . "${excludes[@]}" | sed 's/^/  /'
+git diff "$main_ref" "$new_green" -- . "${excludes[@]}" > "$out/review.diff"
+git diff --stat=100 "$main_ref" "$new_green" -- . "${excludes[@]}" > "$out/review.stat"
+echo "  full diff: $out/review.diff"
+echo
+
+# --- the two changes --------------------------------------------------------
+universe=${repo%%/*}
+cat > "$out/packages.json.change" <<EOF
+In https://github.com/$universe/$universe.r-universe.dev, packages.json, the entry for $flavor:
+
+  {"package": "$flavor", "url": "https://github.com/$repo", "branch": "$S-green"}
+
+was:
+
+  {"package": "$flavor", "url": "https://github.com/$repo", "branch": "$published-green"}
+EOF
+cat > "$out/series.yaml.change" <<EOF
+In scripts/series.yaml on main, the entry for $flavor:
+
+    publishes_from: $S-green
+
+was:
+
+    publishes_from: $published-green
+
+then scripts/series-table.R and a README render regenerate the tables.
+EOF
+echo "the pull requests:"
+echo "  1. $universe/$universe.r-universe.dev: $out/packages.json.change"
+echo "  2. $repo, against main: $out/series.yaml.change"
+if [ -n "$apply" ]; then
+  python3 - "$line" "$S-green" <<'PY'
+import re, sys
+line, new = sys.argv[1], sys.argv[2]
+p = 'scripts/series.yaml'
+s = open(p).read()
+entries = re.split(r'(?m)^(?=  - )', s)
+for i, e in enumerate(entries):
+    if re.search(r'(?m)^    series: ' + re.escape(line) + r'$', e):
+        entries[i] = re.sub(r'(?m)^    publishes_from: .*$', '    publishes_from: ' + new, e)
+open(p, 'w').write(''.join(entries))
+PY
+  "$here/series-table.R" >/dev/null 2>&1 || echo "  (scripts/series-table.R could not run here; regenerate the tables before the pull request)"
+  echo "  applied: scripts/series.yaml now publishes $flavor from $S-green; render README.Rmd and open the pull request"
+fi
+echo
+echo "No ref was moved. The published generation stays until the pull requests merge,"
+echo "and is pruned later (scripts/series-prune.sh $line)."

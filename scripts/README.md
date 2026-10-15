@@ -139,20 +139,23 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-alpha.sh`](series-alpha.sh) | Derive the alpha strand of a series: `<S>-alpha`, a green commit stamped with the version of upstream's alpha build of its engine, so that `INSTALL` finds th... |
 | [`series-args-test.sh`](series-args-test.sh) | Check the argument contract every scripts/series-*.sh shares, offline. |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
-| [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
+| [`series-converge.sh`](series-converge.sh) | Does a generation still carry the same package as the one it was built from? |
 | [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
-| [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
+| [`series-cutover.sh`](series-cutover.sh) | Prepare a cutover: the pull requests that point r-universe at a newer generation's green, and the review of what that generation changed. |
 | [`series-fold-test.sh`](series-fold-test.sh) | Check scripts/series-fold.sh offline, against a synthetic landing built here: no network, no fixtures on disk. |
 | [`series-fold.sh`](series-fold.sh) | Fold fixes into the commits that introduced their defects, and replay everything above them: the landing commits of an iteration (.claude/skills/series-land/... |
 | [`series-forward-build-test.sh`](series-forward-build-test.sh) | Check the forward replay, offline, against a synthetic base series and seed built here: no network, no fixtures on disk. |
-| [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-dev`, and then of the old `<S>-build` above it, onto HEAD, which must be the freshly fla... |
+| [`series-forward-build.sh`](series-forward-build.sh) | Populate the buffer of a line's next generation, `<L>-v<NNN>-build`: replay every vendor commit of the newest generation's `-dev`, and then of its `-build` a... |
+| [`series-generations-test.sh`](series-generations-test.sh) | Check the generations of a line, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk. |
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
 | [`series-land-test.sh`](series-land-test.sh) | Check the landing of a series on `main`, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk. |
 | [`series-land.sh`](series-land.sh) | Land a series on `main`: build `<L>-land-dev`, every vendor commit of the series replayed without its flavor onto the `main` it will fast-forward (.claude/sk... |
 | [`series-learned.sh`](series-learned.sh) | What a series' `-dev` learned beyond its buffer: for every vendor commit, the fix the loop folded into it that its `-build` twin does not carry. |
+| [`series-lib.sh`](series-lib.sh) | Shared helpers for the names of a line's generations, sourced by the scripts/series-*.sh that read them (handbook/branches/model/README.md). |
 | [`series-patch-sync.sh`](series-patch-sync.sh) | Carry `patch/` entries from `<S>-dev` onto `<S>-build`, the way stage 5 carries tests and glue onto a forward series. |
 | [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop/SKILL.md). |
+| [`series-prune.sh`](series-prune.sh) | Read-only: which generations of a line may go, and the commands that retire them, for a human to run. |
 | [`series-rc.sh`](series-rc.sh) | Derive the release-candidate strand of a series: `<S>-rc-dev`, the package without its flavor, commit for commit (.claude/skills/series-rc/SKILL.md). |
 | [`series-tests-test.sh`](series-tests-test.sh) | Check how scripts/series-tests.sh reads a tree's tests against `main`'s, offline, against a synthetic repository built here: no network, no fixtures. |
 | [`series-tests.sh`](series-tests.sh) | Which of `main`'s tests does a tree stop running, and which does it change? |

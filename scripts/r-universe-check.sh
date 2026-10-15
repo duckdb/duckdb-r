@@ -21,7 +21,7 @@
 #
 #   * **The greens are published in more than one universe**, so reading one of
 #     them answers for half the series. `duckdb.r-universe.dev` builds the base
-#     series' greens, `krlmlr.r-universe.dev` builds the forward (`-fwd`) ones,
+#     series' greens, `krlmlr.r-universe.dev` builds the newer generations' (`-v<NNN>`, once `-fwd`),
 #     and a default covering only the first reports "all targets OK" while a
 #     `-fwd-green` is failing (`main-fwd-green` bf48f2a8f, two macOS x86_64
 #     targets timed out, 2026-08-18). Both are read by default; `RUNIVERSE`

@@ -1,6 +1,6 @@
 ---
 name: series-loop
-description: Drive the vendoring series loop: for every series and its forward counterpart, vendor the next upstream commits, promote what is green, and repair what is not. Use when asked to run, advance, continue or repair the series loop or a series, when a scheduled routine fires for it, or when a series' green ref has fallen behind its buffer.
+description: Drive the vendoring series loop: for every line and the generations of it the loop serves, vendor the next upstream commits, promote what is green, and repair what is not. Use when asked to run, advance, continue or repair the series loop or a series, when a scheduled routine fires for it, or when a series' green ref has fallen behind its buffer.
 ---
 
 # The series loop: vendor, promote, repair
@@ -9,10 +9,11 @@ description: Drive the vendoring series loop: for every series and its forward c
 what this routine is, and when it runs.*
 
 One routine drives **all** series:
-each firing enumerates every series and every existing forward (`-fwd`)
-counterpart and serves each in turn.
+each firing enumerates every line and every generation of it the loop serves,
+and serves each in turn.
 `<S>` is a series prefix — `main`, `v1.5-variegata`, `v1.4-andium`,
-`main-fwd`, and every future series.
+a generation such as `main-v001` or `v2.0-cyanoptera-fwd`, and every future series
+(`scripts/series-lib.sh`, [`series-forward/SKILL.md`](series-forward)).
 Retrofit of the earlier `rcc-smoke-fix` / `advance-green-dev` skills,
 which repaired by forking `broken-<sha>-dev` branches
 and were never made to work;
@@ -53,13 +54,17 @@ rather than answering wrongly; raise it then.
 
 **A series is discovered, not configured**:
 each firing lists `refs/heads/*-build`,
-and every `<X>-build` with a sibling `<X>-dev` is a series it serves —
-base and forward (`<S>-fwd-*`, see `series-forward/SKILL.md`) alike,
+and every `<X>-build` with a sibling `<X>-dev` is a series —
+a line's first refs and its generations (`<L>-v<NNN>-*`, see `series-forward/SKILL.md`) alike,
 in one pass over all of them.
-Ignore a forward series
-whose green is an ancestor of its base series' green;
-that is cutover litter pending deletion
-(the base moves on after cutover, so equality cannot be the test).
+**Of a line's generations, the firing serves the two newest and the published one**,
+the one whose green `publishes_from` names in `main`'s `scripts/series.yaml`;
+every other generation is frozen, and `series-check.sh` prints `FROZEN` beside it instead of a verdict.
+A frozen generation gets no stage below: nothing vendors, repairs, ports or extends it,
+and whether it may go is `scripts/series-prune.sh`'s report and a human's decision.
+Two is what keeps a firing's cost from growing with the number of generations a line has accumulated,
+and the published one is served however old it is,
+because its green serves consumers and the convergence read (stage 6) needs its lineage to keep moving.
 `<S>-rc-dev` has no `-build` beside it and is not a series of its own:
 it is the unflavored mirror of `<S>-dev`, derived commit for commit
 ([`series-rc/SKILL.md`](series-rc)).
@@ -98,8 +103,8 @@ Six scripts carry the mechanical parts:
 which is stage 2's fallback source, not its first one;
 prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
-plus a CUTOVER line for a forward series that has caught up —
-a suggestion for a human, stage 6,
+plus a CUTOVER line for a generation that has caught up with the published one —
+a pull request for a human to prepare, stage 6, and a FROZEN line for a generation it does not serve,
 and an UNSERVED block for an upstream release line no series covers,
 saying whether `series.yaml` declares its flavor yet,
 and the one the report ends with),
@@ -117,7 +122,7 @@ cherry-picks plus a tooling sync),
 (read-only — every R-side glue adaptation a series carries, in one read;
 what stage 2 mines and what a forward replays),
 and `scripts/series-converge.sh <S>`
-(read-only — `<S>-dev` against `<S>-fwd-dev`, every difference sorted
+(read-only — a generation's `-dev` against its base's, every difference sorted
 into what the forwarding explains and what it does not, stage 6).
 Judgement — repairs, review, vendoring — stays here.
 
@@ -537,8 +542,8 @@ whose diff matches the upstream change exactly —
 that class has been verified end to end
 and may go straight to CI.
 
-**On a forward series, mine the base series before deriving anything.**
-The base `<S>-dev` (for `<S>-fwd`) once verified the same upstream commits:
+**On a generation, mine the one it was built from before deriving anything.**
+Its base `-dev` (the generation below, `scripts/series-lib.sh`) once verified the same upstream commits:
 find the equivalent commit by its vendored `duckdb/duckdb@<sha>` subject,
 and the amendments folded there —
 tests, R code, patches;
@@ -577,10 +582,9 @@ Match on the failure in front of you alone
 and the fix carried over is an intermediate one —
 already superseded, further down the very range it was read from.
 The ranked file list is the cheapest read of where that is about to happen.
-Mining is what *forwarding* costs, and only forwarding:
-a forward series rebased onto a newer mainline
-(`series-rebase/SKILL.md`) leaves nothing to mine,
-because its repairs are still commits on `-fwd-dev`.
+Mining is what *forwarding* costs, and it costs it only above the commit the base had reached:
+a generation built from an unpublished one takes that one's repairs with it in the replay
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 CI still judges the result like any other repair.
 
 For snapshot drift,
@@ -621,17 +625,16 @@ and is never re-examined.
 if it cannot fast-forward, something rewrote verified history;
 stop and say so.
 
-**Then mirror it into the canonical repository, for a base series only.**
+**Then mirror it into the canonical repository, every generation's.**
 r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership
-from the URL of the branch it builds, so `<S>-green` is the one branch that
-travels out of the fork — no buffer, no `-dev`, and no `-fwd-green`, whose
-rebuild is published from the fork's own universe
+from the URL of the branch it builds, so `<S>-green` is the one strand that
+travels out of the fork — no buffer and no `-dev` — and every generation's does,
+because a cutover is a pull request naming the next generation's green there
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 `--canonical <name>` names the remote, defaulting to `upstream`, and the push is
 a plain one, so git refuses anything that is not a forward.
 **Scream on a refusal, never force it.** Two repositories disagreeing about
-verified history is a finding; the only thing that legitimately moves green off
-its lineage is a cutover, and that does the mirror itself (stage 6).
+verified history is a finding; nothing moves a green off its lineage, a cutover included.
 
 Set `<S>-build-base` to the `<S>-build` commit
 with the same vendored upstream SHA
@@ -703,10 +706,10 @@ which is how a red is attributed to a series —
 then one line per target that is not OK, with the log URL.
 Four access facts it exists to encapsulate, each paid for once:
 the greens are published in **more than one universe** —
-`duckdb.r-universe.dev` builds the base series' greens
-and `krlmlr.r-universe.dev` the forward ones —
+`duckdb.r-universe.dev` builds the published generations' greens
+and `krlmlr.r-universe.dev` the newest unpublished ones' —
 so a read of one of them answers for half the series
-and reports all-OK over a failing `-fwd-green`;
+and reports all-OK over a failing generation nobody installs yet;
 the `/builds` dashboard answers 403 to some fetchers
 while `https://<universe>.r-universe.dev` answers a plain curl;
 the build logs live in the GitHub repository `r-universe/<universe>`,
@@ -1097,11 +1100,8 @@ vendoring nothing —
 the consumption anchor of stage 5 reads vendor subjects
 and does not see them —
 and transient:
-a forward's seed already carries their content
-and the replay leaves them behind (`series-forward/SKILL.md`);
-a rebase drops patch-id equivalents,
-and a sync commit whose delta `main` absorbed
-rebases to empty and is dropped the same way (`series-rebase/SKILL.md`).
+the next generation's seed already carries their content
+and the replay leaves them behind (`series-forward/SKILL.md`).
 
 ### 5. Extend `<S>-dev`
 
@@ -1138,13 +1138,13 @@ without vendoring anything —
 and the anchor is about how much of the buffer has been consumed,
 which only vendor commits record.
 
-**A live forward counterpart is not an exception, and used to be.**
-A series being replaced kept consuming nothing:
-its refs stayed where the forward went live,
+**A newer generation beside a series is not an exception, and used to be.**
+A series with a generation built on it kept consuming nothing:
+its refs stayed where the newer one went live,
 and the loop verified only what was already in flight.
 That froze the one branch a cutover is measured against.
-A forward is the same series rebuilt on a newer `main`,
-so what makes the swap safe is that the two `-dev` branches
+A generation is the same series rebuilt on a newer `main`,
+so what makes publishing it safe is that the two `-dev` branches
 carry the same package (stage 6) —
 and a frozen base can be compared only at the commit it stopped on,
 which is the single point the two are already known to agree.
@@ -1153,14 +1153,15 @@ past the base's frontier there is no twin to match by vendored SHA,
 so every fix the base had proved
 was rediscovered on the forward as a red,
 costing a repair and a replay of everything above it.
-So a base series consumes its buffer like any other.
-The cost is real — CI on a lineage about to be retired, twice over —
-and it buys the only thing that makes retiring it a check
+So a series consumes its buffer like any other for as long as the loop serves it:
+the two newest generations of its line, and the published one.
+The cost is real — CI on a lineage about to be superseded, twice over —
+and it buys the only thing that makes superseding it a check
 rather than a hope.
 
-**On a forward series, the base's fixes are folded in here, where the buffer lacks them.**
-`<S>-fwd-build` is replayed out of `<S>-dev` up to the commit the base had reached,
-fixes folded in, and out of `<S>-build` above it
+**On a generation, the base's fixes are folded in here, where the buffer lacks them.**
+A generation's `-build` is replayed out of its base's `-dev` up to the commit the base had reached,
+fixes folded in, and out of the base's `-build` above it
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 `-build` holds what the code needs to **compile** —
 that being what the vendor gate checks at every commit —
@@ -1281,9 +1282,9 @@ because it moves when upstream publishes an alpha as well as when `<S>-green` do
 An alpha whose commit green has not vendored yet writes nothing, and one with a gap in its extensions stops the script;
 both go into the report, and neither is repaired here.
 
-### 6. Read the forwarding, and suggest a cutover — never perform one
+### 6. Read the forwarding, and report a generation ready to publish — never publish one
 
-**Every series with a forward counterpart is read here, caught up or not.**
+**Every generation the firing serves is read here against the one it was built from, caught up or not.**
 The two lineages carry the same package or they do not,
 and the answer is worth having while there is still time to act on it:
 
@@ -1291,7 +1292,7 @@ and the answer is worth having while there is still time to act on it:
 scripts/series-converge.sh <S>
 ```
 
-It diffs `<S>-dev` against `<S>-fwd-dev`
+It diffs a generation's `-dev` against its base's (`scripts/series-lib.sh`)
 and sorts every differing path into
 what the forwarding explains and what it does not —
 the version counter the replay renumbers,
@@ -1302,14 +1303,14 @@ Everything else is a finding, and the stage carries it into the report.
 
 **The invariant is the reason the stage exists.**
 At the end of a forwarding,
-`<S>-dev` and `<S>-fwd-dev` are identical,
+a generation's `-dev` and its base's are identical,
 or every difference between them is explicable —
 a statement about trees, never about ancestry,
 since the histories differ by construction.
 Both branches advancing is what makes it readable at the frontier
 rather than only at the commit a frozen base stopped on (stage 5).
 
-A finding here is not repaired by the swap; it is inherited by it.
+A finding here is not resolved by publishing the generation; it is inherited.
 Fix it where it belongs —
 a missing carry is stage 5's, a missing port stage 4's,
 a fix folded on one branch and not the other is stage 2's —
@@ -1323,9 +1324,9 @@ and it grows only where a firing has shown a new class benign —
 never on the strength of another script excluding the same path,
 which it may well do for an unrelated reason.
 
-**A caught-up forward is reported, not swapped.**
-When `<S>-fwd-green` vendors the upstream commit `<S>-green` vendors,
-`series-check.sh` says so beside that series' verdict,
+**A caught-up generation is reported, not published.**
+When a generation's green vendors the upstream commit the published green vendors,
+`series-check.sh` says so beside that generation's verdict,
 and the firing carries it into its summary
 as a block somebody can paste into a terminal whole:
 
@@ -1335,21 +1336,18 @@ git fetch --prune --tags --all
 git switch main && git merge --ff-only @{u}
 git -C ../../../duckdb fetch --prune --tags origin
 
-# Both halves of the question, before anything moves.
-scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
+# Both halves of the question, before anything is proposed.
+scripts/series-check.sh <S> --upstream ../../../duckdb
 scripts/series-converge.sh <S>
 
-# The swap. It prints the four ref moves and the convergence report,
-# then asks for the series name. It also moves the copy of green that
-# r-universe publishes from -- name that remote with --canonical where it is
-# not `upstream`, or the copy keeps serving the pre-cutover lineage.
-scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
-
-# A retired lineage moves the badge table, and the mirror rules with it.
-scripts/pull-config.sh --check
+# The cutover's material: the coverage gate, the convergence read, the package
+# on both sides, whether the canonical repository carries the green yet, the
+# review diff of what the generation changed against main, and the two changes
+# the pull requests make. It moves no ref.
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --out <dir>
 ```
 
-`--remote` names whichever remote of that checkout carries `<S>-green`,
+`--remote` names whichever remote of that checkout carries the series refs,
 and `--upstream` the `duckdb/duckdb` checkout on disk —
 `../../../duckdb` is where `vendor-one.sh` looks for one when nobody names it,
 so it is the path the project already assumes.
@@ -1360,60 +1358,47 @@ and naming them is what makes the remote-for-path swap unsayable
 rather than merely diagnosable.
 Check that the `main` the block lands on is the canonical one —
 a fork's mirror lags by however long the mirroring takes,
-and a cutover run off a stale mirror runs a stale `series-cutover.sh`.
+and a cutover prepared off a stale mirror reads a stale `scripts/series.yaml`.
 
 **Emit the block whole, on every firing the condition holds**,
 with `<S>` and the paths substituted rather than left as placeholders.
-`series-check.sh` prints the swap alone, which is the one line
+`series-check.sh` prints the last line alone, which is the one line
 that cannot usefully be pasted by itself:
-a cutover typed on a clone that last fetched hours ago
+a cutover prepared on a clone that last fetched hours ago
 runs its coverage gate against refs that have since moved,
 and a firing that abbreviates the block to the line it already saw
 hands the reader exactly that.
-The reads above the swap are not ceremony either —
-`series-cutover.sh` runs the convergence report itself,
-but it runs it *after* the fetches and one prompt before the push,
-which is too late to be the moment anybody decides anything.
 Repeating the block costs a firing nothing;
 it is not summarised into a sentence, and not dropped
 because an earlier firing already printed it.
 
 That is the whole stage.
-The routine does not run the script,
-and does not swap the four refs by hand instead.
+The routine does not open either pull request,
+and does not edit `scripts/series.yaml` or a universe's `packages.json` by another route.
 
-Cutover is the one move that retires a lineage consumers are reading.
+Publishing a generation is the one move that changes what consumers install.
 Everything else the loop does is bounded and recoverable:
 a bad repair is repaired again,
 a wrong extension is replayed,
 and `-green` only ever moves forward over commits CI called green.
-The swap moves a serving green *sideways*
-— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`),
-and the one place the canonical repository's copy of green is forced rather than
-fast-forwarded, which is why `--canonical` belongs on this line and nowhere else
-the routine types by hand —
-and it deletes the counterpart that would let it be undone.
+A cutover moves no ref at all — it is two pull requests
+([`series-forward/SKILL.md`](series-forward)) —
+but it retires nothing either, so what it costs is the review it owes:
+the generation's whole R side against `main`, read by a human before consumers see it.
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
 and degrades to a warning without one,
-so an unattended firing would be authorizing the swap on a warning.
+so an unattended firing would be proposing a cutover on a warning.
 Coverage is in any case only half the question —
-it asks how much upstream the forward reaches
+it asks how much upstream the generation reaches
 and nothing about what it carries —
-so `series-cutover.sh` prints the convergence report
-immediately before it asks for confirmation.
+so `series-cutover.sh` prints the convergence report and the review beside it.
 It reports rather than refuses:
 whether a difference is explicable is exactly the judgement
 no script can make.
 Verification is mechanical, so the loop owns it;
 deciding that r-universe should build a different lineage today
-is not, so a human owns that.
-
-The script enforces its own half:
-it refuses to run without a terminal
-and takes the series name as confirmation,
-so a firing that tries anyway achieves nothing.
-Treat that refusal as the answer, not as an obstacle to route around.
+is not, so a human owns that, and the user starts it by asking.
 
 ### 7. Open a PR for whatever the tooling got wrong
 
@@ -1550,7 +1535,8 @@ reads exactly like an answer of "nothing new".
 
 **A due cutover is reported the same way, above the `UNSERVED` block.**
 It is the one finding a firing may not act on at all —
-an UNSERVED line at least has its declaration PR —
+an UNSERVED line at least has its declaration PR,
+and a cutover's two pull requests are a human's to open after the review —
 so it is the one it has to hand over completely:
 stage 6's block, filled in, every firing `series-check.sh` prints a
 `CUTOVER` line, and for the same reason —
@@ -1645,8 +1631,9 @@ push the branch, dispatch `each-rcc` on `retry-<S>-dev`
 with `force=true` and `max-commits=1`,
 and — on the store path only — drop the stale record once the rerun is green,
 both copies of it, per above.
-A rebase onto a newer mainline (`series-rebase/SKILL.md`)
-is what carries the automatic path into a forward series.
+The next generation, built on a `main` that carries them
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)),
+is what carries the automatic path into a series.
 
 ## Commit-message contract
 
@@ -1693,7 +1680,7 @@ is what carries the automatic path into a forward series.
   anyway, and `-dev` is where the cpp11 headers actually are.
   `git rerere` settles the repeats within one clone and a firing runs in a
   fresh one, so the cost is two resolutions per replayed vendor commit, per
-  firing, on every series (`main-build`, `main-fwd-build`,
+  firing, on every series (`main-build`, `main-fwd-build`, the newest generations',
   `v1.4-andium-build`, `v1.5-variegata-build`, `v2.0-cyanoptera-build`
   all carry `inst/include/cpp11`, 2026-09-27).
   Ending it is re-vendoring cpp11 onto each buffer
@@ -1768,10 +1755,12 @@ is what carries the automatic path into a forward series.
   `<S>-build-base` does not: it is a marker with no consumer,
   recomputed from the vendored-SHA match every stage 3,
   and set — force-pushed where it has to be — rather than advanced.
-- Cutover is manual.
-  The loop reports that a forward series has caught up
-  and prints the command; it never runs it,
-  and never swaps the refs by another route.
+- Cutover is manual, and moves no ref.
+  The loop reports that a generation has caught up
+  and prints the command that prepares the pull requests; it opens neither,
+  and never points r-universe at another green by another route.
+  A generation is never rewritten, and the loop serves only the two newest of a line and the published one;
+  pruning the rest is a human's, by `scripts/series-prune.sh`'s commands.
   Every other ref move in this skill is the routine's to make.
 - Opening a series is manual too, and its trigger is upstream's branch cut.
   The loop reports a release line no series covers,

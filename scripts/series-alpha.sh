@@ -25,13 +25,15 @@
 # commit unflavored from that green commit, which is what a revdep run checks.
 #
 # Usage: series-alpha.sh <S> [--remote <name>] [--alpha <sha10>/<version>] [--push]
-#   <S> is the series, `v2.0-cyanoptera-fwd` for `v2.0-cyanoptera-fwd-alpha`.
+#   <S> is the series, `v2.0-cyanoptera-v001` for `v2.0-cyanoptera-v001-alpha`.
 #   --alpha names the build instead of reading upstream's pointer.
 #   --push writes the strands, leased on what the remote held when this run read it.
 
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than minting an empty SHA.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-alpha.sh <S> [--remote <name>] [--alpha <sha10>/<version>] [--push]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -52,8 +54,8 @@ while [ $# -gt 0 ]; do
 done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
-# A forward series tracks the same upstream branch as its base.
-branch=${S%-fwd}
+# Every generation of a line tracks the line's upstream branch (scripts/series-lib.sh).
+branch=$(series_line "$S")
 
 staging=https://duckdb-staging.duckdb.org
 extensions=https://extensions.duckdb.org
