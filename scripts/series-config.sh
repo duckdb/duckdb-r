@@ -39,6 +39,17 @@ series_scan_dir=src/duckdb
 series_strand=(src/duckdb patch R/version.R src/include/sources.mk)
 series_makevars=(src/Makevars src/Makevars.win)
 
+# How vendoring regenerates the tree from an upstream checkout (scripts/vendor-one.sh):
+# the generator, told whether it writes a strand commit, the vendor paths alone,
+# or a whole buffer commit. One generator here, which writes nothing but the
+# strand's paths either way. A generator that also writes the R side runs that
+# half for `full` only, because a failure there is the buffer's to fix, and
+# `series_regenerate()` runs it on the buffer after a pick; whatever a `strand`
+# run writes outside the vendor paths is restored, never committed.
+series_generate() { # <upstream checkout> <strand|full>
+  DUCKDB_PATH="$1" python3 scripts/rconfigure.py
+}
+
 # What a vendor-strand commit carries (scripts/series-vendor.sh): the vendored
 # tree, the patch stack applied to it, and every file vendoring writes from the
 # tree and from the templates it fills, which here is all of them, the logos

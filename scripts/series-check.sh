@@ -399,19 +399,20 @@ late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
     echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
     return 0
   fi
+  # The tags sorted, so an abbreviated SHA that is a prefix of two tagged
+  # commits meets the same one on every run.
   awk -F'\t' -v ere="$series_marker_ere" '
-    FNR == NR { if (split($0, a, " ") >= 2) tagof[a[1]] = a[2]; next }
+    FNR == NR { if (split($0, a, " ") >= 2) { n++; sha[n] = a[1]; tag[n] = a[2] } next }
     {
       if (!match($2, ere)) next
       m = substr($2, RSTART, RLENGTH); sub(/^.*@/, "", m)
-      for (f in tagof) {
-        if (index(f, m) != 1) continue
-        t = tagof[f]
-        if (index($2, "(tag " t ")")) seen[m] = 1
-        else if (!(m in seen)) { print t, m, $1; exit }
+      for (i = 1; i <= n; i++) {
+        if (index(sha[i], m) != 1) continue
+        if (index($2, "(tag " tag[i] ")")) seen[m] = 1
+        else if (!(m in seen)) { print tag[i], m, $1; exit }
         break
       }
-    }' <(printf '%s\n' "$tags") <(git log --format='%H%x09%s' "$1" -- "$series_scan_dir")
+    }' <(printf '%s\n' "$tags" | sort) <(git log --format='%H%x09%s' "$1" -- "$series_scan_dir")
 }
 
 # How the clone names an upstream branch: a clone made by `git clone` carries it

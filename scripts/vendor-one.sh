@@ -325,7 +325,7 @@ while [ $commits_vendored -lt $num_commits ]; do
     # candidate, kept or skipped. Files upstream dropped still go: they are in
     # the tree that was moved aside, and never come back from it.
     echo "R: configure"
-    DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
+    series_generate "$upstream_dir" "$([ "$strand" = true ] && echo strand || echo full)" || {
       echo "Error: Failed to configure"
       rm -rf "$upstream_dir"
       exit 1
@@ -423,7 +423,13 @@ while [ $commits_vendored -lt $num_commits ]; do
     rm DESCRIPTION.bak
   fi
 
-  git add .
+  if [ "$strand" = true ]; then
+    # The strand's paths and nothing else; what the generator wrote beyond them
+    # is restored after the commit (scripts/series-config.sh).
+    git add -A -- "${series_vendor_paths[@]}"
+  else
+    git add .
+  fi
 
   (
     echo "$message"
@@ -443,6 +449,10 @@ while [ $commits_vendored -lt $num_commits ]; do
     rm -rf "$upstream_dir"
     exit 1
   }
+  if [ "$strand" = true ]; then
+    git checkout -q -- .
+    git clean -fdq
+  fi
 
   commits_vendored=$((commits_vendored + 1))
 
