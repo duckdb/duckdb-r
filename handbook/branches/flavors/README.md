@@ -108,7 +108,7 @@ sequenceDiagram
   H->>C: draft pull request, closed at once: the copy of #60;S#62;-green as it stands
   H->>F: one atomic leased push: the four refs take the forward's tips
   H->>C: #60;S#62;-green forced to the new green, under a lease
-  H->>F: the -fwd refs, strands and ledger deleted
+  H->>F: the -fwd refs, the vendor strand, the rc and alpha strands and the ledger deleted
   H->>C: #60;S#62;-fwd-green deleted
   C-->>SL: r-universe builds #60;S#62;-green, now the forward's history
   Note over SL,C: The replaced history is each closed pull request's head. What a refused deletion leaves, series-prune.sh lists
