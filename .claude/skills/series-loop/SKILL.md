@@ -621,11 +621,12 @@ and is never re-examined.
 if it cannot fast-forward, something rewrote verified history;
 stop and say so.
 
-**Then mirror it into the canonical repository, for a base series only.**
+**Then mirror it into the canonical repository, every series' green, the forward's too.**
 r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership
 from the URL of the branch it builds, so `<S>-green` is the one branch that
-travels out of the fork — no buffer, no `-dev`, and no `-fwd-green`, whose
-rebuild is published from the fork's own universe
+travels out of the fork — no buffer and no `-dev`.
+`<S>-fwd-green` travels as well, though the fork's own universe is what builds it:
+the cutover archives the replaced copy of `<S>-green` against it there, and deletes it afterwards
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 `--canonical <name>` names the remote, defaulting to `upstream`, and the push is
 a plain one, so git refuses anything that is not a forward.
@@ -1339,10 +1340,15 @@ git -C ../../../duckdb fetch --prune --tags origin
 scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
 scripts/series-converge.sh <S>
 
-# The swap. It prints the four ref moves and the convergence report,
-# then asks for the series name. It also moves the copy of green that
-# r-universe publishes from -- name that remote with --canonical where it is
-# not `upstream`, or the copy keeps serving the pre-cutover lineage.
+# The gates, the convergence report, the review diff and the plan, with
+# nothing moved: read it, then decide.
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepare --out <dir>
+
+# The swap. It asks for the series name, archives each replaced lineage as
+# the head of a closed pull request, swaps the four refs, and moves the copy
+# of green that r-universe publishes from -- name that remote with
+# --canonical where it is not `upstream`, or the copy keeps serving the
+# pre-cutover lineage -- then deletes the forward's refs in both repositories.
 scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 
 # A retired lineage moves the badge table, and the mirror rules with it.
@@ -1392,7 +1398,9 @@ The swap moves a serving green *sideways*
 and the one place the canonical repository's copy of green is forced rather than
 fast-forwarded, which is why `--canonical` belongs on this line and nowhere else
 the routine types by hand —
-and it deletes the counterpart that would let it be undone.
+and it deletes the counterpart that would let it be undone;
+what it replaces stays readable only because it archives each lineage
+as a closed pull request's head first (`series-forward/SKILL.md`).
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
 and degrades to a warning without one,
@@ -1772,6 +1780,8 @@ is what carries the automatic path into a forward series.
   The loop reports that a forward series has caught up
   and prints the command; it never runs it,
   and never swaps the refs by another route.
+  The script archives what it replaces before it swaps, and deletes the forward's refs afterwards;
+  what a refused deletion leaves is cutover litter, which `scripts/series-prune.sh` lists for a human.
   Every other ref move in this skill is the routine's to make.
 - Opening a series is manual too, and its trigger is upstream's branch cut.
   The loop reports a release line no series covers,
