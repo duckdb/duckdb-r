@@ -159,6 +159,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-rc.sh`](series-rc.sh) | Derive the release-candidate strand of a series: `<S>-rc-dev`, the package without its flavor, commit for commit (.claude/skills/series-rc/SKILL.md). |
 | [`series-tests-test.sh`](series-tests-test.sh) | Check how scripts/series-tests.sh reads a tree's tests against `main`'s, offline, against a synthetic repository built here: no network, no fixtures. |
 | [`series-tests.sh`](series-tests.sh) | Which of `main`'s tests does a tree stop running, and which does it change? |
+| [`series-vendor-test.sh`](series-vendor-test.sh) | Check scripts/series-vendor.sh offline, against a synthetic series built here: no network, no fixtures on disk. |
+| [`series-vendor.sh`](series-vendor.sh) | The vendor strand of a series, `<S>-vendor`: pure vendoring, one commit per upstream commit, vendored once and carried forward by a rebase (handbook/branches... |
 
 ## [`testing/snapshots/`](/handbook/testing/snapshots/README.md)
 

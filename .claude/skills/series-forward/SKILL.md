@@ -73,16 +73,15 @@ and it would start vendoring onto that ref while the replay is still writing it.
      and a test asking for behaviour the engine lacks is gated, never rewound.
      Everything else the forward learns, it learns from CI once `-fwd-dev` is extended, folded with
      [`scripts/series-fold.sh`](/scripts/series-fold.sh) and mirrored onto `-fwd-build` where it is glue.
-   * **Write the vendor strand, and read the forward against it:**
+   * **Carry the vendor strand, and read the forward against it:**
 
      ```sh
-     git checkout --detach <seed>                                   # the commit -fwd-build stands on
-     scripts/series-forward-build.sh <S>-build <old-base> [--placed <sha>]...
-     git branch -f <S>-fwd-vendor HEAD
-     scripts/series-learned.sh <S>-fwd --vendor          # per commit, what -fwd-build carries beyond pure vendoring
-     scripts/series-learned.sh <S>-fwd --vendor --diff   # the changes themselves
+     scripts/series-vendor.sh <S> --forward <seed> --push   # <S>-fwd-vendor: the strand onto the commit -fwd-build stands on
+     scripts/series-learned.sh <S>-fwd --vendor             # per commit, what -fwd-build carries beyond pure vendoring
+     scripts/series-learned.sh <S>-fwd --vendor --diff      # the changes themselves
      ```
 
+     The strand is vendored once and carried by a rebase, a rewind's foot written on the seed whole; nothing is replayed.
      A fix found wanting on the new base is answered with a correction on the forward commit that carries it,
      folded with `series-fold.sh`, so that `-fwd-build` is the better buffer before the loop starts verifying it.
 
