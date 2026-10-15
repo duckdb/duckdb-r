@@ -77,11 +77,11 @@ git diff --binary "$base" "$seed~1" -- . ':(exclude)DESCRIPTION' ':(exclude)scri
 export GIT_INDEX_FILE="$work/index"
 
 # The flavor's names, spelled back: `duckdb.2.0.dev` and `duckdb_2_0_dev`.
-dotted="duckdb.$flavor"
-underscored="duckdb_${flavor//./_}"
-unname() { sed -e "s/${dotted//./\\.}/duckdb/g" -e "s/$underscored/duckdb/g"; }
+dotted="$series_package.$flavor"
+underscored="${series_package}_${flavor//./_}"
+unname() { sed -e "s/${dotted//./\\.}/$series_package/g" -e "s/$underscored/$series_package/g"; }
 # flavor.sh's template spells the flavor `1.3`, and every flavor is written from it.
-untemplate() { sed -e "s/${dotted//./\\.}/duckdb.1.3/g" -e "s/$underscored/duckdb_1_3/g"; }
+untemplate() { sed -e "s/${dotted//./\\.}/$series_package.1.3/g" -e "s/$underscored/${series_package}_1_3/g"; }
 
 # <source commit> -> the tree of its unflavored twin
 unflavored_tree() {
@@ -99,7 +99,7 @@ unflavored_tree() {
       git update-index --cacheinfo "100644,$blob,$f"
     done
   fi
-  blob=$(git show "$c:DESCRIPTION" | sed "s/^Package: ${dotted//./\\.}\$/Package: duckdb/" |
+  blob=$(git show "$c:DESCRIPTION" | sed "s/^Package: ${dotted//./\\.}\$/Package: $series_package/" |
     git hash-object -w --stdin)
   git update-index --cacheinfo "100644,$blob,DESCRIPTION"
   blob=$(git show "$c:scripts/flavor.patch" | untemplate | git hash-object -w --stdin)

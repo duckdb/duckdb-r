@@ -193,7 +193,7 @@ fi
 # fast-forward the real one.
 if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; then
   echo "Error: no canonical remote \"$canonical\" to read main from." >&2
-  echo "  Add duckdb/duckdb-r as 'upstream', or pass --canonical <name>." >&2
+  echo "  Add $series_canonical_repo as 'upstream', or pass --canonical <name>." >&2
   exit 1
 fi
 git fetch -q "$canonical" main

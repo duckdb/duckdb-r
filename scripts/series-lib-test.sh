@@ -8,13 +8,18 @@
 # What is checked:
 #   1. The vendor predicate: a `vendor:` subject, a bare marker, an ordinary one.
 #   2. The SHA a subject names, and the twin key with its `+tag` suffix.
-#   3. The release a `-dev` stamp precedes, and the version ordering the suite's
+#   3. The release a stamp precedes, and the version ordering the suite's
 #      `engine_before()` makes.
 #   4. The strand, the regenerated files, the carry filter and the tooling
 #      expression, read from the configured paths rather than from literals.
 #   5. On a repository: the seed, the base scan past a non-vendor commit in the
 #      scan directory, its bound, the `-build` equivalent of a re-stamped
 #      commit, and the engine and the stamp read off a tree.
+#
+# The engine's own formats are the block right below the helpers: what a tree
+# holds for `series_engine_of()` and `series_stamped_version()` to read, and
+# the versions whose ordering section 3 asserts. A repository whose
+# configuration reads another engine rewrites that block and nothing else.
 
 set -euo pipefail
 
@@ -32,6 +37,23 @@ no() { fail=$((fail + 1)); echo "  FAIL $1"; }
 is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "       got:  $2"; echo "       want: $3"; fi; }
 yes() { if "${@:2}"; then ok "$1"; else no "$1"; fi; }
 not() { if "${@:2}"; then no "$1"; else ok "$1"; fi; }
+
+# --- the engine's formats ----------------------------------------------------
+#
+# engine_tree <sha> <version> [tag]: write what a tree vendoring <sha> at
+# <version> holds, in the current directory, as the configured readers read it;
+# a re-stamp for <tag> rewrites the engine file as well, because a vendor run
+# regenerates the tree and the scan directory must see it.
+engine_tree() {
+  printf '#define DUCKDB_SOURCE_ID "%s"\n' "$1" > "$series_engine_file"
+  [ -z "${3:-}" ] || printf '#define DUCKDB_VERSION "%s"\n' "$3" >> "$series_engine_file"
+  printf 'duckdb_version <- "%s"\n' "$2" > "$series_stamp_file"
+}
+snapshot=1.4.0-dev123     # a development stamp, which precedes...
+release=1.4.0             # ...the release it names,
+later_release=1.5.0       # a later release,
+later_snapshot=1.4.0-dev124 # and a later snapshot;
+earlier_release=1.3.9     # not an earlier release.
 
 repo=$series_upstream_repo
 sha=0123456789abcdef
@@ -52,24 +74,34 @@ is "the twin key of a re-stamp" "$(series_twin_key "$vt")" "$sha+tag"
 is "no key for an ordinary subject" "$(series_twin_key "fix: the glue")" ""
 
 echo "--- 3. versions"
-is "the release a -dev stamp precedes" "$(series_release_of_stamp 1.4.0-dev123)" "1.4.0"
-is "none for a release" "$(series_release_of_stamp 1.4.0)" ""
-yes "a -dev snapshot precedes its release" series_version_before 1.4.0-dev123 1.4.0
-yes "and a later release" series_version_before 1.4.0-dev123 1.5.0
-yes "and a later snapshot" series_version_before 1.4.0-dev123 1.4.0-dev124
-not "not an earlier release" series_version_before 1.4.0-dev123 1.3.9
-not "a release precedes nothing" series_version_before 1.4.0 1.5.0
-not "nor does a string that is no version" series_version_before main 1.5.0
+if declare -F series_release_of_stamp >/dev/null; then
+  is "the release a snapshot precedes" "$(series_release_of_stamp "$snapshot")" "$release"
+  is "none for a release" "$(series_release_of_stamp "$release")" ""
+  is "the tag of that release" "$(series_tag_of_release "$release")" "v$release"
+else
+  echo "  --   no series_release_of_stamp: the late-tag check asks the vendor commits instead"
+fi
+yes "a snapshot precedes its release" series_version_before "$snapshot" "$release"
+yes "and a later release" series_version_before "$snapshot" "$later_release"
+yes "and a later snapshot" series_version_before "$snapshot" "$later_snapshot"
+not "not an earlier release" series_version_before "$snapshot" "$earlier_release"
+not "a release precedes nothing" series_version_before "$release" "$later_release"
+not "nor does a string that is no version" series_version_before main "$later_release"
 
 echo "--- 4. the paths"
 yes "the vendored tree is on the strand" series_in_strand "$series_vendor_dir/src/a.cpp"
-yes "so is a Makevars" series_in_strand "${series_makevars[0]}"
+[ ${#series_makevars[@]} -eq 0 ] || yes "so is a Makevars" series_in_strand "${series_makevars[0]}"
 not "DESCRIPTION is not" series_in_strand DESCRIPTION
-yes "a regenerated file is regenerated" series_is_regenerated "${series_regenerated[0]}"
-not "a path under it is not" series_is_regenerated "${series_regenerated[0]}/x"
-carried=$(printf '%s\n' "$series_vendor_dir/src/a.cpp" "patch/0001.patch" "${series_tooling[0]}/x" \
-  "${series_regenerated[0]}" "${series_regenerated_dirs[0]}/logo.png" DESCRIPTION src/glue.cpp tests/testthat/test-a.R |
-  series_carry_filter | tr '\n' ' ')
+[ ${#series_regenerated[@]} -eq 0 ] || {
+  yes "a regenerated file is regenerated" series_is_regenerated "${series_regenerated[0]}"
+  not "a path under it is not" series_is_regenerated "${series_regenerated[0]}/x"
+}
+# One path of each kind the filter drops, and two it keeps.
+dropped=("$series_vendor_dir/src/a.cpp" DESCRIPTION)
+for p in "${series_strand[@]}"; do dropped+=("$p/x" "$p"); done
+for p in "${series_tooling[@]}" "${series_regenerated_dirs[@]}"; do dropped+=("$p/x"); done
+dropped+=("${series_regenerated[@]}")
+carried=$(printf '%s\n' "${dropped[@]}" src/glue.cpp tests/testthat/test-a.R | series_carry_filter | tr '\n' ' ')
 is "the carry filter keeps the fix and drops the rest" "$carried" "src/glue.cpp tests/testthat/test-a.R "
 is "nothing to carry is not an error" "$(printf '%s\n' DESCRIPTION | series_carry_filter; echo "rc=$?")" "rc=0"
 tooling_re=$(series_tooling_re)
@@ -88,12 +120,10 @@ echo 'Package: x' > DESCRIPTION
 c "chore: Update flavor patch to x" > /dev/null
 seed=$(c "$series_seed_subject")
 echo 'a' > "$series_scan_dir/a"
-echo '#define DUCKDB_SOURCE_ID "aaaaaaaaaa"' > "$series_engine_file"
-echo 'duckdb_version <- "1.4.0-dev100"' > "$series_stamp_file"
+engine_tree aaaaaaaaaa "$snapshot"
 v1=$(c "vendor: Update vendored sources to $repo@aaaaaaaaaa")
 echo 'b' > "$series_scan_dir/a"
-echo '#define DUCKDB_SOURCE_ID "bbbbbbbbbb"' > "$series_engine_file"
-echo 'duckdb_version <- "1.4.0-dev101"' > "$series_stamp_file"
+engine_tree bbbbbbbbbb "$later_snapshot"
 v2=$(c "vendor: Update vendored sources to $repo@bbbbbbbbbb")
 echo 'c' > "$series_scan_dir/a"
 fix=$(c "fix: a patch applied in the vendored tree")
@@ -105,13 +135,11 @@ is "and says so when the bound is reached" \
   "vendored_sha: 1 $series_scan_dir commits on HEAD, none of them vendoring;"
 is "the engine a tree records" "$(series_engine_of "$v1")" "aaaaaaaaaa"
 is "none where the tree has no engine" "$(series_engine_of "$seed")" ""
-is "the stamp a tree carries" "$(series_stamped_version "$v2")" "1.4.0-dev101"
-# A re-stamp above the fix, which re-vendors the tree and so touches the scan
-# directory: the equivalent of the plain commit is the plain one.
+is "the stamp a tree carries" "$(series_stamped_version "$v2")" "$later_snapshot"
+# A re-stamp above the fix: the equivalent of the plain commit is the plain one.
 git branch -q build
-echo 'duckdb_version <- "1.4.0"' > "$series_stamp_file"
-echo '#define DUCKDB_VERSION "v1.4.0"' >> "$series_engine_file"
-v2t=$(c "vendor: Update vendored sources (tag v1.4.0) to $repo@bbbbbbbbbb")
+engine_tree bbbbbbbbbb "$release" "v$release"
+v2t=$(c "vendor: Update vendored sources (tag v$release) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no

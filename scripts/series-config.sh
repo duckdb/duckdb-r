@@ -9,7 +9,8 @@
 # manual bulk vendoring, keeps its own copy. A repository that vendors another
 # engine commit by commit changes this file and keeps the scripts
 # (handbook/operations/vendoring/series-loop/README.md). Paths are relative to
-# the repository root, as git pathspecs.
+# the repository root, each one a directory or a file spelled out: the scripts
+# compare them literally, and a glob names nothing.
 
 # The upstream repository, as a vendor subject names it: `vendor: Update
 # vendored sources to <owner>/<repo>@<sha>`. The three spellings of the marker
@@ -50,14 +51,19 @@ series_tooling=(.github scripts .claude)
 # The glue: what stage 2 mines and a forward replays (scripts/series-glue.sh).
 series_glue=(src R NAMESPACE)
 
-# The glue gate (scripts/vendor-lib.sh) compiles every glue file with the flags
-# `R CMD SHLIB -n` prints for this one, plus whatever is named here. `R CMD
-# SHLIB` omits the include paths of a `LinkingTo` package, which `R CMD
-# INSTALL` passes as CLINK_CPPFLAGS; a repository that links to one names them:
-# `-I$(Rscript -e 'cat(system.file("include", package = "cpp11"))')`. This
-# repository vendors cpp11 under `src/` and needs none.
-series_glue_probe=cpp11.cpp
-series_glue_extra_flags=''
+# The glue gate (scripts/vendor-lib.sh) reads the compiler and the flags off the
+# compile line `R CMD SHLIB -n` prints for each probe, and checks every `src/`
+# file of the probe's extension with them: one probe per language the glue is
+# written in. The line comes from the Makevars, which include what `./configure`
+# writes; the gate runs `./configure` where the file named here is missing, and
+# on every call where none is named. `R CMD SHLIB` omits the include paths of a
+# `LinkingTo` package, which `R CMD INSTALL` passes as CLINK_CPPFLAGS; a
+# repository that links to one prints them from the function, once per gate:
+# `Rscript -e 'cat("-I", system.file("include", package = "cpp11"), sep = "")'`.
+# This repository vendors cpp11 under `src/` and needs none.
+series_glue_probes=(cpp11.cpp)
+series_configured_file=src/Makevars.rstrtmgr
+series_glue_extra_flags() { :; }
 
 # The engine a tree vendors, as the tree itself records it: the abbreviated
 # upstream SHA. Read from the tree rather than from a subject because the
@@ -79,9 +85,25 @@ series_stamped_version() { # <tree-ish> -> the version, empty when none
 # The release a development stamp precedes, `X.Y.Z` for `X.Y.Z-devN`, and
 # nothing for a stamp that is a release already. What series-check.sh reads to
 # ask whether upstream has tagged a commit the buffer vendored before the tag.
+# Optional: an engine whose stamp names no release it precedes (a `git
+# describe` form follows one) leaves it undefined, and series-check.sh asks the
+# newest vendor commits against the tags instead.
 series_release_of_stamp() { # <version> -> the release it precedes, or empty
   sed -nr 's/^([0-9]+\.[0-9]+\.[0-9]+)-dev[0-9]+$/\1/p' <<<"$1"
 }
+
+# Upstream's release tags and release branches, as globs over the bare names,
+# and the tag a release's version is spelled as.
+series_tag_glob='v*'
+series_branch_glob='v*'
+series_tag_of_release() { # <X.Y.Z> -> the tag
+  echo "v$1"
+}
+
+# The package as `main` publishes it, which every flavor renames
+# (scripts/flavor.sh), and the repository `main` lives in.
+series_package=duckdb
+series_canonical_repo=duckdb/duckdb-r
 
 # Does the engine version $1 predate the version $2? The reading
 # `engine_before()` in tests/testthat/helper-skip.R makes, so an engine gate

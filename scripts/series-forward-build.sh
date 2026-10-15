@@ -207,10 +207,11 @@ glue_failures="$(git rev-parse --git-dir)/series-forward-glue-failures"
 
 touches_strand() { git show --format= --name-only "$1" -- "${STRAND[@]}" | grep -q .; }
 
+# Compiled glue: a source or a header under `src/` outside the vendored tree,
+# generated or not, because a generated binding is glue the gate compiles.
 touches_glue() {
-  local p excludes=()
-  for p in "$series_vendor_dir" "${series_regenerated[@]}"; do excludes+=(":(exclude)$p"); done
-  git show --format= --name-only "$1" -- src "${excludes[@]}" | grep -q .
+  git show --format= --name-only "$1" -- src ":(exclude)$series_vendor_dir" |
+    grep -qE '\.(c|cc|cpp|cxx|h|hh|hpp)$'
 }
 
 glue_gate() { # <why>
@@ -221,7 +222,7 @@ glue_gate() { # <why>
     0) git rev-parse HEAD > "$GLUE_STATE"; rm -f "$GLUE_BROKEN"; return 0 ;;
     2)
       echo "Error: the glue check could not run at $(git rev-parse --short HEAD) ($1):"
-      echo "  deriving the compile flags needs src/Makevars.rstrtmgr, which ./configure writes;"
+      echo "  deriving the compile flags needs the Makevars ./configure completes${series_configured_file:+ ($series_configured_file)};"
       echo "  run ./configure and read its output, or pass --no-check-glue"
       # The same status vendor-one.sh gives the same stop.
       exit 8
@@ -510,7 +511,7 @@ walk() {
     git log --reverse --format='%H%x09%s' "$OLDBASE..$BUFFER"
     return 0
   fi
-  anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 -F "$series_upstream_repo@$top" | cut -d' ' -f1 || true)
+  anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 -F "@$top" | cut -d' ' -f1 || true)
   if [ -z "$anchor" ]; then
     echo "Error: no commit of $BUFFER vendors $series_upstream_repo@$top, the newest commit $OLD vendors;" >&2
     echo "  mirror the fold onto the buffer first (.claude/skills/series-loop/SKILL.md, stage 2)" >&2

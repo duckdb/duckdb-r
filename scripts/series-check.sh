@@ -328,7 +328,7 @@ line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
 # that a line with no entry yet still has a name to report.
 flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
   local v=${1#v}
-  echo "duckdb.${v%%-*}.dev"
+  echo "$series_package.${v%%-*}.dev"
 }
 
 # Does `scripts/series.yaml` already name that flavor? An UNSERVED line has no
@@ -357,16 +357,16 @@ declaration() { # -> the file, empty and non-zero when no ref carries it
   return 1
 }
 
-# Upstream's `v*` tags as `<commit> <tag>`, from the clone when there is one and
+# Upstream's release tags as `<commit> <tag>`, from the clone when there is one and
 # from the remote otherwise. An annotated tag is peeled to its commit, which is
 # what a vendor subject names. Read once, because every series asks.
 upstream_tags() {
   if [ -n "$upstream" ]; then
     git -C "$upstream" for-each-ref \
       --format='%(if)%(*objectname)%(then)%(*objectname)%(else)%(objectname)%(end) %(refname:lstrip=2)' \
-      'refs/tags/v*' 2>/dev/null || true
+      "refs/tags/$series_tag_glob" 2>/dev/null || true
   else
-    git ls-remote --tags "$upstream_url" 'v*' 2>/dev/null |
+    git ls-remote --tags "$upstream_url" "$series_tag_glob" 2>/dev/null |
       awk '{ t = $2; sub("^refs/tags/", "", t)
              if (sub("\\^\\{\\}$", "", t)) peeled[t] = $1; else plain[t] = $1 }
            END { for (t in plain) print (t in peeled ? peeled[t] : plain[t]), t }' || true
@@ -379,17 +379,34 @@ upstream_tags() {
 # vendored with no `(tag vX.Y.Z)` marker. The version names the one tag worth
 # asking about: a tag the buffer has not reached yet is the walk's to stamp, and
 # one it vendored in time leaves no `-dev` behind it.
+#
+# An engine whose stamp names no release (scripts/series-config.sh leaves
+# `series_release_of_stamp` undefined) is asked the other way round: the newest
+# vendor commits, as many as the base scan reads, against the tags.
 late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
-  local v tag sha lines
-  v=$(series_release_of_stamp "$(series_stamped_version "$1")")
-  [ -n "$v" ] || return 0
-  tag=v$v
-  sha=$(awk -v t="$tag" '$2 == t { print $1; exit }' <<<"$tags")
-  [ -n "$sha" ] || return 0
-  lines=$(git log --format='%H %s' "$1" | grep -F "@$sha" || true)
-  [ -n "$lines" ] || return 0
-  if grep -qF "(tag $tag)" <<<"$lines"; then return 0; fi
-  echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
+  local v tag sha lines c subj
+  if declare -F series_release_of_stamp >/dev/null; then
+    v=$(series_release_of_stamp "$(series_stamped_version "$1")")
+    [ -n "$v" ] || return 0
+    tag=$(series_tag_of_release "$v")
+    sha=$(awk -v t="$tag" '$2 == t { print $1; exit }' <<<"$tags")
+    [ -n "$sha" ] || return 0
+    lines=$(git log --format='%H %s' "$1" | grep -F "@$sha" || true)
+    [ -n "$lines" ] || return 0
+    if grep -qF "(tag $tag)" <<<"$lines"; then return 0; fi
+    echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
+    return 0
+  fi
+  while IFS=$'\t' read -r c subj; do
+    series_is_vendor "$subj" || continue
+    sha=$(series_sha_of "$subj")
+    [ -n "$sha" ] || continue
+    tag=$(awk -v s="$sha" 'index($1, s) == 1 { print $2; exit }' <<<"$tags")
+    [ -n "$tag" ] || continue
+    case "$subj" in *"(tag $tag)"*) continue ;; esac
+    echo "$tag $sha $c"
+    return 0
+  done < <(git log -n "$base_scan_depth" --format='%H%x09%s' "$1" -- "$series_scan_dir")
 }
 
 # How the clone names an upstream branch: a clone made by `git clone` carries it
@@ -407,10 +424,10 @@ upstream_ref() { # <branch> -> full ref, empty if the clone has none
 # than printing the silence as a clean result.
 upstream_branches() {
   if [ -n "$upstream" ]; then
-    git -C "$upstream" for-each-ref --format='%(refname:lstrip=3)' 'refs/remotes/*/v*' 2>/dev/null || true
-    git -C "$upstream" for-each-ref --format='%(refname:lstrip=2)' 'refs/heads/v*' 2>/dev/null || true
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=3)' "refs/remotes/*/$series_branch_glob" 2>/dev/null || true
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=2)' "refs/heads/$series_branch_glob" 2>/dev/null || true
   else
-    git ls-remote --heads "$upstream_url" 'v*' 2>/dev/null | cut -f2 | sed 's|^refs/heads/||' || true
+    git ls-remote --heads "$upstream_url" "$series_branch_glob" 2>/dev/null | cut -f2 | sed 's|^refs/heads/||' || true
   fi
 }
 

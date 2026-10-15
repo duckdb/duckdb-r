@@ -200,12 +200,12 @@ glue_failures=/tmp/vendor-one-glue-failures.txt
 # scripts/series-lib.sh; scripts/vendor.sh has its own copy.
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
-  sha=$(sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' <<<"$subjects" | head -n 1)
+  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}" | tee /dev/stderr)
+  sha=$(sed -rn "$series_sha_sed" <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
     echo "Error: no ${repo_org}/${repo_name}@ subject among the newest $n" \
-      "${vendor_dir} commit(s) of $(git rev-parse --abbrev-ref HEAD)" >&2
+      "${series_scan_dir} commit(s) of $(git rev-parse --abbrev-ref HEAD)" >&2
     if [ "$n" -ge "${base_scan_depth}" ]; then
       echo "  the scan is bounded at ${base_scan_depth}; if that is genuinely too" \
         "shallow, raise BASE_SCAN_DEPTH" >&2
@@ -247,8 +247,8 @@ while [ $commits_vendored -lt $num_commits ]; do
   restamp=
   late_tag=$(exact_tag "$base")
   if [ -n "$late_tag" ]; then
-    subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir})
-    case "$(grep -m 1 -F -- "${repo_org}/${repo_name}@${base}" <<<"$subjects" || true)" in
+    subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}")
+    case "$(grep -m 1 -F -- "@${base}" <<<"$subjects" || true)" in
       *"(tag ${late_tag})"*) ;;
       *) restamp=$late_tag ;;
     esac
@@ -363,9 +363,9 @@ while [ $commits_vendored -lt $num_commits ]; do
       break
     fi
 
-    # pragma_version.cpp always differs, so "more than one" is the test for a
-    # real change.
-    if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
+    # The engine file always differs, so "more than one" is the test for a
+    # real change, over the directory holding the tree and the stamp.
+    if [ "$(git status --porcelain -- "${series_scan_dir}" | wc -l)" -gt 1 ]; then
       message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
       break
     fi
@@ -444,8 +444,8 @@ while [ $commits_vendored -lt $num_commits ]; do
     if [ "$glue_status" = 2 ]; then
       echo ""
       echo "=== GLUE CHECK COULD NOT RUN at $(git rev-parse --short HEAD) (upstream ${commit}) ==="
-      echo "Deriving the compile flags needs src/Makevars.rstrtmgr, which only"
-      echo "./configure writes; reaching this means ./configure failed. Nothing"
+      echo "Deriving the compile flags needs the Makevars ./configure completes${series_configured_file:+ ($series_configured_file)};"
+      echo "reaching this means ./configure failed. Nothing"
       echo "was compiled, so this says nothing about the glue or about the commit"
       echo "at HEAD -- do not amend it."
       echo "Run ./configure and read its output, then rerun this script;"

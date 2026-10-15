@@ -85,7 +85,9 @@ series_twin_key() { # <subject> -> key, empty when the subject vendors nothing
 # subject, empty where the ref has none (a series cut from a parent rather than
 # seeded on `main`).
 series_seed_of() { # <ref> -> commit, empty when none
-  git log --first-parent --format=%H --grep="^$series_seed_subject\$" -1 "$1"
+  local re
+  re=$(printf '%s' "$series_seed_subject" | sed 's/[][\.*^$]/\\&/g')
+  git log --first-parent --format=%H --grep="^$re\$" -1 "$1"
 }
 
 # Is a path on the vendored strand, including the Makevars generated from it?
@@ -118,15 +120,17 @@ series_regenerated_re() {
 }
 
 # The paths a fix may be carried on, read from stdin: what the twin's diff
-# touched, less the buffer's own strand and the patch stack, the tooling stage 4
-# ports, and what vendoring regenerates (scripts/series-advance.sh,
-# scripts/series-learned.sh).
+# touched, less the buffer's own strand, the tooling stage 4 ports, and what
+# vendoring regenerates (scripts/series-advance.sh, scripts/series-learned.sh).
+# A strand entry counts as a directory and as a file, whichever it is.
 series_carry_filter() {
-  local dirs='' p
-  for p in "$series_vendor_dir" patch "${series_tooling[@]}" "${series_regenerated_dirs[@]}"; do
+  local dirs='' files p
+  for p in "${series_strand[@]}" "${series_tooling[@]}" "${series_regenerated_dirs[@]}"; do
     dirs="${dirs:+$dirs|}$(series_re_of "$p")/"
   done
-  { grep -vE "^($dirs)" | grep -vxE "DESCRIPTION|$(series_regenerated_re)"; } || true
+  files="DESCRIPTION|$(series_regenerated_re)"
+  for p in "${series_strand[@]}"; do files="$files|$(series_re_of "$p")"; done
+  { grep -vE "^($dirs)" | grep -vxE "$files"; } || true
 }
 
 # An ERE matching the tooling paths, `^(\.github/|scripts/|\.claude/)` here.

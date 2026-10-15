@@ -6,38 +6,46 @@
 # shellcheck source=series-config.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/series-config.sh"
 
-# The flags one glue file is compiled with, read off `R CMD SHLIB -n`'s compile
-# line for `series_glue_probe`, plus `series_glue_extra_flags`. `src/Makevars`
-# includes the `Makevars.rstrtmgr` only `./configure` writes and `.gitignore`
-# keeps out of the tree; without it `make -n` stops before it ever prints a
-# compile line, so `./configure` runs first where it has not. Empty when no
-# compile line was printed, which is the check not being able to run.
-glue_compile_flags() {
-  local probe flags
-  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1 || true
-  probe=$(printf '%s' "$series_glue_probe" | sed 's/[.]/\\./g')
-  flags=$( (cd src && R CMD SHLIB -n "$series_glue_probe" 2>/dev/null) |
+# The command one probe file is compiled with, read off `R CMD SHLIB -n`'s
+# compile line for it with the `-c <probe> -o <object>` removed: the compiler
+# and its flags, which every glue file of the probe's language is then checked
+# with. `./configure` runs first where `series_configured_file` says it has not,
+# because the Makevars include what only it writes, and without that `make -n`
+# stops before it prints a compile line. Empty when no compile line was printed,
+# which is the check not being able to run.
+glue_compile_line() { # <probe> -> command, empty when none
+  local probe
+  if [ -x ./configure ] && { [ -z "$series_configured_file" ] || [ ! -f "$series_configured_file" ]; }; then
+    ./configure >/dev/null 2>&1 || true
+  fi
+  probe=$(printf '%s' "$1" | sed 's/[.]/\\./g')
+  (cd src && R CMD SHLIB -n "$1" 2>/dev/null) |
     grep -m 1 -E -- "-c $probe" |
-    sed -E "s/^ *(ccache )?g\+\+ //; s/ -c $probe -o [^ ]+\.o *$//")
-  [ -n "$flags" ] || return 0
-  printf '%s%s\n' "$flags" "${series_glue_extra_flags:+ $series_glue_extra_flags}"
+    sed -E "s/^ *//; s/ -c $probe -o [^ ]+\.o *$//"
 }
 
 # 0 the glue compiles, 1 some file does not, 2 the check could not run. The
 # three are distinct because the caller acts differently on each: only 1 says
 # anything about the commit at HEAD. The files that failed go to <failures>,
-# one per line, written only by a run that got as far as compiling.
+# one per line, written only by a run that got as far as compiling. One pass
+# per probe in `series_glue_probes`, over the `src/` files of its extension,
+# with what `series_glue_extra_flags` prints appended.
 #
 # `eval`, because R quotes its include path (`-I"/usr/share/R/include"`); plain
-# expansion word-splits without removing the quotes, so g++ never finds R.h and
-# every glue file looks broken.
+# expansion word-splits without removing the quotes, so the compiler never
+# finds R.h and every glue file looks broken.
 glue_compiles() { # [failures]
-  local flags out=${1:-/dev/null}
-  flags=$(glue_compile_flags)
-  [ -n "$flags" ] || return 2
-  # shellcheck disable=SC2016  # the sh child expands $FLAGS and $1, not this shell
-  (cd src && printf '%s\n' *.cpp | FLAGS="$flags" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
-    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee "$out" |
-    { ! grep -q .; }
+  local out=${1:-/dev/null} probe line extra
+  extra=$(series_glue_extra_flags)
+  : > "$out"
+  for probe in "${series_glue_probes[@]}"; do
+    line=$(glue_compile_line "$probe")
+    [ -n "$line" ] || return 2
+    # shellcheck disable=SC2016  # the sh child expands $CMD and $1, not this shell
+    (cd src && shopt -s nullglob && files=(*."${probe##*.}") && [ ${#files[@]} -gt 0 ] &&
+      printf '%s\n' "${files[@]}" |
+      CMD="$line${extra:+ $extra}" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
+        sh -c 'eval "$CMD -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort >> "$out" || true
+  done
+  ! grep -q . "$out"
 }

@@ -373,8 +373,7 @@ glue_paths() { # <buffer commit> <base -dev commit>
   comm -13 \
     <(git show --format= --name-only --no-renames "$1" | sort -u) \
     <(git show --format= --name-only --no-renames "$2" | sort -u) |
-    grep -E '^src/' | grep -vE "^$(series_re_of "$series_vendor_dir")/" |
-    grep -vxE "$(series_regenerated_re)" || true
+    series_carry_filter | grep -E '^src/' || true
 }
 
 # Check the counter rather than assume it: a replay that silently froze it
@@ -578,7 +577,7 @@ else
     { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
   anchor=$(series_build_equivalent "$build" "$dev" "$dev_up")
   [ -n "$anchor" ] ||
-    { echo "Error: no -build commit vendors duckdb@$dev_up — mirror the fold in -build first"; exit 1; }
+    { echo "Error: no -build commit vendors $series_upstream_repo@$dev_up — mirror the fold in -build first"; exit 1; }
   # `series_vendored_sha` walks past commits that vendor nothing, and on a -dev that has
   # none of its own it walks past the seed too — answering with what the branch
   # the seed was cut from had vendored. That is every series on its first firing
