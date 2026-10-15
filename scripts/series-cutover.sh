@@ -138,15 +138,16 @@ fi
 
 # See scripts/series-advance.sh: the pathspec narrows the walk, the subject
 # decides, and an empty answer explains itself on stderr.
+base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
   sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge 20 ]; then
-      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise the bound in this helper" >&2
+    if [ "$n" -ge "$base_scan_depth" ]; then
+      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
     else
       echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
     fi
@@ -205,19 +206,29 @@ github_slug() { # <remote> -> owner/repo | ""
 # Open a draft pull request from <head> against <base> in the repository
 # <remote> names, and close it at once. Printed, then done; a failure stops the
 # run before anything is swapped, since the archive is what keeps the swap
-# readable afterwards.
+# readable afterwards. A rerun after a swap that failed finds the pull request
+# it opened the first time, by its title and the tip its body names, and opens
+# no second one.
 archive_pr() { # <remote> <head> <base> -> prints the pull request
-  local r=$1 head=$2 base=$3 slug n body
+  local r=$1 head=$2 base=$3 slug n body tip title existing
   slug=$(github_slug "$r")
   [ -n "$slug" ] || {
     echo "Error: $r is not a GitHub remote, so $head cannot be archived there." >&2
     echo "  Set 'git config remote.$r.github <owner>/<repo>' or pass --no-archive." >&2
     exit 1
   }
-  body="Archive of \`$head\` as it stood before the cutover of \`$S\` on $(date -u +%Y-%m-%d): \`$(git rev-parse "refs/remotes/$r/$head")\`.
+  tip=$(git rev-parse "refs/remotes/$r/$head")
+  title="chore(series): Archive $head before its cutover"
+  existing=$("$gh" api -X GET "repos/$slug/pulls" -f state=closed -f head="${slug%%/*}:$head" -f per_page=20 \
+    --jq "[.[] | select(.title == \"$title\" and (.body | contains(\"$tip\")))][0].number // empty" 2>/dev/null || true)
+  if [ -n "$existing" ]; then
+    echo "  already archived $head as $slug#$existing (its head is refs/pull/$existing/head there)"
+    return
+  fi
+  body="Archive of \`$head\` as it stood before the cutover of \`$S\` on $(date -u +%Y-%m-%d): \`$tip\`.
 
 The cutover moves \`$head\` onto the lineage of \`$base\`, which this history is no ancestor of. A pull request keeps its head reachable as \`refs/pull/<n>/head\` for as long as it exists, so this one is opened and closed on the spot and never merged (scripts/series-cutover.sh)."
-  n=$("$gh" api -X POST "repos/$slug/pulls" -f title="chore(series): Archive $head before its cutover" \
+  n=$("$gh" api -X POST "repos/$slug/pulls" -f title="$title" \
     -f head="$head" -f base="$base" -F draft=true -f body="$body" --jq .number) || {
     echo "Error: could not open the archive pull request for $head in $slug" >&2
     exit 1
@@ -539,3 +550,5 @@ if [ ${#dels[@]} -gt 0 ] && ! git push "$remote" "${dels[@]}"; then
 fi
 echo "Re-cut the derived strands from the swapped-in series where it had them:"
 echo "  scripts/series-rc.sh $S --push, scripts/series-alpha.sh $S --push (.claude/skills/series-rc, series-alpha)."
+echo "The fork's universe still names $S-fwd-green for the forward's flavor; nothing installs it, and the"
+echo "  next forward writes the ref again (handbook/branches/flavors/README.md)."
