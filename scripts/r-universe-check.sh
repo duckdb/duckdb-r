@@ -5,7 +5,7 @@
 # platforms the per-commit `rcc` gate never touches -- Windows on x86_64 and
 # arm64, macOS on both, wasm. A series can therefore be green commit by commit
 # and still ship a package that does not build, and nothing in the harvest on
-# branch `rcc` would say so. This script is that missing read.
+# branch `rcc2` would say so. This script is that missing read.
 #
 # For every package built from this repository it prints the version, the
 # commit it was built from, the local ref that commit is (when this clone knows

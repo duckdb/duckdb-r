@@ -472,7 +472,7 @@ for S in "${series[@]}"; do
   fi
   echo "=== $S: $inflight in flight, $buffered buffered, green=$(git rev-parse --short "$green") dev=$(git rev-parse --short "$dev")"
 
-  verdict="ADVANCE" oldest="" why="" missing=0
+  oldest="" why="" missing=0
   while IFS= read -r sha; do
     st=$(state_of "$sha")
     case "$st" in
@@ -592,6 +592,8 @@ for S in "${series[@]}"; do
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
     echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
     echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
+    echo "           It archives the replaced lineages in closed pull requests, then"
+    echo "           swaps; --prepare prints its gates and review and moves nothing."
     echo "           Coverage is only half of it; what the two branches carry is"
     echo "           the other half, and the cutover prints it before it asks:"
     echo "           scripts/series-converge.sh $cutover --remote $remote"

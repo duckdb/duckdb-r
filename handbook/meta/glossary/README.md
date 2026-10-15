@@ -12,12 +12,14 @@ and are not repeated here; this page holds this repository's own.
 
 * **ALTREP** — R's alternative-representation mechanism: how an unexecuted relation masquerades as a data frame until touched ([`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)).
 * **archive** — `krlmlr/duckdb-r-old`, holding the refs the fork does not carry; nothing reads it and nothing writes to it ([`branches/model/`](/handbook/branches/model/README.md)).
+* **archive pull request** — a draft pull request a cutover opens and closes on the spot so that the lineage it replaces stays reachable as the pull request's head ([`branches/model/`](/handbook/branches/model/README.md)).
 * **autoload / autoinstall** — an *installed* extension loads on first use; nothing downloads without being asked ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 * **buffer** — a series' `-build` ref: vendored ahead of CI, deliberately untested ([`branches/model/`](/handbook/branches/model/README.md)).
 * **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **CRAN guard** — the gate that keeps the bundled engine off CRAN's check farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
-* **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place, after archive pull requests keep what it replaces ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover litter** — `-fwd` refs and derived strands a cutover's deletion left behind, whose tips the series' refs already reach ([`branches/model/`](/handbook/branches/model/README.md)).
 * **DBI** — R's database-interface standard, which the package implements as a driver ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **dbplyr backend** — the methods that translate dplyr expressions into DuckDB SQL ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
@@ -40,6 +42,7 @@ and are not repeated here; this page holds this repository's own.
 * **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 * **preview line** — a series serving an upstream line that has no release yet: the one tracking upstream `main`, and a release branch cut ahead of its own release ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
 * **preview prefix** — the version prefix a preview line carries, fledge's for the line it previews ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+* **prune** — removing cutover litter from both repositories, by hand, from the commands `series-prune.sh` prints ([`branches/model/`](/handbook/branches/model/README.md)).
 * **register** — expose an R data frame as a scannable table without copying ([`usage/data-import/`](/handbook/usage/data-import/README.md)); Arrow objects register the same way ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`usage/relational/`](/handbook/usage/relational/README.md)).
 * **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).

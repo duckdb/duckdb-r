@@ -156,7 +156,7 @@ declare -A want=(
 order=("$S-build" "$S-build-base" "$S-dev" "$S-green")
 
 # Both sides are read: `refs/heads/` is what this writes, and `$remote/` is what
-# step 3 pushes and the loop serves. A fresh clone has no local branches at all,
+# step 4 of series-open/SKILL.md pushes and the loop serves. A fresh clone has no local branches at all,
 # so checking only the former gives an unconditional all-clear on a series that
 # is already open.
 status=0

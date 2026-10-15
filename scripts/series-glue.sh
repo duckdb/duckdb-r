@@ -60,7 +60,7 @@ GLUE=(src R NAMESPACE
   ':(exclude)src/duckdb' ':(exclude)R/version.R' ':(exclude)DESCRIPTION')
 
 # The fifth version component stamped above scripts/flavor.sh's commits is the
-# tip of every seed (series-open.md steps 2 and 3, series-forward.md step 1).
+# tip of every seed (.claude/skills/series-open/SKILL.md steps 2 and 3, series-forward/SKILL.md step 1).
 seed_tip_re='^chore: Add fifth version component'
 
 # A series name resolves to its whole span: from its seed to the buffer tip,
