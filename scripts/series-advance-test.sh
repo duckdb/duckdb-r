@@ -110,7 +110,7 @@ git config commit.gpgsign false
 git remote add origin "$REMOTE"
 
 mkdir -p scripts src/duckdb src/include tests/testthat/_snaps R patch
-cp "$HERE/series-advance.sh" "$HERE/series-lib.sh" "$HERE/series-tests.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
+cp "$HERE/series-advance.sh" "$HERE/series-tests.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
 

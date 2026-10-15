@@ -110,8 +110,6 @@
 # contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
-# shellcheck source=series-lib.sh
-. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [--dev-note <file>] [sha...]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -297,7 +295,7 @@ releases_from() { # <series> -> its `releases_from`, empty when undeclared
       /^    releases_from:/ { rf = $2 }
       END { if (ser == s) print rf }'
 }
-parked=$(releases_from "$(series_line "$S")" | head -n 1)
+parked=$(releases_from "${S%-fwd}" | head -n 1)
 [ "$parked" != main ] || parked=''
 [ -z "$parked" ] || frozen=1
 
@@ -332,7 +330,7 @@ version_bump() { # <sha>
 }
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
-  local f t= o=
+  local f t='' o=''
   if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
   if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do

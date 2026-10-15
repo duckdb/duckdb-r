@@ -25,9 +25,9 @@ every series' working refs live there,
 beside mirrors of the canonical branches
 they are seeded from and measured against
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
-The fork carries only the refs the loop serves and the generations beside them;
-what it no longer carries stands in `krlmlr/duckdb-r-old`,
-an archive that nothing reads, and that only a pruning writes to, by hand.
+The fork carries only the refs the loop serves;
+what it does not carry stands in `krlmlr/duckdb-r-old`,
+an archive that nothing reads and nothing writes to.
 The `<S>-dev-base` refs of the older `dev`/`dev-base` layout are there:
 every series is a series-loop series now, and none of the four below is that baseline.
 
@@ -36,24 +36,9 @@ every series is a series-loop series now, and none of the four below is that bas
 | Ref | Moves by | Meaning |
 |---|---|---|
 | `<S>-build` | append; force-push to repair | the buffer: one commit per upstream commit, glue compiling, no CI |
-| `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds from the published generation; `-build` consumed in bounded chunks plus forward-ports from `main` |
+| `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds; `-build` consumed in bounded chunks plus forward-ports from `main` |
 | `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | set; force-push | the `-build` commit equivalent to `-green` |
-
-**A line is served by generations**, and `<S>` names one of them.
-A line `<L>`, `v2.0-cyanoptera`, has its first refs `<L>-*` and then one set of the four per generation,
-`<L>-v<NNN>-*`, three digits from `v000`, each the same series rebuilt on a newer `main` beside the newest one before it
-([`series-forward`](/.claude/skills/series-forward/SKILL.md));
-the derived strands, `-rc-dev`, `-alpha` and `-rc-alpha`, take the same infix,
-and [`scripts/series-lib.sh`](/scripts/series-lib.sh) is where the names are read.
-The older spelling `<L>-fwd-*` is generation `v000` wherever it exists, so that nothing live is renamed.
-A generation is never rewritten: its refs move by the loop's rules above, the same for every generation,
-nothing points a ref of one generation at another's lineage, and no step of the scheme needs a force-push.
-The loop serves the two newest generations of a line and the **published** one,
-the one whose green `publishes_from` names in [`scripts/series.yaml`](/scripts/series.yaml);
-every other generation is **frozen**, and goes only when it is older than the published one,
-by a pruning a human runs from [`scripts/series-prune.sh`](/scripts/series-prune.sh)'s report,
-archived before it is deleted.
 
 There is no fifth ref for what vendoring alone brings, without the glue, and one was declined:
 every file pure vendoring writes is a function of the upstream commit and the patch stack,
@@ -75,17 +60,19 @@ flowchart LR
   build -.->|"stage 5 consumes, 100 at a time"| dev
 ```
 
-The generations of a line, each a series of its own, built from the newest one before it;
-r-universe builds from the published one, and the loop serves the two newest and the published one:
+A series and its forward, and what a cutover does with them;
+r-universe builds `<S>-green` throughout, and the names never change:
 
 ```mermaid
 flowchart LR
-  L["#60;L#62;-*: the first refs"] -->|forward| G0["#60;L#62;-v000-*<br>(spelled -fwd today)"]
-  G0 -->|forward| G1["#60;L#62;-v001-*"]
-  G1 -->|forward| G2["#60;L#62;-v002-*"]
-  P["publishes_from in scripts/series.yaml,<br>and the universe's packages.json"] -.->|"a cutover moves this pointer<br>by pull request; no ref moves"| G1
-  classDef frozen stroke-dasharray: 4 3
-  class L frozen
+  S["#60;S#62;-*: serving,<br>on an older main"]
+  F["#60;S#62;-fwd-*: the forward,<br>rebuilt on current main"]
+  S -->|"series-forward: replay -dev,<br>the loop verifies again"| F
+  S -->|"archive: closed pull requests<br>keep -dev, -build and the canonical green"| A["refs/pull/#60;n#62;/head"]
+  F -->|"one atomic leased push:<br>the four refs take the forward's tips"| S2["#60;S#62;-*: serving,<br>on current main"]
+  F -.->|"deleted afterwards;<br>litter goes by series-prune.sh"| X[" "]
+  classDef gone stroke-dasharray: 4 3
+  class X gone
 ```
 
 All four exist from a series' first day, so there is never a "no green yet" state.
@@ -111,11 +98,18 @@ put an `rcc` status on a commit no per-commit leg had decided.
 So the port stage syncs the buffer's tooling too
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 and the model's "no CI" holds because something maintains it.
-Rebasing a series happens *beside* it as its line's next generation,
-verified again by the loop and published by a human-run **cutover**,
-which is a pull request pointing r-universe at the new generation's green
-([`flavors/`](/handbook/branches/flavors/README.md)) and moves no ref;
-a `-green` never moves sideways, not even then.
+Rebasing a series happens *beside* it as a `<S>-fwd` counterpart, one at a time,
+verified from scratch and swapped in by a human-run **cutover**
+([`series-forward`](/.claude/skills/series-forward/SKILL.md));
+a serving `-green` never moves sideways on its own.
+The names are static, so nothing outside the two repositories learns of a cutover,
+and the lineages the swap replaces are kept first,
+each as the head of a draft pull request opened and closed on the spot,
+which GitHub keeps reachable as `refs/pull/<n>/head` for as long as it exists:
+the fork's `<S>-dev` and `<S>-build`, and the canonical repository's copy of `<S>-green`.
+The `-fwd` refs go afterwards, their tips being the series' refs by then,
+and what a refused deletion leaves is **cutover litter**, listed by
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) for a human to remove.
 **`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
 so that the package a release ships as plain `duckdb` has verdicts of its own.
 It is one ref: no buffer, since it is derived rather than vendored,

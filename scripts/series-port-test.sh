@@ -58,7 +58,7 @@ git remote add origin "$REMOTE"
 git remote add upstream "$CANON"
 
 mkdir -p scripts .github R
-cp "$HERE/series-port.sh" "$HERE/series-lib.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
+cp "$HERE/series-port.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
 

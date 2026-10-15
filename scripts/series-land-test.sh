@@ -83,7 +83,7 @@ git remote add origin "$FORK"
 git remote add upstream "$CANON"
 
 mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat .github/workflows
-for s in series-land.sh series-lib.sh series-forward-build.sh series-rc.sh series-tests.sh setup-git.sh merge-version.sh; do
+for s in series-land.sh series-forward-build.sh series-rc.sh series-tests.sh setup-git.sh merge-version.sh; do
   cp "$HERE/$s" scripts/
 done
 chmod +x scripts/*.sh

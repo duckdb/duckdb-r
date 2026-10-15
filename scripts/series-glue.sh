@@ -16,7 +16,7 @@
 #
 # Usage:
 #   series-glue.sh <series>          # the series' whole span, oldest first
-#   series-glue.sh <rev-range>       # an explicit range, e.g. main-v001-build-base..main-v001-build
+#   series-glue.sh <rev-range>       # an explicit range, e.g. main-fwd-build-base..main-fwd-build
 #   series-glue.sh <what> --diff     # ... and the cumulative glue diff of it
 #   series-glue.sh <what> --remote <name>
 #

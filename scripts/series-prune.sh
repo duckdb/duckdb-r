@@ -1,39 +1,33 @@
 #!/bin/bash
-# Read-only: which generations of a line may go, and the commands that retire
-# them, for a human to run.
+# Read-only: what a cutover left behind, and the commands that remove it, for a
+# human to run.
 #
-# A generation is never rewritten, and a cutover deletes nothing
-# (scripts/series-cutover.sh), so generations accumulate: the line's first
-# refs, `-fwd` or `-v000`, `-v001`, and so on. The loop serves a generation while
-# it is one of its line's two newest or the one r-universe publishes, and
-# everything else is frozen (scripts/series-lib.sh, series_served). A frozen
-# generation costs refs in two repositories and an entry in the fork's universe,
-# and buys nothing once a newer generation has been published: its history is in
-# that generation by construction, replayed commit for commit
-# (.claude/skills/series-forward/SKILL.md).
+# A cutover swaps the four `<S>-fwd-*` refs into the series' place and then
+# deletes them, together with the forward's derived strands, its retry ledger
+# and the forward green's copy in the canonical repository
+# (scripts/series-cutover.sh). The deletions are best effort: a git proxy may
+# refuse them, a run may be interrupted after the swap, and an older cutover
+# predates the derived strands. What stays is cutover litter -- refs whose tips
+# the series' own refs reach, or strands derived from a `-dev` that no longer
+# exists -- which the loop ignores and nobody reads.
 #
-# So a generation may be pruned when it is frozen and older than the published
-# one. A frozen generation newer than the published one is superseded too, but
-# it may be the one about to be published, so it is listed and not offered.
-# Nothing here deletes anything: the commands are printed, and a human runs
-# them, after the two checks the script cannot make -- that no landing is being
-# built from the generation (scripts/series-land.sh keeps that state in a clone),
-# and that the fork's universe no longer names its green.
+# The test is ancestry: a forward whose green is an ancestor of the series'
+# green has been swapped in (the series moves on afterwards, so equality cannot
+# be the test, as scripts/series-check.sh says). A forward whose green is not
+# is live, and nothing of it is offered. Where no `<S>-fwd-dev` exists at all,
+# every remaining `<S>-fwd-*` ref and the ledger are litter by definition.
 #
-# What goes, per generation: its four refs, the rc and alpha strands derived
-# from it, its retry ledger, in the fork; its green's copy in the canonical
-# repository; and first, where an archive remote is named, a copy of every one
-# of them there, so the commits stay reachable (handbook/branches/model/README.md).
+# Nothing here is lost by deletion: the replaced lineages are the heads of the
+# closed archive pull requests the cutover opened, the forward's tips are the
+# series' refs, and the derived strands are recomputed from `<S>-dev`
+# (scripts/series-rc.sh, scripts/series-alpha.sh). Nothing here deletes
+# anything either: the commands are printed, and a human runs them.
 #
-# Usage: series-prune.sh <line> [--remote <name>] [--canonical <name>] [--archive <name>]
+# Usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]
 #   series-prune.sh v2.0-cyanoptera
 #   --remote    the remote carrying the series refs; default `origin`.
-#   --canonical the canonical repository, where `main` declares what is published
-#               and where the green's copy lives; default `upstream`.
-#   --archive   a remote of the archive, krlmlr/duckdb-r-old, that the refs are
-#               pushed to before they are deleted; default `archive`, or
-#               $SERIES_ARCHIVE. Without one the archive push is printed as a
-#               step to arrange rather than a command to run.
+#   --canonical the canonical repository, which carries a copy of every green;
+#               default `upstream`.
 #
 # The options are spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
@@ -41,95 +35,86 @@
 # Exit status: 0, whatever it finds; 2 on a usage or lookup error.
 
 set -euo pipefail
-# shellcheck source=series-lib.sh
-. "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-prune.sh <line> [--remote <name>] [--canonical <name>] [--archive <name>]'
+usage='usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-archive=${SERIES_ARCHIVE-archive}
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
-    --archive) [ $# -ge 2 ] || argerr; archive=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
   esac
 done
 [ ${#args[@]} -eq 1 ] || argerr
-line=${args[0]}
-[ -z "$(series_gen "$line")" ] || { echo "Error: $line is a generation; name its line, $(series_line "$line")" >&2; exit 2; }
+S=${args[0]}
+case "$S" in
+  *-fwd) echo "Error: $S is a forward; name the series it forwards, ${S%-fwd}" >&2; exit 2 ;;
+esac
 
 git fetch -q "$remote"
-main_ref=''
+have() { git rev-parse -q --verify "refs/remotes/$1/$2^{commit}" >/dev/null 2>&1; }
+have "$remote" "$S-green" || { echo "Error: $S-green does not exist on $remote" >&2; exit 2; }
+
+canon_has_fwd=
 if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
-  git fetch -q "$canonical" main 2>/dev/null || true
-  git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null && main_ref="refs/remotes/$canonical/main"
+  if git fetch -q "$canonical" "$S-fwd-green" 2>/dev/null; then canon_has_fwd=1; fi
 fi
-[ -n "$main_ref" ] || main_ref="refs/remotes/$remote/main"
 
-mapfile -t gens < <(series_generations "$line" "$remote")
-[ ${#gens[@]} -gt 0 ] || { echo "Error: no generation of $line on $remote" >&2; exit 2; }
-published=$(series_published "$main_ref" "$line")
-pub_gen=$(series_gen "${published:-$line}")
-[ -n "$pub_gen" ] || pub_gen=-1
-
-echo "=== generations of $line on $remote, newest first"
-prunable=()
-for g in "${gens[@]}"; do
-  n=$(series_gen "$g"); [ -n "$n" ] || n=-1
-  state=served
-  if [ "$g" = "$published" ]; then
-    state="served, published by $(series_yaml_field "$main_ref" "$line" flavor)"
-  elif ! series_served "$g" "$remote" "$published"; then
-    if [ "$n" -lt "$pub_gen" ]; then
-      state="frozen, older than the published generation: may be pruned"
-      prunable+=("$g")
-    else
-      state="frozen, newer than the published generation: superseded, kept until something newer is published"
-    fi
-  fi
-  printf '  %-28s %s  %s\n' "$g" "$(git rev-parse --short "refs/remotes/$remote/$g-green" 2>/dev/null || echo '       ')" "$state"
+echo "=== $S on $remote: green $(git rev-parse --short "refs/remotes/$remote/$S-green")"
+fwd_refs=()
+for r in build dev green build-base rc-dev alpha rc-alpha; do
+  have "$remote" "$S-fwd-$r" && fwd_refs+=("$S-fwd-$r")
 done
-[ -n "$published" ] || echo "  (scripts/series.yaml on main publishes $line from no generation; nothing is prunable until it does)"
-echo
+have "$remote" "retry-$S-fwd-dev" && fwd_refs+=("retry-$S-fwd-dev")
 
-if [ ${#prunable[@]} -eq 0 ]; then
+if [ ${#fwd_refs[@]} -eq 0 ] && [ -z "$canon_has_fwd" ]; then
+  echo "  no $S-fwd-* ref on $remote${canonical:+ or $canonical}; nothing to prune"
+  exit 0
+fi
+
+litter=
+if have "$remote" "$S-fwd-green"; then
+  if git merge-base --is-ancestor "refs/remotes/$remote/$S-fwd-green" "refs/remotes/$remote/$S-green"; then
+    echo "  $S-fwd-green $(git rev-parse --short "refs/remotes/$remote/$S-fwd-green") is an ancestor of $S-green: the forward was swapped in"
+    litter=1
+  else
+    echo "  $S-fwd-green $(git rev-parse --short "refs/remotes/$remote/$S-fwd-green") is not an ancestor of $S-green: the forward is live"
+  fi
+elif have "$remote" "$S-fwd-dev"; then
+  if git merge-base --is-ancestor "refs/remotes/$remote/$S-fwd-dev" "refs/remotes/$remote/$S-dev"; then
+    echo "  $S-fwd-dev is an ancestor of $S-dev, and no $S-fwd-green exists: the forward was swapped in"
+    litter=1
+  else
+    echo "  $S-fwd-dev is not an ancestor of $S-dev: the forward is live, though it has no green"
+  fi
+else
+  echo "  no $S-fwd-dev exists: whatever is named $S-fwd-* is derived from nothing"
+  litter=1
+fi
+
+if [ -z "$litter" ]; then
+  echo "  live forward: ${fwd_refs[*]}"
   echo "Nothing to prune."
   exit 0
 fi
 
-echo "Before running anything below, check by hand what this cannot:"
-echo "  * no landing is being built from a listed generation (scripts/series-land.sh keeps that in a clone);"
-echo "  * the fork's universe, krlmlr.r-universe.dev, no longer names a listed green in packages.json."
 echo
-
-for g in "${prunable[@]}"; do
-  refs=()
-  for r in build dev green build-base rc-dev alpha rc-alpha; do
-    git rev-parse -q --verify "refs/remotes/$remote/$g-$r" >/dev/null && refs+=("$g-$r")
-  done
-  git rev-parse -q --verify "refs/remotes/$remote/retry-$g-dev" >/dev/null && refs+=("retry-$g-dev")
-  echo "# $g: ${#refs[@]} ref(s) on $remote"
-  if [ -n "$archive" ] && git remote get-url "$archive" >/dev/null 2>&1; then
-    printf 'git push %s' "$archive"
-    for r in "${refs[@]}"; do printf ' %s:refs/heads/%s' "refs/remotes/$remote/$r" "$r"; done
-    echo
-  else
-    echo "# first, push these refs to the archive (krlmlr/duckdb-r-old), which has no remote here:"
-    printf '#   %s\n' "${refs[@]}"
-  fi
+echo "cutover litter:"
+printf '  %s\n' "${fwd_refs[@]}"
+[ -z "$canon_has_fwd" ] || echo "  $S-fwd-green on $canonical"
+echo
+echo "The replaced lineages are the heads of the archive pull requests the cutover opened,"
+echo "and the derived strands are recomputed by scripts/series-rc.sh and series-alpha.sh,"
+echo "so the deletion loses nothing. To run by hand:"
+if [ ${#fwd_refs[@]} -gt 0 ]; then
   printf 'git push --delete %s' "$remote"
-  printf ' %s' "${refs[@]}"
+  printf ' %s' "${fwd_refs[@]}"
   echo
-  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
-    [ -n "$(git ls-remote "$canonical" "refs/heads/$g-green" | cut -f1)" ]; then
-    echo "git push --delete $canonical $g-green"
-  fi
-  echo
-done
+fi
+[ -z "$canon_has_fwd" ] || echo "git push --delete $canonical $S-fwd-green"
 echo "Nothing above was run."

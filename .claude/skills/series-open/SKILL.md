@@ -33,11 +33,13 @@ everything below that point has just stopped being `<P>`'s, so `<P>` is re-roote
 there too. Neither forward is tidying afterwards — step 5 opens both, and the
 re-root's saving is what makes them affordable.
 
-**No generation of `main` is in the way.** Step 5 builds the next generation of
-each line beside the newest one (`scripts/series-lib.sh`, `series_next`), so a
-generation of `main` still in flight is left where it is and the opening takes
-the number after it; nothing is overwritten and no cutover is abandoned.
-`git ls-remote --heads <remote> 'main-v*' 'main-fwd-*'` says what is there.
+**Prerequisite: `main` has no `-fwd` in flight.** A series has exactly one set of
+`<S>-fwd-*` refs, and an opening needs `main`'s: opening while one is pending
+means overwriting it or abandoning the cutover it was built for. Cut the pending
+one over first, or wait for it —
+`git ls-remote --heads <remote> 'main-fwd-*'` answers this in one line.
+`<S>`'s own `-fwd` refs are free by construction, since the series did not exist
+until now.
 
 `<S>` is the new series (e.g. `v2.0-<codename>`),
 `<F>` its dev flavor (e.g. `2.0.dev`),
@@ -61,7 +63,7 @@ the number after it; nothing is overwritten and no cutover is abandoned.
 
    It writes `<S>-build` and `<S>-build-base` at `<P>-build`'s cut, `<S>-dev` and
    `<S>-green` at `<P>-dev`'s. Local refs only; nothing is pushed until step 4.
-   No generation yet — a generation protects a green consumers are
+   No `-fwd` refs yet — a forward counterpart protects a green consumers are
    already reading, and nobody is reading this one. Step 5 creates them.
 
    **Why the fork point is not the merge base**, and why below it the parent has
@@ -175,13 +177,12 @@ the number after it; nothing is overwritten and no cutover is abandoned.
      graft's only edit
      ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
-   Both run beside their live refs as the next generation of their line, `<S>-v000-*`
-   and `<P>`'s next, and are published by pull request once they have caught up, so no
-   green anyone reads is rewritten.
+   Both run beside their live refs as `-fwd-*` and swap in at cutover, so no green
+   anyone reads is rewritten.
    The graft keeps the fork point's R side, so `<P>`'s next forward is the one that
-   aligns it with `main`, and it takes the fork point from `<S>`'s generation rather
-   than rederiving it: `series-forward-build.sh --graft-from <S>-v000-build`
-   ([`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
+   aligns it with `main`, and it takes the fork point from `<S>`'s forward rather
+   than rederiving it: `series-forward-build.sh --graft-from <S>-fwd-build`
+   ([`series-forward/SKILL.md`](series-forward)).
 
 6. **Declare `<F>`, and generate what says so.**
 
@@ -227,14 +228,11 @@ the number after it; nothing is overwritten and no cutover is abandoned.
 8. **Register the new flavor with r-universe.**
    `<F>` is a package nothing in this repository creates: a universe is configured
    by `<user>/<user>.r-universe.dev`, whose `packages.json` gives each package a
-   `url` and the `branch` to build — the published generation's green, `<S>-green`
-   on the day a series opens. Adding `<F>` is an entry there, so a pull request
-   against that repository is the request, and where it is not yours to open, its
-   owner is who to reach; the published generation belongs in
-   `duckdb.r-universe.dev`, the newest unpublished one in `krlmlr.r-universe.dev`,
-   and a cutover is the pull request that moves the first entry to a newer green
-   ([`branches/flavors/`](/handbook/branches/flavors/README.md),
-   [`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
+   `url` and the `branch` to build — `<S>-green` for a series. Adding `<F>` is an
+   entry there, so a pull request against that repository is the request, and where
+   it is not yours to open, its owner is who to reach; a base series belongs in
+   `duckdb.r-universe.dev`, a forward counterpart in `krlmlr.r-universe.dev`
+   ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
    Where the universe does not answer,
    [`r-universe-org/help`](https://github.com/r-universe-org/help) is its issue
    tracker. Open the request early — the wait is someone else's queue — but it

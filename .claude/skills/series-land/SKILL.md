@@ -18,8 +18,7 @@ The line `main` released before parks on its own baseline and keeps its series,
 which from then on takes `main`'s tooling and none of its R side.
 
 `<L>` is the line, `v2.0-cyanoptera`; `<S>` is the series that lands,
-its newest generation, `v2.0-cyanoptera-v001` once one exists and `v2.0-cyanoptera-fwd` today,
-because that is the one standing on today's `main` (`scripts/series-lib.sh`).
+its live forward `v2.0-cyanoptera-fwd` while one exists, because that is the one standing on today's `main`.
 `<P>` is the line `main` releases until the landing, `v1.5-variegata`.
 
 ## The refs
