@@ -65,12 +65,15 @@ to do, and they run in this order:
   at most 100 commits per firing
   ([`scripts/series-advance.sh`](/scripts/series-advance.sh)).
   On a forward series this is also where the base series' fixes are
-  folded back in, matched by vendored SHA
+  folded back in, matched by vendored SHA, wherever the buffer lacks them
   ([#2594](https://github.com/duckdb/duckdb-r/pull/2594)):
   `-build` holds what the code needs to *compile*, that being what the
   vendor gate checks, and `-dev` holds everything CI demanded after
   that — glue included, where a test rather than the compiler asked for
-  it. A forward inherits only the first from the replay. What carries is
+  it. A forward's buffer is replayed from the base `-dev` up to the commit
+  the base had reached, so it holds both there and nothing is carried twice;
+  above that it is replayed from `-build` and inherits only the first.
+  What carries is
   the difference against the twin's own `-build` commit, less the
   buffer's strand (`src/duckdb/`, `patch/`) and what vendoring
   regenerates — more commits fall to those exclusions than are carried,
@@ -122,9 +125,19 @@ stage 5 finds no twin to match by vendored SHA, so each fix the base had
 already proved came back as a red on the forward, at a repair plus a
 replay of everything above it.
 
-**A forward carries the vendor strand, and the rest is placed by hand.**
-`<S>-fwd-build` is replayed from the buffer's `vendor:` commits alone, so
-the buffer's own `patch/` entries do not travel with it, and a series
+**A forward keeps what the series proved, and the rest is placed by hand.**
+`<S>-fwd-build` is replayed from the `vendor:` commits of `<S>-dev`,
+each with the fix CI demanded for it folded in,
+and then from the buffer's above the newest commit `-dev` vendors,
+so every replayed commit's tree is the verified tree plus `main`'s delta since the old seed
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
+What the base learned beyond pure vendoring travels with it, and is read before it does:
+[`scripts/series-learned.sh`](/scripts/series-learned.sh) prints, per vendor commit,
+what `-dev` carries that its `-build` twin does not,
+and a fix found wanting is corrected after the replay, folded into the commit that carries it
+([`scripts/series-fold.sh`](/scripts/series-fold.sh)).
+A pick that would stop a test the seed runs keeps the seed's copy and says so, for the reason below.
+The buffer's own `patch/` entries do not travel with the replay, and a series
 seeded from a release branch regenerates its seed on that branch, with
 the tooling that branch carries rather than `main`'s.
 The replay refuses to start rather than leave a `patch/` entry behind,
@@ -132,6 +145,7 @@ naming what it cannot place —
 it has to, because dropping one raises no conflict:
 a vendor diff taken after the entry landed is neutral in the region it
 touched, so it applies to a tree that lacks it.
+Ports and tooling syncs it places by itself, by the `main` commit a port's trailer names and by a sync's subject.
 The tooling delta nothing reports, and nothing needs to:
 the port stage brings it back on the next firing.
 

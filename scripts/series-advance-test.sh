@@ -6,8 +6,9 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed.
-# Eighteen things are checked.
+# A forward series inherits only the first when its buffer is replayed out of
+# `-build`, and both when it is replayed out of `-dev`
+# (scripts/series-forward-build.sh). Nineteen things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
 #      with that fix in the same commit -- not stacked above it -- carrying the
@@ -60,6 +61,10 @@
 #      file or skipped a test for good leaves the forward's copy where it is,
 #      and the commit message says so, while an engine gate and a snapshot
 #      fold in the same twin carry as usual.
+#  19. A buffer replayed from the base `-dev` carries nothing twice: the twin's
+#      fix is in the buffer commit under a blob `main`'s drift moved on, the
+#      twin's own change reverse-applies there, and the chunk is a plain ref
+#      move with no provenance trailer.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -338,6 +343,30 @@ git branch loss-fwd-build-base loss-build
 git branch loss-fwd-dev loss-seed
 git branch loss-fwd-green loss-seed
 
+# --- a forward whose buffer was replayed from the base -dev (claim 19) -------
+# scripts/series-forward-build.sh replays `-dev`'s vendor commits, fixes folded
+# in, onto a seed `main` has moved under. The buffer commit therefore holds the
+# twin's snapshot fix in a file `main` has since added a line to, so the two
+# blobs differ although the fix is there; the R fix sits in a file `main` left
+# alone, so those blobs agree.
+git checkout -q -b kept-dev base-seed
+bvendor kkk1111 1.0.0.9000.1 r.cpp
+echo 'snapshot one, corrected' > tests/testthat/_snaps/sql.md
+echo 'foo <- function() 2' > R/foo.R
+amend 'Snapshot corrected, and foo() returns 2 now.'
+git checkout -q -b kept-seed base-seed
+printf 'snapshot one\nmain added a snapshot\n' > tests/testthat/_snaps/sql.md
+git add -A
+git commit -qm 'test: main added a snapshot since the base was seeded'
+git checkout -q -b kept-fwd-build kept-seed
+bvendor kkk1111 1.0.0.9000.1 r.cpp
+printf 'snapshot one, corrected\nmain added a snapshot\n' > tests/testthat/_snaps/sql.md
+echo 'foo <- function() 2' > R/foo.R
+amend 'Snapshot corrected, and foo() returns 2 now.'
+git branch kept-fwd-dev kept-seed
+git branch kept-fwd-green kept-seed
+git branch kept-fwd-build-base kept-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like. The `red`
 # series is the one case that needs real records, so it gets two.
@@ -364,7 +393,8 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   tsync-build tsync-dev tsync-green tsync-build-base \
   emptyres-build emptyres-dev emptyres-green emptyres-build-base \
   loss-build loss-dev loss-green loss-build-base \
-  loss-fwd-build loss-fwd-dev loss-fwd-green loss-fwd-build-base rcc2
+  loss-fwd-build loss-fwd-dev loss-fwd-green loss-fwd-build-base \
+  kept-dev kept-fwd-build kept-fwd-dev kept-fwd-green kept-fwd-build-base rcc2
 git fetch -q origin
 
 # A canonical remote, because `red` is the one series here whose green moves,
@@ -683,6 +713,20 @@ is "and the snapshot fold carries" "$(git show "$L:tests/testthat/_snaps/sql.md"
 has "the message says what was not carried" "$(git log -1 --format=%B "$L")" \
   'Not carried, because it would stop a test this series runs:'
 has "naming the path" "$(git log -1 --format=%B "$L")" "\`tests/testthat/test-skip.R\`"
+
+echo
+echo "== a buffer replayed from the base -dev carries nothing twice"
+out=$(run kept-fwd)
+[ -z "${KEEP:-}" ] || echo "$out"
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+hasnt "nothing is reported as carried" "$out" 'carry a fix from'
+is "the buffer commit moved as it was, a plain ref move" \
+  "$(git rev-parse origin/kept-fwd-dev)" "$(git rev-parse origin/kept-fwd-build)"
+K=$(at kept-fwd kkk1111)
+hasnt "so it carries no provenance trailer" "$(git log -1 --format=%B "$K")" 'Carried from'
+is "the snapshot holds the fix and main's line both" \
+  "$(git show "$K:tests/testthat/_snaps/sql.md" | tr '\n' '|')" 'snapshot one, corrected|main added a snapshot|'
 
 echo
 echo "$pass passed, $fail failed"
