@@ -56,8 +56,8 @@ each firing lists `refs/heads/*-build`,
 and every `<X>-build` with a sibling `<X>-dev` is a series it serves —
 base and forward (`<S>-fwd-*`, see `series-forward/SKILL.md`) alike,
 in one pass over all of them.
-A forward's `<S>-fwd-vendor` is no series and gets no stage:
-it is the vendor strand the forward wrote once, read by a human and nothing else
+A series' `<S>-vendor` is no series and gets no stage of its own:
+it is the vendor strand stage 1 vendors onto and derives the buffer from
 ([`branches/model/`](/handbook/branches/model/README.md)).
 Ignore a forward series
 whose green is an ancestor of its base series' green;
@@ -231,15 +231,26 @@ Any change to code, tests or patches is bound by
 which this skill neither repeats nor overrides.
 Read the page before changing anything it owns.
 
-### 1. Vendor onto `<S>-build`
+### 1. Vendor onto `<S>-vendor`, and derive `<S>-build`
 
-Run **`main`'s copy of the script**, against the buffer worktree:
+Run **`main`'s copy of the scripts**, against the strand worktree and then the buffer worktree:
 
 ```sh
 git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
-VENDOR_REPO=<S>-build-worktree \
-  <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
+VENDOR_REPO=<S>-vendor-worktree \
+  <main-checkout>/scripts/vendor-one.sh --strand --commits 100 <upstream-clone>
+git -C <S>-vendor-worktree push origin HEAD:<S>-vendor
+(cd <S>-build-worktree && <main-checkout>/scripts/series-vendor.sh <S> --push)
 ```
+
+The strand takes the vendoring and nothing else: one commit per upstream commit,
+the regenerated tree with the patch stack applied, no counter, no glue gate
+([`branches/model/`](/handbook/branches/model/README.md)).
+The buffer is derived from it: each strand commit picked, the fifth component stamped, the glue gate run.
+A `GLUE BROKEN` stop is the buffer's: fix the glue, `git commit --amend --no-edit` the pick at HEAD, rerun.
+A `PATCH BROKEN` stop is the strand's: fix the patch in the strand commit, amend it there, and pick again.
+A series opened before the strand existed derives one from its buffer first, once:
+`scripts/series-vendor.sh <S> --init --push`, which `series-check.sh` asks for as `VENDOR`.
 
 **The clone's HEAD is what picks the line to vendor**, so check it out first.
 The script reads it as the walk's right-hand side and nothing else names one;
