@@ -41,6 +41,7 @@ upstream_basedir=""
 num_commits=1
 check_glue=true
 strand=false
+strand_flag=''
 
 # Matches the bound in series_vendored_sha() (scripts/series-lib.sh).
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
@@ -59,6 +60,7 @@ while [ $# -gt 0 ]; do
       # A commit for the vendor strand (scripts/series-vendor.sh): what vendoring
       # writes and nothing of the buffer's -- no counter, no glue gate.
       strand=true
+      strand_flag=--strand
       check_glue=false
       shift
       ;;
@@ -325,10 +327,13 @@ while [ $commits_vendored -lt $num_commits ]; do
     # candidate, kept or skipped. Files upstream dropped still go: they are in
     # the tree that was moved aside, and never come back from it.
     echo "R: configure"
-    series_generate "$upstream_dir" "$([ "$strand" = true ] && echo strand || echo full)" || {
-      echo "Error: Failed to configure"
+    series_generate_tree "$upstream_dir" || {
+      echo ""
+      echo "=== GENERATOR FAILED regenerating the tree for upstream ${commit} ==="
+      echo "Nothing was committed; the regenerated files are in the working tree."
+      echo "Fix the generator's input, 'git checkout -- .', and rerun this script."
       rm -rf "$upstream_dir"
-      exit 1
+      exit 7
     }
 
     # `--reverse` needs `--forward` beside it: on its own it prompts
@@ -356,12 +361,23 @@ while [ $commits_vendored -lt $num_commits ]; do
         echo "A deletion has to ride in the vendor commit for ${commit}, and this"
         echo "script refuses to start on a dirty tree, so land it in three steps:"
         echo "  git checkout -- . && git rm $f && git commit -m 'tmp: retire patch'"
-        echo "  $0 --commits 1 <upstream>"
+        echo "  $0 ${strand_flag:+$strand_flag }--commits 1 <upstream>"
         echo "  git reset --soft HEAD~2 && git commit   # keep the vendor message,"
         echo "                                          # add an 'R-side fix' section"
         exit 4
       fi
     done
+
+    # What is derived from the patched tree: the parsers a vendored grammar
+    # generates, a header a template fills, and for a buffer commit the R side.
+    series_generate_derived "$([ "$strand" = true ] && echo strand || echo full)" || {
+      echo ""
+      echo "=== GENERATOR FAILED deriving from the patched tree for upstream ${commit} ==="
+      echo "Nothing was committed; the regenerated files are in the working tree."
+      echo "Fix the generator's input, 'git checkout -- . && git clean -fd', and rerun this script."
+      rm -rf "$upstream_dir"
+      exit 7
+    }
 
     # Always vendor tags
     tag=$(exact_tag "$commit")
@@ -372,8 +388,10 @@ while [ $commits_vendored -lt $num_commits ]; do
     fi
 
     # The engine file always differs, so "more than one" is the test for a
-    # real change, over the directory holding the tree and the stamp.
-    if [ "$(git status --porcelain -- "${series_scan_dir}" | wc -l)" -gt 1 ]; then
+    # real change, over the directory holding the tree and the stamp, or for a
+    # strand commit over the paths it stages.
+    if [ "$strand" = true ]; then changed=("${series_vendor_paths[@]}"); else changed=("${series_scan_dir}"); fi
+    if [ "$(git status --porcelain -- "${changed[@]}" | wc -l)" -gt 1 ]; then
       message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
       break
     fi
@@ -474,9 +492,8 @@ while [ $commits_vendored -lt $num_commits ]; do
       echo "--no-check-glue skips the check altogether."
       # Its own code, below the ones already spoken for: 3 is broken glue, 4 a
       # broken patch, 5 the wrong upstream line, 6 a clone that cannot name a
-      # version. 7 is left free for a generator that fails before the commit,
-      # which a repository whose vendoring runs one takes, so the two stay in
-      # step (handbook/operations/vendoring/troubleshooting/README.md).
+      # version, 7 a generator that failed before the commit
+      # (handbook/operations/vendoring/troubleshooting/README.md).
       exit 8
     elif [ "$glue_status" != 0 ]; then
       echo ""

@@ -156,7 +156,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-learned.sh`](series-learned.sh) | What a series' `-dev` learned beyond its buffer: for every vendor commit, the fix the loop folded into it that its `-build` twin does not carry. |
 | [`series-lib-test.sh`](series-lib-test.sh) | Check scripts/series-lib.sh against scripts/series-config.sh, offline: the vendor predicate, the markers, the version ordering, the path filters, and the wal... |
 | [`series-lib.sh`](series-lib.sh) | The helpers every series script shares, reading scripts/series-config.sh: which commit vendors, what it vendors, where a walk starts. |
-| [`series-patch-sync.sh`](series-patch-sync.sh) | Carry `patch/` entries from `<S>-dev` onto `<S>-build`, the way stage 5 carries tests and glue onto a forward series. |
+| [`series-patch-sync.sh`](series-patch-sync.sh) | Carry `patch/` entries from `<S>-dev` onto `<S>-vendor`, the strand the buffer is derived from, the way stage 5 carries tests and glue onto a forward series;... |
 | [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop/SKILL.md). |
 | [`series-prune.sh`](series-prune.sh) | Read-only: what a cutover left behind, and the commands that remove it, for a human to run. |

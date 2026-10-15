@@ -55,10 +55,10 @@ to do, and they run in this order:
   by naming its own baseline as `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml)
   ([`series-land`](/.claude/skills/series-land/SKILL.md)).
   A `patch/` entry the port brings to `-dev` does nothing there,
-  because a vendor run applies the buffer's stack, so the port carries
-  it on to `<S>-build`
-  ([`scripts/series-patch-sync.sh`](/scripts/series-patch-sync.sh))
-  by test-applying it against the buffer's tree, never by the file list.
+  because a vendor run applies the strand's stack, so the port carries
+  it on to `<S>-vendor`, from where the next pick brings it to the buffer
+  ([`scripts/series-patch-sync.sh`](/scripts/series-patch-sync.sh)),
+  by test-applying it against the strand's tree, never by the file list.
   One that neither applies nor reverses is *stale* and waits for the
   code it answers. One that would supersede an entry of the buffer's
   own, and one both stacks carry in different versions (*edited*), are
@@ -259,7 +259,7 @@ and [`scripts/vendor-lib.sh`](/scripts/vendor-lib.sh) the glue gate;
 [`scripts/series-lib-test.sh`](/scripts/series-lib-test.sh) checks the helpers against whatever the configuration says.
 A series that carries no flavor has no rc strand, and `series-land.sh --source <ref>` builds its landing up to that ref as it stands.
 Two exit statuses follow from the split: a glue gate that could not run exits 8 in `vendor-one.sh` and `series-forward-build.sh` alike,
-and 7 is left free for a generator that fails before the commit, which this repository's vendoring has none of
+and a generator that fails before the commit exits 7, which this repository's generator never does
 ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
 
 **A firing also reports the series that does not exist.**

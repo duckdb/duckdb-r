@@ -43,7 +43,10 @@ The failure classes, and what each needs:
   so this says `./configure` failed and nothing was compiled.
   It is a local setup problem: run `./configure` and read its output.
   The vendor commit is not implicated, and amending it fixes nothing.
-  Exit 7 is unused here, left for a generator that fails before the commit in a repository whose vendoring runs one.
+* **The generator failed** (`GENERATOR FAILED`, exit 7, in `vendor-one.sh` and `series-vendor.sh` alike):
+  regenerating the tree or deriving from the patched tree stopped before any commit,
+  and `series-vendor.sh` undoes the pick it was regenerating for.
+  Fix what the generator reads and rerun.
 * **The upstream clone cannot name a version** (`SHALLOW UPSTREAM CLONE` or
   `NO VERSION IN THE UPSTREAM CLONE`, exit 6):
   a shallow or tagless clone would stamp a `DUCKDB_VERSION` no extension repository serves,
