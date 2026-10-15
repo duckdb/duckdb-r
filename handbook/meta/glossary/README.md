@@ -53,7 +53,7 @@ and are not repeated here; this page holds this repository's own.
 * **seed** — the flavored `main` plus the fifth-component commit a forward's four refs start equal at; an opening cuts its refs from the parent's strands instead ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
-* **series refs** — `-build`, `-dev`, `-green`, `-build-base`: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).
+* **series refs** — `-build`, `-dev`, `-green`, `-build-base`, and the vendor strand `-vendor` beside them: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).
 * **session TimeZone** — the icu-owned setting DuckDB renders `TIMESTAMPTZ` in, and the zone that labels those columns in R ([`usage/timestamps/`](/handbook/usage/timestamps/README.md)).
 * **shard** — a contiguous, cost-balanced slice of commits one CI job builds and judges ([`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)).
 * **snapshot** — recorded test output; accepting a change asserts the new output is correct ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
@@ -64,6 +64,7 @@ and are not repeated here; this page holds this repository's own.
 * **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
 * **twin** — the commit on another ref that vendors the same upstream SHA, matched by subject ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
+* **vendor strand** (`-vendor`) — pure vendoring, one commit per upstream commit, vendored once: what the buffer is derived from, carried by a forward with a rebase, and read against `-build` to see what the glue gate and `-dev` taught ([`branches/model/`](/handbook/branches/model/README.md)).
 * **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 * **verdict store** / **`rcc2` branch** — the orphan branch holding each commit's build verdict and log, one file per commit, and what per-commit CI selects its work from ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Its predecessor `rcc` is retired, and kept whole in the archive.
 * **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).

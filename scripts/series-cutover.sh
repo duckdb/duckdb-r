@@ -14,7 +14,9 @@
 # `<S>-dev` (green is on it) and `<S>-build` (build-base is on it) in the fork,
 # and the copy of `<S>-green` in the canonical repository -- is the head of a
 # draft pull request opened and closed on the spot, against the forward ref
-# that takes its place. GitHub keeps a pull request's head as `refs/pull/<n>/head`
+# that takes its place; so is `<S>-vendor`, the strand the buffer is derived
+# from (handbook/branches/model/README.md), which the forward's `-fwd-vendor`
+# replaces like the four. GitHub keeps a pull request's head as `refs/pull/<n>/head`
 # for as long as the pull request exists, closed or not, so the commits stay
 # reachable and the pull request is where to find them; nothing is merged, and
 # the deletion of the `-fwd` refs afterwards loses nothing, because their tips
@@ -332,10 +334,21 @@ else
   echo "    another flavor, and the swap would publish a different package."
 fi
 
+# The vendor strand swaps with the four where the forward has one; a forward
+# written before the strand existed has none, and the series derives one from
+# its new buffer afterwards (scripts/series-vendor.sh --init).
+swap=(build dev green build-base)
+if git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-vendor" >/dev/null; then
+  swap+=(vendor)
+else
+  echo "Note: $S-fwd-vendor does not exist on $remote; after the swap, derive the strand:"
+  echo "  scripts/series-vendor.sh $S --init --remote $remote --push"
+fi
+
 leases=()
 refspecs=()
 echo "refs to swap:"
-for r in build dev green build-base; do
+for r in "${swap[@]}"; do
   new=$(git rev-parse "refs/remotes/$remote/$S-fwd-$r")
   # An empty expected value leases the ref as "must not exist yet", which is
   # what a base ref from `missing` needs. The refspecs carry no leading `+`:
@@ -436,6 +449,11 @@ if [ -n "$archive" ]; then
     done
     [ -n "$covered" ] || { kept+=("$r"); archives+=("$remote $S-$r $S-fwd-$r"); }
   done
+  # The vendor strand is a lineage of its own, replaced by the forward's.
+  if git rev-parse -q --verify "refs/remotes/$remote/$S-vendor" >/dev/null &&
+    git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-vendor" >/dev/null; then
+    archives+=("$remote $S-vendor $S-fwd-vendor")
+  fi
   if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
     git rev-parse -q --verify "refs/remotes/$canonical/$S-green" >/dev/null; then
     if git rev-parse -q --verify "refs/remotes/$canonical/$S-fwd-green" >/dev/null; then
@@ -461,11 +479,11 @@ fi
 echo
 
 # The cleanup the swap leaves: the forward's refs, whose tips are the series'
-# now, its derived strands and retry ledger, and the forward green's copy in the
-# canonical repository. scripts/series-prune.sh lists whatever this could not
-# delete.
+# now, its vendor strand, its derived strands and retry ledger, and the forward
+# green's copy in the canonical repository. scripts/series-prune.sh lists
+# whatever this could not delete.
 leftovers=()
-for r in build dev green build-base rc-dev alpha rc-alpha; do
+for r in build dev green build-base vendor rc-dev alpha rc-alpha; do
   git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-$r" >/dev/null && leftovers+=("$S-fwd-$r")
 done
 git rev-parse -q --verify "refs/remotes/$remote/retry-$S-fwd-dev" >/dev/null && leftovers+=("retry-$S-fwd-dev")

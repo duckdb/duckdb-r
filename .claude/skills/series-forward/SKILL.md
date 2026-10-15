@@ -341,6 +341,34 @@ the replay then populates `<S>-fwd-build`.
    and mirrored onto `-fwd-build` where it is glue (`series-loop/SKILL.md`, stage 2).
    Do not put a snapshot or a test fix onto `-fwd-build` by hand ahead of a verdict.
 
+   **Carry the vendor strand, and read the forward against it.**
+   The report above compared `-dev` with `-build` on the old base.
+   The judgement is better made on the new one, where `main`'s delta and the replay's adaptations have met every fix.
+   The series' vendor strand is vendored once and carried, never replayed
+   ([`branches/model/`](/handbook/branches/model/README.md)):
+
+   ```sh
+   scripts/series-vendor.sh <S> --forward <seed> --push   # <S>-fwd-vendor: the strand onto the commit -fwd-build stands on
+   scripts/series-learned.sh <S>-fwd --vendor             # per commit, what -fwd-build carries beyond pure vendoring
+   scripts/series-learned.sh <S>-fwd --vendor --diff      # the changes themselves
+   ```
+
+   Where the seed vendors an engine the strand has, the commits above it are rebased onto the seed,
+   each a `git apply` of a pure vendoring diff;
+   where it does not, a rewind, the strand's first commit is written on the seed whole and the rest cherry-picked above it.
+   A conflict is patch drift between the strand and the seed's tree, and the script stops with the worktree kept.
+   Its vendored strand equals `-fwd-build`'s at every twin;
+   what differs is what `-dev` taught, and the glue the gate demanded, commit by commit, with the `R-side fix` prose each repair left.
+   Read each by its merits, as above:
+   a fix that still holds stays;
+   one `main`'s delta has made redundant, or one that was expedient,
+   is answered with a correction committed on the forward commit that carries it and folded there with
+   [`scripts/series-fold.sh`](/scripts/series-fold.sh),
+   so that `-fwd-build` is the better buffer before the loop starts verifying it.
+   The strand is pushed beside the four `-fwd` refs, force-pushed like any WIP ref,
+   extended by stage 1 like the series' own, rebased again when the forward moves (`series-rebase/SKILL.md`),
+   and swapped with the four at the cutover, the replaced one archived like the rest (below).
+
 2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
    the seed tip:
    green contains the flavor change from day one,
