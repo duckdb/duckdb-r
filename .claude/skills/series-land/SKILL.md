@@ -268,7 +268,7 @@ close it in favour of the one below.
 The first pull request on `main`:
 
 * **The CRAN row** in `scripts/series.yaml`: `duckdb` now tracks `<L>`.
-  Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 7).
+  Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 6).
 * **`main`'s version.** The landing ends on the series' version, `1.99.99.9000.<n>`,
   which is the preview prefix `main` carries while it previews the line
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
