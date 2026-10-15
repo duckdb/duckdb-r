@@ -11,15 +11,19 @@
 # and its flags, which every glue file of the probe's language is then checked
 # with. `./configure` runs first where `series_configured_file` says it has not,
 # because the Makevars include what only it writes, and without that `make -n`
-# stops before it prints a compile line. Empty when no compile line was printed,
-# which is the check not being able to run.
-glue_compile_line() { # <probe> -> command, empty when none
+# stops before it prints a compile line. The extra flags go in as
+# CLINK_CPPFLAGS, the way `R CMD INSTALL` passes a `LinkingTo` include path,
+# rather than appended afterwards: a Makevars that keeps compiler-generated
+# dependency lists remakes a stale one before it prints anything, with these
+# flags or without them. Empty when no compile line was printed, which is the
+# check not being able to run.
+glue_compile_line() { # <probe> [extra cppflags] -> command, empty when none
   local probe
   if [ -x ./configure ] && { [ -z "$series_configured_file" ] || [ ! -f "$series_configured_file" ]; }; then
     ./configure >/dev/null 2>&1 || true
   fi
   probe=$(printf '%s' "$1" | sed 's/[.]/\\./g')
-  (cd src && R CMD SHLIB -n "$1" 2>/dev/null) |
+  (cd src && env ${2:+CLINK_CPPFLAGS="$2"} R CMD SHLIB -n "$1" 2>/dev/null) |
     grep -m 1 -E -- "-c $probe" |
     sed -E "s/^ *//; s/ -c $probe -o [^ ]+\.o *$//"
 }
@@ -29,23 +33,26 @@ glue_compile_line() { # <probe> -> command, empty when none
 # anything about the commit at HEAD. The files that failed go to <failures>,
 # one per line, written only by a run that got as far as compiling. One pass
 # per probe in `series_glue_probes`, over the `src/` files of its extension,
-# with what `series_glue_extra_flags` prints appended.
+# with what `series_glue_extra_flags` prints on the compile line.
 #
 # `eval`, because R quotes its include path (`-I"/usr/share/R/include"`); plain
 # expansion word-splits without removing the quotes, so the compiler never
 # finds R.h and every glue file looks broken.
 glue_compiles() { # [failures]
-  local out=${1:-/dev/null} probe line extra
+  local out=${1:-} own='' probe line extra st=0
+  [ -n "$out" ] || { out=$(mktemp); own=$out; }
   extra=$(series_glue_extra_flags)
   : > "$out"
   for probe in "${series_glue_probes[@]}"; do
-    line=$(glue_compile_line "$probe")
-    [ -n "$line" ] || return 2
+    line=$(glue_compile_line "$probe" "$extra")
+    [ -n "$line" ] || { rm -f "$own"; return 2; }
     # shellcheck disable=SC2016  # the sh child expands $CMD and $1, not this shell
     (cd src && shopt -s nullglob && files=(*."${probe##*.}") && [ ${#files[@]} -gt 0 ] &&
       printf '%s\n' "${files[@]}" |
-      CMD="$line${extra:+ $extra}" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
+      CMD="$line" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
         sh -c 'eval "$CMD -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort >> "$out" || true
   done
-  ! grep -q . "$out"
+  grep -q . "$out" && st=1
+  rm -f "$own"
+  return "$st"
 }

@@ -91,25 +91,36 @@ series_seed_of() { # <ref> -> commit, empty when none
 }
 
 # Is a path on the vendored strand, including the Makevars generated from it?
+# A configured entry is a path or a glob, and matches itself or anything under it.
 series_in_strand() { # <path>
   local p
   for p in "${series_strand[@]}" "${series_makevars[@]}"; do
-    [ "$1" = "$p" ] && return 0
-    case "$1" in "$p"/*) return 0 ;; esac
+    # shellcheck disable=SC2254
+    case "$1" in $p | $p/*) return 0 ;; esac
   done
   return 1
 }
 
-# An ERE matching a path, dots escaped.
-series_re_of() { # <path>
-  printf '%s' "$1" | sed 's/[.]/\\./g'
+# An ERE matching a configured path or glob: dots escaped, `*` and `?` as in a
+# pathspec, where `*` crosses directories.
+series_re_of() { # <path or glob>
+  printf '%s' "$1" | sed 's/[.]/\\./g; s/\*/.*/g; s/?/./g'
 }
 
 # Is a path one of the files vendoring regenerates?
 series_is_regenerated() { # <path>
   local p
-  for p in "${series_regenerated[@]}"; do [ "$1" = "$p" ] && return 0; done
+  for p in "${series_regenerated[@]}"; do
+    # shellcheck disable=SC2254
+    case "$1" in $p) return 0 ;; esac
+  done
   return 1
+}
+
+# The marker a subject carries, `<owner>/<repo>@<sha>` as the subject spells it,
+# for a message that names the commit: a history may carry more than one owner.
+series_marker_of() { # <subject> -> marker, empty when none
+  grep -m 1 -oE "$series_marker_ere" <<<"$1" || true
 }
 
 # An ERE matching exactly one of those files, for `grep -vxE`.

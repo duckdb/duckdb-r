@@ -144,10 +144,10 @@ rewinds() { # <commit>: does it vendor an engine older than <base>'s?
   [ -n "$e" ] && [ -n "$base_engine" ] && engine_before "$e" "$base_engine"
 }
 label() { # <commit> -> "<short> <upstream SHA or subject>, <engine>[, a rewind]"
-  local s up e r=''
+  local s up sha e r=''
   s=$(git log -1 --format=%s "$1")
-  up=$(series_sha_of "$s")
-  [ -z "$up" ] || up="$series_upstream_repo@${up:0:10}"
+  up=$(series_marker_of "$s")
+  [ -z "$up" ] || { sha=${up##*@}; up="${up%@*}@${sha:0:10}"; }
   e=$(commit_engine "$1")
   if rewinds "$1"; then r=', a rewind'; fi
   printf '%s %s%s%s' "$(git rev-parse --short "$1")" "${up:-${s:0:48}}" "${e:+, $e}" "$r"

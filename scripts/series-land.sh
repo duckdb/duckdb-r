@@ -349,10 +349,15 @@ builds or tests it.")
     fi
     subj=$(git log -1 --format=%s "$c")
     up=''
-    if series_is_vendor "$subj"; then up=$(series_sha_of "$subj"); up=${up:0:10}; fi
+    # Named as the subject names it, owner and all, the SHA cut to ten.
+    if series_is_vendor "$subj"; then
+      up=$(series_marker_of "$subj")
+      sha=${up##*@}
+      up="${up%@*} ${sha:0:10}"
+    fi
     head=$(
       { if series_is_vendor "$subj"; then
-          echo "review: The R side of $series_upstream_repo ${up:-$(git rev-parse --short "$c")}"
+          echo "review: The R side of ${up:-$(git rev-parse --short "$c")}"
           echo
           git log -1 --format=%B "$c"
         else

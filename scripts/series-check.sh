@@ -381,10 +381,12 @@ upstream_tags() {
 # one it vendored in time leaves no `-dev` behind it.
 #
 # An engine whose stamp names no release (scripts/series-config.sh leaves
-# `series_release_of_stamp` undefined) is asked the other way round: the newest
-# vendor commits, as many as the base scan reads, against the tags.
+# `series_release_of_stamp` undefined) is asked the other way round: every
+# vendor commit of the buffer against the tags, newest first, so that a
+# re-stamp is met before the plain commit it re-stamps and that one is not
+# reported.
 late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
-  local v tag sha lines c subj
+  local v tag sha lines
   if declare -F series_release_of_stamp >/dev/null; then
     v=$(series_release_of_stamp "$(series_stamped_version "$1")")
     [ -n "$v" ] || return 0
@@ -397,16 +399,19 @@ late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
     echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
     return 0
   fi
-  while IFS=$'\t' read -r c subj; do
-    series_is_vendor "$subj" || continue
-    sha=$(series_sha_of "$subj")
-    [ -n "$sha" ] || continue
-    tag=$(awk -v s="$sha" 'index($1, s) == 1 { print $2; exit }' <<<"$tags")
-    [ -n "$tag" ] || continue
-    case "$subj" in *"(tag $tag)"*) continue ;; esac
-    echo "$tag $sha $c"
-    return 0
-  done < <(git log -n "$base_scan_depth" --format='%H%x09%s' "$1" -- "$series_scan_dir")
+  awk -F'\t' -v ere="$series_marker_ere" '
+    FNR == NR { if (split($0, a, " ") >= 2) tagof[a[1]] = a[2]; next }
+    {
+      if (!match($2, ere)) next
+      m = substr($2, RSTART, RLENGTH); sub(/^.*@/, "", m)
+      for (f in tagof) {
+        if (index(f, m) != 1) continue
+        t = tagof[f]
+        if (index($2, "(tag " t ")")) seen[m] = 1
+        else if (!(m in seen)) { print t, m, $1; exit }
+        break
+      }
+    }' <(printf '%s\n' "$tags") <(git log --format='%H%x09%s' "$1" -- "$series_scan_dir")
 }
 
 # How the clone names an upstream branch: a clone made by `git clone` carries it

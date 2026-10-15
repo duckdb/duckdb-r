@@ -207,10 +207,11 @@ glue_failures="$(git rev-parse --git-dir)/series-forward-glue-failures"
 
 touches_strand() { git show --format= --name-only "$1" -- "${STRAND[@]}" | grep -q .; }
 
-# Compiled glue: a source or a header under `src/` outside the vendored tree,
-# generated or not, because a generated binding is glue the gate compiles.
+# Compiled glue: a source or a header under `src/` outside the vendored tree
+# and the stamp beside it, generated or not, because a generated binding is
+# glue the gate compiles.
 touches_glue() {
-  git show --format= --name-only "$1" -- src ":(exclude)$series_vendor_dir" |
+  git show --format= --name-only "$1" -- src ":(exclude)$series_scan_dir" |
     grep -qE '\.(c|cc|cpp|cxx|h|hh|hpp)$'
 }
 
@@ -505,15 +506,16 @@ base_engine=$(engine HEAD)
 walk() {
   git log --reverse --format='%H%x09%s' "$OLDBASE..$OLD"
   [ -n "$BUFFER" ] || return 0
-  local top anchor
-  top=$(git log --format=%s "$OLDBASE..$OLD" | sed -rn "$series_sha_sed" | head -n 1)
+  local subj top anchor
+  subj=$(git log --format=%s "$OLDBASE..$OLD" | grep -m 1 -E "$series_marker_ere" || true)
+  top=$(series_sha_of "$subj")
   if [ -z "$top" ]; then
     git log --reverse --format='%H%x09%s' "$OLDBASE..$BUFFER"
     return 0
   fi
   anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 -F "@$top" | cut -d' ' -f1 || true)
   if [ -z "$anchor" ]; then
-    echo "Error: no commit of $BUFFER vendors $series_upstream_repo@$top, the newest commit $OLD vendors;" >&2
+    echo "Error: no commit of $BUFFER vendors $(series_marker_of "$subj"), the newest commit $OLD vendors;" >&2
     echo "  mirror the fold onto the buffer first (.claude/skills/series-loop/SKILL.md, stage 2)" >&2
     exit 1
   fi

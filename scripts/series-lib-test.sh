@@ -17,9 +17,10 @@
 #      commit, and the engine and the stamp read off a tree.
 #
 # The engine's own formats are the block right below the helpers: what a tree
-# holds for `series_engine_of()` and `series_stamped_version()` to read, and
-# the versions whose ordering section 3 asserts. A repository whose
-# configuration reads another engine rewrites that block and nothing else.
+# holds for `series_engine_of()` and `series_stamped_version()` to read, where
+# those files live, and the version pairs whose ordering section 3 asserts. A
+# repository whose configuration reads another engine rewrites that block and
+# nothing else.
 
 set -euo pipefail
 
@@ -49,16 +50,19 @@ engine_tree() {
   [ -z "${3:-}" ] || printf '#define DUCKDB_VERSION "%s"\n' "$3" >> "$series_engine_file"
   printf 'duckdb_version <- "%s"\n' "$2" > "$series_stamp_file"
 }
-snapshot=1.4.0-dev123     # a development stamp, which precedes...
-release=1.4.0             # ...the release it names,
-later_release=1.5.0       # a later release,
-later_snapshot=1.4.0-dev124 # and a later snapshot;
-earlier_release=1.3.9     # not an earlier release.
+engine_dirs=("$(dirname "$series_engine_file")" "$(dirname "$series_stamp_file")")
+snapshot=1.4.0-dev123       # a development stamp, which precedes the release it names
+release=1.4.0
+later_snapshot=1.4.0-dev124
+# The ordering: pairs `series_version_before` answers yes to, and pairs it
+# answers no to, as `engine_before()` in the suite reads this engine's versions.
+before=("$snapshot $release" "$snapshot 1.5.0" "$snapshot $later_snapshot")
+not_before=("$snapshot 1.3.9" "$release 1.5.0" "main 1.5.0")
 
 repo=$series_upstream_repo
 sha=0123456789abcdef
 v="vendor: Update vendored sources to $repo@$sha"
-vt="vendor: Update vendored sources (tag v1.2.3) to $repo@$sha"
+vt="vendor: Update vendored sources (tag $(series_tag_of_release 1.2.3)) to $repo@$sha"
 
 echo "--- 1. the vendor predicate"
 yes "a vendor: subject vendors" series_is_vendor "$v"
@@ -77,16 +81,18 @@ echo "--- 3. versions"
 if declare -F series_release_of_stamp >/dev/null; then
   is "the release a snapshot precedes" "$(series_release_of_stamp "$snapshot")" "$release"
   is "none for a release" "$(series_release_of_stamp "$release")" ""
-  is "the tag of that release" "$(series_tag_of_release "$release")" "v$release"
+  is "the tag of that release is spelled" "$([ -n "$(series_tag_of_release "$release")" ] && echo yes)" yes
 else
   echo "  --   no series_release_of_stamp: the late-tag check asks the vendor commits instead"
 fi
-yes "a snapshot precedes its release" series_version_before "$snapshot" "$release"
-yes "and a later release" series_version_before "$snapshot" "$later_release"
-yes "and a later snapshot" series_version_before "$snapshot" "$later_snapshot"
-not "not an earlier release" series_version_before "$snapshot" "$earlier_release"
-not "a release precedes nothing" series_version_before "$release" "$later_release"
-not "nor does a string that is no version" series_version_before main "$later_release"
+for pair in "${before[@]}"; do
+  # shellcheck disable=SC2086
+  yes "$pair: before" series_version_before $pair
+done
+for pair in "${not_before[@]}"; do
+  # shellcheck disable=SC2086
+  not "$pair: not before" series_version_before $pair
+done
 
 echo "--- 4. the paths"
 yes "the vendored tree is on the strand" series_in_strand "$series_vendor_dir/src/a.cpp"
@@ -104,6 +110,10 @@ dropped+=("${series_regenerated[@]}")
 carried=$(printf '%s\n' "${dropped[@]}" src/glue.cpp tests/testthat/test-a.R | series_carry_filter | tr '\n' ' ')
 is "the carry filter keeps the fix and drops the rest" "$carried" "src/glue.cpp tests/testthat/test-a.R "
 is "nothing to carry is not an error" "$(printf '%s\n' DESCRIPTION | series_carry_filter; echo "rc=$?")" "rc=0"
+is "a glob in a configured path matches as a pathspec does" \
+  "$(series_strand=('R/aaa-*.R'); series_in_strand R/aaa-two.R && echo yes)" yes
+is "and not beyond its directory" \
+  "$(series_strand=('R/aaa-*.R'); series_in_strand src/R/aaa-two.R || echo no)" no
 tooling_re=$(series_tooling_re)
 yes "the tooling expression matches a tooling path" grep -qE "$tooling_re" <<<"${series_tooling[0]}/x"
 not "and not another" grep -qE "$tooling_re" <<<"R/x.R"
@@ -114,7 +124,7 @@ git init -q -b main .
 git config user.name Test
 git config user.email test@example.invalid
 git config commit.gpgsign false
-mkdir -p "$(dirname "$series_engine_file")" "$(dirname "$series_stamp_file")" "$series_scan_dir"
+mkdir -p "${engine_dirs[@]}" "$series_scan_dir"
 c() { git add -A; git commit -q --allow-empty -m "$1"; git rev-parse HEAD; }
 echo 'Package: x' > DESCRIPTION
 c "chore: Update flavor patch to x" > /dev/null
@@ -138,8 +148,9 @@ is "none where the tree has no engine" "$(series_engine_of "$seed")" ""
 is "the stamp a tree carries" "$(series_stamped_version "$v2")" "$later_snapshot"
 # A re-stamp above the fix: the equivalent of the plain commit is the plain one.
 git branch -q build
-engine_tree bbbbbbbbbb "$release" "v$release"
-v2t=$(c "vendor: Update vendored sources (tag v$release) to $repo@bbbbbbbbbb")
+tag=$(series_tag_of_release "$release")
+engine_tree bbbbbbbbbb "$release" "$tag"
+v2t=$(c "vendor: Update vendored sources (tag $tag) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
