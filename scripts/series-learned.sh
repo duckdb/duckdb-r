@@ -22,12 +22,11 @@
 # What is printed for each is the commit's own change to those paths,
 # `git diff <commit>^ <commit> -- <paths>`, as a stat, or in full with --diff.
 #
-# On a forward, the same question is asked of the new base: `<S>-fwd-build` is
-# the replay of `-dev`, and `<S>-fwd-vendor` the replay of `-build` onto the same
-# seed, pure vendoring's diffs on today's `main` (handbook/branches/model/README.md).
-# `--vendor` reads `-build` against `-vendor` instead of `-dev` against `-build`,
-# which is what the forward carries beyond pure vendoring, commit by commit,
-# after `main`'s delta and the replay's adaptations have met it. That is the
+# `--vendor` asks the question one strand down: `-build` against `-vendor`, the
+# pure vendoring the buffer is derived from (handbook/branches/model/README.md).
+# On a series that is the glue the gate demanded, commit by commit; on a forward
+# it is everything `-fwd-build` carries beyond vendoring on the new base, after
+# `main`'s delta and the replay's adaptations have met every fix, which is the
 # report a correction to the forward's buffer is judged from
 # (.claude/skills/series-forward/SKILL.md).
 #

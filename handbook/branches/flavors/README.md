@@ -104,11 +104,11 @@ sequenceDiagram
   participant C as duckdb/duckdb-r
   SL->>H: CUTOVER line: #60;S#62;-fwd-green covers #60;S#62;-green
   H->>H: series-cutover.sh #60;S#62; --prepare: coverage, convergence, review diff
-  H->>F: draft pull requests, closed at once: #60;S#62;-dev and #60;S#62;-build as they stand
+  H->>F: draft pull requests, closed at once: #60;S#62;-dev, #60;S#62;-build and #60;S#62;-vendor as they stand
   H->>C: draft pull request, closed at once: the copy of #60;S#62;-green as it stands
-  H->>F: one atomic leased push: the four refs take the forward's tips
+  H->>F: one atomic leased push: the four refs and the vendor strand take the forward's tips
   H->>C: #60;S#62;-green forced to the new green, under a lease
-  H->>F: the -fwd refs, the vendor strand, the rc and alpha strands and the ledger deleted
+  H->>F: the -fwd refs, the rc and alpha strands and the ledger deleted
   H->>C: #60;S#62;-fwd-green deleted
   C-->>SL: r-universe builds #60;S#62;-green, now the forward's history
   Note over SL,C: The replaced history is each closed pull request's head. What a refused deletion leaves, series-prune.sh lists
