@@ -1804,6 +1804,79 @@ test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard
   expect_equal(df$d[n_rows], n_rows - 1)
 })
 
+test_that("an ALTREP data frame scanned under a query leaves no connection busy", {
+  skip_if_not_installed("callr")
+
+  # Binding a data frame scan materializes an ALTREP column (src/scan.cpp)
+  # while the query holds the interrupt handler and the client context lock.
+  # An R error that long-jumped from there across the engine's frames
+  # would leave both held, and every later query of the session would fail,
+  # so run it in a subprocess with a time limit.
+  pkg <- get_package_name()
+
+  result <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con_a <- DBI::dbConnect(ns$duckdb())
+      con_b <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con_a, shutdown = TRUE), add = TRUE)
+      on.exit(DBI::dbDisconnect(con_b, shutdown = TRUE), add = TRUE)
+
+      # duckdb_register() would materialize the data frame in R first
+      register <- function(name, df) {
+        ns$rapi_register_df(
+          con_a@conn_ref,
+          name,
+          df,
+          ns$duckdb_convert_opts_impl(con_a@convert_opts),
+          FALSE
+        )
+      }
+
+      # A relation of another connection materializes under the query
+      register(
+        "t",
+        ns$rel_to_altrep(ns$rel_from_df(con_b, data.frame(x = 1:3)))
+      )
+
+      # One of the same connection, or one that may not materialize, fails cleanly
+      same <- tryCatch(
+        register(
+          "u",
+          ns$rel_to_altrep(ns$rel_from_df(con_a, data.frame(y = 1)))
+        ),
+        error = conditionMessage
+      )
+      disabled <- tryCatch(
+        register(
+          "v",
+          ns$rel_to_altrep(
+            ns$rel_from_df(con_b, data.frame(z = 1)),
+            n_cells = 0
+          )
+        ),
+        error = conditionMessage
+      )
+
+      list(
+        t = DBI::dbGetQuery(con_a, "SELECT * FROM t")$x,
+        same = same,
+        disabled = disabled,
+        a = DBI::dbGetQuery(con_a, "SELECT 1 AS a")$a,
+        b = DBI::dbGetQuery(con_b, "SELECT 2 AS b")$b
+      )
+    },
+    args = list(pkg),
+    timeout = 60
+  )
+
+  expect_equal(result$t, 1:3)
+  expect_match(result$same, "connection that is running the query")
+  expect_match(result$disabled, "Materialization is disabled")
+  expect_equal(result$a, 1)
+  expect_equal(result$b, 2)
+})
+
 test_that("rel_to_view()", {
   df1 <- data.frame(a = 1:10, b = 1:10)
   rel1 <- rel_from_df(con, df1)
