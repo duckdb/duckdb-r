@@ -25,6 +25,9 @@
 #   5. series-check.sh ignores what a refused deletion leaves as cutover litter.
 #   6. series-prune.sh lists that litter with the commands that remove it and
 #      runs none of them; it offers nothing of a live forward.
+#   7. series-advance.sh mirrors a forward's green into the canonical repository
+#      under a lease, so a rebase that reset it does not stop the firing, and
+#      a base green plainly, so a divergence there does.
 #
 # Usage:
 #   scripts/series-cutover-test.sh
@@ -63,7 +66,8 @@ BIN=$SCRATCH/bin
 for r in "$FORK" "$CANON"; do git init -q --bare -b main "$r"; done
 
 # The `gh` stand-in: every call appended to a log, a pull request number for a
-# POST, the number back for a PATCH, and a failure on demand.
+# POST, the number back for a PATCH, an existing pull request for a GET where
+# $GH_EXISTING names one as `<head>:<number>`, and a failure on demand.
 mkdir -p "$BIN"
 cat > "$BIN/gh" <<'EOF'
 #!/bin/bash
@@ -72,6 +76,7 @@ echo "$*" >> "$GH_LOG"
 case " $* " in
   *" -X POST "*) n=$(( $(grep -c -- '-X POST' "$GH_LOG") + 100 )); echo "$n" ;;
   *" -X PATCH "*) sed -n 's#.*/pulls/\([0-9]*\) .*#\1#p' <<<"$*" ;;
+  *" -X GET "*) case " $* " in *" head=test:${GH_EXISTING%%:*} "*) echo "${GH_EXISTING#*:}" ;; esac ;;
 esac
 EOF
 chmod +x "$BIN/gh"
@@ -90,7 +95,7 @@ git config remote.origin.github test/fork
 git config remote.upstream.github test/canonical
 
 mkdir -p scripts R src/duckdb tests/testthat
-for s in series-cutover.sh series-converge.sh series-prune.sh series-check.sh \
+for s in series-cutover.sh series-converge.sh series-prune.sh series-check.sh series-advance.sh \
   series-tests.sh setup-git.sh merge-version.sh; do
   cp "$HERE/$s" scripts/
 done
@@ -252,23 +257,26 @@ git config remote.origin.github test/fork
 
 echo
 echo "=== 4. the cutover: archive, swap, mirror, delete"
-out=$(tty_run scripts/series-cutover.sh v9.9-x --out "$OUT")
+# A rerun after a swap that failed: -build was archived the first time, as #99.
+out=$(GH_EXISTING=v9.9-x-build:99 tty_run scripts/series-cutover.sh v9.9-x --out "$OUT")
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the run finishes" "$out" "EXIT=0"
 has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
 has "-dev archived in the fork" "$out" "archived v9.9-x-dev as test/fork#101 (closed; its head is refs/pull/101/head there)"
-has "-build archived in the fork" "$out" "archived v9.9-x-build as test/fork#102"
-has "green's copy archived in the canonical repository" "$out" "archived v9.9-x-green as test/canonical#103"
+has "-build was archived already, and is not archived twice" "$out" "already archived v9.9-x-build as test/fork#99 (its head is refs/pull/99/head there)"
+has "green's copy archived in the canonical repository" "$out" "archived v9.9-x-green as test/canonical#102"
 has "the canonical green moved" "$out" "canonical v9.9-x-green -> ${NEW_GREEN:0:7}"
 has "the strands are to be re-cut" "$out" "scripts/series-rc.sh v9.9-x --push"
+has "the fork's universe entry is named" "$out" "The fork's universe still names v9.9-x-fwd-green"
 log=$(cat "$GH_LOG")
+has "each archive is looked up first, closed, by head" "$log" "api -X GET repos/test/fork/pulls -f state=closed -f head=test:v9.9-x-dev -f per_page=20"
 has "the -dev pull request is a draft from -dev against -fwd-dev" "$log" \
   "api -X POST repos/test/fork/pulls -f title=chore(series): Archive v9.9-x-dev before its cutover -f head=v9.9-x-dev -f base=v9.9-x-fwd-dev -F draft=true -f body=Archive of \`v9.9-x-dev\` as it stood before the cutover of \`v9.9-x\` on"
 has "naming the tip it keeps" "$log" "$OLD_DEV"
 has "and is closed" "$log" "api -X PATCH repos/test/fork/pulls/101 -f state=closed"
-has "the -build pull request" "$log" "-f head=v9.9-x-build -f base=v9.9-x-fwd-build -F draft=true"
+hasnt "the -build pull request is not opened again" "$log" "-f head=v9.9-x-build -f base=v9.9-x-fwd-build -F draft=true"
 has "the canonical green's pull request" "$log" "api -X POST repos/test/canonical/pulls -f title=chore(series): Archive v9.9-x-green before its cutover -f head=v9.9-x-green -f base=v9.9-x-fwd-green"
-is "six gh calls in all, nothing else" "$(grep -c -- "-X " "$GH_LOG")" 6
+is "three lookups, two pull requests opened and closed, nothing else" "$(grep -c -- "-X " "$GH_LOG")" 7
 is "-dev is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$NEW_DEV"
 is "-build is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-build | cut -f1)" "$NEW_BUILD"
 is "-green is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
@@ -320,6 +328,23 @@ git checkout -q main
 out=$(run scripts/series-prune.sh v9.9-x)
 has "a live forward is not litter" "$out" "is not an ancestor of v9.9-x-green: the forward is live"
 has "and nothing is offered" "$out" "Nothing to prune."
+
+echo
+echo "=== 7. series-advance.sh mirrors a forward's green under a lease, a base green plainly"
+# The live forward's green was reset in 6, as a rebase resets one, and the
+# canonical copy still holds the pre-reset green.
+RESET=$(git rev-parse origin/v9.9-x-fwd-green)
+git push -q origin "$NEW_BUILD:refs/heads/v9.9-x-fwd-build-base"
+out=$(run scripts/series-advance.sh v9.9-x-fwd --chunk 0)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the reset green is mirrored" "$out" "green mirrored to upstream"
+is "and the canonical copy is the reset one" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | cut -f1)" "$RESET"
+git push -q -f upstream "$OLD_GREEN:refs/heads/v9.9-x-green"
+out=$(run scripts/series-advance.sh v9.9-x --chunk 0)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a base green that would not fast-forward stops the firing" "$out" "v9.9-x-green would not fast-forward in upstream"
+has "with an error" "$out" "EXIT=1"
+is "and the canonical copy is untouched" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
 
 echo
 echo "$pass passed, $fail failed"
