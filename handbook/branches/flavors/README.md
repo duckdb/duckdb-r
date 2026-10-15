@@ -100,10 +100,13 @@ and [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it took.
 r-universe reads ownership from that URL, so a `duckdb.*` package built from the
 fork is published as the fork owner's.
 The `-green` refs are therefore mirrored from the fork into the canonical
-repository, which is the only branch that travels that way
+repository, every series' including the forward's, which is the only strand that travels that way
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
 The fork's own universe carries the `-fwd-green` refs and nothing else.
 A forward counterpart is a rebuild nobody installs, published only so a cutover
 can be verified across fifteen targets before it happens,
 so it belongs where it is built and not beside the flavor it will become.
+A cutover changes no entry in either universe:
+the branch names are static, and the swap puts the forward's history under the name the entry already holds
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).

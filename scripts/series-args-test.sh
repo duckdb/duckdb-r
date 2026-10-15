@@ -81,6 +81,7 @@ scripts=(
   series-learned.sh
   series-patch-sync.sh
   series-port.sh
+  series-prune.sh
   series-rc.sh
   series-tests.sh
 )
@@ -100,10 +101,11 @@ remote_scripts=(
   series-learned.sh
   series-patch-sync.sh
   series-port.sh
+  series-prune.sh
   series-rc.sh
 )
 upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
-canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh)
+canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh series-prune.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${standalone_scripts[@]}"; do
@@ -140,6 +142,7 @@ is "series-forward-build.sh --prefix (bare)"     "$(rc series-forward-build.sh a
 is "series-forward-build.sh --buffer (bare)"     "$(rc series-forward-build.sh a b --buffer)" 2
 is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed)" 2
 is "series-learned.sh --since (bare)"            "$(rc series-learned.sh s --since)" 2
+is "series-cutover.sh --out (bare)"              "$(rc series-cutover.sh s --out)" 2
 is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
 is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
 is "series-land.sh --landing (bare)"             "$(rc series-land.sh s --landing)" 2
@@ -183,7 +186,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh; do
+for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.

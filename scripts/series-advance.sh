@@ -70,8 +70,10 @@
 # does. The push is a plain one, fast-forward only, and a refusal stops the
 # firing rather than being forced: green is the verified frontier, and the only
 # thing that legitimately moves it off its lineage is a cutover, which does the
-# mirror itself (scripts/series-cutover.sh). A `-fwd` series is skipped -- its
-# green is a rebuild nobody installs, published from the fork's own universe.
+# mirror itself (scripts/series-cutover.sh). Every series' green travels, the
+# forward's too: nothing publishes `<S>-fwd-green` from there, but the cutover
+# archives the replaced copy against it and deletes it afterwards, so both
+# copies of a line's history live where r-universe reads.
 # The push runs on every firing, not only on the ones where green moved: an
 # idle series whose copy fell behind for some other reason would otherwise
 # never be asked about again, and the push is a no-op when the two agree.
@@ -434,7 +436,7 @@ verify_counter() { # <worktree> <ref the replay started from>
 # set first, then the firing stops before stage 5 extends `-dev` onto a tip a
 # repair is about to re-mint (.claude/skills/series-loop/SKILL.md, stages 3 and 5).
 new_green=$(git rev-parse "$green")
-failed= failed_state=
+failed='' failed_state=''
 while IFS= read -r sha; do
   st=$(state_of "$sha")
   case "$st" in
@@ -485,7 +487,23 @@ fi
 # builds the canonical copy, so what it published was a commit behind with it.
 # An already-equal push is a no-op that says so, which is the cheapest possible
 # way to keep asking the question.
-if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
+#
+# A base green travels as a plain push, fast-forward only. A forward's green is
+# a WIP ref that a rebase resets to a new seed (.claude/skills/series-rebase/SKILL.md),
+# and nothing publishes its copy, so that copy follows under a lease on what the
+# canonical repository held when this run read it: never silently over a green
+# somebody else wrote, and never a reason to stop the firing.
+mirror_green() {
+  local cur
+  case "$S" in
+    *-fwd)
+      cur=$(git ls-remote "$canonical" "refs/heads/$S-green" | cut -f1)
+      git push "--force-with-lease=refs/heads/$S-green:$cur" "$canonical" "$new_green:refs/heads/$S-green"
+      ;;
+    *) git push "$canonical" "$new_green:refs/heads/$S-green" ;;
+  esac
+}
+if [ -n "$canonical" ]; then
   if ! git remote get-url "$canonical" >/dev/null 2>&1; then
     # Fatal only when this firing promoted something: then the missing remote
     # is a verified commit stranded in the fork. With green where it was there
@@ -499,7 +517,7 @@ if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
       echo "  the mirroring off deliberately." >&2
       exit 1
     fi
-  elif git push "$canonical" "$new_green:refs/heads/$S-green"; then
+  elif mirror_green; then
     echo "green mirrored to $canonical"
   else
     echo "Error: $S-green would not fast-forward in $canonical." >&2
