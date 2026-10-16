@@ -420,6 +420,18 @@ for sha in "${commits[@]}"; do
       | jq -Rsc 'split("\n") | map(select(length > 0))')"
   fi
 
+  # Killed by the leg deadline rather than judged: the commit outran the time
+  # left, which says nothing about the commit. Leave it undecided, as the
+  # deadline check above does for the commits it never starts, so the next run
+  # builds it. A stage that exceeds its own budget also exits 124, but well
+  # before the deadline; that one stays a failure.
+  if [ "${rc}" -eq 124 ] && [ "${commit_ended}" -ge "${deadline}" ]; then
+    echo "::endgroup::"
+    echo "${sha}: killed at the leg deadline after ${last_duration}s; leaving it undecided."
+    skipped=$(( skipped + 1 ))
+    continue
+  fi
+
   if [ "${rc}" -eq 0 ]; then
     state="success"
     built=$(( built + 1 ))
