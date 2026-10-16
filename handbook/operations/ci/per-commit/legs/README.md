@@ -29,7 +29,7 @@ build (one job per shard, throttled by max-parallel)
        → on failure, quote each failed stage's tail into the job summary
        → publish record + log to the `rcc2` branch   ← seconds after the verdict
      ... stops at its own deadline and defers the rest,
-         the commit the deadline cut short among them
+         a commit cut short after others among them
 ```
 
 The files:

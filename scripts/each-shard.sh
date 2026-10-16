@@ -420,12 +420,14 @@ for sha in "${commits[@]}"; do
       | jq -Rsc 'split("\n") | map(select(length > 0))')"
   fi
 
-  # Killed by the leg deadline rather than judged: the commit outran the time
-  # left, which says nothing about the commit. Leave it undecided, as the
-  # deadline check above does for the commits it never starts, so the next run
-  # builds it. A stage that exceeds its own budget also exits 124, but well
-  # before the deadline; that one stays a failure.
-  if [ "${rc}" -eq 124 ] && [ "${commit_ended}" -ge "${deadline}" ]; then
+  # Killed by the leg deadline rather than judged. Exit 124 comes only from the
+  # `timeout` above: rcc-one.sh records a stage that outruns its own budget as
+  # a failure and exits 1. A commit started after others in this leg outran the
+  # time they left, which says nothing about the commit, so it stays undecided,
+  # as the deadline check above leaves the commits it never starts, and the
+  # next run builds it. The leg's first commit had the whole budget, so its kill
+  # is a verdict and is recorded (scripts/series-check.sh calls it REPAIR).
+  if [ "${rc}" -eq 124 ] && [ "${built}" -gt 0 ]; then
     echo "::endgroup::"
     echo "${sha}: killed at the leg deadline after ${last_duration}s; leaving it undecided."
     skipped=$(( skipped + 1 ))
