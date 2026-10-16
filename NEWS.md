@@ -1,5 +1,46 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.6.9005
+
+## Breaking changes
+
+- The vendored engine is a development snapshot of DuckDB v2.0, `2.0.0-dev87994` (duckdb/duckdb@0f5ff0a9d6).
+
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
+
+- An error's `LINE` context underlines the whole offending token, not just its first character.
+
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
+
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
+
+- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE AS` makes a `NULL`-typed column of it.
+
+- The progress display is quiet past an Arrow stream's first batch.
+
+- A `SELECT` that writes, one calling `nextval()` for instance, runs to completion before `dbSendQueryArrow()` returns rather than streaming.
+
+- A relational constant renders with a cast that keeps its type: `expr_constant(-42)` prints as `CAST(-42.0 AS DOUBLE)` rather than `-42.0`, and an empty typed list as `CAST("system".main.list_value() AS INTEGER[])` rather than `[]`.
+
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with "`file_name` must be a non-empty string." rather than the engine's I/O error.
+
+## Bug fixes
+
+- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0 (#2892, #2893).
+
+- Run the tests behind `TEST_RE2` everywhere but in R-hub's runs, and fix what they caught in `duckdb_read_csv()` and `dbExistsTable()` (#2896).
+
+## Features
+
+- `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
+
+- `TUPLE` columns read as data frames whose columns are named `element1`, `element2`, ... rather than left unnamed, and an empty `STRUCT` as a data frame without columns.
+
+### series
+
+- Stamp a green commit with upstream's alpha version, so `INSTALL` finds its extensions (#2897).
+
+
 # duckdb 1.5.6.9004
 
 ## Bug fixes
