@@ -2266,3 +2266,15 @@ test_that("rel_from_df() rejects matrix, S4, and integer64 columns", {
   df$a <- bit64::as.integer64(42)
   expect_error(rel_from_df(con, df), "convert")
 })
+
+test_that("a NULL window argument is left out, as it is for a NULL constant", {
+  con <- local_con()
+  rel <- rel_from_df(con, data.frame(x = 1:3))
+  lag <- expr_window(
+    expr_function("lag", list(expr_reference("x"))),
+    offset_expr = expr_constant(NA_integer_)
+  )
+  expr_set_alias(lag, "l")
+  out <- rel_to_altrep(rel_project(rel, list(expr_reference("x"), lag)))
+  expect_equal(as.data.frame(out)$l, c(NA, 1L, 2L))
+})

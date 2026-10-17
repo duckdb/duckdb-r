@@ -5,8 +5,8 @@
 #include "altrepdataframe_relation.hpp"
 #include "cpp11/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/main/client_config.hpp"
-#include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
 #include "duckdb/main/settings.hpp"
@@ -162,7 +162,7 @@ void AltrepRelationWrapper::MarkColumnAsTransformed() {
 	}
 }
 
-MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
+QueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
 		rapi_error_with_context("GetQueryResult", mat_error);
 	}
@@ -199,13 +199,15 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 
 		// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-		// A query of the same connection would wait for the lock that query holds, so it fails instead.
+		// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
+		// any open result of its connection is ended: ending one takes that lock too.
 		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
 		auto &context = *rel->context->GetContext();
 		if (ScopedInterruptHandler::IsActiveFor(context)) {
 			rapi_error_with_context("GetQueryResult",
 			                        "Cannot materialize a relation of the connection that is running the query.");
 		}
+		EndOpenResults(context);
 		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
 		if (!ScopedInterruptHandler::IsActive()) {
 			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
@@ -243,7 +245,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 	}
 	D_ASSERT(mat_result);
-	return (MaterializedQueryResult *)mat_result.get();
+	return mat_result.get();
 }
 
 void AltrepRelationWrapper::Materialize() {
@@ -272,12 +274,9 @@ void AltrepRelationWrapper::Materialize() {
 		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
 		return;
 	}
-	D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
-
-	auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 
 	if (max_rows < MAX_SIZE_T) {
-		if (local_mat_res->RowCount() > max_rows) {
+		if (local_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
 			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);
@@ -287,7 +286,7 @@ void AltrepRelationWrapper::Materialize() {
 
 	// Cache the row count so that it remains available
 	// after the materialized result has been released
-	row_count = local_mat_res->RowCount();
+	row_count = local_res->RowCount();
 	materialized = true;
 	mat_result = std::move(local_res);
 }
@@ -364,26 +363,26 @@ struct AltrepVectorWrapper {
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
-			return res->names[column_index];
+			return res->GetNames()[column_index].GetIdentifierName();
 		}
 
-		auto child_type = res->types[parent_column_index[0]];
+		auto child_type = res->GetTypes()[parent_column_index[0]];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
 
-		return StructType::GetChildName(child_type, column_index);
+		return StructType::GetChildName(child_type, column_index).GetIdentifierName();
 	}
 
 	string FullName() {
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
-			return res->names[column_index];
+			return res->GetNames()[column_index].GetIdentifierName();
 		}
 
-		string res_name = res->names[parent_column_index[0]];
-		auto child_type = res->types[parent_column_index[0]];
+		string res_name = res->GetNames()[parent_column_index[0]].GetIdentifierName();
+		auto child_type = res->GetTypes()[parent_column_index[0]];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			res_name += "$" + StructType::GetChildName(child_type, parent_column_index[i]);
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
@@ -396,10 +395,10 @@ struct AltrepVectorWrapper {
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
-			return res->types[column_index];
+			return res->GetTypes()[column_index];
 		}
 
-		auto child_type = res->types[parent_column_index[0]];
+		auto child_type = res->GetTypes()[parent_column_index[0]];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
@@ -423,10 +422,10 @@ struct AltrepVectorWrapper {
 
 		auto struct_vector = &chunk.data[0];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
-			struct_vector = &*StructVector::GetEntries(*struct_vector)[parent_column_index[i]];
+			struct_vector = &StructVector::GetEntries(*struct_vector)[parent_column_index[i]];
 		}
 
-		return *StructVector::GetEntries(*struct_vector)[column_index];
+		return StructVector::GetEntries(*struct_vector)[column_index];
 	}
 
 	void *Dataptr() {
@@ -648,7 +647,7 @@ R_xlen_t RelToAltrep::StructLength(SEXP x) {
 	auto const *wrapper = AltrepVectorWrapper::Get(x);
 	auto const column_index = wrapper->column_index;
 	auto const &res = wrapper->rel->GetQueryResult();
-	auto const &type = res->types[column_index];
+	auto const &type = res->GetTypes()[column_index];
 
 	return static_cast<R_xlen_t>(StructType::GetChildTypes(type).size());
 	END_CPP11_EX(0)
@@ -675,7 +674,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 		return RelToAltrep::string_class;
 #if defined(R_HAS_ALTLIST)
 	case VECSXP:
-		if (type.id() == LogicalTypeId::STRUCT) {
+		if (StructType::IsStruct(type)) {
 			return RelToAltrep::struct_class;
 		} else {
 			return RelToAltrep::list_class;
@@ -750,7 +749,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &col_name = types[col_idx].first;
-		names.push_back(col_name);
+		names.push_back(col_name.GetIdentifierName());
 
 		auto &col_type = types[col_idx].second;
 
@@ -758,8 +757,8 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
-		if (col_type.id() == LogicalTypeId::STRUCT) {
-			auto &child_types = StructType::GetChildTypes(col_type);
+		if (StructType::IsStruct(col_type)) {
+			auto child_types = RApiTypes::StructLikeChildTypes(col_type);
 			std::vector<idx_t> child_col_idx = parent_col_idx;
 			child_col_idx.push_back(col_idx);
 			vector_sexp =
@@ -772,7 +771,8 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 			// Register the vector so that the relation wrapper knows
 			// when all ALTREP columns have been transformed
 			relation_wrapper->RegisterAltrepColumn();
-			vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
+			vector_sexp =
+			    R_new_altrep(LogicalTypeToAltrepType(col_type, col_name.GetIdentifierName()), ptr, R_NilValue);
 			duckdb_r_decorate(col_type, vector_sexp, convert_opts);
 		}
 

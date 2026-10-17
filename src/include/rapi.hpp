@@ -16,7 +16,9 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
-#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/arrow/arrow.hpp"
+#include "duckdb/main/query_result_stream.hpp"
+#include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 
 #include "convert.hpp"
 
@@ -198,10 +200,52 @@ struct ConnWrapper {
 void ConnDeleter(ConnWrapper *);
 typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
+// Marks a stretch of R code that runs underneath a duckdb call, with the client
+// context locked: a registered data frame or Arrow stream being scanned, the
+// progress display. R may collect garbage there and run the finalizer of any
+// duckdb object it still holds, and a prepared statement deallocates itself
+// through ClientContext::RemovePreparedStatement(), which takes that same
+// non-recursive lock. A statement a finalizer frees is parked instead, inside
+// such a callback or not, and destroyed at the next entry point that is known
+// to hold nothing; dbClearResult() destroys its statement at once.
+class RCallbackScope {
+public:
+	RCallbackScope();
+	~RCallbackScope();
+
+	RCallbackScope(const RCallbackScope &) = delete;
+	RCallbackScope &operator=(const RCallbackScope &) = delete;
+
+	//! Whether a duckdb call is running R code right now
+	static bool Active();
+	//! Park an object that cannot be destroyed where we are:
+	//! a statement, or a query result, which ends its query under the same lock
+	template <class T>
+	static void Defer(T object) {
+		Park(duckdb::make_uniq<Parked<T>>(std::move(object)));
+	}
+	//! Destroy everything parked so far, in the order it was parked; a no-op while Active()
+	static void Drain();
+
+	struct ParkedBase {
+		virtual ~ParkedBase() = default;
+	};
+
+private:
+	template <class T>
+	struct Parked : public ParkedBase {
+		explicit Parked(T object_p) : object(std::move(object_p)) {
+		}
+		T object;
+	};
+	static void Park(duckdb::unique_ptr<ParkedBase> object);
+};
+
 struct RStatement {
 	RStatement() = delete;
-	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
+	explicit RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
 	}
+	~RStatement();
 	duckdb::unique_ptr<PreparedStatement> stmt;
 	vector<Value> parameters;
 };
@@ -221,18 +265,105 @@ typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
 
 typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
+// A streamed result of the Arrow route holds its connection's query open, and the engine refuses any other
+// statement on that connection until it ends. A statement the glue starts ends it first, through EndOpenResults(),
+// and the result reports that it was invalidated by another statement when it is read next
+// (handbook/architecture/glue/objects/README.md).
+class ROpenResult {
+public:
+	ROpenResult() = default;
+	virtual ~ROpenResult() = default;
+	// Registered by address, so never copied or moved
+	ROpenResult(const ROpenResult &) = delete;
+	ROpenResult &operator=(const ROpenResult &) = delete;
+	//! Ends the result's query, for another statement on its connection
+	virtual void EndForAnotherStatement() = 0;
+
+	bool Invalidated() const {
+		return invalidated;
+	}
+
+protected:
+	//! Tracked for its connection's context until Untrack()
+	void Track(ClientContext *context);
+	void Untrack();
+	bool invalidated = false;
+
+private:
+	friend void EndOpenResults(ClientContext &context);
+	ClientContext *tracked_context = nullptr;
+};
+
+// Ends every open result of the Arrow route on the context, before the glue starts a statement there
+void EndOpenResults(ClientContext &context);
+
+// Pulls chunks from a query result and converts them to Arrow arrays of at most batch_size rows.
+// A result that can be drained is streamed; any other is read from its collection.
+class RArrowChunkSource : public ROpenResult {
+public:
+	explicit RArrowChunkSource(duckdb::unique_ptr<QueryResult> result, bool invalidated = false);
+	explicit RArrowChunkSource(QueryResult &result);
+	~RArrowChunkSource() override;
+
+	void EndForAnotherStatement() override;
+
+public:
+	// The number of rows written to out, 0 at the end. Throws on an execution error
+	idx_t FetchArray(idx_t batch_size, ArrowArray &out);
+	void FetchSchema(ArrowSchema &out);
+	optional_ptr<QueryResultStream<>> StreamResult() {
+		return stream_result.get();
+	}
+
+private:
+	void Initialize();
+	bool LoadNextChunk();
+	void Fail(ErrorData error);
+
+private:
+	duckdb::unique_ptr<QueryResult> owned_result;
+	optional_ptr<QueryResult> result;
+	duckdb::unique_ptr<QueryResultStream<>> stream_result;
+	ClientProperties client_properties;
+	vector<LogicalType> types;
+	vector<string> names;
+	unordered_map<idx_t, const duckdb::shared_ptr<ArrowTypeExtensionData>> extension_types;
+	duckdb::unique_ptr<DataChunk> current_chunk;
+	idx_t offset = 0;
+	bool finished = false;
+	//! The error of a read that failed, reported again by every later read
+	ErrorData error;
+};
+
+// An Arrow C stream over a query result, converting on the consumer thread
+struct RResultArrowStream {
+	RResultArrowStream(duckdb::unique_ptr<QueryResult> result, idx_t batch_size, bool invalidated = false);
+
+	ArrowArrayStream stream;
+	RArrowChunkSource source;
+	idx_t batch_size;
+	ErrorData last_error;
+
+private:
+	static int GetSchema(ArrowArrayStream *stream, ArrowSchema *out);
+	static int GetNext(ArrowArrayStream *stream, ArrowArray *out);
+	static const char *GetLastError(ArrowArrayStream *stream);
+	static void Release(ArrowArrayStream *stream);
+};
+
 // The engine's Arrow stream over a query result, behind one that reports a streaming result
 // invalidated by another statement on its connection as an error, where the engine reports the end of the stream
 // (handbook/usage/integrations/README.md).
 struct RArrowArrayStreamWrapper {
-	RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size);
+	RArrowArrayStreamWrapper(duckdb::shared_ptr<ClientContext> context, duckdb::unique_ptr<QueryResult> result,
+	                         idx_t batch_size, bool invalidated = false);
 
 	ArrowArrayStream stream;
 	// The engine's callbacks read the result's client context through a raw pointer,
 	// which a streaming result lets go of once it has seen its end, and a disconnect frees.
 	// Declared before `engine`, so the context outlives it.
 	duckdb::shared_ptr<ClientContext> context;
-	ResultArrowArrayStreamWrapper engine;
+	RResultArrowStream engine;
 	ErrorData last_error;
 
 private:
@@ -247,14 +378,30 @@ private:
 // A query result for the Arrow route.
 // Its columns stay after the result has been read to the end or handed over,
 // for the Arrow schema and the empty batch that answer from then on (handbook/usage/integrations/README.md).
-// The client properties point to the client context,
-// which the result's prepared statement keeps alive until dbClearResult().
-struct RQueryResult {
-	explicit RQueryResult(duckdb::unique_ptr<QueryResult> result_p)
-	    : result(std::move(result_p)), types(result->types), names(result->names),
-	      client_properties(result->client_properties) {
+// The client properties point to the client context, which the result keeps alive itself,
+// taken when the statement ran: a disconnect frees the connection's context,
+// and the prepared statement only holds a weak reference to it.
+struct RQueryResult : public ROpenResult {
+	// A streamed result holds its connection's query open from here on, so it is tracked until it is handed on
+	RQueryResult(duckdb::shared_ptr<ClientContext> context_p, duckdb::unique_ptr<QueryResult> result_p, bool streamed)
+	    : context(std::move(context_p)), result(std::move(result_p)), types(result->GetTypes()),
+	      names(IdentifiersToStrings(result->GetNames())), client_properties(result->client_properties) {
+		if (streamed && context) {
+			Track(context.get());
+		}
 	}
 
+	~RQueryResult() override;
+
+	void EndForAnotherStatement() override;
+	//! Hands the result on, to a stream that tracks it from then on
+	duckdb::unique_ptr<QueryResult> TakeResult() {
+		Untrack();
+		return std::move(result);
+	}
+
+	// Declared first, so the context outlives everything that reads it.
+	duckdb::shared_ptr<ClientContext> context;
 	duckdb::unique_ptr<QueryResult> result;
 	duckdb::unique_ptr<RArrowArrayStreamWrapper> stream_wrapper;
 	vector<LogicalType> types;
@@ -338,7 +485,7 @@ private:
 	RStrings();
 };
 
-SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_);
+SEXP duckdb_execute_R_impl(QueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_);
 
 } // namespace duckdb
 
@@ -390,6 +537,14 @@ SEXP get_attrib(SEXP vec, SEXP name);
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&...args) {
 	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...));
+	((cpp11::sexp)extptr).attr("class") = rclass;
+	return extptr;
+}
+
+// For factories that hand back an owning pointer rather than constructor arguments.
+template <typename T, typename PTR>
+cpp11::external_pointer<T> make_external_from(const std::string &rclass, PTR ptr) {
+	auto extptr = cpp11::external_pointer<T>(ptr.release());
 	((cpp11::sexp)extptr).attr("class") = rclass;
 	return extptr;
 }

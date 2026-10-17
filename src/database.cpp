@@ -1,3 +1,4 @@
+#include "duckdb/catalog/catalog.hpp"
 #include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/common/vector_operations/generic_executor.hpp"
 #include "duckdb/function/cast/cast_function_set.hpp"
@@ -45,7 +46,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		std::string key = *it;
 		std::string val = cpp11::as_cpp<std::string>(configsexp[key]);
 		try {
-			config.SetOptionByName(key, Value(val));
+			config.SetOptionByName(Identifier(key), Value(val));
 		} catch (std::exception &e) {
 			rapi_error_with_context("rapi_startup", ErrorData(e));
 		}
@@ -74,9 +75,9 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		auto &schema = catalog.GetSchema(transaction, DEFAULT_SCHEMA);
 		auto scan_entry = schema.GetEntry(transaction, CatalogType::TABLE_FUNCTION_ENTRY, "arrow_scan");
 		auto &arrow_scan = scan_entry->Cast<TableFunctionCatalogEntry>();
-		for (auto &function : arrow_scan.functions.functions) {
+		arrow_scan.functions.ApplyToFunctions([](TableFunction &function) {
 			function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
-		}
+		});
 	} catch (std::exception &e) {
 		rapi_error_with_context("rapi_startup", ErrorData(e));
 	}

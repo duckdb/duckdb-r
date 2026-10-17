@@ -1,9 +1,8 @@
 #include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/arrow/arrow_converter.hpp"
-#include "duckdb/common/arrow/arrow_util.hpp"
+#include "duckdb/common/arrow/arrow_appender.hpp"
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
-#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
-#include "duckdb/main/chunk_scan_state/query_result.hpp"
+#include "duckdb/main/buffered_data/buffered_data.hpp"
 #include "rapi.hpp"
 
 #include <cerrno>
@@ -43,16 +42,253 @@ struct AppendableRList {
 	idx_t size = 0;
 };
 
-bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
-                     ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
-                     idx_t chunk_size) {
-	auto count =
-	    ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data,
-	                          ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
+// Whether the result streams was decided when it was submitted (rapi_execute_impl()):
+// a result run to completion is retained.
+static bool CanDrain(QueryResult &result) {
+	if (result.HasError()) {
+		return false;
+	}
+	if (!result.HasBufferedData()) {
+		return false;
+	}
+	return result.GetBufferedData().Lifetime() != ResultLifetime::RETAINED;
+}
+
+static constexpr const char *INVALIDATED_MESSAGE =
+    "The query result was invalidated by another statement on its connection "
+    "before it was read to the end. "
+    "Read it to the end first, or run the other statement on a separate connection.";
+
+// The open results of the Arrow route, by the client context whose query each holds open.
+// Only R's thread starts statements and creates or destroys results, but a reader may be released elsewhere.
+static mutex open_results_lock;
+static unordered_map<ClientContext *, vector<ROpenResult *>> &OpenResults() {
+	// Never destroyed, like the parked objects: a result may outlive static destruction at exit
+	static auto open_results = new unordered_map<ClientContext *, vector<ROpenResult *>>();
+	return *open_results;
+}
+
+void ROpenResult::Track(ClientContext *context) {
+	Untrack();
+	lock_guard<mutex> guard(open_results_lock);
+	OpenResults()[context].push_back(this);
+	tracked_context = context;
+}
+
+void ROpenResult::Untrack() {
+	// The lock first: EndOpenResults() may be ending this result on R's thread, and clears the context once it has
+	lock_guard<mutex> guard(open_results_lock);
+	if (!tracked_context) {
+		return;
+	}
+	auto &results = OpenResults()[tracked_context];
+	results.erase(std::remove(results.begin(), results.end(), this), results.end());
+	if (results.empty()) {
+		OpenResults().erase(tracked_context);
+	}
+	tracked_context = nullptr;
+}
+
+void duckdb::EndOpenResults(ClientContext &context) {
+	// A result parked inside a callback still holds its query open
+	RCallbackScope::Drain();
+	// Held while the results end, so that a reader released on another thread meanwhile waits in Untrack()
+	// rather than freeing a result still being ended. Nothing takes this lock while holding the client context
+	// lock, and ending a result runs no R code, so no one waits for this thread.
+	lock_guard<mutex> guard(open_results_lock);
+	auto entry = OpenResults().find(&context);
+	if (entry == OpenResults().end()) {
+		return;
+	}
+	auto to_end = std::move(entry->second);
+	OpenResults().erase(entry);
+	for (auto result : to_end) {
+		result->EndForAnotherStatement();
+		result->tracked_context = nullptr;
+	}
+}
+
+RArrowChunkSource::RArrowChunkSource(duckdb::unique_ptr<QueryResult> result_p, bool invalidated_p)
+    : owned_result(std::move(result_p)) {
+	if (!owned_result) {
+		throw InvalidInputException("Attempting to export a query result that does not exist as an Arrow stream");
+	}
+	invalidated = invalidated_p;
+	client_properties = owned_result->client_properties;
+	types = owned_result->GetTypes();
+	names = IdentifiersToStrings(owned_result->GetNames());
+	if (!invalidated && CanDrain(*owned_result)) {
+		stream_result = make_uniq<QueryResultStream<>>(std::move(owned_result));
+	} else {
+		result = owned_result.get();
+	}
+	Initialize();
+	// Tracked last: a source whose Initialize() threw is never registered for EndOpenResults()
+	if (stream_result && client_properties.client_context) {
+		Track(client_properties.client_context.get());
+	}
+}
+
+RArrowChunkSource::~RArrowChunkSource() {
+	Untrack();
+}
+
+void RArrowChunkSource::EndForAnotherStatement() {
+	// A stream read to its end no longer holds the connection, and keeps reading as ended
+	if (stream_result && stream_result->IsOpen()) {
+		invalidated = true;
+		stream_result->Close();
+	}
+}
+
+RArrowChunkSource::RArrowChunkSource(QueryResult &result_p) : result(&result_p) {
+	client_properties = result_p.client_properties;
+	types = result_p.GetTypes();
+	names = IdentifiersToStrings(result_p.GetNames());
+	Initialize();
+}
+
+void RArrowChunkSource::Initialize() {
+	if (client_properties.client_context) {
+		extension_types = ArrowTypeExtensionData::GetExtensionTypes(*client_properties.client_context, types);
+	}
+}
+
+// Keeps the error for every read after this one, and reports it
+void RArrowChunkSource::Fail(ErrorData error_p) {
+	error = std::move(error_p);
+	finished = true;
+	error.Throw();
+}
+
+bool RArrowChunkSource::LoadNextChunk() {
+	offset = 0;
+	current_chunk = nullptr;
+	// A read that failed fails again: the engine reports a clean end past an error, and a consumer that
+	// retries must not read that as the result's end.
+	if (error.HasError()) {
+		error.Throw();
+	}
+	if (finished) {
+		return false;
+	}
+	if (stream_result) {
+		// A stream that failed reports its error when polled
+		if (stream_result->Poll() == QueryResultState::EXECUTION_ERROR) {
+			Fail(stream_result->GetErrorObject());
+		}
+		if (!stream_result->IsOpen()) {
+			finished = true;
+			return false;
+		}
+		current_chunk = stream_result->Fetch();
+		if (!current_chunk && stream_result->HasError()) {
+			Fail(stream_result->GetErrorObject());
+		}
+	} else {
+		current_chunk = result->Fetch();
+		if (result->HasError()) {
+			Fail(result->GetErrorObject());
+		}
+	}
+	if (!current_chunk || current_chunk->size() == 0) {
+		finished = true;
+		current_chunk = nullptr;
+		return false;
+	}
+	return true;
+}
+
+idx_t RArrowChunkSource::FetchArray(idx_t batch_size, ArrowArray &out) {
+	ArrowAppender appender(types, batch_size, client_properties, extension_types);
+	idx_t count = 0;
+	while (count < batch_size) {
+		if (!current_chunk || offset >= current_chunk->size()) {
+			if (!LoadNextChunk()) {
+				break;
+			}
+		}
+		auto to_append = MinValue(batch_size - count, current_chunk->size() - offset);
+		appender.Append(*current_chunk, offset, offset + to_append, current_chunk->size());
+		offset += to_append;
+		count += to_append;
+	}
+	if (count > 0) {
+		out = appender.Finalize();
+	} else {
+		out.release = nullptr;
+	}
+	return count;
+}
+
+void RArrowChunkSource::FetchSchema(ArrowSchema &out) {
+	ArrowConverter::ToArrowSchema(&out, types, names, client_properties);
+}
+
+RResultArrowStream::RResultArrowStream(duckdb::unique_ptr<QueryResult> result, idx_t batch_size_p, bool invalidated)
+    : source(std::move(result), invalidated), batch_size(batch_size_p) {
+	if (batch_size == 0) {
+		throw InvalidInputException("Approximate Batch Size of Record Batch MUST be higher than 0");
+	}
+	stream.get_schema = GetSchema;
+	stream.get_next = GetNext;
+	stream.get_last_error = GetLastError;
+	stream.release = Release;
+	stream.private_data = this;
+}
+
+int RResultArrowStream::GetSchema(ArrowArrayStream *stream, ArrowSchema *out) {
+	if (!stream->release) {
+		return -1;
+	}
+	out->release = nullptr;
+	auto my_stream = reinterpret_cast<RResultArrowStream *>(stream->private_data);
+	try {
+		my_stream->source.FetchSchema(*out);
+	} catch (std::exception &e) {
+		my_stream->last_error = ErrorData(e);
+		return -1;
+	}
+	return 0;
+}
+
+int RResultArrowStream::GetNext(ArrowArrayStream *stream, ArrowArray *out) {
+	if (!stream->release) {
+		return -1;
+	}
+	auto my_stream = reinterpret_cast<RResultArrowStream *>(stream->private_data);
+	try {
+		my_stream->source.FetchArray(my_stream->batch_size, *out);
+	} catch (std::exception &e) {
+		my_stream->last_error = ErrorData(e);
+		return -1;
+	}
+	return 0;
+}
+
+const char *RResultArrowStream::GetLastError(ArrowArrayStream *stream) {
+	if (!stream->release) {
+		return "stream was released";
+	}
+	auto my_stream = reinterpret_cast<RResultArrowStream *>(stream->private_data);
+	return my_stream->last_error.Message().c_str();
+}
+
+// Owned by the wrapper around it, which never releases it through the callback
+void RResultArrowStream::Release(ArrowArrayStream *stream) {
+	if (stream) {
+		stream->release = nullptr;
+	}
+}
+
+static bool FetchArrowChunk(RArrowChunkSource &source, AppendableRList &batches_list, ArrowArray &arrow_data,
+                            ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
+                            idx_t chunk_size) {
+	auto count = source.FetchArray(chunk_size, arrow_data);
 	if (count == 0) {
 		return false;
 	}
-	ArrowConverter::ToArrowSchema(&arrow_schema, scan_state.Types(), scan_state.Names(), options);
+	source.FetchSchema(arrow_schema);
 	batches_list.PrepAppend();
 	batches_list.Append(cpp11::safe[Rf_eval](batch_import_from_c, arrow_namespace));
 	return true;
@@ -71,6 +307,9 @@ static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *con
 	if (!qry_res->result) {
 		rapi_error_with_context("rapi_execute_arrow", "Result has already been consumed");
 	}
+	if (qry_res->Invalidated()) {
+		rapi_error_with_context("rapi_execute_arrow", INVALIDATED_MESSAGE);
+	}
 	auto result = qry_res->result.get();
 	// somewhat dark magic below
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
@@ -88,13 +327,14 @@ static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *con
 	// create data batches
 	AppendableRList batches_list;
 
-	QueryResultChunkScanState scan_state(*result);
-	while (FetchArrowChunk(scan_state, result->client_properties, batches_list, arrow_data, arrow_schema,
-	                       batch_import_from_c, arrow_namespace, chunk_size)) {
+	RArrowChunkSource source(*result);
+	while (FetchArrowChunk(source, batches_list, arrow_data, arrow_schema, batch_import_from_c, arrow_namespace,
+	                       chunk_size)) {
 	}
 
 	SET_LENGTH(batches_list.the_list, batches_list.size);
-	ArrowConverter::ToArrowSchema(&arrow_schema, result->types, result->names, result->client_properties);
+	ArrowConverter::ToArrowSchema(&arrow_schema, result->GetTypes(), IdentifiersToStrings(result->GetNames()),
+	                              result->client_properties);
 	cpp11::sexp schema_arrow_obj(cpp11::safe[Rf_eval](schema_import_from_c, arrow_namespace));
 
 	// create arrow::Table
@@ -103,13 +343,10 @@ static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *con
 	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
 }
 
-static duckdb::shared_ptr<ClientContext> KeepContext(QueryResult &result) {
-	auto context = result.client_properties.client_context;
-	return context ? context->shared_from_this() : nullptr;
-}
-
-RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size)
-    : context(KeepContext(*result)), engine(std::move(result), batch_size) {
+RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::shared_ptr<ClientContext> context_p,
+                                                   duckdb::unique_ptr<QueryResult> result, idx_t batch_size,
+                                                   bool invalidated)
+    : context(std::move(context_p)), engine(std::move(result), batch_size, invalidated) {
 	stream.get_schema = GetSchema;
 	stream.get_next = GetNext;
 	stream.get_last_error = GetLastError;
@@ -117,23 +354,14 @@ RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResul
 	stream.private_data = this;
 }
 
-// A streaming result that ran to the end has let go of its client context,
-// one that another statement on its connection invalidated still holds it
-// (vendored src/duckdb/src/main/stream_query_result.cpp).
+// Only the glue ends a result for another statement, and marks it so. The engine's own interrupt state is
+// a real interrupt or a timeout, and reads as such.
 bool RArrowArrayStreamWrapper::Invalidated() {
-	auto &result = *engine.result;
-	if (result.type != QueryResultType::STREAM_RESULT || result.HasError()) {
-		return false;
-	}
-	auto &stream_result = result.Cast<StreamQueryResult>();
-	return stream_result.context && !stream_result.IsOpen();
+	return engine.source.Invalidated();
 }
 
 int RArrowArrayStreamWrapper::ReportInvalidated() {
-	last_error = ErrorData(ExceptionType::INVALID_INPUT,
-	                       "The query result was invalidated by another statement on its connection "
-	                       "before it was read to the end. "
-	                       "Read it to the end first, or run the other statement on a separate connection.");
+	last_error = ErrorData(ExceptionType::INVALID_INPUT, INVALIDATED_MESSAGE);
 	// A failing callback of the Arrow C stream interface returns an errno-compatible code, not the engine's -1
 	// (https://arrow.apache.org/docs/format/CStreamInterface.html).
 	return EINVAL;
@@ -172,9 +400,15 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		return;
 	}
 	// The Arrow C data interface requires a release callback to mark the struct released by nulling `release`,
-	// as the engine's own callbacks do (vendored src/duckdb/src/common/arrow/arrow_wrapper.cpp).
+	// as the engine's own callbacks do.
 	stream->release = nullptr;
-	delete reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data);
+	duckdb::unique_ptr<RArrowArrayStreamWrapper> wrapper(
+	    reinterpret_cast<RArrowArrayStreamWrapper *>(stream->private_data));
+	// A stream not read to its end ends its query under the client context lock,
+	// which a finalizer run inside a callback must not take.
+	if (RCallbackScope::Active()) {
+		RCallbackScope::Defer(std::move(wrapper));
+	}
 }
 
 // Move the streaming query result into a nanoarrow-owned ArrowArrayStream.
@@ -205,7 +439,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		wrapper = qry_res->stream_wrapper.release();
 		wrapper->engine.batch_size = chunk_size;
 	} else if (qry_res->result) {
-		wrapper = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+		wrapper =
+		    new RArrowArrayStreamWrapper(qry_res->context, qry_res->TakeResult(), chunk_size, qry_res->Invalidated());
 	} else {
 		rapi_error_with_context("rapi_fetch_arrow_stream_into", "Result has already been consumed");
 	}
@@ -258,7 +493,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		if (!qry_res->result) {
 			rapi_error_with_context("rapi_fetch_arrow_array", "Result has already been consumed");
 		}
-		qry_res->stream_wrapper = make_uniq<RArrowArrayStreamWrapper>(std::move(qry_res->result), chunk_size);
+		qry_res->stream_wrapper = make_uniq<RArrowArrayStreamWrapper>(qry_res->context, qry_res->TakeResult(),
+		                                                              chunk_size, qry_res->Invalidated());
 	}
 	// The wrapper outlives the call that created it, and each call asks for its own batch size.
 	qry_res->stream_wrapper->engine.batch_size = chunk_size;
@@ -304,20 +540,15 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 // A streaming result not read to the end keeps its query, with the pipeline and the rows it has buffered,
 // active on the connection until the next statement there cleans it up,
 // so this ends the query the same way (handbook/usage/memory/reading/README.md).
+// This engine ends it on destruction, so dropping the handles is all it takes
+// (vendored src/duckdb/src/main/query_result.cpp, src/main/query_result_stream.cpp).
 // A stream that dbFetchArrow() has handed over is no longer here, and keeps its query.
 [[cpp11::register]] void rapi_release_arrow_result(duckdb::rqry_eptr_t qry_res) {
 	if (!qry_res || !qry_res.get()) {
 		return;
 	}
-	auto result = qry_res->stream_wrapper ? qry_res->stream_wrapper->engine.result.get() : qry_res->result.get();
-	if (result && result->type == QueryResultType::STREAM_RESULT) {
-		auto &stream_result = result->Cast<StreamQueryResult>();
-		if (stream_result.IsOpen()) {
-			stream_result.context->CancelTransaction();
-		}
-	}
 	qry_res->stream_wrapper.reset();
-	qry_res->result.reset();
+	qry_res->TakeResult().reset();
 }
 
 // Turn a DuckDB result set into an RecordBatchReader
@@ -334,7 +565,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	// takes the stream and frees both through stream.release when the reader is
 	// collected; only a failing import below leaks it (handbook/usage/memory/reading/README.md).
 	// Unlike the engine's own wrapper, it keeps the client context alive for a reader that outlives the connection.
-	auto result_stream = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+	auto result_stream =
+	    new RArrowArrayStreamWrapper(qry_res->context, qry_res->TakeResult(), chunk_size, qry_res->Invalidated());
 
 	cpp11::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));

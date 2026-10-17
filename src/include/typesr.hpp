@@ -129,6 +129,8 @@ struct RApiTypes {
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
+	// Children of a STRUCT or TUPLE, with positional names synthesized for the unnamed TUPLE members
+	static child_list_t<LogicalType> StructLikeChildTypes(const LogicalType &type);
 };
 
 struct RIntegralType {
@@ -227,4 +229,4 @@ struct RRawSexpType : public RSexpType {
 
 } // namespace duckdb
 
-duckdb::case_insensitive_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);
+duckdb::identifier_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);
