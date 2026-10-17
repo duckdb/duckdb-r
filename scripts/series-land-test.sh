@@ -4,7 +4,7 @@
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
 # the series' vendor commits and nothing else, and that its tip is the package
-# the series' rc strand holds. Thirteen things are checked.
+# the series' rc strand holds. Fourteen things are checked.
 #
 #   1. Without --push the build writes no ref, and says what it would write.
 #   2. Only vendor commits land, on `main` itself, unflavored.
@@ -38,6 +38,8 @@
 #  13. A `main` that moved stops a kept build and is not READY, and a rebuild
 #      on it that the series has not ported is refused before anything is
 #      pushed, `DESCRIPTION` included.
+#  14. A fresh build up to a ref --source names fetches it first, so a stale
+#      copy from an earlier fetch is not what it builds.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -487,6 +489,17 @@ has "and refuses to push" "$out" "DIVERGED"
 git fetch -q origin
 is "land-dev is where it was" "$(git rev-parse origin/v2.0-x-land-dev)" "$LAND_BEFORE"
 
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+
+# --- 14: a named source -------------------------------------------------------
+
+echo
+echo "== a fresh build up to a named ref takes it as the fork has it now"
+git push -q origin "$RC:refs/heads/land-src"
+git update-ref refs/remotes/origin/land-src "$RC~1"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --source land-src 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "it fetches the ref rather than reading a stale copy" "$out" "built up to land-src $(git rev-parse --short "$RC")"
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 echo
