@@ -17,6 +17,14 @@ TAR="$(which gtar 2>/dev/null || which tar)"
 if which xz > /dev/null; then
   if [ -d .git ]; then git clean -fdx src; fi
   cd src
+  # tar runs xz for -J, and XZ_OPT is how it is handed a level. The default is
+  # -6; -9e is worth ~147 KB on this tree, and that is what keeps the built
+  # package under the 5,000,000-byte budget this compression exists to hold now
+  # that the engine carries jemalloc. It costs compression time here, and 64 MB
+  # of memory to decompress -- paid by ./configure on every source build.
+  XZ_OPT="${XZ_OPT:--9e}"
+  export XZ_OPT
+
   $TAR cvJf duckdb.tar.xz duckdb
   rm -rf duckdb
 fi

@@ -26,6 +26,10 @@ Read at build time:
   Repeat builds of the vendored tree drop from minutes to seconds.
 * **`UserNM`** — `UserNM=true` skips the `nm` symbol sweep at install time.
   Never for `R CMD check`: it blinds the check's symbol scan.
+* **`DUCKDB_R_DISABLE_JEMALLOC`** — keeps the standard allocator
+  on a platform `configure` would otherwise build jemalloc for;
+  which platforms those are, and what the swap buys, is
+  [`architecture/engine/`](/handbook/architecture/engine/README.md)'s.
 * **`DUCKDB_R_USE_SYSTEM_LIB`** — the fast path —
   [`fast-paths/`](/handbook/build/fast-paths/README.md).
 * **`DUCKDB_R_LIB_DIR`** — where the fast path looks for `libduckdb`
