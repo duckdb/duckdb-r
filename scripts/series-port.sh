@@ -320,10 +320,11 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 #     shape this guards: a bump riding on 130 files of tooling, R code, tests
 #     and patches, which classifying by the version line alone would have
 #     dropped whole.
-#   * where it touches DESCRIPTION, `Version:` moved -- read against the first
-#     parent rather than from the diff, so a merge commit answers as truthfully
-#     as an ordinary one. The content is the fact, not the subject: a bump is
-#     one whatever it is called, and `fledge:` is only today's name for it.
+#   * where it touches DESCRIPTION, `Version:` moved, read against the first
+#     parent. A merge commit never gets this far: `git diff-tree` without `-m`
+#     lists no paths for it, so the first question already answers no. The
+#     content is the fact, not the subject: a bump is one whatever it is
+#     called, and `fledge:` is only today's name for it.
 #     DESCRIPTION also carries the dependency list, so a commit that edits it
 #     without moving the version is package content and ported like any other.
 #
