@@ -91,12 +91,19 @@ test_that("a column of NULLs is described as the integer column it arrives as", 
 
 test_that("a tuple holding a column R cannot hold is refused before it runs", {
   con <- local_con()
+  # Only a missing struct_values() skips; any other error is the test's to report.
   tuples <- tryCatch(
     {
       dbGetQuery(con, "SELECT struct_values({'a': 1}) AS v")
       TRUE
     },
-    error = function(e) FALSE
+    error = function(e) {
+      if (grepl("struct_values", conditionMessage(e), fixed = TRUE)) {
+        FALSE
+      } else {
+        stop(e)
+      }
+    }
   )
   skip_if_not(tuples, "This engine has no struct_values()")
 
