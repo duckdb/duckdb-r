@@ -23,6 +23,10 @@
 #
 # The fifth version component is renumbered as a true counter, one per replayed
 # commit, so it counts this chain rather than carrying the old one's numbering.
+# A landing replays onto `main` itself, whose version is `main`'s own, so
+# `--prefix` names the prefix to stamp, and the counter starts at zero on any
+# HEAD that does not carry that prefix yet (scripts/series-land.sh); a resumed
+# landing reads both back from HEAD.
 #
 # The foot of the range is read from the trees rather than taken on trust, so a
 # new seed vendoring a newer release than the old one needs no hand work:
@@ -44,7 +48,7 @@
 # HEAD, so the replay continues where it stopped.
 #
 # Usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]...
-#                                [--graft-from <ref>]
+#                                [--graft-from <ref>] [--prefix <a.b.c.d>]
 #   old-base-ref only delimits the replay range; it has to sit below the oldest
 #   vendor commit to replay, and nothing else is read from it. The old seed's
 #   base is always right: the script finds where the replay starts.
@@ -55,10 +59,12 @@
 #   the range was cut for (graft_pick), `v2.0-cyanoptera-fwd-build` for `main`.
 #   Required when the range stands on a graft, and refused otherwise.
 #   --no-check-glue skips the glue gate (glue_gate), as vendor-one.sh's does.
+#   --prefix is the four-component version to stamp; the counter restarts at
+#   zero unless HEAD already carries that prefix.
 
 set -euo pipefail
 
-usage='usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]... [--graft-from <ref>] [--no-check-glue]'
+usage='usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]... [--graft-from <ref>] [--prefix <a.b.c.d>] [--no-check-glue]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 # It names two refs rather than a series, so it takes no --remote; the options
@@ -66,12 +72,14 @@ argerr() { echo "$usage" >&2; exit 2; }
 # (handbook/operations/vendoring/series-loop/README.md).
 PLACED_ARGS=()
 GRAFT_FROM=
+PREFIX=
 CHECK_GLUE=true
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --placed) [ $# -ge 2 ] || argerr; PLACED_ARGS+=("$2"); shift 2 ;;
     --graft-from) [ $# -ge 2 ] || argerr; GRAFT_FROM=$2; shift 2 ;;
+    --prefix) [ $# -ge 2 ] || argerr; PREFIX=$2; shift 2 ;;
     --no-check-glue) CHECK_GLUE=false; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
@@ -95,12 +103,24 @@ done
 git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh"; exit 1; }
 
-version() { sed -rn 's/^Version: (.*)$/\1/p' DESCRIPTION; }
+# Read from HEAD, never from the working tree: a pick stopped on a conflict has
+# already merged `DESCRIPTION` there, and the `ours-version` driver takes the
+# larger counter of the two sides, so resuming from the file stamped the
+# resolved commit one number too high.
+version() { git show HEAD:DESCRIPTION | sed -rn 's/^Version: (.*)$/\1/p'; }
 
 # The counter is state, read back from the tree: the seed stamps `.0` and every
 # replayed commit stamps the next number, so HEAD says how far the replay got.
 prefix=$(version | sed -rn 's/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
 n=$(version | sed -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
+# `main` has carried five components of its own, and a counter read off them
+# would continue `main`'s numbering rather than start the landing's.
+if [ -n "$PREFIX" ] && [ "$prefix" != "$PREFIX" ]; then
+  [[ "$PREFIX" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+    { echo "Error: --prefix $PREFIX is not four version components"; exit 2; }
+  prefix=$PREFIX
+  n=0
+fi
 [ -n "$prefix" ] ||
   { echo "Error: HEAD's DESCRIPTION has no five-component version (seed the series first)"; exit 1; }
 
