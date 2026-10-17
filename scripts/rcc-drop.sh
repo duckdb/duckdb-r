@@ -98,8 +98,7 @@ fi
 # clean run.
 for sha in "${shas[@]}"; do
   case "${sha}" in
-    [0-9a-f]*) ;;
-    *) echo "not a lowercase hex SHA: ${sha}" >&2; exit 1 ;;
+    *[!0-9a-f]*) echo "not a lowercase hex SHA: ${sha}" >&2; exit 1 ;;
   esac
   [ "${#sha}" -eq 40 ] || {
     echo "not a full 40-character SHA: ${sha}" >&2

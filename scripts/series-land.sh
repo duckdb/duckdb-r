@@ -454,6 +454,9 @@ if [ -f "$STATE" ]; then
   echo "$L: resuming the build in $wt, on main $(git rev-parse --short "$base")," \
     "up to $(git rev-parse --short "$src")"
 else
+  # A named source is taken as the remote has it now, as a resumed build takes
+  # it, not as an earlier fetch left it.
+  [ -z "$source_arg" ] || git fetch -q "$remote" "+refs/heads/$src_name:refs/remotes/$remote/$src_name"
   check_aligned
   src=$(git rev-parse "$rc")
   seed=$(series_seed_of "$src")
@@ -525,7 +528,9 @@ fi
 
 tip=$(git -C "$wt" rev-parse HEAD)
 n=$(git rev-list --count "$base..$tip")
-odd=$(git log --format='%h %s' "$base..$tip" | grep -v '^[0-9a-f]* vendor:' || true)
+odd=$(git log --format='%h %s' "$base..$tip" | while read -r h subj; do
+  series_is_vendor "$subj" || echo "$h $subj"
+done)
 if [ -n "$odd" ]; then
   echo "Error: the landing carries commits that vendor nothing:" >&2
   echo "  ${odd//$'\n'/$'\n'  }" >&2
