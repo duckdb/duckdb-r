@@ -210,7 +210,7 @@ std::string Utf8Proc::RemoveInvalid(const char *s, size_t len) {
 			// A bad continuation byte (not a truncated tail, not a bad codepoint after a fully well-formed sequence) 
 			// means the byte at invalid_pos was never actually consumed as part of this sequence 
 			// rewind so it gets reprocessed on its own next iteration
-			if (invalid_reason == UnicodeInvalidReason::BYTE_MISMATCH && i > first_pos_seq) {
+			if (invalid_reason == UnicodeInvalidReason::BYTE_MISMATCH && i > static_cast<size_t>(first_pos_seq)) {
 				i = invalid_pos - 1;
 			}
 			continue;
