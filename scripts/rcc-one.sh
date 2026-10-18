@@ -45,6 +45,9 @@
 #   EACH_INSTALL_LOG      - where the install's output is kept for gate `warnings`
 #                           (default: a temporary file; set by this script for
 #                           the stage children it runs)
+#   EACH_WARNINGS_LOG     - where gate `warnings` keeps its verdict, which the
+#                           summary repeats at the very end of the run
+#                           (default and children: as EACH_INSTALL_LOG)
 #   EACH_SNAPSHOT_BRANCH  - publish the snapshot-<sha>-rcc-smoke-null branch when
 #                           the snapshots gate changed anything
 #                           (default: true under GITHUB_ACTIONS, false locally)
@@ -83,10 +86,12 @@ trap 'rm -rf "${rscript_dir}"' EXIT
 # (run_stage), which re-enters this script with a temporary directory of its
 # own, so the path is handed down in the environment rather than kept in one.
 INSTALL_LOG="${EACH_INSTALL_LOG:-}"
-if [ -z "${INSTALL_LOG}" ]; then
-  INSTALL_LOG="$(mktemp)"
-  export EACH_INSTALL_LOG="${INSTALL_LOG}"
-  trap 'rm -rf "${rscript_dir}" "${INSTALL_LOG}"' EXIT
+WARNINGS_LOG="${EACH_WARNINGS_LOG:-}"
+if [ -z "${INSTALL_LOG}" ] || [ -z "${WARNINGS_LOG}" ]; then
+  [ -n "${INSTALL_LOG}" ] || INSTALL_LOG="$(mktemp)"
+  [ -n "${WARNINGS_LOG}" ] || WARNINGS_LOG="$(mktemp)"
+  export EACH_INSTALL_LOG="${INSTALL_LOG}" EACH_WARNINGS_LOG="${WARNINGS_LOG}"
+  trap 'rm -rf "${rscript_dir}" "${INSTALL_LOG}" "${WARNINGS_LOG}"' EXIT
 fi
 
 # How a bounded stage re-enters this script; see run_stage. Resolved before
@@ -326,15 +331,23 @@ fi
 # neither was seen by this gate before, which is how the v2.0 landing reached
 # `main`'s check with 14 vendored warnings after 2,160 green per-commit
 # verdicts.
+#
+# The verdict is kept in WARNINGS_LOG as well, and the summary at the end of
+# the run prints it again: the verdict store keeps a commit's log by its tail,
+# and the check gate alone outruns that tail, so a listing printed here only
+# would be gone from the record exactly when someone needs to read it.
 gate_warnings() {
   local rc=0
+  : > "${WARNINGS_LOG}"
   if [ -s "${INSTALL_LOG}" ]; then
-    scripts/warnings.sh scan vendored "${INSTALL_LOG}" || rc=1
+    scripts/warnings.sh scan vendored "${INSTALL_LOG}" 2>&1 | tee -a "${WARNINGS_LOG}"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || rc=1
   else
-    echo "warnings: no install log at ${INSTALL_LOG}, so the vendored scope is not judged" >&2
+    echo "warnings: no install log at ${INSTALL_LOG}, so the vendored scope is not judged" | tee -a "${WARNINGS_LOG}" >&2
     rc=1
   fi
-  scripts/warnings.sh glue || rc=1
+  scripts/warnings.sh glue 2>&1 | tee -a "${WARNINGS_LOG}"
+  [ "${PIPESTATUS[0]}" -eq 0 ] || rc=1
   return "${rc}"
 }
 
@@ -599,5 +612,12 @@ for i in "${!names[@]}"; do
   esac
   printf '| %s | %s %s |\n' "${names[$i]}" "${icon}" "${outcomes[$i]}"
 done
+
+# Gate `warnings` once more, last, where a log kept by its tail still has it.
+if [ -s "${WARNINGS_LOG}" ]; then
+  echo
+  echo "gate warnings, repeated:"
+  cat "${WARNINGS_LOG}"
+fi
 
 exit "${status}"
