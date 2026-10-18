@@ -65,7 +65,7 @@ public:
 		span = span_p;
 		shift = 0;
 
-		while ((span >> shift) >= max_bits) {
+		while (UnsafeNumericCast<idx_t>(span >> shift) >= max_bits) {
 			shift++;
 		}
 
