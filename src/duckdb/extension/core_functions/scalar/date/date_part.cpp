@@ -1484,13 +1484,6 @@ double DatePart::EpochOperator::Operation(interval_t input) {
 	return double(interval_epoch) + double(input.micros) / double(Interval::MICROS_PER_SEC);
 }
 
-//	TODO: We can't propagate interval statistics because we can't easily compare interval_t for order.
-template <>
-unique_ptr<BaseStatistics> DatePart::EpochOperator::PropagateStatistics<interval_t>(ClientContext &context,
-                                                                                    FunctionStatisticsInput &input) {
-	return nullptr;
-}
-
 template <>
 double DatePart::EpochOperator::Operation(dtime_t input) {
 	return double(input.value) / double(Interval::MICROS_PER_SEC);
