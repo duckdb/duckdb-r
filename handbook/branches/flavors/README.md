@@ -23,7 +23,7 @@ written at render time. Edit the declaration, not the rows.
 <!-- flavors:begin -->
 | Flavor | Kind | Published from | Upstream series |
 |---|---|---|---|
-| `duckdb` | CRAN, also r-universe | `main` | `v1.5-variegata` |
+| `duckdb` | CRAN, also r-universe | `main` | `v2.0-cyanoptera` |
 | `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` | `v1.4-andium` |
 | `duckdb.dev` | dev, r-universe | `main-green` | `main` |
 | `duckdb.2.0.dev` | dev, r-universe | `v2.0-cyanoptera-green` | `v2.0-cyanoptera` |
