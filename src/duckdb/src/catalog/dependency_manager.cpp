@@ -553,7 +553,7 @@ void DependencyManager::VerifyExistence(CatalogTransaction transaction, Dependen
 
 	// navigate the (possibly nested) schema path to the schema that directly contains the subject
 	auto schema = NavigateSchemaPath(transaction, schema_path);
-	CatalogSet::EntryLookup lookup_result;
+	CatalogSet::EntryLookup lookup_result {nullptr, CatalogSet::EntryLookup::FailureReason::NOT_PRESENT};
 	if (type == CatalogType::SCHEMA_ENTRY) {
 		auto &container = schema ? schema->Cast<DuckSchemaEntry>().GetCatalogSet(CatalogType::SCHEMA_ENTRY)
 		                         : catalog.GetSchemaCatalogSet();
