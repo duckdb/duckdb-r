@@ -351,7 +351,7 @@ private:
 	static void Release(ArrowArrayStream *stream);
 };
 
-// The engine's Arrow stream over a query result, behind one that reports a streaming result
+// The glue's own Arrow stream over a query result (`RResultArrowStream`), behind one that reports a streaming result
 // invalidated by another statement on its connection as an error, where the engine reports the end of the stream
 // (handbook/usage/integrations/README.md).
 struct RArrowArrayStreamWrapper {

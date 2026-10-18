@@ -113,7 +113,8 @@ so the paths differ by which copies they hold and when each is freed.
   holding pipeline state and the transaction open,
   with the buffer itself outside `memory_limit` accounting.
   A batch is `chunk_size` rows — 1,000,000 by default on both fetch
-  methods — assembled engine-side from the engine's own chunks,
+  methods — assembled by the glue's `FetchArray()` from the engine's own chunks,
+  with the engine's `ArrowAppender`,
   so a batch costs rows times row width, in Arrow memory,
   before anything reaches R.
   `dbFetchArrowChunk()` hands over one such batch at a time;
