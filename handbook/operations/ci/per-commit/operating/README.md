@@ -74,7 +74,8 @@ Two details make it work in practice:
   record and log published from the leg,
   failed stages' tails in the job summary.
 * **A leg runs out of budget** — remaining commits stay statusless,
-  the next run replans them.
+  and the run's follow-up replans them
+  ([`legs/`](/handbook/operations/ci/per-commit/legs/README.md#the-follow-up-run)).
 * **A leg dies hard mid-commit** — that commit has no record,
   so the next run replans it;
   every commit the leg had already decided is on the `rcc2` branch.
@@ -86,11 +87,12 @@ Two details make it work in practice:
   [`rcc-logs.sh`](/scripts/rcc-logs.sh).
 * **The whole run is cancelled** — the legs' own records are already on the
   branch; run [`rcc-logs.sh`](/scripts/rcc-logs.sh) by hand for whatever is left.
+  A cancelled run dispatches no follow-up.
 * **The `plan` job fails** — `build` is skipped.
 * **History is force-pushed mid-run** — unreachable SHAs fail checkout
   and are skipped; new SHAs are picked up next run.
 * **More than `MAX_SHARDS` shards planned** — oldest shards deferred,
-  reported in the job summary.
+  reported in the job summary, and planned by the run's follow-up.
 * **Two writers publish at once** — different files, no conflict;
   the loser of the ref race re-reads the tip and re-stages its own files
   ([`rcc-publish.sh`](/scripts/rcc-publish.sh)).

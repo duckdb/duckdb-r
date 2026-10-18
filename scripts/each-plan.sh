@@ -42,6 +42,10 @@
 #   FORCE               - if non-empty, ignore existing verdicts and replan all
 #                         (a `retry-<S>-dev` branch replans its tip that way
 #                         without this, which is the whole point of it)
+#   FOLLOW_UP_OF        - the run that dispatched this one to finish what it
+#                         left undecided (scripts/each-follow-up.sh); if
+#                         non-empty, a `retry-<S>-dev` tip is not replanned,
+#                         because that run planned it again already
 #   SHARD_BUDGET_MINUTES- build-time target per leg, excluding job setup
 #                         (default: 300; the GitHub job limit is 360, and
 #                         scripts/each-shard.sh stops at its own deadline rather
@@ -73,6 +77,7 @@ set -euo pipefail
 SINCE="${SINCE:-2026-01-01}"
 OUT="${OUT:-plan.json}"
 FORCE="${FORCE:-}"
+FOLLOW_UP_OF="${FOLLOW_UP_OF:-}"
 SHARD_BUDGET_MINUTES="${SHARD_BUDGET_MINUTES:-300}"
 MAX_SHARDS="${MAX_SHARDS:-250}"
 MAX_PARALLEL="${MAX_PARALLEL:-8}"
@@ -91,6 +96,7 @@ trap 'rm -rf "${workdir}"' EXIT
 
 branch="$(git symbolic-ref --short -q HEAD || git rev-parse --short HEAD)"
 echo "Branch: ${branch}"
+[ -n "${FOLLOW_UP_OF}" ] && echo "Follow-up of run ${FOLLOW_UP_OF}"
 echo "Considering commits on or after ${SINCE}"
 
 # ---------------------------------------------------------------- enumerate --
@@ -237,8 +243,14 @@ echo "Verdicts on the rcc2 branch: $(wc -l < "${workdir}/decided" | tr -d ' ')"
 # Driven by the enumeration, not by the record list, so a commit the store does
 # not mention is replanned rather than silently dropped. Order stays
 # oldest-first, which is what the partitioner and the shard driver rely on.
+#
+# A follow-up run leaves the tip to the ordinary rule: the run that dispatched it
+# planned the same tip with the same exception, so forcing it again would judge
+# it a second time and decide nothing new.
 retry_tip=""
-[ -n "${retry}" ] && retry_tip="$(git rev-parse HEAD)"
+if [ -n "${retry}" ] && [ -z "${FOLLOW_UP_OF}" ]; then
+  retry_tip="$(git rev-parse HEAD)"
+fi
 awk -v force="${FORCE}" -v retry_tip="${retry_tip}" '
   # The FILENAME guard matters: with an empty record list, FNR == NR is still
   # true for the first record of the second file.
@@ -341,13 +353,22 @@ if [ "${parallel}" -gt "${shards}" ] && [ "${shards}" -gt 0 ]; then
   parallel="${shards}"
 fi
 
+# The planned commits the store had no record for when the plan was made, which
+# leaves out the ones replanned despite a verdict. It is what the run set out to
+# decide, and scripts/each-follow-up.sh measures the run's progress against it
+# from the same store, together with `head`, the commit the plan was made from.
+without_verdict="$(jq -r '.[].commits[].sha' "${workdir}/shards.final.json" \
+  | grep -cvxF -f "${workdir}/decided" || true)"
+
 jq -n \
   --arg branch "${branch}" \
+  --arg head "$(git rev-parse HEAD)" \
   --arg since "${SINCE}" \
   --argjson replanned "${replanned}" \
   --argjson total "${total}" \
   --argjson skipped "${skipped}" \
   --argjson dropped "${dropped}" \
+  --argjson without_verdict "${without_verdict}" \
   --argjson budget "${SHARD_BUDGET_MINUTES}" \
   --argjson setup "${SETUP_MINUTES}" \
   --argjson full "${FULL_BUILD_MINUTES}" \
@@ -357,11 +378,13 @@ jq -n \
   --slurpfile shards "${workdir}/shards.final.json" \
   '{
      branch: $branch,
+     head: $head,
      since: $since,
      commits_in_range: $total,
      commits_already_decided: $skipped,
      commits_deferred: $dropped,
      replanned_despite_verdict: $replanned,
+     planned_without_verdict: $without_verdict,
      cost_model: {
        setup_minutes: $setup,
        full_build_minutes: $full,

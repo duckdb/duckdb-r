@@ -18,7 +18,8 @@
 # Stopping is graceful, not fatal. The leg stops at its own deadline and reports
 # what it did not reach, rather than being killed at GitHub's 6-hour job limit
 # mid-commit. Progress is durable per commit (the status), so the next run simply
-# replans whatever is left; nothing is checkpointed.
+# replans whatever is left; nothing is checkpointed. That next run is normally
+# the follow-up this run dispatches for itself (scripts/each-follow-up.sh).
 #
 # Two consequences of "durable per commit" are load-bearing when a leg dies for
 # reasons of its own -- a lost runner, a cancellation, a platform hiccup:
