@@ -15,7 +15,7 @@
 flavors:
   - flavor: duckdb
     kind: CRAN
-    upstream: v1.5-variegata
+    upstream: v2.0-cyanoptera
     publishes_from: main
     repo: duckdb/duckdb-r
     badges: [cran, r-universe]
