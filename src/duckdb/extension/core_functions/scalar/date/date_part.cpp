@@ -2666,9 +2666,8 @@ ScalarFunctionSet HoursFun::GetFunctions() {
 }
 
 ScalarFunctionSet YearWeekFun::GetFunctions() {
-	auto set = GetDatePartFunction<DatePart::YearWeekOperator>();
-	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
-	return set;
+	// Not monotone on the full date domain: see YearWeekOperator::YearWeekFromParts.
+	return GetDatePartFunction<DatePart::YearWeekOperator>();
 }
 
 ScalarFunctionSet DayOfMonthFun::GetFunctions() {
