@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.6.9005
+
+## Bug fixes
+
+- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0 (#2892, #2893).
+
+- Run the tests behind `TEST_RE2` everywhere but in R-hub's runs, and fix what they caught in `duckdb_read_csv()` and `dbExistsTable()` (#2896).
+
+## Features
+
+### series
+
+- Stamp a green commit with upstream's alpha version, so `INSTALL` finds its extensions (#2897).
+
+
 # duckdb 1.5.6.9004
 
 ## Bug fixes
