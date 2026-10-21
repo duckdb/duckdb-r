@@ -75,13 +75,9 @@ runs:
         max-size: 200M
         verbose: 1
 
-    # The prebuilt libduckdb the fast path links is built with clang on Linux,
-    # and the glue with GCC unless told otherwise. The two disagree on a
-    # one-byte argument: GCC passes it in a register whose upper bits the ABI
-    # leaves undefined, and clang reads all 32 of them, so
-    # RelationType::EXTENSION_RELATION (255) arrives as 4294967295 at -O2
-    # (https://github.com/duckdb/duckdb-r/issues/2955).
-    # Compiling the glue with the library's own clang makes both sides agree.
+    # Compiles the glue with the clang that built the prebuilt libduckdb, and
+    # has covr read the coverage notes of that build with the llvm-cov of the
+    # same release (handbook/build/fast-paths/README.md says why).
     #
     # Here rather than in before-install, which installs the library: the
     # install action runs in between and appends ccache-wrapped compilers,
