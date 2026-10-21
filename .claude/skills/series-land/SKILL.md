@@ -262,18 +262,32 @@ id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze m
 gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 ```
 
-The nightly fledge run may open its version pull request first, against a version it does not expect;
-close it in favour of the one below.
+**`main`'s version is bumped by hand**, as the landing's last commit or as the first pull request on `main`,
+because `fledge::bump_version()` would write a `NEWS.md` entry for every vendor commit
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+The landing ends on the series' version, `1.99.99.9000.<n>`,
+which is the preview prefix `main` carries while it previews the line, followed by the vendor counter.
+[#2941](https://github.com/duckdb/duckdb-r/pull/2941) landed v2.0 this way, with the bump as its last commit.
+
+* **`DESCRIPTION`**: set `Version:` to `1.99.99.9001`.
+  `main`'s own counter is the fourth component, and the fifth, the vendor counter, is dropped.
+* **`NEWS.md`**: write the `# duckdb 1.99.99.9001` section by hand, for users of the package,
+  directly above the last release's section, `# duckdb 1.5.6` for v2.0.
+  It replaces the development sections since that release,
+  keeps their user-facing items, leaves out the tooling, and names the engine the landing vendors.
+* **The tag**: once the bump is on `main`, tag that commit `v1.99.99.9001` and push the tag before the nightly fledge run,
+  which counts from the newest version tag up to the version in `DESCRIPTION`.
+  A run without it bumps again and lists every vendor commit.
+
+  ```sh
+  git tag v1.99.99.9001 <the bump's commit on main>
+  git push upstream refs/tags/v1.99.99.9001
+  ```
 
 The first pull request on `main`:
 
 * **The CRAN row** in `scripts/series.yaml`: `duckdb` now tracks `<L>`.
   Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 6).
-* **`main`'s version.** The landing ends on the series' version, `1.99.99.9000.<n>`,
-  which is the preview prefix `main` carries while it previews the line
-  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-  `main`'s own counter is the fourth component, so the first bump sets it explicitly,
-  `fledge::bump_version("1.99.99.9001")`, which also drops the vendor counter.
 
 Then the series:
 
