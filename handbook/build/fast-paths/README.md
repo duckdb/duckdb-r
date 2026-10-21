@@ -39,8 +39,9 @@ from the vendored tree, greps for it inside the installed library,
 and aborts on a mismatch.
 Re-run [`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh)
 after every vendoring bump.
-If no prebuilt matches (a `-dev` snapshot), drop the variable and
-build from source.
+Its header says where it looks, and why a `-dev` snapshot finds nothing.
+When nothing matches, it installs nothing and exits 0.
+Drop the variable then and build from source, which CI does on its own.
 
 **Nothing here needs privileges.**
 The script installs under `~/.local` and `configure` searches there

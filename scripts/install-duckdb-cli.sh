@@ -17,12 +17,15 @@
 # script prints nothing and exits 0, so callers fall back to skipping the
 # CLI-dependent tests.
 #
+# Up to v1.5, the CLI is published as duckdb_cli-<platform>.zip;
+# from v2.0, as duckdb-cli-<platform>.tar.gz.
+#
 # Usage:
 #   scripts/install-duckdb-cli.sh [--prefix DIR] [--version vX.Y.Z] [--url URL]
 #
 # Environment:
 #   DUCKDB_R_LIB_VERSION  override the version (same as --version)
-#   DUCKDB_CLI_URL        explicit URL of the duckdb_cli-<platform>.zip to use
+#   DUCKDB_CLI_URL        explicit URL of the .zip or .tar.gz to use
 
 set -eu
 
@@ -58,7 +61,7 @@ if [ -z "${version}" ]; then
 fi
 
 case "${version}" in
-  *-dev*|*-dev)
+  *-dev*)
     # No public per-commit CLI is published for development snapshots between
     # releases. Exit cleanly so the caller skips the CLI-dependent tests.
     echo "DuckDB ${version} is a development snapshot; no published CLI. Skipping." >&2
@@ -99,7 +102,12 @@ if [ -z "${prefix}" ]; then
 fi
 
 if [ -z "${url}" ]; then
-  url="https://github.com/duckdb/duckdb/releases/download/${version}/duckdb_cli-${platform}.zip"
+  # Upstream renamed the asset in v2.0, and packs it as a tarball since.
+  case "${version}" in
+    v0.*|v1.*) asset="duckdb_cli-${platform}.zip" ;;
+    *)         asset="duckdb-cli-${platform}.tar.gz" ;;
+  esac
+  url="https://github.com/duckdb/duckdb/releases/download/${version}/${asset}"
 fi
 
 echo "Downloading DuckDB CLI ${version} for ${platform}" >&2
@@ -109,18 +117,22 @@ echo "  to:   ${prefix}" >&2
 tmpdir=$(mktemp -d)
 trap 'rm -rf "${tmpdir}"' EXIT
 
-zip="${tmpdir}/duckdb_cli-${platform}.zip"
+# The file keeps the URL's name, whose extension picks the unpacker below.
+archive="${tmpdir}/$(basename "${url%%\?*}")"
 if command -v curl >/dev/null 2>&1; then
-  curl --fail --location --silent --show-error --output "${zip}" "${url}"
+  curl --fail --location --silent --show-error --output "${archive}" "${url}"
 elif command -v wget >/dev/null 2>&1; then
-  wget --quiet -O "${zip}" "${url}"
+  wget --quiet -O "${archive}" "${url}"
 else
   echo "Neither curl nor wget is available." >&2
   exit 1
 fi
 
 mkdir -p "${prefix}"
-unzip -q -o "${zip}" -d "${prefix}"
+case "${archive}" in
+  *.zip) unzip -q -o "${archive}" -d "${prefix}" ;;
+  *)     tar -xzf "${archive}" -C "${prefix}" ;;
+esac
 chmod +x "${prefix}/${binary}" 2>/dev/null || true
 
 if [ ! -f "${prefix}/${binary}" ]; then
