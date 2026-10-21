@@ -198,14 +198,15 @@ cmd_tarball() {
   local log=$work/build.log rc=0
   (cd "$work" && R CMD build "$pkgdir") 2>&1 | tee "$log" || rc=$?
   local built=() f
-  for f in "$work"/*.tar.gz; do [ -e "$f" ] && built+=("$f"); done
+  for f in "$work"/*.tar.gz; do
+    if [ -e "$f" ]; then built+=("$f"); fi
+  done
   if [ "$rc" -ne 0 ] || [ "${#built[@]}" -ne 1 ]; then
     tail -n 30 "$log" >"$work/excerpt"
     fail "Build" "R CMD build failed" \
       "\`R CMD build\` exited with status $rc and left ${#built[@]} tarballs; its log is in the \"Build\" group of this step." \
       "$work/excerpt" -- \
       "Reproduce it with \`R CMD build .\` in a checkout of the commit this run was started on, and fix what its log names." \
-      "A failure in \`cleanup\` means \`src/duckdb/\` could not be packed into \`src/duckdb.tar\`: check that the checkout carries the vendored tree and no stale \`src/duckdb.tar\`." \
       "The commit to submit must have a green build before release; rerun this workflow on the fixed commit."
   fi
   local plain=${built[0]} name
@@ -284,8 +285,8 @@ cmd_tarball() {
     diff "$work/plain/listing" "$work/zopfli.list" | head -n 20 >>"$work/verify.err" || true
   fi
   local s_plain s_zopfli
-  s_plain=$(gzip -dc "$plain" | sha256_of /dev/stdin)
-  s_zopfli=$(gzip -dc "$target" | sha256_of /dev/stdin)
+  s_plain=$(gzip -dc "$plain" | sha256_of /dev/stdin) || s_plain="(no stream)"
+  s_zopfli=$(gzip -dc "$target" 2>/dev/null | sha256_of /dev/stdin) || s_zopfli="(no stream)"
   if [ "$s_plain" = "$s_zopfli" ]; then
     val "tar stream" "identical (sha256 $s_plain)"
   else
@@ -393,6 +394,10 @@ cmd_upload() {
   base=$(basename "$tarball")
 
   group "Upload: what is submitted"
+  if ! gzip -t "$tarball" 2>"$work/gzip.err" || ! tar -tzf "$tarball" >/dev/null 2>>"$work/gzip.err"; then
+    fail "Upload" "The tarball cannot be read" "\`$base\` is no gzip-compressed tar archive." "$work/gzip.err" -- \
+      "Upload the tarball \`scripts/cran-submit.sh tarball\` writes; this run keeps it as an artifact."
+  fi
   read_description "$tarball" "$work"
   local comment="$pkg $version" size sha
   size=$(size_of "$tarball")

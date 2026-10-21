@@ -8,7 +8,7 @@
 #   2. A 404 reads CRAN's maintenance message from the index page and fails with it.
 #   3. An upload without `pkg_id`, a confirmation without `submit=1`, a 500 and an unreachable form
 #      each fail before the next POST, with a "How to resolve" section in the step summary.
-#   4. A misnamed tarball fails before anything is sent.
+#   4. A misnamed tarball, and a file that is no tarball, fail before anything is sent.
 #   5. With R and pigz on the PATH: `tarball` builds a package, recompresses it with zopfli
 #      and verifies it; a package that does not build, and a recompression that does not match,
 #      fail with a "How to resolve" section; the built tarball then uploads as in 1.
@@ -276,6 +276,14 @@ has "it fails" "$out" "exit 1"
 has "naming the expected name" "$out" "fakepkg_1.0.1.tar.gz"
 is "and sends nothing" "$(requests)" ""
 
+echo
+echo "== a tarball that is not one is not sent"
+printf 'not a tarball' >"$SCRATCH/pkg/fakepkg_9.9.tar.gz"
+out=$(run upload "$SCRATCH/pkg/fakepkg_9.9.tar.gz")
+has "it fails" "$out" "exit 1"
+has "saying so" "$out" "::error title=The tarball cannot be read::"
+is "and sends nothing" "$(requests)" ""
+
 # --- 5: the tarball ------------------------------------------------------------
 
 echo
@@ -333,7 +341,7 @@ Jane Müller"
   echo "== a recompression that does not match is deleted"
   mkdir -p "$SCRATCH/bin"
   # shellcheck disable=SC2016  # the stub's own $1
-  printf '#!/bin/sh\n[ "$1" = --version ] && { echo "pigz 0.0"; exit 0; }\ncat >/dev/null\nprintf x | gzip -c\n' >"$SCRATCH/bin/pigz"
+  printf '#!/bin/sh\n[ "$1" = --version ] && { echo "pigz 0.0"; exit 0; }\ncat >/dev/null\nprintf "not a gzip stream"\n' >"$SCRATCH/bin/pigz"
   chmod +x "$SCRATCH/bin/pigz"
   out=$(PATH=$SCRATCH/bin:$PATH run tarball "$SCRATCH/out3" "$SCRATCH/src/zpkg")
   has "it fails" "$out" "exit 1"
