@@ -54,6 +54,9 @@ is [`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)'s.
   cannot filter: `arrow_scan_dumb`, registered alongside `arrow_scan`
   with `projection_pushdown`, `filter_pushdown` and `filter_prune`
   all false.
+  The v2.0 engine keeps both, flags included;
+  what it changes is how the factory reaches them,
+  as the table reference's `bind_info` rather than as three `POINTER` arguments.
 * Type fidelity differs in both directions:
   better for `hms` and `POSIXct`,
   worse for `factor`,
@@ -103,8 +106,9 @@ can do rather than assume it can filter.
   Detect it and say so, rather than failing on the first projection
   with a message about subsetting.
   A query result's stream is the same case with a worse failure:
-  registered on its own connection, a query over it hangs,
-  because the scan holds the connection while each read of the stream waits for it
+  registered on its own connection, a query over it fails with the invalidation error,
+  because starting the query ends the stream,
+  and on the v1.5 engine it waited for good instead
   ([`usage/integrations/`](/handbook/usage/integrations/README.md) owns the mechanism).
   `duckdb_register_arrow()` carries the same limitation for a `RecordBatchReader`,
   which the first query drains, as `usage/arrow-types/` lists.
@@ -136,12 +140,16 @@ Each commit is self-contained and keeps the suite green.
 
 ### 1. fix(arrow): carry the R producer's error message across the seam
 
-`RArrowTabularStreamFactory::Produce()` and `GetSchema()` call R
-closures directly, so an R error unwinds through C++ and arrives as
+`RArrowTabularStreamFactory::ProduceStream()` and `GetSchema()` call R
+closures directly, under an `RCallbackScope` since the v2.0 landing,
+so an R error still unwinds through C++ and arrives as
 `std::exception`.
 Route both through a helper that evaluates the call with
 `R_tryCatchError()` and converts a caught condition into a
-`duckdb::InvalidInputException` carrying the R message.
+`duckdb::InvalidInputException` carrying the R message,
+the way the bind of a data frame scan already does for an ALTREP column
+([`src/scan.cpp`](/src/scan.cpp)):
+the threading leaf's rule is that no R error may long-jump past the engine's frames.
 
 Standalone: it improves the existing arrow path on its own,
 and every later commit depends on the diagnostics.
@@ -152,11 +160,13 @@ message, and assert the message survives.
 
 ### 2. feat(arrow): bind pushdown-incapable producers to `arrow_scan_dumb`
 
-Give `RArrowTabularStreamFactory` a `bool supports_pushdown` and store it
-in the registration state list.
-`ArrowScanReplacement()` reads it and emits
-`FunctionExpression("arrow_scan_dumb", …)` when it is false,
-in which case `Produce()` is never called with a projection or a filter.
+Give `RArrowTabularStreamFactory` a `bool supports_pushdown`.
+The factory is the table reference's `bind_info` since the v2.0 landing,
+a `shared_ptr<ArrowScanFactory>` that `arrow_scan` takes in place of arguments,
+so the flag travels with it:
+`ArrowScanReplacement()` reads it and names `arrow_scan_dumb` instead of `arrow_scan`
+when it is false,
+in which case `ProduceStream()` is never called with a projection or a filter.
 
 No R-visible change yet — `rapi_register_arrow()` sets the flag true —
 but the two-function split is in place and testable through the
