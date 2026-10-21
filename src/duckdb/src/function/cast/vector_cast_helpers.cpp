@@ -288,7 +288,7 @@ static bool SplitStringListInternal(const string_t &input, OP &state) {
 	bool seen_value = false;
 	while (pos < len) {
 		optional_idx start_pos;
-		idx_t end_pos;
+		idx_t end_pos = 0;
 
 		while (pos < len && (buf[pos] != ',' && buf[pos] != ']')) {
 			if (!ValueStateTransition(input_state, start_pos, end_pos)) {
