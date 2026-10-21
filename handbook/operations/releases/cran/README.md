@@ -28,8 +28,7 @@ and submits the commit that ref points to.
 It first stops on a development version, one with more than three components such as `1.99.99.9001`,
 unless it was dispatched with the input `allow-dev-version`.
 It then drafts the GitHub release `duckdb X.Y.Z` with the `NEWS.md` section as its notes, or updates the draft already there,
-and stops instead if that release is published;
-the draft is published by hand once CRAN has accepted the package.
+and stops instead if that release is published.
 It tags the commit as `vX.Y.Z` with the same section,
 and [`scripts/cran-submit.sh`](/scripts/cran-submit.sh) builds the tarball with `R CMD build`,
 recompresses it with zopfli (`pigz -11`, about 5% smaller than the gzip R writes),
@@ -51,6 +50,19 @@ Acceptance is asynchronous — days, overlapping the next cycle —
 so the release is tagged and published to r-universe without
 waiting; a rejection is fixed on the release branch and
 resubmitted as a follow-up patch, never rolled back.
+
+**Publishing the release:**
+the draft's notes end with the marker `<!-- cran-submission: duckdb X.Y.Z -->`, which GitHub does not render,
+and every night [`cran-release.yaml`](/.github/workflows/cran-release.yaml) runs [`scripts/cran-release.sh`](/scripts/cran-release.sh)
+on the drafts that carry it with the tag `vX.Y.Z`.
+A draft is published, as the latest release,
+once the source index of <https://packagemanager.posit.co/cran/latest> lists the package at that version,
+the test `fledge:::release_after_cran_built_binaries()` made in `fledge.yaml` before
+([`versioning/`](/handbook/operations/releases/versioning/README.md)),
+and only if the tag exists and points at the commit the draft targets; a missing or moved tag fails the run with how to resolve it.
+A version not listed yet is one line on the summary page, and the run stays green.
+Started by hand, the workflow takes the input `dry-run`, which publishes nothing and says what it would publish;
+[`scripts/cran-release-test.sh`](/scripts/cran-release-test.sh) checks the script against a fake package manager and a stubbed `gh`.
 
 **Policy the tree obeys all year:**
 no warning suppression

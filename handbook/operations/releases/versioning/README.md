@@ -88,7 +88,9 @@ Commit messages on `main` are written to be read as changelog entries, which is 
 [`fledge.yaml`](/.github/workflows/fledge.yaml) runs fledge on `main` only while the first line of `NEWS.md` names fledge,
 which is what its `check_news` job tests.
 `NEWS.md` carries no such line, so the nightly run skips the bump.
-It also skips the step that publishes the GitHub release once Posit's package manager serves the released version.
+It also skips the step that published the GitHub release once Posit's package manager served the released version,
+which [`cran-release.yaml`](/.github/workflows/cran-release.yaml) does now
+([`cran/`](/handbook/operations/releases/cran/README.md)).
 `fledge::bump_version()` run interactively writes the line back, which turns the nightly run on again;
 run non-interactively, it refuses a `NEWS.md` without the line.
 

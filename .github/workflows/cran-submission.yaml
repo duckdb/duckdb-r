@@ -15,7 +15,8 @@
 # The `tag` job drafts a GitHub release titled `<package> <version>` for `v<version>`,
 # with the NEWS.md section of that version as its notes, or updates the draft that is there;
 # a published release of that tag stops the run instead.
-# The draft is published by hand once CRAN has accepted the package.
+# The notes end with the marker `<!-- cran-submission: <package> <version> -->`,
+# by which cran-release.yaml publishes the draft once Posit's package manager serves the version.
 # The job then tags the commit as `v<version>`,
 # with the NEWS.md section as the message, like the tags fledge creates.
 # An existing tag of that name is printed and then moved to this commit.
@@ -190,8 +191,15 @@ jobs:
           fi
           # The release carries the section without its heading, as the earlier releases do;
           # its title is the heading.
+          # The marker at the end, which GitHub does not render, is how cran-release.yaml
+          # finds the drafts to publish once P3M serves the version (scripts/cran-release.sh).
           notes="$RUNNER_TEMP/release-notes.md"
-          tail -n +2 "$message" | sed '/./,$!d' > "$notes"
+          {
+            # Without the heading, and without blank lines before and after the section.
+            tail -n +2 "$message" | sed '/./,$!d' | awk 'NF { for (; blank > 0; blank--) print ""; print; next } { blank++ }'
+            echo
+            echo "<!-- cran-submission: $pkg_name $pkg_version -->"
+          } > "$notes"
 
           moves=""
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
@@ -274,7 +282,7 @@ jobs:
               echo
               echo "- Tag: \`$TAG\`, target \`$TARGET\`"
               echo "- Title: $TITLE"
-              echo "- Draft: yes, published by hand once CRAN has accepted the package"
+              echo "- Draft: yes, published by the nightly \`cran-release.yaml\` once Posit's package manager serves the version"
               echo
               echo "<details><summary>Release notes</summary>"
               echo
@@ -297,12 +305,12 @@ jobs:
             done="Created the draft release"
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "::notice title=Draft release::$done $TITLE at $url; publish it by hand once CRAN has accepted the package."
+          echo "::notice title=Draft release::$done $TITLE at $url; the nightly cran-release.yaml publishes it once Posit's package manager serves the version."
           {
             echo "### Release"
             echo
             echo "$done [$TITLE]($url), for the tag \`$TAG\` at \`$TARGET\`."
-            echo "Publish it by hand once CRAN has accepted the package."
+            echo "The nightly \`cran-release.yaml\` publishes it once Posit's package manager serves the version."
             echo
           } >> "$GITHUB_STEP_SUMMARY"
         shell: bash
@@ -422,5 +430,5 @@ jobs:
         env:
           URL: ${{ needs.tag.outputs.release-url }}
         run: |
-          echo "**Once CRAN has accepted the package:** publish the [draft release]($URL) by hand." >> "$GITHUB_STEP_SUMMARY"
+          echo "**Once CRAN has accepted the package:** the nightly \`cran-release.yaml\` publishes the [draft release]($URL) when Posit's package manager serves the version." >> "$GITHUB_STEP_SUMMARY"
         shell: bash
