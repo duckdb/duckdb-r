@@ -1918,13 +1918,16 @@ test_that("rel_to_view()", {
   expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
 })
 
-test_that("rel_to_csv() and rel_to_parquet() refuse an empty file name", {
-  # An empty name must not fall back to a default file in the working directory.
+test_that("rel_to_csv() and rel_to_parquet() refuse an empty or missing file name", {
+  # An empty name must not fall back to a default file in the working directory,
+  # and a missing one must not become a file called "NA" there.
   withr::local_dir(withr::local_tempdir())
   rel <- rel_from_df(con, data.frame(a = 1L))
 
   expect_error(rel_to_csv(rel, ""))
   expect_error(rel_to_parquet(rel, ""))
+  expect_error(rel_to_csv(rel, NA_character_), "non-empty string")
+  expect_error(rel_to_parquet(rel, NA_character_), "non-empty string")
   expect_equal(list.files(all.files = TRUE, no.. = TRUE), character())
 })
 
