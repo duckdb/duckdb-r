@@ -12,12 +12,13 @@ an ALTREP method allocates,
 may evaluate R code,
 and may collect garbage.
 Bind is where that is avoided.
-It runs on the thread that issued the query, which is R's, unless a task binds (below),
+It runs on the thread that issued the query, which is R's, unless a task binds it,
 and it reduces the whole data frame to plain memory
 before the engine can schedule anything.
-[`src/scan.cpp`](/src/scan.cpp)'s `TouchColumn()` walks a column to its leaves —
+[`src/scan.cpp`](/src/scan.cpp)'s `WalkColumn()` walks a column to its leaves —
 the vectors packed inside a struct column or a matrix,
 and every cell of a list column —
+and bind touches each of them,
 so that what the scan later dereferences is a pointer bind already took.
 It descends by SEXP rather than by type,
 and covers more than the scan reads:
@@ -43,17 +44,20 @@ is measured in
 `pragma_table_info()` over a view rebinds the view's query as it executes,
 so joining a registered data frame to its own table info binds its scan on a thread of the engine's pool
 ([#2962](https://github.com/duckdb/duckdb-r/issues/2962)).
-So bind touches on R's thread only, and only for a data frame with an ALTREP vector where the walk reaches,
-since the `R_tryCatchError()` around touching evaluates R code.
-`OnRThread()` ([`src/utils.cpp`](/src/utils.cpp)) tells R's thread by an id recorded at load.
-On any other thread bind evaluates no R code:
-it reads a column whose ALTREP vectors hold their payload in memory already, as `DATAPTR_OR_NULL()` tells without allocating,
-and fails with an error for one that does not, and for an ALTREP list, whose cells only its class's code reads.
+So bind touches on R's thread only, which `OnRThread()` ([`src/utils.cpp`](/src/utils.cpp)) tells by an id recorded at load.
+On any other thread the same walk checks instead of touching.
+Bind reads a column there only if every ALTREP vector in it holds its payload in memory already,
+as `DATAPTR_OR_NULL()` tells without allocating, and is not a list, whose cells only its class's code reads.
+Otherwise it fails with an error.
 The bind that created the view ran on R's thread and touched every column,
 so R's compact sequences and deferred strings are in memory by the time a task binds,
-and so is an atomic column of `rel_to_altrep()`, whose class reports the vector it converted to,
-as [`tests/testthat/test-register.R`](/tests/testthat/test-register.R) pins;
-a list column of one is an ALTREP list, which a task refuses.
+and so is an atomic column of `rel_to_altrep()`, whose class reports the vector it converted to.
+A list column of one is an ALTREP list, which a task refuses,
+and [`tests/testthat/test-register.R`](/tests/testthat/test-register.R) pins both.
+The error suggests `SET threads = 1`, since the scheduler then has no worker of its own and a query from R runs every task on R's thread.
+A task's bind still calls R's C API, though.
+It takes each payload with `DATAPTR()`, which dispatches an ALTREP class's `Dataptr` method
+and clears and restores R's global flag for its collector around the call.
 
 **The other paths into R, and what keeps each of them safe.**
 The Arrow scan calls R to produce its stream,
