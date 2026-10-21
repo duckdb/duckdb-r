@@ -44,6 +44,8 @@ How the to-do list is computed is
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
 * **The frontier**: at the end of a run on a `-dev` branch, `<S>-green` is fast-forwarded over what passed,
   by the rule of the branch's kind ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **The canonical repository**: the commits of an open pull request from the fork show their verdicts there,
+  as `each-rcc (fork)` statuses ([`upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)).
 * **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
   `workflow_call`.
 
@@ -58,6 +60,7 @@ flowchart LR
   store -.->|fallback| firing
   store --> check["series-check.sh, series-advance.sh"]
   store --> green["the run's green job:<br>series-green.sh"]
+  store --> upstream["each-mirror.sh:<br>statuses in the canonical repository"]
 ```
 
 The snapshot branches are load-bearing, so `rcc-one.sh` reproduces them
@@ -84,8 +87,8 @@ CI-side, that is what "decided" means, in the planner
 ([`each-plan.sh`](/scripts/each-plan.sh)), in a leg's resume check,
 and in the backstop, all of them through
 [`rcc-decided.sh`](/scripts/rcc-decided.sh).
-[`series-check.sh`](/scripts/series-check.sh), [`series-advance.sh`](/scripts/series-advance.sh)
-and [`series-green.sh`](/scripts/series-green.sh) read the per-commit record,
+[`series-check.sh`](/scripts/series-check.sh), [`series-advance.sh`](/scripts/series-advance.sh),
+[`series-green.sh`](/scripts/series-green.sh) and [`each-mirror.sh`](/scripts/each-mirror.sh) read the per-commit record,
 so they see a verdict minutes after it happens rather than at the end of a run.
 [`rcc-logs.sh`](/scripts/rcc-logs.sh) writes records to the same place.
 

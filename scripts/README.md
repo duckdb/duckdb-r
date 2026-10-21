@@ -112,6 +112,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 | [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 
+## [`operations/ci/per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)
+
+| File | Purpose |
+|---|---|
+| [`each-mirror-test.sh`](each-mirror-test.sh) | Check scripts/each-mirror.sh, offline, against a synthetic canonical repository, a synthetic store and a stand-in for `gh api` built here: no network, no fix... |
+| [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for every open pull... |
+
 ## [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)
 
 | File | Purpose |
