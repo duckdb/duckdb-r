@@ -81,7 +81,7 @@ int32_t duckdb_extension_core_functions_describe(duckdb_extension_descriptor *de
 #endif
 
 #ifndef DUCKDB_STATIC_EXTENSION_LOADER_API
-#if defined(__GNUC__) || defined(__clang__)
+#if !defined(_WIN32) && (defined(__GNUC__) || defined(__clang__))
 #define DUCKDB_STATIC_EXTENSION_LOADER_API __attribute__((visibility("hidden")))
 #else
 #define DUCKDB_STATIC_EXTENSION_LOADER_API
