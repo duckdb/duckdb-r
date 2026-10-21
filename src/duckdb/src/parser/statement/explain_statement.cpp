@@ -4,14 +4,14 @@
 namespace duckdb {
 
 ExplainStatement::ExplainStatement(unique_ptr<SQLStatement> stmt, ExplainType explain_type,
-                                   ExplainFormat explain_format)
+                                   const ProfilerPrintFormat &format)
     : SQLStatement(StatementType::EXPLAIN_STATEMENT), stmt(std::move(stmt)), explain_type(explain_type),
-      explain_format(explain_format) {
+      format(format) {
 }
 
 ExplainStatement::ExplainStatement(const ExplainStatement &other)
     : SQLStatement(other), stmt(other.stmt->Copy()), explain_type(other.explain_type),
-      explain_format(other.explain_format) {
+      allow_unsupported_sql(other.allow_unsupported_sql), format(other.format) {
 }
 
 unique_ptr<SQLStatement> ExplainStatement::Copy() const {
@@ -19,18 +19,21 @@ unique_ptr<SQLStatement> ExplainStatement::Copy() const {
 }
 
 string ExplainStatement::OptionsToString() const {
+	if (explain_type == ExplainType::EXPLAIN_SQL) {
+		return "(SQL)";
+	}
 	string options;
 	if (explain_type == ExplainType::EXPLAIN_ANALYZE) {
 		options += "(";
 		options += "ANALYZE";
 	}
-	if (explain_format != ExplainFormat::DEFAULT) {
+	if (format != ProfilerPrintFormat::Default()) {
 		if (options.empty()) {
 			options += "(";
 		} else {
 			options += ", ";
 		}
-		options += StringUtil::Format("FORMAT %s", EnumUtil::ToString(explain_format));
+		options += StringUtil::Format("FORMAT %s", StringUtil::Upper(format.ToString()));
 	}
 	if (!options.empty()) {
 		options += ")";

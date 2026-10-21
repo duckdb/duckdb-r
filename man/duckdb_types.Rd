@@ -75,14 +75,14 @@ Its text writes it, and so does Arrow.
 The offset it drops is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/types/README.md#limitations}{limitation}.
 Its text writes it.
 \item \strong{\code{TIMESTAMP_S}, \code{TIMESTAMP_MS}, \code{TIMESTAMP}} (\code{DATETIME}) read as \code{POSIXct}.
-\code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC, and \code{field.types} names the other precisions.
+\code{POSIXct} writes \code{TIMESTAMP}, the instant in UTC to the nearest microsecond, a tie to even, and \code{field.types} names the other precisions.
 \item \strong{\code{TIMESTAMP_NS}} reads as \code{POSIXct}.
 \code{POSIXct} writes it to the microsecond through \code{field.types}, and Arrow writes it directly.
 \item \strong{\code{TIMESTAMPTZ}} (\verb{TIMESTAMP WITH TIME ZONE}) reads as \code{POSIXct}.
 \code{POSIXct} writes the plain \code{TIMESTAMP} of the same instant; \code{field.types} makes it \code{TIMESTAMPTZ},
 and Arrow writes it directly.
 \item \strong{\code{INTERVAL}} reads as \code{difftime} in seconds, counting a month as 30 days and a day as 24 hours.
-A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}.
+A \code{difftime} in any unit, or an \code{hms}, writes \code{INTERVAL}, to the nearest microsecond, a tie to even.
 }
 }
 

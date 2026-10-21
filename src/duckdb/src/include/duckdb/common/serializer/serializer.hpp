@@ -11,6 +11,7 @@
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/serializer/serialization_traits.hpp"
 #include "duckdb/common/serializer/serialization_data.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/string_type.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
@@ -21,12 +22,11 @@
 #include "duckdb/common/optionally_owned_ptr.hpp"
 #include "duckdb/common/value_operations/value_operations.hpp"
 #include "duckdb/execution/operator/csv_scanner/csv_option.hpp"
-#include "duckdb/main/config.hpp"
 #include "duckdb/common/insertion_order_preserving_map.hpp"
+#include "duckdb/common/storage_compatibility.hpp"
 #include "duckdb/storage/table/per_column_metadata_blocks.hpp"
 
 namespace duckdb {
-
 class SerializationOptions {
 public:
 	SerializationOptions() = default;
@@ -34,7 +34,7 @@ public:
 
 	bool serialize_enum_as_string = false;
 	bool serialize_default_values = false;
-	SerializationCompatibility serialization_compatibility = SerializationCompatibility::Default();
+	StorageCompatibility storage_compatibility = StorageCompatibility::Default();
 };
 
 class Serializer {
@@ -46,8 +46,12 @@ public:
 	virtual ~Serializer() {
 	}
 
-	bool ShouldSerialize(idx_t version_added) {
-		return options.serialization_compatibility.Compare(version_added);
+	bool ShouldSerializeInternal(StorageVersion version_added) const {
+		return options.storage_compatibility.Compare(version_added);
+	}
+
+	bool ShouldSerialize(StorageVersion version_added) const {
+		return ShouldSerializeInternal(version_added);
 	}
 
 	class List {
@@ -193,6 +197,12 @@ protected:
 		WriteValue(ptr.get());
 	}
 
+	// Optional Pointer Ref
+	template <typename T>
+	void WriteValue(const optional_ptr<T> &ptr) {
+		WriteValue(ptr.get());
+	}
+
 	// Pointer
 	template <typename T>
 	void WriteValue(const T *ptr) {
@@ -202,6 +212,19 @@ protected:
 		} else {
 			OnNullableBegin(true);
 			WriteValue(*ptr);
+			OnNullableEnd();
+		}
+	}
+
+	// DuckDB Optional
+	template <typename T>
+	void WriteValue(const optional<T> &opt) {
+		if (!opt) {
+			OnNullableBegin(false);
+			OnNullableEnd();
+		} else {
+			OnNullableBegin(true);
+			WriteValue(opt.value());
 			OnNullableEnd();
 		}
 	}
@@ -298,8 +321,8 @@ protected:
 
 	// Insertion Order Preserving Map
 	// serialized as a list of pairs
-	template <class V>
-	void WriteValue(const duckdb::InsertionOrderPreservingMap<V> &map) {
+	template <class V, class KEY, class INDEX_MAP>
+	void WriteValue(const duckdb::InsertionOrderPreservingMap<V, KEY, INDEX_MAP> &map) {
 		auto count = map.size();
 		OnListBegin(count);
 		for (auto &entry : map) {
@@ -376,8 +399,22 @@ protected:
 	void WriteValue(PhysicalIndex value) {
 		WriteValue(value.index);
 	}
+	void WriteValue(TableIndex value) {
+		WriteValue(value.index);
+	}
+	void WriteValue(ProjectionIndex value) {
+		WriteValue(value.GetIndexUnsafe());
+	}
 	void WriteValue(optional_idx value) {
-		WriteValue(value.IsValid() ? value.GetIndex() : DConstants::INVALID_INDEX);
+		if (!value.IsValid()) {
+			WriteValue(DConstants::INVALID_INDEX);
+			return;
+		}
+		// INVALID_INDEX marks an unset optional_idx in the serialized format
+		if (value.GetIndex() == DConstants::INVALID_INDEX) {
+			throw InternalException("Cannot serialize an optional_idx that is set to INVALID_INDEX");
+		}
+		WriteValue(value.GetIndex());
 	}
 	void WriteValue(PerColumnMetadataBlock value) {
 		WriteValue(value.GetPacked());

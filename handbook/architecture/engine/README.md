@@ -51,8 +51,10 @@ The load-bearing ones:
 * `-DDUCKDB_RSTRTMGR` — Windows restart-manager support,
   set by `configure.win` and off on R < 4.2, which ships no `librstrtmgr.a`.
 * `-DBROTLI_ENCODER_CLEANUP_ON_OOM` — an R package must not `exit()`.
-jemalloc is excluded from the generated source list;
-enabling it deliberately is open
+
+jemalloc is not vendored at all:
+[`scripts/rconfigure.py`](/scripts/rconfigure.py) drops its tree and says why,
+and enabling it is open
 ([#2365](https://github.com/duckdb/duckdb-r/issues/2365)).
 Compiler warnings from the vendored tree are noise the shipped
 build does not silence

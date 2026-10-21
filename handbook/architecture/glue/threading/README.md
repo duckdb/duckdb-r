@@ -72,12 +72,17 @@ Underneath all three sits the same load-bearing fact:
 for the length of a query,
 R's thread is blocked inside the engine and mutates nothing,
 which is what makes even a plain read of an R object from a task thread safe.
-The scan still takes such reads —
-a cell out of a list, a `class` attribute,
-a factor cell's levels through R's translation buffer.
+The scan still takes such reads:
+a cell out of a list, a `class` attribute, a factor cell's levels.
 Reads are all a task thread may take, and building a cpp11 vector is not one.
 It allocates, and links the vector into cpp11's one protection list, which two tasks would race on.
 Type detection in [`src/types.cpp`](/src/types.cpp) therefore reads a list cell's names and levels in place.
+Keeping every R allocation off the task threads is the aim, and not every path meets it yet.
+A factor level that is neither UTF-8 nor ASCII, latin1 for instance, is not read in place:
+`RType::FACTOR()` translates it with `Rf_translateCharUTF8()`, which allocates from R's buffers,
+and two tasks doing that at once crash a parallel scan of a list column of such factors.
+[`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md) sets out to keep R's thread and the engine's apart,
+with R's the only thread that touches the R API, and its first task audits paths like this one.
 So the inventory is not a licence to run R concurrently:
 a producer thread ends the blocking that underwrites it,
 which is why #2583 guards per connection
@@ -96,12 +101,14 @@ whose entry point reports it again, on R's thread, and that report is the one R 
 **The engine runs R code while it holds the client context lock.**
 The replacement scans and the Arrow stream factory in
 [`src/register.cpp`](/src/register.cpp),
-and the progress display in
+the progress display in
 [`src/connection.cpp`](/src/connection.cpp),
+and the bind of a data frame scan in [`src/scan.cpp`](/src/scan.cpp),
+which materializes an ALTREP column and evaluates `duckdb.materialize_callback` for one of duckdb's own,
 are all reached from underneath a query the engine is already executing.
 R may collect garbage in any of them,
-and a collection runs the finalizer of every engine handle
-the session has stopped referencing,
+and runs the finalizer of every engine handle the session has stopped referencing
+when it collects there or evaluates R code with finalizers pending from an earlier collection,
 at a point no R code chose.
 So no such finalizer may re-enter the client context it belongs to:
 the context lock is not recursive,
@@ -109,8 +116,13 @@ and the callback's caller already owns it.
 The rule binds the finalizers rather than the callbacks,
 because a callback cannot know what R will collect inside it;
 [`tests/testthat/test-progress_display.R`](/tests/testthat/test-progress_display.R)
-pins it by collecting an abandoned handle
-from inside the display's callback lookup.
+and [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pin it with an abandoned handle finalized
+from inside the display's callback lookup and from inside the materialize callback.
+Nor may an R error raised in any of them long-jump past the engine's frames,
+whose destructors release that lock and the package's interrupt handler.
+The bind of a data frame scan catches one from an ALTREP column with `R_tryCatchError()`
+and rethrows it as an engine error, which reaches R as an ordinary one,
+as [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pins.
 
 *To deepen: name the scan's remaining task-thread reads per call site,
 as #2583's audit settles each.*

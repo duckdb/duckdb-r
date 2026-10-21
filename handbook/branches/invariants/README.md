@@ -30,13 +30,18 @@ The families, in one breath:
   the one exception is vendor-coupled glue on the preview line,
   born beside the vendor commit that forces it.
 * **CI / green** — a `-green` ref only ever fast-forwards to
-  commits with recorded successful runs.
+  commits with recorded successful runs; the one sideways move, a cutover,
+  keeps every lineage it replaces as a closed pull request's head before
+  it moves anything ([`model/`](/handbook/branches/model/README.md)).
 * **Forward convergence** — at the end of a forwarding, `<S>-dev` and
   `<S>-fwd-dev` are identical, or every difference between them is
   explicable. A forward is the same series rebuilt on a newer `main`
   ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)),
   so the histories differ by construction and only the trees carry the
-  claim.
+  claim. Up to the commit the base had reached when the forward was
+  built, the replay takes `<S>-dev`'s commits themselves, so the two
+  agree there by construction, except where the replay kept a test the
+  base had stopped and says so.
 * **Prerelease** — while a release stabilises, only `main` and the dev
   branches move, so an unfinished release is abandoned by walking away;
   what ships is an ancestor of what was revdep-tested;

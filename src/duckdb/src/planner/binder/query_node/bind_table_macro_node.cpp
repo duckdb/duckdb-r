@@ -5,6 +5,7 @@
 #include "duckdb/planner/expression_binder.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/limits.hpp"
+#include "duckdb/main/client_context.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
@@ -18,9 +19,11 @@ namespace duckdb {
 
 unique_ptr<QueryNode> Binder::BindTableMacro(FunctionExpression &function, TableMacroCatalogEntry &macro_func,
                                              idx_t depth) {
+	// expanding nested macros can take a long time, allow the query to be interrupted
+	context.InterruptCheck();
 	// validate the arguments and separate positional and default arguments
 	vector<unique_ptr<ParsedExpression>> positional_arguments;
-	InsertionOrderPreservingMap<unique_ptr<ParsedExpression>> named_arguments;
+	InsertionOrderPreservingMap<unique_ptr<ParsedExpression>, Identifier, identifier_map_t<idx_t>> named_arguments;
 
 	auto bind_result = MacroFunction::BindMacroFunction(*this, macro_func.macros, macro_func.name, function,
 	                                                    positional_arguments, named_arguments, depth);
@@ -37,7 +40,7 @@ unique_ptr<QueryNode> Binder::BindTableMacro(FunctionExpression &function, Table
 	auto eb = ExpressionBinder(*this, this->context);
 
 	eb.macro_binding = new_macro_binding.get();
-	vector<unordered_set<string>> lambda_params;
+	vector<identifier_set_t> lambda_params;
 
 	auto node = macro_def.Cast<TableMacroFunction>().query_node->Copy();
 	ParsedExpressionIterator::EnumerateQueryNodeChildren(

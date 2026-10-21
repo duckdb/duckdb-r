@@ -192,14 +192,20 @@ linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
 (source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr)
 
-# Drop the bundled jemalloc sources. The R package does not enable jemalloc
-# (DUCKDB_ENABLE_JEMALLOC is never defined), so duckdb's allocator uses the
-# standard implementation. Upstream's packaging started emitting the jemalloc
-# tree into the source list (duckdb/duckdb#22811), which both fails to compile
-# (jemalloc_cpp.cpp requires DUCKDB_OVERRIDE_NEW_DELETE) and fails to link
-# (jemalloc's constructor references duckdb_malloc_ncpus(), defined only under
-# DUCKDB_ENABLE_JEMALLOC). Excluding the tree restores the previous behaviour.
+# Do not vendor jemalloc at all: drop its tree, its sources and its include
+# path. The R package never enables it (DUCKDB_ENABLE_JEMALLOC is never
+# defined), so duckdb's allocator uses the standard implementation. Upstream's
+# packaging emits the jemalloc tree (duckdb/duckdb#22811), which without that
+# define both fails to compile (jemalloc_cpp.cpp requires
+# DUCKDB_OVERRIDE_NEW_DELETE) and fails to link (jemalloc's constructor
+# references duckdb_malloc_ncpus(), defined only under DUCKDB_ENABLE_JEMALLOC).
+# Shipping the tree uncompiled only adds size, and its .c files fail R CMD
+# check's line-endings check on a Windows checkout, because cleanup.win turns
+# only .cc, .cpp, .h and .hpp files back to LF. Enabling jemalloc is
+# duckdb/duckdb-r#2365.
+shutil.rmtree(os.path.join(target_dir, 'third_party', 'jemalloc'), ignore_errors=True)
 source_list = [x for x in source_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
+include_list = [x for x in include_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
 
 # Walk target_dir, find all source and include files, and terminate with newline,
 # if not already present. Before the restore below, so what it compares against

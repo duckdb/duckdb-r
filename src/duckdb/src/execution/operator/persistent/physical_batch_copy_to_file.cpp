@@ -1,15 +1,21 @@
 #include "duckdb/execution/operator/persistent/physical_batch_copy_to_file.hpp"
 
 #include "duckdb/common/allocator.hpp"
+#include "duckdb/common/mutex.hpp"
 #include "duckdb/common/queue.hpp"
 #include "duckdb/common/types/batched_data_collection.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/operator/persistent/batch_memory_manager.hpp"
 #include "duckdb/execution/operator/persistent/batch_task_manager.hpp"
+#include "duckdb/execution/operator/persistent/copy_batch_slicer.hpp"
+#include "duckdb/execution/operator/persistent/copy_output_lifecycle.hpp"
 #include "duckdb/execution/operator/persistent/physical_copy_to_file.hpp"
 #include "duckdb/parallel/base_pipeline_event.hpp"
 #include "duckdb/parallel/executor_task.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
+#include "duckdb/storage/storage_info.hpp"
+#include "duckdb/logging/logger.hpp"
+#include "duckdb/logging/log_type.hpp"
 
 #include <algorithm>
 
@@ -38,6 +44,16 @@ PhysicalBatchCopyToFile::PhysicalBatchCopyToFile(PhysicalPlan &physical_plan, ve
 	}
 }
 
+InsertionOrderPreservingMap<string> PhysicalBatchCopyToFile::ParamsToString() const {
+	InsertionOrderPreservingMap<string> result;
+	result["FORMAT"] = StringUtil::Upper(function.name.GetIdentifierName());
+	return result;
+}
+
+OperatorPartitionInfo PhysicalBatchCopyToFile::RequiredPartitionInfo() const {
+	return OperatorPartitionInfo::BatchIndex(batch_size.IsValid() ? batch_size : optional_idx(DEFAULT_ROW_GROUP_SIZE));
+}
+
 //===--------------------------------------------------------------------===//
 // States
 //===--------------------------------------------------------------------===//
@@ -61,6 +77,7 @@ struct FixedRawBatchData {
 struct FixedPreparedBatchData {
 	idx_t memory_usage;
 	unique_ptr<PreparedBatchData> prepared_data;
+	CopyFunctionBatchAnalyzer batch_analyzer;
 };
 
 class FixedBatchCopyGlobalState : public GlobalSinkState {
@@ -70,23 +87,22 @@ public:
 
 public:
 	explicit FixedBatchCopyGlobalState(ClientContext &context_p, idx_t minimum_memory_per_thread)
-	    : memory_manager(context_p, minimum_memory_per_thread), initialized(false), rows_copied(0), batch_size(0),
+	    : output_lifecycle(context_p), memory_manager(context_p, minimum_memory_per_thread), rows_copied(0),
 	      scheduled_batch_index(0), flushed_batch_index(0), any_flushing(false), any_finished(false),
 	      minimum_memory_per_thread(minimum_memory_per_thread) {
 	}
 
+	//! Destroy after global_state so its handle closes before cleanup.
+	CopyOutputLifecycle output_lifecycle;
 	BatchMemoryManager memory_manager;
 	BatchTaskManager<BatchCopyTask> task_manager;
 	mutex lock;
 	mutex flush_lock;
-	//! Whether or not the copy has been initialized
-	atomic<bool> initialized;
+	atomic<bool> initialized {false};
 	//! The total number of rows copied to the file
 	atomic<idx_t> rows_copied;
 	//! Global copy state
 	unique_ptr<GlobalFunctionData> global_state;
-	//! The desired batch size (if any)
-	idx_t batch_size;
 	//! Unpartitioned batches
 	map<idx_t, unique_ptr<FixedRawBatchData>> raw_batches;
 	//! The prepared batch data by batch index - ready to flush
@@ -105,33 +121,36 @@ public:
 	unique_ptr<CopyToFileInfo> written_file_info;
 
 	void Initialize(ClientContext &context, const PhysicalBatchCopyToFile &op) {
-		if (initialized) {
+		if (initialized.load(std::memory_order_acquire)) {
 			return;
 		}
 		lock_guard<mutex> guard(lock);
-		if (initialized) {
+		if (initialized.load(std::memory_order_relaxed)) {
 			return;
 		}
-		// initialize writing to the file
-		global_state = op.function.copy_to_initialize_global(context, *op.bind_data, op.file_path);
+		output_lifecycle.RegisterFile(op.file_path);
+		auto new_global_state = op.function.copy_to_initialize_global(context, *op.bind_data, op.file_path);
 		if (op.function.initialize_operator) {
-			op.function.initialize_operator(*global_state, op);
+			op.function.initialize_operator(*new_global_state, op);
 		}
+		unique_ptr<CopyToFileInfo> new_written_file_info;
 		if (op.return_type == CopyFunctionReturnType::WRITTEN_FILE_STATISTICS) {
-			written_file_info = make_uniq<CopyToFileInfo>(op.file_path);
-			written_file_info->file_stats = make_uniq<CopyFunctionFileStatistics>();
-			op.function.copy_to_get_written_statistics(context, *op.bind_data, *global_state,
-			                                           *written_file_info->file_stats);
+			new_written_file_info = make_uniq<CopyToFileInfo>(op.file_path);
+			new_written_file_info->file_stats = make_uniq<CopyFunctionFileStatistics>();
+			op.function.copy_to_get_written_statistics(context, *op.bind_data, *new_global_state,
+			                                           *new_written_file_info->file_stats);
 		}
-		initialized = true;
+		global_state = std::move(new_global_state);
+		written_file_info = std::move(new_written_file_info);
+		initialized.store(true, std::memory_order_release);
 	}
 
-	void AddBatchData(idx_t batch_index, unique_ptr<PreparedBatchData> new_batch, idx_t memory_usage) {
+	void AddBatchData(idx_t batch_index, unique_ptr<PreparedBatchData> new_batch, idx_t memory_usage,
+	                  const CopyFunctionBatchAnalyzer &batch_analyzer) {
 		// move the batch data to the set of prepared batch data
 		lock_guard<mutex> l(lock);
-		auto prepared_data = make_uniq<FixedPreparedBatchData>();
-		prepared_data->prepared_data = std::move(new_batch);
-		prepared_data->memory_usage = memory_usage;
+		auto prepared_data = unique_ptr<FixedPreparedBatchData>(
+		    new FixedPreparedBatchData {memory_usage, std::move(new_batch), batch_analyzer});
 		auto entry = batch_data.insert(make_pair(batch_index, std::move(prepared_data)));
 		if (!entry.second) {
 			throw InternalException("Duplicate batch index %llu encountered in PhysicalFixedBatchCopy", batch_index);
@@ -191,11 +210,11 @@ SinkResultType PhysicalBatchCopyToFile::Sink(ExecutionContext &context, DataChun
 		FlushBatchData(context.client, gstate);
 
 		if (!memory_manager.IsMinimumBatchIndex(batch_index) && memory_manager.OutOfMemory(batch_index)) {
-			auto guard = memory_manager.Lock();
+			annotated_lock_guard<annotated_mutex> guard(memory_manager.lock);
 			if (!memory_manager.IsMinimumBatchIndex(batch_index)) {
 				// no tasks to process, we are not the minimum batch index and we have no memory available to buffer
 				// block the task for now
-				return memory_manager.BlockSink(guard, input.interrupt_state);
+				return memory_manager.BlockSink(input.interrupt_state);
 			}
 		}
 		state.current_task = FixedBatchCopyState::SINKING_DATA;
@@ -294,7 +313,7 @@ public:
 public:
 	void Schedule() override {
 		vector<shared_ptr<Task>> tasks;
-		for (idx_t i = 0; i < idx_t(TaskScheduler::GetScheduler(context).NumberOfThreads()); i++) {
+		for (idx_t i = 0; i < TaskScheduler::GetScheduler(context).NumberOfThreads(); i++) {
 			auto process_task =
 			    make_uniq<ProcessRemainingBatchesTask>(pipeline->executor, shared_from_this(), gstate, context, op);
 			tasks.push_back(std::move(process_task));
@@ -321,14 +340,14 @@ SinkFinalizeType PhysicalBatchCopyToFile::FinalFlush(ClientContext &context, Glo
 	if (gstate.scheduled_batch_index != gstate.flushed_batch_index) {
 		throw InternalException("Not all batches were flushed to disk - incomplete file?");
 	}
+	gstate.memory_manager.FinalCheck();
 	if (function.copy_to_finalize && gstate.global_state) {
 		function.copy_to_finalize(context, *bind_data, *gstate.global_state);
-
 		if (use_tmp_file) {
 			PhysicalCopyToFile::MoveTmpFile(context, file_path);
 		}
 	}
-	gstate.memory_manager.FinalCheck();
+	gstate.output_lifecycle.MarkSuccessful();
 	return SinkFinalizeType::READY;
 }
 
@@ -376,9 +395,10 @@ public:
 	void Execute(const PhysicalBatchCopyToFile &op, ClientContext &context, GlobalSinkState &gstate_p) override {
 		auto &gstate = gstate_p.Cast<FixedBatchCopyGlobalState>();
 		auto memory_usage = batch_data->memory_usage;
+		const CopyFunctionBatchAnalyzer batch_analyzer(*batch_data->collection, op.batch_size, op.batch_size_bytes);
 		auto prepared_batch =
 		    op.function.prepare_batch(context, *op.bind_data, *gstate.global_state, std::move(batch_data->collection));
-		gstate.AddBatchData(batch_index, std::move(prepared_batch), memory_usage);
+		gstate.AddBatchData(batch_index, std::move(prepared_batch), memory_usage, batch_analyzer);
 		if (batch_index == gstate.flushed_batch_index) {
 			gstate.task_manager.AddTask(make_uniq<RepartitionedFlushTask>());
 		}
@@ -400,12 +420,35 @@ void PhysicalBatchCopyToFile::AddRawBatchData(ClientContext &context, GlobalSink
 	}
 }
 
-static bool CorrectSizeForBatch(idx_t collection_size, idx_t desired_size) {
-	if (desired_size == 0) {
+static bool CorrectSizeForBatch(const ColumnDataCollection &batch, const optional_idx &batch_size,
+                                const optional_idx &batch_size_bytes) {
+	if (batch_size.GetIndex() == 0) {
 		// a batch size of 0 indicates we are happy with any batch size
 		return true;
 	}
-	return idx_t(AbsValue<int64_t>(int64_t(collection_size) - int64_t(desired_size))) < STANDARD_VECTOR_SIZE;
+
+	const auto size_vector_diff =
+	    NumericCast<int64_t>(batch.Count()) - NumericCast<int64_t>(batch_size.GetIndex()) / STANDARD_VECTOR_SIZE;
+
+	int64_t size_bytes_vector_diff = 0;
+	if (batch_size_bytes.IsValid()) {
+		const auto size_bytes_overshoot =
+		    NumericCast<int64_t>(batch.SizeInBytes()) - NumericCast<int64_t>(batch_size_bytes.GetIndex());
+		const auto bytes_per_tuple = NumericCast<int64_t>(batch.SizeInBytes() / batch.Count()) + 1;
+		size_bytes_vector_diff = size_bytes_overshoot / bytes_per_tuple / STANDARD_VECTOR_SIZE;
+	}
+
+	if (size_vector_diff == 0) {
+		// The row count diff is within one vector, OK if byte size overshot 2 vectors or less
+		return size_bytes_vector_diff <= 2;
+	}
+
+	if (size_bytes_vector_diff == 0) {
+		// The byte size diff is within two vectors, OK if row count is low
+		return size_vector_diff <= 0;
+	}
+
+	return false;
 }
 
 void PhysicalBatchCopyToFile::RepartitionBatches(ClientContext &context, GlobalSinkState &gstate_p, idx_t min_index,
@@ -427,15 +470,19 @@ void PhysicalBatchCopyToFile::RepartitionBatches(ClientContext &context, GlobalS
 		}
 		// if this is not the final flush we first check if we have enough data to merge past the batch threshold
 		idx_t candidate_rows = 0;
+		idx_t candidate_size_bytes = 0;
 		for (auto entry = gstate.raw_batches.begin(); entry != gstate.raw_batches.end(); entry++) {
 			if (entry->first >= min_index) {
 				// we have exceeded the minimum batch
 				break;
 			}
 			candidate_rows += entry->second->collection->Count();
+			candidate_size_bytes += entry->second->collection->SizeInBytes();
 		}
-		if (candidate_rows < gstate.batch_size) {
-			// not enough rows - cancel!
+		const CopyFunctionBatchAnalyzer batch_analyzer(candidate_rows, candidate_size_bytes, batch_size,
+		                                               batch_size_bytes);
+		if (!batch_analyzer.MeetsFlushCriteria()) {
+			// not enough rows/bytes - cancel!
 			return;
 		}
 	}
@@ -452,17 +499,18 @@ void PhysicalBatchCopyToFile::RepartitionBatches(ClientContext &context, GlobalS
 	}
 	unique_ptr<FixedRawBatchData> append_batch;
 	ColumnDataAppendState append_state;
+	CopyBatchSlicer batch_slicer(children[0].get().GetTypes(), batch_size_bytes);
 	// now perform the actual repartitioning
 	for (auto &current_batch : raw_batches) {
 		if (!append_batch) {
-			auto current_count = current_batch->collection->Count();
-			if (CorrectSizeForBatch(current_count, gstate.batch_size)) {
+			const CopyFunctionBatchAnalyzer batch_analyzer(*current_batch->collection, batch_size, batch_size_bytes);
+			if (batch_analyzer.IsAcceptable()) {
 				// the collection is ~approximately equal to the batch size (off by at most one vector)
 				// use it directly
 				task_manager.AddTask(
 				    make_uniq<PrepareBatchTask>(gstate.scheduled_batch_index++, std::move(current_batch)));
 				current_batch.reset();
-			} else if (current_count < gstate.batch_size) {
+			} else if (!batch_analyzer.MeetsFlushCriteria()) {
 				// the collection is smaller than the batch size - use it as a starting point
 				append_batch = std::move(current_batch);
 				current_batch.reset();
@@ -485,26 +533,30 @@ void PhysicalBatchCopyToFile::RepartitionBatches(ClientContext &context, GlobalS
 		append_batch->memory_usage += current_batch->memory_usage;
 		// iterate the collection while appending
 		for (auto &chunk : current_collection.Chunks()) {
-			// append the chunk to the collection
-			append_batch->collection->Append(append_state, chunk);
-			if (append_batch->collection->Count() < gstate.batch_size) {
-				// the collection is still under the batch size - continue
-				continue;
-			}
-			// the collection is full - move it to the result and create a new one
-			task_manager.AddTask(make_uniq<PrepareBatchTask>(gstate.scheduled_batch_index++, std::move(append_batch)));
+			idx_t offset = 0;
+			while (offset < chunk.size()) {
+				auto &slice = batch_slicer.Slice(chunk, offset, *append_batch->collection);
+				append_batch->collection->Append(append_state, slice);
+				const CopyFunctionBatchAnalyzer batch_analyzer(*append_batch->collection, batch_size, batch_size_bytes);
+				if (!batch_analyzer.MeetsFlushCriteria()) {
+					continue; // the collection is still under the desired batch size
+				}
+				// the collection is full - move it to the result and create a new one
+				task_manager.AddTask(
+				    make_uniq<PrepareBatchTask>(gstate.scheduled_batch_index++, std::move(append_batch)));
 
-			auto new_collection = make_uniq<ColumnDataCollection>(context, children[0].get().GetTypes());
-			new_collection->SetPartitionIndex(0); // Makes the buffer manager less likely to spill this data
-			append_batch = make_uniq<FixedRawBatchData>(0U, std::move(new_collection));
-			append_batch->collection->InitializeAppend(append_state);
+				auto new_collection = make_uniq<ColumnDataCollection>(context, children[0].get().GetTypes());
+				new_collection->SetPartitionIndex(0); // Makes the buffer manager less likely to spill this data
+				append_batch = make_uniq<FixedRawBatchData>(0U, std::move(new_collection));
+				append_batch->collection->InitializeAppend(append_state);
+			}
 		}
 	}
 	if (append_batch && append_batch->collection->Count() > 0) {
 		// if there are any remaining batches that are not filled up to the batch size
 		// AND this is not the final collection
 		// re-add it to the set of raw (to-be-merged) batches
-		if (final || CorrectSizeForBatch(append_batch->collection->Count(), gstate.batch_size)) {
+		if (final || CorrectSizeForBatch(*append_batch->collection, batch_size, batch_size_bytes)) {
 			task_manager.AddTask(make_uniq<PrepareBatchTask>(gstate.scheduled_batch_index++, std::move(append_batch)));
 		} else {
 			gstate.raw_batches[max_batch_index] = std::move(append_batch);
@@ -546,6 +598,11 @@ void PhysicalBatchCopyToFile::FlushBatchData(ClientContext &context, GlobalSinkS
 			batch_data = std::move(entry->second);
 			gstate.batch_data.erase(entry);
 		}
+		DUCKDB_LOG(context, PhysicalOperatorLogType, *this, "PhysicalBatchCopyToFile", "FlushBatch",
+		           {{"file", file_path},
+		            {"rows", to_string(batch_data->batch_analyzer.current_batch_size)},
+		            {"size", to_string(batch_data->batch_analyzer.current_batch_size_bytes)},
+		            {"reason", EnumUtil::ToString(batch_data->batch_analyzer.ToReason())}});
 		function.flush_batch(context, *bind_data, *gstate.global_state, *batch_data->prepared_data);
 		batch_data->prepared_data.reset();
 		memory_manager.ReduceUnflushedMemory(batch_data->memory_usage);
@@ -593,8 +650,8 @@ void PhysicalBatchCopyToFile::AddLocalBatch(ClientContext &context, GlobalSinkSt
 	// unblock tasks so they can help process batches (if any are blocked)
 	bool any_unblocked;
 	{
-		auto guard = memory_manager.Lock();
-		any_unblocked = memory_manager.UnblockTasks(guard);
+		annotated_lock_guard<annotated_mutex> guard(memory_manager.lock);
+		any_unblocked = memory_manager.UnblockTasks();
 	}
 	// if any threads were unblocked they can pick up execution of the tasks
 	// otherwise we will execute a task and flush here
@@ -624,6 +681,13 @@ SinkNextBatchType PhysicalBatchCopyToFile::NextBatch(ExecutionContext &context,
 	return SinkNextBatchType::READY;
 }
 
+SinkNextBatchType PhysicalBatchCopyToFile::UpdateMinBatchIndex(ExecutionContext &,
+                                                               OperatorSinkNextBatchInput &input) const {
+	auto &gstate = input.global_state.Cast<FixedBatchCopyGlobalState>();
+	gstate.memory_manager.UpdateMinBatchIndex(input.local_state.partition_info.min_batch_index.GetIndex());
+	return SinkNextBatchType::READY;
+}
+
 unique_ptr<LocalSinkState> PhysicalBatchCopyToFile::GetLocalSinkState(ExecutionContext &context) const {
 	return make_uniq<FixedBatchCopyLocalState>(function.copy_to_initialize_local(context, *bind_data));
 }
@@ -637,7 +701,6 @@ unique_ptr<GlobalSinkState> PhysicalBatchCopyToFile::GetGlobalSinkState(ClientCo
 		// if we are writing the file also if it is empty - initialize now
 		result->Initialize(context, *this);
 	}
-	result->batch_size = function.desired_batch_size ? function.desired_batch_size(context, *bind_data) : 0;
 	return std::move(result);
 }
 
@@ -650,24 +713,21 @@ SourceResultType PhysicalBatchCopyToFile::GetDataInternal(ExecutionContext &cont
 	auto fp = use_tmp_file ? PhysicalCopyToFile::GetNonTmpFile(context.client, file_path) : file_path;
 	switch (return_type) {
 	case CopyFunctionReturnType::CHANGED_ROWS:
-		chunk.SetValue(0, 0, Value::BIGINT(NumericCast<int64_t>(g.rows_copied.load())));
-		chunk.SetCardinality(1);
+		chunk.data[0].Append(Value::BIGINT(NumericCast<int64_t>(g.rows_copied.load())));
 		break;
 	case CopyFunctionReturnType::CHANGED_ROWS_AND_FILE_LIST: {
 		vector<Value> file_list;
 		if (g.global_state) {
 			file_list.emplace_back(std::move(fp));
 		}
-		chunk.SetValue(0, 0, Value::BIGINT(NumericCast<int64_t>(g.rows_copied.load())));
-		chunk.SetValue(1, 0, Value::LIST(LogicalType::VARCHAR, std::move(file_list)));
-		chunk.SetCardinality(1);
+		chunk.data[0].Append(Value::BIGINT(NumericCast<int64_t>(g.rows_copied.load())));
+		chunk.data[1].Append(Value::LIST(LogicalType::VARCHAR, std::move(file_list)));
 		break;
 	}
 	case CopyFunctionReturnType::WRITTEN_FILE_STATISTICS: {
 		if (g.written_file_info) {
 			g.written_file_info->file_path = std::move(fp);
-			PhysicalCopyToFile::ReturnStatistics(chunk, 0, *g.written_file_info);
-			chunk.SetCardinality(1);
+			PhysicalCopyToFile::ReturnStatistics(chunk, *g.written_file_info);
 		}
 		break;
 	}

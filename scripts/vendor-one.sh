@@ -14,7 +14,15 @@ set -o pipefail
 # script against another worktree. Only *this* script comes from `main` that
 # way: everything it invokes by relative path -- `scripts/rconfigure.py`,
 # `patch/*.patch`, `./configure` -- stays the target tree's.
-cd "${VENDOR_REPO:-$(dirname "$0")/..}"
+# The engine's names and the glue gate come from this script's own tree, as the
+# script does, before the change of directory below.
+here=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=vendor-lib.sh
+. "$here/vendor-lib.sh"
+# shellcheck source=series-lib.sh
+. "$here/series-lib.sh" # series_stage_vendor_paths
+
+cd "${VENDOR_REPO:-$here/..}"
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
   echo "Error: $PWD is not a git worktree" >&2
   exit 1
@@ -24,18 +32,20 @@ toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
   exit 1
 }
 
-project=duckdb
-vendor_base_dir=src/duckdb
+repo_org=${series_upstream_repo%%/*}
+repo_name=${series_upstream_repo##*/}
+project=${repo_name}
+vendor_base_dir=${series_vendor_dir}
 vendor_dir=${vendor_base_dir}
-repo_org=${project}
-repo_name=${project}
 
 
 upstream_basedir=""
 num_commits=1
 check_glue=true
+strand=false
+strand_flag=''
 
-# Matches the bound in vendored_sha() (scripts/series-advance.sh).
+# Matches the bound in series_vendored_sha() (scripts/series-lib.sh).
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 
 while [ $# -gt 0 ]; do
@@ -45,6 +55,14 @@ while [ $# -gt 0 ]; do
       shift 2
       ;;
     --no-check-glue)
+      check_glue=false
+      shift
+      ;;
+    --strand)
+      # A commit for the vendor strand (scripts/series-vendor.sh): what vendoring
+      # writes and nothing of the buffer's -- no counter, no glue gate.
+      strand=true
+      strand_flag=--strand
       check_glue=false
       shift
       ;;
@@ -179,55 +197,27 @@ fi
 
 start=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
-glue_compile_flags() {
-  # src/Makevars includes Makevars.rstrtmgr, which only ./configure writes and
-  # .gitignore keeps out of the tree; without it `make -n` stops before it ever
-  # prints a compile line.
-  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
-  (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-    grep -m 1 -E -- '-c cpp11\.cpp' |
-    sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
-}
-
-# The glue files that failed to compile, one per line. Written only by the run
-# that got as far as compiling, and read only after that run reported 1 -- so
-# the list a banner prints is always the list this check produced, never one an
-# earlier run in the same container left behind.
+# The glue files that failed to compile, one per line, as glue_compiles()
+# (scripts/vendor-lib.sh) writes them. Written only by the run that got as far
+# as compiling, and read only after that run reported 1 -- so the list a banner
+# prints is always the list this check produced, never one an earlier run in
+# the same container left behind.
 glue_failures=/tmp/vendor-one-glue-failures.txt
-
-# 0 the glue compiles, 1 some file does not, 2 the check could not run. The
-# three are distinct because the caller acts differently on each: only 1 says
-# anything about the commit at HEAD.
-glue_compiles() {
-  local flags
-  flags=$(glue_compile_flags)
-  if [ -z "$flags" ]; then
-    echo "Error: could not derive glue compile flags (R CMD SHLIB -n)" >&2
-    return 2
-  fi
-  # `eval` because R quotes its include path (-I"/usr/share/R/include"); plain
-  # expansion word-splits without removing the quotes, so g++ never finds R.h
-  # and every glue file looks broken.
-  (cd src && ls *.cpp | FLAGS="$flags" xargs -P 4 -I{} \
-    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee "$glue_failures" |
-    { ! grep -q .; }
-}
 
 # The upstream SHA the branch has vendored, and the base of the next walk.
 # Answering empty is not an option: an empty base makes the range below read
 # `..${start}`, whose missing left side git resolves to the upstream clone's
 # HEAD -- a range nobody chose, and one that silently vendors the wrong span.
-# The same rule, and the same bound, as vendored_sha() in
-# scripts/series-advance.sh; scripts/vendor.sh has its own copy.
+# The same rule, and the same bound, as series_vendored_sha() in
+# scripts/series-lib.sh; scripts/vendor.sh has its own copy.
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
-  sha=$(sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' <<<"$subjects" | head -n 1)
+  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}" | tee >(cat >&2))
+  sha=$(sed -rn "$series_sha_sed" <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
     echo "Error: no ${repo_org}/${repo_name}@ subject among the newest $n" \
-      "${vendor_dir} commit(s) of $(git rev-parse --abbrev-ref HEAD)" >&2
+      "${series_scan_dir} commit(s) of $(git rev-parse --abbrev-ref HEAD)" >&2
     if [ "$n" -ge "${base_scan_depth}" ]; then
       echo "  the scan is bounded at ${base_scan_depth}; if that is genuinely too" \
         "shallow, raise BASE_SCAN_DEPTH" >&2
@@ -235,6 +225,15 @@ vendored_sha() {
     return 1
   fi
   echo "$sha"
+}
+
+# The tag upstream put on a commit, empty when it has none: `git describe
+# --tags` answers a bare tag name only at a tagged commit, and appends
+# `-<n>-g<sha>` everywhere else.
+exact_tag() { # <upstream commit>
+  local d
+  d=$(git -C "$upstream_dir" describe --tags "$1" 2>/dev/null) || return 0
+  case "$d" in *-*) ;; *) echo "$d" ;; esac
 }
 
 commits_vendored=0
@@ -249,7 +248,30 @@ while [ $commits_vendored -lt $num_commits ]; do
     exit 1
   fi
 
-  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
+  # A tag upstream pushed after `base` was vendored. The walk starts *after*
+  # `base`, so it never sees that commit again, and the series keeps a `-devNNN`
+  # stamp for a release: DUCKDB_VERSION then carries `-dev`, and the engine
+  # installs extensions from the source-id directory instead of `/vX.Y.Z/`.
+  # Observed for v1.5.6 on 2026-09-28. Re-vendor `base` itself with the tag in
+  # view, which changes the version stamp and nothing else. It is appended as a
+  # commit of its own rather than amended, because the plain one may already be
+  # under `-green`, and nothing rewrites that (scripts/VENDORING.md).
+  restamp=
+  late_tag=$(exact_tag "$base")
+  if [ -n "$late_tag" ]; then
+    subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}")
+    case "$(grep -m 1 -F -- "@${base}" <<<"$subjects" || true)" in
+      *"(tag ${late_tag})"*) ;;
+      *) restamp=$late_tag ;;
+    esac
+  fi
+
+  if [ -n "$restamp" ]; then
+    echo "Upstream tagged ${base} as ${restamp} after it was vendored; re-stamping it"
+    original=$base
+  else
+    original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
+  fi
 
   if [ -z "$original" ]; then
     echo "No more commits to vendor. Done."
@@ -269,9 +291,11 @@ while [ $commits_vendored -lt $num_commits ]; do
   # compare that directly. Off the line, the oldest commit yielded belongs to the
   # other branch, and vendoring it rewrites the tree to whatever that branch
   # carries -- backwards, for a fork whose own line predates the buffer.
+  # A re-stamp walks no line: it vendors `base` again, whichever line it is on.
   oldest=$(head -n 1 <<<"$original")
   oldest_parent=$(git -C "$upstream_dir" rev-parse --verify "${oldest}^" 2>/dev/null || true)
-  if [ "$oldest_parent" != "$(git -C "$upstream_dir" rev-parse --verify "${base}")" ]; then
+  if [ -z "$restamp" ] &&
+    [ "$oldest_parent" != "$(git -C "$upstream_dir" rev-parse --verify "${base}")" ]; then
     echo ""
     echo "=== WRONG UPSTREAM LINE ==="
     echo "The buffer last vendored ${base},"
@@ -298,17 +322,20 @@ while [ $commits_vendored -lt $num_commits ]; do
       exit 1
     }
 
-    # The tree is not deleted here: rconfigure.py moves it aside itself and puts
-    # back the inode of every regenerated file that did not change, so a file
-    # whose content is the same keeps its stat cache entry and every later git
-    # command over ~3550 files stays cheap -- which this loop pays twice per
-    # candidate, kept or skipped. Files upstream dropped still go: they are in
-    # the tree that was moved aside, and never come back from it.
-    echo "R: configure"
-    DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
-      echo "Error: Failed to configure"
+    # The tree is not deleted here: the generator (scripts/series-config.sh)
+    # replaces it, and a generator that keeps the inode of every file that did
+    # not change, as rconfigure.py does, keeps every later git command over
+    # thousands of files cheap -- which this loop pays twice per candidate,
+    # kept or skipped. Files upstream dropped still go, by the generator's own
+    # hand.
+    echo "Regenerating the tree"
+    series_generate_tree "$upstream_dir" || {
+      echo ""
+      echo "=== GENERATOR FAILED regenerating the tree for upstream ${commit} ==="
+      echo "Nothing was committed; the regenerated files are in the working tree."
+      echo "Fix the generator's input, 'git checkout -- . && git clean -fd', and rerun this script."
       rm -rf "$upstream_dir"
-      exit 1
+      exit 7
     }
 
     # `--reverse` needs `--forward` beside it: on its own it prompts
@@ -316,6 +343,7 @@ while [ $commits_vendored -lt $num_commits ]; do
     # stdin is a terminal.
     # scripts/vendor.sh has the same three-way split and the same exit 4.
     for f in patch/*.patch; do
+      [ -e "$f" ] || continue # an empty stack leaves the glob unmatched
       if patch -i "$f" -p1 --forward --dry-run; then
         patch -i "$f" -p1 --forward --no-backup-if-mismatch
       elif patch -i "$f" -p1 --reverse --forward --dry-run; then
@@ -330,29 +358,45 @@ while [ $commits_vendored -lt $num_commits ]; do
         echo "The regenerated sources for ${commit} are in the working tree,"
         echo "uncommitted, and the upstream clone is kept."
         echo "Rebase $f against them, keeping the rebased patch outside the tree,"
-        echo "then 'git checkout -- .', put it back, and rerun this script."
+        echo "then 'git checkout -- . && git clean -fd', put it back, and rerun this script."
         echo "Delete it only after confirming its change is genuinely upstream --"
         echo "the effect it had, however upstream reached it, not this diff."
         echo "A deletion has to ride in the vendor commit for ${commit}, and this"
         echo "script refuses to start on a dirty tree, so land it in three steps:"
-        echo "  git checkout -- . && git rm $f && git commit -m 'tmp: retire patch'"
-        echo "  $0 --commits 1 <upstream>"
-        echo "  git reset --soft HEAD~2 && git commit   # keep the vendor message,"
-        echo "                                          # add an 'R-side fix' section"
+        echo "  git checkout -- . && git clean -fd && git rm $f && git commit -m 'tmp: retire patch'"
+        echo "  $0 ${strand_flag:+$strand_flag }--commits 1 <upstream>"
+        echo "  git reset --soft HEAD~2 && git commit -C HEAD@{1}   # keep the vendor message, then"
+        echo "  git commit --amend -F <file>                         # the same plus an 'R-side fix' section"
         exit 4
       fi
     done
 
+    # What is derived from the patched tree: the parsers a vendored grammar
+    # generates, a header a template fills, and for a buffer commit the R side.
+    series_generate_derived "$([ "$strand" = true ] && echo strand || echo full)" || {
+      echo ""
+      echo "=== GENERATOR FAILED deriving from the patched tree for upstream ${commit} ==="
+      echo "Nothing was committed; the regenerated files are in the working tree."
+      echo "Fix the generator's input, 'git checkout -- . && git clean -fd', and rerun this script."
+      rm -rf "$upstream_dir"
+      exit 7
+    }
+
     # Always vendor tags
-    if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
-      message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
+    tag=$(exact_tag "$commit")
+    if [ -n "$tag" ]; then
+      message="vendor: Update vendored sources (tag ${tag}) to ${repo_org}/${repo_name}@$commit"
       is_tag=true
       break
     fi
 
-    # pragma_version.cpp always differs, so "more than one" is the test for a
-    # real change.
-    if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
+    # The engine file and the version stamp differ on every upstream commit, so
+    # a real change is anything else that moved: over the directory holding the
+    # tree and the stamp, or for a strand commit over the paths it stages.
+    if [ "$strand" = true ]; then changed=("${series_vendor_paths[@]}"); else changed=("${series_scan_dir}"); fi
+    moved=$(git status --porcelain -- "${changed[@]}" | awk '{ print $NF }' |
+      { grep -vxF -e "$series_engine_file" -e "$series_stamp_file" || true; } | wc -l)
+    if [ "$moved" -gt 0 ]; then
       message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
       break
     fi
@@ -394,25 +438,44 @@ while [ $commits_vendored -lt $num_commits ]; do
   version_array[4]=$((version_array[4] + 1))
   new_version=$(IFS=.; echo "${version_array[*]}")
 
-  echo "Updating version from $version to $new_version"
-  sed -i.bak -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
-  rm DESCRIPTION.bak
+  if [ "$strand" = true ]; then
+    echo "Strand commit: the counter stays at $version"
+  else
+    echo "Updating version from $version to $new_version"
+    sed -i.bak -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
+    rm DESCRIPTION.bak
+  fi
 
-  git add .
+  if [ "$strand" = true ]; then
+    # The strand's paths and nothing else; what the generator wrote beyond them
+    # is restored after the commit (scripts/series-config.sh).
+    series_stage_vendor_paths
+  else
+    git add .
+  fi
 
   (
     echo "$message"
     echo
     git -C "$upstream_dir" log -1 --format="Date: %ai" "${commit}"
     echo
+    if [ -n "$restamp" ]; then
+      echo "Upstream tagged ${restamp} after this commit was vendored,"
+      echo "so the earlier vendor commit for it stamps a -dev version;"
+      echo "this one differs from it only in the version stamp."
+    fi
     git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
-      tee /dev/stderr |
+      tee >(cat >&2) |
       sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'
   ) | git commit --file /dev/stdin || {
     echo "Error: Failed to commit changes"
     rm -rf "$upstream_dir"
     exit 1
   }
+  if [ "$strand" = true ]; then
+    git checkout -q -- .
+    git clean -fdq
+  fi
 
   commits_vendored=$((commits_vendored + 1))
 
@@ -422,19 +485,21 @@ while [ $commits_vendored -lt $num_commits ]; do
     # Not `! glue_compiles`, which would collapse "the check could not run" into
     # "the glue is broken" and send the operator to fix code that compiles.
     glue_status=0
-    glue_compiles || glue_status=$?
+    glue_compiles "$glue_failures" || glue_status=$?
     if [ "$glue_status" = 2 ]; then
       echo ""
       echo "=== GLUE CHECK COULD NOT RUN at $(git rev-parse --short HEAD) (upstream ${commit}) ==="
-      echo "Deriving the compile flags needs src/Makevars.rstrtmgr, which only"
-      echo "./configure writes; reaching this means ./configure failed. Nothing"
+      echo "Deriving the compile flags needs the Makevars ./configure completes${series_configured_file:+ ($series_configured_file)};"
+      echo "reaching this means ./configure failed. Nothing"
       echo "was compiled, so this says nothing about the glue or about the commit"
       echo "at HEAD -- do not amend it."
       echo "Run ./configure and read its output, then rerun this script;"
       echo "--no-check-glue skips the check altogether."
       # Its own code, below the ones already spoken for: 3 is broken glue, 4 a
-      # broken patch, 5 the wrong upstream line.
-      exit 6
+      # broken patch, 5 the wrong upstream line, 6 a clone that cannot name a
+      # version, 7 a generator that failed before the commit
+      # (handbook/operations/vendoring/troubleshooting/README.md).
+      exit 8
     elif [ "$glue_status" != 0 ]; then
       echo ""
       echo "=== GLUE BROKEN by $(git rev-parse --short HEAD) (upstream ${commit}) ==="

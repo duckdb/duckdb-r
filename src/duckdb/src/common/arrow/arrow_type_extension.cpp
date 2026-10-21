@@ -2,13 +2,15 @@
 #include "duckdb/common/types/hash.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
+#include "duckdb/function/table/arrow/arrow_type_info.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/common/arrow/arrow_converter.hpp"
 #include "duckdb/common/arrow/schema_metadata.hpp"
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/common/types/geometry_crs.hpp"
-
-#include "yyjson.hpp"
+#include "duckdb/common/json_document.hpp"
+#include "duckdb/common/vector/struct_vector.hpp"
+#include "duckdb/common/types/variant/parquet_variant_iterator.hpp"
 
 namespace duckdb {
 
@@ -362,30 +364,21 @@ struct ArrowBignum {
 
 struct ArrowBool8 {
 	static void ArrowToDuck(ClientContext &context, Vector &source, Vector &result, idx_t count) {
-		// The caller (ColumnArrowToDuckDB) always builds a flat storage vector for the
-		// extension's internal type, so reading it flat is safe.
-		D_ASSERT(source.GetVectorType() == VectorType::FLAT_VECTOR);
-		auto source_ptr = reinterpret_cast<int8_t *>(FlatVector::GetData(source));
-		auto result_ptr = reinterpret_cast<bool *>(FlatVector::GetData(result));
+		auto source_ptr = FlatVector::GetData<int8_t>(source);
+		auto result_data = FlatVector::Writer<bool>(result, count);
 		for (idx_t i = 0; i < count; i++) {
-			result_ptr[i] = source_ptr[i];
+			result_data.WriteValue(source_ptr[i]);
 		}
 	}
-	static void DuckToArrow(ClientContext &context, Vector &source, Vector &result, idx_t count) {
-		// The source may be dictionary/constant/sliced (container appenders hand us such
-		// children), so resolve every row through the selection vector. The result is flat,
-		// so its validity is keyed by the logical row index.
-		UnifiedVectorFormat format;
-		source.ToUnifiedFormat(count, format);
-		auto source_ptr = UnifiedVectorFormat::GetData<bool>(format);
-		auto result_ptr = FlatVector::GetData<int8_t>(result);
-		auto &result_validity = FlatVector::Validity(result);
+	static void DuckToArrow(ClientContext &context, const Vector &source, Vector &result, idx_t count) {
+		auto entries = source.Values<bool>();
+		auto result_data = FlatVector::Writer<int8_t>(result, count);
 		for (idx_t i = 0; i < count; i++) {
-			auto source_idx = format.sel->get_index(i);
-			if (format.validity.RowIsValid(source_idx)) {
-				result_ptr[i] = static_cast<int8_t>(source_ptr[source_idx]);
+			auto entry = entries[i];
+			if (entry.IsValid()) {
+				result_data.WriteValue(static_cast<int8_t>(entry.GetValue()));
 			} else {
-				result_validity.SetInvalid(i);
+				result_data.WriteNull();
 			}
 		}
 	}
@@ -401,44 +394,29 @@ struct ArrowGeometry {
 		unique_ptr<CoordinateReferenceSystem> duckdb_crs;
 
 		if (!extension_metadata.empty()) {
-			unique_ptr<duckdb_yyjson::yyjson_doc, void (*)(duckdb_yyjson::yyjson_doc *)> doc(
-			    duckdb_yyjson::yyjson_read(extension_metadata.data(), extension_metadata.size(),
-			                               duckdb_yyjson::YYJSON_READ_NOFLAG),
-			    duckdb_yyjson::yyjson_doc_free);
+			JSONParseError error;
+			auto doc = JSONDocument::TryParse(extension_metadata.data(), extension_metadata.size(), error);
 			if (!doc) {
 				throw SerializationException("Invalid JSON in GeoArrow metadata");
 			}
 
-			duckdb_yyjson::yyjson_val *val = yyjson_doc_get_root(doc.get());
-			if (!yyjson_is_obj(val)) {
+			auto val = doc->GetRoot();
+			if (!val.IsObject()) {
 				throw SerializationException("Invalid GeoArrow metadata: not a JSON object");
 			}
 
-			duckdb_yyjson::yyjson_val *edges = yyjson_obj_get(val, "edges");
-			if (edges && yyjson_is_str(edges) && std::strcmp(yyjson_get_str(edges), "planar") != 0) {
+			auto edges = val.GetMember("edges");
+			if (edges.IsString() && edges.GetString() != "planar") {
 				throw NotImplementedException("Can't import non-planar edges");
 			}
 
 			// Pick out the CRS if present
-			duckdb_yyjson::yyjson_val *crs = yyjson_obj_get(val, "crs");
-
-			if (crs) {
-				if (duckdb_yyjson::yyjson_is_str(crs)) {
-					const char *crs_str = duckdb_yyjson::yyjson_get_str(crs);
-					duckdb_crs = CoordinateReferenceSystem::TryIdentify(context, crs_str);
-				} else if (duckdb_yyjson::yyjson_is_obj(crs)) {
-					// Stringify the object
-					duckdb_yyjson::yyjson_write_flag write_flags = duckdb_yyjson::YYJSON_WRITE_NOFLAG;
-					size_t len = 0;
-					const auto crs_str = duckdb_yyjson::yyjson_val_write(crs, write_flags, &len);
-					if (crs_str) {
-						const auto str = string(crs_str, len);
-						free(crs_str);
-						duckdb_crs = CoordinateReferenceSystem::TryIdentify(context, str);
-					} else {
-						throw SerializationException("Could not serialize CRS object from GeoArrow metadata");
-					}
-				}
+			auto crs = val.GetMember("crs");
+			if (crs.IsString()) {
+				duckdb_crs = CoordinateReferenceSystem::TryIdentify(context, crs.GetString());
+			} else if (crs.IsObject()) {
+				// Stringify the object
+				duckdb_crs = CoordinateReferenceSystem::TryIdentify(context, crs.ToString(JSONWriteFlags::NONE));
 			}
 		}
 
@@ -459,7 +437,7 @@ struct ArrowGeometry {
 		throw InvalidInputException("Arrow extension type \"%s\" not supported for geoarrow.wkb", format.c_str());
 	}
 
-	static void WriteCRS(duckdb_yyjson::yyjson_mut_doc *doc, const CoordinateReferenceSystem &crs,
+	static void WriteCRS(JSONWriter &writer, JSONMutableValue &root, const CoordinateReferenceSystem &crs,
 	                     ClientContext &context) {
 		// Try to convert to preferred formats, in order
 		auto converted = CoordinateReferenceSystem::TryConvert(context, crs, CoordinateReferenceSystemType::PROJJSON);
@@ -479,35 +457,28 @@ struct ArrowGeometry {
 		const auto &crs_def = converted ? converted->GetDefinition() : crs.GetDefinition();
 		const auto &crs_type = converted ? converted->GetType() : crs.GetType();
 
-		const auto root = duckdb_yyjson::yyjson_mut_doc_get_root(doc);
-
 		switch (crs_type) {
 		case CoordinateReferenceSystemType::PROJJSON: {
-			const auto projjson_doc =
-			    duckdb_yyjson::yyjson_read(crs_def.c_str(), crs_def.size(), duckdb_yyjson::YYJSON_READ_NOFLAG);
+			JSONParseError error;
+			auto projjson_doc = JSONDocument::TryParse(crs_def.c_str(), crs_def.size(), error);
 			if (projjson_doc) {
-				const auto projjson_val = duckdb_yyjson::yyjson_doc_get_root(projjson_doc);
-				const auto projjson_obj = duckdb_yyjson::yyjson_val_mut_copy(doc, projjson_val);
-
-				duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs_type", "projjson");
-				duckdb_yyjson::yyjson_mut_obj_add_val(doc, root, "crs", projjson_obj);
-
-				duckdb_yyjson::yyjson_doc_free(projjson_doc);
+				root.AddString("crs_type", "projjson");
+				root.Add("crs", writer.CreateCopy(projjson_doc->GetRoot()));
 			} else {
 				throw SerializationException("Could not parse PROJJSON CRS for GeoArrow metadata");
 			}
 		} break;
 		case CoordinateReferenceSystemType::AUTH_CODE: {
-			duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs_type", "authority_code");
-			duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs", crs_def.c_str());
+			root.AddString("crs_type", "authority_code");
+			root.AddString("crs", crs_def);
 		} break;
 		case CoordinateReferenceSystemType::SRID: {
-			duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs_type", "srid");
-			duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs", crs_def.c_str());
+			root.AddString("crs_type", "srid");
+			root.AddString("crs", crs_def);
 		} break;
 		case CoordinateReferenceSystemType::WKT2_2019: {
-			duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs_type", "wkt2:2019");
-			duckdb_yyjson::yyjson_mut_obj_add_str(doc, root, "crs", crs_def.c_str());
+			root.AddString("crs_type", "wkt2:2019");
+			root.AddString("crs", crs_def);
 		} break;
 		default:
 			throw SerializationException("Could not serialize CRS of type %d for GeoArrow metadata",
@@ -522,29 +493,15 @@ struct ArrowGeometry {
 		schema_metadata.AddOption(ArrowSchemaMetadata::ARROW_EXTENSION_NAME, "geoarrow.wkb");
 
 		// Make a CRS entry if the type has a CRS
-		const auto doc = duckdb_yyjson::yyjson_mut_doc_new(nullptr);
-		const auto root = duckdb_yyjson::yyjson_mut_obj(doc);
-		duckdb_yyjson::yyjson_mut_doc_set_root(doc, root);
+		JSONWriter writer;
+		auto root = writer.CreateObject();
+		writer.SetRoot(root);
 
 		if (GeoType::HasCRS(type)) {
-			try {
-				WriteCRS(doc, GeoType::GetCRS(type), context);
-			} catch (...) {
-				duckdb_yyjson::yyjson_mut_doc_free(doc);
-				throw;
-			}
+			WriteCRS(writer, root, GeoType::GetCRS(type), context);
 		}
 
-		size_t json_size = 0;
-		const auto json_text = duckdb_yyjson::yyjson_mut_write(doc, duckdb_yyjson::YYJSON_WRITE_NOFLAG, &json_size);
-		if (json_text) {
-			schema_metadata.AddOption(ArrowSchemaMetadata::ARROW_METADATA_KEY, json_text);
-			duckdb_yyjson::yyjson_mut_doc_free(doc);
-			free(json_text);
-		} else {
-			duckdb_yyjson::yyjson_mut_doc_free(doc);
-			schema_metadata.AddOption(ArrowSchemaMetadata::ARROW_METADATA_KEY, "{}");
-		}
+		schema_metadata.AddOption(ArrowSchemaMetadata::ARROW_METADATA_KEY, writer.ToString(JSONWriteFlags::NONE));
 
 		root_holder.metadata_info.emplace_back(schema_metadata.SerializeMetadata());
 		schema.metadata = root_holder.metadata_info.back().get();
@@ -564,8 +521,222 @@ struct ArrowGeometry {
 		Geometry::FromBinary(source, result, count, true);
 	}
 
-	static void DuckToArrow(ClientContext &context, Vector &source, Vector &result, idx_t count) {
-		Geometry::ToBinary(source, result, count);
+	static void DuckToArrow(ClientContext &context, const Vector &source, Vector &result, idx_t count) {
+		Geometry::ToBinary(source, result);
+	}
+};
+
+struct ArrowVariant {
+	//! VARIANT travels as the canonical `arrow.parquet.variant` extension: the Variant spec's binary
+	//! encoding in a struct<metadata: binary, value: binary> storage type. The values convert through
+	//! ParquetVariantConversion's encode/decode directly — never through the binder, since a conversion
+	//! can run without a valid transaction (e.g. duckdb_result_arrow_array over a materialized result).
+
+	static LogicalType StorageType() {
+		child_list_t<LogicalType> children;
+		children.emplace_back("metadata", LogicalType::BLOB);
+		children.emplace_back("value", LogicalType::BLOB);
+		return LogicalType::STRUCT(std::move(children));
+	}
+
+	//! Declares the storage schema: struct<metadata: binary, value: binary>, tagged with the canonical
+	//! extension name.
+	static void PopulateSchema(DuckDBArrowSchemaHolder &root_holder, ArrowSchema &schema, const LogicalType &type,
+	                           ClientContext &context, const ArrowTypeExtension &extension) {
+		const auto schema_metadata = ArrowSchemaMetadata::ArrowCanonicalType(extension.GetInfo().GetExtensionName());
+		root_holder.metadata_info.emplace_back(schema_metadata.SerializeMetadata());
+		schema.metadata = root_holder.metadata_info.back().get();
+
+		auto release_child = [](ArrowSchema *child) {
+			child->release = nullptr;
+		};
+
+		schema.format = "+s";
+		schema.n_children = 2;
+		root_holder.nested_children.emplace_back();
+		root_holder.nested_children.back().resize(2);
+		root_holder.nested_children_ptr.emplace_back();
+		root_holder.nested_children_ptr.back().push_back(&root_holder.nested_children.back()[0]);
+		root_holder.nested_children_ptr.back().push_back(&root_holder.nested_children.back()[1]);
+		schema.children = root_holder.nested_children_ptr.back().data();
+
+		// The appender picks the binary layout from the session settings — declare the same one, or the
+		// schema and the produced buffers disagree (same rule as SetArrowFormat's BLOB case).
+		const auto options = context.GetClientProperties();
+		const char *binary_format;
+		if (options.arrow_output_version >= ArrowFormatVersion::V1_4) {
+			binary_format = "vz";
+		} else if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
+			binary_format = "Z";
+		} else {
+			binary_format = "z";
+		}
+
+		const char *child_names[] = {"metadata", "value"};
+		for (idx_t i = 0; i < 2; i++) {
+			auto &child = *schema.children[i];
+			child.format = binary_format;
+			child.name = child_names[i];
+			// the spec requires `metadata` non-nullable; `value` stays nullable (it may be absent per row
+			// once shredding exists)
+			child.flags = i == 0 ? 0 : ARROW_FLAG_NULLABLE;
+			child.release = release_child;
+		}
+	}
+
+	//! Maps a tagged schema back: the VARIANT logical type, with type info describing the storage struct
+	//! for the reader's buffer walk. The spec allows the fields in ANY order, in any binary layout
+	//! (binary / large binary / view), and dictionary- or run-end-encoded — so the fields are resolved by
+	//! NAME and the children are parsed from the actual schema. The resolved order is recorded on a
+	//! per-column ArrowTypeExtensionData whose internal type is the storage struct in the schema's OWN
+	//! field order (the buffer walk is positional), so the conversion can normalize by name.
+	static unique_ptr<ArrowType> GetType(ClientContext &context, const ArrowSchema &schema,
+	                                     const ArrowSchemaMetadata &schema_metadata) {
+		if (!schema.format || string(schema.format) != "+s") {
+			throw InvalidInputException("arrow.parquet.variant column must have a struct storage type, got format '%s'",
+			                            schema.format ? schema.format : "(none)");
+		}
+		idx_t metadata_idx = DConstants::INVALID_INDEX;
+		idx_t value_idx = DConstants::INVALID_INDEX;
+		for (idx_t i = 0; i < NumericCast<idx_t>(schema.n_children); i++) {
+			const string name = schema.children[i]->name ? schema.children[i]->name : "";
+			if (name == "metadata" && metadata_idx == DConstants::INVALID_INDEX) {
+				metadata_idx = i;
+			} else if (name == "value" && value_idx == DConstants::INVALID_INDEX) {
+				value_idx = i;
+			} else if (name == "typed_value") {
+				// TODO: support shredded variants — the value has to be re-assembled from typed_value
+				// (and, when both are present, merged with the residual value field).
+				throw NotImplementedException(
+				    "arrow.parquet.variant column with a 'typed_value' field (a shredded variant) is not supported "
+				    "yet");
+			} else {
+				throw InvalidInputException(
+				    "arrow.parquet.variant column has an unexpected or duplicate field '%s' (expected 'metadata' and "
+				    "'value')",
+				    name);
+			}
+		}
+		if (metadata_idx == DConstants::INVALID_INDEX || value_idx == DConstants::INVALID_INDEX) {
+			throw InvalidInputException(
+			    "arrow.parquet.variant column must have a 'metadata' and a 'value' field, got %lld children",
+			    schema.n_children);
+		}
+		vector<shared_ptr<ArrowType>> children;
+		child_list_t<LogicalType> storage_children;
+		for (idx_t i = 0; i < NumericCast<idx_t>(schema.n_children); i++) {
+			// GetArrowLogicalType, not GetTypeFromSchema: a dictionary-encoded child carries its value
+			// type in schema.dictionary, which only this entry point resolves.
+			children.push_back(ArrowType::GetArrowLogicalType(context, *schema.children[i]));
+			// Both fields are binary by the spec. Without this check a non-binary field would be
+			// declared BLOB storage here and then reinterpreted as bytes by the decode.
+			const auto child_type = children.back()->GetDuckType(true);
+			if (child_type.id() != LogicalTypeId::BLOB) {
+				throw InvalidInputException("arrow.parquet.variant field '%s' must be a binary type, got %s",
+				                            schema.children[i]->name, child_type.ToString());
+			}
+			storage_children.emplace_back(schema.children[i]->name, LogicalType::BLOB);
+		}
+		auto result = make_uniq<ArrowType>(LogicalType::VARIANT(), make_uniq<ArrowStructInfo>(std::move(children)));
+		result->extension_data = make_shared_ptr<ArrowTypeExtensionData>(
+		    LogicalType::VARIANT(), LogicalType::STRUCT(std::move(storage_children)), ArrowToDuck, DuckToArrow);
+		return result;
+	}
+
+	//! DuckDB -> Arrow: convert VARIANT values into the storage struct via the Parquet Variant encode
+	//! (the result vector declares no typed_value child, so the result is the unshredded
+	//! struct<metadata, value>).
+	static void DuckToArrow(ClientContext &, const Vector &source, Vector &result, idx_t count) {
+		Vector transformed(StorageType(), count);
+		ParquetVariantConversion::ToParquetVariant(source, count, transformed);
+
+		// The transform encodes SQL NULL as a Variant-null VALUE; Arrow needs the source's top-level validity.
+		UnifiedVectorFormat source_format;
+		source.ToUnifiedFormat(source_format);
+		bool has_nulls = false;
+		for (idx_t i = 0; i < count; i++) {
+			if (!source_format.validity.RowIsValid(source_format.sel->get_index(i)) ||
+			    FlatVector::IsNull(transformed, i)) {
+				FlatVector::SetNull(result, i, true);
+				has_nulls = true;
+			}
+		}
+
+		// Move the encoded data over child-wise so `result` (the extension's declared storage type)
+		// shares the encode's buffers where possible.
+		auto &result_entries = StructVector::GetEntries(result);
+		auto &transformed_entries = StructVector::GetEntries(transformed);
+		if (!has_nulls) {
+			result_entries[0].Reference(transformed_entries[0]);
+			result_entries[1].Reference(transformed_entries[1]);
+			return;
+		}
+		// `metadata` is declared non-nullable, as the spec requires — so a NULL row's child slots carry
+		// the minimal valid encoding (v1 empty-dictionary metadata + a Variant null value) instead of the
+		// child-level NULLs a strict consumer would reject. Copy into the result's OWN children rather
+		// than patching buffers shared with the transform's output.
+		static constexpr const char MINIMAL_METADATA[] = "\x01\x00\x00";
+		static constexpr const char VARIANT_NULL_VALUE[] = "\x00";
+		transformed_entries[0].Flatten();
+		transformed_entries[1].Flatten();
+		auto src_metadata = FlatVector::GetData<string_t>(transformed_entries[0]);
+		auto src_value = FlatVector::GetData<string_t>(transformed_entries[1]);
+		auto &metadata_entry = result_entries[0];
+		auto &value_entry = result_entries[1];
+		auto dst_metadata = FlatVector::GetDataMutable<string_t>(metadata_entry);
+		auto dst_value = FlatVector::GetDataMutable<string_t>(value_entry);
+		for (idx_t i = 0; i < count; i++) {
+			if (FlatVector::IsNull(result, i)) {
+				dst_metadata[i] = string_t(MINIMAL_METADATA, 3);
+				dst_value[i] = string_t(VARIANT_NULL_VALUE, 1);
+			} else {
+				dst_metadata[i] = StringVector::AddStringOrBlob(metadata_entry, src_metadata[i]);
+				dst_value[i] = StringVector::AddStringOrBlob(value_entry, src_value[i]);
+			}
+		}
+		FlatVector::ValidityMutable(metadata_entry).SetAllValid(count);
+		FlatVector::ValidityMutable(value_entry).SetAllValid(count);
+	}
+
+	//! Arrow -> DuckDB: concatenate each row's metadata and value bytes (the self-delimiting Variant
+	//! binary form) and decode through the Parquet Variant binary decode.
+	static void ArrowToDuck(ClientContext &, Vector &source, Vector &result, idx_t count) {
+		source.Flatten();
+		// The storage vector's type records the incoming schema's own field order (see GetType,
+		// which already established that these are exactly the two fields) - so only their order
+		// is open here, the spec allowing them either way round.
+		auto &source_children = StructType::GetChildTypes(source.GetType());
+		const idx_t metadata_idx = source_children[0].first == "metadata" ? 0 : 1;
+		const idx_t value_idx = 1 - metadata_idx;
+		auto &entries = StructVector::GetEntries(source);
+		Vector &metadata = entries[metadata_idx];
+		Vector &value = entries[value_idx];
+		metadata.Flatten();
+		value.Flatten();
+
+		Vector blob(LogicalType::BLOB, count);
+		auto blob_data = FlatVector::GetDataMutable<string_t>(blob);
+		auto metadata_data = FlatVector::GetData<string_t>(metadata);
+		auto value_data = FlatVector::GetData<string_t>(value);
+		for (idx_t i = 0; i < count; i++) {
+			if (FlatVector::IsNull(source, i) || FlatVector::IsNull(metadata, i) || FlatVector::IsNull(value, i)) {
+				// The decode reads the blob's validity and answers a Variant null for an invalid
+				// row, so the slot itself is never read.
+				FlatVector::SetNull(blob, i, true);
+				continue;
+			}
+			auto &metadata_bytes = metadata_data[i];
+			auto &value_bytes = value_data[i];
+			auto total_size = metadata_bytes.GetSize() + value_bytes.GetSize();
+			auto target = StringVector::EmptyString(blob, total_size);
+			auto target_ptr = target.GetDataWriteable();
+			memcpy(target_ptr, metadata_bytes.GetData(), metadata_bytes.GetSize());
+			memcpy(target_ptr + metadata_bytes.GetSize(), value_bytes.GetData(), value_bytes.GetSize());
+			target.Finalize();
+			blob_data[i] = target;
+		}
+
+		ParquetVariantConversion::ConvertBinary(blob, result, count);
 	}
 };
 
@@ -598,5 +769,10 @@ void ArrowTypeExtensionSet::Initialize(const DBConfig &config) {
 
 	config.RegisterArrowExtension({"DuckDB", "bignum", &ArrowBignum::PopulateSchema, &ArrowBignum::GetType,
 	                               make_shared_ptr<ArrowTypeExtensionData>(LogicalType::BIGNUM), nullptr, nullptr});
+
+	config.RegisterArrowExtension(
+	    {"arrow.parquet.variant", &ArrowVariant::PopulateSchema, &ArrowVariant::GetType,
+	     make_shared_ptr<ArrowTypeExtensionData>(LogicalType::VARIANT(), ArrowVariant::StorageType(),
+	                                             ArrowVariant::ArrowToDuck, ArrowVariant::DuckToArrow)});
 }
 } // namespace duckdb
