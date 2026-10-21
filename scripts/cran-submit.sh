@@ -163,6 +163,10 @@ dcf_field() { # <field> <file>
 
 size_of() { wc -c <"$1" | tr -d ' '; }
 mib() { awk -v b="$1" 'BEGIN { printf "%.2f MiB", b / 1048576 }'; }
+# The change from one size to another, as a signed percentage to one decimal place.
+change() { # <before> <after>
+  awk -v a="$1" -v b="$2" 'BEGIN { d = 100 * (b - a) / a; printf "%s%.1f%%", (d < 0 ? "\342\210\222" : "+"), (d < 0 ? -d : d) }'
+}
 sha256_of() {
   if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
 }
@@ -270,13 +274,15 @@ cmd_tarball() {
       "Rerun this workflow. The gzip tarball \`R CMD build\` writes is just as valid for CRAN, only larger: if zopfli keeps failing, build it locally and submit it with \`scripts/cran-submit.sh upload <tarball>\` or at $cran_submit_page."
   fi
   mv "$target.tmp" "$target"
-  local zsize
+  local zsize sizes
   zsize=$(size_of "$target")
+  sizes="$plain_size \342\206\222 $zsize bytes ($(change "$plain_size" "$zsize"))"
+  sizes=$(printf '%b' "$sizes")
   val "zopfli size" "$zsize bytes ($(mib "$zsize"))"
-  val "saved" "$((plain_size - zsize)) bytes ($(awk -v a="$plain_size" -v b="$zsize" 'BEGIN { printf "%.1f%%", 100 * (a - b) / a }'))"
+  val "gzip to zopfli" "$sizes"
   val "time" "$((SECONDS - started)) s"
   endgroup
-  summary "- Recompressed with zopfli (\`pigz -11\`): $zsize bytes ($(mib "$zsize")), $((plain_size - zsize)) bytes smaller, in $((SECONDS - started)) s"
+  summary "- Recompressed with zopfli (\`pigz -11\`): $sizes, in $((SECONDS - started)) s"
 
   group "Verify: gzip -t, tar -tzf, the tar stream"
   local problems=() n
@@ -315,7 +321,7 @@ cmd_tarball() {
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
     printf '%s=%s\n' package "$pkg" version "$version" tarball "$target" sha256 "$sha" >>"$GITHUB_OUTPUT"
   fi
-  notice "CRAN tarball" "$name: $zsize bytes with zopfli, $plain_size with gzip; sha256 $sha"
+  notice "CRAN tarball" "$name: $sizes with zopfli; sha256 $sha"
   say "$target"
 }
 

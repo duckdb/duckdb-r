@@ -344,7 +344,16 @@ EOF
 version=0.2.0
 tarball=$Z"
   summary=$(cat "$SUMMARY")
-  has "the summary gives the zopfli size" "$summary" "Recompressed with zopfli (\`pigz -11\`): $(wc -c <"$Z" | tr -d ' ') bytes"
+  plain=$(sed -n 's/^  gzip size: *\([0-9]*\) bytes.*/\1/p' <<<"$out")
+  zsize=$(wc -c <"$Z" | tr -d ' ')
+  # The saving, computed here in integer arithmetic: tenths of a percent, rounded.
+  tenths=$(((plain - zsize) * 2000 / plain))
+  tenths=$(((tenths + 1) / 2))
+  sizes="$plain → $zsize bytes (−$((tenths / 10)).$((tenths % 10))%)"
+  has "the log gives both sizes and the saving" "$out" "$sizes"
+  has "the summary too" "$summary" "Recompressed with zopfli (\`pigz -11\`): $sizes, in "
+  # A workflow command escapes the % sign.
+  has "and the notice" "$out" "::notice title=CRAN tarball::zpkg_0.2.0.tar.gz: ${sizes//%/%25} with zopfli"
   has "and the sha256" "$summary" "$(sha256sum "$Z" | cut -d' ' -f1)"
 
   echo
