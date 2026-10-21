@@ -14,11 +14,15 @@
 
 using namespace duckdb;
 
-// R loads the package on its own thread, and a shared library's static initializers run on the thread that loads it.
-static const std::thread::id r_main_thread = std::this_thread::get_id();
+// Written once when R loads the package, before any engine thread exists; until then no thread is R's.
+static std::thread::id r_thread;
 
-bool duckdb::OnRMainThread() {
-	return std::this_thread::get_id() == r_main_thread;
+void duckdb::RecordRThread() {
+	r_thread = std::this_thread::get_id();
+}
+
+bool duckdb::OnRThread() {
+	return std::this_thread::get_id() == r_thread;
 }
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {

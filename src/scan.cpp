@@ -707,7 +707,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 
 	// Touch an ALTREP column on R's thread only, the one thread that may run R code.
 	// A task binds on any thread, and reads what is in memory or refuses (handbook/architecture/glue/threading/).
-	if (OnRMainThread()) {
+	if (OnRThread()) {
 		if (ColumnsNeedAltrepCode(df, false)) {
 			TouchColumnsOrThrow(df);
 		}

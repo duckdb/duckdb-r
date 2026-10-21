@@ -243,10 +243,11 @@ private:
 	static void Park(duckdb::unique_ptr<ParkedBase> object);
 };
 
-//! Whether the calling thread is R's, the only one that may run R code.
-//! The engine runs a query's tasks on its own threads too, and some of them bind:
-//! pragma_table_info() over a view binds the view's query in a task.
-bool OnRMainThread();
+//! Whether the calling thread is R's, the only one that may run R code (handbook/architecture/glue/threading/).
+//! A task that binds a scan, and the fetch of a streaming result, can run on another thread.
+bool OnRThread();
+//! Records the calling thread as R's; called once, when R loads the package.
+void RecordRThread();
 
 struct RStatement {
 	RStatement() = delete;

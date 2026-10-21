@@ -45,7 +45,7 @@ so joining a registered data frame to its own table info binds its scan on a thr
 ([#2962](https://github.com/duckdb/duckdb-r/issues/2962)).
 So bind touches on R's thread only, and only for a data frame with an ALTREP vector where the walk reaches,
 since the `R_tryCatchError()` around touching evaluates R code.
-`OnRMainThread()` ([`src/utils.cpp`](/src/utils.cpp)) tells R's thread by the id it records when the package loads.
+`OnRThread()` ([`src/utils.cpp`](/src/utils.cpp)) tells R's thread by an id recorded at load.
 On any other thread bind evaluates no R code:
 it reads a column whose ALTREP vectors hold their payload in memory already, as `DATAPTR_OR_NULL()` tells without allocating,
 and fails with an error for one that does not, and for an ALTREP list, whose cells only its class's code reads.
@@ -75,7 +75,7 @@ has the measurement and the route that works).
 The progress display evaluates an R callback under the client context lock,
 on the thread that runs the query's tasks:
 the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
-So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+So the display calls R only on R's thread, as `OnRThread()` tells, and skips an update anywhere else.
 It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
 and a streaming result keeps its display across the R code that runs between fetches
 (`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).

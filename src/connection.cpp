@@ -57,7 +57,7 @@ void RProgressBarDisplay::Initialize() {
 }
 
 // The engine builds the display when a query starts, on the thread that issues it, which is R's.
-RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay(), r_thread(std::this_thread::get_id()) {
+RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
 	ReleaseOrphanedCallbacks();
 	Initialize();
 }
@@ -72,10 +72,6 @@ RProgressBarDisplay::~RProgressBarDisplay() {
 	}
 	std::lock_guard<std::mutex> guard(orphaned_callbacks_lock);
 	orphaned_callbacks.push_back(progress_callback);
-}
-
-bool RProgressBarDisplay::OnRThread() const {
-	return std::this_thread::get_id() == r_thread;
 }
 
 void RProgressBarDisplay::Update(double percentage) {
