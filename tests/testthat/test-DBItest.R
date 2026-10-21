@@ -227,8 +227,10 @@ if (rlang::is_installed("DBItest")) {
     "data_time_current",
     "data_date_current",
 
+    # These specs build `blob` or `hms` values, and both packages import vctrs.
     if (!rlang::is_installed("vctrs")) {
       c(
+        "arrow_write_table_arrow_roundtrip_blob",
         "arrow_append_table_arrow_roundtrip_blob",
         "data_type_driver",
         "data_type_connection",
@@ -238,6 +240,10 @@ if (rlang::is_installed("DBItest")) {
         "data_timestamp_current_typed",
         "append_roundtrip_raw",
         "append_roundtrip_blob",
+        "append_roundtrip_time",
+        "roundtrip_raw",
+        "roundtrip_blob",
+        "roundtrip_time",
         "bind_blob",
         "arrow_bind_blob",
         "stream_bind_blob",
