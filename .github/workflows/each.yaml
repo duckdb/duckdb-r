@@ -26,6 +26,9 @@
 # of every stage that failed into its job summary, so the run summary says what
 # broke without opening the log.
 #
+# The run ends by fast-forwarding `<S>-green` over what its legs passed, so the
+# frontier moves when a verdict lands rather than when the series loop next fires.
+#
 # See handbook/operations/ci/per-commit/README.md for the design, the GitHub Actions limits it works within,
 # and why `workflow_call` is not the mechanism that gets us there.
 
@@ -286,3 +289,55 @@ jobs:
           path: ${{ runner.temp }}/each-logs
           if-no-files-found: ignore
           retention-days: 14
+
+  # Moves `<S>-green` over what the verdict store now says passed, by the rule
+  # the branch's kind takes: a series' passed prefix, or a landing all at once
+  # (scripts/series-green.sh). A retry run judges commits of `<S>-dev`, so it
+  # aligns `<S>-green` too.
+  #
+  # After the legs, so their verdicts are on `rcc2`; `!cancelled()`, so a leg
+  # that failed or timed out still lets green take what was decided, while a run
+  # somebody retired stays retired; and inside this run's concurrency group, so
+  # two runs on one branch never align at once. A retry run's group is its own,
+  # and the script's lease on the green it read covers that case.
+  #
+  # GitHub refuses the default token a push that changes a workflow file.
+  # SERIES_GREEN_TOKEN, a token with the `workflows` permission on this
+  # repository, is used when it is set; without one, green stops below such a
+  # commit and the job fails saying so
+  # (handbook/operations/vendoring/series-loop/README.md).
+  green:
+    needs:
+      - plan
+      - build
+
+    if: ${{ !cancelled() && needs.plan.result == 'success' && endsWith(inputs.branch || github.ref, '-dev') }}
+
+    runs-on: ubuntu-26.04
+
+    name: "Align the green ref"
+
+    permissions:
+      contents: write
+
+    steps:
+      # Commits only, and the scripts: the walk needs ancestry, not trees, and
+      # the store is read from a records-only clone of its own below.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+          fetch-depth: 0
+          filter: tree:0
+          sparse-checkout: scripts
+          token: ${{ secrets.SERIES_GREEN_TOKEN || github.token }}
+
+      - name: Fast-forward the green ref over what passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.branch || github.ref }}
+          RCC_READ_DIR: ${{ runner.temp }}/rcc-read
+        run: |
+          branch="${REF#refs/heads/}"
+          series="${branch#retry-}"
+          scripts/series-green.sh "${series%-dev}" --push
+        shell: bash

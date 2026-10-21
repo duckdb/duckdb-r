@@ -1,13 +1,13 @@
 # The legs
 
-The two jobs, the scripts behind them,
+The jobs, the scripts behind them,
 what one leg does with its workspace, and what a lost leg costs.
 How its commits were chosen is
 [`selection/`](/handbook/operations/ci/per-commit/selection/README.md)'s;
 how they were packed into shards is
 [`planning/`](/handbook/operations/ci/per-commit/planning/README.md)'s.
 
-One run is two jobs:
+One run is three jobs:
 
 ```
 plan  (1 job, ~30 s)
@@ -30,12 +30,15 @@ build (one job per shard, throttled by max-parallel)
        → publish record + log to the `rcc2` branch   ← seconds after the verdict
      ... stops at its own deadline and defers the rest,
          a commit cut short after others among them
+
+green (1 job, after the legs, on a -dev branch)
+  └─ scripts/series-green.sh                        → <S>-green fast-forwarded over what passed
 ```
 
 The files:
 
 * [`.github/workflows/each.yaml`](/.github/workflows/each.yaml) —
-  plan → build.
+  plan → build → green.
 * [`scripts/each-plan.sh`](/scripts/each-plan.sh) —
   enumerate, read verdicts, weigh, partition.
 * [`scripts/each-cost.py`](/scripts/each-cost.py) —
@@ -44,6 +47,9 @@ The files:
   the cost model, the greedy fill, and the rebalance pass.
 * [`scripts/each-shard.sh`](/scripts/each-shard.sh) —
   one leg: many commits, one workspace.
+* [`scripts/series-green.sh`](/scripts/series-green.sh):
+  the frontier moved by the rule of the branch's kind
+  ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * [`scripts/rcc-one.sh`](/scripts/rcc-one.sh) —
   the per-commit gate, extracted from `rcc-smoke`.
 * [`scripts/rcc-lib.sh`](/scripts/rcc-lib.sh) —

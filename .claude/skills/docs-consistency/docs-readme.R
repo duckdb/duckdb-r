@@ -143,6 +143,10 @@ groups <- list(
     globs = c("each-shard.sh", "rcc-one.sh")
   ),
   list(
+    owner = "handbook/operations/ci/per-commit/upstream",
+    globs = c("each-mirror.sh", "each-mirror-test.sh")
+  ),
+  list(
     owner = "handbook/operations/ci/per-commit/store",
     globs = c(
       "each-harvest.sh", "rcc-consolidate.sh", "rcc-cutover.sh",

@@ -54,11 +54,11 @@ the parked baselines, so "X equals Y plus a rename" compares working trees.
 
 **Most invariants are enforced by nothing** —
 they are conventions, kept by the loop's routine and by review.
-Exactly two checks run on every firing, both in
-[`scripts/series-advance.sh`](/scripts/series-advance.sh):
-`-green` moves only where `git merge-base --is-ancestor` says the move
-is a fast-forward, and a replay is kept only once every vendor commit in
-it is confirmed to carry a version strictly above its parent's.
+Exactly two checks run on every move they guard.
+`-green` moves only where `git merge-base --is-ancestor` says the move is a fast-forward,
+checked by [`scripts/series-green.sh`](/scripts/series-green.sh) at the end of every `each-rcc` run.
+A replay is kept only once every vendor commit in it is confirmed to carry a version strictly above its parent's,
+checked by [`scripts/series-advance.sh`](/scripts/series-advance.sh) on every firing.
 `-build-base` is not a third: it is set rather than advanced,
 recomputed from the match each time and force-pushed,
 which is why nothing gates it.

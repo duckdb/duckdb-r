@@ -31,14 +31,14 @@ to do, and they run in this order:
   offending commit and the tail replayed;
   the infrastructure's fault is retried once via a `retry-` ref
   that also serves as the ledger.
-* **Advance the frontier, and read what r-universe made of the last one**
-  — fast-forward `-green` over commits with recorded *successful* runs,
-  move `-build-base` to match, and read back what the previous green
-  became on the platforms the per-commit gate never covers
+* **Read the frontier, and what r-universe made of the last one**:
+  move `-build-base` to match `-green`, mirror `-green` into the canonical repository,
+  and read back what the previous green became on the platforms the per-commit gate never covers
   ([`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh)).
   A red there never rewinds green; it is recorded in the commit
   message of the `-dev` commit that answers it, which is where the
   next forward reads it.
+  `-green` itself is CI's to move, at the end of every `each-rcc` run ([`scripts/series-green.sh`](/scripts/series-green.sh)).
 * **Forward-port** — bring `main`'s R-side work onto the series
   ([`scripts/series-port.sh`](/scripts/series-port.sh)),
   and bring every ref's tooling level with `main` —
@@ -123,14 +123,31 @@ flowchart TD
   S0["0 setup: every ref, both repositories,<br>how results are read"] --> S1
   S1["1 vendor onto #60;S#62;-vendor,<br>pick onto #60;S#62;-build: stamp, glue gate"] --> S2
   S2["2 repair the oldest red on #60;S#62;-dev<br>fold the fix in, replay the tail"] --> S3
-  S3["3 advance #60;S#62;-green over successes,<br>set -build-base, mirror green,<br>read r-universe"] --> S4
+  S3["3 read #60;S#62;-green,<br>set -build-base, mirror green,<br>read r-universe"] --> S4
   S4["4 port main onto #60;S#62;-dev,<br>sync tooling onto both"] --> S5
   S5["5 extend #60;S#62;-dev from the buffer,<br>carry the base's fixes, realign rc and alpha"] --> S6
   S6["6 read the forwarding;<br>report a caught-up forward, suggest the cutover"] --> S7
   S7["7 open a pull request for what<br>the tooling got wrong"]
-  CI["per-commit CI judges<br>#60;S#62;-green..#60;S#62;-dev"] -.-> S2
+  CI["per-commit CI judges<br>#60;S#62;-green..#60;S#62;-dev,<br>then fast-forwards #60;S#62;-green"] -.-> S2
   S5 -.->|push| CI
 ```
+
+**Green moves when a verdict lands, not when a firing comes round.**
+The last job of every `each-rcc` run on a `-dev` branch, retry runs and dispatches included,
+fast-forwards `<S>-green` over what the store says passed ([`scripts/series-green.sh`](/scripts/series-green.sh)).
+A series takes the passed prefix, the newest commit with every commit below it passed,
+and a landing moves all or nothing, to its tip once every commit has passed:
+the series loop's rule and the landing's, with the reason for each in the script's header.
+The firing keeps the rest of stage 3 and reports a green that lags what passed;
+it never pushes green itself, and a human runs the script where the job could not.
+Nothing races for the ref.
+Runs on one branch share a concurrency group, a retry run's push carries a lease on the green it read,
+and a firing that rewrites `<S>-dev` re-reads green just before its push and keeps it an ancestor
+([`series-loop`](/.claude/skills/series-loop/SKILL.md), stage 2).
+GitHub refuses a workflow's own token a push that changes a file under `.github/workflows/`, and a port from `main` often changes one.
+Where it refuses the move, green stops below that commit and the job fails saying so,
+until the fork's `SERIES_GREEN_TOKEN` secret holds a token with the `workflows` permission,
+or someone with one runs the script by hand.
 
 **A forwarding ends where the two lineages agree.**
 A forward series is the same series rebuilt on a newer `main`, so its

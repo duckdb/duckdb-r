@@ -37,7 +37,7 @@ every series is a series-loop series now, and none of the four below is that bas
 |---|---|---|
 | `<S>-build` | append; force-push to repair | the buffer: one commit per upstream commit, glue compiling, no CI |
 | `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds; `-build` consumed in bounded chunks plus forward-ports from `main` |
-| `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
+| `<S>-green` | fast-forward only, by the last job of an `each-rcc` run | the trusted frontier: every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | set; force-push | the `-build` commit equivalent to `-green` |
 | `<S>-vendor` | append; force-push to amend a patch | the **vendor strand**: pure vendoring, one commit per upstream commit, vendored once; what the buffer is derived from, and what a forward carries by a rebase. No CI, nothing publishes it |
 
@@ -155,7 +155,7 @@ Each is one commit on a verified one, moved by the loop when a newer alpha appea
 ([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
 **`<L>-land-dev` is a line on its way onto `main`**: the frozen `main` plus the series' vendor commits, unflavored,
 which `main` fast-forwards onto once CI has passed every one.
-`<L>-land-green` marks how far CI has passed it, starting at the frozen `main`.
+`<L>-land-green` stands at the frozen `main` until CI has passed every commit, and then at the tip.
 The pair exists only while a landing is in flight, and has no buffer, so the loop never serves it.
 `<L>-land-review`, in the canonical repository, is the landing without its engine,
 which a draft pull request shows for review and never merges

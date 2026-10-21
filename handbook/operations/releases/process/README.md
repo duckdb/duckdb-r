@@ -34,9 +34,9 @@ Four refs matter here:
 * **`<S>-green`** — the trusted frontier
   ([`branches/model/`](/handbook/branches/model/README.md)).
 
-Green moves itself: the series loop fast-forwards it over commits with
-recorded successful runs, so promoting a release point is not a step
-anyone performs.
+Green moves itself: the last job of every `each-rcc` run fast-forwards it over commits with
+recorded successful runs ([`vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
+so promoting a release point is not a step anyone performs.
 
 At any moment a series is in exactly one of three **clusters**.
 The clusters — not the individual states — are the unit of coordination
@@ -219,7 +219,7 @@ and the post-tag commits stay queued for the next cycle.
    commit, which is what the *ahead* badge counts — and confirm it holds
    only the expected vendor commits and intended forward-ports,
    with no glue drift.
-3. Nothing to promote: the loop fast-forwards `<S>-green` over the tagged
+3. Nothing to promote: `each-rcc` fast-forwards `<S>-green` over the tagged
    commit as soon as it is green.
    Confirm green covers it before going on.
 

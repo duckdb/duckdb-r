@@ -112,6 +112,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 | [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 
+## [`operations/ci/per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)
+
+| File | Purpose |
+|---|---|
+| [`each-mirror-test.sh`](each-mirror-test.sh) | Check scripts/each-mirror.sh, offline, against a synthetic canonical repository, a synthetic store and a stand-in for `gh api` built here: no network, no fix... |
+| [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for every open pull... |
+
 ## [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)
 
 | File | Purpose |
@@ -137,7 +144,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`r-universe-check.sh`](r-universe-check.sh) | Read-only: what did r-universe make of the refs this repository publishes? |
 | [`series-advance-test.sh`](series-advance-test.sh) | Check stage 5's carry of the base series' test-side fixes, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
-| [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: fast-forward `<S>-green` over the all-green prefix, set `<S>-build-base` to the equivalent... |
+| [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: read where `<S>-green` stands, set `<S>-build-base` to the equivalent `-build` commit, mir... |
 | [`series-alpha-test.sh`](series-alpha-test.sh) | Check scripts/series-alpha.sh offline, against a synthetic remote and clone built here, with `curl` stubbed: no network, no fixtures on disk. |
 | [`series-alpha.sh`](series-alpha.sh) | Derive the alpha strand of a series: `<S>-alpha`, a green commit stamped with the version of upstream's alpha build of its engine, so that `INSTALL` finds th... |
 | [`series-args-test.sh`](series-args-test.sh) | Check the argument contract every scripts/series-*.sh shares, offline. |
@@ -152,6 +159,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-forward-build-test.sh`](series-forward-build-test.sh) | Check the forward replay, offline, against a synthetic base series and seed built here: no network, no fixtures on disk. |
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-dev`, and then of the old `<S>-build` above it, onto HEAD, which must be the freshly fla... |
 | [`series-glue.sh`](series-glue.sh) | Every R-side glue adaptation a series carries, in one read. |
+| [`series-green-test.sh`](series-green-test.sh) | Check scripts/series-green.sh, offline, against a synthetic fork and clones built here: no network, no fixtures on disk. |
+| [`series-green.sh`](series-green.sh) | Fast-forward `<S>-green` over the commits of `<S>-dev` the per-commit check passed. |
 | [`series-land-test.sh`](series-land-test.sh) | Check the landing of a series on `main`, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk. |
 | [`series-land.sh`](series-land.sh) | Land a series on `main`: build `<L>-land-dev`, every vendor commit of the series replayed without its flavor onto the `main` it will fast-forward (.claude/sk... |
 | [`series-learned.sh`](series-learned.sh) | What a series' `-dev` learned beyond its buffer: for every vendor commit, the fix the loop folded into it that its `-build` twin does not carry. |

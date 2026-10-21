@@ -90,7 +90,7 @@ and it would start vendoring onto that ref while the replay is still writing it.
    Green never takes the flavor commits at birth
    ([`branches/model/`](/handbook/branches/model/README.md)):
    they have no runs yet, so CI judges them first,
-   and the loop's stage 3 carries green over them once they pass.
+   and the last job of the `each-rcc` run that passes them carries green over them.
    The loop's stage 5 extends `-fwd-dev` from the populated buffer.
    Up to the commit the base `-dev` had reached when the forward was built, there is nothing left to carry,
    and the stage recognises a fix the buffer commit already holds;

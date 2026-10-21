@@ -81,9 +81,10 @@
 #
 # **`<L>-land-green` bounds the per-commit build.** It is pushed at `main`, so
 # scripts/each-plan.sh scans `<L>-land-green..<L>-land-dev` as it scans any
-# series, the base's own commits included, and `--status` advances it over the
-# commits CI has passed, the way stage 3 advances a series' green
-# (scripts/series-advance.sh). The landing is ready when the two refs are equal.
+# series, the base's own commits included. It moves all or nothing, to the tip
+# once CI has passed every commit: the last job of every `each-rcc` run applies
+# that rule (scripts/series-green.sh), and `--status --push` applies it by hand.
+# The landing is ready when the two refs are equal.
 # There is no `-land-build`, so the loop's discovery never mistakes the pair for
 # a series.
 #
@@ -267,13 +268,13 @@ if [ -n "$status" ]; then
     echo "  first not passed: $(git rev-parse --short "$stop") ($stop_state)" \
       "$(git log -1 --format=%s "$stop")"
   fi
-  if [ "$new_green" != "$green" ]; then
+  # A landing's green moves all or nothing, and by the one script that moves
+  # every green, so this move and the one each-rcc makes cannot disagree.
+  if [ "$new_green" = "$dev" ] && [ "$green" != "$dev" ]; then
     if [ -n "$push" ]; then
-      # Fast-forward only, as every green: a plain push refuses anything else.
-      git push -q "$remote" "$new_green:refs/heads/$L-land-green"
-      echo "  $L-land-green -> $(git rev-parse --short "$new_green")"
+      "$(dirname "$0")/series-green.sh" "$L-land" --remote "$remote" --push
     else
-      echo "  $L-land-green would move to $(git rev-parse --short "$new_green"); --push moves it"
+      echo "  $L-land-green would move to $(git rev-parse --short "$dev"); --push moves it"
     fi
   fi
   if [ "$new_green" = "$dev" ]; then

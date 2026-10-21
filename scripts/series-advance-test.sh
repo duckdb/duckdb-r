@@ -48,9 +48,11 @@
 #      stopping the stage: the buffer commit's content reached `-dev` by another
 #      route, which is claim 12 arrived at through a conflict. The chunk also
 #      finishes when the operator dropped the pick by hand first.
-#  15. A red commit in flight does not hold back the verified commits below it:
-#      green and its canonical copy take them, and the firing then stops
-#      before stage 5 extends `-dev` onto a tip a repair is about to re-mint.
+#  15. Green is not this script's to move: a commit that passed above it is
+#      reported and left to each-rcc's green job (scripts/series-green.sh),
+#      the canonical copy and `-build-base` follow the fork's green wherever
+#      the job put it, and a red commit in flight stops the firing before
+#      stage 5 extends `-dev` onto a tip a repair is about to re-mint.
 #  16. A buffer tooling sync is skipped, never replayed: `-dev`'s tooling is
 #      stage 4's, and a sync taken against older tooling would conflict or put
 #      back what `main` removed. The vendor commits above it are consumed.
@@ -290,8 +292,9 @@ git branch emptyres-build-base emptyres-seed
 
 # --- a verified prefix under a red tip (claim 15) ---------------------------
 # Two commits in flight, the older one green and the newer one red, and a buffer
-# commit waiting behind them. Stage 3 owes the frontier the commit it proved;
-# stage 5 owes the buffer nothing while a repair is pending.
+# commit waiting behind them. The job owes the frontier the commit it proved,
+# the stage owes the canonical copy wherever the job put green, and stage 5
+# owes the buffer nothing while a repair is pending.
 git checkout -q -b red-dev base-seed
 bvendor fff7777 1.0.0.9000.1 l.cpp
 RED_OK=$(git rev-parse HEAD)
@@ -431,7 +434,7 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
 git fetch -q origin
 
 # A canonical remote, because `red` is the one series here whose green moves,
-# and the mirror is what r-universe reads. Only `red-green` lives there, the way
+# by the hand of each-rcc's job, and the mirror is what r-universe reads. Only `red-green` lives there, the way
 # only green travels out of the fork.
 CANON=$SCRATCH/canonical.git
 git init -q --bare -b main "$CANON"
@@ -707,10 +710,19 @@ echo "== a verified prefix under a red tip"
 before=$(git rev-parse origin/red-dev)
 out=$(run red)
 git fetch -q origin
-is "green takes the commit the run proved" \
-  "$(git rev-parse origin/red-green)" "$RED_OK"
-is "and the canonical copy takes it too" \
+is "green stays where the job left it" \
+  "$(git rev-parse origin/red-green)" "$(git rev-parse base-seed)"
+has "the commit that passed above it is reported" "$out" "1 commit(s) above it passed"
+has "and left to the job" "$out" "each-rcc's green job moves it"
+has "the red commit is named"    "$out" "$RED_BAD"
+has "as the reason to stop"      "$out" 'repair before extending'
+# The job takes the commit the run proved, as each-rcc would at its end.
+git push -q origin "$RED_OK:refs/heads/red-green"
+out=$(run red)
+git fetch -q origin
+is "the canonical copy follows the fork's green" \
   "$(git --git-dir="$CANON" rev-parse red-green)" "$RED_OK"
+is "and so does -build-base" "$(git rev-parse origin/red-build-base)" "$RED_OK"
 has "the red commit is named"    "$out" "$RED_BAD"
 has "as the reason to stop"      "$out" 'repair before extending'
 has "and the firing exits non-zero" "$out" 'EXIT=1'
