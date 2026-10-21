@@ -16,6 +16,11 @@ The one difference is the form of the error that surfaces at first access:
 since [#1797](https://github.com/duckdb/duckdb-r/pull/1797) it is raised without the `duckdb_error` class,
 the context named in front of the message rather than in a bullet below it
 ([`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md) owns why).
+Not re-run on the v2.0 engine (`2.0.0-dev88614`, `main` since
+[#2941](https://github.com/duckdb/duckdb-r/pull/2941)) when this note was written:
+no prebuilt library exists for the release candidate.
+What that engine changes for the constructor, `arrow_scan` taking its factory as `bind_info`
+rather than as three `POINTER` arguments, is stated in the plan.
 
 *What it supports:*
 [`plan/PLAN-rel-from-arrow.md`](/plan/PLAN-rel-from-arrow.md),

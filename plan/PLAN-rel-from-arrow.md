@@ -26,6 +26,10 @@ Measured evidence:
   `rel_from_table_function()` cannot express `arrow_scan`,
   because its three arguments are `POINTER` values and the R side
   builds scalars.
+  On the v2.0 engine `arrow_scan` takes no arguments at all:
+  the factory travels as the table reference's `bind_info`,
+  a `shared_ptr<TableFunctionInfo>` that `ArrowScanReplacement()` sets
+  and that `rel_from_table_function()` has no way to pass.
 * `rel_from_sql()` over a registered name does work,
   and the verbs compose over the resulting relation —
   project, filter, and a join against a data-frame-backed relation.
@@ -50,8 +54,8 @@ Measured evidence:
 
 * **Bind by pointer, not by name.**
   `rel_from_arrow()` builds the table function reference directly from
-  the stream factory pointer, the way `rel_from_df()` builds
-  `r_dataframe_scan` from the data frame pointer.
+  the stream factory, handed over as the reference's `bind_info`,
+  the way `rel_from_df()` builds `r_dataframe_scan` from the data frame pointer.
   A relation then no longer depends on a catalog entry:
   it survives unregistration, and it cannot have its data swapped
   underneath it.
@@ -110,9 +114,11 @@ Pure refactor, no behaviour change; the existing arrow tests cover it.
 ### 2. feat(relational): `rel_from_arrow()`
 
 * `src/relational.cpp`: `rapi_rel_from_arrow(con, funs, x, pushdown)`
-  builds the factory, then
-  `con->conn->TableFunction(pushdown ? "arrow_scan" : "arrow_scan_dumb", {…})`
-  with the three `Value::POINTER` arguments,
+  builds the factory as the `shared_ptr<RArrowTabularStreamFactory>` registration keeps,
+  then a `TableFunctionRelation` for `arrow_scan` or `arrow_scan_dumb` with no arguments
+  and the factory as its `bind_info`,
+  which the relation class takes since the v2.0 landing
+  (vendored `src/duckdb/src/main/relation/table_function_relation.cpp`),
   and wraps the resulting relation with the factory external pointer
   and the source in its protection list.
 * Regenerate `src/cpp11.cpp`, `R/cpp11.R`, `R/rethrow-gen.R`.
