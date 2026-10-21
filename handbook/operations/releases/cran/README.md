@@ -25,7 +25,12 @@ Apart from the known package-size NOTE, every error, warning, and note is a bloc
 [`cran-submission.yaml`](/.github/workflows/cran-submission.yaml) runs only when started by hand,
 from the Actions tab or with `gh workflow run cran-submission.yaml --repo duckdb/duckdb-r --ref <ref>`,
 and submits the commit that ref points to.
-It tags the commit as `vX.Y.Z` with its `NEWS.md` section,
+It first stops on a development version, one with more than three components such as `1.99.99.9001`,
+unless it was dispatched with the input `allow-dev-version`.
+It then drafts the GitHub release `duckdb X.Y.Z` with the `NEWS.md` section as its notes, or updates the draft already there,
+and stops instead if that release is published;
+the draft is published by hand once CRAN has accepted the package.
+It tags the commit as `vX.Y.Z` with the same section,
 and [`scripts/cran-submit.sh`](/scripts/cran-submit.sh) builds the tarball with `R CMD build`,
 recompresses it with zopfli (`pigz -11`, about 5% smaller than the gzip R writes),
 and verifies that it passes `gzip -t` and holds the same tar stream as the original.
@@ -38,8 +43,8 @@ and the confirmation is the mail CRAN sends to the `cre` address in `DESCRIPTION
 whose link has to be followed before the upload is queued.
 Each stage reports what it did on the run's summary page, and a failure says how to resolve it there;
 [`scripts/cran-submit-test.sh`](/scripts/cran-submit-test.sh) checks both stages offline, the upload against a fake form.
-With the input `dry-run` (`-f dry-run=true`), a run tags nothing and sends nothing to CRAN:
-the tag job prints the tag and message it would write, and whether it would move an existing tag,
+With the input `dry-run` (`-f dry-run=true`), a run tags, drafts and sends nothing:
+after the same version check, the tag job prints the release and the tag it would write, and whether it would update a draft or move a tag,
 and the submission job builds, verifies and keeps the tarball as a real run does,
 then lists every field the upload would post, under a banner on the summary page that says it was a dry run.
 Acceptance is asynchronous — days, overlapping the next cycle —

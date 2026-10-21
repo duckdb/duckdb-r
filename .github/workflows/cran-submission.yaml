@@ -8,8 +8,16 @@
 # a release is green before it is submitted, and CRAN's confirmation e-mail is the manual step
 # (handbook/operations/releases/cran/README.md).
 #
-# The `tag` job tags the commit as `v<version>`,
-# with the NEWS.md section of that version as the message, like the tags fledge creates.
+# The `check-version` job stops the run before anything else happens
+# when DESCRIPTION carries a development version, one with more than three components;
+# the input `allow-dev-version` lets such a version through, with a warning.
+#
+# The `tag` job drafts a GitHub release titled `<package> <version>` for `v<version>`,
+# with the NEWS.md section of that version as its notes, or updates the draft that is there;
+# a published release of that tag stops the run instead.
+# The draft is published by hand once CRAN has accepted the package.
+# The job then tags the commit as `v<version>`,
+# with the NEWS.md section as the message, like the tags fledge creates.
 # An existing tag of that name is printed and then moved to this commit.
 #
 # The `cran-submission` job runs scripts/cran-submit.sh twice.
@@ -21,15 +29,20 @@
 # and the submission only counts once that link has been followed.
 # Both steps print what they do and write a report with advice on failure to the run's summary page.
 #
-# The input `dry-run` (`-f dry-run=true` for `gh workflow run`) tags nothing and sends nothing:
-# the `tag` job prints the tag it would create, and whether it would move an existing one,
+# The input `dry-run` (`-f dry-run=true` for `gh workflow run`) tags, drafts and sends nothing:
+# the `tag` job prints the release and the tag it would write, and whether it would update a draft or move a tag,
 # and the `cran-submission` job builds, verifies and keeps the tarball as a real run does,
 # then prints and reports every field the upload would post.
+# The version check runs on a dry run too.
 on:
   workflow_dispatch:
     inputs:
       dry-run:
-        description: "Dry run: build and keep the tarball, but create no tag and send nothing to CRAN"
+        description: "Dry run: build and keep the tarball, but create no tag or release and send nothing to CRAN"
+        type: boolean
+        default: false
+      allow-dev-version:
+        description: "Submit even when DESCRIPTION carries a development version, one with more than three components"
         type: boolean
         default: false
 
@@ -43,16 +56,16 @@ permissions:
   contents: read
 
 jobs:
-  # A job of its own, so that the token that can push the tag
-  # is never available to the steps that build and upload the package.
-  tag:
+  # A few seconds, so that a development version stops the run
+  # before anything is built, tagged or uploaded.
+  check-version:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
 
-    name: "Tag the commit"
+    name: "Check the version"
 
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Announce the dry run
@@ -68,13 +81,83 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
         shell: bash
 
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: DESCRIPTION
+          sparse-checkout-cone-mode: false
+
+      - name: Check that DESCRIPTION carries a release version
+        env:
+          ALLOW_DEV_VERSION: ${{ inputs.allow-dev-version }}
+        run: |
+          version="$(sed -n 's/^Version: *//p' DESCRIPTION)"
+          # R separates the components of a version with dots or dashes.
+          components="$(printf '%s\n' "$version" | awk -F '[.-]' '{ print NF }')"
+          echo "Version: $version ($components components)"
+          if [ -z "$version" ]; then
+            echo "::error title=No version::DESCRIPTION carries no Version: field."
+            exit 1
+          fi
+          if [ "$components" -le 3 ]; then
+            printf '### Version\n\n%s\n' "\`DESCRIPTION\` carries the release version \`$version\`." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          rerun="gh workflow run cran-submission.yaml --repo $GITHUB_REPOSITORY --ref $GITHUB_REF_NAME"
+          if [ "$ALLOW_DEV_VERSION" = true ]; then
+            echo "::warning title=Development version::DESCRIPTION carries the version '$version', which has more than three components; the input allow-dev-version lets it through."
+            {
+              echo "### Version: development version allowed"
+              echo
+              echo "\`DESCRIPTION\` carries \`$version\`, which has more than three components: a development version."
+              echo "CRAN takes release versions only, and this run goes on because it was dispatched with \`allow-dev-version\` on."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "::error title=Development version::DESCRIPTION carries the version '$version', and CRAN takes release versions only: three components, such as 2.0.0. Nothing was built, tagged or uploaded."
+          {
+            echo "### Version: failed"
+            echo
+            echo "\`DESCRIPTION\` carries \`$version\`, which is no release version."
+            echo "CRAN takes release versions only, with three components such as \`2.0.0\`;"
+            echo "a fourth component, as in \`1.99.99.9001\`, marks a development version."
+            echo "Nothing was built, tagged or uploaded."
+            echo
+            echo "#### How to proceed"
+            echo
+            echo "- Bump \`DESCRIPTION\` to a release version, with \`fledge::bump_version(\"X.Y.Z\")\` or by hand, and dispatch this workflow on the commit that carries it."
+            echo "- If submitting this version is really intended, dispatch again with \`allow-dev-version\` on: \`$rerun -f allow-dev-version=true\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        shell: bash
+
+  # A job of its own, so that the token that can push the tag and write the release
+  # is never available to the steps that build and upload the package.
+  tag:
+    needs: check-version
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    name: "Tag the commit and draft the release"
+
+    permissions:
+      contents: write
+
+    outputs:
+      release-url: ${{ steps.release.outputs.url }}
+
+    steps:
       # The same commit as the submission: both jobs check out `github.sha`.
       - uses: actions/checkout@v6
 
       - name: Configure the Git identity
         uses: cynkra/cynkratemplate/.github/actions/git-identity@main
 
-      - name: Create and push the tag, or show it on a dry run
+      - name: Compute the tag, its message and the release notes
+        id: tag
         env:
           DRY_RUN: ${{ inputs.dry-run }}
         run: |
@@ -93,6 +176,10 @@ jobs:
             echo "::error::NEWS.md has no section for $pkg_name $pkg_version."
             exit 1
           fi
+          # The release carries the section without its heading, as the earlier releases do;
+          # its title is the heading.
+          notes="$RUNNER_TEMP/release-notes.md"
+          tail -n +2 "$message" | sed '/./,$!d' > "$notes"
 
           moves=""
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
@@ -108,29 +195,139 @@ jobs:
             echo "::endgroup::"
           fi
 
-          if [ "$DRY_RUN" = true ]; then
-            echo "::group::Message of the tag $tag"
-            cat "$message"
-            echo "::endgroup::"
-            echo "::notice title=Dry run::Would tag $(git rev-parse HEAD) as $tag${moves:+, moving it from $moves}; nothing was tagged or pushed."
+          {
+            echo "tag=$tag"
+            echo "title=$pkg_name $pkg_version"
+            echo "target=$(git rev-parse HEAD)"
+            echo "message=$message"
+            echo "notes=$notes"
+            echo "moves=$moves"
+          } | tee -a "$GITHUB_OUTPUT"
+        shell: bash
+
+      # Before the tag, so that a published release stops the run before the tag moves.
+      # A draft has no tag yet, so it is found by its pending tag name in the list of releases.
+      - name: Create or update the draft release, or show it on a dry run
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          TITLE: ${{ steps.tag.outputs.title }}
+          TARGET: ${{ steps.tag.outputs.target }}
+          NOTES: ${{ steps.tag.outputs.notes }}
+        run: |
+          found="$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | [(if .draft then \"draft\" else \"published\" end), .html_url] | @tsv")"
+          published="$(printf '%s\n' "$found" | awk -F '\t' '$1 == "published" { print $2 }')"
+          draft="$(printf '%s\n' "$found" | awk -F '\t' '$1 == "draft" && !seen { print $2; seen = 1 }')"
+
+          if [ -n "$published" ]; then
+            echo "::error title=Release $TAG is already published::The release $TAG is published at $published, and this workflow does not touch a published release. Nothing was tagged or uploaded."
             {
-              echo "Dry run: a real run tags \`$(git rev-parse HEAD)\` as \`$tag\`${moves:+, moving it from \`$moves\`}, with this message:"
+              echo "### Release: failed"
+              echo
+              echo "The release \`$TAG\` is already published at $published, and this workflow does not touch a published release."
+              echo "Nothing was tagged or uploaded."
+              echo
+              echo "#### How to resolve"
+              echo
+              echo "- If $TITLE is out, a new submission needs a new version: bump \`DESCRIPTION\` and \`NEWS.md\`, and dispatch again."
+              echo "- If the published release is a mistake, open it, and save it as a draft again or delete it; then dispatch again, and this job updates the draft."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [ -n "$draft" ]; then
+            action="update the draft release $draft"
+          else
+            action="create a draft release"
+          fi
+          echo "Release: $action"
+          echo "  tag:    $TAG"
+          echo "  target: $TARGET"
+          echo "  title:  $TITLE"
+          echo "  draft:  true"
+          echo "::group::Release notes"
+          cat "$NOTES"
+          echo "::endgroup::"
+
+          if [ "$DRY_RUN" = true ]; then
+            echo "::notice title=Dry run::Would $action titled '$TITLE' for $TAG at $TARGET; nothing was created."
+            {
+              echo "### Release"
+              echo
+              echo "Dry run: a real run would $action:"
+              echo
+              echo "- Tag: \`$TAG\`, target \`$TARGET\`"
+              echo "- Title: $TITLE"
+              echo "- Draft: yes, published by hand once CRAN has accepted the package"
+              echo
+              echo "<details><summary>Release notes</summary>"
               echo
               echo '````markdown'
-              cat "$message"
+              cat "$NOTES"
+              echo '````'
+              echo
+              echo "</details>"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ -n "$draft" ]; then
+            gh release edit "$TAG" --draft --target "$TARGET" --title "$TITLE" --notes-file "$NOTES"
+            url="$draft"
+            done="Updated the draft release"
+          else
+            url="$(gh release create "$TAG" --draft --target "$TARGET" --title "$TITLE" --notes-file "$NOTES")"
+            done="Created the draft release"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Draft release::$done $TITLE at $url; publish it by hand once CRAN has accepted the package."
+          {
+            echo "### Release"
+            echo
+            echo "$done [$TITLE]($url), for the tag \`$TAG\` at \`$TARGET\`."
+            echo "Publish it by hand once CRAN has accepted the package."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+
+      - name: Create and push the tag, or show it on a dry run
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          MESSAGE: ${{ steps.tag.outputs.message }}
+          MOVES: ${{ steps.tag.outputs.moves }}
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            echo "::group::Message of the tag $TAG"
+            cat "$MESSAGE"
+            echo "::endgroup::"
+            echo "::notice title=Dry run::Would tag $(git rev-parse HEAD) as $TAG${MOVES:+, moving it from $MOVES}; nothing was tagged or pushed."
+            {
+              echo "### Tag"
+              echo
+              echo "Dry run: a real run tags \`$(git rev-parse HEAD)\` as \`$TAG\`${MOVES:+, moving it from \`$MOVES\`}, with this message:"
+              echo
+              echo '````markdown'
+              cat "$MESSAGE"
               echo '````'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
           # The default cleanup would drop the "## ..." subheadings as comment lines.
-          git tag -a -f "$tag" --cleanup=whitespace -F "$message"
-          git push --force origin "refs/tags/$tag"
-          echo "Tagged $(git rev-parse HEAD) as $tag." | tee -a "$GITHUB_STEP_SUMMARY"
+          git tag -a -f "$TAG" --cleanup=whitespace -F "$MESSAGE"
+          git push --force origin "refs/tags/$TAG"
+          printf '### Tag\n\n' >> "$GITHUB_STEP_SUMMARY"
+          echo "Tagged $(git rev-parse HEAD) as $TAG." | tee -a "$GITHUB_STEP_SUMMARY"
         shell: bash
 
   cran-submission:
-    needs: tag
+    needs: [check-version, tag]
 
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -206,4 +403,12 @@ jobs:
           else
             scripts/cran-submit.sh upload "$TARBALL"
           fi
+        shell: bash
+
+      - name: Point to the draft release
+        if: success() && !inputs.dry-run
+        env:
+          URL: ${{ needs.tag.outputs.release-url }}
+        run: |
+          echo "**Once CRAN has accepted the package:** publish the [draft release]($URL) by hand." >> "$GITHUB_STEP_SUMMARY"
         shell: bash
