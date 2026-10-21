@@ -448,6 +448,7 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 			drop_partial.release();
+			converted.store(true, std::memory_order_release);
 
 			rel->MarkColumnAsTransformed();
 		}
@@ -456,7 +457,7 @@ struct AltrepVectorWrapper {
 
 	// What Dataptr() returns once the column is converted, without converting it
 	const void *DataptrOrNull() {
-		if (transformed_vector.data() == R_NilValue) {
+		if (!converted.load(std::memory_order_acquire)) {
 			return nullptr;
 		}
 		return DATAPTR_RO(transformed_vector);
@@ -471,6 +472,9 @@ struct AltrepVectorWrapper {
 	idx_t column_index;
 	std::vector<idx_t> parent_column_index;
 	cpp11::sexp transformed_vector;
+	// Set once transformed_vector is filled, which Dataptr() sets before it fills it.
+	// Atomic: a bind on an engine thread reads it while R's thread may be converting (src/scan.cpp).
+	std::atomic<bool> converted {false};
 };
 
 Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
