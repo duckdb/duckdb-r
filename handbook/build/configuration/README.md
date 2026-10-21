@@ -68,10 +68,10 @@ which upstream defines only on the branch those two macros select,
 so the guard and the assertion disagree exactly under `-UNDEBUG`:
 a helper compiled out while the assertion that calls it stays,
 which is a compile error rather than a quiet difference in behaviour.
-[`patch/0043`](/patch/0043-Define-D_ASSERT_IS_ENABLED-whenever-D_ASSERT-is-live.patch)
+[`patch/0100`](/patch/0100-Define-D_ASSERT_IS_ENABLED-whenever-D_ASSERT-is-live.patch)
 defines the macro whenever `NDEBUG` is not,
-which answers for every site of that shape, not only the one in `src/duckdb/src/function/variant/variant_shredding.cpp`,
-and it retires when upstream carries it ([Patch Stack](/BRANCHES.md#patch-stack)).
+which answers for every site of that shape at once, and its message names the ones the vendored engine has;
+it retires when upstream carries it ([Patch Stack](/BRANCHES.md#patch-stack)).
 
 **No CI job reaches that compile**, so a contributor's first `load_all()` is what finds a break of this kind.
 A job on the fast path compiles no engine,

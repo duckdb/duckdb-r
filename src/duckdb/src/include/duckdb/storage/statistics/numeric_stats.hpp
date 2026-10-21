@@ -15,10 +15,14 @@
 #include "duckdb/storage/statistics/numeric_stats_union.hpp"
 #include "duckdb/common/array_ptr.hpp"
 
+#include <cmath>
+#include <type_traits>
+
 namespace duckdb {
 class BaseStatistics;
 struct SelectionVector;
 class Vector;
+class Value;
 
 struct NumericStatsData {
 	//! Whether or not the value has a max value
@@ -34,7 +38,7 @@ struct NumericStatsData {
 struct NumericStats {
 	//! Unknown statistics - i.e. "has_min" is false, "has_max" is false
 	DUCKDB_API static BaseStatistics CreateUnknown(LogicalType type);
-	//! Empty statistics - i.e. "min = MaxValue<type>, max = MinValue<type>"
+	//! Empty statistics - min and max are initialized to the domain's maximum and minimum
 	DUCKDB_API static BaseStatistics CreateEmpty(LogicalType type);
 
 	//! Returns true if the stats has a constant value
@@ -72,24 +76,37 @@ struct NumericStats {
 	DUCKDB_API static FilterPropagateResult CheckZonemap(const BaseStatistics &stats, ExpressionType comparison_type,
 	                                                     array_ptr<const Value> constants);
 
+	//! Whether the constants cover every value in [min, max] - only meaningful for integral types
+	static bool ConstantsCoverRange(const BaseStatistics &stats, array_ptr<const Value> constants);
+
 	DUCKDB_API static void Merge(BaseStatistics &stats, const BaseStatistics &other_p);
 
 	DUCKDB_API static void Serialize(const BaseStatistics &stats, Serializer &serializer);
 	DUCKDB_API static void Deserialize(Deserializer &deserializer, BaseStatistics &stats);
 
-	DUCKDB_API static string ToString(const BaseStatistics &stats);
+	DUCKDB_API static child_list_t<Value> ToStruct(const BaseStatistics &stats);
 
 	template <class T>
 	static inline void UpdateValue(T new_value, T &min, T &max) {
 		min = LessThan::Operation(new_value, min) ? new_value : min;
 		max = GreaterThan::Operation(new_value, max) ? new_value : max;
+		if constexpr (std::is_floating_point_v<T>) {
+			// -0.0 == 0.0: prefer -0.0 as min and 0.0 as max so IsConstant can detect mixed zeros
+			if (new_value == T(0)) {
+				if (std::signbit(new_value)) {
+					min = min == T(0) ? new_value : min;
+				} else {
+					max = max == T(0) ? new_value : max;
+				}
+			}
+		}
 	}
 	template <class T>
 	static inline void Update(NumericStatsData &nstats, T new_value) {
 		UpdateValue<T>(new_value, nstats.min.GetReferenceUnsafe<T>(), nstats.max.GetReferenceUnsafe<T>());
 	}
 
-	static void Verify(const BaseStatistics &stats, Vector &vector, const SelectionVector &sel, idx_t count);
+	static void Verify(const BaseStatistics &stats, const Vector &vector, const SelectionVector &sel, idx_t count);
 
 	template <class T>
 	static T GetMin(const BaseStatistics &stats) {
@@ -110,7 +127,8 @@ private:
 	static Value MinOrNull(const BaseStatistics &stats);
 	static Value MaxOrNull(const BaseStatistics &stats);
 	template <class T>
-	static void TemplatedVerify(const BaseStatistics &stats, Vector &vector, const SelectionVector &sel, idx_t count);
+	static void TemplatedVerify(const BaseStatistics &stats, const Vector &vector, const SelectionVector &sel,
+	                            idx_t count);
 };
 
 } // namespace duckdb

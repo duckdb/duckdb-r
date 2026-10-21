@@ -11,12 +11,15 @@
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/pair.hpp"
+#include "duckdb/common/query_location.hpp"
+#include "duckdb/storage/storage_info.hpp"
 #include <limits>
 #include <cmath>
 
 namespace duckdb {
 
 struct GeometryStatsData;
+class StringHeap;
 
 enum class GeometryType : uint8_t {
 	INVALID = 0,
@@ -36,6 +39,7 @@ struct VertexXY {
 	static constexpr auto HAS_Z = false;
 	static constexpr auto HAS_M = false;
 	static constexpr auto WIDTH = 2;
+	using STRUCT_TYPE = VectorStructType<double, double>;
 
 	double x;
 	double y;
@@ -50,6 +54,7 @@ struct VertexXYZ {
 	static constexpr auto HAS_Z = true;
 	static constexpr auto HAS_M = false;
 	static constexpr auto WIDTH = 3;
+	using STRUCT_TYPE = VectorStructType<double, double, double>;
 
 	double x;
 	double y;
@@ -64,6 +69,7 @@ struct VertexXYM {
 	static constexpr auto HAS_M = true;
 	static constexpr auto HAS_Z = false;
 	static constexpr auto WIDTH = 3;
+	using STRUCT_TYPE = VectorStructType<double, double, double>;
 
 	double x;
 	double y;
@@ -79,6 +85,7 @@ struct VertexXYZM {
 	static constexpr auto HAS_Z = true;
 	static constexpr auto HAS_M = true;
 	static constexpr auto WIDTH = 4;
+	using STRUCT_TYPE = VectorStructType<double, double, double, double>;
 
 	double x;
 	double y;
@@ -147,51 +154,34 @@ public:
 	}
 
 	void Extend(const VertexXY &vertex) {
-		x_min = MinValue(x_min, vertex.x);
-		x_max = MaxValue(x_max, vertex.x);
-		y_min = MinValue(y_min, vertex.y);
-		y_max = MaxValue(y_max, vertex.y);
+		ExtendAxis(x_min, x_max, vertex.x);
+		ExtendAxis(y_min, y_max, vertex.y);
 	}
 
 	void Extend(const VertexXYZ &vertex) {
-		x_min = MinValue(x_min, vertex.x);
-		x_max = MaxValue(x_max, vertex.x);
-		y_min = MinValue(y_min, vertex.y);
-		y_max = MaxValue(y_max, vertex.y);
-		z_min = MinValue(z_min, vertex.z);
-		z_max = MaxValue(z_max, vertex.z);
+		ExtendAxis(x_min, x_max, vertex.x);
+		ExtendAxis(y_min, y_max, vertex.y);
+		ExtendAxis(z_min, z_max, vertex.z);
 	}
 
 	void Extend(const VertexXYM &vertex) {
-		x_min = MinValue(x_min, vertex.x);
-		x_max = MaxValue(x_max, vertex.x);
-		y_min = MinValue(y_min, vertex.y);
-		y_max = MaxValue(y_max, vertex.y);
-		m_min = MinValue(m_min, vertex.m);
-		m_max = MaxValue(m_max, vertex.m);
+		ExtendAxis(x_min, x_max, vertex.x);
+		ExtendAxis(y_min, y_max, vertex.y);
+		ExtendAxis(m_min, m_max, vertex.m);
 	}
 
 	void Extend(const VertexXYZM &vertex) {
-		x_min = MinValue(x_min, vertex.x);
-		x_max = MaxValue(x_max, vertex.x);
-		y_min = MinValue(y_min, vertex.y);
-		y_max = MaxValue(y_max, vertex.y);
-		z_min = MinValue(z_min, vertex.z);
-		z_max = MaxValue(z_max, vertex.z);
-		m_min = MinValue(m_min, vertex.m);
-		m_max = MaxValue(m_max, vertex.m);
+		ExtendAxis(x_min, x_max, vertex.x);
+		ExtendAxis(y_min, y_max, vertex.y);
+		ExtendAxis(z_min, z_max, vertex.z);
+		ExtendAxis(m_min, m_max, vertex.m);
 	}
 
 	void Merge(const GeometryExtent &other) {
-		x_min = MinValue(x_min, other.x_min);
-		y_min = MinValue(y_min, other.y_min);
-		z_min = MinValue(z_min, other.z_min);
-		m_min = MinValue(m_min, other.m_min);
-
-		x_max = MaxValue(x_max, other.x_max);
-		y_max = MaxValue(y_max, other.y_max);
-		z_max = MaxValue(z_max, other.z_max);
-		m_max = MaxValue(m_max, other.m_max);
+		MergeAxis(x_min, x_max, other.x_min, other.x_max);
+		MergeAxis(y_min, y_max, other.y_min, other.y_max);
+		MergeAxis(z_min, z_max, other.z_min, other.z_max);
+		MergeAxis(m_min, m_max, other.m_min, other.m_max);
 	}
 
 	bool IntersectsXY(const GeometryExtent &other) const {
@@ -207,6 +197,29 @@ public:
 		return x_min <= other.x_min && x_max >= other.x_max && y_min <= other.y_min && y_max >= other.y_max;
 	}
 
+private:
+	//! A NaN coordinate cannot be placed on the axis, so it makes the range of the axis unknown
+	static void ExtendAxis(double &min, double &max, double value) {
+		if (std::isnan(value)) {
+			min = UNKNOWN_MIN;
+			max = UNKNOWN_MAX;
+			return;
+		}
+		min = MinValue(min, value);
+		max = MaxValue(max, value);
+	}
+
+	static void MergeAxis(double &min, double &max, double other_min, double other_max) {
+		if (std::isnan(other_min) || std::isnan(other_max)) {
+			min = UNKNOWN_MIN;
+			max = UNKNOWN_MAX;
+			return;
+		}
+		min = MinValue(min, other_min);
+		max = MaxValue(max, other_max);
+	}
+
+public:
 	double x_min;
 	double y_min;
 	double z_min;
@@ -259,27 +272,30 @@ enum class GeometryStorageType : uint8_t {
 class Geometry {
 public:
 	static constexpr idx_t MAX_RECURSION_DEPTH = 16;
-	static constexpr idx_t VERSION_ADDED = 7; // Added to core in DuckDB v1.5.0
+	static constexpr StorageVersion VERSION_ADDED = StorageVersion::V1_5_0; // Added to core in DuckDB v1.5.0
 
 	//! Check for legayc geometry type (pre v1.5)
 	static bool IsSpatialGeometryType(const LogicalType &type);
 	//! Get legacy geometry type (pre v1.5)
 	static LogicalType GetSpatialGeometryType();
 
+	//! Convert from WKT, returns false and sets error_message if the text is not valid WKT
+	DUCKDB_API static bool TryFromString(const string_t &wkt_text, string_t &result, StringHeap &heap,
+	                                     string &error_message);
 	//! Convert from WKT
+	DUCKDB_API static bool FromString(const string_t &wkt_text, string_t &result, StringHeap &heap, bool strict,
+	                                  QueryLocation query_location);
 	DUCKDB_API static bool FromString(const string_t &wkt_text, string_t &result, Vector &result_vector, bool strict);
-	DUCKDB_API static bool FromString(const string_t &wkt_text, string_t &result, Vector &result_vector, bool strict,
-	                                  optional_idx query_location);
 
 	//! Convert to WKT
-	DUCKDB_API static string_t ToString(Vector &result, const string_t &geom);
+	DUCKDB_API static string_t ToString(StringHeap &heap, const string_t &geom);
 
 	//! Convert from WKB
-	DUCKDB_API static bool FromBinary(const string_t &wkb, string_t &result, Vector &result_vector, bool strict);
-	DUCKDB_API static bool FromBinary(Vector &source, Vector &result, idx_t count, bool strict);
+	DUCKDB_API static bool FromBinary(const string_t &wkb, string_t &result, StringHeap &heap, bool strict);
+	DUCKDB_API static bool FromBinary(const Vector &source, Vector &result, idx_t count, bool strict);
 
 	//! Convert to WKB
-	DUCKDB_API static void ToBinary(Vector &source, Vector &result, idx_t count);
+	DUCKDB_API static void ToBinary(const Vector &source, Vector &result);
 
 	//! Get the geometry type and vertex type from the WKB
 	DUCKDB_API static pair<GeometryType, VertexType> GetType(const string_t &wkb);
@@ -289,14 +305,15 @@ public:
 	DUCKDB_API static uint32_t GetExtent(const string_t &wkb, GeometryExtent &extent, bool &has_any_empty);
 
 	//! Convert to vectorized format
-	DUCKDB_API static void ToVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryType geom_type,
+	DUCKDB_API static void ToVectorizedFormat(const Vector &source, Vector &target, idx_t count, GeometryType geom_type,
 	                                          VertexType vert_type);
-	DUCKDB_API static void ToVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryStorageType type);
+	DUCKDB_API static void ToVectorizedFormat(const Vector &source, Vector &target, idx_t count,
+	                                          GeometryStorageType type);
 	//! Convert from vectorized format
-	DUCKDB_API static void FromVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryType geom_type,
-	                                            VertexType vert_type, idx_t result_offset);
-	DUCKDB_API static void FromVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryStorageType type,
-	                                            idx_t result_offset);
+	DUCKDB_API static void FromVectorizedFormat(const Vector &source, Vector &target, idx_t count,
+	                                            GeometryType geom_type, VertexType vert_type, idx_t result_offset);
+	DUCKDB_API static void FromVectorizedFormat(const Vector &source, Vector &target, idx_t count,
+	                                            GeometryStorageType type, idx_t result_offset);
 
 	//! Get the vectorized logical type for a given geometry and vertex type
 	DUCKDB_API static LogicalType GetVectorizedType(GeometryStorageType type);
@@ -305,11 +322,11 @@ public:
 	DUCKDB_API static pair<GeometryType, VertexType> GetSpecializedType(GeometryStorageType type);
 
 	DUCKDB_API static void FromSpatialGeometry(const string_t &source, string_t &target, Vector &vector);
-	DUCKDB_API static void FromSpatialGeometry(Vector &source, Vector &target, idx_t count, idx_t result_offset);
+	DUCKDB_API static void FromSpatialGeometry(const Vector &source, Vector &target, idx_t count, idx_t result_offset);
 	DUCKDB_API static void FromSpatialGeometry(const string_t &source, string &target);
 
 	DUCKDB_API static void ToSpatialGeometry(const string_t &source, string_t &target, Vector &vector);
-	DUCKDB_API static void ToSpatialGeometry(Vector &source, Vector &target, idx_t count);
+	DUCKDB_API static void ToSpatialGeometry(const Vector &source, Vector &target, idx_t count);
 	DUCKDB_API static void ToSpatialGeometry(const string_t &source, string &target);
 };
 

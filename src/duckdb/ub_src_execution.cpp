@@ -2,6 +2,8 @@
 
 #include "src/execution/aggregate_hashtable.cpp"
 
+#include "src/execution/aggregate_state_spilling.cpp"
+
 #include "src/execution/base_aggregate_hashtable.cpp"
 
 #include "src/execution/column_binding_resolver.cpp"
@@ -10,7 +12,11 @@
 
 #include "src/execution/expression_executor_state.cpp"
 
+#include "src/execution/ie_join_union.cpp"
+
 #include "src/execution/join_hashtable.cpp"
+
+#include "src/execution/mark_join_row_comparison.cpp"
 
 #include "src/execution/perfect_aggregate_hashtable.cpp"
 
@@ -18,5 +24,9 @@
 
 #include "src/execution/physical_plan_generator.cpp"
 
+#include "src/execution/radix_ht_adaptivity.cpp"
+
 #include "src/execution/radix_partitioned_hashtable.cpp"
+
+#include "src/execution/row_id_deduplicator.cpp"
 

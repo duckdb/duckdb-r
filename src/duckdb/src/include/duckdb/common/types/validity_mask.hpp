@@ -79,8 +79,15 @@ public:
 	static inline idx_t ValidityMaskSize(idx_t count = STANDARD_VECTOR_SIZE) {
 		return ValidityBuffer::EntryCount(count) * sizeof(V);
 	}
-	inline bool AllValid() const {
+	inline bool CannotHaveNull() const {
 		return !validity_mask;
+	}
+	inline bool CanHaveNull() const {
+		return validity_mask;
+	}
+	//! Deprecated - use CannotHaveNull() instead
+	[[deprecated("Use CannotHaveNull() instead")]] inline bool AllValid() const {
+		return CannotHaveNull();
 	}
 	inline bool CheckAllValid(idx_t count) const {
 		return CountValid(count) == count;
@@ -90,7 +97,7 @@ public:
 	}
 
 	inline bool CheckAllValid(idx_t to, idx_t from) const {
-		if (AllValid()) {
+		if (CannotHaveNull()) {
 			return true;
 		}
 		for (idx_t i = from; i < to; i++) {
@@ -102,7 +109,7 @@ public:
 	}
 
 	idx_t CountValid(const idx_t count) const {
-		if (AllValid() || count == 0) {
+		if (CannotHaveNull() || count == 0) {
 			return count;
 		}
 
@@ -177,8 +184,8 @@ public:
 		return (n + BITS_PER_VALUE - 1) / BITS_PER_VALUE;
 	}
 
-	//! RowIsValidUnsafe should only be used if AllValid() is false: it achieves the same as RowIsValid but skips a
-	//! not-null check
+	//! RowIsValidUnsafe should only be used if CannotHaveNull() is false: it achieves the same as RowIsValid but skips
+	//! a not-null check
 	inline bool RowIsValidUnsafe(idx_t row_idx) const {
 		D_ASSERT(validity_mask);
 		idx_t entry_idx, idx_in_entry;
@@ -218,7 +225,7 @@ public:
 		}
 #endif
 		if (!validity_mask) {
-			// if AllValid() we don't need to do anything
+			// if CannotHaveNull() we don't need to do anything
 			// the row is already valid
 			return;
 		}
@@ -298,10 +305,11 @@ public:
 		if (count == 0) {
 			return;
 		}
-		auto last_entry_index = ValidityBuffer::EntryCount(count) - 1;
-		for (idx_t i = 0; i < last_entry_index; i++) {
+		const auto entry_count = ValidityBuffer::EntryCount(count);
+		for (idx_t i = 0; i + 1 < entry_count; i++) {
 			validity_mask[i] = ValidityBuffer::MAX_ENTRY;
 		}
+		const auto last_entry_index = entry_count - 1;
 		auto last_entry_bits = count % BITS_PER_VALUE;
 		validity_mask[last_entry_index] |= (last_entry_bits == 0)
 		                                       ? ValidityBuffer::MAX_ENTRY
@@ -313,6 +321,13 @@ public:
 			return true;
 		}
 		return false;
+	}
+
+	idx_t GetAllocationSize() const {
+		if (!validity_mask) {
+			return 0;
+		}
+		return EntryCount(capacity) * sizeof(V);
 	}
 
 public:
@@ -336,7 +351,7 @@ public:
 	}
 	inline void Copy(const TemplatedValidityMask &other, idx_t count) {
 		capacity = count;
-		if (other.AllValid()) {
+		if (other.CannotHaveNull()) {
 			validity_data = nullptr;
 			validity_mask = nullptr;
 		} else {
@@ -369,7 +384,9 @@ public:
 	DUCKDB_API void Slice(const ValidityMask &other, idx_t source_offset, idx_t count);
 	DUCKDB_API void CopySel(const ValidityMask &other, const SelectionVector &sel, idx_t source_offset,
 	                        idx_t target_offset, idx_t count);
+	DUCKDB_API void CopyRange(const ValidityMask &other, idx_t count);
 	DUCKDB_API void Combine(const ValidityMask &other, idx_t count);
+	DUCKDB_API void Combine(const Vector &other, idx_t count);
 	DUCKDB_API string ToString(idx_t count) const;
 	DUCKDB_API string ToString() const;
 
@@ -386,8 +403,15 @@ struct ValidityArray {
 	inline ValidityArray() {
 	}
 
-	inline bool AllValid() const {
+	inline bool CannotHaveNull() const {
 		return !validity_mask;
+	}
+	inline bool CanHaveNull() const {
+		return validity_mask;
+	}
+	//! Deprecated - use CannotHaveNull() instead
+	[[deprecated("Use CannotHaveNull() instead")]] inline bool AllValid() const {
+		return CannotHaveNull();
 	}
 
 	inline void Initialize(idx_t count, bool initial = true) {
@@ -395,6 +419,13 @@ struct ValidityArray {
 		validity_data = make_unsafe_uniq_array<bool>(count);
 		validity_mask = validity_data.get();
 		memset(validity_mask, initial, sizeof(bool) * count);
+	}
+	//! Points the array at storage of `count` entries owned by the caller (e.g. a buffer-allocated block, so that an
+	//! O(rows) array counts against the memory limit); the storage must outlive the array
+	inline void Initialize(bool *validity, idx_t count) {
+		validity_data.reset();
+		validity_mask = validity;
+		capacity = count;
 	}
 	inline void InitializeEmpty(idx_t count) {
 		capacity = count;
@@ -404,8 +435,8 @@ struct ValidityArray {
 		return capacity;
 	}
 
-	//! RowIsValidUnsafe should only be used if AllValid() is false: it achieves the same as RowIsValid but skips a
-	//! not-null check
+	//! RowIsValidUnsafe should only be used if CannotHaveNull() is false: it achieves the same as RowIsValid but skips
+	//! a not-null check
 	inline bool RowIsValidUnsafe(idx_t row_idx) const {
 		D_ASSERT(validity_mask);
 		return validity_mask[row_idx];
@@ -440,7 +471,7 @@ struct ValidityArray {
 		}
 #endif
 		if (!validity_mask) {
-			// if AllValid() we don't need to do anything
+			// if CannotHaveNull() we don't need to do anything
 			// the row is already valid
 			return;
 		}
@@ -449,7 +480,7 @@ struct ValidityArray {
 	}
 
 	inline void Pack(ValidityMask &mask, const idx_t count) const {
-		if (AllValid()) {
+		if (CannotHaveNull()) {
 			mask.Reset(count);
 			return;
 		}

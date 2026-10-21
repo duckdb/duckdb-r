@@ -55,8 +55,9 @@ idx_t WindowTokenTree::MeasurePayloadBlocks() {
 	return count;
 }
 
-template <typename T>
-static void BuildTokens(WindowTokenTree &token_tree, vector<T> &tokens) {
+template <typename TOKENS>
+static void BuildTokens(WindowTokenTree &token_tree, TOKENS &tokens) {
+	using T = typename TOKENS::value_type;
 	auto &collection = *token_tree.sorted;
 	if (!collection.Count()) {
 		return;
@@ -78,7 +79,7 @@ static void BuildTokens(WindowTokenTree &token_tree, vector<T> &tokens) {
 			row_idx = FlatVector::GetDataUnsafe<T>(payload_chunk.data[0]);
 			i = 0;
 		}
-
+		D_ASSERT(row_idx != nullptr);
 		token += d;
 		tokens[row_idx[i++]] = token;
 	}

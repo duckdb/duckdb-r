@@ -276,6 +276,29 @@ test_that("TIMESTAMPTZ without icu falls back to tzone \"UTC\" (#184)", {
   expect_error(dbExecute(con, "SET TimeZone = 'UTC'"), "icu")
 })
 
+test_that("TIMESTAMPTZ_NS is labeled with the session TimeZone, like TIMESTAMPTZ", {
+  # Without icu the session falls back to a UTC label, which `timezone_out`
+  # does not change: the label is the session's, not the connection's.
+  con <- local_con(
+    drv = duckdb(allow_extensions = FALSE),
+    timezone_out = "Pacific/Tahiti"
+  )
+  skip_if_builtin_icu(con)
+
+  sql <- "SELECT
+    TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS us,
+    '2024-01-10 13:03:12-08:00'::TIMESTAMPTZ_NS AS ns"
+  res <- suppressWarnings(dbGetQuery(con, sql))
+  expect_equal(attr(res$us, "tzone"), "UTC")
+  expect_equal(attr(res$ns, "tzone"), "UTC")
+  expect_equal(res$ns, res$us)
+
+  # The ALTREP path labels it the same way
+  rel <- rel_from_sql(con, sql)
+  out <- suppressWarnings(as.data.frame(rel_to_altrep(rel)))
+  expect_equal(attr(out$ns, "tzone"), "UTC")
+})
+
 test_that("TIMESTAMPTZ tzone attribute follows session TimeZone setting (#184)", {
   skip_if_no_icu()
 

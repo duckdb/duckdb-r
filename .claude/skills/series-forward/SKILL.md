@@ -1,6 +1,6 @@
 ---
 name: series-forward
-description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
+description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it from the series' own `-dev`, so its commits keep what the series proved, and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
 ---
 
 # Forwarding a series to a newer base
@@ -15,7 +15,8 @@ and rebasing them in place would rewrite `<S>-green` —
 the one ref consumers depend on.
 So the rebase happens **beside** the series, not in it:
 a forward counterpart is built as a sibling series,
-verified from scratch by the ordinary loop,
+out of the commits the series has already had judged,
+verified again by the ordinary loop on the new base,
 and swapped in atomically once it has caught up.
 
 **A release is the largest instance of `main` moving, and not a rule of its own.**
@@ -29,179 +30,71 @@ so a bump on `main` moves nothing under it and only the R-side drift counts.
 
 ## Create the forward series
 
-Bootstrap first, populate second —
-like any series,
-the four `-fwd` refs start **equal** at the regenerated seed tip;
-the replay then populates `<S>-fwd-build`.
+Build locally, push once.
+The seed and the replay happen on local branches,
+and the four `-fwd` refs go up in one `git push --atomic`:
+`<S>-fwd-build` at the replay's tip, `<S>-fwd-dev` and `<S>-fwd-build-base` at the seed tip,
+and `<S>-fwd-green` at the commit the seed sits on, below the flavor commits,
+as [`series-open`](/.claude/skills/series-open/SKILL.md) and [`series-rebase`](/.claude/skills/series-rebase/SKILL.md) push theirs.
+A `-fwd-build` pushed at the seed before the replay is a series the loop can find,
+and it would start vendoring onto that ref while the replay is still writing it.
 
-1. **`<S>-fwd-build`**: rebuild `<S>-build` on current `main`.
-   Regenerate the seed — `scripts/flavor.sh <F>`, plus a separate
-   `chore: Add fifth version component` commit appending the counter's `.0` to
-   `Version:` — then replay each vendor commit onto it.
-   `flavor.sh` needs `krlmlr/cpp11` installed and refuses the whole run without
-   it ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
-   A series seeded from a release branch rather than from `main`
-   regenerates on **that** branch,
-   whose `scripts/` may be older than `main`'s —
-   replay the recorded seed commits instead when it is.
+1. **`<S>-fwd-build`**: rebuild `<S>-dev`, and the buffer above it, on current `main`.
+   The whole of step 1, with the reasoning behind each rule and every stop the replay makes,
+   is [`references/create.md`](references/create.md); read it before the first replay and at every stop.
+   The procedure:
 
-   **A preview line's seed takes its version prefix again here.**
-   A regenerated seed carries `main`'s prefix, which is the released line's,
-   and the replay cannot put the preview prefix back:
-   the `DESCRIPTION` gate keeps our side verbatim across differing prefixes,
-   so every picked commit inherits whatever the seed was stamped with
-   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   Stamp it in the fifth-component commit, before the four `-fwd` refs are created equal.
-   The prefix is the previewed line's, not the seed's: previewing 2.1 is `2.0.99.9000`,
-   previewing 2.0 is `1.99.99.9000`.
+   * **Regenerate the seed** on current `main`: `scripts/flavor.sh <F>` (needs `krlmlr/cpp11`),
+     then a separate `chore: Add fifth version component` commit appending the counter's `.0`;
+     a preview line takes its own prefix there, and a seed on a released `main` takes fledge's first dev version.
+   * **Read the whole glue set and what the base learned, and judge it**, before the first pick:
 
-   **The forward series takes the whole of the new base.**
-   The replay is a cherry-pick, not a tree reconstruction:
-   a vendor commit's diff is already exactly what vendoring changed —
-   `src/duckdb/`, the version bookkeeping,
-   and the glue that commit had to adapt —
-   so replaying the diffs keeps `main`'s state for everything else
-   by construction.
-   Files `main` deleted stay deleted,
-   tooling `main` gained comes along,
-   tests and snapshots are `main`'s,
-   and glue born on a `-dev` branch
-   rides in the commit that needed it,
-   so the preview line needs no exception.
-   Nothing is reconstructed from a path list,
-   which is what used to go wrong:
-   every failure was the list failing to see
-   something `main` had removed.
+     ```sh
+     scripts/series-glue.sh <old-base>..<old-build>
+     scripts/series-learned.sh <S>          # per commit, what -dev carries beyond its -build twin
+     scripts/series-learned.sh <S> --diff   # the changes themselves
+     ```
 
-   **Read the whole glue set before the first pick.**
+   * **Replay `-dev`, then the buffer above it**, on the fresh seed; `scripts/setup-git.sh` first:
 
-   ```sh
-   scripts/series-glue.sh <old-base>..<old-build>
-   ```
+     ```sh
+     scripts/series-forward-build.sh <S>-dev <old-base> --buffer <S>-build
+     ```
 
-   Every R-side adaptation the buffer carries, oldest first,
-   with the upstream SHA each answered,
-   the `R-side fix` prose each left behind,
-   and the files ranked by how often they were adapted.
-   That ranking is the conflict forecast:
-   a file adapted five times in the range
-   is a file upstream keeps moving,
-   and the pick that stops will be one of those five.
-   Read them together and the shape is visible —
-   the same call site migrated to an accessor,
-   then to a different type, then renamed —
-   so a conflict is resolved toward
-   where the range is going, in one move.
-   Read one at a time and each is resolved on its own evidence,
-   toward a state a later commit in the same range overwrites:
-   the work is done twice, and the intermediate resolution
-   is the one that has to be undone.
-   Findings recorded by stage 3 of the loop
-   — what r-universe made of the base series' green,
-   on the platforms the gate never covered —
-   travel in those same messages, and are read in the same pass.
+     Only `vendor:` subjects are replayed, the counter is renumbered, every message is kept,
+     and a pick never stops a test the seed runs.
+     The range's foot is read from the trees; a preview line's buffer opens on a rewind, which the script rebuilds.
+     A forward that re-roots is a graft, and the parent's next forward takes it from the child with `--graft-from`.
+   * **It refuses to start while the buffer carries a change the new base does not have**, naming each:
+     read it, find the commit it belongs to, rerun with `--placed <sha>`, fold each change into its commit and replay the tail,
+     and verify by tree: `git diff --name-only <S>-build <S>-fwd-build -- src/duckdb patch/` must be empty.
+   * **Where the glue gate stops, adapt minimally** and fold the fix into the commit it stopped on;
+     `main`'s glue meeting an older engine at a rewind is stepped back and restored in the commit that brings the API back,
+     and a test asking for behaviour the engine lacks is gated, never rewound.
+     Everything else the forward learns, it learns from CI once `-fwd-dev` is extended, folded with
+     [`scripts/series-fold.sh`](/scripts/series-fold.sh) and mirrored onto `-fwd-build` where it is glue.
+   * **Carry the vendor strand, and read the forward against it:**
 
-   Only `vendor:` subjects are replayed —
-   a `-dev` branch's non-vendor commits belong to `main`
-   and are already in the seed.
-   That includes the commits stage 4 of the loop
-   ported onto `-dev`, and its tooling sync commits
-   (`series-loop/SKILL.md`):
-   the seed carries their content,
-   the replay leaves them behind,
-   and that is where a port's life ends.
-   The fifth version component is renumbered as a true counter,
-   one per replayed commit,
-   so it counts this chain rather than carrying the old one's numbering.
-   Keep every commit message;
-   the original author survives the replay, only the committer changes.
-   `scripts/series-forward-build.sh <old-build> <old-base>`
-   does exactly this, run on the fresh seed —
-   `<old-base>` only delimits the range.
-   A range starting above the old base is legitimate
-   where the new base already vendors the commit the range starts at,
-   and nowhere else:
-   a range that starts higher lands its first commit on whatever the base
-   happens to vendor, walking the engine backwards where that is older.
-   For a line tracking upstream `main`,
-   what establishes such a base is upstream's back-merge of a release branch,
-   and until one lands the whole buffer replays
-   ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)).
+     ```sh
+     scripts/series-vendor.sh <S> --forward <seed> --push   # <S>-fwd-vendor: the strand onto the commit -fwd-build stands on
+     scripts/series-learned.sh <S>-fwd --vendor             # per commit, what -fwd-build carries beyond pure vendoring
+     scripts/series-learned.sh <S>-fwd --vendor --diff      # the changes themselves
+     ```
 
-   **A forward that re-roots is a graft, and grafts nothing but a tree.**
-   Where the point is to drop history below a fork point — an opening leaves the
-   parent carrying it ([`series-open/SKILL.md`](series-open)) — the new root is
-   one commit whose tree *is* the fork-point commit's, verbatim, parented on
-   current `main`:
+     The strand is vendored once and carried by a rebase, a rewind's foot written on the seed whole; nothing is replayed.
+     A fix found wanting on the new base is answered with a correction on the forward commit that carries it,
+     folded with `series-fold.sh`, so that `-fwd-build` is the better buffer before the loop starts verifying it.
 
-   ```bash
-   git commit-tree <fork-point commit>^{tree} -p <main> -F <message>
-   ```
-
-   No pick, because a pick would land one line's delta on another's tree. No
-   regenerated seed either: the graft keeps the fork point's R side, and the
-   forward that aligns it with `main` is a separate move. Replay everything the
-   branch has taken since — every subject, not only `vendor:`, since the base is
-   that range's own base — stamping the counter on each. `Version:` is the graft's
-   only edit, taking the prefix of the line the series now previews.
-
-   **It refuses to start while the buffer carries a change
-   the new base does not have.**
-   `-build` takes no ports, so a non-vendor commit above its first
-   vendor commit is the buffer's own —
-   the `patch/` entries stage 3 commits onto it —
-   and the replay has nowhere to put it.
-   The script names each one and stops before writing anything.
-   Work through them in this order:
-
-   1. **Read it.** The refusal rests on two cheap tests,
-      so a change the new base carries in a shape neither recognises
-      is listed too; confirm by reading the base for its effect.
-      If it is there, the commit is done.
-   2. **Find the commit it belongs to** —
-      the first whose tree carries the code it answers, never the commit
-      it was written at
-      ([`vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
-      Name it by its upstream SHA:
-      the replayed commit does not exist yet.
-   3. **Rerun with `--placed <sha>` for each** — the script prints the
-      whole command — and let the replay finish.
-      The acknowledgement is remembered, so a conflict stop resumes
-      without it.
-   4. **Fold each change into its commit, then replay the tail.**
-      Detach at the commit, apply the change, `git commit --amend`,
-      and `git rebase --onto HEAD <that commit> <S>-fwd-build`.
-      Amending rather than inserting is what keeps the counter equal to
-      the number of commits the script wrote,
-      which is how it finds its place on a later resume.
-   5. **Verify by tree.**
-      `git diff --name-only <S>-build <S>-fwd-build -- src/duckdb patch/`
-      must be empty.
-      This is the check that catches everything above going wrong,
-      including a fold that landed in the wrong place.
-   `DESCRIPTION` merges on every commit,
-   so register the merge driver first (`scripts/setup-git.sh`);
-   on a conflict the script stops with the tree in place,
-   and rerunning it after `git add` continues where it stopped.
-
-   **The buffer stays at what compiles, and that is the whole split.**
-   `-fwd-build` inherits what the base buffer had —
-   the vendored tree and the glue that makes it compile,
-   that being what the vendor gate checks —
-   and nothing of what the base series learned afterwards.
-   That second half is not replayed here and is not missing either:
-   the loop's stage 5 folds it in from the base `<S>-dev`
-   as each buffer commit is consumed (`series-loop/SKILL.md`),
-   glue included where a test rather than the compiler demanded it.
-   So do not reach for it during the replay,
-   and do not put a snapshot or a test fix onto `-fwd-build` by hand.
-
-2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
-   the seed tip:
-   green contains the flavor change from day one,
-   so whatever consumes it builds the flavored package;
-   the loop's stage 5 extends `-fwd-dev` from the populated buffer,
-   folding in the base series' test-side fixes as it goes.
+2. **`<S>-fwd-dev` = `<S>-fwd-build-base`** = the seed tip,
+   and **`<S>-fwd-green`** = the commit the seed sits on.
+   Green never takes the flavor commits at birth
+   ([`branches/model/`](/handbook/branches/model/README.md)):
+   they have no runs yet, so CI judges them first,
+   and the loop's stage 3 carries green over them once they pass.
+   The loop's stage 5 extends `-fwd-dev` from the populated buffer.
+   Up to the commit the base `-dev` had reached when the forward was built, there is nothing left to carry,
+   and the stage recognises a fix the buffer commit already holds;
+   above it, where the buffer came from `-build`, it folds the base's fixes in as it always has.
 
 3. Nothing else is special:
    a forward series is a series,
@@ -229,7 +122,7 @@ that landed while the forward series was being built or verified.
 That move is a rebase of the series onto itself, `series-rebase/SKILL.md`,
 and it is not this skill.
 Forwarding is `<S>` → `<S>-fwd`, across lineages:
-`-fwd-build` is replayed out of the base series' buffer
+`-fwd-build` is replayed out of the base series' `-dev`, and its buffer above that,
 and `-fwd-dev` starts empty, for the loop to rederive.
 A rebase is `<S>-fwd` → `<S>-fwd`, one lineage,
 all four refs replayed as they stand, nothing rederived.
@@ -237,6 +130,24 @@ all four refs replayed as they stand, nothing rederived.
 A series that has cut over is no longer WIP:
 its green serves consumers,
 and moving it means a new forward series, not a rebase.
+
+## What the forward guarantees
+
+> Every commit of `<S>-fwd-build` replayed from `<S>-dev` has the tree of its `-dev` twin plus `main`'s delta since the old seed,
+> except where the glue gate or the test guard adapted it, and each adaptation is named in the commit.
+
+Work the base series did survives by construction, and the only new work is where `main`'s delta meets the series.
+Three limits bound that claim, and each is somebody's work rather than a gap in the claim:
+
+* **The glue gate is a compile check.**
+  It does not see behaviour `main`'s delta changes, so per-commit CI still judges every commit of `-fwd-dev`,
+  and a red there gets a minimal fix folded into the commit that introduced it (above).
+  "Adapt minimally" covers a test failure as much as a build failure.
+* **Keeping `-dev` keeps its defects along with its fixes.**
+  The forward is no better than its base where `main` did not move;
+  improvement over the incumbent comes from `main`'s side alone, and a defect the base carries is fixed on the base, where stage 2 fixes one.
+* **`-dev` covers only what the base has consumed.**
+  The buffer beyond its tip is replayed from `-build`, compile side only, and the loop's carry serves it as before.
 
 ## What a forwarding has to end up with
 
@@ -264,6 +175,8 @@ prints the difference and sorts it into the two.
 What is explicable is a short, evidenced list —
 `DESCRIPTION`'s `Version:` line, which the replay renumbers;
 `NEWS.md`, the release paperwork stage 4 never ports;
+the flavored docs, `README.Rmd`, `README.md` and `.github/README.md`, which are per-branch by design;
+the Windows export list, `src/*-win.def`, while the two vendor different engines;
 and the **vendored strand** —
 `src/duckdb/`, `patch/`, `R/version.R`, `src/include/sources.mk`
 and the Makevars —
@@ -278,11 +191,13 @@ a forward regenerates the vendored tree from its own patch stack,
 which is what step 1's tree check verifies at replay time.
 
 Everything else is a finding —
-glue, tests, R code, the READMEs, the tooling directories —
+glue, tests, R code, the tooling directories —
 and it belongs to whichever stage should have moved it:
 a carry stage 5 could not make,
 a port that reached one branch and not the other,
 a fix folded on one and not the other.
+A forward replayed from `-dev` starts with none of these up to the commit the base had reached,
+so what the read shows afterwards is what the two lineages did since, and a test the replay kept.
 The swap does not resolve a finding; it inherits it,
 onto the lineage r-universe builds from.
 
@@ -300,23 +215,46 @@ and on the live series they do not.
 
 ## Cut over — by hand, always
 
+A line has **one forward at a time**:
+the loop serves the series r-universe publishes and the forward being built beside it, and nothing else
+([`series-loop/SKILL.md`](../series-loop/SKILL.md)).
+A second forward is not opened while one is in flight;
+it is cut over, rebased (above), or abandoned first.
+
 When `<S>-fwd-green` vendors at least the upstream commit
 `<S>-green` vendors —
 coverage may never regress — run
 
 ```sh
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepare --out <dir>
 scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 ```
 
 **A human runs this, never the loop.**
 The series loop reports a ready cutover and stops there
 (`series-loop/SKILL.md`, stage 6),
-and the script refuses to run without a terminal
+and the script refuses to swap without a terminal
 and a typed confirmation.
+`--prepare` is the half that needs neither:
+it prints the gates and the reads below, writes the review, and moves nothing,
+so the decision is made on a page that can be read twice.
 Pass the upstream clone:
 without it the coverage gate degrades to a warning,
 and a warning is not what should authorize
 retiring the lineage consumers are reading.
+
+**The review comes before the swap.**
+The script prints, as a stat, everything `<S>-fwd-green` changes against current `main` outside the engine,
+and writes the full diff to `--out`:
+the glue, the R code, the tests and the patch stack.
+The forward's seed is a recent `main`, so that diff is the series' own work,
+and it is read before consumers are pointed at it,
+each part held to the leaf that owns it:
+glue to [`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md),
+tests to [`testing/`](/handbook/testing/README.md),
+patches to [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
+The convergence read beside it is the other half, what the forward carries against what it replaces;
+a finding there is inherited by the swap, never resolved by it.
 
 The report names the package on both sides —
 `Package:` once, and `Version:` for each of the four refs,
@@ -339,10 +277,27 @@ the prefix is pinned to the line being previewed rather than taken from `main`
 ([`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh)),
 so only the restarted counter differs.
 
-It swaps all four refs in a single `git push --atomic`
+**The replaced history is kept before anything moves.**
+The swap takes `<S>-dev` and `<S>-build` off their lineages in the fork,
+and the canonical repository's copy of `<S>-green` off its own,
+and a ref nothing points at is history nothing can read.
+So, after the confirmation and before the push,
+each of those lineages becomes the head of a **draft pull request opened and closed on the spot**,
+against the forward ref that takes its place:
+`<S>-dev` against `<S>-fwd-dev` and `<S>-build` against `<S>-fwd-build` in the fork,
+`<S>-green` against `<S>-fwd-green` in the canonical repository,
+which carries every green ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+GitHub keeps a pull request's head as `refs/pull/<n>/head` for as long as the pull request exists, closed or not,
+so the commits stay reachable, and the pull request is where to find them.
+Green and `-build-base` are on those lineages already and need none of their own.
+Nothing is merged, and the names stay what they were:
+r-universe keeps building `<S>-green`, and no entry anywhere changes.
+A remote that is not on GitHub cannot be archived that way;
+the script refuses rather than swapping anyway, and `--no-archive` is the explicit override.
+
+It then swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
-so consumers never observe a half-replaced series,
-then deletes the `-fwd` refs.
+so consumers never observe a half-replaced series.
 A base ref that does not exist yet is **created** rather than swapped,
 leased as "must not exist" —
 a series opened directly as `-fwd`
@@ -353,10 +308,26 @@ of a serving green ref**;
 a WIP `-fwd-green` may be reset by a rebase (above),
 but a green that consumers read
 moves fast-forward only, before and after the swap.
+The canonical copy of `<S>-green` is forced to the new green afterwards, under a lease,
+the one place that copy is ever forced.
 
+**Then it cleans up, and `series-prune.sh` lists what it could not.**
+The `-fwd` refs are deleted in the fork,
+with the forward's rc and alpha strands and its retry ledger,
+and `<S>-fwd-green`'s copy is deleted in the canonical repository:
+their tips are the series' refs now, and the derived strands are re-cut from the swapped-in series
+([`series-rc/SKILL.md`](../series-rc/SKILL.md), [`series-alpha/SKILL.md`](../series-alpha/SKILL.md)).
 If the remote refuses ref deletion (some git proxies do),
-remove the `-fwd` refs via the forge UI.
-Until they are gone,
+or a cutover predates this cleanup,
+what stays is cutover litter:
 the loop ignores a forward series
-whose green is an ancestor of its base series' green —
-that is cutover litter, not work.
+whose green is an ancestor of its base series' green,
+and
+
+```sh
+scripts/series-prune.sh <S>
+```
+
+lists the litter in both repositories with the commands that remove it, and runs none of them.
+It offers nothing of a live forward, and nothing it offers is lost by deletion:
+the replaced lineages are the archive pull requests' heads, and the rest is recomputed from `<S>-dev`.

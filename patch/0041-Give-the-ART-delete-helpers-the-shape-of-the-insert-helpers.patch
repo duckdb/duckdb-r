@@ -42,22 +42,21 @@ the top of that block and ends in the same place -- Node::FreeTree in
 DeleteChildInternal still runs under it.
 ---
 diff --git a/src/duckdb/src/execution/index/art/base_leaf.cpp b/src/duckdb/src/execution/index/art/base_leaf.cpp
-index fce383d..13b6911 100644
+index 7de99ffc3..75af800c9 100644
 --- a/src/duckdb/src/execution/index/art/base_leaf.cpp
 +++ b/src/duckdb/src/execution/index/art/base_leaf.cpp
-@@ -30,10 +30,7 @@ void BaseLeaf<CAPACITY, TYPE>::InsertByteInternal(BaseLeaf &n, const uint8_t byt
+@@ -30,9 +30,7 @@ void BaseLeaf<CAPACITY, NODE_TYPE>::InsertByteInternal(BaseLeaf &n, const uint8_
  }
  
- template <uint8_t CAPACITY, NType TYPE>
--NodeHandle<BaseLeaf<CAPACITY, TYPE>> BaseLeaf<CAPACITY, TYPE>::DeleteByteInternal(ART &art, Node &node,
--                                                                                  const uint8_t byte) {
--	NodeHandle<BaseLeaf<CAPACITY, TYPE>> handle(art, node);
--	auto &n = handle.Get();
-+void BaseLeaf<CAPACITY, TYPE>::DeleteByteInternal(BaseLeaf &n, const uint8_t byte) {
+ template <uint8_t CAPACITY, NType NODE_TYPE>
+-NodeHandle BaseLeaf<CAPACITY, NODE_TYPE>::DeleteByteInternal(ART &art, NodePtr &node, const uint8_t byte) {
+-	NodeHandle handle(art, node);
+-	auto &n = handle.Get<BaseLeaf<CAPACITY, NODE_TYPE>>();
++void BaseLeaf<CAPACITY, NODE_TYPE>::DeleteByteInternal(BaseLeaf &n, const uint8_t byte) {
  	uint8_t child_pos = 0;
  
  	for (; child_pos < n.count; child_pos++) {
-@@ -47,7 +44,6 @@ NodeHandle<BaseLeaf<CAPACITY, TYPE>> BaseLeaf<CAPACITY, TYPE>::DeleteByteInterna
+@@ -46,7 +44,6 @@ NodeHandle BaseLeaf<CAPACITY, NODE_TYPE>::DeleteByteInternal(ART &art, NodePtr &
  	for (uint8_t i = child_pos; i < n.count; i++) {
  		n.key[i] = n.key[i + 1];
  	}
@@ -65,46 +64,45 @@ index fce383d..13b6911 100644
  }
  
  //===--------------------------------------------------------------------===//
-@@ -73,8 +69,9 @@ void Node7Leaf::InsertByte(ART &art, Node &node, const uint8_t byte) {
- void Node7Leaf::DeleteByte(ART &art, Node &node, Node &prefix, const uint8_t byte, const ARTKey &row_id) {
+@@ -72,8 +69,9 @@ void Node7Leaf::InsertByte(ART &art, NodePtr &node, const uint8_t byte) {
+ void Node7Leaf::DeleteByte(ART &art, NodePtr &node, NodePtr &prefix, const uint8_t byte, const ARTKey &row_id) {
  	idx_t remainder;
  	{
 -		auto n7_handle = DeleteByteInternal(art, node, byte);
-+		NodeHandle<Node7Leaf> n7_handle(art, node);
- 		auto &n7 = n7_handle.Get();
++		NodeHandle n7_handle(art, node);
+ 		auto &n7 = n7_handle.Get<Node7Leaf>();
 +		DeleteByteInternal(n7, byte);
  
  		if (n7.count != 1) {
  			return;
-@@ -136,8 +133,9 @@ void Node15Leaf::InsertByte(ART &art, Node &node, const uint8_t byte) {
+@@ -135,8 +133,9 @@ void Node15Leaf::InsertByte(ART &art, NodePtr &node, const uint8_t byte) {
  
- void Node15Leaf::DeleteByte(ART &art, Node &node, const uint8_t byte) {
+ void Node15Leaf::DeleteByte(ART &art, NodePtr &node, const uint8_t byte) {
  	{
 -		auto n15_handle = DeleteByteInternal(art, node, byte);
-+		NodeHandle<Node15Leaf> n15_handle(art, node);
- 		auto &n15 = n15_handle.Get();
++		NodeHandle n15_handle(art, node);
+ 		auto &n15 = n15_handle.Get<Node15Leaf>();
 +		DeleteByteInternal(n15, byte);
  		if (n15.count >= Node7Leaf::CAPACITY) {
  			return;
  		}
 diff --git a/src/duckdb/src/execution/index/art/base_node.cpp b/src/duckdb/src/execution/index/art/base_node.cpp
-index a59297c..94754ed 100644
+index d0f41cf03..7bb0c7c35 100644
 --- a/src/duckdb/src/execution/index/art/base_node.cpp
 +++ b/src/duckdb/src/execution/index/art/base_node.cpp
-@@ -30,11 +30,7 @@ void BaseNode<CAPACITY, TYPE>::InsertChildInternal(BaseNode &n, const uint8_t by
+@@ -30,10 +30,7 @@ void BaseNode<CAPACITY, NODE_TYPE>::InsertChildInternal(BaseNode &n, const uint8
  }
  
- template <uint8_t CAPACITY, NType TYPE>
--NodeHandle<BaseNode<CAPACITY, TYPE>> BaseNode<CAPACITY, TYPE>::DeleteChildInternal(ART &art, Node &node,
--                                                                                   const uint8_t byte) {
--	NodeHandle<BaseNode<CAPACITY, TYPE>> handle(art, node);
--	auto &n = handle.Get();
+ template <uint8_t CAPACITY, NType NODE_TYPE>
+-NodeHandle BaseNode<CAPACITY, NODE_TYPE>::DeleteChildInternal(ART &art, NodePtr &node, const uint8_t byte) {
+-	NodeHandle handle(art, node);
+-	auto &n = handle.Get<BaseNode<CAPACITY, NODE_TYPE>>();
 -
-+void BaseNode<CAPACITY, TYPE>::DeleteChildInternal(ART &art, BaseNode &n, const uint8_t byte) {
++void BaseNode<CAPACITY, NODE_TYPE>::DeleteChildInternal(ART &art, BaseNode &n, const uint8_t byte) {
  	uint8_t child_pos = 0;
  	for (; child_pos < n.count; child_pos++) {
  		if (n.key[child_pos] == byte) {
-@@ -51,8 +47,6 @@ NodeHandle<BaseNode<CAPACITY, TYPE>> BaseNode<CAPACITY, TYPE>::DeleteChildIntern
+@@ -50,8 +47,6 @@ NodeHandle BaseNode<CAPACITY, NODE_TYPE>::DeleteChildInternal(ART &art, NodePtr
  		n.key[i] = n.key[i + 1];
  		n.children[i] = n.children[i + 1];
  	}
@@ -113,50 +111,50 @@ index a59297c..94754ed 100644
  }
  
  //===--------------------------------------------------------------------===//
-@@ -81,8 +75,9 @@ void Node4::DeleteChild(ART &art, Node &node, Node &parent, const uint8_t byte,
+@@ -80,8 +75,9 @@ void Node4::DeleteChild(ART &art, NodePtr &node, NodePtr &parent, const uint8_t
  	uint8_t remaining_byte;
  
  	{
 -		auto handle = DeleteChildInternal(art, node, byte);
-+		NodeHandle<Node4> handle(art, node);
- 		auto &n = handle.Get();
++		NodeHandle handle(art, node);
+ 		auto &n = handle.Get<Node4>();
 +		DeleteChildInternal(art, n, byte);
  
  		if (n.count != 1) {
  			return;
-@@ -140,8 +135,9 @@ void Node16::InsertChild(ART &art, Node &node, const uint8_t byte, const Node ch
+@@ -139,8 +135,9 @@ void Node16::InsertChild(ART &art, NodePtr &node, const uint8_t byte, const Node
  
- void Node16::DeleteChild(ART &art, Node &node, const uint8_t byte) {
+ void Node16::DeleteChild(ART &art, NodePtr &node, const uint8_t byte) {
  	{
 -		auto handle = DeleteChildInternal(art, node, byte);
-+		NodeHandle<Node16> handle(art, node);
- 		auto &n = handle.Get();
++		NodeHandle handle(art, node);
+ 		auto &n = handle.Get<Node16>();
 +		DeleteChildInternal(art, n, byte);
  		if (n.count >= Node4::CAPACITY) {
  			return;
  		}
 diff --git a/src/duckdb/src/include/duckdb/execution/index/art/base_leaf.hpp b/src/duckdb/src/include/duckdb/execution/index/art/base_leaf.hpp
-index 797c184..5991790 100644
+index 41be93d3e..f0dcb3ee5 100644
 --- a/src/duckdb/src/include/duckdb/execution/index/art/base_leaf.hpp
 +++ b/src/duckdb/src/include/duckdb/execution/index/art/base_leaf.hpp
-@@ -72,7 +72,7 @@ public:
+@@ -74,7 +74,7 @@ public:
  
  private:
  	static void InsertByteInternal(BaseLeaf &n, const uint8_t byte);
--	static NodeHandle<BaseLeaf> DeleteByteInternal(ART &art, Node &node, const uint8_t byte);
+-	static NodeHandle DeleteByteInternal(ART &art, NodePtr &node, const uint8_t byte);
 +	static void DeleteByteInternal(BaseLeaf &n, const uint8_t byte);
  };
  
  //! Node7Leaf holds up to seven sorted bytes.
 diff --git a/src/duckdb/src/include/duckdb/execution/index/art/base_node.hpp b/src/duckdb/src/include/duckdb/execution/index/art/base_node.hpp
-index ba24307..f4448a5 100644
+index dd0e4b746..856976890 100644
 --- a/src/duckdb/src/include/duckdb/execution/index/art/base_node.hpp
 +++ b/src/duckdb/src/include/duckdb/execution/index/art/base_node.hpp
-@@ -117,7 +117,7 @@ public:
+@@ -154,7 +154,7 @@ public:
  
  private:
- 	static void InsertChildInternal(BaseNode &n, const uint8_t byte, const Node child);
--	static NodeHandle<BaseNode> DeleteChildInternal(ART &art, Node &node, const uint8_t byte);
+ 	static void InsertChildInternal(BaseNode &n, const uint8_t byte, const NodePtr child);
+-	static NodeHandle DeleteChildInternal(ART &art, NodePtr &node, const uint8_t byte);
 +	static void DeleteChildInternal(ART &art, BaseNode &n, const uint8_t byte);
  };
  
