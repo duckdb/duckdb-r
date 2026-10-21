@@ -1,10 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.99.99.9001
+# duckdb 2.0.0
 
 ## Breaking changes
 
-- The vendored engine is the DuckDB v2.0 release candidate, `2.0.0-dev88614` (duckdb/duckdb@d54cbbe3df), up from DuckDB v1.5.6.
+- Update to DuckDB v2.0.0, see <https://github.com/duckdb/duckdb/releases/tag/v2.0.0> for details.
 
 - `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
 
