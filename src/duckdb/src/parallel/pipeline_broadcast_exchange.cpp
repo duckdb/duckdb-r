@@ -1156,7 +1156,7 @@ PipelineBroadcastExchange::FlushReadyBatches(idx_t min_batch_index, const Interr
 		vector<ExchangeLogEntry> log_entries;
 		vector<InterruptState> readers;
 		vector<InterruptState> writers;
-		AppendAdmission admission;
+		AppendAdmission admission = AppendAdmission::BLOCKED;
 		AppendReservation reservation;
 		shared_ptr<DataChunk> copy;
 		bool has_ready_batch;

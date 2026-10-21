@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:04:22 +0000
+Subject: [PATCH] Initialize the batch flush admission before it is read
+
+PipelineBroadcastExchange::FlushReadyBatches() declares its
+AppendAdmission without a value and assigns it only when a batch is
+ready. It reads it only on that path too, because the loop returns
+first when no batch is ready, but GCC 13 does not connect the two and
+-Wmaybe-uninitialized reports the read. The admission starts out as
+BLOCKED, which the assignment replaces before any read.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+index 84db381bd9..f0dba515a1 100644
+--- a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
++++ b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+@@ -1156,7 +1156,7 @@ PipelineBroadcastExchange::FlushReadyBatches(idx_t min_batch_index, const Interr
+ 		vector<ExchangeLogEntry> log_entries;
+ 		vector<InterruptState> readers;
+ 		vector<InterruptState> writers;
+-		AppendAdmission admission;
++		AppendAdmission admission = AppendAdmission::BLOCKED;
+ 		AppendReservation reservation;
+ 		shared_ptr<DataChunk> copy;
+ 		bool has_ready_batch;
