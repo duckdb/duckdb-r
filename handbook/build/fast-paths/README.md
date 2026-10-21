@@ -24,8 +24,8 @@ only the glue in `src/` compiles, the engine is linked.
 which is what removes the tens of minutes
 its "can be installed" step otherwise spends compiling the engine
 ([#22](https://github.com/duckdb/duckdb-r/issues/22)).
-By then `R CMD build` has compressed the vendored tree into
-`src/duckdb.tar.xz`, so `configure` extracts it first:
+By then `R CMD build` has packed the vendored tree into
+`src/duckdb.tar`, so `configure` extracts it first:
 the glue needs those headers, and so does the commit-match guard,
 which reads the expected commit out of them.
 
