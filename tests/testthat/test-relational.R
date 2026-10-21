@@ -1219,6 +1219,35 @@ test_that("Window lead function works as expected", {
   expect_equal(res, expected_result)
 })
 
+test_that("lag() and lead() take a default with or without an offset", {
+  rel_a <- rel_from_df(con, data.frame(a = 1:4))
+  shifted <- function(name, offset = NULL, default = NULL) {
+    fun <- expr_function(name, list(expr_reference("a")))
+    window <- expr_window(
+      fun,
+      offset_expr = offset,
+      default_expr = default,
+      alias = "w"
+    )
+    proj <- rel_project(rel_a, list(expr_reference("a"), window))
+    rel_to_altrep(rel_order(proj, list(expr_reference("a"))))$w
+  }
+  int <- expr_constant(0L)
+  dbl <- expr_constant(-1)
+  two <- expr_constant(2L)
+
+  # Without an offset, the default is the third argument, not the second.
+  expect_equal(shifted("lag", default = int), c(0, 1, 2, 3))
+  expect_equal(shifted("lead", default = int), c(2, 3, 4, 0))
+  expect_equal(shifted("lag", default = dbl), c(-1, 1, 2, 3))
+  expect_equal(shifted("lead", default = dbl), c(2, 3, 4, -1))
+
+  expect_equal(shifted("lag", offset = two, default = int), c(0, 0, 1, 2))
+  expect_equal(shifted("lead", offset = two, default = int), c(3, 4, 0, 0))
+  expect_equal(shifted("lag", offset = two, default = dbl), c(-1, -1, 1, 2))
+  expect_equal(shifted("lead", offset = two, default = dbl), c(3, 4, -1, -1))
+})
+
 test_that("Window function with string aggregate works", {
   #   select j, s, string_agg(s, '|') over (partition by b) from a order by j, s;
   rel_a <- rel_from_df(
@@ -1656,6 +1685,65 @@ test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)"
   )
 })
 
+test_that("a statement finalized in the materialize callback of a scan does not deadlock", {
+  skip_if_not_installed("callr")
+
+  # Binding the scan of a data frame holds the client context lock, and touching
+  # an unmaterialized ALTREP column there evaluates the materialize callback.
+  # R runs the finalizers that are pending at that point, and a statement's
+  # finalizer and its release take that same lock (handbook/architecture/glue/threading/README.md).
+  #
+  # A regression deadlocks rather than failing, so run it in a subprocess with
+  # a time limit instead of wedging the whole test run.
+  pkg <- get_package_name()
+
+  result <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con <- DBI::dbConnect(ns$duckdb())
+      other <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
+
+      df <- ns$rel_to_altrep(ns$rel_from_df(other, data.frame(a = 1:3)))
+
+      # The statement goes unreachable together with a sentinel,
+      # whose finalizer shows that the callback ran the pending ones.
+      finalized <- FALSE
+      local({
+        res <- DBI::dbSendQuery(con, "SELECT 1")
+        sentinel <- new.env()
+        reg.finalizer(sentinel, function(e) finalized <<- TRUE)
+        NULL
+      })
+
+      in_callback <- NA
+      options(duckdb.materialize_callback = function(rel) {
+        gc()
+        in_callback <<- finalized
+        # A statement starts here, and releases what earlier finalizers parked
+        DBI::dbGetQuery(other, "SELECT 1")
+      })
+
+      # R runs pending finalizers every 1024 evaluations, and from gc().
+      # Run them now, then collect through an allocation large enough to reach every generation:
+      # this leaves the finalizers pending instead of running them.
+      for (i in 1:1024) {
+        NULL
+      }
+      x <- numeric(2e7)
+
+      rel <- ns$rel_from_df(con, df)
+      list(in_callback = in_callback, a = as.data.frame(rel)$a)
+    },
+    args = list(pkg),
+    timeout = 60
+  )
+
+  expect_true(result$in_callback)
+  expect_equal(result$a, 1:3)
+})
+
 test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off (#1796)", {
   skip_if_not_installed("rlang")
 
@@ -1716,6 +1804,79 @@ test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard
   expect_equal(df$d[n_rows], n_rows - 1)
 })
 
+test_that("an ALTREP data frame scanned under a query leaves no connection busy", {
+  skip_if_not_installed("callr")
+
+  # Binding a data frame scan materializes an ALTREP column (src/scan.cpp)
+  # while the query holds the interrupt handler and the client context lock.
+  # An R error that long-jumped from there across the engine's frames
+  # would leave both held, and every later query of the session would fail,
+  # so run it in a subprocess with a time limit.
+  pkg <- get_package_name()
+
+  result <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con_a <- DBI::dbConnect(ns$duckdb())
+      con_b <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con_a, shutdown = TRUE), add = TRUE)
+      on.exit(DBI::dbDisconnect(con_b, shutdown = TRUE), add = TRUE)
+
+      # duckdb_register() would materialize the data frame in R first
+      register <- function(name, df) {
+        ns$rapi_register_df(
+          con_a@conn_ref,
+          name,
+          df,
+          ns$duckdb_convert_opts_impl(con_a@convert_opts),
+          FALSE
+        )
+      }
+
+      # A relation of another connection materializes under the query
+      register(
+        "t",
+        ns$rel_to_altrep(ns$rel_from_df(con_b, data.frame(x = 1:3)))
+      )
+
+      # One of the same connection, or one that may not materialize, fails cleanly
+      same <- tryCatch(
+        register(
+          "u",
+          ns$rel_to_altrep(ns$rel_from_df(con_a, data.frame(y = 1)))
+        ),
+        error = conditionMessage
+      )
+      disabled <- tryCatch(
+        register(
+          "v",
+          ns$rel_to_altrep(
+            ns$rel_from_df(con_b, data.frame(z = 1)),
+            n_cells = 0
+          )
+        ),
+        error = conditionMessage
+      )
+
+      list(
+        t = DBI::dbGetQuery(con_a, "SELECT * FROM t")$x,
+        same = same,
+        disabled = disabled,
+        a = DBI::dbGetQuery(con_a, "SELECT 1 AS a")$a,
+        b = DBI::dbGetQuery(con_b, "SELECT 2 AS b")$b
+      )
+    },
+    args = list(pkg),
+    timeout = 60
+  )
+
+  expect_equal(result$t, 1:3)
+  expect_match(result$same, "connection that is running the query")
+  expect_match(result$disabled, "Materialization is disabled")
+  expect_equal(result$a, 1)
+  expect_equal(result$b, 2)
+})
+
 test_that("rel_to_view()", {
   df1 <- data.frame(a = 1:10, b = 1:10)
   rel1 <- rel_from_df(con, df1)
@@ -1723,6 +1884,16 @@ test_that("rel_to_view()", {
 
   expect_equal(dbGetQuery(con, "SELECT * FROM test_view"), df1)
   expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
+})
+
+test_that("rel_to_csv() and rel_to_parquet() refuse an empty file name", {
+  # An empty name must not fall back to a default file in the working directory.
+  withr::local_dir(withr::local_tempdir())
+  rel <- rel_from_df(con, data.frame(a = 1L))
+
+  expect_error(rel_to_csv(rel, ""))
+  expect_error(rel_to_parquet(rel, ""))
+  expect_equal(list.files(all.files = TRUE, no.. = TRUE), character())
 })
 
 test_that("logical", {
@@ -2096,18 +2267,16 @@ test_that("rel_from_df() rejects matrix, S4, and integer64 columns", {
   expect_error(rel_from_df(con, df), "convert")
 })
 
-test_that("a lazy data frame that fails to materialize in a scan's bind leaves the connection usable", {
-  con2 <- local_con()
-  df <- rel_to_altrep(
-    rel_from_sql(con, "SELECT range AS i FROM range(20)"),
-    n_cells = 0
+test_that("a NULL window argument is left out, as it is for a NULL constant", {
+  con <- local_con()
+  rel <- rel_from_df(con, data.frame(x = 1:3))
+  lag <- expr_window(
+    expr_function("lag", list(expr_reference("x"))),
+    offset_expr = expr_constant(NA_integer_)
   )
-
-  # Bind touches the column, and its ALTREP method fails under the engine
-  expect_error(rel_from_df(con2, df), "Materialization is disabled")
-
-  # A jump past the engine's frames would have left the connection locked
-  expect_equal(dbGetQuery(con2, "SELECT 42 AS answer")$answer, 42)
+  expr_set_alias(lag, "l")
+  out <- rel_to_altrep(rel_project(rel, list(expr_reference("x"), lag)))
+  expect_equal(as.data.frame(out)$l, c(NA, 1L, 2L))
 })
 
 test_that("a lazy data frame scanned on its own connection before its query ran is refused, not hung", {

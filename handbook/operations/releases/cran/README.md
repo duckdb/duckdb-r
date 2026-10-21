@@ -9,23 +9,28 @@ Where submission sits in the release sequence is
 [`process/`](/handbook/operations/releases/process/README.md).
 
 **Before submitting:**
-the tarball is built from `duckdb/duckdb@main` rather than from a
-fork — take it from the upstream R workflow's `r-package-source`
-artifact or the post-CI release asset, so the embedded revision
-ids for extension downloads are right.
-Upload it to WinBuilder against R-devel;
-apart from the known package-size NOTE, every error, warning, and
-note is a blocker.
+the release branch `cran-X.Y.Z` is what gets checked and submitted.
+The engine's version and source id, which extension downloads rely on,
+are committed in the vendored tree, so a tarball built from any checkout of that branch carries them.
 Pushing a `cran-*` branch triggers
-[`rhub.yaml`](/.github/workflows/rhub.yaml) for R-hub's platforms.
+[`rhub.yaml`](/.github/workflows/rhub.yaml) for R-hub's platforms,
+[`release-gate.yaml`](/.github/workflows/release-gate.yaml) for the mechanical release checks,
+and, when the push adds or changes it,
+[`winbuilder.yaml`](/.github/workflows/winbuilder.yaml),
+which uploads the tarball to WinBuilder against R-devel.
+Run by hand, `winbuilder.yaml` also takes R-release and R-oldrelease; every upload mails the `cre` address.
+Apart from the known package-size NOTE, every error, warning, and note is a blocker.
 
 **Submitting:**
-<https://cran.r-project.org/submit.html>, with the tarball and a
-short note in the form's comment field —
-the name and version submitted, and that the CRAN Repository Policy
-was reviewed at its stated revision date.
-No `cran-comments.md` is kept in the repository,
-and `.Rbuildignore` keeps a locally written one out of the tarball.
+[`cran-submission.yaml`](/.github/workflows/cran-submission.yaml),
+run by hand on the release branch with the input `confirmation` set to `CONFIRM`,
+tags the commit as `vX.Y.Z` with its `NEWS.md` section, then checks the package and uploads it to CRAN.
+[`cran-comments.md`](/cran-comments.md) is the comment that goes with the upload:
+the name and version submitted, that the CRAN Repository Policy was reviewed at its stated revision date,
+and what the CRAN check page showed and what became of it.
+It is rewritten for each release, and `.Rbuildignore` keeps it out of the tarball.
+Without it, the submission action sends a generic note of its own.
+It carries no backreference to this leaf, because its whole text reaches a CRAN maintainer verbatim.
 The `cre` address in `DESCRIPTION` receives the confirmation mail,
 and the upload is not queued until it is answered.
 Acceptance is asynchronous — days, overlapping the next cycle —

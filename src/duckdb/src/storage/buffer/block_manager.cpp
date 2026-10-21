@@ -70,7 +70,7 @@ shared_ptr<BlockHandle> BlockManager::ConvertToPersistent(QueryContext context, 
 		// continue
 		auto old_block_copy = buffer_manager.AllocateMemory(old_block->GetMemory().GetMemoryTag(), this, false);
 		auto copy_pin = buffer_manager.Pin(old_block_copy);
-		memcpy(copy_pin.Ptr(), old_handle.Ptr(), GetBlockSize());
+		memcpy(copy_pin.GetDataMutable(), old_handle.Ptr(), GetBlockSize());
 		old_block = std::move(old_block_copy);
 		old_handle = std::move(copy_pin);
 	}
@@ -105,7 +105,12 @@ shared_ptr<BlockHandle> BlockManager::ConvertToPersistent(QueryContext context, 
 	old_block.reset();
 
 	// potentially purge the queue
-	auto purge_queue = buffer_manager.GetBufferPool().AddToEvictionQueue(new_block);
+	bool purge_queue;
+	{
+		// AddToEvictionQueue requires the block lock. new_block was just created here, so this is uncontended.
+		auto new_lock = new_block->GetMemory().GetLock();
+		purge_queue = buffer_manager.GetBufferPool().AddToEvictionQueue(new_lock, new_block);
+	}
 	if (purge_queue) {
 		buffer_manager.GetBufferPool().PurgeQueue(*new_block);
 	}
@@ -127,13 +132,29 @@ void BlockManager::UnregisterBlock(block_id_t id) {
 	blocks.erase(id);
 }
 
+bool BlockManager::UnregisterExpiredBlock(block_id_t id) {
+	D_ASSERT(id < MAXIMUM_BLOCK);
+	lock_guard<mutex> lock(blocks_lock);
+	auto entry = blocks.find(id);
+	if (entry == blocks.end()) {
+		// the block id was already unregistered
+		return true;
+	}
+	if (!entry->second.expired()) {
+		// a newer handle was registered for this block id - the registration is not ours to remove
+		return false;
+	}
+	blocks.erase(entry);
+	return true;
+}
+
 void BlockManager::UnregisterPersistentBlock(BlockHandle &block) {
 	if (in_destruction) {
 		return;
 	}
 	auto id = block.BlockId();
 	D_ASSERT(id < MAXIMUM_BLOCK);
-	UnregisterBlock(id);
+	UnregisterExpiredBlock(id);
 }
 
 MetadataManager &BlockManager::GetMetadataManager() {

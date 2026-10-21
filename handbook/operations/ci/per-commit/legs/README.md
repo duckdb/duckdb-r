@@ -1,13 +1,13 @@
 # The legs
 
-The three jobs, the scripts behind them,
+The two jobs, the scripts behind them,
 what one leg does with its workspace, and what a lost leg costs.
 How its commits were chosen is
 [`selection/`](/handbook/operations/ci/per-commit/selection/README.md)'s;
 how they were packed into shards is
 [`planning/`](/handbook/operations/ci/per-commit/planning/README.md)'s.
 
-One run is three jobs:
+One run is two jobs:
 
 ```
 plan  (1 job, ~30 s)
@@ -28,16 +28,14 @@ build (one job per shard, throttled by max-parallel)
        → capture the log, whole and per stage
        → on failure, quote each failed stage's tail into the job summary
        → publish record + log to the `rcc2` branch   ← seconds after the verdict
-     ... stops at its own deadline and defers the rest
-
-harvest (1 job, if: always())
-  └─ fill in records and logs for commits whose leg never got to publish
+     ... stops at its own deadline and defers the rest,
+         a commit cut short after others among them
 ```
 
 The files:
 
 * [`.github/workflows/each.yaml`](/.github/workflows/each.yaml) —
-  plan → build → harvest.
+  plan → build.
 * [`scripts/each-plan.sh`](/scripts/each-plan.sh) —
   enumerate, read verdicts, weigh, partition.
 * [`scripts/each-cost.py`](/scripts/each-cost.py) —
@@ -124,7 +122,8 @@ What survives a runner that stops executing steps:
 * **Records a leg never got to publish** — only in the leg's artifact,
   uploaded in its last step, so a lost runner never gets there.
   A firing reads the artifact directly, which is where they are;
-  the store learns of them only if `rcc-logs.yaml` is dispatched.
+  the store learns of them only if an operator runs
+  [`rcc-logs.sh`](/scripts/rcc-logs.sh).
 
 A re-run resumes rather than restarts:
 the leg skips a commit that already carries a decided record,
@@ -145,14 +144,9 @@ statusless ones, and the replanning that would pick them up does not happen
 until somebody pushes to that branch or dispatches the workflow.
 The replanning is correct; it is not automatic.
 
-**The series loop's documented recovery discards good results.**
-[`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) says that a commit still
-missing from the harvest after 12 hours should be presumed lost, and repaired by
-amending it and replaying the tail.
-Replaying mints a new SHA for every commit after it,
-so one lost leg costs a rebuild of every *already-green* commit newer than the
-commit it was in the middle of.
-That recovery is the right answer when a commit genuinely cannot get a verdict,
-but it is the last resort:
-re-running the failed job, or dispatching `each-rcc` again,
-costs only the commits that are undecided.
+**The series loop's recovery for a lost commit waits 12 hours.**
+[`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) presumes a commit
+still without a verdict after that long lost, and pushes `retry-<S>-dev` at it,
+which replans it on its own SHA and rewrites nothing above it.
+Re-running the failed job, or dispatching `each-rcc` again, needs no wait,
+and costs only the commits that are undecided.

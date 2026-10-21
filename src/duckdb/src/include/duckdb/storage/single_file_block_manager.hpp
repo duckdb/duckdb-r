@@ -10,12 +10,16 @@
 
 #include "duckdb/storage/block_manager.hpp"
 #include "duckdb/storage/block.hpp"
+#include "duckdb/storage/storage_options.hpp"
 #include "duckdb/common/file_system.hpp"
+#include "duckdb/common/prefetched_file_data.hpp"
+#include "duckdb/common/memory_mapped_file.hpp"
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/common/set.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/common/encryption_functions.hpp"
+#include "duckdb/storage/database_handle.hpp"
 
 namespace duckdb {
 
@@ -44,19 +48,24 @@ struct EncryptionOptions {
 
 struct StorageManagerOptions {
 	bool read_only = false;
-	bool use_direct_io = false;
+	FileIOMode io_mode = FileIOMode::BUFFERED_IO;
+	//! Reserve size for MMAP mode; empty uses the built-in default.
+	optional_idx mmap_reserve_size;
 	DebugInitialize debug_initialize = DebugInitialize::NO_INITIALIZE;
 	optional_idx block_alloc_size;
-	optional_idx storage_version;
-	optional_idx version_number;
+	StorageVersion storage_version = StorageVersion::INVALID;
+	StorageVersion version_number = StorageVersion::INVALID;
 	optional_idx block_header_size;
 	//! Unique database identifier and optional encryption salt.
 	data_t db_identifier[MainHeader::DB_IDENTIFIER_LEN];
 	EncryptionOptions encryption_options;
+	//! Header prefetched during file-type detection; DatabaseHandle::Open reuses it. Empty unless opened via ATTACH.
+	PrefetchedFileData prefetched;
 };
 
 //! SingleFileBlockManager is an implementation for a BlockManager which manages blocks in a single file
 class SingleFileBlockManager : public BlockManager {
+public:
 	//! The location in the file where the block writing starts
 	static constexpr uint64_t BLOCK_START = Storage::FILE_HEADER_SIZE * 3;
 
@@ -64,7 +73,6 @@ public:
 	SingleFileBlockManager(AttachedDatabase &db_p, const string &path_p, const StorageManagerOptions &options_p);
 	~SingleFileBlockManager() override;
 
-	FileOpenFlags GetFileFlags(bool create_new) const;
 	//! Creates a new database.
 	void CreateNewDatabase(QueryContext context);
 	//! Loads an existing database. We pass the provided block allocation size as a parameter
@@ -92,6 +100,8 @@ public:
 	void IncreaseBlockReferenceCount(block_id_t block_id) override;
 	//! UnregisterBlock, only accepts non-temporary block ids
 	void UnregisterBlock(block_id_t id) override;
+	//! Unregister the block id if no live handle is registered for it
+	bool UnregisterExpiredBlock(block_id_t id) override;
 	//! Return the meta block id
 	idx_t GetMetaBlock() override;
 	//! Read the content of the block from disk
@@ -101,7 +111,7 @@ public:
 	void ReadBlock(Block &block, bool skip_block_header = false) const;
 	void ReadBlock(data_ptr_t internal_buffer, uint64_t block_size, bool skip_block_header = false) const;
 	//! Read the content of a range of blocks into a buffer
-	void ReadBlocks(FileBuffer &buffer, block_id_t start_block, idx_t block_count) override;
+	void ReadBlocks(QueryContext context, FileBuffer &buffer, block_id_t start_block, idx_t block_count) override;
 	//! Write the block to disk. Use Write with client context instead.
 	void Write(FileBuffer &buffer, block_id_t block_id) override;
 	//! Write the block to disk.
@@ -130,13 +140,18 @@ public:
 		return iteration_count;
 	}
 	//! Return the version number of the file.
-	uint64_t GetVersionNumber() const;
+	StorageVersion GetVersionNumber() const;
 	//! Return the database identifier.
 	data_ptr_t GetDBIdentifier() {
 		return options.db_identifier;
 	}
 
 private:
+	//! Rewrites the main header
+	//! Usage should be avoided
+	//! Except for phasing-out the storage version
+	void RewriteMainHeader(QueryContext &context,
+	                       StorageVersion version_number = MainHeader::DEPRECATED_VERSION_NUMBER);
 	//! Loads the free list of the file.
 	void LoadFreeList(QueryContext context);
 
@@ -180,6 +195,10 @@ private:
 	block_id_t GetFreeBlockIdInternal(FreeBlockType type);
 	//! Adds a free block to the free_list, returns true if it was added to the regular free_list
 	bool AddFreeBlock(unique_lock<mutex> &lock, block_id_t block_id);
+	//! Move the block from free_blocks_in_use to the free list, if present
+	void ReleaseFreeBlockInUse(unique_lock<mutex> &lock, block_id_t id);
+	//! Returns true, if the block is in the free list. Takes the lock (verification only).
+	bool BlockIsFreeListed(block_id_t block_id);
 
 private:
 	AttachedDatabase &db;
@@ -187,8 +206,8 @@ private:
 	uint8_t active_header;
 	//! The path where the file is stored
 	string path;
-	//! The file handle
-	unique_ptr<FileHandle> handle;
+	//! The database handle
+	unique_ptr<DatabaseHandle> handle;
 	//! The buffer used to read/write to the headers
 	FileBuffer header_buffer;
 	//! The list of free blocks that can be written to currently

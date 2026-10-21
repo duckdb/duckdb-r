@@ -22,8 +22,9 @@ The vendored engine under `src/duckdb/` is upstream's, and the patch stack under
 Generated here are `man/*.Rd` from the roxygen blocks under `R/`,
 the root [`README.md`](/README.md) and `.github/README.md` from [`README.Rmd`](/README.Rmd) through `make readme`,
 the [`scripts/`](/scripts/README.md) index from the scripts' own headers,
-and the flavor table [`branches/flavors/`](/handbook/branches/flavors/README.md) carries, from
-[`scripts/series.yaml`](/scripts/series.yaml).
+the flavor table [`branches/flavors/`](/handbook/branches/flavors/README.md) carries, from
+[`scripts/series.yaml`](/scripts/series.yaml),
+and the roxygen of the type reference pages, `R/duckdb_types*.R`, from the leaves [`usage/types/`](/handbook/usage/types/README.md) names.
 A generated file's prose is edited in its generator, never in its output,
 and [`.handbook-ignore`](/.handbook-ignore) keeps the checks off what the generators own.
 
@@ -65,4 +66,5 @@ The generated documents are held to their sources by the generators that write t
 each invoked with `--check` and each named by the leaf that owns what it generates:
 [`docs-readme.R`](/.claude/skills/docs-consistency/docs-readme.R) for the `scripts/` index,
 [`scripts/series-table.R`](/scripts/series-table.R) for the flavor table,
+[`scripts/types-rd.R`](/scripts/types-rd.R) for the type reference pages,
 and [`scripts/pull-config.sh`](/scripts/pull-config.sh) for the fork's mirror rules.

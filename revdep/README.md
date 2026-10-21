@@ -3,22 +3,21 @@
 | field | value |
 | --- | --- |
 | package | duckdb |
-| dev | 1.5.5.9027 |
+| dev | 1.5.5.9029 |
 | CRAN | 1.5.5 |
-| commit | 33f921b3d |
+| commit | c64e5ac9b |
 | R | 4.6 |
 | platform | x86_64-pc-linux-gnu |
-| run | 36280085295 |
-| date | 2026-09-27 |
+| run | 36359237267 |
+| date | 2026-09-28 |
 
 # Revdeps
 
-## Failed to check (2)
+## Failed to check (1)
 
 |package    |version |error |warning |note |
 |:----------|:-------|:-----|:-------|:----|
 |freestiler |0.2.0   |1     |        |     |
-|posologyr  |?       |      |        |     |
 
 ## New problems (1)
 

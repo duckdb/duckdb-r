@@ -764,6 +764,96 @@ test_that("`map = \"list_of\"` scan keeps data.frame(key, value) cells working",
   )
 })
 
+test_that("`map = \"list_of\"` writes an empty named-list value as NULL", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  df <- data.frame(id = 1:2)
+  df$l <- list(list(a = integer(0)), list(b = 2L, c = integer(0)))
+  expected <- list(
+    data.frame(key = "a", value = NA_integer_),
+    data.frame(key = c("b", "c"), value = c(2L, NA))
+  )
+
+  dbWriteTable(con, "t", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    c("INTEGER", "STRUCT(\"key\" VARCHAR, \"value\" INTEGER)[]")
+  )
+  expect_equal(dbReadTable(con, "t")$l, expected)
+
+  duckdb_register(con, "v", df)
+  expect_equal(dbGetQuery(con, "SELECT l FROM v")$l, expected)
+
+  dbExecute(con, "CREATE TABLE m (id INTEGER, l MAP(VARCHAR, INTEGER))")
+  dbAppendTable(con, "m", df)
+  expect_equal(lapply(dbReadTable(con, "m")$l, as.data.frame), expected)
+
+  # A classed matrix with no rows, and a data frame with none, are empty too
+  df$l <- list(
+    list(a = structure(numeric(0), dim = c(0L, 2L), class = "Date")),
+    list(b = as.Date("2024-01-01"))
+  )
+  duckdb_register(con, "w", df)
+  expect_equal(
+    dbGetQuery(con, "SELECT l FROM w")$l,
+    list(
+      data.frame(key = "a", value = as.Date(NA)),
+      data.frame(key = "b", value = as.Date("2024-01-01"))
+    )
+  )
+
+  df$l <- list(
+    list(a = data.frame(x = integer(0))),
+    list(b = data.frame(x = 1L))
+  )
+  duckdb_register(con, "x", df)
+  out <- dbGetQuery(con, "SELECT l FROM x")$l
+  expect_equal(out[[1]]$key, "a")
+  expect_equal(out[[1]]$value$x, NA_integer_)
+  expect_equal(out[[2]]$value$x, 1L)
+})
+
+test_that("`map = \"list_of\"` writes a NULL named-list value as NULL", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  df <- data.frame(id = 1:2)
+  df$l <- list(list(a = NULL, b = 1L), list(c = 2L))
+  expected <- list(
+    data.frame(key = c("a", "b"), value = c(NA, 1L)),
+    data.frame(key = "c", value = 2L)
+  )
+
+  dbWriteTable(con, "t", df)
+  expect_equal(dbReadTable(con, "t")$l, expected)
+
+  duckdb_register(con, "v", df)
+  expect_equal(dbGetQuery(con, "SELECT l FROM v")$l, expected)
+})
+
+test_that("`map = \"list_of\"` writes the first element of a named-list value", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  df <- data.frame(id = 1:2)
+  df$l <- list(list(a = 1L, b = 2:4), list(c = 5L))
+  # Only the first element of `b` is written, and nothing warns
+  expected <- list(
+    data.frame(key = c("a", "b"), value = 1:2),
+    data.frame(key = "c", value = 5L)
+  )
+
+  dbWriteTable(con, "t", df)
+  expect_equal(dbReadTable(con, "t")$l, expected)
+
+  duckdb_register(con, "v", df)
+  expect_equal(dbGetQuery(con, "SELECT l FROM v")$l, expected)
+})
+
 test_that("default `map` does not interpret named lists as MAP entries", {
   con <- local_con()
 

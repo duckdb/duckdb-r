@@ -21,6 +21,13 @@ reference:
   contents:
   - sql_query
   - default_conn
+- title: Data types
+  desc: >
+    What each DuckDB type becomes in R and which R value writes it back,
+    through R vectors and through Arrow, geometry included.
+  contents:
+  - duckdb_types
+  - duckdb_types_arrow
 - title: Memory
   desc: >
     Reading and writing large data within a memory budget: the limit, the
@@ -54,6 +61,7 @@ reference:
   - backend-duckdb
   - duckdb_register
   - duckdb_register_arrow
+  - to_arrow_stream
   - duckdb_read_csv
   - duckdb_explain-class
 - title: Errors

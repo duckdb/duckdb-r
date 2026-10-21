@@ -8,8 +8,8 @@ What is left here is what those leaves do not carry yet:
 driving the scripts by hand, and creating a patch.
 Every heading below is a candidate for absorption,
 and this file goes away when the last one lands.
-For the branch model and the series invariants see
-[BRANCHES.md](/BRANCHES.md);
+For the series invariants see
+[BRANCHES.md](/BRANCHES.md#series-invariants);
 for the design notes behind the series loop see
 [superseded/vendoring-loop.md](/plan/superseded/vendoring-loop.md).
 
@@ -21,8 +21,8 @@ What this file used to carry, and where each part lives now:
   [`branches/model/`](/handbook/branches/model/README.md),
   and the published flavors
   [`branches/flavors/`](/handbook/branches/flavors/README.md)
-* what the two vendor scripts share — the dirty-tree refusal, the base
-  scan, the more-than-one-file rule, the version bump, what
+* what the two vendor scripts do — the dirty-tree refusal, the base
+  scan, the more-than-one-file rule, `vendor-one.sh`'s version bump, what
   `rconfigure.py` regenerates, and the patch stack —
   [`vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 * the version counters and the merge driver —
@@ -53,16 +53,22 @@ Three things an operator needs beyond what it states:
   Unless it is already called `duckdb`, it is cloned into `./duckdb` in
   the package root — which is `.gitignore`d — and that clone is `rm -rf`ed
   when the script exits.
-  In CI `actions/checkout` creates it there instead.
 * **How far `vendor-one.sh` goes.**
   `--commits N` repeats the walk up to `N` times (the routine uses 100),
   stopping early when no candidates remain — or at a tag:
   a candidate that `git describe --tags` resolves exactly is always
   vendored, its subject gets a `(tag vX.Y.Z)` marker, and the run ends
   there.
+* **What a strand commit is.**
+  `--strand` writes a commit for the series' vendor strand
+  ([`branches/model/`](/handbook/branches/model/README.md)):
+  the regenerated tree, the patch stack applied to it and the files generated from it,
+  with no counter bump and no glue gate.
+  The loop derives the buffer from it with [`series-vendor.sh`](series-vendor.sh),
+  which stamps and gates each pick.
 * **How deep the base scan looks.**
-  Twenty commits, the same bound `vendored_sha()` uses in
-  [`series-advance.sh`](series-advance.sh); `BASE_SCAN_DEPTH` raises it.
+  Twenty commits, the same bound `series_vendored_sha()` uses in
+  [`series-lib.sh`](series-lib.sh); `BASE_SCAN_DEPTH` raises it.
 
 ### Local setup
 
@@ -104,8 +110,7 @@ patch -p1 < patch/00NN-my-fix.patch
 ### Commit-by-commit vendoring, verified locally
 
 This is the local equivalent of what CI does,
-and the loop to use when replaying a long stretch of upstream history
-(the replay [`series-open`](/.claude/skills/series-open/SKILL.md) drives when it splits a new line).
+and the loop to use when replaying a long stretch of upstream history.
 Check the upstream clone out at the **last** commit you want vendored,
 so that the walk terminates by itself:
 
@@ -173,4 +178,48 @@ When a commit breaks, fix the glue and `git commit --amend`
 so the fix lands *in* the vendor commit, then continue the loop.
 Never run `R CMD build` in a working tree you still need:
 the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
+
+### A tag upstream pushed late
+
+`vendor-one.sh` writes the `(tag vX.Y.Z)` marker only for a tag that exists when it vendors the commit,
+and upstream sometimes pushes the tag later, onto a commit the buffer has already vendored.
+That commit then stamps `vX.Y.Z-devN` in `pragma_version.cpp` and `R/version.R`.
+The stamp is not cosmetic: with `-dev` in the version, `ExtensionHelper::GetVersionDirectoryName()`
+answers the source id instead of the tag, so the build installs extensions from `extensions.duckdb.org/<source id>/` rather than `/vX.Y.Z/`.
+It happened to v1.5.6 on 2026-09-28.
+
+**When the tagged commit is the buffer's newest, the next run repairs it.**
+`vendor-one.sh` checks the commit it last vendored for a tag before it walks on,
+re-vendors it when the tag is there and the marker is not,
+and appends the result as a second vendor commit for the same upstream SHA, marker included.
+The two differ in the version stamp and the fifth version component, and in nothing else.
+The re-stamp is appended rather than amended because the plain commit may already sit under `<S>-green`, which only fast-forwards,
+and it ends the run, as any tag does.
+Stage 5 carries it onto `<S>-dev` like any buffer commit, and CUT goes on as usual.
+A run sees only the tags its upstream clone has, so fetch the clone with `--tags` before stage 1.
+
+Two vendor commits for one SHA is why every script that pairs commits by vendored SHA matches the marker as well:
+`series-advance.sh` and `series-check.sh` for the commit stage 5 consumes from,
+`series-advance.sh` again for the base series' twin a forward mines,
+and `series-forward-build.sh` for what a resumed replay has already done.
+
+**`series-check.sh` reports the condition until it is gone.**
+A `LATE TAG` line under the series names the tag, the upstream commit, and the buffer commit that vendored it without the marker,
+and says whether the next run repairs it or the buffer has vendored past it.
+
+**When the buffer has vendored past it, the release branch takes the re-stamp.**
+Appending the tagged tree above newer vendor commits would revert them, so neither strand can take it.
+In the MERGED step of the [release process](/handbook/operations/releases/process/README.md),
+bring `<S>-dev` onto the release branch up to the plain vendor commit for the tag and no further,
+then re-vendor that same commit there before bumping the version:
+
+```bash
+git -C <upstream clone> fetch --tags origin
+git -C <upstream clone> checkout --detach vX.Y.Z
+scripts/vendor.sh <upstream clone>
+```
+
+`vendor.sh` vendors the clone's `HEAD` as it stands, which is the commit the branch already carries,
+so what it commits is the marker and the version stamp alone.
+The release branch's own checks then judge it, as they judge the version bump.
 

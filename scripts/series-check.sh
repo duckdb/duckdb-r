@@ -11,10 +11,25 @@
 #                      green holds, but the buffer may still extend onto -dev
 #   RETRY <sha> <why>  the oldest failure, and nothing in the commit caused it
 #   REPAIR <sha> <why>  the oldest failure and its classification
+#   IDLE               nothing in flight and nothing buffered
 #
 # A forward series that has caught up with the green it replaces additionally
 # gets a CUTOVER line: the command to run, for a human to run. The loop never
 # swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
+#
+# A series whose `-dev` carries `patch/` entries its `-build` lacks gets a
+# PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
+# an entry that never reached it is one the next vendor run will not apply.
+#
+# A series one of whose vendor commits stopped a test `main` runs, or left an
+# expired engine gate in one, gets a TESTS line (scripts/series-tests.sh): the
+# change travels with that commit into every forward and landing, and a restore
+# made later as a commit of its own travels with neither.
+#
+# A series whose buffer vendored a release before upstream tagged it gets a
+# LATE TAG line: the commit stamps a `-dev` version, and the release process
+# cannot cut from it. Whether vendor-one.sh re-stamps it by itself or the
+# release branch has to is scripts/VENDORING.md's, "A tag upstream pushed late".
 #
 # Classification is by positive evidence only (.claude/skills/series-loop/SKILL.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
@@ -30,16 +45,18 @@
 # assume; that is a change to make when a firing needs it, not before.
 #
 # The `harvest:` line below is the store's tip, and it is no longer bounded by a
-# schedule: `rcc-logs.yaml` is dispatch-only, so what keeps the tip moving is
-# the legs publishing as they decide commits. An old timestamp therefore means
-# "no leg has decided anything since", which on a quiet series is normal and not
-# a fault. Only a record the dispatched sweep alone could supply -- a run
-# cancelled whole -- is a reason to ask for one.
+# schedule: the sweep is `scripts/rcc-logs.sh` run by hand, so what keeps the
+# tip moving is the legs publishing as they decide commits. An old timestamp
+# therefore means "no leg has decided anything since", which on a quiet series is
+# normal and not a fault. Only a record the sweep alone could supply -- a run
+# cancelled whole -- is a reason to ask an operator for one.
 #
 # The record decides before the log does, for the one thing the log cannot say:
 # a commit the shard's `timeout` killed at its budget (exit 124) stops mid-run
 # with its stage output still buffered, which reads exactly like a cancelled
-# leg. That is a REPAIR — the commit did not finish — and calling it transient
+# leg. The shard records that only for the first commit of its leg, which had
+# the whole budget; one cut short after others is deferred and leaves no record.
+# That is a REPAIR, since the commit did not finish, and calling it transient
 # spends another whole budget to learn the same thing.
 #
 # RETRY and REPAIR split on the retry ledger: `retry-<S>-dev` pointing at the
@@ -67,21 +84,28 @@
 #   series-check.sh                                 # discover all from refs
 #   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
 #
-# --remote and --upstream are spelled the same in every scripts/series-*.sh;
-# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
+# --remote, --upstream and --canonical are spelled the same in every
+# scripts/series-*.sh; see the shared contract in
+# handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]'
+usage='usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>] [--canonical <name>]'
 remote=${SERIES_REMOTE:-origin}
 rcc=${RCC_BRANCH:-rcc2}
+
+# The repository `main` belongs to, which the fork mirrors. Read only for the
+# flavor declaration below, and never written here.
+canonical=${SERIES_CANONICAL-upstream}
 
 # Where the release-line check at the end reads upstream. Branch names are all
 # that check needs, and `git ls-remote` supplies those from the URL alone, so a
 # firing with no clone still gets it; a clone is preferred because it also
 # answers with the fork point.
 upstream=${UPSTREAM_CLONE:-}
-upstream_url=${UPSTREAM_URL:-https://github.com/duckdb/duckdb}
+upstream_url=${UPSTREAM_URL:-https://github.com/$series_upstream_repo}
 
 argerr() { echo "$usage" >&2; exit 2; }
 args=()
@@ -89,6 +113,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
+    --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -97,30 +122,14 @@ done
 set -- ${args+"${args[@]}"}
 
 git fetch -q "$remote"
+# The flavor declaration is read from the canonical `main`, so refresh that ref
+# too. Best effort: a checkout with no such remote, or no way to reach it, still
+# answers every other question here from the fork alone.
+if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+  git fetch -q "$canonical" main 2>/dev/null || true
+fi
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
-
-# How deep the base scan looks; see scripts/series-advance.sh for why the four
-# scanning scripts share the variable and the default.
-base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-
-# See scripts/series-advance.sh: the pathspec narrows the walk, the subject
-# decides, and an empty answer explains itself on stderr.
-vendored_sha() {
-  local subjects sha n
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
-  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
-  if [ -z "$sha" ]; then
-    n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge "$base_scan_depth" ]; then
-      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
-    else
-      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
-    fi
-  fi
-  echo "$sha"
-}
 
 # How many commits of a buffer range are still work for stage 5.
 #
@@ -193,9 +202,10 @@ run_branch_of() { # <sha> -> head_branch of the harvested run, empty if none
 
 # The shard's own verdict on how the commit ended. `timeout` in
 # scripts/each-shard.sh reports 124 when it kills rcc-one.sh at the budget, and
-# that is the one thing the log cannot say: the killed stage buffers its output
-# through run_stage and loses it, so the log simply stops mid-run and reads like
-# a cancelled leg. Without this the log rules below call a commit that ran out
+# the shard records it for the first commit of its leg, which had the whole
+# budget (a later one is deferred). That is the one thing the log cannot say:
+# the killed stage buffers its output through run_stage and loses it, so the
+# log simply stops mid-run and reads like a cancelled leg. Without this the log rules below call a commit that ran out
 # of budget `transient` and the loop reruns it, which costs another full budget
 # to learn the same thing.
 exit_code_of() { # <sha> -> exit code the shard recorded, empty if none
@@ -321,7 +331,7 @@ line_rank() { # v<major>.<minor>-<codename>[-fwd] -> integer
 # that a line with no entry yet still has a name to report.
 flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
   local v=${1#v}
-  echo "duckdb.${v%%-*}.dev"
+  echo "$series_package.${v%%-*}.dev"
 }
 
 # Does `scripts/series.yaml` already name that flavor? An UNSERVED line has no
@@ -330,15 +340,82 @@ flavor_of() { # v<major>.<minor>-<codename> -> duckdb.<major>.<minor>.dev
 # nothing done at all, and the flavor PR merged with only the refs left to cut
 # (.claude/skills/series-loop/SKILL.md, "What a firing reports").
 #
-# Read from the remote's `main` rather than the working tree: a firing checks
-# out series branches, whose trees lag `main` by whatever stage 4 has not
-# ported yet, and the declaration is `main`'s.
+# Read from a `main` ref rather than the working tree: a firing checks out
+# series branches, whose trees lag `main` by whatever stage 4 has not ported
+# yet, and the declaration is `main`'s.
+#
+# The canonical repository comes first, and the fork's mirror of it second. The
+# question this answers is whether the flavor PR has merged, so a mirror the
+# Pull app has not refreshed yet answers "undeclared" for a PR that merged
+# hours ago -- and the skill's rule on an undeclared line is to open one, which
+# is how a firing would file the same PR twice
+# (.claude/skills/series-loop/SKILL.md, "What a firing reports"). Whichever ref
+# is fresher is right, and only the canonical one is guaranteed to be.
 declaration() { # -> the file, empty and non-zero when no ref carries it
   local r
-  for r in "refs/remotes/$remote/main" refs/heads/main; do
+  for r in ${canonical:+"refs/remotes/$canonical/main"} \
+    "refs/remotes/$remote/main" refs/heads/main; do
     git show "$r:scripts/series.yaml" 2>/dev/null && return 0
   done
   return 1
+}
+
+# Upstream's release tags as `<commit> <tag>`, from the clone when there is one and
+# from the remote otherwise. An annotated tag is peeled to its commit, which is
+# what a vendor subject names. Read once, because every series asks.
+upstream_tags() {
+  if [ -n "$upstream" ]; then
+    git -C "$upstream" for-each-ref \
+      --format='%(if)%(*objectname)%(then)%(*objectname)%(else)%(objectname)%(end) %(refname:lstrip=2)' \
+      "refs/tags/$series_tag_glob" 2>/dev/null || true
+  else
+    git ls-remote --tags "$upstream_url" "$series_tag_glob" 2>/dev/null |
+      awk '{ t = $2; sub("^refs/tags/", "", t)
+             if (sub("\\^\\{\\}$", "", t)) peeled[t] = $1; else plain[t] = $1 }
+           END { for (t in plain) print (t in peeled ? peeled[t] : plain[t]), t }' || true
+  fi
+}
+
+# A release the buffer vendored before upstream tagged it
+# (scripts/VENDORING.md, "A tag upstream pushed late"). The buffer's tip still
+# stamps `X.Y.Z-devN` although `vX.Y.Z` exists, and the tagged commit is one it
+# vendored with no `(tag vX.Y.Z)` marker. The version names the one tag worth
+# asking about: a tag the buffer has not reached yet is the walk's to stamp, and
+# one it vendored in time leaves no `-dev` behind it.
+#
+# An engine whose stamp names no release (scripts/series-config.sh leaves
+# `series_release_of_stamp` undefined) is asked the other way round: every
+# vendor commit of the buffer against the tags, newest first, so that a
+# re-stamp is met before the plain commit it re-stamps and that one is not
+# reported.
+late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
+  local v tag sha lines
+  if declare -F series_release_of_stamp >/dev/null; then
+    v=$(series_release_of_stamp "$(series_stamped_version "$1")")
+    [ -n "$v" ] || return 0
+    tag=$(series_tag_of_release "$v")
+    sha=$(awk -v t="$tag" '$2 == t { print $1; exit }' <<<"$tags")
+    [ -n "$sha" ] || return 0
+    lines=$(git log --format='%H %s' "$1" | grep -F "@$sha" || true)
+    [ -n "$lines" ] || return 0
+    if grep -qF "(tag $tag)" <<<"$lines"; then return 0; fi
+    echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
+    return 0
+  fi
+  # The tags sorted, so an abbreviated SHA that is a prefix of two tagged
+  # commits meets the same one on every run.
+  awk -F'\t' -v ere="$series_marker_ere" '
+    FNR == NR { if (split($0, a, " ") >= 2) { n++; sha[n] = a[1]; tag[n] = a[2] } next }
+    {
+      if (!match($2, ere)) next
+      m = substr($2, RSTART, RLENGTH); sub(/^.*@/, "", m)
+      for (i = 1; i <= n; i++) {
+        if (index(sha[i], m) != 1) continue
+        if (index($2, "(tag " tag[i] ")")) seen[m] = 1
+        else if (!(m in seen)) { print tag[i], m, $1; exit }
+        break
+      }
+    }' <(printf '%s\n' "$tags" | sort) <(git log --format='%H%x09%s' "$1" -- "$series_scan_dir")
 }
 
 # How the clone names an upstream branch: a clone made by `git clone` carries it
@@ -356,17 +433,17 @@ upstream_ref() { # <branch> -> full ref, empty if the clone has none
 # than printing the silence as a clean result.
 upstream_branches() {
   if [ -n "$upstream" ]; then
-    git -C "$upstream" for-each-ref --format='%(refname:lstrip=3)' 'refs/remotes/*/v*' 2>/dev/null || true
-    git -C "$upstream" for-each-ref --format='%(refname:lstrip=2)' 'refs/heads/v*' 2>/dev/null || true
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=3)' "refs/remotes/*/$series_branch_glob" 2>/dev/null || true
+    git -C "$upstream" for-each-ref --format='%(refname:lstrip=2)' "refs/heads/$series_branch_glob" 2>/dev/null || true
   else
-    git ls-remote --heads "$upstream_url" 'v*' 2>/dev/null | cut -f2 | sed 's|^refs/heads/||' || true
+    git ls-remote --heads "$upstream_url" "$series_branch_glob" 2>/dev/null | cut -f2 | sed 's|^refs/heads/||' || true
   fi
 }
 
 # The fork point of a release line: the newest commit on the first-parent chain
-# of both upstream branches (scripts/VENDORING.md, "Starting a New Dev Line: the
-# Fork-Point Rule"). Not `git merge-base`, which upstream's back-merges of the
-# release branch into `main` drag forward by weeks; a series seeded from that
+# of both upstream branches (handbook/operations/vendoring/model/). Not
+# `git merge-base`, which upstream's back-merges of the release branch into
+# `main` drag forward by weeks; a series seeded from that
 # answer jumps the commits in between in one step, and none of them is ever
 # built against the glue. Printed only when a clone can compute it, because a
 # wrong fork point is worse than none.
@@ -380,8 +457,21 @@ fork_point() { # <upstream branch> -> sha, empty without a clone
     <(git -C "$upstream" rev-list --first-parent "$rel_ref")
 }
 
+# The tests every series is held to are `main`'s: the canonical copy where this
+# run could fetch it, the fork's mirror otherwise.
+main_ref=''
+for r in ${canonical:+"refs/remotes/$canonical/main"} "refs/remotes/$remote/main"; do
+  if git rev-parse -q --verify "$r" >/dev/null; then main_ref=$r; break; fi
+done
+
 tip=$(rcc_tip) || { echo "no $rcc branch on $remote"; exit 1; }
 echo "harvest: $(git log -1 --format='%ci (%ar)' "$tip")"
+tags=$(upstream_tags)
+if [ -z "$tags" ]; then
+  # Said, because a reading that failed reads exactly like no late tag at all.
+  echo "tags:    could not read upstream tags from ${upstream:-$upstream_url};"
+  echo "         no LATE TAG line below means missing data, not a clean result"
+fi
 echo
 
 for S in "${series[@]}"; do
@@ -404,11 +494,11 @@ for S in "${series[@]}"; do
       # seed was built on — `main`'s own vendor commits sit below that seed and
       # must not answer for the forward chain. A base green that vendors nothing
       # asks for no coverage, exactly as in series-cutover.sh.
-      base_up=$(vendored_sha "$remote/$base-green")
+      base_up=$(series_vendored_sha "$remote/$base-green")
       # Collected, not piped into grep: `grep -q` leaves early, and under
       # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
-      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- src/duckdb || true)
-      if [ -z "$base_up" ] || grep -q "duckdb@$base_up" <<<"$fwd_vendored"; then
+      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- "$series_scan_dir" || true)
+      if [ -z "$base_up" ] || grep -qF "@$base_up" <<<"$fwd_vendored"; then
         cutover=$base
       fi
     fi ;;
@@ -425,8 +515,8 @@ for S in "${series[@]}"; do
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
     buffered=$(consumable_count "$dev..$build" "$dev")
   else
-    dev_up=$(vendored_sha "$dev")
-    anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
+    dev_up=$(series_vendored_sha "$dev")
+    anchor=$(series_build_equivalent "$build" "$dev" "${dev_up:-NONE}")
     if [ -n "$anchor" ]; then
       buffered=$(consumable_count "$anchor..$build" "$dev")
     else
@@ -435,7 +525,7 @@ for S in "${series[@]}"; do
   fi
   echo "=== $S: $inflight in flight, $buffered buffered, green=$(git rev-parse --short "$green") dev=$(git rev-parse --short "$dev")"
 
-  verdict="ADVANCE" oldest="" why="" missing=0
+  oldest="" why="" missing=0
   while IFS= read -r sha; do
     st=$(state_of "$sha")
     case "$st" in
@@ -479,6 +569,112 @@ for S in "${series[@]}"; do
     echo "  ADVANCE"
   fi
 
+  # A `patch/` entry that only ever reached `-dev` is absent the next time the
+  # buffer vendors: `vendor-one.sh` applies the *buffer's* patch stack to every
+  # tree it regenerates (.claude/skills/series-loop/SKILL.md stage 3). Stage 4's port
+  # is how such an entry arrives -- it carries whole `main` commits onto `-dev`,
+  # `patch/` files included -- and `-build` takes no ports by design, so nothing
+  # closes the gap by itself. The drift is quiet while upstream leaves the
+  # patched file alone, because the buffer is then internally consistent and its
+  # commits carry no delta for that file; it bites the first time upstream
+  # touches it, and the fix is reverted on `-dev` by a commit that looks like an
+  # ordinary vendor.
+  #
+  # Reported in both directions, because a renamed entry is one of each and
+  # neither half alone says so.
+  # Compared by blob, not by name: `main` also edits an entry in place, and the
+  # port brings the new content to `-dev` under a name the buffer already has,
+  # which a name-only comparison calls level. Such an entry is `edited`, as
+  # series-patch-sync.sh calls it, and is never carried.
+  only_dev=$(comm -23 \
+    <(git ls-tree --name-only "$dev" patch/ | sort) \
+    <(git ls-tree --name-only "$build" patch/ | sort))
+  only_build=$(comm -13 \
+    <(git ls-tree --name-only "$dev" patch/ | sort) \
+    <(git ls-tree --name-only "$build" patch/ | sort))
+  edited=$(for n in $(comm -12 \
+      <(git ls-tree --name-only "$dev" patch/ | sort) \
+      <(git ls-tree --name-only "$build" patch/ | sort)); do
+    [ "$(git rev-parse "$dev:$n")" = "$(git rev-parse "$build:$n")" ] || echo "$n"
+  done)
+  if [ -n "$only_dev$only_build$edited" ]; then
+    echo "  PATCH DRIFT  the two patch stacks of $S differ:"
+    if [ -n "$only_dev" ]; then
+      printf '%s\n' "$only_dev" | sed 's|^patch/|               -dev only:    |'
+    fi
+    if [ -n "$only_build" ]; then
+      printf '%s\n' "$only_build" | sed 's|^patch/|               -build only:  |'
+    fi
+    if [ -n "$edited" ]; then
+      printf '%s\n' "$edited" | sed 's|^patch/|               edited:       |'
+    fi
+    echo "               scripts/series-patch-sync.sh $S --remote $remote says which of these it can carry;"
+    echo "               after a port, what is left is what it declined — stage 3 work"
+  fi
+
+  # The vendor strand the buffer is derived from (handbook/branches/model/README.md):
+  # absent on a series opened before it existed, ahead of the buffer while
+  # stage 1's picks are due, or behind it where something vendored onto the
+  # buffer directly. Read by the vendor paths blob for blob, as the picks find
+  # their twins, so a patch carry counts like a vendor commit.
+  vendor="$remote/$S-vendor"
+  if ! git rev-parse -q --verify "$vendor" >/dev/null; then
+    echo "  VENDOR  $S has no vendor strand; derive it once from the buffer:"
+    echo "          scripts/series-vendor.sh $S --init --remote $remote --push"
+  elif [ "$(series_vendor_key "$vendor")" != "$(series_vendor_key "$build")" ]; then
+    bkey=$(series_vendor_key "$build")
+    at=''
+    for c in $(git rev-list -n "$base_scan_depth" "$vendor"); do
+      if [ "$(series_vendor_key "$c")" = "$bkey" ]; then at=$c; break; fi
+    done
+    if [ -n "$at" ]; then
+      echo "  VENDOR  $S-vendor is $(git rev-list --count "$at..$vendor") commit(s) ahead of $S-build; stage 1 picks them:"
+      echo "          scripts/series-vendor.sh $S --remote $remote --push   # from a worktree at $S-build"
+    else
+      echo "  VENDOR  $S-build's vendor paths match none of the newest $base_scan_depth commits of $S-vendor:"
+      echo "          something vendored onto the buffer directly. Vendor onto the strand"
+      echo "          (vendor-one.sh --strand) and pick; the buffer never leads it."
+    fi
+  fi
+
+  # A test `main` runs that a vendor commit of this series stopped, deleted or
+  # skipped without an engine gate, and a gate that has expired and is due to
+  # go (handbook/operations/vendoring/series-loop/README.md). A landing refuses
+  # each, so it is named on every firing, while the commit that took it may
+  # still be above green. Only a vendor commit's, because a test `main` added
+  # since the last port is stage 4's, and only what the tip still lacks.
+  if [ -n "$main_ref" ]; then
+    lost=$("$(dirname "$0")/series-tests.sh" "$main_ref" "$dev" --vendored --porcelain 2>/dev/null || true)
+    lost=$(awk -F'\t' '$1 ~ /^(deleted|block|snapshot|skip|expired)$/' <<<"$lost")
+    if [ -n "$lost" ]; then
+      echo "  TESTS  $(grep -c . <<<"$lost") of main's test(s) stopped or still gated by a vendor commit of $S-dev:"
+      while IFS=$'\t' read -r k p w c; do
+        printf '         %-8s %s, by %s\n' "$k" "$p" "$(git log -1 --format='%h %s' "$c" | cut -c1-72)"
+        [ "$k" = deleted ] || printf '                  %s\n' "${w:0:110}"
+      done <<<"$lost"
+      echo "         Restore each in the commit that took it, or gate it (.claude/skills/series-loop/SKILL.md stage 2):"
+      echo "         scripts/series-tests.sh ${main_ref#refs/remotes/} $dev"
+    fi
+  fi
+
+  # Beside the verdict, like the cutover below: a buffer can be green and idle
+  # and still hold a release under a `-dev` stamp, which the release process
+  # (handbook/operations/releases/process/) cannot cut from.
+  late=$(late_tag "$build")
+  if [ -n "$late" ]; then
+    read -r lt_tag lt_sha lt_commit <<<"$late"
+    echo "  LATE TAG  upstream tagged $lt_tag on $series_upstream_repo@${lt_sha:0:10} after $S-build"
+    echo "            vendored it as $(git rev-parse --short "$lt_commit"), which stamps a -dev version."
+    if [ "$(series_vendored_sha "$build")" = "$lt_sha" ]; then
+      echo "            It is the buffer's newest vendor commit, so stage 1 re-stamps it;"
+      echo "            fetch the upstream clone's tags first (scripts/vendor-one.sh)."
+    else
+      above=$(git log --format=%s "$lt_commit..$build" -- "$series_scan_dir" | grep -cE "$series_marker_ere" || true)
+      echo "            $above vendor commit(s) sit above it, so no run re-stamps it by itself:"
+      echo "            scripts/VENDORING.md, \"A tag upstream pushed late\"."
+    fi
+  fi
+
   # Suggested, never done: a firing reports a ready cutover and stops
   # (.claude/skills/series-loop/SKILL.md). Printed beside the verdict rather than as
   # one, because it is orthogonal — a forward series that has caught up still
@@ -491,7 +687,9 @@ for S in "${series[@]}"; do
     # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
     echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
-    echo "             --upstream ${upstream:-<path to a duckdb/duckdb checkout>}"
+    echo "             --upstream ${upstream:-<path to a $series_upstream_repo checkout>}"
+    echo "           It archives the replaced lineages in closed pull requests, then"
+    echo "           swaps; --prepare prints its gates and review and moves nothing."
     echo "           Coverage is only half of it; what the two branches carry is"
     echo "           the other half, and the cutover prints it before it asks:"
     echo "           scripts/series-converge.sh $cutover --remote $remote"
@@ -556,7 +754,7 @@ elif [ ${#unserved[@]} -gt 0 ]; then
     if [ -n "$fp" ]; then
       echo "          Fork point $fp,"
       echo "          $(git -C "$upstream" rev-list --count --first-parent "$fp..$(upstream_ref "$b")") first-parent commits back. That is not what"
-      echo "          git merge-base answers here (scripts/VENDORING.md)."
+      echo "          git merge-base answers here (handbook/operations/vendoring/model/)."
     fi
     # Which half of the opening is still owed. Declaring the flavor is a file
     # edit and a firing may open the PR for it; cutting the refs is not, and

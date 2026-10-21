@@ -16,6 +16,9 @@ which is the part of this a reader can check from the tree.
 Two are authored here and have no counterpart in the template:
 `each.yaml` and `handbook.yaml`.
 A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
+Three more are not in the template yet:
+`winbuilder.yaml`, `release-gate.yaml` and `cran-submission.yaml` are copied from igraph/rigraph,
+as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratemplate/issues/147).
 
 | Workflow | Fires on | Does |
 |---|---|---|
@@ -28,6 +31,9 @@ A sync that mirrors the template's set must leave them alone, and `custom/` belo
 | [`commit-suggest.yaml`](/.github/workflows/commit-suggest.yaml) | after an `rcc` run on a PR | turns the run's changes patch into review suggestions |
 | [`pkgdown.yaml`](/.github/workflows/pkgdown.yaml) | push to `docs*`, `cran-*`; dispatch | builds the site (main is covered by `rcc`) |
 | [`rhub.yaml`](/.github/workflows/rhub.yaml) | push to `cran-*`; dispatch | R-hub checks ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
+| [`winbuilder.yaml`](/.github/workflows/winbuilder.yaml) | push to `cran-*` that changes this file; dispatch | uploads the tarball to WinBuilder ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
+| [`release-gate.yaml`](/.github/workflows/release-gate.yaml) | push to `cran-*`; dispatch | the mechanical release checks of cynkra/cynkratemplate#147 |
+| [`cran-submission.yaml`](/.github/workflows/cran-submission.yaml) | dispatch with `confirmation: CONFIRM`; a push to `cran-*` that changes this file only registers it | tags `vX.Y.Z` and submits to CRAN |
 | [`revdep4.yaml`](/.github/workflows/revdep4.yaml) | dispatch | **the reverse-dependency route** ([`testing/revdep/`](/handbook/testing/revdep/README.md)): each package's two halves sequentially, per-package containers, a work queue across packages |
 | [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | revdep4's predecessor, both halves at once on one host ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |

@@ -65,17 +65,26 @@ out() { # <script> <args...> -> first line of stdout; the usage goes there
 }
 
 # Every series script, and what a valid first positional looks like for it.
-# series-forward-build.sh names two refs rather than a series, which is why it
-# takes no --remote; the option spelling and the exit status are still shared.
+# series-forward-build.sh and series-tests.sh name two refs rather than a series,
+# which is why they take no --remote; the option spelling and the exit status
+# are still shared.
 scripts=(
   series-advance.sh
+  series-alpha.sh
   series-check.sh
   series-converge.sh
   series-cut.sh
   series-cutover.sh
   series-forward-build.sh
   series-glue.sh
+  series-land.sh
+  series-learned.sh
+  series-patch-sync.sh
   series-port.sh
+  series-prune.sh
+  series-rc.sh
+  series-tests.sh
+  series-vendor.sh
 )
 # preview-prefix.sh and reflavor.sh act on the worktree they are run in and name
 # no series, so they take neither --remote nor --upstream; the usage contract and
@@ -83,15 +92,22 @@ scripts=(
 standalone_scripts=(preview-prefix.sh reflavor.sh)
 remote_scripts=(
   series-advance.sh
+  series-alpha.sh
   series-check.sh
   series-converge.sh
   series-cut.sh
   series-cutover.sh
   series-glue.sh
+  series-land.sh
+  series-learned.sh
+  series-patch-sync.sh
   series-port.sh
+  series-prune.sh
+  series-rc.sh
+  series-vendor.sh
 )
 upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
-canonical_scripts=(series-advance.sh series-cutover.sh)
+canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh series-prune.sh)
 
 echo "== -h and --help print the usage and exit 0"
 for s in "${standalone_scripts[@]}"; do
@@ -122,6 +138,19 @@ done
 for s in "${canonical_scripts[@]}"; do
   is "$s --canonical (bare)" "$(rc "$s" --canonical)" 2
 done
+is "series-forward-build.sh --placed (bare)"     "$(rc series-forward-build.sh a b --placed)" 2
+is "series-forward-build.sh --graft-from (bare)" "$(rc series-forward-build.sh a b --graft-from)" 2
+is "series-forward-build.sh --prefix (bare)"     "$(rc series-forward-build.sh a b --prefix)" 2
+is "series-forward-build.sh --buffer (bare)"     "$(rc series-forward-build.sh a b --buffer)" 2
+is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed)" 2
+is "series-learned.sh --since (bare)"            "$(rc series-learned.sh s --since)" 2
+is "series-cutover.sh --out (bare)"              "$(rc series-cutover.sh s --out)" 2
+is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
+is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
+is "series-land.sh --source (bare)"              "$(rc series-land.sh s --source)" 2
+is "series-land.sh --landing (bare)"             "$(rc series-land.sh s --landing)" 2
+is "series-land.sh --suffix (bare)"              "$(rc series-land.sh s --suffix)" 2
+is "series-alpha.sh --alpha (bare)"              "$(rc series-alpha.sh s --alpha)" 2
 
 echo
 echo "== the remote and the upstream clone are named, never positional"
@@ -131,6 +160,9 @@ is "series-cutover.sh <S> <remote> <path>" "$(rc series-cutover.sh s origin /tmp
 is "series-converge.sh <S> <remote>"       "$(rc series-converge.sh s origin)" 2
 is "series-advance.sh <S> <chunk>"         "$(rc series-advance.sh s 25)" 2
 is "series-glue.sh <S> <extra>"            "$(rc series-glue.sh s x)" 2
+is "series-patch-sync.sh <S> <extra>"      "$(rc series-patch-sync.sh s x)" 2
+is "series-tests.sh <base>"                "$(rc series-tests.sh a)" 2
+is "series-tests.sh <base> <tip> <extra>"  "$(rc series-tests.sh a b c)" 2
 for s in "${remote_scripts[@]}"; do
   is "$s accepts --remote" "$(out "$s" --help | grep -c -- '--remote <name>')" 1
 done
@@ -157,7 +189,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-converge.sh series-cutover.sh series-glue.sh series-port.sh; do
+for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.

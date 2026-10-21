@@ -16,7 +16,7 @@ struct AltrepRelationWrapper {
 	// Whether GetQueryResult() would run the query now, rather than return a result or an error it already has
 	bool QueryPending() const;
 
-	MaterializedQueryResult *GetQueryResult();
+	QueryResult *GetQueryResult();
 
 	void Materialize();
 

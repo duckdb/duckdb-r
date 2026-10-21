@@ -113,6 +113,17 @@ for f in "${patched[@]}"; do
   esac
 done
 
+# The `.dd` files are outside the surface and are normalized rather than
+# renamed. They name the types header, `src/include/deps.mk` includes them, and
+# a name the tree does not carry stops every build before the first compile with
+# "No rule to make target 'include/duckdb_types.hpp', needed by 'cpp11.o'".
+# A rename would not reach it either way: a port takes `main`'s whole commit, so
+# the mainline name arrives there on a tree flavored long ago, which is how
+# `v1.5-variegata-fwd` was seeded unbuildable (2026-09-28).
+"$gnu_sed" -i -E \
+  "s|include/duckdb(_[A-Za-z0-9_]+)?_types\\.hpp|include/duckdb_${new_u}_types.hpp|g" \
+  src/*.dd
+
 R -q -e 'cpp11::cpp_register()'
 
 # **The READMEs are renamed, never rendered.** `flavor.sh` renders them because on

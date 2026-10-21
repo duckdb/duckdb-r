@@ -12,6 +12,36 @@
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
 
+## Goals and non-goals
+
+duckdb aims to:
+
+- Implement the [DBI](https://dbi.r-dbi.org/) interface for DuckDB,
+  from the driver and connections through prepared statements, transactions, and result fetching.
+- Install the database along with the package:
+  the DuckDB C++ sources are vendored into `src/duckdb/` and built here, so nothing has to be installed separately.
+- Follow upstream DuckDB closely, with an automated vendoring routine advancing each release series commit by commit,
+  and publish the same source tree under the flavor names listed below.
+- Meet the rest of the R ecosystem where it already is:
+  a dbplyr backend, data frames and Arrow objects registered as tables, and CSV files read by the engine directly.
+- Leave the file system alone unless asked:
+  downloaded extensions and stored secrets go under the session's temporary directory unless `~/.duckdb` already exists,
+  and that directory is never created without consent.
+
+It is explicitly not trying to:
+
+- Bundle every DuckDB extension.
+  Only `parquet` and `core_functions` are linked in;
+  everything else is downloaded by `INSTALL`, and no companion R package carries extensions.
+- Fetch anything on its own.
+  An installed extension autoloads on first use, but autoinstall stays off, so nothing is downloaded without being asked for.
+- Expose the relational API as a public interface.
+  Every function there is internal, and duckplyr is the one supported consumer.
+- Install the `duckdb` CLI or library that the user can use outside of R.
+- Exercise the bundled C++ engine on CRAN.
+  The test suite and the runnable examples are too heavy for the check farm,
+  so they run on GitHub Actions and r-universe, and elsewhere only when `DUCKDB_R_RUN_TESTS` asks for them.
+
 ## Installation from CRAN
 This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 
@@ -72,7 +102,7 @@ the CRAN and LTS flavors always point at a stable upstream release.
 | `duckdb.1.4` | [`v1.4-andium`](https://github.com/duckdb/duckdb/tree/v1.4-andium) | LTS | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.4) |
 | `duckdb.dev` | [`main`](https://github.com/duckdb/duckdb/tree/main) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=main&head=main-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/main...main-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-green&head=main-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/main-green...main-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-build-base&head=main-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/main-build-base...main-build) |
 | `duckdb.2.0.dev` | [`v2.0-cyanoptera`](https://github.com/duckdb/duckdb/tree/v2.0-cyanoptera) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.2.0.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.2.0.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=main&head=v2.0-cyanoptera-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/main...v2.0-cyanoptera-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v2.0-cyanoptera-green&head=v2.0-cyanoptera-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v2.0-cyanoptera-green...v2.0-cyanoptera-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v2.0-cyanoptera-build-base&head=v2.0-cyanoptera-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v2.0-cyanoptera-build-base...v2.0-cyanoptera-build) |
-| `duckdb.1.5.dev` | [`v1.5-variegata`](https://github.com/duckdb/duckdb/tree/v1.5-variegata) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.5.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.5.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=main&head=v1.5-variegata-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/main...v1.5-variegata-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&head=v1.5-variegata-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&head=v1.5-variegata-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build) |
+| `duckdb.1.5.dev` | [`v1.5-variegata`](https://github.com/duckdb/duckdb/tree/v1.5-variegata) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.5.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.5.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=v1.5-variegata&head=v1.5-variegata-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/v1.5-variegata...v1.5-variegata-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&head=v1.5-variegata-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&head=v1.5-variegata-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build) |
 | `duckdb.1.4.dev` | [`v1.4-andium`](https://github.com/duckdb/duckdb/tree/v1.4-andium) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.4.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=v1.4-andium&head=v1.4-andium-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/v1.4-andium...v1.4-andium-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-green&head=v1.4-andium-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-green...v1.4-andium-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-build-base&head=v1.4-andium-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-build-base...v1.4-andium-build) |
 
 Every row opens with the versions published, one badge per place it is

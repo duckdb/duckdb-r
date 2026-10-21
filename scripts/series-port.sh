@@ -47,12 +47,15 @@
 # read from `main` (#2496). Porting fledge's bumps made the fourth component
 # free-run behind `main` instead of staying at the seed, which is the opposite
 # of the model handbook/operations/releases/versioning/ describes. The class is
-# read from the content -- the commit moves `Version:` and carries nothing but
-# release paperwork -- not from the `fledge:` subject, so a bump under another
-# name is caught and a bump riding on real content is not. Dropping one leaves
-# NEWS.md at the state the series was seeded with; that file is the release
-# strand's and already outside the sync commit's path set. Naming a VERSION
-# commit explicitly still ports it, like any other SHA.
+# read from the content -- the commit carries nothing but release paperwork --
+# not from the `fledge:` subject, so a bump under another name is caught and a
+# bump riding on real content is not. The class covers the notes as well as the
+# bump: a commit that writes NEWS.md for `main`'s next release and touches
+# nothing else is the same strand, and the series has neither the section it
+# goes in nor the version that names it. Dropping one leaves NEWS.md at the
+# state the series was seeded with; that file is the release strand's and
+# already outside the sync commit's path set. Naming a VERSION commit
+# explicitly still ports it, like any other SHA.
 #
 # **The subject is what decides a VENDOR commit, never the path.** The patch
 # stack is applied to the vendored tree in place, so CRAN and
@@ -60,7 +63,7 @@
 # excluding them by path made exactly those fixes wait for a forward — the
 # one thing this script exists to end. The readers of the vendor strand look
 # past such commits by subject and say so when their bound is exhausted
-# (vendored_sha() in scripts/series-advance.sh and scripts/series-check.sh,
+# (series_vendored_sha() in scripts/series-lib.sh,
 # the base scans in scripts/vendor-one.sh and scripts/vendor.sh), so a ported
 # commit under src/duckdb/ is invisible to them whether or not this class
 # names it. After the picks, whatever tooling
@@ -83,7 +86,7 @@
 # frozen R side is not a frozen CI. The freeze is not a refusal, though: a fix
 # the build genuinely needs is picked by name, and --list shows the walk when
 # you are looking for one. Frozen is detected from the lineage under the seed,
-# not configured; see the seed check below.
+# or declared when a line parks on its own baseline; see the seed check below.
 #
 # A conflict stops the sequence in place and keeps the worktree: resolving it
 # is the routine's judgement. Continue the sequence there, push, and rerun
@@ -110,6 +113,8 @@
 # contract in handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-port.sh <series> [--list] [--apply] [--remote <name>] [--canonical <name>] [--dev-note <file>] [sha...]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -120,7 +125,7 @@ apply=
 DEV_NOTE=
 remote=${SERIES_REMOTE:-origin}
 # The repository `main` belongs to, which the fork mirrors. Same name and same
-# default as series-advance.sh's, and read for the staleness check below only.
+# default as series-advance.sh's, and where this script reads `main` from.
 canonical=${SERIES_CANONICAL-upstream}
 args=()
 while [ $# -gt 0 ]; do
@@ -163,14 +168,14 @@ fi
 # flavored `README.Rmd`, and taking main's copy would put the mainline name at
 # the top of every flavored series' front page — the defect #2517 and #2518
 # were about, in the file most likely to be read.
-tooling=(.github scripts .claude ':(exclude).github/README.md')
-paths_re='^(\.github/|scripts/|\.claude/)'
+tooling=("${series_tooling[@]}" ':(exclude).github/README.md')
+paths_re=$(series_tooling_re)
 flavored_docs_re='^\.github/README\.md$'
 # A vendor commit is one whose subject says it vendored: the `vendor:` prefix
 # vendor-one.sh writes, or the `<owner>/<repo>@<sha>` reference that carries the
 # upstream commit as machine-readable state. Same rule as every other reader of
 # the strand — see the header on why the path is not the rule.
-vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
+vendor_subject_re="^vendor:|$series_marker_ere"
 
 # scripts/flavor.sh's first commit, and so the foot of every seed
 # (series-open step 2, series-forward step 1).
@@ -189,15 +194,14 @@ git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
 git fetch -q "$remote"
-dev="$remote/$S-dev" main="$remote/main"
+dev="$remote/$S-dev"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
 
-# The series live in the fork and `main` is the canonical repository's branch,
-# mirrored into the fork by .github/pull.yml. The mirror lags by however long
-# the mirroring takes, and this script's whole output is "what does the series
-# not have that main has" -- so a stale `$remote/main` is not a smaller answer
-# but a wrong one. The sync commit takes that main's tooling tree *verbatim*,
-# which means every commit merged since the mirror last ran is reverted onto
+# `main` is read from the canonical repository, not from the fork's mirror of
+# it. The series live in the fork, but this script's whole output is "what does
+# the series not have that main has", and the sync commit takes that main's
+# tooling tree *verbatim* -- so a mirror that has not caught up is not a smaller
+# answer but a wrong one: every commit merged since it last ran is reverted onto
 # the series, silently and on all of them at once.
 #
 # That is not hypothetical: on 2026-09-14 a firing ported while the fork's main
@@ -207,26 +211,37 @@ git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remo
 # and every `each-rcc` leg on every series died at that step within seconds.
 # Nothing was judged until the mirror was pushed forward and the ports rerun.
 #
-# So ask the canonical repository directly, under the same name and default
-# series-advance.sh mirrors green into. Refuse rather than warn: the damage is
-# a push, and a warning printed above a `--apply` that went on to push anyway
-# is a warning nobody reads until CI is red.
-if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
-  git fetch -q "$canonical" main 2>/dev/null || true
-  canonical_main=$(git rev-parse -q --verify FETCH_HEAD || true)
-  if [ -n "$canonical_main" ] &&
-    ! git merge-base --is-ancestor "$canonical_main" "$main"; then
-    behind=$(git rev-list --count "$main..$canonical_main")
-    echo "Error: $main is $behind commit(s) behind $canonical/main." >&2
-    echo "  The sync commit takes that tree verbatim, so porting now reverts" >&2
-    echo "  every one of them onto $S-dev. Wait for .github/pull.yml to" >&2
-    echo "  mirror, or push the fork's main forward -- it is a fast-forward" >&2
-    echo "  of a mirror, not a rewrite -- and rerun:" >&2
-    echo "    git push $remote $canonical/main:refs/heads/main" >&2
-    echo "  SERIES_CANONICAL='' skips this check." >&2
-    exit 1
+# Reading the canonical tip is what removes that failure mode rather than
+# detecting it. This script used to ask the canonical repository only whether
+# the mirror was stale, and refuse while it was -- which turned the Pull app's
+# six-hour cycle into a six-hour window where no series could be ported at all,
+# against a repository the run could read the whole time
+# (handbook/branches/mirrors/README.md). Nothing here writes to the fork's
+# `main`, and the mirror keeps serving the badges that measure against it.
+main=
+if [ -n "$canonical" ]; then
+  if git remote get-url "$canonical" >/dev/null 2>&1 &&
+    git fetch -q "$canonical" main 2>/dev/null; then
+    # A fetch of a named branch also updates the remote-tracking ref when the
+    # remote carries the usual refspec, and that ref is what messages below
+    # name. FETCH_HEAD is the fallback for a remote configured without one; it
+    # is read here, before any later fetch overwrites it.
+    if git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null; then
+      main="$canonical/main"
+    else
+      main=$(git rev-parse -q --verify FETCH_HEAD || true)
+    fi
   fi
+  [ -n "$main" ] || {
+    echo "Warning: could not read main from '$canonical'; falling back to" >&2
+    echo "  $remote/main, which the mirror may have left behind. Add the" >&2
+    echo "  canonical repository as that remote, or pass --canonical <name>." >&2
+  }
 fi
+# No canonical remote named at all (SERIES_CANONICAL='') or none reachable: the
+# mirror is what is left. It is only ever behind, never ahead, so a fallback
+# offers a subset of the truth -- worth saying and not worth refusing over.
+[ -n "$main" ] || main="$remote/main"
 
 mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
 if [ -z "$mb" ]; then
@@ -267,38 +282,77 @@ under=0
 frozen=
 [ "$under" != 0 ] && frozen=1
 
+# A line that parks when another one lands on `main` is the case the lineage
+# cannot see. Its seed sits on `main`'s own history, and `main` keeps that
+# history when it fast-forwards onto the new line
+# (.claude/skills/series-land/SKILL.md), so nothing under the seed is foreign
+# and the walk would offer the new line's R side as a backlog. The parking is
+# recorded where the badge table and the mirror rules already read it:
+# `releases_from` in `main`'s scripts/series.yaml, which names the line's own
+# baseline once it stops releasing from `main` (handbook/branches/mirrors/).
+# Read from `main` for the reason series-check.sh reads it there: a series'
+# tree lags `main` by whatever this stage has not ported yet.
+releases_from() { # <series> -> its `releases_from`, empty when undeclared
+  { git show "$main:scripts/series.yaml" 2>/dev/null || true; } |
+    awk -v s="$1" '
+      /^  - / { if (ser == s) print rf; ser = ""; rf = "" }
+      /^    series:/ { ser = $2 }
+      /^    releases_from:/ { rf = $2 }
+      END { if (ser == s) print rf }'
+}
+parked=$(releases_from "${S%-fwd}" | head -n 1)
+[ "$parked" != main ] || parked=''
+[ -z "$parked" ] || frozen=1
+
 # Files a version bump is allowed to carry and still be nothing but a bump:
 # DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
 # belong to the release strand, and neither is in the tooling set the sync
 # commit rewrites, so dropping the commit drops nothing the series executes.
 bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 
-# Is this commit a version bump and nothing else? Two questions, both of which
-# have to answer yes:
+# Is this commit release paperwork and nothing else? Two questions, both of
+# which have to answer yes:
 #
-#   * `Version:` moved -- read against the first parent rather than from the
-#     diff, so a merge commit answers as truthfully as an ordinary one. The
-#     content is the fact, not the subject: a bump is one whatever it is called,
-#     and `fledge:` is only today's name for it.
-#   * it carries nothing else. A commit that bumps the version *and* changes the
-#     package is a forward-port that happens to bump, and it is ported like any
-#     other, because a pick is a whole commit and never half of one. `Sync with
-#     main` (4e41675f9) is the shape this guards: a bump riding on 130 files of
-#     tooling, R code, tests and patches, which classifying by the version line
-#     alone would have dropped whole.
+#   * it carries nothing outside the release strand, and something inside it. A
+#     commit that bumps the version *and* changes the package is a forward-port
+#     that happens to bump, and it is ported like any other, because a pick is a
+#     whole commit and never half of one. `Sync with main` (4e41675f9) is the
+#     shape this guards: a bump riding on 130 files of tooling, R code, tests
+#     and patches, which classifying by the version line alone would have
+#     dropped whole.
+#   * where it touches DESCRIPTION, `Version:` moved, read against the first
+#     parent. A merge commit never gets this far: `git diff-tree` without `-m`
+#     lists no paths for it, so the first question already answers no. The
+#     content is the fact, not the subject: a bump is one whatever it is
+#     called, and `fledge:` is only today's name for it.
+#     DESCRIPTION also carries the dependency list, so a commit that edits it
+#     without moving the version is package content and ported like any other.
+#
+# **A commit that leaves DESCRIPTION alone is paperwork without a bump.** Notes
+# written into NEWS.md for `main`'s next release are the release strand's just
+# as fledge's bumps are, and the series has neither the section they go in nor
+# the version that names it: the pick conflicts on every series at once and its
+# only honest resolution is the empty commit that retires it. Requiring a moved
+# `Version:` let exactly those through -- 8f48159063 and dcfb3d2c2a, one firing,
+# four series, four hand resolutions (2026-09-28).
 version_bump() { # <sha>
-  local before after f
-  before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
-  after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
-  [ -n "$after" ] && [ "$before" != "$after" ] || return 1
+  local before after f touched= desc=
   while IFS= read -r f; do
     [[ "$f" =~ $bump_paths_re ]] || return 1
+    case "$f" in DESCRIPTION) desc=1 ;; esac
+    touched=1
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
+  [ -n "$touched" ] || return 1
+  if [ -n "$desc" ]; then
+    before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
+    after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
+    [ -n "$after" ] && [ "$before" != "$after" ] || return 1
+  fi
   return 0
 }
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
-  local f t= o=
+  local f t='' o=''
   if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
   if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do
@@ -363,7 +417,7 @@ declare -A klass=()
 # is the cost the freeze exists to remove. --list asks for it anyway, which is
 # what to do when the series needs a fix `main` already has.
 if [ -n "$frozen" ] && [ -z "$list" ]; then
-  echo "$S: frozen — nothing is ported by default; tooling follows main." \
+  echo "$S: frozen${parked:+ (parked on $parked)}; nothing is ported by default, and tooling follows main." \
     "Name a fix the build needs with --apply <sha>, or --list to see candidates"
 else
   declare -A ported=()
@@ -518,39 +572,49 @@ fi
 # header). An append, never a rewrite: `-build`'s force-push is reserved for
 # mirroring a fold, and nothing here touches an upstream commit.
 #
-# A series with no buffer -- one pending cutover -- has nothing to sync, and
-# that is an ordinary state rather than an error.
+# A series with no buffer -- one pending cutover -- has nothing to sync or to
+# carry `patch/` entries onto, and that is an ordinary state rather than an
+# error.
 git rev-parse -q --verify "$buildref" > /dev/null || exit 0
-if git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
-  exit 0
-fi
-
-bwt=$(mktemp -d)
-git worktree add --detach -q "$bwt" "$buildref"
-git -C "$bwt" rm -qr --ignore-unmatch -- "${tooling[@]}"
-git -C "$bwt" checkout "$main" -- "${tooling[@]}"
-git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
-  -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
+if ! git diff --quiet "$buildref" "$main" -- "${tooling[@]}"; then
+  bwt=$(mktemp -d)
+  git worktree add --detach -q "$bwt" "$buildref"
+  git -C "$bwt" rm -qr --ignore-unmatch -- "${tooling[@]}"
+  git -C "$bwt" checkout "$main" -- "${tooling[@]}"
+  git -C "$bwt" commit -q -m "chore(series): Sync buffer tooling with main" \
+    -m "Takes main's ${tooling[*]} verbatim onto the buffer, so a workflow firing
 from this ref is main's rather than the seed's. Vendors nothing, so stage 5
 skips it rather than replaying it onto -dev."
-# The same check as the -dev sync's, and it matters more here: vendor-one.sh
-# runs scripts/rconfigure.py and friends from the buffer's own tree. The
-# remedy differs, because the buffer takes no ports.
-while read -r gone; do
-  [ -n "$gone" ] || continue
-  callers=$(git -C "$bwt" grep -lF -- "$gone" -- . \
-    ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
-  [ -n "$callers" ] || continue
-  echo "warning: the buffer sync deleted $gone, still referenced by:"
-  echo "$callers" | sed 's/^/  /'
-  echo "  the buffer takes no ports: make main compatible, or fold the move into -build by hand"
-done <<EOF
+  # The same check as the -dev sync's, and it matters more here: vendor-one.sh
+  # runs scripts/rconfigure.py and friends from the buffer's own tree. The
+  # remedy differs, because the buffer takes no ports.
+  while read -r gone; do
+    [ -n "$gone" ] || continue
+    callers=$(git -C "$bwt" grep -lF -- "$gone" -- . \
+      ':(exclude).github' ':(exclude)scripts' ':(exclude).claude' || true)
+    [ -n "$callers" ] || continue
+    echo "warning: the buffer sync deleted $gone, still referenced by:"
+    echo "$callers" | sed 's/^/  /'
+    echo "  the buffer takes no ports: make main compatible, or fold the move into -build by hand"
+  done <<EOF
 $(git -C "$bwt" diff --diff-filter=D --name-only HEAD^ HEAD)
 EOF
-git -C "$bwt" diff --quiet "$main" -- "${tooling[@]}" ||
-  { echo "Error: buffer tooling still differs after sync; worktree kept at $bwt"; exit 1; }
+  git -C "$bwt" diff --quiet "$main" -- "${tooling[@]}" ||
+    { echo "Error: buffer tooling still differs after sync; worktree kept at $bwt"; exit 1; }
 
-bnext=$(git -C "$bwt" rev-parse HEAD)
-git worktree remove --force "$bwt"
-git push "$remote" "$bnext:refs/heads/$S-build"
-echo "build -> $(git rev-parse --short "$bnext")"
+  bnext=$(git -C "$bwt" rev-parse HEAD)
+  git worktree remove --force "$bwt"
+  git push "$remote" "$bnext:refs/heads/$S-build"
+  echo "build -> $(git rev-parse --short "$bnext")"
+fi
+
+# A port is how a `patch/` entry written against `main` reaches this series, and
+# `-dev` is not where it does anything: `vendor-one.sh` applies the *buffer's*
+# stack to every tree it regenerates. Carrying it on is part of porting, not a
+# separate errand somebody remembers -- so it runs here, on every --apply, and
+# whether or not this run had commits to pick. The carry decides by
+# test-applying against the buffer's own tree, because a buffer runs ahead of
+# `main` and an entry that does not fit its engine would break the next vendor
+# run rather than help it. It runs after the tooling sync and fetches again, so
+# it builds on the buffer tip that sync pushed.
+"$(dirname "$0")/series-patch-sync.sh" "$S" --apply --remote "$remote"

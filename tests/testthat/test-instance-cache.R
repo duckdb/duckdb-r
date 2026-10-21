@@ -2,8 +2,9 @@
 # `patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch` --
 # is not reachable from R here: `rapi_startup()` builds a `DuckDB` directly, so
 # no R call enters `DBInstanceCache`. Handing the driver cache to the engine
-# would make it reachable. duckdb/duckdb-r#2644 tried that and was closed
-# unmerged; on its branch, these two sequences wedged the session at 100% CPU.
+# (duckdb/duckdb-r#2857) would make it reachable. duckdb/duckdb-r#2644 tried
+# that and was closed unmerged; on its branch, these two sequences wedged the
+# session at 100% CPU.
 # The subprocess is what makes the test safe to run either way: a spin inside
 # `.Call()` reaches no interrupt check, so only a killed process ends it.
 

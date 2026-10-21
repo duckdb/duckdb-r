@@ -19,10 +19,10 @@ struct ConvertOpts {
 
 	enum class ArrowConversion { DISABLED, ENABLED };
 
-	// Mirrors DuckDB's PreparedStatement::Execute(allow_stream_result):
-	// whether execution may produce a StreamQueryResult instead of a
-	// MaterializedQueryResult. Distinct from the user-facing `stream`
-	// argument of dbSendQuery(), which expresses intent at the R level.
+	// Whether the engine may hand back a result that streams rather than one
+	// it materialized before returning; statement.cpp decides it in
+	// StreamsByDefault(). Distinct from the user-facing `stream` argument of
+	// dbSendQuery(), which expresses intent at the R level.
 	enum class AllowStreamResult { DISABLED, ENABLED };
 
 	enum class ExperimentalFeatures { DISABLED, ENABLED };

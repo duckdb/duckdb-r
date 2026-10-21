@@ -21,6 +21,11 @@ run 34690774944 checked 130 packages at `most`, depth 1, on 2026-09-12,
 where the `most`, depth 2 pair that revdepx's shard arithmetic is measured against enumerated 3435.
 A set that large is dealt into shards and can still need `part=i/G` to fit inside a run.
 
+**A dev series is checked on its `<S>-rc-alpha` when the packages need extensions.**
+Its `<S>-rc-dev` stamps the engine `-dev`, for which upstream publishes no extensions,
+so a package that installs one fails there for that reason alone
+([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
+
 **The report is this repository's record, and the run writes it.**
 `revdep/README.md` and its siblings are committed onto the checked branch by the run that produced them,
 unless the repository variable `REVDEPX_COMMIT_REPORT` is `false`,

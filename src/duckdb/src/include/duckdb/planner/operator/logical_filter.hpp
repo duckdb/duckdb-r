@@ -15,13 +15,16 @@ namespace duckdb {
 //! LogicalFilter represents a filter operation (e.g. WHERE or HAVING clause)
 class LogicalFilter : public LogicalOperator {
 public:
+	LogicalPlanSQLExportResult ToSQL(LogicalPlanSQLExportContext &context,
+	                                 const LogicalPlanVerificationPath &path) override;
+
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_FILTER;
 
 public:
 	explicit LogicalFilter(unique_ptr<Expression> expression);
 	LogicalFilter();
 
-	vector<idx_t> projection_map;
+	vector<ProjectionIndex> projection_map;
 
 public:
 	vector<ColumnBinding> GetColumnBindings() override;

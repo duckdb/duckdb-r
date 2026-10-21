@@ -13,7 +13,11 @@ and shields.io compares two refs of one repository,
 so the branch compared against has to be in the fork
 and not only in the canonical repo.
 `main` is carried for a second reason as well:
-it is what every series seeds from and forward-ports from.
+it is what every series seeds from.
+Forward-porting reads the canonical `main` instead
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
+because a mirror is behind for most of the cycle below
+and the tooling sync takes whatever tree it is given.
 
 **A mirror has one motion — it takes the canonical tip.**
 It is advanced by hard reset rather than by merge,
@@ -59,7 +63,7 @@ the config keeps it fresh afterwards and never creates it.
 ## The copy that goes the other way
 
 One branch per series travels from the fork *to* the canonical repository:
-`<S>-green`.
+`<S>-green`, the forward's `<S>-fwd-green` included.
 r-universe reads ownership from the URL of the branch it builds,
 so a `duckdb.*` flavor built from `krlmlr/duckdb-r` is published as krlmlr's,
 and the universe that ought to own the package carries an entry pointing out of it
@@ -69,11 +73,14 @@ Mirroring green into the canonical repository is what lets
 and the fork's universe name the fork's,
 so no package is configured in two places.
 
-Only `<S>-green`, and only for a base series.
+Only `<S>-green`.
 The buffer and `-dev` are working branches nothing installs,
-and a `-fwd-green` is a rebuild published from the fork's own universe
-to verify a cutover before it happens —
-duplicating either is the thing this avoids.
+and duplicating either is the thing this avoids.
+A `-fwd-green` is a rebuild published from the fork's own universe
+to verify a cutover before it happens, and nothing publishes its copy here;
+it travels so that the cutover can archive the replaced copy of `<S>-green` against it in this repository,
+and it is deleted here with the fork's `-fwd` refs once the swap has made its tip `<S>-green`
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 
 **It is a fast-forward, and a refusal is a finding.**
 [`scripts/series-advance.sh`](/scripts/series-advance.sh) pushes it plainly
@@ -87,7 +94,9 @@ The exception is a cutover, which moves green onto the forward lineage
 the old green is no ancestor of.
 That is the one legitimate non-fast-forward,
 so [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) forces the copy itself,
-under a lease and after the swap, rather than leaving the next firing to trip on it.
+under a lease and after the swap, rather than leaving the next firing to trip on it,
+and only after the copy it replaces has become the head of a closed pull request here,
+so the move loses no history.
 
 Unlike the mirrors above, this one is ours to push:
 Pull carries branches from the canonical repository into the fork and never back.

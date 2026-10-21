@@ -73,6 +73,16 @@ trap restore EXIT
 
 # Updates to man/ and NAMESPACE are handled in the patch file for efficiency
 patch -p1 < scripts/flavor.patch
+
+# The `.dd` files name the types header the patch renames, and they are not in
+# the patch. `src/include/deps.mk` includes them, so a name the tree no longer
+# carries stops every build before the first compile with "No rule to make
+# target 'include/duckdb_types.hpp', needed by 'cpp11.o'". Rewrite rather than
+# patch, for the reason the generated files are regenerated.
+"$gnu_sed" -i -E \
+  "s|include/duckdb(_[A-Za-z0-9_]+)?_types\\.hpp|include/duckdb_${package_name//./_}_types.hpp|g" \
+  src/*.dd
+
 R -q -e 'cpp11::cpp_register()'
 
 # README.md and .github/README.md are generated, so the patch renames their

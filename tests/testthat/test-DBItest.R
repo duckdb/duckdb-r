@@ -123,7 +123,6 @@ if (rlang::is_installed("DBItest")) {
         "arrow_write_table_arrow_roundtrip_character_empty_after",
         "arrow_write_table_arrow_roundtrip_date",
         "arrow_write_table_arrow_roundtrip_date_extended",
-        "arrow_write_table_arrow_roundtrip_time",
         "arrow_write_table_arrow_roundtrip_mixed",
         "arrow_create_table_arrow_error",
         "arrow_create_table_arrow_temporary",
@@ -133,7 +132,6 @@ if (rlang::is_installed("DBItest")) {
         "arrow_append_table_arrow_error",
         "arrow_append_table_arrow_roundtrip_quotes",
         "arrow_append_table_arrow_roundtrip_64_bit_roundtrip",
-        "arrow_append_table_arrow_roundtrip_time",
         "arrow_append_table_arrow_roundtrip_mixed",
         "list_tables",
         "list_tables_quote",
@@ -159,6 +157,12 @@ if (rlang::is_installed("DBItest")) {
         NULL
       )
     },
+
+    # `dbDataType()` says TIME for `hms` and `difftime`, the write routes INTERVAL,
+    # so DBI's Arrow methods create a table they cannot append to
+    # (handbook/usage/types/README.md).
+    "arrow_write_table_arrow_roundtrip_time",
+    "arrow_append_table_arrow_roundtrip_time",
 
     "package_name", # wontfix
     "package_dependencies", # wontfix
