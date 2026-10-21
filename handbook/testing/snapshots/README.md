@@ -1,6 +1,7 @@
 # Snapshots
 
-What the recorded snapshot output asserts,
+When to record output rather than assert about it,
+what the recorded snapshot then asserts,
 and how a changed snapshot is accepted — deliberately,
 because accepting one asserts the new output is correct.
 
@@ -18,7 +19,11 @@ a printed relational expression, the wording of a message,
 warning or error — belongs in `_snaps/`,
 because a recorded file puts the whole of it in the diff,
 where a regex goes on matching wording nobody would ship.
-An expectation that names one value stays one.
+So an error or a printed result takes `expect_snapshot()`,
+not `expect_error(regexp = )` or `expect_output()`.
+An expectation that names one value stays one:
+a condition's class or field, or an error the test raises itself.
+A test that only needs to know that *something* failed says so with a bare `expect_error()`.
 
 A snapshot must never record the package's own name:
 [`scripts/flavor.patch`](/scripts/flavor.patch) does not rewrite

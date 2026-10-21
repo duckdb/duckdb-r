@@ -30,6 +30,10 @@ the wrapper re-raises C++ errors pointing at the user's call.
 **Session state is a field of `the`.**
 What the package remembers between calls in one R session lives in `the` ([`R/the.R`](/R/the.R)),
 one field per fact, reached through the function beside the code that owns it and never from elsewhere.
+One field is written from C++:
+the glue leaves each error it reports in `rapi_error_pending`,
+and only the functions beside `rethrow_error_from_rapi()` read it
+([`glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
 A table keyed by a value from outside the package is an environment of its own,
 so that a key cannot shadow a field:
 `driver_registry` is keyed by database path, `storage_message_state` by message id.

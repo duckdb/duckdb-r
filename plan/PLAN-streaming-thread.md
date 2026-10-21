@@ -506,9 +506,9 @@ Each task lands separately and keeps the suite green.
   which moves packed-column materialization to bind
   (`TouchColumn()`), measures what breaking the rule costs,
   and names the residue this plan's guard rests on —
-  non-allocating reads in the list/map scan paths, and
-  `rapi_error_with_context()`, which *calls* R on the scan's error
-  path from a task thread.
+  non-allocating reads in the list/map scan paths.
+  `rapi_error_with_context()` on the scan's error path was the other,
+  until [#2588](https://github.com/duckdb/duckdb-r/pull/2588) kept it from calling R off R's thread.
 * **T2 — extract the next-chunk seam.**
   Pure refactor of `rapi_stream_fetch()` so the accumulation loop asks
   a `NextChunk()` provider; synchronous provider only.
