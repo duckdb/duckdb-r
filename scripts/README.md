@@ -112,6 +112,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 | [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 
+## [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)
+
+| File | Purpose |
+|---|---|
+| [`cran-submit-test.sh`](cran-submit-test.sh) | Check scripts/cran-submit.sh offline, against a fake CRAN submission form on 127.0.0.1: nothing reaches CRAN. |
+| [`cran-submit.sh`](cran-submit.sh) | Build the source package, recompress it with zopfli, and upload it to CRAN the way `devtools:::upload_cran()` does. |
+
 ## [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)
 
 | File | Purpose |

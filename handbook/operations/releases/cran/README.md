@@ -22,17 +22,22 @@ Run by hand, `winbuilder.yaml` also takes R-release and R-oldrelease; every uplo
 Apart from the known package-size NOTE, every error, warning, and note is a blocker.
 
 **Submitting:**
-[`cran-submission.yaml`](/.github/workflows/cran-submission.yaml),
-run by hand on the release branch with the input `confirmation` set to `CONFIRM`,
-tags the commit as `vX.Y.Z` with its `NEWS.md` section, then checks the package and uploads it to CRAN.
-[`cran-comments.md`](/cran-comments.md) is the comment that goes with the upload:
-the name and version submitted, that the CRAN Repository Policy was reviewed at its stated revision date,
-and what the CRAN check page showed and what became of it.
-It is rewritten for each release, and `.Rbuildignore` keeps it out of the tarball.
-Without it, the submission action sends a generic note of its own.
-It carries no backreference to this leaf, because its whole text reaches a CRAN maintainer verbatim.
-The `cre` address in `DESCRIPTION` receives the confirmation mail,
-and the upload is not queued until it is answered.
+[`cran-submission.yaml`](/.github/workflows/cran-submission.yaml) runs only when started by hand,
+from the Actions tab or with `gh workflow run cran-submission.yaml --repo duckdb/duckdb-r --ref <ref>`,
+and submits the commit that ref points to.
+It tags the commit as `vX.Y.Z` with its `NEWS.md` section,
+and [`scripts/cran-submit.sh`](/scripts/cran-submit.sh) builds the tarball with `R CMD build`,
+recompresses it with zopfli (`pigz -11`, about 5% smaller than the gzip R writes),
+and verifies that it passes `gzip -t` and holds the same tar stream as the original.
+The run keeps that tarball as an artifact named `<package>_<version>`,
+and the script then posts it to CRAN's submission form and confirms the submission, as `devtools:::upload_cran()` does.
+The comment that goes with the upload is the single line `<package> <version>`, such as `duckdb 2.0.0`, and nothing more.
+The workflow neither checks the package nor asks for a confirmation:
+the commit has a green build before it is released,
+and the confirmation is the mail CRAN sends to the `cre` address in `DESCRIPTION`,
+whose link has to be followed before the upload is queued.
+Each stage reports what it did on the run's summary page, and a failure says how to resolve it there;
+[`scripts/cran-submit-test.sh`](/scripts/cran-submit-test.sh) checks both stages offline, the upload against a fake form.
 Acceptance is asynchronous — days, overlapping the next cycle —
 so the release is tagged and published to r-universe without
 waiting; a rejection is fixed on the release branch and
