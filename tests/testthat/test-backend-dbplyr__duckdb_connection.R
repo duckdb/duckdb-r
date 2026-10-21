@@ -826,6 +826,84 @@ test_that("duckdb round() results equal its R version", {
   )
 })
 
+# dbplyr orders its window by `RANDOM()`, which DuckDB 2.0 refuses,
+# so the backend draws the key in an inner query (#2963).
+test_that("slice_sample() draws its sample from the table and its groups", {
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  collect <- dplyr::collect
+  slice_sample <- dplyr::slice_sample
+
+  df <- data.frame(id = 1:10, g = rep(c("a", "b"), each = 5))
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  out <- collect(slice_sample(df_duckdb, n = 3))
+  expect_named(out, c("id", "g"))
+  expect_equal(nrow(out), 3)
+  expect_true(all(out$id %in% df$id))
+  expect_equal(anyDuplicated(out$id), 0L)
+
+  # One row when no size is given, every row when `n` exceeds them.
+  expect_equal(nrow(collect(slice_sample(df_duckdb))), 1)
+  expect_equal(sort(collect(slice_sample(df_duckdb, n = 20))$id), df$id)
+
+  in_group <- function(out) {
+    all(paste(out$id, out$g) %in% paste(df$id, df$g))
+  }
+
+  grouped <- collect(slice_sample(dplyr::group_by(df_duckdb, g), n = 2))
+  expect_equal(dplyr::group_vars(grouped), "g")
+  expect_equal(as.vector(table(grouped$g)), c(2L, 2L))
+  expect_true(in_group(grouped))
+  expect_equal(anyDuplicated(grouped$id), 0L)
+
+  by <- collect(slice_sample(df_duckdb, n = 4, by = g))
+  expect_equal(dplyr::group_vars(by), character())
+  expect_equal(as.vector(table(by$g)), c(4L, 4L))
+  expect_true(in_group(by))
+  expect_equal(anyDuplicated(by$id), 0L)
+
+  sql <- dbplyr::remote_query(slice_sample(df_duckdb, n = 3, by = g))
+  expect_match(sql, "RANDOM() AS slice_sample_key", fixed = TRUE)
+  expect_match(sql, "ORDER BY slice_sample_key", fixed = TRUE)
+  expect_no_match(sql, "OVER \\([^)]*RANDOM\\(\\)")
+})
+
+test_that("slice_sample() keeps a column that has its key's name", {
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  duckdb_register(con, "df", data.frame(slice_sample_key = 1:3))
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  out <- dplyr::collect(dplyr::slice_sample(df_duckdb, n = 3))
+  expect_named(out, "slice_sample_key")
+  expect_equal(sort(out$slice_sample_key), 1:3)
+})
+
+test_that("slice_sample() leaves dbplyr's refusals in place", {
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  slice_sample <- dplyr::slice_sample
+  duckdb_register(con, "df", data.frame(id = 1:4, g = c("a", "a", "b", "b")))
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  expect_error(slice_sample(df_duckdb, prop = 0.5), "`prop`")
+  expect_error(slice_sample(df_duckdb, prop = 0.5, by = g), "`prop`")
+  expect_error(
+    slice_sample(dplyr::group_by(df_duckdb, g), prop = 0.5),
+    "`prop`"
+  )
+  expect_error(slice_sample(df_duckdb, n = 1, replace = TRUE), "replacement")
+  expect_error(slice_sample(df_duckdb, n = 1, weight_by = id), "Weighted")
+})
+
 
 # Snapshot tests
 
