@@ -12,7 +12,7 @@ an ALTREP method allocates,
 may evaluate R code,
 and may collect garbage.
 Bind is where that is avoided.
-It runs on the thread that issued the query, which is R's,
+It runs on the thread that issued the query, which is R's, unless a task binds (below),
 and it reduces the whole data frame to plain memory
 before the engine can schedule anything.
 [`src/scan.cpp`](/src/scan.cpp)'s `TouchColumn()` walks a column to its leaves —
@@ -38,6 +38,21 @@ What breaking the rule costs —
 a wrong answer with no diagnostic, or a killed session —
 is measured in
 [`experiments/2026-08-08-altrep-scan-threads/`](/experiments/2026-08-08-altrep-scan-threads/README.md).
+
+**A task binds too, on whichever thread takes it.**
+`pragma_table_info()` over a view rebinds the view's query as it executes,
+so joining a registered data frame to its own table info binds its scan on a thread of the engine's pool
+([#2962](https://github.com/duckdb/duckdb-r/issues/2962)).
+So bind touches on R's thread only, and only for a data frame with an ALTREP vector where the walk reaches,
+since the `R_tryCatchError()` around touching evaluates R code.
+`OnRMainThread()` ([`src/utils.cpp`](/src/utils.cpp)) tells R's thread by the id it records when the package loads.
+On any other thread bind evaluates no R code:
+it reads a column whose ALTREP vectors hold their payload in memory already, as `DATAPTR_OR_NULL()` tells without allocating,
+and fails with an error for one that does not, and for an ALTREP list, whose cells only its class's code reads.
+The bind that created the view ran on R's thread and touched every column,
+so R's compact sequences and deferred strings are in memory by the time a task binds,
+as [`tests/testthat/test-register.R`](/tests/testthat/test-register.R) pins;
+a column of `rel_to_altrep()` never says so, and a task refuses it.
 
 **The other paths into R, and what keeps each of them safe.**
 The Arrow scan calls R to produce its stream,
@@ -78,6 +93,7 @@ Reads are all a task thread may take, and building a cpp11 vector is not one.
 It allocates, and links the vector into cpp11's one protection list, which two tasks would race on.
 Type detection in [`src/types.cpp`](/src/types.cpp) therefore reads a list cell's names and levels in place.
 Keeping every R allocation off the task threads is the aim, and not every path meets it yet.
+A bind in a task still builds the cpp11 vectors that hold the data frame and its names.
 A factor level that is neither UTF-8 nor ASCII, latin1 for instance, is not read in place:
 `RType::FACTOR()` translates it with `Rf_translateCharUTF8()`, which allocates from R's buffers,
 and two tasks doing that at once crash a parallel scan of a list column of such factors.

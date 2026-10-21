@@ -6,11 +6,20 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
 
 using namespace duckdb;
+
+// R loads the package on its own thread, and a shared library's static initializers run on the thread that loads it.
+static const std::thread::id r_main_thread = std::this_thread::get_id();
+
+bool duckdb::OnRMainThread() {
+	return std::this_thread::get_id() == r_main_thread;
+}
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);

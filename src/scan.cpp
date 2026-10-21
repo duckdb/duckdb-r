@@ -116,6 +116,49 @@ static void TouchColumn(SEXP coldata) {
 	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
 }
 
+// Whether TouchColumn() would run ALTREP code anywhere in `coldata`,
+// not counting with `in_memory_ok` a vector whose payload is in memory, as DATAPTR_OR_NULL() tells without allocating.
+// Reads only, so any thread may call it, and counts an ALTREP list whole: VECTOR_ELT() runs its code.
+static bool ColumnNeedsAltrepCode(SEXP coldata, bool in_memory_ok) {
+	switch (TYPEOF(coldata)) {
+	case LGLSXP:
+	case INTSXP:
+	case REALSXP:
+	case CPLXSXP:
+	case RAWSXP:
+	case STRSXP:
+		if (ALTREP(coldata) && (!in_memory_ok || !DATAPTR_OR_NULL(coldata))) {
+			return true;
+		}
+		break;
+	case VECSXP: {
+		if (ALTREP(coldata)) {
+			return true;
+		}
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			if (ColumnNeedsAltrepCode(VECTOR_ELT(coldata, cell_idx), in_memory_ok)) {
+				return true;
+			}
+		}
+		break;
+	}
+	default:
+		return false;
+	}
+
+	return ColumnNeedsAltrepCode(Rf_getAttrib(coldata, R_NamesSymbol), in_memory_ok);
+}
+
+static bool ColumnsNeedAltrepCode(SEXP df, bool in_memory_ok) {
+	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df); col_idx++) {
+		if (ColumnNeedsAltrepCode(VECTOR_ELT(df, col_idx), in_memory_ok)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 struct TouchColumnsData {
 	SEXP df;
 	string error;
@@ -662,7 +705,16 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	vector<data_ptr_t> data_ptrs;
 	vector<bool> named_list_map;
 
-	TouchColumnsOrThrow(df);
+	// Touch an ALTREP column on R's thread only, the one thread that may run R code.
+	// A task binds on any thread, and reads what is in memory or refuses (handbook/architecture/glue/threading/).
+	if (OnRMainThread()) {
+		if (ColumnsNeedAltrepCode(df, false)) {
+			TouchColumnsOrThrow(df);
+		}
+	} else if (ColumnsNeedAltrepCode(df, true)) {
+		throw InvalidInputException(
+		    "Cannot bind the data frame scan on a thread other than R's: an ALTREP column needs R to be read");
+	}
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(Identifier(string(df_names[col_idx])));

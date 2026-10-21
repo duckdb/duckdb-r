@@ -241,6 +241,11 @@ private:
 	static void Park(duckdb::unique_ptr<ParkedBase> object);
 };
 
+//! Whether the calling thread is R's, the only one that may run R code.
+//! The engine runs a query's tasks on its own threads too, and some of them bind:
+//! pragma_table_info() over a view binds the view's query in a task.
+bool OnRMainThread();
+
 struct RStatement {
 	RStatement() = delete;
 	explicit RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {

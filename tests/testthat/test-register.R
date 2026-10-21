@@ -89,3 +89,16 @@ test_that("can register list of NULL values", {
 
   expect_equal(dbGetQuery(con, "SELECT * FROM df1"), as.data.frame(df))
 })
+
+test_that("a registered data frame binds on a thread other than R's (#2962)", {
+  con <- local_con()
+  dbExecute(con, "SET threads = 4")
+  duckdb_register(con, "v", data.frame(V1 = 1:3))
+
+  # pragma_table_info() rebinds the view in a task, which any thread may run,
+  # so the query is repeated for threads other than R's to bind it
+  res <- lapply(1:50, function(i) {
+    dbGetQuery(con, "SELECT * FROM v JOIN pragma_table_info('v') m ON true")$V1
+  })
+  expect_equal(res, rep(list(1:3), 50))
+})
