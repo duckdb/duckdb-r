@@ -131,6 +131,23 @@ skip_if_builtin_icu <- function(con) {
   }
 }
 
+# The fast path links upstream's release libduckdb, which carries none of the
+# engine patches in patch/, so tests of patched behavior cannot run there.
+# A release libduckdb is the build that links icu statically, which the
+# vendored engine never does (see skip_if_builtin_icu()).
+skip_if_unpatched_engine <- function(con) {
+  icu <- dbGetQuery(
+    con,
+    "SELECT install_mode FROM duckdb_extensions() WHERE extension_name = 'icu'"
+  )
+  if (
+    nrow(icu) > 0 &&
+      identical(icu$install_mode[[1]], "STATICALLY_LINKED")
+  ) {
+    skip("prebuilt libduckdb without the engine patches in patch/ (#2954)")
+  }
+}
+
 # The icu extension is not statically linked into the package,
 # so tests that need it must download it first.
 # That requires a released DuckDB version, a platform with published
