@@ -13,12 +13,12 @@ Re-run on 2026-09-29 against duckdb 1.5.6.9000, built from `main` on the `v1.5.6
 (source id `069cc9f9b5`): every result unchanged but one, timings within jitter.
 The one is `integer64`, which lands as `BIGINT` on both routes now,
 since [#2819](https://github.com/duckdb/duckdb-r/pull/2819) made `r_dataframe_scan` write it so whatever `bigint` says.
-Not re-run on the v2.0 engine (`2.0.0-dev88614`, `main` since
-[#2941](https://github.com/duckdb/duckdb-r/pull/2941)) when this note was written:
-no prebuilt library exists for the release candidate.
-That engine keeps `arrow_scan` and `arrow_scan_dumb` with the same pushdown flags
-(vendored `src/duckdb/src/function/table/arrow.cpp`),
-so the finding the plan turns on has no reason to move.
+Re-run on 2026-10-21 against duckdb 1.99.99.9001, built from the v2.0 sources `main` carries since
+[#2941](https://github.com/duckdb/duckdb-r/pull/2941) (engine `2.0.0-dev88614`, source id `d54cbbe3df`):
+every result unchanged, the pushed filter still returning every row with `Filters: a > 3` on the scan,
+with one difference: the two routes now return identical `POSIXct` values,
+where on the v1.5 engines they differed, the types differing as before.
+Timings are not compared: that build links no release library.
 
 *What it supports:*
 [`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md),
