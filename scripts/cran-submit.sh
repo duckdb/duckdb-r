@@ -48,8 +48,10 @@
 #   GITHUB_ACTIONS       `true` turns on the workflow commands (groups, annotations)
 #   GITHUB_STEP_SUMMARY  the file the Markdown report is appended to; unset, no report is written
 #   GITHUB_OUTPUT        the file `tarball` writes `package`, `version`, `tarball` and `sha256` to
-#   GITHUB_REPOSITORY, GITHUB_REF_NAME
-#                        name the repository and ref in the dry run's advice on dispatching the real run
+#   GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_SHA, GITHUB_REF_NAME
+#                        link the commit in the reports, and name the repository and ref
+#                        in the dry run's advice on dispatching the real run; without them,
+#                        `tarball` names the HEAD of the package directory, unlinked, and `upload` no commit
 
 set -euo pipefail
 
@@ -95,6 +97,13 @@ notice() { # <title> <message>
     echo "::notice title=$(esc_prop "$1")::$(esc_data "$2")"
   else
     printf 'NOTICE: %s: %s\n' "$1" "$2"
+  fi
+}
+warn() { # <title> <message>
+  if in_actions; then
+    echo "::warning title=$(esc_prop "$1")::$(esc_data "$2")"
+  else
+    printf 'WARNING: %s: %s\n' "$1" "$2" >&2
   fi
 }
 
@@ -150,6 +159,28 @@ fail() {
   exit 1
 }
 
+# The commit a stage works on: sets commit_sha, and commit_md, a Markdown line for the summary.
+# In CI it is the commit the job checked out, linked, with the ref the run was started on;
+# locally it is the HEAD of <dir>, unlinked, and nothing when <dir> is empty or no git checkout.
+commit_of() { # <dir>
+  local head=''
+  commit_sha=''
+  commit_md=''
+  if [ -n "$1" ]; then
+    head=$(git -C "$1" rev-parse HEAD 2>/dev/null) || head=''
+  fi
+  if [ -n "${GITHUB_SHA:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ]; then
+    if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
+      warn "Another commit" "The checkout is at $head, not at $GITHUB_SHA, the commit the run was started on; the report names the checkout."
+    fi
+    commit_sha=${head:-$GITHUB_SHA}
+    commit_md="Commit [\`${commit_sha:0:10}\`](${GITHUB_SERVER_URL:-https://github.com}/$GITHUB_REPOSITORY/commit/$commit_sha)${GITHUB_REF_NAME:+ on \`$GITHUB_REF_NAME\`}."
+  elif [ -n "$head" ]; then
+    commit_sha=$head
+    commit_md="Commit \`${commit_sha:0:10}\`."
+  fi
+}
+
 # --- reading a tarball ----------------------------------------------------
 
 # One field of a DCF file, continuation lines folded into one.
@@ -199,10 +230,13 @@ cmd_tarball() {
   # shellcheck disable=SC2064  # expand now: the trap outlives this function's locals
   trap "rm -rf '$work'" EXIT
 
+  commit_of "$pkgdir"
   summary "## CRAN submission" ""
+  [ -z "$commit_md" ] || summary "$commit_md" ""
 
   group "Build: R CMD build"
   val "package directory" "$pkgdir"
+  [ -z "$commit_sha" ] || val "commit" "$commit_sha${GITHUB_REF_NAME:+ ($GITHUB_REF_NAME)}"
   val "R" "$(R --version | sed -n 1p)"
   local log=$work/build.log rc=0
   (cd "$work" && R CMD build "$pkgdir") 2>&1 | tee "$log" || rc=$?
@@ -250,7 +284,7 @@ cmd_tarball() {
     fi
   fi
   endgroup
-  summary "Package **$pkg** version **$version**, built by \`R CMD build\` from \`$(git -C "$pkgdir" rev-parse HEAD 2>/dev/null || echo "$pkgdir")\`." ""
+  summary "Package **$pkg** version **$version**, built by \`R CMD build\`${commit_sha:+ from \`${commit_sha:0:10}\`}." ""
   summary "### Build, recompress, verify" "" "- Built: \`$name\`, $plain_size bytes ($(mib "$plain_size")) with gzip"
 
   group "Recompress: gzip -dc | pigz -11 (zopfli)"
@@ -415,6 +449,9 @@ cmd_upload() {
   dir=$(cd "$(dirname "$tarball")" && pwd)
   base=$(basename "$tarball")
 
+  # The tarball names no commit, so only CI, which builds it in the same job, can tell one.
+  commit_of "${GITHUB_SHA:+$(cd "$(dirname "$0")/.." && pwd)}"
+
   group "Upload: what is submitted"
   if ! gzip -t "$tarball" 2>"$work/gzip.err" || ! tar -tzf "$tarball" >/dev/null 2>>"$work/gzip.err"; then
     fail "Upload" "The tarball cannot be read" "\`$base\` is no gzip-compressed tar archive." "$work/gzip.err" -- \
@@ -433,9 +470,11 @@ cmd_upload() {
   val "sha256" "$sha"
   val "comment" "$comment"
   val "submission URL" "$url"
+  [ -z "$commit_sha" ] || val "commit" "$commit_sha${GITHUB_REF_NAME:+ ($GITHUB_REF_NAME)}"
   endgroup
-  summary "" "### Upload to CRAN${dry_run:+: dry run}" "" \
-    "- Tarball: \`$base\`, $size bytes, sha256 \`$sha\`" \
+  summary "" "### Upload to CRAN${dry_run:+: dry run}" ""
+  [ -z "$commit_md" ] || summary "- $commit_md"
+  summary "- Tarball: \`$base\`, $size bytes, sha256 \`$sha\`" \
     "- Maintainer: $maint_name <$maint_email>" \
     "- Comment: \`$comment\`" \
     "- Submission form: $url"

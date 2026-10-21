@@ -91,6 +91,12 @@ jobs:
         env:
           ALLOW_DEV_VERSION: ${{ inputs.allow-dev-version }}
         run: |
+          # The commit this job checked out, which is `github.sha`, as the other jobs check out.
+          commit="$(git rev-parse HEAD)"
+          echo "Commit [\`${commit:0:10}\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$commit) on \`$GITHUB_REF_NAME\`." >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $commit ($GITHUB_REF_NAME)"
+
           version="$(sed -n 's/^Version: *//p' DESCRIPTION)"
           # R separates the components of a version with dots or dashes.
           components="$(printf '%s\n' "$version" | awk -F '[.-]' '{ print NF }')"
@@ -161,6 +167,12 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry-run }}
         run: |
+          # The commit this job checked out, which is `github.sha`, as the other jobs check out.
+          commit="$(git rev-parse HEAD)"
+          echo "Commit [\`${commit:0:10}\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$commit) on \`$GITHUB_REF_NAME\`." >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $commit ($GITHUB_REF_NAME)"
+
           pkg_name="$(sed -n 's/^Package: *//p' DESCRIPTION)"
           pkg_version="$(sed -n 's/^Version: *//p' DESCRIPTION)"
           tag="v$pkg_version"

@@ -13,6 +13,8 @@
 #   6. With R and pigz on the PATH: `tarball` builds a package, recompresses it with zopfli
 #      and verifies it; a package that does not build, and a recompression that does not match,
 #      fail with a "How to resolve" section; the built tarball then uploads as in 1.
+#   7. Both stages name the commit: in CI the one checked out, linked, with a warning when it
+#      is not the run's; outside CI the package directory's HEAD, unlinked, and `upload` none.
 #
 # The fake form answers as CRAN's does: the upload redirects to `index2.php?pkg_id=...`,
 # the confirmation to `index2.php?submit=1`, and the server records every field it receives.
@@ -144,6 +146,13 @@ FORM=http://127.0.0.1:$(cat "$SCRATCH/port")/cransubmit/index2.php
 # The local form is reached directly, never through a proxy.
 export no_proxy=127.0.0.1 NO_PROXY=127.0.0.1
 
+# What a run on GitHub sets. The commit is this checkout's HEAD,
+# as in a job that checked out the commit the run was started on.
+export GITHUB_SERVER_URL=https://github.example GITHUB_REPOSITORY=duckdb/duckdb-r GITHUB_REF_NAME=release-x
+GITHUB_SHA=$(git -C "$HERE/.." rev-parse HEAD 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)
+export GITHUB_SHA
+LINK="Commit [\`${GITHUB_SHA:0:10}\`](https://github.example/duckdb/duckdb-r/commit/$GITHUB_SHA) on \`release-x\`."
+
 SUMMARY=$SCRATCH/summary.md
 # Runs the script as a workflow step would, against the fake form;
 # prints its output and its exit status.
@@ -206,6 +215,10 @@ has "and groups the stages" "$out" "::group::Confirm: POST the submission"
 has "it ends with a notice" "$out" "::notice title=Submitted to CRAN::fakepkg 1.0.1"
 summary=$(cat "$SUMMARY")
 has "the summary names the tarball" "$summary" "fakepkg_1.0.1.tar.gz"
+has "and links the commit" "$summary" "### Upload to CRAN
+
+- $LINK"
+has "the log names the commit" "$out" "$(printf '  %-20s %s' commit: "$GITHUB_SHA (release-x)")"
 has "and the next step" "$summary" "**Next step:** CRAN e-mailed jane@example.org; click the confirmation link in that e-mail to finish the submission."
 hasnt "and no failure" "$summary" "How to resolve"
 
@@ -290,7 +303,7 @@ is "and sends nothing" "$(requests)" ""
 echo
 echo "== a dry run sends nothing and shows what it would"
 echo ok >"$SCRATCH/mode"
-out=$(GITHUB_REPOSITORY=duckdb/duckdb-r GITHUB_REF_NAME=release-x run upload --dry-run "$TARBALL")
+out=$(run upload --dry-run "$TARBALL")
 has "it succeeds" "$out" "exit 0"
 is "the form receives no request" "$(requests)" ""
 has "the log lists the uploaded file" "$out" \
@@ -355,6 +368,10 @@ tarball=$Z"
   # A workflow command escapes the % sign.
   has "and the notice" "$out" "::notice title=CRAN tarball::zpkg_0.2.0.tar.gz: ${sizes//%/%25} with zopfli"
   has "and the sha256" "$summary" "$(sha256sum "$Z" | cut -d' ' -f1)"
+  has "and links the commit under its heading" "$summary" "## CRAN submission
+
+$LINK"
+  has "the log names the commit" "$out" "$(printf '  %-20s %s' commit: "$GITHUB_SHA (release-x)")"
 
   echo
   echo "== the built tarball uploads"
@@ -363,6 +380,35 @@ tarball=$Z"
   is "with the maintainer R CMD build wrote" "$(field name)" "Jane Müller
 Jane Müller"
   is "and the comment" "$(field comment)" "zpkg 0.2.0"
+
+  echo
+  echo "== outside CI, the commit is the package directory's HEAD, unlinked"
+  git -C "$SCRATCH/src/zpkg" init -q
+  git -C "$SCRATCH/src/zpkg" add -A
+  git -C "$SCRATCH/src/zpkg" -c user.name=t -c user.email=t@example.org commit -q -m zpkg
+  ZHEAD=$(git -C "$SCRATCH/src/zpkg" rev-parse HEAD)
+  out=$(
+    unset GITHUB_SHA GITHUB_REPOSITORY GITHUB_SERVER_URL GITHUB_REF_NAME
+    run tarball "$SCRATCH/out4" "$SCRATCH/src/zpkg"
+  )
+  has "it succeeds" "$out" "exit 0"
+  summary=$(cat "$SUMMARY")
+  has "the summary names the commit" "$summary" "## CRAN submission
+
+Commit \`${ZHEAD:0:10}\`."
+  hasnt "without a link" "$summary" "/commit/"
+  out=$(
+    unset GITHUB_SHA GITHUB_REPOSITORY GITHUB_SERVER_URL GITHUB_REF_NAME
+    run upload "$Z"
+  )
+  has "an upload outside CI succeeds" "$out" "exit 0"
+  hasnt "and names no commit" "$(cat "$SUMMARY")" "Commit"
+
+  echo
+  echo "== a checkout at another commit than the run's is named, with a warning"
+  out=$(run tarball "$SCRATCH/out5" "$SCRATCH/src/zpkg")
+  has "it warns" "$out" "::warning title=Another commit::The checkout is at $ZHEAD, not at $GITHUB_SHA"
+  has "and links the checkout" "$(cat "$SUMMARY")" "Commit [\`${ZHEAD:0:10}\`](https://github.example/duckdb/duckdb-r/commit/$ZHEAD) on \`release-x\`."
 
   echo
   echo "== a package that does not build fails with advice"
