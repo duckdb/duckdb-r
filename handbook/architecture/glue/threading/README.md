@@ -56,8 +56,8 @@ A list column of one is an ALTREP list, which a task refuses,
 and [`tests/testthat/test-register.R`](/tests/testthat/test-register.R) pins both.
 The error suggests `SET threads = 1`, since the scheduler then has no worker of its own and a query from R runs every task on R's thread.
 A task's bind still calls R's C API, though.
-It takes each payload with `DATAPTR()`, which dispatches an ALTREP class's `Dataptr` method
-and clears and restores R's global flag for its collector around the call.
+It takes each payload with `DATAPTR()` or `DATAPTR_RO()`, which for an ALTREP vector dispatch its class's `Dataptr` method
+and clear and restore R's global flag for its collector around the call.
 
 **The other paths into R, and what keeps each of them safe.**
 The Arrow scan calls R to produce its stream,
