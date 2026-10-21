@@ -98,23 +98,28 @@ runs:
         major=$(readelf -p .comment "${lib}" | sed -n 's/.*clang version \([0-9][0-9]*\)\..*/\1/p' | head -n 1)
         echo "${lib} was built with clang ${major:-of an unknown version}."
 
-        # That major version where apt offers it, the image's clang otherwise.
+        # That major version where apt offers it, the image's clang otherwise,
+        # each with the llvm-cov of its release, which clang only recommends.
         suffix=
         if [ -n "${major}" ]; then
           candidate=$(apt-cache policy "clang-${major}" | sed -n 's/^ *Candidate: *//p')
-          if ! command -v "clang++-${major}" >/dev/null && [ -n "${candidate}" ] && [ "${candidate}" != "(none)" ]; then
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "clang-${major}"
+          if [ -n "${candidate}" ] && [ "${candidate}" != "(none)" ]; then
+            command -v "clang++-${major}" >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "clang-${major}"
+            command -v "llvm-cov-${major}" >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "llvm-${major}"
           fi
-          if command -v "clang++-${major}" >/dev/null; then
+          if command -v "clang++-${major}" >/dev/null && command -v "llvm-cov-${major}" >/dev/null; then
             suffix="-${major}"
           fi
         fi
-        if [ -z "${suffix}" ] && ! command -v clang++ >/dev/null; then
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y clang
+        if [ -z "${suffix}" ]; then
+          command -v clang++ >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y clang
+          command -v llvm-cov >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y llvm
         fi
         cc="clang${suffix}"
         cxx="clang++${suffix}"
+        cov="$(command -v "llvm-cov${suffix}")"
         "${cxx}" --version
+        "${cov}" --version
 
         # The one-word command R runs for a compiler: a ccache wrapper where
         # ccache is installed, the bare compiler otherwise.
@@ -162,6 +167,11 @@ runs:
         cat ~/.R/Makevars
         echo "========================="
         echo "R CMD config CXX17: $(R CMD config CXX17)"
+
+        # covr builds with this clang too, and GNU gcov cannot read its notes,
+        # so covr runs `llvm-cov gcov` instead. The covr action's Rscript reads
+        # the checkout's .Rprofile, which sources the ~/.Rprofile setup-r wrote.
+        echo "options(covr.gcov = '${cov}', covr.gcov_args = 'gcov')" | tee -a ~/.Rprofile
       shell: bash
 
     # The vendored half of the compiler-warning gate
