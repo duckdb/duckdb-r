@@ -116,6 +116,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
+| [`cran-lib.sh`](cran-lib.sh) | Shared helpers for scripts/cran-submit.sh and scripts/cran-release.sh: the log, the annotations, the report. |
 | [`cran-submit-test.sh`](cran-submit-test.sh) | Check scripts/cran-submit.sh offline, against a fake CRAN submission form on 127.0.0.1: nothing reaches CRAN. |
 | [`cran-submit.sh`](cran-submit.sh) | Build the source package, recompress it with zopfli, and upload it to CRAN the way `devtools:::upload_cran()` does. |
 
