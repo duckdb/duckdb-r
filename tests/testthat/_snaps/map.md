@@ -18,7 +18,7 @@
       ! Conversion Error: Unimplemented type for cast (STRUCT("key" VARCHAR, "value" VARCHAR)[] -> MAP(VARCHAR, VARCHAR))
       
       LINE 1: SELECT [{'key': 'a', 'value': 'b'}]::MAP(VARCHAR, VARCHAR) AS m
-                                                 ^
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^
       i Context: rapi_execute
       i Error type: CONVERSION
 

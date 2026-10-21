@@ -8,26 +8,24 @@
 
 #pragma once
 
-#include "duckdb/common/common.hpp"
+#include "duckdb/common/identifier.hpp"
+#include "duckdb/common/optional_ptr.hpp"
+#include "duckdb/common/shared_ptr.hpp"
+#include "duckdb/planner/expression/bound_parameter_data.hpp"
 
 namespace duckdb {
 
-enum class QueryResultOutputType : uint8_t { FORCE_MATERIALIZED, ALLOW_STREAMING };
-
-enum class QueryResultMemoryType : uint8_t { IN_MEMORY, BUFFER_MANAGED };
+class ResultFormat;
 
 struct QueryParameters {
-	QueryParameters() {
+	QueryParameters() = default;
+	//! So a caller that wants only a format does not have to spell out the other fields
+	explicit QueryParameters(shared_ptr<ResultFormat> format_p) : format(std::move(format_p)) {
 	}
-	QueryParameters(bool allow_streaming) // NOLINT: allow implicit conversion
-	    : output_type(allow_streaming ? QueryResultOutputType::ALLOW_STREAMING
-	                                  : QueryResultOutputType::FORCE_MATERIALIZED) {
-	}
-	QueryParameters(QueryResultOutputType output_type) // NOLINT: allow implicit conversion
-	    : output_type(output_type) {
-	}
-	QueryResultOutputType output_type = QueryResultOutputType::FORCE_MATERIALIZED;
-	QueryResultMemoryType memory_type = QueryResultMemoryType::IN_MEMORY;
+
+	//! Arguments for a parameterized statement (may be null)
+	optional_ptr<identifier_map_t<BoundParameterData>> statement_args;
+	shared_ptr<ResultFormat> format;
 };
 
 } // namespace duckdb

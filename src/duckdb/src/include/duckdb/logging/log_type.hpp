@@ -10,18 +10,19 @@
 
 #include "duckdb/logging/logging.hpp"
 #include "duckdb/common/string_util.hpp"
+#include "duckdb/common/case_insensitive_map.hpp"
 
 namespace duckdb {
 
 struct FileHandle;
 struct BaseRequest;
 struct HTTPResponse;
+struct MetricTiming;
 class PhysicalOperator;
+enum class PhysicalOperatorType : uint8_t;
 class AttachedDatabase;
 class RowGroup;
 struct DataTableInfo;
-enum class MetricType : uint8_t;
-
 //! Log types provide some structure to the formats that the different log messages can have
 //! For now, this holds a type that the VARCHAR value will be auto-cast into.
 class LogType {
@@ -82,13 +83,15 @@ class HTTPLogType : public LogType {
 public:
 	static constexpr const char *NAME = "HTTP";
 	static constexpr LogLevel LEVEL = LogLevel::LOG_DEBUG;
+	static constexpr auto REDACTED_VALUE = "redacted";
 
 	//! Construct the log types
 	HTTPLogType();
 
 	static LogicalType GetLogType();
 
-	static string ConstructLogMessage(BaseRequest &request, optional_ptr<HTTPResponse> response);
+	static string ConstructLogMessage(BaseRequest &request, optional_ptr<HTTPResponse> response,
+	                                  bool redact_http_logs = true);
 
 	// FIXME: HTTPLogType should be structured probably
 	static string ConstructLogMessage(const string &str) {
@@ -108,6 +111,9 @@ public:
 
 	static string ConstructLogMessage(const PhysicalOperator &op, const string &class_p, const string &event,
 	                                  const vector<pair<string, string>> &info);
+	static string ConstructLogMessage(PhysicalOperatorType operator_type,
+	                                  const vector<pair<string, string>> &parameters, const string &class_p,
+	                                  const string &event, const vector<pair<string, string>> &info);
 };
 
 class MetricsLogType : public LogType {
@@ -120,7 +126,8 @@ public:
 
 	static LogicalType GetLogType();
 
-	static string ConstructLogMessage(const MetricType &type, const Value &value);
+	static string ConstructLogMessage(const string &metric, const Value &value,
+	                                  optional_ptr<const MetricTiming> timing = nullptr);
 };
 
 class CheckpointLogType : public LogType {
@@ -157,6 +164,73 @@ public:
 
 	static string ConstructLogMessage(const AttachedDatabase &db, const char *log_type,
 	                                  transaction_t transaction_id = MAX_TRANSACTION_ID);
+};
+
+class AdaptiveFilterLogType : public LogType {
+public:
+	static constexpr const char *NAME = "AdaptiveFilter";
+	static constexpr LogLevel LEVEL = LogLevel::LOG_DEBUG;
+
+	AdaptiveFilterLogType();
+
+	static LogicalType GetLogType();
+
+	static string ConstructLogMessage(const char *event, const string &file_path, const vector<idx_t> &permutation,
+	                                  const vector<pair<string, string>> &info);
+};
+
+class ParquetPrefetchLogType : public LogType {
+public:
+	static constexpr const char *NAME = "ParquetPrefetch";
+	static constexpr LogLevel LEVEL = LogLevel::LOG_DEBUG;
+
+	ParquetPrefetchLogType();
+
+	static LogicalType GetLogType();
+
+	static string ConstructLogMessage(const string &file_path, idx_t row_group_id, bool fully_filtered,
+	                                  const char *strategy, const vector<vector<string>> &prefetch_groups,
+	                                  const vector<string> &minimal_filters, uint64_t accepted_column_gap);
+};
+
+class AsyncTaskScheduleLogType : public LogType {
+public:
+	static constexpr const char *NAME = "AsyncTaskSchedule";
+	static constexpr LogLevel LEVEL = LogLevel::LOG_DEBUG;
+
+	AsyncTaskScheduleLogType();
+
+	static LogicalType GetLogType();
+
+	static string ConstructLogMessage(const string &pool, idx_t task_count);
+};
+
+class ProgressVerificationLogType : public LogType {
+public:
+	static constexpr const char *NAME = "ProgressVerification";
+	static constexpr LogLevel LEVEL = LogLevel::LOG_INFO;
+
+	ProgressVerificationLogType();
+
+	static LogicalType GetLogType();
+
+	static string ConstructLogMessage(const string &invariant, const string &operator_name, const string &pipeline,
+	                                  const string &detail);
+};
+
+class ExternalResourceLogType : public LogType {
+public:
+	static constexpr const char *NAME = "ExternalResource";
+	static constexpr LogLevel LEVEL = LogLevel::LOG_INFO;
+
+	ExternalResourceLogType();
+
+	static LogicalType GetLogType();
+
+	//! One recipe callback invocation (create/status/destroy), logged on response. `error` is empty on
+	//! success (rendered NULL); `resource_name` is empty for an anonymous resource (rendered NULL).
+	static string ConstructLogMessage(const string &resource_type, const string &resource_name, const string &operation,
+	                                  const string &error, const Value &extra_info);
 };
 
 } // namespace duckdb

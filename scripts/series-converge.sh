@@ -118,6 +118,8 @@
 # that has just fetched (scripts/series-cutover.sh).
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-converge.sh <series> [--remote <name>] [--no-fetch]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -150,26 +152,6 @@ for r in "$dev" "$fwd"; do
     exit 2
   }
 done
-
-# The same helper, the same bound and the same reasons as scripts/series-advance.sh
-# and scripts/series-cutover.sh: the pathspec narrows the walk, the subject
-# decides, and an empty answer explains itself on stderr rather than lying.
-base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-vendored_sha() {
-  local subjects sha n
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
-  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
-  if [ -z "$sha" ]; then
-    n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge "$base_scan_depth" ]; then
-      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
-    else
-      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
-    fi
-  fi
-  echo "$sha"
-}
 
 # The name and symbol a branch's Windows export list must carry, printed as
 # "<path> <symbol>". R links against `<dll base>-win.def`, and the dll base is
@@ -219,8 +201,8 @@ def_renamed_only() {
          <(git show "$fwd:$fwd_def" | grep -v '^R_init_')
 }
 
-dev_up=$(vendored_sha "$dev")
-fwd_up=$(vendored_sha "$fwd")
+dev_up=$(series_vendored_sha "$dev")
+fwd_up=$(series_vendored_sha "$fwd")
 # An `if`, not an `&&` chain: as a bare statement the chain's own failure is
 # what `set -e` would have to be trusted to overlook, and a reader should not
 # have to know that rule to see that this line is safe.
@@ -280,16 +262,18 @@ while IFS=$'\t' read -r add del f; do
         unexplained+=("$f|$add/$del|export list not named for its own package, or edited beyond its R_init_ symbol")
       fi
       ;;
-    src/duckdb/* | patch/* | R/version.R | src/include/sources.mk | \
-    src/Makevars | src/Makevars.win | src/Makevars.in)
-      if [ -n "$same" ]; then
-        unexplained+=("$f|$add/$del|vendored strand, at one and the same upstream commit")
-      else
-        gap=$((gap + 1))
-      fi
-      ;;
     *)
-      unexplained+=("$f|$add/$del|")
+      # The vendored strand and what vendoring regenerates
+      # (scripts/series-config.sh); the logos are a finding like any other.
+      if series_in_strand "$f" || series_is_regenerated "$f"; then
+        if [ -n "$same" ]; then
+          unexplained+=("$f|$add/$del|vendored strand, at one and the same upstream commit")
+        else
+          gap=$((gap + 1))
+        fi
+      else
+        unexplained+=("$f|$add/$del|")
+      fi
       ;;
   esac
 # --no-renames, so every path is classified as itself. Rename detection prints

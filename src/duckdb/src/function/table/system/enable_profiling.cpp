@@ -1,6 +1,10 @@
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "duckdb/main/config.hpp"
 #include "duckdb/main/settings.hpp"
+#include "duckdb/common/file_system.hpp"
+#include "duckdb/main/profiler/gathered_metrics.hpp"
+#include "duckdb/function/function_set.hpp"
 
 namespace duckdb {
 
@@ -21,7 +25,6 @@ static void EnableProfiling(ClientContext &context, TableFunctionInput &data, Da
 
 	auto &client_config = ClientConfig::GetConfig(context);
 	client_config.enable_profiler = true;
-	client_config.emit_profiler_output = true;
 
 	if (!bind_data.format.IsNull() && !bind_data.save_location.IsNull()) {
 		auto &file_system = FileSystem::GetFileSystem(context);
@@ -32,7 +35,7 @@ static void EnableProfiling(ClientContext &context, TableFunctionInput &data, Da
 		}
 
 		EnableProfilingSetting::ResetLocal(context);
-		ProfileOutputSetting::ResetLocal(context);
+		ProfilingOutputSetting::ResetLocal(context);
 	}
 
 	if (!bind_data.format.IsNull()) {
@@ -44,7 +47,7 @@ static void EnableProfiling(ClientContext &context, TableFunctionInput &data, Da
 	}
 
 	if (!bind_data.save_location.IsNull()) {
-		ProfileOutputSetting::SetLocal(context, bind_data.save_location);
+		ProfilingOutputSetting::SetLocal(context, bind_data.save_location);
 	}
 
 	if (!bind_data.mode.IsNull()) {
@@ -52,22 +55,20 @@ static void EnableProfiling(ClientContext &context, TableFunctionInput &data, Da
 	}
 
 	if (!bind_data.metrics.IsNull()) {
-		CustomProfilingSettingsSetting::SetLocal(context, bind_data.metrics);
+		Value metrics_value = bind_data.metrics;
+		if (metrics_value.type().id() == LogicalTypeId::VARCHAR) {
+			metrics_value = Value::LIST(LogicalType::VARCHAR, {metrics_value});
+		}
+		TrackedMetricsSetting::SetLocal(context, metrics_value);
 	}
 }
 
 static unique_ptr<FunctionData> BindEnableProfiling(ClientContext &context, TableFunctionBindInput &input,
-                                                    vector<LogicalType> &return_types, vector<string> &names) {
-	if (input.inputs.size() > 1) {
-		throw InvalidInputException("EnableProfiling: expected 0 or 1 parameter");
-	}
-
+                                                    vector<LogicalType> &return_types, vector<Identifier> &names) {
 	auto bind_data = make_uniq<EnableProfilingBindData>();
 
-	bool metrics_set = false;
-
 	for (const auto &named_param : input.named_parameters) {
-		const auto key = EnumUtil::FromString<ProfilingParameterNames>(named_param.first);
+		const auto key = EnumUtil::FromString<ProfilingParameterNames>(named_param.first.GetIdentifierName());
 		switch (key) {
 		case ProfilingParameterNames::FORMAT:
 			bind_data->format = StringUtil::Lower(named_param.second.ToString());
@@ -81,30 +82,27 @@ static unique_ptr<FunctionData> BindEnableProfiling(ClientContext &context, Tabl
 		case ProfilingParameterNames::MODE:
 			bind_data->mode = StringUtil::Lower(named_param.second.ToString());
 			break;
-		case ProfilingParameterNames::METRICS: {
-			if (named_param.second.type() != LogicalType::LIST(LogicalType::VARCHAR) &&
-			    named_param.second.type().id() != LogicalTypeId::STRUCT &&
-			    named_param.second.type() != LogicalType::VARCHAR) {
-				throw InvalidInputException("EnableProfiling: metrics must be a list of strings or a JSON string");
-			}
-
-			bind_data->metrics = named_param.second;
-			metrics_set = true;
-		}
+		case ProfilingParameterNames::METRICS:
+			throw InternalException("enable_profiling: metrics is placed by position");
 		}
 	}
 
-	// Process positional param: metrics configs
-	if (!input.inputs.empty()) {
-		if (metrics_set) {
-			throw InvalidInputException("EnableProfiling: cannot specify both metrics and positional parameters");
-		}
-		if (input.inputs[0].type() != LogicalType::LIST(LogicalType::VARCHAR) &&
-		    input.inputs[0].type().id() != LogicalTypeId::STRUCT && input.inputs[0].type() != LogicalType::VARCHAR) {
-			throw InvalidInputException("EnableProfiling: metrics must be a list of strings or a JSON string");
-		}
+	// The metrics are placed by position however they were passed; the overload settled pattern or list of names
+	bind_data->metrics = input.inputs[0];
 
-		bind_data->metrics = input.inputs[0];
+	auto &config = DBConfig::GetConfig(context);
+	config.CheckLock(EnableProfilingSetting::Name);
+	if (!bind_data->coverage.IsNull()) {
+		config.CheckLock(ProfilingCoverageSetting::Name);
+	}
+	if (!bind_data->save_location.IsNull()) {
+		config.CheckLock(ProfilingOutputSetting::Name);
+	}
+	if (!bind_data->mode.IsNull()) {
+		config.CheckLock(ProfilingModeSetting::Name);
+	}
+	if (!bind_data->metrics.IsNull()) {
+		config.CheckLock(TrackedMetricsSetting::Name);
 	}
 
 	return_types.emplace_back(LogicalType::BOOLEAN);
@@ -116,11 +114,11 @@ static unique_ptr<FunctionData> BindEnableProfiling(ClientContext &context, Tabl
 static void DisableProfiling(ClientContext &context, TableFunctionInput &data, DataChunk &output) {
 	auto &client_config = ClientConfig::GetConfig(context);
 	client_config.enable_profiler = false;
-	client_config.emit_profiler_output = false;
 }
 
 static unique_ptr<FunctionData> BindDisableProfiling(ClientContext &context, TableFunctionBindInput &input,
-                                                     vector<LogicalType> &return_types, vector<string> &names) {
+                                                     vector<LogicalType> &return_types, vector<Identifier> &names) {
+	DBConfig::GetConfig(context).CheckLock(EnableProfilingSetting::Name);
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
 
@@ -128,19 +126,31 @@ static unique_ptr<FunctionData> BindDisableProfiling(ClientContext &context, Tab
 }
 
 void EnableProfilingFun::RegisterFunction(BuiltinFunctions &set) {
-	auto enable_fun = TableFunction("enable_profiling", {}, EnableProfiling, BindEnableProfiling, nullptr, nullptr);
+	// The metrics are either a single pattern or a list of names
+	TableFunctionSet enable_set("enable_profiling");
 
-	enable_fun.named_parameters.emplace("format", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("coverage", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("save_location", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("mode", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("metrics", LogicalType::ANY);
+	enable_set.AddFunction(TableFunction(FunctionSignature()
+	                                         .AddParameter("metrics", LogicalType::VARCHAR, Value(LogicalType::VARCHAR))
+	                                         .AddTypedKwargs("options", TypedKwargs()
+	                                                                        .Add("format", LogicalType::VARCHAR)
+	                                                                        .Add("coverage", LogicalType::VARCHAR)
+	                                                                        .Add("save_location", LogicalType::VARCHAR)
+	                                                                        .Add("mode", LogicalType::VARCHAR)),
+	                                     EnableProfiling, BindEnableProfiling));
 
-	enable_fun.varargs = LogicalType::LIST(LogicalType::VARCHAR);
-	set.AddFunction(enable_fun);
+	enable_set.AddFunction(TableFunction(FunctionSignature()
+	                                         .AddParameter("metrics", LogicalType::LIST(LogicalType::VARCHAR))
+	                                         .AddTypedKwargs("options", TypedKwargs()
+	                                                                        .Add("format", LogicalType::VARCHAR)
+	                                                                        .Add("coverage", LogicalType::VARCHAR)
+	                                                                        .Add("save_location", LogicalType::VARCHAR)
+	                                                                        .Add("mode", LogicalType::VARCHAR)),
+	                                     EnableProfiling, BindEnableProfiling));
+
+	set.AddFunction(std::move(enable_set));
 
 	auto disable_fun = TableFunction("disable_profiling", {}, DisableProfiling, BindDisableProfiling, nullptr, nullptr);
-	set.AddFunction(disable_fun);
+	set.AddFunction(std::move(disable_fun));
 }
 
 } // namespace duckdb

@@ -170,49 +170,41 @@ duckdb_read_csv <- function(
 #' @noRd
 #' @return returns a valid fields argument for `dbCreateTable`
 set_csv_fields <- function(found, col.names, col.types) {
-  if (is.null(col.types) && is.null(col.types)) {
-    return(found)
-  }
-
   if (!is.null(names(col.types)) && !is.null(col.names)) {
     warning(
       "Ignoring `col.names` as column names provided by `col.types` parameter"
     )
-    return(col.types)
+    col.names <- NULL
   }
 
-  if (!is.null(col.types)) {
-    if (length(col.types) != ncol(found)) {
-      abort(paste0(
-        "You supplied ",
-        length(col.types),
-        " values to `col.names`, but file has ",
-        ncol(found),
-        " columns."
-      ))
-    }
+  check_csv_fields_length(col.names, "col.names", found)
+  check_csv_fields_length(col.types, "col.types", found)
 
-    if (!is.null(names(col.types))) {
-      return(col.types)
-    } else {
-      if (length(col.types) != ncol(found)) {
-        abort(paste0(
-          "You supplied ",
-          length(col.types),
-          " values to `col.types`, but file has ",
-          ncol(found),
-          " columns."
-        ))
-      }
-      fields <- col.types
-      names(fields) <- col.names
-      return(fields)
+  if (is.null(col.types)) {
+    if (!is.null(col.names)) {
+      names(found) <- col.names
     }
-  } else {
-    fields <- col.types
-    names(fields) <- names(found)
+    return(found)
   }
-  fields
+
+  if (is.null(names(col.types))) {
+    names(col.types) <- if (is.null(col.names)) names(found) else col.names
+  }
+  col.types
+}
+
+check_csv_fields_length <- function(x, arg, found) {
+  if (!is.null(x) && length(x) != ncol(found)) {
+    abort(paste0(
+      "You supplied ",
+      length(x),
+      " values to `",
+      arg,
+      "`, but file has ",
+      ncol(found),
+      " columns."
+    ))
+  }
 }
 
 

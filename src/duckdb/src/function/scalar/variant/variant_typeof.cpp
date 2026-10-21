@@ -2,6 +2,7 @@
 #include "duckdb/function/scalar/variant_functions.hpp"
 #include "duckdb/common/serializer/varint.hpp"
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/algorithm.hpp"
 
 namespace duckdb {
 
@@ -13,18 +14,18 @@ static void VariantTypeofFunction(DataChunk &input, ExpressionState &state, Vect
 	auto count = input.size();
 
 	D_ASSERT(input.ColumnCount() == 1);
-	auto &variant_vec = input.data[0];
+	const auto &variant_vec = input.data[0];
 	D_ASSERT(variant_vec.GetType() == LogicalType::VARIANT());
 
 	RecursiveUnifiedVectorFormat source_format;
-	Vector::RecursiveToUnifiedFormat(variant_vec, count, source_format);
+	Vector::RecursiveToUnifiedFormat(variant_vec, source_format);
 
 	UnifiedVariantVectorData variant(source_format);
 
-	auto result_data = FlatVector::GetData<string_t>(result);
+	auto result_data = FlatVector::Writer<string_t>(result, count);
 	for (idx_t i = 0; i < count; i++) {
 		if (!variant.RowIsValid(i)) {
-			result_data[i] = StringVector::AddString(result, "VARIANT_NULL");
+			result_data.WriteValue(string_t("VARIANT_NULL"));
 			continue;
 		}
 
@@ -38,7 +39,7 @@ static void VariantTypeofFunction(DataChunk &input, ExpressionState &state, Vect
 				auto decimal_data = VariantUtils::DecodeDecimalData(variant, i, 0);
 				type_str = StringUtil::Format("DECIMAL(%d, %d)", decimal_data.width, decimal_data.scale);
 			}
-			result_data[i] = StringVector::AddString(result, type_str.c_str());
+			result_data.WriteValue(string_t(type_str.c_str()));
 			continue;
 		}
 
@@ -46,23 +47,21 @@ static void VariantTypeofFunction(DataChunk &input, ExpressionState &state, Vect
 			auto nested_data = VariantUtils::DecodeNestedData(variant, i, 0);
 			//! Find all the keys of the children of this object
 			auto object_keys = VariantUtils::GetObjectKeys(variant, i, nested_data);
+			std::sort(object_keys.begin(), object_keys.end());
 			type_str = StringUtil::Format("OBJECT(%s)", StringUtil::Join(object_keys, ", "));
 		} else {
 			D_ASSERT(type == VariantLogicalType::ARRAY);
 			auto nested_data = VariantUtils::DecodeNestedData(variant, i, 0);
 			type_str = StringUtil::Format("ARRAY(%d)", nested_data.child_count);
 		}
-		result_data[i] = StringVector::AddString(result, type_str.c_str());
-	}
-
-	if (input.AllConstant()) {
-		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+		result_data.WriteValue(string_t(type_str.c_str()));
 	}
 }
 
 ScalarFunction VariantTypeofFun::GetFunction() {
 	auto variant_type = LogicalType::VARIANT();
-	auto res = ScalarFunction("variant_typeof", {variant_type}, LogicalType::VARCHAR, VariantTypeofFunction);
+	auto res = ScalarFunction("variant_typeof", {}, LogicalType::VARCHAR, VariantTypeofFunction);
+	res.GetSignature().AddParameter("input_variant", variant_type);
 	res.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	return res;
 }

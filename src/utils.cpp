@@ -138,15 +138,13 @@ RStrings::RStrings() {
 }
 
 LogicalType RStringsType::Get() {
-	LogicalType r_string_type(LogicalTypeId::POINTER);
-	r_string_type.SetAlias(R_STRING_TYPE_NAME);
-	return r_string_type;
+	return LogicalType(LogicalTypeId::POINTER).WithAlias(R_STRING_TYPE_NAME);
 }
 
 template <class SRC, class DST, class RTYPE>
 static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 	auto result_data = FlatVector::GetData<DST>(result);
-	auto &result_mask = FlatVector::Validity(result);
+	auto &result_mask = FlatVector::ValidityMutable(result);
 	for (idx_t i = 0; i < count; i++) {
 		auto val = source_data[i];
 		if (RTYPE::IsNull(val)) {

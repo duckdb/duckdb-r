@@ -1,4 +1,5 @@
 #include "duckdb/common/exception/conversion_exception.hpp"
+#include "duckdb/main/database.hpp"
 #include "duckdb/common/encryption_key_manager.hpp"
 #include "duckdb/common/encryption_functions.hpp"
 #include "duckdb/main/attached_database.hpp"
@@ -65,15 +66,18 @@ string EncryptionEngine::AddKeyToCache(DatabaseInstance &db, data_ptr_t key) {
 	return key_id;
 }
 
+void EncryptionEngine::GenerateRandomKey(DatabaseInstance &db, data_ptr_t key, idx_t key_length) {
+	// key generation needs the read-write encryption util
+	auto metadata = make_uniq<EncryptionStateMetadata>(EncryptionTypes::GCM, key_length, EncryptionTypes::V0_1);
+	auto encryption_state = db.GetEncryptionUtil(false)->CreateEncryptionState(std::move(metadata));
+	encryption_state->GenerateRandomData(key, key_length);
+}
+
 void EncryptionEngine::AddTempKeyToCache(DatabaseInstance &db) {
 	//! Add a temporary key to the cache
 	const auto length = MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH;
 	data_t temp_key[length];
-
-	// we cannot generate temporary keys with read-only enabled
-	auto metadata = make_uniq<EncryptionStateMetadata>(EncryptionTypes::GCM, length, EncryptionTypes::V0_1);
-	auto encryption_state = db.GetEncryptionUtil(false)->CreateEncryptionState(std::move(metadata));
-	encryption_state->GenerateRandomData(temp_key, length);
+	GenerateRandomKey(db, temp_key, length);
 
 	string key_id = "temp_key";
 	AddKeyToCache(db, temp_key, key_id);
@@ -99,7 +103,7 @@ void EncryptionEngine::EncryptBlock(AttachedDatabase &attached_db, const string 
 
 	auto checksum_offset = block.InternalBuffer() + delta;
 	auto encryption_checksum_offset = block_offset_internal + delta;
-	auto size = block.size + Storage::DEFAULT_BLOCK_HEADER_SIZE;
+	auto size = block.Size() + Storage::DEFAULT_BLOCK_HEADER_SIZE;
 
 	//! encrypt the data including the checksum
 	auto aes_res = encryption_state->Process(checksum_offset, size, encryption_checksum_offset, size);

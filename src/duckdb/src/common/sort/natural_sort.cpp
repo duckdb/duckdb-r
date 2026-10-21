@@ -1,4 +1,5 @@
 #include "duckdb/common/sorting/natural_sort.hpp"
+#include "duckdb/common/mutex.hpp"
 #include "duckdb/common/types/column/column_data_collection.hpp"
 
 namespace duckdb {
@@ -34,7 +35,7 @@ public:
 	const NaturalSort &natural_sort;
 
 	//! Combined rows
-	mutable mutex lock;
+	mutable annotated_mutex lock;
 	HashGroupPtr hash_group;
 
 	// Threading
@@ -46,12 +47,8 @@ NaturalSortGlobalSinkState::NaturalSortGlobalSinkState(ClientContext &client, co
 }
 
 ProgressData NaturalSortGlobalSinkState::GetSinkProgress(ClientContext &client, const ProgressData source) const {
-	ProgressData result;
-	result.done = source.done / 2;
-	result.total = source.total;
-	result.invalid = source.invalid;
-
-	return result;
+	// there is nothing to sort
+	return source;
 }
 
 SinkFinalizeType NaturalSort::Finalize(ClientContext &client, OperatorSinkFinalizeInput &finalize) const {
@@ -105,7 +102,7 @@ SinkCombineResultType NaturalSort::Combine(ExecutionContext &context, OperatorSi
 	auto &lstate = combine.local_state.Cast<NaturalSortLocalSinkState>();
 
 	// Only one partition, so need a global lock.
-	lock_guard<mutex> glock(gstate.lock);
+	annotated_lock_guard<annotated_mutex> glock(gstate.lock);
 	auto &hash_group = gstate.hash_group;
 	if (hash_group) {
 		auto &unsorted = *hash_group->columns;
