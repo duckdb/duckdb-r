@@ -1,0 +1,85 @@
+# Copy the per-commit verdicts of the fork onto the same commits here, as
+# commit statuses with context `each-rcc (fork)`, for every open pull request
+# whose head is in the fork, so its commit list shows each commit's verdict and
+# links to the leg that decided it. The design, the watermark and the rate are
+# scripts/each-mirror.sh's; the place in the CI is
+# handbook/operations/ci/per-commit/upstream/README.md.
+#
+# Runs in the canonical repository only: a workflow in the fork cannot write a
+# status here with its own token, and this repository's own token can, reading
+# the fork's public `rcc2` branch with no secret at all.
+
+name: each-rcc-mirror
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      max-writes:
+        description: "Statuses this run posts at most"
+        type: string
+        default: ""
+      dry-run:
+        description: "Print the posts instead of sending them"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+# One run at a time, and a queued one waits rather than cancelling a run in the
+# middle of its paced writes.
+concurrency:
+  group: each-rcc-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    if: github.repository == 'duckdb/duckdb-r'
+
+    runs-on: ubuntu-26.04
+
+    name: "Copy the fork's verdicts onto open pull requests"
+
+    # MAX_WRITES posts PAUSE seconds apart, 37.5 minutes at the defaults, and
+    # the reads and fetches around them.
+    timeout-minutes: 55
+
+    steps:
+      # Commits only, and the scripts: a pull request's commits are read with
+      # `git rev-list`, which needs no trees.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          filter: tree:0
+          sparse-checkout: scripts
+
+      # The watermark: every record already confirmed on its commit. Restored
+      # from the newest run that saved one; losing it costs a read per hundred
+      # commits, never a status posted twice.
+      - uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/each-mirror
+          key: each-mirror-${{ github.run_id }}
+          restore-keys: each-mirror-
+
+      - name: Copy the verdicts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORK: krlmlr/duckdb-r
+          CONTEXT: each-rcc (fork)
+          STATE: ${{ runner.temp }}/each-mirror/state
+          MAX_WRITES: ${{ inputs.max-writes || '300' }}
+          PAUSE: "7.5"
+          DRY_RUN: ${{ inputs.dry-run && '1' || '' }}
+        run: scripts/each-mirror.sh
+        shell: bash
+
+      - uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: ${{ runner.temp }}/each-mirror
+          key: each-mirror-${{ github.run_id }}
