@@ -4,29 +4,19 @@
 
 - Update to DuckDB v2.0.0, see <https://github.com/duckdb/duckdb/releases/tag/v2.0.0> for details.
 
-- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
-
-- An error's `LINE` context underlines the whole offending token, not just its first character.
-
-- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
-
-- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
-
-- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE AS` makes a `NULL`-typed column of it.
-
-- The progress display is quiet past an Arrow stream's first batch.
+- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE ... AS` makes a `NULL`-typed column of it.
 
 - A `SELECT` that writes, one calling `nextval()` for instance, runs to completion before `dbSendQueryArrow()` returns rather than streaming.
-
-- A relational constant renders with a cast that keeps its type: `expr_constant(-42)` prints as `CAST(-42.0 AS DOUBLE)` rather than `-42.0`, and an empty typed list as `CAST("system".main.list_value() AS INTEGER[])` rather than `[]`.
-
-- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with "`file_name` must be a non-empty string." rather than the engine's I/O error.
 
 ## Features
 
 - `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
 
 - `TUPLE` columns read as data frames whose columns are named `element1`, `element2`, ... rather than left unnamed, and an empty `STRUCT` as a data frame without columns.
+
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
+
+- An error's `LINE` context underlines the whole offending token, not just its first character.
 
 ## Compatibility
 
@@ -38,7 +28,7 @@
 
 - A `POSIXct` or `difftime` halfway between two microseconds writes rounded to even, as `dbQuoteLiteral()` quotes it (#2887).
 
-- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0,
+- `dbExistsTable()` leaves an open transaction usable,
   and raises rather than returning `FALSE` in a transaction that has already failed
   or for a name that cannot be quoted, such as `NA` (#2892, #2893, #2896).
 
@@ -56,13 +46,20 @@
   a registered data frame is read without calling R,
   and a column that only R can read, such as a list or struct column of `rel_to_altrep()`, fails with an error that says what to do (#2965).
 
-- `expr_window()` passes an offset and a default to `lag()` and `lead()` only,
-  so with DuckDB 2.0 any other window function ignores both, as it did before, rather than failing to bind (#2951).
-
-- `rel_to_csv()` and `rel_to_parquet()` refuse `NA` as a file name, as they refuse an empty one, rather than writing a file called `NA` (#2952).
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name or `NA` with "`file_name` must be a non-empty string." rather than the engine's I/O error (#2952).
 
 - `slice_sample()` on a dbplyr lazy table draws its random key in a subquery,
   so it works with DuckDB 2.0, which refuses a window ordered by a random value (#2964).
+
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
+
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
+
+## Known issues
+
+- The progress display stops after the first batch of a result read as an Arrow stream
+  (`dbSendQueryArrow()` or `dbGetQueryArrow()`, then `$get_next()`).
+  The engine reports progress while it computes the first batch and treats the query as finished from then on (#2967).
 
 
 # duckdb 1.5.6
