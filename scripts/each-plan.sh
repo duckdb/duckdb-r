@@ -84,6 +84,8 @@ FLOOR_MINUTES="${FLOOR_MINUTES:-6}"
 OBJECT_SECONDS="${OBJECT_SECONDS:-9.7}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=series-lib.sh
+. "${here}/series-lib.sh"
 workdir="$(mktemp -d)"
 trap 'rm -rf "${workdir}"' EXIT
 
@@ -137,8 +139,7 @@ case "${branch}" in
     # commit (.claude/skills/series-rc/SKILL.md), so its world is everything above
     # its own seed, and without that bound the scan would reach into `main`.
     if [ -z "${retry}" ] && [ "${series%-rc}" != "${series}" ]; then
-      rc_seed="$(git log --first-parent --format=%H \
-        --grep='^chore: Add fifth version component$' -1 HEAD)"
+      rc_seed="$(series_seed_of HEAD)"
       if [ -z "${rc_seed}" ]; then
         echo "RC branch ${branch} has no seed -- planning nothing"
         plan_nothing
@@ -269,18 +270,19 @@ echo "To build: ${todo}"
 
 # ------------------------------------------------------------------ weigh ----
 # Cost per commit = fixed floor (link + install + R CMD check) plus the unity
-# objects the commit invalidates, which scripts/each-cost.py derives from the
-# include graph without building anything.
+# objects the commit invalidates, which the estimator scripts/series-config.sh
+# names (scripts/each-cost.py here) derives from the include graph without
+# building anything.
 if [ "${todo}" -gt 0 ]; then
   echo "Building the unity-object reach map..."
-  python3 "${here}/each-cost.py" map . > "${workdir}/cost-map.json"
+  "${series_cost_estimator[@]}" map . > "${workdir}/cost-map.json"
 
   while IFS= read -r sha; do
     files="$(git diff --name-only "${sha}^" "${sha}" -- 2>/dev/null | tr '\n' ' ' || true)"
     printf '%s %s\n' "${sha}" "${files}"
   done < "${workdir}/todo" > "${workdir}/changed"
 
-  python3 "${here}/each-cost.py" batch "${workdir}/cost-map.json" \
+  "${series_cost_estimator[@]}" batch "${workdir}/cost-map.json" \
     < "${workdir}/changed" > "${workdir}/objects"
 else
   : > "${workdir}/objects"

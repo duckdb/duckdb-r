@@ -70,8 +70,19 @@ and it is fixed on `main` in the flavor tooling or in the code the flavor touche
 
 The strand is derived, never vendored, repaired, ported or advanced on its own.
 
+**An rc commit has no retry ledger.**
+`retry-<S>-rc-dev` plans nothing, because the planner anchors a retry on a green and an rc strand has none
+([`operations/ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
+An rc commit red for the infrastructure's reasons is judged again by dispatching `each-rcc` on `<S>-rc-dev`
+with `force=true` and `max-commits` set to how many commits from the tip to replan, one for the tip alone;
+a red of the tree's is a fix on the source strand, which realigning re-mints.
+
 ## At cutover
 
-[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs and knows nothing of an rc strand.
-In the same session, cut `<S>-rc-dev` from the swapped-in `<S>` and delete `<S>-fwd-rc-dev`,
+[`scripts/series-cutover.sh`](/scripts/series-cutover.sh) swaps the four `<S>-fwd-*` refs
+and deletes `<S>-fwd-rc-dev` with them, since the strand is derived and its source is `<S>-dev` now;
+it cuts nothing.
+In the same session, cut `<S>-rc-dev` from the swapped-in `<S>`,
 so no rc strand outlives its source.
+A `<S>-fwd-rc-dev` the deletion could not remove is cutover litter, and
+[`scripts/series-prune.sh`](/scripts/series-prune.sh) lists it.

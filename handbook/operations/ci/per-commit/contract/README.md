@@ -33,8 +33,8 @@ How the to-do list is computed is
   A **run's conclusion is not a verdict**: a leg exits 0 whatever its commits
   did, deliberately, so that a red commit reads as a result rather than as a
   broken job.
-* **Gate applied per commit** — flavor, style, snapshots, roxygen, clean tree,
-  `R CMD check`, pkgdown. The *order* is the contract;
+* **Gate applied per commit** — warnings, flavor, style, snapshots, roxygen,
+  clean tree, `R CMD check`, pkgdown. The *order* is the contract;
   the list is `rcc-one.sh`'s `ALL_GATES`.
   The copy that runs is the **commit's own**, not the branch tip's:
   the leg resets the workspace before each commit, and the gate it then
@@ -44,6 +44,18 @@ How the to-do list is computed is
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
 * **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
   `workflow_call`.
+
+```mermaid
+flowchart LR
+  push["push to #60;S#62;-dev"] --> plan["plan: #60;S#62;-green..HEAD<br>minus what rcc2 has decided"]
+  plan --> legs["legs: one job per shard,<br>rcc-one.sh per commit"]
+  legs --> art["the run: artifact + job log"]
+  legs --> store["rcc2: one record and<br>one log per commit"]
+  store --> plan
+  art --> firing["a loop firing: reads the run first"]
+  store -.->|fallback| firing
+  store --> check["series-check.sh, series-advance.sh"]
+```
 
 The snapshot branches are load-bearing, so `rcc-one.sh` reproduces them
 rather than just leaving the accepted snapshots in the tree.

@@ -47,11 +47,13 @@ flavors:
     repo: duckdb/duckdb-r
     badges: [r-universe]
 
+  # Parked: `main` is taking the v2.0 line (.claude/skills/series-land/SKILL.md),
+  # and v1.5 releases from its own baseline from here on.
   - flavor: duckdb.1.5.dev
     kind: dev
     upstream: v1.5-variegata
     series: v1.5-variegata
-    releases_from: main
+    releases_from: v1.5-variegata
     publishes_from: v1.5-variegata-green
     repo: duckdb/duckdb-r
     badges: [r-universe]

@@ -9,10 +9,12 @@
 #pragma once
 
 #include "duckdb/common/common.hpp"
+#include "duckdb/common/exception.hpp"
 #include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/types/string_type.hpp"
 #include "duckdb/common/types/decimal.hpp"
 #include "duckdb/common/types/interval.hpp"
+#include "duckdb/common/vector/string_vector.hpp"
 #include "duckdb/common/types/hugeint.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
 #include "duckdb/common/types/vector.hpp"
@@ -34,7 +36,7 @@ public:
 	template <class SIGNED, class UNSIGNED>
 	static int SignedLength(SIGNED value) {
 		int sign = -(value < 0);
-		UNSIGNED unsigned_value = UnsafeNumericCast<UNSIGNED>((value ^ sign) - sign);
+		UNSIGNED unsigned_value = UNSIGNED(value ^ sign) + UNSIGNED(AbsValue(sign));
 		return UnsignedLength(unsigned_value) - sign;
 	}
 
@@ -61,12 +63,12 @@ public:
 	}
 
 	template <class T>
-	static string_t FormatSigned(T value, Vector &vector) {
+	static string_t FormatSigned(T value, StringHeap &heap) {
 		typedef typename MakeUnsigned<T>::type unsigned_t;
 		int8_t sign = -(value < 0);
 		unsigned_t unsigned_value = unsigned_t(value ^ T(sign)) + unsigned_t(AbsValue(sign));
 		auto length = UnsafeNumericCast<idx_t>(UnsignedLength<unsigned_t>(unsigned_value) + AbsValue(sign));
-		string_t result = StringVector::EmptyString(vector, length);
+		string_t result = heap.EmptyString(length);
 		auto dataptr = result.GetDataWriteable();
 		auto endptr = dataptr + length;
 		endptr = FormatUnsigned(unsigned_value, endptr);
@@ -104,7 +106,7 @@ template <>
 std::string NumericHelper::ToString(uhugeint_t value);
 
 template <>
-string_t NumericHelper::FormatSigned(hugeint_t value, Vector &vector);
+string_t NumericHelper::FormatSigned(hugeint_t value, StringHeap &heap);
 
 struct DecimalToString {
 	template <class SIGNED>
@@ -131,7 +133,7 @@ struct DecimalToString {
 		using UNSIGNED = typename MakeUnsigned<SIGNED>::type;
 		char *end = dst + len;
 		if (value < 0) {
-			value = -value;
+			value = static_cast<SIGNED>(-value);
 			*dst = '-';
 		}
 		if (scale == 0) {
@@ -161,9 +163,9 @@ struct DecimalToString {
 	}
 
 	template <class SIGNED>
-	static string_t Format(SIGNED value, uint8_t width, uint8_t scale, Vector &vector) {
+	static string_t Format(SIGNED value, uint8_t width, uint8_t scale, StringHeap &heap) {
 		int len = DecimalLength<SIGNED>(value, width, scale);
-		string_t result = StringVector::EmptyString(vector, NumericCast<size_t>(len));
+		string_t result = heap.EmptyString(NumericCast<size_t>(len));
 		FormatDecimal<SIGNED>(value, width, scale, result.GetDataWriteable(), UnsafeNumericCast<idx_t>(len));
 		result.Finalize();
 		return result;
@@ -174,15 +176,15 @@ template <>
 int DecimalToString::DecimalLength(hugeint_t value, uint8_t width, uint8_t scale);
 
 template <>
-string_t DecimalToString::Format(hugeint_t value, uint8_t width, uint8_t scale, Vector &vector);
+string_t DecimalToString::Format(hugeint_t value, uint8_t width, uint8_t scale, StringHeap &heap);
 
 template <>
 void DecimalToString::FormatDecimal(hugeint_t value, uint8_t width, uint8_t scale, char *dst, idx_t len);
 
 struct UhugeintToStringCast {
-	static string_t Format(uhugeint_t value, Vector &vector) {
+	static string_t Format(uhugeint_t value, StringHeap &heap) {
 		std::string str = value.ToString();
-		string_t result = StringVector::EmptyString(vector, str.length());
+		string_t result = heap.EmptyString(str.length());
 		auto data = result.GetDataWriteable();
 
 		memcpy(data, str.data(), str.length()); // NOLINT: null-termination not required
@@ -256,14 +258,20 @@ struct DateToStringCast {
 
 struct TimeToStringCast {
 	//! Format microseconds to a buffer of length 6. Returns the number of trailing zeros
-	static int32_t FormatMicros(int32_t microseconds, char micro_buffer[]) {
-		char *endptr = micro_buffer + 6;
+	static int32_t FormatMicros(int32_t microseconds, char micro_buffer[], int32_t nanos = 0) {
+		idx_t buf_len = 6;
+		if (nanos) {
+			microseconds *= 1000;
+			microseconds += nanos;
+			buf_len += 3;
+		}
+		char *endptr = micro_buffer + buf_len;
 		endptr = NumericHelper::FormatUnsigned<int32_t>(microseconds, endptr);
 		while (endptr > micro_buffer) {
 			*--endptr = '0';
 		}
 		idx_t trailing_zeros = 0;
-		for (idx_t i = 5; i > 0; i--) {
+		for (idx_t i = buf_len - 1; i > 0; i--) {
 			if (micro_buffer[i] != '0') {
 				break;
 			}
@@ -272,32 +280,37 @@ struct TimeToStringCast {
 		return UnsafeNumericCast<int32_t>(trailing_zeros);
 	}
 
-	static idx_t MicrosLength(int32_t micros, char micro_buffer[]) {
+	static idx_t MicrosLength(int32_t micros, char micro_buffer[], int32_t nanos = 0) {
 		// format is HH:MM:DD.MS
 		// microseconds come after the time with a period separator
 		idx_t length;
-		if (micros == 0) {
+		if (micros == 0 && nanos == 0) {
 			// no microseconds
 			// format is HH:MM:DD
 			length = 8;
 		} else {
 			length = 15;
+			if (nanos) {
+				length += 3;
+			}
 			// for microseconds, we truncate any trailing zeros (i.e. "90000" becomes ".9")
 			// first write the microseconds to the microsecond buffer
 			// we write backwards and pad with zeros to the left
 			// now we figure out how many digits we need to include by looking backwards
 			// and checking how many zeros we encounter
-			length -= NumericCast<idx_t>(FormatMicros(micros, micro_buffer));
+			length -= NumericCast<idx_t>(FormatMicros(micros, micro_buffer, nanos));
 		}
 		return length;
 	}
 
-	static idx_t Length(int32_t time[], char micro_buffer[]) {
-		return MicrosLength(time[3], micro_buffer);
+	static idx_t Length(int32_t time[], char micro_buffer[], int32_t nanos = 0) {
+		return MicrosLength(time[3], micro_buffer, nanos);
 	}
 
 	static void FormatTwoDigits(char *ptr, int32_t value) {
-		D_ASSERT(value >= 0 && value <= 99);
+		if (value < 0 || value > 99) {
+			throw InternalException("FormatTwoDigits called with out-of-range value %d", value);
+		}
 		if (value < 10) {
 			ptr[0] = '0';
 			ptr[1] = UnsafeNumericCast<char>('0' + value);
@@ -308,7 +321,7 @@ struct TimeToStringCast {
 		}
 	}
 
-	static void Format(char *data, idx_t length, int32_t hour, int32_t minute, int32_t second, int32_t microsecond,
+	static void Format(char *data, idx_t length, int32_t hour, int32_t minute, int32_t second, int32_t unused,
 	                   char micro_buffer[]) {
 		// first write hour, month and day
 		FormatTwoDigits(data, hour);

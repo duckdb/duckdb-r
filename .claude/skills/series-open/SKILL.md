@@ -62,7 +62,8 @@ until now.
    version in the series name.
 
    It writes `<S>-build` and `<S>-build-base` at `<P>-build`'s cut, `<S>-dev` and
-   `<S>-green` at `<P>-dev`'s. Local refs only; nothing is pushed until step 4.
+   `<S>-green` at `<P>-dev`'s, and `<S>-vendor` at `<P>-vendor`'s where the parent
+   has a vendor strand. Local refs only; nothing is pushed until step 4.
    No `-fwd` refs yet — a forward counterpart protects a green consumers are
    already reading, and nobody is reading this one. Step 5 creates them.
 
@@ -141,7 +142,7 @@ until now.
    and need a fresh r-universe registration every time
    ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
-4. **Push all four refs, together — and `<P>`'s two stamped strands with them.**
+4. **Push all four refs and the vendor strand together — and `<P>`'s two stamped strands with them.**
    `git push --atomic`, as `--next` spells it.
    Step 3 moved `<P>-build` and `<P>-dev` as well, and a pair that lands split
    is a pair whose prefixes differ, which is where the merge driver gives up. The loop discovers series from
@@ -220,8 +221,9 @@ until now.
    names the URL that triggers a sync, so it takes effect today rather than within
    six hours ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
-   Nothing else lives outside the refs: the loop discovers every series from them
-   and writes the mirror configuration too, from the same detection
+   Nothing else lives outside the refs: the loop discovers every series from them,
+   and reports the rule the mirror configuration is missing on the firing that sees a series change,
+   as a change to `main` like any other, since the script is read-only
    ([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
 
 8. **Register the new flavor with r-universe.**
@@ -310,6 +312,10 @@ That move is what earns the outgoing line a mirror and a rule, on the day it
 parks rather than on the day it was opened, and `pull-config.sh` reports it as
 soon as the badge base moves: step 7 arriving by itself rather than being
 remembered.
+The same `releases_from` freezes the line's R side: `scripts/series-port.sh`
+takes only the tooling sync for a line declared parked, which matters when the
+line parks because another one lands on `main`
+([`series-land`](/.claude/skills/series-land/SKILL.md)).
 
 What is left of the walk-backwards problem when `<S>` releases is
 [`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)'s:

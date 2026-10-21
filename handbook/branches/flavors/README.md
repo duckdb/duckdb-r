@@ -63,6 +63,9 @@ and `README.md` and `.github/README.md` are written from it
 ([`meta/handbook/`](/handbook/meta/handbook/README.md)),
 so the rename is spelled once rather than in three files kept in step
 by hand.
+Rendering them needs [`cynkratemplate`](https://github.com/cynkra/cynkratemplate), the output format `README.Rmd` names.
+It is not on CRAN, and `DESCRIPTION` does not list it, so `pak::pak()` leaves it out:
+install it from GitHub, `pak::pak("cynkra/cynkratemplate")`, before the first `flavor.sh` run.
 
 **Changing one flavor for another is a rename, not a second patch.**
 `flavor.sh` builds a flavor onto an unflavored tree and refuses one that
@@ -90,6 +93,27 @@ a reader on another flavor substitutes its name.
 
 ## Where r-universe is told
 
+A cutover, once the forward has caught up with the series it replaces.
+The universe is not in the picture: the entry's branch is `<S>-green` before and after:
+
+```mermaid
+sequenceDiagram
+  participant SL as series loop
+  participant H as a human
+  participant F as fork
+  participant C as duckdb/duckdb-r
+  SL->>H: CUTOVER line: #60;S#62;-fwd-green covers #60;S#62;-green
+  H->>H: series-cutover.sh #60;S#62; --prepare: coverage, convergence, review diff
+  H->>F: draft pull requests, closed at once: #60;S#62;-dev, #60;S#62;-build and #60;S#62;-vendor as they stand
+  H->>C: draft pull request, closed at once: the copy of #60;S#62;-green as it stands
+  H->>F: one atomic leased push: the four refs and the vendor strand take the forward's tips
+  H->>C: #60;S#62;-green forced to the new green, under a lease
+  H->>F: the -fwd refs, the rc and alpha strands and the ledger deleted
+  H->>C: #60;S#62;-fwd-green deleted
+  C-->>SL: r-universe builds #60;S#62;-green, now the forward's history
+  Note over SL,C: The replaced history is each closed pull request's head. What a refused deletion leaves, series-prune.sh lists
+```
+
 A universe is a repository of its own, `<user>/<user>.r-universe.dev`,
 whose `packages.json` gives each package a `url` and a `branch`.
 The registration lives outside this repo, so adding a flavor is a pull request
@@ -100,10 +124,13 @@ and [`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh) says it took.
 r-universe reads ownership from that URL, so a `duckdb.*` package built from the
 fork is published as the fork owner's.
 The `-green` refs are therefore mirrored from the fork into the canonical
-repository, which is the only branch that travels that way
+repository, every series' including the forward's, which is the only strand that travels that way
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
 The fork's own universe carries the `-fwd-green` refs and nothing else.
 A forward counterpart is a rebuild nobody installs, published only so a cutover
 can be verified across fifteen targets before it happens,
 so it belongs where it is built and not beside the flavor it will become.
+A cutover changes no entry in either universe:
+the branch names are static, and the swap puts the forward's history under the name the entry already holds
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)).

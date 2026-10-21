@@ -28,7 +28,8 @@ build (one job per shard, throttled by max-parallel)
        → capture the log, whole and per stage
        → on failure, quote each failed stage's tail into the job summary
        → publish record + log to the `rcc2` branch   ← seconds after the verdict
-     ... stops at its own deadline and defers the rest
+     ... stops at its own deadline and defers the rest,
+         a commit cut short after others among them
 ```
 
 The files:

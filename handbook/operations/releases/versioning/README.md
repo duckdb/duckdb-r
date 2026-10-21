@@ -58,9 +58,7 @@ Exempting the fifth component from the gate — taking the maximum counter
 across differing prefixes too — is declined
 ([#2488](https://github.com/duckdb/duckdb-r/issues/2488)):
 `main` has itself carried five-component versions,
-so the gate is what keeps a foreign counter off a `-dev`,
-and a forward rebuild reads its counter back from the merged
-`DESCRIPTION`, where a maximum would restore the old chain's numbering.
+so the gate is what keeps a foreign counter off a `-dev`.
 
 The prefix gate has a consequence worth knowing
 (it is the answer to

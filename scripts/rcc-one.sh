@@ -25,6 +25,7 @@
 #   | check                 | gate `check`                                    |
 #   | pkgdown-build         | gate `pkgdown`                                  |
 #   | pkgdown-deploy        | skipped upstream too (push only)                |
+#   | warnings (after-install) | gate `warnings`: the ridden install log and the glue scope |
 #
 # Outcome semantics mirror `rcc-smoke` exactly: every gate runs even when an
 # earlier one failed, and the exit status is the AND over all of them. That is
@@ -39,8 +40,14 @@
 #
 # Environment variables:
 #   EACH_GATES            - space-separated subset of
-#                           "style snapshots roxygen clean check pkgdown"
+#                           "warnings flavor style snapshots roxygen clean check pkgdown"
 #                           (default: all of them, parity with rcc-smoke)
+#   EACH_INSTALL_LOG      - where the install's output is kept for gate `warnings`
+#                           (default: a temporary file; set by this script for
+#                           the stage children it runs)
+#   EACH_WARNINGS_LOG     - where gate `warnings` keeps its verdict, which the
+#                           summary repeats at the very end of the run
+#                           (default and children: as EACH_INSTALL_LOG)
 #   EACH_SNAPSHOT_BRANCH  - publish the snapshot-<sha>-rcc-smoke-null branch when
 #                           the snapshots gate changed anything
 #                           (default: true under GITHUB_ACTIONS, false locally)
@@ -60,7 +67,7 @@
 
 set -uo pipefail
 
-ALL_GATES="flavor style snapshots roxygen clean check pkgdown"
+ALL_GATES="warnings flavor style snapshots roxygen clean check pkgdown"
 GATES="${EACH_GATES:-${ALL_GATES}}"
 SNAPSHOT_BRANCH="${EACH_SNAPSHOT_BRANCH:-${GITHUB_ACTIONS:-false}}"
 STAGE_DIR="${EACH_STAGE_DIR:-}"
@@ -74,6 +81,18 @@ CPR_MESSAGE="[create-pull-request] automated change"
 
 rscript_dir="$(mktemp -d)"
 trap 'rm -rf "${rscript_dir}"' EXIT
+
+# The install log, read by gate `warnings` below. A gate runs in a stage child
+# (run_stage), which re-enters this script with a temporary directory of its
+# own, so the path is handed down in the environment rather than kept in one.
+INSTALL_LOG="${EACH_INSTALL_LOG:-}"
+WARNINGS_LOG="${EACH_WARNINGS_LOG:-}"
+if [ -z "${INSTALL_LOG}" ] || [ -z "${WARNINGS_LOG}" ]; then
+  [ -n "${INSTALL_LOG}" ] || INSTALL_LOG="$(mktemp)"
+  [ -n "${WARNINGS_LOG}" ] || WARNINGS_LOG="$(mktemp)"
+  export EACH_INSTALL_LOG="${INSTALL_LOG}" EACH_WARNINGS_LOG="${WARNINGS_LOG}"
+  trap 'rm -rf "${rscript_dir}" "${INSTALL_LOG}" "${WARNINGS_LOG}"' EXIT
+fi
 
 # How a bounded stage re-enters this script; see run_stage. Resolved before
 # anything can change directory, so the child is found from wherever it runs.
@@ -173,6 +192,7 @@ stage_budget() {
   fi
   case "$1" in
     install) echo 3600 ;;    # cold ccache, no reuse at all
+    warnings) echo 900 ;;    # reads the install log, then compiles the glue
     flavor) echo 300 ;;      # a base-R scan of the checkout
     style) echo 600 ;;
     snapshots) echo 3600 ;;  # the full test suite
@@ -277,9 +297,19 @@ rscript() {
 # A stage child is on its way to one gate and the package is already installed;
 # reinstalling it here would cost the parent's whole budget before the gate it
 # was called for even started.
+#
+# The vendored half of the compiler-warning gate (handbook/build/warnings/
+# README.md) rides this install, as `after-install` rides the one in the
+# vendored-build entry: `warnings.sh ride` puts the vendored warning flags on
+# this one command, keeps its log, and judges it. It exits non-zero for a build
+# that warned as well as for one that failed, and only the second ends the
+# commit here: an install that reached DONE installed, and gate `warnings`
+# below reads the log and fails the commit for what it says.
 if [ -z "${STAGE_ONLY}" ]; then
   echo "::group::install"
-  if ! run_stage install env _R_SHLIB_STRIP_=true R CMD INSTALL .; then
+  if ! run_stage install scripts/warnings.sh ride vendored "${INSTALL_LOG}" -- \
+      env _R_SHLIB_STRIP_=true R CMD INSTALL . &&
+    ! grep -q '^\* DONE (' "${INSTALL_LOG}"; then
     note_stage install failure
     echo "::endgroup::"
     echo "install: failure -- skipping the remaining gates"
@@ -291,6 +321,35 @@ if [ -z "${STAGE_ONLY}" ]; then
 fi
 
 # -------------------------------------------------------------------- gates --
+
+# ----------------------------------------------------------------- warnings --
+# Both halves of the compiler-warning gate (handbook/build/warnings/README.md),
+# as `after-install` applies them on `main`: the vendored scope, judged on the
+# log of the install above, which ran with the vendored flags on it, and the
+# glue scope, compiled here with its own flags. A warning the engine raises is
+# answered by a patch under patch/, one the glue raises by a fix to the glue;
+# neither was seen by this gate before, which is how the v2.0 landing reached
+# `main`'s check with 14 vendored warnings after 2,160 green per-commit
+# verdicts.
+#
+# The verdict is kept in WARNINGS_LOG as well, and the summary at the end of
+# the run prints it again: the verdict store keeps a commit's log by its tail,
+# and the check gate alone outruns that tail, so a listing printed here only
+# would be gone from the record exactly when someone needs to read it.
+gate_warnings() {
+  local rc=0
+  : > "${WARNINGS_LOG}"
+  if [ -s "${INSTALL_LOG}" ]; then
+    scripts/warnings.sh scan vendored "${INSTALL_LOG}" 2>&1 | tee -a "${WARNINGS_LOG}"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || rc=1
+  else
+    echo "warnings: no install log at ${INSTALL_LOG}, so the vendored scope is not judged" | tee -a "${WARNINGS_LOG}" >&2
+    rc=1
+  fi
+  scripts/warnings.sh glue 2>&1 | tee -a "${WARNINGS_LOG}"
+  [ "${PIPESTATUS[0]}" -eq 0 ] || rc=1
+  return "${rc}"
+}
 
 # The half of `.github/workflows/custom/after-install/action.yml`'s flavor-rename
 # guard that only a flavored checkout can answer.
@@ -537,7 +596,7 @@ if [ -n "${STAGE_ONLY}" ]; then
   exit $?
 fi
 
-for gate in flavor style snapshots roxygen clean check pkgdown; do
+for gate in warnings flavor style snapshots roxygen clean check pkgdown; do
   run_gate "${gate}"
 done
 
@@ -553,5 +612,12 @@ for i in "${!names[@]}"; do
   esac
   printf '| %s | %s %s |\n' "${names[$i]}" "${icon}" "${outcomes[$i]}"
 done
+
+# Gate `warnings` once more, last, where a log kept by its tail still has it.
+if [ -s "${WARNINGS_LOG}" ]; then
+  echo
+  echo "gate warnings, repeated:"
+  cat "${WARNINGS_LOG}"
+fi
 
 exit "${status}"

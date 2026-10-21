@@ -27,6 +27,8 @@
 set -euo pipefail
 # A failure inside `$(...)` stops the run too, rather than minting an empty SHA.
 shopt -s inherit_errexit
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-rc.sh <S> [--remote <name>] [--push]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -55,8 +57,7 @@ git rev-parse -q --verify "refs/remotes/$remote/$S-dev" >/dev/null ||
 subject() { git log -1 --format=%s "$1"; }
 
 # The seed tip, the flavor pair under it, and the `main` commit under that.
-seed=$(git log --first-parent --format=%H --grep='^chore: Add fifth version component$' -1 \
-  "refs/remotes/$remote/$S-dev")
+seed=$(series_seed_of "refs/remotes/$remote/$S-dev")
 [ -n "$seed" ] || { echo "Error: no seed on $S-dev" >&2; exit 1; }
 case "$(subject "$seed~1")" in "chore: Update version to "*) ;; *) bad=1 ;; esac
 case "$(subject "$seed~2")" in "chore: Update flavor patch to "*) ;; *) bad=1 ;; esac
@@ -76,11 +77,11 @@ git diff --binary "$base" "$seed~1" -- . ':(exclude)DESCRIPTION' ':(exclude)scri
 export GIT_INDEX_FILE="$work/index"
 
 # The flavor's names, spelled back: `duckdb.2.0.dev` and `duckdb_2_0_dev`.
-dotted="duckdb.$flavor"
-underscored="duckdb_${flavor//./_}"
-unname() { sed -e "s/${dotted//./\\.}/duckdb/g" -e "s/$underscored/duckdb/g"; }
+dotted="$series_package.$flavor"
+underscored="${series_package}_${flavor//./_}"
+unname() { sed -e "s/${dotted//./\\.}/$series_package/g" -e "s/$underscored/$series_package/g"; }
 # flavor.sh's template spells the flavor `1.3`, and every flavor is written from it.
-untemplate() { sed -e "s/${dotted//./\\.}/duckdb.1.3/g" -e "s/$underscored/duckdb_1_3/g"; }
+untemplate() { sed -e "s/${dotted//./\\.}/$series_package.1.3/g" -e "s/$underscored/${series_package}_1_3/g"; }
 
 # <source commit> -> the tree of its unflavored twin
 unflavored_tree() {
@@ -98,7 +99,7 @@ unflavored_tree() {
       git update-index --cacheinfo "100644,$blob,$f"
     done
   fi
-  blob=$(git show "$c:DESCRIPTION" | sed "s/^Package: ${dotted//./\\.}\$/Package: duckdb/" |
+  blob=$(git show "$c:DESCRIPTION" | sed "s/^Package: ${dotted//./\\.}\$/Package: $series_package/" |
     git hash-object -w --stdin)
   git update-index --cacheinfo "100644,$blob,DESCRIPTION"
   blob=$(git show "$c:scripts/flavor.patch" | untemplate | git hash-object -w --stdin)

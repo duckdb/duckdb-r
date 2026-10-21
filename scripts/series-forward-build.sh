@@ -1,7 +1,7 @@
 #!/bin/bash
-# Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build`
-# onto HEAD, which must be the freshly flavored seed on current `main`
-# (.claude/skills/series-forward/SKILL.md).
+# Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-dev`,
+# and then of the old `<S>-build` above it, onto HEAD, which must be the
+# freshly flavored seed on current `main` (.claude/skills/series-forward/SKILL.md).
 #
 # The replay is a cherry-pick, not a tree reconstruction. A vendor commit's diff
 # is exactly what vendoring changed -- `src/duckdb/`, the version bookkeeping,
@@ -10,19 +10,52 @@
 # deleted, tooling `main` gained comes along, and glue born on a `-dev` branch
 # rides in the commit that needed it.
 #
+# **The source is `-dev`, so the forward keeps what the base series proved.** A
+# `-dev` vendor commit carries the R-side fix CI demanded for it, folded in by
+# the loop's repair stage; its `-build` twin carries only what the glue gate
+# demanded, which is what it needs to compile. Replaying `-build` rebuilt the
+# first half and left the second to be rediscovered, one red commit at a time
+# (`v2.0-cyanoptera-fwd`: 2160 commits, 63 of them reached by the carry, the
+# rest re-solved or lost, duckdb/duckdb-r#2900). Replaying `-dev` makes each
+# forward commit's tree the old, verified tree plus `main`'s delta since the old
+# seed, and the only new work is where that delta meets the series: the glue
+# gate below, and per-commit CI afterwards. The base's buffer runs ahead of its
+# `-dev`, and `--buffer` names it: its vendor commits above the newest upstream
+# commit `-dev` vendors are replayed after `-dev`'s, which is where the loop's
+# carry (scripts/series-advance.sh, stage 5) still has work to do.
+#
+# **A pick never stops a test the seed runs.** The seed carries `main`'s tests,
+# and a `-dev` commit folded at a rewind may delete one or skip it for good,
+# where its engine could not pass it; a series never does that
+# (handbook/operations/vendoring/series-loop/README.md). So a path under
+# `tests/` whose pick would take a test away keeps what HEAD has, read by
+# scripts/series-tests.sh as stage 5 reads a carry, and the commit message names
+# it; an engine gate carries like any fix. CI then judges the commit, and a red
+# there is gated in the loop's repair stage. `--no-keep-tests` turns this off,
+# for a landing, whose own gate refuses a lost test with the series named.
+#
 # Only `vendor:` subjects are replayed. Most of the others are `main`'s, which
 # the regenerated seed already carries -- on a `-dev` branch as ports, and on a
-# `-build` branch as the merges that advance the buffer's base. What is left is
-# the buffer's own, chiefly the `patch/` entries stage 3 requires. So a
-# non-vendor commit above the first vendor commit is checked rather than
-# assumed: if the new base does not already carry its change, the run refuses to
-# start and names it, because replaying the vendor commits above it would
-# succeed and leave its effect silently missing (duckdb/duckdb-r#2545).
-# `--placed` is how the caller says a commit has been dealt with; where such a
-# change belongs is handbook/operations/vendoring/troubleshooting/README.md.
+# `-build` branch as the merges that advance the buffer's base. Two kinds say so
+# themselves and are placed by it: a port names the `main` commit it was picked
+# from (scripts/series-port.sh picks with -x), and one the seed descends from is
+# in the seed by ancestry, the one test that cannot be wrong; a tooling sync
+# changes only what `main` holds newer, and series-port.sh writes its subject.
+# What is left is the buffer's own, chiefly the `patch/` entries stage 3
+# requires, and a `-dev` commit a repair made by hand. So a non-vendor commit
+# above the first vendor commit is checked rather than assumed: if the new base
+# does not already carry its change, the run refuses to start and names it,
+# because replaying the vendor commits above it would succeed and leave its
+# effect silently missing (duckdb/duckdb-r#2545). `--placed` is how the caller
+# says a commit has been dealt with; where such a change belongs is
+# handbook/operations/vendoring/troubleshooting/README.md.
 #
 # The fifth version component is renumbered as a true counter, one per replayed
 # commit, so it counts this chain rather than carrying the old one's numbering.
+# A landing replays onto `main` itself, whose version is `main`'s own, so
+# `--prefix` names the prefix to stamp, and the counter starts at zero on any
+# HEAD that does not carry that prefix yet (scripts/series-land.sh); a resumed
+# landing reads both back from HEAD.
 #
 # The foot of the range is read from the trees rather than taken on trust, so a
 # new seed vendoring a newer release than the old one needs no hand work:
@@ -43,11 +76,18 @@
 # `git add`, and rerun; the counter and the remaining picks are derived from
 # HEAD, so the replay continues where it stopped.
 #
-# Usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]...
-#                                [--graft-from <ref>]
+# Usage: series-forward-build.sh <old-ref> <old-base-ref> [--buffer <old-build>]
+#                                [--placed <sha>]... [--graft-from <ref>]
+#                                [--prefix <a.b.c.d>] [--no-check-glue] [--no-keep-tests]
+#   old-ref is the strand whose vendor commits are replayed: the base series'
+#   `<S>-dev` for a forward, its rc strand for a landing (scripts/series-land.sh).
 #   old-base-ref only delimits the replay range; it has to sit below the oldest
 #   vendor commit to replay, and nothing else is read from it. The old seed's
 #   base is always right: the script finds where the replay starts.
+#   --buffer names the base series' `<S>-build`, whose vendor commits above the
+#   newest upstream commit old-ref vendors are replayed after old-ref's. It is
+#   refused when no commit of the buffer vendors that commit, which is a fold
+#   made on `-dev` and not mirrored onto `-build`.
 #   --placed names a non-vendor commit whose change has been dealt with, once
 #   per commit. The acknowledgement is remembered for the rest of the replay,
 #   so a resumed run does not need it again.
@@ -55,10 +95,17 @@
 #   the range was cut for (graft_pick), `v2.0-cyanoptera-fwd-build` for `main`.
 #   Required when the range stands on a graft, and refused otherwise.
 #   --no-check-glue skips the glue gate (glue_gate), as vendor-one.sh's does.
+#   --no-keep-tests lets a pick take a test away that HEAD runs (keep_tests).
+#   --prefix is the four-component version to stamp; the counter restarts at
+#   zero unless HEAD already carries that prefix.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
+# shellcheck source=vendor-lib.sh
+. "$(dirname "$0")/vendor-lib.sh"
 
-usage='usage: series-forward-build.sh <old-build-ref> <old-base-ref> [--placed <sha>]... [--graft-from <ref>] [--no-check-glue]'
+usage='usage: series-forward-build.sh <old-ref> <old-base-ref> [--buffer <old-build>] [--placed <sha>]... [--graft-from <ref>] [--prefix <a.b.c.d>] [--no-check-glue] [--no-keep-tests]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 # It names two refs rather than a series, so it takes no --remote; the options
@@ -66,13 +113,19 @@ argerr() { echo "$usage" >&2; exit 2; }
 # (handbook/operations/vendoring/series-loop/README.md).
 PLACED_ARGS=()
 GRAFT_FROM=
+PREFIX=
+BUFFER=
 CHECK_GLUE=true
+KEEP_TESTS=true
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --placed) [ $# -ge 2 ] || argerr; PLACED_ARGS+=("$2"); shift 2 ;;
     --graft-from) [ $# -ge 2 ] || argerr; GRAFT_FROM=$2; shift 2 ;;
+    --prefix) [ $# -ge 2 ] || argerr; PREFIX=$2; shift 2 ;;
+    --buffer) [ $# -ge 2 ] || argerr; BUFFER=$2; shift 2 ;;
     --no-check-glue) CHECK_GLUE=false; shift ;;
+    --no-keep-tests) KEEP_TESTS=false; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
@@ -82,12 +135,15 @@ done
 OLD=${args[0]}
 OLDBASE=${args[1]}
 
+# The scripts beside this one, read before the `cd` below moves away from them.
+here=$(cd "$(dirname "$0")" && pwd)
+
 # The tree to replay into, the same knob vendor-one.sh takes; see series-glue.sh.
 toplevel=${VENDOR_REPO:-$(git rev-parse --show-toplevel 2>/dev/null || true)}
 [ -n "$toplevel" ] || { echo "Error: $PWD is not a git worktree" >&2; exit 1; }
 cd "$toplevel"
 
-for r in "$OLD" "$OLDBASE" ${GRAFT_FROM:+"$GRAFT_FROM"}; do
+for r in "$OLD" "$OLDBASE" ${GRAFT_FROM:+"$GRAFT_FROM"} ${BUFFER:+"$BUFFER"}; do
   git rev-parse -q --verify "$r^{commit}" >/dev/null ||
     { echo "Error: $r is not a commit"; exit 1; }
 done
@@ -95,35 +151,43 @@ done
 git config --get merge.ours-version.driver >/dev/null ||
   { echo "Error: merge driver not registered, run scripts/setup-git.sh"; exit 1; }
 
-version() { sed -rn 's/^Version: (.*)$/\1/p' DESCRIPTION; }
+# Read from HEAD, never from the working tree: a pick stopped on a conflict has
+# already merged `DESCRIPTION` there, and the `ours-version` driver takes the
+# larger counter of the two sides, so resuming from the file stamped the
+# resolved commit one number too high.
+version() { git show HEAD:DESCRIPTION | sed -rn 's/^Version: (.*)$/\1/p'; }
 
 # The counter is state, read back from the tree: the seed stamps `.0` and every
 # replayed commit stamps the next number, so HEAD says how far the replay got.
 prefix=$(version | sed -rn 's/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
 n=$(version | sed -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
+# `main` has carried five components of its own, and a counter read off them
+# would continue `main`'s numbering rather than start the landing's.
+if [ -n "$PREFIX" ] && [ "$prefix" != "$PREFIX" ]; then
+  [[ "$PREFIX" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+    { echo "Error: --prefix $PREFIX is not four version components"; exit 2; }
+  prefix=$PREFIX
+  n=0
+fi
 [ -n "$prefix" ] ||
   { echo "Error: HEAD's DESCRIPTION has no five-component version (seed the series first)"; exit 1; }
 
-upstream_sha() { git log -1 --format=%s "$1" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p'; }
+upstream_sha() { series_sha_of "$(git log -1 --format=%s "$1")"; }
 
-# The engine a tree vendors, as the tree itself records it: the abbreviated
-# upstream SHA the vendored `pragma_version.cpp` carries. Read from the tree
-# rather than from a subject because the commits that matter here -- a seed, a
-# graft -- vendor nothing and name no SHA.
-engine() {
-  git show "$1:src/duckdb/src/function/table/version/pragma_version.cpp" 2>/dev/null |
-    sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p'
-}
+# The engine a tree vendors, as the tree itself records it (scripts/series-config.sh).
+# Read from the tree rather than from a subject because the commits that matter
+# here -- a seed, a graft -- vendor nothing and name no SHA.
+engine() { series_engine_of "$1"; }
 
 # The vendored strand a rewinding pick takes whole (see rewind_pick): the
-# engine's tree, the patch stack applied to it, and the two files generated
-# from nothing but that tree. The Makevars are generated as well, but from
+# engine's tree, the patch stack applied to it, and the files generated from
+# nothing but that tree. The Makevars are generated as well, but from
 # `src/Makevars.in`, which is `main`'s, so they travel as a diff.
-STRAND=(src/duckdb patch R/version.R src/include/sources.mk)
+STRAND=("${series_strand[@]}")
 
 # The glue gate: the check vendor-one.sh runs after every vendor commit
-# (glue_compiles() there), syntax-checking the glue against the vendored
-# headers. The replay needs it for a reason vendoring never had. The old buffer
+# (glue_compiles() in scripts/vendor-lib.sh), syntax-checking the glue against
+# the vendored headers. The replay needs it for a reason vendoring never had. The old buffer
 # was gated against the glue of *its* seed, and the new seed brings `main`'s
 # glue as it is today, written against today's release: at the foot of a
 # rewind it meets an engine older than the calls it makes, and further up an
@@ -141,41 +205,28 @@ GLUE_STATE="$(git rev-parse --git-dir)/series-forward-glue"
 GLUE_BROKEN="$(git rev-parse --git-dir)/series-forward-glue-broken"
 glue_failures="$(git rev-parse --git-dir)/series-forward-glue-failures"
 
-glue_compile_flags() {
-  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
-  (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-    grep -m 1 -E -- '-c cpp11\.cpp' |
-    sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
-}
-
-glue_compiles() { # 0 compiles, 1 some file does not, 2 the check could not run
-  local flags
-  flags=$(glue_compile_flags)
-  [ -n "$flags" ] || return 2
-  (cd src && printf '%s\n' *.cpp | FLAGS="$flags" xargs -P "$(nproc 2>/dev/null || echo 4)" -I{} \
-    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
-    tee "$glue_failures" |
-    { ! grep -q .; }
-}
-
 touches_strand() { git show --format= --name-only "$1" -- "${STRAND[@]}" | grep -q .; }
 
+# Compiled glue: a source or a header under `src/` outside the vendored tree
+# and the stamp beside it, generated or not, because a generated binding is
+# glue the gate compiles.
 touches_glue() {
-  git show --format= --name-only "$1" -- src ':(exclude)src/duckdb' \
-    ':(exclude)src/include/sources.mk' ':(exclude)src/Makevars' ':(exclude)src/Makevars.win' | grep -q .
+  git show --format= --name-only "$1" -- src ":(exclude)$series_scan_dir" |
+    grep -qE '\.(c|cc|cpp|cxx|h|hh|hpp)$'
 }
 
 glue_gate() { # <why>
   [ "$CHECK_GLUE" = true ] || return 0
   local st=0 last=
-  glue_compiles || st=$?
+  glue_compiles "$glue_failures" || st=$?
   case "$st" in
     0) git rev-parse HEAD > "$GLUE_STATE"; rm -f "$GLUE_BROKEN"; return 0 ;;
     2)
       echo "Error: the glue check could not run at $(git rev-parse --short HEAD) ($1):"
-      echo "  deriving the compile flags needs src/Makevars.rstrtmgr, which ./configure writes;"
+      echo "  deriving the compile flags needs the Makevars ./configure completes${series_configured_file:+ ($series_configured_file)};"
       echo "  run ./configure and read its output, or pass --no-check-glue"
-      exit 6
+      # The same status vendor-one.sh gives the same stop.
+      exit 8
       ;;
   esac
   [ -f "$GLUE_STATE" ] && last=$(git rev-parse --short "$(cat "$GLUE_STATE")")
@@ -188,6 +239,11 @@ glue_gate() { # <why>
   echo "'R-side fix' section, replay anything above it, and rerun this script."
   exit 3
 }
+
+# What a resumed replay dedupes on: the upstream SHA, and the `(tag ...)` marker
+# beside it, because a late tag is re-stamped by a second vendor commit for the
+# same SHA (scripts/VENDORING.md) and the SHA alone would skip that one.
+upstream_key() { series_twin_key "$(git log -1 --format=%s "$1")"; }
 
 # `git cherry-pick -n` leaves no CHERRY_PICK_HEAD, so the in-flight pick is
 # recorded here instead; it is what makes a stopped replay resumable.
@@ -221,24 +277,84 @@ placed() { [ -f "$PLACED" ] && grep -qx "$1" "$PLACED"; }
 #     commit);
 #   * patch-id equality against what the new base gained -- about the change,
 #     so it holds when the file has moved on since and the context no longer
-#     matches (the jemalloc filter in `scripts/rconfigure.py`).
+#     matches (the original jemalloc source-list filter in
+#     `scripts/rconfigure.py`).
 #
 # `git cherry` marks a commit `-` when the base carries an equivalent patch.
 CHERRY=$(git cherry HEAD "$OLD" "$OLDBASE" 2>/dev/null | sed -n 's/^- //p' || true)
+if [ -n "$BUFFER" ]; then
+  CHERRY+=$'\n'$(git cherry HEAD "$BUFFER" "$OLDBASE" 2>/dev/null | sed -n 's/^- //p' || true)
+fi
 in_base() {
   git merge-base --is-ancestor "$1" HEAD 2>/dev/null && return 0
   git show --format= "$1" | git apply --reverse --check - 2>/dev/null && return 0
   grep -qx "$1" <<<"$CHERRY"
 }
 
+# A pick never stops a test HEAD runs. The seed is `main`'s tests, a `-dev`
+# commit folded at a rewind may delete one or skip it for good, and a series
+# never does that (handbook/operations/vendoring/series-loop/README.md): the
+# base's later restore is a commit of its own that no replay of vendor commits
+# takes, which is how `tests/testthat/test-variant.R` left `v2.0-cyanoptera-fwd`
+# (duckdb/duckdb-r#2899). So the staged pick is read against HEAD the way stage 5
+# reads a carry (scripts/series-advance.sh), and a path whose pick would take a
+# test away keeps HEAD's copy; an engine gate re-arms its test by itself and
+# stays. The kept paths are named on stdout and in the commit's message, so CI's
+# red there, if the engine really cannot pass the test, is gated in the loop's
+# repair stage rather than puzzled over.
+KEPT=()
+keep_tests() { # <source commit>
+  KEPT=()
+  [ "$KEEP_TESTS" = true ] || return 0
+  local tpaths=() out='' st=0 p
+  mapfile -t tpaths < <(git diff --cached --name-only -- tests)
+  [ ${#tpaths[@]} -gt 0 ] || return 0
+  out=$("$here/series-tests.sh" HEAD "$(git write-tree)" --porcelain -- "${tpaths[@]}") || st=$?
+  if [ "$st" -gt 1 ]; then
+    echo "Error: could not read what the pick of $(git rev-parse --short "$1") does to the tests" >&2
+    exit 1
+  fi
+  mapfile -t KEPT < <(awk -F'\t' '$1 ~ /^(deleted|block|snapshot|skip)$/ { print $2 }' <<<"$out" | sort -u)
+  for p in ${KEPT+"${KEPT[@]}"}; do
+    git checkout -q HEAD -- "$p"
+    echo "  kept $p as $(git rev-parse --short HEAD) has it: the pick of $(git rev-parse --short "$1")" \
+      "would stop a test there"
+  done
+}
+
 # Stamp the counter and commit the picked tree, keeping the original message and
-# author; only the committer changes, as on any replay.
+# author; only the committer changes, as on any replay. A test the pick was not
+# allowed to take away is named in a paragraph of its own, as stage 5 names one.
 commit_pick() {
+  keep_tests "$1"
   n=$((n + 1))
   sed -i -r "s/^(Version: ).*$/\1$prefix.$n/" DESCRIPTION
   git add DESCRIPTION
   git commit -q --no-verify -C "$1"
+  if [ ${#KEPT[@]} -gt 0 ]; then
+    { git log -1 --format=%B HEAD
+      echo "Not replayed, because it would stop a test the base runs:"
+      for p in "${KEPT[@]}"; do echo "\`$p\`"; done
+    } | git commit -q --no-verify --amend -F -
+  fi
   rm -f "$STATE"
+}
+
+# Two kinds of non-vendor commit say they are `main`'s, and are placed by it
+# rather than by the content tests below, which a port resolved by hand defeats:
+# a port names the `main` commit it was picked from (series-port.sh picks with
+# -x), and one that HEAD descends from is in HEAD by ancestry; a tooling sync
+# changes only what `main` holds newer, and series-port.sh writes the subject.
+# What a by-hand resolution changed beyond `main`'s commit is in the old
+# strand's tree and not in the replay's, which is a difference for the caller
+# to read (scripts/series-converge.sh, scripts/series-land.sh).
+placed_by_rule() { # <commit> <subject>
+  local from
+  case "$2" in
+    "chore(series): Sync tooling with main" | "chore(series): Sync buffer tooling with main") return 0 ;;
+  esac
+  from=$(git log -1 --format=%B "$1" | sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p' | tail -n 1)
+  [ -n "$from" ] && git merge-base --is-ancestor "$from" HEAD 2>/dev/null
 }
 
 conflict_stop() {
@@ -308,8 +424,9 @@ graft_source() {
   local e=$1 base c subj seed='' f='' inside=''
   base=$(git merge-base "$GRAFT_FROM" HEAD) || return 0
   while IFS=$'\t' read -r c subj; do
+    # shellcheck disable=SC2254
     case "$subj" in
-      vendor:*)
+      vendor:* | $series_vendor_glob)
         [ -n "$seed" ] || seed=$(git rev-parse "$c~1")
         [ -n "$inside" ] && break
         [[ "$(upstream_sha "$c")" == "$e"* ]] && { f=$c; inside=1; }
@@ -327,11 +444,12 @@ graft_pick() { # <graft> <commit vendoring its engine on GRAFT_FROM> <that buffe
 }
 
 commit_graft() { # <graft> <commit vendoring its engine on GRAFT_FROM> <seed tip> <GRAFT_FROM>
+  keep_tests "$1"
   n=$((n + 1))
   sed -i -r "s/^(Version: ).*$/\1$prefix.$n/" DESCRIPTION
   git add DESCRIPTION
   git commit -q --no-verify -F - <<MSG
-vendor: Update vendored sources to duckdb/duckdb@$(upstream_sha "$2")
+vendor: Update vendored sources to $series_upstream_repo@$(upstream_sha "$2")
 
 The fork point, which the old buffer held as a graft,
 \`$(git log -1 --format=%s "$1")\` ($(git rev-parse --short "$1")),
@@ -369,7 +487,7 @@ fi
 [ -f "$GLUE_BROKEN" ] && glue_gate "the amend of a broken commit"
 
 # Everything already replayed sits in the last $n commits, one per counter step.
-DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_sha "$c"; done | tr '\n' ' ')"
+DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_key "$c"; done | tr '\n' ' ')"
 
 # What HEAD already vendors is not replayed, and neither is anything below it.
 # A range may start above the old base where the new base vendors the commit it
@@ -378,32 +496,64 @@ DONE=" $(git log -n "$n" --format=%H HEAD | while read -r c; do upstream_sha "$c
 # resumed replay, where DONE already says the same.
 base_engine=$(engine HEAD)
 
+# The commits to walk, oldest first: the old strand's above the old base, and
+# then, with --buffer, the buffer's above the commit equivalent to the newest
+# vendor commit the old strand carries. That equivalence is by upstream SHA,
+# the key the loop reads state by (scripts/series-advance.sh), and a strand
+# whose newest vendor commit has no buffer twin is one where a fold was made on
+# `-dev` and not mirrored, which the loop's stage 5 refuses on the same grounds.
+# A strand with no vendor commit of its own, a fresh `-dev`, takes the whole
+# buffer.
+walk() {
+  git log --reverse --format='%H%x09%s' "$OLDBASE..$OLD"
+  [ -n "$BUFFER" ] || return 0
+  local subj top anchor
+  subj=$(git log --format=%s "$OLDBASE..$OLD" | grep -m 1 -E "$series_marker_ere" || true)
+  top=$(series_sha_of "$subj")
+  if [ -z "$top" ]; then
+    git log --reverse --format='%H%x09%s' "$OLDBASE..$BUFFER"
+    return 0
+  fi
+  anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 -F "@$top" | cut -d' ' -f1 || true)
+  if [ -z "$anchor" ]; then
+    echo "Error: no commit of $BUFFER vendors $(series_marker_of "$subj"), the newest commit $OLD vendors;" >&2
+    echo "  mirror the fold onto the buffer first (.claude/skills/series-loop/SKILL.md, stage 2)" >&2
+    exit 1
+  fi
+  git log --reverse --format='%H%x09%s' "$anchor..$BUFFER"
+}
+walked=$(mktemp)
+walk > "$walked"
+
 PICKS=()
 OWN=()
 seen_vendor=
 foot=''
 while IFS=$'\t' read -r c subj; do
+  # shellcheck disable=SC2254
   case "$subj" in
-    vendor:*)
+    vendor:* | $series_vendor_glob)
       [ -n "$seen_vendor" ] || foot=$(git rev-parse "$c~1")
       seen_vendor=1
       if [ -n "$base_engine" ] && [[ "$(upstream_sha "$c")" == "$base_engine"* ]]; then
         PICKS=()
         continue
       fi
-      case "$DONE" in *" $(upstream_sha "$c") "*) continue ;; esac
+      case "$DONE" in *" $(upstream_key "$c") "*) continue ;; esac
       PICKS+=("$c")
       ;;
     *)
       # Below the first vendor commit is the old seed, which is regenerated
-      # rather than replayed. Above it, a non-vendor commit is the buffer's own
+      # rather than replayed. Above it, a non-vendor commit is the strand's own
       # work, and the replay has no place to put it.
       [ -n "$seen_vendor" ] || continue
       placed "$c" && continue
+      placed_by_rule "$c" "$subj" && continue
       OWN+=("$c")
       ;;
   esac
-done < <(git log --reverse --format='%H%x09%s' "$OLDBASE..$OLD")
+done < "$walked"
+rm -f "$walked"
 
 # A replay that opens on a rewind (rewind_pick) drops the seed's strand for the
 # base buffer's, so the seed is no evidence about a change to the strand: a
@@ -463,7 +613,7 @@ the one it was written at; see handbook/operations/vendoring/troubleshooting/,
 "Where a patch goes in the chain". Then rerun with one --placed per commit:
 
   scripts/series-forward-build.sh$(for c in "${STRANDED[@]}"; do
-      printf ' --placed %s' "$(git rev-parse --short "$c")"; done) $OLD $OLDBASE
+      printf ' --placed %s' "$(git rev-parse --short "$c")"; done) $OLD $OLDBASE${BUFFER:+ --buffer $BUFFER}
 
 --placed says the change has been dealt with, whether by folding it into a
 commit this replay will produce -- fold after the replay reaches it, so the

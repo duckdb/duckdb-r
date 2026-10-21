@@ -1,10 +1,16 @@
 #include "parquet_shredding.hpp"
+
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "duckdb/common/exception/binder_exception.hpp"
-#include "duckdb/common/type_visitor.hpp"
+#include "duckdb/common/helper.hpp"
 
 namespace duckdb {
+class ClientContext;
 
-ChildShreddingTypes::ChildShreddingTypes() : types(make_uniq<case_insensitive_map_t<ShreddingType>>()) {
+ChildShreddingTypes::ChildShreddingTypes() : types(make_uniq<unordered_map<string, ShreddingType>>()) {
 }
 
 ChildShreddingTypes ChildShreddingTypes::Copy() const {
@@ -66,22 +72,21 @@ static ShreddingType ConvertShreddingTypeRecursive(const LogicalType &type) {
 		return ShreddingType(LogicalType(LogicalTypeId::ANY));
 	}
 	if (!type.IsNested()) {
+		// the values are written without further conversion or validation, so types with an alias (e.g., JSON) and
+		// types without a Parquet typed_value representation cannot be shredded on
+		if (type.HasAlias() || type.id() == LogicalTypeId::BIT || type.id() == LogicalTypeId::BIGNUM) {
+			throw BinderException("VARIANT cannot be shredded on type %s in Parquet", type.ToString());
+		}
 		return ShreddingType(type);
 	}
 
 	switch (type.id()) {
-	case LogicalTypeId::STRUCT: {
-		ShreddingType res(type);
-		auto &children = StructType::GetChildTypes(type);
-		for (auto &entry : children) {
-			res.AddChild(entry.first, ConvertShreddingTypeRecursive(entry.second));
-		}
-		return res;
-	}
+	case LogicalTypeId::STRUCT:
 	case LogicalTypeId::LIST: {
 		ShreddingType res(type);
-		const auto &child = ListType::GetChildType(type);
-		res.AddChild("element", ConvertShreddingTypeRecursive(child));
+		for (auto &entry : LogicalType::GetNamedChildTypes(type)) {
+			res.AddChild(entry.first, ConvertShreddingTypeRecursive(entry.second));
+		}
 		return res;
 	}
 	default:
@@ -90,12 +95,12 @@ static ShreddingType ConvertShreddingTypeRecursive(const LogicalType &type) {
 	throw BinderException("VARIANT can only be shredded on LIST/STRUCT/ANY/non-nested type, not %s", type.ToString());
 }
 
-void ShreddingType::AddChild(const string &name, ShreddingType &&child) {
+void ShreddingType::AddChild(const Identifier &name, ShreddingType &&child) {
 	children.types->emplace(name, std::move(child));
 }
 
-optional_ptr<const ShreddingType> ShreddingType::GetChild(const string &name) const {
-	auto it = children.types->find(name);
+optional_ptr<const ShreddingType> ShreddingType::GetChild(const Identifier &name) const {
+	auto it = children.types->find(name.GetIdentifierName());
 	if (it == children.types->end()) {
 		return nullptr;
 	}
