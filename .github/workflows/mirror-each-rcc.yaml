@@ -1,0 +1,48 @@
+# One-off: copy the per-commit verdicts of krlmlr/duckdb-r's each-rcc onto
+# the same commits here, so duckdb/duckdb-r#2941 shows them next to each commit.
+#
+# Lives on an orphan branch with nothing else on it, so no other workflow runs.
+# Every push to the branch mirrors the rows of each-rcc-statuses.tsv
+# (sha, state, target_url, description), newest first.
+# To mirror more commits later, replace the file with the new rows and push.
+name: mirror-each-rcc
+
+on:
+  push:
+    branches:
+      - claude/mirror-each-rcc-2941
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: mirror-each-rcc
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Its own context: `rcc` here is the pull request's aggregate check.
+      CONTEXT: each-rcc (fork)
+      # GitHub allows about 500 content writes per hour.
+      PAUSE: "7.5"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mirror each verdict as a commit status
+        run: |
+          n=0
+          while IFS=$'\t' read -r sha state url desc; do
+            [ -n "$sha" ] || continue
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+              -f state="$state" -f context="$CONTEXT" \
+              -f target_url="$url" -f description="$desc" > /dev/null
+            n=$((n + 1))
+            echo "$n $state $sha"
+            sleep "$PAUSE"
+          done < each-rcc-statuses.tsv
+          echo "Mirrored $n statuses."
