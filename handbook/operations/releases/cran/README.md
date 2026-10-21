@@ -38,6 +38,10 @@ and the confirmation is the mail CRAN sends to the `cre` address in `DESCRIPTION
 whose link has to be followed before the upload is queued.
 Each stage reports what it did on the run's summary page, and a failure says how to resolve it there;
 [`scripts/cran-submit-test.sh`](/scripts/cran-submit-test.sh) checks both stages offline, the upload against a fake form.
+With the input `dry-run` (`-f dry-run=true`), a run tags nothing and sends nothing to CRAN:
+the tag job prints the tag and message it would write, and whether it would move an existing tag,
+and the submission job builds, verifies and keeps the tarball as a real run does,
+then lists every field the upload would post, under a banner on the summary page that says it was a dry run.
 Acceptance is asynchronous — days, overlapping the next cycle —
 so the release is tagged and published to r-universe without
 waiting; a rejection is fixed on the release branch and

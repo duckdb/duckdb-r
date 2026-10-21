@@ -9,7 +9,8 @@
 #   3. An upload without `pkg_id`, a confirmation without `submit=1`, a 500 and an unreachable form
 #      each fail before the next POST, with a "How to resolve" section in the step summary.
 #   4. A misnamed tarball, and a file that is no tarball, fail before anything is sent.
-#   5. With R and pigz on the PATH: `tarball` builds a package, recompresses it with zopfli
+#   5. `upload --dry-run` sends nothing, and prints and reports every field a real run would post.
+#   6. With R and pigz on the PATH: `tarball` builds a package, recompresses it with zopfli
 #      and verifies it; a package that does not build, and a recompression that does not match,
 #      fail with a "How to resolve" section; the built tarball then uploads as in 1.
 #
@@ -284,7 +285,35 @@ has "it fails" "$out" "exit 1"
 has "saying so" "$out" "::error title=The tarball cannot be read::"
 is "and sends nothing" "$(requests)" ""
 
-# --- 5: the tarball ------------------------------------------------------------
+# --- 5: a dry run --------------------------------------------------------------
+
+echo
+echo "== a dry run sends nothing and shows what it would"
+echo ok >"$SCRATCH/mode"
+out=$(GITHUB_REPOSITORY=duckdb/duckdb-r GITHUB_REF_NAME=release-x run upload --dry-run "$TARBALL")
+has "it succeeds" "$out" "exit 0"
+is "the form receives no request" "$(requests)" ""
+has "the log lists the uploaded file" "$out" \
+  "$(printf '  %-20s %s' uploaded_file: "fakepkg_1.0.1.tar.gz (application/x-gzip, $(wc -c <"$TARBALL" | tr -d ' ') bytes, sha256 $SHA)")"
+has "and the confirmation's fields" "$out" "$(printf '  %-20s %s' policy_check: 1/)"
+has "with a notice" "$out" "::notice title=Dry run::Nothing was sent to CRAN."
+summary=$(cat "$SUMMARY")
+has "the summary says it is a dry run" "$summary" "### Upload to CRAN: dry run"
+has "and nothing was sent" "$summary" "Nothing was sent to CRAN. A real run posts this to $FORM:"
+has "with every upload field" "$summary" "   - \`pkg_id\`: empty
+   - \`name\`: \`Jane Müller\`
+   - \`email\`: \`jane@example.org\`
+   - \`uploaded_file\`: \`fakepkg_1.0.1.tar.gz\`, \`application/x-gzip\`"
+has "the comment" "$summary" "   - \`comment\`: \`fakepkg 1.0.1\`"
+has "and every confirmation field" "$summary" "   - \`policy_check\`: \`1/\`
+   - \`submit\`: \`Submit package\`"
+has "and how to dispatch the real run" "$summary" "\`gh workflow run cran-submission.yaml --repo duckdb/duckdb-r --ref release-x\`"
+hasnt "and no next step of a real submission" "$summary" "click the confirmation link"
+out=$(run upload --dry-run "$SCRATCH/pkg/fakepkg.tar.gz")
+has "a misnamed tarball still fails" "$out" "::error title=The tarball is misnamed::"
+is "and sends nothing" "$(requests)" ""
+
+# --- 6: the tarball ------------------------------------------------------------
 
 echo
 if ! command -v R >/dev/null || ! command -v pigz >/dev/null; then

@@ -14,7 +14,7 @@
 #     under the name R gave it, `<package>_<version>.tar.gz`.
 #     <package dir> defaults to the root of this repository.
 #
-#   upload <tarball>
+#   upload [--dry-run] <tarball>
 #     Post the tarball to CRAN's submission form, then confirm it, as
 #     `devtools:::upload_cran()` does (devtools 2.4.5 for the 404 path, 2.5.2 otherwise):
 #     the upload sends `pkg_id` (empty), `name`, `email`, `uploaded_file`,
@@ -27,6 +27,8 @@
 #     that `R CMD build` writes from the `cre` person in `Authors@R`.
 #     A 404 means CRAN is closed for maintenance: the message on its index page is shown.
 #     Nothing here asks for confirmation; this runs only when someone started it.
+#     With --dry-run, nothing is sent: the stage checks the tarball as for a real run,
+#     then prints and reports every field the two POSTs would carry.
 #
 # Each stage prints what it does and the values it uses, folded into groups
 # and annotated with `::error::` or `::notice::` when GITHUB_ACTIONS is true.
@@ -37,6 +39,7 @@
 # Usage:
 #   scripts/cran-submit.sh tarball "$RUNNER_TEMP/cran"
 #   scripts/cran-submit.sh upload "$RUNNER_TEMP/cran/duckdb_2.0.0.tar.gz"
+#   scripts/cran-submit.sh upload --dry-run "$RUNNER_TEMP/cran/duckdb_2.0.0.tar.gz"
 #
 # Environment:
 #   CRAN_SUBMISSION_URL  the form to post to, default https://xmpalantir.wu.ac.at/cransubmit/index2.php
@@ -45,6 +48,8 @@
 #   GITHUB_ACTIONS       `true` turns on the workflow commands (groups, annotations)
 #   GITHUB_STEP_SUMMARY  the file the Markdown report is appended to; unset, no report is written
 #   GITHUB_OUTPUT        the file `tarball` writes `package`, `version`, `tarball` and `sha256` to
+#   GITHUB_REPOSITORY, GITHUB_REF_NAME
+#                        name the repository and ref in the dry run's advice on dispatching the real run
 
 set -euo pipefail
 
@@ -379,8 +384,19 @@ check_response() { # <stage> <response file> <curl status>
 }
 
 cmd_upload() {
-  [ $# -eq 1 ] || usage
-  local tarball=$1
+  local dry_run='' tarball=''
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run) dry_run=1 ;;
+      -*) usage ;;
+      *)
+        [ -z "$tarball" ] || usage
+        tarball=$1
+        ;;
+    esac
+    shift
+  done
+  [ -n "$tarball" ] || usage
   [ -f "$tarball" ] || {
     echo "No such tarball: $tarball" >&2
     exit 2
@@ -412,7 +428,7 @@ cmd_upload() {
   val "comment" "$comment"
   val "submission URL" "$url"
   endgroup
-  summary "" "### Upload to CRAN" "" \
+  summary "" "### Upload to CRAN${dry_run:+: dry run}" "" \
     "- Tarball: \`$base\`, $size bytes, sha256 \`$sha\`" \
     "- Maintainer: $maint_name <$maint_email>" \
     "- Comment: \`$comment\`" \
@@ -425,6 +441,11 @@ cmd_upload() {
   if [ -z "$pkg" ] || [ -z "$version" ] || [ -z "$maint_name" ] || [ -z "$maint_email" ]; then
     fail "Upload" "DESCRIPTION is incomplete" "The tarball's DESCRIPTION gives package \`$pkg\`, version \`$version\`, maintainer \`$maint_name\` <\`$maint_email\`>, and all four are needed." -- \
       "Check \`Authors@R\` in DESCRIPTION: exactly one person needs the role \`cre\` and an e-mail address; \`R CMD build\` writes the \`Maintainer:\` field from it."
+  fi
+
+  if [ -n "$dry_run" ]; then
+    dry_run_report
+    return 0
   fi
 
   group "Upload: POST the package"
@@ -485,6 +506,50 @@ cmd_upload() {
   summary "- Confirmation: HTTP $http_code, final URL $final_url" "" \
     "**Next step:** CRAN e-mailed $maint_email; click the confirmation link in that e-mail to finish the submission." ""
   notice "Submitted to CRAN" "$pkg $version (pkg_id $pkg_id). CRAN e-mailed $maint_email; click the confirmation link in that e-mail to finish the submission."
+}
+
+# What a real run would post, printed and reported; sends nothing.
+dry_run_report() {
+  local ref=${GITHUB_REF_NAME:-<ref>} repo=${GITHUB_REPOSITORY:-duckdb/duckdb-r}
+  group "Dry run: what a real run would post to $url"
+  say "POST 1, the upload, multipart:"
+  val "pkg_id" "(empty)"
+  val "name" "$maint_name"
+  val "email" "$maint_email"
+  val "uploaded_file" "$base (application/x-gzip, $size bytes, sha256 $sha)"
+  val "comment" "$comment"
+  val "upload" "Upload package"
+  say "  then: follow the redirects and read pkg_id from the final URL" \
+    "POST 2, the confirmation, multipart:"
+  val "pkg_id" "(the pkg_id from POST 1)"
+  val "name" "$maint_name"
+  val "email" "$maint_email"
+  val "policy_check" "1/"
+  val "submit" "Submit package"
+  say "  then: succeed when the final URL carries submit=1" \
+    "Nothing was sent."
+  endgroup
+  summary "" "Nothing was sent to CRAN. A real run posts this to $url:" "" \
+    "1. The upload, as \`multipart/form-data\`:" \
+    "   - \`pkg_id\`: empty" \
+    "   - \`name\`: \`$maint_name\`" \
+    "   - \`email\`: \`$maint_email\`" \
+    "   - \`uploaded_file\`: \`$base\`, \`application/x-gzip\`, $size bytes, sha256 \`$sha\`" \
+    "   - \`comment\`: \`$comment\`" \
+    "   - \`upload\`: \`Upload package\`" \
+    "" \
+    "   It follows the redirects and reads \`pkg_id\` from the final URL." \
+    "2. The confirmation, as \`multipart/form-data\`:" \
+    "   - \`pkg_id\`: the one from the upload" \
+    "   - \`name\`: \`$maint_name\`" \
+    "   - \`email\`: \`$maint_email\`" \
+    "   - \`policy_check\`: \`1/\`" \
+    "   - \`submit\`: \`Submit package\`" \
+    "" \
+    "   It succeeds when the final URL carries \`submit=1\`." \
+    "" \
+    "**Next step:** to submit, dispatch the workflow again with \`dry-run\` off, from the Actions tab or with \`gh workflow run cran-submission.yaml --repo $repo --ref $ref\`. CRAN then e-mails $maint_email, and the submission counts once the link in that e-mail is clicked." ""
+  notice "Dry run" "Nothing was sent to CRAN. A real run uploads $base ($size bytes, sha256 $sha) for $pkg $version, maintainer $maint_name <$maint_email>, with the comment \"$comment\"."
 }
 
 usage() {

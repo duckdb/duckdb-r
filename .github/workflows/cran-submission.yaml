@@ -20,8 +20,18 @@
 # CRAN mails a confirmation link to the maintainer in DESCRIPTION,
 # and the submission only counts once that link has been followed.
 # Both steps print what they do and write a report with advice on failure to the run's summary page.
+#
+# The input `dry-run` (`-f dry-run=true` for `gh workflow run`) tags nothing and sends nothing:
+# the `tag` job prints the tag it would create, and whether it would move an existing one,
+# and the `cran-submission` job builds, verifies and keeps the tarball as a real run does,
+# then prints and reports every field the upload would post.
 on:
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Dry run: build and keep the tarball, but create no tag and send nothing to CRAN"
+        type: boolean
+        default: false
 
 name: CRAN submission
 
@@ -45,13 +55,28 @@ jobs:
       contents: write
 
     steps:
+      - name: Announce the dry run
+        if: inputs.dry-run
+        run: |
+          echo "::notice title=Dry run::Nothing is tagged or submitted in this run."
+          {
+            echo "> [!NOTE]"
+            echo "> **Dry run: nothing was tagged or submitted.**"
+            echo "> To submit, dispatch the workflow again with \`dry-run\` off:"
+            echo "> \`gh workflow run cran-submission.yaml --repo $GITHUB_REPOSITORY --ref $GITHUB_REF_NAME\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+
       # The same commit as the submission: both jobs check out `github.sha`.
       - uses: actions/checkout@v6
 
       - name: Configure the Git identity
         uses: cynkra/cynkratemplate/.github/actions/git-identity@main
 
-      - name: Create and push the tag
+      - name: Create and push the tag, or show it on a dry run
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
         run: |
           pkg_name="$(sed -n 's/^Package: *//p' DESCRIPTION)"
           pkg_version="$(sed -n 's/^Version: *//p' DESCRIPTION)"
@@ -69,12 +94,33 @@ jobs:
             exit 1
           fi
 
+          moves=""
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
             git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
-            echo "::warning::Moving the existing tag $tag, which points to $(git rev-parse "$tag^{commit}")."
+            moves="$(git rev-parse "$tag^{commit}")"
+            if [ "$DRY_RUN" = true ]; then
+              echo "::notice::A real run would move the existing tag $tag, which points to $moves."
+            else
+              echo "::warning::Moving the existing tag $tag, which points to $moves."
+            fi
             echo "::group::Existing tag $tag"
             git cat-file -p "$tag"
             echo "::endgroup::"
+          fi
+
+          if [ "$DRY_RUN" = true ]; then
+            echo "::group::Message of the tag $tag"
+            cat "$message"
+            echo "::endgroup::"
+            echo "::notice title=Dry run::Would tag $(git rev-parse HEAD) as $tag${moves:+, moving it from $moves}; nothing was tagged or pushed."
+            {
+              echo "Dry run: a real run tags \`$(git rev-parse HEAD)\` as \`$tag\`${moves:+, moving it from \`$moves\`}, with this message:"
+              echo
+              echo '````markdown'
+              cat "$message"
+              echo '````'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
 
           # The default cleanup would drop the "## ..." subheadings as comment lines.
@@ -95,6 +141,19 @@ jobs:
       contents: read
 
     steps:
+      - name: Announce the dry run
+        if: inputs.dry-run
+        run: |
+          echo "::notice title=Dry run::Nothing is tagged or submitted in this run."
+          {
+            echo "> [!NOTE]"
+            echo "> **Dry run: nothing was tagged or submitted.**"
+            echo "> To submit, dispatch the workflow again with \`dry-run\` off:"
+            echo "> \`gh workflow run cran-submission.yaml --repo $GITHUB_REPOSITORY --ref $GITHUB_REF_NAME\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
@@ -137,8 +196,14 @@ jobs:
           echo "- Kept as the artifact [$NAME]($URL) of this run" >> "$GITHUB_STEP_SUMMARY"
         shell: bash
 
-      - name: Upload to CRAN and confirm the submission
+      - name: Upload to CRAN and confirm the submission, or show what would be sent
         env:
           TARBALL: ${{ steps.tarball.outputs.tarball }}
-        run: scripts/cran-submit.sh upload "$TARBALL"
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            scripts/cran-submit.sh upload --dry-run "$TARBALL"
+          else
+            scripts/cran-submit.sh upload "$TARBALL"
+          fi
         shell: bash
