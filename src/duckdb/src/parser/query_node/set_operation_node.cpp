@@ -87,6 +87,17 @@ SetOperationNode::SetOperationNode(SetOperationType setop_type, unique_ptr<Query
 	if (children.size() < 2) {
 		throw SerializationException("SetOperationNode must have at least two children");
 	}
+	if (children.size() > 2 && setop_type != SetOperationType::UNION && setop_type != SetOperationType::UNION_BY_NAME) {
+		throw SerializationException("SetOperationNode must have exactly two children, except for UNION");
+	}
+	if (setop_type == SetOperationType::NONE) {
+		throw SerializationException("SetOperationNode must have a set operation type");
+	}
+	for (auto &child : children) {
+		if (!child) {
+			throw SerializationException("SetOperationNode children cannot be NULL");
+		}
+	}
 }
 
 unique_ptr<QueryNode> SetOperationNode::SerializeChildNode(Serializer &serializer, idx_t index) const {
@@ -127,7 +138,7 @@ unique_ptr<QueryNode> SetOperationNode::SerializeChildNode(Serializer &serialize
 }
 
 bool SetOperationNode::SerializeChildList(Serializer &serializer) const {
-	return serializer.ShouldSerialize(7);
+	return serializer.ShouldSerialize(StorageVersion::V1_5_0);
 }
 
 } // namespace duckdb

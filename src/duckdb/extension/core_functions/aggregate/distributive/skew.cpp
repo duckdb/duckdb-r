@@ -8,34 +8,42 @@ namespace duckdb {
 
 namespace {
 
+//! Online central moments (Terriberry / Pébay, DOI: 10.2172/1028931), the higher-moment extension of Welford's
+//! method used by var_samp: M2 and M3 are exactly zero for constant input instead of rounding noise of power sums
 struct SkewState {
-	size_t n;
-	double sum;
-	double sum_sqr;
-	double sum_cub;
+	static constexpr const char *STATE_NAMES[] = {"n", "mean", "m2", "m3"};
+	using STATE_TYPE = StructStateType<idx_t, double, double, double>;
+
+	idx_t n;
+	double mean; //  M1
+	double m2;   //  M2 = sum((x - mean)^2)
+	double m3;   //  M3 = sum((x - mean)^3)
 };
 
 struct SkewnessOperation {
-	template <class STATE>
-	static void Initialize(STATE &state) {
-		state.n = 0;
-		state.sum = state.sum_sqr = state.sum_cub = 0;
-	}
-
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input,
 	                              idx_t count) {
-		for (idx_t i = 0; i < count; i++) {
-			Operation<INPUT_TYPE, STATE, OP>(state, input, unary_input);
-		}
+		// a block of identical values has mean "input" and zero central moments
+		STATE constant;
+		constant.n = count;
+		constant.mean = static_cast<double>(input);
+		constant.m2 = 0;
+		constant.m3 = 0;
+		Combine<STATE, OP>(constant, state, unary_input.input);
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input) {
+	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
+		const double n1 = static_cast<double>(state.n);
 		state.n++;
-		state.sum += input;
-		state.sum_sqr += pow(input, 2);
-		state.sum_cub += pow(input, 3);
+		const double n = static_cast<double>(state.n);
+		const double delta = static_cast<double>(input) - state.mean;
+		const double delta_n = delta / n;
+		const double term1 = delta * delta_n * n1;
+		state.mean += delta_n;
+		state.m3 += term1 * delta_n * (n - 2) - 3 * delta_n * state.m2;
+		state.m2 += term1;
 	}
 
 	template <class STATE, class OP>
@@ -43,11 +51,22 @@ struct SkewnessOperation {
 		if (source.n == 0) {
 			return;
 		}
-
-		target.n += source.n;
-		target.sum += source.sum;
-		target.sum_sqr += source.sum_sqr;
-		target.sum_cub += source.sum_cub;
+		if (target.n == 0) {
+			target = source;
+			return;
+		}
+		const auto count = target.n + source.n;
+		D_ASSERT(count >= target.n); // This is a check that we are not overflowing
+		const double na = static_cast<double>(target.n);
+		const double nb = static_cast<double>(source.n);
+		const double n = static_cast<double>(count);
+		const double delta = source.mean - target.mean;
+		const double delta_n = delta / n;
+		target.m3 += source.m3 + delta * delta_n * delta_n * na * nb * (na - nb) +
+		             3 * delta_n * (na * source.m2 - nb * target.m2);
+		target.m2 += source.m2 + delta * delta_n * na * nb;
+		target.mean += delta_n * nb;
+		target.n = count;
 	}
 
 	template <class TARGET_TYPE, class STATE>
@@ -56,20 +75,15 @@ struct SkewnessOperation {
 			finalize_data.ReturnNull();
 			return;
 		}
-		double n = state.n;
-		double temp = 1 / n;
-		auto p = std::pow(temp * (state.sum_sqr - state.sum * state.sum * temp), 3);
-		if (p < 0) {
-			p = 0; // Shouldn't be below 0 but floating points are weird
-		}
-		double div = std::sqrt(p);
-		if (div == 0) {
-			target = NAN;
+		// skewness is undefined for zero variance (M2 is exactly 0 for constant input)
+		if (state.m2 <= 0) {
+			finalize_data.ReturnNull();
 			return;
 		}
-		double temp1 = std::sqrt(n * (n - 1)) / (n - 2);
-		target = temp1 * temp *
-		         (state.sum_cub - 3 * state.sum_sqr * state.sum * temp + 2 * pow(state.sum, 3) * temp * temp) / div;
+		const double n = static_cast<double>(state.n);
+		// g1 = (M3 / n) / (M2 / n)^1.5 = sqrt(n) * M3 / M2^1.5, with the bias correction sqrt(n (n - 1)) / (n - 2)
+		const double g1 = std::sqrt(n) * (state.m3 / state.m2) / std::sqrt(state.m2);
+		target = std::sqrt(n * (n - 1)) / (n - 2) * g1;
 		if (!Value::DoubleIsFinite(target)) {
 			throw OutOfRangeException("SKEW is out of range!");
 		}
@@ -83,8 +97,10 @@ struct SkewnessOperation {
 } // namespace
 
 AggregateFunction SkewnessFun::GetFunction() {
-	return AggregateFunction::UnaryAggregate<SkewState, double, double, SkewnessOperation>(LogicalType::DOUBLE,
-	                                                                                       LogicalType::DOUBLE);
+	auto fun = AggregateFunction::UnaryAggregate<SkewState, double, double, SkewnessOperation>(LogicalType::DOUBLE,
+	                                                                                           LogicalType::DOUBLE);
+	fun.GetSignature().GetParameter(0).SetName("x");
+	return fun;
 }
 
 } // namespace duckdb

@@ -296,8 +296,10 @@ test_that("an in-memory database spills to temporary storage out of the box", {
   expect_false(dir.exists(spill))
 
   # A sort that outgrows the memory limit: it can only complete by offloading
-  # to the spill directory, which the engine creates on first use.
-  dbExecute(con, "SET memory_limit = '80MB'")
+  # to the spill directory, which the engine creates on first use. The limit
+  # stays well under the ~160 MB the result occupies, so the spill is what
+  # makes the statement complete at all.
+  dbExecute(con, "SET memory_limit = '128MB'")
   dbExecute(
     con,
     "CREATE TABLE spilled AS

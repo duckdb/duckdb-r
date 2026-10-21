@@ -2,13 +2,13 @@
 
 #include "src/planner/binder/tableref/bind_bound_table_ref.cpp"
 
+#include "src/planner/binder/tableref/bind_column_data_ref.cpp"
+
 #include "src/planner/binder/tableref/bind_delimgetref.cpp"
 
 #include "src/planner/binder/tableref/bind_emptytableref.cpp"
 
 #include "src/planner/binder/tableref/bind_expressionlistref.cpp"
-
-#include "src/planner/binder/tableref/bind_column_data_ref.cpp"
 
 #include "src/planner/binder/tableref/bind_joinref.cpp"
 
@@ -19,8 +19,6 @@
 #include "src/planner/binder/tableref/bind_subqueryref.cpp"
 
 #include "src/planner/binder/tableref/bind_table_function.cpp"
-
-#include "src/planner/binder/tableref/bind_named_parameters.cpp"
 
 #include "src/planner/binder/tableref/plan_joinref.cpp"
 

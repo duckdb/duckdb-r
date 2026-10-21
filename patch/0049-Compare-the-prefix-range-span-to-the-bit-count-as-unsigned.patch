@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 20:41:25 +0000
+Subject: [PATCH] Compare the prefix range span to the bit count as unsigned
+
+PrefixRangeBitmap<U>::Initialize() shifts the span until it fits the
+bitmap, comparing (span >> shift) with max_bits, an idx_t, which for
+an instantiation with a signed U is a comparison across signedness
+under -Wsign-compare. The span is never negative, and the line below
+already converts the same expression with UnsafeNumericCast<idx_t>, so
+the loop condition does the same.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/planner/filter/table_filter_prefix_range_function.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/planner/filter/table_filter_prefix_range_function.cpp b/src/duckdb/src/planner/filter/table_filter_prefix_range_function.cpp
+index 62bfabad83..2544a30cf7 100644
+--- a/src/duckdb/src/planner/filter/table_filter_prefix_range_function.cpp
++++ b/src/duckdb/src/planner/filter/table_filter_prefix_range_function.cpp
+@@ -65,7 +65,7 @@ public:
+ 		span = span_p;
+ 		shift = 0;
+ 
+-		while ((span >> shift) >= max_bits) {
++		while (UnsafeNumericCast<idx_t>(span >> shift) >= max_bits) {
+ 			shift++;
+ 		}
+ 

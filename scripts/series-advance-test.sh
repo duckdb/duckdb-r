@@ -6,8 +6,9 @@
 # `-build` holds what the code needs to **compile**, because that is what the
 # vendor gate checks, and `-dev` holds everything CI asked for after that --
 # including glue, which is why the carry is a difference and not an allow-list.
-# A forward series inherits only the first when its buffer is replayed. Sixteen
-# things are checked.
+# A forward series inherits only the first when its buffer is replayed out of
+# `-build`, and both when it is replayed out of `-dev`
+# (scripts/series-forward-build.sh). Twenty things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
 #      with that fix in the same commit -- not stacked above it -- carrying the
@@ -53,6 +54,21 @@
 #  16. A buffer tooling sync is skipped, never replayed: `-dev`'s tooling is
 #      stage 4's, and a sync taken against older tooling would conflict or put
 #      back what `main` removed. The vendor commits above it are consumed.
+#  17. A twin is looked up above the forward's green only: `main`'s history
+#      below the seed may vendor the same SHA, and its commit is not the fix
+#      the base series folded.
+#  18. A carry never stops a test the forward runs: a twin that deleted a test
+#      file or skipped a test for good leaves the forward's copy where it is,
+#      and the commit message says so, while an engine gate and a snapshot
+#      fold in the same twin carry as usual.
+#  19. A buffer replayed from the base `-dev` carries nothing twice: the twin's
+#      fix is in the buffer commit under a blob `main`'s drift moved on, the
+#      twin's own change reverse-applies there, and the chunk is a plain ref
+#      move with no provenance trailer.
+#  20. A late tag's re-stamp -- a second vendor commit for the upstream SHA
+#      `-dev` already vendored, carrying `(tag ...)` -- is consumed rather than
+#      taken for the anchor, and a forward series keeps its marker when the base
+#      has a twin for the plain commit only.
 #
 # Usage:
 #   scripts/series-advance-test.sh
@@ -98,7 +114,9 @@ git config commit.gpgsign false
 git remote add origin "$REMOTE"
 
 mkdir -p scripts src/duckdb src/include tests/testthat/_snaps R patch
-cp "$HERE/series-advance.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
+for s in series-advance.sh series-tests.sh setup-git.sh merge-version.sh series-config.sh series-lib.sh vendor-lib.sh; do
+  cp "$HERE/$s" scripts/
+done
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
 
@@ -110,6 +128,13 @@ scripts/setup-git.sh >/dev/null
 
 desc() { printf 'Package: duckdb\nVersion: %s\n' "$1" > DESCRIPTION; }
 verfile() { echo "duckdb_version <- \"$1\"" > R/version.R; }
+
+# `main`'s history, below every seed, already vendored a SHA the base series
+# vendors again after rewinding to an older fork point (claim 17).
+echo 'main history of the snapshot' > tests/testthat/_snaps/sql.md
+desc 0.9.0
+git add -A
+git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@aaaaaaa (#1)'
 
 desc 1.0.0.9000.0
 verfile seed
@@ -297,6 +322,82 @@ git commit -qm 'chore(series): Sync tooling with main'
 git branch tsync-green tsync-dev
 git branch tsync-build-base "$TSYNC_V1"
 
+# --- a base whose rewind took tests away, and its forward (claim 18) --------
+# The seed runs three tests; the base twin of the one buffer commit deletes the
+# first, skips the second for good, gates the third and folds a snapshot, as a
+# rewind did on `v2.0-cyanoptera-fwd`.
+git checkout -q -b loss-seed base-seed
+for t in gone skip gate; do
+  printf 'test_that("%s", {\n  expect_true(TRUE)\n})\n' "$t" > "tests/testthat/test-$t.R"
+done
+git add -A
+git commit -qm 'test: Three tests main runs'
+git checkout -q -b loss-build loss-seed
+bvendor ace1111 1.0.0.9000.1 o.cpp
+git checkout -q -b loss-dev loss-seed
+bvendor ace1111 1.0.0.9000.1 o.cpp
+git rm -q tests/testthat/test-gone.R
+printf 'test_that("skip", {\n  skip_on_cran()\n  expect_true(TRUE)\n})\n' > tests/testthat/test-skip.R
+printf 'test_that("gate", {\n  skip_if_engine_before("9.9.9-dev1", "not yet")\n  expect_true(TRUE)\n})\n' \
+  > tests/testthat/test-gate.R
+echo 'snapshot one, as ace1111 renders it' > tests/testthat/_snaps/sql.md
+amend 'Rewound: test-gone.R removed, test-skip.R skipped, test-gate.R gated.'
+git branch loss-green loss-dev
+git branch loss-build-base loss-build
+git branch loss-fwd-build loss-build
+git branch loss-fwd-build-base loss-build
+git branch loss-fwd-dev loss-seed
+git branch loss-fwd-green loss-seed
+
+# --- a forward whose buffer was replayed from the base -dev (claim 19) -------
+# scripts/series-forward-build.sh replays `-dev`'s vendor commits, fixes folded
+# in, onto a seed `main` has moved under. The buffer commit therefore holds the
+# twin's snapshot fix in a file `main` has since added a line to, so the two
+# blobs differ although the fix is there; the R fix sits in a file `main` left
+# alone, so those blobs agree.
+git checkout -q -b kept-dev base-seed
+bvendor kkk1111 1.0.0.9000.1 r.cpp
+echo 'snapshot one, corrected' > tests/testthat/_snaps/sql.md
+echo 'foo <- function() 2' > R/foo.R
+amend 'Snapshot corrected, and foo() returns 2 now.'
+git checkout -q -b kept-seed base-seed
+printf 'snapshot one\nmain added a snapshot\n' > tests/testthat/_snaps/sql.md
+git add -A
+git commit -qm 'test: main added a snapshot since the base was seeded'
+git checkout -q -b kept-fwd-build kept-seed
+bvendor kkk1111 1.0.0.9000.1 r.cpp
+printf 'snapshot one, corrected\nmain added a snapshot\n' > tests/testthat/_snaps/sql.md
+echo 'foo <- function() 2' > R/foo.R
+amend 'Snapshot corrected, and foo() returns 2 now.'
+git branch kept-fwd-dev kept-seed
+git branch kept-fwd-green kept-seed
+git branch kept-fwd-build-base kept-seed
+
+# --- a late tag's re-stamp on the buffer (claim 20) -------------------------
+# Upstream tagged abc1111 after the buffer vendored it, so vendor-one.sh
+# appended a second vendor commit for the same SHA, differing in the version
+# stamp alone. -dev carries the plain one with a fold in it, which puts it off
+# the buffer's line, so stage 5 has to find the anchor by subject. The forward
+# counterpart was replayed from that buffer before the base -dev took the
+# re-stamp, so the base has a twin for the plain commit only.
+git checkout -q -b late-build base-seed
+bvendor abc1111 1.0.0.9000.1 r.cpp
+LATE_V1=$(git rev-parse HEAD)
+echo 'vendored abc1111, stamped with the tag' > src/duckdb/r.cpp
+desc 1.0.0.9000.2
+verfile v9.9.9
+git add -A
+git commit -qm 'vendor: Update vendored sources (tag v9.9.9) to duckdb/duckdb@abc1111'
+git checkout -q -b late-dev "$LATE_V1"
+echo 'snapshot one, per the new engine' > tests/testthat/_snaps/sql.md
+amend 'Snapshot corrected for the new engine output.'
+git branch late-green late-dev
+git branch late-build-base "$LATE_V1"
+git branch late-fwd-build late-build
+git branch late-fwd-dev base-seed
+git branch late-fwd-green base-seed
+git branch late-fwd-build-base base-seed
+
 # The store stub: stage 5 refuses over a `failure` and reads `missing` for
 # anything absent, which is what a freshly pushed commit looks like. The `red`
 # series is the one case that needs real records, so it gets two.
@@ -321,7 +422,12 @@ git push -q origin main base-seed base-build base-dev base-green base-build-base
   dup-build dup-dev dup-green dup-build-base \
   red-build red-dev red-green red-build-base \
   tsync-build tsync-dev tsync-green tsync-build-base \
-  emptyres-build emptyres-dev emptyres-green emptyres-build-base rcc2
+  emptyres-build emptyres-dev emptyres-green emptyres-build-base \
+  loss-build loss-dev loss-green loss-build-base \
+  loss-fwd-build loss-fwd-dev loss-fwd-green loss-fwd-build-base \
+  kept-dev kept-fwd-build kept-fwd-dev kept-fwd-green kept-fwd-build-base \
+  late-build late-dev late-green late-build-base \
+  late-fwd-build late-fwd-dev late-fwd-green late-fwd-build-base rcc2
 git fetch -q origin
 
 # A canonical remote, because `red` is the one series here whose green moves,
@@ -624,6 +730,67 @@ has "the vendor commit above the sync is consumed" \
   "$(git log -1 --format=%s origin/tsync-dev)" 'duckdb@ggg2222'
 is "and the sync itself never reaches -dev" \
   "$(git log --format=%s origin/tsync-green..origin/tsync-dev | grep -c 'Sync buffer tooling' || true)" 0
+
+# The forward first: once the base -dev takes the re-stamp, it has a tagged
+# twin too, and the case this checks is the one where it does not.
+echo
+echo "== a late tag's re-stamp, on a forward whose base has only the plain twin"
+out=$(run late-fwd)
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+is "both buffer commits are consumed" \
+  "$(git rev-list --count origin/late-fwd-green..origin/late-fwd-dev)" 2
+has "the plain one takes its twin's fold" \
+  "$(git log -1 --format=%B origin/late-fwd-dev~1)" 'Carried from'
+is "the re-stamp keeps its own subject" \
+  "$(git log -1 --format=%s origin/late-fwd-dev)" \
+  'vendor: Update vendored sources (tag v9.9.9) to duckdb/duckdb@abc1111'
+
+echo
+echo "== a late tag's re-stamp above the commit -dev vendored"
+out=$(run late)
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+hasnt "without reading the buffer as empty" "$out" 'buffer empty'
+is "the re-stamp is consumed" \
+  "$(git log -1 --format=%s origin/late-dev)" \
+  'vendor: Update vendored sources (tag v9.9.9) to duckdb/duckdb@abc1111'
+is "carrying the tag's stamp" "$(git show origin/late-dev:R/version.R)" \
+  'duckdb_version <- "v9.9.9"'
+is "and the counter rose for it" \
+  "$(git show origin/late-dev:DESCRIPTION | sed -n 's/^Version: //p')" 1.0.0.9000.2
+out=$(run late)
+has "a second run finds nothing left to consume" "$out" 'buffer empty'
+
+echo
+echo "== a carry that would stop a test the forward runs"
+out=$(run loss-fwd)
+[ -z "${KEEP:-}" ] || echo "$out"
+git fetch -q origin
+L=$(at loss-fwd ace1111)
+has "the chunk completes" "$out" 'EXIT=0'
+has "it names what it kept" "$out" 'kept tests/testthat/test-gone.R'
+is "a deleted test is still there" "$(git show "$L:tests/testthat/test-gone.R" | head -n 1)" 'test_that("gone", {'
+hasnt "a test skipped for good is not skipped" "$(git show "$L:tests/testthat/test-skip.R")" 'skip_on_cran'
+has "a gated test carries its gate" "$(git show "$L:tests/testthat/test-gate.R")" 'skip_if_engine_before("9.9.9-dev1"'
+is "and the snapshot fold carries" "$(git show "$L:tests/testthat/_snaps/sql.md")" 'snapshot one, as ace1111 renders it'
+has "the message says what was not carried" "$(git log -1 --format=%B "$L")" \
+  'Not carried, because it would stop a test this series runs:'
+has "naming the path" "$(git log -1 --format=%B "$L")" "\`tests/testthat/test-skip.R\`"
+
+echo
+echo "== a buffer replayed from the base -dev carries nothing twice"
+out=$(run kept-fwd)
+[ -z "${KEEP:-}" ] || echo "$out"
+git fetch -q origin
+has "the chunk completes" "$out" 'EXIT=0'
+hasnt "nothing is reported as carried" "$out" 'carry a fix from'
+is "the buffer commit moved as it was, a plain ref move" \
+  "$(git rev-parse origin/kept-fwd-dev)" "$(git rev-parse origin/kept-fwd-build)"
+K=$(at kept-fwd kkk1111)
+hasnt "so it carries no provenance trailer" "$(git log -1 --format=%B "$K")" 'Carried from'
+is "the snapshot holds the fix and main's line both" \
+  "$(git show "$K:tests/testthat/_snaps/sql.md" | tr '\n' '|')" 'snapshot one, corrected|main added a snapshot|'
 
 echo
 echo "$pass passed, $fail failed"

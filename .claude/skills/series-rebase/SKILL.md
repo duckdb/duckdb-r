@@ -13,12 +13,12 @@ and only one of them is a rebase.
 
 **Forwarding** (`series-forward/SKILL.md`) is `<S>` → `<S>-fwd`,
 across lineages:
-`-fwd-build` is replayed out of the base series' buffer
+`-fwd-build` is replayed out of the base series' `-dev`, and its buffer above that,
 by `scripts/series-forward-build.sh`,
 which filters the `vendor:` commits out of a branch that also carries
 commits belonging to `main` and renumbers the fifth component;
 `-fwd-dev` starts empty at the seed
-for the loop to rederive, mining the base `-dev` for what it proved.
+for the loop to extend and CI to judge again on the new base.
 
 **Rebasing** — this skill — is `<S>-fwd` → `<S>-fwd`, one lineage.
 A `-fwd` branch has already been through that filter:
@@ -57,6 +57,7 @@ git rebase --onto main "$(git merge-base main <old-dev-seed>)"
 
 git rebase --onto seed <old-dev-seed>   <S>-fwd-dev
 git rebase --onto seed <old-build-seed> <S>-fwd-build
+scripts/series-vendor.sh <S> --forward seed --push        # <S>-fwd-vendor, from the series' strand
 ```
 
 `-fwd-green` and `-fwd-build-base` carry no commits of their own;
@@ -98,7 +99,10 @@ that repair had folded in.
 The buffer carries no runs (`each.yaml` never matches `*-build`),
 so moving it claims nothing.
 
-**`-fwd-green` always resets to the new seed tip.**
+**`-fwd-green` always resets to the new seed's base**,
+the `main` commit the rebased seed sits on,
+below the flavor commits, which have no runs yet
+([`branches/model/`](/handbook/branches/model/README.md)).
 It is never replayed, and it never rides forward,
 however little the series absorbed.
 
@@ -114,15 +118,15 @@ a green replayed to the `-dev` tip leaves that range empty,
 so the rebased series emits no builds
 and reads IDLE while nothing on the new base has been checked.
 
-Resetting green to the seed puts the whole chain back in flight:
-`green..tip` has no runs, and the loop re-verifies it from the seed.
+Resetting green below the seed puts the whole chain back in flight:
+`green..tip` has no runs, and the loop re-verifies it, seed included.
 That is the whole cost of a rebase, and it is why one rebases
 when `main`'s motion matters to the series, not per commit.
 
 ## Green first, then `-dev`
 
 The atomic push already gets the order right —
-green lands at the seed in the same push that moves `-dev`,
+green lands below the seed in the same push that moves `-dev`,
 so the `-dev` push event finds a full `green..HEAD` and starts building.
 
 Moving green on its own starts nothing:
@@ -131,7 +135,7 @@ So a series pushed with green ahead of the seed —
 or one whose green is rewound afterwards — needs the event re-emitted:
 
 ```sh
-git push --force-with-lease=... origin +<new-seed>:refs/heads/<S>-fwd-green
+git push --force-with-lease=... origin +<new-seed-base>:refs/heads/<S>-fwd-green
 git commit --amend --no-edit          # same tree, new SHA, on <S>-fwd-dev
 git push --force-with-lease=... origin +<new-dev>:refs/heads/<S>-fwd-dev
 ```

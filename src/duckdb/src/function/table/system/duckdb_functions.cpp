@@ -1,4 +1,5 @@
 #include "duckdb/function/table/system_functions.hpp"
+#include "duckdb/common/atomic.hpp"
 
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
@@ -10,11 +11,11 @@
 #include "duckdb/function/scalar_macro_function.hpp"
 #include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/pragma_function_catalog_entry.hpp"
+#include "duckdb/catalog/catalog_entry/window_function_catalog_entry.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/common/optional_idx.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/main/client_data.hpp"
-#include "duckdb/parser/expression/window_expression.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/function/scalar_function.hpp"
 
@@ -22,17 +23,18 @@ namespace duckdb {
 constexpr const char *AggregateFunctionCatalogEntry::Name;
 
 struct DuckDBFunctionsData : public GlobalTableFunctionState {
-	DuckDBFunctionsData() : window_iterator(WindowExpression::WindowFunctions()), offset(0), offset_in_entry(0) {
+	DuckDBFunctionsData() : offset(0), offset_in_entry(0) {
 	}
 
 	vector<reference<CatalogEntry>> entries;
-	const WindowFunctionDefinition *window_iterator;
 	idx_t offset;
 	idx_t offset_in_entry;
+	//! The offset, published once per chunk (for progress)
+	atomic<idx_t> progress_offset {0};
 };
 
 static unique_ptr<FunctionData> DuckDBFunctionsBind(ClientContext &context, TableFunctionBindInput &input,
-                                                    vector<LogicalType> &return_types, vector<string> &names) {
+                                                    vector<LogicalType> &return_types, vector<Identifier> &names) {
 	names.emplace_back("database_name");
 	return_types.emplace_back(LogicalType::VARCHAR);
 
@@ -80,6 +82,9 @@ static unique_ptr<FunctionData> DuckDBFunctionsBind(ClientContext &context, Tabl
 
 	names.emplace_back("internal");
 	return_types.emplace_back(LogicalType::BOOLEAN);
+
+	names.emplace_back("extension_name");
+	return_types.emplace_back(LogicalType::VARCHAR);
 
 	names.emplace_back("function_oid");
 	return_types.emplace_back(LogicalType::BIGINT);
@@ -135,6 +140,15 @@ Value FunctionStabilityToValue(FunctionStability stability) {
 	}
 }
 
+//! The legacy "varargs" column cannot tell "*args" and "**kwargs" apart - report whichever the function has
+Value VariadicTypeValue(const FunctionSignature &signature) {
+	auto variadic = signature.GetArgs();
+	if (!variadic) {
+		variadic = signature.GetKwargs();
+	}
+	return variadic ? Value(variadic->GetType().ToString()) : Value();
+}
+
 struct ScalarFunctionExtractor {
 	static idx_t FunctionCount(ScalarFunctionCatalogEntry &entry) {
 		return entry.functions.Size();
@@ -145,34 +159,43 @@ struct ScalarFunctionExtractor {
 	}
 
 	static Value GetReturnType(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		return Value(entry.functions.GetFunctionByOffset(offset).GetReturnType().ToString());
+		return Value(entry.functions.GetFunctionByOffset(offset)->GetReturnType().ToString());
 	}
 
 	static vector<Value> GetParameters(ScalarFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions.GetFunctionByOffset(offset).arguments.size(); i++) {
-			results.emplace_back("col" + to_string(i));
+		for (auto &param : entry.functions.GetFunctionByOffset(offset)->GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetName());
+			}
 		}
 		return results;
 	}
 
 	static Value GetParameterTypes(ScalarFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		for (idx_t i = 0; i < fun.arguments.size(); i++) {
-			results.emplace_back(fun.arguments[i].ToString());
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		for (idx_t i = 0; i < fun.GetSignature().GetParameterCount(); i++) {
+			if (!fun.GetSignature().GetParameter(i).IsVariadic()) {
+				results.emplace_back(fun.GetSignature().GetParameter(i).GetType().ToString());
+			}
 		}
 		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static vector<LogicalType> GetParameterLogicalTypes(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return fun.arguments;
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		vector<LogicalType> results;
+		for (idx_t i = 0; i < fun.GetSignature().GetParameterCount(); i++) {
+			if (!fun.GetSignature().GetParameter(i).IsVariadic()) {
+				results.emplace_back(fun.GetSignature().GetParameter(i).GetType());
+			}
+		}
+		return results;
 	}
 
 	static Value GetVarArgs(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
+		return VariadicTypeValue(entry.functions.GetFunctionByOffset(offset)->GetSignature());
 	}
 
 	static Value GetMacroDefinition(ScalarFunctionCatalogEntry &entry, idx_t offset) {
@@ -180,68 +203,58 @@ struct ScalarFunctionExtractor {
 	}
 
 	static Value IsVolatile(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		return Value::BOOLEAN(entry.functions.GetFunctionByOffset(offset).GetStability() ==
+		return Value::BOOLEAN(entry.functions.GetFunctionByOffset(offset)->GetStability() ==
 		                      FunctionStability::VOLATILE);
 	}
 
 	static Value ResultType(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		return FunctionStabilityToValue(entry.functions.GetFunctionByOffset(offset).GetStability());
+		return FunctionStabilityToValue(entry.functions.GetFunctionByOffset(offset)->GetStability());
 	}
 };
-
-namespace {
-
-struct WindowFunctionCatalogEntry : CatalogEntry {
-public:
-	WindowFunctionCatalogEntry(const SchemaCatalogEntry &schema, const string &name, vector<LogicalType> arguments,
-	                           LogicalType return_type)
-	    : CatalogEntry(CatalogType::AGGREGATE_FUNCTION_ENTRY, name, 0), schema(schema), arguments(std::move(arguments)),
-	      return_type(std::move(return_type)) {
-		internal = true;
-	}
-
-public:
-	const SchemaCatalogEntry &schema;
-	vector<LogicalType> arguments;
-	LogicalType return_type;
-	vector<FunctionDescription> descriptions;
-	string alias_of;
-};
-
-} // namespace
 
 struct WindowFunctionExtractor {
 	static idx_t FunctionCount(WindowFunctionCatalogEntry &entry) {
-		return 1;
+		return entry.functions.Size();
 	}
 
 	static Value GetFunctionType() {
-		//! FIXME: should be 'window' but requires adapting generation scripts
-		return Value("aggregate");
+		return Value("window");
 	}
 
 	static Value GetReturnType(WindowFunctionCatalogEntry &entry, idx_t offset) {
-		return Value(entry.return_type.ToString());
+		return Value(entry.functions.GetFunctionByOffset(offset)->GetReturnType().ToString());
 	}
 
 	static vector<Value> GetParameters(WindowFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.arguments.size(); i++) {
-			results.emplace_back("col" + to_string(i));
+		for (auto &param : entry.functions.GetFunctionByOffset(offset)->GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetName());
+			}
 		}
 		return results;
 	}
 
 	static Value GetParameterTypes(WindowFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.arguments.size(); i++) {
-			results.emplace_back(entry.arguments[i].ToString());
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		for (idx_t i = 0; i < fun.GetSignature().GetParameterCount(); i++) {
+			if (!fun.GetSignature().GetParameter(i).IsVariadic()) {
+				results.emplace_back(fun.GetSignature().GetParameter(i).GetType().ToString());
+			}
 		}
 		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static vector<LogicalType> GetParameterLogicalTypes(WindowFunctionCatalogEntry &entry, idx_t offset) {
-		return entry.arguments;
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		vector<LogicalType> results;
+		for (idx_t i = 0; i < fun.GetSignature().GetParameterCount(); i++) {
+			if (!fun.GetSignature().GetParameter(i).IsVariadic()) {
+				results.emplace_back(fun.GetSignature().GetParameter(i).GetType());
+			}
+		}
+		return results;
 	}
 
 	static Value GetVarArgs(WindowFunctionCatalogEntry &entry, idx_t offset) {
@@ -271,34 +284,43 @@ struct AggregateFunctionExtractor {
 	}
 
 	static Value GetReturnType(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		return Value(entry.functions.GetFunctionByOffset(offset).GetReturnType().ToString());
+		return Value(entry.functions.GetFunctionByOffset(offset)->GetReturnType().ToString());
 	}
 
 	static vector<Value> GetParameters(AggregateFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions.GetFunctionByOffset(offset).arguments.size(); i++) {
-			results.emplace_back("col" + to_string(i));
+		for (auto &param : entry.functions.GetFunctionByOffset(offset)->GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetName());
+			}
 		}
 		return results;
 	}
 
 	static Value GetParameterTypes(AggregateFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		for (idx_t i = 0; i < fun.arguments.size(); i++) {
-			results.emplace_back(fun.arguments[i].ToString());
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		for (idx_t i = 0; i < fun.GetSignature().GetParameterCount(); i++) {
+			if (!fun.GetSignature().GetParameter(i).IsVariadic()) {
+				results.emplace_back(fun.GetSignature().GetParameter(i).GetType().ToString());
+			}
 		}
 		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static vector<LogicalType> GetParameterLogicalTypes(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return fun.arguments;
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		vector<LogicalType> results;
+		for (idx_t i = 0; i < fun.GetSignature().GetParameterCount(); i++) {
+			if (!fun.GetSignature().GetParameter(i).IsVariadic()) {
+				results.emplace_back(fun.GetSignature().GetParameter(i).GetType());
+			}
+		}
+		return results;
 	}
 
 	static Value GetVarArgs(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
+		return VariadicTypeValue(entry.functions.GetFunctionByOffset(offset)->GetSignature());
 	}
 
 	static Value GetMacroDefinition(AggregateFunctionCatalogEntry &entry, idx_t offset) {
@@ -306,12 +328,12 @@ struct AggregateFunctionExtractor {
 	}
 
 	static Value IsVolatile(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		return Value::BOOLEAN(entry.functions.GetFunctionByOffset(offset).GetStability() ==
+		return Value::BOOLEAN(entry.functions.GetFunctionByOffset(offset)->GetStability() ==
 		                      FunctionStability::VOLATILE);
 	}
 
 	static Value ResultType(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		return FunctionStabilityToValue(entry.functions.GetFunctionByOffset(offset).GetStability());
+		return FunctionStabilityToValue(entry.functions.GetFunctionByOffset(offset)->GetStability());
 	}
 };
 
@@ -443,6 +465,17 @@ struct TableMacroExtractor {
 	}
 };
 
+//! The options a "**kwargs" parameter declares are listed after the parameters, as they are passed by name like them
+static void AddOptions(const FunctionSignature &signature, vector<Value> &results, bool types) {
+	auto option_schema = signature.GetTypedKwargs();
+	if (!option_schema) {
+		return;
+	}
+	for (auto &option : option_schema->GetOptions()) {
+		results.emplace_back(types ? Value(option.type.ToString()) : Value(option.name));
+	}
+}
+
 struct TableFunctionExtractor {
 	static idx_t FunctionCount(TableFunctionCatalogEntry &entry) {
 		return entry.functions.Size();
@@ -458,37 +491,43 @@ struct TableFunctionExtractor {
 
 	static vector<Value> GetParameters(TableFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		for (idx_t i = 0; i < fun.arguments.size(); i++) {
-			results.emplace_back("col" + to_string(i));
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		// the variadic parameters are reported in the "varargs" column instead
+		for (auto &param : fun.GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetName());
+			}
 		}
-		for (auto &param : fun.named_parameters) {
-			results.emplace_back(param.first);
-		}
+		AddOptions(fun.GetSignature(), results, false);
 		return results;
 	}
 
 	static Value GetParameterTypes(TableFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		auto fun = entry.functions.GetFunctionByOffset(offset);
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
 
-		for (idx_t i = 0; i < fun.arguments.size(); i++) {
-			results.emplace_back(fun.arguments[i].ToString());
+		for (auto &param : fun.GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetType().ToString());
+			}
 		}
-		for (auto &param : fun.named_parameters) {
-			results.emplace_back(param.second.ToString());
-		}
+		AddOptions(fun.GetSignature(), results, true);
 		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static vector<LogicalType> GetParameterLogicalTypes(TableFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return fun.arguments;
+		const auto &signature = entry.functions.GetFunctionByOffset(offset)->GetSignature();
+		vector<LogicalType> result;
+		for (idx_t i = 0; i < signature.GetPositionalParameterCount(); i++) {
+			result.push_back(signature.GetParameter(i).GetType());
+		}
+		return result;
 	}
 
 	static Value GetVarArgs(TableFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		auto args = fun.GetSignature().GetArgs();
+		return args ? Value(args->GetType().ToString()) : Value();
 	}
 
 	static Value GetMacroDefinition(TableFunctionCatalogEntry &entry, idx_t offset) {
@@ -519,38 +558,44 @@ struct PragmaFunctionExtractor {
 
 	static vector<Value> GetParameters(PragmaFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-
-		for (idx_t i = 0; i < fun.arguments.size(); i++) {
-			results.emplace_back("col" + to_string(i));
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		// the variadic parameters are reported in the "varargs" column instead
+		for (auto &param : fun.GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetName());
+			}
 		}
-		for (auto &param : fun.named_parameters) {
-			results.emplace_back(param.first);
-		}
+		AddOptions(fun.GetSignature(), results, false);
 		return results;
 	}
 
 	static Value GetParameterTypes(PragmaFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		auto fun = entry.functions.GetFunctionByOffset(offset);
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
 
-		for (idx_t i = 0; i < fun.arguments.size(); i++) {
-			results.emplace_back(fun.arguments[i].ToString());
+		for (auto &param : fun.GetSignature().GetParameters()) {
+			if (!param.IsVariadic()) {
+				results.emplace_back(param.GetType().ToString());
+			}
 		}
-		for (auto &param : fun.named_parameters) {
-			results.emplace_back(param.second.ToString());
-		}
+		AddOptions(fun.GetSignature(), results, true);
 		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static vector<LogicalType> GetParameterLogicalTypes(PragmaFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return fun.arguments;
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		const auto &signature = fun.GetSignature();
+		vector<LogicalType> result;
+		for (idx_t i = 0; i < signature.GetPositionalParameterCount(); i++) {
+			result.push_back(signature.GetParameter(i).GetType());
+		}
+		return result;
 	}
 
 	static Value GetVarArgs(PragmaFunctionCatalogEntry &entry, idx_t offset) {
-		auto fun = entry.functions.GetFunctionByOffset(offset);
-		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
+		const auto &fun = *entry.functions.GetFunctionByOffset(offset);
+		auto args = fun.GetSignature().GetArgs();
+		return args ? Value(args->GetType().ToString()) : Value();
 	}
 
 	static Value GetMacroDefinition(PragmaFunctionCatalogEntry &entry, idx_t offset) {
@@ -577,19 +622,20 @@ static vector<Value> ToValueVector(vector<string> &string_vector) {
 template <class T, class OP>
 static Value GetParameterNames(CatalogEntry &entry, idx_t function_idx, FunctionDescription &function_description,
                                Value &parameter_types) {
-	vector<Value> parameter_names;
-	if (!function_description.parameter_names.empty()) {
-		for (idx_t param_idx = 0; param_idx < ListValue::GetChildren(parameter_types).size(); param_idx++) {
+	// default param names from function signature (if it exists),
+	// otherwise fall back to function.json entry
+	auto &function = entry.Cast<T>();
+	vector<Value> parameter_names = OP::GetParameters(function, function_idx);
+	idx_t parameter_count = ListValue::GetChildren(parameter_types).size();
+	if (parameter_names.size() != parameter_count) {
+		parameter_names.clear();
+		for (idx_t param_idx = 0; param_idx < parameter_count; param_idx++) {
 			if (param_idx < function_description.parameter_names.size()) {
 				parameter_names.emplace_back(function_description.parameter_names[param_idx]);
 			} else {
 				parameter_names.emplace_back("col" + to_string(param_idx));
 			}
 		}
-	} else {
-		// fallback
-		auto &function = entry.Cast<T>();
-		parameter_names = OP::GetParameters(function, function_idx);
 	}
 	return Value::LIST(LogicalType::VARCHAR, parameter_names);
 }
@@ -644,7 +690,7 @@ static optional_idx GetFunctionDescriptionIndex(vector<FunctionDescription> &fun
 }
 
 template <class T, class OP>
-bool ExtractFunctionData(CatalogEntry &entry, idx_t function_idx, DataChunk &output, idx_t output_offset) {
+bool ExtractFunctionData(CatalogEntry &entry, idx_t function_idx, DataChunk &output) {
 	auto &function = entry.Cast<T>();
 	vector<LogicalType> parameter_types_vector = OP::GetParameterLogicalTypes(function, function_idx);
 	Value parameter_types_value = OP::GetParameterTypes(function, function_idx);
@@ -655,138 +701,79 @@ bool ExtractFunctionData(CatalogEntry &entry, idx_t function_idx, DataChunk &out
 	idx_t col = 0;
 
 	// database_name, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(function.schema.catalog.GetName()));
+	output.data[col++].Append(Value(function.schema.catalog.GetName()));
 
 	// database_oid, BIGINT
-	output.SetValue(col++, output_offset, Value::BIGINT(NumericCast<int64_t>(function.schema.catalog.GetOid())));
+	output.data[col++].Append(Value::BIGINT(NumericCast<int64_t>(function.schema.catalog.GetOid())));
 
 	// schema_name, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(function.schema.name));
+	output.data[col++].Append(Value(function.schema.name));
 
 	// function_name, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(function.name));
+	output.data[col++].Append(Value(function.name));
 
 	// alias_of, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset,
-	                function.alias_of.empty() || function.alias_of == function.name ? Value()
-	                                                                                : Value(function.alias_of));
+	output.data[col++].Append(
+	    function.alias_of.empty() || function.alias_of == function.name ? Value() : Value(function.alias_of));
 
 	// function_type, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(OP::GetFunctionType()));
+	output.data[col++].Append(Value(OP::GetFunctionType()));
 
 	// function_description, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset,
-	                (function_description.description.empty()) ? Value() : Value(function_description.description));
+	output.data[col++].Append(function_description.description.empty() ? Value()
+	                                                                   : Value(function_description.description));
 
 	// comment, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, function.comment);
+	output.data[col++].Append(Value(function.comment));
 
 	// tags, LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR)
-	output.SetValue(col++, output_offset, Value::MAP(function.tags));
+	output.data[col++].Append(Value::MAP(function.tags));
 
 	// return_type, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, OP::GetReturnType(function, function_idx));
+	output.data[col++].Append(OP::GetReturnType(function, function_idx));
 
 	// parameters, LogicalType::LIST(LogicalType::VARCHAR)
-	output.SetValue(col++, output_offset,
-	                GetParameterNames<T, OP>(function, function_idx, function_description, parameter_types_value));
+	output.data[col++].Append(
+	    GetParameterNames<T, OP>(function, function_idx, function_description, parameter_types_value));
 
 	// parameter_types, LogicalType::LIST(LogicalType::VARCHAR)
-	output.SetValue(col++, output_offset, parameter_types_value);
+	output.data[col++].Append(parameter_types_value);
 
 	// varargs, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, OP::GetVarArgs(function, function_idx));
+	output.data[col++].Append(OP::GetVarArgs(function, function_idx));
 
 	// macro_definition, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, OP::GetMacroDefinition(function, function_idx));
+	output.data[col++].Append(OP::GetMacroDefinition(function, function_idx));
 
 	// has_side_effects, LogicalType::BOOLEAN
-	output.SetValue(col++, output_offset, OP::IsVolatile(function, function_idx));
+	output.data[col++].Append(OP::IsVolatile(function, function_idx));
 
 	// internal, LogicalType::BOOLEAN
-	output.SetValue(col++, output_offset, Value::BOOLEAN(function.internal));
+	output.data[col++].Append(Value::BOOLEAN(function.internal));
+
+	// extension_name, LogicalType::VARCHAR - display empty as NULL
+	output.data[col++].Append(function.extension_name.empty() ? Value() : Value(function.extension_name));
 
 	// function_oid, LogicalType::BIGINT
-	output.SetValue(col++, output_offset, Value::BIGINT(NumericCast<int64_t>(function.oid)));
+	output.data[col++].Append(Value::BIGINT(NumericCast<int64_t>(function.oid)));
 
 	// examples, LogicalType::LIST(LogicalType::VARCHAR)
-	output.SetValue(col++, output_offset,
-	                Value::LIST(LogicalType::VARCHAR, ToValueVector(function_description.examples)));
+	output.data[col++].Append(Value::LIST(LogicalType::VARCHAR, ToValueVector(function_description.examples)));
 
 	// stability, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, OP::ResultType(function, function_idx));
+	output.data[col++].Append(OP::ResultType(function, function_idx));
 
 	// categories, LogicalType::LIST(LogicalType::VARCHAR)
-	output.SetValue(col++, output_offset,
-	                Value::LIST(LogicalType::VARCHAR, ToValueVector(function_description.categories)));
+	output.data[col++].Append(Value::LIST(LogicalType::VARCHAR, ToValueVector(function_description.categories)));
 
 	return function_idx + 1 == OP::FunctionCount(function);
-}
-
-void ExtractWindowFunctionData(ClientContext &context, const WindowFunctionDefinition *it, DataChunk &output,
-                               idx_t output_offset) {
-	D_ASSERT(it && it->name != nullptr);
-	string name(it->name);
-
-	auto &system_catalog = Catalog::GetSystemCatalog(DatabaseInstance::GetDatabase(context));
-	string schema_name(DEFAULT_SCHEMA);
-	EntryLookupInfo schema_lookup(CatalogType::SCHEMA_ENTRY, schema_name);
-	auto &default_schema = system_catalog.GetSchema(context, schema_lookup);
-
-	switch (it->expression_type) {
-	case ExpressionType::WINDOW_FILL:
-	case ExpressionType::WINDOW_LAST_VALUE:
-	case ExpressionType::WINDOW_FIRST_VALUE: {
-		WindowFunctionCatalogEntry function(default_schema, name, {LogicalType::TEMPLATE("T")},
-		                                    LogicalType::TEMPLATE("T"));
-		ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(function, 0, output, output_offset);
-		break;
-	}
-	case ExpressionType::WINDOW_NTH_VALUE: {
-		WindowFunctionCatalogEntry function(default_schema, name, {LogicalType::TEMPLATE("T"), LogicalType::BIGINT},
-		                                    LogicalType::TEMPLATE("T"));
-		ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(function, 0, output, output_offset);
-		break;
-	}
-	case ExpressionType::WINDOW_ROW_NUMBER:
-	case ExpressionType::WINDOW_RANK:
-	case ExpressionType::WINDOW_RANK_DENSE: {
-		WindowFunctionCatalogEntry function(default_schema, name, {}, LogicalType::BIGINT);
-		ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(function, 0, output, output_offset);
-		break;
-	}
-	case ExpressionType::WINDOW_NTILE: {
-		WindowFunctionCatalogEntry function(default_schema, name, {LogicalType::BIGINT}, LogicalType::BIGINT);
-		ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(function, 0, output, output_offset);
-		break;
-	}
-	case ExpressionType::WINDOW_PERCENT_RANK:
-	case ExpressionType::WINDOW_CUME_DIST: {
-		WindowFunctionCatalogEntry function(default_schema, name, {}, LogicalType::DOUBLE);
-		ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(function, 0, output, output_offset);
-		break;
-	}
-	case ExpressionType::WINDOW_LAG:
-	case ExpressionType::WINDOW_LEAD: {
-		WindowFunctionCatalogEntry function(
-		    default_schema, name, {LogicalType::TEMPLATE("T"), LogicalType::BIGINT, LogicalType::TEMPLATE("T")},
-		    LogicalType::TEMPLATE("T"));
-		ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(function, 0, output, output_offset);
-		break;
-	}
-	default:
-		throw InternalException("Window function '%s' not implemented", name);
-	}
 }
 
 static bool Finished(const DuckDBFunctionsData &data) {
 	if (data.offset < data.entries.size()) {
 		return false;
 	}
-	if (data.window_iterator->name == nullptr) {
-		return true;
-	}
-	return false;
+	return true;
 }
 
 void DuckDBFunctionsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
@@ -805,27 +792,31 @@ void DuckDBFunctionsFunction(ClientContext &context, TableFunctionInput &data_p,
 		switch (entry.type) {
 		case CatalogType::SCALAR_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<ScalarFunctionCatalogEntry, ScalarFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    entry, data.offset_in_entry, output);
 			break;
 		case CatalogType::AGGREGATE_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<AggregateFunctionCatalogEntry, AggregateFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    entry, data.offset_in_entry, output);
 			break;
 		case CatalogType::TABLE_MACRO_ENTRY:
-			finished = ExtractFunctionData<TableMacroCatalogEntry, TableMacroExtractor>(entry, data.offset_in_entry,
-			                                                                            output, count);
+			finished =
+			    ExtractFunctionData<TableMacroCatalogEntry, TableMacroExtractor>(entry, data.offset_in_entry, output);
 			break;
 		case CatalogType::MACRO_ENTRY:
-			finished = ExtractFunctionData<ScalarMacroCatalogEntry, MacroExtractor>(entry, data.offset_in_entry, output,
-			                                                                        count);
+			finished =
+			    ExtractFunctionData<ScalarMacroCatalogEntry, MacroExtractor>(entry, data.offset_in_entry, output);
 			break;
 		case CatalogType::TABLE_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<TableFunctionCatalogEntry, TableFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    entry, data.offset_in_entry, output);
 			break;
 		case CatalogType::PRAGMA_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<PragmaFunctionCatalogEntry, PragmaFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    entry, data.offset_in_entry, output);
+			break;
+		case CatalogType::WINDOW_FUNCTION_ENTRY:
+			finished = ExtractFunctionData<WindowFunctionCatalogEntry, WindowFunctionExtractor>(
+			    entry, data.offset_in_entry, output);
 			break;
 		default:
 			throw InternalException("FIXME: unrecognized function type in duckdb_functions");
@@ -840,17 +831,23 @@ void DuckDBFunctionsFunction(ClientContext &context, TableFunctionInput &data_p,
 		}
 		count++;
 	}
-	while (data.window_iterator->name != nullptr && count < STANDARD_VECTOR_SIZE) {
-		ExtractWindowFunctionData(context, data.window_iterator, output, count);
-		count++;
-		data.window_iterator++;
+	data.progress_offset.store(data.offset, std::memory_order_relaxed);
+}
+
+static double DuckDBFunctionsProgress(ClientContext &context, const FunctionData *bind_data,
+                                      const GlobalTableFunctionState *global_state) {
+	auto &data = global_state->Cast<DuckDBFunctionsData>();
+	if (data.entries.empty()) {
+		return 100.0;
 	}
-	output.SetCardinality(count);
+	auto offset = data.progress_offset.load(std::memory_order_relaxed);
+	return 100.0 * static_cast<double>(offset) / static_cast<double>(data.entries.size());
 }
 
 void DuckDBFunctionsFun::RegisterFunction(BuiltinFunctions &set) {
-	set.AddFunction(
-	    TableFunction("duckdb_functions", {}, DuckDBFunctionsFunction, DuckDBFunctionsBind, DuckDBFunctionsInit));
+	TableFunction functions("duckdb_functions", {}, DuckDBFunctionsFunction, DuckDBFunctionsBind, DuckDBFunctionsInit);
+	functions.table_scan_progress = DuckDBFunctionsProgress;
+	set.AddFunction(functions);
 }
 
 } // namespace duckdb
