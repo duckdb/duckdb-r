@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.6.9004</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.99.99.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,81 +38,36 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.6.9004" id="duckdb-1569004">duckdb 1.5.6.9004<a class="anchor" aria-label="anchor" href="#duckdb-1569004"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.99.99.9001" id="duckdb-199999001">duckdb 1.99.99.9001<a class="anchor" aria-label="anchor" href="#duckdb-199999001"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-1-5-6-9004">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-6-9004"></a></h3>
-<ul><li>A <code>POSIXct</code> or <code>difftime</code> halfway between two microseconds writes rounded to even, as <code><a href="https://dbi.r-dbi.org/reference/dbQuoteLiteral.html" class="external-link">dbQuoteLiteral()</a></code> quotes it (<a href="https://github.com/duckdb/duckdb-r/issues/2887" class="external-link">#2887</a>).</li>
-</ul><div class="section level4">
-<h4 id="series-1-5-6-9004">series<a class="anchor" aria-label="anchor" href="#series-1-5-6-9004"></a></h4>
-<ul><li>Keep a zero fifth version component through the <code>ours-version</code> merge driver (<a href="https://github.com/duckdb/duckdb-r/issues/2886" class="external-link">#2886</a>).</li>
+<h3 id="breaking-changes-1-99-99-9001">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-99-99-9001"></a></h3>
+<ul><li><p>The vendored engine is the DuckDB v2.0 release candidate, <code>2.0.0-dev88614</code> (<a href="mailto:duckdb/duckdb@d54cbbe3df" class="email">duckdb/duckdb@d54cbbe3df</a>), up from DuckDB v1.5.6.</p></li>
+<li><p><code>EXPLAIN</code> renders its plan in a more compact layout, with operators named like <code>Dummy Scan</code> rather than <code>DUMMY_SCAN</code>, and <code>rel_explain()</code>’s HTML output is an interactive document.</p></li>
+<li><p>An error’s <code>LINE</code> context underlines the whole offending token, not just its first character.</p></li>
+<li><p><code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBind()</a></code> on a <code><a href="https://dbi.r-dbi.org/reference/dbSendQuery.html" class="external-link">dbSendQuery()</a></code> result after <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> fails with “Attempting to execute a prepared statement after its connection was closed!” rather than running the statement again; <code><a href="https://dbi.r-dbi.org/reference/dbFetch.html" class="external-link">dbFetch()</a></code> still returns its rows.</p></li>
+<li><p>A query that scans an Arrow stream on the stream’s own connection fails with the invalidation error rather than waiting for good.</p></li>
+<li><p><code>SELECT NULL</code> has the <code>NULL</code> type: the Arrow route hands it on as a null array, format <code>n</code>, rather than <code>int32</code>, and <code>CREATE TABLE AS</code> makes a <code>NULL</code>-typed column of it.</p></li>
+<li><p>The progress display is quiet past an Arrow stream’s first batch.</p></li>
+<li><p>A <code>SELECT</code> that writes, one calling <code>nextval()</code> for instance, runs to completion before <code><a href="https://dbi.r-dbi.org/reference/dbSendQueryArrow.html" class="external-link">dbSendQueryArrow()</a></code> returns rather than streaming.</p></li>
+<li><p>A relational constant renders with a cast that keeps its type: <code>expr_constant(-42)</code> prints as <code>CAST(-42.0 AS DOUBLE)</code> rather than <code>-42.0</code>, and an empty typed list as <code>CAST("system".main.list_value() AS INTEGER[])</code> rather than <code>[]</code>.</p></li>
+<li><p><code>rel_to_csv()</code> and <code>rel_to_parquet()</code> refuse an empty file name with “<code>file_name</code> must be a non-empty string.” rather than the engine’s I/O error.</p></li>
 </ul></div>
-</div>
 <div class="section level3">
-<h3 id="features-1-5-6-9004">Features<a class="anchor" aria-label="anchor" href="#features-1-5-6-9004"></a></h3>
-<div class="section level4">
-<h4 id="series-1-5-6-9004-1">series<a class="anchor" aria-label="anchor" href="#series-1-5-6-9004-1"></a></h4>
-<ul><li>Carry <code>patch/</code> entries onto the buffer as part of porting (<a href="https://github.com/duckdb/duckdb-r/issues/2660" class="external-link">#2660</a>).</li>
+<h3 id="features-1-99-99-9001">Features<a class="anchor" aria-label="anchor" href="#features-1-99-99-9001"></a></h3>
+<ul><li><p><code>TIMESTAMP_TZ_NS</code> columns read as <code>POSIXct</code>, labeled with the session <code>TimeZone</code> like <code>TIMESTAMPTZ</code>.</p></li>
+<li><p><code>TUPLE</code> columns read as data frames whose columns are named <code>element1</code>, <code>element2</code>, … rather than left unnamed, and an empty <code>STRUCT</code> as a data frame without columns.</p></li>
 </ul></div>
-</div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.6.9003" id="duckdb-1569003">duckdb 1.5.6.9003<a class="anchor" aria-label="anchor" href="#duckdb-1569003"></a></h2>
 <div class="section level3">
-<h3 id="chore-1-5-6-9003">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-6-9003"></a></h3>
-<ul><li>Auto-update from GitHub Actions (<a href="https://github.com/duckdb/duckdb-r/issues/2884" class="external-link">#2884</a>).</li>
+<h3 id="compatibility-1-99-99-9001">Compatibility<a class="anchor" aria-label="anchor" href="#compatibility-1-99-99-9001"></a></h3>
+<ul><li>Patches to the vendored engine fix compiler warnings that GCC, clang and MinGW raise in its sources.</li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.6.9002" id="duckdb-1569002">duckdb 1.5.6.9002<a class="anchor" aria-label="anchor" href="#duckdb-1569002"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-1-5-6-9002">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-6-9002"></a></h3>
-<div class="section level4">
-<h4 id="series-advance-1-5-6-9002">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-6-9002"></a></h4>
-<ul><li>Look a carry’s twin up above the forward’s green (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2877" class="external-link">#2877</a>).</li>
-</ul></div>
-<div class="section level4">
-<h4 id="series-advance-1-5-6-9002-1">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-6-9002-1"></a></h4>
-<ul><li>Compile the glue after a carry that touches it (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2880" class="external-link">#2880</a>).</li>
-</ul></div>
-</div>
-<div class="section level3">
-<h3 id="documentation-1-5-6-9002">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-6-9002"></a></h3>
-<div class="section level4">
-<h4 id="series-loop-1-5-6-9002">series-loop<a class="anchor" aria-label="anchor" href="#series-loop-1-5-6-9002"></a></h4>
-<ul><li>Record how to resolve the cpp11 binding conflict a port brings (<a href="https://github.com/duckdb/duckdb-r/issues/2851" class="external-link">#2851</a>).</li>
-</ul></div>
-<div class="section level4">
-<h4 id="series-loop-1-5-6-9002-1">series-loop<a class="anchor" aria-label="anchor" href="#series-loop-1-5-6-9002-1"></a></h4>
-<ul><li>Record the cpp11 include path the buffers still generate (<a href="https://github.com/duckdb/duckdb-r/issues/2847" class="external-link">#2847</a>).</li>
-</ul></div>
-</div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.6.9001" id="duckdb-1569001">duckdb 1.5.6.9001<a class="anchor" aria-label="anchor" href="#duckdb-1569001"></a></h2>
-<div class="section level3">
-<h3 id="features-1-5-6-9001">Features<a class="anchor" aria-label="anchor" href="#features-1-5-6-9001"></a></h3>
-<div class="section level4">
-<h4 id="series-1-5-6-9001">series<a class="anchor" aria-label="anchor" href="#series-1-5-6-9001"></a></h4>
-<ul><li>Rebuild the rewind at the foot of a forward, gate the glue, and mirror <code>-dev</code> without its flavor (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2875" class="external-link">#2875</a>).</li>
-</ul></div>
-</div>
-<div class="section level3">
-<h3 id="continuous-integration-1-5-6-9001">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-6-9001"></a></h3>
-<ul><li>Key the build caches by architecture (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2876" class="external-link">#2876</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.6.9000" id="duckdb-1569000">duckdb 1.5.6.9000<a class="anchor" aria-label="anchor" href="#duckdb-1569000"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-1-5-6-9000">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-6-9000"></a></h3>
-<div class="section level4">
-<h4 id="series-1-5-6-9000">series<a class="anchor" aria-label="anchor" href="#series-1-5-6-9000"></a></h4>
-<ul><li>Read <code>main</code> from the canonical repository, not the fork’s mirror (<a href="https://github.com/duckdb/duckdb-r/issues/2865" class="external-link">#2865</a>).</li>
-</ul></div>
-</div>
-<div class="section level3">
-<h3 id="uncategorized-1-5-6-9000">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-6-9000"></a></h3>
-<ul><li>Merge remote-tracking branch ‘upstream/cran-1.5.6’.</li>
+<h3 id="bug-fixes-1-99-99-9001">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-99-99-9001"></a></h3>
+<ul><li><p>A <code>POSIXct</code> or <code>difftime</code> halfway between two microseconds writes rounded to even, as <code><a href="https://dbi.r-dbi.org/reference/dbQuoteLiteral.html" class="external-link">dbQuoteLiteral()</a></code> quotes it (<a href="https://github.com/duckdb/duckdb-r/issues/2887" class="external-link">#2887</a>).</p></li>
+<li><p><code><a href="https://dbi.r-dbi.org/reference/dbExistsTable.html" class="external-link">dbExistsTable()</a></code> leaves an open transaction usable with DuckDB 2.0, and raises rather than returning <code>FALSE</code> in a transaction that has already failed or for a name that cannot be quoted, such as <code>NA</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2892" class="external-link">#2892</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2893" class="external-link">#2893</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2896" class="external-link">#2896</a>).</p></li>
+<li><p><code><a href="../reference/duckdb_read_csv.html">duckdb_read_csv()</a></code> applies <code>col.names</code> given without <code>col.types</code>, names unnamed <code>col.types</code> after the file’s columns, and refuses a <code>col.names</code> of the wrong length (<a href="https://github.com/duckdb/duckdb-r/issues/2896" class="external-link">#2896</a>).</p></li>
+<li><p>With <code>enable_profiling</code> and <code>profiling_output</code> set, an <code>EXPLAIN ANALYZE</code> that failed, or was prepared and never run, no longer leaves the next query on the connection without a profile (<a href="https://github.com/duckdb/duckdb-r/issues/2904" class="external-link">#2904</a>).</p></li>
+<li><p>An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query rather than leaving the session busy, and a relation of another connection materializes there as it does through <code>rel_from_df()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2909" class="external-link">#2909</a>).</p></li>
 </ul></div>
 </div>
     <div class="section level2">
