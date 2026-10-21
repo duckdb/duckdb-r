@@ -78,42 +78,67 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	}
 }
 
-// Materialize `coldata` and everything the scan can reach through it, so that
-// the scan dereferences plain memory. GetColDataPtr() stops at the packed
-// types -- a struct column, a matrix, the cells of a list -- and what reaches
-// inside those runs on a task thread, where the R API is out of bounds.
+// Visit `coldata` and every vector the scan can reach through it, so that bind
+// can make sure the scan dereferences plain memory. GetColDataPtr() stops at the
+// packed types -- a struct column, a matrix, the cells of a list -- and what
+// reaches inside those runs on a task thread, where the R API is out of bounds.
 // Deliberately covers more than the scan reads; the leaf says why.
-static void TouchColumn(SEXP coldata) {
+// Stops at the first vector `visit` returns false for, and returns false then.
+static bool WalkColumn(SEXP coldata, bool (*visit)(SEXP)) {
 	switch (TYPEOF(coldata)) {
 	case LGLSXP:
-		(void)LOGICAL_POINTER(coldata);
-		break;
 	case INTSXP:
-		(void)INTEGER_POINTER(coldata);
-		break;
 	case REALSXP:
-		(void)NUMERIC_POINTER(coldata);
-		break;
 	case CPLXSXP:
 	case RAWSXP:
 	case STRSXP:
-		(void)DATAPTR_RO(coldata);
+	case VECSXP:
 		break;
-	case VECSXP: {
-		(void)DATAPTR_RO(coldata);
-		auto cell_count = Rf_xlength(coldata);
-		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
-			TouchColumn(VECTOR_ELT(coldata, cell_idx));
-		}
-		break;
-	}
 	default:
 		// Not a vector the scan reads; it reports that where it meets it
-		return;
+		return true;
+	}
+
+	if (!visit(coldata)) {
+		return false;
+	}
+	if (TYPEOF(coldata) == VECSXP) {
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			if (!WalkColumn(VECTOR_ELT(coldata, cell_idx), visit)) {
+				return false;
+			}
+		}
 	}
 
 	// The `map_list_of` shape reads the names of a cell with STRING_ELT()
-	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
+	return WalkColumn(Rf_getAttrib(coldata, R_NamesSymbol), visit);
+}
+
+// Materialize `x` through the accessor GetColDataPtr() takes it with. Runs an ALTREP class's code.
+static bool TouchVector(SEXP x) {
+	switch (TYPEOF(x)) {
+	case LGLSXP:
+		(void)LOGICAL_POINTER(x);
+		break;
+	case INTSXP:
+		(void)INTEGER_POINTER(x);
+		break;
+	case REALSXP:
+		(void)NUMERIC_POINTER(x);
+		break;
+	default:
+		(void)DATAPTR_RO(x);
+		break;
+	}
+	return true;
+}
+
+// Whether `x` holds its payload in memory without an ALTREP class's code materializing it:
+// a plain vector does, an ALTREP vector when DATAPTR_OR_NULL() returns that payload,
+// which it tells without allocating, and an ALTREP list never, since VECTOR_ELT() runs its class's code.
+static bool IsInMemory(SEXP x) {
+	return !ALTREP(x) || (TYPEOF(x) != VECSXP && DATAPTR_OR_NULL(x));
 }
 
 struct TouchColumnsData {
@@ -124,7 +149,7 @@ struct TouchColumnsData {
 static SEXP TouchColumns(void *data_p) {
 	auto df = static_cast<TouchColumnsData *>(data_p)->df;
 	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df); col_idx++) {
-		TouchColumn(VECTOR_ELT(df, col_idx));
+		WalkColumn(VECTOR_ELT(df, col_idx), TouchVector);
 	}
 	return R_NilValue;
 }
@@ -662,7 +687,21 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	vector<data_ptr_t> data_ptrs;
 	vector<bool> named_list_map;
 
-	TouchColumnsOrThrow(df);
+	// Touch the columns on R's thread only, the one thread that may run R code.
+	// A task binds on any thread, and there reads only what is in memory already.
+	if (OnRThread()) {
+		TouchColumnsOrThrow(df);
+	} else {
+		for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
+			if (!WalkColumn(VECTOR_ELT(df, col_idx), IsInMemory)) {
+				throw InvalidInputException("Cannot read column \"%s\" of the data frame off R's thread, "
+				                            "where this query binds its scan: it holds an ALTREP vector that only R "
+				                            "can read. Replace the column with a plain R vector, "
+				                            "or SET threads = 1 so that R's thread runs every task.",
+				                            CHAR(STRING_ELT(df_names, col_idx)));
+			}
+		}
+	}
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(Identifier(string(df_names[col_idx])));

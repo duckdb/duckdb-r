@@ -89,3 +89,65 @@ test_that("can register list of NULL values", {
 
   expect_equal(dbGetQuery(con, "SELECT * FROM df1"), as.data.frame(df))
 })
+
+test_that("a registered data frame binds on a thread other than R's (#2962)", {
+  con <- local_con()
+  dbExecute(con, "SET threads = 4")
+  duckdb_register(con, "v", data.frame(V1 = 1:3))
+
+  # pragma_table_info() rebinds the view in a task, which any thread may run,
+  # so the query is repeated for threads other than R's to bind it
+  res <- lapply(1:50, function(i) {
+    dbGetQuery(con, "SELECT * FROM v JOIN pragma_table_info('v') m ON true")$V1
+  })
+  expect_equal(res, rep(list(1:3), 50))
+})
+
+test_that("a registered relation binds on a thread other than R's (#2962)", {
+  con <- local_con()
+  con_rel <- local_con()
+  dbExecute(con, "SET threads = 4")
+  df <- rel_to_altrep(rel_from_df(
+    con_rel,
+    data.frame(a = 1:3, b = c("x", "y", "z"))
+  ))
+  duckdb_register(con, "r", df)
+
+  # Its columns are converted when the view is created, on R's thread,
+  # and a task that rebinds the view reads them as they are
+  res <- lapply(1:50, function(i) {
+    sort(
+      dbGetQuery(con, "SELECT a FROM r JOIN pragma_table_info('r') m ON true")$a
+    )
+  })
+  expect_equal(res, rep(list(rep(1:3, each = 2)), 50))
+})
+
+test_that("a registered relation's list column is refused on a thread other than R's (#2962)", {
+  skip_if(getRversion() < "4.3", "ALTREP for lists not supported")
+
+  con <- local_con()
+  con_rel <- local_con()
+  dbExecute(con, "SET threads = 4")
+  df <- rel_to_altrep(rel_from_sql(
+    con_rel,
+    "SELECT * FROM (VALUES (1, [1, 2]), (2, [3])) t(a, l)"
+  ))
+  duckdb_register(con, "r", df)
+  sql <- "SELECT a FROM r JOIN pragma_table_info('r') m ON true"
+
+  # A list column of rel_to_altrep() is an ALTREP list, which only R reads;
+  # the loop ends at the first query whose task binds the view off R's thread
+  expect_error(
+    for (i in 1:200) {
+      dbGetQuery(con, sql)
+    },
+    "column \"l\" .* off R's thread",
+    class = "duckdb_error"
+  )
+
+  # With no worker of its own, the engine runs every task on R's thread
+  dbExecute(con, "SET threads = 1")
+  res <- lapply(1:20, function(i) sort(dbGetQuery(con, sql)$a))
+  expect_equal(res, rep(list(c(1L, 1L, 2L, 2L)), 20))
+})
