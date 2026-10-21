@@ -22,8 +22,9 @@
 #   7. --push writes `<L>-land-dev` and `<L>-land-green` at the base together.
 #   8. A rebuild from the same inputs mints the same SHAs, and the conflict
 #      resolved once is resolved again by rerere without stopping.
-#   9. --status advances green over the commits the store passed, names the
-#      first one it has not, and prints the fast-forward once every one passed.
+#   9. --status counts the commits the store passed and names the first one it
+#      has not; green holds at the base until every one passed, and then moves
+#      to the tip with the fast-forward printed (scripts/series-green.sh).
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
@@ -86,7 +87,7 @@ git remote add upstream "$CANON"
 
 mkdir -p scripts R src/duckdb/src/function/table/version tests/testthat .github/workflows
 for s in series-land.sh series-forward-build.sh series-rc.sh series-tests.sh setup-git.sh merge-version.sh \
-  series-config.sh series-lib.sh vendor-lib.sh; do
+  series-config.sh series-lib.sh vendor-lib.sh series-green.sh; do
   cp "$HERE/$s" scripts/
 done
 chmod +x scripts/*.sh
@@ -271,7 +272,7 @@ has "nothing to push" "$out" "v2.0-x-land-dev: already on origin"
 # --- 9: --status ------------------------------------------------------------
 
 echo
-echo "== --status moves green over what passed"
+echo "== --status reads what passed, and green moves only once all of it has"
 C1=$(git rev-parse "$TIP~2")
 C2=$(git rev-parse "$TIP~1")
 git checkout -q --orphan rcc2
@@ -292,7 +293,7 @@ out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
 has "it counts what passed" "$out" "2 of 3 commits above v2.0-x-land-green passed"
 has "and names the first that has not" "$out" "first not passed: $(git rev-parse --short "$TIP") (missing)"
 git fetch -q origin
-is "green moved over the two" "$(git rev-parse origin/v2.0-x-land-green)" "$C2"
+is "green holds at the base while one is undecided" "$(git rev-parse origin/v2.0-x-land-green)" "$M"
 hasnt "it is not ready" "$out" "READY"
 
 git checkout -q rcc2
@@ -303,6 +304,8 @@ git checkout -q main
 out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "every commit passed" "$out" "READY: every commit has passed"
+git fetch -q origin
+is "and green went to the tip" "$(git rev-parse origin/v2.0-x-land-green)" "$TIP"
 has "and it prints the fast-forward" "$out" "git push upstream $TIP:refs/heads/main"
 
 echo

@@ -1,12 +1,16 @@
 #!/bin/bash
-# The ref motion of the series loop, stages 3 and 5, for one series:
-# fast-forward `<S>-green` over the all-green prefix, set `<S>-build-base` to
-# the equivalent `-build` commit, and extend `<S>-dev` from the buffer.
+# The ref motion of the series loop, stages 3 and 5, for one series: read
+# where `<S>-green` stands, set `<S>-build-base` to the equivalent `-build`
+# commit, mirror green into the canonical repository, and extend `<S>-dev`
+# from the buffer.
+#
+# Green itself is not moved here. The last job of every `each-rcc` run
+# fast-forwards it over what the run passed (scripts/series-green.sh), so it
+# moves when a verdict lands, and the loop and CI never race for it.
 #
 # Everything here is mechanical and gated; the judgement calls (repairs,
-# review) stay with the skill. A failure in the in-flight range still lets
-# green take the verified commits below it, and then stops the firing before
-# `-dev` is extended — run series-check.sh first and repair.
+# review) stay with the skill. A failure in the in-flight range stops the
+# firing before `-dev` is extended: run series-check.sh first and repair.
 #
 # **Stage 5 carries the base series' fixes** onto a forward series as it
 # consumes its buffer. The two branches divide by how far a fix was demanded:
@@ -393,53 +397,48 @@ verify_counter() { # <worktree> <ref the replay started from>
   return "$rc"
 }
 
-# --- stage 3: the all-green prefix -------------------------------------------
+# --- stage 3: the frontier each-rcc moved -----------------------------------
 #
-# A failure ends the walk the way a missing verdict does, and the prefix below
-# it still counts. Every commit under the red one was decided by a run of its
-# own, a repair replays only the tail above it, and green is the ref r-universe
-# installs -- so refusing the whole stage left verified commits unpublished for
-# as long as the repair took, which is the one cost the frontier exists to
-# avoid. The red is still fatal, one stage later: green and `-build-base` are
-# set first, then the firing stops before stage 5 extends `-dev` onto a tip a
-# repair is about to re-mint (.claude/skills/series-loop/SKILL.md, stages 3 and 5).
-new_green=$(git rev-parse "$green")
+# Green is the `each-rcc` run's to move, at its end (scripts/series-green.sh);
+# this stage reads where it stands. The walk above it is read-only and does two
+# things. A red ends it, and is fatal one stage later: `-build-base` and the
+# mirror are set first, then the firing stops before stage 5 extends `-dev`
+# onto a tip a repair is about to re-mint (.claude/skills/series-loop/SKILL.md,
+# stages 3 and 5). And a commit that passed while green stayed below it is
+# reported, because the job that should have taken it has not run since, or
+# could not push.
+green_at=$(git rev-parse "$green")
+reach=$green_at
 failed='' failed_state=''
 while IFS= read -r sha; do
   st=$(state_of "$sha")
   case "$st" in
-    success) new_green="$sha" ;;
+    success) reach="$sha" ;;
     missing|pending) break ;;
     *) failed=$sha failed_state=$st; break ;;
   esac
 done < <(git rev-list --reverse "$green..$dev")
+echo "green at $(git rev-parse --short "$green_at")"
+if [ "$reach" != "$green_at" ]; then
+  echo "  $(git rev-list --count "$green_at..$reach") commit(s) above it passed, up to" \
+    "$(git rev-parse --short "$reach"); each-rcc's green job moves it at the end of a run," \
+    "and scripts/series-green.sh $S --push moves it by hand"
+fi
 
-if [ "$new_green" != "$(git rev-parse "$green")" ]; then
-  git merge-base --is-ancestor "$(git rev-parse "$green")" "$new_green" ||
-    { echo "Error: green would not fast-forward — verified history was rewritten"; exit 1; }
-  git push "$remote" "$new_green:refs/heads/$S-green"
-  echo "green -> $(git rev-parse --short "$new_green")"
-  green_moved=1
-
-  up=$(series_vendored_sha "$new_green")
-  if [ -n "$up" ]; then
-    eq=$(series_build_equivalent "$build" "$new_green" "$up")
-    if [ -n "$eq" ]; then
-      # Set, never advance. -build-base is the one ref of the four that is not
-      # fast-forward only: nothing consumes it, and the match is recomputed
-      # here from scratch every time, so where the ref sat before says nothing
-      # this stage needs (.claude/skills/series-loop/SKILL.md, stage 3). Force,
-      # because a write from outside this loop -- a CI job committing onto the
-      # branch it ran on -- can leave the ref past the match or beside the
-      # buffer, and refusing that stopped stage 5 with it.
-      if [ "$(git rev-parse "$base")" != "$eq" ]; then
-        git push --force "$remote" "$eq:refs/heads/$S-build-base"
-        echo "build-base -> $(git rev-parse --short "$eq")"
-      fi
-    fi
+# Set, never advance. -build-base is the one ref of the four that is not
+# fast-forward only: nothing consumes it, and the match is recomputed here from
+# scratch every firing, so where the ref sat before says nothing this stage
+# needs (.claude/skills/series-loop/SKILL.md, stage 3). Force, because a write
+# from outside this loop -- a CI job committing onto the branch it ran on -- can
+# leave the ref past the match or beside the buffer, and refusing that stopped
+# stage 5 with it.
+up=$(series_vendored_sha "$green_at")
+if [ -n "$up" ]; then
+  eq=$(series_build_equivalent "$build" "$green_at" "$up")
+  if [ -n "$eq" ] && [ "$(git rev-parse "$base")" != "$eq" ]; then
+    git push --force "$remote" "$eq:refs/heads/$S-build-base"
+    echo "build-base -> $(git rev-parse --short "$eq")"
   fi
-else
-  echo "green unchanged at $(git rev-parse --short "$green")"
 fi
 
 # The canonical repository publishes the base flavors, so its copy of green has
@@ -466,25 +465,22 @@ mirror_green() {
   case "$S" in
     *-fwd)
       cur=$(git ls-remote "$canonical" "refs/heads/$S-green" | cut -f1)
-      git push "--force-with-lease=refs/heads/$S-green:$cur" "$canonical" "$new_green:refs/heads/$S-green"
+      git push "--force-with-lease=refs/heads/$S-green:$cur" "$canonical" "$green_at:refs/heads/$S-green"
       ;;
-    *) git push "$canonical" "$new_green:refs/heads/$S-green" ;;
+    *) git push "$canonical" "$green_at:refs/heads/$S-green" ;;
   esac
 }
 if [ -n "$canonical" ]; then
   if ! git remote get-url "$canonical" >/dev/null 2>&1; then
-    # Fatal only when this firing promoted something: then the missing remote
-    # is a verified commit stranded in the fork. With green where it was there
-    # is nothing to strand, and nothing to compare it against either.
-    if [ -n "${green_moved:-}" ]; then
-      echo "Error: no remote '$canonical' to mirror $S-green into." >&2
-      echo "  The canonical repository is where r-universe publishes the base" >&2
-      echo "  flavors from, so a green that stays in the fork is a package that" >&2
-      echo "  keeps being published as the fork owner's. Name the remote" >&2
-      echo "  'upstream', or pass --canonical <name>; SERIES_CANONICAL='' turns" >&2
-      echo "  the mirroring off deliberately." >&2
-      exit 1
-    fi
+    # Fatal, because green moves between firings without them, so any firing
+    # may be the one whose mirror carries a verified commit out of the fork.
+    echo "Error: no remote '$canonical' to mirror $S-green into." >&2
+    echo "  The canonical repository is where r-universe publishes the base" >&2
+    echo "  flavors from, so a green that stays in the fork is a package that" >&2
+    echo "  keeps being published as the fork owner's. Name the remote" >&2
+    echo "  'upstream', or pass --canonical <name>; SERIES_CANONICAL='' turns" >&2
+    echo "  the mirroring off deliberately." >&2
+    exit 1
   elif mirror_green; then
     echo "green mirrored to $canonical"
   else
@@ -556,7 +552,7 @@ while IFS= read -r sha; do
     success | missing | pending) ;;
     *) red=$sha; break ;;
   esac
-done < <(git rev-list --reverse "$new_green..$dev")
+done < <(git rev-list --reverse "$green_at..$dev")
 if [ -n "$red" ]; then
   echo "$(git rev-parse --short "$red") has failed — repair before extending"
   exit 0

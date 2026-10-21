@@ -36,8 +36,9 @@ flowchart LR
 * **`<L>-land-dev`**, in the fork: `main` plus the vendor commits, and nothing else.
   CI judges it like any `-dev` ([`scripts/each-plan.sh`](/scripts/each-plan.sh)).
 * **`<L>-land-green`**, in the fork: where CI's judgement starts.
-  It is pushed at the frozen `main` and advanced over the commits that passed;
-  the landing is ready when it equals `<L>-land-dev`.
+  It is pushed at the frozen `main`, and the last job of an `each-rcc` run moves it to `<L>-land-dev`
+  once every commit has passed, all or nothing ([`scripts/series-green.sh`](/scripts/series-green.sh));
+  the landing is ready when the two are equal.
 
 * **`<L>-land-review`**, in the canonical repository: the same landing without its engine,
   for a draft pull request that is read and never merged (step 4).
@@ -218,14 +219,19 @@ The fixes then go onto the series, and the landing is built from it as above.
 
 ## 5. Let CI judge every commit
 
-Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-land-dev`.
-Read and advance it with
+Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-land-dev`,
+and every run ends by moving `<L>-land-green` to the tip once every commit has passed.
+It moves all or nothing, never over a passed prefix,
+so a fix folded into a commit CI had already passed never leaves green off the lineage.
+An iteration pushed for CI as `<L>-land-v<n>-dev`, beside a `<L>-land-v<n>-green` at its base, moves by the same rule.
+Read where it stands with
 
 ```sh
-scripts/series-land.sh <S> --status --push
+scripts/series-land.sh <S> --status
 ```
 
-which moves `<L>-land-green` over the commits that passed and names the first that has not.
+which counts the commits that passed and names the first that has not;
+`--push` makes the move by hand, by the same script, where the job could not.
 A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series-loop/SKILL.md)):
 
 * **the infrastructure's fault**: push `retry-<L>-land-dev` at the commit, once;

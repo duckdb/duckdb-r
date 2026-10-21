@@ -36,7 +36,7 @@ Depth costs more subtly:
 `vendored_sha()` walks 20 subjects deep,
 `series-port.sh` needs a merge base with `main`
 and patch-ids to dedupe against,
-stage 3 asks whether green is an ancestor of dev,
+stage 2 asks whether green is an ancestor of the tip it pushes,
 and every one of those meets the graft boundary
 and answers wrong or refuses.
 Tags are not optional either:

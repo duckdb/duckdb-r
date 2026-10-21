@@ -159,9 +159,9 @@ one rather than at zero.
 
 The **order** they are queued in is the same: oldest shard first, so that
 under `max-parallel` throttling the oldest undecided slice is decided first.
-That is the end the series loop can actually move from — `<S>-green` advances
-over a *contiguous* run of green commits, so a decided tip sitting above an
-undecided gap advances nothing.
+That is the end a series' green can actually move from:
+it advances over a *contiguous* run of green commits,
+so a decided tip sitting above an undecided gap advances nothing.
 The matrix therefore starts at shard 1 and finishes with shard N.
 Within a shard, commits run oldest-first too, for cache locality.
 

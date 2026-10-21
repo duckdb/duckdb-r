@@ -83,8 +83,8 @@ and it is deleted here with the fork's `-fwd` refs once the swap has made its ti
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 
 **It is a fast-forward, and a refusal is a finding.**
-[`scripts/series-advance.sh`](/scripts/series-advance.sh) pushes it plainly
-beside the fork's own green — to the remote `upstream` unless told otherwise,
+[`scripts/series-advance.sh`](/scripts/series-advance.sh) pushes it plainly on every firing,
+from wherever the fork's own green stands, to the remote `upstream` unless told otherwise,
 which is what a `gh` clone of a fork calls what it was forked from —
 so git rejects anything that is not a forward,
 and the rejection stops the firing rather than being forced:

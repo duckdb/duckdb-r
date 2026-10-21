@@ -27,7 +27,7 @@ a rule here that reads as arbitrary is explained there, never overridden here.
 |---|---|---|
 | `<S>-build` | the routine, unconditionally | Every upstream first-parent commit vendored one-to-one, glue compiling at every commit. **No CI runs here** (`each.yaml` never matches `*-build`). The buffer. |
 | `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 100 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
-| `<S>-green` | the routine, fast-forward only | The newest commit such that every commit in `<S>-green..it` has a `success` run. What r-universe should build from. |
+| `<S>-green` | `each-rcc`'s last job, fast-forward only | The newest commit such that every commit in `<S>-green..it` has a `success` run. What r-universe should build from. |
 | `<S>-build-base` | the routine, force-push | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. A marker with no consumer, recomputed every stage 3. |
 
 Equivalence between `-build` and `-dev` commits is by the `duckdb/duckdb@<sha>` reference in the commit subject:
@@ -69,11 +69,11 @@ and an UNSERVED block for an upstream release line no series covers,
 saying whether `series.yaml` declares its flavor yet,
 and the one the report ends with),
 `scripts/series-advance.sh <S>`
-(stages 3 and 5 — fast-forwards `-green`,
+(stages 3 and 5: reads `-green`,
 sets `-build-base` to the vendored-SHA match,
-extends `-dev` by ≤ 100;
-advances `-green` over the verified prefix and then stops on a red above it,
-and refuses a `-green` that would not fast-forward),
+mirrors green into the canonical repository,
+extends `-dev` by ≤ 100,
+and stops on a red above green),
 `scripts/series-port.sh <S>`
 (stage 4 — brings `<S>-dev` level with `main`:
 cherry-picks plus a tooling sync),
@@ -86,6 +86,9 @@ and `scripts/series-converge.sh <S>`
 (read-only — `<S>-dev` against `<S>-fwd-dev`, every difference sorted
 into what the forwarding explains and what it does not, stage 6).
 Judgement — repairs, review, vendoring — stays here.
+
+`scripts/series-green.sh <S> --push` moves green; `each-rcc` runs it as its last job, so a firing never does,
+and a human runs it by hand only where that job could not push.
 
 One more runs on an event rather than on every firing:
 `scripts/pull-config.sh`
@@ -189,6 +192,15 @@ Every commit in `<S>-green..<S>-dev` was decided by an `each-rcc` leg, and that 
 * **Repair the oldest failure first.**
   Write the fix as a commit on the offending commit and let
   [`scripts/series-fold.sh`](/scripts/series-fold.sh) fold it and replay the tail, then force-push `<S>-dev`.
+  Green moves while a firing works, at the end of every `each-rcc` run, so read it again just before the push and keep it an ancestor:
+
+  ```sh
+  git fetch origin <S>-green
+  git merge-base --is-ancestor origin/<S>-green <new tip> &&
+    git push --force-with-lease=refs/heads/<S>-dev:<old tip> origin <new tip>:refs/heads/<S>-dev
+  ```
+
+  A refusal means CI passed the commit the fix went into while it was being written; fold the fix above green instead.
   Build and check locally first with `scripts/rcc-one.sh` after `git clean -fdx -- src/`;
   only a reviewed snapshot fold whose diff matches the upstream change goes straight to CI.
 * **A test the engine cannot pass yet is gated, never deleted or rewritten**:
@@ -206,7 +218,7 @@ Every commit in `<S>-green..<S>-dev` was decided by an `each-rcc` leg, and that 
 
 Reference: [`references/2-repair.md`](references/2-repair.md).
 
-### 3. Advance the frontier, and read what r-universe made of the last one
+### 3. Read the frontier, and what r-universe made of the last one
 
 ```sh
 scripts/series-advance.sh <S>            # stages 3 and 5 together
@@ -214,8 +226,11 @@ scripts/r-universe-check.sh              # every package, per target, reds only
 scripts/r-universe-check.sh --log <id>   # the log behind one of them
 ```
 
-* Fast-forward `<S>-green` to the newest `<S>-dev` commit with every commit behind it `success`;
-  **if it cannot fast-forward, something rewrote verified history: stop and say so.**
+* **Green is not the firing's to move.**
+  The last job of every `each-rcc` run fast-forwards `<S>-green` over what passed ([`scripts/series-green.sh`](/scripts/series-green.sh)).
+  When `series-advance.sh` reports commits passed above a green that has not taken them,
+  read that job's summary in the newest run on `<S>-dev`, report what it says, and never push green from the firing.
+  **A job that found green off `<S>-dev`'s lineage means something rewrote verified history: stop and say so.**
 * Mirror every series' green into the canonical repository, the forward's too, with a plain push;
   **scream on a refusal, never force it**.
 * Set `<S>-build-base` to the `<S>-build` commit with the same vendored SHA, force-pushing where that is not a fast-forward;
@@ -371,7 +386,7 @@ git push --force-with-lease origin \
   A retry branch naming a series with no green plans nothing.
 * **The branch is the ledger**: `retry-<S>-dev` already on this commit means it has had its one rerun and failed again,
   which is REPAIR, never RETRY; pointing elsewhere, force-update it and rerun.
-* The verdict reaches the loop from the rerun's own run, which carries the higher run id.
+* The verdict reaches the loop from the rerun's own run, which carries the higher run id, and that run's last job moves `<S>-green` over it.
 * A verdict the job decided rather than the tree is dropped, `scripts/rcc-drop.sh <sha>...`, so the commit is planned again;
   never run `rcc-logs.sh` behind a drop.
 * A series whose commits predate `each.yaml` retries by hand: dispatch `each-rcc` on `retry-<S>-dev` with `force=true` and `max-commits=1`.
@@ -411,7 +426,7 @@ a `.dd` file naming a header the flavor renamed stops the build before the first
   and never swaps the refs by another route.
   The script archives what it replaces before it swaps, and deletes the forward's refs afterwards;
   what a refused deletion leaves is cutover litter, which `scripts/series-prune.sh` lists for a human.
-  Every other ref move in this skill is the routine's to make.
+  Every other ref move in this skill is the routine's to make, except green's forward motion, which is `each-rcc`'s.
 - Opening a series is manual too, and its trigger is upstream's branch cut.
   The loop reports a release line no series covers,
   at the end of every firing until the refs exist;

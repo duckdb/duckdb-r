@@ -1,17 +1,29 @@
-# Stage 3: advance the frontier, and read what r-universe made of the last one
+# Stage 3: read the frontier, and what r-universe made of the last one
 
 *Reference for stage 3 of [`series-loop`](../SKILL.md), read when the stage has work;
 the handbook leaf is [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).*
 
-Fast-forward `<S>-green` to the newest `<S>-dev` commit
-such that every commit in `<S>-green..<that commit>` has a `success` run.
+`<S>-green` is the newest `<S>-dev` commit
+such that every commit in `<S>-green..<that commit>` has a `success` run,
+and the last job of every `each-rcc` run moves it there
+([`scripts/series-green.sh`](/scripts/series-green.sh)).
+It is CI's move rather than this stage's,
+so that a verdict landing between firings publishes at once,
+and so that a fast-forward-only ref has one writer and nothing to race it.
 The range bounds the walk:
 everything at or before `<S>-green` is trusted
 (verified by this loop, or the base the seed sits on, on day one)
 and is never re-examined.
-`-green` is fast-forward only —
-if it cannot fast-forward, something rewrote verified history;
-stop and say so.
+`-green` is fast-forward only:
+a job that found it off `<S>-dev`'s lineage says that something rewrote verified history,
+and the firing stops and says so.
+
+**A green below what passed is a finding, not a move to make.**
+`series-advance.sh` walks above green read-only and names the newest commit the store has passed.
+Green below it means the job has not run since the verdict landed, or could not push.
+The job's summary in the newest `each-rcc` run on `<S>-dev` says which:
+most often a commit that changes `.github/workflows/`, which the job's own token may not move a branch across.
+Report it; the firing does not push green, and a human with such a token runs `scripts/series-green.sh <S> --push`.
 
 **Then mirror it into the canonical repository, every series' green, the forward's too.**
 r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership
@@ -118,8 +130,8 @@ and `_binaries` only to say how stale the published binary has become.
 Results always describe the **previous** green:
 a universe build takes about an hour and starts when the ref moves,
 so a firing reads the consequence of an earlier firing's push.
-That is why this is a read and never a gate —
-nothing here holds stage 3's fast-forward.
+That is why this is a read and never a gate:
+nothing here holds green's fast-forward.
 The mainline `duckdb` package is built from `duckdb/duckdb-r`, not a series:
 a red there is upstream's, and reaches this repository as a PR to `main`.
 

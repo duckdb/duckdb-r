@@ -128,7 +128,7 @@ until now.
    — and the script refuses a version that would not rise.
 
    **`-green` is not stamped, and does not need to be.** It is fast-forward
-   only, so the stamp reaches it the way every other commit does: the loop
+   only, so the stamp reaches it the way every other commit does: `each-rcc`
    advances over it once CI has judged it. A stamp committed onto `-green`
    directly would fork it off `-dev`'s history, which is the one thing the
    frontier may never do. Run `--check` against `<S>-build` and `<S>-dev`;
