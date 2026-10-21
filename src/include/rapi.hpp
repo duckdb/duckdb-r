@@ -76,11 +76,14 @@
 // long-jmp past the guard would leave the counter stuck and silently degrade
 // every later error.
 //
-// The counter is shared across threads rather than thread_local. Only R's
-// evaluator enters an ALTREP method, so only the R thread ever writes it -- but
-// rapi_error_with_context() is also reached from DuckDB's data frame scan,
-// which runs in parallel (`DataFrameScanFunc`, src/scan.cpp). Relaxed atomics
-// make that read race-free at no cost. A thread_local counter would instead
+// The counter is shared across threads rather than thread_local. R's
+// evaluator enters an ALTREP method on R's thread, and an engine thread enters
+// one too when a task binds the data frame scan, which reads a converted
+// column through its class's methods (`DataFrameScanBind`, src/scan.cpp).
+// Two threads can write the counter at once, so it is updated with
+// read-modify-write operations, relaxed because it orders no other memory.
+// rapi_error_with_context() reads it from DuckDB's data frame scan too, which
+// runs in parallel (`DataFrameScanFunc`). A thread_local counter would
 // read 0 on a worker thread and send it into R from a non-R thread, which is
 // worse than what the guard prevents; sharing sends it down the throwing branch
 // instead. That is a mitigation, not a cure -- a worker that reaches the helper
@@ -89,11 +92,10 @@
 class AltrepGuard {
 public:
 	AltrepGuard() {
-		// Single writer, so load-add-store needs no read-modify-write atomic.
-		depth.store(depth.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+		depth.fetch_add(1, std::memory_order_relaxed);
 	}
 	~AltrepGuard() {
-		depth.store(depth.load(std::memory_order_relaxed) - 1, std::memory_order_relaxed);
+		depth.fetch_sub(1, std::memory_order_relaxed);
 	}
 	AltrepGuard(const AltrepGuard &) = delete;
 	AltrepGuard &operator=(const AltrepGuard &) = delete;
