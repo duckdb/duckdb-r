@@ -52,6 +52,9 @@
 - An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query
   rather than leaving the session busy,
   and a relation of another connection materializes there as it does through `rel_from_df()` (#2909).
+  Bound on one of the engine's own threads, as in a join with `pragma_table_info()`,
+  a registered data frame is read without calling R,
+  and a column that only R can read, such as a list or struct column of `rel_to_altrep()`, fails with an error that says what to do (#2965).
 
 - `expr_window()` passes an offset and a default to `lag()` and `lead()` only,
   so with DuckDB 2.0 any other window function ignores both, as it did before, rather than failing to bind (#2951).
