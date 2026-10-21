@@ -46,7 +46,8 @@
   a registered data frame is read without calling R,
   and a column that only R can read, such as a list or struct column of `rel_to_altrep()`, fails with an error that says what to do (#2965).
 
-- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name or `NA` with "`file_name` must be a non-empty string." rather than the engine's I/O error (#2952).
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name or `NA` with "`file_name` must be a non-empty string.",
+  rather than failing with the engine's I/O error or writing a file called `NA` (#2941, #2952).
 
 - `slice_sample()` on a dbplyr lazy table draws its random key in a subquery,
   so it works with DuckDB 2.0, which refuses a window ordered by a random value (#2964).
