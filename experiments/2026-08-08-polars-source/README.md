@@ -11,6 +11,9 @@ in rows crossing the boundary, not only in seconds.
 `DUCKDB_R_USE_SYSTEM_LIB=1`),
 polars 1.14.0.9000 (r-universe, built from source),
 nanoarrow 0.9.0, R 4.5.3, Linux.
+Not repeated on the v1.5.6 or v2.0 engines;
+both keep `arrow_scan`, `arrow_scan_dumb` and the view-type gate the record turns on
+(vendored `src/duckdb/src/function/table/arrow.cpp`).
 
 *What it supports:*
 [`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md),
