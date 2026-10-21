@@ -132,8 +132,8 @@ skip_if_builtin_icu <- function(con) {
 }
 
 # The fast path links upstream's release libduckdb instead of the vendored
-# engine. It carries none of the engine patches in patch/, and on Linux it is
-# built by a different compiler than the glue, so some tests cannot run there.
+# engine. It carries none of the engine patches in patch/, so tests of patched
+# behavior cannot run there.
 # A release libduckdb is the build that links icu statically, which the
 # vendored engine never does (see skip_if_builtin_icu()).
 skip_if_prebuilt_engine <- function(con, why) {

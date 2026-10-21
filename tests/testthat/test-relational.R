@@ -50,10 +50,6 @@ test_that("we can recognize if a df is materialized", {
 })
 
 test_that("the query result is released once all columns are transformed", {
-  skip_if_prebuilt_engine(
-    con,
-    "one-byte arguments across GCC and clang (#2955)"
-  )
   df_in <- data.frame(a = as.double(1:10000), b = as.double(10000:1))
   df <- rel_to_altrep(rel_from_df(con, df_in))
   expect_false(df_is_materialized(df))
