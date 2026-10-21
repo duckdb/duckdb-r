@@ -25,13 +25,12 @@ public:
 	SortedRunScanState(ClientContext &context, const Sort &sort);
 
 public:
-	void Scan(const SortedRun &sorted_run, const Vector &sort_key_pointers, const idx_t &count, DataChunk &chunk);
+	void Scan(const SortedRun &sorted_run, const Vector &sort_key_pointers, DataChunk &chunk);
 	void Clear();
 
 private:
 	template <SortKeyType sort_key_type>
-	void TemplatedScan(const SortedRun &sorted_run, const Vector &sort_key_pointers, const idx_t &count,
-	                   DataChunk &chunk);
+	void TemplatedScan(const SortedRun &sorted_run, const Vector &sort_key_pointers, DataChunk &chunk);
 
 private:
 	const Sort &sort;
@@ -59,6 +58,8 @@ public:
 	idx_t Count() const;
 	//! Size of this sorted run
 	idx_t SizeInBytes() const;
+	//! Size of this sorted run plus the merge buffer that Finalize allocates to sort it
+	idx_t SizeInBytesForSorting() const;
 
 private:
 	mutex merger_global_state_lock;

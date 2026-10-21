@@ -1,10 +1,16 @@
+#include "src/optimizer/aggregate_function_rewriter.cpp"
+
+#include "src/optimizer/aggregate_reuse.cpp"
+
+#include "src/optimizer/aggregate_rewrite.cpp"
+
+#include "src/optimizer/aggregate_rewrite_helper.cpp"
+
 #include "src/optimizer/build_probe_side_optimizer.cpp"
 
 #include "src/optimizer/column_binding_replacer.cpp"
 
 #include "src/optimizer/column_lifetime_analyzer.cpp"
-
-#include "src/optimizer/empty_result_pullup.cpp"
 
 #include "src/optimizer/common_aggregate_optimizer.cpp"
 
@@ -12,13 +18,21 @@
 
 #include "src/optimizer/compressed_materialization.cpp"
 
+#include "src/optimizer/constant_or_null_simplification.cpp"
+
 #include "src/optimizer/cse_optimizer.cpp"
 
 #include "src/optimizer/cte_filter_pusher.cpp"
 
 #include "src/optimizer/cte_inlining.cpp"
 
+#include "src/optimizer/cte_join_filter_collector.cpp"
+
+#include "src/optimizer/cte_join_filter_pusher.cpp"
+
 #include "src/optimizer/deliminator.cpp"
+
+#include "src/optimizer/empty_result_pullup.cpp"
 
 #include "src/optimizer/expression_heuristics.cpp"
 
@@ -30,7 +44,13 @@
 
 #include "src/optimizer/filter_pushdown.cpp"
 
+#include "src/optimizer/filter_statistics.cpp"
+
+#include "src/optimizer/grouping_sets_optimizer.cpp"
+
 #include "src/optimizer/in_clause_rewriter.cpp"
+
+#include "src/optimizer/join_elimination.cpp"
 
 #include "src/optimizer/join_filter_pushdown_optimizer.cpp"
 
@@ -38,31 +58,53 @@
 
 #include "src/optimizer/late_materialization_helper.cpp"
 
+#include "src/optimizer/limit_pushdown.cpp"
+
+#include "src/optimizer/materialized_aggregate_reuse.cpp"
+
+#include "src/optimizer/multi_stage_aggregate_rewriter.cpp"
+
 #include "src/optimizer/optimizer.cpp"
 
-#include "src/optimizer/join_elimination.cpp"
+#include "src/optimizer/outer_join_simplification.cpp"
+
+#include "src/optimizer/partial_aggregate_pushdown.cpp"
+
+#include "src/optimizer/partitioned_execution.cpp"
+
+#include "src/optimizer/projection_placement.cpp"
+
+#include "src/optimizer/projection_pullup.cpp"
 
 #include "src/optimizer/regex_range_filter.cpp"
 
+#include "src/optimizer/remote_pushdown_optimizer.cpp"
+
 #include "src/optimizer/remove_duplicate_groups.cpp"
+
+#include "src/optimizer/remove_redundant_order_keys.cpp"
 
 #include "src/optimizer/remove_unused_columns.cpp"
 
 #include "src/optimizer/row_group_pruner.cpp"
 
-#include "src/optimizer/statistics_propagator.cpp"
+#include "src/optimizer/row_number_rewriter.cpp"
 
-#include "src/optimizer/limit_pushdown.cpp"
+#include "src/optimizer/runtime_filter_cast.cpp"
+
+#include "src/optimizer/sampling_pushdown.cpp"
+
+#include "src/optimizer/scalar_fn_pushdown.cpp"
+
+#include "src/optimizer/statistics_propagator.cpp"
 
 #include "src/optimizer/topn_optimizer.cpp"
 
 #include "src/optimizer/topn_window_elimination.cpp"
 
+#include "src/optimizer/type_pushdown.cpp"
+
 #include "src/optimizer/unnest_rewriter.cpp"
 
 #include "src/optimizer/window_self_join.cpp"
-
-#include "src/optimizer/sampling_pushdown.cpp"
-
-#include "src/optimizer/sum_rewriter.cpp"
 

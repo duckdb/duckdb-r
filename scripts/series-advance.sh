@@ -35,6 +35,15 @@
 # Carried glue is reported as it goes, because glue the base `-dev` has and the
 # base `-build` lacks is buffer drift and wants mirroring there.
 #
+# **A carry never stops a test the forward runs.** A twin folded at a rewind may
+# delete a test or skip one for good, where its engine could not pass it, and
+# the base's restore of it, if any, is a commit of its own that no carry finds:
+# `v2.0-cyanoptera-fwd` took `tests/testthat/test-variant.R`'s deletion this way
+# and never its restore (duckdb/duckdb-r#2899). So a path under `tests/` whose
+# carry would take a test away keeps what the forward has, read by
+# scripts/series-tests.sh, and is named in the commit message; an engine gate,
+# which re-arms its test by itself, carries like any fix.
+#
 # **This stage is attended.** A carry the series has moved out from under stops
 # the run with the conflict in a worktree that is kept, because resolving it is
 # judgement and guessing costs a wrong commit on a chain CI is about to judge.
@@ -61,8 +70,10 @@
 # does. The push is a plain one, fast-forward only, and a refusal stops the
 # firing rather than being forced: green is the verified frontier, and the only
 # thing that legitimately moves it off its lineage is a cutover, which does the
-# mirror itself (scripts/series-cutover.sh). A `-fwd` series is skipped -- its
-# green is a rebuild nobody installs, published from the fork's own universe.
+# mirror itself (scripts/series-cutover.sh). Every series' green travels, the
+# forward's too: nothing publishes `<S>-fwd-green` from there, but the cutover
+# archives the replaced copy against it and deletes it afterwards, so both
+# copies of a line's history live where r-universe reads.
 # The push runs on every firing, not only on the ones where green moved: an
 # idle series whose copy fell behind for some other reason would otherwise
 # never be asked about again, and the push is a no-op when the two agree.
@@ -83,6 +94,10 @@
 # handbook/operations/vendoring/series-loop/README.md.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
+# shellcheck source=vendor-lib.sh
+. "$(dirname "$0")/vendor-lib.sh"
 
 usage='usage: series-advance.sh <series> [--chunk <n>] [--remote <name>] [--canonical <name>] [--dev-note <file>]
        series-advance.sh <series> --continue [--dev-note <file>]
@@ -176,45 +191,12 @@ state_of() {
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }
 
-# How deep the base scan looks, and the one knob that raises it. The same
-# default, and the same variable, as scripts/vendor.sh and scripts/vendor-one.sh
-# read: a branch deep enough to need the bound raised needs it raised for every
-# script that scans, so one export unblocks the run rather than half of it.
-base_scan_depth="${BASE_SCAN_DEPTH:-20}"
-
-# The upstream SHA a ref has vendored. The pathspec narrows the walk, the
-# subject decides: commits that touch src/duckdb without vendoring are ordinary
-# (the patch stack is applied to the vendored tree in place), so look past them
-# — 20 deep, far more than a series stacks above its buffer, and bounded so
-# git ends the walk itself rather than being killed by a closing pipe.
-#
-# Empty is the answer being absent, not a wrong answer: callers refuse on it,
-# and the reason is on stderr for a human to act on.
-vendored_sha() {
-  local subjects sha n
-  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
-  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
-  if [ -z "$sha" ]; then
-    n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge "$base_scan_depth" ]; then
-      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
-    else
-      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
-    fi
-  fi
-  echo "$sha"
-}
-
 # Does this commit vendor? The subject decides, never the path -- the same rule
 # the rest of this loop reads state by, and the same predicate series-port.sh
-# classifies with. Matched without a pipe, so `pipefail` cannot turn a match
-# into a miss when the reader closes first.
+# classifies with (series_is_vendor() in scripts/series-lib.sh, which also
+# holds the base scan, series_vendored_sha(), and its bound).
 vendors() { # <repo> <commit>
-  case "$(git -C "$1" log -1 --format=%s "$2")" in
-    vendor:* | *duckdb/duckdb@[0-9a-f]*) return 0 ;;
-    *) return 1 ;;
-  esac
+  series_is_vendor "$(git -C "$1" log -1 --format=%s "$2")"
 }
 
 # Is $1 a strictly greater version than $2? Component-wise and numeric, so a
@@ -283,29 +265,33 @@ case "$S" in
 esac
 
 # Equivalence is by vendored upstream SHA, the key the rest of the loop reads
-# state by. One walk, because the alternative is a walk per buffer commit.
+# state by, and by the `(tag ...)` marker beside it: a late tag is re-stamped by
+# a second vendor commit for the same SHA (scripts/VENDORING.md), and the carry
+# takes the twin's message, so a re-stamp twinned with the plain commit would
+# lose its marker (series_twin_key() in scripts/series-lib.sh). One walk,
+# because the alternative is a walk per buffer commit.
 declare -A TWIN=()
 index_twins() {
   [ -n "$base_dev" ] || return 0
-  local c subj sha
+  local c subj key
   while IFS=$'\t' read -r c subj; do
-    case "$subj" in
-      vendor:* | *duckdb/duckdb@[0-9a-f]*) ;;
-      *) continue ;;
-    esac
-    sha=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' <<<"$subj")
-    [ -n "$sha" ] || continue
-    # Oldest wins: a SHA appears once on a healthy series, and where a repair
+    series_is_vendor "$subj" || continue
+    key=$(series_twin_key "$subj")
+    [ -n "$key" ] || continue
+    # Oldest wins: a key appears once on a healthy series, and where a repair
     # left two, the first is the one the chain was verified on.
-    [ -n "${TWIN[$sha]:-}" ] || TWIN[$sha]=$c
-  done < <(git log --reverse --format='%H%x09%s' "$base_dev")
+    [ -n "${TWIN[$key]:-}" ] || TWIN[$key]=$c
+  done < <(git log --reverse --format='%H%x09%s' "$base_dev" --not "$green")
+  # Bounded by this series' green, whose ancestry is `main`'s history: a base
+  # series rewound to an older fork point vendors SHAs `main` vendored long
+  # ago, and oldest-wins would otherwise pick `main`'s commit over the series'.
 }
 
 twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
-  local sha
-  sha=$(git log -1 --format=%s "$1" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p')
-  [ -n "$sha" ] || return 0
-  echo "${TWIN[$sha]:-}"
+  local key
+  key=$(series_twin_key "$(git log -1 --format=%s "$1")")
+  [ -n "$key" ] || return 0
+  echo "${TWIN[$key]:-}"
 }
 
 # What the twin folded in beyond vendoring: the paths its own diff touches,
@@ -342,12 +328,21 @@ twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
 #     shape of a fix.
 #
 # Tooling is stage 4's, ported from `main` rather than carried sideways.
+#
+# **A buffer replayed from the base `-dev` already holds its twin's fix.**
+# scripts/series-forward-build.sh replays `<S>-dev`'s vendor commits, fixes
+# folded in, onto a seed `main` has moved under, so the buffer's blob differs
+# from the twin's wherever `main`'s drift touched the same file and the blob test
+# cannot see that the fix is in it. The twin's own change to the path
+# reverse-applying to the buffer commit's tree can: such a path is carried
+# already, and is left out. What this stage still carries is above the point
+# the base `-dev` had reached when the forward was built, where the buffer came
+# from `-build`, and whatever the base folded since.
 carry_paths() { # <buffer commit> <base -dev commit>
-  local c=$1 d=$2 f
-  { git show --format= --name-only --no-renames "$d" | sort -u |
-      grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
-      grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
-      true; } |
+  local c=$1 d=$2 f idx
+  idx=$(mktemp)
+  GIT_INDEX_FILE=$idx git read-tree "$c"
+  git show --format= --name-only --no-renames "$d" | sort -u | series_carry_filter |
     while IFS= read -r f; do
       # Same blob on both sides: the buffer already carries exactly this, and
       # re-applying it is the double application the difference exists to avoid.
@@ -355,8 +350,15 @@ carry_paths() { # <buffer commit> <base -dev commit>
            = "$(git rev-parse --quiet --verify "$d:$f" 2>/dev/null)" ]; then
         continue
       fi
+      # The twin's change already in the buffer's tree, under a blob `main`
+      # moved on: the same double application, seen through the diff.
+      if git diff --binary "$d^" "$d" -- "$f" |
+        GIT_INDEX_FILE=$idx git apply --cached --reverse --check - 2>/dev/null; then
+        continue
+      fi
       printf '%s\n' "$f"
     done
+  rm -f "$idx"
 }
 
 # Glue the base `-dev` has and the base `-build` lacks *entirely* -- a fix
@@ -371,8 +373,7 @@ glue_paths() { # <buffer commit> <base -dev commit>
   comm -13 \
     <(git show --format= --name-only --no-renames "$1" | sort -u) \
     <(git show --format= --name-only --no-renames "$2" | sort -u) |
-    grep -E '^src/' | grep -vE '^src/duckdb/' |
-    grep -vxE 'src/include/sources\.mk|src/Makevars(\.win|\.in)?' || true
+    series_carry_filter | grep -E '^src/' || true
 }
 
 # Check the counter rather than assume it: a replay that silently froze it
@@ -403,7 +404,7 @@ verify_counter() { # <worktree> <ref the replay started from>
 # set first, then the firing stops before stage 5 extends `-dev` onto a tip a
 # repair is about to re-mint (.claude/skills/series-loop/SKILL.md, stages 3 and 5).
 new_green=$(git rev-parse "$green")
-failed= failed_state=
+failed='' failed_state=''
 while IFS= read -r sha; do
   st=$(state_of "$sha")
   case "$st" in
@@ -420,9 +421,9 @@ if [ "$new_green" != "$(git rev-parse "$green")" ]; then
   echo "green -> $(git rev-parse --short "$new_green")"
   green_moved=1
 
-  up=$(vendored_sha "$new_green")
+  up=$(series_vendored_sha "$new_green")
   if [ -n "$up" ]; then
-    eq=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$up" | cut -d' ' -f1 || true)
+    eq=$(series_build_equivalent "$build" "$new_green" "$up")
     if [ -n "$eq" ]; then
       # Set, never advance. -build-base is the one ref of the four that is not
       # fast-forward only: nothing consumes it, and the match is recomputed
@@ -454,7 +455,23 @@ fi
 # builds the canonical copy, so what it published was a commit behind with it.
 # An already-equal push is a no-op that says so, which is the cheapest possible
 # way to keep asking the question.
-if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
+#
+# A base green travels as a plain push, fast-forward only. A forward's green is
+# a WIP ref that a rebase resets to a new seed (.claude/skills/series-rebase/SKILL.md),
+# and nothing publishes its copy, so that copy follows under a lease on what the
+# canonical repository held when this run read it: never silently over a green
+# somebody else wrote, and never a reason to stop the firing.
+mirror_green() {
+  local cur
+  case "$S" in
+    *-fwd)
+      cur=$(git ls-remote "$canonical" "refs/heads/$S-green" | cut -f1)
+      git push "--force-with-lease=refs/heads/$S-green:$cur" "$canonical" "$new_green:refs/heads/$S-green"
+      ;;
+    *) git push "$canonical" "$new_green:refs/heads/$S-green" ;;
+  esac
+}
+if [ -n "$canonical" ]; then
   if ! git remote get-url "$canonical" >/dev/null 2>&1; then
     # Fatal only when this firing promoted something: then the missing remote
     # is a verified commit stranded in the fork. With green where it was there
@@ -468,7 +485,7 @@ if [ -n "$canonical" ] && [ "${S%-fwd}" = "$S" ]; then
       echo "  the mirroring off deliberately." >&2
       exit 1
     fi
-  elif git push "$canonical" "$new_green:refs/heads/$S-green"; then
+  elif mirror_green; then
     echo "green mirrored to $canonical"
   else
     echo "Error: $S-green would not fast-forward in $canonical." >&2
@@ -555,13 +572,13 @@ mb=$(git merge-base "$dev" "$build")
 if [ "$mb" = "$(git rev-parse "$dev")" ]; then
   anchor=$mb
 else
-  dev_up=$(vendored_sha "$dev")
+  dev_up=$(series_vendored_sha "$dev")
   [ -n "$dev_up" ] ||
     { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
-  anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
+  anchor=$(series_build_equivalent "$build" "$dev" "$dev_up")
   [ -n "$anchor" ] ||
-    { echo "Error: no -build commit vendors duckdb@$dev_up — mirror the fold in -build first"; exit 1; }
-  # `vendored_sha` walks past commits that vendor nothing, and on a -dev that has
+    { echo "Error: no -build commit vendors $series_upstream_repo@$dev_up — mirror the fold in -build first"; exit 1; }
+  # `series_vendored_sha` walks past commits that vendor nothing, and on a -dev that has
   # none of its own it walks past the seed too — answering with what the branch
   # the seed was cut from had vendored. That is every series on its first firing
   # once stage 4 has ported: -dev is the seed plus tooling picks, so the fast
@@ -662,6 +679,35 @@ else
     exit 1
   }
 
+  # A carry that applies cleanly can still break the glue. The three-way merge
+  # sees the twin's hunk and the buffer's own adaptation of the same upstream
+  # change as two unrelated additions when their context differs, and keeps
+  # both: `v2.0-cyanoptera-fwd-dev` got a second `TIMESTAMP_TZ_NS` case in
+  # `src/transform.cpp`, and `install` failed on a duplicate `case` label. So a
+  # carry into the glue is syntax-checked the way vendor-one.sh checks a vendor
+  # commit (glue_compiles() in scripts/vendor-lib.sh), and a failure stops the
+  # run like a conflict, with the carry staged. A check that cannot run (no
+  # `./configure`, no R) warns and carries on.
+  carry_glue_gate() { # <worktree> <buffer commit> <twin>
+    local wt=$1 st=0 failures bad
+    failures=$(mktemp)
+    (cd "$wt" && glue_compiles "$failures") || st=$?
+    git -C "$wt" clean -fdxq -- src/
+    bad=$(tr '\n' ' ' < "$failures")
+    rm -f "$failures"
+    case "$st" in
+      0) return 0 ;;
+      2)
+        echo "Warning: could not derive the glue compile flags in $wt; carry not checked" >&2
+        return 0
+        ;;
+    esac
+    echo >&2
+    echo "The carry applied without a conflict, but the glue no longer compiles: $bad" >&2
+    echo "Look for the twin's hunk duplicating an adaptation the buffer already has." >&2
+    stop "$wt" "$2" "$3" carry
+  }
+
   # Fold the base series' test-side fix into the commit that needs it -- never
   # stacked above it, so every commit of -dev stays independently green and the
   # chain stays bisectable. Three-way, so the failure mode is a conflict in the
@@ -671,7 +717,7 @@ else
   # commit's own vendor message extended with what was adapted, so taking it
   # keeps the prose with the change it explains.
   apply_carry() { # <worktree> <buffer commit> <twin>
-    local wt=$1 c=$2 d=$3 paths patch
+    local wt=$1 c=$2 d=$3 paths patch tpaths=() kept=() p out st=0
     mapfile -t paths < <(carry_paths "$c" "$d")
     [ ${#paths[@]} -gt 0 ] || return 0
     patch=$wt/.series-advance-carry.patch
@@ -682,11 +728,40 @@ else
       stop "$wt" "$c" "$d" carry
     fi
     rm -f "$patch"
+    # A carry never takes a test away (handbook/operations/vendoring/series-loop/).
+    # The twin may have deleted a test file or a `test_that()` block, or skipped
+    # one for good, because its engine at a rewind asked for that; the loss
+    # travels with its vendor commit, and the base's later restore, a commit of
+    # its own, does not. So a path under `tests/` whose carry would stop a test
+    # this commit runs keeps what this commit has, an engine gate being the one
+    # skip that carries, and CI judges the commit: a red there is gated in stage 2.
+    mapfile -t tpaths < <(printf '%s\n' "${paths[@]}" | grep '^tests/' || true)
+    if [ ${#tpaths[@]} -gt 0 ]; then
+      out=$("$(dirname "$0")/series-tests.sh" "$(git -C "$wt" rev-parse HEAD)" \
+        "$(git -C "$wt" write-tree)" --porcelain -- "${tpaths[@]}") || st=$?
+      if [ "$st" -gt 1 ]; then
+        echo "Error: $S: could not read what the carry does to the tests" >&2
+        stop "$wt" "$c" "$d" carry
+      fi
+      mapfile -t kept < <(awk -F'\t' '$1 ~ /^(deleted|block|snapshot|skip)$/ { print $2 }' <<<"$out" | sort -u)
+      for p in ${kept+"${kept[@]}"}; do
+        git -C "$wt" checkout -q HEAD -- "$p"
+        echo "  kept $p as $(git -C "$wt" rev-parse --short HEAD) has it: the carry from" \
+          "$(git rev-parse --short "$d") would stop a test there"
+      done
+    fi
+    if printf '%s\n' "${paths[@]}" | grep -qE '^src/'; then
+      carry_glue_gate "$wt" "$c" "$d"
+    fi
     {
       git log -1 --format=%B "$d"
       echo "Carried from \`$base_dev\` at $(git rev-parse --short "$d"):"
       echo "the test-side fix folded there for this same upstream commit,"
       echo "so the forward starts from what the base series proved."
+      if [ ${#kept[@]} -gt 0 ]; then
+        echo "Not carried, because it would stop a test this series runs:"
+        for p in "${kept[@]}"; do echo "\`$p\`"; done
+      fi
     } > "$wt/.series-advance-msg"
     git -C "$wt" commit -q --amend --no-verify \
       --author="$(git log -1 --format='%an <%ae>' "$d")" -F "$wt/.series-advance-msg"

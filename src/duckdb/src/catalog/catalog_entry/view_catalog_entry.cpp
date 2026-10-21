@@ -10,13 +10,12 @@
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/catalog/catalog.hpp"
 
-#include <algorithm>
-
 namespace duckdb {
 
 void ViewCatalogEntry::Initialize(CreateViewInfo &info) {
 	query = std::move(info.query);
 	this->aliases = info.aliases;
+	this->security_type = info.security_type;
 	if (!info.types.empty()) {
 		bind_state = ViewBindState::BOUND;
 		view_columns = make_shared_ptr<ViewColumnInfo>();
@@ -42,17 +41,17 @@ void ViewCatalogEntry::Initialize(CreateViewInfo &info) {
 }
 
 ViewCatalogEntry::ViewCatalogEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateViewInfo &info)
-    : StandardEntry(CatalogType::VIEW_ENTRY, schema, catalog, info.view_name), bind_state(ViewBindState::UNBOUND) {
+    : StandardEntry(CatalogType::VIEW_ENTRY, schema, catalog, info.GetViewName()), bind_state(ViewBindState::UNBOUND) {
 	Initialize(info);
 }
 
 unique_ptr<CreateInfo> ViewCatalogEntry::GetInfo() const {
 	auto result = make_uniq<CreateViewInfo>();
-	result->schema = schema.name;
-	result->view_name = name;
+	result->SetQualifiedName(schema.GetQualifiedName(name));
 	result->sql = sql;
 	result->query = query ? unique_ptr_cast<SQLStatement, SelectStatement>(query->Copy()) : nullptr;
 	result->aliases = aliases;
+	result->security_type = security_type;
 	auto view_columns = GetColumnInfo();
 	if (view_columns) {
 		result->names = view_columns->names;
@@ -72,22 +71,24 @@ unique_ptr<CatalogEntry> ViewCatalogEntry::AlterEntry(ClientContext &context, Al
 	// Column comments have a special alter type
 	if (info.type == AlterType::SET_COLUMN_COMMENT) {
 		auto &comment_on_column_info = info.Cast<SetColumnCommentInfo>();
+		auto resolved_column_name = ResolveColumnName(comment_on_column_info.column_name);
 		auto copied_view = Copy(context);
-
-		auto view_columns = GetColumnInfo();
-		if (view_columns) {
-			// if the view is bound - verify the name we are commenting on exists
-			auto &names = view_columns->names;
-			auto entry = std::find(names.begin(), names.end(), comment_on_column_info.column_name);
-			if (entry == names.end()) {
-				throw BinderException("View \"%s\" does not have a column with name \"%s\"", name,
-				                      comment_on_column_info.column_name);
-			}
-		}
 		// apply the comment to the view
 		auto &copied_view_entry = copied_view->Cast<ViewCatalogEntry>();
-		copied_view_entry.column_comments[comment_on_column_info.column_name] = comment_on_column_info.comment_value;
+		copied_view_entry.column_comments[resolved_column_name] = comment_on_column_info.comment_value;
 		return copied_view;
+	}
+
+	// PostgreSQL allows `ALTER TABLE ... RENAME TO` on views, so we convert it
+	// to the equivalent ALTER VIEW operation to support tools like dbt-postgres.
+	if (info.type == AlterType::ALTER_TABLE) {
+		auto &table_info = info.Cast<AlterTableInfo>();
+		if (table_info.alter_table_type == AlterTableType::RENAME_TABLE) {
+			auto &rename_info = table_info.Cast<RenameTableInfo>();
+			auto copied_view = Copy(context);
+			copied_view->name = rename_info.new_table_name;
+			return copied_view;
+		}
 	}
 
 	if (info.type != AlterType::ALTER_VIEW) {
@@ -127,6 +128,21 @@ Value ViewCatalogEntry::GetColumnComment(idx_t column_index) {
 	return Value();
 }
 
+Identifier ViewCatalogEntry::ResolveColumnName(const Identifier &column_name) const {
+	auto view_columns = GetColumnInfo();
+	if (!view_columns) {
+		return column_name;
+	}
+	auto &names = view_columns->names;
+	for (idx_t i = 0; i < names.size(); i++) {
+		auto &visible_name = i < aliases.size() ? aliases[i] : names[i];
+		if (visible_name == column_name) {
+			return names[i];
+		}
+	}
+	throw BinderException("View %s does not have a column with name %s", name, column_name);
+}
+
 void ViewCatalogEntry::BindView(ClientContext &context, BindViewAction action) {
 	if (bind_state == ViewBindState::BINDING && bind_thread == ThreadUtil::GetThreadId()) {
 		throw InvalidInputException("View \"%s\" was requested to be bound but this thread is already binding that "
@@ -155,7 +171,7 @@ void ViewCatalogEntry::BindView(ClientContext &context, BindViewAction action) {
 	bind_thread = thread_id {};
 }
 
-void ViewCatalogEntry::UpdateBinding(const vector<LogicalType> &types_p, const vector<string> &names_p) {
+void ViewCatalogEntry::UpdateBinding(const vector<LogicalType> &types_p, const vector<Identifier> &names_p) {
 	auto columns = view_columns.atomic_load();
 	if (columns && columns->types == types_p && columns->names == names_p) {
 		// already bound with the current info
@@ -175,6 +191,7 @@ string ViewCatalogEntry::ToSQL() const {
 		return sql;
 	}
 	auto info = GetInfo();
+	info->StripCatalogQualification();
 	auto result = info->ToString();
 	return result;
 }

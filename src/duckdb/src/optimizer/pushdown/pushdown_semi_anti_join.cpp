@@ -14,7 +14,7 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownSemiAntiJoin(unique_ptr<Logi
 
 	// push all current filters down the left side
 	op->children[0] = Rewrite(std::move(op->children[0]));
-	FilterPushdown right_pushdown(optimizer, convert_mark_joins);
+	FilterPushdown right_pushdown(optimizer, convert_mark_joins, projection_mode);
 	op->children[1] = right_pushdown.Rewrite(std::move(op->children[1]));
 
 	bool left_empty = op->children[0]->type == LogicalOperatorType::LOGICAL_EMPTY_RESULT;
@@ -39,8 +39,8 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownSemiAntiJoin(unique_ptr<Logi
 		// right child is empty result
 		switch (join.join_type) {
 		case JoinType::ANTI:
-			// just return the left child.
-			return std::move(op->children[0]);
+			// nothing to match against: every left row passes, keep the join's output layout
+			return LogicalJoin::PromoteJoinSide(std::move(op->children[0]), std::move(join.left_projection_map));
 		case JoinType::SEMI:
 			return make_uniq<LogicalEmptyResult>(std::move(op));
 		default:

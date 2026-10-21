@@ -1,16 +1,57 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.6.9000
+# duckdb 1.99.99.9001
+
+## Breaking changes
+
+- The vendored engine is the DuckDB v2.0 release candidate, `2.0.0-dev88614` (duckdb/duckdb@d54cbbe3df), up from DuckDB v1.5.6.
+
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
+
+- An error's `LINE` context underlines the whole offending token, not just its first character.
+
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
+
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
+
+- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE AS` makes a `NULL`-typed column of it.
+
+- The progress display is quiet past an Arrow stream's first batch.
+
+- A `SELECT` that writes, one calling `nextval()` for instance, runs to completion before `dbSendQueryArrow()` returns rather than streaming.
+
+- A relational constant renders with a cast that keeps its type: `expr_constant(-42)` prints as `CAST(-42.0 AS DOUBLE)` rather than `-42.0`, and an empty typed list as `CAST("system".main.list_value() AS INTEGER[])` rather than `[]`.
+
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with "`file_name` must be a non-empty string." rather than the engine's I/O error.
+
+## Features
+
+- `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
+
+- `TUPLE` columns read as data frames whose columns are named `element1`, `element2`, ... rather than left unnamed, and an empty `STRUCT` as a data frame without columns.
+
+## Compatibility
+
+- Patches to the vendored engine fix compiler warnings that GCC, clang and MinGW raise in its sources.
 
 ## Bug fixes
 
-### series
+- A `POSIXct` or `difftime` halfway between two microseconds writes rounded to even, as `dbQuoteLiteral()` quotes it (#2887).
 
-- Read `main` from the canonical repository, not the fork's mirror (#2865).
+- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0,
+  and raises rather than returning `FALSE` in a transaction that has already failed
+  or for a name that cannot be quoted, such as `NA` (#2892, #2893, #2896).
 
-## Uncategorized
+- `duckdb_read_csv()` applies `col.names` given without `col.types`, names unnamed `col.types` after the file's columns,
+  and refuses a `col.names` of the wrong length (#2896).
 
-- Merge remote-tracking branch 'upstream/cran-1.5.6'.
+- With `enable_profiling` and `profiling_output` set,
+  an `EXPLAIN ANALYZE` that failed, or was prepared and never run,
+  no longer leaves the next query on the connection without a profile (#2904).
+
+- An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query
+  rather than leaving the session busy,
+  and a relation of another connection materializes there as it does through `rel_from_df()` (#2909).
 
 
 # duckdb 1.5.6

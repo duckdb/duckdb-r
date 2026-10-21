@@ -12,11 +12,12 @@ BoundCastInfo DefaultCasts::BlobCastSwitch(BindCastInput &input, const LogicalTy
 	case LogicalTypeId::UUID:
 		// blob to uuid
 		return BoundCastInfo(&VectorCastHelpers::TryCastStrictLoop<string_t, hugeint_t, duckdb::TryCastBlobToUUID>);
-	case LogicalTypeId::AGGREGATE_STATE:
+	case LogicalTypeId::LEGACY_AGGREGATE_STATE:
 		return DefaultCasts::ReinterpretCast;
 	case LogicalTypeId::BIT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<string_t, duckdb::CastFromBlobToBit>);
-
+		return BoundCastInfo(&VectorCastHelpers::TryCastStringLoop<string_t, string_t, duckdb::TryCastBlobToBit>);
+	case LogicalTypeId::GEOMETRY:
+		return BlobToGeoCast(input, source, target);
 	default:
 		return DefaultCasts::TryVectorNullCast;
 	}

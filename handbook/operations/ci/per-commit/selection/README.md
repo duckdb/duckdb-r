@@ -17,7 +17,11 @@ an unbounded scan would flood the queue,
 and a run that quietly built nothing is indistinguishable from one that had
 nothing left to build — so a ref move half-finished stays visible instead of
 passing for a green run while every commit pushed after it goes unjudged.
-Branches without a green sibling fall back to first-parent history since `SINCE`.
+An rc strand, `<S>-rc-dev`, has no green and is bounded by its own seed instead,
+the newest `chore: Add fifth version component` on it
+([`series-rc`](/.claude/skills/series-rc/SKILL.md)),
+and one with no seed plans nothing.
+Other branches without a green sibling fall back to first-parent history since `SINCE`.
 
 That fallback is the one path that can reach past the store's retention window
 ([`store/`](/handbook/operations/ci/per-commit/store/README.md#retention-is-one-window)):

@@ -35,14 +35,14 @@ static void WriteCatalogEntries(stringstream &ss, catalog_entry_vector_t &entrie
 		}
 		auto create_info = entry.get().GetInfo();
 		try {
-			// Strip the catalog from the info
-			create_info->catalog.clear();
+			// the catalog is implied by the database the export is imported into - keep only the schema path
+			create_info->StripCatalogQualification();
 			auto to_string = create_info->ToString();
 			ss << to_string;
 		} catch (const NotImplementedException &) {
 			ss << entry.get().ToSQL();
 		}
-		ss << ";\n";
+		ss << '\n';
 	}
 	ss << '\n';
 }
@@ -59,18 +59,21 @@ static void WriteCopyStatement(FileSystem &fs, stringstream &ss, CopyInfo &info,
 	ss << "COPY ";
 
 	//! NOTE: The catalog is explicitly not set here
-	if (exported_table.schema_name != DEFAULT_SCHEMA && !exported_table.schema_name.empty()) {
-		ss << KeywordHelper::WriteOptionallyQuoted(exported_table.schema_name) << ".";
-	}
-
+	auto table_name = exported_table.qualified_name;
+	table_name.StripCatalog();
 	auto file_path = StringUtil::Replace(exported_table.file_path, "\\", "/");
-	ss << StringUtil::Format("%s FROM %s (", SQLIdentifier(exported_table.table_name), SQLString(file_path));
+	ss << StringUtil::Format("%s FROM %s (", table_name.ToString(QualifiedNameToStringMode::HIDE_DEFAULT_SCHEMA),
+	                         SQLString(file_path));
 	// write the copy options
 	ss << "FORMAT '" << info.format << "'";
 	if (info.format == "csv") {
 		info.options.erase("force_not_null");
 		for (auto &not_null_column : exported_table.not_null_columns) {
 			info.options["force_not_null"].push_back(not_null_column);
+		}
+		// empty strings are written as quoted empty values, which must not be read back as NULL
+		if (info.options.find("allow_quoted_nulls") == info.options.end()) {
+			ss << ", allow_quoted_nulls false";
 		}
 	}
 	for (auto &copy_option : info.options) {
@@ -215,7 +218,7 @@ SourceResultType PhysicalExport::GetDataInternal(ExecutionContext &context, Data
 	auto &ccontext = context.client;
 	auto &fs = FileSystem::GetFileSystem(ccontext);
 
-	auto &catalog = Catalog::GetCatalog(ccontext, info->catalog);
+	auto &catalog = Catalog::GetCatalog(ccontext, info->GetQualifiedName().Catalog());
 
 	catalog_entry_vector_t catalog_entries;
 	catalog_entries = GetNaiveExportOrder(context.client, catalog);

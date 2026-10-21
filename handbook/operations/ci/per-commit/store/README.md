@@ -73,11 +73,29 @@ Now it means re-reading the tip and re-staging the same files.
 |---|---|---|
 | an `each-rcc` leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
 | [`rcc-logs.sh`](/scripts/rcc-logs.sh) | by hand | records for commits it finds undecided |
+| [`rcc-drop.sh`](/scripts/rcc-drop.sh) | by hand | removes the records and logs it is named |
 | [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | by hand | **all of it** |
 
 Nobody rewrites anything that is not their own commit's —
 except a verdict they are overturning, below —
 and that is what makes the concurrency work without a lock.
+
+`rcc-drop.sh` is the one writer that only ever removes,
+and it removes so that something else can decide again:
+work selection reads presence
+([`rcc-decided.sh`](/scripts/rcc-decided.sh)),
+so a commit whose record is gone is planned like one never built.
+What it is for is a verdict the *job* decided rather than the tree —
+the composite actions come from the branch tip that triggered the run,
+not from the commit under test,
+so a bad workflow turns commits red that had nothing to do with it.
+It writes through `rcc-publish.sh`'s `.remove` staging,
+which is why it needs no race protocol of its own.
+Two things it deliberately leaves alone are worth knowing before reaching
+for it: the commit's `rcc` status, which stays red until the rebuild
+writes a fresh one, and `rcc-logs.yaml`, which must *not* be dispatched
+behind a drop — it derives records for undecided commits from exactly
+those stale statuses, and would put back what the drop removed.
 
 ## Retention is one window
 
@@ -176,7 +194,7 @@ discarding it.
 A record is normally written once, which is what makes every writer idempotent.
 The exception is a **retry**: `retry-<S>-dev` asks for a commit that already has
 a verdict to be judged again on its own SHA, and the point is to overturn it.
-So the newer verdict replaces the older one everywhere —
+So the newer verdict replaces the older one everywhere.
 
 [`rcc-publish.sh`](/scripts/rcc-publish.sh) compares blob ids in the index,
 so re-publishing an identical record costs nothing
@@ -329,14 +347,25 @@ What is left is the leg's own publish, which is where a verdict comes from.
 
 ## Where this is going
 
-**The store is on its way out**, and D6 of
-[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)
-is the cut: selection moves to a batched read of the `rcc` commit status,
-[`series-check.sh`](/scripts/series-check.sh) reads a failure's log from the run
+**The store stays.**
+Retiring it was D6 of
+[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md):
+selection would move to a batched read of the `rcc` commit status,
+[`series-check.sh`](/scripts/series-check.sh) would read a failure's log from the run
 that decided it rather than from `logs2.d/`,
-and the branch goes with its writers.
+and the branch would go with its writers.
+The cut was weighed and declined on 2026-10-15:
+the branch is the simpler design today, and the gain would be modest.
+Two things it does that nothing else does.
+It is a session's one path to a failure log through the cloud proxy,
+which serves REST and refuses GraphQL,
+so the batched status read would serve the readers inside Actions and no firing.
+And it answers any range in one fetch, where statuses answer one commit per call.
+What it costs is bounded and run by hand:
+one small commit per verdict, pruned by consolidation.
 Nothing on this page is deprecated — it is what runs today —
-but a change to any of it is worth weighing against a plan to delete it.
+and the plan keeps D6 written up as an option,
+with the constraints a later weighing starts from.
 
 *To deepen: state what the first live cutover, the first live consolidation and
 the first live publish against the real remote changed, and fold the

@@ -114,7 +114,7 @@ groups <- list(
   list(
     owner = "handbook/operations/vendoring/pipeline",
     globs = c(
-      "VENDORING.md", "vendor.sh", "vendor-one.sh", "rconfigure.py",
+      "VENDORING.md", "vendor.sh", "vendor-one.sh", "vendor-one-test.sh", "vendor-lib.sh", "rconfigure.py",
       "merge-version.sh", "setup-git.sh"
     )
   ),
@@ -146,7 +146,7 @@ groups <- list(
     owner = "handbook/operations/ci/per-commit/store",
     globs = c(
       "each-harvest.sh", "rcc-consolidate.sh", "rcc-cutover.sh",
-      "rcc-lib.sh", "rcc-logs.sh", "rcc-publish.sh",
+      "rcc-drop.sh", "rcc-lib.sh", "rcc-logs.sh", "rcc-publish.sh",
       "rcc-run-fields.jq", "rcc-store-test.sh"
     )
   ),
