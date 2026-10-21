@@ -24,8 +24,8 @@ only the glue in `src/` compiles, the engine is linked.
 which is what removes the tens of minutes
 its "can be installed" step otherwise spends compiling the engine
 ([#22](https://github.com/duckdb/duckdb-r/issues/22)).
-By then `R CMD build` has compressed the vendored tree into
-`src/duckdb.tar.xz`, so `configure` extracts it first:
+By then `R CMD build` has packed the vendored tree into
+`src/duckdb.tar`, so `configure` extracts it first:
 the glue needs those headers, and so does the commit-match guard,
 which reads the expected commit out of them.
 
@@ -39,8 +39,9 @@ from the vendored tree, greps for it inside the installed library,
 and aborts on a mismatch.
 Re-run [`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh)
 after every vendoring bump.
-If no prebuilt matches (a `-dev` snapshot), drop the variable and
-build from source.
+Its header says where it looks, and why a `-dev` snapshot finds nothing.
+When nothing matches, it installs nothing and exits 0.
+Drop the variable then and build from source, which CI does on its own.
 
 **Nothing here needs privileges.**
 The script installs under `~/.local` and `configure` searches there

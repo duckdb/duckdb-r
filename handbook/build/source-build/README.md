@@ -25,10 +25,22 @@ when `DUCKDB_R_PREBUILT_ARCHIVE` names an archive that extracts,
 and from `src/include/to-tar.mk` when it does not
 (`to-tar-win.mk` on Windows).
 It deletes a stale `Makevars.system-lib` first,
-so a plain install can never silently stay on the fast path,
-and it restores `src/duckdb/` from `src/duckdb.tar.xz` when it did —
-which is how a tarball built by
-`R CMD build` compiles again under `R CMD check`.
+so a plain install can never silently stay on the fast path.
+
+**The tarball carries the vendored tree as `src/duckdb.tar`.**
+`R CMD build` runs `cleanup` (`cleanup.win` on Windows), which packs `src/duckdb/` into an uncompressed tar and deletes the tree,
+and `configure` unpacks it again, which is how a tarball built by `R CMD build` compiles under `R CMD check`.
+The archive keeps the vendored paths longer than 100 bytes out of the package's own file list,
+where `R CMD check` would note them as non-portable.
+The `.tar.gz` that `R CMD build` writes compresses it,
+and nothing compresses it twice: an xz-compressed archive needs `xz` on every host that installs from source
+([#2939](https://github.com/duckdb/duckdb-r/issues/2939)).
+
+**`cleanup.win` turns line endings to LF before it packs.**
+`R CMD build` rewrites the C, C++ and Fortran sources under `src/` to LF itself, but only after `cleanup` has run,
+so it no longer sees the files inside the archive,
+and `R CMD check` inspects them once `configure` has unpacked them during the install.
+`cleanup.win` converts the same file names, `\.([cfh]|cc|cpp|hpp)$`, with `dos2unix` where there is one and `sed` otherwise.
 
 **Only the first build is the whole engine.**
 Object files stay in `src/` beside the sources they were compiled from,

@@ -8,6 +8,10 @@ test_that("test_all_types() output", {
   withr::local_options(digits.secs = 6)
 
   expect_snapshot({
+    # `geometry` stays in: GEOMETRY reads as WKB raw vectors
+    # (handbook/usage/types/README.md), which the engine writes little-endian,
+    # with a quiet NaN per coordinate of an empty point, on every platform;
+    # test-geometry.R checks the bytes against the engine's WKT.
     bad <- c(
       # Need to omit timestamp columns, likely due to https://bugs.r-project.org/show_bug.cgi?id=16856
       "timestamp_tz",

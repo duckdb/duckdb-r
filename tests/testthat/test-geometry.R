@@ -98,6 +98,23 @@ test_that("geometry = 'wk' works end-to-end with sf", {
   expect_true(sf::st_is_empty(sfc[3]))
 })
 
+test_that("test_all_types()'s geometry reads as the WKB of the engine's WKT", {
+  # These are the bytes the types snapshot records: an empty point, and a
+  # collection of every geometry kind, empty and not.
+  skip_if_not_installed("wk")
+
+  con <- local_con()
+
+  res <- dbGetQuery(
+    con,
+    "SELECT geometry, ST_AsText(geometry) AS wkt FROM test_all_types()"
+  )
+
+  expected <- wk::as_wkb(wk::wkt(res$wkt[1:2]))
+  expect_identical(res$geometry[1:2], unclass(expected))
+  expect_null(res$geometry[[3]])
+})
+
 test_that("invalid geometry option is rejected", {
   expect_error(local_con(geometry = "invalid"), "geometry")
 })
