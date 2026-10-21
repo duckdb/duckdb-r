@@ -277,7 +277,8 @@ placed() { [ -f "$PLACED" ] && grep -qx "$1" "$PLACED"; }
 #     commit);
 #   * patch-id equality against what the new base gained -- about the change,
 #     so it holds when the file has moved on since and the context no longer
-#     matches (the jemalloc filter in `scripts/rconfigure.py`).
+#     matches (the original jemalloc source-list filter in
+#     `scripts/rconfigure.py`).
 #
 # `git cherry` marks a commit `-` when the base carries an equivalent patch.
 CHERRY=$(git cherry HEAD "$OLD" "$OLDBASE" 2>/dev/null | sed -n 's/^- //p' || true)
