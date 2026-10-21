@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sat, 19 Jul 2026 00:00:00 +0200
+Subject: [PATCH] Guard explicit producer token in concurrent queue
+
+The explicit-token enqueue paths in the vendored concurrent queue
+(moodycamel) dereference token.producer without a null check, unlike
+their implicit-producer siblings which return false when no producer is
+available. Because the compiler cannot prove token.producer is non-null,
+GCC 12+ (notably Rtools45's GCC 14.3.0 on Windows) assumes the atomic
+object may live at address zero and emits a false-positive
+-Wstringop-overflow ("writing 8 bytes into a region of size 0") for the
+8-byte atomic load inlined from ExplicitProducer::enqueue_bulk into
+EvictionQueue::PurgeIteration, which R CMD check reports as a
+significant warning.
+
+Add the same null guard already used by the implicit-producer overloads.
+This both silences the false positive at the source (no diagnostic
+pragma or compiler-flag override required) and makes the explicit-token
+enqueue paths as robust as the rest of the API.
+---
+ src/duckdb/third_party/concurrentqueue/concurrentqueue.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/third_party/concurrentqueue/concurrentqueue.h b/src/duckdb/third_party/concurrentqueue/concurrentqueue.h
+index b62b637..e613c6a 100644
+--- a/src/duckdb/third_party/concurrentqueue/concurrentqueue.h
++++ b/src/duckdb/third_party/concurrentqueue/concurrentqueue.h
+@@ -1306,7 +1306,8 @@ private:
+ 	template<AllocationMode canAlloc, typename U>
+ 	inline bool inner_enqueue(producer_token_t const& token, U&& element)
+ 	{
+-		return static_cast<ExplicitProducer*>(token.producer)->ConcurrentQueue::ExplicitProducer::template enqueue<canAlloc>(std::forward<U>(element));
++		auto producer = static_cast<ExplicitProducer*>(token.producer);
++		return producer == nullptr ? false : producer->ConcurrentQueue::ExplicitProducer::template enqueue<canAlloc>(std::forward<U>(element));
+ 	}
+ 	
+ 	template<AllocationMode canAlloc, typename U>
+@@ -1319,7 +1320,8 @@ private:
+ 	template<AllocationMode canAlloc, typename It>
+ 	inline bool inner_enqueue_bulk(producer_token_t const& token, It itemFirst, size_t count)
+ 	{
+-		return static_cast<ExplicitProducer*>(token.producer)->ConcurrentQueue::ExplicitProducer::template enqueue_bulk<canAlloc>(itemFirst, count);
++		auto producer = static_cast<ExplicitProducer*>(token.producer);
++		return producer == nullptr ? false : producer->ConcurrentQueue::ExplicitProducer::template enqueue_bulk<canAlloc>(itemFirst, count);
+ 	}
+ 	
+ 	template<AllocationMode canAlloc, typename It>
+-- 
+2.52.0

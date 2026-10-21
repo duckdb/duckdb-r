@@ -38,8 +38,9 @@ shared_ptr<Relation> Relation::Project(const string &expression, const string &a
 }
 
 shared_ptr<Relation> Relation::Project(const string &select_list, const vector<string> &aliases) {
-	auto expressions = Parser::ParseExpressionList(select_list, context->GetContext()->GetParserOptions());
-	return make_shared_ptr<ProjectionRelation>(shared_from_this(), std::move(expressions), aliases);
+	auto expressions = Parser(*context->GetContext()).ParseExpressionList(select_list);
+	return make_shared_ptr<ProjectionRelation>(shared_from_this(), std::move(expressions),
+	                                           StringsToIdentifiers(aliases));
 }
 
 shared_ptr<Relation> Relation::Project(const vector<string> &expressions) {
@@ -49,17 +50,18 @@ shared_ptr<Relation> Relation::Project(const vector<string> &expressions) {
 
 shared_ptr<Relation> Relation::Project(vector<unique_ptr<ParsedExpression>> expressions,
                                        const vector<string> &aliases) {
-	return make_shared_ptr<ProjectionRelation>(shared_from_this(), std::move(expressions), aliases);
+	return make_shared_ptr<ProjectionRelation>(shared_from_this(), std::move(expressions),
+	                                           StringsToIdentifiers(aliases));
 }
 
-static vector<unique_ptr<ParsedExpression>> StringListToExpressionList(const ClientContext &context,
+static vector<unique_ptr<ParsedExpression>> StringListToExpressionList(ClientContext &context,
                                                                        const vector<string> &expressions) {
 	if (expressions.empty()) {
 		throw ParserException("Zero expressions provided");
 	}
 	vector<unique_ptr<ParsedExpression>> result_list;
 	for (auto &expr : expressions) {
-		auto expression_list = Parser::ParseExpressionList(expr, context.GetParserOptions());
+		auto expression_list = Parser(context).ParseExpressionList(expr);
 		if (expression_list.size() != 1) {
 			throw ParserException("Expected a single expression in the expression list");
 		}
@@ -70,11 +72,12 @@ static vector<unique_ptr<ParsedExpression>> StringListToExpressionList(const Cli
 
 shared_ptr<Relation> Relation::Project(const vector<string> &expressions, const vector<string> &aliases) {
 	auto result_list = StringListToExpressionList(*context->GetContext(), expressions);
-	return make_shared_ptr<ProjectionRelation>(shared_from_this(), std::move(result_list), aliases);
+	return make_shared_ptr<ProjectionRelation>(shared_from_this(), std::move(result_list),
+	                                           StringsToIdentifiers(aliases));
 }
 
 shared_ptr<Relation> Relation::Filter(const string &expression) {
-	auto expression_list = Parser::ParseExpressionList(expression, context->GetContext()->GetParserOptions());
+	auto expression_list = Parser(*context->GetContext()).ParseExpressionList(expression);
 	if (expression_list.size() != 1) {
 		throw ParserException("Expected a single expression as filter condition");
 	}
@@ -103,7 +106,7 @@ shared_ptr<Relation> Relation::Limit(int64_t limit, int64_t offset) {
 }
 
 shared_ptr<Relation> Relation::Order(const string &expression) {
-	auto order_list = Parser::ParseOrderList(expression, context->GetContext()->GetParserOptions());
+	auto order_list = Parser(*context->GetContext()).ParseOrderList(expression);
 	return Order(std::move(order_list));
 }
 
@@ -117,7 +120,7 @@ shared_ptr<Relation> Relation::Order(const vector<string> &expressions) {
 	}
 	vector<OrderByNode> order_list;
 	for (auto &expression : expressions) {
-		auto inner_list = Parser::ParseOrderList(expression, context->GetContext()->GetParserOptions());
+		auto inner_list = Parser(*context->GetContext()).ParseOrderList(expression);
 		if (inner_list.size() != 1) {
 			throw ParserException("Expected a single ORDER BY expression in the expression list");
 		}
@@ -128,7 +131,7 @@ shared_ptr<Relation> Relation::Order(const vector<string> &expressions) {
 
 shared_ptr<Relation> Relation::Join(const shared_ptr<Relation> &other, const string &condition, JoinType type,
                                     JoinRefType ref_type) {
-	auto expression_list = Parser::ParseExpressionList(condition, context->GetContext()->GetParserOptions());
+	auto expression_list = Parser(*context->GetContext()).ParseExpressionList(condition);
 	D_ASSERT(!expression_list.empty());
 	return Join(other, std::move(expression_list), type, ref_type);
 }
@@ -138,7 +141,7 @@ shared_ptr<Relation> Relation::Join(const shared_ptr<Relation> &other,
                                     JoinRefType ref_type) {
 	if (expression_list.size() > 1 || expression_list[0]->GetExpressionType() == ExpressionType::COLUMN_REF) {
 		// multiple columns or single column ref: the condition is a USING list
-		vector<string> using_columns;
+		vector<Identifier> using_columns;
 		for (auto &expr : expression_list) {
 			if (expr->GetExpressionType() != ExpressionType::COLUMN_REF) {
 				throw ParserException("Expected a single expression as join condition");
@@ -147,7 +150,7 @@ shared_ptr<Relation> Relation::Join(const shared_ptr<Relation> &other,
 			if (colref.IsQualified()) {
 				throw ParserException("Expected unqualified column for column in USING clause");
 			}
-			using_columns.push_back(colref.column_names[0]);
+			using_columns.push_back(colref.ColumnNames()[0]);
 		}
 		return make_shared_ptr<JoinRelation>(shared_from_this(), other, std::move(using_columns), type, ref_type);
 	} else {
@@ -181,7 +184,7 @@ shared_ptr<Relation> Relation::Alias(const string &alias) {
 }
 
 shared_ptr<Relation> Relation::Aggregate(const string &aggregate_list) {
-	auto expression_list = Parser::ParseExpressionList(aggregate_list, context->GetContext()->GetParserOptions());
+	auto expression_list = Parser(*context->GetContext()).ParseExpressionList(aggregate_list);
 	return make_shared_ptr<AggregateRelation>(shared_from_this(), std::move(expression_list));
 }
 
@@ -190,8 +193,8 @@ shared_ptr<Relation> Relation::Aggregate(vector<unique_ptr<ParsedExpression>> ex
 }
 
 shared_ptr<Relation> Relation::Aggregate(const string &aggregate_list, const string &group_list) {
-	auto expression_list = Parser::ParseExpressionList(aggregate_list, context->GetContext()->GetParserOptions());
-	auto groups = Parser::ParseGroupByList(group_list, context->GetContext()->GetParserOptions());
+	auto expression_list = Parser(*context->GetContext()).ParseExpressionList(aggregate_list);
+	auto groups = Parser(*context->GetContext()).ParseGroupByList(group_list);
 	return make_shared_ptr<AggregateRelation>(shared_from_this(), std::move(expression_list), std::move(groups));
 }
 
@@ -207,12 +210,12 @@ shared_ptr<Relation> Relation::Aggregate(const vector<string> &aggregates, const
 }
 
 shared_ptr<Relation> Relation::Aggregate(vector<unique_ptr<ParsedExpression>> expressions, const string &group_list) {
-	auto groups = Parser::ParseGroupByList(group_list, context->GetContext()->GetParserOptions());
+	auto groups = Parser(*context->GetContext()).ParseGroupByList(group_list);
 	return make_shared_ptr<AggregateRelation>(shared_from_this(), std::move(expressions), std::move(groups));
 }
 
-string Relation::GetAlias() {
-	return alias;
+Identifier Relation::GetAlias() {
+	return Identifier(alias);
 }
 
 unique_ptr<TableRef> Relation::GetTableRef() {
@@ -228,9 +231,7 @@ unique_ptr<QueryResult> Relation::Execute() {
 unique_ptr<QueryResult> Relation::ExecuteOrThrow() {
 	auto res = Execute();
 	D_ASSERT(res);
-	if (res->HasError()) {
-		res->ThrowError();
-	}
+	res->ThrowIfError();
 	return res;
 }
 
@@ -240,30 +241,27 @@ BoundStatement Relation::Bind(Binder &binder) {
 	return binder.Bind(stmt.Cast<SQLStatement>());
 }
 
-shared_ptr<Relation> Relation::InsertRel(const string &schema_name, const string &table_name) {
-	return InsertRel(INVALID_CATALOG, schema_name, table_name);
+shared_ptr<Relation> Relation::InsertRel(const Identifier &schema_name, const Identifier &table_name) {
+	return InsertRel(Identifier::InvalidCatalog(), schema_name, table_name);
 }
 
-shared_ptr<Relation> Relation::InsertRel(const string &catalog_name, const string &schema_name,
-                                         const string &table_name) {
+shared_ptr<Relation> Relation::InsertRel(const Identifier &catalog_name, const Identifier &schema_name,
+                                         const Identifier &table_name) {
 	return make_shared_ptr<InsertRelation>(shared_from_this(), catalog_name, schema_name, table_name);
 }
 
-void Relation::Insert(const string &table_name) {
-	Insert(INVALID_SCHEMA, table_name);
+void Relation::Insert(const Identifier &table_name) {
+	Insert(Identifier::InvalidSchema(), table_name);
 }
 
-void Relation::Insert(const string &schema_name, const string &table_name) {
-	Insert(INVALID_CATALOG, schema_name, table_name);
+void Relation::Insert(const Identifier &schema_name, const Identifier &table_name) {
+	Insert(Identifier::InvalidCatalog(), schema_name, table_name);
 }
 
-void Relation::Insert(const string &catalog_name, const string &schema_name, const string &table_name) {
+void Relation::Insert(const Identifier &catalog_name, const Identifier &schema_name, const Identifier &table_name) {
 	auto insert = InsertRel(catalog_name, schema_name, table_name);
 	auto res = insert->Execute();
-	if (res->HasError()) {
-		const string prepended_message = "Failed to insert into table '" + table_name + "': ";
-		res->ThrowError(prepended_message);
-	}
+	res->ThrowIfError("Failed to insert into table '" + table_name + "': ");
 }
 
 void Relation::Insert(const vector<vector<Value>> &values) {
@@ -275,94 +273,82 @@ void Relation::Insert(vector<vector<unique_ptr<ParsedExpression>>> &&expressions
 	throw InvalidInputException("INSERT with expressions can only be used on base tables!");
 }
 
-shared_ptr<Relation> Relation::CreateRel(const string &schema_name, const string &table_name, bool temporary,
+shared_ptr<Relation> Relation::CreateRel(const Identifier &schema_name, const Identifier &table_name, bool temporary,
                                          OnCreateConflict on_conflict) {
-	return CreateRel(INVALID_CATALOG, schema_name, table_name, temporary, on_conflict);
+	return CreateRel(Identifier::InvalidCatalog(), schema_name, table_name, temporary, on_conflict);
 }
 
-shared_ptr<Relation> Relation::CreateRel(const string &catalog_name, const string &schema_name,
-                                         const string &table_name, bool temporary, OnCreateConflict on_conflict) {
+shared_ptr<Relation> Relation::CreateRel(const Identifier &catalog_name, const Identifier &schema_name,
+                                         const Identifier &table_name, bool temporary, OnCreateConflict on_conflict) {
 	return make_shared_ptr<CreateTableRelation>(shared_from_this(), catalog_name, schema_name, table_name, temporary,
 	                                            on_conflict);
 }
 
-void Relation::Create(const string &table_name, bool temporary, OnCreateConflict on_conflict) {
-	Create(INVALID_CATALOG, INVALID_SCHEMA, table_name, temporary, on_conflict);
+void Relation::Create(const Identifier &table_name, bool temporary, OnCreateConflict on_conflict) {
+	Create(Identifier::InvalidCatalog(), Identifier::InvalidSchema(), table_name, temporary, on_conflict);
 }
 
-void Relation::Create(const string &schema_name, const string &table_name, bool temporary,
+void Relation::Create(const Identifier &schema_name, const Identifier &table_name, bool temporary,
                       OnCreateConflict on_conflict) {
-	Create(INVALID_CATALOG, schema_name, table_name, temporary, on_conflict);
+	Create(Identifier::InvalidCatalog(), schema_name, table_name, temporary, on_conflict);
 }
 
-void Relation::Create(const string &catalog_name, const string &schema_name, const string &table_name, bool temporary,
-                      OnCreateConflict on_conflict) {
+void Relation::Create(const Identifier &catalog_name, const Identifier &schema_name, const Identifier &table_name,
+                      bool temporary, OnCreateConflict on_conflict) {
 	if (table_name.empty()) {
 		throw ParserException("Empty table name not supported");
 	}
 	auto create = CreateRel(catalog_name, schema_name, table_name, temporary, on_conflict);
 	auto res = create->Execute();
-	if (res->HasError()) {
-		const string prepended_message = "Failed to create table '" + table_name + "': ";
-		res->ThrowError(prepended_message);
-	}
+	res->ThrowIfError("Failed to create table '" + table_name + "': ");
 }
 
-shared_ptr<Relation> Relation::WriteCSVRel(const string &csv_file, case_insensitive_map_t<vector<Value>> options) {
+shared_ptr<Relation> Relation::WriteCSVRel(const string &csv_file, identifier_map_t<vector<Value>> options) {
 	return make_shared_ptr<duckdb::WriteCSVRelation>(shared_from_this(), csv_file, std::move(options));
 }
 
-void Relation::WriteCSV(const string &csv_file, case_insensitive_map_t<vector<Value>> options) {
+void Relation::WriteCSV(const string &csv_file, identifier_map_t<vector<Value>> options) {
 	auto write_csv = WriteCSVRel(csv_file, std::move(options));
 	auto res = write_csv->Execute();
-	if (res->HasError()) {
-		const string prepended_message = "Failed to write '" + csv_file + "': ";
-		res->ThrowError(prepended_message);
-	}
+	res->ThrowIfError("Failed to write '" + csv_file + "': ");
 }
 
-shared_ptr<Relation> Relation::WriteParquetRel(const string &parquet_file,
-                                               case_insensitive_map_t<vector<Value>> options) {
+shared_ptr<Relation> Relation::WriteParquetRel(const string &parquet_file, identifier_map_t<vector<Value>> options) {
 	auto write_parquet =
 	    make_shared_ptr<duckdb::WriteParquetRelation>(shared_from_this(), parquet_file, std::move(options));
 	return std::move(write_parquet);
 }
 
-void Relation::WriteParquet(const string &parquet_file, case_insensitive_map_t<vector<Value>> options) {
+void Relation::WriteParquet(const string &parquet_file, identifier_map_t<vector<Value>> options) {
 	auto write_parquet = WriteParquetRel(parquet_file, std::move(options));
 	auto res = write_parquet->Execute();
-	if (res->HasError()) {
-		const string prepended_message = "Failed to write '" + parquet_file + "': ";
-		res->ThrowError(prepended_message);
-	}
+	res->ThrowIfError("Failed to write '" + parquet_file + "': ");
 }
 
-shared_ptr<Relation> Relation::CreateView(const string &name, bool replace, bool temporary) {
-	return CreateView(INVALID_SCHEMA, name, replace, temporary);
+shared_ptr<Relation> Relation::CreateView(const Identifier &name, bool replace, bool temporary) {
+	return CreateView(Identifier::InvalidSchema(), name, replace, temporary);
 }
 
-shared_ptr<Relation> Relation::CreateView(const string &schema_name, const string &name, bool replace, bool temporary) {
+shared_ptr<Relation> Relation::CreateView(const Identifier &schema_name, const Identifier &name, bool replace,
+                                          bool temporary) {
 	auto view = make_shared_ptr<CreateViewRelation>(shared_from_this(), schema_name, name, replace, temporary);
 	auto res = view->Execute();
-	if (res->HasError()) {
-		const string prepended_message = "Failed to create view '" + name + "': ";
-		res->ThrowError(prepended_message);
-	}
+	res->ThrowIfError("Failed to create view '" + name + "': ");
 	return shared_from_this();
 }
 
 unique_ptr<QueryResult> Relation::Query(const string &sql) const {
-	return context->GetContext()->Query(sql, false);
+	return context->GetContext()->Query(sql, QueryParameters());
 }
 
-unique_ptr<QueryResult> Relation::Query(const string &name, const string &sql) {
+unique_ptr<QueryResult> Relation::Query(const Identifier &name, const string &sql) {
 	bool replace = true;
 	bool temp = IsReadOnly();
 	CreateView(name, replace, temp);
 	return Query(sql);
 }
 
-unique_ptr<QueryResult> Relation::Explain(ExplainType type, ExplainFormat format) {
+unique_ptr<QueryResult> Relation::Explain(ExplainType type, const ProfilerPrintFormat &format) {
 	auto explain = make_shared_ptr<ExplainRelation>(shared_from_this(), type, format);
 	return explain->Execute();
 }

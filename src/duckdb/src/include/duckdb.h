@@ -282,6 +282,9 @@ typedef enum DUCKDB_TYPE {
 
 	//! VARIANT type
 	DUCKDB_TYPE_VARIANT = 41,
+
+	//! duckdb_timestamp (nanoseconds)
+	DUCKDB_TYPE_TIMESTAMP_TZ_NS = 42,
 } DUCKDB_TYPE;
 
 /*!
@@ -399,7 +402,9 @@ typedef enum duckdb_error_type {
 	DUCKDB_ERROR_MISSING_EXTENSION = 39,
 	DUCKDB_ERROR_AUTOLOAD = 40,
 	DUCKDB_ERROR_SEQUENCE = 41,
+	DUCKDB_ERROR_DATA_CORRUPTION = 43,
 	DUCKDB_INVALID_CONFIGURATION = 42,
+	DUCKDB_ERROR_RESOURCE_IN_USE = 44,
 } duckdb_error_type;
 
 /*!
@@ -2240,10 +2245,10 @@ DUCKDB_C_API duckdb_error_data duckdb_appender_error_data(duckdb_appender append
 
 #if DUCKDB_API_VERSION_AT_LEAST(0, 2, 5)
 /*!
- * Flush the appender to the table, forcing the cache of the appender to be cleared. If flushing the data triggers a
- * constraint violation or any other error, then all data is invalidated, and this function returns DuckDBError. It is
- * not possible to append more values. Call duckdb_appender_error_data to obtain the error data followed by
- * duckdb_appender_destroy to destroy the invalidated appender.
+ * Flush the appender to the table, forcing the cache of the appender to be cleared. Requires a connection with no open
+ * result. If flushing the data triggers a constraint violation or any other error, then all data is invalidated, and
+ * this function returns DuckDBError. It is not possible to append more values. Call duckdb_appender_error_data to
+ * obtain the error data followed by duckdb_appender_destroy to destroy the invalidated appender.
  *
  * history:
  * - stable: v0.2.5
@@ -5624,6 +5629,14 @@ DUCKDB_C_API duckdb_state duckdb_pending_prepared(duckdb_prepared_statement prep
 /*!
  * Closes the pending result and de-allocates all memory allocated for the result.
  *
+ * Destroying a pending result whose statement has not completed aborts the statement. On autocommit, its writes are
+ * rolled back. Inside a transaction, a statement that may write invalidates the transaction, and a read-only statement
+ * just stops. Until the statement has completed, preparing or running another statement on the connection fails with
+ * `DUCKDB_ERROR_RESOURCE_IN_USE` and leaves it untouched. `duckdb_pending_execution_is_finished` reporting true does
+ * not mean that the statement completed. To make sure a statement takes effect, complete it before destroying the
+ * pending result: call `duckdb_execute_pending`, and fetch a streaming result until `duckdb_fetch_chunk` returns NULL.
+ * A NULL chunk is also returned on an error, so check `duckdb_result_error` afterwards.
+ *
  * history:
  * - stable: v0.5.0
  *
@@ -6497,6 +6510,13 @@ DUCKDB_C_API duckdb_state duckdb_query(duckdb_connection connection, const char 
 
 /*!
  * Closes the result and de-allocates all memory allocated for that result.
+ *
+ * Destroying a streaming result whose statement has not completed aborts the statement. On autocommit, its writes are
+ * rolled back. Inside a transaction, a statement that may write invalidates the transaction, and a read-only statement
+ * just stops. Until the statement has completed, preparing or running another statement on the connection fails with
+ * `DUCKDB_ERROR_RESOURCE_IN_USE` and leaves it untouched. To make sure the statement takes effect, complete it by
+ * fetching until `duckdb_fetch_chunk` returns NULL before destroying the result. A NULL chunk is also returned on an
+ * error, so check `duckdb_result_error` afterwards.
  *
  * history:
  * - stable: v0.1.0
@@ -8762,6 +8782,20 @@ DUCKDB_C_API duckdb_value duckdb_create_timestamp(duckdb_timestamp input);
 DUCKDB_C_API duckdb_value duckdb_create_timestamp_tz(duckdb_timestamp input);
 #endif
 
+#if DUCKDB_API_VERSION_AT_LEAST(1, 5, 6)
+/*!
+ * Creates a TIMESTAMP_TZ_NS value from a duckdb_timestamp_ns
+ *
+ * history:
+ * - unstable: v1.5.4
+ * - stable: v1.5.6
+ *
+ * @param input The duckdb_timestamp_ns value
+ * @return duckdb_value
+ */
+DUCKDB_C_API duckdb_value duckdb_create_timestamp_tz_ns(duckdb_timestamp_ns input);
+#endif
+
 #if DUCKDB_API_VERSION_AT_LEAST(1, 2, 0)
 /*!
  * Creates a TIMESTAMP_S value from a duckdb_timestamp_s
@@ -9126,6 +9160,20 @@ DUCKDB_C_API duckdb_timestamp duckdb_get_timestamp(duckdb_value val);
  * @return duckdb_timestamp
  */
 DUCKDB_C_API duckdb_timestamp duckdb_get_timestamp_tz(duckdb_value val);
+#endif
+
+#if DUCKDB_API_VERSION_AT_LEAST(1, 5, 6)
+/*!
+ * Returns the TIMESTAMP_TZ_NS value of the given value.
+ *
+ * history:
+ * - unstable: v1.5.4
+ * - stable: v1.5.6
+ *
+ * @param val A duckdb_value containing a TIMESTAMP_TZ_NS
+ * @return duckdb_timestamp_ns
+ */
+DUCKDB_C_API duckdb_timestamp_ns duckdb_get_timestamp_tz_ns(duckdb_value val);
 #endif
 
 #if DUCKDB_API_VERSION_AT_LEAST(1, 2, 0)

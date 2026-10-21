@@ -1,9 +1,11 @@
+#include "duckdb/common/vector/flat_vector.hpp"
+#include "duckdb/common/vector/list_vector.hpp"
+#include "duckdb/common/vector/string_vector.hpp"
 #include "duckdb/function/scalar/string_functions.hpp"
 #include "duckdb/function/scalar/string_common.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/common/types/vector.hpp"
-#include "duckdb/common/vector_size.hpp"
 #include "duckdb/function/scalar/regexp.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 
@@ -11,44 +13,36 @@ namespace duckdb {
 
 namespace {
 
-struct StringSplitInput {
-	StringSplitInput(Vector &result_list, Vector &result_child, idx_t offset)
-	    : result_list(result_list), result_child(result_child), offset(offset) {
-	}
-
-	Vector &result_list;
-	Vector &result_child;
-	idx_t offset;
-
-	void AddSplit(const char *split_data, idx_t split_size, idx_t list_idx) {
-		auto list_entry = offset + list_idx;
-		if (list_entry >= ListVector::GetListCapacity(result_list)) {
-			ListVector::SetListSize(result_list, offset + list_idx);
-			ListVector::Reserve(result_list, ListVector::GetListCapacity(result_list) * 2);
-		}
-		FlatVector::GetData<string_t>(result_child)[list_entry] =
-		    string_t(split_data, UnsafeNumericCast<uint32_t>(split_size));
-	}
-};
-
 struct RegularStringSplit {
-	static idx_t Find(const char *input_data, idx_t input_size, const char *delim_data, idx_t delim_size,
+	static constexpr bool VERIFY_UTF8 = false;
+
+	static idx_t Find(const char *input_data, idx_t input_size, idx_t start, const char *delim_data, idx_t delim_size,
 	                  idx_t &match_size, void *data) {
 		match_size = delim_size;
 		if (delim_size == 0) {
-			return 0;
+			return start;
 		}
-		return FindStrInStr(const_uchar_ptr_cast(input_data), input_size, const_uchar_ptr_cast(delim_data), delim_size);
+		auto pos = FindStrInStr(const_uchar_ptr_cast(input_data + start), input_size - start,
+		                        const_uchar_ptr_cast(delim_data), delim_size);
+		if (pos == DConstants::INVALID_INDEX) {
+			return pos;
+		}
+		return start + pos;
 	}
 };
 
-struct ConstantRegexpStringSplit {
-	static idx_t Find(const char *input_data, idx_t input_size, const char *delim_data, idx_t delim_size,
+struct RegexpStringSplit {
+	//! \C can split a multi-byte character
+	static constexpr bool VERIFY_UTF8 = true;
+
+	static idx_t Find(const char *input_data, idx_t input_size, idx_t start, const char *delim_data, idx_t delim_size,
 	                  idx_t &match_size, void *data) {
 		D_ASSERT(data);
 		auto regex = reinterpret_cast<duckdb_re2::RE2 *>(data);
 		duckdb_re2::StringPiece match;
-		if (!regex->Match(duckdb_re2::StringPiece(input_data, input_size), 0, input_size, RE2::UNANCHORED, &match, 1)) {
+		// match against the full input so that anchors and assertions see the original context
+		if (!regex->Match(duckdb_re2::StringPiece(input_data, input_size), start, input_size, RE2::UNANCHORED, &match,
+		                  1)) {
 			return DConstants::INVALID_INDEX;
 		}
 		match_size = match.size();
@@ -56,33 +50,23 @@ struct ConstantRegexpStringSplit {
 	}
 };
 
-struct RegexpStringSplit {
-	static idx_t Find(const char *input_data, idx_t input_size, const char *delim_data, idx_t delim_size,
-	                  idx_t &match_size, void *data) {
-		duckdb_re2::RE2 regex(duckdb_re2::StringPiece(delim_data, delim_size));
-		if (!regex.ok()) {
-			throw InvalidInputException(regex.error());
-		}
-		return ConstantRegexpStringSplit::Find(input_data, input_size, delim_data, delim_size, match_size, &regex);
-	}
-};
-
 struct StringSplitter {
-	template <class OP>
-	static idx_t Split(string_t input, string_t delim, StringSplitInput &state, void *data) {
+	template <class OP, class CB>
+	static idx_t Split(string_t input, string_t delim, void *data, CB &&emit) {
 		auto input_data = input.GetData();
 		auto input_size = input.GetSize();
 		auto delim_data = delim.GetData();
 		auto delim_size = delim.GetSize();
 		idx_t list_idx = 0;
-		while (input_size > 0) {
+		idx_t start = 0;
+		while (start < input_size) {
 			idx_t match_size = 0;
-			auto pos = OP::Find(input_data, input_size, delim_data, delim_size, match_size, data);
+			auto pos = OP::Find(input_data, input_size, start, delim_data, delim_size, match_size, data);
 			if (pos > input_size) {
 				break;
 			}
-			if (match_size == 0 && pos == 0) {
-				// special case: 0 length match and pos is 0
+			if (match_size == 0 && pos == start) {
+				// special case: 0 length match at the start
 				// move to the next character
 				for (pos++; pos < input_size; pos++) {
 					if (IsCharacter(input_data[pos])) {
@@ -94,84 +78,73 @@ struct StringSplitter {
 				}
 			}
 			D_ASSERT(input_size >= pos + match_size);
-			state.AddSplit(input_data, pos, list_idx);
-
+			emit(input_data + start, pos - start);
 			list_idx++;
-			input_data += (pos + match_size);
-			input_size -= (pos + match_size);
+			start = pos + match_size;
 		}
-		state.AddSplit(input_data, input_size, list_idx);
+		emit(input_data + start, input_size - start);
 		list_idx++;
 		return list_idx;
 	}
 };
 
-template <class OP>
-void StringSplitExecutor(DataChunk &args, ExpressionState &state, Vector &result, void *data = nullptr) {
-	UnifiedVectorFormat input_data;
-	args.data[0].ToUnifiedFormat(args.size(), input_data);
-	auto inputs = UnifiedVectorFormat::GetData<string_t>(input_data);
-
-	UnifiedVectorFormat delim_data;
-	args.data[1].ToUnifiedFormat(args.size(), delim_data);
-	auto delims = UnifiedVectorFormat::GetData<string_t>(delim_data);
+template <class OP, class GET_DATA>
+void StringSplitExecutor(DataChunk &args, ExpressionState &state, Vector &result, GET_DATA &&get_data) {
+	auto input_entries = args.data[0].Values<string_t>();
+	auto delim_entries = args.data[1].Values<string_t>();
 
 	D_ASSERT(result.GetType().id() == LogicalTypeId::LIST);
-
 	result.SetVectorType(VectorType::FLAT_VECTOR);
-	ListVector::SetListSize(result, 0);
 
-	auto list_struct_data = FlatVector::GetData<list_entry_t>(result);
-
-	// count all the splits and set up the list entries
-	auto &child_entry = ListVector::GetEntry(result);
-	auto &result_mask = FlatVector::Validity(result);
-	idx_t total_splits = 0;
+	auto list_writer = FlatVector::Writer<VectorListType<string_t>>(result, args.size());
 	for (idx_t i = 0; i < args.size(); i++) {
-		auto input_idx = input_data.sel->get_index(i);
-		auto delim_idx = delim_data.sel->get_index(i);
-		if (!input_data.validity.RowIsValid(input_idx)) {
-			result_mask.SetInvalid(i);
+		auto input_entry = input_entries[i];
+		if (!input_entry.IsValid()) {
+			list_writer.WriteNull();
 			continue;
 		}
-		StringSplitInput split_input(result, child_entry, total_splits);
-		if (!delim_data.validity.RowIsValid(delim_idx)) {
+		auto delim_entry = delim_entries[i];
+		auto list = list_writer.WriteDynamicList();
+		if (!delim_entry.IsValid()) {
 			// delim is NULL: copy the complete entry
-			split_input.AddSplit(inputs[input_idx].GetData(), inputs[input_idx].GetSize(), 0);
-			list_struct_data[i].length = 1;
-			list_struct_data[i].offset = total_splits;
-			total_splits++;
+			list.WriteElement().WriteStringRef(input_entry.GetValue());
 			continue;
 		}
-		auto list_length = StringSplitter::Split<OP>(inputs[input_idx], delims[delim_idx], split_input, data);
-		list_struct_data[i].length = list_length;
-		list_struct_data[i].offset = total_splits;
-		total_splits += list_length;
-	}
-	ListVector::SetListSize(result, total_splits);
-	D_ASSERT(ListVector::GetListSize(result) == total_splits);
-
-	if (args.AllConstant()) {
-		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+		auto delim = delim_entry.GetValue();
+		StringSplitter::Split<OP>(
+		    input_entry.GetValue(), delim, get_data(delim), [&](const char *split_data, idx_t split_size) {
+			    if (OP::VERIFY_UTF8) {
+				    regexp_util::VerifyUTF8Result(split_data, split_size);
+			    }
+			    list.WriteElement().WriteStringRef(string_t(split_data, UnsafeNumericCast<uint32_t>(split_size)));
+		    });
 	}
 
-	StringVector::AddHeapReference(child_entry, args.data[0]);
+	StringVector::AddHeapReference(ListVector::GetChildMutable(result), args.data[0]);
 }
 
 void StringSplitFunction(DataChunk &args, ExpressionState &state, Vector &result) {
-	StringSplitExecutor<RegularStringSplit>(args, state, result, nullptr);
+	StringSplitExecutor<RegularStringSplit>(args, state, result, [](const string_t &) -> void * { return nullptr; });
 }
 
 void StringSplitRegexFunction(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto &func_expr = state.expr.Cast<BoundFunctionExpression>();
-	auto &info = func_expr.bind_info->Cast<RegexpMatchesBindData>();
+	auto &info = func_expr.BindInfo()->Cast<RegexpMatchesBindData>();
 	if (info.constant_pattern) {
 		// fast path: pre-compiled regex
 		auto &lstate = ExecuteFunctionState::GetFunctionState(state)->Cast<RegexLocalState>();
-		StringSplitExecutor<ConstantRegexpStringSplit>(args, state, result, &lstate.constant_pattern);
+		StringSplitExecutor<RegexpStringSplit>(args, state, result,
+		                                       [&](const string_t &) -> void * { return &lstate.constant_pattern; });
 	} else {
 		// slow path: have to re-compile regex for every row
-		StringSplitExecutor<RegexpStringSplit>(args, state, result);
+		unique_ptr<duckdb_re2::RE2> regex;
+		StringSplitExecutor<RegexpStringSplit>(args, state, result, [&](const string_t &delim) -> void * {
+			regex = make_uniq<duckdb_re2::RE2>(regexp_util::CreateStringPiece(delim), info.options);
+			if (!regex->ok()) {
+				throw InvalidInputException(regex->error());
+			}
+			return regex.get();
+		});
 	}
 }
 
@@ -180,7 +153,10 @@ void StringSplitRegexFunction(DataChunk &args, ExpressionState &state, Vector &r
 ScalarFunction StringSplitFun::GetFunction() {
 	auto varchar_list_type = LogicalType::LIST(LogicalType::VARCHAR);
 
-	ScalarFunction string_split({LogicalType::VARCHAR, LogicalType::VARCHAR}, varchar_list_type, StringSplitFunction);
+	ScalarFunction string_split({}, varchar_list_type, StringSplitFunction);
+	string_split.GetSignature()
+	    .AddParameter("string", LogicalType::VARCHAR)
+	    .AddParameter("separator", LogicalType::VARCHAR);
 	string_split.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	return string_split;
 }
@@ -188,13 +164,15 @@ ScalarFunction StringSplitFun::GetFunction() {
 ScalarFunctionSet StringSplitRegexFun::GetFunctions() {
 	auto varchar_list_type = LogicalType::LIST(LogicalType::VARCHAR);
 	ScalarFunctionSet regexp_split;
-	ScalarFunction regex_fun({LogicalType::VARCHAR, LogicalType::VARCHAR}, varchar_list_type, StringSplitRegexFunction,
-	                         RegexpMatchesBind, nullptr, nullptr, RegexInitLocalState, LogicalType::INVALID,
-	                         FunctionStability::CONSISTENT, FunctionNullHandling::SPECIAL_HANDLING);
+	ScalarFunction regex_fun({}, varchar_list_type, StringSplitRegexFunction, RegexpMatchesBind, nullptr,
+	                         RegexInitLocalState, LogicalType::INVALID, FunctionStability::CONSISTENT,
+	                         FunctionNullHandling::SPECIAL_HANDLING);
+	regex_fun.GetSignature().AddParameter("string", LogicalType::VARCHAR).AddParameter("regex", LogicalType::VARCHAR);
 	regexp_split.AddFunction(regex_fun);
 	// regexp options
-	regex_fun.arguments.emplace_back(LogicalType::VARCHAR);
+	regex_fun.GetSignature().AddParameter("options", LogicalType::VARCHAR);
 	regexp_split.AddFunction(regex_fun);
+	regexp_split.SetFallible();
 	return regexp_split;
 }
 

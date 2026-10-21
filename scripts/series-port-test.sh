@@ -14,6 +14,11 @@
 #   4. A real merge is not an ancestry-only one: its side commits did reach
 #      main's tree, so they are still offered. The test is the tree, not the
 #      shape of the commit.
+#   5. Release paperwork is held back whether or not it moves `Version:`:
+#      notes written into NEWS.md for main's next release belong to the release
+#      strand, and the series has no section to put them in. A commit that
+#      edits DESCRIPTION without moving the version is package content and is
+#      still offered.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -58,7 +63,7 @@ git remote add origin "$REMOTE"
 git remote add upstream "$CANON"
 
 mkdir -p scripts .github R
-cp "$HERE/series-port.sh" "$HERE/setup-git.sh" "$HERE/merge-version.sh" scripts/
+for s in series-port.sh setup-git.sh merge-version.sh series-config.sh series-lib.sh vendor-lib.sh; do cp "$HERE/$s" scripts/; done
 chmod +x scripts/*.sh
 echo 'DESCRIPTION merge=ours-version' > .gitattributes
 
@@ -109,6 +114,22 @@ git commit -qm 'feat: Live work that did reach the tree'
 git checkout -q main
 git merge -q --no-ff -m 'chore: Merge the live line' live-line
 
+# The release strand, in the three shapes that reach `main`: fledge's bump,
+# the notes written beside it before the bump lands, and a DESCRIPTION edit
+# that is not a bump at all.
+printf '# duckdb 1.0.0\n\n- Something a user meets.\n' > NEWS.md
+git add -A
+git commit -qm 'docs(news): Bullets for what merged since the last bump'
+
+printf 'Package: duckdb\nVersion: 1.0.1\n' > DESCRIPTION
+printf '# duckdb 1.0.1\n\n- Something a user meets.\n' > NEWS.md
+git add -A
+git commit -qm 'fledge: Bump version to 1.0.1'
+
+printf 'Package: duckdb\nVersion: 1.0.1\nImports: DBI\n' > DESCRIPTION
+git add -A
+git commit -qm 'chore: Declare the dependency the package gained'
+
 git push -q origin main s-dev
 git push -q upstream main
 
@@ -135,6 +156,22 @@ hasnt "nor the rest of that lineage" "$out" 'More of the same'
 hasnt "nor the ancestry-only merge itself" "$out" 'Record the old tag on the mainline'
 has "a real merge's content is still offered" "$out" 'Live work that did reach the tree'
 
+# The class of the listed commit whose subject contains the given text.
+klass() { echo "$out" | grep -F -- "$2" | head -n 1 | awk '{print $1}'; }
+is() { # <name> <subject text> <expected class>
+  local got
+  got=$(klass "$1" "$2")
+  if [ "$got" = "$3" ]; then ok "$1"; else no "$1"; echo "       $3 expected, got ${got:-nothing}"; fi
+}
+
+echo
+echo "series-port.sh: what the release strand covers"
+is "fledge's bump is release paperwork" 'Bump version to 1.0.1' VERSION
+is "so are notes written without a bump" \
+  'Bullets for what merged since the last bump' VERSION
+is "a DESCRIPTION edit that is not a bump is package content" \
+  'Declare the dependency the package gained' OTHER
+
 echo
 echo "series-port.sh: which \`main\` answers"
 has "a commit the mirror lacks is offered" "$out" 'A commit the mirror has not picked up yet'
@@ -146,6 +183,53 @@ out_fork=$(SERIES_CANONICAL= scripts/series-port.sh s 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_fork"
 hasnt "the fallback offers only what the mirror has" "$out_fork" 'A commit the mirror has not picked up yet'
 has "and still offers what it does have" "$out_fork" 'An ordinary commit the series lacks'
+
+echo
+echo "series-port.sh: a line parked in \`main\`'s declaration"
+# The series is seeded on `main`, so its lineage says it is not frozen, and a
+# line parked by a landing is in exactly that shape: `main` keeps the history
+# its seed sits on. The declaration is what says it parked.
+git checkout -q main
+cat > scripts/series.yaml <<'EOF'
+flavors:
+  - flavor: duckdb.test
+    kind: dev
+    series: s
+    releases_from: s-baseline
+    publishes_from: s-green
+
+  - flavor: duckdb.other
+    kind: dev
+    series: other
+    releases_from: main
+    publishes_from: other-green
+EOF
+git add scripts/series.yaml
+git commit -qm 'chore: Park the line of series s'
+git push -q upstream main
+git checkout -q s-dev
+out_parked=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_parked"
+has "a parked line is frozen" "$out_parked" "s: frozen (parked on s-baseline)"
+hasnt "and offers no R-side commit" "$out_parked" 'An ordinary commit the series lacks'
+
+# Its forward is the same line, parked with it.
+git push -q origin s-dev:refs/heads/s-fwd-dev
+out_fwd=$(scripts/series-port.sh s-fwd 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_fwd"
+has "and so is its forward" "$out_fwd" "s-fwd: frozen (parked on s-baseline)"
+
+# A line declared on `main` is live, and says nothing about parking.
+git checkout -q main
+sed -i 's/releases_from: s-baseline/releases_from: main/' scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Release the line of series s from main again'
+git push -q upstream main
+git checkout -q s-dev
+out_live=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_live"
+hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
+has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
 
 echo
 echo "$pass passed, $fail failed"

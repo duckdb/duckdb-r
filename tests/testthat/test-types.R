@@ -12,6 +12,7 @@ test_that("test_all_types() output", {
       # Need to omit timestamp columns, likely due to https://bugs.r-project.org/show_bug.cgi?id=16856
       "timestamp_tz",
       "timestamp_ns",
+      "timestamp_tz_ns",
       "timestamp_array",
       "timestamptz_array",
 
@@ -23,7 +24,6 @@ test_that("test_all_types() output", {
       "fixed_array_of_int_list",
       "bignum",
       "time_ns",
-      "geometry",
       NULL
     )
 
@@ -77,6 +77,45 @@ test_that("a table whose columns R cannot hold is still found and listed", {
     expect_true(dbExistsTable(con, "t"), info = type)
     expect_equal(dbListFields(con, "t"), c("x", "y"), info = type)
   }
+})
+
+test_that("a column of NULLs is described as the integer column it arrives as", {
+  con <- local_con()
+
+  res <- dbSendQuery(con, "SELECT NULL AS x")
+  on.exit(dbClearResult(res))
+
+  expect_equal(dbColumnInfo(res)$type, "integer")
+  expect_identical(dbFetch(res)$x, NA_integer_)
+})
+
+test_that("a tuple holding a column R cannot hold is refused before it runs", {
+  con <- local_con()
+  # Only a missing struct_values() skips; any other error is the test's to report.
+  tuples <- tryCatch(
+    {
+      dbGetQuery(con, "SELECT struct_values({'a': 1}) AS v")
+      TRUE
+    },
+    error = function(e) {
+      if (grepl("struct_values", conditionMessage(e), fixed = TRUE)) {
+        FALSE
+      } else {
+        stop(e)
+      }
+    }
+  )
+  skip_if_not(tuples, "This engine has no struct_values()")
+
+  dbExecute(con, "CREATE TABLE t (x BIT, y INTEGER)")
+  expect_error(
+    dbGetQuery(
+      con,
+      "INSERT INTO t (y) VALUES (1) RETURNING struct_values({'b': x}) AS v"
+    ),
+    "BIT"
+  )
+  expect_equal(dbGetQuery(con, "SELECT count(*) AS n FROM t")$n, 0)
 })
 
 test_that("a column R cannot hold is refused by name", {

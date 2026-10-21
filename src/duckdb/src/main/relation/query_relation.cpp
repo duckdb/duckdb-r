@@ -29,7 +29,7 @@ QueryRelation::~QueryRelation() {
 
 unique_ptr<SelectStatement> QueryRelation::ParseStatement(ClientContext &context, const string &query,
                                                           const string &error) {
-	Parser parser(context.GetParserOptions());
+	Parser parser(context);
 	parser.ParseQuery(query);
 	if (parser.statements.size() != 1) {
 		throw ParserException(error);
@@ -82,7 +82,7 @@ BoundStatement QueryRelation::Bind(Binder &binder) {
 			select->node = std::move(select_node);
 
 			auto cte_info = make_uniq<CommonTableExpressionInfo>();
-			cte_info->query = std::move(select);
+			cte_info->query_node = std::move(select->node);
 
 			auto subquery = make_uniq<SubqueryRef>(std::move(select_stmt), "query_relation");
 			auto top_level_select = make_uniq<SelectStatement>();
@@ -100,8 +100,8 @@ BoundStatement QueryRelation::Bind(Binder &binder) {
 	return result;
 }
 
-string QueryRelation::GetAlias() {
-	return alias;
+Identifier QueryRelation::GetAlias() {
+	return Identifier(alias);
 }
 
 const vector<ColumnDefinition> &QueryRelation::Columns() {
