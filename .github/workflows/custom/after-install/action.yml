@@ -92,7 +92,16 @@ runs:
     - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
       run: |
         mkdir ../lib
-        install=(R CMD INSTALL --library="$(dirname "$(pwd)")/lib" -d --no-byte-compile .)
+        # -d only prints messages on Linux and macOS. On Windows it makes R
+        # build a debug DLL: R's Makeconf sets DEBUGFLAG=-gdwarf-2 and drops the
+        # -s from DLLFLAGS. CRAN builds without it, so its DLL is compiled
+        # without debug info and stripped at link, and the v2.0 engine's debug
+        # DLL no longer loads. Left out on Windows only.
+        debug=(-d)
+        if [ "${RUNNER_OS:-}" = "Windows" ]; then
+          debug=()
+        fi
+        install=(R CMD INSTALL --library="$(dirname "$(pwd)")/lib" "${debug[@]}" --no-byte-compile .)
         if [ "${DUCKDB_R_USE_SYSTEM_LIB:-}" = "1" ]; then
           "${install[@]}"
         else
