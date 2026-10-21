@@ -79,6 +79,10 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altvec_Dataptr_method(string_class, VectorDataptr);
 
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(logical_class, VectorDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(int_class, VectorDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(real_class, VectorDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(string_class, VectorDataptrOrNull);
 
 	R_set_altinteger_Elt_method(rownames_class, RownamesElt);
 	R_set_altinteger_Get_region_method(rownames_class, RownamesGetRegion);
@@ -450,6 +454,14 @@ struct AltrepVectorWrapper {
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
 
+	// What Dataptr() returns once the column is converted, without converting it
+	const void *DataptrOrNull() {
+		if (transformed_vector.data() == R_NilValue) {
+			return nullptr;
+		}
+		return DATAPTR_RO(transformed_vector);
+	}
+
 	SEXP RVector() {
 		Dataptr();
 		return transformed_vector;
@@ -630,6 +642,14 @@ void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return AltrepVectorWrapper::Get(x)->Dataptr();
+	END_CPP11
+}
+
+// Converts nothing, so the data frame scan's bind may ask from any thread (handbook/architecture/glue/threading/)
+const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	return AltrepVectorWrapper::Get(x)->DataptrOrNull();
 	END_CPP11
 }
 

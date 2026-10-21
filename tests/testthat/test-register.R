@@ -102,3 +102,23 @@ test_that("a registered data frame binds on a thread other than R's (#2962)", {
   })
   expect_equal(res, rep(list(1:3), 50))
 })
+
+test_that("a registered relation binds on a thread other than R's (#2962)", {
+  con <- local_con()
+  con_rel <- local_con()
+  dbExecute(con, "SET threads = 4")
+  df <- rel_to_altrep(rel_from_df(
+    con_rel,
+    data.frame(a = 1:3, b = c("x", "y", "z"))
+  ))
+  duckdb_register(con, "r", df)
+
+  # Its columns are converted when the view is created, on R's thread,
+  # and a task that rebinds the view reads them as they are
+  res <- lapply(1:50, function(i) {
+    sort(
+      dbGetQuery(con, "SELECT a FROM r JOIN pragma_table_info('r') m ON true")$a
+    )
+  })
+  expect_equal(res, rep(list(rep(1:3, each = 2)), 50))
+})

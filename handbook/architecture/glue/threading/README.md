@@ -51,8 +51,9 @@ it reads a column whose ALTREP vectors hold their payload in memory already, as 
 and fails with an error for one that does not, and for an ALTREP list, whose cells only its class's code reads.
 The bind that created the view ran on R's thread and touched every column,
 so R's compact sequences and deferred strings are in memory by the time a task binds,
+and so is an atomic column of `rel_to_altrep()`, whose class reports the vector it converted to,
 as [`tests/testthat/test-register.R`](/tests/testthat/test-register.R) pins;
-a column of `rel_to_altrep()` never says so, and a task refuses it.
+a list column of one is an ALTREP list, which a task refuses.
 
 **The other paths into R, and what keeps each of them safe.**
 The Arrow scan calls R to produce its stream,
