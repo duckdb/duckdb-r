@@ -59,7 +59,7 @@ jobs:
   # A few seconds, so that a development version stops the run
   # before anything is built, tagged or uploaded.
   check-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
 
     name: "Check the version"
@@ -138,7 +138,7 @@ jobs:
   tag:
     needs: check-version
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
 
     name: "Tag the commit and draft the release"
@@ -329,7 +329,7 @@ jobs:
   cran-submission:
     needs: [check-version, tag]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
 
     name: "Submit to CRAN"
