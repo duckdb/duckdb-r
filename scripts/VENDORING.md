@@ -176,8 +176,6 @@ runs closer to a 57/43 split — plan bulk replays off the pessimistic figure.
 
 When a commit breaks, fix the glue and `git commit --amend`
 so the fix lands *in* the vendor commit, then continue the loop.
-Never run `R CMD build` in a working tree you still need:
-the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
 
 ### A tag upstream pushed late
 
