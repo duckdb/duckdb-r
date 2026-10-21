@@ -1,10 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.6.9005
+# duckdb 1.99.99.9001
 
 ## Breaking changes
 
-- The vendored engine is a development snapshot of DuckDB v2.0, `2.0.0-dev87994` (duckdb/duckdb@0f5ff0a9d6).
+- The vendored engine is the DuckDB v2.0 release candidate, `2.0.0-dev88614` (duckdb/duckdb@d54cbbe3df), up from DuckDB v1.5.6.
 
 - `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
 
@@ -24,94 +24,34 @@
 
 - `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with "`file_name` must be a non-empty string." rather than the engine's I/O error.
 
-## Bug fixes
-
-- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0 (#2892, #2893).
-
-- Run the tests behind `TEST_RE2` everywhere but in R-hub's runs, and fix what they caught in `duckdb_read_csv()` and `dbExistsTable()` (#2896).
-
 ## Features
 
 - `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
 
 - `TUPLE` columns read as data frames whose columns are named `element1`, `element2`, ... rather than left unnamed, and an empty `STRUCT` as a data frame without columns.
 
-### series
+## Compatibility
 
-- Stamp a green commit with upstream's alpha version, so `INSTALL` finds its extensions (#2897).
-
-
-# duckdb 1.5.6.9004
+- Patches to the vendored engine fix compiler warnings that GCC, clang and MinGW raise in its sources.
 
 ## Bug fixes
 
 - A `POSIXct` or `difftime` halfway between two microseconds writes rounded to even, as `dbQuoteLiteral()` quotes it (#2887).
 
-### series
+- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0,
+  and raises rather than returning `FALSE` in a transaction that has already failed
+  or for a name that cannot be quoted, such as `NA` (#2892, #2893, #2896).
 
-- Keep a zero fifth version component through the `ours-version` merge driver (#2886).
+- `duckdb_read_csv()` applies `col.names` given without `col.types`, names unnamed `col.types` after the file's columns,
+  and refuses a `col.names` of the wrong length (#2896).
 
-## Features
+- With `enable_profiling` and `profiling_output` set,
+  an `EXPLAIN ANALYZE` that failed, or was prepared and never run,
+  no longer leaves the next query on the connection without a profile (#2904).
 
-### series
-
-- Carry `patch/` entries onto the buffer as part of porting (#2660).
-
-
-# duckdb 1.5.6.9003
-
-## Chore
-
-- Auto-update from GitHub Actions (#2884).
-
-
-# duckdb 1.5.6.9002
-
-## Bug fixes
-
-### series-advance
-
-- Look a carry's twin up above the forward's green (@krlmlr, #2877).
-
-### series-advance
-
-- Compile the glue after a carry that touches it (@krlmlr, #2880).
-
-## Documentation
-
-### series-loop
-
-- Record how to resolve the cpp11 binding conflict a port brings (#2851).
-
-### series-loop
-
-- Record the cpp11 include path the buffers still generate (#2847).
-
-
-# duckdb 1.5.6.9001
-
-## Features
-
-### series
-
-- Rebuild the rewind at the foot of a forward, gate the glue, and mirror `-dev` without its flavor (@krlmlr, #2875).
-
-## Continuous integration
-
-- Key the build caches by architecture (@krlmlr, #2876).
-
-
-# duckdb 1.5.6.9000
-
-## Bug fixes
-
-### series
-
-- Read `main` from the canonical repository, not the fork's mirror (#2865).
-
-## Uncategorized
-
-- Merge remote-tracking branch 'upstream/cran-1.5.6'.
+- An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query
+  rather than leaving the session busy,
+  and a relation of another connection materializes there as it does through `rel_from_df()` (#2909).
 
 
 # duckdb 1.5.6
