@@ -133,7 +133,8 @@ and checks before each read whether another statement ended it
 The engine refuses any statement on a connection while a result is open there,
 so the glue ends the connection's open results first (`EndOpenResults()`).
 The wrapper also keeps the connection's client context alive until the stream is released.
-The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
+The engine's `ArrowConverter` and `ArrowAppender` read it whenever the glue's stream (`RResultArrowStream`) converts the schema or a batch.
+So a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
 That includes a query that scans the stream itself.
 Registering `arrow::as_record_batch_reader(stream)` with `duckdb_register_arrow()` and querying it is one.
