@@ -1871,7 +1871,7 @@ test_that("an ALTREP data frame scanned under a query leaves no connection busy"
   )
 
   expect_equal(result$t, 1:3)
-  expect_match(result$same, "connection that is running the query")
+  expect_match(result$same, "on its own connection before its query has run")
   expect_match(result$disabled, "Materialization is disabled")
   expect_equal(result$a, 1)
   expect_equal(result$b, 2)
