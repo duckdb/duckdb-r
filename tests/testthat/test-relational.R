@@ -1248,6 +1248,34 @@ test_that("lag() and lead() take a default with or without an offset", {
   expect_equal(shifted("lead", offset = two, default = dbl), c(3, 4, -1, -1))
 })
 
+test_that("window functions other than lag() and lead() ignore an offset and a default", {
+  rel_a <- rel_from_df(con, data.frame(a = 1:4))
+  windowed <- function(fun, offset = NULL, default = NULL) {
+    window <- expr_window(
+      fun,
+      order_bys = list(expr_reference("a")),
+      offset_expr = offset,
+      default_expr = default,
+      alias = "w"
+    )
+    proj <- rel_project(rel_a, list(expr_reference("a"), window))
+    rel_to_altrep(rel_order(proj, list(expr_reference("a"))))$w
+  }
+  row_number <- expr_function("row_number", list())
+  sum_a <- expr_function("sum", list(expr_reference("a")))
+  nth_a <- expr_function(
+    "nth_value",
+    list(expr_reference("a"), expr_constant(2L))
+  )
+  int <- expr_constant(0L)
+  two <- expr_constant(2L)
+
+  expect_equal(windowed(row_number, offset = two, default = int), 1:4)
+  expect_equal(windowed(sum_a, offset = two, default = int), c(1, 3, 6, 10))
+  expect_equal(windowed(nth_a, offset = two, default = int), c(NA, 2, 2, 2))
+  expect_equal(windowed(sum_a, default = int), c(1, 3, 6, 10))
+})
+
 test_that("Window function with string aggregate works", {
   #   select j, s, string_agg(s, '|') over (partition by b) from a order by j, s;
   rel_a <- rel_from_df(
