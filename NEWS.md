@@ -32,6 +32,8 @@
 
 - Patches to the vendored engine fix compiler warnings that GCC, clang and MinGW raise in its sources.
 
+- Installing from source no longer needs `xz`, and `SystemRequirements` no longer lists it (#2960).
+
 ## Bug fixes
 
 - A `POSIXct` or `difftime` halfway between two microseconds writes rounded to even, as `dbQuoteLiteral()` quotes it (#2887).
@@ -50,6 +52,14 @@
 - An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query
   rather than leaving the session busy,
   and a relation of another connection materializes there as it does through `rel_from_df()` (#2909).
+
+- `expr_window()` passes an offset and a default to `lag()` and `lead()` only,
+  so with DuckDB 2.0 any other window function ignores both, as it did before, rather than failing to bind (#2951).
+
+- `rel_to_csv()` and `rel_to_parquet()` refuse `NA` as a file name, as they refuse an empty one, rather than writing a file called `NA` (#2952).
+
+- `slice_sample()` on a dbplyr lazy table draws its random key in a subquery,
+  so it works with DuckDB 2.0, which refuses a window ordered by a random value (#2964).
 
 
 # duckdb 1.5.6
