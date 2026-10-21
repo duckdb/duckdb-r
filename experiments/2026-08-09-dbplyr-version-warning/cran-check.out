@@ -1,0 +1,50 @@
+-- warning(..., call. = FALSE) 
+   * checking whether package ‘startuptest’ can be installed ... WARNING
+   Found the following significant warnings:
+     Warning: too old
+   See ‘/tmp/RtmpONaLW2/startuptest.Rcheck/00install.out’ for details.
+   * checking installed package size ... OK
+   * checking package directory ... OK
+   * checking DESCRIPTION meta-information ... NOTE
+   * checking R code for possible problems ... OK
+   * checking for missing documentation entries ... WARNING
+   Undocumented code objects:
+     ‘f’
+   All user-level objects in a package should have documentation entries.
+   See chapter ‘Writing R documentation files’ in the ‘Writing R
+   Extensions’ manual.
+
+-- packageStartupMessage() 
+   * checking whether package ‘startuptest’ can be installed ... OK
+   * checking installed package size ... OK
+   * checking package directory ... OK
+   * checking DESCRIPTION meta-information ... NOTE
+   License stub is invalid DCF.
+   Checking should be performed on sources prepared by ‘R CMD build’.
+   * checking top-level files ... OK
+   * checking R code for possible problems ... OK
+   * checking for missing documentation entries ... WARNING
+   Undocumented code objects:
+     ‘f’
+   All user-level objects in a package should have documentation entries.
+   See chapter ‘Writing R documentation files’ in the ‘Writing R
+   Extensions’ manual.
+
+-- message() 
+   * checking whether package ‘startuptest’ can be installed ... OK
+   * checking installed package size ... OK
+   * checking package directory ... OK
+   * checking DESCRIPTION meta-information ... NOTE
+   License stub is invalid DCF.
+   Checking should be performed on sources prepared by ‘R CMD build’.
+   * checking top-level files ... OK
+   * checking R code for possible problems ... NOTE
+   File ‘startuptest/R/f.R’:
+     .onAttach calls:
+       message("too old")
+   
+   Package startup functions should use ‘packageStartupMessage’ to
+     generate messages.
+
+-- tools:::.check_package_code_startup_functions() on this package
+   offending startup calls: 0 

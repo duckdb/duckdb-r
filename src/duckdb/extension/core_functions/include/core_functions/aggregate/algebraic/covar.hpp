@@ -9,11 +9,15 @@
 
 #pragma once
 
+#include "duckdb/common/operator/add.hpp"
 #include "duckdb/function/aggregate_function.hpp"
 
 namespace duckdb {
 
 struct CovarState {
+	static constexpr const char *STATE_NAMES[] = {"count", "meanx", "meany", "co_moment"};
+	using STATE_TYPE = StructStateType<uint64_t, double, double, double>;
+
 	uint64_t count;
 	double meanx;
 	double meany;
@@ -21,14 +25,6 @@ struct CovarState {
 };
 
 struct CovarOperation {
-	template <class STATE>
-	static void Initialize(STATE &state) {
-		state.count = 0;
-		state.meanx = 0;
-		state.meany = 0;
-		state.co_moment = 0;
-	}
-
 	template <class A_TYPE, class B_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const A_TYPE &y, const B_TYPE &x, AggregateBinaryInput &idata) {
 		// update running mean and d^2
@@ -53,8 +49,10 @@ struct CovarOperation {
 		if (target.count == 0) {
 			target = source;
 		} else if (source.count > 0) {
-			const auto count = target.count + source.count;
-			D_ASSERT(count >= target.count); // This is a check that we are not overflowing
+			uint64_t count;
+			if (!TryAddOperator::Operation(target.count, source.count, count)) {
+				throw OutOfRangeException("Overflow in aggregate state combine");
+			}
 			const auto target_count = static_cast<double>(target.count);
 			const auto source_count = static_cast<double>(source.count);
 			const auto total_count = static_cast<double>(count);

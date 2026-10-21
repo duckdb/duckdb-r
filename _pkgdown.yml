@@ -1,7 +1,9 @@
+# Handbook: handbook/operations/site/README.md
 url: https://r.duckdb.org/
 
 template:
   bootstrap: 5
+  light-switch: true
 
 authors:
   Hannes Mühleisen:
@@ -13,23 +15,65 @@ authors:
 
 reference:
 - title: Getting started
+  desc: >
+    One-line entry points for running a query or grabbing a throwaway
+    in-memory connection.
   contents:
   - sql_query
   - default_conn
+- title: Data types
+  desc: >
+    What each DuckDB type becomes in R and which R value writes it back,
+    through R vectors and through Arrow, geometry included.
+  contents:
+  - duckdb_types
+  - duckdb_types_arrow
+- title: Memory
+  desc: >
+    Reading and writing large data within a memory budget: the limit, the
+    streaming read, and the routes that let the engine scan a data frame or a
+    file in place.
+  contents:
+  - duckdb_memory
 - title: Driver
+  desc: >
+    Create or reuse a DuckDB database instance and the driver object passed to
+    `dbConnect()`.
   contents:
   - duckdb
   - duckdb_driver
 - title: Connection
+  desc: >
+    The DBI connection to a DuckDB database and its methods.
   contents:
   - duckdb_connection
 - title: Result
+  desc: >
+    The object returned by a query, used to fetch rows and column metadata.
   contents:
   - duckdb_result
 - title: Interfaces
+  desc: >
+    Integrations with other parts of the R ecosystem: the dplyr/dbplyr backend,
+    registering data frames and Arrow data as tables, reading CSV files, and
+    inspecting query plans.
   contents:
   - backend-duckdb
   - duckdb_register
   - duckdb_register_arrow
+  - to_arrow_stream
   - duckdb_read_csv
   - duckdb_explain-class
+- title: Errors
+  desc: >
+    What a failing query raises, and the fields to classify it by instead of
+    parsing the message.
+  contents:
+  - duckdb_error
+- title: Storage locations
+  desc: >
+    Where DuckDB writes extensions, stored secrets, and temporary files, and
+    how to choose those locations so that nothing is written outside the
+    session's temporary directory unless you opt in.
+  contents:
+  - duckdb_storage

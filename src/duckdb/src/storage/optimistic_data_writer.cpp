@@ -1,7 +1,11 @@
 #include "duckdb/storage/optimistic_data_writer.hpp"
-#include "duckdb/storage/partial_block_manager.hpp"
-#include "duckdb/storage/table/column_checkpoint_state.hpp"
+
 #include "duckdb/main/settings.hpp"
+#include "duckdb/storage/partial_block_manager.hpp"
+#include "duckdb/storage/data_table.hpp"
+#include "duckdb/storage/table/column_checkpoint_state.hpp"
+#include "duckdb/main/attached_database.hpp"
+#include "duckdb/main/config.hpp"
 
 namespace duckdb {
 
@@ -21,11 +25,19 @@ OptimisticDataWriter::OptimisticDataWriter(DataTable &table, OptimisticDataWrite
 OptimisticDataWriter::~OptimisticDataWriter() {
 }
 
-bool OptimisticDataWriter::PrepareWrite() {
-	// check if we should pre-emptively write the table to disk
+bool OptimisticDataWriter::CanWriteToDisk() const {
 	auto &attached = table.GetAttached();
 	auto &storage_manager = StorageManager::Get(attached);
-	if (table.IsTemporary() || storage_manager.InMemory() || attached.IsReadOnly()) {
+	return !table.IsTemporary() && !storage_manager.InMemory() && !attached.IsReadOnly();
+}
+
+bool OptimisticDataWriter::PrepareWrite() {
+	// check if optimistic writing is enabled
+	if (!Settings::Get<EnableOptimisticWriteSetting>(context)) {
+		return false;
+	}
+	// check if we should pre-emptively write the table to disk
+	if (!CanWriteToDisk()) {
 		return false;
 	}
 	// we should! write the second-to-last row group to disk
@@ -59,16 +71,37 @@ unique_ptr<OptimisticWriteCollection> OptimisticDataWriter::CreateCollection(Dat
 	return result;
 }
 
-void OptimisticDataWriter::WriteNewRowGroup(OptimisticWriteCollection &row_groups) {
+void OptimisticDataWriter::WriteNewRowGroup(OptimisticWriteCollection &row_groups, idx_t flushed_row_group_idx) {
 	// we finished writing a complete row group
 	if (!PrepareWrite()) {
 		return;
 	}
 
-	row_groups.unflushed_row_groups.insert(row_groups.complete_row_groups);
-	row_groups.complete_row_groups++;
+	row_groups.unflushed_row_groups.insert(flushed_row_group_idx);
+	auto allocated_size = row_groups.collection->GetAllocationSize();
+	if (row_groups.prev_allocated_size > allocated_size) {
+		throw InternalException("Row group prev allocated size is larger than currently allocated size");
+	}
+	row_groups.unflushed_data_size += allocated_size - row_groups.prev_allocated_size;
+	row_groups.prev_allocated_size = allocated_size;
 	auto unflushed_row_groups = row_groups.unflushed_row_groups.size();
-	if (unflushed_row_groups >= Settings::Get<WriteBufferRowGroupCountSetting>(context)) {
+	// check if we should flush the row groups
+	// first check the amount of row groups
+	bool need_to_flush = unflushed_row_groups >= Settings::Get<WriteBufferRowGroupCountSetting>(context);
+	if (!need_to_flush) {
+		// we don't need to flush based on the amount of row groups - but we still might need to flush based on the
+		// amount of
+		auto &config = DBConfig::GetConfig(context);
+		auto memory_limit = config.options.write_buffer_row_group_memory_limit;
+		if (!memory_limit.IsValid()) {
+			memory_limit = config.options.maximum_memory / 5 / (config.options.maximum_threads + 1);
+		}
+		if (row_groups.unflushed_data_size >= memory_limit.GetIndex()) {
+			// we exhausted our memory available for buffering - flush
+			need_to_flush = true;
+		}
+	}
+	if (need_to_flush) {
 		// we have crossed our flush threshold - flush any unwritten row groups to disk
 		vector<const_reference<RowGroup>> to_flush;
 		vector<int64_t> segment_indexes;
@@ -78,23 +111,40 @@ void OptimisticDataWriter::WriteNewRowGroup(OptimisticWriteCollection &row_group
 			segment_indexes.push_back(segment_index);
 		}
 		FlushToDisk(row_groups, to_flush, segment_indexes);
-		row_groups.unflushed_row_groups.clear();
+		row_groups.FinalizeFlush();
 	}
 }
 
+void OptimisticWriteCollection::FinalizeFlush() {
+	flushed_row_groups.insert(unflushed_row_groups.begin(), unflushed_row_groups.end());
+	unflushed_row_groups.clear();
+	unflushed_data_size = 0;
+}
+
+void OptimisticWriteCollection::ResetCollectionAccounting() {
+	prev_allocated_size = 0;
+	unflushed_data_size = 0;
+	unflushed_row_groups.clear();
+	flushed_row_groups.clear();
+}
+
 void OptimisticDataWriter::WriteUnflushedRowGroups(OptimisticWriteCollection &row_groups) {
+	auto total_row_groups = row_groups.collection->GetRowGroupCount();
+	if (row_groups.flushed_row_groups.size() == total_row_groups && row_groups.partial_block_managers.empty()) {
+		// everything is flushed already and there is nothing to merge - a repeated call ends up here
+		return;
+	}
 	// we finished writing a complete row group
 	if (!PrepareWrite()) {
 		return;
 	}
 	// add any incomplete row groups to the set of unflushed row groups
-	auto total_row_groups = row_groups.collection->GetRowGroupCount();
-	if (row_groups.complete_row_groups > total_row_groups) {
-		throw InternalException("WriteUnflushedRowGroups - complete row groups > total_row_groups");
-	}
-	for (idx_t i = row_groups.complete_row_groups; i < total_row_groups; i++) {
-		row_groups.unflushed_row_groups.insert(i);
-		row_groups.complete_row_groups++;
+	for (idx_t i = 0; i < total_row_groups; i++) {
+		// check if this row group was flushed
+		auto entry = row_groups.flushed_row_groups.find(i);
+		if (entry == row_groups.flushed_row_groups.end()) {
+			row_groups.unflushed_row_groups.insert(i);
+		}
 	}
 	if (!row_groups.unflushed_row_groups.empty()) {
 		// flush the last batch of row groups
@@ -112,8 +162,11 @@ void OptimisticDataWriter::WriteUnflushedRowGroups(OptimisticWriteCollection &ro
 	for (auto &partial_manager : row_groups.partial_block_managers) {
 		Merge(partial_manager);
 	}
-	row_groups.unflushed_row_groups.clear();
+	row_groups.FinalizeFlush();
 	row_groups.partial_block_managers.clear();
+	// any new append to the row group collection needs to append a new row group
+	// otherwise we append to an already flushed row group
+	row_groups.collection->SetRowGroupAppendMode(RowGroupAppendMode::REQUIRE_NEW);
 }
 
 void OptimisticWriteCollection::MergeStorage(OptimisticWriteCollection &merge_collection) {
@@ -122,31 +175,17 @@ void OptimisticWriteCollection::MergeStorage(OptimisticWriteCollection &merge_co
 		// no rows to merge - done
 		return;
 	}
-	// when merging the other row group is appended to the END of this row group
-	// that means any trailing row groups that are not yet complete are now complete (even if they are half empty)
-	// add them to the unflushed set
 	idx_t current_row_group_count = collection->GetRowGroupCount();
-	if (complete_row_groups > current_row_group_count) {
-		throw InternalException("MergeStorage - complete row groups > total_row_groups");
-	}
-	for (idx_t i = complete_row_groups; i < current_row_group_count; i++) {
-		unflushed_row_groups.insert(i);
-		complete_row_groups++;
-	}
-
 	// now we merge the target collection into this one - take over any unflushed row groups but adjust their index
 	for (auto &unflushed_idx : merge_collection.unflushed_row_groups) {
 		unflushed_row_groups.insert(current_row_group_count + unflushed_idx);
 	}
-	complete_row_groups += merge_collection.complete_row_groups;
+	for (auto &flushed_idx : merge_collection.flushed_row_groups) {
+		flushed_row_groups.insert(current_row_group_count + flushed_idx);
+	}
+	unflushed_data_size += merge_collection.unflushed_data_size;
 	// finally perform the actual merge
 	collection->MergeStorage(merge_row_groups, nullptr, nullptr);
-	// check if all row groups have been flushed
-	// we cannot append into a row group that has been flushed
-	if (complete_row_groups == collection->GetRowGroupCount()) {
-		// if the last row group has been flushed move any new appends to a new row group
-		collection->SetAppendRequiresNewRowGroup();
-	}
 }
 
 void OptimisticDataWriter::FlushToDisk(OptimisticWriteCollection &collection,

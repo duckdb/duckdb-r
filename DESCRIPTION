@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 1.5.2.9006
+Version: 1.99.99.9001
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
@@ -42,7 +42,7 @@ URL: https://r.duckdb.org/, https://github.com/duckdb/duckdb-r
 BugReports: https://github.com/duckdb/duckdb-r/issues
 Depends:
     DBI,
-    R (>= 4.1.0)
+    R (>= 4.2.0)
 Imports:
     methods,
     utils
@@ -53,8 +53,9 @@ Suggests:
     callr,
     clock,
     DBItest,
-    dbplyr,
+    dbplyr (>= 2.6.0),
     dplyr,
+    nanoarrow,
     rlang,
     sf,
     testthat (>= 3.0.0),
@@ -67,13 +68,21 @@ Config/build/compilation-database: false
 Config/build/never-clean: true
 Config/comment/compilation-database: Generate manually with
     pkgload:::generate_db() for faster pkgload::load_all()
-Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
-    adbcdrivermanager=?ignore-before-r=4.2.0
-Config/gha/filter: os != "windows-latest" | r != "4.1"
-Config/gha/filter-note: Inexplicable build failures on Windows GHA with R
-    4.1, works locally
+Config/gha/extra-packages: 
+    adbcdrivermanager=?ignore-unavailable&ignore-build-errors,
+    arrow=?ignore-build-errors
+Config/comment/gha/extra-packages: arrow does not compile against Rtools45,
+    and the aarch64 Windows runner has no binary to install instead.
+    adbcdrivermanager needs ignore-unavailable as well, and needs it on
+    every runner: CRAN archived it, and pak is called with
+    dependencies = "all", which resolves Enhances too, so the package is
+    in the plan and resolves to nothing. ignore-build-errors does not
+    cover that -- it demotes a failed build, not a failed lookup.
+    ignore-build-errors stays for the day it returns to CRAN and
+    Rtools45 has to build it again. Explained in
+    handbook/operations/ci/matrix/README.md.
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 SystemRequirements: xz (for building from source)
-Config/roxygen2/version: 8.0.0.9000
+Config/roxygen2/version: 8.1.1.9000

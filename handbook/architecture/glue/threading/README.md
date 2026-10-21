@@ -1,0 +1,132 @@
+# Threading
+
+Which thread may read R, which may not, and what makes each path from
+the engine into R safe — including the one that is safe only because
+R is not running.
+
+**Only R's thread reads R.**
+The engine executes on a task scheduler,
+so a table function's scan runs on whichever thread takes the task,
+and reading an R vector there is not safe:
+an ALTREP method allocates,
+may evaluate R code,
+and may collect garbage.
+Bind is where that is avoided.
+It runs on the thread that issued the query, which is R's,
+and it reduces the whole data frame to plain memory
+before the engine can schedule anything.
+[`src/scan.cpp`](/src/scan.cpp)'s `TouchColumn()` walks a column to its leaves —
+the vectors packed inside a struct column or a matrix,
+and every cell of a list column —
+so that what the scan later dereferences is a pointer bind already took.
+It descends by SEXP rather than by type,
+and covers more than the scan reads:
+a list cell is not expected to hold an ALTREP vector,
+and the walk goes there anyway,
+because over-covering costs a wide data frame some bind time
+and under-covering costs a session.
+Eagerness is the same trade,
+since bind does not know which columns a query projects.
+Both are what a scan cannot do for itself —
+holding a task thread, it has no way to ask R for a value —
+and a producer thread
+([#2583](https://github.com/duckdb/duckdb-r/pull/2583))
+is what would supply one,
+keeping every R allocation on R's thread
+so the work could move back to the value that is read.
+What breaking the rule costs —
+a wrong answer with no diagnostic, or a killed session —
+is measured in
+[`experiments/2026-08-08-altrep-scan-threads/`](/experiments/2026-08-08-altrep-scan-threads/README.md).
+
+**The other paths into R, and what keeps each of them safe.**
+The Arrow scan calls R to produce its stream,
+and that call is moved onto the scheduling thread by
+`INITIALIZE_ON_SCHEDULE`
+([`src/database.cpp`](/src/database.cpp));
+the batches that follow come from an Arrow C++ reader
+[`R/register.R`](/R/register.R) exports,
+so pulling one never re-enters R —
+provided the reader does not itself call R.
+nanoarrow's reader over an R connection does,
+and refuses any thread but R's;
+since the export wraps whatever it is given in Arrow's `Scanner`,
+which pulls on Arrow's own pool,
+such a reader cannot feed a registered scan at all,
+`threads = 1` included
+([`usage/memory/writing/`](/handbook/usage/memory/writing/README.md)
+has the measurement and the route that works).
+The progress display evaluates an R callback under the client context lock,
+on the thread that runs the query's tasks:
+the one that issued the query, or for a streaming result the one that fetches it, which can be a thread of arrow's pool.
+So the display calls R only on the thread that built it when the query started, R's, and skips an update anywhere else.
+It preserves the callback, since `getOption()` hands it a copy nothing else refers to,
+and a streaming result keeps its display across the R code that runs between fetches
+(`RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp)).
+Materializing a relation
+([`altrep/`](/handbook/architecture/glue/altrep/README.md))
+evaluates R too,
+and is reached only from an ALTREP method or from bind,
+both of them R's thread.
+Underneath all three sits the same load-bearing fact:
+for the length of a query,
+R's thread is blocked inside the engine and mutates nothing,
+which is what makes even a plain read of an R object from a task thread safe.
+The scan still takes such reads:
+a cell out of a list, a `class` attribute, a factor cell's levels.
+Reads are all a task thread may take, and building a cpp11 vector is not one.
+It allocates, and links the vector into cpp11's one protection list, which two tasks would race on.
+Type detection in [`src/types.cpp`](/src/types.cpp) therefore reads a list cell's names and levels in place.
+Keeping every R allocation off the task threads is the aim, and not every path meets it yet.
+A factor level that is neither UTF-8 nor ASCII, latin1 for instance, is not read in place:
+`RType::FACTOR()` translates it with `Rf_translateCharUTF8()`, which allocates from R's buffers,
+and two tasks doing that at once crash a parallel scan of a list column of such factors.
+[`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md) sets out to keep R's thread and the engine's apart,
+with R's the only thread that touches the R API, and its first task audits paths like this one.
+So the inventory is not a licence to run R concurrently:
+a producer thread ends the blocking that underwrites it,
+which is why #2583 guards per connection
+rather than trusting this list.
+
+**Reporting an error calls R, even where R may not run.**
+`rapi_error_with_context()` ([`src/utils.cpp`](/src/utils.cpp)) reports by calling the R function `rapi_error()`,
+and the scan reaches it through `SexpToValue()`
+for a list cell it cannot convert: a matrix, or a string in an encoding other than UTF-8.
+From a task thread that call runs R off R's thread,
+and a list column of matrices scanned at four threads can kill the session.
+On R's thread it runs R underneath the engine, at bind or in a scan task R's thread happens to take,
+while task threads may still be reading R objects,
+and the engine's `catch (std::exception &)` keeps nothing of cpp11's unwind but its name.
+The same list column scanned at one thread answers `Invalid Error: std::exception`,
+and `dbWriteTable()` of a data frame with a complex column answers the engine's JSON around it.
+[#2588](https://github.com/duckdb/duckdb-r/pull/2588) proposes keeping the helper off R on a task thread,
+and [#2816](https://github.com/duckdb/duckdb-r/pull/2816) taking the call into R out of it.
+
+**The engine runs R code while it holds the client context lock.**
+The replacement scans and the Arrow stream factory in
+[`src/register.cpp`](/src/register.cpp),
+the progress display in
+[`src/connection.cpp`](/src/connection.cpp),
+and the bind of a data frame scan in [`src/scan.cpp`](/src/scan.cpp),
+which materializes an ALTREP column and evaluates `duckdb.materialize_callback` for one of duckdb's own,
+are all reached from underneath a query the engine is already executing.
+R may collect garbage in any of them,
+and runs the finalizer of every engine handle the session has stopped referencing
+when it collects there or evaluates R code with finalizers pending from an earlier collection,
+at a point no R code chose.
+So no such finalizer may re-enter the client context it belongs to:
+the context lock is not recursive,
+and the callback's caller already owns it.
+The rule binds the finalizers rather than the callbacks,
+because a callback cannot know what R will collect inside it;
+[`tests/testthat/test-progress_display.R`](/tests/testthat/test-progress_display.R)
+and [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pin it with an abandoned handle finalized
+from inside the display's callback lookup and from inside the materialize callback.
+Nor may an R error raised in any of them long-jump past the engine's frames,
+whose destructors release that lock and the package's interrupt handler.
+The bind of a data frame scan catches one from an ALTREP column with `R_tryCatchError()`
+and rethrows it as an engine error, which reaches R as an ordinary one,
+as [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pins.
+
+*To deepen: name the scan's remaining task-thread reads per call site,
+as #2583's audit settles each.*

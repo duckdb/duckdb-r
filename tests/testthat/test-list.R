@@ -22,7 +22,10 @@ test_that("one-level lists can be read", {
   res <- dbGetQuery(con, "SELECT [42, 43, 44] a union all select [45, 46]")$a
   expect_equal(res, list(c(42, 43, 44), c(45, 46)))
 
-  res <- dbGetQuery(con, "SELECT ['Hello', 'World'] a union all select ['There']")$a
+  res <- dbGetQuery(
+    con,
+    "SELECT ['Hello', 'World'] a union all select ['There']"
+  )$a
   expect_equal(res, list(c("Hello", "World"), c("There")))
 })
 
@@ -32,7 +35,7 @@ test_that("rel_filter() handles LIST logical type", {
 
   con <- local_con()
 
-  df1 <- tibble::tibble(a = list(1, c(1,2)))
+  df1 <- tibble::tibble(a = list(1, c(1, 2)))
 
   rel1 <- rel_from_df(con, df1)
   rel2 <- rel_filter(rel1, list(expr_constant(TRUE)))

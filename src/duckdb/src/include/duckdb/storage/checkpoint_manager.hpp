@@ -8,20 +8,64 @@
 
 #pragma once
 
-#include "duckdb/storage/partial_block_manager.hpp"
-#include "duckdb/catalog/catalog_entry/index_catalog_entry.hpp"
 #include "duckdb/catalog/catalog.hpp"
+#include "duckdb/storage/partial_block_manager.hpp"
 
 namespace duckdb {
-class DatabaseInstance;
+
+// Forward declaration.
+class AttachedDatabase;
+class BlockManager;
+class CatalogEntry;
+struct CatalogTransaction;
 class ClientContext;
 class ColumnSegment;
+class DatabaseInstance;
+class Deserializer;
+class Connection;
+class DuckTransaction;
+class DuckTransactionManager;
+class IndexCatalogEntry;
+
+class MetadataManager;
 class MetadataReader;
 class SchemaCatalogEntry;
 class SequenceCatalogEntry;
+class Serializer;
+class ScalarMacroCatalogEntry;
+class TableMacroCatalogEntry;
 class TableCatalogEntry;
+class TriggerCatalogEntry;
 class ViewCatalogEntry;
+class TableDataWriter;
 class TypeCatalogEntry;
+struct BoundCreateTableInfo;
+struct CheckpointOptions;
+
+//! Wrapper to manage the lifetime of a checkpoint connection and transaction.
+class ActiveCheckpointWrapper {
+public:
+	//! Creates a connection if we have a context.
+	//! If there is no context, we are on shutdown and a checkpoint connection/transaction is not created.
+	ActiveCheckpointWrapper(optional_ptr<ClientContext> context, AttachedDatabase &db,
+	                        DuckTransactionManager &transaction_manager);
+
+	~ActiveCheckpointWrapper();
+
+	//! Begin the transaction within the newly created connection.
+	void GetCheckpointTransaction(CheckpointOptions &options);
+	void Commit();
+	bool HasCheckpointContext() const;
+	//! The context of the checkpoint connection, null when there is none (shutdown path)
+	optional_ptr<ClientContext> GetCheckpointContext() const;
+
+private:
+	AttachedDatabase &db;
+	DuckTransactionManager &transaction_manager;
+	unique_ptr<Connection> checkpoint_connection;
+	optional_ptr<ClientContext> checkpoint_context;
+	optional_ptr<DuckTransaction> checkpoint_transaction;
+};
 
 class CheckpointWriter {
 public:
@@ -48,6 +92,7 @@ protected:
 	virtual void WriteTableMacro(TableMacroCatalogEntry &table, Serializer &serializer);
 	virtual void WriteIndex(IndexCatalogEntry &index_catalog_entry, Serializer &serializer);
 	virtual void WriteType(TypeCatalogEntry &type, Serializer &serializer);
+	virtual void WriteTrigger(TriggerCatalogEntry &trigger, Serializer &serializer);
 };
 
 class CheckpointReader {
@@ -71,6 +116,7 @@ protected:
 	virtual void ReadTableMacro(CatalogTransaction transaction, Deserializer &deserializer);
 	virtual void ReadIndex(CatalogTransaction transaction, Deserializer &deserializer);
 	virtual void ReadType(CatalogTransaction transaction, Deserializer &deserializer);
+	virtual void ReadTrigger(CatalogTransaction transaction, Deserializer &deserializer);
 
 	virtual void ReadTableData(CatalogTransaction transaction, Deserializer &deserializer,
 	                           BoundCreateTableInfo &bound_info);
@@ -88,10 +134,6 @@ public:
 	//! The database
 	SingleFileStorageManager &storage;
 };
-
-//! CheckpointWriter is responsible for checkpointing the database
-class SingleFileRowGroupWriter;
-class SingleFileTableDataWriter;
 
 class SingleFileCheckpointWriter final : public CheckpointWriter {
 	friend class SingleFileRowGroupWriter;
@@ -120,6 +162,9 @@ public:
 
 private:
 	optional_ptr<ClientContext> context;
+	//! Context of the checkpoint transaction, used for catalog lookups during the checkpoint.
+	//! Only set while CreateCheckpoint runs, which owns the connection it belongs to.
+	optional_ptr<ClientContext> checkpoint_context;
 	//! The metadata writer is responsible for writing schema information
 	unique_ptr<MetadataWriter> metadata_writer;
 	//! The table data writer is responsible for writing the DataPointers used by the table chunks

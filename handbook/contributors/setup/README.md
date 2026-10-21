@@ -1,0 +1,40 @@
+# Setup
+
+From a fresh clone to a running test suite, in order;
+each step is explained by the leaf that owns it, not here.
+
+```sh
+git clone https://github.com/duckdb/duckdb-r.git
+cd duckdb-r
+R -q -e 'pak::pak()'                    # R-level dependencies
+R -q -e 'pak::pak("r-lib/roxygen2")'    # roxygen2, from GitHub
+
+scripts/install-libduckdb.sh            # prebuilt engine, matching
+export DUCKDB_R_USE_SYSTEM_LIB=1        # the vendored commit
+
+R -q -e 'pkgload::load_all()'           # seconds
+R -q -e 'testthat::test_local()'        # the suite
+```
+
+The default build would compile the vendored engine for tens of minutes,
+so the fast path comes before the first build,
+not as an optimization to discover later:
+what it costs and guards —
+and the re-install every vendoring bump requires — is
+[`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+It assumes Linux or macOS and a working toolchain,
+asks for no privileges — the default prefix is under the home directory,
+set in
+[`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh) —
+and needs nothing exported beyond the opt-in.
+Windows has no fast path and will not be getting one;
+there, and when no prebuilt matches, the full build applies
+([`build/source-build/`](/handbook/build/source-build/README.md)).
+The suite's layout and running one file:
+[`testing/suite/`](/handbook/testing/suite/README.md).
+Parallelism and ccache:
+[`build/configuration/`](/handbook/build/configuration/README.md).
+Making a change once the environment works:
+[`workflow/`](/handbook/contributors/workflow/README.md).
+Installing a published build rather than this source tree:
+[`usage/installation/`](/handbook/usage/installation/README.md).

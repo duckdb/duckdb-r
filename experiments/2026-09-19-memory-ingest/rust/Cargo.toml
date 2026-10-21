@@ -1,0 +1,7 @@
+[package]
+name = "memingest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+duckdb = { version = "1", features = ["bundled", "vtab-arrow", "appender-arrow"] }

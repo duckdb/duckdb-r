@@ -13,7 +13,10 @@ test_convert <- function(con, type, val) {
   expect_true(is.na(res2[[1]][1]))
 
   dbExecute(con, "DROP TABLE IF EXISTS bind_test")
-  dbExecute(con, sprintf("CREATE TEMPORARY TABLE bind_test(i INTEGER, a %s)", type))
+  dbExecute(
+    con,
+    sprintf("CREATE TEMPORARY TABLE bind_test(i INTEGER, a %s)", type)
+  )
   q <- dbSendStatement(con, "INSERT INTO bind_test VALUES ($1, $2)")
   dbBind(q, list(1, val))
   dbBind(q, list(2, NA))
@@ -49,25 +52,35 @@ test_that("dbBind() works as expected for all types", {
 test_that("dbBind() is called from dbGetQuery and dbExecute", {
   con <- local_con()
 
-  res <- dbGetQuery(con, "SELECT CAST (? AS INTEGER), CAST(? AS STRING)", params = list(42, "Hello"))
+  res <- dbGetQuery(
+    con,
+    "SELECT CAST (? AS INTEGER), CAST(? AS STRING)",
+    params = list(42, "Hello")
+  )
 
   expect_equal(res[[1]][1], 42L)
   expect_equal(res[[2]][1], "Hello")
 
-  res <- dbGetQuery(con, "SELECT CAST (? AS INTEGER), CAST(? AS STRING)", params = list(42, "Hello"))
+  res <- dbGetQuery(
+    con,
+    "SELECT CAST (? AS INTEGER), CAST(? AS STRING)",
+    params = list(42, "Hello")
+  )
 
   expect_equal(res[[1]][1], 42L)
   expect_equal(res[[2]][1], "Hello")
 
-
-  q <- dbSendQuery(con, "SELECT CAST (? AS INTEGER), CAST(? AS STRING)", params = list(42, "Hello"))
+  q <- dbSendQuery(
+    con,
+    "SELECT CAST (? AS INTEGER), CAST(? AS STRING)",
+    params = list(42, "Hello")
+  )
   # already have a result
 
   res <- dbFetch(q)
 
   expect_equal(res[[1]][1], 42L)
   expect_equal(res[[2]][1], "Hello")
-
 
   # now bind again
   dbBind(q, list(43, "Holla"))
@@ -111,7 +124,11 @@ test_that("various error cases for dbBind()", {
   expect_error(dbGetQuery(con, "SELECT CAST (? AS INTEGER)", list()))
   expect_error(dbGetQuery(con, "SELECT CAST (? AS INTEGER)", list(1, 2)))
   expect_error(dbGetQuery(con, "SELECT CAST (? AS INTEGER)", list("asdf")))
-  expect_error(dbGetQuery(con, "SELECT CAST (? AS INTEGER)", list("asdf", "asdf")))
+  expect_error(dbGetQuery(
+    con,
+    "SELECT CAST (? AS INTEGER)",
+    list("asdf", "asdf")
+  ))
 
   q <- dbSendQuery(con, "SELECT CAST (42 AS INTEGER)")
 
@@ -135,5 +152,42 @@ test_that("various error cases for dbBind()", {
   expect_error(dbGetQuery(con, "SELECT CAST (42 AS INTEGER)", list(1)))
   expect_error(dbGetQuery(con, "SELECT CAST (42 AS INTEGER)", list(1, 2)))
   expect_error(dbGetQuery(con, "SELECT CAST (42 AS INTEGER)", list("asdf")))
-  expect_error(dbGetQuery(con, "SELECT CAST (42 AS INTEGER)", list("asdf", "asdf")))
+  expect_error(dbGetQuery(
+    con,
+    "SELECT CAST (42 AS INTEGER)",
+    list("asdf", "asdf")
+  ))
+})
+
+test_that("a data frame binds as STRUCT, one row per row", {
+  con <- local_con()
+  sql <- "SELECT (?::STRUCT(i INTEGER, j VARCHAR))::VARCHAR AS v"
+
+  # More columns than rows, and more rows than columns:
+  # counted by its columns, the first read past its end and the second lost a row.
+  res <- dbGetQuery(con, sql, params = list(data.frame(i = 1L, j = "a")))
+  expect_equal(res$v, "{'i': 1, 'j': a}")
+
+  res <- dbGetQuery(
+    con,
+    sql,
+    params = list(data.frame(i = 1:3, j = c("a", "b", "c")))
+  )
+  expect_equal(
+    res$v,
+    c("{'i': 1, 'j': a}", "{'i': 2, 'j': b}", "{'i': 3, 'j': c}")
+  )
+
+  # Next to another parameter, it is the rows that must match
+  sql_w <- paste0(sql, ", ? AS w")
+  res <- dbGetQuery(
+    con,
+    sql_w,
+    params = list(data.frame(i = 1:3, j = c("a", "b", "c")), 4:6)
+  )
+  expect_equal(res$w, 4:6)
+  expect_error(
+    dbGetQuery(con, sql_w, params = list(data.frame(i = 1L, j = "a"), 4:5)),
+    "same length"
+  )
 })

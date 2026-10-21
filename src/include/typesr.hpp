@@ -2,6 +2,8 @@
 
 namespace duckdb {
 
+struct ConvertOpts;
+
 struct DuckDBAltrepStringWrapper {
 	duckdb::unsafe_unique_array<string_t> string_data;
 	duckdb::unsafe_unique_array<bool> mask_data;
@@ -98,7 +100,7 @@ struct RType {
 	static constexpr const RTypeId LIST_OF_NULLS = RTypeId::LIST_OF_NULLS;
 	static constexpr const RTypeId BLOB = RTypeId::BLOB;
 
-	static RType FACTOR(cpp11::strings levels);
+	static RType FACTOR(SEXP levels);
 	Vector GetFactorLevels() const;
 	size_t GetFactorLevelsCount() const;
 	Value GetFactorValue(int r_value) const;
@@ -126,7 +128,9 @@ struct RApiTypes {
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
-	static SEXP ValueToSexp(Value &val, string &timezone_config);
+	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
+	// Children of a STRUCT or TUPLE, with positional names synthesized for the unnamed TUPLE members
+	static child_list_t<LogicalType> StructLikeChildTypes(const LogicalType &type);
 };
 
 struct RIntegralType {
@@ -188,6 +192,15 @@ struct RIntegerType {
 	static int Convert(int val);
 };
 
+// A Date or difftime stored as integer: its NA is NA_integer_, which the double
+// check it inherits would take for a real value.
+template <class T>
+struct RIntegerBackedType : public T {
+	static bool IsNull(int val) {
+		return RIntegerType::IsNull(val);
+	}
+};
+
 struct RInteger64Type {
 	static bool IsNull(int64_t val);
 	static int64_t Convert(int64_t val);
@@ -216,4 +229,4 @@ struct RRawSexpType : public RSexpType {
 
 } // namespace duckdb
 
-duckdb::case_insensitive_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);
+duckdb::identifier_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);

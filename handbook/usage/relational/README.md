@@ -1,0 +1,106 @@
+# The relational API
+
+Building a query as a *relation* — a lazy node graph — instead of a SQL
+string, and handing the result to R as an ALTREP data frame.
+It is **internal**: nothing here is exported or documented for users,
+and the one supported consumer is duckplyr
+([`integrations/`](/handbook/usage/integrations/README.md)).
+The DBI and dbplyr routes are what a user reaches for
+([`connections/`](/handbook/usage/connections/README.md)).
+
+**Can I use it?** Not supportedly.
+Every function in [`R/relational.R`](/R/relational.R) is marked `@noRd`,
+so none reaches `NAMESPACE` and none gets a reference page;
+calling one means `duckdb:::`, and a `:::` caller has no promise that the
+next release keeps the signature.
+The answer is deliberate rather than an oversight —
+see the coupling below for what it costs to change.
+
+**What a relation is.**
+`rel_from_df()` turns a data frame into a relation without copying it;
+`rel_from_table()`, `rel_from_table_function()` and `rel_from_sql()`
+start from the database side.
+From there the verbs compose —
+project, filter, aggregate, order, limit, the joins, the set operations —
+each returning a new relation and executing nothing.
+Expressions are built separately (`expr_reference()`, `expr_constant()`,
+`expr_function()`, `expr_comparison()`, `expr_window()`),
+so a caller assembles a tree rather than splicing text,
+and the engine never parses a string the caller built.
+
+**What lifts, and what is refused.**
+`rel_from_df()` refuses a column rather than converting it lossily:
+matrix/array columns, S4 columns, `integer64` columns,
+and any class beyond the built-in ones in the default strict mode
+(the checks are [`src/relational.cpp`](/src/relational.cpp)'s,
+pinned in
+[`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R)
+and [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R)).
+Factors lift and come back as factors.
+duckplyr surfaces these refusals as errors on an explicit
+`as_duckdb_tibble()`, not as silent fallbacks.
+What a value becomes once it has crossed is
+[`types/`](/handbook/usage/types/README.md)'s.
+
+**Untyped `NULL` constants.**
+`expr_constant(NA)` builds an untyped `NULL`
+([#143](https://github.com/duckdb/duckdb-r/pull/143)),
+so a nested `NA` adopts its siblings' type —
+`greatest(NA, a)` binds to `a`'s.
+One that survives to a result column materializes as `NA_integer_`,
+the engine's own `SELECT NULL` behavior.
+Mapping that to logical `NA` was declined, closing
+[#155](https://github.com/duckdb/duckdb-r/issues/155):
+the exchange is engine-side,
+flipping it would change SQL results package-wide,
+and duckplyr casts a typed `NULL` where it needs one.
+
+**How a result comes back.**
+`rel_to_altrep()` wraps an unexecuted relation as a data frame:
+nothing runs until R touches the values, materialization is budgeted by
+`n_rows` and `n_cells`, and an execution error is stored and re-raised at
+every later access.
+What an `ARRAY` column does instead is a limitation (below).
+The session `TimeZone` that labels `TIMESTAMPTZ` columns is captured
+here, when the data frame is built, not at materialization:
+change the setting in between,
+and the label keeps the zone of `rel_to_altrep()` time
+([`timestamps/`](/handbook/usage/timestamps/README.md)
+owns the labeling rules).
+`rel_from_altrep_df()` is the way back.
+What materialization allocates on either side of the boundary,
+and when each copy is freed, is
+[`memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
+The C++ side of that, and its known weak point around raising an R error
+from inside an ALTREP method, is
+[`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s.
+`rel_to_parquet()`, `rel_to_csv()`, `rel_to_table()` and `rel_to_view()`
+execute to a destination instead.
+
+**The coupling is the reason this page exists.**
+The API grew to serve duckplyr — `NEWS.md` records rounds of "internal
+changes to support the duckplyr package" — and being internal does not
+make it free to change:
+`rel_to_altrep()` kept an `allow_materialization` argument that duckplyr
+had stopped passing in 1.1.0,
+and only once no duckplyr in the field still named it was it removed and
+`...` moved directly after `rel`,
+so that a budget is spelled out in full or refused
+rather than matched positionally
+([#1052](https://github.com/duckdb/duckdb-r/issues/1052)).
+So a change here is negotiated with duckplyr rather than merely reviewed,
+and duckplyr is the reverse dependency a behaviour change is checked
+against first
+([`testing/revdep/`](/handbook/testing/revdep/README.md)).
+
+## Limitations
+
+* An `ARRAY` column comes back from `rel_to_altrep()` with the wrong shape, where `dbGetQuery()` reads it right.
+  Under `array = "matrix"`, four rows of an `INTEGER[2]` read as a 2x2 matrix of each row's first element,
+  and a row count the array size does not divide fails in `rel_to_altrep()` itself, under `array = "none"` too.
+  An `ARRAY` column also makes `rel_to_altrep()` run the relation at once,
+  so a row or cell budget such as `n_rows` fails it before any value is touched
+  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
+
+*To deepen: state which verbs duckplyr actually calls, so a change can be
+scoped against real use rather than the whole surface.*

@@ -1,4 +1,3 @@
-
 # Run this file with testthat::test_local(filter = "^relational$")
 
 con <- local_con()
@@ -30,7 +29,10 @@ test_that("we won't crash when creating a relation from odd things", {
 test_that("we can round-trip a data frame", {
   expect_equal(
     data.frame(a = 1:3, b = letters[1:3]),
-    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3]))),
+    as.data.frame.duckdb_relation(rel_from_df(
+      con,
+      data.frame(a = 1:3, b = letters[1:3])
+    )),
     ignore_attr = TRUE
   )
 })
@@ -45,6 +47,74 @@ test_that("we can recognize if a df is materialized", {
   # Side effect: materialization
   expect_equal(nrow(df), 3)
   expect_true(df_is_materialized(df))
+})
+
+test_that("the query result is released once all columns are transformed", {
+  df_in <- data.frame(a = as.double(1:10000), b = as.double(10000:1))
+  df <- rel_to_altrep(rel_from_df(con, df_in))
+  expect_false(df_is_materialized(df))
+  expect_false(rapi_df_has_query_result(df))
+
+  # Materialization via the row count retains the result
+  expect_equal(nrow(df), 10000)
+  expect_true(df_is_materialized(df))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming only some of the columns retains the result
+  expect_equal(sum(df$a), sum(df_in$a))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming the last column releases the result
+  expect_equal(sum(df$b), sum(df_in$b))
+  expect_false(rapi_df_has_query_result(df))
+
+  # The data frame remains fully functional after the release
+  expect_true(df_is_materialized(df))
+  expect_equal(nrow(df), 10000)
+  expect_equal(df, df_in)
+
+  # A relation wrapped around the released data frame scans the R vectors
+  rel2 <- rel_from_altrep_df(df, wrap = TRUE)
+  expect_equal(rapi_rel_to_df(rel2), df_in, ignore_attr = TRUE)
+})
+
+test_that("the query result is released with nested STRUCT columns", {
+  rel <- rel_from_sql(
+    con,
+    "SELECT {'x': range::int, 'y': range::double} AS s, range AS a FROM range(1000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  # Transforming the plain column and one struct field retains the result
+  expect_equal(sum(df$a), sum(0:999))
+  expect_equal(sum(df$s$x), sum(0:999))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming the last struct field releases the result
+  expect_equal(sum(df$s$y), sum(0:999))
+  expect_false(rapi_df_has_query_result(df))
+
+  # The data frame remains fully functional after the release
+  expect_equal(nrow(df), 1000)
+  expect_equal(df$s$y, as.double(0:999))
+})
+
+test_that("a column whose conversion fails part way fails again on the next access", {
+  # The NUL byte sits in the second chunk,
+  # so the first 2048 rows are converted when the conversion fails
+  rel <- rel_from_sql(
+    con,
+    "SELECT CASE WHEN range = 3000 THEN 'a' || chr(0) || 'b' ELSE 'v' END AS s, range AS i FROM range(5000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  expect_error(df$s[1], "null byte")
+  # Not the partly converted vector, with "" in the rows after the first chunk
+  expect_error(df$s[1], "null byte")
+
+  # The column that failed keeps the engine's copy of the result
+  expect_equal(sum(df$i), sum(0:4999))
+  expect_true(rapi_df_has_query_result(df))
 })
 
 
@@ -67,7 +137,6 @@ test_that("we can create various expressions and don't crash", {
 
   expect_error(expr_constant(NULL))
   expect_error(expr_constant())
-
 
   expr_function("asdf", list())
 
@@ -124,17 +193,26 @@ test_that("we can create operator expressions", {
 
   # IN operator with multiple values
   expect_snapshot({
-    expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+    expr_operator(
+      "IN",
+      list(expr_reference("some_column"), expr_constant(-42), expr_constant(42))
+    )
   })
 
   # NOT IN operator with multiple values
   expect_snapshot({
-    expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+    expr_operator(
+      "NOT IN",
+      list(expr_reference("some_column"), expr_constant(-42), expr_constant(42))
+    )
   })
 
   # BOGUS operator
   expect_snapshot(error = TRUE, {
-    expr_operator("BOGUS", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+    expr_operator(
+      "BOGUS",
+      list(expr_reference("some_column"), expr_constant(-42), expr_constant(42))
+    )
   })
 })
 
@@ -149,7 +227,10 @@ test_that("we can use operator expressions in relations", {
   # Filter using IN operator
   rel_filtered <- rel_filter(
     rel,
-    list(expr_operator("IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L))))
+    list(expr_operator(
+      "IN",
+      list(expr_reference("id"), expr_constant(2L), expr_constant(4L))
+    ))
   )
   result <- as.data.frame(rel_filtered)
   expect_equal(result$id, c(2L, 4L))
@@ -158,7 +239,15 @@ test_that("we can use operator expressions in relations", {
   # Filter using NOT IN operator
   rel_filtered <- rel_filter(
     rel,
-    list(expr_operator("NOT IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L), expr_constant(5L))))
+    list(expr_operator(
+      "NOT IN",
+      list(
+        expr_reference("id"),
+        expr_constant(2L),
+        expr_constant(4L),
+        expr_constant(5L)
+      )
+    ))
   )
   result <- as.data.frame(rel_filtered)
   expect_equal(result$id, c(1L, 3L))
@@ -172,6 +261,18 @@ test_that("expr_operator validates ... parameter", {
   )
 })
 
+test_that("rel_to_altrep validates ... parameter", {
+  rel <- rel_from_df(con, data.frame(a = 1))
+  expect_error(
+    rel_to_altrep(rel, allow_materialization = FALSE),
+    "... must be empty"
+  )
+  expect_error(
+    rel_to_altrep(rel, 5),
+    "... must be empty"
+  )
+})
+
 
 # TODO should maybe be a different file, test_enum_strings.R
 
@@ -181,12 +282,31 @@ test_that("we can cast R strings to DuckDB strings", {
   n <- 100000
 
   # yay R one-liners
-  gen_rand_string <- function(x, max_len) paste0(chars[sample(1:length(chars), runif(1) * max_len, replace = TRUE)], collapse = "")
+  gen_rand_string <- function(x, max_len) {
+    paste0(
+      chars[sample(1:length(chars), runif(1) * max_len, replace = TRUE)],
+      collapse = ""
+    )
+  }
 
-  test_string_vec <- c(vapply(1:n, gen_rand_string, "character", max_len), NA, NA, NA, NA, NA, NA, NA, NA) # batman
+  test_string_vec <- c(
+    vapply(1:n, gen_rand_string, "character", max_len),
+    NA,
+    NA,
+    NA,
+    NA,
+    NA,
+    NA,
+    NA,
+    NA
+  ) # batman
 
   df <- data.frame(s = test_string_vec, stringsAsFactors = FALSE)
-  expect_equal(df, as.data.frame.duckdb_relation(rel_from_df(con, df)), ignore_attr = TRUE)
+  expect_equal(
+    df,
+    as.data.frame.duckdb_relation(rel_from_df(con, df)),
+    ignore_attr = TRUE
+  )
 
   res <- rel_sql(
     rel_from_df(con, df),
@@ -234,8 +354,16 @@ test_that("the altrep-conversion for relations works", {
   df <- rel_to_altrep(rel)
   expect_false(df_is_materialized(df))
   inspect_output <- capture.output(.Internal(inspect(df)))
-  expect_true(any(grepl("DUCKDB_ALTREP_REL_VECTOR", inspect_output, fixed = TRUE)))
-  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_output, fixed = TRUE)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_VECTOR",
+    inspect_output,
+    fixed = TRUE
+  )))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_output,
+    fixed = TRUE
+  )))
   expect_false(df_is_materialized(df))
   expect_equal(n_callback, 0)
   dim(df)
@@ -256,6 +384,107 @@ test_that("ALTREP row names are materialized as integer sequence", {
 
   rn <- attr(altrep_df, "row.names")
   expect_identical(rn, 1:5)
+})
+
+test_that("ALTREP row names remain ALTREP after duplication", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+
+  # Check that the row names are ALTREP before duplication
+  inspect_before <- capture.output(.Internal(inspect(rn)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_before,
+    fixed = TRUE
+  )))
+
+  # Trigger duplication by modifying a copy (copy-on-modify semantics)
+  rn_dup <- rn
+  rn_dup[1L] <- rn_dup[1L]
+
+  # Check that the duplicated row names are still ALTREP
+  inspect_after <- capture.output(.Internal(inspect(rn_dup)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_after,
+    fixed = TRUE
+  )))
+
+  # Verify the values are correct after duplication
+  expect_identical(rn_dup, 1:5)
+})
+
+test_that("Duplicated ALTREP row names stay ALTREP after a value-changing edit", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  rn_dup <- rn
+  rn_dup[1L] <- 999L
+
+  inspect_after <- capture.output(.Internal(inspect(rn_dup)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_after,
+    fixed = TRUE
+  )))
+
+  expect_identical(rn_dup, c(999L, 2L, 3L, 4L, 5L))
+  expect_identical(rn, 1:5)
+})
+
+test_that("ALTREP row names survive repeated duplications", {
+  df <- data.frame(a = 1:5)
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+
+  rn_dup1 <- rn
+  rn_dup1[1L] <- rn_dup1[1L]
+
+  rn_dup2 <- rn_dup1
+  rn_dup2[1L] <- rn_dup2[1L]
+
+  inspect_out1 <- capture.output(.Internal(inspect(rn_dup1)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_out1,
+    fixed = TRUE
+  )))
+
+  inspect_out2 <- capture.output(.Internal(inspect(rn_dup2)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_out2,
+    fixed = TRUE
+  )))
+
+  expect_identical(rn_dup1, 1:5)
+  expect_identical(rn_dup2, 1:5)
+})
+
+test_that("ALTREP row names of larger relations remain ALTREP after duplication", {
+  df <- data.frame(a = 1:1000)
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  rn_dup <- rn
+  rn_dup[1L] <- rn_dup[1L]
+
+  inspect_out <- capture.output(.Internal(inspect(rn_dup)))
+  expect_true(any(grepl(
+    "DUCKDB_ALTREP_REL_ROWNAMES",
+    inspect_out,
+    fixed = TRUE
+  )))
+
+  expect_identical(rn_dup, 1:1000)
 })
 
 test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
@@ -295,11 +524,19 @@ test_that("Inner join returns all inner relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_b = c(1, 3), right_c = c(4, 5)))
-  cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_b"), expr_reference("right_b"))
+  ))
   rel2 <- rel_join(left, right, cond, "inner")
   rel_df <- rel_to_altrep(rel2)
   dim(rel_df)
-  expected_result <- data.frame(left_a = c(1, 2), left_b = c(1, 1), right_b = c(1, 1), right_c = c(4, 4))
+  expected_result <- data.frame(
+    left_a = c(1, 2),
+    left_b = c(1, 1),
+    right_b = c(1, 1),
+    right_c = c(4, 4)
+  )
   expect_equal(rel_df, expected_result)
 })
 
@@ -307,31 +544,54 @@ test_that("Left join returns all left relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_b = c(1)))
-  cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_b"), expr_reference("right_b"))
+  ))
   rel2 <- rel_join(left, right, cond, "left")
   rel_df <- rel_to_altrep(rel2)
   dim(rel_df)
-  expected_result <- data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2), right_b = c(1, 1, NA))
+  expected_result <- data.frame(
+    left_a = c(1, 2, 3),
+    left_b = c(1, 1, 2),
+    right_b = c(1, 1, NA)
+  )
   expect_equal(rel_df, expected_result)
 })
 
 test_that("Right join returns all right relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   left <- rel_from_df(con, data.frame(left_b = c(1)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
-  cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
+  right <- rel_from_df(
+    con,
+    data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2))
+  )
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_b"), expr_reference("right_b"))
+  ))
   rel2 <- rel_join(left, right, cond, "right")
   rel_df <- rel_to_altrep(rel2)
   dim(rel_df)
-  expected_result <- data.frame(left_b = c(1, 1, NA), right_a = c(1, 2, 3), right_b = c(1, 1, 2))
+  expected_result <- data.frame(
+    left_b = c(1, 1, NA),
+    right_a = c(1, 2, 3),
+    right_b = c(1, 1, 2)
+  )
   expect_equal(rel_df, expected_result)
 })
 
 test_that("Full join returns all outer relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   left <- rel_from_df(con, data.frame(left_a = c(1, 2, 5), left_b = c(4, 5, 6)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
-  cond <- list(expr_function("eq", list(expr_reference("left_a"), expr_reference("right_a"))))
+  right <- rel_from_df(
+    con,
+    data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2))
+  )
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_a"), expr_reference("right_a"))
+  ))
   rel2 <- rel_join(left, right, cond, "outer")
   rel_df <- rel_to_altrep(rel2)
 
@@ -349,9 +609,15 @@ test_that("Full join returns all outer relations", {
 
 test_that("cross join works", {
   left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 4, 5), right_b = c(7, 8, 9)))
+  right <- rel_from_df(
+    con,
+    data.frame(right_a = c(1, 4, 5), right_b = c(7, 8, 9))
+  )
   cross <- rel_join(left, right, list(), "cross")
-  order_by <- rel_order(cross, list(expr_reference("right_a"), expr_reference("right_a")))
+  order_by <- rel_order(
+    cross,
+    list(expr_reference("right_a"), expr_reference("right_a"))
+  )
   rel_df <- rel_to_altrep(order_by)
   dim(rel_df)
   expected_result <- data.frame(
@@ -365,21 +631,32 @@ test_that("cross join works", {
 
 test_that("semi join works", {
   left <- rel_from_df(con, data.frame(left_b = c(1, 5, 6)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
-  cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_a"))))
+  right <- rel_from_df(
+    con,
+    data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2))
+  )
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_b"), expr_reference("right_a"))
+  ))
   # select * from left semi join right on (left_b = right_a)
   rel2 <- rel_join(left, right, cond, "semi")
   rel_df <- rel_to_altrep(rel2)
   dim(rel_df)
   expected_result <- data.frame(left_b = c(1))
   expect_equal(rel_df, expected_result)
-
 })
 
 test_that("anti join works", {
   left <- rel_from_df(con, data.frame(left_b = c(1, 5, 6)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
-  cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_a"))))
+  right <- rel_from_df(
+    con,
+    data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2))
+  )
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_b"), expr_reference("right_a"))
+  ))
   # select * from left anti join right on (left_b = right_a)
   rel2 <- rel_join(left, right, cond, "anti")
   rel_df <- rel_to_altrep(rel2)
@@ -407,7 +684,10 @@ test_that("Union all has the correct values", {
   expect_false(df_is_materialized(rel_df))
   dim(rel_df)
   expect_true(df_is_materialized(rel_df))
-  expected_result <- data.frame(a = c("1", "2", "5", "6"), b = c("3", "4", "7", "8"))
+  expected_result <- data.frame(
+    a = c("1", "2", "5", "6"),
+    b = c("3", "4", "7", "8")
+  )
   expect_equal(rel_df, expected_result)
 })
 
@@ -419,7 +699,10 @@ test_that("Union all keeps duplicates", {
   rel_df <- rel_to_altrep(order_by_rel)
   dim(rel_df)
   expect_true(df_is_materialized(rel_df))
-  expected_result <- data.frame(a = c("1", "1", "2", "2"), b = c("3", "3", "4", "4"))
+  expected_result <- data.frame(
+    a = c("1", "1", "2", "2"),
+    b = c("3", "3", "4", "4")
+  )
   expect_equal(rel_df, expected_result)
 })
 
@@ -427,89 +710,187 @@ test_that("Inner join returns all inner relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_b = c(1, 3), right_c = c(4, 5)))
-  cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("left_b"), expr_reference("right_b"))
+  ))
   rel2 <- rel_join(left, right, cond, "inner")
   rel_df <- rel_to_altrep(rel2)
   dim(rel_df)
-  expected_result <- data.frame(left_a = c(1, 2), left_b = c(1, 1), right_b = c(1, 1), right_c = c(4, 4))
+  expected_result <- data.frame(
+    left_a = c(1, 2),
+    left_b = c(1, 1),
+    right_b = c(1, 1),
+    right_c = c(4, 4)
+  )
   expect_equal(rel_df, expected_result)
 })
 
 test_that("ASOF join works", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
   test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3)))
-  cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
+  test_df2 <- rel_from_df(
+    con,
+    data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3))
+  )
+  cond <- list(expr_function(
+    "gte",
+    list(expr_reference("ts"), expr_reference("event_ts"))
+  ))
   rel <- rel_join(test_df1, test_df2, cond, join_ref_type = "asof")
-  rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_id")))
+  rel_proj <- rel_project(
+    rel,
+    list(expr_reference("ts"), expr_reference("event_id"))
+  )
   order <- rel_order(rel_proj, list(expr_reference("ts")))
   rel_df <- rel_to_altrep(order)
-  expected_result <- data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9), event_id = c(0, 0, 1, 1, 1, 2, 2, 3, 3))
+  expected_result <- data.frame(
+    ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9),
+    event_id = c(0, 0, 1, 1, 1, 2, 2, 3, 3)
+  )
   expect_equal(expected_result, rel_df)
 })
 
 test_that("LEFT ASOF join works", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
   test_df1 <- rel_from_df(con, data.frame(ts = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(event_ts = c(2, 4, 6, 8), event_id = c(0, 1, 2, 3)))
-  cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
-  rel <- rel_join(test_df1, test_df2, cond, join = "left", join_ref_type = "asof")
-  rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_ts"), expr_reference("event_id")))
+  test_df2 <- rel_from_df(
+    con,
+    data.frame(event_ts = c(2, 4, 6, 8), event_id = c(0, 1, 2, 3))
+  )
+  cond <- list(expr_function(
+    "gte",
+    list(expr_reference("ts"), expr_reference("event_ts"))
+  ))
+  rel <- rel_join(
+    test_df1,
+    test_df2,
+    cond,
+    join = "left",
+    join_ref_type = "asof"
+  )
+  rel_proj <- rel_project(
+    rel,
+    list(
+      expr_reference("ts"),
+      expr_reference("event_ts"),
+      expr_reference("event_id")
+    )
+  )
   order <- rel_order(rel_proj, list(expr_reference("ts")))
   rel_df <- rel_to_altrep(order)
-  expected_result <- data.frame(ts = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), event_ts = c(NA, NA, 2, 2, 4, 4, 6, 6, 8, 8), event_id = c(NA, NA, 0, 0, 1, 1, 2, 2, 3, 3))
+  expected_result <- data.frame(
+    ts = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+    event_ts = c(NA, NA, 2, 2, 4, 4, 6, 6, 8, 8),
+    event_id = c(NA, NA, 0, 0, 1, 1, 2, 2, 3, 3)
+  )
   expect_equal(expected_result, rel_df)
 })
 
 test_that("Positional cross join works", {
   test_df1 <- rel_from_df(con, data.frame(a = c(11, 12, 13), b = c(1, 2, 3)))
   test_df2 <- rel_from_df(con, data.frame(c = c(11, 12), d = c(1, 2)))
-  rel <- rel_join(test_df1, test_df2, list(), join = "cross", join_ref_type = "positional")
+  rel <- rel_join(
+    test_df1,
+    test_df2,
+    list(),
+    join = "cross",
+    join_ref_type = "positional"
+  )
   rel_df <- rel_to_altrep(rel)
-  expected_result <- data.frame(a = c(11, 12, 13), b = c(1, 2, 3), c = c(11, 12, NA), d = c(1, 2, NA))
+  expected_result <- data.frame(
+    a = c(11, 12, 13),
+    b = c(1, 2, 3),
+    c = c(11, 12, NA),
+    d = c(1, 2, NA)
+  )
   expect_equal(expected_result, rel_df)
 })
 
 test_that("regular positional join works", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   test_df1 <- rel_from_df(con, data.frame(a = c(11, 12, 13), b = c(1, 2, 3)))
-  test_df2 <- rel_from_df(con, data.frame(c = c(11, 12, 14, 11), d = c(4, 5, 6, 8)))
+  test_df2 <- rel_from_df(
+    con,
+    data.frame(c = c(11, 12, 14, 11), d = c(4, 5, 6, 8))
+  )
   cond <- expr_function("eq", list(expr_reference("a"), expr_reference("c")))
   rel <- rel_join(test_df1, test_df2, list(cond), join_ref_type = "positional")
   rel_df <- rel_to_altrep(rel)
-  expected_result <- data.frame(a = c(11, 12), b = c(1, 2), c = c(11, 12), d = c(4, 5))
+  expected_result <- data.frame(
+    a = c(11, 12),
+    b = c(1, 2),
+    c = c(11, 12),
+    d = c(4, 5)
+  )
   expect_equal(expected_result, rel_df)
 })
 
 test_that("Invalid asof join condition throws error", {
   dbExecute(con, "CREATE OR REPLACE MACRO neq(a, b) AS a <> b")
   test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3)))
-  cond <- list(expr_function("neq", list(expr_reference("ts"), expr_reference("begin"))))
-  expect_error(rel_join(test_df1, test_df2, cond, join_ref_type = "asof"), "Binder")
+  test_df2 <- rel_from_df(
+    con,
+    data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3))
+  )
+  cond <- list(expr_function(
+    "neq",
+    list(expr_reference("ts"), expr_reference("begin"))
+  ))
+  expect_error(
+    rel_join(test_df1, test_df2, cond, join_ref_type = "asof"),
+    "Binder"
+  )
 })
 
 test_that("multiple inequality conditions for asof join throws error", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
   test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3)))
-  cond1 <- expr_function("gte", list(expr_reference("ts"), expr_reference("begin")))
-  cond2 <- expr_function("gte", list(expr_reference("ts"), expr_reference("value")))
+  test_df2 <- rel_from_df(
+    con,
+    data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3))
+  )
+  cond1 <- expr_function(
+    "gte",
+    list(expr_reference("ts"), expr_reference("begin"))
+  )
+  cond2 <- expr_function(
+    "gte",
+    list(expr_reference("ts"), expr_reference("value"))
+  )
   conds <- list(cond1, cond2)
-  expect_error(rel_join(test_df1, test_df2, conds, join_ref_type = "asof"), "Binder")
+  expect_error(
+    rel_join(test_df1, test_df2, conds, join_ref_type = "asof"),
+    "Binder"
+  )
 })
 
 
 test_that("Inequality joins work", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
   timing_df <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6)))
-  events_df <- rel_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3)))
-  cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
+  events_df <- rel_from_df(
+    con,
+    data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3))
+  )
+  cond <- list(expr_function(
+    "gte",
+    list(expr_reference("ts"), expr_reference("event_ts"))
+  ))
   rel <- rel_inner_join(timing_df, events_df, cond)
-  rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_ts")))
-  rel_order <- rel_order(rel_proj, list(expr_reference("ts"), expr_reference("event_ts")))
+  rel_proj <- rel_project(
+    rel,
+    list(expr_reference("ts"), expr_reference("event_ts"))
+  )
+  rel_order <- rel_order(
+    rel_proj,
+    list(expr_reference("ts"), expr_reference("event_ts"))
+  )
   rel_df <- rel_to_altrep(rel_order)
-  expected_result <- data.frame(ts = c(1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 6), event_ts = c(1, 1, 1, 3, 1, 3, 1, 3, 1, 3, 6))
+  expected_result <- data.frame(
+    ts = c(1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 6),
+    event_ts = c(1, 1, 1, 3, 1, 3, 1, 3, 1, 3, 6)
+  )
   expect_equal(expected_result, rel_df)
 })
 
@@ -518,13 +899,25 @@ test_that("Inequality join works to perform between operation", {
   dbExecute(con, "CREATE OR REPLACE MACRO gt(a, b) AS a > b")
   dbExecute(con, "CREATE OR REPLACE MACRO lt(a, b) AS a < b")
   timing_df <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  events_df <- rel_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3)))
+  events_df <- rel_from_df(
+    con,
+    data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3))
+  )
   lead <- expr_function("lead", list(expr_reference("event_ts")))
   window_lead <- expr_window(lead, offset_expr = expr_constant(1))
   expr_set_alias(window_lead, "lead")
-  proj_window <- rel_project(events_df, list(expr_reference("event_ts"), window_lead, expr_reference("event_id")))
-  cond1 <- expr_function("gt", list(expr_reference("ts"), expr_reference("event_ts")))
-  cond2 <- expr_function("lt", list(expr_reference("ts"), expr_reference("lead")))
+  proj_window <- rel_project(
+    events_df,
+    list(expr_reference("event_ts"), window_lead, expr_reference("event_id"))
+  )
+  cond1 <- expr_function(
+    "gt",
+    list(expr_reference("ts"), expr_reference("event_ts"))
+  )
+  cond2 <- expr_function(
+    "lt",
+    list(expr_reference("ts"), expr_reference("lead"))
+  )
   conds <- list(cond1, cond2)
   rel <- rel_inner_join(timing_df, proj_window, conds)
   rel_proj <- rel_project(rel, list(expr_reference("ts")))
@@ -540,13 +933,19 @@ test_that("we can union the same relation to itself", {
   test_df_a2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
   rel <- rel_union_all(test_df_a2, test_df_a2)
   rel_df <- rel_to_altrep(rel)
-  expected_result <- data.frame(a = c("1", "2", "1", "2"), b = c("3", "4", "3", "4"))
+  expected_result <- data.frame(
+    a = c("1", "2", "1", "2"),
+    b = c("3", "4", "3", "4")
+  )
   expect_equal(rel_df, expected_result)
 })
 
 test_that("we throw an error when attempting to union all relations that are not compatible", {
   test_df_a2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
-  test_df_b2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4"), c = c("5", "6")))
+  test_df_b2 <- rel_from_df(
+    con,
+    data.frame(a = c("1", "2"), b = c("3", "4"), c = c("5", "6"))
+  )
   # The two data frames have different dimensions, therefore you get a binding error.
   expect_error(rel_union_all(test_df_a2, test_df_b2), "Binder")
 })
@@ -633,20 +1032,32 @@ test_that("rel aggregate with groups and aggregate function works", {
 
 test_that("Window sum expression function test works", {
   #   select j, i, sum(i) over (partition by j) from a order by 1,2
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   sum_func <- expr_function("sum", list(expr_reference("a")))
   aggrs <- expr_window(sum_func, partitions = list(expr_reference("b")))
   expr_set_alias(aggrs, "window_result")
   window_proj <- rel_project(rel_a, list(expr_reference("a"), aggrs))
-  order_over_window <- rel_order(window_proj, list(expr_reference("window_result")))
+  order_over_window <- rel_order(
+    window_proj,
+    list(expr_reference("window_result"))
+  )
   res <- rel_to_altrep(order_over_window)
-  expected_result <- data.frame(a = c(1:8), window_result = c(3, 3, 7, 7, 11, 11, 15, 15))
+  expected_result <- data.frame(
+    a = c(1:8),
+    window_result = c(3, 3, 7, 7, 11, 11, 15, 15)
+  )
   expect_equal(res, expected_result)
 })
 
 test_that("Window count function works", {
   #   select a, b, count(b) over (partition by a) from a order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   count_func <- expr_function("count", list(expr_reference("a")))
   count <- expr_window(count_func, partitions = list(expr_reference("b")))
   expr_set_alias(count, "window_result")
@@ -658,24 +1069,33 @@ test_that("Window count function works", {
 
 test_that("Window avg function works", {
   #     select a, b, avg(b) over (partition by a) from a order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   avg_func <- expr_function("avg", list(expr_reference("a")))
   avg_window <- expr_window(avg_func, partitions = list(expr_reference("b")))
   expr_set_alias(avg_window, "window_result")
   window_proj <- rel_project(rel_a, list(avg_window))
   ordered <- rel_order(window_proj, list(expr_reference("window_result")))
   res <- rel_to_altrep(ordered)
-  expected_result <- data.frame(window_result = c(1.5, 1.5, 3.5, 3.5, 5.5, 5.5, 7.5, 7.5))
+  expected_result <- data.frame(
+    window_result = c(1.5, 1.5, 3.5, 3.5, 5.5, 5.5, 7.5, 7.5)
+  )
   expect_equal(res, expected_result)
 })
 
 test_that("Window sum with Partition, order, and window boundaries works", {
   #     SUM(x) OVER (partition by b ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2))
+  )
   partitions <- list(expr_reference("b"))
   order_by_a <- list(rel_order(rel_a, list(expr_reference("a"))))
   sum_func <- expr_function("sum", list(expr_reference("a")))
-  sum_window <- expr_window(sum_func,
+  sum_window <- expr_window(
+    sum_func,
     partitions = partitions,
     order_bys = list(expr_reference("a")),
     window_boundary_start = "expr_preceding_rows",
@@ -686,17 +1106,24 @@ test_that("Window sum with Partition, order, and window boundaries works", {
   window_proj <- rel_project(rel_a, list(expr_reference("a"), sum_window))
   proj_order <- rel_order(window_proj, list(expr_reference("a")))
   res <- rel_to_altrep(proj_order)
-  expected_result <- data.frame(a = c(1:8), window_result = c(1, 3, 6, 9, 5, 11, 18, 21))
+  expected_result <- data.frame(
+    a = c(1:8),
+    window_result = c(1, 3, 6, 9, 5, 11, 18, 21)
+  )
   expect_equal(res, expected_result)
 })
 
 test_that("Window boundaries boundaries are CaSe INsenSItive", {
   #     SUM(x) OVER (partition by b ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2))
+  )
   partitions <- list(expr_reference("b"))
   order_by_a <- list(rel_order(rel_a, list(expr_reference("a"))))
   sum_func <- expr_function("sum", list(expr_reference("a")))
-  sum_window <- expr_window(sum_func,
+  sum_window <- expr_window(
+    sum_func,
     partitions = partitions,
     order_bys = list(expr_reference("a")),
     window_boundary_start = "exPr_PREceding_rOWs",
@@ -707,7 +1134,10 @@ test_that("Window boundaries boundaries are CaSe INsenSItive", {
   window_proj <- rel_project(rel_a, list(expr_reference("a"), sum_window))
   proj_order <- rel_order(window_proj, list(expr_reference("a")))
   res <- rel_to_altrep(proj_order)
-  expected_result <- data.frame(a = c(1:8), window_result = c(1, 3, 6, 9, 5, 11, 18, 21))
+  expected_result <- data.frame(
+    a = c(1:8),
+    window_result = c(1, 3, 6, 9, 5, 11, 18, 21)
+  )
   expect_equal(res, expected_result)
 })
 
@@ -715,12 +1145,22 @@ test_that("Window avg with a filter expression and partition works", {
   #   select a, b, avg(a) FILTER (WHERE x % 2 = 0) over (partition by b)
   DBI::dbExecute(con, "CREATE OR REPLACE MACRO mod(a, b) as a % b")
   DBI::dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) as a = b")
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   partitions <- list(expr_reference("b"))
-  mod_function <- expr_function("mod", list(expr_reference("a"), expr_constant(2)))
+  mod_function <- expr_function(
+    "mod",
+    list(expr_reference("a"), expr_constant(2))
+  )
   zero <- expr_constant(0)
   filters <- list(expr_function("eq", list(zero, mod_function)))
-  avg_func <- expr_function("avg", args = list(expr_reference("a")), filter_bys = filters)
+  avg_func <- expr_function(
+    "avg",
+    args = list(expr_reference("a")),
+    filter_bys = filters
+  )
   avg_filter_window <- expr_window(avg_func, partitions = partitions)
   expr_set_alias(avg_filter_window, "avg_filter")
   window_proj <- rel_project(rel_a, list(avg_filter_window))
@@ -732,7 +1172,10 @@ test_that("Window avg with a filter expression and partition works", {
 
 test_that("Window lag function works as expected", {
   #   select a, b, lag(a, 1) OVER () order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   lag <- expr_function("lag", list(expr_reference("a")))
   window_lag <- expr_window(lag, offset_expr = expr_constant(1))
   expr_set_alias(window_lag, "lag")
@@ -746,7 +1189,10 @@ test_that("Window lag function works as expected", {
 
 test_that("function name for window is case insensitive", {
   #   select a, b, lag(a, 1) OVER () order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   lag <- expr_function("LAG", list(expr_reference("a")))
   window_lag <- expr_window(lag, offset_expr = expr_constant(1))
   expr_set_alias(window_lag, "lag")
@@ -759,7 +1205,10 @@ test_that("function name for window is case insensitive", {
 
 test_that("Window lead function works as expected", {
   #   select a, b, lag(a, 1) OVER () order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   lead <- expr_function("lead", list(expr_reference("a")))
   window_lead <- expr_window(lead, offset_expr = expr_constant(1))
   expr_set_alias(window_lead, "lead")
@@ -770,23 +1219,65 @@ test_that("Window lead function works as expected", {
   expect_equal(res, expected_result)
 })
 
+test_that("lag() and lead() take a default with or without an offset", {
+  rel_a <- rel_from_df(con, data.frame(a = 1:4))
+  shifted <- function(name, offset = NULL, default = NULL) {
+    fun <- expr_function(name, list(expr_reference("a")))
+    window <- expr_window(
+      fun,
+      offset_expr = offset,
+      default_expr = default,
+      alias = "w"
+    )
+    proj <- rel_project(rel_a, list(expr_reference("a"), window))
+    rel_to_altrep(rel_order(proj, list(expr_reference("a"))))$w
+  }
+  int <- expr_constant(0L)
+  dbl <- expr_constant(-1)
+  two <- expr_constant(2L)
+
+  # Without an offset, the default is the third argument, not the second.
+  expect_equal(shifted("lag", default = int), c(0, 1, 2, 3))
+  expect_equal(shifted("lead", default = int), c(2, 3, 4, 0))
+  expect_equal(shifted("lag", default = dbl), c(-1, 1, 2, 3))
+  expect_equal(shifted("lead", default = dbl), c(2, 3, 4, -1))
+
+  expect_equal(shifted("lag", offset = two, default = int), c(0, 0, 1, 2))
+  expect_equal(shifted("lead", offset = two, default = int), c(3, 4, 0, 0))
+  expect_equal(shifted("lag", offset = two, default = dbl), c(-1, -1, 1, 2))
+  expect_equal(shifted("lead", offset = two, default = dbl), c(3, 4, -1, -1))
+})
+
 test_that("Window function with string aggregate works", {
   #   select j, s, string_agg(s, '|') over (partition by b) from a order by j, s;
-  rel_a <- rel_from_df(con, data.frame(r = c(1, 2, 3, 4), a = c("hello", "Big", "world", "42"), b = c(1, 1, 2, 2)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(
+      r = c(1, 2, 3, 4),
+      a = c("hello", "Big", "world", "42"),
+      b = c(1, 1, 2, 2)
+    )
+  )
   str_agg <- expr_function("string_agg", list(expr_reference("a")))
   partitions <- list(expr_reference("b"))
   window_str_cat <- expr_window(str_agg, partitions = partitions)
   expr_set_alias(window_str_cat, "str_agg_res")
   proj_window <- rel_project(rel_a, list(expr_reference("r"), window_str_cat))
   order_over_window <- rel_order(proj_window, list(expr_reference("r")))
-  expected_result <- data.frame(r = c(1:4), str_agg_res = c("hello,Big", "hello,Big", "world,42", "world,42"))
+  expected_result <- data.frame(
+    r = c(1:4),
+    str_agg_res = c("hello,Big", "hello,Big", "world,42", "world,42")
+  )
   res <- rel_to_altrep(order_over_window)
   expect_equal(res, expected_result)
 })
 
 test_that("You can perform window functions on row_number", {
   # select a, b, row_number() OVER () from tmp order by a;
-  rel_a <- rel_from_df(con, data.frame(a = c(8:1), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  rel_a <- rel_from_df(
+    con,
+    data.frame(a = c(8:1), b = c(1, 1, 2, 2, 3, 3, 4, 4))
+  )
   row_number <- expr_function("row_number", list())
   window_function <- expr_window(row_number)
   expr_set_alias(window_function, "row_number")
@@ -804,11 +1295,17 @@ test_that("You can perform the window function min_rank", {
   # select rank() OVER (order by a) from t1
   rel_a <- rel_from_df(con, data.frame(a = c(1, 1, 2, 2, 2)))
   rank_func <- expr_function("rank", list())
-  min_rank_window <- expr_window(rank_func, order_bys = list(expr_reference("a")))
+  min_rank_window <- expr_window(
+    rank_func,
+    order_bys = list(expr_reference("a"))
+  )
   expr_set_alias(min_rank_window, "window_result")
   window_proj <- rel_project(rel_a, list(expr_reference("a"), min_rank_window))
   res <- rel_to_altrep(window_proj)
-  expected_result <- data.frame(a = c(1, 1, 2, 2, 2), window_result = c(1, 1, 3, 3, 3))
+  expected_result <- data.frame(
+    a = c(1, 1, 2, 2, 2),
+    window_result = c(1, 1, 3, 3, 3)
+  )
   expect_equal(res, expected_result)
 })
 
@@ -816,11 +1313,17 @@ test_that("You can perform the window function dense_rank", {
   # select dense_rank() OVER (order by a) from t1;
   rel_a <- rel_from_df(con, data.frame(a = c(1, 1, 2, 2, 2)))
   dense_rank_fun <- expr_function("dense_rank", list())
-  min_rank_window <- expr_window(dense_rank_fun, order_bys = list(expr_reference("a")))
+  min_rank_window <- expr_window(
+    dense_rank_fun,
+    order_bys = list(expr_reference("a"))
+  )
   expr_set_alias(min_rank_window, "window_result")
   window_proj <- rel_project(rel_a, list(expr_reference("a"), min_rank_window))
   res <- rel_to_altrep(window_proj)
-  expected_result <- data.frame(a = c(1, 1, 2, 2, 2), window_result = c(1, 1, 2, 2, 2))
+  expected_result <- data.frame(
+    a = c(1, 1, 2, 2, 2),
+    window_result = c(1, 1, 2, 2, 2)
+  )
   expect_equal(res, expected_result)
 })
 
@@ -828,12 +1331,18 @@ test_that("You can perform the window function cume_dist", {
   # select cume_dist() OVER (order by a) from t1;
   rel_a <- rel_from_df(con, data.frame(a = c(1, 1, 2, 2, 2)))
   cume_dist_func <- expr_function("cume_dist", list())
-  cume_dist_window <- expr_window(cume_dist_func, order_bys = list(expr_reference("a")))
+  cume_dist_window <- expr_window(
+    cume_dist_func,
+    order_bys = list(expr_reference("a"))
+  )
   expr_set_alias(cume_dist_window, "cume_dist")
   window_proj <- rel_project(rel_a, list(expr_reference("a"), cume_dist_window))
   order_proj <- rel_order(window_proj, list(expr_reference("a")))
   res <- rel_to_altrep(order_proj)
-  expected_result <- data.frame(a = c(1, 1, 2, 2, 2), cume_dist = c(0.4, 0.4, 1.0, 1.0, 1.0))
+  expected_result <- data.frame(
+    a = c(1, 1, 2, 2, 2),
+    cume_dist = c(0.4, 0.4, 1.0, 1.0, 1.0)
+  )
   expect_equal(res, expected_result)
 })
 
@@ -841,12 +1350,21 @@ test_that("You can perform the window function percent rank", {
   # select percent_rank() OVER (order by a) from t1;
   rel_a <- rel_from_df(con, data.frame(a = c(5, 1, 3, 2, 2)))
   percent_rank_func <- expr_function("percent_rank", list())
-  percent_rank_wind <- expr_window(percent_rank_func, order_bys = list(expr_reference("a")))
+  percent_rank_wind <- expr_window(
+    percent_rank_func,
+    order_bys = list(expr_reference("a"))
+  )
   expr_set_alias(percent_rank_wind, "percent_rank")
-  window_proj <- rel_project(rel_a, list(expr_reference("a"), percent_rank_wind))
+  window_proj <- rel_project(
+    rel_a,
+    list(expr_reference("a"), percent_rank_wind)
+  )
   order_proj <- rel_order(window_proj, list(expr_reference("a")))
   res <- rel_to_altrep(order_proj)
-  expected_result <- data.frame(a = c(1, 2, 2, 3, 5), percent_rank = c(0.00, 0.25, 0.25, 0.75, 1.00))
+  expected_result <- data.frame(
+    a = c(1, 2, 2, 3, 5),
+    percent_rank = c(0.00, 0.25, 0.25, 0.75, 1.00)
+  )
   expect_equal(res, expected_result)
 })
 
@@ -855,9 +1373,15 @@ test_that("R semantics for adding NaNs is respected", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   test_df_a <- rel_from_df(con, data.frame(a = c(1, 2), b = c(3, 4)))
   test_df_b <- rel_from_df(con, data.frame(c = c(NaN, 6), d = c(3, 8)))
-  cond <- list(expr_function("eq", list(expr_reference("b"), expr_reference("d"))))
+  cond <- list(expr_function(
+    "eq",
+    list(expr_reference("b"), expr_reference("d"))
+  ))
   rel_join <- rel_join(test_df_a, test_df_b, cond, "inner")
-  addition_expression <- expr_function("+", list(expr_reference("a"), expr_reference("c")))
+  addition_expression <- expr_function(
+    "+",
+    list(expr_reference("a"), expr_reference("c"))
+  )
   proj <- rel_project(rel_join, list(addition_expression))
   res <- rapi_rel_to_df(proj)
   expect_true(is.na(res[[1]]))
@@ -872,20 +1396,32 @@ test_that("R semantics for arithmetics sum function are respected", {
 })
 
 test_that("anti joins for eq_na_matches works", {
-  dbExecute(con, 'CREATE OR REPLACE MACRO "___eq_na_matches_na"(a, b) AS ((a IS NULL AND b IS NULL) OR (a = b))')
+  dbExecute(
+    con,
+    'CREATE OR REPLACE MACRO "___eq_na_matches_na"(a, b) AS ((a IS NULL AND b IS NULL) OR (a = b))'
+  )
   rel1 <- rel_from_df(con, data.frame(x = c(1, 1, 2, 3)))
   rel2 <- rel_from_df(con, data.frame(y = c(2, 3, 3, 4)))
-  cond <- list(expr_function("___eq_na_matches_na", list(expr_reference("x"), expr_reference("y"))))
+  cond <- list(expr_function(
+    "___eq_na_matches_na",
+    list(expr_reference("x"), expr_reference("y"))
+  ))
   out <- rel_join(rel1, rel2, cond, "anti")
   res <- rel_to_altrep(out)
   expect_equal(res, data.frame(x = c(1, 1)))
 })
 
 test_that("semi joins for eq_na_matches works", {
-  dbExecute(con, 'CREATE OR REPLACE MACRO "___eq_na_matches_na"(a, b) AS ((a IS NULL AND b IS NULL) OR (a = b))')
+  dbExecute(
+    con,
+    'CREATE OR REPLACE MACRO "___eq_na_matches_na"(a, b) AS ((a IS NULL AND b IS NULL) OR (a = b))'
+  )
   rel1 <- rel_from_df(con, data.frame(x = c(1, 1, 2, 2)))
   rel2 <- rel_from_df(con, data.frame(y = c(2, 2, 2, 2, 3, 3, 3)))
-  cond <- list(expr_function("___eq_na_matches_na", list(expr_reference("x"), expr_reference("y"))))
+  cond <- list(expr_function(
+    "___eq_na_matches_na",
+    list(expr_reference("x"), expr_reference("y"))
+  ))
   out <- rel_join(rel1, rel2, cond, "semi")
   res <- rel_to_altrep(out)
   expect_equal(res, data.frame(x = c(2, 2)))
@@ -961,7 +1497,13 @@ test_that("rel_to_sql works for row_number", {
   rel2 <- rel_project(
     rel1,
     list({
-      tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+      tmp_expr <- expr_window(
+        expr_function("row_number", list()),
+        list(),
+        list(),
+        offset_expr = NULL,
+        default_expr = NULL
+      )
       expr_set_alias(tmp_expr, "___row_number")
       tmp_expr
     })
@@ -978,7 +1520,10 @@ test_that("rel_from_table_function works", {
 })
 
 test_that("we don't crash with evaluation errors", {
-  invisible(DBI::dbExecute(con, "CREATE OR REPLACE MACRO \"==\"(x, y) AS x = y"))
+  invisible(DBI::dbExecute(
+    con,
+    "CREATE OR REPLACE MACRO \"==\"(x, y) AS x = y"
+  ))
   df1 <- data.frame(a = "a")
 
   rel1 <- rel_from_df(con, df1)
@@ -1009,7 +1554,10 @@ test_that("we don't crash with evaluation errors", {
 })
 
 test_that("we don't crash with evaluation errors", {
-  invisible(DBI::dbExecute(con, "CREATE OR REPLACE MACRO \"==\"(x, y) AS x = y"))
+  invisible(DBI::dbExecute(
+    con,
+    "CREATE OR REPLACE MACRO \"==\"(x, y) AS x = y"
+  ))
   df1 <- data.frame(a = "a")
 
   rel1 <- rel_from_df(con, df1)
@@ -1069,12 +1617,7 @@ test_that("prudence", {
     )
   )
 
-  forbid <- rel_to_altrep(rel2, allow_materialization = FALSE)
-  expect_snapshot(error = TRUE, {
-    nrow(forbid)
-  })
-
-  forbid_nrow <- rel_to_altrep(rel2, n_cells = 0)
+  forbid <- rel_to_altrep(rel2, n_cells = 0)
   expect_snapshot(error = TRUE, {
     nrow(forbid)
   })
@@ -1107,6 +1650,231 @@ test_that("prudence", {
   expect_snapshot(error = TRUE, {
     nrow(bad_cells)
   })
+
+  # Materialization errors triggered via column-data ALTREP methods
+  # (VectorLength / VectorDataptr) should also produce a clean error,
+  # matching the rownames path; verifies the AltrepGuard is active in
+  # those entrypoints too.
+  forbid_col <- rel_to_altrep(rel2, n_cells = 0)
+  expect_snapshot(error = TRUE, {
+    length(forbid_col$a)
+  })
+  expect_snapshot(error = TRUE, {
+    forbid_col$a[1]
+  })
+})
+
+test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  rel1 <- rel_from_df(con, data.frame(a = 1:10))
+  ans <- rel_to_altrep(rel1)
+
+  rlang::local_options(
+    duckdb.materialize_callback = function(rel) stop("callback failed")
+  )
+  expect_error(nrow(ans), "callback failed")
+
+  # The guard is process-wide, so a long-jmp that skipped its destructor would
+  # degrade every later error, including ones raised with no ALTREP method on
+  # the stack: the structured `Context:` bullet would collapse into a flat
+  # "<context>: <message>" string.
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df"
+  )
+})
+
+test_that("a statement finalized in the materialize callback of a scan does not deadlock", {
+  skip_if_not_installed("callr")
+
+  # Binding the scan of a data frame holds the client context lock, and touching
+  # an unmaterialized ALTREP column there evaluates the materialize callback.
+  # R runs the finalizers that are pending at that point, and a statement's
+  # finalizer and its release take that same lock (handbook/architecture/glue/threading/README.md).
+  #
+  # A regression deadlocks rather than failing, so run it in a subprocess with
+  # a time limit instead of wedging the whole test run.
+  pkg <- get_package_name()
+
+  result <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con <- DBI::dbConnect(ns$duckdb())
+      other <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
+
+      df <- ns$rel_to_altrep(ns$rel_from_df(other, data.frame(a = 1:3)))
+
+      # The statement goes unreachable together with a sentinel,
+      # whose finalizer shows that the callback ran the pending ones.
+      finalized <- FALSE
+      local({
+        res <- DBI::dbSendQuery(con, "SELECT 1")
+        sentinel <- new.env()
+        reg.finalizer(sentinel, function(e) finalized <<- TRUE)
+        NULL
+      })
+
+      in_callback <- NA
+      options(duckdb.materialize_callback = function(rel) {
+        gc()
+        in_callback <<- finalized
+        # A statement starts here, and releases what earlier finalizers parked
+        DBI::dbGetQuery(other, "SELECT 1")
+      })
+
+      # R runs pending finalizers every 1024 evaluations, and from gc().
+      # Run them now, then collect through an allocation large enough to reach every generation:
+      # this leaves the finalizers pending instead of running them.
+      for (i in 1:1024) {
+        NULL
+      }
+      x <- numeric(2e7)
+
+      rel <- ns$rel_from_df(con, df)
+      list(in_callback = in_callback, a = as.data.frame(rel)$a)
+    },
+    args = list(pkg),
+    timeout = 60
+  )
+
+  expect_true(result$in_callback)
+  expect_equal(result$a, 1:3)
+})
+
+test_that("a warning caught inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  df <- rel_to_altrep(rel_from_sql(con, "SELECT 1 AS a WHERE false"))
+  row_names <- attr(df, "row.names")
+
+  # The ALTREP Max method of empty row names warns,
+  # and an exiting handler long-jumps out of that warning
+  expect_equal(
+    tryCatch(max(row_names), warning = function(w) "caught"),
+    "caught"
+  )
+
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
+  )
+})
+
+test_that("an allocation failure inside an ALTREP method leaves the ALTREP guard off (#1796)", {
+  skip_on_cran()
+  skip_if_not_installed("rlang")
+
+  # A column 32 MB larger than the free space of R's vector heap
+  vcells <- gc()["Vcells", ]
+  n_rows <- vcells[["gc trigger"]] - vcells[["used"]] + 2^22
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    paste0(
+      "SELECT range::DOUBLE AS d FROM range(",
+      format(n_rows, scientific = FALSE),
+      ")"
+    )
+  ))
+  # Runs the relation, whose result DuckDB holds outside R's heap;
+  # the column's R vector is allocated on its first access
+  expect_equal(nrow(df), n_rows)
+
+  # A limit the heap cannot grow past fails the column's allocation
+  local({
+    old_limit <- mem.maxVSize()
+    on.exit(mem.maxVSize(old_limit))
+    mem.maxVSize(ceiling(gc()["Vcells", "gc trigger"] * 8 / 2^20) + 1)
+    expect_error(df$d[1])
+  })
+
+  # A later error from the glue keeps its class and its `Context:` bullet,
+  # which a guard left on by the jump would strip
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df",
+    class = "duckdb_error"
+  )
+  # The column converts once there is room
+  expect_equal(df$d[n_rows], n_rows - 1)
+})
+
+test_that("an ALTREP data frame scanned under a query leaves no connection busy", {
+  skip_if_not_installed("callr")
+
+  # Binding a data frame scan materializes an ALTREP column (src/scan.cpp)
+  # while the query holds the interrupt handler and the client context lock.
+  # An R error that long-jumped from there across the engine's frames
+  # would leave both held, and every later query of the session would fail,
+  # so run it in a subprocess with a time limit.
+  pkg <- get_package_name()
+
+  result <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      con_a <- DBI::dbConnect(ns$duckdb())
+      con_b <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con_a, shutdown = TRUE), add = TRUE)
+      on.exit(DBI::dbDisconnect(con_b, shutdown = TRUE), add = TRUE)
+
+      # duckdb_register() would materialize the data frame in R first
+      register <- function(name, df) {
+        ns$rapi_register_df(
+          con_a@conn_ref,
+          name,
+          df,
+          ns$duckdb_convert_opts_impl(con_a@convert_opts),
+          FALSE
+        )
+      }
+
+      # A relation of another connection materializes under the query
+      register(
+        "t",
+        ns$rel_to_altrep(ns$rel_from_df(con_b, data.frame(x = 1:3)))
+      )
+
+      # One of the same connection, or one that may not materialize, fails cleanly
+      same <- tryCatch(
+        register(
+          "u",
+          ns$rel_to_altrep(ns$rel_from_df(con_a, data.frame(y = 1)))
+        ),
+        error = conditionMessage
+      )
+      disabled <- tryCatch(
+        register(
+          "v",
+          ns$rel_to_altrep(
+            ns$rel_from_df(con_b, data.frame(z = 1)),
+            n_cells = 0
+          )
+        ),
+        error = conditionMessage
+      )
+
+      list(
+        t = DBI::dbGetQuery(con_a, "SELECT * FROM t")$x,
+        same = same,
+        disabled = disabled,
+        a = DBI::dbGetQuery(con_a, "SELECT 1 AS a")$a,
+        b = DBI::dbGetQuery(con_b, "SELECT 2 AS b")$b
+      )
+    },
+    args = list(pkg),
+    timeout = 60
+  )
+
+  expect_equal(result$t, 1:3)
+  expect_match(result$same, "connection that is running the query")
+  expect_match(result$disabled, "Materialization is disabled")
+  expect_equal(result$a, 1)
+  expect_equal(result$b, 2)
 })
 
 test_that("rel_to_view()", {
@@ -1118,6 +1886,16 @@ test_that("rel_to_view()", {
   expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
 })
 
+test_that("rel_to_csv() and rel_to_parquet() refuse an empty file name", {
+  # An empty name must not fall back to a default file in the working directory.
+  withr::local_dir(withr::local_tempdir())
+  rel <- rel_from_df(con, data.frame(a = 1L))
+
+  expect_error(rel_to_csv(rel, ""))
+  expect_error(rel_to_parquet(rel, ""))
+  expect_equal(list.files(all.files = TRUE, no.. = TRUE), character())
+})
+
 test_that("logical", {
   df1 <- data.frame(a = c(TRUE, FALSE, NA))
   rel <- rel_from_df(con, df1)
@@ -1125,7 +1903,9 @@ test_that("logical", {
 
   skip_if_not_installed("vctrs")
 
-  df2 <- vctrs::new_data_frame(list(a = structure(c(TRUE, FALSE, NA), class = "foo")))
+  df2 <- vctrs::new_data_frame(list(
+    a = structure(c(TRUE, FALSE, NA), class = "foo")
+  ))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1139,7 +1919,9 @@ test_that("integer", {
 
   skip_if_not_installed("vctrs")
 
-  df2 <- vctrs::new_data_frame(list(a = structure(c(1L, 2L, NA), class = "foo")))
+  df2 <- vctrs::new_data_frame(list(
+    a = structure(c(1L, 2L, NA), class = "foo")
+  ))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1168,7 +1950,10 @@ test_that("list", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- vctrs::new_data_frame(list(a = structure(list(1L, 2:3, NULL, 4:6), class = "foo")), n = 4L)
+  df2 <- vctrs::new_data_frame(
+    list(a = structure(list(1L, 2:3, NULL, 4:6), class = "foo")),
+    n = 4L
+  )
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1182,7 +1967,12 @@ test_that("Date", {
 
   skip_if_not_installed("vctrs")
 
-  df2 <- vctrs::new_data_frame(list(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date"))))
+  df2 <- vctrs::new_data_frame(list(
+    a = structure(
+      as.Date(c("2020-01-01", "2020-01-02", NA)),
+      class = c("foo", "Date")
+    )
+  ))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1196,7 +1986,12 @@ test_that("difftime", {
 
   skip_if_not_installed("vctrs")
 
-  df2 <- vctrs::new_data_frame(list(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime"))))
+  df2 <- vctrs::new_data_frame(list(
+    a = structure(
+      as.difftime(c(1, 2, NA), units = "secs"),
+      class = c("foo", "difftime")
+    )
+  ))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1223,7 +2018,9 @@ test_that("data.frame", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- vctrs::new_data_frame(list(a = structure(data.frame(b = 1:3, c = 4:6), class = c("foo", "data.frame"))))
+  df2 <- vctrs::new_data_frame(list(
+    a = structure(data.frame(b = 1:3, c = 4:6), class = c("foo", "data.frame"))
+  ))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1231,17 +2028,31 @@ test_that("data.frame", {
 })
 
 test_that("POSIXct", {
-  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = "UTC"))
+  df1 <- data.frame(
+    a = structure(
+      1745781814.84963,
+      class = c("POSIXct", "POSIXt"),
+      tzone = "UTC"
+    )
+  )
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt")))
+  df2 <- data.frame(
+    a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"))
+  )
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
   expect_error(rel_from_df(con, df2), "convert")
 
-  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = ""))
+  df2 <- data.frame(
+    a = structure(
+      1745781814.84963,
+      class = c("foo", "POSIXct", "POSIXt"),
+      tzone = ""
+    )
+  )
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1249,7 +2060,13 @@ test_that("POSIXct", {
 
   skip_if_not_installed("vctrs")
 
-  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = "UTC"))
+  df2 <- data.frame(
+    a = structure(
+      1745781814.84963,
+      class = c("foo", "POSIXct", "POSIXt"),
+      tzone = "UTC"
+    )
+  )
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1275,14 +2092,18 @@ test_that("rel_order() supports nulls_first", {
 test_that("rel_order() nulls_first error checking works", {
   test_df <- rel_from_df(con, data.frame(a = c(1:3)))
   orders <- list(expr_reference("a"), expr_reference("a"))
-  expect_error(rel_order(test_df, orders, nulls_first = c(TRUE, FALSE, TRUE)), "length of nulls_first")
+  expect_error(
+    rel_order(test_df, orders, nulls_first = c(TRUE, FALSE, TRUE)),
+    "length of nulls_first"
+  )
 })
 
 test_that("expr_window() supports descending order_bys", {
   # rank() OVER (ORDER BY a DESC) should give reverse ranks
   rel_a <- rel_from_df(con, data.frame(a = c(1, 2, 3)))
   rank_func <- expr_function("rank", list())
-  rank_window <- expr_window(rank_func,
+  rank_window <- expr_window(
+    rank_func,
     order_bys = list(expr_reference("a")),
     ascending = FALSE
   )
@@ -1298,7 +2119,8 @@ test_that("expr_window() supports nulls_first in order_bys", {
   # rank() OVER (ORDER BY a NULLS FIRST) - NULLs should get rank 1
   rel_a <- rel_from_df(con, data.frame(a = c(1, 2, NA)))
   rank_func <- expr_function("rank", list())
-  rank_window <- expr_window(rank_func,
+  rank_window <- expr_window(
+    rank_func,
     order_bys = list(expr_reference("a")),
     nulls_first = TRUE
   )
@@ -1307,24 +2129,152 @@ test_that("expr_window() supports nulls_first in order_bys", {
   proj_order <- rel_order(window_proj, list(expr_reference("a")))
   res <- rel_to_altrep(proj_order)
   # With NULLS FIRST: NULL gets rank 1, 1 gets rank 2, 2 gets rank 3
-  expected_result <- data.frame(a = c(1, 2, NA), rank_nulls_first = c(2L, 3L, 1L))
+  expected_result <- data.frame(
+    a = c(1, 2, NA),
+    rank_nulls_first = c(2L, 3L, 1L)
+  )
   expect_equal(res, expected_result)
 })
 
 test_that("expr_window() ascending/nulls_first error checking works", {
   rank_func <- expr_function("rank", list())
   expect_error(
-    expr_window(rank_func,
+    expr_window(
+      rank_func,
       order_bys = list(expr_reference("a")),
       ascending = c(TRUE, FALSE)
     ),
     "length of ascending"
   )
   expect_error(
-    expr_window(rank_func,
+    expr_window(
+      rank_func,
       order_bys = list(expr_reference("a")),
       nulls_first = c(TRUE, FALSE)
     ),
     "length of nulls_first"
   )
+})
+
+test_that("rel_from_sql() works with registered tables", {
+  con <- local_con()
+  DBI::dbWriteTable(con, "mtcars_t", mtcars)
+  rel <- rel_from_sql(con, "SELECT cyl, mpg FROM mtcars_t")
+  expect_s3_class(rel, "duckdb_relation")
+  df <- as.data.frame(rel)
+  expect_equal(df$mpg, mtcars$mpg)
+  expect_equal(df$cyl, mtcars$cyl)
+})
+
+test_that("rel_from_sql() surfaces parser errors", {
+  con <- local_con()
+  expect_error(rel_from_sql(con, "SELECT FROM"))
+})
+
+test_that("rel_from_sql() scans data frames from the caller env by default", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df_local <- data.frame(a = 1:3, b = letters[1:3])
+  rel <- rel_from_sql(con, "FROM df_local")
+  expect_s3_class(rel, "duckdb_relation")
+  expect_setequal(names(rel), c("a", "b"))
+})
+
+test_that("rel_from_sql() honours an explicit env argument", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  scan_env <- new.env(parent = emptyenv())
+  scan_env$df_env <- data.frame(a = 1L, b = 2L)
+
+  rel <- rel_from_sql(con, "FROM df_env", env = scan_env)
+  expect_s3_class(rel, "duckdb_relation")
+  expect_setequal(names(rel), c("a", "b"))
+})
+
+test_that("rel_from_sql() does not scan with environment_scan = FALSE", {
+  con <- local_con()
+
+  df_local <- data.frame(a = 1L)
+  expect_error(rel_from_sql(con, "FROM df_local"))
+})
+
+test_that("rel_from_sql() rejects non-environment env", {
+  con <- local_con()
+  expect_error(
+    rel_from_sql(con, "SELECT 1", env = list()),
+    "env.*environment"
+  )
+})
+
+test_that("rel_from_sql() falls back to the database catalog", {
+  # Even with env scanning off, plain table references must still resolve.
+  con <- local_con()
+  DBI::dbWriteTable(con, "cat_tbl", data.frame(a = 1L))
+
+  rel <- rel_from_sql(con, "SELECT a FROM cat_tbl")
+  expect_equal(as.data.frame(rel), data.frame(a = 1L), ignore_attr = TRUE)
+})
+
+test_that("rel_from_sql() relations can be materialized after the env is gone", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  create_rel <- function() {
+    df <- data.frame(a = 1:3)
+    rel_from_sql(con, "FROM df")
+  }
+
+  rel <- create_rel()
+
+  # The data frame is no longer reachable from the calling R code, but it
+  # is kept alive by the relation's protection list.
+  gc()
+  gc()
+
+  expect_equal(as.data.frame(rel), data.frame(a = 1:3), ignore_attr = TRUE)
+})
+
+test_that("rel_from_sql() relations can be used in further relational ops", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df <- data.frame(a = 1:5, b = c(2, 2, 3, 3, 4))
+  rel <- rel_from_sql(con, "FROM df")
+  rel2 <- rel_filter(
+    rel,
+    list(
+      expr_comparison("=", list(expr_reference("b"), expr_constant(3)))
+    )
+  )
+
+  out <- as.data.frame(rel2)
+  expect_equal(out$a, c(3L, 4L), ignore_attr = TRUE)
+})
+
+test_that("rel_from_df() rejects matrix, S4, and integer64 columns", {
+  con <- local_con()
+
+  df <- data.frame(row = 1:2)
+  df$a <- matrix(1:4, 2)
+  expect_error(rel_from_df(con, df), "arrays or matrices")
+
+  methods::setClass("DuckdbTestS4", methods::representation(x = "numeric"))
+  df <- data.frame(row = 1)
+  df$a <- methods::new("DuckdbTestS4", x = 1)
+  expect_error(rel_from_df(con, df), "S4")
+
+  skip_if_not_installed("bit64")
+  df <- data.frame(row = 1)
+  df$a <- bit64::as.integer64(42)
+  expect_error(rel_from_df(con, df), "convert")
+})
+
+test_that("a NULL window argument is left out, as it is for a NULL constant", {
+  con <- local_con()
+  rel <- rel_from_df(con, data.frame(x = 1:3))
+  lag <- expr_window(
+    expr_function("lag", list(expr_reference("x"))),
+    offset_expr = expr_constant(NA_integer_)
+  )
+  expr_set_alias(lag, "l")
+  out <- rel_to_altrep(rel_project(rel, list(expr_reference("x"), lag)))
+  expect_equal(as.data.frame(out)$l, c(NA, 1L, 2L))
 })

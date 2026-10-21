@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# this script is used to format the source directory
+# Format the source directory; driven by the Makefile's format-* targets.
 
 import os
 import time
@@ -11,9 +11,11 @@ import difflib
 import re
 from python_helpers import open_utf8
 
-cpp_format_command = 'clang-format --sort-includes=0 -style=file'
-cmake_format_command = 'cmake-format'
-extensions = ['.cpp', '.c', '.hpp', '.h', '.cc', '.hh', 'CMakeLists.txt', '.test', '.test_slow', '.test_coverage', '.benchmark']
+# Include order is pinned by `.clang-format` (`SortIncludes: Never`) rather than
+# by a flag here, so that this script and a bare `clang-format` -- editors, the
+# `style` action -- agree on what the formatted tree looks like.
+cpp_format_command = 'clang-format -style=file'
+extensions = ['.cpp', '.c', '.hpp', '.h', '.cc', '.hh', '.test', '.test_slow', '.test_coverage', '.benchmark']
 formatted_directories = ['src']
 ignored_files = []
 ignored_directories = [os.path.join('src', 'duckdb'),
@@ -147,8 +149,7 @@ format_commands = {
     '.hpp': cpp_format_command,
     '.h': cpp_format_command,
     '.hh': cpp_format_command,
-    '.cc': cpp_format_command,
-    '.txt': cmake_format_command
+    '.cc': cpp_format_command
 }
 
 difference_files = []
@@ -241,7 +242,6 @@ def format_file(f, full_path, directory, ext):
     old_lines = old_text.split('\n')
 
     new_text = get_formatted_text(f, full_path, directory, ext)
-    new_text = new_text.replace('ARGS &&...args', 'ARGS &&... args')
     if check_only:
         new_lines = new_text.split('\n')
         old_lines = [x for x in old_lines if '...' not in x]
@@ -284,10 +284,6 @@ def format_directory(directory):
 
 
 if format_all:
-    try:
-        os.system(cmake_format_command.replace("${FILE}", "CMakeLists.txt"))
-    except:
-        pass
     format_directory('src')
 
 else:

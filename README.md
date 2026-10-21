@@ -1,10 +1,3 @@
-<div align="center">
-  <a href="https://r.duckdb.org/"><picture>
-    <source media="(prefers-color-scheme: light)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal-dark-mode.svg">
-    <img alt="DuckDB logo" src="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg" height="100">
-  </picture></a>
-</div>
 
 # duckdb
 
@@ -12,7 +5,38 @@
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
 
+## Goals and non-goals
+
+duckdb aims to:
+
+- Implement the [DBI](https://dbi.r-dbi.org/) interface for DuckDB,
+  from the driver and connections through prepared statements, transactions, and result fetching.
+- Install the database along with the package:
+  the DuckDB C++ sources are vendored into `src/duckdb/` and built here, so nothing has to be installed separately.
+- Follow upstream DuckDB closely, with an automated vendoring routine advancing each release series commit by commit,
+  and publish the same source tree under the flavor names listed below.
+- Meet the rest of the R ecosystem where it already is:
+  a dbplyr backend, data frames and Arrow objects registered as tables, and CSV files read by the engine directly.
+- Leave the file system alone unless asked:
+  downloaded extensions and stored secrets go under the session's temporary directory unless `~/.duckdb` already exists,
+  and that directory is never created without consent.
+
+It is explicitly not trying to:
+
+- Bundle every DuckDB extension.
+  Only `parquet` and `core_functions` are linked in;
+  everything else is downloaded by `INSTALL`, and no companion R package carries extensions.
+- Fetch anything on its own.
+  An installed extension autoloads on first use, but autoinstall stays off, so nothing is downloaded without being asked for.
+- Expose the relational API as a public interface.
+  Every function there is internal, and duckplyr is the one supported consumer.
+- Install the `duckdb` CLI or library that the user can use outside of R.
+- Exercise the bundled C++ engine on CRAN.
+  The test suite and the runnable examples are too heavy for the check farm,
+  so they run on GitHub Actions and r-universe, and elsewhere only when `DUCKDB_R_RUN_TESTS` asks for them.
+
 ## Installation from CRAN
+
 This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 
 ``` r
@@ -20,7 +44,7 @@ install.packages("duckdb")
 ```
 
 For Linux or older R versions, installing the package from source may take up to an hour.
-Consider the [Posit Public Package Manager](https://p3m.dev/) for binary installs (see the next section).
+Consider the [Posit Public Package Manager](https://p3m.dev/) or [r-universe](https://duckdb.r-universe.dev) for binary installs (see the next sections).
 
 ## Installation from the Posit Public Package Manager
 
@@ -34,7 +58,8 @@ install.packages("duckdb", repos = sprintf(
 ))
 ```
 
-To check the availability of binaries for your platform, navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
+To check the availability of binaries for your platform,
+navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
 
 ## Installation from r-universe
 
@@ -57,9 +82,65 @@ pak::pak("duckdb/duckdb-r")
 
 Installing the package from GitHub may take up to an hour.
 
+## Flavors
+
+The sources in this repository are published under several names —
+`duckdb` on CRAN,
+and every flavor on [r-universe](https://duckdb.r-universe.dev/builds).
+The `.dev` flavors are created by an automated vendoring process;
+the CRAN and LTS flavors always point at a stable upstream release.
+
+| Flavor | Series | Kind | Progress |
+|----|----|----|----|
+| `duckdb` | [`v1.5-variegata`](https://github.com/duckdb/duckdb/tree/v1.5-variegata) | CRAN | [![CRAN](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpackagemanager.posit.co%2F__api__%2Frepos%2Fcran%2Fpackages%2Fduckdb&query=%24.version&label=CRAN&color=green)](https://cran.r-project.org/package=duckdb) [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb) |
+| `duckdb.1.4` | [`v1.4-andium`](https://github.com/duckdb/duckdb/tree/v1.4-andium) | LTS | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.4) |
+| `duckdb.dev` | [`main`](https://github.com/duckdb/duckdb/tree/main) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=main&head=main-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/main...main-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-green&head=main-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/main-green...main-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-build-base&head=main-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/main-build-base...main-build) |
+| `duckdb.2.0.dev` | [`v2.0-cyanoptera`](https://github.com/duckdb/duckdb/tree/v2.0-cyanoptera) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.2.0.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.2.0.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=main&head=v2.0-cyanoptera-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/main...v2.0-cyanoptera-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v2.0-cyanoptera-green&head=v2.0-cyanoptera-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v2.0-cyanoptera-green...v2.0-cyanoptera-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v2.0-cyanoptera-build-base&head=v2.0-cyanoptera-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v2.0-cyanoptera-build-base...v2.0-cyanoptera-build) |
+| `duckdb.1.5.dev` | [`v1.5-variegata`](https://github.com/duckdb/duckdb/tree/v1.5-variegata) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.5.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.5.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=v1.5-variegata&head=v1.5-variegata-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/v1.5-variegata...v1.5-variegata-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&head=v1.5-variegata-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&head=v1.5-variegata-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build) |
+| `duckdb.1.4.dev` | [`v1.4-andium`](https://github.com/duckdb/duckdb/tree/v1.4-andium) | dev | [![r-universe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4.dev&query=%24.Version&label=r-universe&color=green)](https://duckdb.r-universe.dev/duckdb.1.4.dev) [![ahead](https://img.shields.io/github/commits-difference/duckdb/duckdb-r?base=v1.4-andium&head=v1.4-andium-green&label=ahead&color=green)](https://github.com/duckdb/duckdb-r/compare/v1.4-andium...v1.4-andium-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-green&head=v1.4-andium-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-green...v1.4-andium-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-build-base&head=v1.4-andium-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-build-base...v1.4-andium-build) |
+
+Every row opens with the versions published, one badge per place it is
+published from, and the flavor's name is a link on those rather than on the name
+itself. Only `duckdb` is in two: CRAN releases it, and r-universe rebuilds the
+same source between releases.
+The three after it track a `.dev` series:
+*ahead* counts commits ahead of the branch the series releases from,
+*in flight* counts commits in CI but not yet trusted,
+*buffered* counts commits vendored but not yet verified.
+*ahead* is counted here, where the branch a series releases from lives and
+`<S>-green` is mirrored to; the other two are counted in the fork, which is the
+only repository carrying `<S>-dev` and `<S>-build`.
+So the two greens either side of *in flight* are the same commit because one
+push writes both and the loop stops if the second cannot fast-forward.
+
+Upstream keeps every release branch it ever cut.
+The following series are only available in the package archives:
+
+- [`v1.3-ossivalis`](https://github.com/duckdb/duckdb/tree/v1.3-ossivalis) (2025-09-03)
+- [`v1.2-histrionicus`](https://github.com/duckdb/duckdb/tree/v1.2-histrionicus) (2025-04-07)
+- [`v1.1-eatoni`](https://github.com/duckdb/duckdb/tree/v1.1-eatoni) (2024-11-02)
+- `v1.0-nivis` and earlier (no upstream release branch)
+
+See the handbook's
+[`branches/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md)
+for the full model.
+
 ## User Guide
 
 See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
+
+## Documentation
+
+Everything this repository documents is reachable from the
+[handbook](https://github.com/duckdb/duckdb-r/blob/main/handbook/README.md),
+a strict topic hierarchy;
+[`AGENTS.md`](https://github.com/duckdb/duckdb-r/blob/main/AGENTS.md)
+is the door for maintainers and coding agents, and
+[`plan/README.md`](https://github.com/duckdb/duckdb-r/blob/main/plan/README.md)
+names the designs, plans, and historical documents.
+[`BRANCHES.md`](https://github.com/duckdb/duckdb-r/blob/main/BRANCHES.md) and
+[`scripts/VENDORING.md`](https://github.com/duckdb/duckdb-r/blob/main/scripts/VENDORING.md)
+hold detail the handbook is still absorbing.
 
 ## Building
 
@@ -78,24 +159,20 @@ Then, install:
 
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
 Configure `ccache` for faster repeated builds.
-
-If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
-Then run the following commands:
-
-``` sh
-~ (cd duckdb && git checkout {{desired_branch}})
-~ (cd R/duckdb-r && scripts/vendor.sh)
-~ (cd R/duckdb-r && R CMD INSTALL .)
-```
-
-It helps if both the duckdb directory and duckdb-r directory are clean.
+A build that links a prebuilt engine and finishes in seconds,
+and other details, are described in the handbook under
+[`build/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/build/README.md).
 
 ## Vendoring
 
-This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated and runs hourly to synchronize with the upstream DuckDB repository. For detailed information about how vendoring works, the relationship between `main` and `next` branches, and manual vendoring procedures, see `scripts/VENDORING.md`.
+This package includes a vendored copy of the DuckDB C++ library.
+The vendoring process is automated —
+a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit.
+How it works, and how to vendor by hand, is in the handbook under [`operations/vendoring/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/operations/vendoring/README.md).
 
 ## Contributors
 
-Thanks to all [contributors](https://github.com/duckdb/duckdb-r/graphs/contributors) to this repository, and to those who contributed when the code was still hosted in the main [duckdb/duckdb](https://github.com/duckdb/duckdb) repository:
+Thanks to all [contributors](https://github.com/duckdb/duckdb-r/graphs/contributors) to this repository,
+and to those who contributed when the code was still hosted in the main [duckdb/duckdb](https://github.com/duckdb/duckdb) repository:
 
 Mark Raasveldt, Pedro Holanda, Tom Ebergen, Reijo Sund, Nicolas Bennett, Patrik Schratz, Tishj, Laurens Kuiper, Sam Ansmink, Andy Teucher, Hadley Wickham, Jonathan Keane, Lindsay Wray, Richard Wesley, Elliana May, Edwin de Jonge, Dewey Dunnington, Carlo Piovesan, Andre Beckedorf, Tania Bogatsch, Pedro Ferreira, Maximilian Girlich, James Lamb, James Atkins, usurai, Ubuntu, Noam Ross, Michael Antonov, Jeroen Ooms, Jamie Lentin, Jacob, and Chilarai.

@@ -1,3 +1,5 @@
+# Shared file helpers for the Python scripts in this directory
+# (imported by format.py).
 def open_utf8(fpath, flags):
     import sys
     if sys.version_info[0] < 3:

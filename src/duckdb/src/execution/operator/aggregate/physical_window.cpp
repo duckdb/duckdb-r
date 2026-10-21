@@ -1,16 +1,16 @@
 #include "duckdb/execution/operator/aggregate/physical_window.hpp"
 
+#include "duckdb/common/once_flag.hpp"
 #include "duckdb/common/sorting/sort_strategy.hpp"
 #include "duckdb/common/types/row/tuple_data_collection.hpp"
 #include "duckdb/common/types/row/tuple_data_iterator.hpp"
+#include "duckdb/common/types/value_map.hpp"
 #include "duckdb/function/window/window_aggregate_function.hpp"
 #include "duckdb/function/window/window_executor.hpp"
-#include "duckdb/function/window/window_rank_function.hpp"
-#include "duckdb/function/window/window_rownumber_function.hpp"
 #include "duckdb/function/window/window_shared_expressions.hpp"
-#include "duckdb/function/window/window_value_function.hpp"
 #include "duckdb/planner/expression/bound_window_expression.hpp"
-#include "duckdb/main/settings.hpp"
+#include "duckdb/main/client_context.hpp"
+#include "duckdb/storage/buffer_manager.hpp"
 
 namespace duckdb {
 
@@ -28,8 +28,6 @@ struct WindowSourceTask {
 	idx_t group_idx = 0;
 	//! The thread index (for local state)
 	idx_t thread_idx = 0;
-	//! The total block index count
-	idx_t max_idx = 0;
 	//! The first block index count
 	idx_t begin_idx = 0;
 	//! The end block index count
@@ -55,7 +53,8 @@ public:
 		return ((n + (val - 1)) / val);
 	}
 
-	WindowHashGroup(WindowGlobalSinkState &gsink, const ChunkRow &chunk_row, const idx_t hash_bin_p);
+	WindowHashGroup(WindowGlobalSinkState &gsink, const ChunkRow &chunk_row, idx_t group_idx, const Value &sink_idx,
+	                idx_t bin_idx);
 
 	void AllocateMasks();
 	void ComputeMasks(const idx_t begin_idx, const idx_t end_idx);
@@ -109,7 +108,10 @@ public:
 			}
 			return false;
 		case WindowGroupStage::SINK:
-			if (sunk == count) {
+			// Gate on blocks (not rows): every SINK task must have completed before FINALIZE
+			// can run, otherwise a FINALIZE task can read a thread_states[thread_idx] entry
+			// that the matching SINK task hasn't initialised yet.
+			if (sunk == blocks) {
 				stage = WindowGroupStage::FINALIZE;
 				return true;
 			}
@@ -139,10 +141,9 @@ public:
 		task.stage = WindowGroupStage(next_task / group_threads);
 		if (task.stage == group_stage) {
 			task.thread_idx = next_task % group_threads;
-			task.group_idx = hash_bin;
+			task.group_idx = group_idx;
 			task.begin_idx = task.thread_idx * per_thread;
-			task.max_idx = ChunkCount();
-			task.end_idx = MinValue<idx_t>(task.begin_idx + per_thread, task.max_idx);
+			task.end_idx = MinValue<idx_t>(task.begin_idx + per_thread, ChunkCount());
 			++next_task;
 			return true;
 		}
@@ -158,21 +159,30 @@ public:
 	idx_t count = 0;
 	//! The number of blocks in the group
 	idx_t blocks = 0;
-	//! The partition boundary mask
+	//! The partition boundary mask. The masks are O(rows): their storage comes from the buffer allocator and the
+	//! masks point into it
 	ValidityMask partition_mask;
-	//! The order boundary mask
+	AllocatedData partition_mask_data;
+	//! The order boundary mask (maps sort column END to mask)
 	OrderMasks order_masks;
+	unordered_map<idx_t, AllocatedData> order_mask_data;
+	OnceFlag masks_initialized;
 	//! The fully materialised data collection
 	unique_ptr<WindowCollection> collection;
-	// The processing stage for this group
+	//! The processing stage for this group
 	atomic<WindowGroupStage> stage;
 	//! The function global states for this hash group
 	ExecutorGlobalStates gestates;
+	OnceFlag gestates_initialized;
 	//! Executor local states, one per thread
 	ThreadLocalStates thread_states;
 
-	//! The bin number
-	idx_t hash_bin;
+	//! The global group number (so we can find the task
+	const idx_t group_idx;
+	//! The sink index (so we can find the sink state)
+	const Value sink_idx;
+	//! The sink bin (so we can find the bin within the sink state)
+	const idx_t bin_idx;
 	//! Single threading lock
 	mutex lock;
 	//! The the number of blocks per thread.
@@ -182,34 +192,28 @@ public:
 	//! The next task to process
 	idx_t next_task = 0;
 	//! Count of sorted run blocks
-	std::atomic<idx_t> sorted;
+	atomic<idx_t> sorted;
 	//! Count of materialized run blocks
-	std::atomic<idx_t> materialized;
+	atomic<idx_t> materialized;
 	//! Count of masked blocks
-	std::atomic<idx_t> masked;
-	//! Count of sunk rows
-	std::atomic<idx_t> sunk;
+	atomic<idx_t> masked;
+	//! Count of sunk blocks (one per completed SINK task block, not per row)
+	atomic<idx_t> sunk;
 	//! Count of finalized blocks
-	std::atomic<idx_t> finalized;
+	atomic<idx_t> finalized;
 	//! Count of completed tasks
-	std::atomic<idx_t> completed;
+	atomic<idx_t> completed;
 	//! The output ordering batch index this hash group starts at
 	idx_t batch_base;
 };
 
 class WindowGlobalSinkState : public GlobalSinkState {
 public:
+	using GlobalStatePtr = unique_ptr<GlobalSinkState>;
 	using ExecutorPtr = unique_ptr<WindowExecutor>;
 	using Executors = vector<ExecutorPtr>;
 
 	WindowGlobalSinkState(const PhysicalWindow &op, ClientContext &context);
-
-	SinkFinalizeType Finalize(ClientContext &client, InterruptState &interrupt_state) {
-		OperatorSinkFinalizeInput finalize {*strategy_sink, interrupt_state};
-		auto result = sort_strategy->Finalize(client, finalize);
-
-		return result;
-	}
 
 	//! Parent operator
 	const PhysicalWindow &op;
@@ -217,79 +221,139 @@ public:
 	ClientContext &client;
 	//! The partitioned sunk data
 	unique_ptr<SortStrategy> sort_strategy;
-	//! The partitioned sunk data
-	unique_ptr<GlobalSinkState> strategy_sink;
+	//! The partitioned sunk data. With partitioning there may be more than one
+	mutex lock;
+	value_map_t<GlobalStatePtr> strategy_sinks;
 	//! The number of sunk rows (for progress)
 	atomic<idx_t> count;
+	//! Keeps the sink progress monotonic
+	MonotonicProgress sink_progress;
 	//! The execution functions
 	Executors executors;
 	//! The shared expressions library
 	WindowSharedExpressions shared;
+
+	bool SupportsReuse() const override {
+		return true;
+	}
+
+	void Reset(ClientContext &context) override {
+		// The sort strategy, executors, and shared expression layout are iteration-invariant. Only the
+		// sort sink holds per-iteration materialized data, so replace that while preserving the setup.
+		lock_guard<mutex> sinks_guard(lock);
+		strategy_sinks.clear();
+		if (!op.partition_info.RequiresPartitionColumns()) {
+			strategy_sinks.insert(make_pair(Value(), sort_strategy->GetGlobalSinkState(context)));
+		}
+		count = 0;
+		sink_progress.Reset();
+		GlobalSinkState::Reset(context);
+	}
+
+	optional_ptr<GlobalSinkState> GetOrCreatePartition(ClientContext &client, const Value &partition) {
+		lock_guard<mutex> l(lock);
+		// find the state that corresponds to this partition and combine
+		auto entry = strategy_sinks.find(partition);
+		if (entry != strategy_sinks.end()) {
+			return entry->second.get();
+		}
+		// no state yet for this partition - allocate a new one
+		auto new_global_state = sort_strategy->GetGlobalSinkState(client);
+		auto result = new_global_state.get();
+		strategy_sinks.insert(make_pair(partition, std::move(new_global_state)));
+		return result;
+	}
 };
 
 //	Per-thread sink state
 class WindowLocalSinkState : public LocalSinkState {
 public:
+	using GlobalStatePtr = optional_ptr<GlobalSinkState>;
+	using LocalStatePtr = unique_ptr<LocalSinkState>;
+
 	WindowLocalSinkState(ExecutionContext &context, const WindowGlobalSinkState &gstate)
 	    : local_group(gstate.sort_strategy->GetLocalSinkState(context)) {
 	}
 
-	unique_ptr<LocalSinkState> local_group;
+	explicit WindowLocalSinkState(ExecutionContext &context) {
+	}
+
+	LocalStatePtr local_group;
+
+	//	Partitioning state
+	Value current_partition;
+	GlobalStatePtr partition_group;
+
+	bool SupportsReuse() const override {
+		return true;
+	}
+
+	void Reset(ExecutionContext &context, GlobalSinkState &gstate_p) override {
+		auto &gstate = gstate_p.Cast<WindowGlobalSinkState>();
+		partition_group = nullptr;
+		if (local_group) {
+			local_group = gstate.sort_strategy->GetLocalSinkState(context);
+		} else {
+			local_group.reset();
+		}
+	}
+
+	SinkCombineResultType Combine(ExecutionContext &context, const WindowGlobalSinkState &gstate,
+	                              InterruptState &interrupt_state) {
+		if (!partition_group) {
+			return SinkCombineResultType::FINISHED;
+		}
+
+		// flush the local state
+		OperatorSinkCombineInput hcombine {*partition_group, *local_group, interrupt_state};
+		auto result = gstate.sort_strategy->Combine(context, hcombine);
+
+		//	Start a new state pair
+		partition_group = nullptr;
+		local_group.reset();
+
+		return result;
+	}
 };
 
 // this implements a sorted window functions variant
 PhysicalWindow::PhysicalWindow(PhysicalPlan &physical_plan, vector<LogicalType> types,
                                vector<unique_ptr<Expression>> select_list_p, idx_t estimated_cardinality,
-                               PhysicalOperatorType type)
-    : PhysicalOperator(physical_plan, type, std::move(types), estimated_cardinality),
-      select_list(std::move(select_list_p)), order_idx(0), is_order_dependent(false) {
+                               vector<column_t> partitions)
+    : PhysicalOperator(physical_plan, TYPE, std::move(types), estimated_cardinality),
+      select_list(std::move(select_list_p)), order_idx(0), is_order_dependent(false),
+      partition_info(std::move(partitions)) {
 	idx_t max_orders = 0;
 	for (idx_t i = 0; i < select_list.size(); ++i) {
 		auto &expr = select_list[i];
 		D_ASSERT(expr->GetExpressionClass() == ExpressionClass::BOUND_WINDOW);
 		auto &bound_window = expr->Cast<BoundWindowExpression>();
-		if (bound_window.partitions.empty() && bound_window.orders.empty()) {
+		if (bound_window.Partitions().empty() && bound_window.OrderBy().empty()) {
 			is_order_dependent = true;
 		}
 
-		if (bound_window.orders.size() > max_orders) {
+		if (bound_window.OrderBy().size() > max_orders) {
 			order_idx = i;
-			max_orders = bound_window.orders.size();
+			max_orders = bound_window.OrderBy().size();
 		}
 	}
 }
 
+PhysicalWindow::PhysicalWindow(PhysicalPlan &physical_plan, vector<LogicalType> types,
+                               vector<unique_ptr<Expression>> select_list, idx_t estimated_cardinality)
+    : PhysicalWindow(physical_plan, std::move(types), std::move(select_list), estimated_cardinality,
+                     vector<column_t>()) {
+}
+
 static unique_ptr<WindowExecutor> WindowExecutorFactory(BoundWindowExpression &wexpr, ClientContext &client,
-                                                        WindowSharedExpressions &shared, WindowAggregationMode mode) {
-	switch (wexpr.GetExpressionType()) {
-	case ExpressionType::WINDOW_AGGREGATE:
-		return make_uniq<WindowAggregateExecutor>(wexpr, client, shared, mode);
-	case ExpressionType::WINDOW_ROW_NUMBER:
-		return make_uniq<WindowRowNumberExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_RANK_DENSE:
-		return make_uniq<WindowDenseRankExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_RANK:
-		return make_uniq<WindowRankExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_PERCENT_RANK:
-		return make_uniq<WindowPercentRankExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_CUME_DIST:
-		return make_uniq<WindowCumeDistExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_NTILE:
-		return make_uniq<WindowNtileExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_LEAD:
-	case ExpressionType::WINDOW_LAG:
-		return make_uniq<WindowLeadLagExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_FILL:
-		return make_uniq<WindowFillExecutor>(wexpr, client, shared);
-	case ExpressionType::WINDOW_FIRST_VALUE:
-		return make_uniq<WindowFirstValueExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_LAST_VALUE:
-		return make_uniq<WindowLastValueExecutor>(wexpr, shared);
-	case ExpressionType::WINDOW_NTH_VALUE:
-		return make_uniq<WindowNthValueExecutor>(wexpr, shared);
-		break;
-	default:
-		throw InternalException("Window aggregate type %s", ExpressionTypeToString(wexpr.GetExpressionType()));
+                                                        WindowSharedExpressions &shared) {
+	if (wexpr.GetExpressionType() == ExpressionType::WINDOW_AGGREGATE) {
+		return make_uniq<WindowAggregateExecutor>(wexpr, client, shared);
+	} else {
+		if (!wexpr.WindowFunction().get()) {
+			throw InternalException("Window expression type %s", ExpressionTypeToString(wexpr.GetExpressionType()));
+		}
+		return make_uniq<WindowExecutor>(wexpr, shared);
 	}
 }
 
@@ -298,17 +362,49 @@ WindowGlobalSinkState::WindowGlobalSinkState(const PhysicalWindow &op, ClientCon
 	D_ASSERT(op.select_list[op.order_idx]->GetExpressionClass() == ExpressionClass::BOUND_WINDOW);
 	auto &wexpr = op.select_list[op.order_idx]->Cast<BoundWindowExpression>();
 
-	const auto mode = Settings::Get<DebugWindowModeSetting>(client);
 	for (idx_t expr_idx = 0; expr_idx < op.select_list.size(); ++expr_idx) {
 		D_ASSERT(op.select_list[expr_idx]->GetExpressionClass() == ExpressionClass::BOUND_WINDOW);
 		auto &wexpr = op.select_list[expr_idx]->Cast<BoundWindowExpression>();
-		auto wexec = WindowExecutorFactory(wexpr, client, shared, mode);
+		auto wexec = WindowExecutorFactory(wexpr, client, shared);
 		executors.emplace_back(std::move(wexec));
 	}
 
-	sort_strategy = SortStrategy::Factory(client, wexpr.partitions, wexpr.orders, op.children[0].get().GetTypes(),
-	                                      wexpr.partitions_stats, op.estimated_cardinality);
-	strategy_sink = sort_strategy->GetGlobalSinkState(client);
+	if (!op.partition_info.RequiresPartitionColumns()) {
+		sort_strategy =
+		    SortStrategy::Factory(client, wexpr.Partitions(), wexpr.OrderBy(), op.children[0].get().GetTypes(),
+		                          wexpr.PartitionsStats(), op.estimated_cardinality);
+		GetOrCreatePartition(client, Value());
+	} else {
+		//	Pipeline does the partitioning for us, so leave them out
+		vector<unique_ptr<Expression>> unpartitioned;
+		vector<unique_ptr<BaseStatistics>> partitions_stats;
+		sort_strategy = SortStrategy::Factory(client, unpartitioned, wexpr.OrderBy(), op.children[0].get().GetTypes(),
+		                                      partitions_stats, op.estimated_cardinality);
+	}
+}
+
+OperatorPartitionInfo PhysicalWindow::RequiredPartitionInfo() const {
+	if (!partition_info.RequiresPartitionColumns()) {
+		return PhysicalOperator::RequiredPartitionInfo();
+	}
+
+	return partition_info;
+}
+
+//===--------------------------------------------------------------------===//
+// NextBatch
+//===--------------------------------------------------------------------===//
+SinkNextBatchType PhysicalWindow::NextBatch(ExecutionContext &context, OperatorSinkNextBatchInput &batch) const {
+	if (!partition_info.RequiresPartitionColumns()) {
+		return PhysicalOperator::NextBatch(context, batch);
+	}
+
+	auto &gstate = batch.global_state.Cast<WindowGlobalSinkState>();
+	auto &lstate = batch.local_state.Cast<WindowLocalSinkState>();
+
+	(void)lstate.Combine(context, gstate, batch.interrupt_state);
+
+	return SinkNextBatchType::READY;
 }
 
 //===--------------------------------------------------------------------===//
@@ -319,19 +415,54 @@ SinkResultType PhysicalWindow::Sink(ExecutionContext &context, DataChunk &chunk,
 	auto &lstate = sink.local_state.Cast<WindowLocalSinkState>();
 	gstate.count += chunk.size();
 
-	OperatorSinkInput hsink {*gstate.strategy_sink, *lstate.local_group, sink.interrupt_state};
+	if (partition_info.RequiresPartitionColumns()) {
+		if (!lstate.partition_group) {
+			// the local state is not yet initialized for this partition
+			// initialize the partition
+			child_list_t<Value> partition_values;
+			const auto &partition_columns = partition_info.partition_columns;
+			for (idx_t partition_idx = 0; partition_idx < partition_columns.size(); partition_idx++) {
+				auto column_name = to_string(partition_idx);
+				auto &partition = lstate.partition_info.partition_data[partition_idx];
+				D_ASSERT(Value::NotDistinctFrom(partition.min_val, partition.max_val));
+				partition_values.emplace_back(make_pair(std::move(column_name), partition.min_val));
+			}
+			lstate.current_partition = Value::STRUCT(std::move(partition_values));
+
+			// initialize the state
+			lstate.partition_group = gstate.GetOrCreatePartition(context.client, lstate.current_partition);
+			lstate.local_group = gstate.sort_strategy->GetLocalSinkState(context);
+		}
+	} else if (!lstate.partition_group) {
+		lstate.partition_group = gstate.GetOrCreatePartition(context.client, lstate.current_partition);
+	}
+
+	OperatorSinkInput hsink {*lstate.partition_group, *lstate.local_group, sink.interrupt_state};
 	return gstate.sort_strategy->Sink(context, chunk, hsink);
 }
 
+//===--------------------------------------------------------------------===//
+// Combine
+//===--------------------------------------------------------------------===//
 SinkCombineResultType PhysicalWindow::Combine(ExecutionContext &context, OperatorSinkCombineInput &combine) const {
 	auto &gstate = combine.global_state.Cast<WindowGlobalSinkState>();
 	auto &lstate = combine.local_state.Cast<WindowLocalSinkState>();
 
-	OperatorSinkCombineInput hcombine {*gstate.strategy_sink, *lstate.local_group, combine.interrupt_state};
+	if (partition_info.RequiresPartitionColumns()) {
+		return lstate.Combine(context, gstate, combine.interrupt_state);
+	} else if (!lstate.partition_group) {
+		lstate.partition_group = gstate.GetOrCreatePartition(context.client, lstate.current_partition);
+	}
+
+	OperatorSinkCombineInput hcombine {*lstate.partition_group, *lstate.local_group, combine.interrupt_state};
 	return gstate.sort_strategy->Combine(context, hcombine);
 }
 
 unique_ptr<LocalSinkState> PhysicalWindow::GetLocalSinkState(ExecutionContext &context) const {
+	if (partition_info.RequiresPartitionColumns()) {
+		return make_uniq<WindowLocalSinkState>(context);
+	}
+
 	auto &gstate = sink_state->Cast<WindowGlobalSinkState>();
 	return make_uniq<WindowLocalSinkState>(context, gstate);
 }
@@ -344,16 +475,25 @@ SinkFinalizeType PhysicalWindow::Finalize(Pipeline &pipeline, Event &event, Clie
                                           OperatorSinkFinalizeInput &input) const {
 	auto &gsink = input.global_state.Cast<WindowGlobalSinkState>();
 	auto &sort_strategy = *gsink.sort_strategy;
-	auto &strategy_sink = *gsink.strategy_sink;
-
-	OperatorSinkFinalizeInput hfinalize {strategy_sink, input.interrupt_state};
-	return sort_strategy.Finalize(client, hfinalize);
+	SinkFinalizeType result = SinkFinalizeType::READY;
+	lock_guard<mutex> sinks_guard(gsink.lock);
+	for (auto &strategy_sink : gsink.strategy_sinks) {
+		OperatorSinkFinalizeInput hfinalize {*strategy_sink.second, input.interrupt_state};
+		result = sort_strategy.Finalize(client, hfinalize);
+	}
+	return result;
 }
 
 ProgressData PhysicalWindow::GetSinkProgress(ClientContext &context, GlobalSinkState &gstate,
                                              const ProgressData source_progress) const {
 	auto &gsink = gstate.Cast<WindowGlobalSinkState>();
-	return gsink.sort_strategy->GetSinkProgress(context, *gsink.strategy_sink, source_progress);
+	auto progress = source_progress;
+	lock_guard<mutex> sinks_guard(gsink.lock);
+	for (auto &strategy_sink : gsink.strategy_sinks) {
+		progress.Add(gsink.sort_strategy->GetSinkProgress(context, *strategy_sink.second, progress));
+	}
+	// strategy sinks can be added while sinking (e.g. for partitioned input) - keep the progress monotonic
+	return gsink.sink_progress.Update(progress);
 }
 
 //===--------------------------------------------------------------------===//
@@ -361,6 +501,7 @@ ProgressData PhysicalWindow::GetSinkProgress(ClientContext &context, GlobalSinkS
 //===--------------------------------------------------------------------===//
 class WindowGlobalSourceState : public GlobalSourceState {
 public:
+	using GlobalStatePtr = unique_ptr<GlobalSourceState>;
 	using WindowHashGroupPtr = unique_ptr<WindowHashGroup>;
 	using ScannerPtr = unique_ptr<TupleDataChunkIterator>;
 	using Task = WindowSourceTask;
@@ -377,14 +518,16 @@ public:
 		return !stopped && finished < total_tasks;
 	}
 	//! Get the next task given the current state
-	bool TryNextTask(TaskPtr &task, Task &task_local);
+	bool TryNextTask(TaskPtr &task, Task &task_local) DUCKDB_EXCLUDES(lock);
+	//! Select a task with the lock held, after the previous task has been retired.
+	bool TryNextTaskLocked(TaskPtr &task, Task &task_local) DUCKDB_REQUIRES(lock);
 
 	//! Context for executing computations
 	ClientContext &client;
 	//! All the sunk data
 	WindowGlobalSinkState &gsink;
-	//! The hashed sort global source state for delayed sorting
-	unique_ptr<GlobalSourceState> hashed_source;
+	//! The hashed sort global source states for delayed sorting
+	value_map_t<GlobalStatePtr> hashed_sources;
 	//! The sorted hash groups
 	vector<WindowHashGroupPtr> window_hash_groups;
 	//! The total number of blocks to process;
@@ -416,28 +559,34 @@ public:
 protected:
 	//! Build task list
 	void CreateTaskList();
-	//! Finish a task
-	void FinishTask(TaskPtr task);
+	//! Finish a task and return any completed group for destruction outside the source lock.
+	WindowHashGroupPtr FinishTask(TaskPtr task);
 };
 
 WindowGlobalSourceState::WindowGlobalSourceState(ClientContext &client, WindowGlobalSinkState &gsink_p)
     : client(client), gsink(gsink_p), next_group(0), locals(0), started(0), finished(0), stopped(false), completed(0) {
 	auto &sort_strategy = *gsink.sort_strategy;
-	hashed_source = sort_strategy.GetGlobalSourceState(client, *gsink.strategy_sink);
-	auto &hash_groups = sort_strategy.GetHashGroups(*hashed_source);
-	window_hash_groups.resize(hash_groups.size());
 
-	for (idx_t group_idx = 0; group_idx < hash_groups.size(); ++group_idx) {
-		const auto block_count = hash_groups[group_idx].chunks;
-		if (!block_count) {
-			continue;
+	for (auto &strategy_sink : gsink.strategy_sinks) {
+		auto hashed_source = sort_strategy.GetGlobalSourceState(client, *strategy_sink.second);
+		auto &hash_groups = sort_strategy.GetHashGroups(*hashed_source);
+
+		for (idx_t bin_idx = 0; bin_idx < hash_groups.size(); ++bin_idx) {
+			const auto block_count = hash_groups[bin_idx].chunks;
+			if (!block_count) {
+				continue;
+			}
+
+			const idx_t group_idx = window_hash_groups.size();
+			auto window_hash_group =
+			    make_uniq<WindowHashGroup>(gsink, hash_groups[bin_idx], group_idx, strategy_sink.first, bin_idx);
+			window_hash_group->batch_base = total_blocks;
+			total_blocks += block_count;
+
+			window_hash_groups.emplace_back(std::move(window_hash_group));
 		}
 
-		auto window_hash_group = make_uniq<WindowHashGroup>(gsink, hash_groups[group_idx], group_idx);
-		window_hash_group->batch_base = total_blocks;
-		total_blocks += block_count;
-
-		window_hash_groups[group_idx] = std::move(window_hash_group);
+		hashed_sources.insert(make_pair(strategy_sink.first, std::move(hashed_source)));
 	}
 
 	CreateTaskList();
@@ -460,7 +609,7 @@ void WindowGlobalSourceState::CreateTaskList() {
 
 	//	Schedule the largest group on as many threads as possible
 	auto &ts = TaskScheduler::GetScheduler(client);
-	const auto threads = NumericCast<idx_t>(ts.NumberOfThreads());
+	const auto threads = ts.NumberOfThreads();
 
 	const auto &max_block = partition_blocks.front();
 
@@ -481,9 +630,11 @@ void WindowGlobalSourceState::CreateTaskList() {
 	}
 }
 
-WindowHashGroup::WindowHashGroup(WindowGlobalSinkState &gsink, const ChunkRow &chunk_row, const idx_t hash_bin_p)
+WindowHashGroup::WindowHashGroup(WindowGlobalSinkState &gsink, const ChunkRow &chunk_row, idx_t group_idx,
+                                 const Value &sink_idx, idx_t bin_idx)
     : gsink(gsink), count(chunk_row.count), blocks(chunk_row.chunks), stage(WindowGroupStage::SORT),
-      hash_bin(hash_bin_p), sorted(0), materialized(0), masked(0), sunk(0), finalized(0), completed(0), batch_base(0) {
+      group_idx(group_idx), sink_idx(sink_idx), bin_idx(bin_idx), sorted(0), materialized(0), masked(0), sunk(0),
+      finalized(0), completed(0), batch_base(0) {
 	// There are three types of partitions:
 	// 1. No partition (no sorting)
 	// 2. One partition (sorting, but no hashing)
@@ -493,7 +644,7 @@ WindowHashGroup::WindowHashGroup(WindowGlobalSinkState &gsink, const ChunkRow &c
 	const auto &shared = WindowSharedExpressions::GetSortedExpressions(gsink.shared.coll_shared);
 	vector<LogicalType> types;
 	for (auto &expr : shared) {
-		types.emplace_back(expr->return_type);
+		types.emplace_back(expr->GetReturnType());
 	}
 	auto &buffer_manager = BufferManager::GetBufferManager(gsink.client);
 	collection = make_uniq<WindowCollection>(buffer_manager, count, types);
@@ -517,25 +668,37 @@ void WindowHashGroup::UpdateScanner(ScannerPtr &scanner, idx_t begin_idx) const 
 	}
 }
 
+//! Backs a mask of `count` rows (all valid) with a block from the allocator, so that it counts against the memory limit
+static void AllocateMask(Allocator &allocator, idx_t count, ValidityMask &mask, AllocatedData &storage) {
+	storage = allocator.Allocate(ValidityMask::EntryCount(count) * sizeof(validity_t));
+	memset(storage.get(), 0xFF, storage.GetSize());
+	mask.Initialize(reinterpret_cast<validity_t *>(storage.get()), count);
+}
+
 void WindowHashGroup::AllocateMasks() {
-	//	Single-threaded building as this is mostly memory allocation
-	lock_guard<mutex> gestate_guard(lock);
-	if (partition_mask.IsMaskSet()) {
-		return;
-	}
+	CallOnce(masks_initialized, [&] {
+		auto &allocator = BufferAllocator::Get(gsink.client);
+		ValidityMask new_partition_mask;
+		AllocatedData new_partition_mask_data;
+		AllocateMask(allocator, count, new_partition_mask, new_partition_mask_data);
+		OrderMasks new_order_masks;
+		unordered_map<idx_t, AllocatedData> new_order_mask_data;
 
-	//	Allocate masks inside the lock
-	partition_mask.Initialize(count);
-
-	const auto &executors = gsink.executors;
-	for (auto &wexec : executors) {
-		auto &wexpr = wexec->wexpr;
-		auto &order_mask = order_masks[wexpr.partitions.size() + wexpr.orders.size()];
-		if (order_mask.IsMaskSet()) {
-			continue;
+		// All masks refer to the shared sort's partition columns, including duplicate expressions.
+		const auto &sort_expr = gsink.op.select_list[gsink.op.order_idx]->Cast<BoundWindowExpression>();
+		const auto order_begin = gsink.op.partition_info.RequiresPartitionColumns() ? 0 : sort_expr.Partitions().size();
+		for (auto &wexec : gsink.executors) {
+			const auto order_idx = order_begin + wexec->wexpr.OrderBy().size();
+			auto &order_mask = new_order_masks[order_idx];
+			if (!order_mask.IsMaskSet()) {
+				AllocateMask(allocator, count, order_mask, new_order_mask_data[order_idx]);
+			}
 		}
-		order_mask.Initialize(count);
-	}
+		partition_mask = std::move(new_partition_mask);
+		partition_mask_data = std::move(new_partition_mask_data);
+		order_masks = std::move(new_order_masks);
+		order_mask_data = std::move(new_order_mask_data);
+	});
 }
 
 void WindowHashGroup::ComputeMasks(const idx_t block_begin, const idx_t block_end) {
@@ -565,13 +728,12 @@ void WindowHashGroup::ComputeMasks(const idx_t block_begin, const idx_t block_en
 
 	//	If we are not sorting, then only the partition boundaries are needed.
 	const auto &wexpr = gsink.op.select_list[gsink.op.order_idx]->Cast<BoundWindowExpression>();
-	auto &partitions = wexpr.partitions;
-	if (partitions.empty() && wexpr.orders.empty()) {
-		return;
-	}
 
 	//	Set up the partition compare structs
-	const auto key_count = partitions.size();
+	const auto order_begin = gsink.op.partition_info.RequiresPartitionColumns() ? 0 : wexpr.Partitions().size();
+	if (!order_begin && wexpr.OrderBy().empty()) {
+		return;
+	}
 
 	//	Set up the order data structures
 	auto &collection = *rows;
@@ -579,15 +741,15 @@ void WindowHashGroup::ComputeMasks(const idx_t block_begin, const idx_t block_en
 	WindowCollectionChunkScanner scanner(collection, scan_cols, block_begin);
 	unordered_map<idx_t, DataChunk> prefixes;
 	for (auto &order_mask : order_masks) {
-		D_ASSERT(order_mask.first >= key_count);
-		auto order_type = scanner.PrefixStructType(order_mask.first, key_count);
+		D_ASSERT(order_mask.first >= order_begin);
+		auto order_type = scanner.PrefixStructType(order_mask.first, order_begin);
 		vector<LogicalType> types(2, order_type);
 		auto &keys = prefixes[order_mask.first];
 		// We can't use InitializeEmpty here because it doesn't set up all of the STRUCT internals...
 		keys.Initialize(collection.GetAllocator(), types);
 	}
 
-	WindowDeltaScanner(collection, block_begin, block_end, scan_cols, key_count,
+	WindowDeltaScanner(collection, block_begin, block_end, scan_cols, order_begin,
 	                   [&](const idx_t row_idx, DataChunk &prev, DataChunk &curr, const idx_t ndistinct,
 	                       SelectionVector &distinct, const SelectionVector &matching) {
 		                   //	Process the partition boundaries
@@ -609,19 +771,19 @@ void WindowHashGroup::ComputeMasks(const idx_t block_begin, const idx_t block_en
 		                   for (auto &order_mask : order_masks) {
 			                   // If there are no order columns, then all the partition elements are peers and we are
 			                   // done
-			                   if (partitions.size() == order_mask.first) {
+			                   if (order_begin == order_mask.first) {
 				                   continue;
 			                   }
 			                   auto &prefix = prefixes[order_mask.first];
 			                   prefix.Reset();
 			                   auto &order_prev = prefix.data[0];
 			                   auto &order_curr = prefix.data[1];
-			                   scanner.ReferenceStructColumns(prev, order_prev, order_mask.first, partitions.size());
-			                   scanner.ReferenceStructColumns(curr, order_curr, order_mask.first, partitions.size());
+			                   scanner.ReferenceStructColumns(prev, order_prev, order_mask.first, order_begin);
+			                   scanner.ReferenceStructColumns(curr, order_curr, order_mask.first, order_begin);
 			                   if (ndistinct) {
 				                   prefix.Slice(matching, nmatch);
 			                   } else {
-				                   prefix.SetCardinality(nmatch);
+				                   prefix.SetChildCardinality(nmatch);
 			                   }
 			                   const auto m = VectorOperations::DistinctFrom(order_curr, order_prev, nullptr, nmatch,
 			                                                                 &distinct, nullptr);
@@ -712,8 +874,8 @@ void WindowLocalSourceState::Sort(ExecutionContext &context, InterruptState &int
 
 	auto &gsink = gsource.gsink;
 	auto &sort_strategy = *gsink.sort_strategy;
-	OperatorSinkFinalizeInput finalize {*gsink.strategy_sink, interrupt};
-	sort_strategy.SortColumnData(context, task_local.group_idx, finalize);
+	OperatorSinkFinalizeInput finalize {*gsink.strategy_sinks[window_hash_group->sink_idx], interrupt};
+	sort_strategy.SortColumnData(context, window_hash_group->bin_idx, finalize);
 
 	//	Mark this range as done
 	window_hash_group->sorted += (task->end_idx - task->begin_idx);
@@ -725,10 +887,11 @@ void WindowLocalSourceState::Materialize(ExecutionContext &context, InterruptSta
 	D_ASSERT(task->stage == WindowGroupStage::MATERIALIZE);
 
 	auto unused = make_uniq<LocalSourceState>();
-	OperatorSourceInput source {*gsource.hashed_source, *unused, interrupt};
+	auto &hashed_source = gsource.hashed_sources[window_hash_group->sink_idx];
+	OperatorSourceInput source {*hashed_source, *unused, interrupt};
 	auto &gsink = gsource.gsink;
 	auto &sort_strategy = *gsink.sort_strategy;
-	sort_strategy.MaterializeColumnData(context, task_local.group_idx, source);
+	sort_strategy.MaterializeColumnData(context, window_hash_group->bin_idx, source);
 
 	//	Mark this range as done
 	window_hash_group->materialized += (task->end_idx - task->begin_idx);
@@ -739,7 +902,7 @@ void WindowLocalSourceState::Materialize(ExecutionContext &context, InterruptSta
 	if (window_hash_group->materialized >= window_hash_group->blocks) {
 		lock_guard<mutex> prepare_guard(window_hash_group->lock);
 		if (!window_hash_group->rows) {
-			window_hash_group->rows = sort_strategy.GetColumnData(task_local.group_idx, source);
+			window_hash_group->rows = sort_strategy.GetColumnData(window_hash_group->bin_idx, source);
 		}
 	}
 }
@@ -756,20 +919,17 @@ void WindowLocalSourceState::Mask(ExecutionContext &context, InterruptState &int
 }
 
 WindowHashGroup::ExecutorGlobalStates &WindowHashGroup::GetGlobalStates(ClientContext &client) {
-	//	Single-threaded building as this is mostly memory allocation
-	lock_guard<mutex> gestate_guard(lock);
-	const auto &executors = gsink.executors;
-	if (gestates.size() == executors.size()) {
-		return gestates;
-	}
-
-	// These can be large so we defer building them until we are ready.
-	for (auto &wexec : executors) {
-		auto &wexpr = wexec->wexpr;
-		auto &order_mask = order_masks[wexpr.partitions.size() + wexpr.orders.size()];
-		gestates.emplace_back(wexec->GetGlobalState(client, count, partition_mask, order_mask));
-	}
-
+	CallOnce(gestates_initialized, [&] {
+		// These can be large so we defer building them until we are ready.
+		ExecutorGlobalStates new_gestates;
+		const auto &sort_expr = gsink.op.select_list[gsink.op.order_idx]->Cast<BoundWindowExpression>();
+		const auto order_begin = gsink.op.partition_info.RequiresPartitionColumns() ? 0 : sort_expr.Partitions().size();
+		for (auto &wexec : gsink.executors) {
+			auto &order_mask = order_masks.at(order_begin + wexec->wexpr.OrderBy().size());
+			new_gestates.emplace_back(wexec->GetGlobalState(client, count, partition_mask, order_mask));
+		}
+		gestates = std::move(new_gestates);
+	});
 	return gestates;
 }
 
@@ -792,9 +952,14 @@ void WindowLocalSourceState::Sink(ExecutionContext &context, InterruptState &int
 		}
 	}
 
+	//	The block range owned by this task. Counted whole so that the SINK -> FINALIZE
+	//	transition waits for every SINK task to run, even ones whose blocks contain no rows.
+	const idx_t task_blocks = task->end_idx - task->begin_idx;
+
 	//	First pass over the input without flushing
 	scanner = window_hash_group->GetScanner(task->begin_idx);
 	if (!scanner) {
+		window_hash_group->sunk += task_blocks;
 		return;
 	}
 	for (; task->begin_idx < task->end_idx; ++task->begin_idx) {
@@ -806,7 +971,7 @@ void WindowLocalSourceState::Sink(ExecutionContext &context, InterruptState &int
 
 		//	Compute fully materialised expressions
 		if (coll_chunk.data.empty()) {
-			coll_chunk.SetCardinality(input_chunk);
+			coll_chunk.SetChildCardinality(input_chunk.size());
 		} else {
 			coll_chunk.Reset();
 			coll_exec.Execute(input_chunk, coll_chunk);
@@ -820,7 +985,7 @@ void WindowLocalSourceState::Sink(ExecutionContext &context, InterruptState &int
 
 		// Compute sink expressions
 		if (sink_chunk.data.empty()) {
-			sink_chunk.SetCardinality(input_chunk);
+			sink_chunk.SetChildCardinality(input_chunk.size());
 		} else {
 			sink_chunk.Reset();
 			sink_exec.Execute(input_chunk, sink_chunk);
@@ -830,10 +995,9 @@ void WindowLocalSourceState::Sink(ExecutionContext &context, InterruptState &int
 			OperatorSinkInput sink {*gestates[w], *local_states[w], interrupt};
 			executors[w]->Sink(context, sink_chunk, coll_chunk, input_idx, sink);
 		}
-
-		window_hash_group->sunk += input_chunk.size();
 	}
 	scanner.reset();
+	window_hash_group->sunk += task_blocks;
 }
 
 void WindowLocalSourceState::Finalize(ExecutionContext &context, InterruptState &interrupt) {
@@ -870,7 +1034,7 @@ WindowLocalSourceState::WindowLocalSourceState(WindowGlobalSourceState &gsource)
 	vector<LogicalType> output_types;
 	for (auto &wexec : gsink.executors) {
 		auto &wexpr = wexec->wexpr;
-		output_types.emplace_back(wexpr.return_type);
+		output_types.emplace_back(wexpr.GetReturnType());
 	}
 	output_chunk.Initialize(gsource.client, output_types);
 
@@ -883,9 +1047,14 @@ WindowLocalSourceState::WindowLocalSourceState(WindowGlobalSourceState &gsource)
 }
 
 bool WindowGlobalSourceState::TryNextTask(TaskPtr &task, Task &task_local) {
-	auto guard = Lock();
-	FinishTask(task);
+	// Destroy completed groups after releasing the source lock.
+	WindowHashGroupPtr finished_group;
+	annotated_lock_guard<annotated_mutex> guard(lock);
+	finished_group = FinishTask(task);
+	return TryNextTaskLocked(task, task_local);
+}
 
+bool WindowGlobalSourceState::TryNextTaskLocked(TaskPtr &task, Task &task_local) {
 	if (!HasMoreTasks()) {
 		task = nullptr;
 		return false;
@@ -895,7 +1064,7 @@ bool WindowGlobalSourceState::TryNextTask(TaskPtr &task, Task &task_local) {
 	for (const auto &group_idx : active_groups) {
 		auto &window_hash_group = window_hash_groups[group_idx];
 		if (window_hash_group->TryPrepareNextStage()) {
-			UnblockTasks(guard);
+			UnblockTasks();
 		}
 		if (window_hash_group->TryNextTask(task_local)) {
 			task = task_local;
@@ -911,7 +1080,7 @@ bool WindowGlobalSourceState::TryNextTask(TaskPtr &task, Task &task_local) {
 
 		auto &window_hash_group = window_hash_groups[group_idx];
 		if (window_hash_group->TryPrepareNextStage()) {
-			UnblockTasks(guard);
+			UnblockTasks();
 		}
 		if (!window_hash_group->TryNextTask(task_local)) {
 			//	Group has no tasks (empty?)
@@ -928,17 +1097,18 @@ bool WindowGlobalSourceState::TryNextTask(TaskPtr &task, Task &task_local) {
 	return false;
 }
 
-void WindowGlobalSourceState::FinishTask(TaskPtr task) {
+WindowGlobalSourceState::WindowHashGroupPtr WindowGlobalSourceState::FinishTask(TaskPtr task) {
 	if (!task) {
-		return;
+		return nullptr;
 	}
 
 	const auto group_idx = task->group_idx;
 	auto &finished_hash_group = window_hash_groups[group_idx];
 	D_ASSERT(finished_hash_group);
 
+	WindowHashGroupPtr finished_group;
 	if (++finished_hash_group->completed >= finished_hash_group->GetTaskCount()) {
-		finished_hash_group.reset();
+		finished_group = std::move(finished_hash_group);
 		//	Remove it from the active groups
 		auto &v = active_groups;
 		v.erase(std::remove(v.begin(), v.end(), group_idx), v.end());
@@ -946,6 +1116,7 @@ void WindowGlobalSourceState::FinishTask(TaskPtr task) {
 
 	//	Count the global tasks completed.
 	++completed;
+	return finished_group;
 }
 
 bool WindowLocalSourceState::TryAssignTask() {
@@ -1017,19 +1188,20 @@ void WindowLocalSourceState::GetData(ExecutionContext &context, DataChunk &resul
 		auto &executor = *executors[expr_idx];
 		auto &result = output_chunk.data[expr_idx];
 		if (eval_chunk.data.empty()) {
-			eval_chunk.SetCardinality(input_chunk);
+			eval_chunk.SetChildCardinality(input_chunk.size());
 		} else {
 			eval_chunk.Reset();
 			eval_exec.Execute(input_chunk, eval_chunk);
 		}
 		OperatorSinkInput sink {*gestates[expr_idx], *local_states[expr_idx], interrupt};
-		executor.Evaluate(context, position, eval_chunk, result, sink);
+		executor.Evaluate(context, position, eval_chunk, result, sink, input_chunk.size());
 	}
-	output_chunk.SetCardinality(input_chunk);
-	output_chunk.Verify();
+	output_chunk.Verify(context.client.db);
 
 	idx_t out_idx = 0;
-	result.SetCardinality(input_chunk);
+	// input_chunk's cardinality is authoritative (its column buffers may still be a larger, stale capacity), so set the
+	// result cardinality explicitly here - before the references below alias input_chunk's/output_chunk's buffers.
+	result.SetChildCardinality(input_chunk.size());
 	for (idx_t col_idx = 0; col_idx < input_chunk.ColumnCount(); col_idx++) {
 		result.data[out_idx++].Reference(input_chunk.data[col_idx]);
 	}
@@ -1040,7 +1212,7 @@ void WindowLocalSourceState::GetData(ExecutionContext &context, DataChunk &resul
 	// Move to the next chunk
 	++task->begin_idx;
 
-	result.Verify();
+	result.Verify(context.client.db);
 }
 
 unique_ptr<LocalSourceState> PhysicalWindow::GetLocalSourceState(ExecutionContext &context,
@@ -1061,17 +1233,17 @@ bool PhysicalWindow::SupportsPartitioning(const OperatorPartitionInfo &partition
 	//	We can only preserve order for single partitioning
 	//	or work stealing causes out of order batch numbers
 	auto &wexpr = select_list[order_idx]->Cast<BoundWindowExpression>();
-	return wexpr.partitions.empty(); // NOLINT
+	return wexpr.Partitions().empty(); // NOLINT
 }
 
 OrderPreservationType PhysicalWindow::SourceOrder() const {
 	auto &wexpr = select_list[order_idx]->Cast<BoundWindowExpression>();
-	if (!wexpr.partitions.empty()) {
+	if (!wexpr.Partitions().empty()) {
 		// if we have partitions the window order is not defined
 		return OrderPreservationType::NO_ORDER;
 	}
 	// without partitions we can maintain order
-	if (wexpr.orders.empty()) {
+	if (wexpr.OrderBy().empty()) {
 		// if we have no orders we maintain insertion order
 		return OrderPreservationType::INSERTION_ORDER;
 	}
@@ -1083,11 +1255,11 @@ ProgressData PhysicalWindow::GetProgress(ClientContext &client, GlobalSourceStat
 	auto &gsource = gsource_p.Cast<WindowGlobalSourceState>();
 	auto &gsink = gsource.gsink;
 	const auto count = gsink.count.load();
-	const auto completed = gsource.completed.load();
+	const auto finished = gsource.finished.load();
 
 	ProgressData res;
 	if (count) {
-		res.done = double(completed);
+		res.done = double(finished);
 		res.total = double(gsource.total_tasks);
 		//	Convert to tuples.
 		res.Normalize(double(count));
@@ -1122,16 +1294,20 @@ SourceResultType PhysicalWindow::GetDataInternal(ExecutionContext &context, Data
 				throw;
 			}
 		} else {
-			auto guard = gsource.Lock();
+			annotated_lock_guard<annotated_mutex> guard(gsource.lock);
 			if (!gsource.HasMoreTasks()) {
 				// no more tasks - exit
-				gsource.UnblockTasks(guard);
+				gsource.UnblockTasks();
 				break;
-			} else {
-				// there are more tasks available, but we can't execute them yet
-				// block the source
-				return gsource.BlockSource(guard, source.interrupt_state);
 			}
+			// TryAssignTask released the lock: another thread may have prepared the next stage and unblocked the
+			// blocked tasks in between, so look again before blocking, or no one would ever unblock this task.
+			if (gsource.TryNextTaskLocked(lsource.task, lsource.task_local)) {
+				continue;
+			}
+			// there are more tasks available, but we can't execute them yet
+			// block the source
+			return gsource.BlockSource(source.interrupt_state);
 		}
 	}
 
@@ -1151,6 +1327,7 @@ InsertionOrderPreservingMap<string> PhysicalWindow::ParamsToString() const {
 		projections += select_list[i]->GetName();
 	}
 	result["Projections"] = projections;
+	SetEstimatedCardinality(result, estimated_cardinality);
 	return result;
 }
 

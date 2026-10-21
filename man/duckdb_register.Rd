@@ -24,14 +24,14 @@ duckdb_unregister(conn, name)
 These functions are called for their side effect.
 }
 \description{
-\code{duckdb_register()} registers a data frame as a virtual table (view)
-in a DuckDB connection.
+\code{duckdb_register()} registers a data frame as a virtual table (view) in a DuckDB connection.
 No data is copied.
 }
 \details{
 \code{duckdb_unregister()} unregisters a previously registered data frame.
 }
 \examples{
+\dontshow{if (simulate_duckdb()$env$examples_enabled()) withAutoprint(\{ # examplesIf}
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])
@@ -42,4 +42,5 @@ dbReadTable(con, "data")
 duckdb_unregister(con, "data")
 
 dbDisconnect(con)
+\dontshow{\}) # examplesIf}
 }

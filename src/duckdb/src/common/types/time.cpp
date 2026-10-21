@@ -5,7 +5,9 @@
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/common/operator/add.hpp"
 #include "duckdb/common/operator/multiply.hpp"
+#include "duckdb/common/operator/subtract.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
 
 #include <cctype>
@@ -19,8 +21,9 @@ static_assert(sizeof(dtime_t) == sizeof(int64_t), "dtime_t was padded");
 // ISO 8601
 
 bool Time::TryConvertInternal(const char *buf, idx_t len, idx_t &pos, dtime_t &result, bool strict,
-                              optional_ptr<int32_t> nanos) {
-	int32_t hour = -1, min = -1, sec = -1, micros = -1;
+                              optional_ptr<int32_t> nanos, bool negative) {
+	int64_t hour = -1;
+	int32_t min = -1, sec = -1, micros = -1;
 	pos = 0;
 
 	if (len == 0) {
@@ -42,9 +45,9 @@ bool Time::TryConvertInternal(const char *buf, idx_t len, idx_t &pos, dtime_t &r
 		return false;
 	}
 
-	// Allow up to 9 digit hours to support intervals
+	// Allow up to 10 digit interval hours
 	hour = 0;
-	for (int32_t digits = 9; pos < len && StringUtil::CharacterIsDigit(buf[pos]); ++pos) {
+	for (int32_t digits = 10; pos < len && StringUtil::CharacterIsDigit(buf[pos]); ++pos) {
 		if (digits-- > 0) {
 			hour = hour * 10 + (buf[pos] - '0');
 		} else {
@@ -77,7 +80,12 @@ bool Time::TryConvertInternal(const char *buf, idx_t len, idx_t &pos, dtime_t &r
 	if (pos > len) {
 		return false;
 	}
-	if (pos == len && (!strict || sep_pos + 2 == pos)) {
+	if (pos == len) {
+		// no seconds field: in strict mode this is only valid for a two-digit minute (HH:MM),
+		// otherwise there is no separator to read and we must not look past the end of the buffer
+		if (strict && sep_pos + 2 != pos) {
+			return false;
+		}
 		sec = 0;
 	} else {
 		if (buf[pos++] != sep) {
@@ -128,13 +136,25 @@ bool Time::TryConvertInternal(const char *buf, idx_t len, idx_t &pos, dtime_t &r
 		}
 	}
 
-	result = Time::FromTime(hour, min, sec, micros);
+	// a negative interval accumulates below zero, so its minimum fits
+	int64_t time_micros;
+	auto sub_hour_micros = Time::FromTime(0, min, sec, micros).value;
+	if (negative) {
+		if (!TryMultiplyOperator::Operation(hour, -Interval::MICROS_PER_HOUR, time_micros) ||
+		    !TrySubtractOperator::Operation(time_micros, sub_hour_micros, time_micros)) {
+			return false;
+		}
+	} else if (!TryMultiplyOperator::Operation(hour, Interval::MICROS_PER_HOUR, time_micros) ||
+	           !TryAddOperator::Operation(time_micros, sub_hour_micros, time_micros)) {
+		return false;
+	}
+	result = dtime_t(time_micros);
 	return true;
 }
 
 bool Time::TryConvertInterval(const char *buf, idx_t len, idx_t &pos, dtime_t &result, bool strict,
-                              optional_ptr<int32_t> nanos) {
-	return Time::TryConvertInternal(buf, len, pos, result, strict, nanos);
+                              optional_ptr<int32_t> nanos, bool negative) {
+	return Time::TryConvertInternal(buf, len, pos, result, strict, nanos, negative);
 }
 
 bool Time::TryConvertTime(const char *buf, idx_t len, idx_t &pos, dtime_t &result, bool strict,
@@ -144,7 +164,7 @@ bool Time::TryConvertTime(const char *buf, idx_t len, idx_t &pos, dtime_t &resul
 			// last chance, check if we can parse as timestamp
 			timestamp_t timestamp;
 			if (Timestamp::TryConvertTimestamp(buf, len, timestamp, false, nanos) == TimestampCastResult::SUCCESS) {
-				if (!Timestamp::IsFinite(timestamp)) {
+				if (!timestamp.IsFinite()) {
 					return false;
 				}
 				result = Timestamp::GetTime(timestamp);
@@ -153,7 +173,7 @@ bool Time::TryConvertTime(const char *buf, idx_t len, idx_t &pos, dtime_t &resul
 		}
 		return false;
 	}
-	return result.micros <= Interval::MICROS_PER_DAY;
+	return result.value <= Interval::MICROS_PER_DAY;
 }
 
 bool Time::TryConvertTimeTZ(const char *buf, idx_t len, idx_t &pos, dtime_tz_t &result, bool &has_offset, bool strict,
@@ -165,13 +185,18 @@ bool Time::TryConvertTimeTZ(const char *buf, idx_t len, idx_t &pos, dtime_tz_t &
 			// last chance, check if we can parse as timestamp
 			timestamp_t timestamp;
 			if (Timestamp::TryConvertTimestamp(buf, len, timestamp, true, nanos) == TimestampCastResult::SUCCESS) {
-				if (!Timestamp::IsFinite(timestamp)) {
+				if (!timestamp.IsFinite()) {
 					return false;
 				}
 				result = dtime_tz_t(Timestamp::GetTime(timestamp), 0);
 				return true;
 			}
 		}
+		return false;
+	}
+
+	//	Interval parsing accepts larger hour counts, but we must limit ourselves to <= 24:00:00
+	if (time_part.value > Interval::MICROS_PER_DAY) {
 		return false;
 	}
 
@@ -258,8 +283,8 @@ string Time::ToUTCOffset(int hour_offset, int minute_offset) {
 
 	char buffer[1 + 2 + 1 + 2];
 	idx_t length = 0;
-	buffer[length++] = (time.micros < 0 ? '-' : '+');
-	time.micros = std::abs(time.micros);
+	buffer[length++] = (time.value < 0 ? '-' : '+');
+	time.value = std::abs(time.value);
 
 	int32_t time_units[4];
 	Time::Convert(time, time_units[0], time_units[1], time_units[2], time_units[3]);
@@ -306,11 +331,17 @@ bool Time::IsValidTime(int32_t hour, int32_t minute, int32_t second, int32_t mic
 	if (microseconds < 0 || microseconds > 1000000) {
 		return false;
 	}
+	// a leap second (or a full second of microseconds) is allowed, as long as the time does not exceed 24:00:00
+	const int64_t total_micros =
+	    ((int64_t(hour) * 60 + minute) * 60 + second) * Interval::MICROS_PER_SEC + microseconds;
+	if (total_micros > Interval::MICROS_PER_DAY) {
+		return false;
+	}
 	return true;
 }
 
 void Time::Convert(dtime_t dtime, int32_t &hour, int32_t &min, int32_t &sec, int32_t &micros) {
-	int64_t time = dtime.micros;
+	int64_t time = dtime.value;
 	hour = int32_t(time / Interval::MICROS_PER_HOUR);
 	time -= int64_t(hour) * Interval::MICROS_PER_HOUR;
 	min = int32_t(time / Interval::MICROS_PER_MINUTE);

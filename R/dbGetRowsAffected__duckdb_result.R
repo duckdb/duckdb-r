@@ -2,9 +2,7 @@
 #' @inheritParams DBI::dbGetRowsAffected
 #' @usage NULL
 dbGetRowsAffected__duckdb_result <- function(res, ...) {
-  if (!res@env$open) {
-    stop("result has already been cleared")
-  }
+  check_result_open(res)
   if (is.null(res@env$resultset)) {
     return(NA_integer_)
   }
@@ -13,4 +11,8 @@ dbGetRowsAffected__duckdb_result <- function(res, ...) {
 
 #' @rdname duckdb_result-class
 #' @export
-setMethod("dbGetRowsAffected", "duckdb_result", dbGetRowsAffected__duckdb_result)
+setMethod(
+  "dbGetRowsAffected",
+  "duckdb_result",
+  dbGetRowsAffected__duckdb_result
+)

@@ -43,8 +43,20 @@ ConvertOpts::GeometryConversion string_to_geometry_conversion(const std::string 
 	rapi_error_with_context("string_to_geometry_conversion", "Invalid geometry value: " + str);
 }
 
+ConvertOpts::MapShape string_to_map_shape(const std::string &str) {
+	if (str == "data.frame")
+		return ConvertOpts::MapShape::DATA_FRAME;
+	if (str == "list_of")
+		return ConvertOpts::MapShape::LIST_OF;
+	rapi_error_with_context("string_to_map_shape", "Invalid map value: " + str);
+}
+
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
 	return use_arrow ? ConvertOpts::ArrowConversion::ENABLED : ConvertOpts::ArrowConversion::DISABLED;
+}
+
+ConvertOpts::AllowStreamResult bool_to_allow_stream_result(bool allow_stream_result) {
+	return allow_stream_result ? ConvertOpts::AllowStreamResult::ENABLED : ConvertOpts::AllowStreamResult::DISABLED;
 }
 
 ConvertOpts::ExperimentalFeatures bool_to_experimental_features(bool use_experimental) {
@@ -77,8 +89,14 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 	// Extract geometry
 	geometry = string_to_geometry_conversion(as_cpp<std::string>(options["geometry"]));
 
+	// Extract map
+	map = string_to_map_shape(as_cpp<std::string>(options["map"]));
+
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));
+
+	// Extract streaming
+	allow_stream_result = bool_to_allow_stream_result(as_cpp<bool>(options["allow_stream_result"]));
 
 	// Extract experimental
 	experimental = bool_to_experimental_features(as_cpp<bool>(options["experimental"]));

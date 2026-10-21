@@ -15,7 +15,15 @@ struct ConvertOpts {
 
 	enum class GeometryConversion { BLOB, WK };
 
+	enum class MapShape { DATA_FRAME, LIST_OF };
+
 	enum class ArrowConversion { DISABLED, ENABLED };
+
+	// Whether the engine may hand back a result that streams rather than one
+	// it materialized before returning; statement.cpp decides it in
+	// StreamsByDefault(). Distinct from the user-facing `stream` argument of
+	// dbSendQuery(), which expresses intent at the R level.
+	enum class AllowStreamResult { DISABLED, ENABLED };
 
 	enum class ExperimentalFeatures { DISABLED, ENABLED };
 
@@ -27,9 +35,17 @@ struct ConvertOpts {
 	BigIntType bigint = BigIntType::NUMERIC;
 	ArrayConversion array = ArrayConversion::NONE;
 	GeometryConversion geometry = GeometryConversion::BLOB;
+	MapShape map = MapShape::DATA_FRAME;
 	ArrowConversion arrow = ArrowConversion::DISABLED;
+	AllowStreamResult allow_stream_result = AllowStreamResult::DISABLED;
 	ExperimentalFeatures experimental = ExperimentalFeatures::DISABLED;
 	StrictRelational strict_relational = StrictRelational::ENABLED;
+
+	// Session-derived timezone used to display TIMESTAMP WITH TIME ZONE values.
+	// Populated from `result.client_properties.time_zone` at result materialization
+	// time, so explicit `SET TimeZone = ...` (e.g. via the ICU extension) is
+	// respected. Empty string means "fall back to `timezone_out`".
+	string session_time_zone = "";
 
 	// Constructor with defaults
 	ConvertOpts() = default;
@@ -38,10 +54,11 @@ struct ConvertOpts {
 
 	// Constructor with parameters
 	ConvertOpts(std::string timezone_out_p, TzOutConvert tz_out_convert_p, BigIntType bigint_p, ArrayConversion array_p,
-	            GeometryConversion geometry_p, ArrowConversion arrow_p, ExperimentalFeatures experimental_p,
-	            StrictRelational strict_relational_p)
+	            GeometryConversion geometry_p, MapShape map_p, ArrowConversion arrow_p,
+	            ExperimentalFeatures experimental_p, StrictRelational strict_relational_p)
 	    : timezone_out(std::move(timezone_out_p)), tz_out_convert(tz_out_convert_p), bigint(bigint_p), array(array_p),
-	      geometry(geometry_p), arrow(arrow_p), experimental(experimental_p), strict_relational(strict_relational_p) {
+	      geometry(geometry_p), map(map_p), arrow(arrow_p), experimental(experimental_p),
+	      strict_relational(strict_relational_p) {
 	}
 };
 

@@ -1,35 +1,30 @@
+"""Regenerate the vendored build configuration from a DuckDB checkout:
+src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and
+the logos.
+
+The logos land in man/figures/. Called by vendor.sh and vendor-one.sh
+with DUCKDB_PATH set.
+"""
 import os
-import sys
 import shutil
-import subprocess
+import sys
 import platform
 
 extensions = ['parquet','core_functions']
 
-# check if there are any additional extensions being requested
 if 'DUCKDB_R_EXTENSIONS' in os.environ:
     extensions = extensions + os.environ['DUCKDB_R_EXTENSIONS'].split(",")
-
-unity_build = 20
-if 'DUCKDB_BUILD_UNITY' in os.environ:
-    try:
-        unity_build = int(DUCKDB_BUILD_UNITY)
-    except:
-        pass
 
 debug_move_flag = ''
 if 'DUCKDB_DEBUG_MOVE' in os.environ:
     debug_move_flag = ' -DDUCKDB_DEBUG_MOVE'
 
-# This requires the mother duckdb repo to be checked out in a parallel directory
-# (or in a directory specified by the DUCKDB_PATH environment variable).
-# Submodules can't be used because they break R CMD build
+# Submodules can't be used for the DuckDB checkout because they break R CMD build.
 if 'DUCKDB_PATH' in os.environ:
     duckdb_path = os.environ['DUCKDB_PATH']
 else:
     duckdb_path = os.path.join('../duckdb')
 
-# Extract version information early when DuckDB sources are available
 def extract_version_info():
     """Extract version info from duckdb sources if available."""
     pragma_version_path = os.path.join('src', 'duckdb', 'src', 'function', 'table', 'version', 'pragma_version.cpp')
@@ -49,7 +44,6 @@ def extract_version_info():
 
     return version
 
-# Generate R file with version information early in the process
 def generate_version_r_file(version):
     """Generate R file with hard-coded version information."""
     if version:
@@ -66,6 +60,38 @@ get_duckdb_version <- function() {{
 
         with open(os.path.join('R', 'version.R'), 'w', encoding='utf-8') as f:
             f.write(r_version_content)
+
+
+# The logos the package shows, and the only files this script takes from
+# upstream that are not sources. They ride along with the vendored commit so
+# what a reader sees cannot drift from the engine it documents: the previous
+# README hotlinked duckdb.org, those URLs went away, and GitHub -- which
+# proxies README images and serves nothing for a URL it cannot fetch -- showed
+# no logo at all until the files were vendored.
+#
+# The horizontal pair keeps its upstream name; the stacked pair is the package
+# logo, and pkgdown finds that one by the name man/figures/logo.svg rather than
+# by configuration, so the rename is not ours to choose.
+logo_files = [
+    ('DuckDB_Logo-horizontal.svg', 'DuckDB_Logo-horizontal.svg'),
+    ('DuckDB_Logo-horizontal-dark-mode.svg', 'DuckDB_Logo-horizontal-dark-mode.svg'),
+    ('DuckDB_Logo-stacked.svg', 'logo.svg'),
+    ('DuckDB_Logo-stacked-dark-mode.svg', 'logo-dark-mode.svg'),
+]
+
+
+def copy_logos():
+    """Copy the logos from the DuckDB checkout into man/figures/."""
+    source_dir = os.path.join(duckdb_path, 'logo')
+    target_dir = os.path.join('man', 'figures')
+
+    for name, target in logo_files:
+        source = os.path.join(source_dir, name)
+        if not os.path.isfile(source):
+            print("Could not find logo {}!".format(source))
+            print("  Update logo_files here and README.md together.")
+            exit(1)
+        shutil.copyfile(source, os.path.join(target_dir, target))
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
 import package_build
@@ -94,51 +120,96 @@ link_flags = ''
 for libname in libraries:
     link_flags += ' -l' + libname
 
-# check if we are doing a build from an existing DuckDB installation
-if 'DUCKDB_R_BINDIR' in os.environ and 'DUCKDB_R_CFLAGS' in os.environ and 'DUCKDB_R_LIBS' in os.environ:
-    existing_duckdb_dir = os.environ['DUCKDB_R_BINDIR']
-    compile_flags = os.environ['DUCKDB_R_CFLAGS'].replace('\\', '').replace('  ', ' ')
-    rlibs = [x for x in os.environ['DUCKDB_R_LIBS'].split(' ') if len(x) > 0]
-
-    # use existing installation: set up Makevars
-    with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
-        text = f.read()
-
-    compile_flags += package_build.include_flags(extensions)
-    compile_flags += extension_list
-
-    # find libraries
-    result_libs = package_build.get_libraries(existing_duckdb_dir, rlibs, extensions)
-
-    for rlib in result_libs:
-        libdir = rlib[0]
-        libname = rlib[1]
-        if libdir != None:
-            link_flags += ' -L' + libdir
-        if libname != None:
-            link_flags += ' -l' + libname
-
-    text = text.replace('{{ SOURCES }}', '')
-    text = text.replace('{{ INCLUDES }}', compile_flags.strip())
-    text = text.replace('{{ LINK_FLAGS }}', link_flags.strip())
-
-    # now write it to the output Makevars
-    with open_utf8(os.path.join('src', 'Makevars'), 'w+') as f:
-        f.write(text)
-    exit(0)
-
 if not os.path.isfile(os.path.join(duckdb_path, 'scripts', 'amalgamation.py')):
     print("Could not find amalgamation script!")
     exit(1)
 
+# Before the regeneration below, so a checkout that cannot supply them fails
+# in a second rather than after ~3550 files have been rewritten.
+copy_logos()
+
 target_dir = os.path.join(os.getcwd(), 'src', 'duckdb')
+
+# Where the tree this run replaces is kept while the new one is generated.
+#
+# The regeneration itself is unavoidable, but rewriting a file is not free after
+# the write: it invalidates git's stat cache entry for it, so every later git
+# command over the tree re-hashes all ~3550 files. `git status` measured 1.06 s
+# right after every file was touched against 0.017 s with the index still valid,
+# and a vendor run pays that twice per candidate -- once for the "more than one
+# changed file" test that decides whether the candidate is worth a commit, and
+# once for `git add` -- whether or not the candidate is kept.
+#
+# So the old tree is moved aside rather than deleted, and every regenerated file
+# that turns out to be byte-identical to its predecessor is replaced by that
+# predecessor: `os.replace` puts the original inode back, with the size, mtime
+# and ctime the index recorded, and the stat cache entry is valid again. The
+# tree left behind is byte-for-byte what a regeneration from scratch produces,
+# because that is what it was compared against; only the inodes below the
+# unchanged majority are older than the run.
+previous_dir = os.path.join(os.getcwd(), 'src', '.duckdb-previous')
+
+
+def files_equal(a, b):
+    """Do these two paths hold the same bytes? A missing `b` is not equal."""
+    if not os.path.isfile(b):
+        return False
+    if os.path.getsize(a) != os.path.getsize(b):
+        return False
+    with open(a, 'rb') as fa, open(b, 'rb') as fb:
+        return fa.read() == fb.read()
+
+
+def restore_unchanged(previous, target):
+    """Put back the inode of every regenerated file that did not change.
+
+    Returns (restored, rewritten).
+    """
+    restored = rewritten = 0
+    for root, dirs, files in os.walk(target):
+        rel = os.path.relpath(root, target)
+        previous_root = previous if rel == os.curdir else os.path.join(previous, rel)
+        for name in files:
+            current = os.path.join(root, name)
+            before = os.path.join(previous_root, name)
+            if files_equal(current, before):
+                os.replace(before, current)
+                restored += 1
+            else:
+                rewritten += 1
+    return restored, rewritten
+
+
+# A run that died between the move and the regeneration leaves the tree here and
+# nothing at target_dir; put it back rather than dropping it on the floor.
+if os.path.isdir(previous_dir) and not os.path.isdir(target_dir):
+    os.rename(previous_dir, target_dir)
+shutil.rmtree(previous_dir, ignore_errors=True)
+if os.path.isdir(target_dir):
+    os.rename(target_dir, previous_dir)
 
 linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
-(source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr, unity_build)
+(source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr)
+
+# Do not vendor jemalloc at all: drop its tree, its sources and its include
+# path. The R package never enables it (DUCKDB_ENABLE_JEMALLOC is never
+# defined), so duckdb's allocator uses the standard implementation. Upstream's
+# packaging emits the jemalloc tree (duckdb/duckdb#22811), which without that
+# define both fails to compile (jemalloc_cpp.cpp requires
+# DUCKDB_OVERRIDE_NEW_DELETE) and fails to link (jemalloc's constructor
+# references duckdb_malloc_ncpus(), defined only under DUCKDB_ENABLE_JEMALLOC).
+# Shipping the tree uncompiled only adds size, and its .c files fail R CMD
+# check's line-endings check on a Windows checkout, because cleanup.win turns
+# only .cc, .cpp, .h and .hpp files back to LF. Enabling jemalloc is
+# duckdb/duckdb-r#2365.
+shutil.rmtree(os.path.join(target_dir, 'third_party', 'jemalloc'), ignore_errors=True)
+source_list = [x for x in source_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
+include_list = [x for x in include_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
 
 # Walk target_dir, find all source and include files, and terminate with newline,
-# if not already present
+# if not already present. Before the restore below, so what it compares against
+# is the final content of each file.
 for root, dirs, files in os.walk(target_dir):
     for file in files:
         if file.endswith('.cpp') or file.endswith('.hpp') or file.endswith('.c') or file.endswith('.h') or file.endswith('.cc'):
@@ -149,28 +220,27 @@ for root, dirs, files in os.walk(target_dir):
                     with open (filename, "a") as fw:
                         fw.write("\n")
 
-# object list, relative paths
+restored, rewritten = restore_unchanged(previous_dir, target_dir)
+shutil.rmtree(previous_dir, ignore_errors=True)
+print("Vendored tree: {} files changed, {} unchanged".format(rewritten, restored))
+
 script_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
 
-# remove last component of the path
 root_path = os.path.dirname(script_path)
 
 duckdb_sources = [package_build.get_relative_path(os.path.join(root_path, 'src'), x) for x in source_list]
 object_list = ' '.join([x.rsplit('.', 1)[0] + '.o' for x in sorted(duckdb_sources)])
 
 
-# include list
 include_list = ' '.join(['-I' + 'duckdb/' + x for x in include_list])
-include_list += ' -I' + os.path.join('..', 'inst', 'include')
+include_list += ' -Ivendor'
 include_list += ' -Iduckdb'
 include_list += extension_list
 include_list += debug_move_flag
 
-# add -Werror if enabled
 if 'TREAT_WARNINGS_AS_ERRORS' in os.environ:
     include_list += ' -Werror'
 
-# read Makevars.in and replace the {{ SOURCES }} and {{ INCLUDES }} macros
 with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
     text = f.read()
 
@@ -181,12 +251,10 @@ if len(libraries) == 0:
 else:
     text = text.replace('{{ LINK_FLAGS }}', link_flags.strip())
 
-# now write it to the output Makevars
 with open_utf8(os.path.join('src', 'Makevars'), 'w+') as f:
     f.write(text)
 
 # same dance for Windows
-# read Makevars.in and replace the {{ SOURCES }} and {{ INCLUDES }} macros
 with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
     text = f.read()
 
@@ -195,16 +263,13 @@ include_list += " -DDUCKDB_PLATFORM_RTOOLS=1"
 text = text.replace('{{ INCLUDES }}', include_list)
 text = text.replace('{{ LINK_FLAGS }}', "-lws2_32 $(DUCKDB_RSTRTMGR_LIB)")
 
-# now write it to the output Makevars
 with open_utf8(os.path.join('src', 'Makevars.win'), 'w+') as f:
     f.write(text)
 
-# write sources.mk
 text = "SOURCES=" + object_list + '\n'
 
 with open_utf8(os.path.join('src', 'include', 'sources.mk'), 'w') as f:
     f.write(text)
 
-# Try to extract version and generate R file
 extracted_version = extract_version_info()
 generate_version_r_file(extracted_version)

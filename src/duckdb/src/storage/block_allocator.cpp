@@ -1,10 +1,11 @@
 #include "duckdb/storage/block_allocator.hpp"
 
 #include "duckdb/common/allocator.hpp"
+#include "duckdb/common/types/uuid.hpp"
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/parallel/concurrentqueue.hpp"
-#include "duckdb/common/types/uuid.hpp"
+#include "duckdb/common/bit_utils.hpp"
 
 #if defined(_WIN32)
 #include "duckdb/common/windows.hpp"
@@ -136,21 +137,24 @@ public:
 	}
 
 	void Clear() {
-		// Return all local blocks back to global
-		if (!touched.empty()) {
-			block_allocator->touched->q.enqueue_bulk(touched.begin(), touched.size());
-			touched.clear();
+		if (alive_token && alive_token->load()) {
+			// Allocator is still alive — return local blocks to global queues
+			if (!touched.empty()) {
+				block_allocator->touched->q.enqueue_bulk(touched.begin(), touched.size());
+			}
+			if (!untouched.empty()) {
+				block_allocator->untouched->q.enqueue_bulk(untouched.begin(), untouched.size());
+			}
 		}
-		if (!untouched.empty()) {
-			block_allocator->untouched->q.enqueue_bulk(untouched.begin(), untouched.size());
-			untouched.clear();
-		}
+		touched.clear();
+		untouched.clear();
 	}
 
 private:
 	void Initialize(const BlockAllocator &block_allocator_p) {
 		cached_uuid = block_allocator_p.uuid;
 		block_allocator = block_allocator_p;
+		alive_token = block_allocator_p.alive_token;
 		untouched.clear();
 		touched.clear();
 		untouched.reserve(BATCH_SIZE);
@@ -184,6 +188,8 @@ private:
 private:
 	hugeint_t cached_uuid;
 	optional_ptr<const BlockAllocator> block_allocator;
+	// Whether the BlockAllocator is still alive.
+	shared_ptr<atomic<bool>> alive_token;
 
 	static constexpr idx_t BATCH_SIZE = 128;
 	static constexpr idx_t FREE_THRESHOLD = BATCH_SIZE * 2;
@@ -214,12 +220,14 @@ BlockAllocator::BlockAllocator(Allocator &allocator_p, const idx_t block_size_p,
     : uuid(UUID::GenerateRandomUUID()), allocator(allocator_p), block_size(block_size_p),
       block_size_div_shift(CountZeros<idx_t>::Trailing(block_size)),
       virtual_memory_size(AlignValue(virtual_memory_size_p, block_size)), virtual_memory_space(nullptr),
-      physical_memory_size(0), untouched(make_unsafe_uniq<BlockQueue>()), touched(make_unsafe_uniq<BlockQueue>()) {
+      physical_memory_size(0), untouched(make_unsafe_uniq<BlockQueue>()), touched(make_unsafe_uniq<BlockQueue>()),
+      alive_token(make_shared_ptr<atomic<bool>>(true)) {
 	D_ASSERT(IsPowerOfTwo(block_size));
 	Resize(physical_memory_size_p);
 }
 
 BlockAllocator::~BlockAllocator() {
+	alive_token->store(false);
 	GetBlockAllocatorThreadLocalState(*this).Clear();
 	if (IsActive()) {
 		try {
@@ -321,6 +329,7 @@ data_ptr_t BlockAllocator::AllocateData(const idx_t size) const {
 }
 
 void BlockAllocator::FreeData(const data_ptr_t pointer, const idx_t size) const {
+	estimated_unflushed_memory.fetch_add(size, std::memory_order_relaxed);
 	if (!IsActive() || !IsInPool(pointer)) {
 		return allocator.FreeData(pointer, size);
 	}
@@ -359,12 +368,46 @@ void BlockAllocator::ThreadFlush(bool allocator_background_threads, idx_t thresh
 }
 
 void BlockAllocator::FlushAll(const optional_idx extra_memory) const {
+	estimated_unflushed_memory.store(0, std::memory_order_relaxed);
 	if (IsActive() && IsEnabled() && extra_memory.IsValid()) {
 		FreeInternal(extra_memory.GetIndex());
 	}
 	if (Allocator::SupportsFlush()) {
 		Allocator::FlushAll();
 	}
+}
+
+idx_t BlockAllocator::GetEstimatedUnflushedMemory() const {
+	return estimated_unflushed_memory.load(std::memory_order_relaxed);
+}
+
+bool BlockAllocator::TryFlushDeallocated(const idx_t threshold, const idx_t memory_limit,
+                                         const idx_t used_memory) const {
+	if (!SupportsFlush()) {
+		return false;
+	}
+	auto deallocated = estimated_unflushed_memory.load(std::memory_order_relaxed);
+	if (deallocated < threshold) {
+		return false;
+	}
+	// the thread that claims the accumulated amount checks whether a flush is needed
+	if (!estimated_unflushed_memory.compare_exchange_strong(deallocated, 0, std::memory_order_relaxed)) {
+		return false;
+	}
+	if (!IsActive()) {
+		const auto mapped_memory = allocator.GetMappedMemory();
+		if (mapped_memory.IsValid()) {
+			// Freed pages cannot occupy more than the allocator's entire mapped footprint.
+			const auto unflushed = MinValue(deallocated, mapped_memory.GetIndex());
+			if (used_memory + unflushed <= memory_limit) {
+				// Keep the upper bound in subsequent pressure checks, adding any concurrent frees.
+				estimated_unflushed_memory.fetch_add(unflushed, std::memory_order_relaxed);
+				return false;
+			}
+		}
+	}
+	FlushAll(deallocated);
+	return true;
 }
 
 void BlockAllocator::FreeInternal(const idx_t extra_memory) const {

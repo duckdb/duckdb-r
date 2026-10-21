@@ -1,5 +1,6 @@
 #include "duckdb/common/adbc/adbc-init.hpp"
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/local_file_system.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "include/rfuns_extension.hpp"
 #include "rapi.hpp"
@@ -13,6 +14,45 @@ using namespace duckdb;
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
+}
+
+// Report the C++ standard library this package was compiled against, read from a
+// compile-time macro. The R layer uses this to detect a Linux build NOT compiled
+// with libstdc++ (typically libc++), which cannot safely load prebuilt
+// (libstdc++) DuckDB extensions -- loading one crashes R (duckdb/duckdb-r#1107).
+// Returns a cached SEXP owned by RStrings (allocated once), so callers get the
+// same string without a fresh allocation on each call.
+[[cpp11::register]] SEXP rapi_cxx_stdlib() {
+#if defined(__GLIBCXX__)
+	return RStrings::get().cxx_stdlib_libstdcxx_str;
+#elif defined(_LIBCPP_VERSION)
+	return RStrings::get().cxx_stdlib_libcxx_str;
+#else
+	return RStrings::get().cxx_stdlib_unknown_str;
+#endif
+}
+
+// Resolve a database path the way the engine itself does, so the driver cache
+// is keyed on what DuckDB considers the database's identity. Explained in
+// handbook/usage/connections/README.md.
+//
+// `CanonicalizePath()` canonicalizes the longest existing prefix of the path
+// and appends the rest, so a database that does not exist yet resolves without
+// anything being created. It does not throw when nothing resolves: the caller
+// gets a path back either way. It does throw when a relative path has no
+// working directory to resolve against, and that error reaches R as a
+// `duckdb_error` like every other engine error.
+[[cpp11::register]] cpp11::r_string rapi_canonicalize_path(std::string path) {
+	// The `LocalFileSystem` override takes the opener explicitly; only the
+	// `FileSystem` base declaration defaults it.
+	LocalFileSystem fs;
+	string result;
+	try {
+		result = fs.CanonicalizePath(path, nullptr);
+	} catch (std::exception &e) {
+		rapi_error_with_context("rapi_canonicalize_path", ErrorData(e));
+	}
+	return result;
 }
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
@@ -57,7 +97,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 12);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 16);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -70,6 +110,10 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
 	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
 	SET_VECTOR_ELT(chars, 11, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
+	SET_VECTOR_ELT(chars, 12, vctrs_list_of_str = StringsToSexp({"vctrs_list_of", "vctrs_vctr", "list"}));
+	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
+	SET_VECTOR_ELT(chars, 14, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
+	SET_VECTOR_ELT(chars, 15, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -90,18 +134,17 @@ RStrings::RStrings() {
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 	crs_sym = Rf_install("crs");
+	ptype_sym = Rf_install("ptype");
 }
 
 LogicalType RStringsType::Get() {
-	LogicalType r_string_type(LogicalTypeId::POINTER);
-	r_string_type.SetAlias(R_STRING_TYPE_NAME);
-	return r_string_type;
+	return LogicalType(LogicalTypeId::POINTER).WithAlias(R_STRING_TYPE_NAME);
 }
 
 template <class SRC, class DST, class RTYPE>
 static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 	auto result_data = FlatVector::GetData<DST>(result);
-	auto &result_mask = FlatVector::Validity(result);
+	auto &result_mask = FlatVector::ValidityMutable(result);
 	for (idx_t i = 0; i < count; i++) {
 		auto val = source_data[i];
 		if (RTYPE::IsNull(val)) {
@@ -113,8 +156,16 @@ static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 }
 
 R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
+	// A data frame counts its rows in its first column, not in its row names:
+	// the scan also calls this from a task thread for a list of data frames,
+	// and reading compact row names allocates.
 	while (rtype.id() == RTypeId::STRUCT) {
-		rtype = rtype.GetStructChildTypes()[0].second;
+		auto child_rtypes = rtype.GetStructChildTypes();
+		if (child_rtypes.empty()) {
+			// No column to count in, and no values to read
+			return 0;
+		}
+		rtype = child_rtypes[0].second;
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
 	}
@@ -131,7 +182,9 @@ R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
 }
 
 Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
-	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
+	// An integer64 parameter binds as BIGINT whatever `bigint` says about reading;
+	// read as NUMERIC, its bits would be taken for a double (handbook/usage/types/README.md).
+	auto rtype = RApiTypes::DetectRType(valsexp, true);
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
@@ -141,6 +194,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
 		return RIntegerType::IsNull(int_val) ? Value(LogicalType::INTEGER) : Value::INTEGER(int_val);
+	}
+	case RType::INTEGER64: {
+		auto i64_val = ((int64_t *)NUMERIC_POINTER(valsexp))[idx];
+		return RInteger64Type::IsNull(i64_val) ? Value(LogicalType::BIGINT) : Value::BIGINT(i64_val);
 	}
 	case RType::NUMERIC: {
 		auto dbl_val = NUMERIC_POINTER(valsexp)[idx];
@@ -272,61 +329,40 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	}
 }
 
-SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
+SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	if (val.IsNull()) {
 		return R_NilValue;
 	}
 
-	switch (val.type().id()) {
-	case LogicalTypeId::BOOLEAN:
-		return cpp11::logicals({val.GetValue<bool>()});
-	case LogicalTypeId::TINYINT:
-	case LogicalTypeId::SMALLINT:
-	case LogicalTypeId::INTEGER:
-	case LogicalTypeId::UTINYINT:
-	case LogicalTypeId::USMALLINT:
-	case LogicalTypeId::UINTEGER:
-		return cpp11::integers({val.GetValue<int32_t>()});
-	case LogicalTypeId::BIGINT:
-	case LogicalTypeId::UBIGINT:
-	case LogicalTypeId::FLOAT:
-	case LogicalTypeId::DOUBLE:
-	case LogicalTypeId::DECIMAL:
-		return cpp11::doubles({val.GetValue<double>()});
-	case LogicalTypeId::VARCHAR:
-		return StringsToSexp({val.ToString()});
-	case LogicalTypeId::TIMESTAMP: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
-		// TODO bit of duplication here with statement.cpp, fix this
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
-		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({""}));
-		return res;
-	}
-	case LogicalTypeId::TIMESTAMP_TZ: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
-		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
-		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({timezone_config}));
-		return res;
-	}
-	case LogicalTypeId::TIME: {
-		cpp11::doubles res({(double)val.GetValue<dtime_t>().micros / Interval::MICROS_PER_SEC});
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().difftime_str);
-		// we always return difftime as "seconds"
-		Rf_setAttrib(res, RStrings::get().units_sym, RStrings::get().secs_str);
-		return res;
+	auto &type = val.type();
+
+	// UNION: unwrap and recurse with the active member's value
+	if (type.id() == LogicalTypeId::UNION) {
+		auto &val_ref = UnionValue::GetValue(val);
+		return ValueToSexp(val_ref, convert_opts);
 	}
 
-	case LogicalTypeId::DATE: {
-		cpp11::doubles res({(double)int32_t(val.GetValue<date_t>())});
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().Date_str);
-		return res;
-	}
+	// Create a single-element Vector and reuse the existing transform pipeline
+	Vector vec(type, 1);
+	vec.SetValue(0, val);
 
+	// Hold the destination across `duckdb_r_decorate()` and `duckdb_r_transform()`:
+	// both allocate, and an unprotected `dest` can be collected mid-conversion.
+	cpp11::sexp dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
+	duckdb_r_decorate(type, dest, convert_opts);
+	duckdb_r_transform(vec, dest, 0, 1, convert_opts, "variant");
+
+	// Types stored as per-row VECSXP elements: extract element 0
+	// STRUCT returns a 1-row data frame: return as-is
+	// Scalars return a length-1 vector: return as-is
+	switch (type.id()) {
+	case LogicalTypeId::LIST:
+	case LogicalTypeId::MAP:
+	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
+		return VECTOR_ELT(dest, 0);
 	default:
-		throw NotImplementedException("Can't convert %s of type %s", val.ToString(), val.type().ToString());
+		return dest;
 	}
 }
 
@@ -341,8 +377,19 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// ALTREP guard depth counter; see the class comment in rapi.hpp.
+std::atomic<int> AltrepGuard::depth {0};
+
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Inside an ALTREP method, calling back into R via cpp11::function is
+	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
+	// method without unwinding C++ frames. Throw a regular C++ exception so
+	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + message);
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
@@ -356,6 +403,11 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Inside an ALTREP method, see comment in the string overload above.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + error_data.Message());
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 
@@ -366,21 +418,21 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	// Convert ExceptionType to string
 	std::string error_type = EnumUtil::ToChars(error_data.Type());
 
-	// Convert extra_info to R list
-	cpp11::writable::list extra_info;
+	// Convert extra_info to a named character vector, which `rapi_error()` hands
+	// to the caller as the `extra_info` field of the condition.
 	const auto &info_map = error_data.ExtraInfo();
 
 	cpp11::writable::strings names(info_map.size());
-	cpp11::writable::strings values(info_map.size());
+	cpp11::writable::strings extra_info(info_map.size());
 
 	size_t i = 0;
 	for (const auto &pair : info_map) {
 		names[i] = pair.first;
-		values[i] = pair.second;
+		extra_info[i] = pair.second;
 		i++;
 	}
 
-	values.names() = names;
+	extra_info.names() = names;
 
 	// Call R function with all parameters
 	rapi_error(context, message, error_type, raw_message, extra_info);

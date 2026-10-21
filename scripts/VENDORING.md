@@ -1,232 +1,225 @@
 # DuckDB R Package Vendoring
 
-This document covers the mechanics of vendoring (running the scripts, troubleshooting failures).
-For the branch strategy, the complete list of active branches, and the release process, see
-[BRANCHES.md](../BRANCHES.md), which is the authoritative source.
+*Handbook: [`operations/vendoring/`](/handbook/operations/vendoring/README.md) —
+its leaves state the model, the pipeline, the loop, and the
+troubleshooting map; where the two disagree, the leaf is right.*
 
-## What is Vendoring?
+What is left here is what those leaves do not carry yet:
+driving the scripts by hand, and creating a patch.
+Every heading below is a candidate for absorption,
+and this file goes away when the last one lands.
+For the series invariants see
+[BRANCHES.md](/BRANCHES.md#series-invariants);
+for the design notes behind the series loop see
+[superseded/vendoring-loop.md](/plan/superseded/vendoring-loop.md).
 
-Vendoring is the practice of including a copy of external dependencies directly in your source code repository. The duckdb-r package vendors (includes a complete copy of) the DuckDB C++ core library in the `src/duckdb/` directory.
+What this file used to carry, and where each part lives now:
 
-## Why Vendor DuckDB?
+* what vendoring is, why, and the invariants every `-dev` branch keeps —
+  [`vendoring/model/`](/handbook/operations/vendoring/model/README.md)
+* which series exist —
+  [`branches/model/`](/handbook/branches/model/README.md),
+  and the published flavors
+  [`branches/flavors/`](/handbook/branches/flavors/README.md)
+* what the two vendor scripts do — the dirty-tree refusal, the base
+  scan, the more-than-one-file rule, `vendor-one.sh`'s version bump, what
+  `rconfigure.py` regenerates, and the patch stack —
+  [`vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
+* the version counters and the merge driver —
+  [`releases/versioning/`](/handbook/operations/releases/versioning/README.md)
+* the automated loop —
+  [`vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)
+* the failure classes and what each needs —
+  [`vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)
+* release considerations —
+  [`releases/process/`](/handbook/operations/releases/process/README.md)
+* what each script in this directory does —
+  [`scripts/README.md`](README.md), the generated index of this directory
 
-- **Self-contained builds**: The R package can be built without requiring users to have DuckDB installed separately
-- **Version compatibility**: Ensures the R bindings work with a specific, tested version of the DuckDB core
-- **CRAN compliance**: Meets CRAN requirements for packages to be self-contained
-- **Reproducible builds**: Eliminates dependency on external DuckDB installations
+## Driving the scripts by hand
 
-## Active Dev Branches
+[`vendor.sh`](vendor.sh) vendors the upstream clone's `HEAD` as it stands,
+so check the clone out at the exact commit you want before running it;
+[`vendor-one.sh`](vendor-one.sh) walks forward instead, one unvendored
+upstream first-parent commit at a time.
+What the two share is
+[`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s.
+Three things an operator needs beyond what it states:
 
-The `vendor.yaml` workflow vendors into three dev branches (see `BRANCHES.md` for the full branch list):
+* **Where the upstream clone goes.**
+  The positional argument is the source repository, and where each
+  script looks when it is omitted is
+  [`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s.
+  Unless it is already called `duckdb`, it is cloned into `./duckdb` in
+  the package root — which is `.gitignore`d — and that clone is `rm -rf`ed
+  when the script exits.
+* **How far `vendor-one.sh` goes.**
+  `--commits N` repeats the walk up to `N` times (the routine uses 100),
+  stopping early when no candidates remain — or at a tag:
+  a candidate that `git describe --tags` resolves exactly is always
+  vendored, its subject gets a `(tag vX.Y.Z)` marker, and the run ends
+  there.
+* **What a strand commit is.**
+  `--strand` writes a commit for the series' vendor strand
+  ([`branches/model/`](/handbook/branches/model/README.md)):
+  the regenerated tree, the patch stack applied to it and the files generated from it,
+  with no counter bump and no glue gate.
+  The loop derives the buffer from it with [`series-vendor.sh`](series-vendor.sh),
+  which stamps and gates each pick.
+* **How deep the base scan looks.**
+  Twenty commits, the same bound `series_vendored_sha()` uses in
+  [`series-lib.sh`](series-lib.sh); `BASE_SCAN_DEPTH` raises it.
 
-| Dev branch           | Vendors from upstream |
-|----------------------|-----------------------|
-| `v1.4-andium-dev`    | `v1.4-andium`         |
-| `v1.5-variegata-dev` | `v1.5-variegata`      |
-| `main-dev`           | `main`                |
-
-To add or change a branch, update the matrix in `.github/workflows/vendor.yaml`.
-
-## Automated Vendoring Process
-
-### Workflow Trigger
-
-The vendoring process is automated via GitHub Actions (`.github/workflows/vendor.yaml`):
-
-- **Schedule**: Runs every hour (`0 * * * *`)
-- **Manual trigger**: Can be triggered via `workflow_dispatch`
-- **Code changes**: Triggers on changes to vendoring scripts or workflow
-
-### Vendoring Logic
-
-The automation uses `scripts/vendor-one.sh` which:
-
-1. **Clones the upstream DuckDB repository** to `.git/duckdb`
-2. **Checks for new commits** since the last vendor commit
-3. **Processes commits sequentially** from the last vendored commit
-4. **Applies R-specific patches** from the `patch/` directory
-5. **Makes intelligent decisions**:
-   - Always vendors Git tags (releases)
-   - Only vendors commits with substantial changes (at least one file changed)
-   - Preserves version compatibility (won't vendor if tags are incompatible)
-
-## Manual Vendoring
-
-### Local Development Setup
-
-If you need to test new DuckDB functionality locally:
+### Local setup
 
 ```bash
-# Ensure your clone structure:
-# ~/
-#   duckdb/          # Main DuckDB repository
+# A clone structure the default reaches, three levels up:
+# ~/git/
+#   duckdb/              # Upstream DuckDB repository
 #   R/
-#     duckdb-r/      # This repository
+#     duckdb/
+#       duckdb-r/        # This repository
 
 # Update DuckDB to desired branch/commit
-cd ~/duckdb
+cd ~/git/duckdb
 git checkout desired_branch_or_commit
 
-# Run vendoring
-cd ~/R/duckdb-r
-scripts/vendor.sh ../../../duckdb
+# Run vendoring; any other layout passes the path instead
+cd ~/git/R/duckdb/duckdb-r
+scripts/vendor.sh
 
 # Build and test
 R CMD INSTALL .
 ```
 
-### Manual Vendoring Script
+### Creating a patch
 
-For one-time vendoring of the current state:
-
-```bash
-# From duckdb-r directory
-scripts/vendor.sh /path/to/duckdb/repo
-```
-
-For commit-by-commit vendoring (mimics CI):
-
-```bash
-scripts/vendor-one.sh /path/to/duckdb/repo
-```
-
-## Understanding Vendor Commits
-
-Vendor commits follow a specific format:
-
-```text
-vendor: Update vendored sources to duckdb/duckdb@<commit_hash>
-
-<original_commit_message_1>
-<original_commit_message_2>
-...
-```
-
-For tagged releases:
-
-```text
-vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>
-```
-
-## Troubleshooting
-
-### Vendoring Stopped Working
-
-1. **Check GitHub Actions**: Look for failed vendor workflow runs
-2. **R CMD check failures**: Vendoring stops if R package checks fail
-3. **Tag incompatibility**: Won't vendor if version tags don't align
-4. **Clean working directory**: Ensure no uncommitted changes
-
-### Manual Recovery
-
-If automated vendoring breaks:
-
-```bash
-# 1. Clone fresh DuckDB repository
-git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
-
-# 2. Checkout target branch
-cd /tmp/duckdb-vendor
-git checkout v1.4-andium   # adjust to target series
-
-# 3. Run manual vendor
-cd /path/to/duckdb-r
-scripts/vendor.sh /tmp/duckdb-vendor
-
-# 4. Test build
-R CMD INSTALL .
-```
-
-### Common Issues
-
-**Issue**: `Error: working directory not clean`
-**Solution**: Commit or stash all changes before vendoring
-
-**Issue**: Patch files failing to apply
-**Solution**: Patches in `patch/*.patch` may need updating for new DuckDB versions. See [Patch Stack](../BRANCHES.md#patch-stack) in BRANCHES.md.
-
-**Issue**: Build failures after vendoring
-**Solution**: Check if R-specific configuration in `scripts/rconfigure.py` needs updates
-
-## Monitoring Vendoring
-
-### GitHub Actions
-
-- Monitor the [vendor workflow](https://github.com/duckdb/duckdb-r/actions/workflows/vendor.yaml)
-- Check for failed runs or stuck processes
-
-### Commit History
-
-Look for recent vendor commits:
-
-```bash
-git log --oneline --grep="vendor:" -10
-```
-
-### Version Tracking
-
-Check what DuckDB version is currently vendored:
-
-```bash
-# Check the most recent vendor commit
-git log --oneline -1 --grep="vendor:"
-```
-
-## Files and Directories
-
-### Key Vendoring Files
-
-- `scripts/vendor.sh` - Manual vendoring script
-- `scripts/vendor-one.sh` - CI vendoring script (commit-by-commit)
-- `scripts/rconfigure.py` - R-specific DuckDB configuration
-- `.github/workflows/vendor.yaml` - Automated vendoring workflow
-- `patch/*.patch` - R-specific patches applied to DuckDB code (see [Patch Stack](../BRANCHES.md#patch-stack))
-
-### Vendored Content
-
-- `src/duckdb/` - Complete DuckDB C++ source code (DO NOT modify directly)
-- `R/version.R` - R package version information updated during vendoring
-
-### Generated Content
-
-- `.git/duckdb/` - Temporary clone of DuckDB repository (CI only)
-
-## Development Guidelines
-
-### When Working with Vendored Code
-
-1. **Never modify `src/duckdb/` directly** - changes will be overwritten
-2. **Use patches**: Create `.patch` files in `patch/` directory for necessary changes
-3. **Update `rconfigure.py`**: For R-specific build configuration changes
-4. **Test both branches**: Ensure changes work with both stable and bleeding-edge DuckDB
-
-### Creating Patches
-
-If you need to modify DuckDB code:
+The stack's rules — application order, numbering, when a patch retires —
+are [Patch Stack](/BRANCHES.md#patch-stack).
+Producing one is a diff against the freshly regenerated tree:
 
 ```bash
 # 1. Make changes to src/duckdb/
 # 2. Generate patch
-git diff > patch/my-fix.patch
+git diff > patch/00NN-my-fix.patch
 # 3. Test that patch applies cleanly
 git checkout -- src/duckdb/
-patch -p1 < patch/my-fix.patch
+patch -p1 < patch/00NN-my-fix.patch
 ```
 
-## Release Considerations
+### Commit-by-commit vendoring, verified locally
 
-### For CRAN Releases
+This is the local equivalent of what CI does,
+and the loop to use when replaying a long stretch of upstream history.
+Check the upstream clone out at the **last** commit you want vendored,
+so that the walk terminates by itself:
 
-- Use `main` branch (stable DuckDB version)
-- Ensure vendored version matches package version in `DESCRIPTION`
-- Test with clean vendor state
+```bash
+export MAKEFLAGS=-j$(nproc) NOT_CRAN=true DUCKDB_R_RUN_TESTS=true
 
-### For Development Releases
+while scripts/vendor-one.sh --commits 1; do
+  rm -f src/*.o                                # see below — mandatory
+  R CMD INSTALL . --no-byte-compile || break   # repair, then `git commit --amend`
+  R -q -e 'testthat::test_local()'       || break
+done
+```
 
-- Use `next` branch for testing new DuckDB features
-- Be prepared for potential instability
-- Document any known issues with bleeding-edge features
+`rm -f src/*.o` is not an optimisation, it is required for the loop to mean anything.
+The `src/*.dd` dependency files deliberately record only local `include/` headers
+(`src/include/deps.mk` filters out everything under `duckdb/`),
+so `make` does not know that the glue objects depend on the vendored engine headers.
+Without the `rm`, the glue is never recompiled after vendoring:
+API breakages go unnoticed and the package is linked from objects
+built against a different engine.
+A fresh CI checkout does not have this problem, which is why it only bites locally.
 
----
+Three things make this affordable:
 
-This vendoring system ensures that the duckdb-r package stays synchronized with DuckDB development while maintaining stability for end users.
+* **ccache.**
+  Adjacent vendor commits change a median of two `.cpp` files and no headers,
+  so a warm ccache turns a ~15 minute cold build into a couple of minutes;
+  wide-header commits are the exception, not the rule
+  (measured in [`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md)).
+  Point R at it via `~/.R/Makevars` (`CXX = ccache g++`, …)
+  and give it a cache large enough to hold several trees (`ccache --max-size=20G`).
+  Note that ccache reads `$CCACHE_DIR/ccache.conf` (i.e. `~/.ccache/ccache.conf`)
+  in preference to `~/.config/ccache/ccache.conf` once the legacy directory exists —
+  a `--set-config` that lands in the wrong file silently keeps the 5 GB default.
+* **Failing fast.**
+  Most breakages are glue-code compile errors,
+  and `OBJECTS = $(GLUE) $(SOURCES)` puts the ~15 glue files first,
+  so they fail within a minute rather than after the engine has been rebuilt.
+  To check the glue alone, without building anything, compile it with `-fsyntax-only`
+  using the flags `R CMD INSTALL` prints.
+* **Skipping the engine when it did not change.**
+  With the objects already in place, a vendor commit that touches two `.cpp` files
+  costs only those two plus the glue relink.
+
+Measured on a 4-core container (R 4.5.3, ccache 4.9.1, `-O2` without `-g`, no LTO),
+replaying 81 vendor commits of upstream `main` one at a time:
+about 4 s to vendor and 30 s to run the testsuite, against ~50 minutes
+for the initial cold build of a new engine tree.
+Build time is strongly **bimodal**, and the split is what to plan around:
+
+| | median | min | max | share under 2 min | total |
+|---|---|---|---|---|---|
+| 81 commits, fork point → 102 upstream first-parent commits later | 56 s | 15 s | 754 s | 46/80 (57 %) | ~5 h |
+
+The cheap mode is a commit that changes only `.cpp` files;
+the expensive mode is a commit touching a widely-included header,
+which invalidates a large share of the ~345 unity objects at once.
+Note that the mix depends on *which* branch is being replayed:
+Appendix A of [superseded/vendoring-loop.md](/plan/superseded/vendoring-loop.md) measured a release branch,
+where 66 % of commits touch no header at all,
+whereas a mainline window in active pre-release development
+runs closer to a 57/43 split — plan bulk replays off the pessimistic figure.
+
+When a commit breaks, fix the glue and `git commit --amend`
+so the fix lands *in* the vendor commit, then continue the loop.
+Never run `R CMD build` in a working tree you still need:
+the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
+
+### A tag upstream pushed late
+
+`vendor-one.sh` writes the `(tag vX.Y.Z)` marker only for a tag that exists when it vendors the commit,
+and upstream sometimes pushes the tag later, onto a commit the buffer has already vendored.
+That commit then stamps `vX.Y.Z-devN` in `pragma_version.cpp` and `R/version.R`.
+The stamp is not cosmetic: with `-dev` in the version, `ExtensionHelper::GetVersionDirectoryName()`
+answers the source id instead of the tag, so the build installs extensions from `extensions.duckdb.org/<source id>/` rather than `/vX.Y.Z/`.
+It happened to v1.5.6 on 2026-09-28.
+
+**When the tagged commit is the buffer's newest, the next run repairs it.**
+`vendor-one.sh` checks the commit it last vendored for a tag before it walks on,
+re-vendors it when the tag is there and the marker is not,
+and appends the result as a second vendor commit for the same upstream SHA, marker included.
+The two differ in the version stamp and the fifth version component, and in nothing else.
+The re-stamp is appended rather than amended because the plain commit may already sit under `<S>-green`, which only fast-forwards,
+and it ends the run, as any tag does.
+Stage 5 carries it onto `<S>-dev` like any buffer commit, and CUT goes on as usual.
+A run sees only the tags its upstream clone has, so fetch the clone with `--tags` before stage 1.
+
+Two vendor commits for one SHA is why every script that pairs commits by vendored SHA matches the marker as well:
+`series-advance.sh` and `series-check.sh` for the commit stage 5 consumes from,
+`series-advance.sh` again for the base series' twin a forward mines,
+and `series-forward-build.sh` for what a resumed replay has already done.
+
+**`series-check.sh` reports the condition until it is gone.**
+A `LATE TAG` line under the series names the tag, the upstream commit, and the buffer commit that vendored it without the marker,
+and says whether the next run repairs it or the buffer has vendored past it.
+
+**When the buffer has vendored past it, the release branch takes the re-stamp.**
+Appending the tagged tree above newer vendor commits would revert them, so neither strand can take it.
+In the MERGED step of the [release process](/handbook/operations/releases/process/README.md),
+bring `<S>-dev` onto the release branch up to the plain vendor commit for the tag and no further,
+then re-vendor that same commit there before bumping the version:
+
+```bash
+git -C <upstream clone> fetch --tags origin
+git -C <upstream clone> checkout --detach vX.Y.Z
+scripts/vendor.sh <upstream clone>
+```
+
+`vendor.sh` vendors the clone's `HEAD` as it stands, which is the commit the branch already carries,
+so what it commits is the marker and the version stamp alone.
+The release branch's own checks then judge it, as they judge the version bump.
+

@@ -1,22 +1,40 @@
-duckdb_progress_env <- new.env(parent = emptyenv())
+# Handbook: handbook/usage/interactive/README.md
 
 duckdb_progress_display <- function(x) {
-  time <- Sys.time()
-  if (is.null(duckdb_progress_env$last_time)) {
-    duckdb_progress_env$last_time <- time
-  }
-
-  min_seconds <- 0.5
-  if (time - duckdb_progress_env$last_time < min_seconds) {
+  if (x >= 100) {
+    # Completion bypasses the throttle, so a completed query clears its line.
+    progress_display_reset()
     return()
   }
 
-  if (x < 100) {
-    cat(sprintf("\rDuckDB progress: %3d%%", trunc(x)))
-  } else {
-    cat("\r                     \r")
-    duckdb_progress_env$last_time <- NULL
+  time <- progress_now()
+  if (is.null(the$progress_last_time)) {
+    the$progress_last_time <- time
   }
+
+  min_seconds <- 0.5
+  if (time - the$progress_last_time < min_seconds) {
+    return()
+  }
+
+  cat(sprintf("\rDuckDB progress: %3d%%", trunc(x)))
+  the$progress_last_time <- time
+  the$progress_painted <- TRUE
+}
+
+# The clock the display reads, in seconds, apart so that a test can set it.
+progress_now <- function() {
+  as.numeric(Sys.time())
+}
+
+# Clears a painted line and restarts the throttle, at completion and when the
+# next query's display is built, since a failed query never completes.
+progress_display_reset <- function() {
+  if (isTRUE(the$progress_painted)) {
+    cat("\r                     \r")
+  }
+  the$progress_last_time <- NULL
+  the$progress_painted <- NULL
 }
 
 get_progress_display <- function() {
@@ -25,6 +43,7 @@ get_progress_display <- function() {
   if (is.null(f)) {
     f
   } else if (isTRUE(f)) {
+    progress_display_reset()
     duckdb_progress_display
   } else if (is.logical(f)) {
     NULL
@@ -32,12 +51,16 @@ get_progress_display <- function() {
     if (length(formals(f)) > 0) {
       f
     } else {
-      message('`getOption("duckdb.progress_display")` is a function that has no argument, expecting at least one argument.')
+      message(
+        '`getOption("duckdb.progress_display")` is a function that has no argument, expecting at least one argument.'
+      )
       options(duckdb.progress_display = NULL)
       NULL
     }
   } else {
-    message('`getOption("duckdb.progress_display")` is not a function, expecting either a boolean or function.')
+    message(
+      '`getOption("duckdb.progress_display")` is not a function, expecting either a boolean or function.'
+    )
     options(duckdb.progress_display = NULL)
     NULL
   }

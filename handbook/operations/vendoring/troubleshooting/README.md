@@ -1,0 +1,192 @@
+# Troubleshooting
+
+When a vendoring run is red, or a build no run covers is:
+telling the failure modes apart and reaching the right repair.
+The repair procedures are the series loop's playbooks
+([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+
+Start read-only:
+[`scripts/series-check.sh`](/scripts/series-check.sh) prints one
+verdict per series — the script's own list, a `CUTOVER` line
+where a forward counterpart has caught up, and a `PATCH DRIFT` line
+where `-dev` and `-build` carry different `patch/` stacks —
+from the harvest on the orphan `rcc2` branch,
+which stores one record per commit and failing commits'
+logs ([`ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
+Those records are copies of what the `each-rcc` run that decided each
+commit already holds, so a reader with Actions access can go to the run
+instead — and the series loop does
+([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+The store is what answers when the run cannot be reached.
+What is vendored where:
+
+```sh
+grep duckdb_version R/version.R            # the DuckDB version
+git log --oneline --grep="^vendor:" -5     # the last vendor commits
+```
+
+The failure classes, and what each needs:
+
+* **The script refuses to start** — dirty tree; commit or stash.
+* **The base scan comes up empty** — no `duckdb/duckdb@` subject
+  within `BASE_SCAN_DEPTH` (20, in both vendor scripts);
+  they refuse rather than guess a range.
+  Usually a reworded vendor subject.
+* **The glue gate stops `vendor-one.sh`** —
+  the fresh headers broke the glue;
+  fix the glue and fold it into that vendor commit.
+  The gate names the files it could not compile,
+  and only that banner (`GLUE BROKEN`, exit 3) implicates the commit at HEAD.
+* **The glue gate could not run** (`GLUE CHECK COULD NOT RUN`, exit 8, in `vendor-one.sh` and `series-forward-build.sh` alike) —
+  the compile flags come from `R CMD SHLIB -n`,
+  which needs the `src/Makevars.rstrtmgr` only `./configure` writes,
+  so this says `./configure` failed and nothing was compiled.
+  It is a local setup problem: run `./configure` and read its output.
+  The vendor commit is not implicated, and amending it fixes nothing.
+* **The generator failed** (`GENERATOR FAILED`, exit 7, in `vendor-one.sh` and `series-vendor.sh` alike):
+  regenerating the tree or deriving from the patched tree stopped before any commit,
+  and `series-vendor.sh` undoes the pick it was regenerating for.
+  Fix what the generator reads and rerun.
+* **The upstream clone cannot name a version** (`SHALLOW UPSTREAM CLONE` or
+  `NO VERSION IN THE UPSTREAM CLONE`, exit 6):
+  a shallow or tagless clone would stamp a `DUCKDB_VERSION` no extension repository serves,
+  so `vendor-one.sh` refuses before it vendors anything.
+  Fetch the history and the tags into the source clone, as the banner prints, and rerun.
+* **The clone is on the wrong line** (`WRONG UPSTREAM LINE`, exit 5):
+  the buffer's last vendored commit is not on the first-parent line of the clone's `HEAD`.
+  Check out the upstream branch the series tracks in the clone and rerun.
+* **A patch stopped applying** — if it reverses cleanly the run
+  retires it and continues; if it neither applies nor reverses the run
+  stops, and the patch needs a hand rebase against the regenerated tree
+  ([`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+* **A red `-dev` commit** — repair-vs-retry is the loop's
+  classification; a stuck shard or lost leg is
+  [`ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)'s.
+  When the tree upstream shipped is itself the defect, see below.
+* **Stale snapshots** — engine output drifted;
+  [`testing/snapshots/`](/handbook/testing/snapshots/README.md).
+* **A diagnostic no run raised** — the per-commit gate is Linux on one
+  R version, so a warning from another platform's compiler reaches this
+  repository through the published build or through a bisect, never
+  through a verdict.
+  The fix is a `patch/` entry, and which commit carries it is
+  *Where a patch goes in the chain*.
+
+## A commit upstream broke
+
+A vendor commit can be red for a reason the R side cannot adapt to:
+upstream did not build or pass at that commit,
+and the vendored tree carries the defect.
+Two repairs, and choosing between them is the decision.
+
+**Fold it forward — the default.**
+When the next upstream commit repairs the tree,
+squash the failing vendor commit into it.
+The surviving commit carries the newer tree
+and the newer `vendor: … duckdb/duckdb@<sha>` subject —
+the subject is machine-readable state,
+so it must name the tree the commit carries —
+with the folded commit's SHA and subject in the body,
+marked as not passing on its own,
+and the `R-side fix` sections of both kept.
+Mirror the fold in `<S>-build`, which carries no CI.
+Only the adjacent pair may be folded:
+squashing a longer span buries commits
+that never stood on the chain as their own tree.
+
+**Forward-port upstream's fix — the escalation.**
+When the next commit is red too, there is no green tree to fold into.
+Re-root the fixing commit's diff under `src/duckdb/`,
+add it to the patch stack ([patch stack](/BRANCHES.md#patch-stack)),
+and fold the patch and its effect into the vendor commit that needs it,
+with an `R-side fix` section naming the upstream fix —
+the same move as a glue fix, one directory over.
+The re-rooted files must be byte-identical to the fixing commit's;
+if they are not, the patch is not a forward-port of it.
+The patch retires itself:
+the vendor run that reaches upstream's own fix drops it,
+because a patch that no longer applies is dropped.
+With the patch applied, that fixing commit may change nothing
+and be skipped by the more-than-one-file rule,
+named in the next vendor commit's body like any other no-op commit.
+
+Folding costs the one-to-one correspondence with upstream history
+at that point, so a bisect can no longer land on the commit that broke;
+a patch costs a file to review, carry, and trust to retire.
+Pay the second only when the first is unavailable.
+The version counter gains a gap where the folded bump went,
+which is what a counter that orders rather than counts allows
+([`versioning/`](/handbook/operations/releases/versioning/README.md)).
+The loop's own statement of the rule is in its repair stage
+([`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md)).
+
+## Where a patch goes in the chain
+
+A `patch/` entry belongs in the first commit whose tree carries the code
+it answers.
+That is rarely the commit at which it was written:
+an entry answering a compiler diagnostic is written when someone reads
+the diagnostic, and the upstream change that raised it can be far below.
+Fold the entry and its effect on the vendored tree into that commit
+together, with an `R-side fix` section, as a forward-ported fix is folded.
+
+**Where the entry applies is a lower bound, not the answer.**
+For one that edits the code it answers the two coincide, and walking the
+patched file's commits for the first tree `patch --dry-run` accepts
+finds it.
+One that merely wraps its subject does not move with it —
+a diagnostic scoped off around a translation unit applies to every
+version of that unit, including the versions with nothing to warn about,
+so the walk answers with the seed.
+Look for where the thing being answered arrives, which is often in
+another file than the one the entry edits, and use `patch --dry-run`
+only to confirm the entry can live there.
+
+**The same distinction decides which branch an entry lives on.**
+A fix is series-specific when the code it answers is not on `main`,
+and an entry that wraps rather than edits will apply to `main` either
+way, so applying there is no evidence it belongs there.
+Landing one whose subject `main`'s engine does not carry adds a
+suppression with nothing to suppress —
+against the rule that nothing is suppressed at all
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)) —
+and it is the series' until `main`'s engine reaches the code.
+
+The buffer is where the choice is load-bearing.
+No run covers it at all
+([`branches/model/`](/handbook/branches/model/README.md)),
+and the gate that covers `-dev` is a single platform,
+so a diagnostic only the others raise is found by bisecting the buffer by
+hand — and a bisect answers what is asked of it only when every commit in
+its range is clean of what is being bisected for.
+An entry added at the top of the chain instead leaves the span below it
+carrying a defect the same branch already knows how to silence.
+
+## Two suspects that are not the vendoring
+
+**A broken or half-updated upstream clone.**
+Rule it out by vendoring from a fresh one rather than by inspecting the old one:
+
+```bash
+git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
+git -C /tmp/duckdb-vendor checkout v1.4-andium   # the target series
+scripts/vendor.sh /tmp/duckdb-vendor
+R CMD INSTALL .
+```
+
+**A `src/*.dd` file the build rewrote.**
+This used to be recorded here as spurious churn to revert with `git checkout -- src/*.dd`,
+and that advice is withdrawn.
+A `.dd` is rewritten only when its own `.cpp` is newer,
+so a build that rewrites one is reporting that the glue's include graph moved,
+and reverting it puts the stale dependency list back
+([`build/source-build/`](/handbook/build/source-build/README.md)).
+Vendoring cpp11 under `src/vendor/` is what that advice cost:
+the `.dd` files went on naming no cpp11 header at all until
+[#2719](https://github.com/duckdb/duckdb-r/pull/2719),
+and in between no glue object rebuilt when those headers changed.
+Commit the rewrite, and read a large one as the include graph having moved.
+
+It still matters that a rewritten `.dd` leaves the tree dirty,
+because [`vendor-one.sh`](/scripts/vendor-one.sh) refuses to start on one —
+which is a reason to commit it, not to revert it.

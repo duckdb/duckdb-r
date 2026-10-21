@@ -1,3 +1,5 @@
+#include "extension/parquet/reader/byte_array_length_column_reader.cpp"
+
 #include "extension/parquet/reader/decimal_column_reader.cpp"
 
 #include "extension/parquet/reader/expression_column_reader.cpp"

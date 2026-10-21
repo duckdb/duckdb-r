@@ -4,3 +4,7 @@
 
 #include "src/execution/operator/csv_scanner/buffer_manager/csv_file_handle.cpp"
 
+#include "src/execution/operator/csv_scanner/buffer_manager/csv_random_access_buffer_manager.cpp"
+
+#include "src/execution/operator/csv_scanner/buffer_manager/csv_sequential_buffer_manager.cpp"
+

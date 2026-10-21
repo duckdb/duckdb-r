@@ -1,3 +1,4 @@
+#include "duckdb/catalog/catalog.hpp"
 #include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/common/vector_operations/generic_executor.hpp"
 #include "duckdb/function/cast/cast_function_set.hpp"
@@ -20,7 +21,11 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 }
 
 [[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp,
-                                                   bool environment_scan) {
+                                                   bool environment_scan, bool allow_extensions) {
+	// Hard stop when poisoned: every DuckDB session starts here, so this single
+	// guard ensures no test or example can reach the C++ engine on CRAN.
+	DUCKDB_R_POISON_GUARD();
+
 	const char *dbdirchar;
 
 	if (dbdir.length() == 0 || dbdir.compare(IN_MEMORY_PATH) == 0) {
@@ -41,15 +46,16 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		std::string key = *it;
 		std::string val = cpp11::as_cpp<std::string>(configsexp[key]);
 		try {
-			config.SetOptionByName(key, Value(val));
+			config.SetOptionByName(Identifier(key), Value(val));
 		} catch (std::exception &e) {
-			rapi_error_with_context("rapi_startup", e);
+			rapi_error_with_context("rapi_startup", ErrorData(e));
 		}
 	}
 
 	// FIXME: Rewrite properly with shared pointers
 	auto wrapper_ = make_uniq<DBWrapper>();
 	DBWrapper *wrapper = wrapper_.get();
+	wrapper->allow_extensions = allow_extensions;
 
 	try {
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
@@ -69,11 +75,11 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		auto &schema = catalog.GetSchema(transaction, DEFAULT_SCHEMA);
 		auto scan_entry = schema.GetEntry(transaction, CatalogType::TABLE_FUNCTION_ENTRY, "arrow_scan");
 		auto &arrow_scan = scan_entry->Cast<TableFunctionCatalogEntry>();
-		for (auto &function : arrow_scan.functions.functions) {
+		arrow_scan.functions.ApplyToFunctions([](TableFunction &function) {
 			function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
-		}
+		});
 	} catch (std::exception &e) {
-		rapi_error_with_context("rapi_startup", e);
+		rapi_error_with_context("rapi_startup", ErrorData(e));
 	}
 	D_ASSERT(wrapper->db);
 
@@ -119,6 +125,19 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		rapi_error_with_context("rapi_is_locked", "Invalid database reference");
 	}
 	return dual->is_locked();
+}
+
+// Whether the reference still points at a live database. A predicate: it does not
+// lock, connect or query, and a released reference answers false rather than raising.
+[[cpp11::register]] bool rapi_database_valid(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		return false;
+	}
+	auto wrapper = dual->get();
+	if (!wrapper || !wrapper->db) {
+		return false;
+	}
+	return true;
 }
 
 [[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {

@@ -1,0 +1,11 @@
+duckdb 1.5.5 pyarrow 25.0.1
+== own-connection
+exit status 124
+== own-connection-relation
+exit status 124
+== cursor
+[(3000000,)]
+exit status 0
+== materialized
+[(3000000,)]
+exit status 0

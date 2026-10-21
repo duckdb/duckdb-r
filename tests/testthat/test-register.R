@@ -39,7 +39,8 @@ test_that("duckdb_register() works", {
 test_that("various error cases for duckdb_register()", {
   skip_if_not(TEST_RE2)
 
-  con <- local_con()
+  # Closed by hand to test unregistering afterwards, so not a local_con().
+  con <- dbConnect(duckdb())
 
   duckdb_register(con, "my_df1", iris)
   duckdb_unregister(con, "my_df1")
@@ -69,9 +70,9 @@ test_that("uppercase data frames are queryable", {
 
 test_that("experimental string handling works", {
   con <- local_con()
-  df <- data.frame(a=c(NA, as.character(1:10000)))
+  df <- data.frame(a = c(NA, as.character(1:10000)))
 
-  duckdb_register(con, "df", df, experimental=TRUE)
+  duckdb_register(con, "df", df, experimental = TRUE)
 
   expect_equal(df, dbGetQuery(con, "SELECT a::STRING a FROM df"))
   expect_equal(df, dbGetQuery(con, "SELECT a FROM df"))

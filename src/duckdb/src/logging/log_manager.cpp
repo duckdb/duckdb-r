@@ -34,6 +34,7 @@ RegisteredLoggingContext LogManager::RegisterLoggingContext(LoggingContext &cont
 }
 
 bool LogManager::RegisterLogStorage(const string &name, shared_ptr<LogStorage> &storage) {
+	unique_lock<mutex> lck(lock);
 	if (registered_log_storages.find(name) != registered_log_storages.end()) {
 		return false;
 	}
@@ -157,6 +158,15 @@ void LogManager::SetDisabledLogTypes(optional_ptr<unordered_set<string>> disable
 
 void LogManager::SetLogStorage(DatabaseInstance &db, const string &storage_name) {
 	unique_lock<mutex> lck(lock);
+	// 'SET logging_storage' cannot supply the path that file storage requires, so reject the switch
+	// here (active storage preserved) and point users at enable_logging instead of installing a
+	// path-less storage that throws on every later flush.
+	auto storage_name_to_lower = StringUtil::Lower(storage_name);
+	if (storage_name_to_lower == LogConfig::FILE_STORAGE_NAME && config.storage != storage_name_to_lower) {
+		throw InvalidConfigurationException(
+		    "Cannot select 'file' log storage via 'SET logging_storage' because it requires a path. "
+		    "Use CALL enable_logging(storage='file', storage_path='...') instead.");
+	}
 	SetLogStorageInternal(db, storage_name);
 }
 
@@ -272,6 +282,11 @@ void LogManager::RegisterDefaultLogTypes() {
 	RegisterLogType(make_uniq<QueryLogType>());
 	RegisterLogType(make_uniq<PhysicalOperatorLogType>());
 	RegisterLogType(make_uniq<MetricsLogType>());
+	RegisterLogType(make_uniq<AdaptiveFilterLogType>());
+	RegisterLogType(make_uniq<ParquetPrefetchLogType>());
+	RegisterLogType(make_uniq<AsyncTaskScheduleLogType>());
+	RegisterLogType(make_uniq<ExternalResourceLogType>());
+	RegisterLogType(make_uniq<ProgressVerificationLogType>());
 }
 
 } // namespace duckdb

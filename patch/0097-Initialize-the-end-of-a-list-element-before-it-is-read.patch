@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:06:51 +0000
+Subject: [PATCH] Initialize the end of a list element before it is read
+
+SplitStringListInternal() declares the end position of each list
+element without a value. ValueStateTransition() sets it on every path
+that sets the start position, and it is read only once a start position
+is set, but GCC 10 and 12 do not see through the transition and
+-Wmaybe-uninitialized reports the read. The end position starts out as
+zero, which the transition replaces before any read.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/function/cast/vector_cast_helpers.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/function/cast/vector_cast_helpers.cpp b/src/duckdb/src/function/cast/vector_cast_helpers.cpp
+index 579b6db8dc..0a5f4a85d3 100644
+--- a/src/duckdb/src/function/cast/vector_cast_helpers.cpp
++++ b/src/duckdb/src/function/cast/vector_cast_helpers.cpp
+@@ -288,7 +288,7 @@ static bool SplitStringListInternal(const string_t &input, OP &state) {
+ 	bool seen_value = false;
+ 	while (pos < len) {
+ 		optional_idx start_pos;
+-		idx_t end_pos;
++		idx_t end_pos = 0;
+ 
+ 		while (pos < len && (buf[pos] != ',' && buf[pos] != ']')) {
+ 			if (!ValueStateTransition(input_state, start_pos, end_pos)) {

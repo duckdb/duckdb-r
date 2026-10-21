@@ -27,16 +27,14 @@ simulate_duckdb(...)
 \item{query}{SQL code, omitting the \code{FROM} clause}
 }
 \description{
-This is a SQL backend for dbplyr tailored to take into account DuckDB's
-possibilities. This mainly follows the backend for PostgreSQL, but
-contains more mapped functions.
+This is a SQL backend for dbplyr tailored to take into account DuckDB's possibilities.
+This mainly follows the backend for PostgreSQL, but contains more mapped functions.
 
 \code{tbl_file()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}} to directly access files on disk.
 It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the request,
 and paths with special characters are supported.
 
-\code{tbl_function()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}}
-to create a lazy table from a table-generating function,
+\code{tbl_function()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}} to create a lazy table from a table-generating function,
 useful for reading nonstandard CSV files or other data sources.
 It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the query.
 See \url{https://duckdb.org/docs/data/overview} for details on data importing functions.
@@ -45,8 +43,7 @@ As an alternative, use \code{dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))}
 
 \code{tbl_query()} is deprecated in favor of \code{tbl_function()}.
 
-Use \code{simulate_duckdb()} with \code{lazy_frame()}
-to see simulated SQL without opening a DuckDB connection.
+Use \code{simulate_duckdb()} with \code{lazy_frame()} to see simulated SQL without opening a DuckDB connection.
 }
 \examples{
 \dontshow{if (identical(Sys.getenv("IN_PKGDOWN"), "true") && rlang::is_installed("dbplyr")) withAutoprint(\{ # examplesIf}

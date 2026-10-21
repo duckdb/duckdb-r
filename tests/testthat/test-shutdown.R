@@ -2,6 +2,7 @@ test_that("disconnect releases database file", {
   skip_if_not(TEST_RE2)
 
   db_path <- withr::local_tempfile(fileext = ".duckdb")
+  pkg <- get_package_name()
 
   session_1 <- callr::r_session$new()
   withr::defer(session_1$kill())
@@ -9,18 +10,18 @@ test_that("disconnect releases database file", {
   withr::defer(session_2$kill())
 
   session_1$run(
-    function(db_path) {
-      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+    function(db_path, pkg) {
+      .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), db_path)
       DBI::dbWriteTable(con, "test", data.frame(a = 1))
     },
-    list(db_path = db_path)
+    list(db_path = db_path, pkg = pkg)
   )
 
   expect_error(session_2$run(
-    function(db_path) {
-      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+    function(db_path, pkg) {
+      .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), db_path)
     },
-    list(db_path = db_path)
+    list(db_path = db_path, pkg = pkg)
   ))
 
   session_1$run(function() {
@@ -28,10 +29,10 @@ test_that("disconnect releases database file", {
   })
 
   session_2$run(
-    function(db_path) {
-      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+    function(db_path, pkg) {
+      .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), db_path)
       DBI::dbDisconnect(con, shutdown = TRUE)
     },
-    list(db_path = db_path)
+    list(db_path = db_path, pkg = pkg)
   )
 })

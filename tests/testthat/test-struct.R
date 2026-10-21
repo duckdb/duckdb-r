@@ -4,47 +4,80 @@ test_that("structs can be read", {
   con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14} AS s")
-  expect_equal(res, vctrs::data_frame(
-    s = vctrs::data_frame(x = 100L, y = "hello", z = 3.14)
-  ))
-
-  res <- dbGetQuery(con, "SELECT 1 AS n, {'x': 100, 'y': 'hello', 'z': 3.14} AS s")
-  expect_equal(res, vctrs::data_frame(
-    n = 1L,
-    s = vctrs::data_frame(x = 100L, y = "hello", z = 3.14)
-  ))
-
-  res <- dbGetQuery(con, "values (100, {'x': 100}), (200, {'x': 200}), (300, NULL)")
-  expect_equal(res, vctrs::data_frame(
-    col0 = c(100L, 200L, 300L),
-    col1 = vctrs::data_frame(x = c(100L, 200L, NA))
-  ))
-
-  res <- dbGetQuery(con, "values ('a', {'x': 100, 'y': {'a': 1, 'b': 2}}), ('b', {'x': 200, y: NULL}), ('c', NULL)")
-  expect_equal(res, vctrs::data_frame(
-    col0 = c("a", "b", "c"),
-    col1 = vctrs::data_frame(
-      x = c(100L, 200L, NA),
-      y = vctrs::data_frame(a = c(1L, NA, NA), b = c(2L, NA, NA))
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      s = vctrs::data_frame(x = 100L, y = "hello", z = 3.14)
     )
-  ))
+  )
 
-  res <- dbGetQuery(con, "select 100 AS other, [{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}] AS s")
-  expect_equal(res, vctrs::data_frame(
-    other = 100L,
-    s = list(
-      vctrs::data_frame(x = c(1L, 2L), y = c("a", "b"))
+  res <- dbGetQuery(
+    con,
+    "SELECT 1 AS n, {'x': 100, 'y': 'hello', 'z': 3.14} AS s"
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      n = 1L,
+      s = vctrs::data_frame(x = 100L, y = "hello", z = 3.14)
     )
-  ))
+  )
 
-  res <- dbGetQuery(con, "values ([{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}]), ([]), ([{'x': 1, 'y': 'a'}])")
-  expect_equal(res, vctrs::data_frame(
-    col0 = list(
-      vctrs::data_frame(x = c(1L, 2L), y = c("a", "b")),
-      vctrs::data_frame(x = integer(0), y = character(0)),
-      vctrs::data_frame(x = 1L, y = "a")
+  res <- dbGetQuery(
+    con,
+    "values (100, {'x': 100}), (200, {'x': 200}), (300, NULL)"
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      col0 = c(100L, 200L, 300L),
+      col1 = vctrs::data_frame(x = c(100L, 200L, NA))
     )
-  ))
+  )
+
+  res <- dbGetQuery(
+    con,
+    "values ('a', {'x': 100, 'y': {'a': 1, 'b': 2}}), ('b', {'x': 200, y: NULL}), ('c', NULL)"
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      col0 = c("a", "b", "c"),
+      col1 = vctrs::data_frame(
+        x = c(100L, 200L, NA),
+        y = vctrs::data_frame(a = c(1L, NA, NA), b = c(2L, NA, NA))
+      )
+    )
+  )
+
+  res <- dbGetQuery(
+    con,
+    "select 100 AS other, [{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}] AS s"
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      other = 100L,
+      s = list(
+        vctrs::data_frame(x = c(1L, 2L), y = c("a", "b"))
+      )
+    )
+  )
+
+  res <- dbGetQuery(
+    con,
+    "values ([{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}]), ([]), ([{'x': 1, 'y': 'a'}])"
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      col0 = list(
+        vctrs::data_frame(x = c(1L, 2L), y = c("a", "b")),
+        vctrs::data_frame(x = integer(0), y = character(0)),
+        vctrs::data_frame(x = 1L, y = "a")
+      )
+    )
+  )
 })
 
 test_that("structs give the same results via Arrow", {
@@ -55,56 +88,98 @@ test_that("structs give the same results via Arrow", {
 
   con <- local_con()
 
-  res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s", arrow = TRUE)
-  expect_equal(res, vctrs::data_frame(
-    s = tibble::tibble(x = 100L, y = "hello", z = 3.14)
-  ))
-
-  res <- dbGetQuery(con, "SELECT 1 AS n, {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s", arrow = TRUE)
-  expect_equal(res, vctrs::data_frame(
-    n = 1L,
-    s = tibble::tibble(x = 100L, y = "hello", z = 3.14)
-  ))
-
-  res <- dbGetQuery(con, "values (100, {'x': 100}), (200, {'x': 200}), (300, NULL)", arrow = TRUE)
-  expect_equal(res, vctrs::data_frame(
-    col0 = c(100L, 200L, 300L),
-    col1 = tibble::tibble(x = c(100L, 200L, NA))
-  ))
-
-  res <- dbGetQuery(con, "values ('a', {'x': 100, 'y': {'a': 1, 'b': 2}}), ('b', {'x': 200, y: NULL}), ('c', NULL)", arrow = TRUE)
-  expect_equal(res, vctrs::data_frame(
-    col0 = c("a", "b", "c"),
-    col1 = tibble::tibble(
-      x = c(100L, 200L, NA),
-      y = tibble::tibble(a = c(1L, NA, NA), b = c(2L, NA, NA))
+  res <- dbGetQuery(
+    con,
+    "SELECT {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s",
+    arrow = TRUE
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      s = tibble::tibble(x = 100L, y = "hello", z = 3.14)
     )
-  ))
+  )
 
-  res <- dbGetQuery(con, "select 100 AS other, [{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}] AS s", arrow = TRUE)
-  expect_equal(res, data.frame(
-    other = 100L,
-    s = vctrs::new_list_of(
-      list(
-        tibble::tibble(x = c(1L, 2L), y = c("a", "b"))
-      ),
-      ptype = tibble::tibble(x = integer(), y = character()),
-      class = "arrow_list"
+  res <- dbGetQuery(
+    con,
+    "SELECT 1 AS n, {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s",
+    arrow = TRUE
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      n = 1L,
+      s = tibble::tibble(x = 100L, y = "hello", z = 3.14)
     )
-  ))
+  )
 
-  res <- dbGetQuery(con, "values ([{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}]), ([]), ([{'x': 1, 'y': 'a'}])", arrow = TRUE)
-  expect_equal(res, data.frame(
-    col0 = vctrs::new_list_of(
-      list(
-        tibble::tibble(x = c(1L, 2L), y = c("a", "b")),
-        tibble::tibble(x = integer(0), y = character(0)),
-        tibble::tibble(x = 1L, y = "a")
-      ),
-      ptype = tibble::tibble(x = integer(), y = character()),
-      class = "arrow_list"
+  res <- dbGetQuery(
+    con,
+    "values (100, {'x': 100}), (200, {'x': 200}), (300, NULL)",
+    arrow = TRUE
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      col0 = c(100L, 200L, 300L),
+      col1 = tibble::tibble(x = c(100L, 200L, NA))
     )
-  ))
+  )
+
+  res <- dbGetQuery(
+    con,
+    "values ('a', {'x': 100, 'y': {'a': 1, 'b': 2}}), ('b', {'x': 200, y: NULL}), ('c', NULL)",
+    arrow = TRUE
+  )
+  expect_equal(
+    res,
+    vctrs::data_frame(
+      col0 = c("a", "b", "c"),
+      col1 = tibble::tibble(
+        x = c(100L, 200L, NA),
+        y = tibble::tibble(a = c(1L, NA, NA), b = c(2L, NA, NA))
+      )
+    )
+  )
+
+  res <- dbGetQuery(
+    con,
+    "select 100 AS other, [{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}] AS s",
+    arrow = TRUE
+  )
+  expect_equal(
+    res,
+    data.frame(
+      other = 100L,
+      s = vctrs::new_list_of(
+        list(
+          tibble::tibble(x = c(1L, 2L), y = c("a", "b"))
+        ),
+        ptype = tibble::tibble(x = integer(), y = character()),
+        class = "arrow_list"
+      )
+    )
+  )
+
+  res <- dbGetQuery(
+    con,
+    "values ([{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}]), ([]), ([{'x': 1, 'y': 'a'}])",
+    arrow = TRUE
+  )
+  expect_equal(
+    res,
+    data.frame(
+      col0 = vctrs::new_list_of(
+        list(
+          tibble::tibble(x = c(1L, 2L), y = c("a", "b")),
+          tibble::tibble(x = integer(0), y = character(0)),
+          tibble::tibble(x = 1L, y = "a")
+        ),
+        ptype = tibble::tibble(x = integer(), y = character()),
+        class = "arrow_list"
+      )
+    )
+  )
 })
 
 test_that("nested lists of atomic values can be written", {
@@ -122,8 +197,39 @@ test_that("nested lists of atomic values can be written", {
   expect_equal(dbReadTable(con, "df_reg"), df)
 
   df2 <- vctrs::data_frame(a = 1:2, b = list(4:6, letters[2:3]))
-  expect_error(dbWriteTable(con, "df2", df2), "register")
-  expect_error(duckdb_register(con, "df2_reg", df2), "register")
+  # A list column whose elements differ in type has no single DuckDB type.
+  # The error is raised at bind, underneath the engine, which turns the R
+  # error into a second one reading "std::exception"
+  # (handbook/architecture/glue/threading/README.md,
+  # https://github.com/duckdb/duckdb-r/pull/2816).
+  # expect_error() takes the first and lets the second escape, so catch
+  # whichever arrives and leave the message alone.
+  err <- tryCatch(dbWriteTable(con, "df2", df2), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  expect_false(dbExistsTable(con, "df2"))
+  err <- tryCatch(duckdb_register(con, "df2_reg", df2), error = identity)
+  expect_s3_class(err, "duckdb_error")
+})
+
+test_that("field names that differ only in case are different fields", {
+  con <- local_con()
+
+  # Two cells whose fields differ in case differ in type, like two cells
+  # whose fields differ in name, and a list column of them has no single type.
+  # The error can arrive as a second one, see the test above.
+  df <- data.frame(id = 1:2)
+  df$s <- list(data.frame(a = 1L), data.frame(A = 2L))
+  err <- tryCatch(duckdb_register(con, "df_reg", df), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  err <- tryCatch(dbWriteTable(con, "df", df), error = identity)
+  expect_s3_class(err, "duckdb_error")
+  expect_false(dbExistsTable(con, "df"))
+
+  # One cell holds both as two fields.
+  df <- data.frame(id = 1:2)
+  df$s <- list(data.frame(a = 1L, A = "x"), data.frame(a = 2L, A = "y"))
+  dbWriteTable(con, "both", df)
+  expect_equal(dbReadTable(con, "both"), df)
 })
 
 test_that("nested and packed columns work in full", {
@@ -146,7 +252,12 @@ test_that("nested and packed columns work in full", {
       vctrs::data_frame(
         u = structure(as.numeric(19577:19578), class = "Date"),
         v = structure(19577:19578, class = "Date"),
-        w = structure(1691507820, class = c("POSIXct", "POSIXt"), tzone = "UTC") + 0:1
+        w = structure(
+          1691507820,
+          class = c("POSIXct", "POSIXt"),
+          tzone = "UTC"
+        ) +
+          0:1
       )
     ),
     c = list(
@@ -163,7 +274,11 @@ test_that("nested and packed columns work in full", {
     f = list(
       vctrs::data_frame(
         g = list(as.raw(13), as.raw(14:15), as.raw(16:18), as.raw(19:22)),
-        h = vctrs::data_frame(u = 1:4, v = 5:8, w = list(vctrs::data_frame(s = 9:10)))
+        h = vctrs::data_frame(
+          u = 1:4,
+          v = 5:8,
+          w = list(vctrs::data_frame(s = 9:10))
+        )
       )
     ),
     i = "plain old"
@@ -195,7 +310,10 @@ test_that("packed columns work with ALTREP", {
         tmp_expr
       },
       {
-        tmp_expr <- expr_function("struct_pack", list(expr_reference("a"), expr_reference("b")))
+        tmp_expr <- expr_function(
+          "struct_pack",
+          list(expr_reference("a"), expr_reference("b"))
+        )
         expr_set_alias(tmp_expr, "d")
         tmp_expr
       }
@@ -211,7 +329,10 @@ test_that("packed columns work with ALTREP", {
         tmp_expr
       },
       {
-        tmp_expr <- expr_function("struct_pack", list(expr_reference("d"), expr_reference("c")))
+        tmp_expr <- expr_function(
+          "struct_pack",
+          list(expr_reference("d"), expr_reference("c"))
+        )
         expr_set_alias(tmp_expr, "e")
         tmp_expr
       }
@@ -256,7 +377,10 @@ test_that("nested columns work with ALTREP", {
         tmp_expr
       },
       {
-        tmp_expr <- expr_function("struct_pack", list(expr_reference("a"), expr_reference("b")))
+        tmp_expr <- expr_function(
+          "struct_pack",
+          list(expr_reference("a"), expr_reference("b"))
+        )
         expr_set_alias(tmp_expr, "d")
         tmp_expr
       }
@@ -277,7 +401,10 @@ test_that("nested columns work with ALTREP", {
         tmp_expr
       },
       {
-        tmp_expr <- expr_function("struct_pack", list(expr_reference("d"), expr_reference("c")))
+        tmp_expr <- expr_function(
+          "struct_pack",
+          list(expr_reference("d"), expr_reference("c"))
+        )
         expr_set_alias(tmp_expr, "e")
         tmp_expr
       }
@@ -319,4 +446,29 @@ test_that("nested columns work with ALTREP", {
   )
 
   expect_identical(rel_to_altrep(rel5), expected)
+})
+
+test_that("a data frame column with several fields writes as STRUCT", {
+  con <- local_con()
+  df <- data.frame(id = 1:2)
+  df$s <- data.frame(i = 1:2, j = c("a", "b"))
+
+  dbWriteTable(con, "df", df)
+
+  res <- dbGetQuery(con, "SELECT typeof(s) AS t FROM df LIMIT 1")
+  expect_equal(res$t, "STRUCT(i INTEGER, j VARCHAR)")
+  expect_equal(dbReadTable(con, "df")$s, df$s)
+})
+
+test_that("a data frame column nesting one of several fields writes as STRUCT", {
+  con <- local_con()
+  df <- data.frame(id = 1:2)
+  df$s <- data.frame(i = 1:2)
+  df$s$t <- data.frame(x = 1:2, y = c("a", "b"))
+
+  dbWriteTable(con, "df", df)
+
+  res <- dbGetQuery(con, "SELECT typeof(s) AS t FROM df LIMIT 1")
+  expect_equal(res$t, "STRUCT(i INTEGER, t STRUCT(x INTEGER, y VARCHAR))")
+  expect_equal(dbReadTable(con, "df")$s, df$s)
 })

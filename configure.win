@@ -5,7 +5,19 @@ set -e
 # Setup parallel compilation if MAKEFLAGS not already set
 cd "$(dirname "$0")"
 if [ -z "${MAKEFLAGS}" ]; then
-  makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
+  makeflags_value=$(Rscript tools/setup-makeflags.R 2>/dev/null || echo "")
+  # Rscript reports a file it cannot open on *stdout* and exits 2, so neither
+  # the redirect nor the `||` keeps that message out of the capture. Accept
+  # only the -jN the helper produces, so anything else leaves MAKEFLAGS unset.
+  case "${makeflags_value}" in
+    -j*)
+      makeflags_digits="${makeflags_value#-j}"
+      case "${makeflags_digits}" in
+        '' | *[!0-9]*) makeflags_value="" ;;
+      esac
+      ;;
+    *) makeflags_value="" ;;
+  esac
   if [ -n "${makeflags_value}" ]; then
     export MAKEFLAGS="${makeflags_value}"
     echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
@@ -15,6 +27,20 @@ else
 fi
 
 cd "$(dirname "$0")/src"
+
+# There is no fast path on Windows, so say so rather than building the
+# vendored sources as if the variable had not been set. DuckDB publishes
+# libduckdb-windows-amd64.zip, but it is built with MSVC while R's Windows
+# toolchain is the Rtools MinGW-w64 GCC: the glue calls DuckDB C++
+# internals, and the two compilers mangle those names differently, so the
+# linker resolves none of them. Measured in
+# experiments/2026-08-09-windows-fast-path/; see
+# handbook/build/fast-paths/README.md.
+if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "true" ]; then
+  echo "NOTE: DUCKDB_R_USE_SYSTEM_LIB is set but has no effect on Windows;"
+  echo "      the published libduckdb is MSVC-built and cannot be linked by"
+  echo "      R's MinGW toolchain. Compiling the vendored sources instead."
+fi
 
 r_4_2=$(Rscript --vanilla -e 'writeLines(format(getRversion() >= "4.2"))')
 

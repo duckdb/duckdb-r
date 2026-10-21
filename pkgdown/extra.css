@@ -1,0 +1,17 @@
+/* The package logo, in the header and the sidebar.
+
+   pkgdown picks it up as man/figures/logo.svg and has no notion of a second
+   one, so the dark variant is swapped in by hand. Without this the wordmark
+   stays black, which on a dark page is very nearly invisible.
+
+   pkgdown resolves its light switch -- `auto` included -- to `data-bs-theme`,
+   so keying off that attribute makes the logo follow the page in every state
+   the switch can write.
+
+   The wordmark banner needs no rule here: it lives in .github/README.md,
+   which GitHub reads and pkgdown does not, precisely so that this page shows
+   one logo rather than two. */
+
+[data-bs-theme="dark"] img.logo {
+  content: url("reference/figures/logo-dark-mode.svg");
+}

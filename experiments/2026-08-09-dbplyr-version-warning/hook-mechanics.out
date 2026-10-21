@@ -1,0 +1,31 @@
+== when the hook fires ==
+loadNamespace() -- what `dbplyr::x` does:
+  [onLoad hook] version readable here: 2.6.0 
+  attached? FALSE 
+library() on the already-loaded namespace:
+  [attach hook]
+library() after unloading:
+  [onLoad hook] version readable here: 2.6.0 
+  [attach hook]
+
+== how a condition from the hook is delivered ==
+-- warning(), warn = 0 
+   Warning message:
+   too old 
+   << load OK | attached: TRUE >>
+-- warning(), warn = 2 
+   Error : (converted from warning) too old
+   << load OK | attached: TRUE >>
+-- warning() under suppressPackageStartupMessages() 
+   Warning message:
+   too old 
+   << load OK | attached: TRUE >>
+-- packageStartupMessage() 
+   too old
+   << load OK | attached: TRUE >>
+-- packageStartupMessage() under suppressPackageStartupMessages() 
+   << load OK | attached: TRUE >>
+
+-- and without call. = FALSE, R names its own hook caller:
+   Warning message:
+   In fun(pkgname, pkgpath) : too old

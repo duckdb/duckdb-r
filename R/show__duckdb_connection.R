@@ -2,7 +2,11 @@
 #' @inheritParams methods::show
 #' @usage NULL
 show__duckdb_connection <- function(object) {
-  message(sprintf("<duckdb_connection %s driver=%s>", extptr_str(object@conn_ref), drv_to_string(object@driver)))
+  message(sprintf(
+    "<duckdb_connection %s driver=%s>",
+    extptr_str(object@conn_ref),
+    drv_to_string(object@driver)
+  ))
   invisible(NULL)
 }
 

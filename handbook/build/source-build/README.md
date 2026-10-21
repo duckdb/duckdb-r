@@ -1,0 +1,90 @@
+# Source build
+
+How a source tree becomes an installed shared library:
+`configure`, the Makevars assembly, and the tarball round trip.
+
+```sh
+export MAKEFLAGS="-j$(nproc)"
+R CMD INSTALL . --no-byte-compile
+```
+
+The first build compiles the whole vendored engine — tens of minutes;
+an agent driving it must not cancel it.
+An edit-test loop should not use this build at all:
+[`fast-paths/`](/handbook/build/fast-paths/README.md)
+turns the same command into seconds.
+
+**Two stages.**
+`R CMD INSTALL` runs `./configure` (`configure.win` on Windows),
+then `make` in `src/` driven by `src/Makevars`.
+`configure` computes no compiler flags;
+it writes small include fragments that `src/Makevars` picks up —
+`Makevars.rstrtmgr`, then either `Makevars.system-lib` for the fast path
+or a `Makevars.duckdb` copied from `src/include/from-tar.mk`
+when `DUCKDB_R_PREBUILT_ARCHIVE` names an archive that extracts,
+and from `src/include/to-tar.mk` when it does not
+(`to-tar-win.mk` on Windows).
+It deletes a stale `Makevars.system-lib` first,
+so a plain install can never silently stay on the fast path,
+and it restores `src/duckdb/` from `src/duckdb.tar.xz` when it did —
+which is how a tarball built by
+`R CMD build` compiles again under `R CMD check`.
+
+**Only the first build is the whole engine.**
+Object files stay in `src/` beside the sources they were compiled from,
+so a second `R CMD INSTALL .` in the same tree is `make` deciding
+almost everything is current — seconds, and nothing at all recompiles
+for a change confined to `R/` or `man/`
+([#22](https://github.com/duckdb/duckdb-r/issues/22#issuecomment-1747137315)).
+Nothing survives the tarball round trip, though:
+`R CMD build` writes a fresh tree and `R CMD check` installs from it,
+so a check pays for every object again
+unless ccache holds them across the extraction
+([`configuration/`](/handbook/build/configuration/README.md))
+or the fast path leaves it nothing to compile.
+
+**`.dd` files in `src/` stay in version control, and a build refreshes one only when its source moved.**
+`src/include/deps.mk` includes one per glue object and carries a `%.dd: %.d` rule
+that normalizes a compiler dependency file — keeping the local prerequisites,
+dropping absolute, `duckdb/` and `../` paths, and sorting what is left.
+Nothing here produces the `.d` it consumes because nothing has to:
+R's own `Makeconf` ships `.cpp.d`, which runs `$(CXX) -M $(ALL_CPPFLAGS)`,
+and make builds the `.d` as a chained intermediate and deletes it again within the run.
+`-M` rather than `-MM` is why the filter has system paths to drop at all.
+`.gitignore` covers `/src/*.d`, that intermediate, and not `*.dd`.
+
+**What gates the rule is an mtime, and a checkout never trips it.**
+git writes `connection.cpp` and `connection.dd` in the same pass,
+so the `.dd` is never older than its source and make never asks for the `.d`.
+The rule fires when someone edits a glue `.cpp` and builds in that same tree,
+and then it rewrites that one `.dd` and leaves the tree dirty —
+which matters because [`scripts/vendor-one.sh`](/scripts/vendor-one.sh) refuses to start on a dirty tree.
+
+So a change that moves headers without touching a single glue `.cpp` leaves every `.dd` stale,
+and nothing says so: a header a `.dd` omits is a header whose edit rebuilds nothing —
+make relinks the object it already had, as under the unity build below,
+and the install succeeds without the change in it.
+Vendoring cpp11 under `src/vendor/` was exactly that change.
+Regenerate them by touching the glue sources and building,
+and read a large diff as the include graph having moved rather than as noise.
+
+**An edit under `src/duckdb/` does not rebuild itself.**
+The engine compiles as a unity build: a file such as
+`src/main/db_instance_cache.cpp` is `#include`d into `ub_src_main.cpp`,
+and make's prerequisite is the unity file, not the sources it gathers.
+`Config/build/never-clean` in `DESCRIPTION` then keeps the objects
+across installs.
+So editing a vendored source marks nothing out of date — the build
+relinks the object it already had, succeeds, and installs a library
+without the change in it.
+Delete the containing `src/duckdb/ub_*.o` before rebuilding, and confirm
+the result rather than the exit status:
+`strings` the installed library for something the edit added.
+The failure is silent in both directions, which is what makes it
+expensive: a fix appears not to work, and a mistake appears not to
+break anything.
+
+*To deepen: absorb the Windows differences and the
+`configure` step order from the scripts; drain
+[#2234](https://github.com/duckdb/duckdb-r/issues/2234)'s
+build half.*

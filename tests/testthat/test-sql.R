@@ -48,7 +48,7 @@ test_that("sql_exec() executes DDL statements correctly", {
 
   # Test CREATE TABLE
   rows_affected <- sql_exec("CREATE TABLE test_exec (id INTEGER, name VARCHAR)")
-  expect_equal(rows_affected, 0)  # DDL statements typically return 0
+  expect_equal(rows_affected, 0) # DDL statements typically return 0
 
   # Clean up
   sql_exec("DROP TABLE test_exec")
@@ -56,12 +56,16 @@ test_that("sql_exec() executes DDL statements correctly", {
 
 test_that("sql_exec() executes INSERT statements correctly", {
   # Clean up any existing test table
-  tryCatch(sql_exec("DROP TABLE IF EXISTS test_insert"), error = function(e) NULL)
+  tryCatch(sql_exec("DROP TABLE IF EXISTS test_insert"), error = function(e) {
+    NULL
+  })
 
   sql_exec("CREATE TABLE test_insert (id INTEGER, name VARCHAR)")
 
   # Test INSERT
-  rows_affected <- sql_exec("INSERT INTO test_insert VALUES (1, 'Alice'), (2, 'Bob')")
+  rows_affected <- sql_exec(
+    "INSERT INTO test_insert VALUES (1, 'Alice'), (2, 'Bob')"
+  )
   expect_equal(rows_affected, 2)
 
   # Verify the data was inserted
@@ -74,13 +78,17 @@ test_that("sql_exec() executes INSERT statements correctly", {
 
 test_that("sql_exec() executes UPDATE statements correctly", {
   # Clean up any existing test table
-  tryCatch(sql_exec("DROP TABLE IF EXISTS test_update"), error = function(e) NULL)
+  tryCatch(sql_exec("DROP TABLE IF EXISTS test_update"), error = function(e) {
+    NULL
+  })
 
   sql_exec("CREATE TABLE test_update (id INTEGER, name VARCHAR)")
   sql_exec("INSERT INTO test_update VALUES (1, 'Alice'), (2, 'Bob')")
 
   # Test UPDATE
-  rows_affected <- sql_exec("UPDATE test_update SET name = 'Charlie' WHERE id = 1")
+  rows_affected <- sql_exec(
+    "UPDATE test_update SET name = 'Charlie' WHERE id = 1"
+  )
   expect_equal(rows_affected, 1)
 
   # Verify the update
@@ -93,10 +101,14 @@ test_that("sql_exec() executes UPDATE statements correctly", {
 
 test_that("sql_exec() executes DELETE statements correctly", {
   # Clean up any existing test table
-  tryCatch(sql_exec("DROP TABLE IF EXISTS test_delete"), error = function(e) NULL)
+  tryCatch(sql_exec("DROP TABLE IF EXISTS test_delete"), error = function(e) {
+    NULL
+  })
 
   sql_exec("CREATE TABLE test_delete (id INTEGER, name VARCHAR)")
-  sql_exec("INSERT INTO test_delete VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')")
+  sql_exec(
+    "INSERT INTO test_delete VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
+  )
 
   # Test DELETE
   rows_affected <- sql_exec("DELETE FROM test_delete WHERE id = 2")
@@ -113,18 +125,27 @@ test_that("sql_exec() executes DELETE statements correctly", {
 test_that("sql_exec() works with custom connection", {
   custom_con <- dbConnect(duckdb())
 
-  rows_affected <- sql_exec("CREATE TABLE test_custom (x INTEGER)", conn = custom_con)
+  rows_affected <- sql_exec(
+    "CREATE TABLE test_custom (x INTEGER)",
+    conn = custom_con
+  )
   expect_equal(rows_affected, 0)
 
   # Verify table exists in custom connection
-  result <- sql_query("SELECT name FROM sqlite_master WHERE type='table' AND name='test_custom'", conn = custom_con)
+  result <- sql_query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='test_custom'",
+    conn = custom_con
+  )
   # Note: DuckDB doesn't have sqlite_master, so let's use a different approach
-  tryCatch({
-    sql_query("SELECT * FROM test_custom LIMIT 0", conn = custom_con)
-    table_exists <- TRUE
-  }, error = function(e) {
-    table_exists <- FALSE
-  })
+  tryCatch(
+    {
+      sql_query("SELECT * FROM test_custom LIMIT 0", conn = custom_con)
+      table_exists <- TRUE
+    },
+    error = function(e) {
+      table_exists <- FALSE
+    }
+  )
   expect_true(table_exists)
 
   dbDisconnect(custom_con, shutdown = TRUE)
@@ -174,34 +195,46 @@ test_that("default_conn() connection uses correct timezone and array settings", 
   # Test array setting by creating an array and checking it returns as matrix
   # This is a more complex test that would require specific DuckDB array functions
   # For now, just ensure the connection works with arrays
-  tryCatch({
-    result <- dbGetQuery(conn, "SELECT [1, 2, 3] AS arr")
-    expect_s3_class(result, "data.frame")
-  }, error = function(e) {
-    # Array syntax might vary, so we'll just check the connection works
-    result <- dbGetQuery(conn, "SELECT 1 AS fallback")
-    expect_equal(result$fallback, 1)
-  })
+  tryCatch(
+    {
+      result <- dbGetQuery(conn, "SELECT [1, 2, 3] AS arr")
+      expect_s3_class(result, "data.frame")
+    },
+    error = function(e) {
+      # Array syntax might vary, so we'll just check the connection works
+      result <- dbGetQuery(conn, "SELECT 1 AS fallback")
+      expect_equal(result$fallback, 1)
+    }
+  )
 })
 
 test_that("functions work together in realistic scenarios", {
   # Clean up any existing test data
-  tryCatch(sql_exec("DROP TABLE IF EXISTS integration_test"), error = function(e) NULL)
+  tryCatch(
+    sql_exec("DROP TABLE IF EXISTS integration_test"),
+    error = function(e) NULL
+  )
 
   # Create table
-  sql_exec("CREATE TABLE integration_test (id INTEGER, name VARCHAR, score DOUBLE)")
+  sql_exec(
+    "CREATE TABLE integration_test (id INTEGER, name VARCHAR, score DOUBLE)"
+  )
 
   # Insert data
-  rows_inserted <- sql_exec("INSERT INTO integration_test VALUES (1, 'Alice', 95.5), (2, 'Bob', 87.2), (3, 'Charlie', 92.1)")
+  rows_inserted <- sql_exec(
+    "INSERT INTO integration_test VALUES (1, 'Alice', 95.5), (2, 'Bob', 87.2), (3, 'Charlie', 92.1)"
+  )
   expect_equal(rows_inserted, 3)
 
   # Query data
   result <- sql_query("SELECT * FROM integration_test ORDER BY score DESC")
   expect_equal(nrow(result), 3)
-  expect_equal(result$name[1], "Alice")  # Highest score
+  expect_equal(result$name[1], "Alice") # Highest score
 
   # Update data
-  updated <- sql_exec("UPDATE integration_test SET score = score + 5 WHERE name = 'Bob'")
+  updated <- sql_exec(
+    "UPDATE integration_test SET score = score + 5 WHERE name = 'Bob'"
+  )
   expect_equal(updated, 1)
 
   # Clean up

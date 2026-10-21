@@ -3,6 +3,7 @@
 #include "duckdb/catalog/catalog_entry/duck_schema_entry.hpp"
 #include "duckdb/storage/storage_manager.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
+#include "duckdb/parser/parsed_data/alter_schema_info.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 #include "duckdb/catalog/default/default_schemas.hpp"
 #include "duckdb/function/built_in_functions.hpp"
@@ -29,7 +30,7 @@ void DuckCatalog::Initialize(bool load_builtin) {
 
 	// create the default schema
 	CreateSchemaInfo info;
-	info.schema = DEFAULT_SCHEMA;
+	info.SetQualifiedName(QualifiedName({Identifier::DefaultSchema()}, Identifier()));
 	info.internal = true;
 	info.on_conflict = OnCreateConflict::IGNORE_ON_CONFLICT;
 	CreateSchema(data, info);
@@ -49,6 +50,10 @@ bool DuckCatalog::IsDuckCatalog() {
 	return true;
 }
 
+bool DuckCatalog::SupportsMultipleDMLCTEs() const {
+	return true;
+}
+
 optional_ptr<DependencyManager> DuckCatalog::GetDependencyManager() {
 	return dependency_manager.get();
 }
@@ -59,40 +64,55 @@ optional_ptr<DependencyManager> DuckCatalog::GetDependencyManager() {
 optional_ptr<CatalogEntry> DuckCatalog::CreateSchemaInternal(CatalogTransaction transaction, CreateSchemaInfo &info) {
 	LogicalDependencyList dependencies;
 
-	if (!info.internal && DefaultSchemaGenerator::IsDefaultSchema(info.schema)) {
-		return nullptr;
+	auto parents = info.ParentSchemas();
+	if (parents.empty()) {
+		// top-level schema
+		if (!info.internal && DefaultSchemaGenerator::IsDefaultSchema(info.SchemaName())) {
+			return nullptr;
+		}
+		auto entry = make_uniq<DuckSchemaEntry>(*this, info);
+		auto result = entry.get();
+		if (!schemas->CreateEntry(transaction, info.SchemaName(), std::move(entry), dependencies)) {
+			return nullptr;
+		}
+		return result;
 	}
-	auto entry = make_uniq<DuckSchemaEntry>(*this, info);
-	auto result = entry.get();
-	if (!schemas->CreateEntry(transaction, info.schema, std::move(entry), dependencies)) {
-		return nullptr;
+	EntryLookupInfo lookup(CatalogType::SCHEMA_ENTRY, info.GetQualifiedName().Parent().Parent());
+	auto parent =
+	    LookupSchemaPath(transaction, lookup, OnEntryNotFound::THROW_EXCEPTION, [&](const EntryLookupInfo &root) {
+		    auto entry = schemas->GetEntry(transaction, root.GetEntryIdentifier());
+		    if (!entry) {
+			    throw CatalogException("%s is not a catalog or schema", root.GetEntryIdentifier());
+		    }
+		    return entry;
+	    });
+	return parent->Cast<DuckSchemaEntry>().CreateSchema(transaction, info);
+}
+
+void DuckCatalog::AlterSchema(CatalogTransaction transaction, SchemaCatalogEntry &schema, AlterSchemaInfo &info) {
+	switch (info.alter_schema_type) {
+	case AlterSchemaType::SET_SCHEMA_OPTIONS:
+		throw NotImplementedException("SET (<options>) is not supported for DuckDB schemas");
+	case AlterSchemaType::RESET_SCHEMA_OPTIONS:
+		throw NotImplementedException("RESET (<options>) is not supported for DuckDB schemas");
+	default:
+		throw InternalException("Unrecognized alter schema type!");
 	}
-	return result;
 }
 
 optional_ptr<CatalogEntry> DuckCatalog::CreateSchema(CatalogTransaction transaction, CreateSchemaInfo &info) {
-	D_ASSERT(!info.schema.empty());
+	D_ASSERT(!info.SchemaName().empty());
 	auto result = CreateSchemaInternal(transaction, info);
 	if (!result) {
-		switch (info.on_conflict) {
-		case OnCreateConflict::ERROR_ON_CONFLICT:
-			throw CatalogException::EntryAlreadyExists(CatalogType::SCHEMA_ENTRY, info.schema);
-		case OnCreateConflict::REPLACE_ON_CONFLICT: {
+		if (info.ShouldReplaceOnConflict()) {
 			DropInfo drop_info;
 			drop_info.type = CatalogType::SCHEMA_ENTRY;
-			drop_info.catalog = info.catalog;
-			drop_info.name = info.schema;
+			drop_info.SetQualifiedName(info.GetQualifiedName().Parent());
 			DropSchema(transaction, drop_info);
 			result = CreateSchemaInternal(transaction, info);
 			if (!result) {
 				throw InternalException("Failed to create schema entry in CREATE_OR_REPLACE");
 			}
-			break;
-		}
-		case OnCreateConflict::IGNORE_ON_CONFLICT:
-			break;
-		default:
-			throw InternalException("Unsupported OnCreateConflict for CreateSchema");
 		}
 		return nullptr;
 	}
@@ -100,10 +120,15 @@ optional_ptr<CatalogEntry> DuckCatalog::CreateSchema(CatalogTransaction transact
 }
 
 void DuckCatalog::DropSchema(CatalogTransaction transaction, DropInfo &info) {
-	D_ASSERT(!info.name.empty());
-	if (!schemas->DropEntry(transaction, info.name, info.cascade)) {
+	EntryLookupInfo lookup(CatalogType::SCHEMA_ENTRY, info.GetQualifiedName());
+	auto schema = LookupSchema(transaction, lookup, info.if_not_found);
+	if (!schema) {
+		return;
+	}
+	D_ASSERT(schema->set);
+	if (!schema->set->DropEntry(transaction, schema->name, info.cascade, info.allow_drop_internal)) {
 		if (info.if_not_found == OnEntryNotFound::THROW_EXCEPTION) {
-			throw CatalogException::MissingEntry(CatalogType::SCHEMA_ENTRY, info.name, string());
+			throw CatalogException::MissingEntry(lookup, string());
 		}
 	}
 }
@@ -113,12 +138,20 @@ void DuckCatalog::DropSchema(ClientContext &context, DropInfo &info) {
 }
 
 void DuckCatalog::ScanSchemas(ClientContext &context, std::function<void(SchemaCatalogEntry &)> callback) {
-	schemas->Scan(GetCatalogTransaction(context),
-	              [&](CatalogEntry &entry) { callback(entry.Cast<SchemaCatalogEntry>()); });
+	// obtain the transaction once (up front) so the nested scan does not re-acquire the meta-transaction lock while
+	// holding a catalog set lock
+	auto transaction = GetCatalogTransaction(context);
+	schemas->Scan(transaction, [&](CatalogEntry &entry) {
+		auto &schema = entry.Cast<SchemaCatalogEntry>();
+		schema.ScanSchemaTree(transaction, callback);
+	});
 }
 
 void DuckCatalog::ScanSchemas(std::function<void(SchemaCatalogEntry &)> callback) {
-	schemas->Scan([&](CatalogEntry &entry) { callback(entry.Cast<SchemaCatalogEntry>()); });
+	schemas->Scan([&](CatalogEntry &entry) {
+		auto &schema = entry.Cast<SchemaCatalogEntry>();
+		schema.ScanSchemaTree(callback);
+	});
 }
 
 CatalogSet &DuckCatalog::GetSchemaCatalogSet() {
@@ -128,16 +161,9 @@ CatalogSet &DuckCatalog::GetSchemaCatalogSet() {
 optional_ptr<SchemaCatalogEntry> DuckCatalog::LookupSchema(CatalogTransaction transaction,
                                                            const EntryLookupInfo &schema_lookup,
                                                            OnEntryNotFound if_not_found) {
-	auto &schema_name = schema_lookup.GetEntryName();
-	D_ASSERT(!schema_name.empty());
-	auto entry = schemas->GetEntry(transaction, schema_name);
-	if (!entry) {
-		if (if_not_found == OnEntryNotFound::THROW_EXCEPTION) {
-			throw CatalogException(schema_lookup.GetErrorContext(), "Schema with name %s does not exist!", schema_name);
-		}
-		return nullptr;
-	}
-	return &entry->Cast<SchemaCatalogEntry>();
+	return LookupSchemaPath(transaction, schema_lookup, if_not_found, [&](const EntryLookupInfo &lookup) {
+		return schemas->GetEntry(transaction, lookup.GetEntryIdentifier());
+	});
 }
 
 DatabaseSize DuckCatalog::GetDatabaseSize(ClientContext &context) {

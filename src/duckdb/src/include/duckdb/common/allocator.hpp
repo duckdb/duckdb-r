@@ -68,9 +68,6 @@ public:
 	data_ptr_t get() { // NOLINT: matching std style
 		return pointer;
 	}
-	operator bool() const { // NOLINT: missing explicit
-		return pointer != nullptr;
-	}
 	const_data_ptr_t get() const { // NOLINT: matching std style
 		return pointer;
 	}
@@ -110,6 +107,9 @@ public:
 	AllocatedData Allocate(idx_t size) {
 		return AllocatedData(*this, AllocateData(size), size);
 	}
+	//! Allocate normally, requesting huge-page backing where supported. Advice failure is ignored.
+	DUCKDB_API AllocatedData TryAllocateHuge(idx_t size);
+
 	static data_ptr_t DefaultAllocate(PrivateAllocatorData *private_data, idx_t size);
 	static void DefaultFree(PrivateAllocatorData *private_data, data_ptr_t pointer, idx_t size);
 	static data_ptr_t DefaultReallocate(PrivateAllocatorData *private_data, data_ptr_t pointer, idx_t old_size,
@@ -125,6 +125,8 @@ public:
 	DUCKDB_API static Allocator &DefaultAllocator();
 	DUCKDB_API static shared_ptr<Allocator> &DefaultAllocatorReference();
 
+	//! Total mapped allocator memory, if supported by this allocator.
+	optional_idx GetMappedMemory() const;
 	static bool SupportsFlush();
 	static optional_idx DecayDelay();
 	static void ThreadFlush(bool allocator_background_threads, idx_t threshold, idx_t thread_count);
@@ -133,6 +135,10 @@ public:
 	static void SetBackgroundThreads(bool enable);
 
 private:
+	//! Returns free memory in the system heap (glibc) to the OS via malloc_trim, rate-limited to once
+	//! per 100ms. No-op on non-glibc platforms. Shared by the flush paths of both allocator backends.
+	static void MallocTrim(idx_t pad);
+
 	allocate_function_ptr_t allocate_function;
 	free_function_ptr_t free_function;
 	reallocate_function_ptr_t reallocate_function;

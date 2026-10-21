@@ -1,0 +1,71 @@
+# Glossary
+
+The tree's recurring terms of art, one line each,
+every entry linking the leaf that owns the concept.
+A term earns a line once a second leaf uses it,
+added by the change that reaches for it,
+one line, so the register stays greppable and diffs per term.
+The terms of the documentation system itself, leaf, scope sentence, deepen line, backreference, and the rest,
+are defined once in the source's glossary,
+[`cynkra/handbook-tools`](https://github.com/cynkra/handbook-tools/blob/main/handbook/meta/glossary/README.md),
+and are not repeated here; this page holds this repository's own.
+
+* **ALTREP** — R's alternative-representation mechanism: how an unexecuted relation masquerades as a data frame until touched ([`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)).
+* **archive** — `krlmlr/duckdb-r-old`, holding the refs the fork does not carry; nothing reads it and nothing writes to it ([`branches/model/`](/handbook/branches/model/README.md)).
+* **archive pull request** — a draft pull request a cutover opens and closes on the spot so that the lineage it replaces stays reachable as the pull request's head ([`branches/model/`](/handbook/branches/model/README.md)).
+* **autoload / autoinstall** — an *installed* extension loads on first use; nothing downloads without being asked ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
+* **buffer** — a series' `-build` ref: vendored ahead of CI, deliberately untested ([`branches/model/`](/handbook/branches/model/README.md)).
+* **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
+* **CRAN guard** — the gate that keeps the bundled engine off CRAN's check farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
+* **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place, after archive pull requests keep what it replaces ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover litter** — `-fwd` refs and derived strands a cutover's deletion left behind, whose tips the series' refs already reach ([`branches/model/`](/handbook/branches/model/README.md)).
+* **DBI** — R's database-interface standard, which the package implements as a driver ([`usage/connections/`](/handbook/usage/connections/README.md)).
+* **dbplyr backend** — the methods that translate dplyr expressions into DuckDB SQL ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
+* **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
+* **duckplyr** — the dplyr-native downstream package: it drives the relational API rather than generating SQL, and is the closest reverse dependency ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
+* **engine** — the DuckDB database engine embedded in `src/duckdb/` ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
+* **fast path** — linking a prebuilt engine library instead of compiling the vendored sources ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
+* **flavor** — a mechanical rename publishing the one source tree under another package name ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+* **flavor-name guard** — the scan for the package name hard-coded where the rename cannot reach ([`testing/guards/`](/handbook/testing/guards/README.md)).
+* **fold** — putting a fix into the commit that introduced its defect and replaying everything above, so every commit stays independently green ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **forward counterpart** (`-fwd`) — the series rebuilt on a newer `main` out of its own `-dev`, verified beside the one it will replace ([`branches/model/`](/handbook/branches/model/README.md)).
+* **forward-port** — bringing `main`'s R-side work onto a series as cherry-picks ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **glue** — the C++ translation units in `src/` that bridge R and the engine ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
+* **glue gate** — the syntax check of the glue against freshly vendored headers ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+* **graft** — a commit whose tree is a fork point's verbatim, parented on current `main`, how an opening re-roots the parent line ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
+* **harvest** — the sweep an operator runs by hand that records commits no leg published a verdict for, onto the verdict store ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Once also a per-run fan-in, now retired.
+* **in-memory database** — the default, file-less instance: never cached, fresh per `duckdb()` call ([`usage/connections/`](/handbook/usage/connections/README.md)).
+* **landing** — moving a line onto `main`: the series' vendor commits replayed unflavored onto the frozen `main`, judged one by one, then fast-forwarded ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+* **leg** — the one CI job that builds and judges a shard, commit by commit, in a single workspace ([`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)).
+* **libduckdb** — a prebuilt engine library, linked by the fast path instead of compiling ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
+* **line** — one upstream release branch of `duckdb/duckdb` together with the series that serves it and, while one is in flight, that series' forward ([`branches/model/`](/handbook/branches/model/README.md)).
+* **mirror** — a fork branch whose only motion is to take a canonical branch's tip, by hard reset ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+* **nanoarrow array stream** — the zero-copy, batch-by-batch result format of the Arrow API ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
+* **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+* **preview line** — a series serving an upstream line that has no release yet: the one tracking upstream `main`, and a release branch cut ahead of its own release ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+* **preview prefix** — the version prefix a preview line carries, fledge's for the line it previews ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+* **prune** — removing cutover litter from both repositories, by hand, from the commands `series-prune.sh` prints ([`branches/model/`](/handbook/branches/model/README.md)).
+* **register** — expose an R data frame as a scannable table without copying ([`usage/data-import/`](/handbook/usage/data-import/README.md)); Arrow objects register the same way ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
+* **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`usage/relational/`](/handbook/usage/relational/README.md)).
+* **rewind** — a forward's first pick that vendors an engine older than the seed's, so the strand is taken whole and the glue adapted back ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
+* **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).
+* **seed** — the flavored `main` plus the fifth-component commit a forward's `-dev`, `-build` and `-build-base` start at, its green starting below them; an opening cuts its refs from the parent's strands instead ([`branches/model/`](/handbook/branches/model/README.md)).
+* **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
+* **series configuration** — [`scripts/series-config.sh`](/scripts/series-config.sh), the one file naming the engine a repository vendors, which every series script reads through `series-lib.sh` ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **series refs** — `-build`, `-dev`, `-green`, `-build-base`, and the vendor strand `-vendor` beside them: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).
+* **session TimeZone** — the icu-owned setting DuckDB renders `TIMESTAMPTZ` in, and the zone that labels those columns in R ([`usage/timestamps/`](/handbook/usage/timestamps/README.md)).
+* **shard** — a contiguous, cost-balanced slice of commits one CI job builds and judges ([`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)).
+* **snapshot** — recorded test output; accepting a change asserts the new output is correct ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
+* **source id** — `DUCKDB_SOURCE_ID`, the upstream commit the vendored engine identifies as ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
+* **spill** — the engine's offload of larger-than-memory work to `temp_directory` ([`usage/memory/budget/`](/handbook/usage/memory/budget/README.md)).
+* **storage home** — the one root extensions and secrets share, `~/.duckdb` when shared ([`usage/storage/`](/handbook/usage/storage/README.md)).
+* **strand** — one ref's line of commits: the vendored strand is what vendoring writes, the rc and alpha strands are derived from `-dev` ([`branches/model/`](/handbook/branches/model/README.md)).
+* **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
+* **twin** — the commit on another ref that vendors the same upstream SHA, matched by subject ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+* **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
+* **vendor strand** (`-vendor`) — pure vendoring, one commit per upstream commit, vendored once: what the buffer is derived from, carried by a forward with a rebase, and read against `-build` to see what the glue gate and `-dev` taught ([`branches/model/`](/handbook/branches/model/README.md)).
+* **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
+* **verdict store** / **`rcc2` branch** — the orphan branch holding each commit's build verdict and log, one file per commit, and what per-commit CI selects its work from ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Its predecessor `rcc` is retired, and kept whole in the archive.
+* **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).

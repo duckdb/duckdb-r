@@ -2,3 +2,26 @@ convert.o: \
   convert.cpp \
   include/convert.hpp \
   include/rapi.hpp \
+  vendor/cpp11.hpp \
+  vendor/cpp11/R.hpp \
+  vendor/cpp11/altrep.hpp \
+  vendor/cpp11/as.hpp \
+  vendor/cpp11/attribute_proxy.hpp \
+  vendor/cpp11/data_frame.hpp \
+  vendor/cpp11/doubles.hpp \
+  vendor/cpp11/environment.hpp \
+  vendor/cpp11/external_pointer.hpp \
+  vendor/cpp11/function.hpp \
+  vendor/cpp11/integers.hpp \
+  vendor/cpp11/list.hpp \
+  vendor/cpp11/list_of.hpp \
+  vendor/cpp11/logicals.hpp \
+  vendor/cpp11/matrix.hpp \
+  vendor/cpp11/named_arg.hpp \
+  vendor/cpp11/protect.hpp \
+  vendor/cpp11/r_bool.hpp \
+  vendor/cpp11/r_string.hpp \
+  vendor/cpp11/r_vector.hpp \
+  vendor/cpp11/raws.hpp \
+  vendor/cpp11/sexp.hpp \
+  vendor/cpp11/strings.hpp \

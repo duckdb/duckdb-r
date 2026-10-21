@@ -1,0 +1,22 @@
+# Plans and history
+
+Intent lives outside the handbook, under [`plan/`](/plan/README.md):
+the handbook describes how the system works today,
+and a plan describes work proposed, in progress, or superseded —
+filing proposals among descriptions would make the tree assert
+things that are not so.
+Evidence is [`meta/experiments/`](/handbook/meta/experiments/README.md)'s.
+
+A plan sits in `plan/` as `PLAN-<topic>.md` while it is open.
+What becomes of it decides which way it leaves:
+one that came true moves to `plan/done/`,
+one overtaken by events to `plan/superseded/`,
+both kept for their reasoning rather than as descriptions
+of the system.
+Each opens by saying what it is
+and which document owns its topic today —
+and where a plan and the owner disagree, the owner is right.
+[`plan/README.md`](/plan/README.md) is the directory's index and
+names every document; a file it does not name is an orphan.
+Each leaf whose topic a plan carries
+links that plan from its own text.

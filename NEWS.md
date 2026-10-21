@@ -1,136 +1,324 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.2.9006
+# duckdb 1.99.99.9001
+
+## Breaking changes
+
+- The vendored engine is the DuckDB v2.0 release candidate, `2.0.0-dev88614` (duckdb/duckdb@d54cbbe3df), up from DuckDB v1.5.6.
+
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
+
+- An error's `LINE` context underlines the whole offending token, not just its first character.
+
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
+
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
+
+- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE AS` makes a `NULL`-typed column of it.
+
+- The progress display is quiet past an Arrow stream's first batch.
+
+- A `SELECT` that writes, one calling `nextval()` for instance, runs to completion before `dbSendQueryArrow()` returns rather than streaming.
+
+- A relational constant renders with a cast that keeps its type: `expr_constant(-42)` prints as `CAST(-42.0 AS DOUBLE)` rather than `-42.0`, and an empty typed list as `CAST("system".main.list_value() AS INTEGER[])` rather than `[]`.
+
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with "`file_name` must be a non-empty string." rather than the engine's I/O error.
+
+## Features
+
+- `TIMESTAMP_TZ_NS` columns read as `POSIXct`, labeled with the session `TimeZone` like `TIMESTAMPTZ`.
+
+- `TUPLE` columns read as data frames whose columns are named `element1`, `element2`, ... rather than left unnamed, and an empty `STRUCT` as a data frame without columns.
+
+## Compatibility
+
+- Patches to the vendored engine fix compiler warnings that GCC, clang and MinGW raise in its sources.
+
+## Bug fixes
+
+- A `POSIXct` or `difftime` halfway between two microseconds writes rounded to even, as `dbQuoteLiteral()` quotes it (#2887).
+
+- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0,
+  and raises rather than returning `FALSE` in a transaction that has already failed
+  or for a name that cannot be quoted, such as `NA` (#2892, #2893, #2896).
+
+- `duckdb_read_csv()` applies `col.names` given without `col.types`, names unnamed `col.types` after the file's columns,
+  and refuses a `col.names` of the wrong length (#2896).
+
+- With `enable_profiling` and `profiling_output` set,
+  an `EXPLAIN ANALYZE` that failed, or was prepared and never run,
+  no longer leaves the next query on the connection without a profile (#2904).
+
+- An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query
+  rather than leaving the session busy,
+  and a relation of another connection materializes there as it does through `rel_from_df()` (#2909).
+
+
+# duckdb 1.5.6
+
+## Features
+
+- Update to DuckDB v1.5.6, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.6> for details.
+
+- New experimental `to_arrow_stream()` streams a dbplyr table on DuckDB into Arrow batch by batch,
+  where `arrow::to_arrow()` materializes the whole result first (#2803).
+
+- A `duckdb_error` condition carries the fields DuckDB attaches to an error:
+  `error_type`, `raw_message`, `extra_info` and `context`, see `?duckdb_error` (#2714).
+  Errors raised by the package itself point at the calling function (#2637).
+
+- A database instance is cached under the path the engine resolves,
+  so different spellings of one file and symlinks to it share one instance,
+  and a lower-case Windows drive letter resolves on that drive (#2627).
+
+- The dbplyr backend translates `clock::date_build()` and `difftime()` (#2621).
+
+- An Arrow query result exposes its schema, and an empty batch, before the first fetch (#2781).
+
+## Compatibility
+
+- The dbplyr backend needs dbplyr 2.6.0 or later, and warns when an older dbplyr is loaded (#2605).
+
+- The installed package no longer ships the cpp11 headers under `include/` (#2649).
+
+- The package compiles without warnings on the clang 23 and R-devel check flavors (#2617, #2698).
+
+- `duckdb()` and `dbConnect()` fail instead of silently ignoring settings a cached database instance cannot apply:
+  a different `read_only`, a differing `config` entry, or `home`, `shared_home`, `allow_extensions` or `environment_scan`.
+  `dbConnect(drv, dbdir)` also fails when `drv` already owns a different database file.
+  Call `duckdb_shutdown()` first, or pass the settings to the `duckdb()` call that creates the instance (#2641).
+
+## Bug fixes
+
+### Crashes and hangs
+
+- A data frame parameter binds one struct per row instead of crashing R (#2818).
+
+- A list column of data frames or factors no longer crashes or hangs a parallel scan (#2834),
+  and lazy (ALTREP) vectors inside struct, matrix and list columns are materialized on R's thread before a scan reads them (#2582).
+
+- Writing a named list with an empty value under `map = "list_of"` no longer crashes (#2866).
+
+- Converting `VARIANT` values to R no longer exposes intermediate objects to the garbage collector (#2750, #2753).
+
+- The progress display keeps its R callback alive and calls it only on R's thread (#2828),
+  and prints at most every half second (#2844).
+
+- Opening a database whose previous instance is still held by a connection or an unfinished result
+  no longer spins at full CPU, it reports that the database is still in use (#2759).
+
+- A failure inside a lazy data frame's ALTREP method no longer strips `duckdb_error` from later errors
+  or leaves a partly converted column behind (#2829),
+  and an error raised while such a method runs no longer calls into R (#1796, #1797).
+
+### Types and time zones
+
+- `TIMESTAMPTZ` columns take their `tzone` attribute from the session's `TimeZone` setting, also in lazy relations,
+  and stay in UTC when the icu extension is not available (#184, #2401).
+
+- `dbQuoteLiteral()` keeps the sub-second part of a `POSIXct` value (#2646, #2763).
+
+- `integer64` columns and parameters are always written as `BIGINT`, whatever the `bigint` setting (#2819).
+
+- Integer-backed `Date` and `difftime` columns keep their `NA` values,
+  and a data frame column with several fields writes as `STRUCT` (#2808).
+
+- A table whose columns R cannot hold is still found and listed,
+  and a query returning such a column fails before it runs, naming the column (#2808).
+
+### Connections and storage
+
+- An in-memory database spills to its own directory below `tempdir()` out of the box,
+  created only when a query spills and removed when the instance shuts down.
+  An on-disk database keeps DuckDB's `<dbdir>.tmp` default, as the DuckDB CLI does (#2562).
+
+- `~/.duckdb` is no longer created for a session that only looks interactive, such as one with `options(rlang_interactive = TRUE)`.
+  Without a person to answer the prompt, the per-session directory is used (#2550).
+
+- A database path is normalized only as far as it resolves,
+  so a path that cannot be resolved is handed to the engine rather than refused (#455, #2623),
+  and a `dbdir` that cannot be created is reported against the user's call (#2822).
+
+- A `dbdir` that an extension handles, such as a URL, is no longer treated as a file (#2641).
+
+- `dbIsValid()` on a driver no longer opens the database (#2754).
+
+### Queries and results
+
+- A `PRAGMA` runs after the statements before it in one query string (@t-kalinowski, #2792).
+  Its expansion no longer leaves a transaction open or refuses a `LOAD` halfway, and an empty one can end a query (#2845).
+
+- `dbListFields()` and `dbAppendTable()` read the columns of a table named by `Id()` correctly (#2848).
+
+- `dbClearResult()` frees the unread results of a multi-row bind at once, not at the next garbage collection (#2784, #2825),
+  and ends the query of an Arrow stream that was not read to the end (#2793).
+
+### Arrow
+
+- Reading an Arrow stream that another statement invalidated is an error, not the end of the stream (#2775),
+  and an Arrow stream keeps its connection's client context alive (#2790).
+
+- `dbFetchArrowChunk()` builds the final empty chunk for `LIST` and `INTERVAL` columns (#2774),
+  and each `dbFetchArrowChunk()` and `dbFetchArrow()` call uses its own `chunk_size` (#2791).
+
+- `duckdb_fetch_arrow()` and `duckdb_fetch_record_batch()` refuse a cleared result, as the other result methods do (#2785, #2821).
+
+## Performance
+
+- Release the ALTREP query result after materialization and transformation (@toppyy, #1027).
+
+- The list of valid time zones is read once per session, and again when `TZDIR` changes (#2786, #2810).
+
+## Documentation
+
+- New reference pages `?duckdb_types` and `?duckdb_types_arrow` catalog every DuckDB type in and out of R,
+  through R vectors and through Arrow, geometry included (#2836, #2837, #2850, #2861).
+
+- The new reference page `?duckdb_memory` and the help pages for fetching and writing data describe the memory a query takes (#2666).
+
+- `?duckdb` describes what keeps a database instance open and the limitations known today (#2823, #2849).
+
+- The connection's help page describes how a string holding several statements runs (#2835).
+
+- The README states the package's goals and non-goals (#2731).
+
+
+# duckdb 1.5.5
+
+## Features
+
+- Update to DuckDB v1.5.5, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
+
+- Disable extensions on libc++ Linux builds, with startup message and load error (#1107, #2414).
+
+- Rework how extensions and secrets choose their on-disk location, replacing the
+  package-library extension cache attempted across 1.5.4.1 through 1.5.4.3.
+  Both now share a single "home" root, resolved fresh for every `duckdb()` driver.
+  An interactive prompt in `duckdb()` and messages in non-interactive sessions guide the process.
+  See `?duckdb_storage` for details. (#2396, #2398).
+
+## Bug fixes
+
+- Support `OR` and `IN` predicates pushed down to registered Arrow tables (#2410).
+
+- Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
+
+- Fix edge case in computation of `r_base::min`/`r_base::max`/`r_base::sum` aggregates (#2404, #2405).
+
+- Honor the `na.rm` argument of `r_base` aggregates in SQL queries (#2407).
+
+## Documentation
+
+- Document database-instance caching and driver reuse (#2399).
+
+
+# duckdb 1.5.4.3
+
+## Bug fixes
+
+- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
+
+
+# duckdb 1.5.4.2
+
+## Bug fixes
+
+- Fix shared on-disk storage path on Windows (#2385).
+
+
+# duckdb 1.5.4.1
+
+## Features
+
+- DuckDB's on-disk storage locations now follow a unified policy. By
+  default nothing is written outside the R session's temporary directory, with
+  one exception: the extension cache is placed in the package library when it
+  is writable and falls back to the temporary directory otherwise. Each location can be redirected through the `config` argument of
+  `duckdb()`, an R option, or an environment variable. Configure the location for extensions and
+  secrets with the new `duckdb_extension_storage()` and `duckdb_secret_storage()`,
+  inspect the resolved locations with `duckdb_storage_status()`, and see
+  `?duckdb_storage` for the full resolution policy (#2370, #2372, #2377).
+
+  These functions replace the experimental `duckdb_consolidate_secrets()`
+  introduced in 1.5.4.
 
 ## Continuous integration
 
-- Clarify handling of broken-\*-dev branches.
+- Create `~/.duckdb` so CI exercises the shared storage path (#2417).
 
-- Simplify again.
+- Install `tzdata-legacy` for legacy time zones like `PST8PDT` (#2409).
 
+## Documentation
 
-# duckdb 1.5.2.9005
+- Document all S4 class slots; deprecate the legacy connection slots (#2416).
 
-## Continuous integration
+- Document database-instance caching and driver reuse (#2399).
 
-- Only run fledge on pushes to main.
+## Testing
 
+- Cover extensions env-var semantics and lock message wording (#2418).
 
-# duckdb 1.5.2.9004
-
-## Continuous integration
-
-- Tweak fledge workflow and ccache action.
-
-
-# duckdb 1.5.2.9003
-
-## Chore
-
-- Auto-update from GitHub Actions.
-
-  Run: https://github.com/krlmlr/duckdb-r/actions/runs/25267064493
-
-## Continuous integration
-
-- Align.
-
-- Cosmetics.
-
-- Bump action versions.
-
-- Install clang-format-21.
-
-- Align fledge workflow.
-
-- Harmonize.
+- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable (#2408).
 
 ## Uncategorized
 
-- Refine RCC smoke-fix workflow: per-commit validation and push (#25).
-
-- Merge branch 'main' into krlmlr-main.
+- Ci: Harden `format-suggest` against `pull_request_target` pwn requests (#93).
 
 
-# duckdb 1.5.2.9002
+# duckdb 1.5.4
+
+## Features
+
+- Update to DuckDB v1.5.4, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.4> for details.
+
+- Support writing `MAP` columns via `dbAppendTable()` and `dbWriteTable()` (#2354).
+
+- Add native `VARIANT` (@thohan88, #2313) and `TIME WITH TIME ZONE` (#1807, #2336) data type support.
+
+- Implement DBI Arrow API with `dbSendQueryArrow()` and streaming (#2347, #2355).
+
+- Store downloaded extensions inside the duckdb package install directory (#2327).
+
+- Add secret directory configuration, package startup message, and consolidation support via new experimental `duckdb_consolidate_secrets()` (#2305, #2340).
+
+## Compatibility
+
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr translations for compatibility with upcoming dbplyr 2.6.0 (#2326, #2332).
+
+- Bump minimum R version requirement to 4.2.0 (#2233, #2334).
+
+## Testing
+
+- Add CRAN guards to prevent heavy C++ engine tests on CRAN (#2353, #2358).
+
+- Add comprehensive test coverage for `MAP` type reading (#2342).
+
+
+# duckdb 1.5.3
+
+## Features
+
+- Update to DuckDB v1.5.3, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.3> for details.
+
+- Add secret directory configuration, package startup message, and consolidation support via new experimental `duckdb_consolidate_secrets()` (#2305, #2340).
+
+- Add native `VARIANT` (@thohan88, #2313) and `TIME WITH TIME ZONE` (#1807, #2336) data type support.
+
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr translations for compatibility with upcoming dbplyr 2.6.0 (#2326, #2332).
+
+## Bug fixes
+
+- Avoid rchk error in `RownamesDuplicate()` (#2290, #2291).
 
 ## Chore
 
-- Auto-update from GitHub Actions (#2319).
+- Bump minimum R version requirement to 4.2.0 (#2233, #2334).
 
-- Next skill iteration.
+- Store downloaded extensions inside the duckdb package install directory (#2327).
 
-- Fetch logs from orphan branch.
+## Testing
 
-## Continuous integration
-
-- Success message.
-
-- Fetch all.
-
-- Refine.
-
-- Tweak skill.
-
-- 4x per day.
-
-- Trigger.
-
-- Refine.
-
-- On push.
-
-## Uncategorized
-
-- Add workflow to cancel pending RCC dispatch runs (#24).
-
-
-# duckdb 1.5.2.9001
-
-- Add RCC smoke test fix skill documentation (#22).
-
-- Docs(skill): add rcc-smoke-fix skill modeled on rigraph.
-
-- Iterate over multiple \*-dev branches (main-dev, v1.5-variegata-dev,.
-
-- Forbid edits to vendored sources (src/duckdb/, inst/include/cpp11/,.
-
-- Document longer build times (10-15 min cold) and the .dd.
-
-- Include the same operation-essence preamble, no-log-access caveat,.
-
-- Docs(skill): correct claim about CI promoting fixes to \*-dev.
-
-- Docs(skill): address review feedback on rcc-smoke-fix.
-
-- Replace placeholder status-lookup pseudocode with a concrete.
-
-- Enable `set -o pipefail` around `... | tail -N` so failing.
-
-- Use `rcmdcheck::rcmdcheck()` instead of `R CMD check .` (which is.
-
-- Build-ignore.
-
-- Fix: remove all R CMD check . references from skill.
-
-- Docs(skill): spell out patch/ → vendored cascade; drop transient branches.
-
-- Note that editing `patch/` is expected to produce committable changes.
-
-- Apply-patch instruction added to priority 1.
-
-- Commit step conditionally adds `src/duckdb/` only when `patch/` changed.
-
-- Cherry-pick conflict on `src/duckdb/` softened: rare but possible from.
-
-- Removed all references to out-of-scope transient branches.
-
-
-# duckdb 1.5.2.9000
-
-## fledge
-
-- CRAN release v1.5.2 (#2312).
+- Add comprehensive test coverage for `MAP` type reading (#2342).
 
 
 # duckdb 1.5.2

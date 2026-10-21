@@ -1,7 +1,11 @@
 #include "cpp11/environment.hpp"
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "r_progress_bar_display.hpp"
 #include "rapi.hpp"
+
+#include <mutex>
+#include <vector>
 
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
@@ -14,29 +18,75 @@ void duckdb::ConnDeleter(ConnWrapper *conn) {
 	delete conn;
 }
 
+// The callbacks of displays destroyed off R's thread, where R must not be called:
+// the next display, built on R's thread, releases them.
+static std::mutex orphaned_callbacks_lock;
+static std::vector<SEXP> orphaned_callbacks;
+
+static void ReleaseOrphanedCallbacks() {
+	std::vector<SEXP> callbacks;
+	{
+		std::lock_guard<std::mutex> guard(orphaned_callbacks_lock);
+		callbacks.swap(orphaned_callbacks);
+	}
+	for (auto callback : callbacks) {
+		R_ReleaseObject(callback);
+	}
+}
+
 unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
 	return make_uniq<RProgressBarDisplay>();
 }
 
 void RProgressBarDisplay::Initialize() {
+	// Reached from ClientContext::PendingPreparedStatementInternal(), which
+	// constructs the ProgressBar -- and with it this display -- while it holds
+	// the client context lock. Looking the callback up evaluates R code, and
+	// with it a garbage collection.
+	RCallbackScope callback_scope;
+
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::environment duckdb_namespace(getNamespace(RStrings::get().duckdb_str));
 	cpp11::sexp get_progress_display(Rf_lang1(RStrings::get().get_progress_display_sym));
 	auto progress_display = cpp11::safe[Rf_eval](get_progress_display, duckdb_namespace);
 
 	if (Rf_isFunction(progress_display)) {
+		R_PreserveObject(progress_display);
 		progress_callback = progress_display;
 	}
 }
 
-RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
+// The engine builds the display when a query starts, on the thread that issues it, which is R's.
+RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay(), r_thread(std::this_thread::get_id()) {
+	ReleaseOrphanedCallbacks();
 	Initialize();
 }
 
-void RProgressBarDisplay::Update(double percentage) {
+RProgressBarDisplay::~RProgressBarDisplay() {
 	if (progress_callback == R_NilValue) {
 		return;
 	}
+	if (OnRThread()) {
+		R_ReleaseObject(progress_callback);
+		return;
+	}
+	std::lock_guard<std::mutex> guard(orphaned_callbacks_lock);
+	orphaned_callbacks.push_back(progress_callback);
+}
+
+bool RProgressBarDisplay::OnRThread() const {
+	return std::this_thread::get_id() == r_thread;
+}
+
+void RProgressBarDisplay::Update(double percentage) {
+	// The engine updates the display from whichever thread fetches a streaming result,
+	// a thread of arrow's pool among them, and R runs on its own thread only.
+	if (progress_callback == R_NilValue || !OnRThread()) {
+		return;
+	}
+
+	// Called from the executor while the query that drives it holds the lock.
+	RCallbackScope callback_scope;
 
 	try {
 		cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));
@@ -87,6 +137,29 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	if (conn_wrapper) {
 		delete conn_wrapper;
 	}
+}
+
+// Whether a transaction begun by BEGIN is open: a statement's own transaction,
+// and the one a streaming result holds, are not.
+[[cpp11::register]] bool rapi_connection_in_transaction(duckdb::conn_eptr_t conn) {
+	if (!conn || !conn.get() || !conn->conn) {
+		rapi_error_with_context("rapi_connection_in_transaction", "Invalid connection");
+	}
+	return !conn->conn->IsAutoCommit();
+}
+
+// Replaces the policy that decides which errors abort the open transaction,
+// and returns the one it replaced, so that the caller can put it back as it was.
+// Set directly, as BEGIN sets it, rather than through SET, which a locked
+// configuration refuses.
+[[cpp11::register]] std::string rapi_connection_set_invalidation_policy(duckdb::conn_eptr_t conn, std::string policy) {
+	if (!conn || !conn.get() || !conn->conn) {
+		rapi_error_with_context("rapi_connection_set_invalidation_policy", "Invalid connection");
+	}
+	auto &transaction = conn->conn->context->transaction;
+	auto previous = EnumUtil::ToString(transaction.GetInvalidationPolicy());
+	transaction.SetInvalidationPolicy(EnumUtil::FromString<TransactionInvalidationPolicy>(policy));
+	return previous;
 }
 
 [[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {

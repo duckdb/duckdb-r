@@ -130,23 +130,31 @@ static string_t HandleString(Vector &vec, const char *buf, idx_t start, idx_t en
 	for (idx_t i = 0; i < length; i++) {
 		auto current_char = buf[start + i];
 		if (!escaped) {
-			if (scopes.empty() && current_char == '\\') {
-				if (quoted || (start + i + 1 < end && (buf[start + i + 1] == '\'' || buf[start + i + 1] == '"'))) {
+			if (current_char == '\\') {
+				if (quoted || (scopes.empty() && start + i + 1 < end &&
+				               (buf[start + i + 1] == '\'' || buf[start + i + 1] == '"'))) {
 					//! Start of escape
 					escaped = true;
+					if (!scopes.empty()) {
+						string_data[copied_count++] = current_char;
+					}
 					continue;
 				}
 			}
-			if (scopes.empty() && (current_char == '\'' || current_char == '"')) {
+			if (current_char == '\'' || current_char == '"') {
 				if (quoted && current_char == quote_char) {
 					quoted = false;
-					//! Skip the ending quote
-					continue;
+					if (scopes.empty()) {
+						//! Skip the ending quote
+						continue;
+					}
 				} else if (!quoted) {
 					quoted = true;
 					quote_char = current_char;
-					//! Skip the starting quote
-					continue;
+					if (scopes.empty()) {
+						//! Skip the starting quote
+						continue;
+					}
 				}
 			}
 			if (!quoted && !scopes.empty() && current_char == scopes.top()) {
@@ -280,7 +288,7 @@ static bool SplitStringListInternal(const string_t &input, OP &state) {
 	bool seen_value = false;
 	while (pos < len) {
 		optional_idx start_pos;
-		idx_t end_pos;
+		idx_t end_pos = 0;
 
 		while (pos < len && (buf[pos] != ',' && buf[pos] != ']')) {
 			if (!ValueStateTransition(input_state, start_pos, end_pos)) {
@@ -442,9 +450,8 @@ idx_t VectorStringToMap::CountPartsMap(const string_t &input) {
 }
 
 // ------- STRUCT SPLIT -------
-bool VectorStringToStruct::SplitStruct(const string_t &input, vector<unique_ptr<Vector>> &varchar_vectors,
-                                       idx_t &row_idx, string_map_t<idx_t> &child_names,
-                                       vector<reference<ValidityMask>> &child_masks) {
+bool VectorStringToStruct::SplitStruct(const string_t &input, vector<Vector> &varchar_vectors, idx_t &row_idx,
+                                       string_map_t<idx_t> &child_names, vector<reference<ValidityMask>> &child_masks) {
 	const char *buf = input.GetData();
 	idx_t len = input.GetSize();
 	idx_t pos = 0;
@@ -460,6 +467,9 @@ bool VectorStringToStruct::SplitStruct(const string_t &input, vector<unique_ptr<
 	auto end_char = buf[pos] == '{' ? '}' : ')';
 	pos++;
 	SkipWhitespace(input_state);
+	if (pos == len) {
+		return false;
+	}
 	if (buf[pos] == end_char) {
 		pos++;
 		SkipWhitespace(input_state);
@@ -533,8 +543,8 @@ bool VectorStringToStruct::SplitStruct(const string_t &input, vector<unique_ptr<
 			if (pos == len) {
 				return false;
 			}
-			auto &child_vec = *varchar_vectors[child_idx];
-			auto string_data = FlatVector::GetData<string_t>(child_vec);
+			auto &child_vec = varchar_vectors[child_idx];
+			auto string_data = FlatVector::GetDataMutable<string_t>(child_vec);
 			auto &child_mask = child_masks[child_idx].get();
 
 			if (!start_pos.IsValid()) {
@@ -576,8 +586,8 @@ bool VectorStringToStruct::SplitStruct(const string_t &input, vector<unique_ptr<
 			if (pos == len) {
 				return false;
 			}
-			auto &child_vec = *varchar_vectors[child_idx];
-			auto string_data = FlatVector::GetData<string_t>(child_vec);
+			auto &child_vec = varchar_vectors[child_idx];
+			auto string_data = FlatVector::GetDataMutable<string_t>(child_vec);
 			auto &child_mask = child_masks[child_idx].get();
 
 			if (!start_pos.IsValid()) {
@@ -600,6 +610,10 @@ bool VectorStringToStruct::SplitStruct(const string_t &input, vector<unique_ptr<
 			child_idx++;
 			pos++;
 			SkipWhitespace(input_state);
+			if (pos < len && buf[pos] == ')') {
+				// allow a trailing comma, e.g. the single-element tuple "(1,)"
+				break;
+			}
 		}
 		(void)child_idx;
 	}
