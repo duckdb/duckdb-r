@@ -30,7 +30,7 @@ static void GetParameters(int64_t values[], idx_t value_count, hugeint_t &start,
 
 struct RangeFunctionBindData : public TableFunctionData {
 	explicit RangeFunctionBindData(const vector<Value> &inputs, bool generate_series) : cardinality(0) {
-		int64_t values[3];
+		int64_t values[3] = {};
 		for (idx_t i = 0; i < inputs.size(); i++) {
 			if (inputs[i].IsNull()) {
 				return;
