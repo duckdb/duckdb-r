@@ -1,50 +1,20 @@
 # Changelog
 
-## duckdb 1.99.99.9001
+## duckdb 2.0.0
 
 ### Breaking changes
 
-- The vendored engine is the DuckDB v2.0 release candidate,
-  `2.0.0-dev88614` (<duckdb/duckdb@d54cbbe3df>), up from DuckDB v1.5.6.
-
-- `EXPLAIN` renders its plan in a more compact layout, with operators
-  named like `Dummy Scan` rather than `DUMMY_SCAN`, and
-  `rel_explain()`’s HTML output is an interactive document.
-
-- An error’s `LINE` context underlines the whole offending token, not
-  just its first character.
-
-- [`dbBind()`](https://dbi.r-dbi.org/reference/dbBind.html) on a
-  [`dbSendQuery()`](https://dbi.r-dbi.org/reference/dbSendQuery.html)
-  result after
-  [`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
-  fails with “Attempting to execute a prepared statement after its
-  connection was closed!” rather than running the statement again;
-  [`dbFetch()`](https://dbi.r-dbi.org/reference/dbFetch.html) still
-  returns its rows.
-
-- A query that scans an Arrow stream on the stream’s own connection
-  fails with the invalidation error rather than waiting for good.
+- Update to DuckDB v2.0.0, see
+  <https://github.com/duckdb/duckdb/releases/tag/v2.0.0> for details.
 
 - `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a
-  null array, format `n`, rather than `int32`, and `CREATE TABLE AS`
+  null array, format `n`, rather than `int32`, and `CREATE TABLE ... AS`
   makes a `NULL`-typed column of it.
-
-- The progress display is quiet past an Arrow stream’s first batch.
 
 - A `SELECT` that writes, one calling `nextval()` for instance, runs to
   completion before
   [`dbSendQueryArrow()`](https://dbi.r-dbi.org/reference/dbSendQueryArrow.html)
   returns rather than streaming.
-
-- A relational constant renders with a cast that keeps its type:
-  `expr_constant(-42)` prints as `CAST(-42.0 AS DOUBLE)` rather than
-  `-42.0`, and an empty typed list as
-  `CAST("system".main.list_value() AS INTEGER[])` rather than `[]`.
-
-- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with
-  “`file_name` must be a non-empty string.” rather than the engine’s I/O
-  error.
 
 ### Features
 
@@ -55,10 +25,21 @@
   `element1`, `element2`, … rather than left unnamed, and an empty
   `STRUCT` as a data frame without columns.
 
+- `EXPLAIN` renders its plan in a more compact layout, with operators
+  named like `Dummy Scan` rather than `DUMMY_SCAN`, and
+  `rel_explain()`’s HTML output is an interactive document.
+
+- An error’s `LINE` context underlines the whole offending token, not
+  just its first character.
+
 ### Compatibility
 
 - Patches to the vendored engine fix compiler warnings that GCC, clang
   and MinGW raise in its sources.
+
+- Installing from source no longer needs `xz`, and `SystemRequirements`
+  no longer lists it
+  ([\#2960](https://github.com/duckdb/duckdb-r/issues/2960)).
 
 ### Bug fixes
 
@@ -68,9 +49,9 @@
   quotes it ([\#2887](https://github.com/duckdb/duckdb-r/issues/2887)).
 
 - [`dbExistsTable()`](https://dbi.r-dbi.org/reference/dbExistsTable.html)
-  leaves an open transaction usable with DuckDB 2.0, and raises rather
-  than returning `FALSE` in a transaction that has already failed or for
-  a name that cannot be quoted, such as `NA`
+  leaves an open transaction usable, and raises rather than returning
+  `FALSE` in a transaction that has already failed or for a name that
+  cannot be quoted, such as `NA`
   ([\#2892](https://github.com/duckdb/duckdb-r/issues/2892),
   [\#2893](https://github.com/duckdb/duckdb-r/issues/2893),
   [\#2896](https://github.com/duckdb/duckdb-r/issues/2896)).
@@ -90,7 +71,46 @@
   frame scan binds fails the query rather than leaving the session busy,
   and a relation of another connection materializes there as it does
   through `rel_from_df()`
-  ([\#2909](https://github.com/duckdb/duckdb-r/issues/2909)).
+  ([\#2909](https://github.com/duckdb/duckdb-r/issues/2909)). Bound on
+  one of the engine’s own threads, as in a join with
+  `pragma_table_info()`, a registered data frame is read without calling
+  R, and a column that only R can read, such as a list or struct column
+  of `rel_to_altrep()`, fails with an error that says what to do
+  ([\#2965](https://github.com/duckdb/duckdb-r/issues/2965)).
+
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name or
+  `NA` with “`file_name` must be a non-empty string.”, rather than
+  failing with the engine’s I/O error or writing a file called `NA`
+  ([\#2941](https://github.com/duckdb/duckdb-r/issues/2941),
+  [\#2952](https://github.com/duckdb/duckdb-r/issues/2952)).
+
+- [`slice_sample()`](https://dplyr.tidyverse.org/reference/slice.html)
+  on a dbplyr lazy table draws its random key in a subquery, so it works
+  with DuckDB 2.0, which refuses a window ordered by a random value
+  ([\#2964](https://github.com/duckdb/duckdb-r/issues/2964)).
+
+- A query that scans an Arrow stream on the stream’s own connection
+  fails with the invalidation error rather than waiting for good.
+
+- [`dbBind()`](https://dbi.r-dbi.org/reference/dbBind.html) on a
+  [`dbSendQuery()`](https://dbi.r-dbi.org/reference/dbSendQuery.html)
+  result after
+  [`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+  fails with “Attempting to execute a prepared statement after its
+  connection was closed!” rather than running the statement again;
+  [`dbFetch()`](https://dbi.r-dbi.org/reference/dbFetch.html) still
+  returns its rows.
+
+### Known issues
+
+- The progress display stops after the first batch of a result read as
+  an Arrow stream
+  ([`dbSendQueryArrow()`](https://dbi.r-dbi.org/reference/dbSendQueryArrow.html)
+  or
+  [`dbGetQueryArrow()`](https://dbi.r-dbi.org/reference/dbGetQueryArrow.html),
+  then `$get_next()`). The engine reports progress while it computes the
+  first batch and treats the query as finished from then on
+  ([\#2967](https://github.com/duckdb/duckdb-r/issues/2967)).
 
 ## duckdb 1.5.6
 
