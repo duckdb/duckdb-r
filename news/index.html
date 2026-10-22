@@ -40,7 +40,12 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="2.0.0.9000" id="duckdb-2009000">duckdb 2.0.0.9000<a class="anchor" aria-label="anchor" href="#duckdb-2009000"></a></h2>
 <ul><li>Commits since 2.0.0: <a href="https://github.com/duckdb/duckdb-r/compare/v2.0.0...main" class="external-link uri">https://github.com/duckdb/duckdb-r/compare/v2.0.0...main</a>.</li>
+</ul><div class="section level3">
+<h3 id="bug-fixes-2-0-0-9000">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-2-0-0-9000"></a></h3>
+<ul><li>
+<code><a href="../reference/duckdb.html">duckdb()</a></code> turns automatic extension installation off again unless <code>config</code> sets <code>autoinstall_known_extensions</code>. DuckDB 2.0 switched it on by default, so duckdb 2.0.0 downloaded an extension that a query needed without being asked.</li>
 </ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="2.0.0" id="duckdb-200">duckdb 2.0.0<a class="anchor" aria-label="anchor" href="#duckdb-200"></a></h2>
 <div class="section level3">

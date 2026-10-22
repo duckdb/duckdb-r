@@ -5,6 +5,14 @@
 - Commits since 2.0.0:
   <https://github.com/duckdb/duckdb-r/compare/v2.0.0...main>.
 
+### Bug fixes
+
+- [`duckdb()`](https://r.duckdb.org/reference/duckdb.md) turns automatic
+  extension installation off again unless `config` sets
+  `autoinstall_known_extensions`. DuckDB 2.0 switched it on by default,
+  so duckdb 2.0.0 downloaded an extension that a query needed without
+  being asked.
+
 ## duckdb 2.0.0
 
 ### Breaking changes
