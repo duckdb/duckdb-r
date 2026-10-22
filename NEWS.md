@@ -1,3 +1,11 @@
+# duckdb 2.0.1
+
+## Bug fixes
+
+- `duckdb()` turns automatic extension installation off again unless `config` sets `autoinstall_known_extensions`.
+  DuckDB 2.0 switched it on by default, so duckdb 2.0.0 downloaded an extension that a query needed without being asked.
+
+
 # duckdb 2.0.0
 
 ## Breaking changes
