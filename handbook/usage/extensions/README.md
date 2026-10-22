@@ -16,18 +16,16 @@ and how to get more.
   upstream declined a second distribution channel
   ([#1582](https://github.com/duckdb/duckdb-r/issues/1582)).
 * **Autoload is on, autoinstall is off.**
-  The engine defaults both `autoload_known_extensions` and `autoinstall_known_extensions` to true
-  ([`settings.hpp`](/src/duckdb/src/include/duckdb/main/settings.hpp)),
-  and `duckdb()` sets `autoinstall_known_extensions` to false unless its `config` sets it
-  ([`R/Driver.R`](/R/Driver.R)):
+  The build flips `autoload_known_extensions`
+  (`-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT`)
+  but leaves `autoinstall_known_extensions` false:
   an *installed* extension loads on first use,
   but nothing is downloaded without being asked
-  ([#2306](https://github.com/duckdb/duckdb-r/issues/2306)).
-  The CLI keeps both engine defaults.
+  ([#2306](https://github.com/duckdb/duckdb-r/issues/2306)) —
+  the CLI behaves differently because it flips both.
   `INSTALL icu` once per DuckDB version and platform,
   and ICU autoloads everywhere from then on;
   `SET autoinstall_known_extensions = true` restores CLI behavior.
-  `-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT` in [`src/Makevars.in`](/src/Makevars.in) is inert: no engine source reads it.
 * **Where installed extensions live**, and how to move or share
   the store, is [`storage/`](/handbook/usage/storage/README.md).
 * **Whether loading is allowed at all** is decided per driver:

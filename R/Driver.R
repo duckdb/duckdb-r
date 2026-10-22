@@ -257,19 +257,16 @@ duckdb <- function(
       maybe_storage_location_message(resolved_home)
     }
   }
-  # Turn automatic extension installation off unless `config` sets it,
-  # overriding the engine's default of true since DuckDB 2.0
-  # (why: handbook/usage/extensions/README.md).
-  if (!("autoinstall_known_extensions" %in% names(config))) {
-    config[["autoinstall_known_extensions"]] <- "FALSE"
-  }
   # When extensions are disallowed for this driver,
-  # also turn off automatic extension loading so a query cannot implicitly pull in a prebuilt (libstdc++) extension
+  # also turn off automatic extension install/load so a query cannot implicitly pull in a prebuilt (libstdc++) extension
   # and crash R (duckdb/duckdb-r#1107).
   # Automatic loading is a separate engine mechanism the C++ INSTALL/LOAD guard does not intercept, so it must be disabled here.
   # Explicit INSTALL/LOAD is refused in the engine glue (see rapi_prepare()).
   # An explicit user setting wins.
   if (!ax$allow) {
+    if (!("autoinstall_known_extensions" %in% names(config))) {
+      config[["autoinstall_known_extensions"]] <- "FALSE"
+    }
     if (!("autoload_known_extensions" %in% names(config))) {
       config[["autoload_known_extensions"]] <- "FALSE"
     }
