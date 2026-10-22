@@ -40,3 +40,27 @@ test_that("extensions_published() knows which platforms are covered", {
   expect_true(extensions_published("linux_amd64"))
   expect_true(extensions_published("osx_arm64"))
 })
+
+test_that("duckdb() turns automatic extension installation off by default", {
+  # The engine defaults it to true since DuckDB 2.0; nothing downloads unless
+  # asked for (handbook/usage/extensions/README.md).
+  con <- local_con()
+  expect_false(
+    dbGetQuery(
+      con,
+      "SELECT current_setting('autoinstall_known_extensions') AS value"
+    )$value
+  )
+})
+
+test_that("an explicit autoinstall_known_extensions setting wins", {
+  con <- local_con(
+    drv = duckdb(config = list(autoinstall_known_extensions = "true"))
+  )
+  expect_true(
+    dbGetQuery(
+      con,
+      "SELECT current_setting('autoinstall_known_extensions') AS value"
+    )$value
+  )
+})
