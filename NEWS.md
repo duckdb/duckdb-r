@@ -1,4 +1,4 @@
-# duckdb 2.0.0
+# duckdb 2.0.0 (2026-10-22)
 
 ## Breaking changes
 
