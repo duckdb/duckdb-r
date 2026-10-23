@@ -75,6 +75,101 @@ runs:
         max-size: 200M
         verbose: 1
 
+    # Compiles the glue with the clang that built the prebuilt libduckdb, and
+    # has covr read the coverage notes of that build with the llvm-cov of the
+    # same release (handbook/build/fast-paths/README.md says why).
+    #
+    # Here rather than in before-install, which installs the library: the
+    # install action runs in between and appends ccache-wrapped compilers,
+    # inferred from R's defaults, to ~/.R/Makevars, and the last assignment in
+    # that file wins. Appended after those, these lines win instead.
+    # They keep ccache in front of clang, through a wrapper like the action's.
+    - name: Compile the glue with the library's clang (Linux fast path)
+      if: runner.os == 'Linux' && env.DUCKDB_R_USE_SYSTEM_LIB == '1'
+      run: |
+        ## -- Compile the glue with the library's clang (Linux fast path) --
+        # before-install puts the library under /usr/local, and the compiler
+        # that built it signs its .comment section.
+        lib=/usr/local/lib/libduckdb.so
+        major=$(readelf -p .comment "${lib}" | sed -n 's/.*clang version \([0-9][0-9]*\)\..*/\1/p' | head -n 1)
+        echo "${lib} was built with clang ${major:-of an unknown version}."
+
+        # That major version where apt offers it, the image's clang otherwise,
+        # each with the llvm-cov of its release, which clang only recommends.
+        suffix=
+        if [ -n "${major}" ]; then
+          candidate=$(apt-cache policy "clang-${major}" | sed -n 's/^ *Candidate: *//p')
+          if [ -n "${candidate}" ] && [ "${candidate}" != "(none)" ]; then
+            command -v "clang++-${major}" >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "clang-${major}"
+            command -v "llvm-cov-${major}" >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "llvm-${major}"
+          fi
+          if command -v "clang++-${major}" >/dev/null && command -v "llvm-cov-${major}" >/dev/null; then
+            suffix="-${major}"
+          fi
+        fi
+        if [ -z "${suffix}" ]; then
+          command -v clang++ >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y clang
+          command -v llvm-cov >/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y llvm
+        fi
+        cc="clang${suffix}"
+        cxx="clang++${suffix}"
+        cov="$(command -v "llvm-cov${suffix}")"
+        "${cxx}" --version
+        "${cov}" --version
+
+        # The one-word command R runs for a compiler: a ccache wrapper where
+        # ccache is installed, the bare compiler otherwise.
+        wrapper_dir="${HOME}/.R/ccache-wrappers"
+        wrap() {
+          if command -v ccache >/dev/null; then
+            mkdir -p "${wrapper_dir}"
+            printf '#!/bin/sh\nexec ccache %s "$@"\n' "$1" > "${wrapper_dir}/ccache-$1"
+            chmod +x "${wrapper_dir}/ccache-$1"
+            echo "${wrapper_dir}/ccache-$1"
+          else
+            echo "$1"
+          fi
+        }
+        cc_cmd=$(wrap "${cc}")
+        cxx_cmd=$(wrap "${cxx}")
+
+        # Never hand R a compiler that cannot build and link against libstdc++.
+        printf '#include <string>\nint main() { return std::string("ok").size() - 2; }\n' |
+          "${cxx_cmd}" -x c++ -std=gnu++17 - -o "${RUNNER_TEMP}/clang-probe"
+        "${RUNNER_TEMP}/clang-probe"
+
+        # The glue warning gate is written for GCC, and clang rejects its
+        # -fdiagnostics-plain-output, so the gate keeps the compiler it had.
+        echo "DUCKDB_R_WARNINGS_CXX=$(R CMD config CXX17)" | tee -a "${GITHUB_ENV}"
+
+        # Every compiler variable R reads, with clang in place of R's default
+        # compiler and R's own flags kept.
+        empty_makevars="$(mktemp)"
+        for var in CC CXX CXX11 CXX14 CXX17 CXX20 CXX23; do
+          val="$(R_MAKEVARS_USER="${empty_makevars}" R CMD config "${var}" 2>/dev/null || true)"
+          if [ -z "${val}" ]; then
+            continue
+          fi
+          prog="${val%%[[:space:]]*}"
+          flags="${val#"${prog}"}"
+          if [ "${var}" = CC ]; then
+            echo "${var} = ${cc_cmd}${flags}" >> ~/.R/Makevars
+          else
+            echo "${var} = ${cxx_cmd}${flags}" >> ~/.R/Makevars
+          fi
+        done
+        rm -f "${empty_makevars}"
+        echo "===== ~/.R/Makevars ====="
+        cat ~/.R/Makevars
+        echo "========================="
+        echo "R CMD config CXX17: $(R CMD config CXX17)"
+
+        # covr builds with this clang too, and GNU gcov cannot read its notes,
+        # so covr runs `llvm-cov gcov` instead. The covr action's Rscript reads
+        # the checkout's .Rprofile, which sources the ~/.Rprofile setup-r wrote.
+        echo "options(covr.gcov = '${cov}', covr.gcov_args = 'gcov')" | tee -a ~/.Rprofile
+      shell: bash
+
     # The vendored half of the compiler-warning gate
     # (handbook/build/warnings/README.md) rides this install rather than
     # compiling the engine a second time: `warnings.sh ride` puts the vendored

@@ -43,6 +43,26 @@ Its header says where it looks, and why a `-dev` snapshot finds nothing.
 When nothing matches, it installs nothing and exits 0.
 Drop the variable then and build from source, which CI does on its own.
 
+**On Linux, the glue is compiled with clang.**
+Upstream builds the Linux library with clang (21 for v2.0.0, as the library's `.comment` section says),
+while R compiles the glue with GCC unless told otherwise.
+The two disagree about a one-byte argument:
+GCC passes it in a register whose upper bits the ABI leaves undefined, and clang reads all 32 of them,
+so at `-O2` a `RelationType::EXTENSION_RELATION` arrives as 4294967295
+([#2955](https://github.com/duckdb/duckdb-r/issues/2955)).
+CI installs the clang major version that built the library and sets it in place of R's compilers in `~/.R/Makevars`
+([`after-install`](/.github/workflows/custom/after-install/action.yml)).
+Locally, `CXX17 = clang++` in that file is enough:
+with clang 18 against the v2.0.0 library, `test-relational.R` passes where a GCC build fails it.
+macOS needs nothing, because R there compiles with clang already.
+
+**Coverage reads clang's notes with `llvm-cov gcov`.**
+covr instruments the glue with that same clang, and GNU gcov cannot read the notes clang writes:
+it reports their version as unexpected and finds no functions.
+So the same step installs the `llvm-cov` of the clang it chose,
+and appends `options(covr.gcov = <that llvm-cov>, covr.gcov_args = "gcov")` to `~/.Rprofile`,
+which the coverage step's R reads because the checkout's [`.Rprofile`](/.Rprofile) sources it.
+
 **Nothing here needs privileges.**
 The script installs under `~/.local` and `configure` searches there
 first, so the setup is the one variable above and no more;
