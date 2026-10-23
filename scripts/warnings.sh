@@ -66,7 +66,8 @@ warnings_of() {
 # Which scope owns the file a diagnostic points at. Paths arrive three ways --
 # relative to src/ (our own compile), absolute (an R CMD INSTALL log), and
 # relative to the *engine's* own root, where a `#line` in a generated file
-# points back at its source (`third_party/libpg_query/grammar/…/select.y`). So
+# points back at its source (`third_party/libpg_query/grammar/…/select.y`, in
+# an engine before v2.0, as the generated list below says). So
 # the marks have to survive a prefix and stand on their own: `duckdb/` is the
 # engine wherever it sits -- and the package directory is `duckdb-r`, which that
 # pattern does not match -- while `third_party/` and `extension/` are the
@@ -82,7 +83,10 @@ warnings_of() {
 #   src_backend_parser_gram.cpp, src_backend_parser_scan.cpp  bison and flex
 #   yyjson.cpp                                                the amalgamation
 #   cpp11.cpp                                                 cpp11::cpp_register()
-# The bison output carries `#line` directives, so its diagnostics point at
+# The bison and flex output is libpg_query's, the parser of the engines before
+# v2.0. `main`'s engine parses with a PEG parser and vendors none of it, but
+# this script is every series' tooling, and the lines before v2.0 still vendor
+# it. The bison output carries `#line` directives, so its diagnostics point at
 # `libpg_query/grammar/…`, a path this repository does not even contain; that
 # prefix names the same generated code and belongs here too.
 classify='
