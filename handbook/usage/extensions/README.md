@@ -15,18 +15,16 @@ and how to get more.
   and none is coming —
   upstream declined a second distribution channel
   ([#1582](https://github.com/duckdb/duckdb-r/issues/1582)).
-* **Autoload is on, autoinstall is off.**
-  The engine defaults both `autoload_known_extensions` and `autoinstall_known_extensions` to true
+* **Autoload and autoinstall are both on.**
+  The engine defaults `autoload_known_extensions` and `autoinstall_known_extensions` to true
   ([`settings.hpp`](/src/duckdb/src/include/duckdb/main/settings.hpp)),
-  and `duckdb()` sets `autoinstall_known_extensions` to false unless its `config` sets it
+  and `duckdb()` keeps both unless extensions are disallowed for the driver, which turns both off
   ([`R/Driver.R`](/R/Driver.R)):
-  an *installed* extension loads on first use,
-  but nothing is downloaded without being asked
-  ([#2306](https://github.com/duckdb/duckdb-r/issues/2306)).
-  The CLI keeps both engine defaults.
-  `INSTALL icu` once per DuckDB version and platform,
-  and ICU autoloads everywhere from then on;
-  `SET autoinstall_known_extensions = true` restores CLI behavior.
+  a known extension that a query needs is downloaded on first use and loads by itself.
+  A query can need one that is not bundled without naming it:
+  since DuckDB 2.0, creating a macro around `ST_AsGeoJSON()` needs `json`.
+  `SET autoinstall_known_extensions = false`, or that key in the `config` of `duckdb()`, stops the downloads,
+  and then only an extension installed with `INSTALL` loads on first use.
   `-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT` in [`src/Makevars.in`](/src/Makevars.in) is inert: no engine source reads it.
 * **Where installed extensions live**, and how to move or share
   the store, is [`storage/`](/handbook/usage/storage/README.md).
