@@ -1,13 +1,14 @@
 # The legs
 
-The two jobs, the scripts behind them,
-what one leg does with its workspace, and what a lost leg costs.
+The jobs, the scripts behind them,
+what one leg does with its workspace, what a lost leg costs,
+and the follow-up a run dispatches for the commits it left undecided.
 How its commits were chosen is
 [`selection/`](/handbook/operations/ci/per-commit/selection/README.md)'s;
 how they were packed into shards is
 [`planning/`](/handbook/operations/ci/per-commit/planning/README.md)'s.
 
-One run is two jobs:
+One run is three jobs:
 
 ```
 plan  (1 job, ~30 s)
@@ -30,12 +31,17 @@ build (one job per shard, throttled by max-parallel)
        → publish record + log to the `rcc2` branch   ← seconds after the verdict
      ... stops at its own deadline and defers the rest,
          a commit cut short after others among them
+
+follow-up  (1 job, after the legs, unless the run was cancelled)
+  └─ scripts/each-follow-up.sh
+       planned commits still without a record on `rcc2`, some decided, branch unmoved?
+       → dispatch `each-rcc` on the branch once more    ← waits for this run to end
 ```
 
 The files:
 
 * [`.github/workflows/each.yaml`](/.github/workflows/each.yaml) —
-  plan → build.
+  plan → build → follow-up.
 * [`scripts/each-plan.sh`](/scripts/each-plan.sh) —
   enumerate, read verdicts, weigh, partition.
 * [`scripts/each-cost.py`](/scripts/each-cost.py) —
@@ -44,6 +50,8 @@ The files:
   the cost model, the greedy fill, and the rebalance pass.
 * [`scripts/each-shard.sh`](/scripts/each-shard.sh) —
   one leg: many commits, one workspace.
+* [`scripts/each-follow-up.sh`](/scripts/each-follow-up.sh):
+  whether the run dispatches a follow-up, and the dispatch.
 * [`scripts/rcc-one.sh`](/scripts/rcc-one.sh) —
   the per-commit gate, extracted from `rcc-smoke`.
 * [`scripts/rcc-lib.sh`](/scripts/rcc-lib.sh) —
@@ -136,13 +144,13 @@ named per attempt, so "Re-run all jobs" collides on neither.
 
 Two edges are worth stating plainly.
 
-**Nothing schedules `each-rcc`.**
+**Nothing schedules `each-rcc`, but a run follows itself up.**
 It fires on push to `each-*`/`*-dev`, on `workflow_dispatch`, and on
 `workflow_call`.
 After a lost leg the branch is left with one `pending` commit and a tail of
-statusless ones, and the replanning that would pick them up does not happen
-until somebody pushes to that branch or dispatches the workflow.
-The replanning is correct; it is not automatic.
+statusless ones, and the run's follow-up replans them, as it replans what a leg deferred
+([below](#the-follow-up-run)).
+Where no follow-up fires, the replanning waits until somebody pushes to that branch or dispatches the workflow.
 
 **The series loop's recovery for a lost commit waits 12 hours.**
 [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) presumes a commit
@@ -150,3 +158,31 @@ still without a verdict after that long lost, and pushes `retry-<S>-dev` at it,
 which replans it on its own SHA and rewrites nothing above it.
 Re-running the failed job, or dispatching `each-rcc` again, needs no wait,
 and costs only the commits that are undecided.
+
+## The follow-up run
+
+A leg that reaches its deadline defers the commits it did not get to,
+and the planner defers the oldest commits past `MAX_SHARDS` legs.
+So the run's last job dispatches `each-rcc` once more on the same branch,
+with the run's inputs except `force`,
+and the follow-up plans whatever the store still lacks when it starts.
+It waits as pending in the branch's concurrency group until the run that dispatched it has completed.
+The job runs, and [`each-follow-up.sh`](/scripts/each-follow-up.sh) dispatches, only when all of these hold:
+
+* **The run was not cancelled.**
+  Cancelling is how a landing retires the run of a branch it force-pushes, so the job's `if:` is `!cancelled()`.
+  A leg that failed or timed out is not a cancellation, and its undecided commits are followed up.
+* **The branch has not moved** since the plan was made, because a push brings a run of its own.
+* **Commits remain**: a planned commit without a record on `rcc2`, read as the planner reads it, or one deferred past the shard cap.
+* **The run made progress**: fewer planned commits lack a record than when the plan was made.
+  Every follow-up decides a commit or ends the chain, so a chain is finite.
+  A commit that alone outlasts a leg's budget cannot stall one, because the first commit a leg builds is never deferred.
+* **No other run is waiting on the branch.**
+  GitHub keeps only the newest pending run of a group,
+  so a dispatch would cancel a push's or an operator's run, which plans the same commits anyway.
+
+A follow-up never forces.
+A forced run's deferred commits keep the verdicts they had,
+and a `retry-<S>-dev` tip is not replanned again,
+because the `follow-up-of` input, the dispatching run's id, tells the planner that the run before planned it already.
+A retry tip that a leg deferred therefore keeps its old verdict until `each-rcc` is dispatched on the retry branch by hand.

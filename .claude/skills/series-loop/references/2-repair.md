@@ -125,7 +125,9 @@ The run list says which kind of waiting it is:
   throughput is roughly 35–40 commits per hour,
   so a long tail behind a large push is normal;
 * a completed run planned it but its leg deferred it at the leg deadline,
-  or could not check it out — the ordinary rule replans it on the next push;
+  or could not check it out, and dispatched no follow-up, because it decided nothing, was cancelled, or saw the branch move
+  ([`legs/`](/handbook/operations/ci/per-commit/legs/README.md#the-follow-up-run)):
+  the ordinary rule replans it on the next push or dispatch;
 * no run covers it at all — nothing was ever triggered;
   push, or dispatch `each-rcc` on the branch.
 
