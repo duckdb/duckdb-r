@@ -190,11 +190,11 @@ test_that("structs give the same results via Arrow", {
 
   con <- local_con()
 
-  res <- dbGetQuery(
+  res <- expect_deprecated_arrow(dbGetQuery(
     con,
     "SELECT map([1,2],['a','b']) AS x",
     arrow = TRUE
-  )
+  ))
   expect_equal(
     res,
     vctrs::data_frame(
@@ -207,11 +207,11 @@ test_that("structs give the same results via Arrow", {
     )
   )
 
-  res <- dbGetQuery(
+  res <- expect_deprecated_arrow(dbGetQuery(
     con,
     "SELECT 1 as a, map([1,2],[1.5,2.5]) AS x UNION SELECT 2, map([3,4,5],[5.5,4.5,3.5]::double[]) ORDER BY a",
     arrow = TRUE
-  )
+  ))
   expect_equal(
     res,
     vctrs::data_frame(
@@ -226,11 +226,11 @@ test_that("structs give the same results via Arrow", {
     )
   )
 
-  res <- dbGetQuery(
+  res <- expect_deprecated_arrow(dbGetQuery(
     con,
     "SELECT 1 as a, map([1,2],[TRUE,FALSE]) AS x UNION SELECT 2, NULL ORDER BY a",
     arrow = TRUE
-  )
+  ))
   expect_equal(
     res,
     vctrs::data_frame(
