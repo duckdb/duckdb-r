@@ -139,12 +139,14 @@ Another statement on that connection invalidates it.
 The next read is then an error, not an early end that would pass for a complete result
 ([#2772](https://github.com/duckdb/duckdb-r/issues/2772)).
 So a stream whose last batch held exactly `chunk_size` rows is invalidated, although every row has arrived.
-The glue drains the result itself and checks before each read whether another statement ended it
-(`RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
+The glue itself fetches the result's chunks from the engine as reads ask for them,
+and checks before each read whether another statement ended it
+(`RArrowChunkSource` and `RArrowArrayStreamWrapper`, [`src/arrow_export.cpp`](/src/arrow_export.cpp)).
 The engine refuses any statement on a connection while a result is open there,
 so the glue ends the connection's open results first (`EndOpenResults()`).
 The wrapper also keeps the connection's client context alive until the stream is released.
-The engine's callbacks read it, so a stream can still be read after `dbDisconnect()`.
+The engine's `ArrowConverter` and `ArrowAppender` read it whenever the glue's stream (`RResultArrowStream`) converts the schema or a batch.
+So a stream can still be read after `dbDisconnect()`.
 Statements that must run between reads need a connection of their own.
 That includes a query that scans the stream itself.
 Registering `arrow::as_record_batch_reader(stream)` with `duckdb_register_arrow()` and querying it is one.

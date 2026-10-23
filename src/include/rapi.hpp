@@ -359,7 +359,7 @@ private:
 	static void Release(ArrowArrayStream *stream);
 };
 
-// The engine's Arrow stream over a query result, behind one that reports a streaming result
+// The glue's own Arrow stream over a query result (`RResultArrowStream`), behind one that reports a streaming result
 // invalidated by another statement on its connection as an error, where the engine reports the end of the stream
 // (handbook/usage/integrations/README.md).
 struct RArrowArrayStreamWrapper {
@@ -367,8 +367,9 @@ struct RArrowArrayStreamWrapper {
 	                         idx_t batch_size, bool invalidated = false);
 
 	ArrowArrayStream stream;
-	// The engine's callbacks read the result's client context through a raw pointer,
-	// which a streaming result lets go of once it has seen its end, and a disconnect frees.
+	// `engine`, the glue's own stream, converts the schema and every batch with the engine's Arrow conversion,
+	// whose `ArrowConverter` and `ArrowAppender` read the result's client context through a raw pointer.
+	// A streaming result lets go of that context once it has seen its end, and a disconnect frees it.
 	// Declared before `engine`, so the context outlives it.
 	duckdb::shared_ptr<ClientContext> context;
 	RResultArrowStream engine;
