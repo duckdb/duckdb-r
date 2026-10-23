@@ -94,6 +94,13 @@ which [`cran-release.yaml`](/.github/workflows/cran-release.yaml) does now
 `fledge::bump_version()` run interactively writes the line back, which turns the nightly run on again;
 run non-interactively, it refuses a `NEWS.md` without the line.
 
+**The first bump after a landing is written by hand.**
+A landing brings the series' version onto `main`, and every vendor commit it carried comes after the newest version tag.
+`fledge::bump_version()` would turn each of them into a `NEWS.md` entry.
+So that bump sets the version in `DESCRIPTION` and writes its `NEWS.md` section by hand,
+and its commit on `main` takes the version tag that fledge's next bump counts from
+([`series-land`](/.claude/skills/series-land/SKILL.md), step 7).
+
 **A preview line carries the prefix of the line it previews**, which is the one
 [fledge](https://fledge.cynkra.com/) would write for it:
 `a.b.99` before a minor release and `a.99.99` before a major one, its `pre-minor` and `pre-major` bumps.
