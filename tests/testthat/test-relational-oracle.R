@@ -611,7 +611,9 @@ test_that("printed tree and sql text: regular join of each join type", {
   )
 
   expect_snapshot(transform = normalize_rel_text, {
-    for (rel in joins) show_rel(rel)
+    for (rel in joins) {
+      show_rel(rel)
+    }
   })
 })
 
@@ -1162,7 +1164,11 @@ test_that("from sql: a parameter binds to a column of unknown type and fails whe
   rel <- rel_from_sql(con, "SELECT $1")
 
   expect_identical(names(rel), "unknown")
-  expect_error(as.data.frame(rel), "Not all parameters were bound", fixed = TRUE)
+  expect_error(
+    as.data.frame(rel),
+    "Not all parameters were bound",
+    fixed = TRUE
+  )
   expect_error(
     rel_to_altrep(rel),
     "Unknown type for column `unknown`",
