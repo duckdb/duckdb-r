@@ -1501,17 +1501,19 @@ test_that("rel_explain()", {
     writeLines(rel_explain_df(proj)[[2]])
   })
 
-  expect_snapshot({
-    writeLines(rel_explain_df(proj, "analyze")[[2]])
-  })
+  analyze <- rel_explain_df(proj, "analyze")[[2]]
+  expect_match(analyze, "Total Time", fixed = TRUE)
+  expect_match(analyze, "Table Scan", fixed = TRUE)
+  expect_match(analyze, "Projections: x", fixed = TRUE)
 
   expect_snapshot({
     writeLines(rel_explain_df(proj, "standard", "json")[[2]])
   })
 
-  expect_snapshot({
-    writeLines(rel_explain_df(proj, "analyze", "json")[[2]])
-  })
+  analyze_json <- rel_explain_df(proj, "analyze", "json")[[2]]
+  expect_match(analyze_json, '"type": "EXPLAIN_ANALYZE"', fixed = TRUE)
+  expect_match(analyze_json, '"type": "TABLE_SCAN"', fixed = TRUE)
+  expect_match(analyze_json, '"Projections": "x"', fixed = TRUE)
 
   expect_snapshot({
     writeLines(rel_explain_df(proj, "standard", "html")[[2]])

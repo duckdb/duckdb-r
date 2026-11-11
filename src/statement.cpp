@@ -1,6 +1,5 @@
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/parser/parser.hpp"
-#include "duckdb/parser/statement/relation_statement.hpp"
 #include "duckdb/planner/statement_preprocessor.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
