@@ -2,6 +2,7 @@ convert.o: \
   convert.cpp \
   include/convert.hpp \
   include/rapi.hpp \
+  include/rrelation.hpp \
   vendor/cpp11.hpp \
   vendor/cpp11/R.hpp \
   vendor/cpp11/altrep.hpp \

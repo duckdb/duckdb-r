@@ -1,7 +1,6 @@
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/function/table/arrow.hpp"
-#include "duckdb/main/external_dependencies.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
@@ -54,8 +53,10 @@ using namespace duckdb;
 		    Value::BOOLEAN(convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED);
 		parameter_map["map_list_of"] = Value::BOOLEAN(convert_opts.map == ConvertOpts::MapShape::LIST_OF);
 
-		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
-		    ->CreateView(Identifier(name), overwrite, true);
+		auto scan = make_shared_ptr<RTableFunctionRelation>(conn->conn->context, Identifier("r_dataframe_scan"),
+		                                                    vector<Value> {Value::POINTER((uintptr_t)value.data())},
+		                                                    parameter_map);
+		RRelationCreateView(*scan, Identifier::InvalidSchema(), Identifier(name), overwrite, true);
 
 		signal_handler.HandleInterrupt();
 
@@ -128,19 +129,25 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	UNPROTECT(1);
 
 	// TODO: do utf conversion
-	auto table_function = make_uniq<TableFunctionRef>();
-	vector<duckdb::unique_ptr<ParsedExpression>> children;
-	children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)df)));
-	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
+	auto make_scan = [](SEXP data_frame) {
+		auto table_function = make_uniq<TableFunctionRef>();
+		vector<duckdb::unique_ptr<ParsedExpression>> children;
+		children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)data_frame)));
+		table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
+		return table_function;
+	};
 
-	// Signal that this table reference depends on external state (the R data
-	// frame found via environment scan). For relations created via
-	// rel_from_sql(), this causes QueryRelation::Bind() to wrap the original
-	// query in a CTE that materializes the data frame pointer, so subsequent
-	// binds (e.g. during rel_to_altrep()) do not need to look up the data
-	// frame from the environment again.
-	table_function->external_dependency = make_shared_ptr<ExternalDependency>();
-	return std::move(table_function);
+	// A relation made from SQL text pins what was found here, under the name as written and once per name, so that
+	// a later bind reads the pointer instead of the environment. Only its own connection's binds count: R code run
+	// by the lookup can query another connection of this database, whose names are not the relation's.
+	if (db_wrapper->env_scan_refs && &context == db_wrapper->env_scan_context) {
+		auto &refs = *db_wrapper->env_scan_refs;
+		if (refs.find(input.name.Name()) == refs.end()) {
+			refs[input.name.Name()] = make_scan(df);
+		}
+	}
+
+	return make_scan(df);
 }
 
 class RArrowTabularStreamFactory : public ArrowScanFactory {

@@ -1,6 +1,7 @@
 transform.o: \
   include/convert.hpp \
   include/rapi.hpp \
+  include/rrelation.hpp \
   include/typesr.hpp \
   transform.cpp \
   vendor/cpp11.hpp \

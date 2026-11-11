@@ -3,6 +3,7 @@ cpp11.o: \
   include/convert.hpp \
   include/duckdb_types.hpp \
   include/rapi.hpp \
+  include/rrelation.hpp \
   vendor/cpp11.hpp \
   vendor/cpp11/R.hpp \
   vendor/cpp11/altrep.hpp \

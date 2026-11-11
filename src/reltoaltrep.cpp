@@ -8,7 +8,6 @@
 #include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/query_result.hpp"
-#include "duckdb/main/relation/limit_relation.hpp"
 #include "duckdb/main/settings.hpp"
 #include "fmt/format.h"
 #include "httplib.hpp"
@@ -206,7 +205,7 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 		// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
 		// any open result of its connection is ended: ending one takes that lock too.
 		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
-		auto &context = *rel->context->GetContext();
+		auto &context = *rel->GetContext();
 		if (ScopedInterruptHandler::IsActiveFor(context)) {
 			rapi_error_with_context("GetQueryResult",
 			                        "Cannot materialize a relation of the connection that is running the query.");
@@ -214,13 +213,13 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 		EndOpenResults(context);
 		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
 		if (!ScopedInterruptHandler::IsActive()) {
-			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
+			signal_handler = make_uniq<ScopedInterruptHandler>(rel->GetContext());
 		}
 
 		// We need to temporarily allow a deeper execution stack
 		// https://github.com/duckdb/duckdb-r/issues/101
 		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
-		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
+		auto &client_config = ClientConfig::GetConfig(context);
 		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
 		                                                              Value::UBIGINT(old_depth * 2));
 		duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
@@ -269,10 +268,10 @@ void AltrepRelationWrapper::Materialize() {
 	// For tethered, we push a limit relation and check the number of output rows
 	auto local_rel = rel;
 	if (max_rows < MAX_SIZE_T) {
-		local_rel = make_shared_ptr<LimitRelation>(rel, max_rows + 1, 0);
+		local_rel = make_shared_ptr<RLimitRelation>(rel, max_rows + 1, 0);
 	}
 
-	auto local_res = local_rel->Execute();
+	auto local_res = RRunRelation(*local_rel);
 
 	if (local_res->HasError()) {
 		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
@@ -749,12 +748,9 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	}
 
 	// Capture the session's TimeZone setting so TIMESTAMP WITH TIME ZONE columns
-	// can be decorated with the matching `tzone` attribute. The session settings
-	// can only be queried while the connection is live, which it is here.
+	// can be decorated with the matching `tzone` attribute.
 	ConvertOpts local_convert_opts = rel->convert_opts;
-	if (drel->context) {
-		local_convert_opts.session_time_zone = drel->context->GetContext()->GetClientProperties().time_zone;
-	}
+	local_convert_opts.session_time_zone = drel->GetContext()->GetClientProperties().time_zone;
 
 	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, local_convert_opts);
 }
