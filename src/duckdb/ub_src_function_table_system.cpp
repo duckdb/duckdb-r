@@ -32,6 +32,8 @@
 
 #include "src/function/table/system/duckdb_keywords.cpp"
 
+#include "src/function/table/system/duckdb_live_query_metrics.cpp"
+
 #include "src/function/table/system/duckdb_log.cpp"
 
 #include "src/function/table/system/duckdb_log_contexts.cpp"
@@ -91,6 +93,8 @@
 #include "src/function/table/system/pragma_table_sample.cpp"
 
 #include "src/function/table/system/pragma_user_agent.cpp"
+
+#include "src/function/table/system/system_catalog_scanner.cpp"
 
 #include "src/function/table/system/test_all_types.cpp"
 

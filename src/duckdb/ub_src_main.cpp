@@ -46,6 +46,8 @@
 
 #include "src/main/external_resources_manager.cpp"
 
+#include "src/main/os_util.cpp"
+
 #include "src/main/parse_iterator.cpp"
 
 #include "src/main/parser_context.cpp"

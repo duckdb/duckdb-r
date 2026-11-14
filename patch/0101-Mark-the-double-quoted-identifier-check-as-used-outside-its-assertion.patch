@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 22:55:03 +0000
+Subject: [PATCH] Mark the double-quoted identifier check as used outside its
+ assertion
+
+ExceptionFormatValue::Format() calls HasDoubleQuotedIdentifier() only
+inside D_ASSERT(), so in a release build, where D_ASSERT() expands to
+nothing, the static function is never referenced and -Wunused-function
+reports it as defined but not used. A (void) reference after the
+assertion marks it used, the way the engine already treats locals that
+only an assertion reads.
+
+Carried here until upstream takes it; not proposed upstream yet.
+---
+ src/duckdb/src/common/exception_format_value.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/duckdb/src/common/exception_format_value.cpp b/src/duckdb/src/common/exception_format_value.cpp
+index 5c797c0bb4..376d6934f5 100644
+--- a/src/duckdb/src/common/exception_format_value.cpp
++++ b/src/duckdb/src/common/exception_format_value.cpp
+@@ -126,6 +126,7 @@ static bool HasDoubleQuotedIdentifier(const string &msg, const std::vector<Excep
+ string ExceptionFormatValue::Format(const string &msg, std::vector<ExceptionFormatValue> &values) {
+ 	// identifiers are quoted by the formatter, the format string must not quote them again
+ 	D_ASSERT(!HasDoubleQuotedIdentifier(msg, values));
++	(void)HasDoubleQuotedIdentifier;
+ 	try {
+ 		std::vector<duckdb_fmt::basic_format_arg<duckdb_fmt::printf_context>> format_args;
+ 		for (auto &val : values) {
