@@ -263,8 +263,8 @@ gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 ```
 
 **`main`'s version is bumped by hand**, as the landing's last commit or as the first pull request on `main`,
-because `fledge::bump_version()` would write a `NEWS.md` entry for every vendor commit
-([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+because `fledge::bump_version()` would write a `NEWS.md` entry for every vendor commit;
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns why.
 The landing ends on the series' version, `<prefix>.9000.<n>`,
 where `<prefix>` is the preview prefix `main` carries while it previews the line (`1.99.99` for v2.0), followed by the vendor counter.
 [#2941](https://github.com/duckdb/duckdb-r/pull/2941) landed v2.0 this way, with the bump as its last commit.
@@ -275,12 +275,15 @@ where `<prefix>` is the preview prefix `main` carries while it previews the line
   directly above the section of the last release.
   It replaces the development sections since that release,
   keeps their user-facing items, leaves out the tooling, and names the engine the landing vendors.
+  Keep fledge's marker line as the first line of `NEWS.md`, as [`2f82664af`](https://github.com/duckdb/duckdb-r/commit/2f82664af) did:
+  it turns the nightly fledge run on, and leaving it out keeps the run off.
+  Until the bump is on `main`, that run may open its version pull request first, against a version it does not expect;
+  close it in favour of the hand-written bump.
 * **The tag**: once the bump is on `main`, tag that commit `v<prefix>.9001` and push the tag.
-  fledge counts from the newest version tag up to the version in `DESCRIPTION`,
-  so a later bump without it lists every vendor commit again.
+  The tag is annotated, with the version as its message, as every version tag on `main` is.
 
   ```sh
-  git tag v<prefix>.9001 <the bump's commit on main>
+  git tag -a v<prefix>.9001 -m "duckdb <prefix>.9001" <the bump's commit on main>
   git push upstream refs/tags/v<prefix>.9001
   ```
 
