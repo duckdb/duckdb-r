@@ -83,7 +83,7 @@ test_that("a lower-case drive letter resolves on that drive, not in the working 
   # The engine walks up to the drive and turns it into its root, and a bare
   # `c:` is the working directory on that drive rather than its root. Only a
   # Windows engine knows drive letters: elsewhere `c:` is a relative name.
-  # Upper-casing the drive letter is done by the engine, so `c:` arrives as `C:`.
+  # The engine upper-cases the drive letter, so `c:` arrives as `C:`.
   skip_if_not(.Platform$OS.type == "windows", "drive letters are Windows-only")
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
