@@ -20,8 +20,7 @@ ScalarFunction MapFromEntriesFun::GetFunction() {
 	auto map_type = LogicalType::MAP(key_type, val_type);
 	auto row_type = LogicalType::TUPLE({key_type, val_type});
 
-	ScalarFunction fun({}, map_type, MapFromEntriesFunction);
-	fun.GetSignature().AddParameter("map", LogicalType::LIST(row_type));
+	ScalarFunction fun({LogicalType::LIST(row_type)}, map_type, MapFromEntriesFunction);
 	fun.SetNullHandling(FunctionNullHandling::DEFAULT_NULL_HANDLING);
 
 	fun.SetFallible();

@@ -4,7 +4,6 @@
 #include "core_functions/aggregate/holistic_functions.hpp"
 #include "core_functions/aggregate/nested_functions.hpp"
 #include "core_functions/aggregate/regression_functions.hpp"
-#include "core_functions/aggregate/variant_functions.hpp"
 #include "core_functions/scalar/bit_functions.hpp"
 #include "core_functions/scalar/blob_functions.hpp"
 #include "core_functions/scalar/date_functions.hpp"
@@ -334,8 +333,6 @@ static const StaticFunctionDefinition core_functions[] = {
 	DUCKDB_SCALAR_FUNCTION(RightFun),
 	DUCKDB_SCALAR_FUNCTION(RightGraphemeFun),
 	DUCKDB_SCALAR_FUNCTION_SET(RoundFun),
-	DUCKDB_SCALAR_FUNCTION_SET(RoundEvenFun),
-	DUCKDB_SCALAR_FUNCTION_SET_ALIAS(RoundbankersFun),
 	DUCKDB_SCALAR_FUNCTION(RpadFun),
 	DUCKDB_SCALAR_FUNCTION_SET(RtrimFun),
 	DUCKDB_SCALAR_FUNCTION_SET(SecondsFun),
@@ -412,7 +409,6 @@ static const StaticFunctionDefinition core_functions[] = {
 	DUCKDB_AGGREGATE_FUNCTION(VarPopFun),
 	DUCKDB_AGGREGATE_FUNCTION(VarSampFun),
 	DUCKDB_AGGREGATE_FUNCTION_ALIAS(VarianceFun),
-	DUCKDB_AGGREGATE_FUNCTION(VariantGroupObjectFun),
 	DUCKDB_SCALAR_FUNCTION(VectorTypeFun),
 	DUCKDB_SCALAR_FUNCTION(VersionFun),
 	DUCKDB_SCALAR_FUNCTION_SET(WeekFun),

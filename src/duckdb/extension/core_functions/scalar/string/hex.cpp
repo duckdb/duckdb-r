@@ -378,47 +378,27 @@ static void FromHexFunction(DataChunk &args, ExpressionState &state, Vector &res
 	UnaryExecutor::ExecuteString<string_t, string_t, FromHexOperator>(input, result);
 }
 
-static void AddHexParam(ScalarFunction &fun, const LogicalType &type, const Identifier &name) {
-	fun.GetSignature().AddParameter(name, type);
-}
-
 ScalarFunctionSet HexFun::GetFunctions() {
 	ScalarFunctionSet to_hex;
-
-	ScalarFunction string_fun({}, LogicalType::VARCHAR, ToHexFunction<string_t, HexStrOperator>);
-	AddHexParam(string_fun, LogicalType::VARCHAR, "string");
-	to_hex.AddFunction(string_fun);
-
-	ScalarFunction bignum_fun({}, LogicalType::VARCHAR, ToHexFunction<string_t, HexStrOperator>);
-	AddHexParam(bignum_fun, LogicalType::BIGNUM, "value");
-	to_hex.AddFunction(bignum_fun);
-
-	ScalarFunction blob_fun({}, LogicalType::VARCHAR, ToHexFunction<string_t, HexStrOperator>);
-	AddHexParam(blob_fun, LogicalType::BLOB, "blob");
-	to_hex.AddFunction(blob_fun);
-
-	ScalarFunction bigint_fun({}, LogicalType::VARCHAR, ToHexFunction<int64_t, HexIntegralOperator>);
-	AddHexParam(bigint_fun, LogicalType::BIGINT, "value");
-	to_hex.AddFunction(bigint_fun);
-
-	ScalarFunction ubigint_fun({}, LogicalType::VARCHAR, ToHexFunction<uint64_t, HexIntegralOperator>);
-	AddHexParam(ubigint_fun, LogicalType::UBIGINT, "value");
-	to_hex.AddFunction(ubigint_fun);
-
-	ScalarFunction hugeint_fun({}, LogicalType::VARCHAR, ToHexFunction<hugeint_t, HexHugeIntOperator>);
-	AddHexParam(hugeint_fun, LogicalType::HUGEINT, "value");
-	to_hex.AddFunction(hugeint_fun);
-
-	ScalarFunction uhugeint_fun({}, LogicalType::VARCHAR, ToHexFunction<uhugeint_t, HexUhugeIntOperator>);
-	AddHexParam(uhugeint_fun, LogicalType::UHUGEINT, "value");
-	to_hex.AddFunction(uhugeint_fun);
-
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, ToHexFunction<string_t, HexStrOperator>));
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::BIGNUM}, LogicalType::VARCHAR, ToHexFunction<string_t, HexStrOperator>));
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::BLOB}, LogicalType::VARCHAR, ToHexFunction<string_t, HexStrOperator>));
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT}, LogicalType::VARCHAR, ToHexFunction<int64_t, HexIntegralOperator>));
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::UBIGINT}, LogicalType::VARCHAR, ToHexFunction<uint64_t, HexIntegralOperator>));
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::HUGEINT}, LogicalType::VARCHAR, ToHexFunction<hugeint_t, HexHugeIntOperator>));
+	to_hex.AddFunction(
+	    ScalarFunction({LogicalType::UHUGEINT}, LogicalType::VARCHAR, ToHexFunction<uhugeint_t, HexUhugeIntOperator>));
 	return to_hex;
 }
 
 ScalarFunction UnhexFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::BLOB, FromHexFunction);
-	function.GetSignature().AddParameter("value", LogicalType::VARCHAR);
+	ScalarFunction function({LogicalType::VARCHAR}, LogicalType::BLOB, FromHexFunction);
 	function.SetFallible();
 	return function;
 }
@@ -426,36 +406,23 @@ ScalarFunction UnhexFun::GetFunction() {
 ScalarFunctionSet BinFun::GetFunctions() {
 	ScalarFunctionSet to_binary;
 
-	ScalarFunction string_fun({}, LogicalType::VARCHAR, ToBinaryFunction<string_t, BinaryStrOperator>);
-	AddHexParam(string_fun, LogicalType::VARCHAR, "string");
-	to_binary.AddFunction(string_fun);
-
-	ScalarFunction bignum_fun({}, LogicalType::VARCHAR, ToBinaryFunction<string_t, BinaryStrOperator>);
-	AddHexParam(bignum_fun, LogicalType::BIGNUM, "value");
-	to_binary.AddFunction(bignum_fun);
-
-	ScalarFunction ubigint_fun({}, LogicalType::VARCHAR, ToBinaryFunction<uint64_t, BinaryIntegralOperator>);
-	AddHexParam(ubigint_fun, LogicalType::UBIGINT, "value");
-	to_binary.AddFunction(ubigint_fun);
-
-	ScalarFunction bigint_fun({}, LogicalType::VARCHAR, ToBinaryFunction<int64_t, BinaryIntegralOperator>);
-	AddHexParam(bigint_fun, LogicalType::BIGINT, "value");
-	to_binary.AddFunction(bigint_fun);
-
-	ScalarFunction hugeint_fun({}, LogicalType::VARCHAR, ToBinaryFunction<hugeint_t, BinaryHugeIntOperator>);
-	AddHexParam(hugeint_fun, LogicalType::HUGEINT, "value");
-	to_binary.AddFunction(hugeint_fun);
-
-	ScalarFunction uhugeint_fun({}, LogicalType::VARCHAR, ToBinaryFunction<uhugeint_t, BinaryUhugeIntOperator>);
-	AddHexParam(uhugeint_fun, LogicalType::UHUGEINT, "value");
-	to_binary.AddFunction(uhugeint_fun);
-
+	to_binary.AddFunction(
+	    ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, ToBinaryFunction<string_t, BinaryStrOperator>));
+	to_binary.AddFunction(
+	    ScalarFunction({LogicalType::BIGNUM}, LogicalType::VARCHAR, ToBinaryFunction<string_t, BinaryStrOperator>));
+	to_binary.AddFunction(ScalarFunction({LogicalType::UBIGINT}, LogicalType::VARCHAR,
+	                                     ToBinaryFunction<uint64_t, BinaryIntegralOperator>));
+	to_binary.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT}, LogicalType::VARCHAR, ToBinaryFunction<int64_t, BinaryIntegralOperator>));
+	to_binary.AddFunction(ScalarFunction({LogicalType::HUGEINT}, LogicalType::VARCHAR,
+	                                     ToBinaryFunction<hugeint_t, BinaryHugeIntOperator>));
+	to_binary.AddFunction(ScalarFunction({LogicalType::UHUGEINT}, LogicalType::VARCHAR,
+	                                     ToBinaryFunction<uhugeint_t, BinaryUhugeIntOperator>));
 	return to_binary;
 }
 
 ScalarFunction UnbinFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::BLOB, FromBinaryFunction);
-	function.GetSignature().AddParameter("value", LogicalType::VARCHAR);
+	ScalarFunction function({LogicalType::VARCHAR}, LogicalType::BLOB, FromBinaryFunction);
 	function.SetFallible();
 	return function;
 }

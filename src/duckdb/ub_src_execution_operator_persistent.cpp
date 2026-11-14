@@ -1,5 +1,3 @@
-#include "src/execution/operator/persistent/copy_batch_slicer.cpp"
-
 #include "src/execution/operator/persistent/copy_output_lifecycle.cpp"
 
 #include "src/execution/operator/persistent/csv_rejects_table.cpp"

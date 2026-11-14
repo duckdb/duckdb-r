@@ -7,7 +7,6 @@ static void LoadInternal(ExtensionLoader &loader) {
 	FunctionList::RegisterExtensionFunctions(loader, CoreFunctionList::GetFunctionList());
 }
 
-// LCOV_EXCL_START
 void CoreFunctionsExtension::Load(ExtensionLoader &loader) {
 	LoadInternal(loader);
 }
@@ -23,7 +22,6 @@ std::string CoreFunctionsExtension::Version() const {
 	return "";
 #endif
 }
-// LCOV_EXCL_STOP
 
 } // namespace duckdb
 

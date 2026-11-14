@@ -12,8 +12,6 @@
 
 #include "src/parser/keyword_helper.cpp"
 
-#include "src/parser/literal.cpp"
-
 #include "src/parser/parsed_expression.cpp"
 
 #include "src/parser/parsed_expression_iterator.cpp"

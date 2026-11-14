@@ -20,16 +20,16 @@ struct WindowAggregateStates {
 
 	//! The number of states
 	idx_t GetCount() const {
-		return count;
+		return states.size() / state_size;
 	}
 	data_ptr_t *GetData() {
 		return FlatVector::GetDataMutable<data_ptr_t>(*statef);
 	}
 	data_ptr_t GetStatePtr(idx_t idx) {
-		return states.get() + idx * state_size;
+		return states.data() + idx * state_size;
 	}
 	const_data_ptr_t GetStatePtr(idx_t idx) const {
-		return states.get() + idx * state_size;
+		return states.data() + idx * state_size;
 	}
 	//! Initialise all the states
 	void Initialize(idx_t count);
@@ -48,10 +48,8 @@ struct WindowAggregateStates {
 	const idx_t state_size;
 	//! The allocator to use
 	ArenaAllocator allocator;
-	//! The number of states
-	idx_t count = 0;
-	//! Buffer that contains the state data, allocated through the buffer allocator
-	AllocatedData states;
+	//! Data pointer that contains the state data
+	vector<data_t> states;
 	//! Reused result state container for the window functions
 	unique_ptr<Vector> statef;
 };

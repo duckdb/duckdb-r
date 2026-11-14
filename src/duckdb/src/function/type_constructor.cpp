@@ -34,7 +34,7 @@ TypeConstructor TypeConstructor::Identity(Identifier name) {
 TypeConstructor TypeConstructor::Unchecked(Identifier name, bind_logical_type_function_t bind) {
 	// accepts anything, the bind function validates the arguments itself
 	auto signature = Signature();
-	signature.AddArgs("args", LogicalType::ANY).AddKwargs("kwargs", LogicalType::ANY);
+	signature.SetVarArgs(LogicalType::ANY);
 	return TypeConstructor(std::move(name), std::move(signature), bind);
 }
 
@@ -66,21 +66,14 @@ string ConstructorToString(const Identifier &type_name, const TypeConstructor &c
 	const auto &sig = constructor.GetSignature();
 	vector<string> parts;
 	for (auto &param : sig.GetParameters()) {
-		switch (param.GetKind()) {
-		case FunctionParameterKind::VAR_POSITIONAL:
-			parts.push_back(param.GetType().ToString() + "...");
-			continue;
-		case FunctionParameterKind::VAR_KEYWORD:
-			parts.push_back(param.GetName().GetIdentifierName() + " := " + param.GetType().ToString() + "...");
-			continue;
-		default:
-			break;
-		}
 		string part = param.GetName().GetIdentifierName() + " " + param.GetType().ToString();
 		if (param.HasDefaultValue()) {
 			part += " := " + param.GetDefaultValue()->ToString();
 		}
 		parts.push_back(std::move(part));
+	}
+	if (sig.HasVarArgs()) {
+		parts.push_back(sig.GetVarArgs().ToString() + "...");
 	}
 	return type_name.GetIdentifierName() + "(" + StringUtil::Join(parts, ", ") + ")";
 }
@@ -140,7 +133,7 @@ Value CastArgument(const Identifier &type_name, const string &arg_name, const Va
 vector<TypeArgument> NormalizeArguments(const Identifier &type_name, const TypeConstructor &constructor,
                                         const vector<TypeArgument> &arguments, QueryLocation type_location) {
 	const auto &sig = constructor.GetSignature();
-	const auto param_count = sig.GetPositionalParameterCount();
+	const auto param_count = sig.GetParameterCount();
 
 	vector<TypeArgument> result;
 	vector<optional_ptr<const TypeArgument>> slots(param_count);
@@ -161,20 +154,12 @@ vector<TypeArgument> NormalizeArguments(const Identifier &type_name, const TypeC
 		positional_count++;
 	}
 
-	identifier_set_t seen_names;
 	for (idx_t i = 0; i < arguments.size(); i++) {
 		auto &arg = arguments[i];
 		if (!arg.HasName()) {
 			continue;
 		}
-		auto name = Identifier(arg.GetName());
-		if (seen_names.find(name) != seen_names.end()) {
-			throw BinderException(arg.GetQueryLocation(), "Duplicate type parameter %s for type %s", arg.GetName(),
-			                      type_name);
-		}
-		seen_names.insert(name);
-
-		auto param_idx = sig.GetParameterIndexByName(name);
+		auto param_idx = sig.GetParameterIndexByName(Identifier(arg.GetName()));
 		if (!param_idx.IsValid()) {
 			// not a declared parameter - it can only be a named vararg
 			varargs.emplace_back(i, arg);
@@ -207,11 +192,8 @@ vector<TypeArgument> NormalizeArguments(const Identifier &type_name, const TypeC
 		auto &arg = entry.second.get();
 		auto arg_name = ArgumentName(Identifier(arg.GetName()), entry.first);
 		auto location = arg.GetQueryLocation();
-		// a named modifier is received by "**kwargs", an unnamed one by "*args"
-		auto param = arg.HasName() ? sig.GetKwargs() : sig.GetArgs();
-		auto &target = param ? param->GetType() : LogicalType::ANY;
-		result.emplace_back(arg.GetName(), CastArgument(type_name, arg_name, arg.GetValue(), target, location),
-		                    location);
+		result.emplace_back(arg.GetName(),
+		                    CastArgument(type_name, arg_name, arg.GetValue(), sig.GetVarArgs(), location), location);
 	}
 	return result;
 }
@@ -226,7 +208,7 @@ LogicalType TypeConstructorSet::Bind(optional_ptr<ClientContext> context, const 
 	// parameterised. It also gets a dedicated error, as the generic one would list a single empty candidate.
 	if (functions.size() == 1) {
 		const auto &sig = functions[0]->GetSignature();
-		if (sig.GetParameterCount() == 0) {
+		if (sig.GetParameterCount() == 0 && !sig.HasVarArgs()) {
 			if (!arguments.empty()) {
 				throw BinderException(query_location, "Type %s does not take any type parameters", name);
 			}

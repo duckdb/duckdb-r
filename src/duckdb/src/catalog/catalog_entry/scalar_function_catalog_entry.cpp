@@ -13,15 +13,10 @@ constexpr const char *ScalarFunctionCatalogEntry::Name;
 ScalarFunctionCatalogEntry::ScalarFunctionCatalogEntry(Catalog &catalog, SchemaCatalogEntry &schema,
                                                        CreateScalarFunctionInfo &info)
     : FunctionEntry(CatalogType::SCALAR_FUNCTION_ENTRY, catalog, schema, info), functions(info.functions) {
-	for (auto &function : functions.functions) {
-		function = FinalizeFunction(*function);
-	}
-}
-
-shared_ptr<const ScalarFunction> ScalarFunctionCatalogEntry::FinalizeFunction(ScalarFunction function) const {
-	auto result = make_shared_ptr<ScalarFunction>(std::move(function));
-	result->SetQualifiedName(schema.GetQualifiedName(name));
-	return result;
+	functions.ApplyToFunctions([&](ScalarFunction &function) {
+		function.SetCatalogName(catalog.GetAttached().GetName());
+		function.SetSchemaName(schema.name);
+	});
 }
 
 unique_ptr<CatalogEntry> ScalarFunctionCatalogEntry::AlterEntry(CatalogTransaction transaction, AlterInfo &info) {

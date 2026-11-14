@@ -33,12 +33,12 @@ string ExternalResourceStatement::ToString() const {
 			result += " AS " + SQLIdentifier(name);
 		}
 		if (!options.empty()) {
-			result += " (";
-			result += StringUtil::Join(options, ", ", [](const auto &opt) {
-				return StringUtil::Format("%s %s", SQLIdentifier(opt.first).ToString(opt.first),
-				                          opt.second->ToString());
-			});
-			result += ")";
+			vector<string> stringified;
+			for (auto &opt : options) {
+				stringified.push_back(
+				    StringUtil::Format("%s %s", SQLIdentifier(opt.first).ToString(opt.first), opt.second->ToString()));
+			}
+			result += " (" + StringUtil::Join(stringified, ", ") + ")";
 		}
 		break;
 	case ExternalResourceOperation::REGISTER:

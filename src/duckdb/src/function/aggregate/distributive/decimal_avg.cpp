@@ -161,10 +161,9 @@ static unique_ptr<FunctionData> BindDecimalAverage(BindAggregateFunctionInput &i
 
 AggregateFunctionSet DecimalAverageFun::GetFunctions() {
 	AggregateFunctionSet set("decimal_average");
-	AggregateFunction fun({}, LogicalType(LogicalTypeId::DECIMAL), nullptr, nullptr, nullptr, nullptr, nullptr,
-	                      FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr, BindDecimalAverage);
-	fun.GetSignature().AddParameter("arg", LogicalTypeId::DECIMAL);
-	set.AddFunction(fun);
+	set.AddFunction(AggregateFunction({LogicalType(LogicalTypeId::DECIMAL)}, LogicalType(LogicalTypeId::DECIMAL),
+	                                  nullptr, nullptr, nullptr, nullptr, nullptr,
+	                                  FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr, BindDecimalAverage));
 	return set;
 }
 

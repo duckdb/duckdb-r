@@ -716,11 +716,8 @@ void WindowBoundariesState::FrameBegin(idx_t row_idx, const idx_t count, WindowI
 			if (boundary_begin.CellIsNull(chunk_idx)) {
 				throw InvalidInputException("Window ROWS PRECEDING expression cannot be NULL");
 			}
-			const auto offset = boundary_begin.GetCell<int64_t>(chunk_idx);
-			if (offset < 0) {
-				throw InvalidInputException("Window ROWS PRECEDING expression cannot be negative");
-			}
-			if (!TrySubtractOperator::Operation(static_cast<int64_t>(row_idx), offset, computed_start)) {
+			if (!TrySubtractOperator::Operation(static_cast<int64_t>(row_idx),
+			                                    boundary_begin.GetCell<int64_t>(chunk_idx), computed_start)) {
 				window_start = partition_begin_data[chunk_idx];
 			} else {
 				window_start = UnsafeNumericCast<idx_t>(MaxValue<int64_t>(computed_start, 0));
@@ -734,14 +731,11 @@ void WindowBoundariesState::FrameBegin(idx_t row_idx, const idx_t count, WindowI
 			if (boundary_begin.CellIsNull(chunk_idx)) {
 				throw InvalidInputException("Window ROWS FOLLOWING expression cannot be NULL");
 			}
-			const auto offset = boundary_begin.GetCell<int64_t>(chunk_idx);
-			if (offset < 0) {
-				throw InvalidInputException("Window ROWS FOLLOWING expression cannot be negative");
-			}
-			if (!TryAddOperator::Operation(static_cast<int64_t>(row_idx), offset, computed_start)) {
-				window_start = partition_end_data[chunk_idx];
+			if (!TryAddOperator::Operation(static_cast<int64_t>(row_idx), boundary_begin.GetCell<int64_t>(chunk_idx),
+			                               computed_start)) {
+				window_start = partition_begin_data[chunk_idx];
 			} else {
-				window_start = UnsafeNumericCast<idx_t>(computed_start);
+				window_start = UnsafeNumericCast<idx_t>(MaxValue<int64_t>(computed_start, 0));
 			}
 			frame_begin_data[chunk_idx] = window_start;
 		}
@@ -883,12 +877,9 @@ void WindowBoundariesState::FrameEnd(idx_t row_idx, const idx_t count, WindowInp
 			if (boundary_end.CellIsNull(chunk_idx)) {
 				throw InvalidInputException("Window ROWS PRECEDING expression cannot be NULL");
 			}
-			const auto offset = boundary_end.GetCell<int64_t>(chunk_idx);
-			if (offset < 0) {
-				throw InvalidInputException("Window ROWS PRECEDING expression cannot be negative");
-			}
-			if (!TrySubtractOperator::Operation(int64_t(row_idx + 1), offset, computed_start)) {
-				window_end = partition_begin_data[chunk_idx];
+			if (!TrySubtractOperator::Operation(int64_t(row_idx + 1), boundary_end.GetCell<int64_t>(chunk_idx),
+			                                    computed_start)) {
+				window_end = partition_end_data[chunk_idx];
 			} else {
 				window_end = UnsafeNumericCast<idx_t>(MaxValue<int64_t>(computed_start, 0));
 			}
@@ -902,14 +893,11 @@ void WindowBoundariesState::FrameEnd(idx_t row_idx, const idx_t count, WindowInp
 			if (boundary_end.CellIsNull(chunk_idx)) {
 				throw InvalidInputException("Window ROWS FOLLOWING expression cannot be NULL");
 			}
-			const auto offset = boundary_end.GetCell<int64_t>(chunk_idx);
-			if (offset < 0) {
-				throw InvalidInputException("Window ROWS FOLLOWING expression cannot be negative");
-			}
-			if (!TryAddOperator::Operation(int64_t(row_idx + 1), offset, computed_start)) {
+			if (!TryAddOperator::Operation(int64_t(row_idx + 1), boundary_end.GetCell<int64_t>(chunk_idx),
+			                               computed_start)) {
 				window_end = partition_end_data[chunk_idx];
 			} else {
-				window_end = UnsafeNumericCast<idx_t>(computed_start);
+				window_end = UnsafeNumericCast<idx_t>(MaxValue<int64_t>(computed_start, 0));
 			}
 			frame_end_data[chunk_idx] = window_end;
 		}

@@ -10,6 +10,7 @@
 
 #include "duckdb/common/map.hpp"
 #include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/common/query_parameters.hpp"
 
 namespace duckdb {
 
@@ -37,6 +38,8 @@ public:
 	BatchedDataCollection(ClientContext &context, vector<LogicalType> types,
 	                      ColumnDataAllocatorType allocator_type = ColumnDataAllocatorType::IN_MEMORY_ALLOCATOR,
 	                      ColumnDataCollectionLifetime lifetime = ColumnDataCollectionLifetime::REGULAR);
+	DUCKDB_API
+	BatchedDataCollection(ClientContext &context, vector<LogicalType> types, QueryResultMemoryType memory_type);
 	DUCKDB_API
 	BatchedDataCollection(ClientContext &context, vector<LogicalType> types, batch_map_t batches,
 	                      ColumnDataAllocatorType allocator_type = ColumnDataAllocatorType::IN_MEMORY_ALLOCATOR,

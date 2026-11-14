@@ -12,8 +12,6 @@
 #include "duckdb/planner/logical_operator.hpp"
 
 namespace duckdb {
-class SchemaCatalogEntry;
-struct CreateInfo;
 
 class LogicalCreateTable : public LogicalOperator {
 public:

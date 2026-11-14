@@ -123,12 +123,7 @@ static unique_ptr<FunctionData> CreateExternalResourceBind(ClientContext &contex
 		} else if (key == "resource_name" && !np.second.IsNull()) {
 			result->resource_name = StringValue::Get(np.second);
 		} else if (key == "handle" && !np.second.IsNull()) {
-			// declared ANY so that a STRUCT of the handle's fields is accepted as readily as a MAP - anything
-			// that is not convertible to the handle's shape is reported here
-			result->adopt_handle =
-			    np.second.type().id() == LogicalTypeId::MAP
-			        ? np.second
-			        : np.second.DefaultCastAs(LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR));
+			result->adopt_handle = np.second;
 		} else if (key == "teardown_on_failure" && !np.second.IsNull()) {
 			result->teardown_on_failure = BooleanValue::Get(np.second);
 		} else if (key == "timeout_seconds" && !np.second.IsNull()) {
@@ -211,12 +206,7 @@ static void CreateExternalResourceFunction(ClientContext &context, TableFunction
 				throw InvalidInputException("create_external_resource: create function \"%s\" returned no rows",
 				                            type->create_function);
 			}
-			handle = RequireResourceMap(result->Collection().GetRows().GetValue(0, 0), type->create_function, "handle");
-			if (handle.IsNull()) {
-				// the handle identifies the resource for status and teardown - without one it can never be destroyed
-				throw InvalidInputException("create_external_resource: create function \"%s\" returned a NULL handle",
-				                            type->create_function);
-			}
+			handle = RequireResourceMap(result->GetValue(0, 0), type->create_function, "handle");
 			LogExternalResourceOperation(context, bind_data.type_name, bind_data.resource_name, "create", string(),
 			                             NoExtraInfo());
 		} catch (std::exception &ex) {
@@ -296,15 +286,14 @@ static void CreateExternalResourceFunction(ClientContext &context, TableFunction
 				throw InvalidInputException("create_external_resource: status function \"%s\" returned no rows",
 				                            type->status_function);
 			}
-			auto status_rows = sres->Collection().GetRows();
-			auto state_val = status_rows.GetValue(0, 0);
+			auto state_val = sres->GetValue(0, 0);
 			auto status_state = state_val.IsNull() ? string() : state_val.ToString();
 			if (status_state == "failed") {
 				throw IOException("create_external_resource: resource \"%s\" reported state 'failed'",
 				                  bind_data.type_name);
 			}
 			if (status_state == "ready") {
-				status_result = RequireResourceMap(status_rows.GetValue(1, 0), type->status_function, "result");
+				status_result = RequireResourceMap(sres->GetValue(1, 0), type->status_function, "result");
 				ready = true;
 			} else if (has_deadline && std::chrono::steady_clock::now() >= deadline) {
 				throw IOException("create_external_resource: timed out awaiting readiness for \"%s\" (last state '%s')",
@@ -373,16 +362,14 @@ static void CreateExternalResourceFunction(ClientContext &context, TableFunction
 }
 
 void CreateExternalResourceFun::RegisterFunction(BuiltinFunctions &set) {
-	TableFunction fn("create_external_resource", FunctionSignature().AddPositionalOnly("type", LogicalType::VARCHAR),
-	                 CreateExternalResourceFunction, CreateExternalResourceBind, CreateExternalResourceInit);
-	fn.GetSignature().WithTypedKwargs("options", [](TypedKwargs &options) {
-		options.Add("params", LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR))
-		    .Add("resource_name", LogicalType::VARCHAR)
-		    .Add("handle", LogicalType::ANY)
-		    .Add("teardown_on_failure", LogicalType::BOOLEAN)
-		    .Add("timeout_seconds", LogicalType::BIGINT)
-		    .Add("poll_interval_seconds", LogicalType::BIGINT);
-	});
+	TableFunction fn("create_external_resource", {LogicalType::VARCHAR}, CreateExternalResourceFunction,
+	                 CreateExternalResourceBind, CreateExternalResourceInit);
+	fn.named_parameters["params"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
+	fn.named_parameters["resource_name"] = LogicalType::VARCHAR;
+	fn.named_parameters["handle"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
+	fn.named_parameters["teardown_on_failure"] = LogicalType::BOOLEAN;
+	fn.named_parameters["timeout_seconds"] = LogicalType::BIGINT;
+	fn.named_parameters["poll_interval_seconds"] = LogicalType::BIGINT;
 	set.AddFunction(fn);
 }
 
@@ -450,10 +437,7 @@ static void DestroyExternalResourceFunction(ClientContext &context, TableFunctio
 }
 
 void DestroyExternalResourceFun::RegisterFunction(BuiltinFunctions &set) {
-	set.AddFunction(TableFunction("destroy_external_resource",
-	                              FunctionSignature()
-	                                  .AddPositionalOnly("deleter_function", LogicalType::VARCHAR)
-	                                  .AddPositionalOnly("payload", LogicalType::ANY),
+	set.AddFunction(TableFunction("destroy_external_resource", {LogicalType::VARCHAR, LogicalType::ANY},
 	                              DestroyExternalResourceFunction, DestroyExternalResourceBind,
 	                              DestroyExternalResourceInit));
 }

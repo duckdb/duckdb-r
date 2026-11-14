@@ -26,21 +26,42 @@ string StarExpression::ToString() const {
 	result += relation_name.empty() ? "*" : SQLIdentifier(relation_name) + ".*";
 	if (!exclude_list.empty()) {
 		result += " EXCLUDE (";
-		result += StringUtil::Join(exclude_list, ", ", [](const auto &entry) { return entry.ToString(); });
+		bool first_entry = true;
+		for (auto &entry : exclude_list) {
+			if (!first_entry) {
+				result += ", ";
+			}
+			result += entry.ToString();
+			first_entry = false;
+		}
 		result += ")";
 	}
 	if (!replace_list.empty()) {
 		result += " REPLACE (";
-		result += StringUtil::Join(replace_list, ", ", [](const auto &entry) {
-			return entry.second->ToString() + " AS " + SQLIdentifier(entry.first);
-		});
+		bool first_entry = true;
+		for (auto &entry : replace_list) {
+			if (!first_entry) {
+				result += ", ";
+			}
+			result += entry.second->ToString();
+			result += " AS ";
+			result += SQLIdentifier(entry.first);
+			first_entry = false;
+		}
 		result += ")";
 	}
 	if (!rename_list.empty()) {
 		result += " RENAME (";
-		result += StringUtil::Join(rename_list, ", ", [](const auto &entry) {
-			return entry.first.ToString() + " AS " + SQLIdentifier(entry.second);
-		});
+		bool first_entry = true;
+		for (auto &entry : rename_list) {
+			if (!first_entry) {
+				result += ", ";
+			}
+			result += entry.first.ToString();
+			result += " AS ";
+			result += SQLIdentifier(entry.second);
+			first_entry = false;
+		}
 		result += ")";
 	}
 	if (columns) {

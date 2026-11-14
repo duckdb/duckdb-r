@@ -144,21 +144,14 @@ void ExecuteMakeTimestampNs(DataChunk &input, ExpressionState &state, Vector &re
 
 ScalarFunctionSet MakeDateFun::GetFunctions() {
 	ScalarFunctionSet make_date("make_date");
-	ScalarFunction epoch_fun({}, LogicalType::DATE, MakeDateFromEpoch);
-	epoch_fun.GetSignature().AddParameter("days", LogicalType::INTEGER);
-	make_date.AddFunction(epoch_fun);
-	ScalarFunction ymd_fun({}, LogicalType::DATE, ExecuteMakeDate<int64_t>);
-	ymd_fun.GetSignature()
-	    .AddParameter("year", LogicalType::BIGINT)
-	    .AddParameter("month", LogicalType::BIGINT)
-	    .AddParameter("day", LogicalType::BIGINT);
-	make_date.AddFunction(ymd_fun);
+	make_date.AddFunction(ScalarFunction({LogicalType::INTEGER}, LogicalType::DATE, MakeDateFromEpoch));
+	make_date.AddFunction(ScalarFunction({LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::BIGINT},
+	                                     LogicalType::DATE, ExecuteMakeDate<int64_t>));
 
 	child_list_t<LogicalType> make_date_children {
 	    {"year", LogicalType::BIGINT}, {"month", LogicalType::BIGINT}, {"day", LogicalType::BIGINT}};
-	ScalarFunction struct_fun({}, LogicalType::DATE, ExecuteStructMakeDate<int64_t>);
-	struct_fun.GetSignature().AddParameter("date-struct", LogicalType::STRUCT(make_date_children));
-	make_date.AddFunction(struct_fun);
+	make_date.AddFunction(
+	    ScalarFunction({LogicalType::STRUCT(make_date_children)}, LogicalType::DATE, ExecuteStructMakeDate<int64_t>));
 	make_date.ApplyToFunctions([](ScalarFunction &func) {
 		func.SetFallible();
 		func.SetUnaryArgProperties(ArgProperties().StrictlyIncreasing());
@@ -167,29 +160,19 @@ ScalarFunctionSet MakeDateFun::GetFunctions() {
 }
 
 ScalarFunction MakeTimeFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::TIME, ExecuteMakeTime<int64_t>);
-	function.GetSignature()
-	    .AddParameter("hour", LogicalType::BIGINT)
-	    .AddParameter("minute", LogicalType::BIGINT)
-	    .AddParameter("seconds", LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::DOUBLE}, LogicalType::TIME,
+	                        ExecuteMakeTime<int64_t>);
 	function.SetFallible();
 	return function;
 }
 
 ScalarFunctionSet MakeTimestampFun::GetFunctions() {
 	ScalarFunctionSet operator_set("make_timestamp");
-	ScalarFunction full_fun({}, LogicalType::TIMESTAMP, ExecuteMakeTimestamp<int64_t>);
-	full_fun.GetSignature()
-	    .AddParameter("year", LogicalType::BIGINT)
-	    .AddParameter("month", LogicalType::BIGINT)
-	    .AddParameter("day", LogicalType::BIGINT)
-	    .AddParameter("hour", LogicalType::BIGINT)
-	    .AddParameter("minute", LogicalType::BIGINT)
-	    .AddParameter("seconds", LogicalType::DOUBLE);
-	operator_set.AddFunction(full_fun);
-	ScalarFunction micros_fun({}, LogicalType::TIMESTAMP, ExecuteMakeTimestamp<int64_t>);
-	micros_fun.GetSignature().AddParameter("micros", LogicalType::BIGINT);
-	operator_set.AddFunction(micros_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::BIGINT,
+	                                         LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::DOUBLE},
+	                                        LogicalType::TIMESTAMP, ExecuteMakeTimestamp<int64_t>));
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT}, LogicalType::TIMESTAMP, ExecuteMakeTimestamp<int64_t>));
 
 	operator_set.ApplyToFunctions([](ScalarFunction &func) {
 		func.SetFallible();
@@ -200,9 +183,8 @@ ScalarFunctionSet MakeTimestampFun::GetFunctions() {
 
 ScalarFunctionSet MakeTimestampNsFun::GetFunctions() {
 	ScalarFunctionSet operator_set("make_timestamp_ns");
-	ScalarFunction nanos_fun({}, LogicalType::TIMESTAMP_NS, ExecuteMakeTimestampNs<int64_t>);
-	nanos_fun.GetSignature().AddParameter("nanos", LogicalType::BIGINT);
-	operator_set.AddFunction(nanos_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT}, LogicalType::TIMESTAMP_NS, ExecuteMakeTimestampNs<int64_t>));
 	// throws if the microseconds are out of range for a timestamp
 	operator_set.SetFallible();
 	operator_set.SetUnaryArgProperties(ArgProperties().StrictlyIncreasing());

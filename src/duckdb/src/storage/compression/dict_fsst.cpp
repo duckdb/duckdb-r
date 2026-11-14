@@ -160,15 +160,17 @@ void DictFSSTCompressionStorage::StringFetchRow(ColumnSegment &segment, ColumnFe
 // Select
 //===--------------------------------------------------------------------===//
 void DictFSSTSelect(ColumnSegment &segment, ColumnScanState &state, idx_t vector_count, Vector &result,
-                    const SelectionVector &sel, idx_t sel_count, idx_t result_offset, ScanVectorType scan_type) {
+                    const SelectionVector &sel, idx_t sel_count) {
 	auto &scan_state = state.scan_state->Cast<CompressedStringScanState>();
-	if (scan_state.mode != DictFSSTMode::FSST_ONLY && scan_type == ScanVectorType::SCAN_ENTIRE_VECTOR) {
-		// scan + slice, so that we can emit a dictionary vector
-		DictFSSTCompressionStorage::StringScan(segment, state, vector_count, result);
-		result.Slice(sel, sel_count);
+	if (scan_state.mode == DictFSSTMode::FSST_ONLY) {
+		// for FSST only
+		auto start = state.GetPositionInSegment();
+		scan_state.Select(result, start, sel, sel_count);
 		return;
 	}
-	scan_state.Select(result, result_offset, state.GetPositionInSegment(), sel, sel_count);
+	// fallback: scan + slice
+	DictFSSTCompressionStorage::StringScan(segment, state, vector_count, result);
+	result.Slice(sel, sel_count);
 }
 
 //===--------------------------------------------------------------------===//

@@ -7,64 +7,56 @@
 
 #pragma once
 
-#include "duckdb/common/optional.hpp"
-#include "duckdb/common/optional_idx.hpp"
 #include "duckdb/parser/peg/matcher.hpp"
 
 namespace duckdb {
 
-struct PackratMatchState {
-	static bool IsEnabled(const Matcher &matcher, const MatchState &state) {
-		return state.context.packrat_cache && matcher.IsPackratMemoized() && matcher.GetPackratId().IsValid();
-	}
+using match_frame_index_t = idx_t;
 
-	optional<MatcherResult> TryLoadCachedResult(const Matcher &matcher, MatchState &state);
-	void StoreResult(const Matcher &matcher, MatchState &state, const MatcherResult &result) const;
+class MatchStack;
 
-private:
-	optional_idx token_index_before;
-	idx_t max_token_index_before = 0;
-};
+enum class MatchFrameState : uint8_t { INITIALIZE, EXECUTE };
+enum class MatchResultState : uint8_t { NONE, FAILURE, SUCCESS };
 
 struct MatchStackFrame {
-public:
-	explicit MatchStackFrame(MatchInput input);
+	MatchStackFrame(match_frame_index_t frame_index, const Matcher &matcher, MatchState &state);
+	virtual ~MatchStackFrame() = default;
 
-public:
-	bool IsInitialized() const;
+	virtual void Execute(MatchStack &stack);
+	void SetResult(const MatcherResult &result);
+	bool HasResult() const;
+	MatcherResult GetResult() const;
+	void SetChildResult(const MatcherResult &result);
+	bool HasChildResult() const;
+	MatcherResult TakeChildResult();
 
-public:
+	const match_frame_index_t frame_index;
 	const Matcher &matcher;
 	MatchState &match_state;
-	arena_ptr<MatchProcess> process;
-	optional<MatcherResult> child_result;
-	optional<MatcherResult> result;
-	PackratMatchState packrat_state;
-	//! The position of the process arena when the frame was pushed - the arena is rewound to it when the frame is
-	//! popped
-	ArenaAllocator::Position process_arena_position;
+	MatchFrameState state = MatchFrameState::INITIALIZE;
+	MatchResultState result_state = MatchResultState::NONE;
+	optional_ptr<ParseResult> parse_result;
+	MatchResultState child_result_state = MatchResultState::NONE;
+	optional_ptr<ParseResult> child_parse_result;
+	bool store_packrat_result = false;
+	idx_t token_index_before = 0;
+	idx_t max_token_index_before = 0;
 };
 
 class MatchStack {
 public:
-	MatchStack();
-	~MatchStack();
-
-	MatcherResult Execute(MatchInput input);
+	MatcherResult Execute(const Matcher &matcher, MatchState &state);
+	void PushChildFrame(MatchStackFrame &parent, const Matcher &matcher, MatchState &state);
 
 private:
-	static constexpr idx_t INITIAL_FRAME_CAPACITY = 64;
-
-	MatcherResult ExecuteAtomicMatcher(MatchInput input);
-	void DestroyTopFrame();
-	void PushFrame(MatchInput input);
+	void PushFrame(const Matcher &matcher, MatchState &state);
 	void InitializeFrame(MatchStackFrame &frame);
-	//! Returns true when the frame has completed.
-	bool ExecuteFrame(MatchStackFrame &frame);
+	void ExecuteFrame(MatchStackFrame &frame);
 	MatcherResult FinalizeFrame(MatchStackFrame &frame);
+	MatcherResult ExecuteInternal(const Matcher &matcher, MatchState &state);
 
 private:
-	vector<MatchStackFrame> frames;
+	vector<unique_ptr<MatchStackFrame>> frames;
 };
 
 } // namespace duckdb

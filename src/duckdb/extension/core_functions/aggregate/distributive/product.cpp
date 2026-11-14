@@ -39,10 +39,8 @@ struct ProductFunction : public EmptyValAggregate<ProductReduce, ConstantInit<1>
 } // namespace
 
 AggregateFunction ProductFun::GetFunction() {
-	auto fun = AggregateFunction::UnaryAggregate<ProductState, double, double, ProductFunction>(
+	return AggregateFunction::UnaryAggregate<ProductState, double, double, ProductFunction>(
 	    LogicalType(LogicalTypeId::DOUBLE), LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("arg");
-	return fun;
 }
 
 } // namespace duckdb

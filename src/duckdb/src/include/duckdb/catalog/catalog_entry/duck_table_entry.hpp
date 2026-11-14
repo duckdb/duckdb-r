@@ -10,6 +10,7 @@
 
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_set.hpp"
+#include "duckdb/parser/constraints/unique_constraint.hpp"
 #include "duckdb/planner/constraints/bound_unique_constraint.hpp"
 
 namespace duckdb {
@@ -28,8 +29,6 @@ public:
 	               shared_ptr<CatalogSet> inherited_triggers = nullptr);
 
 public:
-	const ColumnList &GetColumns() const override;
-
 	unique_ptr<CatalogEntry> AlterEntry(ClientContext &context, AlterInfo &info) override;
 	unique_ptr<CatalogEntry> AlterEntry(CatalogTransaction, AlterInfo &info) override;
 	void UndoAlter(ClientContext &context, AlterInfo &info) override;
@@ -52,9 +51,6 @@ public:
 	void CommitAlter(string &column_name, CommitDropState &drop_state);
 	void CommitDrop(CommitDropState &drop_state);
 
-	//! Returns the backing index OIDs of UNIQUE constraints that are not in prev_table.
-	vector<idx_t> GetAddedUniqueIndexOids(const DuckTableEntry &prev_table) const;
-
 	TableFunction GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data) override;
 
 	vector<ColumnSegmentInfo>
@@ -69,9 +65,6 @@ public:
 	bool IsDuckTable() const override {
 		return true;
 	}
-	optional_ptr<DuckTableEntry> TryGetDuckTableEntry() override {
-		return this;
-	}
 
 	//! Returns the virtual columns for this table
 	virtual_column_map_t GetVirtualColumns() const override;
@@ -83,7 +76,7 @@ public:
 	//! Scan all triggers without a transaction (used by checkpoint writer)
 	void ScanTriggersNonTransactional(const std::function<void(CatalogEntry &)> &callback);
 	//! Drop a trigger by name
-	bool DropTrigger(CatalogTransaction transaction, const Identifier &name, bool cascade) override;
+	bool DropTrigger(CatalogTransaction transaction, const Identifier &name, bool cascade);
 
 private:
 	unique_ptr<CatalogEntry> RenameColumn(ClientContext &context, RenameColumnInfo &info);
@@ -105,10 +98,6 @@ private:
 	void UpdateConstraintsOnColumnDrop(const LogicalIndex &removed_index, const vector<LogicalIndex> &adjusted_indices,
 	                                   const RemoveColumnInfo &info, CreateTableInfo &create_info,
 	                                   const vector<unique_ptr<BoundConstraint>> &bound_constraints, bool is_generated);
-
-protected:
-	//! A list of columns that are part of this table
-	ColumnList columns;
 
 private:
 	//! A reference to the underlying storage unit used for this table

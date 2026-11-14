@@ -35,8 +35,7 @@ unique_ptr<Expression> BindCanCastImplicitlyExpression(FunctionBindExpressionInp
 } // namespace
 
 ScalarFunction CanCastImplicitlyFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::BOOLEAN, CanCastImplicitlyFunction);
-	fun.GetSignature().AddParameter("source_type", LogicalType::ANY).AddParameter("target_type", LogicalType::ANY);
+	auto fun = ScalarFunction({LogicalType::ANY, LogicalType::ANY}, LogicalType::BOOLEAN, CanCastImplicitlyFunction);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	fun.SetBindExpressionCallback(BindCanCastImplicitlyExpression);
 	return fun;

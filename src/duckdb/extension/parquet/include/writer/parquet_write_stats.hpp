@@ -24,7 +24,6 @@ public:
 	virtual string GetMaxValue();
 	virtual bool CanHaveNaN();
 	virtual bool HasNaN();
-	virtual idx_t GetNaNCount();
 	virtual bool MinIsExact();
 	virtual bool MaxIsExact();
 
@@ -76,17 +75,14 @@ public:
 template <class SRC, class T, class OP>
 class FloatingPointStatisticsState : public NumericStatisticsState<SRC, T, OP> {
 public:
-	idx_t nan_count = 0;
+	bool has_nan = false;
 
 public:
 	bool CanHaveNaN() override {
 		return true;
 	}
 	bool HasNaN() override {
-		return nan_count != 0;
-	}
-	idx_t GetNaNCount() override {
-		return nan_count;
+		return has_nan;
 	}
 };
 

@@ -13,19 +13,18 @@ public:
 	static const DuckDBKeywordHelper &Instance();
 
 public:
-	keyword_categories_t GetIdentifierMask(SuggestionState type) const override;
-	KeywordCategory GetKeywordCategory(const string &text) const;
+	bool KeywordCategoryType(const std::string &text, const PEGKeywordCategory type) const override;
+	bool IsKeyword(const string &text) const override;
 	vector<ParserKeyword> KeywordList() const override;
-	const GrammarLiteralTable &GetLiteralTable() const override {
-		return literal_table;
-	}
 
 private:
-	static DefaultKeywordMaps InitializeKeywordMaps();
+	void InitializeKeywordMaps();
 
 private:
 	DefaultKeywordMaps keyword_maps;
-	GrammarLiteralTable literal_table;
+
+private:
+	bool initialized;
 };
 
 } // namespace duckdb

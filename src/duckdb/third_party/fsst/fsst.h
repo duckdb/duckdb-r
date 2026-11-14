@@ -138,7 +138,7 @@ duckdb_fsst_destroy(duckdb_fsst_encoder_t*);
 unsigned int                /* OUT: bytes consumed (a symbol table was decoded), or one of the sentinels above on failure. */
 duckdb_fsst_import(
    duckdb_fsst_decoder_t *decoder, /* IN: this symbol table will be overwritten. */
-   const unsigned char *buf, /* IN: pointer to a byte-buffer where duckdb_fsst_export() serialized this symbol table. */
+   unsigned char *buf,      /* IN: pointer to a byte-buffer where duckdb_fsst_export() serialized this symbol table. */
    size_t buf_size          /* IN: number of readable bytes in buf; import never reads past this. */
 );
 
@@ -162,10 +162,7 @@ duckdb_fsst_compress(
    unsigned char *strOut[]  /* OUT: output string start pointers. Will all point into [output,output+size). */
 );
 
-#define DUCKDB_FSST_DECOMPRESS_INVALID_INPUT ((size_t)-1)
-
-/* Decompress a single string, inlined for speed. An escape must be followed by a literal byte. */
-/* Returns DUCKDB_FSST_DECOMPRESS_INVALID_INPUT if that byte is missing. */
+/* Decompress a single string, inlined for speed. */
 inline size_t /* OUT: bytesize of the decompressed string. If > size, the decoded output is truncated to size. */
 duckdb_fsst_decompress(
    duckdb_fsst_decoder_t *decoder,  /* IN: use this symbol table for compression. */
@@ -199,11 +196,7 @@ duckdb_fsst_decompress(
 			 DUCKDB_FSST_EXPLICIT_FALLTHROUGH;
          case 1: code = strIn[posIn++]; FSST_UNALIGNED_STORE(strOut+posOut, symbol[code]); posOut += len[code];
 			 DUCKDB_FSST_EXPLICIT_FALLTHROUGH;
-         case 0:
-             if (posIn+1 >= lenIn) {
-                return DUCKDB_FSST_DECOMPRESS_INVALID_INPUT;
-             }
-             posIn+=2; strOut[posOut++] = strIn[posIn-1]; /* decompress an escaped byte */
+         case 0: posIn+=2; strOut[posOut++] = strIn[posIn-1]; /* decompress an escaped byte */
          }
       }
    }
@@ -214,10 +207,7 @@ duckdb_fsst_decompress(
             code = strIn[posIn++]; FSST_UNALIGNED_STORE(strOut+posOut, symbol[code]); posOut += len[code]; 
             if (strIn[posIn] != FSST_ESC) {
                code = strIn[posIn++]; FSST_UNALIGNED_STORE(strOut+posOut, symbol[code]); posOut += len[code]; 
-            } else {
-               if (posIn+1 >= lenIn) {
-                  return DUCKDB_FSST_DECOMPRESS_INVALID_INPUT;
-               }
+            } else { 
                posIn += 2; strOut[posOut++] = strIn[posIn-1]; 
             }
          } else {
@@ -225,11 +215,7 @@ duckdb_fsst_decompress(
          } 
       }
       if (posIn < lenIn) { // last code cannot be an escape
-         code = strIn[posIn++];
-         if (code == FSST_ESC) {
-            return DUCKDB_FSST_DECOMPRESS_INVALID_INPUT;
-         }
-         FSST_UNALIGNED_STORE(strOut+posOut, symbol[code]); posOut += len[code];
+         code = strIn[posIn++]; FSST_UNALIGNED_STORE(strOut+posOut, symbol[code]); posOut += len[code];
       }
    }
 #else
@@ -238,9 +224,6 @@ duckdb_fsst_decompress(
          FSST_UNALIGNED_STORE(strOut+posOut, symbol[code]); /* unaligned memory write */
          posOut += len[code];
       } else { 
-         if (posIn == lenIn) {
-            return DUCKDB_FSST_DECOMPRESS_INVALID_INPUT;
-         }
          strOut[posOut] = strIn[posIn]; /* decompress an escaped byte */
          posIn++; posOut++; 
       }
@@ -248,19 +231,16 @@ duckdb_fsst_decompress(
 #endif
    while (posIn < lenIn)
       if ((code = strIn[posIn++]) < FSST_ESC) {
-         size_t posWrite = posOut, endWrite = posOut + len[code], symbolOffset = 0;
-         unsigned char* __restrict__ symbolPointer = (unsigned char* __restrict__) &symbol[code];
+         size_t posWrite = posOut, endWrite = posOut + len[code];
+         unsigned char* __restrict__ symbolPointer = ((unsigned char* __restrict__) &symbol[code]) - posWrite;
          if ((posOut = endWrite) > size) endWrite = size;
          for(; posWrite < endWrite; posWrite++)  /* only write if there is room */
-            strOut[posWrite] = symbolPointer[symbolOffset++];
+            strOut[posWrite] = symbolPointer[posWrite];
       } else {
-         if (posIn == lenIn) {
-            return DUCKDB_FSST_DECOMPRESS_INVALID_INPUT;
-         }
          if (posOut < size) strOut[posOut] = strIn[posIn]; /* idem */
          posIn++; posOut++; 
       } 
-   if (size && posOut >= size && (decoder->zeroTerminated&1)) strOut[size-1] = 0;
+   if (posOut >= size && (decoder->zeroTerminated&1)) strOut[size-1] = 0;
    return posOut; /* full size of decompressed string (could be >size, then the actually decompressed part) */
 }
 

@@ -20,9 +20,7 @@ void RegexpEscapeFunction(DataChunk &args, ExpressionState &state, Vector &resul
 } // namespace
 
 ScalarFunction RegexpEscapeFun::GetFunction() {
-	ScalarFunction fun("regexp_escape", {}, LogicalType::VARCHAR, RegexpEscapeFunction);
-	fun.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	return fun;
+	return ScalarFunction("regexp_escape", {LogicalType::VARCHAR}, LogicalType::VARCHAR, RegexpEscapeFunction);
 }
 
 } // namespace duckdb

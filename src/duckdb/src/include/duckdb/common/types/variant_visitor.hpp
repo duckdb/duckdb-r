@@ -1,6 +1,5 @@
 #pragma once
 
-#include "duckdb/common/algorithm.hpp"
 #include "duckdb/common/types/variant.hpp"
 #include "duckdb/common/types/variant_iterator.hpp"
 #include "duckdb/function/scalar/variant_utils.hpp"
@@ -35,7 +34,7 @@ public:
 	template <typename... Args>
 	static ReturnType Visit(const UnifiedVariantVectorData &variant, idx_t row, uint32_t values_idx, Args &&...args) {
 		if (!variant.RowIsValid(row)) {
-			VisitMetadata(VariantLogicalType::VARIANT_NULL, args...);
+			VisitMetadata(VariantLogicalType::VARIANT_NULL, std::forward<Args>(args)...);
 			return Visitor::VisitNull(std::forward<Args>(args)...);
 		}
 
@@ -44,7 +43,7 @@ public:
 		auto blob_data = const_data_ptr_cast(variant.GetData(row).GetData());
 		auto ptr = const_data_ptr_cast(blob_data + byte_offset);
 
-		VisitMetadata(type_id, args...);
+		VisitMetadata(type_id, std::forward<Args>(args)...);
 
 		switch (type_id) {
 		case VariantLogicalType::VARIANT_NULL:
@@ -121,12 +120,12 @@ public:
 	template <typename... Args>
 	static ReturnType Visit(const VariantNode &node, Args &&...args) {
 		if (node.IsNull() || node.IsMissing()) {
-			VisitMetadata(VariantLogicalType::VARIANT_NULL, args...);
+			VisitMetadata(VariantLogicalType::VARIANT_NULL, std::forward<Args>(args)...);
 			return Visitor::VisitNull(std::forward<Args>(args)...);
 		}
 
 		auto type_id = node.GetTypeId();
-		VisitMetadata(type_id, args...);
+		VisitMetadata(type_id, std::forward<Args>(args)...);
 
 		switch (type_id) {
 		case VariantLogicalType::VARIANT_NULL:
@@ -209,7 +208,7 @@ public:
 		array_items.reserve(array_data.child_count);
 		for (idx_t i = 0; i < array_data.child_count; i++) {
 			auto values_index = variant.GetValuesIndex(row, array_data.children_idx + i);
-			array_items.emplace_back(Visit(variant, row, values_index, args...));
+			array_items.emplace_back(Visit(variant, row, values_index, std::forward<Args>(args)...));
 		}
 		return array_items;
 	}
@@ -221,7 +220,7 @@ public:
 	                Args &&...args) {
 		for (idx_t i = 0; i < array_data.child_count; i++) {
 			auto values_index = variant.GetValuesIndex(row, array_data.children_idx + i);
-			Visit(variant, row, values_index, args...);
+			Visit(variant, row, values_index, std::forward<Args>(args)...);
 		}
 	}
 
@@ -231,7 +230,7 @@ public:
 		vector<R> array_items;
 		array_items.reserve(array.GetArrayChildren().size());
 		for (const auto &child : array.GetArrayChildren()) {
-			array_items.emplace_back(Visit(child, args...));
+			array_items.emplace_back(Visit(child, std::forward<Args>(args)...));
 		}
 		return array_items;
 	}
@@ -240,7 +239,7 @@ public:
 	template <typename R = ReturnType, typename... Args>
 	static std::enable_if_t<std::is_void_v<R>, void> VisitArrayItems(const VariantNode &array, Args &&...args) {
 		for (const auto &child : array.GetArrayChildren()) {
-			Visit(child, args...);
+			Visit(child, std::forward<Args>(args)...);
 		}
 	}
 
@@ -250,18 +249,13 @@ public:
 		child_list_t<ReturnType> object_items;
 		for (idx_t i = 0; i < object_data.child_count; i++) {
 			auto values_index = variant.GetValuesIndex(row, object_data.children_idx + i);
-			auto val = Visit(variant, row, values_index, args...);
+			auto val = Visit(variant, row, values_index, std::forward<Args>(args)...);
 
 			auto keys_index = variant.GetKeysIndex(row, object_data.children_idx + i);
 			auto &key = variant.GetKey(row, keys_index);
 
 			object_items.emplace_back(key.GetString(), std::move(val));
 		}
-		std::stable_sort(
-		    object_items.begin(), object_items.end(),
-		    [](const std::pair<Identifier, ReturnType> &lhs, const std::pair<Identifier, ReturnType> &rhs) {
-			    return lhs.first.GetIdentifierName() < rhs.first.GetIdentifierName();
-		    });
 		return object_items;
 	}
 

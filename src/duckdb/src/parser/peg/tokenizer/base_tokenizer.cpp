@@ -1,30 +1,8 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/parser/peg/tokenizer/tokenizer.hpp"
 #include "duckdb/parser/peg/keyword_helper.hpp"
-#include "duckdb/parser/peg/matcher/operator_matcher.hpp"
 
 namespace duckdb {
-
-uint8_t ComputeMatcherTokenClass(TokenType type, const string &text) {
-	switch (type) {
-	case TokenType::KEYWORD:
-	case TokenType::IDENTIFIER:
-		return MatcherTokenClass::WORD;
-	case TokenType::STRING_LITERAL:
-		// string literals are also accepted in identifier positions (e.g. table and file names)
-		return MatcherTokenClass::STRING | MatcherTokenClass::WORD;
-	case TokenType::NUMBER_LITERAL:
-		return MatcherTokenClass::NUMBER;
-	case TokenType::OPERATOR:
-		if (OperatorMatcher::HasSpecialPrecedence(text)) {
-			return MatcherTokenClass::OPERATOR;
-		}
-		return MatcherTokenClass::OPERATOR | MatcherTokenClass::GENERIC_OPERATOR;
-	default:
-		// terminators and end-of-input are only matched as literals or by matchers without a FIRST set
-		return 0;
-	}
-}
 
 TokenizerBehavior::TokenizerBehavior(const string &sql, vector<MatcherToken> &tokens) : sql(sql), tokens(tokens) {
 }
@@ -32,31 +10,43 @@ TokenizerBehavior::TokenizerBehavior(const string &sql, vector<MatcherToken> &to
 Tokenizer::Tokenizer(const PEGKeywordHelper &keyword_helper_p) : keyword_helper(keyword_helper_p) {
 }
 
-bool Tokenizer::BackslashEscapesStringLiterals() const {
-	return false;
-}
-
-bool Tokenizer::IsQuotedIdentifierDelimiter(char character) const {
-	// double quotes are the SQL standard delimiter; backticks are accepted as an alternative
-	// (as in several other SQL dialects), with the same doubling rule for escaping the delimiter
-	return character == '"' || character == '`';
-}
-
-void Tokenizer::HandleLastToken(TokenizerBehavior &behavior, TokenizeState state, const string &sql,
-                                idx_t last_pos) const {
-	string last_word = sql.substr(last_pos, sql.size() - last_pos);
-	behavior.OnLastToken(*this, state, last_word, last_pos);
-}
-
-bool Tokenizer::IsCompoundColonToken(const string &sql, idx_t pos, idx_t &token_length) const {
-	if (pos + 1 >= sql.size() || sql[pos] != ':') {
-		return false;
+static bool OperatorEquals(const char *str, const char *op, idx_t len, idx_t &op_len) {
+	for (idx_t i = 0; i < len; i++) {
+		if (str[i] != op[i]) {
+			return false;
+		}
 	}
-	if (sql[pos + 1] != ':' && sql[pos + 1] != '=') {
-		return false;
-	}
-	token_length = 2;
+	op_len = len;
 	return true;
+}
+
+bool Tokenizer::IsSpecialOperator(const string &sql, idx_t pos, idx_t &op_len) const {
+	const char *op_start = sql.c_str() + pos;
+	if (pos + 2 < sql.size()) {
+		if (OperatorEquals(op_start, "->>", 3, op_len)) {
+			return true;
+		}
+	}
+	if (pos + 1 >= sql.size()) {
+		// 2-byte operators are out-of-bounds
+		return false;
+	}
+	if (OperatorEquals(op_start, "::", 2, op_len)) {
+		return true;
+	}
+	if (OperatorEquals(op_start, ":=", 2, op_len)) {
+		return true;
+	}
+	if (OperatorEquals(op_start, "->", 2, op_len)) {
+		return true;
+	}
+	if (OperatorEquals(op_start, "**", 2, op_len)) {
+		return true;
+	}
+	if (OperatorEquals(op_start, "//", 2, op_len)) {
+		return true;
+	}
+	return false;
 }
 
 bool Tokenizer::IsSingleByteOperator(char c) {
@@ -68,9 +58,9 @@ bool Tokenizer::IsSingleByteOperator(char c) {
 	case '[':
 	case ']':
 	case ',':
-	case ':':
 	case '?':
 	case '$':
+	case '-':
 	case '#':
 		return true;
 	default:
@@ -128,6 +118,7 @@ bool Tokenizer::CharacterIsScientific(char c) {
 bool Tokenizer::CharacterIsControlFlow(char c) {
 	switch (c) {
 	case '\'':
+	case '-':
 	case ';':
 	case '"':
 	case '.':
@@ -154,25 +145,13 @@ bool Tokenizer::CharacterIsKeyword(char c) {
 }
 
 bool Tokenizer::CharacterIsOperator(char c) {
-	switch (c) {
-	case '+':
-	case '-':
-	case '*':
-	case '/':
-	case '%':
-	case '^':
-	case '<':
-	case '>':
-	case '=':
-	case '~':
-	case '!':
-	case '@':
-	case '&':
-	case '|':
-		return true;
-	default:
+	if (IsSingleByteOperator(c)) {
 		return false;
 	}
+	if (CharacterIsControlFlow(c)) {
+		return false;
+	}
+	return StringUtil::CharacterIsOperator(c);
 }
 
 TokenType Tokenizer::TokenizeStateToType(TokenizeState state) {
@@ -266,21 +245,17 @@ bool Tokenizer::TokenizeInput(TokenizerBehavior &behavior) const {
 	auto &sql = behavior.sql;
 	auto &tokens = behavior.tokens;
 	if (TokenizeInputInternal(behavior)) {
-		auto terminator = behavior.GetTerminator();
-		tokens.emplace_back("", sql.size(), terminator);
-		if (terminator == TokenType::END_OF_INPUT_AUTOCOMPLETE) {
-			return true;
-		}
+		tokens.emplace_back("", sql.size(), behavior.GetTerminator());
 	} else {
 		tokens.emplace_back("", sql.size(), TokenType::END_OF_INPUT);
 	}
-	return false;
+	return !tokens.empty() && tokens.back().type == TokenType::END_OF_INPUT_AUTOCOMPLETE;
 }
 
-void Tokenizer::PushOperatorToken(TokenizerBehavior &behavior, idx_t start, idx_t end) const {
+void Tokenizer::PushOperatorToken(TokenizerBehavior &behavior, idx_t start, idx_t end) {
 	auto &sql = behavior.sql;
 	auto &tokens = behavior.tokens;
-	// Apply PostgreSQL trimming rule: an operator cannot end in '+' or '-' unless
+	// Apply PostgreSQL trimming rule: an operator cannot end in '+' unless
 	// it contains at least one of: ~ ! @ # % ^ & | ` ?
 	idx_t end_pos = end;
 	bool has_special = false;
@@ -294,12 +269,12 @@ void Tokenizer::PushOperatorToken(TokenizerBehavior &behavior, idx_t start, idx_
 		}
 	}
 	if (!has_special) {
-		while (end_pos > start + 1 && (sql[end_pos - 1] == '+' || sql[end_pos - 1] == '-')) {
+		while (end_pos > start && sql[end_pos - 1] == '+') {
 			end_pos--;
 		}
 	}
 	behavior.PushToken(start, end_pos, TokenType::OPERATOR);
-	// Push any trimmed '+' or '-' characters as individual tokens
+	// Push any trimmed '+' characters as individual tokens
 	for (idx_t pos = end_pos; pos < end; pos++) {
 		tokens.emplace_back(string(1, sql[pos]), pos, TokenType::OPERATOR);
 	}
@@ -311,7 +286,6 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 	auto state = TokenizeState::STANDARD;
 	idx_t last_pos = 0;
 	bool escape_string = false;
-	char quoted_identifier_delimiter = '"';
 	string dollar_quote_marker;
 	idx_t dollar_marker_start = 0;
 	idx_t multi_line_comment_depth = 0;
@@ -325,9 +299,8 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 				escape_string = false;
 				break;
 			}
-			if (IsQuotedIdentifierDelimiter(c)) {
+			if (c == '"') {
 				state = TokenizeState::QUOTED_IDENTIFIER;
-				quoted_identifier_delimiter = c;
 				last_pos = i;
 				break;
 			}
@@ -392,16 +365,16 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 				last_pos = i + 1;
 				break;
 			}
-			idx_t token_length;
-			if (IsCompoundColonToken(sql, i, token_length)) {
-				if (i + token_length < sql.size() && CharacterIsOperator(sql[i + token_length])) {
+			idx_t op_len;
+			if (IsSpecialOperator(sql, i, op_len)) {
+				if (i + op_len < sql.size() && CharacterIsOperator(sql[i + op_len])) {
 					state = TokenizeState::OPERATOR;
 					last_pos = i;
 					break;
 				}
-				// Push the compound colon token
-				tokens.emplace_back(sql.substr(i, token_length), last_pos, TokenType::OPERATOR);
-				i += token_length - 1;
+				// special operator - push the special operator
+				tokens.emplace_back(sql.substr(i, op_len), last_pos, TokenType::OPERATOR);
+				i += op_len - 1;
 				last_pos = i + 1;
 				break;
 			}
@@ -442,9 +415,8 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 			if (CharacterIsInitialNumber(c)) {
 				break; // Continue tokenizing
 			}
-			// A digit separator must sit between two digits
-			if (c == '_' && StringUtil::CharacterIsDigit(sql[i - 1]) && i + 1 < sql.size() &&
-			    StringUtil::CharacterIsDigit(sql[i + 1])) {
+			// Allow underscore only when immediately followed by a digit (no consecutive underscores)
+			if (c == '_' && i + 1 < sql.size() && CharacterIsInitialNumber(sql[i + 1])) {
 				break;
 			}
 
@@ -482,13 +454,6 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 			i--;
 			break;
 		case TokenizeState::OPERATOR:
-			if (c == '-' && i + 1 < sql.size() && sql[i + 1] == '-') {
-				PushOperatorToken(behavior, last_pos, i);
-				state = TokenizeState::STANDARD;
-				last_pos = i;
-				i--;
-				break;
-			}
 			if (c == '/' && i + 1 < sql.size() && sql[i + 1] == '*') {
 				PushOperatorToken(behavior, last_pos, i);
 				// Go back to STANDARD state so it tokenizes as a block comment
@@ -519,7 +484,7 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 			}
 			break;
 		case TokenizeState::STRING_LITERAL:
-			if ((escape_string || BackslashEscapesStringLiterals()) && c == '\\' && i + 1 < sql.size()) {
+			if (escape_string && c == '\\' && i + 1 < sql.size()) {
 				i++;
 				break;
 			}
@@ -536,8 +501,8 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 			}
 			break;
 		case TokenizeState::QUOTED_IDENTIFIER:
-			if (c == quoted_identifier_delimiter) {
-				if (i + 1 < sql.size() && sql[i + 1] == quoted_identifier_delimiter) {
+			if (c == '"') {
+				if (i + 1 < sql.size() && sql[i + 1] == '"') {
 					// escaped - skip escape
 					i++;
 				} else {
@@ -624,7 +589,8 @@ bool Tokenizer::TokenizeInputInternal(TokenizerBehavior &behavior) const {
 	default:
 		break;
 	}
-	HandleLastToken(behavior, state, sql, last_pos);
+	string last_word = sql.substr(last_pos, sql.size() - last_pos);
+	behavior.OnLastToken(*this, state, std::move(last_word), last_pos);
 	return true;
 }
 
@@ -636,8 +602,8 @@ void TokenizerBehavior::OnLastToken(const Tokenizer &tokenizer, TokenizeState st
 	if (last_word.empty()) {
 		return;
 	}
-	if (state == TokenizeState::KEYWORD && !tokenizer.keyword_helper.IsKeyword(last_word)) {
-		state = TokenizeState::STANDARD;
+	if (state == TokenizeState::KEYWORD) {
+		state = tokenizer.keyword_helper.IsKeyword(last_word) ? TokenizeState::KEYWORD : TokenizeState::STANDARD;
 	}
 
 	bool is_unterminated = Tokenizer::IsUnterminatedState(state);

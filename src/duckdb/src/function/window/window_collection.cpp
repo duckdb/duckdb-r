@@ -37,21 +37,17 @@ void WindowCollection::GetCollection(idx_t row_idx, ColumnDataCollectionSpec &sp
 }
 
 void WindowCollection::Combine(const ColumnSet &validity_cols) {
-	CallOnce(combine_once, [&] {
-		try {
-			CombineInternal(validity_cols);
-		} catch (...) {
-			combine_error = std::current_exception();
-		}
-	});
-	if (combine_error) {
-		std::rethrow_exception(combine_error);
-	}
-}
+	lock_guard<mutex> collection_guard(lock);
 
-void WindowCollection::CombineInternal(const ColumnSet &validity_cols) {
 	// If there are no columns (COUNT(*)) then this is a NOP
 	if (types.empty()) {
+		return;
+	}
+
+	// Have we already combined?
+	if (inputs->Count()) {
+		D_ASSERT(collections.empty());
+		D_ASSERT(ranges.empty());
 		return;
 	}
 

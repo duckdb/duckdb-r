@@ -59,9 +59,6 @@ public:
 	const vector<Identifier> &GetColumnNames();
 	idx_t GetColumnCount();
 	void SetColumnType(idx_t col_idx, LogicalType type);
-	//! Marks this binding as the NULL-producing side of an outer join
-	void SetNullExtended();
-	bool IsNullExtended() const;
 
 	static BindingAlias GetAlias(const Identifier &explicit_alias, const StandardEntry &entry);
 	static BindingAlias GetAlias(const Identifier &explicit_alias, optional_ptr<StandardEntry> entry);
@@ -101,8 +98,6 @@ protected:
 	vector<Identifier> names;
 	//! Name -> index for the names
 	identifier_map_t<column_t> name_map;
-	//! Whether rows of this binding can be NULL-extended by an outer join
-	bool null_extended = false;
 };
 
 struct EntryBinding : public Binding {

@@ -1,6 +1,4 @@
-#include "duckdb/logging/logger.hpp"
 #include "duckdb/parser/statement/pragma_statement.hpp"
-#include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/peg/transformer/peg_transformer.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
 
@@ -25,9 +23,9 @@ PEGTransformerFactory::TransformPragmaAssign(PEGTransformer &transformer, const 
 	if (expr->GetExpressionType() == ExpressionType::COLUMN_REF) {
 		auto &colref = expr->Cast<ColumnRefExpression>();
 		if (!colref.IsQualified()) {
-			info.parameters.emplace_back(ConstantExpression::String(colref.GetColumnName().GetIdentifierName()));
+			info.parameters.emplace_back(make_uniq<ConstantExpression>(Value(colref.GetColumnName())));
 		} else {
-			info.parameters.emplace_back(ConstantExpression::String(expr->ToString()));
+			info.parameters.emplace_back(make_uniq<ConstantExpression>(Value(expr->ToString())));
 		}
 	} else {
 		info.parameters.emplace_back(std::move(expr));
@@ -39,12 +37,6 @@ PEGTransformerFactory::TransformPragmaAssign(PEGTransformer &transformer, const 
 	identifier_set_t sqlite_compat_pragmas {"table_info"};
 	if (sqlite_compat_pragmas.find(info.name) != sqlite_compat_pragmas.end()) {
 		return std::move(result);
-	}
-	if (transformer.options.context) {
-		DUCKDB_LOG_WARNING(*transformer.options.context,
-		                   "Using \"PRAGMA %s=...\" to set a setting is deprecated and will be removed in a future "
-		                   "release, use \"SET %s=...\" instead.",
-		                   info.name.GetIdentifierName(), info.name.GetIdentifierName());
 	}
 	auto set_statement = make_uniq<SetVariableStatement>(info.name, std::move(info.parameters[0]), SetScope::AUTOMATIC);
 	return std::move(set_statement);
@@ -70,10 +62,9 @@ PEGTransformerFactory::TransformPragmaFunction(PEGTransformer &transformer, cons
 		} else if (parameter->GetExpressionType() == ExpressionType::COLUMN_REF) {
 			auto &colref = parameter->Cast<ColumnRefExpression>();
 			if (!colref.IsQualified()) {
-				result->info->parameters.emplace_back(
-				    ConstantExpression::String(colref.GetColumnName().GetIdentifierName()));
+				result->info->parameters.emplace_back(make_uniq<ConstantExpression>(Value(colref.GetColumnName())));
 			} else {
-				result->info->parameters.emplace_back(ConstantExpression::String(parameter->ToString()));
+				result->info->parameters.emplace_back(make_uniq<ConstantExpression>(Value(parameter->ToString())));
 			}
 		} else {
 			result->info->parameters.emplace_back(std::move(parameter));

@@ -4,15 +4,9 @@
 
 namespace duckdb {
 
-vector<string>
-PEGTransformerFactory::TransformCommentStringLiteralIdentifier(PEGTransformer &transformer,
-                                                               const Identifier &string_literal_identifier) {
-	return {string_literal_identifier.GetIdentifierName()};
-}
-
 unique_ptr<SQLStatement> PEGTransformerFactory::TransformCommentStatement(PEGTransformer &transformer,
                                                                           const CatalogType &comment_on_type,
-                                                                          const vector<string> &comment_target,
+                                                                          const vector<string> &dotted_identifier,
                                                                           const Value &comment_value) {
 	auto result = make_uniq<AlterStatement>();
 	unique_ptr<AlterInfo> info;
@@ -20,7 +14,7 @@ unique_ptr<SQLStatement> PEGTransformerFactory::TransformCommentStatement(PEGTra
 	Identifier column_name;
 	if (comment_on_type == CatalogType::INVALID) {
 		// Column type returned
-		auto identifier = comment_target;
+		auto identifier = dotted_identifier;
 		column_name = Identifier(identifier.back());
 		identifier.pop_back();
 		if (identifier.empty()) {
@@ -34,7 +28,7 @@ unique_ptr<SQLStatement> PEGTransformerFactory::TransformCommentStatement(PEGTra
 	} else if (comment_on_type == CatalogType::SCHEMA_ENTRY) {
 		throw NotImplementedException("Adding comments to schemas is not implemented");
 	} else {
-		auto qualified_name = StringToQualifiedName(comment_target);
+		auto qualified_name = StringToQualifiedName(dotted_identifier);
 		info = make_uniq<SetCommentInfo>(comment_on_type, qualified_name.Catalog(), qualified_name.Schema(),
 		                                 qualified_name.Name(), comment_value, OnEntryNotFound::THROW_EXCEPTION);
 	}

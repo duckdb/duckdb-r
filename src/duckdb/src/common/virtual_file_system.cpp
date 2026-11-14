@@ -11,6 +11,7 @@
 #include "duckdb/common/multi_file/multi_file_list.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/main/database.hpp"
+#include "duckdb/main/extension_entries.hpp"
 #include "duckdb/main/extension_helper.hpp"
 
 namespace duckdb {
@@ -258,10 +259,6 @@ FileMetadata VirtualFileSystem::Stats(FileHandle &handle) {
 	return handle.file_system.Stats(handle);
 }
 
-optional<FileMetadata> VirtualFileSystem::GetStatsIfExists(const OpenFileInfo &file, optional_ptr<FileOpener> opener) {
-	return FindFileSystem(file.path, opener).GetStatsIfExists(file, opener);
-}
-
 void VirtualFileSystem::Truncate(FileHandle &handle, int64_t new_size) {
 	handle.file_system.Truncate(handle, new_size);
 }
@@ -425,7 +422,24 @@ FileSystem &VirtualFileSystem::FindFileSystem(shared_ptr<FileSystemRegistry> &re
 	auto fs = FindFileSystemInternal(*registry, path);
 
 	if (!fs && db_instance) {
-		ExtensionHelper::AutoLoadExtensionForPath(*db_instance, path);
+		string required_extension;
+
+		for (const auto &entry : EXTENSION_FILE_PREFIXES) {
+			if (StringUtil::StartsWith(path, entry.name)) {
+				required_extension = entry.extension;
+			}
+		}
+		if (!required_extension.empty() && db_instance && !db_instance->ExtensionIsLoaded(required_extension)) {
+			if (!ExtensionHelper::CanAutoloadExtension(required_extension) ||
+			    !Settings::Get<AutoloadKnownExtensionsSetting>(*db_instance)) {
+				auto error_message = "File " + path + " requires the extension " + required_extension + " to be loaded";
+				error_message =
+				    ExtensionHelper::AddExtensionInstallHintToErrorMsg(*db_instance, error_message, required_extension);
+				throw MissingExtensionException(error_message);
+			}
+			// an extension is required to read this file, but it is not loaded - try to load it
+			ExtensionHelper::AutoLoadExtension(*db_instance, required_extension);
+		}
 		// refresh the registry after loading extensions
 		registry = file_system_registry.atomic_load();
 

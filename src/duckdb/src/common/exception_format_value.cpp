@@ -60,7 +60,6 @@ template <>
 ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(const Identifier &value) {
 	return SQLQuotedIdentifier::ToString(value);
 }
-
 template <>
 ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(const SQLString &value) {
 	return SQLString::ToString(value.raw_string);

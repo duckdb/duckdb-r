@@ -94,9 +94,6 @@ public:
 	const LogicalType &GetType() {
 		return type;
 	}
-	idx_t GetCapacity() const {
-		return capacity;
-	}
 
 private:
 	//! The type of the vector cache
@@ -136,13 +133,6 @@ void VectorCache::ResetFromCache(Vector &result) const {
 
 const LogicalType &VectorCache::GetType() const {
 	return cache_entry->GetType();
-}
-
-optional_idx VectorCache::GetCapacity() const {
-	if (!cache_entry) {
-		return optional_idx();
-	}
-	return optional_idx(cache_entry->GetCapacity());
 }
 
 } // namespace duckdb

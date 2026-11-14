@@ -54,19 +54,13 @@ struct RegrAvgYFunction : RegrAvgFunction {
 } // namespace
 
 AggregateFunction RegrAvgxFun::GetFunction() {
-	auto fun = AggregateFunction::BinaryAggregate<RegrState, double, double, double, RegrAvgXFunction>(
+	return AggregateFunction::BinaryAggregate<RegrState, double, double, double, RegrAvgXFunction>(
 	    LogicalType::DOUBLE, LogicalType::DOUBLE, LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("y");
-	fun.GetSignature().GetParameter(1).SetName("x");
-	return fun;
 }
 
 AggregateFunction RegrAvgyFun::GetFunction() {
-	auto fun = AggregateFunction::BinaryAggregate<RegrState, double, double, double, RegrAvgYFunction>(
+	return AggregateFunction::BinaryAggregate<RegrState, double, double, double, RegrAvgYFunction>(
 	    LogicalType::DOUBLE, LogicalType::DOUBLE, LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("y");
-	fun.GetSignature().GetParameter(1).SetName("x");
-	return fun;
 }
 
 } // namespace duckdb

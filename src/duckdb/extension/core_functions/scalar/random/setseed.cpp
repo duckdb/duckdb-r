@@ -56,8 +56,7 @@ unique_ptr<FunctionData> SetSeedBind(BindScalarFunctionInput &input) {
 } // namespace
 
 ScalarFunction SetseedFun::GetFunction() {
-	ScalarFunction setseed("setseed", {}, LogicalType::SQLNULL, SetSeedFunction, SetSeedBind);
-	setseed.GetSignature().AddParameter("seed", LogicalType::DOUBLE);
+	ScalarFunction setseed("setseed", {LogicalType::DOUBLE}, LogicalType::SQLNULL, SetSeedFunction, SetSeedBind);
 	setseed.SetVolatile();
 	setseed.SetFallible();
 	return setseed;

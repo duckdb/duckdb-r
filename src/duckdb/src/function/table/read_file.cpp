@@ -110,11 +110,10 @@ DirectMultiFileInfo<OP>::InitializeGlobalState(ClientContext &context, MultiFile
 	}
 
 	for (const auto &column_id : column_ids) {
-		if (column_id == ReadFileBindData::FILE_CONTENT_COLUMN) {
+		// For everything except the 'file' name column, we need to open the file
+		if (column_id != ReadFileBindData::FILE_NAME_COLUMN && column_id != COLUMN_IDENTIFIER_ROW_ID) {
 			result->requires_file_open = true;
-		} else if (column_id == ReadFileBindData::FILE_SIZE_COLUMN ||
-		           column_id == ReadFileBindData::FILE_LAST_MODIFIED_COLUMN) {
-			result->requires_file_metadata = true;
+			break;
 		}
 	}
 
@@ -187,9 +186,13 @@ struct ReadTextOperation {
 
 template <class OP>
 static TableFunction GetFunction() {
-	// this function reads one file per call, so it takes none of the options that describe combining several
-	MultiFileFunction<DirectMultiFileInfo<OP>> table_function(OP::NAME,
-	                                                          MultiFileReader::MultiFileParameters::ALLOW_EMPTY_ONLY);
+	MultiFileFunction<DirectMultiFileInfo<OP>> table_function(OP::NAME);
+	// Erase extra multi file reader options
+	table_function.named_parameters.erase("filename");
+	table_function.named_parameters.erase("hive_partitioning");
+	table_function.named_parameters.erase("union_by_name");
+	table_function.named_parameters.erase("hive_types");
+	table_function.named_parameters.erase("hive_types_autocast");
 	return table_function;
 }
 

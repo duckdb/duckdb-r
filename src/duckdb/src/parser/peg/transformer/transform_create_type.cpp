@@ -1,6 +1,5 @@
 #include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/common/vector/string_vector.hpp"
-#include "duckdb/parser/expression/type_expression.hpp"
 #include "duckdb/parser/peg/transformer/peg_transformer.hpp"
 #include "duckdb/parser/parsed_data/create_type_info.hpp"
 
@@ -36,8 +35,7 @@ PEGTransformerFactory::TransformEnumSelectType(PEGTransformer &transformer,
 
 unique_ptr<CreateTypeInfo>
 PEGTransformerFactory::TransformEnumStringLiteralList(PEGTransformer &transformer,
-                                                      const optional<vector<string>> &string_literal,
-                                                      const optional<vector<int64_t>> &array_bounds) {
+                                                      const optional<vector<string>> &string_literal) {
 	auto result = make_uniq<CreateTypeInfo>();
 	idx_t enum_count = string_literal ? string_literal->size() : 0;
 	Vector enum_vector(LogicalType::VARCHAR, enum_count);
@@ -48,9 +46,6 @@ PEGTransformerFactory::TransformEnumStringLiteralList(PEGTransformer &transforme
 		}
 	}
 	result->type = LogicalType::ENUM(enum_vector, enum_count);
-	if (array_bounds && !array_bounds->empty()) {
-		result->type = TransformType(transformer, TypeExpression::FromLogicalType(result->type), array_bounds);
-	}
 	return result;
 }
 

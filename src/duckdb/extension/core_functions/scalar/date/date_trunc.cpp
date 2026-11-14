@@ -83,7 +83,9 @@ struct DateTrunc {
 		template <class TA, class TR>
 		static inline TR Operation(TA input) {
 			date_t date = Date::GetMondayOfCurrentWeek(input);
-			return Date::SubtractDays(date, (Date::ExtractISOWeekNumber(date) - 1) * Interval::DAYS_PER_WEEK);
+			date.days -= (Date::ExtractISOWeekNumber(date) - 1) * Interval::DAYS_PER_WEEK;
+
+			return date;
 		}
 	};
 
@@ -494,16 +496,8 @@ unique_ptr<BaseStatistics> DateTruncStatistics(vector<BaseStatistics> &child_sta
 	}
 
 	// Infinite values are unmodified
-	TR min_part;
-	TR max_part;
-	try {
-		min_part = DateTrunc::UnaryFunction<TA, TR, OP>(min);
-		max_part = DateTrunc::UnaryFunction<TA, TR, OP>(max);
-	} catch (const ConversionException &) {
-		// the bounds are not in the range of the result type (e.g. a DATE beyond the TIMESTAMP range) - the rows
-		// holding them may not even reach the function, so do not propagate statistics
-		return nullptr;
-	}
+	auto min_part = DateTrunc::UnaryFunction<TA, TR, OP>(min);
+	auto max_part = DateTrunc::UnaryFunction<TA, TR, OP>(max);
 
 	auto min_value = Value::CreateValue(min_part);
 	auto max_value = Value::CreateValue(max_part);
@@ -588,22 +582,14 @@ unique_ptr<FunctionData> DateTruncBind(BindScalarFunctionInput &input) {
 
 } // namespace
 
-// Names the "part,timestamp" pair shared by date_trunc's per-type overloads.
-static ScalarFunction NamePartTimestampArguments(ScalarFunction fun, const LogicalType &type) {
-	fun.GetSignature().AddParameter("part", LogicalType::VARCHAR).AddParameter("timestamp", type);
-	return fun;
-}
-
 ScalarFunctionSet DateTruncFun::GetFunctions() {
 	ScalarFunctionSet date_trunc("date_trunc");
-	date_trunc.AddFunction(NamePartTimestampArguments(
-	    ScalarFunction({}, LogicalType::TIMESTAMP, DateTruncFunction<timestamp_t, timestamp_t>, DateTruncBind),
-	    LogicalType::TIMESTAMP));
-	date_trunc.AddFunction(NamePartTimestampArguments(
-	    ScalarFunction({}, LogicalType::TIMESTAMP, DateTruncFunction<date_t, timestamp_t>, DateTruncBind),
-	    LogicalType::DATE));
-	date_trunc.AddFunction(NamePartTimestampArguments(
-	    ScalarFunction({}, LogicalType::INTERVAL, DateTruncFunction<interval_t, interval_t>), LogicalType::INTERVAL));
+	date_trunc.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::TIMESTAMP}, LogicalType::TIMESTAMP,
+	                                      DateTruncFunction<timestamp_t, timestamp_t>, DateTruncBind));
+	date_trunc.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::DATE}, LogicalType::TIMESTAMP,
+	                                      DateTruncFunction<date_t, timestamp_t>, DateTruncBind));
+	date_trunc.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::INTERVAL}, LogicalType::INTERVAL,
+	                                      DateTruncFunction<interval_t, interval_t>));
 	date_trunc.ApplyToFunctions([](ScalarFunction &func) {
 		func.SetFallible();
 		func.SetArgProperties(1, ArgProperties().NonDecreasing());

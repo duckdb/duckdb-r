@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Mark the assertion-only locals of physical_iejoin.cpp as used
+
+physical_iejoin.cpp declares locals that only D_ASSERT() reads (op),
+so in a release build, where D_ASSERT() expands to nothing, they are unused
+and -Wunused-variable or -Wunused-but-set-variable says so. Each is cast
+to void after its declaration, which changes no behavior.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+diff --git a/src/duckdb/src/execution/operator/join/physical_iejoin.cpp b/src/duckdb/src/execution/operator/join/physical_iejoin.cpp
+--- a/src/duckdb/src/execution/operator/join/physical_iejoin.cpp
++++ b/src/duckdb/src/execution/operator/join/physical_iejoin.cpp
+@@ -1418,6 +1418,7 @@ void IEJoinLocalSourceState::SplitPayloads(DataChunk &chunk) {
+ const SelectionVector *IEJoinLocalSourceState::ApplyArbitraryPredicate(DataChunk &chunk) {
+ 	//	Apply any arbitrary predicate
+ 	auto &op = gsource.op;
++	(void)op;
+ 	D_ASSERT(op.predicate);
+ 
+ 	const auto result_count = pred_executor.SelectExpression(chunk, pred_matches);

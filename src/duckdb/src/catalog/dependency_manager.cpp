@@ -1,5 +1,4 @@
 #include "duckdb/catalog/dependency_manager.hpp"
-#include "duckdb/transaction/transaction_data.hpp"
 #include "duckdb/catalog/catalog_entry/type_catalog_entry.hpp"
 #include "duckdb/catalog/duck_catalog.hpp"
 #include "duckdb/catalog/catalog_entry.hpp"
@@ -83,7 +82,13 @@ vector<Identifier> DependencyManager::GetSchemaPath(const CatalogEntry &entry) {
 	} else {
 		schema = entry.ParentSchema();
 	}
-	return schema ? schema->GetSchemaPath() : vector<Identifier>();
+	vector<Identifier> path;
+	while (schema) {
+		path.push_back(schema->name);
+		schema = schema->GetParentSchema().get();
+	}
+	std::reverse(path.begin(), path.end());
+	return path;
 }
 
 MangledEntryName DependencyManager::MangleName(const CatalogEntryInfo &info) {
@@ -363,10 +368,17 @@ CatalogEntryInfo DependencyManager::GetLookupProperties(const CatalogEntry &entr
 
 optional_ptr<SchemaCatalogEntry> DependencyManager::NavigateSchemaPath(CatalogTransaction transaction,
                                                                        const vector<Identifier> &schema_path) {
-	if (schema_path.empty()) {
-		return nullptr;
+	optional_ptr<SchemaCatalogEntry> schema;
+	reference<CatalogSet> current = catalog.GetSchemaCatalogSet();
+	for (auto &component : schema_path) {
+		auto entry = current.get().GetEntry(transaction, component);
+		if (!entry) {
+			return nullptr;
+		}
+		schema = entry->Cast<SchemaCatalogEntry>();
+		current = schema->Cast<DuckSchemaEntry>().GetCatalogSet(CatalogType::SCHEMA_ENTRY);
 	}
-	return catalog.GetSchema(transaction, schema_path, OnEntryNotFound::RETURN_NULL);
+	return schema;
 }
 
 optional_ptr<CatalogEntry> DependencyManager::LookupEntry(CatalogTransaction transaction,
@@ -427,7 +439,7 @@ void DependencyManager::CleanupDependencies(CatalogTransaction transaction, Cata
 	}
 }
 
-static string EntryToString(const CatalogEntryInfo &info) {
+static string EntryToString(CatalogEntryInfo &info) {
 	auto type = info.type;
 	switch (type) {
 	case CatalogType::TABLE_ENTRY: {
@@ -493,33 +505,13 @@ static string EntryToString(const CatalogEntryInfo &info) {
 	};
 }
 
-static string DependencyToString(const CatalogEntryInfo &subject, const CatalogEntryInfo &dependent) {
-	return StringUtil::Format("%s depends on %s.\n", EntryToString(dependent), EntryToString(subject));
-}
-
-static string DropErrorToString(const Identifier &name, const string &dependents) {
-	return StringUtil::Format("Cannot drop entry %s because there are entries that depend on it.\n%s"
-	                          "Use DROP...CASCADE to drop all dependents.",
-	                          name, dependents);
-}
-
-string DependencyManager::FormatDropError(const CatalogEntry &object,
-                                          const vector<reference<CatalogEntry>> &dependents) {
-	auto subject = GetLookupProperties(object);
-	string result;
-	for (auto &dependent : dependents) {
-		result += DependencyToString(subject, GetLookupProperties(dependent));
-	}
-	return DropErrorToString(object.name, result);
-}
-
 string DependencyManager::CollectDependents(CatalogTransaction transaction, catalog_entry_set_t &entries,
                                             CatalogEntryInfo &info) {
 	string result;
 	for (auto &entry : entries) {
 		D_ASSERT(!IsSystemEntry(entry.get()));
 		auto other_info = GetLookupProperties(entry);
-		result += DependencyToString(info, other_info);
+		result += StringUtil::Format("%s depends on %s.\n", EntryToString(other_info), EntryToString(info));
 		catalog_entry_set_t entry_dependents;
 		ScanDependents(transaction, other_info, [&](DependencyEntry &dep) {
 			auto child = LookupEntry(transaction, dep);
@@ -576,7 +568,7 @@ void DependencyManager::VerifyExistence(CatalogTransaction transaction, Dependen
 	}
 }
 
-void DependencyManager::VerifyCommitDrop(CatalogTransaction transaction, VisibilityBound visibility_bound,
+void DependencyManager::VerifyCommitDrop(CatalogTransaction transaction, transaction_t start_time,
                                          CatalogEntry &object) {
 	if (IsSystemEntry(object)) {
 		return;
@@ -584,7 +576,7 @@ void DependencyManager::VerifyCommitDrop(CatalogTransaction transaction, Visibil
 	auto info = GetLookupProperties(object);
 	ScanDependents(transaction, info, [&](DependencyEntry &dep) {
 		auto dep_committed_at = dep.timestamp.load();
-		if (dep_committed_at >= visibility_bound) {
+		if (dep_committed_at > start_time) {
 			// In the event of a CASCADE, the dependency drop has not committed yet
 			// so we would be halted by the existence of a dependency we are already dropping unless we check the
 			// timestamp
@@ -602,7 +594,7 @@ void DependencyManager::VerifyCommitDrop(CatalogTransaction transaction, Visibil
 			return;
 		}
 		D_ASSERT(dep.Subject().flags.IsOwnership());
-		if (dep_committed_at >= visibility_bound) {
+		if (dep_committed_at > start_time) {
 			// Same as above, objects that are owned by the object that is being dropped will be dropped as part of this
 			// transaction. Only objects that were introduced by other transactions, that this transaction could not
 			// see, should cause this error:
@@ -640,8 +632,11 @@ catalog_entry_set_t DependencyManager::CheckDropDependencies(CatalogTransaction 
 		}
 	});
 	if (!blocking_dependents.empty()) {
-		throw DependencyException(
-		    DropErrorToString(object.name, CollectDependents(transaction, blocking_dependents, info)));
+		string error_string =
+		    StringUtil::Format("Cannot drop entry %s because there are entries that depend on it.\n", object.name);
+		error_string += CollectDependents(transaction, blocking_dependents, info);
+		error_string += "Use DROP...CASCADE to drop all dependents.";
+		throw DependencyException(error_string);
 	}
 
 	// Look through all the entries that 'object' depends on
@@ -675,19 +670,21 @@ void DependencyManager::DropObject(CatalogTransaction transaction, CatalogEntry 
 
 void DependencyManager::ReorderEntries(catalog_entry_vector_t &entries, ClientContext &context) {
 	auto transaction = catalog.GetCatalogTransaction(context);
-	// Read all the entries visible to this snapshot. Internal entries are not exported
-	ReorderEntries(entries, transaction, false);
+	// Read all the entries visible to this snapshot
+	ReorderEntries(entries, transaction);
 }
 
 void DependencyManager::ReorderEntries(catalog_entry_vector_t &entries) {
-	// Read all committed entries. A checkpoint writes internal entries too
-	CatalogTransaction transaction(catalog.GetDatabase(), MAX_COMMIT_ID, VisibilityBound::Before(MAX_COMMIT_ID));
-	ReorderEntries(entries, transaction, true);
+	// Read all committed entries
+	CatalogTransaction transaction(catalog.GetDatabase(), TRANSACTION_ID_START - 1, TRANSACTION_ID_START - 1);
+	ReorderEntries(entries, transaction);
 }
 
 void DependencyManager::ReorderEntry(CatalogTransaction transaction, CatalogEntry &entry, catalog_entry_set_t &visited,
-                                     catalog_entry_vector_t &order, bool allow_internal) {
+                                     catalog_entry_vector_t &order) {
 	auto &catalog_entry = *LookupEntry(transaction, entry);
+	// We use this in CheckpointManager, it has the highest commit ID, allowing us to read any committed data
+	bool allow_internal = transaction.start_time == TRANSACTION_ID_START - 1;
 	if (visited.count(catalog_entry) || (!allow_internal && catalog_entry.internal)) {
 		// Already seen and ordered appropriately
 		return;
@@ -698,7 +695,7 @@ void DependencyManager::ReorderEntry(CatalogTransaction transaction, CatalogEntr
 	auto info = GetLookupProperties(entry);
 	ScanSubjects(transaction, info, [&](DependencyEntry &dep) { dependents.push_back(dep); });
 	for (auto &dep : dependents) {
-		ReorderEntry(transaction, dep, visited, order, allow_internal);
+		ReorderEntry(transaction, dep, visited, order);
 	}
 
 	// Then write the entry
@@ -706,12 +703,11 @@ void DependencyManager::ReorderEntry(CatalogTransaction transaction, CatalogEntr
 	order.push_back(catalog_entry);
 }
 
-void DependencyManager::ReorderEntries(catalog_entry_vector_t &entries, CatalogTransaction transaction,
-                                       bool allow_internal) {
+void DependencyManager::ReorderEntries(catalog_entry_vector_t &entries, CatalogTransaction transaction) {
 	catalog_entry_vector_t reordered;
 	catalog_entry_set_t visited;
 	for (auto &entry : entries) {
-		ReorderEntry(transaction, entry, visited, reordered, allow_internal);
+		ReorderEntry(transaction, entry, visited, reordered);
 	}
 	// If this would fail, that means there are more entries that we somehow reached through the dependency manager
 	// but those entries should not actually be visible to this transaction

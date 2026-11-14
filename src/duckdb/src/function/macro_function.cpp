@@ -1,6 +1,4 @@
 #include "duckdb/function/macro_function.hpp"
-#include "duckdb/planner/binder.hpp"
-#include "duckdb/planner/expression_binder.hpp"
 
 #include "duckdb/common/sql_identifier.hpp"
 

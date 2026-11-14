@@ -49,21 +49,7 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownInnerJoin(unique_ptr<Logical
 	}
 
 	// then push down cross product
-	auto result = PushdownCrossProduct(std::move(cross_product));
-
-	// the join is re-created from the cross product with the same children: carry over its projection maps
-	switch (result->type) {
-	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN:
-	case LogicalOperatorType::LOGICAL_ANY_JOIN: {
-		auto &result_join = result->Cast<LogicalJoin>();
-		result_join.left_projection_map = std::move(join.left_projection_map);
-		result_join.right_projection_map = std::move(join.right_projection_map);
-		break;
-	}
-	default:
-		break;
-	}
-	return result;
+	return PushdownCrossProduct(std::move(cross_product));
 }
 
 } // namespace duckdb

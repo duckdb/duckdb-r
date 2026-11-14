@@ -13,7 +13,6 @@
 #include "duckdb/main/profiler/gathered_metrics.hpp"
 #include "duckdb/main/profiler/profiling_node.hpp"
 #include "duckdb/common/profiler.hpp"
-#include "duckdb/common/types/timestamp.hpp"
 
 namespace duckdb_yyjson {
 struct yyjson_mut_doc;
@@ -31,7 +30,6 @@ public:
 	~QueryMetrics();
 
 	idx_t system_peak_buffer_memory;
-	idx_t system_peak_streaming_buffer_size;
 	idx_t system_peak_temp_dir_size;
 	double blocked_thread_time;
 
@@ -45,11 +43,7 @@ public:
 
 public:
 	void UpdateMetric(const string &key, idx_t addition) {
-		string_timings[key].Add(addition);
-	}
-
-	void UpdateMetric(const string &key, idx_t addition, timestamp_t start_time, timestamp_t end_time) {
-		string_timings[key].Add(addition, start_time, end_time);
+		string_timings[key] += addition;
 	}
 
 	void UpdateMetricCounter(const string &key, idx_t addition) {
@@ -73,7 +67,7 @@ public:
 		if (it == string_timings.end()) {
 			return 0.0;
 		}
-		return static_cast<double>(it->second.duration) / 1e9;
+		return static_cast<double>(it->second) / 1e9;
 	}
 
 	idx_t GetStringCounter(const string &key) const {
@@ -96,7 +90,7 @@ public:
 		return total_memory_allocated.load();
 	}
 
-	const unordered_map<string, MetricTiming> &GetMetricTimings() const {
+	const unordered_map<string, idx_t> &GetMetricTimings() const {
 		return string_timings;
 	}
 
@@ -105,16 +99,15 @@ public:
 	}
 
 	void Reset() {
-		latency_timer.reset();
 		string_timings.clear();
 		string_counters.clear();
 		bytes_read = 0;
 		bytes_written = 0;
 		total_memory_allocated = 0;
 
+		latency_timer.reset();
 		query_sql = "";
 		system_peak_buffer_memory = 0;
-		system_peak_streaming_buffer_size = 0;
 		system_peak_temp_dir_size = 0;
 		blocked_thread_time = 0;
 	}
@@ -124,7 +117,7 @@ public:
 
 	void Merge(const QueryMetrics &other) {
 		for (const auto &entry : other.string_timings) {
-			string_timings[entry.first].Merge(entry.second);
+			string_timings[entry.first] += entry.second;
 		}
 		for (const auto &entry : other.string_counters) {
 			string_counters[entry.first] += entry.second;
@@ -136,7 +129,7 @@ public:
 
 private:
 	// String-keyed timings for optimizer, storage and phase timing metrics
-	unordered_map<string, MetricTiming> string_timings;
+	unordered_map<string, idx_t> string_timings;
 	// String-keyed counters for storage counter metrics (e.g. "storage.wal_replay_entry_count")
 	unordered_map<string, idx_t> string_counters;
 
@@ -154,7 +147,6 @@ public:
 		if (!is_active) {
 			return;
 		}
-		start_time = Timestamp::GetCurrentTimestamp();
 		profiler.Start();
 	}
 	~MetricsTimer() {
@@ -170,14 +162,12 @@ public:
 		std::swap(query_metrics, other.query_metrics);
 		std::swap(metric_name, other.metric_name);
 		std::swap(profiler, other.profiler);
-		std::swap(start_time, other.start_time);
 		std::swap(is_active, other.is_active);
 	}
 	MetricsTimer &operator=(MetricsTimer &&other) noexcept {
 		std::swap(query_metrics, other.query_metrics);
 		std::swap(metric_name, other.metric_name);
 		std::swap(profiler, other.profiler);
-		std::swap(start_time, other.start_time);
 		std::swap(is_active, other.is_active);
 		return *this;
 	}
@@ -189,7 +179,7 @@ public:
 		}
 		is_active = false;
 		profiler.End();
-		query_metrics->UpdateMetric(metric_name, profiler.ElapsedNanos(), start_time, Timestamp::GetCurrentTimestamp());
+		query_metrics->UpdateMetric(metric_name, profiler.ElapsedNanos());
 	}
 
 	void Reset() {
@@ -204,7 +194,6 @@ private:
 	optional_ptr<QueryMetrics> query_metrics;
 	string metric_name;
 	Profiler profiler;
-	timestamp_t start_time = timestamp_t::epoch();
 	bool is_active;
 };
 

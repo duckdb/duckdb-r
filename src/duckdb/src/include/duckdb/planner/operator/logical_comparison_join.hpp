@@ -69,9 +69,6 @@ public:
 
 	bool HasEquality(idx_t &range_count) const;
 	bool HasArbitraryConditions() const;
-	//! Two-valued MARK comparisons with at least one null-safe equality hash key.
-	bool HasNullSafeMarkJoinConditions() const;
-	bool TryGetMarkJoinGroupTypes(vector<LogicalType> &group_types) const;
 };
 
 } // namespace duckdb

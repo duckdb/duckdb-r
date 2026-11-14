@@ -18,17 +18,11 @@
 
 #include "src/optimizer/compressed_materialization.cpp"
 
-#include "src/optimizer/constant_or_null_simplification.cpp"
-
 #include "src/optimizer/cse_optimizer.cpp"
 
 #include "src/optimizer/cte_filter_pusher.cpp"
 
 #include "src/optimizer/cte_inlining.cpp"
-
-#include "src/optimizer/cte_join_filter_collector.cpp"
-
-#include "src/optimizer/cte_join_filter_pusher.cpp"
 
 #include "src/optimizer/deliminator.cpp"
 
@@ -72,8 +66,6 @@
 
 #include "src/optimizer/partitioned_execution.cpp"
 
-#include "src/optimizer/projection_placement.cpp"
-
 #include "src/optimizer/projection_pullup.cpp"
 
 #include "src/optimizer/regex_range_filter.cpp"
@@ -81,8 +73,6 @@
 #include "src/optimizer/remote_pushdown_optimizer.cpp"
 
 #include "src/optimizer/remove_duplicate_groups.cpp"
-
-#include "src/optimizer/remove_redundant_order_keys.cpp"
 
 #include "src/optimizer/remove_unused_columns.cpp"
 

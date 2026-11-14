@@ -85,15 +85,12 @@ static void JaroWinklerFunction(DataChunk &args, ExpressionState &state, Vector 
 ScalarFunctionSet JaroSimilarityFun::GetFunctions() {
 	ScalarFunctionSet jaro;
 
-	auto fun = ScalarFunction({}, LogicalType::DOUBLE, JaroFunction);
-	fun.GetSignature().AddParameter("s1", LogicalType::VARCHAR).AddParameter("s2", LogicalType::VARCHAR);
+	const auto list_type = LogicalType::LIST(LogicalType::VARCHAR);
+	auto fun = ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::DOUBLE, JaroFunction);
 	jaro.AddFunction(fun);
 
-	fun = ScalarFunction({}, LogicalType::DOUBLE, JaroFunction);
-	fun.GetSignature()
-	    .AddParameter("s1", LogicalType::VARCHAR)
-	    .AddParameter("s2", LogicalType::VARCHAR)
-	    .AddParameter("score_cutoff", LogicalType::DOUBLE);
+	fun = ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                     JaroFunction);
 	jaro.AddFunction(fun);
 	return jaro;
 }
@@ -101,15 +98,12 @@ ScalarFunctionSet JaroSimilarityFun::GetFunctions() {
 ScalarFunctionSet JaroWinklerSimilarityFun::GetFunctions() {
 	ScalarFunctionSet jaroWinkler;
 
-	auto fun = ScalarFunction({}, LogicalType::DOUBLE, JaroWinklerFunction);
-	fun.GetSignature().AddParameter("s1", LogicalType::VARCHAR).AddParameter("s2", LogicalType::VARCHAR);
+	const auto list_type = LogicalType::LIST(LogicalType::VARCHAR);
+	auto fun = ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::DOUBLE, JaroWinklerFunction);
 	jaroWinkler.AddFunction(fun);
 
-	fun = ScalarFunction({}, LogicalType::DOUBLE, JaroWinklerFunction);
-	fun.GetSignature()
-	    .AddParameter("s1", LogicalType::VARCHAR)
-	    .AddParameter("s2", LogicalType::VARCHAR)
-	    .AddParameter("score_cutoff", LogicalType::DOUBLE);
+	fun = ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                     JaroWinklerFunction);
 	jaroWinkler.AddFunction(fun);
 	return jaroWinkler;
 }

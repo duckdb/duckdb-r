@@ -39,10 +39,6 @@ CastFunctionSet &CastFunctionSet::Get(ClientContext &context) {
 	return DBConfig::GetConfig(context).GetCastFunctions();
 }
 
-const CastFunctionSet &CastFunctionSet::Get(const ClientContext &context) {
-	return DBConfig::GetConfig(context).GetCastFunctions();
-}
-
 CollationBinding &CollationBinding::Get(ClientContext &context) {
 	return DBConfig::GetConfig(context).GetCollationBinding();
 }
@@ -61,11 +57,6 @@ BoundCastInfo CastFunctionSet::GetCastFunction(const LogicalType &source, const 
 		BoundCastInfo result(DefaultCasts::NopCast);
 		result.SetStatisticsCallback(CastStatistics::Propagate);
 		return result;
-	}
-	if (registration_probe) {
-		// VARIANT selects additional casts from runtime values.
-		registered_cast_found |=
-		    source.id() == LogicalTypeId::VARIANT || registration_probe->HasRegisteredCast(source, target);
 	}
 	auto bind_cast = [&](BindCastFunction &bind_function) {
 		BindCastInput input(*this, bind_function.info.get(), get_input.context);
@@ -107,8 +98,8 @@ struct MapCastNode {
 	int64_t implicit_cast_cost;
 };
 
-template <class MAP>
-static auto RelaxedTypeMatch(MAP &map, const LogicalType &type) -> decltype(map.find(type)) {
+template <class MAP_VALUE_TYPE>
+static auto RelaxedTypeMatch(type_map_t<MAP_VALUE_TYPE> &map, const LogicalType &type) -> decltype(map.find(type)) {
 	D_ASSERT(map.find(type) == map.end()); // we shouldn't be here
 	switch (type.id()) {
 	case LogicalTypeId::LIST:
@@ -146,7 +137,7 @@ static auto RelaxedTypeMatch(MAP &map, const LogicalType &type) -> decltype(map.
 
 struct MapCastInfo : public BindCastInfo {
 public:
-	optional_ptr<const MapCastNode> GetEntry(const LogicalType &source, const LogicalType &target) const {
+	const optional_ptr<MapCastNode> GetEntry(const LogicalType &source, const LogicalType &target) {
 		auto source_type_id_entry = casts.find(source.id());
 		if (source_type_id_entry == casts.end()) {
 			source_type_id_entry = casts.find(LogicalTypeId::ANY);
@@ -193,29 +184,8 @@ private:
 	type_id_map_t<type_map_t<type_id_map_t<type_map_t<MapCastNode>>>> casts;
 };
 
-bool CastFunctionSet::HasRegisteredCast(const LogicalType &source, const LogicalType &target) const {
-	return map_info && map_info->GetEntry(source, target);
-}
-
-bool CastFunctionSet::CanOverrideDefaultCast(const LogicalType &source, const LogicalType &target) const {
-	if (!map_info || source == target) {
-		return false;
-	}
-	if (HasRegisteredCast(source, target)) {
-		return true;
-	}
-	CastFunctionSet probe;
-	probe.registration_probe = this;
-	GetCastFunctionInput input;
-	probe.GetCastFunction(source, target, input);
-	return probe.registered_cast_found;
-}
-
 int64_t CastFunctionSet::ImplicitCastCost(optional_ptr<ClientContext> context, const LogicalType &source,
                                           const LogicalType &target) {
-	if (registration_probe && registration_probe->HasRegisteredCast(source, target)) {
-		registered_cast_found = true;
-	}
 	// check if a cast has been registered
 	if (map_info) {
 		auto entry = map_info->GetEntry(source, target);

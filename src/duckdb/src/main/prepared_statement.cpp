@@ -1,7 +1,6 @@
 #include "duckdb/main/prepared_statement.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/main/client_context.hpp"
-#include "duckdb/parser/sql_statement.hpp"
 #include "duckdb/parser/statement/execute_statement.hpp"
 
 namespace duckdb {
@@ -12,24 +11,10 @@ PreparedStatement::PreparedStatement(const shared_ptr<ClientContext> &context_p,
 	D_ASSERT(!context.expired());
 }
 
-PreparedStatement::PreparedStatement(const shared_ptr<ClientContext> &context_p, unique_ptr<SQLStatement> statement)
-    : context(context_p), query(statement->query), success(true), expanding_statement(std::move(statement)) {
-	D_ASSERT(!context.expired());
-	// The placeholder the planner reports for a result known only at execution. The properties describe nothing
-	info.names = {Identifier("unknown")};
-	info.types = {LogicalTypeId::UNKNOWN};
-	info.statement_type = expanding_statement->type;
-	info.properties.always_require_rebind = true;
-}
-
 PreparedStatement::PreparedStatement(ErrorData error) : success(false), error(std::move(error)) {
 }
 
 PreparedStatement::~PreparedStatement() {
-	if (expanding_statement) {
-		// nothing was prepared in the client context
-		return;
-	}
 	auto client_context = context.lock();
 	if (!client_context) {
 		// the client context is gone - the prepared statement has been deallocated together with it
@@ -108,18 +93,8 @@ case_insensitive_map_t<LogicalType> PreparedStatement::GetExpectedParameterTypes
 	return expected_types;
 }
 
-bool PreparedStatement::MetadataAvailable() const {
-	return !expanding_statement && info.properties.bound_all_parameters;
-}
-
-unique_ptr<SQLStatement> PreparedStatement::CreateStatement(identifier_map_t<BoundParameterData> &named_values,
-                                                            QueryParameters &parameters) const {
-	if (expanding_statement) {
-		if (!named_values.empty()) {
-			parameters.statement_args = named_values;
-		}
-		return expanding_statement->Copy();
-	}
+unique_ptr<SQLStatement>
+PreparedStatement::CreateExecuteStatement(const identifier_map_t<BoundParameterData> &named_values) const {
 	auto execute = make_uniq<ExecuteStatement>();
 	execute->name = Identifier(name);
 	// report the query that was prepared - not the generated EXECUTE - in errors and profiling output
@@ -131,53 +106,55 @@ unique_ptr<SQLStatement> PreparedStatement::CreateStatement(identifier_map_t<Bou
 }
 
 unique_ptr<QueryResult> PreparedStatement::Execute(identifier_map_t<BoundParameterData> &named_values,
-                                                   const QueryParameters &query_parameters) {
+                                                   bool allow_stream_result) {
 	if (!success) {
-		return make_uniq<QueryResult>(
+		return make_uniq<MaterializedQueryResult>(
 		    ErrorData(InvalidInputException("Attempting to execute an unsuccessfully prepared statement!")));
 	}
 	auto client_context = context.lock();
 	if (!client_context) {
-		return make_uniq<QueryResult>(ErrorData(
+		return make_uniq<MaterializedQueryResult>(ErrorData(
 		    InvalidInputException("Attempting to execute a prepared statement after its connection was closed!")));
 	}
-	auto parameters = query_parameters;
-	auto statement = CreateStatement(named_values, parameters);
-	return client_context->RunInternalStatement(std::move(statement), parameters);
+	PendingQueryParameters parameters;
+	parameters.query_parameters.output_type =
+	    allow_stream_result ? QueryResultOutputType::ALLOW_STREAMING : QueryResultOutputType::FORCE_MATERIALIZED;
+	return client_context->RunInternalStatement(CreateExecuteStatement(named_values), parameters);
 }
 
-unique_ptr<QueryResult> PreparedStatement::Execute(vector<Value> &values, const QueryParameters &query_parameters) {
+unique_ptr<QueryResult> PreparedStatement::Execute(vector<Value> &values, bool allow_stream_result) {
 	identifier_map_t<BoundParameterData> named_values;
 	for (idx_t i = 0; i < values.size(); i++) {
 		named_values[Identifier(std::to_string(i + 1))] = BoundParameterData(values[i]);
 	}
-	return Execute(named_values, query_parameters);
+	return Execute(named_values, allow_stream_result);
 }
 
-unique_ptr<QueryResult> PreparedStatement::Submit(vector<Value> &values, const QueryParameters &query_parameters) {
+unique_ptr<PendingQueryResult> PreparedStatement::PendingQuery(vector<Value> &values, bool allow_stream_result) {
 	identifier_map_t<BoundParameterData> named_values;
 	for (idx_t i = 0; i < values.size(); i++) {
 		auto &val = values[i];
 		named_values[Identifier(std::to_string(i + 1))] = BoundParameterData(val);
 	}
-	return Submit(named_values, query_parameters);
+	return PendingQuery(named_values, allow_stream_result);
 }
 
-unique_ptr<QueryResult> PreparedStatement::Submit(identifier_map_t<BoundParameterData> &named_values,
-                                                  const QueryParameters &query_parameters) {
+unique_ptr<PendingQueryResult> PreparedStatement::PendingQuery(identifier_map_t<BoundParameterData> &named_values,
+                                                               bool allow_stream_result) {
 	if (!success) {
 		auto exception = InvalidInputException("Attempting to execute an unsuccessfully prepared statement!");
-		return make_uniq<QueryResult>(ErrorData(exception));
+		return make_uniq<PendingQueryResult>(ErrorData(exception));
 	}
 	auto client_context = context.lock();
 	if (!client_context) {
 		auto exception =
 		    InvalidInputException("Attempting to execute a prepared statement after its connection was closed!");
-		return make_uniq<QueryResult>(ErrorData(exception));
+		return make_uniq<PendingQueryResult>(ErrorData(exception));
 	}
-	auto parameters = query_parameters;
-	auto statement = CreateStatement(named_values, parameters);
-	return client_context->SubmitInternalStatement(std::move(statement), parameters);
+	PendingQueryParameters parameters;
+	parameters.query_parameters.output_type =
+	    allow_stream_result ? QueryResultOutputType::ALLOW_STREAMING : QueryResultOutputType::FORCE_MATERIALIZED;
+	return client_context->PendingInternalStatement(CreateExecuteStatement(named_values), parameters);
 }
 
 } // namespace duckdb

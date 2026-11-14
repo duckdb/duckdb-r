@@ -258,8 +258,6 @@ static int64_t ImplicitCastTimestampSec(const LogicalType &to) {
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_MS:
 	case LogicalTypeId::TIMESTAMP_NS:
-	case LogicalTypeId::TIMESTAMP_TZ:
-	case LogicalTypeId::TIMESTAMP_TZ_NS:
 		return TargetTypeCost(to);
 	default:
 		return -1;
@@ -270,8 +268,6 @@ static int64_t ImplicitCastTimestampMS(const LogicalType &to) {
 	switch (to.id()) {
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_NS:
-	case LogicalTypeId::TIMESTAMP_TZ:
-	case LogicalTypeId::TIMESTAMP_TZ_NS:
 		return TargetTypeCost(to);
 	default:
 		return -1;
@@ -325,7 +321,7 @@ bool LogicalTypeIsValid(const LogicalType &type) {
 	case LogicalTypeId::ARRAY:
 	case LogicalTypeId::DECIMAL:
 		// these types are only valid with auxiliary info
-		if (!type.HasParameters()) {
+		if (!type.AuxInfo()) {
 			return false;
 		}
 		break;
@@ -368,7 +364,7 @@ bool LogicalTypeIsValid(const LogicalType &type) {
 
 int64_t ImplicitCastToUnionMember(const LogicalType &from, const LogicalType &to) {
 	// check that the union type is fully resolved.
-	if (!to.HasParameters()) {
+	if (to.AuxInfo() == nullptr) {
 		return -1;
 	}
 	// check if the union contains something castable from the source type
@@ -485,7 +481,7 @@ int64_t CastRules::ImplicitCast(const LogicalType &from, const LogicalType &to) 
 	}
 	if (from.id() == LogicalTypeId::UNION && to.id() == LogicalTypeId::UNION) {
 		// Check that the target union type is fully resolved.
-		if (!to.HasParameters()) {
+		if (to.AuxInfo() == nullptr) {
 			// If not, try anyway and let the actual cast logic handle it.
 			// This is to allow passing unions into functions that take a generic union type (without specifying member
 			// types) as an argument.
@@ -521,7 +517,7 @@ int64_t CastRules::ImplicitCast(const LogicalType &from, const LogicalType &to) 
 		}
 	}
 	if (StructType::IsStruct(from) && StructType::IsStruct(to)) {
-		if (!to.HasParameters()) {
+		if (to.AuxInfo() == nullptr) {
 			// If this struct is not fully resolved, we'll leave it to the actual cast logic to handle it.
 			return 0;
 		}

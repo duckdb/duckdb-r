@@ -43,23 +43,7 @@ bool ConflictManager::IsConflict(LookupResultType type) {
 	}
 }
 
-void ConflictManager::AddRowId(const idx_t index_in_chunk, const row_t row_id) {
-	// Only ON CONFLICT DO NOTHING can have multiple conflict targets,
-	// which can cause multiple row IDs per index_in_chunk.
-	// We ignore later row IDs, as we don't need them.
-	auto &data = GetConflictData(FIRST);
-	if (!data.validity.RowIsValid(index_in_chunk)) {
-		data.Insert(index_in_chunk, row_id);
-	}
-}
-
-void ConflictManager::AddSecondRowId(const idx_t index_in_chunk, const row_t row_id) {
-	D_ASSERT(HasConflicts());
-	D_ASSERT(conflict_data[FIRST].validity.RowIsValid(index_in_chunk));
-	GetConflictData(SECOND).Insert(index_in_chunk, row_id);
-}
-
-bool ConflictManager::AddHitInternal(const idx_t index_in_chunk, const row_t row_id, const bool second) {
+bool ConflictManager::AddHit(const idx_t index_in_chunk, const std::function<void()> &callback) {
 	D_ASSERT(index_in_chunk < chunk_size);
 	if (ShouldThrow(index_in_chunk)) {
 		return true;
@@ -79,20 +63,16 @@ bool ConflictManager::AddHitInternal(const idx_t index_in_chunk, const row_t row
 	if (finished) {
 		return false;
 	}
-	if (second) {
-		AddSecondRowId(index_in_chunk, row_id);
-	} else {
-		AddRowId(index_in_chunk, row_id);
-	}
+	callback();
 	return false;
 }
 
 bool ConflictManager::AddHit(const idx_t index_in_chunk, const row_t row_id) {
-	return AddHitInternal(index_in_chunk, row_id, false);
+	return AddHit(index_in_chunk, [&]() { AddRowId(index_in_chunk, row_id); });
 }
 
 bool ConflictManager::AddSecondHit(const idx_t index_in_chunk, const row_t row_id) {
-	return AddHitInternal(index_in_chunk, row_id, true);
+	return AddHit(index_in_chunk, [&]() { AddSecondRowId(index_in_chunk, row_id); });
 }
 
 bool ConflictManager::AddNull(const idx_t index_in_chunk) {
@@ -150,7 +130,7 @@ bool ConflictManager::ShouldThrow(const idx_t index_in_chunk) const {
 
 	// If we have already seen a conflict for this index, then we don't throw.
 	D_ASSERT(mode == ConflictManagerMode::THROW);
-	return !HasConflicts() || !conflict_data[FIRST].validity.RowIsValid(index_in_chunk);
+	return conflict_rows.find(index_in_chunk) == conflict_rows.end();
 }
 
 bool ConflictManager::IgnoreNulls() const {

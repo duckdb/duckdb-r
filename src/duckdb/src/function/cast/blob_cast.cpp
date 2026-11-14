@@ -15,9 +15,8 @@ BoundCastInfo DefaultCasts::BlobCastSwitch(BindCastInput &input, const LogicalTy
 	case LogicalTypeId::LEGACY_AGGREGATE_STATE:
 		return DefaultCasts::ReinterpretCast;
 	case LogicalTypeId::BIT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastStringLoop<string_t, string_t, duckdb::TryCastBlobToBit>);
-	case LogicalTypeId::GEOMETRY:
-		return BlobToGeoCast(input, source, target);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<string_t, duckdb::CastFromBlobToBit>);
+
 	default:
 		return DefaultCasts::TryVectorNullCast;
 	}

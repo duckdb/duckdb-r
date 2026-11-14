@@ -23,66 +23,48 @@ static void ListSearchFunction(DataChunk &input, ExpressionState &state, Vector 
 	ListSearchOp<RETURN_TYPE, FIND_NULLS>(input_list, list_child, target, result, target_count);
 }
 
-//! Whether the statistics prove that no list element can ever match the needle.
-//! FIND_NULLS (list_position) also matches NULL elements against a NULL needle, whereas list_contains
-//! never matches a NULL needle at all.
-static bool ListSearchNeverMatches(optional_ptr<const BaseStatistics> list_stats,
-                                   optional_ptr<const BaseStatistics> needle_stats, const bool find_nulls) {
+static FilterPropagateResult ListSearchFilterPruneImpl(optional_ptr<const BaseStatistics> list_stats,
+                                                       optional_ptr<const BaseStatistics> needle_stats) {
 	if (!list_stats || list_stats->GetStatsType() != StatisticsType::LIST_STATS) {
-		return false;
-	}
-	if (!list_stats->CanHaveNoNull()) {
-		// The list is always NULL, so there is nothing to search.
-		return true;
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	}
 
 	auto &child = ListStats::GetChildStats(*list_stats);
-	// A NULL needle finds a NULL element - only list_position looks for those.
-	const bool null_needle_matches = find_nulls && child.CanHaveNull();
+	if (!list_stats->CanHaveNoNull() || !child.CanHaveNoNull()) {
+		return FilterPropagateResult::FILTER_FALSE_OR_NULL;
+	}
 
 	if (!needle_stats) {
-		// The needle is unknown, so it can only be ruled out if no element can match anything.
-		return !null_needle_matches && !child.CanHaveNoNull();
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	}
 	if (!needle_stats->CanHaveNoNull()) {
-		// The needle is always NULL.
-		return !null_needle_matches;
-	}
-	if (null_needle_matches && needle_stats->CanHaveNull()) {
-		// The needle can be NULL, in which case it matches any NULL element.
-		return false;
-	}
-	if (!child.CanHaveNoNull()) {
-		// Every element is NULL, and the needle we are searching for is not.
-		return true;
+		return FilterPropagateResult::FILTER_FALSE_OR_NULL;
 	}
 	if (child.GetType() != needle_stats->GetType()) {
-		return false;
+		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	}
+	const bool can_have_null = list_stats->CanHaveNull() || needle_stats->CanHaveNull();
+	const auto filter_false =
+	    can_have_null ? FilterPropagateResult::FILTER_FALSE_OR_NULL : FilterPropagateResult::FILTER_ALWAYS_FALSE;
+
 	auto zonemap = StatisticsPropagator::PropagateComparison(child, *needle_stats, ExpressionType::COMPARE_EQUAL);
-	return zonemap == FilterPropagateResult::FILTER_ALWAYS_FALSE ||
-	       zonemap == FilterPropagateResult::FILTER_FALSE_OR_NULL;
+	if (zonemap == FilterPropagateResult::FILTER_ALWAYS_FALSE ||
+	    zonemap == FilterPropagateResult::FILTER_FALSE_OR_NULL) {
+		return filter_false;
+	}
+	return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 }
 
 static FilterPropagateResult ListContainsFilterPrune(const FunctionStatisticsPruneInput &input) {
-	auto list_stats = input.ChildStats(0);
-	auto needle_stats = input.ChildStats(1);
-	if (!ListSearchNeverMatches(list_stats, needle_stats, false)) {
-		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
-	}
-	// list_contains is NULL if either side is NULL, and false otherwise.
-	const bool can_have_null = list_stats->CanHaveNull() || !needle_stats || needle_stats->CanHaveNull();
-	return can_have_null ? FilterPropagateResult::FILTER_FALSE_OR_NULL : FilterPropagateResult::FILTER_ALWAYS_FALSE;
+	return ListSearchFilterPruneImpl(input.ChildStats(0), input.ChildStats(1));
 }
 
 static unique_ptr<BaseStatistics> ListPositionPropagateStats(ClientContext &, FunctionStatisticsInput &input) {
 	if (input.child_stats.size() != 2) {
 		return nullptr;
 	}
-	if (BaseStatistics::GetStatsType(input.expr.GetReturnType()) != StatisticsType::NUMERIC_STATS) {
-		return nullptr;
-	}
-	if (!ListSearchNeverMatches(input.child_stats[0], input.child_stats[1], true)) {
+	auto prune = ListSearchFilterPruneImpl(input.child_stats[0], input.child_stats[1]);
+	if (prune != FilterPropagateResult::FILTER_ALWAYS_FALSE && prune != FilterPropagateResult::FILTER_FALSE_OR_NULL) {
 		return nullptr;
 	}
 	// Needle cannot occur: list_position is NULL for every row.
@@ -92,20 +74,16 @@ static unique_ptr<BaseStatistics> ListPositionPropagateStats(ClientContext &, Fu
 }
 
 ScalarFunction ListContainsFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::BOOLEAN, ListSearchFunction<bool>);
-	fun.GetSignature()
-	    .AddParameter("list", LogicalType::LIST(LogicalType::TEMPLATE("T")))
-	    .AddParameter("element", LogicalType::TEMPLATE("T"));
+	auto fun = ScalarFunction({LogicalType::LIST(LogicalType::TEMPLATE("T")), LogicalType::TEMPLATE("T")},
+	                          LogicalType::BOOLEAN, ListSearchFunction<bool>);
 	fun.SetCollationHandling(FunctionCollationHandling::PUSH_COMBINABLE_COLLATIONS);
 	fun.SetFilterPruneCallback(ListContainsFilterPrune);
 	return fun;
 }
 
 ScalarFunction ListPositionFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::INTEGER, ListSearchFunction<int32_t, true>);
-	fun.GetSignature()
-	    .AddParameter("list", LogicalType::LIST(LogicalType::TEMPLATE("T")))
-	    .AddParameter("element", LogicalType::TEMPLATE("T"));
+	auto fun = ScalarFunction({LogicalType::LIST(LogicalType::TEMPLATE("T")), LogicalType::TEMPLATE("T")},
+	                          LogicalType::INTEGER, ListSearchFunction<int32_t, true>);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	fun.SetCollationHandling(FunctionCollationHandling::PUSH_COMBINABLE_COLLATIONS);
 	fun.SetStatisticsCallback(ListPositionPropagateStats);

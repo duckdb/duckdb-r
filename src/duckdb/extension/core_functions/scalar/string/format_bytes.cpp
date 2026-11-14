@@ -25,15 +25,11 @@ static void FormatBytesFunction(DataChunk &args, ExpressionState &state, Vector 
 }
 
 ScalarFunction FormatBytesFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::VARCHAR, FormatBytesFunction<1024>);
-	fun.GetSignature().AddParameter("integer", LogicalType::BIGINT);
-	return fun;
+	return ScalarFunction({LogicalType::BIGINT}, LogicalType::VARCHAR, FormatBytesFunction<1024>);
 }
 
 ScalarFunction FormatreadabledecimalsizeFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::VARCHAR, FormatBytesFunction<1000>);
-	fun.GetSignature().AddParameter("integer", LogicalType::BIGINT);
-	return fun;
+	return ScalarFunction({LogicalType::BIGINT}, LogicalType::VARCHAR, FormatBytesFunction<1000>);
 }
 
 } // namespace duckdb

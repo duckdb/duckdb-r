@@ -1,5 +1,6 @@
 #include "duckdb/main/external_resource_type_registry.hpp"
 
+#include "duckdb/common/error_data.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
@@ -19,10 +20,23 @@ ExternalResourceTypeRegistry &ExternalResourceTypeRegistry::Get(ClientContext &c
 //! name here - the registry is append-only, and a bad entry would squat its name until restart.
 static void ValidateFunctionName(const ExternalResourceType &type, const string &key, const string &value) {
 	QualifiedName qname;
-	string error;
-	if (!QualifiedName::TryParse(value, qname, error)) {
+	try {
+		qname = QualifiedName::Parse(value);
+	} catch (const std::exception &ex) {
+		ErrorData error(ex);
 		throw InvalidInputException("external resource type \"%s\": '%s' is not a valid function name: %s", type.name,
-		                            key, error);
+		                            key, error.RawMessage());
+	}
+	if (qname.Name().empty()) {
+		throw InvalidInputException("external resource type \"%s\": '%s' is not a valid function name: \"%s\"",
+		                            type.name, key, value);
+	}
+	for (auto &component : qname.Path()) {
+		if (component.empty()) {
+			throw InvalidInputException(
+			    "external resource type \"%s\": '%s' has an empty catalog or schema component: \"%s\"", type.name, key,
+			    value);
+		}
 	}
 }
 

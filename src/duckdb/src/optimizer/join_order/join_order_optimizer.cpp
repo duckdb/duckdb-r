@@ -8,6 +8,7 @@
 #include "duckdb/optimizer/join_order/plan_enumerator.hpp"
 #include "duckdb/planner/expression/list.hpp"
 #include "duckdb/planner/operator/list.hpp"
+#include "duckdb/main/settings.hpp"
 
 namespace duckdb {
 
@@ -26,12 +27,14 @@ static optional<RelationStats> CombineReorderableStats(const vector<ColumnBindin
 		}
 		result.table_name = Identifier(result.table_name + stats.table_name);
 	}
-	RelationColumnStatsLookup lookup;
-	for (auto &stats : relation_stats) {
-		lookup.AddRelation(stats);
-	}
 	for (auto &binding : bindings) {
-		auto source = lookup.Find(binding);
+		optional_ptr<const RelationColumnStats> source;
+		for (auto &stats : relation_stats) {
+			source = stats.GetColumnStats(binding);
+			if (source) {
+				break;
+			}
+		}
 		if (!source) {
 			return {};
 		}
@@ -56,7 +59,8 @@ JoinOrderOptimizer JoinOrderOptimizer::CreateChildOptimizer() {
 
 unique_ptr<LogicalOperator> JoinOrderOptimizer::Optimize(unique_ptr<LogicalOperator> plan,
                                                          optional_ptr<RelationStats> stats) {
-	if (depth > MAX_RECURSION_DEPTH) {
+	auto max_expression_depth = Settings::Get<MaxExpressionDepthSetting>(query_graph_manager.context);
+	if (depth > max_expression_depth) {
 		// Very deep plans will eventually consume quite some stack space
 		// Returning the current plan is always a valid choice
 		return plan;

@@ -9,6 +9,8 @@
 #pragma once
 
 #include "duckdb/main/config.hpp"
+#include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
+#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 
 namespace duckdb {
 

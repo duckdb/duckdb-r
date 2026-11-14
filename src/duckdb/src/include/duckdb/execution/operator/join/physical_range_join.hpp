@@ -51,7 +51,7 @@ public:
 	class GlobalSortedTable {
 	public:
 		GlobalSortedTable(ClientContext &client, const vector<BoundOrderByNode> &orders,
-		                  const vector<LogicalType> &payload_layout, const PhysicalComparisonJoin &op);
+		                  const vector<LogicalType> &payload_layout, const PhysicalRangeJoin &op);
 
 		inline idx_t Count() const {
 			return count;
@@ -121,7 +121,7 @@ public:
 		}
 
 		//! The hosting operator
-		const PhysicalComparisonJoin &op;
+		const PhysicalRangeJoin &op;
 		//! The sort description
 		unique_ptr<Sort> sort;
 		//! The shared sort state

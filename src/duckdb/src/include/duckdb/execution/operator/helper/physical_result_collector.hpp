@@ -15,6 +15,7 @@
 namespace duckdb {
 
 class PreparedStatementData;
+class ColumnDataCollection;
 
 //! PhysicalResultCollector is an abstract class that is used to generate the final result of a query
 class PhysicalResultCollector : public PhysicalOperator {
@@ -26,6 +27,7 @@ public:
 
 	StatementType statement_type;
 	StatementProperties properties;
+	QueryResultMemoryType memory_type;
 	PhysicalOperator &plan;
 	vector<Identifier> names;
 
@@ -49,15 +51,13 @@ public:
 	}
 
 public:
-	//! Whether this collector produces a result that must stay open after the fetch.
-	//! Custom collectors override this to keep the query alive for their stream
+	//! Whether this is a streaming result collector
 	virtual bool IsStreaming() const {
 		return false;
 	}
-	//! Whether this collector builds its own result object, rather than serving it through a result buffer
-	virtual bool BuildsOwnResult() const {
-		return true;
-	}
+
+protected:
+	unique_ptr<ColumnDataCollection> CreateCollection(ClientContext &context) const;
 };
 
 } // namespace duckdb

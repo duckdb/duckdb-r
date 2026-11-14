@@ -78,9 +78,7 @@ static void LevenshteinFunction(DataChunk &args, ExpressionState &state, Vector 
 }
 
 ScalarFunction LevenshteinFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::BIGINT, LevenshteinFunction);
-	fun.GetSignature().AddParameter("s1", LogicalType::VARCHAR).AddParameter("s2", LogicalType::VARCHAR);
-	return fun;
+	return ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BIGINT, LevenshteinFunction);
 }
 
 } // namespace duckdb

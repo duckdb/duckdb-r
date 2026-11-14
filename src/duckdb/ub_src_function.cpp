@@ -4,8 +4,6 @@
 
 #include "src/function/built_in_functions.cpp"
 
-#include "src/function/builtin_function_lookup.cpp"
-
 #include "src/function/cast_rules.cpp"
 
 #include "src/function/combine_types_rules.cpp"
