@@ -4,25 +4,32 @@
 # what it is asked instead of reaching GitHub.
 #
 # The claim is that scripts/series-cutover.sh swaps only on a confirmation
-# that names the series, keeps every lineage the swap replaces as the head of a
-# closed pull request, swaps the four refs atomically, moves the canonical copy
-# of green, deletes what the forward leaves behind in both repositories, prints
-# the archive pull requests and an undo that works, refuses to move anything
-# when it cannot archive, and lists what a refused deletion leaves; and that
-# scripts/series-prune.sh offers only cutover litter, and runs nothing.
-# Ten things are checked.
+# that names the series, and under --confirm the state it was decided on, keeps
+# every lineage the swap replaces as the head of a closed pull request, swaps
+# the four refs atomically, moves the canonical copy of green, deletes what the
+# forward leaves behind in both repositories, prints the archive pull requests
+# and an undo that works, refuses to move anything when it cannot archive, or
+# under --confirm on anything a terminal run leaves to the operator, and lists
+# what a refused deletion leaves; and that scripts/series-prune.sh offers only
+# cutover litter, and runs nothing. Twelve things are checked.
 #
 #   1. Without a terminal and without --confirm the cutover refuses before
 #      fetching anything, and names --confirm and --prepare.
-#   2. A --confirm that names another series, names none, or comes with
-#      --prepare is a usage error, exit 2, and nothing is opened or moved.
+#   2. A --confirm that names another series, names no SHA or one of another
+#      shape, or comes with --prepare or --no-archive is a usage error, exit 2,
+#      and nothing is opened or moved.
 #   3. --prepare prints the gates, the convergence read, the package on both
-#      sides, the review stat with the engine excluded, the archive plan and the
-#      cleanup plan, writes the review diff, and moves nothing.
+#      sides, the review stat with the engine excluded, the archive plan, the
+#      cleanup plan, what --confirm would refuse on, the SHA to decide on and
+#      the command for a terminal, writes the review diff, and moves nothing.
 #   4. A cutover whose archive fails swaps nothing, on a terminal and with
 #      --confirm alike; one against a remote that is not on GitHub refuses too,
-#      unless --no-archive; and --confirm without an upstream clone refuses at
-#      the coverage gate, where a terminal run only warns.
+#      unless --no-archive. Under --confirm, a forward green not at the SHA it
+#      names, or moved since --prepare, refuses, and so does each warning a
+#      terminal run prints: coverage not verified, for want of a clone or of a
+#      vendored SHA on the old green, a canonical remote that does not exist, a
+#      divergence, a renamed package, a version that keeps or goes back, and
+#      versions not compared; each before anything is opened or moved.
 #   5. The cutover, confirmed on a terminal: four archive pull requests opened
 #      as drafts and closed (-dev, -build and the vendor strand in
 #      the fork, green's copy in the canonical repository), the four refs and
@@ -33,13 +40,21 @@
 #   6. That undo, run in a fresh clone, puts the old lineage back in both
 #      repositories and the forward's refs beside it.
 #   7. The cutover with --confirm and no terminal, against remotes that refuse
-#      deletions, and a canonical repository that refuses to move green:
-#      archived and swapped all the same, every ref left behind listed with the
-#      one command that finishes it, and exit 9.
-#   8. series-check.sh ignores what a refused deletion leaves as cutover litter.
-#   9. series-prune.sh lists that litter with the commands that remove it and
+#      deletions alone, as a cloud session's git proxy does: archived, swapped
+#      and the canonical green moved, the forward's refs listed as litter, and
+#      exit 9.
+#   8. The canonical copy of green: with --canonical '' there is none, and the
+#      run exits 0; a --canonical naming no remote leaves it neither archived
+#      nor moved, exit 9; and one that moves under the run is printed with a
+#      push leased on where it is now, which works.
+#   9. The cutover with --confirm, against remotes that refuse deletions, and a
+#      canonical repository that refuses to move green: archived and swapped
+#      all the same, every ref left behind listed with the one command that
+#      finishes it, and exit 9.
+#  10. series-check.sh ignores what a refused deletion leaves as cutover litter.
+#  11. series-prune.sh lists that litter with the commands that remove it and
 #      runs none of them; it offers nothing of a live forward.
-#  10. series-advance.sh mirrors a forward's green into the canonical repository
+#  12. series-advance.sh mirrors a forward's green into the canonical repository
 #      under a lease, so a rebase that reset it does not stop the firing, and
 #      a base green plainly, so a divergence there does.
 #
@@ -166,16 +181,19 @@ for i in 1 2 3 4; do
     commit -q --allow-empty -m "upstream $i"
   shas+=("$(git -C "$UP" rev-parse --short=7 HEAD)")
 done
+# Both series carry the same glue and R code, the base one by a port of `main`,
+# so that they converge: what --confirm swaps on.
 series() { # <series> <seed> <vendor commits on -dev> <on -build> <fourth component>
   local s=$1 seed=$2 ndev=$3 nbuild=$4 v=$5 i sha
   git checkout -q --detach "$seed"
   desc "1.0.0.$v.0"
+  echo 'glue series' > src/glue.cpp
+  echo 'bar <- function() 2' > R/bar.R
   commit 'chore: Add fifth version component'
   local top; top=$(git rev-parse HEAD)
   for ((i = 0; i < nbuild; i++)); do
     sha=${shas[i]}
     echo "engine $sha" > src/duckdb/engine.cpp
-    echo "glue $sha" > src/glue.cpp
     desc "1.0.0.$v.$((i + 1))"
     commit "vendor: Update vendored sources to duckdb/duckdb@$sha"
   done
@@ -184,7 +202,6 @@ series() { # <series> <seed> <vendor commits on -dev> <on -build> <fourth compon
   for ((i = 0; i < ndev; i++)); do
     sha=${shas[i]}
     echo "engine $sha" > src/duckdb/engine.cpp
-    echo "glue $sha" > src/glue.cpp
     desc "1.0.0.$v.$((i + 1))"
     commit "vendor: Update vendored sources to duckdb/duckdb@$sha"
   done
@@ -235,30 +252,75 @@ NEW_BUILD=$(git rev-parse origin/v9.9-x-fwd-build)
 NEW_GREEN=$(git rev-parse origin/v9.9-x-fwd-green)
 NEW_BB=$(git rev-parse origin/v9.9-x-fwd-build-base)
 NEW_VENDOR=$(git rev-parse v9.9-x-fwd-vendor)
+# What --prepare prints to decide on, and --confirm names.
+SHA=${NEW_GREEN:0:12}
+
+# Back to the series and its forward as the fixture built them, in both
+# repositories: what a test that moved a ref, or a cutover, undoes. The forward's
+# rc strand and ledger are not put back, as the undo does not put them back.
+restore() {
+  git push -q -f origin "$OLD_DEV:refs/heads/v9.9-x-dev" "$OLD_BUILD:refs/heads/v9.9-x-build" \
+    "$OLD_GREEN:refs/heads/v9.9-x-green" "$OLD_BB:refs/heads/v9.9-x-build-base" \
+    "$OLD_VENDOR:refs/heads/v9.9-x-vendor" "$NEW_DEV:refs/heads/v9.9-x-fwd-dev" \
+    "$NEW_BUILD:refs/heads/v9.9-x-fwd-build" "$NEW_GREEN:refs/heads/v9.9-x-fwd-green" \
+    "$NEW_BB:refs/heads/v9.9-x-fwd-build-base" "$NEW_VENDOR:refs/heads/v9.9-x-fwd-vendor"
+  git push -q -f upstream "$OLD_GREEN:refs/heads/v9.9-x-green" "$NEW_GREEN:refs/heads/v9.9-x-fwd-green"
+  git fetch -q --prune origin
+  git fetch -q --prune upstream
+  : > "$GH_LOG"
+}
+# A commit on top of <base> that writes <file> with <content>, pushed to <refs>
+# in the fork: a forward or a series that moved, for a refusal to read.
+move_to() { # <base> <file> <content> <ref>...
+  local base=$1 file=$2 content=$3 r c
+  shift 3
+  git checkout -q --detach "$base"
+  printf '%s\n' "$content" > "$file"
+  commit "fix: change $file"
+  c=$(git rev-parse HEAD)
+  git checkout -q main
+  for r in "$@"; do git push -q -f origin "$c:refs/heads/$r"; done
+  git fetch -q origin
+  echo "$c"
+}
 
 echo "=== 1. without a terminal and without --confirm the cutover refuses, and names both ways on"
 before_fork=$(heads origin); before_canon=$(heads upstream)
 out=$(run scripts/series-cutover.sh v9.9-x </dev/null)
 has "it refuses" "$out" "EXIT=1"
 has "for want of a confirmation" "$out" "a cutover swaps only on a confirmation that names the series"
-has "naming --confirm" "$out" "pass --confirm <series> once a maintainer has decided"
+has "naming --confirm" "$out" "pass --confirm <series>@<sha> once a maintainer has decided"
 has "and that the loop never gives one" "$out" "it never confirms one"
 has "naming the read-only mode" "$out" "--prepare runs the gates and the review alone"
 is "and moved nothing" "$(heads origin)" "$before_fork"
 
 echo
-echo "=== 2. a --confirm that does not name the series is a usage error, and moves nothing"
-out=$(run scripts/series-cutover.sh v9.9-x --confirm v9.9-y </dev/null)
+echo "=== 2. a --confirm that does not name the series and a SHA is a usage error, and moves nothing"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-y@$SHA" </dev/null)
 has "another series is refused" "$out" "EXIT=2"
 has "naming both" "$out" "--confirm names 'v9.9-y', but the series to cut over is 'v9.9-x'; nothing was moved."
 out=$(run scripts/series-cutover.sh v9.9-x --confirm '' </dev/null)
 has "an empty one too" "$out" "EXIT=2"
 out=$(run scripts/series-cutover.sh v9.9-x --confirm </dev/null)
 has "and a missing one" "$out" "EXIT=2"
-has "with the usage" "$out" "[--prepare | --confirm <series>]"
-out=$(run scripts/series-cutover.sh v9.9-x --prepare --confirm v9.9-x </dev/null)
+has "with the usage" "$out" "[--prepare | --confirm <series>@<sha>]"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm v9.9-x </dev/null)
+has "the series without a SHA is refused" "$out" "EXIT=2"
+has "naming what it takes" "$out" "--confirm takes v9.9-x@<sha>, the tip of v9.9-x-fwd-green that --prepare printed,"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@${NEW_GREEN:0:11}" </dev/null)
+has "a SHA shorter than 12 digits is refused" "$out" "EXIT=2"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@${NEW_GREEN}0" </dev/null)
+has "and one longer than 40" "$out" "EXIT=2"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@not-a-sha-at-all" </dev/null)
+has "and one that is not hex" "$out" "EXIT=2"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$(tr a-f A-F <<<"$SHA")" </dev/null)
+has "and one in capitals" "$out" "EXIT=2"
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --confirm "v9.9-x@$SHA" </dev/null)
 has "beside --prepare it is refused" "$out" "EXIT=2"
 has "as a contradiction" "$out" "--prepare moves nothing and --confirm swaps; pass one of them."
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --no-archive </dev/null)
+has "beside --no-archive it is refused" "$out" "EXIT=2"
+has "as a swap that keeps nothing" "$out" "--no-archive would keep the replaced history nowhere"
 is "the fork's refs are untouched" "$(heads origin)" "$before_fork"
 is "and the canonical repository's" "$(heads upstream)" "$before_canon"
 is "and gh was not called" "$(wc -l < "$GH_LOG")" 0
@@ -286,33 +348,43 @@ has "and green's copy in the canonical repository" "$out" "v9.9-x-green -> v9.9-
 has "the cleanup names the forward's refs and strands" "$out" \
   "deleted after the swap: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev retry-v9.9-x-fwd-dev on origin"
 has "and the canonical copy" "$out" "v9.9-x-fwd-green on upstream"
-has "and says nothing happened" "$out" "Prepared; nothing was opened, pushed or deleted."
-has "and how to go on" "$out" "or with --confirm v9.9-x once a maintainer has decided the cutover"
+has "the read converges" "$out" "CONVERGED"
+has "what --confirm would refuse on is listed" "$out" \
+  "--confirm would refuse on what this run warned about, which a terminal run leaves to the operator:"
+has "the coverage not verified among it" "$out" "  coverage: no upstream clone given"
+has "and says nothing happened" "$out" "Prepared; nothing was opened, pushed or deleted. The state to decide on:"
+has "the SHA to decide on, in full" "$out" "  v9.9-x-fwd-green at $NEW_GREEN"
+has "and the command for a terminal" "$out" "  scripts/series-cutover.sh v9.9-x --remote origin --canonical upstream"
+hasnt "but no command line that confirms" "$out" "--confirm v9.9-x"
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$UP")
+has "with a clone, coverage is verified" "$out" "EXIT=0"
+hasnt "and --confirm would refuse on nothing" "$out" "--confirm would refuse on"
+has "the clone is in the command for a terminal" "$out" "--canonical upstream --upstream $(printf '%q' "$UP")"
 is "the review diff is written" "$([ -s "$OUT/review.diff" ] && echo yes)" yes
 hasnt "without the version bookkeeping" "$(cat "$OUT/review.stat")" "DESCRIPTION"
-has "with the forward's R side" "$(cat "$OUT/review.diff")" "+glue ${shas[2]}"
+has "with the forward's R side" "$(cat "$OUT/review.diff")" "+glue series"
 is "the fork's refs are untouched" "$(heads origin)" "$before_fork"
 is "and the canonical repository's" "$(heads upstream)" "$before_canon"
 is "and gh was not called" "$(wc -l < "$GH_LOG")" 0
 
 echo
-echo "=== 4. a cutover that cannot archive, or under --confirm cannot verify coverage, swaps nothing"
+echo "=== 4. a cutover that cannot archive, or under --confirm meets a warning or another state, swaps nothing"
 out=$(GH_FAIL=1 tty_run scripts/series-cutover.sh v9.9-x --out "$OUT")
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the archive fails" "$out" "could not open the archive pull request for v9.9-x-dev in test/fork"
 has "and the run stops" "$out" "EXIT=1"
 is "with the fork's refs untouched" "$(heads origin)" "$before_fork"
 is "and the canonical repository's" "$(heads upstream)" "$before_canon"
-out=$(GH_FAIL=1 run scripts/series-cutover.sh v9.9-x --confirm v9.9-x --upstream "$UP" --out "$OUT" </dev/null)
+out=$(GH_FAIL=1 run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
 [ -z "${KEEP:-}" ] || echo "$out"
-has "with --confirm the archive is still tried first" "$out" "confirmed by --confirm v9.9-x"
+has "with --confirm the archive is still tried first" "$out" "confirmed by --confirm v9.9-x@$SHA, the tip of v9.9-x-fwd-green."
 has "and fails the same way" "$out" "could not open the archive pull request for v9.9-x-dev in test/fork"
 has "and the run stops" "$out" "EXIT=1"
 hasnt "before the swap" "$out" "replaced by its forward counterpart"
 is "with the fork's refs untouched" "$(heads origin)" "$before_fork"
 is "and the canonical repository's" "$(heads upstream)" "$before_canon"
 : > "$GH_LOG"
-out=$(run scripts/series-cutover.sh v9.9-x --confirm v9.9-x --out "$OUT" </dev/null)
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --out "$OUT" </dev/null)
 [ -z "${KEEP:-}" ] || echo "$out"
 has "--confirm without a clone refuses at the coverage gate" "$out" \
   "no upstream clone given, so the coverage gate cannot be verified, and --confirm"
@@ -333,6 +405,102 @@ out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --no-archive)
 has "--no-archive says what it costs" "$out" "archive pull requests: skipped (--no-archive); the replaced history is reachable from nothing"
 git config remote.origin.github test/fork
 : > "$GH_LOG"
+
+# Under --confirm: each refusal below comes before anything is opened or moved.
+untouched() { # <what>
+  is "$1: before any archive" "$(wc -l < "$GH_LOG")" 0
+  is "$1: with the fork's refs untouched" "$(heads origin)" "$before_fork"
+  is "$1: and the canonical repository's" "$(heads upstream)" "$before_canon"
+}
+confirm() { run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@${1:-$SHA}" --upstream "$UP" --out "$OUT" "${@:2}" </dev/null; }
+out=$(confirm "${OLD_GREEN:0:12}")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a SHA that is not the forward green's is refused" "$out" \
+  "v9.9-x-fwd-green is at $NEW_GREEN on origin, not at the ${OLD_GREEN:0:12} that --confirm names."
+has "and the run stops" "$out" "EXIT=1"
+untouched "a SHA not the forward green's"
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$UP")
+decided=$(sed -n 's/^  v9.9-x-fwd-green at //p' <<<"$out")
+is "--prepare names the tip to decide on" "$decided" "$NEW_GREEN"
+moved=$(move_to "$NEW_GREEN" R/foo.R 'foo <- function() 3' v9.9-x-fwd-green)
+out=$(confirm "$decided")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a forward green that moved after --prepare is refused" "$out" \
+  "v9.9-x-fwd-green is at $moved on origin, not at the $NEW_GREEN that --confirm names."
+has "with the decision sent back" "$out" "The forward moved after the state the decision was taken on"
+has "and the run stops" "$out" "EXIT=1"
+is "before any archive" "$(wc -l < "$GH_LOG")" 0
+restore
+out=$(confirm "$SHA" --canonical nosuch)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a --canonical naming no remote is refused" "$out" \
+  "there is no remote 'nosuch', so the canonical copy of v9.9-x-green would be neither archived"
+has "naming the way to say there is none" "$out" "or pass --canonical '' where there is no canonical repository. Nothing was moved."
+has "and the run stops" "$out" "EXIT=1"
+untouched "no canonical remote"
+# A commit on the old green that touches the engine without vendoring: one
+# commit deep, the scan finds no vendored SHA on it.
+move_to "$OLD_GREEN" src/duckdb/engine.cpp 'engine patched' v9.9-x-green v9.9-x-dev >/dev/null
+out=$(BASE_SCAN_DEPTH=1 run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$UP")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "an old green with no vendored SHA to read warns on --prepare" "$out" \
+  "Warning: no vendored SHA could be read on v9.9-x-green, coverage gate not verified"
+has "and is what --confirm would refuse on" "$out" "  coverage: no vendored SHA read on v9.9-x-green"
+out=$(BASE_SCAN_DEPTH=1 confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "under --confirm it refuses" "$out" "no vendored SHA could be read on v9.9-x-green, so the coverage gate cannot be verified,"
+has "and the run stops" "$out" "EXIT=1"
+is "before any archive" "$(wc -l < "$GH_LOG")" 0
+restore
+# A fix on the series' -dev that the forward does not carry.
+move_to "$OLD_DEV" R/foo.R 'foo <- function() 3' v9.9-x-dev >/dev/null
+out=$(confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a divergence is printed" "$out" "DIVERGED: 1 path(s) the forwarding does not explain."
+has "and refused under --confirm" "$out" "--confirm swaps with nobody to weigh a warning, and this run printed these:"
+has "naming it" "$out" "  convergence: paths the forwarding does not explain"
+has "and the run stops" "$out" "EXIT=1"
+is "before any archive" "$(wc -l < "$GH_LOG")" 0
+restore
+move_to "$NEW_DEV" DESCRIPTION "$(printf 'Package: duckdb.other\nVersion: 1.0.0.9001.4')" v9.9-x-fwd-dev >/dev/null
+out=$(confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a renamed package is printed" "$out" "package: duckdb.9.9.dev -> duckdb.other"
+has "and refused under --confirm" "$out" "  package: renamed from duckdb.9.9.dev to duckdb.other"
+has "and the run stops" "$out" "EXIT=1"
+is "before any archive" "$(wc -l < "$GH_LOG")" 0
+restore
+kept=$(move_to "$NEW_GREEN" DESCRIPTION "$(printf 'Package: duckdb.9.9.dev\nVersion: 1.0.0.9000.2')" v9.9-x-fwd-dev v9.9-x-fwd-green)
+out=$(confirm "$kept")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a version kept is printed" "$out" "Warning: v9.9-x-green keeps version 1.0.0.9000.2 across the swap."
+has "and refused under --confirm, for -dev" "$out" "  version: v9.9-x-dev keeps 1.0.0.9000.2"
+has "and for -green" "$out" "  version: v9.9-x-green keeps 1.0.0.9000.2"
+has "and the run stops" "$out" "EXIT=1"
+is "before any archive" "$(wc -l < "$GH_LOG")" 0
+restore
+back=$(move_to "$NEW_GREEN" DESCRIPTION "$(printf 'Package: duckdb.9.9.dev\nVersion: 1.0.0.9000.1')" v9.9-x-fwd-dev v9.9-x-fwd-green)
+out=$(confirm "$back")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a version going back is printed" "$out" "Warning: v9.9-x-green would go from 1.0.0.9000.2 back to 1.0.0.9000.1."
+has "and refused under --confirm" "$out" "  version: v9.9-x-green goes from 1.0.0.9000.2 back to 1.0.0.9000.1"
+has "and the run stops" "$out" "EXIT=1"
+is "before any archive" "$(wc -l < "$GH_LOG")" 0
+restore
+# A `sort` that is not GNU's, and no `gsort`: the versions are not compared.
+mkdir -p "$SCRATCH/nognu"
+cat > "$SCRATCH/nognu/sort" <<'SORT'
+#!/bin/bash
+[ "${1:-}" != --version ] || { echo "sort (not GNU)"; exit 0; }
+exec "$REAL_SORT" "$@"
+SORT
+chmod +x "$SCRATCH/nognu/sort"
+out=$(REAL_SORT=$(command -v sort) PATH=$SCRATCH/nognu:$PATH confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "versions not compared are printed" "$out" "Note: no GNU sort here, so the versions above were not compared."
+has "and refused under --confirm" "$out" "  version: not compared, for want of GNU sort"
+has "and the run stops" "$out" "EXIT=1"
+untouched "versions not compared"
 
 echo
 echo "=== 5. the cutover: archive, swap, mirror, delete"
@@ -406,16 +574,86 @@ is "the canonical green is the old one" "$(git ls-remote upstream refs/heads/v9.
 is "and the forward's copy there is back" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | cut -f1)" "$NEW_GREEN"
 
 echo
-echo "=== 7. --confirm without a terminal, against remotes that refuse deletions"
+echo "=== 7. --confirm without a terminal, against remotes that refuse deletions alone"
+restore
+git -C "$FORK" config receive.denyDeletes true
+git -C "$CANON" config receive.denyDeletes true
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
+is "-green is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
+is "the canonical green is moved" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
+hasnt "and not left behind" "$out" "is still on the pre-cutover lineage"
+has "the canonical undo is one atomic push" "$out" \
+  "  git push --atomic --force-with-lease=refs/heads/v9.9-x-green:$NEW_GREEN upstream $OLD_GREEN:refs/heads/v9.9-x-green $NEW_GREEN:refs/heads/v9.9-x-fwd-green"
+has "the litter in the fork is named" "$out" \
+  "  cutover litter in origin, which loses nothing when deleted: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor"
+has "and in the canonical repository" "$out" "  cutover litter in upstream, which loses nothing when deleted: v9.9-x-fwd-green"
+is "the last line says the swap stands" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
+  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
+has "and a refused deletion alone is exit 9" "$out" "EXIT=9"
+git -C "$FORK" config --unset receive.denyDeletes
+git -C "$CANON" config --unset receive.denyDeletes
+
+echo
+echo "=== 8. the canonical copy of green: none, no remote, or moved under the run"
+restore
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" --canonical '' </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "with --canonical '' the cutover runs" "$out" "Series v9.9-x replaced by its forward counterpart."
+hasnt "with nothing left behind" "$out" "SWAPPED, LEFT BEHIND"
+has "and exits 0" "$out" "EXIT=0"
+is "no archive is opened in the canonical repository" "$(grep -c 'repos/test/canonical' "$GH_LOG" || true)" 0
+is "and its green is untouched" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
+restore
+out=$(tty_run scripts/series-cutover.sh v9.9-x --upstream "$UP" --out "$OUT" --canonical nosuch)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a --canonical naming no remote warns on a terminal" "$out" \
+  "Warning: there is no remote 'nosuch', so the canonical copy of v9.9-x-green will be neither archived"
+has "the cutover runs" "$out" "Series v9.9-x replaced by its forward counterpart."
+has "the canonical green is left behind" "$out" \
+  "  v9.9-x-green in the canonical repository was neither archived nor moved, as no remote here is called"
+has "with the push that moves it once its tip is read" "$out" \
+  "    git push --force-with-lease=refs/heads/v9.9-x-green:<the tip it holds> nosuch $NEW_GREEN:refs/heads/v9.9-x-green"
+has "and exit 9" "$out" "EXIT=9"
+is "no archive is opened in the canonical repository" "$(grep -c 'repos/test/canonical' "$GH_LOG" || true)" 0
+is "and its green is untouched" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
+restore
+# The loop's mirror moves the canonical green while the run archives: this
+# `gh` does that on the first pull request it opens.
+cat > "$BIN/gh-moves" <<'GH'
+#!/bin/bash
+case " $* " in
+  *" -X POST "*) [ -e "$MOVED" ] || { touch "$MOVED"; git -C "$CANON_DIR" update-ref refs/heads/v9.9-x-green "$MOVE_TO"; } ;;
+esac
+exec "$REAL_GH" "$@"
+GH
+chmod +x "$BIN/gh-moves"
+out=$(MOVED=$SCRATCH/moved CANON_DIR=$CANON MOVE_TO=$MAIN REAL_GH=$BIN/gh SERIES_GH=$BIN/gh-moves \
+  run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a canonical green that moved under the run is left behind" "$out" \
+  "  v9.9-x-green in upstream is still on the pre-cutover lineage, which r-universe publishes; move it:"
+has "named as moved" "$out" "  It is at $MAIN now, not at the $OLD_GREEN this run read and archived;"
+move=(git push "--force-with-lease=refs/heads/v9.9-x-green:$MAIN" upstream "$NEW_GREEN:refs/heads/v9.9-x-green")
+has "with a push leased on where it is now" "$out" "    ${move[*]}"
+has "and exit 9" "$out" "EXIT=9"
+out=$(run "${move[@]}")
+has "that push is not refused" "$out" "EXIT=0"
+is "and moves it" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
+
+echo
+echo "=== 9. --confirm without a terminal, against remotes that refuse deletions and the canonical move"
+restore
 git -C "$FORK" config receive.denyDeletes true
 git -C "$CANON" config receive.denyDeletes true
 git -C "$CANON" config receive.denyNonFastForwards true
-: > "$GH_LOG"
-out=$(run scripts/series-cutover.sh v9.9-x --confirm v9.9-x --upstream "$UP" --out "$OUT" </dev/null)
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$NEW_GREEN" --upstream "$UP" --out "$OUT" </dev/null)
 [ -z "${KEEP:-}" ] || echo "$out"
 hasnt "the coverage gate is verified against the clone" "$out" "coverage gate not verified"
 hasnt "and holds" "$out" "coverage would regress"
-has "the confirmation is on record" "$out" "Replacing series v9.9-x with v9.9-x-fwd-*, confirmed by --confirm v9.9-x."
+has "the confirmation is on record, the full SHA too" "$out" \
+  "Replacing series v9.9-x with v9.9-x-fwd-*, confirmed by --confirm v9.9-x@$NEW_GREEN, the tip of v9.9-x-fwd-green."
 has "the archive comes first" "$out" "archived v9.9-x-dev as test/fork#101"
 has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
 is "-dev is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$NEW_DEV"
@@ -451,7 +689,7 @@ git push -q --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.
 git push -q --delete upstream v9.9-x-fwd-green
 
 echo
-echo "=== 8. series-check.sh ignores cutover litter"
+echo "=== 10. series-check.sh ignores cutover litter"
 # A refused deletion leaves the forward's refs at the series' tips; and an
 # older cutover left its rc strand behind.
 git push -q origin "$NEW_GREEN:refs/heads/v9.9-x-fwd-green" "$NEW_DEV:refs/heads/v9.9-x-fwd-dev" \
@@ -464,7 +702,7 @@ has "the forward is litter" "$out" "v9.9-x-fwd: green is an ancestor of v9.9-x's
 has "and the series gets a verdict" "$out" "=== v9.9-x:"
 
 echo
-echo "=== 9. series-prune.sh lists the litter and runs nothing"
+echo "=== 11. series-prune.sh lists the litter and runs nothing"
 before_fork=$(heads origin); before_canon=$(heads upstream)
 out=$(run scripts/series-prune.sh v9.9-x-fwd)
 has "a forward's name is refused" "$out" "EXIT=2"
@@ -496,8 +734,8 @@ has "a live forward is not litter" "$out" "is not an ancestor of v9.9-x-green: t
 has "and nothing is offered" "$out" "Nothing to prune."
 
 echo
-echo "=== 10. series-advance.sh mirrors a forward's green under a lease, a base green plainly"
-# The live forward's green was reset in 9, as a rebase resets one, and the
+echo "=== 12. series-advance.sh mirrors a forward's green under a lease, a base green plainly"
+# The live forward's green was reset in 11, as a rebase resets one, and the
 # canonical copy still holds the pre-reset green.
 RESET=$(git rev-parse origin/v9.9-x-fwd-green)
 git push -q origin "$NEW_BUILD:refs/heads/v9.9-x-fwd-build-base"

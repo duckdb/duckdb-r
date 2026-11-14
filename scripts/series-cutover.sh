@@ -21,15 +21,18 @@
 # reachable and the pull request is where to find them; nothing is merged, and
 # the deletion of the `-fwd` refs afterwards loses nothing, because their tips
 # are the series' refs now. `--no-archive` skips this, for a remote that is
-# not on GitHub; without it the script refuses to swap when it cannot archive.
+# not on GitHub, on a terminal only; without it the script refuses to swap when
+# it cannot archive.
 #
 # It is also the one move the series loop never makes: the loop reports a ready
 # cutover and stops (.claude/skills/series-loop/SKILL.md), because retiring the
-# lineage r-universe builds from is a decision, not a stage. This script is the
-# mechanical half of that rule: it swaps only on a confirmation that names the
-# series, typed on a terminal, or given as `--confirm <series>` by a session
-# the maintainer sent to run a cutover they decided
-# (.claude/skills/series-cutover/SKILL.md). The loop gives neither.
+# lineage r-universe builds from is a decision, not a stage. This script swaps
+# only on a confirmation that names the series, typed on a terminal, or given
+# as `--confirm <series>@<sha>`, where <sha> is the tip of `<S>-fwd-green` that
+# `--prepare` printed for the maintainer to decide on. The script cannot tell
+# who passes it: what keeps a firing from cutting over is the loop's rule and
+# the decision rule of .claude/skills/series-cutover/SKILL.md, and what the SHA
+# does is tie the run to the state that decision was taken on.
 # `--prepare` is the part that needs no confirmation: the gates, the
 # convergence read and the review, written for a human to read before
 # deciding, with nothing moved and nothing opened.
@@ -53,10 +56,10 @@
 #
 # Usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>]
 #                          [--upstream <path>] [--out <dir>]
-#                          [--prepare | --confirm <series>] [--no-archive]
+#                          [--prepare | --confirm <series>@<sha>] [--no-archive]
 #   series-cutover.sh main --upstream ../../../duckdb
 #   series-cutover.sh main --upstream ../../../duckdb --prepare --out /tmp/main-cutover
-#   series-cutover.sh main --upstream ../../../duckdb --confirm main
+#   series-cutover.sh main --upstream ../../../duckdb --confirm main@0123456789ab
 #
 # `--canonical <name>` names the repository r-universe publishes the base
 # flavors from -- default `upstream`, as in series-advance.sh -- which carries a
@@ -64,7 +67,9 @@
 # A cutover is the one move that takes green off its lineage, so it is the one
 # place that copy is forced -- under a lease, and after the swap, so the
 # canonical repository is never ahead of the fork -- and the forward's copy
-# there is deleted with the fork's `-fwd` refs.
+# there is deleted with the fork's `-fwd` refs. An empty name says there is no
+# canonical repository; a name no remote here answers to leaves that copy
+# neither archived nor moved, which a terminal run reports as left behind.
 #
 # The two are different kinds of thing, and a `gh` clone carries names that made
 # them easy to swap while both were positional:
@@ -78,16 +83,17 @@
 #                     temporary directory, named on screen.
 #   --prepare         the gates, the reads and the review only: no terminal
 #                     needed, no pull request opened, no ref moved.
-#   --confirm <series>
+#   --confirm <series>@<sha>
 #                     the confirmation the prompt asks for, given on the
 #                     command line, so that no terminal is needed and the
-#                     command itself records it. It must name the series being
-#                     cut over: another name, a missing one, or --prepare
-#                     beside it is a usage error, before anything is read.
-#                     Nobody reads the screen before it swaps, so the coverage
-#                     gate must be verified: without --upstream it refuses
-#                     where a terminal run only warns.
-#   --no-archive      swap without the archive pull requests.
+#                     command itself records it: the series being cut over, and
+#                     the tip of `<S>-fwd-green` that --prepare printed, as 12
+#                     to 40 lowercase hex digits. Another name, another shape
+#                     of SHA, or --prepare or --no-archive beside it is a
+#                     usage error, before anything is read. Once fetched, a
+#                     `<S>-fwd-green` that is not at that SHA is a refusal.
+#   --no-archive      swap without the archive pull requests; on a terminal
+#                     only.
 # Both are spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
 #
@@ -97,8 +103,16 @@
 # $SERIES_GH names another `gh`.
 #
 # The upstream clone is needed for the coverage gate (an ancestry check
-# between vendored upstream SHAs); without it the gate degrades to a warning,
-# except under --confirm, where it refuses.
+# between vendored upstream SHAs); without it the gate degrades to a warning.
+#
+# Under --confirm nobody reads the screen before the swap, so what a terminal
+# run prints for the operator to weigh refuses instead, before anything is
+# opened or moved: a coverage gate it cannot verify, for want of an upstream
+# clone or of a vendored SHA it can read on the old green; a convergence read
+# that diverged or did not finish; a package name the swap changes; a `-dev` or
+# `-green` version that does not move forward, or versions not compared for
+# want of GNU sort; and a --canonical remote that does not exist. --prepare
+# lists the ones it found, as what --confirm would refuse on.
 #
 # After the swap the script prints the archive pull requests, number and URL,
 # and the undo: one leased push per repository that puts the old tips back from
@@ -108,15 +122,16 @@
 #   0  swapped and cleaned up, or prepared.
 #   1  refused or failed before or at the swap, so nothing was swapped: a gate,
 #      a typed confirmation that does not match, no terminal and no --confirm,
-#      an archive that could not be opened, or a lease the swap lost. Archive
-#      pull requests already opened stay, and a rerun finds them.
-#   2  a usage error, a --confirm that does not name the series among them;
-#      nothing was read or moved.
+#      under --confirm a forward green not at the SHA it names or a warning
+#      (above), an archive that could not be opened, or a lease the swap lost.
+#      Archive pull requests already opened stay, and a rerun finds them.
+#   2  a usage error, a --confirm that does not name the series and a SHA among
+#      them; nothing was read or moved.
 #   9  swapped, with something left behind: a forward ref the remote refused
 #      to delete, which is cutover litter, or the canonical copy of green it
-#      refused to move. Each is printed with the one command that finishes it,
-#      under a last line `SWAPPED, LEFT BEHIND`; the swap stands, and a rerun
-#      is not what finishes it.
+#      refused to move or no remote here names. Each is printed with the
+#      command that finishes it, under a last line `SWAPPED, LEFT BEHIND`; the
+#      swap stands, and a rerun is not what finishes it.
 #   Any other status is a command that failed, such as git's 128 under
 #   `set -e`, and it comes before the swap, so nothing was swapped, as for 1.
 #   After the swap every command that can fail is checked and reported, save
@@ -127,13 +142,13 @@ set -euo pipefail
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>] [--out <dir>] [--prepare | --confirm <series>] [--no-archive]'
+usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>] [--out <dir>] [--prepare | --confirm <series>@<sha>] [--no-archive]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
 upstream=${UPSTREAM_CLONE:-}
 gh=${SERIES_GH:-gh}
-out='' prepare='' archive=1 confirm='' confirmed=''
+out='' prepare='' archive=1 confirm='' confirmed='' confirm_sha=''
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -152,16 +167,30 @@ done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
 # The confirmation on the command line is checked before anything is read: it
-# is the operator's statement of which series to replace, so a name that is not
-# this one is a command that contradicts itself, and so is one that both swaps
-# and moves nothing.
+# is the operator's statement of which series to replace, and on which state,
+# so a name that is not this one is a command that contradicts itself, and so is
+# one that both swaps and moves nothing. A swap nobody watches keeps what it
+# replaces, so it never comes without the archive.
 if [ -n "$confirmed" ]; then
   if [ -n "$prepare" ]; then
     echo "Error: --prepare moves nothing and --confirm swaps; pass one of them." >&2
     argerr
   fi
+  if [ -z "$archive" ]; then
+    echo "Error: --confirm swaps with nobody watching, and --no-archive would keep the replaced history nowhere;" >&2
+    echo "  a cutover without the archive runs on a terminal. Nothing was moved." >&2
+    argerr
+  fi
+  case "$confirm" in
+    *@*) confirm_sha=${confirm##*@} confirm=${confirm%@*} ;;
+  esac
   if [ "$confirm" != "$S" ]; then
     echo "Error: --confirm names '$confirm', but the series to cut over is '$S'; nothing was moved." >&2
+    argerr
+  fi
+  if ! [[ $confirm_sha =~ ^[0-9a-f]{12,40}$ ]]; then
+    echo "Error: --confirm takes $S@<sha>, the tip of $S-fwd-green that --prepare printed," >&2
+    echo "  as 12 to 40 lowercase hex digits; nothing was moved." >&2
     argerr
   fi
 fi
@@ -175,11 +204,37 @@ cd "$(git rev-parse --show-toplevel)"
 # --confirm. `--prepare` moves nothing and may run anywhere.
 if [ -z "$prepare" ] && [ -z "$confirmed" ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
   echo "Error: a cutover swaps only on a confirmation that names the series:" >&2
-  echo "  type it on a terminal, or pass --confirm <series> once a maintainer has decided" >&2
-  echo "  the cutover (.claude/skills/series-cutover/SKILL.md)." >&2
+  echo "  type it on a terminal, or pass --confirm <series>@<sha> once a maintainer has decided" >&2
+  echo "  the cutover on the state --prepare showed (.claude/skills/series-cutover/SKILL.md)." >&2
   echo "  The series loop reports a ready cutover and stops; it never confirms one." >&2
   echo "  --prepare runs the gates and the review alone, from anywhere." >&2
   exit 1
+fi
+
+# What a terminal run prints for the operator to weigh before typing the name.
+# Under --confirm nobody weighs it, so each is collected here and the run
+# refuses on them before anything is opened or moved; --prepare lists them.
+held=()
+hold() { held+=("$1"); }
+
+# A canonical remote that is named and missing leaves r-universe's copy of
+# green on the old lineage, neither archived nor moved. An empty name is how to
+# say there is none (SERIES_CANONICAL='' or --canonical ''), so a name nothing
+# here answers to is a clone set up otherwise: a terminal run ends in exit 9
+# with that copy left behind, and --confirm refuses before the fetch.
+canon_missing=
+if [ -n "$canonical" ] && ! git remote get-url "$canonical" >/dev/null 2>&1; then
+  canon_missing=1
+  if [ -n "$confirmed" ]; then
+    echo "Error: there is no remote '$canonical', so the canonical copy of $S-green would be neither archived" >&2
+    echo "  nor moved, and --confirm swaps with nobody to move it. Name the remote with --canonical <name>," >&2
+    echo "  or pass --canonical '' where there is no canonical repository. Nothing was moved." >&2
+    exit 1
+  fi
+  echo "Warning: there is no remote '$canonical', so the canonical copy of $S-green will be neither archived"
+  echo "  nor moved, and the run ends in exit 9 with it left behind. Name the remote with --canonical <name>,"
+  echo "  or pass --canonical '' where there is no canonical repository."
+  hold "canonical: no remote '$canonical'"
 fi
 
 git fetch -q "$remote"
@@ -187,7 +242,7 @@ git fetch -q "$remote"
 # by a cycle (handbook/branches/mirrors/README.md). The two greens there are
 # what the archive and the cleanup read.
 main_ref="refs/remotes/$remote/main"
-if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+if [ -n "$canonical" ] && [ -z "$canon_missing" ]; then
   git fetch -q "$canonical" main 2>/dev/null || true
   git fetch -q "$canonical" "$S-green" "$S-fwd-green" 2>/dev/null ||
     git fetch -q "$canonical" "$S-green" 2>/dev/null ||
@@ -277,6 +332,21 @@ for r in build dev green build-base; do
     { echo "Error: $S-fwd-$r does not exist on $remote"; exit 1; }
 done
 
+# The state the decision was taken on: the green the swap installs, as
+# --prepare printed it. Under --confirm the run swaps that green or nothing.
+fwd_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
+if [ -n "$confirmed" ]; then
+  case "$fwd_green" in
+    "$confirm_sha"*) ;;
+    *)
+      echo "Error: $S-fwd-green is at $fwd_green on $remote, not at the $confirm_sha that --confirm names." >&2
+      echo "  The forward moved after the state the decision was taken on; prepare again, and take" >&2
+      echo "  the new tip back to the maintainer. Nothing was moved." >&2
+      exit 1
+      ;;
+  esac
+fi
+
 # A base series ref may legitimately be missing: a series started as -fwd has
 # no counterpart to replace, and the cutover creates the ref rather than
 # swapping it. Only the forward refs are required.
@@ -292,10 +362,11 @@ done
 [ ${#missing[@]} -eq 0 ] ||
   echo "Note: ${missing[*]} missing on $remote, will be created from $S-fwd-*"
 
+old_green=
+old_up=
 if git rev-parse -q --verify "refs/remotes/$remote/$S-green" >/dev/null; then
+  old_green=1
   old_up=$(series_vendored_sha "refs/remotes/$remote/$S-green")
-else
-  old_up=
 fi
 new_up=$(series_vendored_sha "refs/remotes/$remote/$S-fwd-green")
 echo "old green vendors: ${old_up:-<nothing>}"
@@ -330,7 +401,19 @@ if [ -n "$old_up" ]; then
     exit 1
   else
     echo "Warning: no upstream clone given, coverage gate not verified"
+    hold "coverage: no upstream clone given"
   fi
+elif [ -n "$old_green" ]; then
+  # A green that exists and names no vendored SHA leaves the gate nothing to
+  # hold the forward against, which is the gate not verified, not passed;
+  # series_vendored_sha has said why on stderr.
+  if [ -n "$confirmed" ]; then
+    echo "Error: no vendored SHA could be read on $S-green, so the coverage gate cannot be verified," >&2
+    echo "  and --confirm swaps with nobody to read a warning. Nothing was moved." >&2
+    exit 1
+  fi
+  echo "Warning: no vendored SHA could be read on $S-green, coverage gate not verified"
+  hold "coverage: no vendored SHA read on $S-green"
 fi
 
 # Convergence: the coverage gate above asks whether the forward has vendored far
@@ -339,7 +422,8 @@ fi
 # still hold the same package -- and prints it here so the operator confirms with
 # it on screen. It reports rather than refuses: the invariant's second half is
 # *explicable*, and whether a difference is explicable is a judgement no script
-# can make -- which is why this prints and the human decides.
+# can make -- which is why this prints and the human decides, and why under
+# --confirm, with no human reading, a finding is held.
 echo
 rc=0
 "$here/series-converge.sh" "$S" --remote "$remote" --no-fetch || rc=$?
@@ -350,6 +434,12 @@ if [ "$rc" -eq 1 ]; then
   echo
   echo "  ^ read these before confirming. A swap does not resolve them: it makes"
   echo "    them the serving branch's, on the lineage r-universe builds from."
+  hold "convergence: paths the forwarding does not explain"
+elif [ "$rc" -ne 0 ] && git rev-parse -q --verify "refs/remotes/$remote/$S-dev" >/dev/null; then
+  echo
+  echo "  ^ the convergence read stopped with status $rc although $S-dev exists;"
+  echo "    read why above before confirming."
+  hold "convergence: the read stopped with status $rc"
 fi
 echo
 
@@ -368,6 +458,7 @@ else
   echo "  ^ the swap renames the package. A series and its forward are flavored"
   echo "    the same; a name that moved means the forward was seeded with"
   echo "    another flavor, and the swap would publish a different package."
+  hold "package: renamed from $old_pkg to ${new_pkg:-<none>}"
 fi
 
 # The vendor strand swaps with the four where the forward has one; a forward
@@ -417,7 +508,8 @@ done
 # moved on since; where it does not, r-universe has nothing to offer as an
 # upgrade until the new chain's counter climbs past the old one's. That is a
 # cost rather than a corruption, and whether it is worth paying is a judgement,
-# so this names it and leaves the decision with the confirmation.
+# so this names it and leaves the decision with the confirmation: typed on a
+# terminal, or held under --confirm, which nobody types.
 #
 # On a preview line the fourth component never covers it: the prefix is pinned
 # to the line being previewed rather than taken from `main`
@@ -425,13 +517,15 @@ done
 # counter differs. A version going back is normal there, and the warning says so.
 #
 # Without a GNU sort the versions are still printed and simply not compared:
-# the swap is not worth blocking over a missing coreutils, and a comparison
-# made with the wrong tool would read as a clean bill.
+# a terminal swap is not worth blocking over a missing coreutils, and a
+# comparison made with the wrong tool would read as a clean bill. Under
+# --confirm nobody reads the versions instead, so the missing comparison is held.
 if [ -z "$gnu_sort" ]; then
   echo "Note: no GNU sort here, so the versions above were not compared."
   echo "  Read them: a $S-green version that does not move forward is an upgrade"
   echo "  r-universe cannot offer. Install GNU coreutils as 'gsort' -- on"
   echo "  macOS, 'brew install coreutils'."
+  hold "version: not compared, for want of GNU sort"
 else
   for r in dev green; do
     oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
@@ -442,8 +536,14 @@ else
       # Equal is the same problem wearing the other face: two different trees
       # published under one version, so whoever already has it never sees the
       # replacement at all.
-      0) echo "Warning: $S-$r keeps version $oldv across the swap." ;;
-      1) echo "Warning: $S-$r would go from $oldv back to $newv." ;;
+      0)
+        echo "Warning: $S-$r keeps version $oldv across the swap."
+        hold "version: $S-$r keeps $oldv"
+        ;;
+      1)
+        echo "Warning: $S-$r would go from $oldv back to $newv."
+        hold "version: $S-$r goes from $oldv back to $newv"
+        ;;
     esac
     if [ "$r" = green ]; then
       echo "  r-universe publishes from this ref and has no upgrade to offer"
@@ -500,7 +600,7 @@ if [ -n "$archive" ]; then
     git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-vendor" >/dev/null; then
     archives+=("$remote $S-vendor $S-fwd-vendor")
   fi
-  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
+  if [ -n "$canonical" ] && [ -z "$canon_missing" ] &&
     git rev-parse -q --verify "refs/remotes/$canonical/$S-green" >/dev/null; then
     if git rev-parse -q --verify "refs/remotes/$canonical/$S-fwd-green" >/dev/null; then
       archives+=("$canonical $S-green $S-fwd-green")
@@ -542,8 +642,19 @@ fi
 
 if [ -n "$prepare" ]; then
   echo
-  echo "Prepared; nothing was opened, pushed or deleted. To cut over, run without --prepare, from a terminal,"
-  echo "  or with --confirm $S once a maintainer has decided the cutover (.claude/skills/series-cutover/SKILL.md)."
+  if [ ${#held[@]} -gt 0 ]; then
+    echo "--confirm would refuse on what this run warned about, which a terminal run leaves to the operator:"
+    printf '  %s\n' "${held[@]}"
+    echo
+  fi
+  # The SHA, not a command to paste: a cutover without a terminal names the
+  # state a maintainer decided on (.claude/skills/series-cutover/SKILL.md).
+  again="scripts/series-cutover.sh $(printf '%q' "$S") --remote $(printf '%q' "$remote") --canonical $(printf '%q' "$canonical")"
+  [ -z "$upstream" ] || again+=" --upstream $(printf '%q' "$upstream")"
+  echo "Prepared; nothing was opened, pushed or deleted. The state to decide on:"
+  echo "  $S-fwd-green at $fwd_green"
+  echo "To cut over on a terminal, which asks for the series name:"
+  echo "  $again"
   exit 0
 fi
 
@@ -552,10 +663,19 @@ fi
 # versions and the four ref moves on screen, and it takes the series name
 # rather than a keystroke because the mistake worth catching is cutting over
 # the wrong series. `--confirm` gave that name on the command line, checked
-# before anything was read, where it stays on record with the command.
+# before anything was read, where it stays on record with the command, and the
+# SHA of the state decided on, checked after the fetch; what this run held for
+# the operator to weigh refuses it here instead, before anything is opened.
 echo
+if [ -n "$confirmed" ] && [ ${#held[@]} -gt 0 ]; then
+  echo "Error: --confirm swaps with nobody to weigh a warning, and this run printed these:" >&2
+  printf '  %s\n' "${held[@]}" >&2
+  echo "  Nothing was opened or moved. They go back to the maintainer, and a cutover that" >&2
+  echo "  accepts them runs on a terminal (.claude/skills/series-cutover/SKILL.md)." >&2
+  exit 1
+fi
 if [ -n "$confirmed" ]; then
-  echo "Replacing series $S with $S-fwd-*, confirmed by --confirm $S."
+  echo "Replacing series $S with $S-fwd-*, confirmed by --confirm $S@$confirm_sha, the tip of $S-fwd-green."
 else
   printf 'Replace series %s with %s-fwd-*? Type the series name to confirm: ' "$S" "$S"
   read -r confirm
@@ -593,7 +713,7 @@ left=()          # "<remote> <ref>": a deletion refused
 green_left=''    # the push that moves the canonical copy of green, not made
 green_why=()     # what green_left is printed under
 canon_undo=''    # the canonical half of the undo
-new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
+new_green=$fwd_green
 
 # The canonical repository carries a copy of green for r-universe to publish
 # from, and the swap just moved green onto a lineage the old one is no more an
@@ -604,8 +724,10 @@ new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
 # green nobody here wrote, or archived, is not overwritten silently. The
 # forward's copy there goes with the fork's `-fwd` refs: its tip is `<S>-green`
 # now.
-if [ -n "$canonical" ] && ! git remote get-url "$canonical" >/dev/null 2>&1; then
-  echo "Note: there is no remote $canonical, so no canonical copy of $S-green was moved; --canonical names it."
+if [ -n "$canon_missing" ]; then
+  green_why=("$S-green in the canonical repository was neither archived nor moved, as no remote here is called"
+    "$canonical; r-universe publishes it. Add the remote, archive the copy it holds, and move it under a lease on that copy:")
+  green_left="git push --force-with-lease=refs/heads/$S-green:<the tip it holds> $canonical $new_green:refs/heads/$S-green"
 elif [ -n "$canonical" ]; then
   cur=$(git rev-parse -q --verify "refs/remotes/$canonical/$S-green") || cur=
   if [ "$cur" = "$new_green" ]; then
