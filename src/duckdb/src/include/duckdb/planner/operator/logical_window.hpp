@@ -16,9 +16,6 @@ namespace duckdb {
 //! operator.
 class LogicalWindow : public LogicalOperator {
 public:
-	LogicalPlanSQLExportResult ToSQL(LogicalPlanSQLExportContext &context,
-	                                 const LogicalPlanVerificationPath &path) override;
-
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_WINDOW;
 
 public:

@@ -29,9 +29,5 @@ public:
 
 public:
 	unique_ptr<CatalogEntry> AlterEntry(CatalogTransaction transaction, AlterInfo &info) override;
-
-private:
-	friend class ExtensionLoader;
-	void FinalizeFunction(TableFunction &function) const;
 };
 } // namespace duckdb

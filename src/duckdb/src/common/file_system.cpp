@@ -288,16 +288,6 @@ string FileSystem::GetWorkingDirectory() {
 #endif
 
 string FileSystem::JoinPath(const string &a, const string &b) {
-	// A remote URL may carry a "?query" suffix (object version, requester-pays, an SSE-C key, ...).
-	// Appending a path segment after it would bury the query mid-path and corrupt both the query and
-	// the object path, so join onto the path without the query and keep the query at the very end.
-	auto scheme = a.find("://");
-	if (scheme != string::npos) {
-		auto query = a.find('?', scheme + 3);
-		if (query != string::npos) {
-			return Path::FromString(a.substr(0, query)).Join(b).ToString() + a.substr(query);
-		}
-	}
 	return Path::FromString(a).Join(b).ToString();
 }
 
@@ -513,14 +503,6 @@ FileMetadata FileSystem::Stats(FileHandle &handle) {
 	return metadata;
 }
 
-optional<FileMetadata> FileSystem::GetStatsIfExists(const OpenFileInfo &file, optional_ptr<FileOpener> opener) {
-	auto handle = OpenFile(file, FileFlags::FILE_FLAGS_READ | FileFlags::FILE_FLAGS_NULL_IF_NOT_EXISTS, opener);
-	if (!handle) {
-		return nullopt;
-	}
-	return Stats(*handle);
-}
-
 void FileSystem::Truncate(FileHandle &handle, int64_t new_size) {
 	throw NotImplementedException("%s: Truncate is not implemented!", GetName());
 }
@@ -591,11 +573,11 @@ bool FileSystem::IsDirectory(const OpenFileInfo &info) {
 	if (!info.extended_info) {
 		return false;
 	}
-	string type;
-	if (!info.extended_info->TryGetOption("type", type)) {
+	auto entry = info.extended_info->options.find("type");
+	if (entry == info.extended_info->options.end()) {
 		return false;
 	}
-	return type == "directory";
+	return StringValue::Get(entry->second) == "directory";
 }
 
 bool FileSystem::ListFiles(const string &directory, const std::function<void(const string &, bool)> &callback,

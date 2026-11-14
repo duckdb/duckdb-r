@@ -46,11 +46,9 @@ void Node256Leaf::DeleteByte(ART &art, NodePtr &node, const uint8_t byte) {
 	Node15Leaf::ShrinkNode256Leaf(art, node, node256);
 }
 
-bool Node256Leaf::HasByte(const uint8_t byte) const {
-	idx_t entry_idx = 0;
-	idx_t idx_in_entry = 0;
-	ValidityMask::GetEntryIndex(byte, entry_idx, idx_in_entry);
-	return ValidityMask::RowIsValid(mask[entry_idx], idx_in_entry);
+bool Node256Leaf::HasByte(const uint8_t byte) {
+	ValidityMask v_mask(&mask[0], Node256::CAPACITY);
+	return v_mask.RowIsValid(byte);
 }
 
 array_ptr<uint8_t> Node256Leaf::GetBytes(ArenaAllocator &arena) {
@@ -68,12 +66,10 @@ array_ptr<uint8_t> Node256Leaf::GetBytes(ArenaAllocator &arena) {
 	return bytes;
 }
 
-bool Node256Leaf::GetNextByte(uint8_t &byte) const {
+bool Node256Leaf::GetNextByte(uint8_t &byte) {
+	ValidityMask v_mask(&mask[0], Node256::CAPACITY);
 	for (uint16_t i = byte; i < CAPACITY; i++) {
-		idx_t entry_idx = 0;
-		idx_t idx_in_entry = 0;
-		ValidityMask::GetEntryIndex(i, entry_idx, idx_in_entry);
-		if (ValidityMask::RowIsValid(mask[entry_idx], idx_in_entry)) {
+		if (v_mask.RowIsValid(i)) {
 			byte = UnsafeNumericCast<uint8_t>(i);
 			return true;
 		}

@@ -47,8 +47,12 @@ NaturalSortGlobalSinkState::NaturalSortGlobalSinkState(ClientContext &client, co
 }
 
 ProgressData NaturalSortGlobalSinkState::GetSinkProgress(ClientContext &client, const ProgressData source) const {
-	// there is nothing to sort
-	return source;
+	ProgressData result;
+	result.done = source.done / 2;
+	result.total = source.total;
+	result.invalid = source.invalid;
+
+	return result;
 }
 
 SinkFinalizeType NaturalSort::Finalize(ClientContext &client, OperatorSinkFinalizeInput &finalize) const {

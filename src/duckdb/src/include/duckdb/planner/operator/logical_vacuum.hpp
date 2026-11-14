@@ -14,7 +14,6 @@
 #include "duckdb/parser/parsed_data/vacuum_info.hpp"
 
 namespace duckdb {
-class TableCatalogEntry;
 
 //! LogicalVacuum represents a simple logical operator that only passes on the parse info
 class LogicalVacuum : public LogicalOperator {

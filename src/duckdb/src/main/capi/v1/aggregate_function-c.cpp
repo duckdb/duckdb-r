@@ -1,5 +1,4 @@
 #include "duckdb/catalog/catalog.hpp"
-#include "duckdb/main/capi/capi_function_signature.hpp"
 #include "duckdb/common/type_visitor.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/function/function.hpp"
@@ -101,14 +100,8 @@ void CAPIAggregateUpdate(Vector inputs[], AggregateInputData &aggr_input_data, i
 		chunk.data.emplace_back(Vector::Ref(inputs[c]));
 	}
 
-	// the callback expects one state per row - flatten a reference, as callers may hold on to the state buffer
-	auto states = Vector::Ref(state);
-	if (states.GetVectorType() != VectorType::FLAT_VECTOR) {
-		states.Flatten(*FlatVector::IncrementalSelectionVector(), count);
-	}
-
 	auto &bind_data = aggr_input_data.bind_data->Cast<CAggregateFunctionBindData>();
-	auto state_data = FlatVector::GetDataMutableUnsafe<duckdb_aggregate_state>(states);
+	auto state_data = FlatVector::GetDataMutableUnsafe<duckdb_aggregate_state>(state);
 	auto c_input_chunk = reinterpret_cast<duckdb_data_chunk>(&chunk);
 
 	CAggregateExecuteInfo exec_info(bind_data.info);
@@ -193,8 +186,7 @@ void duckdb_aggregate_function_add_parameter(duckdb_aggregate_function function,
 	}
 	auto &aggregate_function = GetCAggregateFunction(function);
 	auto logical_type = reinterpret_cast<duckdb::LogicalType *>(type);
-	// v1 declares no parameter name, so the parameter is positional-only - see duckdb_scalar_function_add_parameter
-	duckdb::CAPIFunctionSignature::AddPositionalOnly(aggregate_function.GetSignature(), *logical_type);
+	aggregate_function.GetSignature().AddParameter(*logical_type);
 }
 
 void duckdb_aggregate_function_set_return_type(duckdb_aggregate_function function, duckdb_logical_type type) {

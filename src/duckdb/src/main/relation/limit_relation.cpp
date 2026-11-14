@@ -16,10 +16,10 @@ unique_ptr<QueryNode> LimitRelation::GetQueryNode() {
 	auto child_node = child->GetQueryNode();
 	auto limit_node = make_uniq<LimitModifier>();
 	if (limit >= 0) {
-		limit_node->limit = ConstantExpression::Integer(limit);
+		limit_node->limit = make_uniq<ConstantExpression>(Value::BIGINT(limit));
 	}
 	if (offset > 0) {
-		limit_node->offset = ConstantExpression::Integer(offset);
+		limit_node->offset = make_uniq<ConstantExpression>(Value::BIGINT(offset));
 	}
 
 	child_node->modifiers.push_back(std::move(limit_node));

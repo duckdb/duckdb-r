@@ -144,13 +144,16 @@ static unique_ptr<BaseStatistics> CaseConvertPropagateStats(ClientContext &conte
 	if (!StringStats::HasMinMax(child_stats[0])) {
 		return result.ToUnique();
 	}
-	// All values share the common prefix of min and max; case conversion preserves this property.
+	// When min == max, all values share the stored string (exact) or the stored prefix (truncated).
+	// Case conversion is codepoint-local, so the converted string/prefix bounds the result.
 	auto min = StringStats::Min(child_stats[0]);
 	auto max = StringStats::Max(child_stats[0]);
-	const bool is_exact = min == max && StringStats::GetMinType(child_stats[0]) == StringStatsType::EXACT_STATS &&
+	if (min != max) {
+		return result.ToUnique();
+	}
+	const bool is_exact = StringStats::GetMinType(child_stats[0]) == StringStatsType::EXACT_STATS &&
 	                      StringStats::GetMaxType(child_stats[0]) == StringStatsType::EXACT_STATS;
 	if (!is_exact) {
-		min.resize(StringUtil::GetCommonPrefixSize(min, max));
 		// truncated stats can end in the middle of a character - only complete ones can be converted
 		size_t invalid_pos = 0;
 		if (Utf8Proc::Analyze(min.c_str(), min.size(), nullptr, &invalid_pos) == UnicodeType::INVALID) {
@@ -175,17 +178,13 @@ static unique_ptr<BaseStatistics> CaseConvertPropagateStats(ClientContext &conte
 }
 
 ScalarFunction LowerFun::GetFunction() {
-	ScalarFunction fun("lower", {}, LogicalType::VARCHAR, CaseConvertFunction<false>, nullptr,
-	                   CaseConvertPropagateStats<false>);
-	fun.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	return fun;
+	return ScalarFunction("lower", {LogicalType::VARCHAR}, LogicalType::VARCHAR, CaseConvertFunction<false>, nullptr,
+	                      CaseConvertPropagateStats<false>);
 }
 
 ScalarFunction UpperFun::GetFunction() {
-	ScalarFunction fun("upper", {}, LogicalType::VARCHAR, CaseConvertFunction<true>, nullptr,
-	                   CaseConvertPropagateStats<true>);
-	fun.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	return fun;
+	return ScalarFunction("upper", {LogicalType::VARCHAR}, LogicalType::VARCHAR, CaseConvertFunction<true>, nullptr,
+	                      CaseConvertPropagateStats<true>);
 }
 
 } // namespace duckdb

@@ -1,11 +1,12 @@
 #include "duckdb/optimizer/partial_aggregate_pushdown.hpp"
 
+#include "duckdb/catalog/catalog.hpp"
+#include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
 #include "duckdb/common/extension_type_info.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/function/aggregate/distributive_functions.hpp"
 #include "duckdb/function/function_binder.hpp"
 #include "duckdb/function/scalar/generic_common.hpp"
-#include "duckdb/function/builtin_function_lookup.hpp"
 #include "duckdb/optimizer/optimizer.hpp"
 #include "duckdb/optimizer/relation_statistics/relation_statistics_extractor.hpp"
 #include "duckdb/planner/binder.hpp"
@@ -384,6 +385,7 @@ static bool PassesLowerGroupHeuristic(const LogicalAggregate &aggr, const Partia
 static bool BindPushdownAggregates(ClientContext &context, LogicalAggregate &aggr, TableIndex lower_aggregate_index,
                                    vector<unique_ptr<Expression>> &lower_aggregates,
                                    vector<unique_ptr<Expression>> &upper_aggregates) {
+	auto combine_function = CombineAggrFun::GetFunction();
 	FunctionBinder function_binder(context);
 
 	for (idx_t i = 0; i < aggr.expressions.size(); i++) {
@@ -397,8 +399,7 @@ static bool BindPushdownAggregates(ClientContext &context, LogicalAggregate &agg
 		vector<unique_ptr<Expression>> arguments;
 		auto lower_binding = ColumnBinding(lower_aggregate_index, ProjectionIndex(i));
 		arguments.push_back(make_uniq<BoundColumnRefExpression>(lower_type, lower_binding));
-		auto combine_function = GetBuiltinAggregateFunction(context, CombineAggrFun::Name, {lower_type});
-		auto upper_aggregate = function_binder.BindAggregateFunction(std::move(combine_function), std::move(arguments));
+		auto upper_aggregate = function_binder.BindAggregateFunction(combine_function, std::move(arguments));
 		if (!upper_aggregate->GetReturnType().IsAggregateState()) {
 			return false;
 		}
@@ -556,21 +557,37 @@ struct DoubleEagerSide {
 
 static unique_ptr<BoundAggregateExpression> DEBindAggregate(ClientContext &context, const string &name,
                                                             vector<unique_ptr<Expression>> children) {
+	auto &entry = Catalog::GetEntry<AggregateFunctionCatalogEntry>(
+	    context, QualifiedName(Identifier::SystemCatalog(), Identifier::DefaultSchema(), Identifier(name)));
 	vector<LogicalType> types;
 	for (auto &child : children) {
 		types.push_back(child->GetReturnType());
 	}
-	auto func = TryGetBuiltinAggregateFunction(context, Identifier(name), types);
-	if (!func) {
+	ErrorData error;
+	FunctionBinder function_binder(context);
+	auto best = function_binder.BindFunction(entry.name, entry.functions, types, error);
+	if (!best.IsValid()) {
 		return nullptr;
 	}
-	FunctionBinder function_binder(context);
-	return function_binder.BindAggregateFunction(std::move(func), std::move(children));
+	auto &func = entry.functions.GetFunctionByOffset(best.GetIndex());
+	return function_binder.BindAggregateFunction(func, std::move(children));
 }
 
 static unique_ptr<BoundAggregateExpression> DEBindCombineAggr(ClientContext &context,
                                                               vector<unique_ptr<Expression>> children) {
-	return DEBindAggregate(context, CombineAggrFun::Name, std::move(children));
+	auto functions = CombineAggrFun::GetFunctions();
+	vector<LogicalType> types;
+	for (auto &child : children) {
+		types.push_back(child->GetReturnType());
+	}
+	ErrorData error;
+	FunctionBinder function_binder(context);
+	auto best = function_binder.BindFunction(functions.name, functions, types, error);
+	if (!best.IsValid()) {
+		return nullptr;
+	}
+	auto &func = functions.GetFunctionByOffset(best.GetIndex());
+	return function_binder.BindAggregateFunction(func, std::move(children));
 }
 
 struct DoubleEagerHeuristics {
@@ -787,12 +804,9 @@ static unique_ptr<LogicalAggregate> DECreateUpperAggregate(Optimizer &optimizer,
 	for (auto &group : aggr.groups) {
 		auto &ref = group->Cast<BoundColumnRefExpression>();
 		idx_t gs;
-#ifdef D_ASSERT_IS_ENABLED
 		auto has_side = GetExpressionSide(*group, side_bindings, gs);
+		(void)has_side;
 		D_ASSERT(has_side);
-#else
-		GetExpressionSide(*group, side_bindings, gs);
-#endif
 		auto binding = sides[gs].group_map.at(ref.Binding());
 		upper_aggr->groups.push_back(make_uniq<BoundColumnRefExpression>(ref.GetReturnType(), binding));
 	}

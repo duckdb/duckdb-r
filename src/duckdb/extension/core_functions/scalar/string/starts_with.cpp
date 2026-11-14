@@ -37,11 +37,8 @@ struct StartsWithOperator {
 };
 
 ScalarFunction StartsWithOperatorFun::GetFunction() {
-	ScalarFunction starts_with({}, LogicalType::BOOLEAN,
+	ScalarFunction starts_with({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BOOLEAN,
 	                           ScalarFunction::BinaryFunction<string_t, string_t, bool, StartsWithOperator>);
-	starts_with.GetSignature()
-	    .AddParameter("string", LogicalType::VARCHAR)
-	    .AddParameter("search_string", LogicalType::VARCHAR);
 	starts_with.SetCollationHandling(FunctionCollationHandling::PUSH_COMBINABLE_COLLATIONS);
 	starts_with.SetFilterPruneCallback(PrefixFilterPrune);
 	return starts_with;

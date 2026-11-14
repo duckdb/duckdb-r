@@ -17,7 +17,7 @@ CommonTableExpressionInfo::CommonTableExpressionInfo(unique_ptr<SelectStatement>
 	}
 }
 
-unique_ptr<CommonTableExpressionInfo> CommonTableExpressionInfo::Copy() const {
+unique_ptr<CommonTableExpressionInfo> CommonTableExpressionInfo::Copy() {
 	auto result = make_uniq<CommonTableExpressionInfo>();
 	result->aliases = aliases;
 	if (query_node) {

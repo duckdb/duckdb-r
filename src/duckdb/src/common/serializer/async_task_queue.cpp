@@ -92,12 +92,11 @@ AsyncTaskQueue::AsyncTaskQueue(ClientContext &client_context_p, idx_t max_active
 
 AsyncTaskQueue::~AsyncTaskQueue() {
 	lock_guard<mutex> guard(lock);
-#ifdef D_ASSERT_IS_ENABLED
 	auto drained = pending_requests.empty() && pending_bytes == 0 && in_flight_bytes == 0 && active_tasks == 0 &&
 	               pending_tasks == 0;
+	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
-#endif
 }
 
 bool AsyncTaskQueue::IsAsync() const {
@@ -114,7 +113,14 @@ void AsyncTaskQueue::Submit(AsyncTaskRequest request) {
 	}
 	auto request_size = request.Size();
 	if (executor && executor->HasError()) {
-		auto error = executor->GetError();
+		ErrorData error;
+		try {
+			executor->ThrowError();
+		} catch (const std::exception &ex) {
+			error = ErrorData(ex);
+		} catch (...) { // LCOV_EXCL_START
+			error = ErrorData("Unknown exception during async task");
+		} // LCOV_EXCL_STOP
 		request.task.reset();
 		CompleteRequest(request, request_size, error);
 		error.Throw();
@@ -268,12 +274,9 @@ void AsyncTaskQueue::WorkOnPendingTask() {
 		TaskScheduler::YieldThread();
 		return;
 	}
-#ifdef D_ASSERT_IS_ENABLED
 	auto result = task->Execute(TaskExecutionMode::PROCESS_ALL);
+	(void)result;
 	D_ASSERT(result != TaskExecutionResult::TASK_BLOCKED);
-#else
-	task->Execute(TaskExecutionMode::PROCESS_ALL);
-#endif
 	task.reset();
 }
 
@@ -292,10 +295,15 @@ void AsyncTaskQueue::Flush() {
 		return;
 	}
 
-	{
-		// join before leaving this scope, whether the scheduling succeeds or throws
-		TaskExecutor::JoinGuard join(*executor);
+	try {
 		ScheduleTasksInternal();
+		executor->WorkOnTasks();
+	} catch (...) {
+		try {
+			executor->WorkOnTasks();
+		} catch (...) {
+		}
+		throw;
 	}
 	RethrowTaskError();
 }
@@ -377,11 +385,10 @@ ManagedAsyncTaskQueue::ManagedAsyncTaskQueue(ClientContext &client_context_p, id
 
 ManagedAsyncTaskQueue::~ManagedAsyncTaskQueue() {
 	lock_guard<mutex> guard(lock);
-#ifdef D_ASSERT_IS_ENABLED
 	auto drained = pending_requests.empty() && pending_bytes == 0 && submitted_bytes == 0 && submitted_requests == 0;
+	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
-#endif
 }
 
 bool ManagedAsyncTaskQueue::IsAsync() const {

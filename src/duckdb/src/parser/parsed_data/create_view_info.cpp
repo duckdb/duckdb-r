@@ -50,7 +50,8 @@ unique_ptr<CreateInfo> CreateViewInfo::Copy() const {
 	return std::move(result);
 }
 
-unique_ptr<SelectStatement> CreateViewInfo::ParseSelect(Parser &parser, const string &sql) {
+unique_ptr<SelectStatement> CreateViewInfo::ParseSelect(const string &sql) {
+	Parser parser;
 	parser.ParseQuery(sql);
 	if (parser.statements.size() != 1 || parser.statements[0]->type != StatementType::SELECT_STATEMENT) {
 		throw BinderException(
@@ -61,13 +62,13 @@ unique_ptr<SelectStatement> CreateViewInfo::ParseSelect(Parser &parser, const st
 	return unique_ptr_cast<SQLStatement, SelectStatement>(std::move(parser.statements[0]));
 }
 
-unique_ptr<CreateViewInfo> CreateViewInfo::FromSelect(Parser &parser, unique_ptr<CreateViewInfo> info) {
+unique_ptr<CreateViewInfo> CreateViewInfo::FromSelect(ClientContext &context, unique_ptr<CreateViewInfo> info) {
 	D_ASSERT(info);
 	D_ASSERT(!info->GetViewName().empty());
 	D_ASSERT(!info->sql.empty());
 	D_ASSERT(!info->query);
 
-	info->query = ParseSelect(parser, info->sql);
+	info->query = ParseSelect(info->sql);
 	return info;
 }
 
@@ -76,7 +77,7 @@ unique_ptr<CreateViewInfo> CreateViewInfo::FromCreateView(ClientContext &context
 	D_ASSERT(!sql.empty());
 
 	// parse the SQL statement
-	Parser parser(context);
+	Parser parser;
 	parser.ParseQuery(sql);
 
 	if (parser.statements.size() != 1 || parser.statements[0]->type != StatementType::CREATE_STATEMENT) {

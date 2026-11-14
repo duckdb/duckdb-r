@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "duckdb/common/optional_idx.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/types/vector_buffer.hpp"
 #include "duckdb/common/vector.hpp"
@@ -36,8 +35,6 @@ private:
 public:
 	void ResetFromCache(Vector &result) const;
 	const LogicalType &GetType() const;
-	//! The capacity of the cached vector, or an invalid index if the cache is empty
-	optional_idx GetCapacity() const;
 };
 
 } // namespace duckdb

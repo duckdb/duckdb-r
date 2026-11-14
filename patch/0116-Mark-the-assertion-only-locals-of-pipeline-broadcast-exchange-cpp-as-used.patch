@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Mark the assertion-only locals of pipeline_broadcast_exchange.cpp as used
+
+pipeline_broadcast_exchange.cpp declares locals that only D_ASSERT() reads (inserted),
+so in a release build, where D_ASSERT() expands to nothing, they are unused
+and -Wunused-variable or -Wunused-but-set-variable says so. Each is cast
+to void after its declaration, which changes no behavior.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+diff --git a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+--- a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
++++ b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+@@ -1509,6 +1509,7 @@ SourceResultType PipelineBroadcastExchange::ReserveScanLocked(
+ 		buffer->ReserveRead(position, scan_state.spool_reader, next_chunk, batch_index, spool_read);
+ 		if (spool_read.IsSet()) {
+ 			auto inserted = consumer.in_flight_reads.insert(position);
++			(void)inserted;
+ 			D_ASSERT(inserted.second);
+ 		} else {
+ 			consumer.rows_read += next_chunk->size();
+@@ -1557,6 +1558,7 @@ SourceResultType PipelineBroadcastExchange::ReserveBatchScanLocked(
+ 				if (spool_read.IsSet()) {
+ 					spool_read.batch_sequence = batch_sequence;
+ 					auto inserted = consumer.in_flight_reads.insert(position);
++					(void)inserted;
+ 					D_ASSERT(inserted.second);
+ 				} else {
+ 					position_entry->second++;
+@@ -1617,6 +1619,7 @@ SourceResultType PipelineBroadcastExchange::ReserveBatchScanLocked(
+ 			auto batch_sequence = consumer.next_batch_sequence++;
+ 			auto &batch_range = buffer->GetBatchRange(batch_sequence);
+ 			auto inserted = consumer.active_batch_positions.emplace(batch_sequence, batch_range.begin_position);
++			(void)inserted;
+ 			D_ASSERT(inserted.second);
+ 			scan_state.batch_sequence = batch_sequence;
+ 			continue;

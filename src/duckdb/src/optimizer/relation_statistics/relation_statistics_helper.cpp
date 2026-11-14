@@ -71,7 +71,6 @@ optional<RelationStats> RelationStatisticsHelper::ExtractProjectionStats(Logical
 	result.stats_initialized = true;
 	auto bindings = projection.GetColumnBindings();
 	D_ASSERT(bindings.size() == projection.expressions.size());
-	RelationColumnStatsLookup child_columns(child_stats);
 	for (idx_t expression_idx = 0; expression_idx < projection.expressions.size(); expression_idx++) {
 		auto &expression = *projection.expressions[expression_idx];
 		auto expression_binding = GetChildColumnBinding(expression);
@@ -79,7 +78,7 @@ optional<RelationStats> RelationStatisticsHelper::ExtractProjectionStats(Logical
 		if (expression_binding.expression_is_constant) {
 			distinct_count = DistinctCount(MinValue<idx_t>(result.cardinality, 1), DistinctCountSource::EXACT);
 		} else if (expression_binding.FoundColumnRef()) {
-			auto child_column = child_columns.Find(expression_binding.child_binding);
+			auto child_column = child_stats.GetColumnStats(expression_binding.child_binding);
 			if (!child_column) {
 				return {};
 			}
@@ -109,7 +108,6 @@ idx_t RelationStatisticsHelper::EstimateDistinctCardinality(const vector<Distinc
 
 optional<RelationStats> RelationStatisticsHelper::ExtractAggregationStats(LogicalAggregate &aggregate,
                                                                           const RelationStats &child_stats) {
-	RelationColumnStatsLookup child_columns(child_stats);
 	vector<DistinctCount> cardinality_counts;
 	for (auto &grouping_set : aggregate.grouping_sets) {
 		vector<DistinctCount> set_counts;
@@ -118,7 +116,7 @@ optional<RelationStats> RelationStatisticsHelper::ExtractAggregationStats(Logica
 			if (group.GetExpressionClass() != ExpressionClass::BOUND_COLUMN_REF) {
 				continue;
 			}
-			auto column = child_columns.Find(group.Cast<BoundColumnRefExpression>().Binding());
+			auto column = child_stats.GetColumnStats(group.Cast<BoundColumnRefExpression>().Binding());
 			if (!column) {
 				return {};
 			}
@@ -141,7 +139,7 @@ optional<RelationStats> RelationStatisticsHelper::ExtractAggregationStats(Logica
 		auto &group = *aggregate.groups[group_idx];
 		DistinctCount distinct_count(result.cardinality, DistinctCountSource::CARDINALITY);
 		if (group.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
-			auto child_column = child_columns.Find(group.Cast<BoundColumnRefExpression>().Binding());
+			auto child_column = child_stats.GetColumnStats(group.Cast<BoundColumnRefExpression>().Binding());
 			if (!child_column) {
 				return {};
 			}
@@ -170,9 +168,8 @@ optional<RelationStats> RelationStatisticsHelper::ExtractWindowStats(LogicalWind
 	result.cardinality = child_stats.cardinality;
 	result.table_name = Identifier(window.GetName());
 	result.stats_initialized = true;
-	RelationColumnStatsLookup child_columns(child_stats);
 	for (auto &binding : window.GetColumnBindings()) {
-		auto child_column = child_columns.Find(binding);
+		auto child_column = child_stats.GetColumnStats(binding);
 		if (child_column) {
 			result.columns.emplace_back(binding, child_column->distinct_count, child_column->name);
 		} else if (binding.table_index == window.window_index) {
@@ -186,11 +183,10 @@ optional<RelationStats> RelationStatisticsHelper::ExtractWindowStats(LogicalWind
 	return result;
 }
 
-static optional<DistinctCount> GetDistinctTargetCount(Expression &target, const RelationStats &child_stats,
-                                                      const RelationColumnStatsLookup &child_columns) {
+static optional<DistinctCount> GetDistinctTargetCount(Expression &target, const RelationStats &child_stats) {
 	switch (target.GetExpressionClass()) {
 	case ExpressionClass::BOUND_COLUMN_REF: {
-		auto column = child_columns.Find(target.Cast<BoundColumnRefExpression>().Binding());
+		auto column = child_stats.GetColumnStats(target.Cast<BoundColumnRefExpression>().Binding());
 		return column ? optional<DistinctCount>(column->distinct_count) : optional<DistinctCount>();
 	}
 	case ExpressionClass::BOUND_REF: {
@@ -217,9 +213,8 @@ optional<RelationStats> RelationStatisticsHelper::ExtractDistinctStats(LogicalDi
 			distinct_counts.push_back(column.distinct_count);
 		}
 	} else {
-		RelationColumnStatsLookup child_columns(child_stats);
 		for (auto &target : distinct.distinct_targets) {
-			auto count = GetDistinctTargetCount(*target, child_stats, child_columns);
+			auto count = GetDistinctTargetCount(*target, child_stats);
 			if (!count) {
 				return result;
 			}
@@ -255,16 +250,14 @@ optional<RelationStats> RelationStatisticsHelper::ProjectOutputStats(const Relat
 	result.filter_strength = stats.filter_strength;
 	result.stats_initialized = true;
 	result.table_name = stats.table_name;
-	RelationColumnStatsLookup lookup(stats);
-	auto bindings = op.GetColumnBindings();
-	for (auto &binding : bindings) {
-		auto column = lookup.Find(binding);
+	for (auto &binding : op.GetColumnBindings()) {
+		auto column = stats.GetColumnStats(binding);
 		if (!column) {
 			return {};
 		}
 		result.columns.push_back(*column);
 	}
-	result.Verify(bindings);
+	result.Verify(op.GetColumnBindings());
 	return result;
 }
 

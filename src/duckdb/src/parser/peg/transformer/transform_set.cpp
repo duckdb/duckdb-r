@@ -1,5 +1,4 @@
 #include "duckdb/parser/peg/transformer/peg_transformer.hpp"
-#include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/cast_expression.hpp"
 #include "duckdb/parser/expression/default_expression.hpp"
 
@@ -43,7 +42,7 @@ PEGTransformerFactory::TransformSetStatement(PEGTransformer &transformer,
 // SetSchema <- 'SCHEMA' StringLiteral
 unique_ptr<SetStatement> PEGTransformerFactory::TransformSetSchema(PEGTransformer &transformer,
                                                                    const string &string_literal) {
-	auto value = ConstantExpression::String(string_literal);
+	auto value = make_uniq<ConstantExpression>(Value(string_literal));
 	return make_uniq<SetVariableStatement>("schema", std::move(value), SetScope::AUTOMATIC);
 }
 
@@ -60,13 +59,13 @@ unique_ptr<ParsedExpression> PEGTransformerFactory::TransformZoneDefault(PEGTran
 // ZoneStringLiteral <- StringLiteral
 unique_ptr<ParsedExpression> PEGTransformerFactory::TransformZoneStringLiteral(PEGTransformer &transformer,
                                                                                const string &string_literal) {
-	return ConstantExpression::String(string_literal);
+	return make_uniq<ConstantExpression>(Value(string_literal));
 }
 
 // ZoneIdentifier <- Identifier
 unique_ptr<ParsedExpression> PEGTransformerFactory::TransformZoneIdentifier(PEGTransformer &transformer,
                                                                             const Identifier &identifier) {
-	return ConstantExpression::String(identifier.GetIdentifierName());
+	return make_uniq<ConstantExpression>(Value(identifier));
 }
 
 // SetTimeZone <- 'TIME' 'ZONE' ZoneValue
@@ -102,7 +101,7 @@ PEGTransformerFactory::TransformStandardAssignment(PEGTransformer &transformer,
 	if (value->GetExpressionClass() == ExpressionClass::COLUMN_REF) {
 		// SET value cannot be a column reference
 		auto &col_ref = value->Cast<ColumnRefExpression>();
-		value = ConstantExpression::String(col_ref.GetColumnName().GetIdentifierName());
+		value = make_uniq<ConstantExpression>(col_ref.GetColumnName());
 	} else if (value->GetExpressionClass() == ExpressionClass::DEFAULT) {
 		return make_uniq<ResetVariableStatement>(set_variable_or_setting.name, set_variable_or_setting.scope);
 	}
@@ -141,14 +140,14 @@ SetScope PEGTransformerFactory::TransformGlobalScope(PEGTransformer &transformer
 unique_ptr<ParsedExpression>
 PEGTransformerFactory::TransformZoneIntervalWithInterval(PEGTransformer &transformer, const string &string_literal,
                                                          const optional<DatePartSpecifier> &interval) {
-	auto expr = ConstantExpression::String(string_literal);
+	auto expr = make_uniq<ConstantExpression>(Value(string_literal));
 	return make_uniq<CastExpression>(LogicalType::INTERVAL, std::move(expr));
 }
 
 // ZoneIntervalWithPrecision <- 'INTERVAL' Parens(NumberLiteral) StringLiteral
 unique_ptr<ParsedExpression> PEGTransformerFactory::TransformZoneIntervalWithPrecision(
     PEGTransformer &transformer, unique_ptr<ParsedExpression> number_literal, const string &string_literal) {
-	auto expr = ConstantExpression::String(string_literal);
+	auto expr = make_uniq<ConstantExpression>(Value(string_literal));
 	return make_uniq<CastExpression>(LogicalType::INTERVAL, std::move(expr));
 }
 

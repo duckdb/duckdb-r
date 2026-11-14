@@ -13,9 +13,6 @@
 #include "duckdb/function/table_function.hpp"
 
 namespace duckdb {
-class TableCatalogEntry;
-struct CreateInfo;
-struct AlterTableInfo;
 
 class LogicalCreateIndex : public LogicalOperator {
 public:

@@ -1,7 +1,7 @@
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 
 #include "duckdb/common/sql_identifier.hpp"
-#include "duckdb/common/logical_type_info.hpp"
+#include "duckdb/common/extra_type_info.hpp"
 #include "duckdb/parser/constraint.hpp"
 #include "duckdb/parser/keyword_helper.hpp"
 
@@ -211,18 +211,16 @@ AddColumnInfo::AddColumnInfo(ColumnDefinition new_column_p)
     : AlterTableInfo(AlterTableType::ADD_COLUMN), new_column(std::move(new_column_p)) {
 }
 
-AddColumnInfo::AddColumnInfo(const AlterEntryData &data, ColumnDefinition new_column_p, bool if_column_not_exists_p,
-                             AddColumnConstraints add_column_constraints_p)
-    : AlterTableInfo(AlterTableType::ADD_COLUMN, data), new_column(std::move(new_column_p)),
-      if_column_not_exists(if_column_not_exists_p), add_column_constraints(add_column_constraints_p) {
+AddColumnInfo::AddColumnInfo(const AlterEntryData &data, ColumnDefinition new_column, bool if_column_not_exists)
+    : AlterTableInfo(AlterTableType::ADD_COLUMN, data), new_column(std::move(new_column)),
+      if_column_not_exists(if_column_not_exists) {
 }
 
 AddColumnInfo::~AddColumnInfo() {
 }
 
 unique_ptr<AlterInfo> AddColumnInfo::Copy() const {
-	return make_uniq_base<AlterInfo, AddColumnInfo>(GetAlterEntryData(), new_column.Copy(), if_column_not_exists,
-	                                                add_column_constraints);
+	return make_uniq_base<AlterInfo, AddColumnInfo>(GetAlterEntryData(), new_column.Copy(), if_column_not_exists);
 }
 
 string AddColumnInfo::ToString() const {
@@ -238,18 +236,9 @@ string AddColumnInfo::ToString() const {
 	}
 	result += " " + SQLIdentifier(this->new_column.GetName());
 	result += " " + this->new_column.GetType().ToString();
-	if (add_column_constraints.add_not_null) {
-		result += " NOT NULL";
-	}
-	if (add_column_constraints.add_unique) {
-		result += " UNIQUE";
-	}
 	if (this->new_column.HasDefaultValue()) {
 		result += " DEFAULT ";
 		result += this->new_column.DefaultValue().ToString();
-	}
-	if (this->new_column.CompressionType() != CompressionType::COMPRESSION_AUTO) {
-		result += " USING COMPRESSION " + CompressionTypeToString(this->new_column.CompressionType());
 	}
 	result += ";";
 	return result;
@@ -381,17 +370,17 @@ string RemoveFieldInfo::ToString() const {
 ChangeColumnTypeInfo::ChangeColumnTypeInfo() : AlterTableInfo(AlterTableType::ALTER_COLUMN_TYPE) {
 }
 
-ChangeColumnTypeInfo::ChangeColumnTypeInfo(const AlterEntryData &data, vector<Identifier> column_path,
-                                           LogicalType target_type, unique_ptr<ParsedExpression> expression)
-    : AlterTableInfo(AlterTableType::ALTER_COLUMN_TYPE, data), column_path(std::move(column_path)),
+ChangeColumnTypeInfo::ChangeColumnTypeInfo(const AlterEntryData &data, Identifier column_name, LogicalType target_type,
+                                           unique_ptr<ParsedExpression> expression)
+    : AlterTableInfo(AlterTableType::ALTER_COLUMN_TYPE, data), column_name(std::move(column_name)),
       target_type(std::move(target_type)), expression(std::move(expression)) {
 }
 ChangeColumnTypeInfo::~ChangeColumnTypeInfo() {
 }
 
 unique_ptr<AlterInfo> ChangeColumnTypeInfo::Copy() const {
-	return make_uniq_base<AlterInfo, ChangeColumnTypeInfo>(GetAlterEntryData(), column_path, target_type,
-	                                                       expression ? expression->Copy() : nullptr);
+	return make_uniq_base<AlterInfo, ChangeColumnTypeInfo>(GetAlterEntryData(), column_name, target_type,
+	                                                       expression->Copy());
 }
 
 string ChangeColumnTypeInfo::ToString() const {
@@ -402,19 +391,14 @@ string ChangeColumnTypeInfo::ToString() const {
 	}
 	result += GetQualifiedName().ToString(QualifiedNameToStringMode::HIDE_DEFAULT_SCHEMA);
 	result += " ALTER COLUMN ";
-	for (idx_t i = 0; i < column_path.size(); i++) {
-		if (i > 0) {
-			result += ".";
-		}
-		result += SQLIdentifier(column_path[i]);
-	}
+	result += SQLIdentifier(column_name);
 	result += " TYPE ";
 	if (target_type.IsValid()) {
 		result += target_type.ToString();
 	}
-	auto &type_info = target_type.GetTypeInfo();
-	if (type_info.type == LogicalTypeInfoType::STRING_TYPE_INFO) {
-		auto &string_info = type_info.Cast<StringTypeInfo>();
+	auto extra_type_info = target_type.AuxInfo();
+	if (extra_type_info && extra_type_info->type == ExtraTypeInfoType::STRING_TYPE_INFO) {
+		auto &string_info = extra_type_info->Cast<StringTypeInfo>();
 		if (!string_info.collation.empty()) {
 			result += " COLLATE " + string_info.collation;
 		}
@@ -433,16 +417,16 @@ string ChangeColumnTypeInfo::ToString() const {
 SetDefaultInfo::SetDefaultInfo() : AlterTableInfo(AlterTableType::SET_DEFAULT) {
 }
 
-SetDefaultInfo::SetDefaultInfo(const AlterEntryData &data, vector<Identifier> column_path,
+SetDefaultInfo::SetDefaultInfo(const AlterEntryData &data, Identifier column_name_p,
                                unique_ptr<ParsedExpression> new_default)
-    : AlterTableInfo(AlterTableType::SET_DEFAULT, data), column_path(std::move(column_path)),
+    : AlterTableInfo(AlterTableType::SET_DEFAULT, data), column_name(std::move(column_name_p)),
       expression(std::move(new_default)) {
 }
 SetDefaultInfo::~SetDefaultInfo() {
 }
 
 unique_ptr<AlterInfo> SetDefaultInfo::Copy() const {
-	return make_uniq_base<AlterInfo, SetDefaultInfo>(GetAlterEntryData(), column_path,
+	return make_uniq_base<AlterInfo, SetDefaultInfo>(GetAlterEntryData(), column_name,
 	                                                 expression ? expression->Copy() : nullptr);
 }
 
@@ -454,12 +438,7 @@ string SetDefaultInfo::ToString() const {
 	}
 	result += GetQualifiedName().ToString(QualifiedNameToStringMode::HIDE_DEFAULT_SCHEMA);
 	result += " ALTER COLUMN ";
-	for (idx_t i = 0; i < column_path.size(); i++) {
-		if (i > 0) {
-			result += ".";
-		}
-		result += SQLIdentifier(column_path[i]);
-	}
+	result += SQLIdentifier(column_name);
 	if (expression) {
 		result += " SET DEFAULT ";
 		result += expression->ToString();
@@ -476,14 +455,14 @@ string SetDefaultInfo::ToString() const {
 SetNotNullInfo::SetNotNullInfo() : AlterTableInfo(AlterTableType::SET_NOT_NULL) {
 }
 
-SetNotNullInfo::SetNotNullInfo(const AlterEntryData &data, vector<Identifier> column_path)
-    : AlterTableInfo(AlterTableType::SET_NOT_NULL, data), column_path(std::move(column_path)) {
+SetNotNullInfo::SetNotNullInfo(const AlterEntryData &data, Identifier column_name_p)
+    : AlterTableInfo(AlterTableType::SET_NOT_NULL, data), column_name(std::move(column_name_p)) {
 }
 SetNotNullInfo::~SetNotNullInfo() {
 }
 
 unique_ptr<AlterInfo> SetNotNullInfo::Copy() const {
-	return make_uniq_base<AlterInfo, SetNotNullInfo>(GetAlterEntryData(), column_path);
+	return make_uniq_base<AlterInfo, SetNotNullInfo>(GetAlterEntryData(), column_name);
 }
 
 string SetNotNullInfo::ToString() const {
@@ -494,12 +473,7 @@ string SetNotNullInfo::ToString() const {
 	}
 	result += GetQualifiedName().ToString(QualifiedNameToStringMode::HIDE_DEFAULT_SCHEMA);
 	result += " ALTER COLUMN ";
-	for (idx_t i = 0; i < column_path.size(); i++) {
-		if (i > 0) {
-			result += ".";
-		}
-		result += SQLIdentifier(column_path[i]);
-	}
+	result += SQLIdentifier(column_name);
 	result += " SET NOT NULL";
 	result += ";";
 	return result;
@@ -511,14 +485,14 @@ string SetNotNullInfo::ToString() const {
 DropNotNullInfo::DropNotNullInfo() : AlterTableInfo(AlterTableType::DROP_NOT_NULL) {
 }
 
-DropNotNullInfo::DropNotNullInfo(const AlterEntryData &data, vector<Identifier> column_path)
-    : AlterTableInfo(AlterTableType::DROP_NOT_NULL, data), column_path(std::move(column_path)) {
+DropNotNullInfo::DropNotNullInfo(const AlterEntryData &data, Identifier column_name_p)
+    : AlterTableInfo(AlterTableType::DROP_NOT_NULL, data), column_name(std::move(column_name_p)) {
 }
 DropNotNullInfo::~DropNotNullInfo() {
 }
 
 unique_ptr<AlterInfo> DropNotNullInfo::Copy() const {
-	return make_uniq_base<AlterInfo, DropNotNullInfo>(GetAlterEntryData(), column_path);
+	return make_uniq_base<AlterInfo, DropNotNullInfo>(GetAlterEntryData(), column_name);
 }
 
 string DropNotNullInfo::ToString() const {
@@ -529,12 +503,7 @@ string DropNotNullInfo::ToString() const {
 	}
 	result += GetQualifiedName().ToString(QualifiedNameToStringMode::HIDE_DEFAULT_SCHEMA);
 	result += " ALTER COLUMN ";
-	for (idx_t i = 0; i < column_path.size(); i++) {
-		if (i > 0) {
-			result += ".";
-		}
-		result += SQLIdentifier(column_path[i]);
-	}
+	result += SQLIdentifier(column_name);
 	result += " DROP NOT NULL";
 	result += ";";
 	return result;

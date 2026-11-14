@@ -42,24 +42,28 @@ struct ArrowStreamParameters {
 	TableFilterSet *filters;
 };
 
-//! Produces Arrow schemas and streams for a single scan invocation.
-//! Implementations retain any external objects needed by the produced streams.
-struct ArrowScanFactory : public TableFunctionInfo {
-	virtual void GetSchema(ArrowSchema &schema) = 0;
-	virtual unique_ptr<ArrowArrayStreamWrapper> ProduceStream(ArrowStreamParameters &parameters) = 0;
-};
+typedef unique_ptr<ArrowArrayStreamWrapper> (*stream_factory_produce_t)(uintptr_t stream_factory_ptr,
+                                                                        ArrowStreamParameters &parameters);
+typedef void (*stream_factory_get_schema_t)(ArrowArrayStream *stream_factory_ptr, ArrowSchema &schema);
 
 struct ArrowScanFunctionData : public TableFunctionData {
 public:
-	explicit ArrowScanFunctionData(shared_ptr<ArrowScanFactory> factory_p)
-	    : lines_read(0), rows_per_thread(0), factory(std::move(factory_p)) {
+	ArrowScanFunctionData(stream_factory_produce_t scanner_producer_p, uintptr_t stream_factory_ptr_p,
+	                      shared_ptr<DependencyItem> dependency = nullptr)
+	    : lines_read(0), rows_per_thread(0), stream_factory_ptr(stream_factory_ptr_p),
+	      scanner_producer(scanner_producer_p), dependency(std::move(dependency)) {
 	}
 
 	vector<LogicalType> all_types;
 	atomic<idx_t> lines_read;
 	ArrowSchemaWrapper schema_root;
 	idx_t rows_per_thread;
-	shared_ptr<ArrowScanFactory> factory;
+	//! Pointer to the scanner factory
+	uintptr_t stream_factory_ptr;
+	//! Pointer to the scanner factory produce
+	stream_factory_produce_t scanner_producer;
+	//! The (optional) dependency of this function (used in Python for example)
+	shared_ptr<DependencyItem> dependency;
 	//! Arrow table data
 	ArrowTableSchema arrow_table;
 	//! Whether projection pushdown is enabled on the scan

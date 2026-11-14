@@ -774,8 +774,6 @@ public:
 	atomic<idx_t> finished;
 	//! Stop producing tasks
 	atomic<bool> stopped;
-	//! The progress of the tasks
-	TaskProgress task_progress;
 
 public:
 	idx_t MaxThreads() override {
@@ -1089,16 +1087,14 @@ AsOfProbeBuffer::AsOfProbeBuffer(ClientContext &client, const PhysicalAsOfJoin &
 		prefix_types.emplace_back(type);
 		SortKeyPrefixComparisonColumn col;
 		col.size = DConstants::INVALID_INDEX;
-		switch (type.InternalType()) {
-		case PhysicalType::VARCHAR:
-			// only the sort keys of VARCHAR are terminated by the first null byte - the sort keys of other string
-			// types (e.g., BLOB or GEOMETRY) can contain null bytes, so we have to decode them to measure their width
-			col.type = type.id() == LogicalTypeId::VARCHAR ? SortKeyPrefixComparisonType::VARCHAR
-			                                               : SortKeyPrefixComparisonType::NESTED;
+		switch (type.id()) {
+		case LogicalTypeId::VARCHAR:
+		case LogicalTypeId::BLOB:
+			col.type = SortKeyPrefixComparisonType::VARCHAR;
 			break;
-		case PhysicalType::STRUCT:
-		case PhysicalType::LIST:
-		case PhysicalType::ARRAY:
+		case LogicalTypeId::STRUCT:
+		case LogicalTypeId::LIST:
+		case LogicalTypeId::ARRAY:
 			col.type = SortKeyPrefixComparisonType::NESTED;
 			break;
 		default:
@@ -1462,9 +1458,6 @@ public:
 	TaskPtr task;
 	//! The task storage
 	Task task_local;
-	//! The start of the range of the current task, and the progress reported for it
-	idx_t task_begin = 0;
-	TaskProgressTracker task_progress;
 	//! The rhs group
 	HashGroupPtr hash_group;
 	//! The read cursor
@@ -1553,7 +1546,6 @@ bool AsOfLocalSourceState::TryAssignTask() {
 	// Because downstream operators may be using our internal buffers,
 	// we can't "finish" a task until we are about to get the next one.
 	if (task) {
-		task_progress.Finish(gsource.task_progress);
 		switch (task->stage) {
 		case AsOfJoinSourceStage::SORT:
 			gsource.asof_groups[task_local.group_idx]->sorted++;
@@ -1579,8 +1571,6 @@ bool AsOfLocalSourceState::TryAssignTask() {
 	if (!gsource.TryNextTask(task, task_local)) {
 		return false;
 	}
-	task_begin = task->begin_idx;
-	task_progress.Start();
 
 	switch (task->stage) {
 	case AsOfJoinSourceStage::SORT:
@@ -1729,12 +1719,17 @@ void AsOfLocalSourceState::ExecuteLeftTask(ExecutionContext &context, DataChunk 
 ProgressData PhysicalAsOfJoin::GetProgress(ClientContext &context, GlobalSourceState &gsource_p) const {
 	auto &gsource = gsource_p.Cast<AsOfGlobalSourceState>();
 	const auto count = gsource.total_tasks;
-	if (!count) {
-		ProgressData res;
+
+	const auto returned = gsource.finished.load();
+
+	ProgressData res;
+	if (count) {
+		res.done = double(returned);
+		res.total = double(count);
+	} else {
 		res.SetInvalid();
-		return res;
 	}
-	return gsource.task_progress.GetProgress(count);
+	return res;
 }
 
 SourceResultType PhysicalAsOfJoin::GetDataInternal(ExecutionContext &context, DataChunk &chunk,
@@ -1751,12 +1746,6 @@ SourceResultType PhysicalAsOfJoin::GetDataInternal(ExecutionContext &context, Da
 			} catch (...) {
 				gsource.stopped = true;
 				throw;
-			}
-			if (lsource.task) {
-				auto &task = *lsource.task;
-				auto done = task.begin_idx > lsource.task_begin ? task.begin_idx - lsource.task_begin : 0;
-				auto total = task.end_idx > lsource.task_begin ? task.end_idx - lsource.task_begin : 0;
-				lsource.task_progress.Update(gsource.task_progress, done, total);
 			}
 		} else {
 			annotated_lock_guard<annotated_mutex> guard(gsource.lock);

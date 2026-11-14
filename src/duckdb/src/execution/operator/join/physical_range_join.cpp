@@ -80,7 +80,7 @@ void PhysicalRangeJoin::LocalSortedTable::Sink(ExecutionContext &context, DataCh
 PhysicalRangeJoin::GlobalSortedTable::GlobalSortedTable(ClientContext &client,
                                                         const vector<BoundOrderByNode> &order_bys,
                                                         const vector<LogicalType> &payload_types,
-                                                        const PhysicalComparisonJoin &op)
+                                                        const PhysicalRangeJoin &op)
     : op(op), has_null(0), count(0), tasks_completed(0) {
 	// Set up the sort. We will materialize keys ourselves, so just set up references.
 	vector<BoundOrderByNode> orders;

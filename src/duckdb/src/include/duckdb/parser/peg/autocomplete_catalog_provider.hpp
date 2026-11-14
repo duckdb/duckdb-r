@@ -18,6 +18,7 @@ struct AutoCompleteParameters {
 	idx_t max_file_suggestion_count = 1;
 	idx_t max_exact_suggestion_count = 100;
 	bool suggestion_contains_files = false;
+	bool use_heap_based_parser = false;
 };
 
 //! Abstract interface for providing catalog-aware autocomplete suggestions.
@@ -78,12 +79,13 @@ public:
 	}
 	shared_ptr<CompiledGrammar> GetCompiledGrammar() override {
 		if (!compiled_grammar) {
-			compiled_grammar = CompiledGrammar::Create();
+			compiled_grammar = cache.GetMatcher(nullptr);
 		}
 		return compiled_grammar;
 	}
 
 private:
+	ParserCache cache;
 	shared_ptr<CompiledGrammar> compiled_grammar;
 };
 

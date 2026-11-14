@@ -23,10 +23,11 @@ struct FMTFormat {
 	}
 };
 
-static void PrintfResolveTypes(ResolveScalarFunctionTypesInput &input) {
+static unique_ptr<FunctionData> BindPrintfFunction(BindScalarFunctionInput &input) {
 	auto &bound_function = input.GetBoundFunction();
-	for (idx_t i = 1; i < input.GetArgumentCount(); i++) {
-		switch (input.GetArgumentType(i).id()) {
+	auto &arguments = input.GetArguments();
+	for (idx_t i = 1; i < arguments.size(); i++) {
+		switch (arguments[i]->GetReturnType().id()) {
 		case LogicalTypeId::BOOLEAN:
 			bound_function.GetArguments()[i] = LogicalType::BOOLEAN;
 			break;
@@ -69,6 +70,7 @@ static void PrintfResolveTypes(ResolveScalarFunctionTypesInput &input) {
 			break;
 		}
 	}
+	return nullptr;
 }
 
 struct StandardConstructArgument {
@@ -182,20 +184,18 @@ static void PrintfFunction(DataChunk &args, ExpressionState &state, Vector &resu
 
 ScalarFunction PrintfFun::GetFunction() {
 	// duckdb_fmt::printf_context, duckdb_fmt::vsprintf
-	ScalarFunction printf_fun({}, LogicalType::VARCHAR, PrintfFunction<FMTPrintf, duckdb_fmt::printf_context>);
-	printf_fun.SetResolveTypesCallback(PrintfResolveTypes);
-	printf_fun.GetSignature().AddParameter("format", LogicalType::VARCHAR);
-	printf_fun.GetSignature().AddArgs("args", LogicalType::ANY);
+	ScalarFunction printf_fun({LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                          PrintfFunction<FMTPrintf, duckdb_fmt::printf_context>, BindPrintfFunction);
+	printf_fun.SetVarArgs(LogicalType::ANY);
 	printf_fun.SetFallible();
 	return printf_fun;
 }
 
 ScalarFunction FormatFun::GetFunction() {
 	// duckdb_fmt::format_context, duckdb_fmt::vformat
-	ScalarFunction format_fun({}, LogicalType::VARCHAR, PrintfFunction<FMTFormat, duckdb_fmt::format_context>);
-	format_fun.SetResolveTypesCallback(PrintfResolveTypes);
-	format_fun.GetSignature().AddParameter("format", LogicalType::VARCHAR);
-	format_fun.GetSignature().AddArgs("args", LogicalType::ANY);
+	ScalarFunction format_fun({LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                          PrintfFunction<FMTFormat, duckdb_fmt::format_context>, BindPrintfFunction);
+	format_fun.SetVarArgs(LogicalType::ANY);
 	format_fun.SetFallible();
 	return format_fun;
 }

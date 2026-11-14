@@ -36,13 +36,12 @@ enum class KeywordCategory : uint8_t {
 	KEYWORD_UNRESERVED,
 	KEYWORD_TYPE_FUNC,
 	KEYWORD_COL_NAME,
-	KEYWORD_NONE,
-	KEYWORD_TYPE_NAME
+	KEYWORD_NONE
 };
 
 struct ParserKeyword {
 	string name;
-	string category;
+	KeywordCategory category;
 };
 
 } // namespace duckdb

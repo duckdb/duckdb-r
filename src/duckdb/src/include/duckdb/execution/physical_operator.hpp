@@ -21,6 +21,7 @@
 #include "duckdb/execution/partition_info.hpp"
 #include "duckdb/execution/physical_operator_states.hpp"
 #include "duckdb/execution/progress_data.hpp"
+#include "duckdb/optimizer/join_order/join_node.hpp"
 
 namespace duckdb {
 
@@ -63,8 +64,7 @@ public:
 	//! The estimated cardinality.
 	idx_t estimated_cardinality;
 
-	//! The global sink state. Published under `lock` by Pipeline::ResetSink on a worker;
-	//! a reader racing pipeline initialization must hold `lock` to observe it safely
+	//! The global sink state.
 	unique_ptr<GlobalSinkState> sink_state;
 	//! The global operator state.
 	unique_ptr<GlobalOperatorState> op_state;
@@ -89,11 +89,6 @@ public:
 
 	virtual bool Equals(const PhysicalOperator &other) const {
 		return false;
-	}
-
-	//! Initialize the vectors this operator uses for its output
-	virtual void InitializeOutputChunk(Allocator &allocator, DataChunk &chunk) const {
-		chunk.Initialize(allocator, types);
 	}
 
 	//! Functions to help decide how to set up pipeline dependencies

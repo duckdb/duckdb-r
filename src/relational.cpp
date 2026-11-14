@@ -37,8 +37,13 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	if (res->HasError()) {
 		stop("%s", res->GetError().c_str());
 	}
+	if (res->GetResultType() == QueryResultType::STREAM_RESULT) {
+		res = ((StreamQueryResult &)*res).Materialize();
+	}
+	D_ASSERT(res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
+	auto mat_res = (MaterializedQueryResult *)res.get();
 
-	return duckdb_execute_R_impl(res.get(), duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
+	return duckdb_execute_R_impl(mat_res, duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
 }
 
 // Check if column has names
@@ -152,7 +157,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
 	auto const_value = RApiTypes::SexpToValue(val, 0, false);
-	auto out = make_external_from<ParsedExpression>("duckdb_expr", ConstantExpression::FromValue(const_value));
+	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
 	if (alias != "") {
 		out->SetAlias(Identifier(std::move(alias)));
 	}
@@ -252,7 +257,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 // DuckDB Relations: low-level conversion
 
 [[cpp11::register]] SEXP rapi_get_null_SEXP_ptr() {
-	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", Literal::Null());
+	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", nullptr);
 	return ret;
 }
 
@@ -322,7 +327,6 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	cpp11::sexp out;
 
 	{
-		EndOpenResults(*rel->rel->context->GetContext());
 		ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 		auto res = rel->rel->Execute();
@@ -339,7 +343,6 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 // DuckDB Relations: questioning
 
 [[cpp11::register]] SEXP rapi_rel_sql(duckdb::rel_extptr_t rel, std::string sql) {
-	EndOpenResults(*rel->rel->context->GetContext());
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	auto res = rel->rel->Query("_", sql);
@@ -490,18 +493,12 @@ static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 	}
 }
 
-// A typed NULL arrives as a cast of a NULL literal, which is how ConstantExpression::FromValue() builds it, so the
-// literal is asked under any cast.
-static bool is_null_literal(const ParsedExpression &expr) {
-	if (expr.GetExpressionClass() == ExpressionClass::CAST) {
-		return is_null_literal(expr.Cast<CastExpression>().Child());
-	}
-	return expr.GetExpressionType() == ExpressionType::VALUE_CONSTANT &&
-	       expr.Cast<ConstantExpression>().GetLiteral().IsNull();
-}
-
 bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
-	return !is_null_literal(*expr);
+	if (expr->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+		auto const_expr = expr->Cast<ConstantExpression>();
+		return !const_expr.GetValue().IsNull();
+	}
+	return true;
 }
 
 [[cpp11::register]] SEXP rapi_expr_window(duckdb::expr_extptr_t window_function, list partitions, list order_bys,
@@ -558,7 +555,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		// offset: the default offset of 1 goes first
 		if (!constant_expression_is_not_null(offset_expr)) {
 			window_expr->GetArgumentsMutable().push_back(
-			    FunctionArgument(ConstantExpression::FromValue(Value::BIGINT(1))));
+			    FunctionArgument(make_uniq<ConstantExpression>(Value::BIGINT(1))));
 		}
 		window_expr->GetArgumentsMutable().push_back(FunctionArgument(default_expr->Copy()));
 	}
@@ -774,12 +771,10 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	// Format names are resolved by the renderer registry, which is keyed on the
 	// lowercase name; rel_explain_df() passes them uppercase.
 	auto print_format = ProfilerPrintFormat(StringUtil::Lower(format));
-	EndOpenResults(*rel->rel->context->GetContext());
 	return result_to_df(rel->rel->Explain(type_enum, print_format));
 }
 
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
-	EndOpenResults(*rel->rel->context->GetContext());
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
@@ -788,7 +783,6 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 }
 
 [[cpp11::register]] void rapi_rel_to_csv(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
-	EndOpenResults(*rel->rel->context->GetContext());
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
@@ -798,7 +792,6 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 [[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name,
                                            bool temporary) {
-	EndOpenResults(*rel->rel->context->GetContext());
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	rel->rel->Create(Identifier(schema_name), Identifier(table_name), temporary);
@@ -808,7 +801,6 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 [[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name,
                                           bool temporary) {
-	EndOpenResults(*rel->rel->context->GetContext());
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	rel->rel->CreateView(Identifier(schema_name), Identifier(view_name), false, temporary);
@@ -817,7 +809,6 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 }
 
 [[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {
-	EndOpenResults(*rel->rel->context->GetContext());
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	rel->rel->Insert(Identifier(schema_name), Identifier(table_name));

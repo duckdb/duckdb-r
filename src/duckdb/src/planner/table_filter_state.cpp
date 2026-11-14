@@ -21,7 +21,6 @@ static void InitializeExecutor(ClientContext &context, const Expression &express
 }
 
 ExpressionFilterState::ExpressionFilterState(ClientContext &context, const Expression &expression) {
-	can_throw = expression.CanThrow();
 	fast_executor = TryCreateFastExecutor(expression, false);
 	InitializeExecutor(context, expression, *this);
 }
@@ -348,7 +347,7 @@ private:
 		}
 	}
 
-	shared_ptr<const BloomFilter> filter;
+	optional_ptr<BloomFilter> filter;
 	bool filters_null_values;
 	Vector hashes;
 	SelectionVector bloom_sel;
@@ -547,15 +546,17 @@ static unique_ptr<ExpressionFilterExecutor> TryCreateFunctionExecutor(const Boun
 		return make_uniq<OptionalFilterExecutor>();
 	}
 	if (func_name == SelectivityOptionalFilterScalarFun::NAME) {
-		auto optional_child = ExpressionFilter::GetOptionalFilterChild(func);
-		if (!optional_child) {
+		if (!func.BindInfo()) {
 			return make_uniq<OptionalFilterExecutor>();
 		}
-		auto child = TryCreateFastExecutor(*optional_child, true);
+		auto &data = func.BindInfo()->Cast<SelectivityOptionalFilterFunctionData>();
+		if (!data.child_filter_expr) {
+			return make_uniq<OptionalFilterExecutor>();
+		}
+		auto child = TryCreateFastExecutor(*data.child_filter_expr, true);
 		if (!child) {
 			return nullptr;
 		}
-		auto &data = func.BindInfo()->Cast<SelectivityOptionalFilterFunctionData>();
 		return make_uniq<SelectivityOptionalFilterExecutor>(std::move(child), data.n_vectors_to_check,
 		                                                    data.selectivity_threshold);
 	}

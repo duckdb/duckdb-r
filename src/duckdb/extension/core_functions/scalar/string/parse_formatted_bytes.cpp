@@ -12,8 +12,7 @@ static void ParseFormattedBytesFunction(DataChunk &args, ExpressionState &state,
 }
 
 ScalarFunction ParseFormattedBytesFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::UBIGINT, ParseFormattedBytesFunction);
-	function.GetSignature().AddParameter("string", LogicalType::VARCHAR);
+	ScalarFunction function({LogicalType::VARCHAR}, LogicalType::UBIGINT, ParseFormattedBytesFunction);
 	// throws if the input is not a valid formatted byte string
 	function.SetFallible();
 	return function;

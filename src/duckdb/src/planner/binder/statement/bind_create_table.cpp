@@ -43,11 +43,6 @@ static void VerifyCompressionType(ClientContext &context, optional_ptr<StorageMa
 	auto &base = info.base->Cast<CreateTableInfo>();
 	for (auto &col : base.columns.Logical()) {
 		auto compression_type = col.CompressionType();
-		if (col.Generated() && compression_type != CompressionType::COMPRESSION_AUTO) {
-			throw BinderException("Can't set a compression type on generated column %s, generated columns are "
-			                      "not stored",
-			                      col.Name());
-		}
 		auto compression_availability_result = CompressionTypeIsAvailable(compression_type, storage_manager);
 		if (!compression_availability_result.IsAvailable()) {
 			if (compression_availability_result.IsDeprecated()) {
@@ -196,8 +191,7 @@ unique_ptr<BoundConstraint> Binder::BindUniqueConstraint(const Constraint &const
 		}
 		auto &col = columns.GetColumn(col_name);
 		if (col.Generated()) {
-			string constraint_type = unique.IsPrimaryKey() ? "PRIMARY KEY" : "UNIQUE constraint";
-			throw BinderException("cannot create a %s on a generated column: %s", constraint_type,
+			throw BinderException("cannot create a PRIMARY KEY on a generated column: %s",
 			                      SQLIdentifier(col.GetName()));
 		}
 
@@ -452,7 +446,7 @@ static void FindForeignKeyIndexes(const ColumnList &columns, const vector<Identi
 		}
 		auto &column = columns.GetColumn(name);
 		if (column.Generated()) {
-			throw BinderException("Failed to create foreign key: referenced column %s is a generated column",
+			throw BinderException("Failed to create foreign key: referenced column \"%s\" is a generated column",
 			                      column.Name());
 		}
 		indexes.push_back(column.Physical());
@@ -620,7 +614,6 @@ unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableInfo(unique_ptr<CreateIn
 	auto &base = result->Base();
 	base.dependencies = LogicalDependencyList();
 	auto &dependencies = base.dependencies;
-	dependencies.AddDependency(schema);
 	auto &catalog = schema.ParentCatalog();
 	optional_ptr<StorageManager> storage_manager;
 	if (catalog.IsDuckCatalog() && !catalog.InMemory()) {
@@ -732,6 +725,8 @@ unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableInfo(unique_ptr<CreateIn
 	}
 #endif
 
+	auto &properties = GetStatementProperties();
+	properties.output_type = QueryResultOutputType::FORCE_MATERIALIZED;
 	return result;
 }
 

@@ -1,4 +1,5 @@
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/fast_mem.hpp"
 #include "duckdb/common/smaller_binary.hpp"
 #include "duckdb/common/sorting/sort_key.hpp"
 #include "duckdb/common/type_visitor.hpp"
@@ -11,7 +12,6 @@
 #include "duckdb/common/vector/list_vector.hpp"
 #include "duckdb/common/vector/map_vector.hpp"
 #include "duckdb/common/vector/struct_vector.hpp"
-#include "duckdb/common/vector/vector_writer.hpp"
 
 namespace duckdb {
 
@@ -43,7 +43,7 @@ inline void TupleDataValueStore(const string_t &source, data_t *__restrict const
 		Store<string_t>(source, row_location + offset_in_row);
 	} else {
 		// Copy non-inlined part
-		memcpy(heap_location, source.GetPointer(), source.GetSize());
+		FastMemcpy(heap_location, source.GetPointer(), source.GetSize());
 		// Copy first 8 bytes of string_t
 		memcpy(row_location + offset_in_row, &source, string_t::HEADER_SIZE);
 		// Copy new heap pointer into the correct offset
@@ -65,7 +65,7 @@ inline void TupleDataWithinListValueStore(const string_t &source, const data_ptr
 	source.VerifyCharacters();
 #endif
 	Store<uint32_t>(UnsafeNumericCast<uint32_t>(source.GetSize()), location);
-	memcpy(heap_location, source.GetData(), source.GetSize());
+	FastMemcpy(heap_location, source.GetData(), source.GetSize());
 	heap_location += source.GetSize();
 }
 
@@ -111,12 +111,10 @@ void TupleDataCollection::ComputeHeapSizes(TupleDataChunkState &chunk_state, con
                                            const SelectionVector &append_sel, const idx_t append_count) {
 	ResetCombinedListData(chunk_state.vector_data);
 
-	auto writer = FlatVector::Writer<idx_t>(chunk_state.heap_sizes, append_count);
-	for (idx_t i = 0; i < append_count; i++) {
-		writer.WriteValue(0);
-	}
+	auto heap_sizes = FlatVector::GetDataMutable<idx_t>(chunk_state.heap_sizes);
+	std::fill_n(heap_sizes, append_count, 0);
 
-	for (auto col_idx : chunk_state.column_ids) {
+	for (idx_t col_idx = 0; col_idx < new_chunk.ColumnCount(); col_idx++) {
 		const auto &source_v = new_chunk.data[col_idx];
 		auto &source_format = chunk_state.vector_data[col_idx];
 		ComputeHeapSizes(chunk_state.heap_sizes, source_v, source_format, append_sel, append_count);
@@ -649,7 +647,7 @@ static void InitializeValidityMask(const data_ptr_t row_locations[], const idx_t
 		break;
 	default:
 		for (idx_t i = 0; i < append_count; i++) {
-			memset(row_locations[i], ~0, validity_bytes);
+			FastMemset(row_locations[i], ~0, validity_bytes);
 		}
 	}
 }

@@ -59,21 +59,14 @@ public:
 		return a == CachingMode::NO_CACHING ? b : a;
 	}
 
-	static constexpr RequestSizing MergeRequestSizing(RequestSizing a, RequestSizing b) {
-		return a == RequestSizing::BY_CACHE ? b : a;
-	}
-
 	inline FileOpenFlags operator|(const FileOpenFlags &b) const {
-		FileOpenFlags result(flags | b.flags, MergeLock(lock, b.lock), MergeCompression(compression, b.compression));
-		result.request_sizing = MergeRequestSizing(request_sizing, b.request_sizing);
-		return result;
+		return FileOpenFlags(flags | b.flags, MergeLock(lock, b.lock), MergeCompression(compression, b.compression));
 	}
 	inline FileOpenFlags &operator|=(const FileOpenFlags &b) {
 		flags |= b.flags;
 		lock = MergeLock(lock, b.lock);
 		compression = MergeCompression(compression, b.compression);
 		caching_mode = MergeCachingMode(caching_mode, b.caching_mode);
-		request_sizing = MergeRequestSizing(request_sizing, b.request_sizing);
 		return *this;
 	}
 
@@ -94,13 +87,6 @@ public:
 	}
 	void SetCachingMode(CachingMode new_caching_mode) {
 		caching_mode = new_caching_mode;
-	}
-
-	RequestSizing GetRequestSizing() const {
-		return request_sizing;
-	}
-	void SetRequestSizing(RequestSizing new_request_sizing) {
-		request_sizing = new_request_sizing;
 	}
 
 	void Verify();
@@ -155,7 +141,6 @@ private:
 	idx_t flags = 0;
 	FileLockType lock = FileLockType::NO_LOCK;
 	CachingMode caching_mode = CachingMode::NO_CACHING;
-	RequestSizing request_sizing = RequestSizing::BY_CACHE;
 	//! Default-constructed FileCompressionType is UNCOMPRESSED
 	FileCompressionType compression;
 };

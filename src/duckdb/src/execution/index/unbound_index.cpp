@@ -6,7 +6,6 @@
 #include "duckdb/parser/parsed_data/create_index_info.hpp"
 #include "duckdb/planner/expression_binder/index_binder.hpp"
 #include "duckdb/storage/block_manager.hpp"
-#include "duckdb/storage/buffer_manager.hpp"
 #include "duckdb/storage/index_storage_info.hpp"
 #include "duckdb/storage/table_io_manager.hpp"
 
@@ -34,17 +33,7 @@ UnboundIndex::UnboundIndex(unique_ptr<CreateInfo> create_info, IndexStorageInfo 
 	std::sort(mapped_column_ids.begin(), mapped_column_ids.end());
 }
 
-UnboundIndex::~UnboundIndex() {
-	if (!storage_reclaimed) {
-		ResetStorage();
-	}
-}
-
 void UnboundIndex::ResetStorage() {
-	if (storage_reclaimed) {
-		return;
-	}
-	storage_reclaimed = true;
 	auto &block_manager = table_io_manager.GetIndexBlockManager();
 	for (auto &info : storage_info.allocator_infos) {
 		for (auto &block : info.block_pointers) {
@@ -67,7 +56,6 @@ IndexStorageInfo UnboundIndex::CopyStorageInfo() const {
 
 unique_ptr<BoundIndex> UnboundIndex::Bind(IndexBinder &binder, const vector<LogicalType> &physical_column_types) {
 	auto bound_index = binder.BindIndex(*this);
-	storage_reclaimed = true;
 	if (HasBufferedReplays()) {
 		bound_index->ApplyBufferedReplays(physical_column_types, buffered_replays, mapped_column_ids);
 	}
@@ -99,9 +87,10 @@ void UnboundIndex::BufferChunk(DataChunk &table_chunk, Vector &row_ids, const Bu
 	}
 	combined_chunk.data.back().Reference(row_ids);
 
+	auto &allocator = Allocator::Get(db);
 	auto &buffer = buffered_replays.GetBuffer(replay_type);
 	if (buffer == nullptr) {
-		buffer = make_uniq<ColumnDataCollection>(BufferManager::GetBufferManager(db), types);
+		buffer = make_uniq<ColumnDataCollection>(allocator, types);
 	}
 	// The starting index of the buffer range is the size of the buffer.
 	const idx_t start = buffer->Count();

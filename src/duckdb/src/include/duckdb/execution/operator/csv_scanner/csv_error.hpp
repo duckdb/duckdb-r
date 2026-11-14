@@ -118,8 +118,7 @@ public:
 
 class CSVErrorHandler {
 public:
-	//! If store_ignored_errors is false, ignored errors are dropped instead of kept for the rejects table
-	explicit CSVErrorHandler(bool ignore_errors = false, bool store_ignored_errors = true);
+	explicit CSVErrorHandler(bool ignore_errors = false);
 	//! Throws the error
 	void Error(const CSVError &csv_error, bool force_error = false);
 	//! If we have a cached error, and we can now error, we error.
@@ -144,7 +143,7 @@ public:
 	idx_t GetSize();
 
 	void FillRejectsTable(InternalAppender &errors_appender, idx_t file_idx, idx_t scan_idx, const CSVFileScan &file,
-	                      CSVRejectsTable &rejects, const vector<Identifier> &column_names, idx_t limit);
+	                      CSVRejectsTable &rejects, const MultiFileBindData &bind_data, idx_t limit);
 
 private:
 	//! Private methods should always be locked by parent method.
@@ -162,8 +161,6 @@ private:
 	unordered_map<idx_t, LinesPerBoundary> lines_per_batch_map;
 	idx_t max_line_length = 0;
 	bool ignore_errors = false;
-	//! Whether ignored errors have to be kept, e.g. to fill the rejects table
-	bool store_ignored_errors = true;
 	bool print_line = true;
 	//! Set of errors
 	vector<CSVError> errors;

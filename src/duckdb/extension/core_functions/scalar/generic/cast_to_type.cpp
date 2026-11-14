@@ -18,14 +18,12 @@ unique_ptr<Expression> BindCastToTypeFunction(FunctionBindExpressionInput &input
 	if (return_type.id() == LogicalTypeId::SQLNULL) {
 		throw InvalidInputException("cast_to_type cannot be used to cast to NULL");
 	}
-	auto result = BoundCastExpression::AddCastToType(input.context, std::move(input.children[0]), return_type);
-	return Expression::PreserveReturnType(return_type, std::move(result));
+	return BoundCastExpression::AddCastToType(input.context, std::move(input.children[0]), return_type);
 }
 
 } // namespace
 ScalarFunction CastToTypeFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::ANY, CastToTypeFunction);
-	fun.GetSignature().AddParameter("param", LogicalType::ANY).AddParameter("type", LogicalType::ANY);
+	auto fun = ScalarFunction({LogicalType::ANY, LogicalType::ANY}, LogicalType::ANY, CastToTypeFunction);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	fun.SetBindExpressionCallback(BindCastToTypeFunction);
 	return fun;

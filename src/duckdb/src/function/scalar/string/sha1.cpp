@@ -22,14 +22,10 @@ void SHA1Function(DataChunk &args, ExpressionState &state, Vector &result) {
 
 ScalarFunctionSet SHA1Fun::GetFunctions() {
 	ScalarFunctionSet set("sha1");
-	ScalarFunction value_fun({}, LogicalType::VARCHAR, SHA1Function, nullptr, nullptr,
-	                         crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA1>);
-	value_fun.GetSignature().AddParameter("value", LogicalType::VARCHAR);
-	set.AddFunction(value_fun);
-	ScalarFunction blob_fun({}, LogicalType::VARCHAR, SHA1Function, nullptr, nullptr,
-	                        crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA1>);
-	blob_fun.GetSignature().AddParameter("blob", LogicalType::BLOB);
-	set.AddFunction(blob_fun);
+	set.AddFunction(ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, SHA1Function, nullptr, nullptr,
+	                               crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA1>));
+	set.AddFunction(ScalarFunction({LogicalType::BLOB}, LogicalType::VARCHAR, SHA1Function, nullptr, nullptr,
+	                               crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA1>));
 	return set;
 }
 

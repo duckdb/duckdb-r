@@ -5,7 +5,6 @@
 #include "duckdb/storage/statistics/base_statistics.hpp"
 
 #include "duckdb/common/types/vector.hpp"
-#include "duckdb/common/type_visitor.hpp"
 
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
@@ -258,12 +257,6 @@ LogicalType ToStructuredType(const LogicalType &shredding) {
 LogicalType VariantStats::GetShreddedStructuredType(const BaseStatistics &stats) {
 	D_ASSERT(IsShredded(stats));
 	return ToStructuredType(GetShreddedStats(stats).GetType());
-}
-
-LogicalType VariantStats::GetShreddingType(const LogicalType &structured_type) {
-	return TypeVisitor::VisitReplace(structured_type, [](const LogicalType &type) {
-		return LogicalType::STRUCT({{"typed_value", type}, {"untyped_value_index", LogicalType::UINTEGER}});
-	});
 }
 
 void VariantStats::CreateShreddedStats(BaseStatistics &stats, const LogicalType &shredded_type) {
@@ -532,7 +525,7 @@ static unique_ptr<BaseStatistics> TryBuildShreddingStats(const LogicalType &type
 		return WrapTypedValue(typed_value, nullptr).ToUnique();
 	}
 	default:
-		if (type.IsNested() || type.id() == LogicalTypeId::ENUM || type.IsJSONType()) {
+		if (type.IsNested() || type.id() == LogicalTypeId::ENUM) {
 			// MAP / UNION / ENUM etc. are not stored in their source representation in the variant
 			return nullptr;
 		}
@@ -630,10 +623,10 @@ bool VariantStats::MergeShredding(const BaseStatistics &stats, const BaseStatist
 		auto &other_object_children = StructType::GetChildTypes(other_typed_value_type);
 
 		//! Map field name to index, for 'other'
-		unordered_map<string, idx_t> key_to_index;
+		case_insensitive_map_t<idx_t> key_to_index;
 		for (idx_t i = 0; i < other_object_children.size(); i++) {
 			auto &other_object_child = other_object_children[i];
-			key_to_index.emplace(other_object_child.first.GetIdentifierName(), i);
+			key_to_index.emplace(other_object_child.first, i);
 		}
 
 		//! Attempt to merge all overlapping fields, only keep the fields that were able to be merged
@@ -696,8 +689,8 @@ bool VariantStats::MergeShredding(const BaseStatistics &stats, const BaseStatist
 		return true;
 	} else {
 		D_ASSERT(!stats_typed_value_type.IsNested());
-		if (stats_typed_value_type != other_typed_value_type) {
-			//! other is not the same type (e.g. a DECIMAL of a different width or scale), can't merge
+		if (stats_typed_value_type.id() != other_typed_value_type.id()) {
+			//! other is not the same type, can't merge
 			return false;
 		}
 		auto new_typed_stats = stats_typed_value.Copy();

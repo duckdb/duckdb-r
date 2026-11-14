@@ -1,6 +1,5 @@
 #include "duckdb/common/operator/decimal_cast_operators.hpp"
 #include "duckdb/common/likely.hpp"
-#include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/operator/abs.hpp"
 #include "duckdb/common/operator/multiply.hpp"
 #include "duckdb/common/types/bit.hpp"
@@ -39,18 +38,6 @@ static unique_ptr<FunctionData> BindIEEEFloatingBinary(BindScalarFunctionInput &
 		bound_function.SetFunctionCallback(ScalarFunction::BinaryFunction<double, double, double, ERROR_OP>);
 	}
 	return nullptr;
-}
-
-// Names the unary argument "x", shared by most math functions/operators in this file.
-static ScalarFunction NameXArgument(ScalarFunction fun, const LogicalType &type) {
-	fun.GetSignature().AddParameter("x", type);
-	return fun;
-}
-
-// Names the "x,precision" pair shared by round/round_even/trunc's binary overloads.
-static ScalarFunction NameXPrecisionArguments(ScalarFunction fun, const LogicalType &type) {
-	fun.GetSignature().AddParameter("x", type).AddParameter("precision", LogicalType::INTEGER);
-	return fun;
 }
 
 template <class TR, class OP>
@@ -104,14 +91,11 @@ struct NextAfterOperator {
 
 ScalarFunctionSet NextAfterFun::GetFunctions() {
 	ScalarFunctionSet next_after_fun;
-	ScalarFunction double_fun({}, LogicalType::DOUBLE,
-	                          ScalarFunction::BinaryFunction<double, double, double, NextAfterOperator>);
-	double_fun.GetSignature().AddParameter("x", LogicalType::DOUBLE).AddParameter("y", LogicalType::DOUBLE);
-	next_after_fun.AddFunction(double_fun);
-	ScalarFunction float_fun({}, LogicalType::FLOAT,
-	                         ScalarFunction::BinaryFunction<float, float, float, NextAfterOperator>);
-	float_fun.GetSignature().AddParameter("x", LogicalType::FLOAT).AddParameter("y", LogicalType::FLOAT);
-	next_after_fun.AddFunction(float_fun);
+	next_after_fun.AddFunction(
+	    ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                   ScalarFunction::BinaryFunction<double, double, double, NextAfterOperator>));
+	next_after_fun.AddFunction(ScalarFunction({LogicalType::FLOAT, LogicalType::FLOAT}, LogicalType::FLOAT,
+	                                          ScalarFunction::BinaryFunction<float, float, float, NextAfterOperator>));
 	return next_after_fun;
 }
 
@@ -223,9 +207,10 @@ static unique_ptr<BaseStatistics> PropagateAbsStats(ClientContext &context, Func
 }
 
 template <class OP>
-static void DecimalUnaryOpResolveTypes(ResolveScalarFunctionTypesInput &input) {
+static unique_ptr<FunctionData> DecimalUnaryOpBind(BindScalarFunctionInput &input) {
 	auto &bound_function = input.GetBoundFunction();
-	auto &decimal_type = input.GetArgumentType(0);
+	auto &arguments = input.GetArguments();
+	auto decimal_type = arguments[0]->GetReturnType();
 	switch (decimal_type.InternalType()) {
 	case PhysicalType::INT16:
 		bound_function.SetFunctionCallback(ScalarFunction::GetScalarUnaryFunction<OP>(LogicalTypeId::SMALLINT));
@@ -242,33 +227,29 @@ static void DecimalUnaryOpResolveTypes(ResolveScalarFunctionTypesInput &input) {
 	}
 	bound_function.GetArguments()[0] = decimal_type;
 	bound_function.SetReturnType(decimal_type);
+	return nullptr;
 }
 
 ScalarFunctionSet AbsOperatorFun::GetFunctions() {
 	ScalarFunctionSet abs;
 	for (auto &type : LogicalType::Numeric()) {
 		switch (type.id()) {
-		case LogicalTypeId::DECIMAL: {
-			ScalarFunction function({}, type, nullptr);
-			function.SetResolveTypesCallback(DecimalUnaryOpResolveTypes<AbsOperator>);
-			abs.AddFunction(NameXArgument(std::move(function), type));
+		case LogicalTypeId::DECIMAL:
+			abs.AddFunction(ScalarFunction({type}, type, nullptr, DecimalUnaryOpBind<AbsOperator>));
 			break;
-		}
 		case LogicalTypeId::TINYINT:
 		case LogicalTypeId::SMALLINT:
 		case LogicalTypeId::INTEGER:
 		case LogicalTypeId::BIGINT:
 		case LogicalTypeId::HUGEINT: {
-			auto function = NameXArgument(
-			    ScalarFunction({}, type, ScalarFunction::GetScalarUnaryFunction<TryAbsOperator>(type)), type);
+			ScalarFunction function({type}, type, ScalarFunction::GetScalarUnaryFunction<TryAbsOperator>(type));
 			function.SetStatisticsCallback(PropagateAbsStats);
 			abs.AddFunction(function);
 			break;
 		}
 		case LogicalTypeId::FLOAT:
 		case LogicalTypeId::DOUBLE: {
-			auto function = NameXArgument(
-			    ScalarFunction({}, type, ScalarFunction::GetScalarUnaryFunction<AbsOperator>(type)), type);
+			ScalarFunction function({type}, type, ScalarFunction::GetScalarUnaryFunction<AbsOperator>(type));
 			function.SetStatisticsCallback(PropagateAbsStats);
 			abs.AddFunction(function);
 			break;
@@ -277,11 +258,10 @@ ScalarFunctionSet AbsOperatorFun::GetFunctions() {
 		case LogicalTypeId::USMALLINT:
 		case LogicalTypeId::UINTEGER:
 		case LogicalTypeId::UBIGINT:
-			abs.AddFunction(NameXArgument(ScalarFunction({}, type, ScalarFunction::NopFunction), type));
+			abs.AddFunction(ScalarFunction({type}, type, ScalarFunction::NopFunction));
 			break;
 		default:
-			abs.AddFunction(NameXArgument(
-			    ScalarFunction({}, type, ScalarFunction::GetScalarUnaryFunction<AbsOperator>(type)), type));
+			abs.AddFunction(ScalarFunction({type}, type, ScalarFunction::GetScalarUnaryFunction<AbsOperator>(type)));
 			break;
 		}
 	}
@@ -334,26 +314,18 @@ struct BitStringBitCntOperator {
 } // namespace
 ScalarFunctionSet BitCountFun::GetFunctions() {
 	ScalarFunctionSet functions;
-	functions.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::TINYINT, ScalarFunction::UnaryFunction<int8_t, int8_t, BitCntOperator>),
-	    LogicalType::TINYINT));
-	functions.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::TINYINT, ScalarFunction::UnaryFunction<int16_t, int8_t, BitCntOperator>),
-	    LogicalType::SMALLINT));
-	functions.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::TINYINT, ScalarFunction::UnaryFunction<int32_t, int8_t, BitCntOperator>),
-	    LogicalType::INTEGER));
-	functions.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::TINYINT, ScalarFunction::UnaryFunction<int64_t, int8_t, BitCntOperator>),
-	    LogicalType::BIGINT));
-	functions.AddFunction(
-	    NameXArgument(ScalarFunction({}, LogicalType::TINYINT,
-	                                 ScalarFunction::UnaryFunction<hugeint_t, int8_t, HugeIntBitCntOperator>),
-	                  LogicalType::HUGEINT));
-	functions.AddFunction(
-	    NameXArgument(ScalarFunction({}, LogicalType::BIGINT,
-	                                 ScalarFunction::UnaryFunction<string_t, int64_t, BitStringBitCntOperator>),
-	                  LogicalType::BIT));
+	functions.AddFunction(ScalarFunction({LogicalType::TINYINT}, LogicalType::TINYINT,
+	                                     ScalarFunction::UnaryFunction<int8_t, int8_t, BitCntOperator>));
+	functions.AddFunction(ScalarFunction({LogicalType::SMALLINT}, LogicalType::TINYINT,
+	                                     ScalarFunction::UnaryFunction<int16_t, int8_t, BitCntOperator>));
+	functions.AddFunction(ScalarFunction({LogicalType::INTEGER}, LogicalType::TINYINT,
+	                                     ScalarFunction::UnaryFunction<int32_t, int8_t, BitCntOperator>));
+	functions.AddFunction(ScalarFunction({LogicalType::BIGINT}, LogicalType::TINYINT,
+	                                     ScalarFunction::UnaryFunction<int64_t, int8_t, BitCntOperator>));
+	functions.AddFunction(ScalarFunction({LogicalType::HUGEINT}, LogicalType::TINYINT,
+	                                     ScalarFunction::UnaryFunction<hugeint_t, int8_t, HugeIntBitCntOperator>));
+	functions.AddFunction(ScalarFunction({LogicalType::BIT}, LogicalType::BIGINT,
+	                                     ScalarFunction::UnaryFunction<string_t, int64_t, BitStringBitCntOperator>));
 	return functions;
 }
 
@@ -485,10 +457,8 @@ ScalarFunctionSet SignFun::GetFunctions() {
 		if (type.id() == LogicalTypeId::DECIMAL) {
 			continue;
 		}
-		auto function =
-		    NameXArgument(ScalarFunction({}, LogicalType::TINYINT,
-		                                 ScalarFunction::GetScalarUnaryFunctionFixedReturn<int8_t, SignOperator>(type)),
-		                  type);
+		ScalarFunction function({type}, LogicalType::TINYINT,
+		                        ScalarFunction::GetScalarUnaryFunctionFixedReturn<int8_t, SignOperator>(type));
 		function.SetStatisticsCallback(PropagateSignStats);
 		sign.AddFunction(function);
 	}
@@ -515,10 +485,11 @@ static void GenericRoundFunctionDecimal(DataChunk &input, ExpressionState &state
 }
 
 template <class OP>
-static void GenericRoundFunctionDecimalResolveTypes(ResolveScalarFunctionTypesInput &input) {
+static unique_ptr<FunctionData> BindGenericRoundFunctionDecimal(BindScalarFunctionInput &input) {
 	auto &bound_function = input.GetBoundFunction();
+	auto &arguments = input.GetArguments();
 	// ceil essentially removes the scale
-	auto &decimal_type = input.GetArgumentType(0);
+	auto &decimal_type = arguments[0]->GetReturnType();
 	auto scale = DecimalType::GetScale(decimal_type);
 	auto width = DecimalType::GetWidth(decimal_type);
 	if (scale == 0) {
@@ -541,6 +512,7 @@ static void GenericRoundFunctionDecimalResolveTypes(ResolveScalarFunctionTypesIn
 	}
 	bound_function.GetArguments()[0] = decimal_type;
 	bound_function.SetReturnType(LogicalType::DECIMAL(width, 0));
+	return nullptr;
 }
 
 namespace {
@@ -565,7 +537,7 @@ ScalarFunctionSet CeilFun::GetFunctions() {
 	ScalarFunctionSet ceil;
 	for (auto &type : LogicalType::Numeric()) {
 		scalar_function_t func = nullptr;
-		resolve_scalar_types_t resolve_func = nullptr;
+		bind_scalar_function_t bind_func = nullptr;
 		if (type.IsIntegral()) {
 			// no ceil for integral numbers
 			continue;
@@ -578,14 +550,12 @@ ScalarFunctionSet CeilFun::GetFunctions() {
 			func = ScalarFunction::UnaryFunction<double, double, CeilOperator>;
 			break;
 		case LogicalTypeId::DECIMAL:
-			resolve_func = GenericRoundFunctionDecimalResolveTypes<CeilDecimalOperator>;
+			bind_func = BindGenericRoundFunctionDecimal<CeilDecimalOperator>;
 			break;
 		default:
 			throw InternalException("Unimplemented numeric type for function \"ceil\"");
 		}
-		ScalarFunction ceil_function({}, type, func);
-		ceil_function.SetResolveTypesCallback(resolve_func);
-		ceil.AddFunction(NameXArgument(std::move(ceil_function), type));
+		ceil.AddFunction(ScalarFunction({type}, type, func, bind_func));
 	}
 	ceil.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return ceil;
@@ -623,7 +593,7 @@ ScalarFunctionSet FloorFun::GetFunctions() {
 	ScalarFunctionSet floor;
 	for (auto &type : LogicalType::Numeric()) {
 		scalar_function_t func = nullptr;
-		resolve_scalar_types_t resolve_func = nullptr;
+		bind_scalar_function_t bind_func = nullptr;
 		if (type.IsIntegral()) {
 			// no floor for integral numbers
 			continue;
@@ -636,14 +606,12 @@ ScalarFunctionSet FloorFun::GetFunctions() {
 			func = ScalarFunction::UnaryFunction<double, double, FloorOperator>;
 			break;
 		case LogicalTypeId::DECIMAL:
-			resolve_func = GenericRoundFunctionDecimalResolveTypes<FloorDecimalOperator>;
+			bind_func = BindGenericRoundFunctionDecimal<FloorDecimalOperator>;
 			break;
 		default:
 			throw InternalException("Unimplemented numeric type for function \"floor\"");
 		}
-		ScalarFunction floor_function({}, type, func);
-		floor_function.SetResolveTypesCallback(resolve_func);
-		floor.AddFunction(NameXArgument(std::move(floor_function), type));
+		floor.AddFunction(ScalarFunction({type}, type, func, bind_func));
 	}
 	floor.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return floor;
@@ -679,15 +647,18 @@ void GenericRoundPrecisionDecimal(DataChunk &input, ExpressionState &state, Vect
 	OP::template Operation<T, POWERS_OF_TEN>(input, state, result);
 }
 
-//! Resolves the types and the function of a decimal round with a precision, given the original decimal type
-template <typename NEGOP, typename POSOP, bool CAN_CARRY>
-unique_ptr<FunctionData> ResolveDecimalRoundPrecision(BoundScalarFunction &bound_function,
-                                                      const LogicalType &decimal_type, int32_t round_value) {
+template <typename NEGOP, typename POSOP, bool CAN_CARRY = false>
+unique_ptr<FunctionData> BindDecimalRoundPrecision(BindScalarFunctionInput &input) {
+	auto &bound_function = input.GetBoundFunction();
+	auto &arguments = input.GetArguments();
+	auto &decimal_type = arguments[0]->GetReturnType();
+	auto val = input.GetNonNullConstant(1).DefaultCastAs(LogicalType::INTEGER);
 	// our new precision becomes the round value
 	// e.g. ROUND(DECIMAL(18,3), 1) -> DECIMAL(18,1)
 	// but ONLY if the round value is positive
 	// if it is negative the scale becomes zero
 	// i.e. ROUND(DECIMAL(18,3), -1) -> DECIMAL(18,0)
+	int32_t round_value = IntegerValue::Get(val);
 	uint8_t target_scale;
 	auto width = DecimalType::GetWidth(decimal_type);
 	auto scale = DecimalType::GetScale(decimal_type);
@@ -747,22 +718,6 @@ unique_ptr<FunctionData> ResolveDecimalRoundPrecision(BoundScalarFunction &bound
 	bound_function.GetArguments()[0] = argument_type;
 	bound_function.SetReturnType(LogicalType::DECIMAL(result_width, target_scale));
 	return make_uniq<RoundPrecisionFunctionData>(round_value, width, check_overflow);
-}
-
-template <typename NEGOP, typename POSOP, bool CAN_CARRY = false>
-void DecimalRoundPrecisionResolveTypes(ResolveScalarFunctionTypesInput &input) {
-	auto val = input.GetNonNullConstant(1).DefaultCastAs(LogicalType::INTEGER);
-	ResolveDecimalRoundPrecision<NEGOP, POSOP, CAN_CARRY>(input.GetBoundFunction(), input.GetArgumentType(0),
-	                                                      IntegerValue::Get(val));
-}
-
-//! The bind data is derived from the type the function was called with, before it was cast
-template <typename NEGOP, typename POSOP, bool CAN_CARRY = false>
-unique_ptr<FunctionData> BindDecimalRoundPrecision(BindScalarFunctionInput &input) {
-	auto &bound_function = input.GetBoundFunction();
-	auto val = input.GetNonNullConstant(1).DefaultCastAs(LogicalType::INTEGER);
-	return ResolveDecimalRoundPrecision<NEGOP, POSOP, CAN_CARRY>(
-	    bound_function, bound_function.GetLogicalArguments()[0], IntegerValue::Get(val));
 }
 
 struct TruncOperatorPrecision {
@@ -871,9 +826,8 @@ ScalarFunctionSet TruncFun::GetFunctions() {
 	for (auto &type : LogicalType::Numeric()) {
 		scalar_function_t trunc_func = nullptr;
 		scalar_function_t trunc_prec_func = nullptr;
-		resolve_scalar_types_t resolve_func = nullptr;
+		bind_scalar_function_t bind_func = nullptr;
 		bind_scalar_function_t bind_prec_func = nullptr;
-		resolve_scalar_types_t resolve_prec_func = nullptr;
 		//	Truncation of integers gets generated by some tools (e.g., Tableau/JDBC:Postgres)
 		switch (type.id()) {
 		case LogicalTypeId::FLOAT:
@@ -885,11 +839,9 @@ ScalarFunctionSet TruncFun::GetFunctions() {
 			trunc_prec_func = ScalarFunction::BinaryFunction<double, int32_t, double, TruncOperatorPrecision>;
 			break;
 		case LogicalTypeId::DECIMAL:
-			resolve_func = GenericRoundFunctionDecimalResolveTypes<TruncDecimalOperator>;
+			bind_func = BindGenericRoundFunctionDecimal<TruncDecimalOperator>;
 			bind_prec_func =
 			    BindDecimalRoundPrecision<TruncDecimalNegativePrecisionOperator, TruncDecimalPositivePrecisionOperator>;
-			resolve_prec_func = DecimalRoundPrecisionResolveTypes<TruncDecimalNegativePrecisionOperator,
-			                                                      TruncDecimalPositivePrecisionOperator>;
 			break;
 		case LogicalTypeId::TINYINT:
 			trunc_func = ScalarFunction::NopFunction;
@@ -934,12 +886,8 @@ ScalarFunctionSet TruncFun::GetFunctions() {
 		default:
 			throw InternalException("Unimplemented numeric type for function \"trunc\"");
 		}
-		ScalarFunction trunc_function({}, type, trunc_func);
-		trunc_function.SetResolveTypesCallback(resolve_func);
-		trunc.AddFunction(NameXArgument(std::move(trunc_function), type));
-		ScalarFunction trunc_prec_function({}, type, trunc_prec_func, bind_prec_func);
-		trunc_prec_function.SetResolveTypesCallback(resolve_prec_func);
-		trunc.AddFunction(NameXPrecisionArguments(std::move(trunc_prec_function), type));
+		trunc.AddFunction(ScalarFunction({type}, type, trunc_func, bind_func));
+		trunc.AddFunction(ScalarFunction({type, LogicalType::INTEGER}, type, trunc_prec_func, bind_prec_func));
 	}
 	trunc.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return trunc;
@@ -949,74 +897,19 @@ ScalarFunctionSet TruncFun::GetFunctions() {
 // round
 //===--------------------------------------------------------------------===//
 namespace {
-
-template <class T, class ROUND_POLICY>
-inline T RoundDivide(T input, T power_of_ten) {
-	// power_of_ten is ten raised to the digits being dropped and is at least ten because the binder replaces round
-	// with ScalarFunction::NopFunction if the round would not drop digits
-	D_ASSERT(power_of_ten >= 10);
-	T quotient;
-	T remainder;
-	if constexpr (std::is_same<T, hugeint_t>::value) {
-		// hugeint division and modulo both run a full DivMod and discard half of the result
-		quotient = Hugeint::DivMod(input, power_of_ten, remainder);
-	} else {
-		quotient = UnsafeNumericCast<T>(input / power_of_ten);
-		remainder = UnsafeNumericCast<T>(input % power_of_ten);
-	}
-	if (remainder < 0) {
-		remainder = UnsafeNumericCast<T>(-remainder);
-	}
-	T half = UnsafeNumericCast<T>(power_of_ten / 2);
-	if (remainder > half || (remainder == half && ROUND_POLICY::RoundsAway(quotient))) {
-		quotient = UnsafeNumericCast<T>(input < 0 ? quotient - 1 : quotient + 1);
-	}
-	return quotient;
-}
-
-struct RoundHalfAwayFromZero {
-	static constexpr const char *Name = "ROUND";
-
-	static double Nearest(double value) {
-		return std::round(value);
-	}
-	template <class T>
-	static bool RoundsAway(T) {
-		return true;
-	}
-};
-
-struct RoundHalfToEven {
-	static constexpr const char *Name = "ROUND_EVEN";
-
-	static double Nearest(double value) {
-		return RoundToNearestEven(value);
-	}
-	template <class T>
-	static bool RoundsAway(T quotient) {
-		return quotient % 2 != 0;
-	}
-};
-
-template <class ROUND_POLICY>
 struct RoundOperatorPrecision {
 	template <class TA, class TB, class TR>
 	static inline TR Operation(TA input, TB precision) {
 		double rounded_value;
 		if (precision < 0) {
 			double modifier = std::pow(10, -TA(precision));
-			if (std::isinf(modifier)) {
-				// every finite value rounds to zero
-				return Value::IsFinite(input) ? 0 : input;
-			}
-			rounded_value = ROUND_POLICY::Nearest(input / modifier) * modifier;
+			rounded_value = (std::round(input / modifier)) * modifier;
 			if (std::isinf(rounded_value) || std::isnan(rounded_value)) {
-				// the input is too large to be rounded to this precision
-				return input;
+				return 0;
 			}
 		} else {
 			double modifier = std::pow(10, TA(precision));
-			rounded_value = ROUND_POLICY::Nearest(input * modifier) / modifier;
+			rounded_value = (std::round(input * modifier)) / modifier;
 			if (std::isinf(rounded_value) || std::isnan(rounded_value)) {
 				return input;
 			}
@@ -1059,7 +952,6 @@ struct RoundDecimalOperator {
 	}
 };
 
-template <class ROUND_POLICY>
 struct RoundIntegerOperator {
 	template <class TA, class TB, class TR>
 	static inline TR Operation(TA input, TB precision) {
@@ -1080,9 +972,9 @@ struct RoundIntegerOperator {
 		}
 		auto rounded = wide_input / power_of_ten;
 		const auto remainder = wide_input % power_of_ten;
-		if (remainder > half || (remainder == half && ROUND_POLICY::RoundsAway(rounded))) {
+		if (remainder >= half) {
 			rounded = Hugeint::Add(rounded, 1);
-		} else if (remainder < -half || (remainder == -half && ROUND_POLICY::RoundsAway(rounded))) {
+		} else if (remainder <= -half) {
 			rounded = Hugeint::Subtract(rounded, 1);
 		}
 		if (rounded == 0) {
@@ -1090,11 +982,11 @@ struct RoundIntegerOperator {
 		}
 		hugeint_t rounded_value = 0;
 		if (!Hugeint::TryMultiply(rounded, power_of_ten, rounded_value)) {
-			throw OutOfRangeException("Overflow in %s of integer", ROUND_POLICY::Name);
+			throw OutOfRangeException("Overflow in ROUND of integer");
 		}
 		TR result;
 		if (!TryCast::Operation(rounded_value, result)) {
-			throw OutOfRangeException("Overflow in %s of integer", ROUND_POLICY::Name);
+			throw OutOfRangeException("Overflow in ROUND of integer");
 		}
 		return result;
 	}
@@ -1102,7 +994,6 @@ struct RoundIntegerOperator {
 
 } // namespace
 
-template <class ROUND_POLICY>
 struct DecimalRoundNegativePrecisionOperator {
 	template <class T, class POWERS_OF_TEN_CLASS>
 	static void Operation(DataChunk &input, ExpressionState &state, Vector &result) {
@@ -1118,17 +1009,19 @@ struct DecimalRoundNegativePrecisionOperator {
 		T divide_power_of_ten =
 		    UnsafeNumericCast<T>(POWERS_OF_TEN_CLASS::POWERS_OF_TEN[-info.target_scale + source_scale]);
 		T multiply_power_of_ten = UnsafeNumericCast<T>(POWERS_OF_TEN_CLASS::POWERS_OF_TEN[-info.target_scale]);
-		const bool check_overflow = info.check_overflow;
+		T addition = divide_power_of_ten / 2;
 
 		UnaryExecutor::Execute<T, T>(input.data[0], result, [&](T input) {
-			auto rounded =
-			    UnsafeNumericCast<T>(RoundDivide<T, ROUND_POLICY>(input, divide_power_of_ten) * multiply_power_of_ten);
-			if (check_overflow) {
-				if constexpr (std::is_same_v<T, hugeint_t>) {
-					if (rounded <= -Hugeint::POWERS_OF_TEN[Decimal::MAX_WIDTH_DECIMAL] ||
-					    rounded >= Hugeint::POWERS_OF_TEN[Decimal::MAX_WIDTH_DECIMAL]) {
-						throw OutOfRangeException("Overflow in %s of DECIMAL(38)", ROUND_POLICY::Name);
-					}
+			if (input < 0) {
+				input -= addition;
+			} else {
+				input += addition;
+			}
+			auto rounded = UnsafeNumericCast<T>(input / divide_power_of_ten * multiply_power_of_ten);
+			if constexpr (std::is_same_v<T, hugeint_t>) {
+				if (info.check_overflow && (rounded <= -Hugeint::POWERS_OF_TEN[Decimal::MAX_WIDTH_DECIMAL] ||
+				                            rounded >= Hugeint::POWERS_OF_TEN[Decimal::MAX_WIDTH_DECIMAL])) {
+					throw OutOfRangeException("Overflow in ROUND of DECIMAL(38)");
 				}
 			}
 			return rounded;
@@ -1136,7 +1029,6 @@ struct DecimalRoundNegativePrecisionOperator {
 	}
 };
 
-template <class ROUND_POLICY>
 struct DecimalRoundPositivePrecisionOperator {
 	template <class T, class POWERS_OF_TEN_CLASS>
 	static void Operation(DataChunk &input, ExpressionState &state, Vector &result) {
@@ -1144,8 +1036,15 @@ struct DecimalRoundPositivePrecisionOperator {
 		auto &info = func_expr.BindInfo()->Cast<RoundPrecisionFunctionData>();
 		auto source_scale = DecimalType::GetScale(func_expr.GetChildren()[0]->GetReturnType());
 		T power_of_ten = UnsafeNumericCast<T>(POWERS_OF_TEN_CLASS::POWERS_OF_TEN[source_scale - info.target_scale]);
-		UnaryExecutor::Execute<T, T>(input.data[0], result,
-		                             [&](T input) { return RoundDivide<T, ROUND_POLICY>(input, power_of_ten); });
+		T addition = power_of_ten / 2;
+		UnaryExecutor::Execute<T, T>(input.data[0], result, [&](T input) {
+			if (input < 0) {
+				input -= addition;
+			} else {
+				input += addition;
+			}
+			return UnsafeNumericCast<T>(input / power_of_ten);
+		});
 	}
 };
 
@@ -1154,53 +1053,41 @@ ScalarFunctionSet RoundFun::GetFunctions() {
 	for (auto &type : LogicalType::Numeric()) {
 		scalar_function_t round_prec_func = nullptr;
 		scalar_function_t round_func = nullptr;
-		resolve_scalar_types_t resolve_func = nullptr;
+		bind_scalar_function_t bind_func = nullptr;
 		bind_scalar_function_t bind_prec_func = nullptr;
-		resolve_scalar_types_t resolve_prec_func = nullptr;
 		switch (type.id()) {
 		case LogicalTypeId::FLOAT:
 			round_func = ScalarFunction::UnaryFunction<float, float, RoundOperator>;
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<float, int32_t, float, RoundOperatorPrecision<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<float, int32_t, float, RoundOperatorPrecision>;
 			break;
 		case LogicalTypeId::DOUBLE:
 			round_func = ScalarFunction::UnaryFunction<double, double, RoundOperator>;
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<double, int32_t, double, RoundOperatorPrecision<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<double, int32_t, double, RoundOperatorPrecision>;
 			break;
 		case LogicalTypeId::DECIMAL:
-			resolve_func = GenericRoundFunctionDecimalResolveTypes<RoundDecimalOperator>;
-			bind_prec_func =
-			    BindDecimalRoundPrecision<DecimalRoundNegativePrecisionOperator<RoundHalfAwayFromZero>,
-			                              DecimalRoundPositivePrecisionOperator<RoundHalfAwayFromZero>, true>;
-			resolve_prec_func =
-			    DecimalRoundPrecisionResolveTypes<DecimalRoundNegativePrecisionOperator<RoundHalfAwayFromZero>,
-			                                      DecimalRoundPositivePrecisionOperator<RoundHalfAwayFromZero>, true>;
+			bind_func = BindGenericRoundFunctionDecimal<RoundDecimalOperator>;
+			bind_prec_func = BindDecimalRoundPrecision<DecimalRoundNegativePrecisionOperator,
+			                                           DecimalRoundPositivePrecisionOperator, true>;
 			break;
 		case LogicalTypeId::TINYINT:
 			round_func = ScalarFunction::NopFunction;
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int8_t, int32_t, int8_t, RoundIntegerOperator<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<int8_t, int32_t, int8_t, RoundIntegerOperator>;
 			break;
 		case LogicalTypeId::SMALLINT:
 			round_func = ScalarFunction::NopFunction;
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int16_t, int32_t, int16_t, RoundIntegerOperator<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<int16_t, int32_t, int16_t, RoundIntegerOperator>;
 			break;
 		case LogicalTypeId::INTEGER:
 			round_func = ScalarFunction::NopFunction;
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int32_t, int32_t, int32_t, RoundIntegerOperator<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<int32_t, int32_t, int32_t, RoundIntegerOperator>;
 			break;
 		case LogicalTypeId::BIGINT:
 			round_func = ScalarFunction::NopFunction;
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int64_t, int32_t, int64_t, RoundIntegerOperator<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<int64_t, int32_t, int64_t, RoundIntegerOperator>;
 			break;
 		case LogicalTypeId::HUGEINT:
 			round_func = ScalarFunction::NopFunction;
-			round_prec_func = ScalarFunction::BinaryFunction<hugeint_t, int32_t, hugeint_t,
-			                                                 RoundIntegerOperator<RoundHalfAwayFromZero>>;
+			round_prec_func = ScalarFunction::BinaryFunction<hugeint_t, int32_t, hugeint_t, RoundIntegerOperator>;
 			break;
 		default:
 			if (type.IsIntegral()) {
@@ -1209,12 +1096,9 @@ ScalarFunctionSet RoundFun::GetFunctions() {
 			}
 			throw InternalException("Unimplemented numeric type for function \"round\"");
 		}
-		ScalarFunction round_unary_function({}, type, round_func);
-		round_unary_function.SetResolveTypesCallback(resolve_func);
-		auto round_function = NameXArgument(std::move(round_unary_function), type);
-		ScalarFunction round_binary_function({}, type, round_prec_func, bind_prec_func);
-		round_binary_function.SetResolveTypesCallback(resolve_prec_func);
-		auto round_prec_function = NameXPrecisionArguments(std::move(round_binary_function), type);
+		ScalarFunction round_function({{"x", type}}, type, round_func, bind_func);
+		ScalarFunction round_prec_function({{"x", type}, {"precision", LogicalType::INTEGER}}, type, round_prec_func,
+		                                   bind_prec_func);
 		if (type.id() == LogicalTypeId::DECIMAL) {
 			// rounding a DECIMAL can overflow
 			round_function.SetFallible();
@@ -1228,74 +1112,6 @@ ScalarFunctionSet RoundFun::GetFunctions() {
 	}
 	round.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return round;
-}
-
-//===--------------------------------------------------------------------===//
-// round_even
-//===--------------------------------------------------------------------===//
-ScalarFunctionSet RoundEvenFun::GetFunctions() {
-	ScalarFunctionSet round_even;
-	for (auto &type : LogicalType::Numeric()) {
-		scalar_function_t round_prec_func = nullptr;
-		bind_scalar_function_t bind_prec_func = nullptr;
-		resolve_scalar_types_t resolve_prec_func = nullptr;
-		switch (type.id()) {
-		case LogicalTypeId::FLOAT:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<float, int32_t, float, RoundOperatorPrecision<RoundHalfToEven>>;
-			break;
-		case LogicalTypeId::DOUBLE:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<double, int32_t, double, RoundOperatorPrecision<RoundHalfToEven>>;
-			break;
-		case LogicalTypeId::DECIMAL:
-			bind_prec_func = BindDecimalRoundPrecision<DecimalRoundNegativePrecisionOperator<RoundHalfToEven>,
-			                                           DecimalRoundPositivePrecisionOperator<RoundHalfToEven>, true>;
-			resolve_prec_func =
-			    DecimalRoundPrecisionResolveTypes<DecimalRoundNegativePrecisionOperator<RoundHalfToEven>,
-			                                      DecimalRoundPositivePrecisionOperator<RoundHalfToEven>, true>;
-			break;
-		case LogicalTypeId::TINYINT:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int8_t, int32_t, int8_t, RoundIntegerOperator<RoundHalfToEven>>;
-			break;
-		case LogicalTypeId::SMALLINT:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int16_t, int32_t, int16_t, RoundIntegerOperator<RoundHalfToEven>>;
-			break;
-		case LogicalTypeId::INTEGER:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int32_t, int32_t, int32_t, RoundIntegerOperator<RoundHalfToEven>>;
-			break;
-		case LogicalTypeId::BIGINT:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<int64_t, int32_t, int64_t, RoundIntegerOperator<RoundHalfToEven>>;
-			break;
-		case LogicalTypeId::HUGEINT:
-			round_prec_func =
-			    ScalarFunction::BinaryFunction<hugeint_t, int32_t, hugeint_t, RoundIntegerOperator<RoundHalfToEven>>;
-			break;
-		default:
-			if (type.IsIntegral()) {
-				// no round for integral numbers
-				continue;
-			}
-			throw InternalException("Unimplemented numeric type for function \"round_even\"");
-		}
-		ScalarFunction round_even_binary_function({}, type, round_prec_func, bind_prec_func);
-		round_even_binary_function.SetResolveTypesCallback(resolve_prec_func);
-		auto round_even_function = NameXPrecisionArguments(std::move(round_even_binary_function), type);
-		if (type.id() == LogicalTypeId::DECIMAL) {
-			// rounding a DECIMAL can overflow
-			round_even_function.SetFallible();
-		} else if (type.IsIntegral()) {
-			// rounding an integer to a negative precision can overflow
-			round_even_function.SetFallible();
-		}
-		round_even.AddFunction(std::move(round_even_function));
-	}
-	round_even.SetUnaryArgProperties(ArgProperties().NonDecreasing());
-	return round_even;
 }
 
 //===--------------------------------------------------------------------===//
@@ -1313,10 +1129,10 @@ struct ExpOperator {
 } // namespace
 
 ScalarFunction ExpFun::GetFunction() {
-	// not annotated monotone: libm exp is not monotone on every platform (Apple libm inverts adjacent doubles)
-	return NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, ExpOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction func({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                    ScalarFunction::UnaryFunction<double, double, ExpOperator>);
+	func.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	return func;
 }
 
 //===--------------------------------------------------------------------===//
@@ -1400,8 +1216,8 @@ unique_ptr<BaseStatistics> PropagatePowStats(ClientContext &context, FunctionSta
 
 } // namespace
 ScalarFunction PowOperatorFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingBinary<PowOperator, IEEEPowOperator>);
-	function.GetSignature().AddParameter("x", LogicalType::DOUBLE).AddParameter("y", LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingBinary<PowOperator, IEEEPowOperator>);
 	function.SetStatisticsCallback(PropagatePowStats);
 	function.SetFallible();
 	return function;
@@ -1430,9 +1246,8 @@ struct IEEESqrtOperator {
 } // namespace
 
 ScalarFunction SqrtFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<SqrtOperator, IEEESqrtOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<SqrtOperator, IEEESqrtOperator>);
 	function.SetFallible();
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
@@ -1453,9 +1268,8 @@ struct CbRtOperator {
 } // namespace
 
 ScalarFunction CbrtFun::GetFunction() {
-	auto func = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, CbRtOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction func({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                    ScalarFunction::UnaryFunction<double, double, CbRtOperator>);
 	func.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return func;
 }
@@ -1487,9 +1301,8 @@ struct IEEELnOperator {
 
 } // namespace
 ScalarFunction LnFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<LnOperator, IEEELnOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<LnOperator, IEEELnOperator>);
 	function.SetFallible();
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
@@ -1523,9 +1336,8 @@ struct IEEELog10Operator {
 } // namespace
 
 ScalarFunction Log10Fun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<Log10Operator, IEEELog10Operator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<Log10Operator, IEEELog10Operator>);
 	function.SetFallible();
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
@@ -1558,17 +1370,14 @@ struct IEEELogBaseOperator {
 
 ScalarFunctionSet LogFun::GetFunctions() {
 	ScalarFunctionSet funcs;
-	auto log10 = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<Log10Operator, IEEELog10Operator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction log10({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                     BindIEEEFloatingUnary<Log10Operator, IEEELog10Operator>);
 	// single-argument log is base-10: non-decreasing. the two-arg log(base, x) is only
 	// monotone in x for a fixed base, and decreasing for base < 1, so it is left unannotated.
 	log10.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	funcs.AddFunction(std::move(log10));
-	ScalarFunction log_base({}, LogicalType::DOUBLE, nullptr,
-	                        BindIEEEFloatingBinary<LogBaseOperator, IEEELogBaseOperator>);
-	log_base.GetSignature().AddParameter("b", LogicalType::DOUBLE).AddParameter("x", LogicalType::DOUBLE);
-	funcs.AddFunction(log_base);
+	funcs.AddFunction(ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                                 BindIEEEFloatingBinary<LogBaseOperator, IEEELogBaseOperator>));
 	funcs.SetFallible();
 	return funcs;
 }
@@ -1599,9 +1408,8 @@ struct IEEELog2Operator {
 } // namespace
 
 ScalarFunction Log2Fun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<Log2Operator, IEEELog2Operator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<Log2Operator, IEEELog2Operator>);
 	function.SetFallible();
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
@@ -1633,9 +1441,8 @@ struct DegreesOperator {
 } // namespace
 
 ScalarFunction DegreesFun::GetFunction() {
-	auto func = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, DegreesOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction func({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                    ScalarFunction::UnaryFunction<double, double, DegreesOperator>);
 	func.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return func;
 }
@@ -1653,9 +1460,8 @@ struct RadiansOperator {
 } // namespace
 
 ScalarFunction RadiansFun::GetFunction() {
-	auto func = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, RadiansOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction func({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                    ScalarFunction::UnaryFunction<double, double, RadiansOperator>);
 	func.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return func;
 }
@@ -1707,14 +1513,12 @@ static unique_ptr<BaseStatistics> PropagateIsNanStats(ClientContext &, FunctionS
 
 ScalarFunctionSet IsNanFun::GetFunctions() {
 	ScalarFunctionSet funcs;
-	auto float_function = NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<float, bool, IsNanOperator>),
-	    LogicalType::FLOAT);
+	ScalarFunction float_function({LogicalType::FLOAT}, LogicalType::BOOLEAN,
+	                              ScalarFunction::UnaryFunction<float, bool, IsNanOperator>);
 	float_function.SetStatisticsCallback(PropagateIsNanStats);
 	funcs.AddFunction(float_function);
-	auto double_function = NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<double, bool, IsNanOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction double_function({LogicalType::DOUBLE}, LogicalType::BOOLEAN,
+	                               ScalarFunction::UnaryFunction<double, bool, IsNanOperator>);
 	double_function.SetStatisticsCallback(PropagateIsNanStats);
 	funcs.AddFunction(double_function);
 	return funcs;
@@ -1734,12 +1538,10 @@ struct SignBitOperator {
 
 ScalarFunctionSet SignBitFun::GetFunctions() {
 	ScalarFunctionSet funcs;
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<float, bool, SignBitOperator>),
-	    LogicalType::FLOAT));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<double, bool, SignBitOperator>),
-	    LogicalType::DOUBLE));
+	funcs.AddFunction(ScalarFunction({LogicalType::FLOAT}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<float, bool, SignBitOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::DOUBLE}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<double, bool, SignBitOperator>));
 	return funcs;
 }
 
@@ -1768,21 +1570,16 @@ bool IsInfiniteOperator::Operation(timestamp_t input) {
 
 ScalarFunctionSet IsInfiniteFun::GetFunctions() {
 	ScalarFunctionSet funcs("isinf");
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<float, bool, IsInfiniteOperator>),
-	    LogicalType::FLOAT));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<double, bool, IsInfiniteOperator>),
-	    LogicalType::DOUBLE));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<date_t, bool, IsInfiniteOperator>),
-	    LogicalType::DATE));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<timestamp_t, bool, IsInfiniteOperator>),
-	    LogicalType::TIMESTAMP));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<timestamp_t, bool, IsInfiniteOperator>),
-	    LogicalType::TIMESTAMP_TZ));
+	funcs.AddFunction(ScalarFunction({LogicalType::FLOAT}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<float, bool, IsInfiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::DOUBLE}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<double, bool, IsInfiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<date_t, bool, IsInfiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<timestamp_t, bool, IsInfiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_TZ}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<timestamp_t, bool, IsInfiniteOperator>));
 	return funcs;
 }
 
@@ -1802,21 +1599,16 @@ struct IsFiniteOperator {
 
 ScalarFunctionSet IsFiniteFun::GetFunctions() {
 	ScalarFunctionSet funcs;
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<float, bool, IsFiniteOperator>),
-	    LogicalType::FLOAT));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<double, bool, IsFiniteOperator>),
-	    LogicalType::DOUBLE));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<date_t, bool, IsFiniteOperator>),
-	    LogicalType::DATE));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<timestamp_t, bool, IsFiniteOperator>),
-	    LogicalType::TIMESTAMP));
-	funcs.AddFunction(NameXArgument(
-	    ScalarFunction({}, LogicalType::BOOLEAN, ScalarFunction::UnaryFunction<timestamp_t, bool, IsFiniteOperator>),
-	    LogicalType::TIMESTAMP_TZ));
+	funcs.AddFunction(ScalarFunction({LogicalType::FLOAT}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<float, bool, IsFiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::DOUBLE}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<double, bool, IsFiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<date_t, bool, IsFiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<timestamp_t, bool, IsFiniteOperator>));
+	funcs.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_TZ}, LogicalType::BOOLEAN,
+	                                 ScalarFunction::UnaryFunction<timestamp_t, bool, IsFiniteOperator>));
 	return funcs;
 }
 
@@ -1848,10 +1640,8 @@ struct SinOperator {
 } // namespace
 
 ScalarFunction SinFun::GetFunction() {
-	auto function =
-	    NameXArgument(ScalarFunction({}, LogicalType::DOUBLE, nullptr,
-	                                 BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<SinOperator>, SinOperator>),
-	                  LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<SinOperator>, SinOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -1869,10 +1659,8 @@ struct CosOperator {
 } // namespace
 
 ScalarFunction CosFun::GetFunction() {
-	auto function =
-	    NameXArgument(ScalarFunction({}, LogicalType::DOUBLE, nullptr,
-	                                 BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<CosOperator>, CosOperator>),
-	                  LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<CosOperator>, CosOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -1890,10 +1678,8 @@ struct TanOperator {
 } // namespace
 
 ScalarFunction TanFun::GetFunction() {
-	auto function =
-	    NameXArgument(ScalarFunction({}, LogicalType::DOUBLE, nullptr,
-	                                 BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<TanOperator>, TanOperator>),
-	                  LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<TanOperator>, TanOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -1921,10 +1707,8 @@ struct IEEEASinOperator {
 } // namespace
 
 ScalarFunction AsinFun::GetFunction() {
-	auto function =
-	    NameXArgument(ScalarFunction({}, LogicalType::DOUBLE, nullptr,
-	                                 BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<ASinOperator>, IEEEASinOperator>),
-	                  LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<ASinOperator>, IEEEASinOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -1942,9 +1726,8 @@ struct ATanOperator {
 } // namespace
 
 ScalarFunction AtanFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, ATanOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                        ScalarFunction::UnaryFunction<double, double, ATanOperator>);
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
 }
@@ -1962,9 +1745,8 @@ struct ATan2 {
 } // namespace
 
 ScalarFunction Atan2Fun::GetFunction() {
-	ScalarFunction function({}, LogicalType::DOUBLE, ScalarFunction::BinaryFunction<double, double, double, ATan2>);
-	function.GetSignature().AddParameter("y", LogicalType::DOUBLE).AddParameter("x", LogicalType::DOUBLE);
-	return function;
+	return ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                      ScalarFunction::BinaryFunction<double, double, double, ATan2>);
 }
 
 //===--------------------------------------------------------------------===//
@@ -1990,9 +1772,8 @@ struct IEEEACos {
 } // namespace
 
 ScalarFunction AcosFun::GetFunction() {
-	auto function = NameXArgument(ScalarFunction({}, LogicalType::DOUBLE, nullptr,
-	                                             BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<ACos>, IEEEACos>),
-	                              LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<NoInfiniteDoubleWrapper<ACos>, IEEEACos>);
 	function.SetFallible();
 	return function;
 }
@@ -2010,9 +1791,8 @@ struct CoshOperator {
 } // namespace
 
 ScalarFunction CoshFun::GetFunction() {
-	return NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, CoshOperator>),
-	    LogicalType::DOUBLE);
+	return ScalarFunction({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                      ScalarFunction::UnaryFunction<double, double, CoshOperator>);
 }
 
 //===--------------------------------------------------------------------===//
@@ -2028,9 +1808,8 @@ struct AcoshOperator {
 } // namespace
 
 ScalarFunction AcoshFun::GetFunction() {
-	return NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, AcoshOperator>),
-	    LogicalType::DOUBLE);
+	return ScalarFunction({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                      ScalarFunction::UnaryFunction<double, double, AcoshOperator>);
 }
 
 //===--------------------------------------------------------------------===//
@@ -2046,9 +1825,8 @@ struct SinhOperator {
 } // namespace
 
 ScalarFunction SinhFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, SinhOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                        ScalarFunction::UnaryFunction<double, double, SinhOperator>);
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
 }
@@ -2066,9 +1844,8 @@ struct AsinhOperator {
 } // namespace
 
 ScalarFunction AsinhFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, AsinhOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                        ScalarFunction::UnaryFunction<double, double, AsinhOperator>);
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
 }
@@ -2086,9 +1863,8 @@ struct TanhOperator {
 } // namespace
 
 ScalarFunction TanhFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, TanhOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                        ScalarFunction::UnaryFunction<double, double, TanhOperator>);
 	function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return function;
 }
@@ -2122,9 +1898,8 @@ struct IEEEAtanhOperator {
 } // namespace
 
 ScalarFunction AtanhFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<AtanhOperator, IEEEAtanhOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<AtanhOperator, IEEEAtanhOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -2158,10 +1933,8 @@ struct CotOperator {
 };
 } // namespace
 ScalarFunction CotFun::GetFunction() {
-	auto function =
-	    NameXArgument(ScalarFunction({}, LogicalType::DOUBLE, nullptr,
-	                                 BindIEEEFloatingUnary<NoInfiniteNoZeroDoubleWrapper<CotOperator>, CotOperator>),
-	                  LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<NoInfiniteNoZeroDoubleWrapper<CotOperator>, CotOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -2189,9 +1962,8 @@ struct IEEEGammaOperator {
 } // namespace
 
 ScalarFunction GammaFun::GetFunction() {
-	auto func = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<GammaOperator, IEEEGammaOperator>),
-	    LogicalType::DOUBLE);
+	auto func = ScalarFunction({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                           BindIEEEFloatingUnary<GammaOperator, IEEEGammaOperator>);
 	func.SetFallible();
 	return func;
 }
@@ -2219,9 +1991,8 @@ struct IEEELogGammaOperator {
 } // namespace
 
 ScalarFunction LogGammaFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, nullptr, BindIEEEFloatingUnary<LogGammaOperator, IEEELogGammaOperator>),
-	    LogicalType::DOUBLE);
+	ScalarFunction function({LogicalType::DOUBLE}, LogicalType::DOUBLE, nullptr,
+	                        BindIEEEFloatingUnary<LogGammaOperator, IEEELogGammaOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -2248,9 +2019,8 @@ struct FactorialOperator {
 } // namespace
 
 ScalarFunction FactorialOperatorFun::GetFunction() {
-	auto function = NameXArgument(
-	    ScalarFunction({}, LogicalType::HUGEINT, ScalarFunction::UnaryFunction<int32_t, hugeint_t, FactorialOperator>),
-	    LogicalType::INTEGER);
+	ScalarFunction function({LogicalType::INTEGER}, LogicalType::HUGEINT,
+	                        ScalarFunction::UnaryFunction<int32_t, hugeint_t, FactorialOperator>);
 	function.SetFallible();
 	return function;
 }
@@ -2281,9 +2051,8 @@ struct EvenOperator {
 } // namespace
 
 ScalarFunction EvenFun::GetFunction() {
-	return NameXArgument(
-	    ScalarFunction({}, LogicalType::DOUBLE, ScalarFunction::UnaryFunction<double, double, EvenOperator>),
-	    LogicalType::DOUBLE);
+	return ScalarFunction({LogicalType::DOUBLE}, LogicalType::DOUBLE,
+	                      ScalarFunction::UnaryFunction<double, double, EvenOperator>);
 }
 
 //===--------------------------------------------------------------------===//
@@ -2328,15 +2097,12 @@ struct GreatestCommonDivisorOperator {
 
 ScalarFunctionSet GreatestCommonDivisorFun::GetFunctions() {
 	ScalarFunctionSet funcs;
-	ScalarFunction bigint_fun({}, LogicalType::BIGINT,
-	                          ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, GreatestCommonDivisorOperator>);
-	bigint_fun.GetSignature().AddParameter("x", LogicalType::BIGINT).AddParameter("y", LogicalType::BIGINT);
-	funcs.AddFunction(bigint_fun);
-	ScalarFunction hugeint_fun(
-	    {}, LogicalType::HUGEINT,
-	    ScalarFunction::BinaryFunction<hugeint_t, hugeint_t, hugeint_t, GreatestCommonDivisorOperator>);
-	hugeint_fun.GetSignature().AddParameter("x", LogicalType::HUGEINT).AddParameter("y", LogicalType::HUGEINT);
-	funcs.AddFunction(hugeint_fun);
+	funcs.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT, LogicalType::BIGINT}, LogicalType::BIGINT,
+	                   ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, GreatestCommonDivisorOperator>));
+	funcs.AddFunction(
+	    ScalarFunction({LogicalType::HUGEINT, LogicalType::HUGEINT}, LogicalType::HUGEINT,
+	                   ScalarFunction::BinaryFunction<hugeint_t, hugeint_t, hugeint_t, GreatestCommonDivisorOperator>));
 	// negating the minimum value overflows, so the failure must be reportable
 	funcs.SetFallible();
 	return funcs;
@@ -2366,15 +2132,12 @@ struct LeastCommonMultipleOperator {
 ScalarFunctionSet LeastCommonMultipleFun::GetFunctions() {
 	ScalarFunctionSet funcs;
 
-	ScalarFunction bigint_fun({}, LogicalType::BIGINT,
-	                          ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, LeastCommonMultipleOperator>);
-	bigint_fun.GetSignature().AddParameter("x", LogicalType::BIGINT).AddParameter("y", LogicalType::BIGINT);
-	funcs.AddFunction(bigint_fun);
-	ScalarFunction hugeint_fun(
-	    {}, LogicalType::HUGEINT,
-	    ScalarFunction::BinaryFunction<hugeint_t, hugeint_t, hugeint_t, LeastCommonMultipleOperator>);
-	hugeint_fun.GetSignature().AddParameter("x", LogicalType::HUGEINT).AddParameter("y", LogicalType::HUGEINT);
-	funcs.AddFunction(hugeint_fun);
+	funcs.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT, LogicalType::BIGINT}, LogicalType::BIGINT,
+	                   ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, LeastCommonMultipleOperator>));
+	funcs.AddFunction(
+	    ScalarFunction({LogicalType::HUGEINT, LogicalType::HUGEINT}, LogicalType::HUGEINT,
+	                   ScalarFunction::BinaryFunction<hugeint_t, hugeint_t, hugeint_t, LeastCommonMultipleOperator>));
 	funcs.SetFallible();
 	return funcs;
 }
@@ -2420,9 +2183,8 @@ struct BinomOperator {
 } // namespace
 
 ScalarFunction BinomFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::HUGEINT,
+	ScalarFunction function({LogicalType::INTEGER, LogicalType::INTEGER}, LogicalType::HUGEINT,
 	                        ScalarFunction::BinaryFunction<int32_t, int32_t, hugeint_t, BinomOperator>);
-	function.GetSignature().AddParameter("n", LogicalType::INTEGER).AddParameter("k", LogicalType::INTEGER);
 	function.SetFallible();
 	return function;
 }

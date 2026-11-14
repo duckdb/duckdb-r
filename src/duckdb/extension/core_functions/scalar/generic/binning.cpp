@@ -23,9 +23,6 @@ hugeint_t GetPreviousPowerOfTen(hugeint_t input) {
 enum class NiceRounding { CEILING, ROUND };
 
 hugeint_t RoundToNumber(hugeint_t input, hugeint_t num, NiceRounding rounding) {
-	if (num == 0) {
-		return input;
-	}
 	if (rounding == NiceRounding::ROUND) {
 		return (input + (num / 2)) / num * num;
 	} else {
@@ -133,10 +130,6 @@ struct EquiWidthBinsInteger {
 
 		const hugeint_t span = max - min;
 		hugeint_t step = span / Hugeint::Convert(bin_count);
-		if (step == 0) {
-			// the bin count exceeds the number of boundaries in the range - clamp to the smallest possible step
-			step = 1;
-		}
 		if (nice_rounding) {
 			// when doing nice rounding we try to make the max/step values nicer
 			hugeint_t new_step = MakeNumberNice(step, step, NiceRounding::ROUND);
@@ -193,13 +186,11 @@ struct EquiWidthBinsDouble {
 			// we allow for more bins when doing nice rounding since the bin count is approximate
 			bin_count *= 2;
 		}
+		if (step == 0) {
+			throw InternalException("step is 0!?");
+		}
 
 		const double round_multiplication = 10 / step_power_of_ten;
-		if (max - step >= max || (nice_rounding && !Value::IsFinite(round_multiplication))) {
-			// the span is too small to compute a step size - return only the max boundary
-			result.push_back(max);
-			return result;
-		}
 		for (double bin_boundary = max; bin_boundary > min; bin_boundary -= step) {
 			// because floating point addition adds inaccuracies, we add rounding at every step
 			double real_boundary = bin_boundary;
@@ -414,25 +405,26 @@ struct EquiWidthBinsTimestamp {
 	}
 };
 
-void EquiWidthResolveTypes(ResolveScalarFunctionTypesInput &input) {
+unique_ptr<FunctionData> BindEquiWidthFunction(BindScalarFunctionInput &input) {
 	auto &bound_function = input.GetBoundFunction();
-	auto &max_type = input.GetArgumentType(1);
+	auto &arguments = input.GetArguments();
 	// while internally the bins are computed over a unified type
 	// the equi_width_bins function returns the same type as the input MAX
 	LogicalType child_type;
-	switch (max_type.id()) {
+	switch (arguments[1]->GetReturnType().id()) {
 	case LogicalTypeId::UNKNOWN:
 	case LogicalTypeId::SQLNULL:
-		return;
+		return nullptr;
 	case LogicalTypeId::DECIMAL:
 		// for decimals we promote to double because
 		child_type = LogicalType::DOUBLE;
 		break;
 	default:
-		child_type = max_type;
+		child_type = arguments[1]->GetReturnType();
 		break;
 	}
 	bound_function.SetReturnType(LogicalType::LIST(child_type));
+	return nullptr;
 }
 
 template <class T, class OP>
@@ -493,25 +485,23 @@ unique_ptr<FunctionData> EquiWidthBinDeserialize(Deserializer &deserializer, Bou
 
 } // namespace
 
-static void AddEquiWidthBinFunction(ScalarFunctionSet &functions, const LogicalType &min_max_type,
-                                    scalar_function_t function) {
-	ScalarFunction fun({}, LogicalType::LIST(LogicalType::ANY), std::move(function));
-	fun.SetResolveTypesCallback(EquiWidthResolveTypes);
-	fun.GetSignature()
-	    .AddParameter("min", min_max_type)
-	    .AddParameter("max", min_max_type)
-	    .AddParameter("bin_count", LogicalType::BIGINT)
-	    .AddParameter("nice_rounding", LogicalType::BOOLEAN);
-	functions.AddFunction(std::move(fun));
-}
-
 ScalarFunctionSet EquiWidthBinsFun::GetFunctions() {
 	ScalarFunctionSet functions("equi_width_bins");
-	AddEquiWidthBinFunction(functions, LogicalType::BIGINT, EquiWidthBinFunction<int64_t, EquiWidthBinsInteger>);
-	AddEquiWidthBinFunction(functions, LogicalType::DOUBLE, EquiWidthBinFunction<double, EquiWidthBinsDouble>);
-	AddEquiWidthBinFunction(functions, LogicalType::TIMESTAMP,
-	                        EquiWidthBinFunction<timestamp_t, EquiWidthBinsTimestamp>);
-	AddEquiWidthBinFunction(functions, LogicalType::ANY_PARAMS(LogicalType::ANY, 150), UnsupportedEquiWidth);
+	functions.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::BOOLEAN},
+	                   LogicalType::LIST(LogicalType::ANY), EquiWidthBinFunction<int64_t, EquiWidthBinsInteger>,
+	                   BindEquiWidthFunction));
+	functions.AddFunction(ScalarFunction(
+	    {LogicalType::DOUBLE, LogicalType::DOUBLE, LogicalType::BIGINT, LogicalType::BOOLEAN},
+	    LogicalType::LIST(LogicalType::ANY), EquiWidthBinFunction<double, EquiWidthBinsDouble>, BindEquiWidthFunction));
+	functions.AddFunction(
+	    ScalarFunction({LogicalType::TIMESTAMP, LogicalType::TIMESTAMP, LogicalType::BIGINT, LogicalType::BOOLEAN},
+	                   LogicalType::LIST(LogicalType::ANY), EquiWidthBinFunction<timestamp_t, EquiWidthBinsTimestamp>,
+	                   BindEquiWidthFunction));
+	functions.AddFunction(
+	    ScalarFunction({LogicalType::ANY_PARAMS(LogicalType::ANY, 150), LogicalType::ANY_PARAMS(LogicalType::ANY, 150),
+	                    LogicalType::BIGINT, LogicalType::BOOLEAN},
+	                   LogicalType::LIST(LogicalType::ANY), UnsupportedEquiWidth, BindEquiWidthFunction));
 	functions.ApplyToFunctions([](ScalarFunction &function) {
 		function.SetSerializeCallback(EquiWidthBinSerialize);
 		function.SetDeserializeCallback(EquiWidthBinDeserialize);

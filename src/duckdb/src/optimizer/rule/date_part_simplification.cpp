@@ -96,8 +96,14 @@ unique_ptr<Expression> DatePartSimplificationRule::Apply(LogicalOperator &op, ve
 	vector<unique_ptr<Expression>> children;
 	children.push_back(std::move(date_part.GetChildrenMutable()[1]));
 
+	ErrorData error;
 	FunctionBinder binder(rewriter.context);
-	return binder.BindScalarFunction(Identifier::DefaultSchema(), new_function_name, std::move(children));
+	auto function =
+	    binder.BindScalarFunction(Identifier::DefaultSchema(), new_function_name, std::move(children), error, false);
+	if (!function) {
+		error.Throw();
+	}
+	return function;
 }
 
 } // namespace duckdb

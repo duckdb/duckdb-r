@@ -14,6 +14,7 @@
 #include "duckdb/execution/expression_executor.hpp"
 
 #include "duckdb/planner/expression/bound_function_expression.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
 #include "duckdb/planner/expression/bound_lambda_expression.hpp"
 
 namespace duckdb {

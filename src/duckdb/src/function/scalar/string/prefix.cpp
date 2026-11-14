@@ -62,11 +62,10 @@ struct PrefixOperator {
 } // namespace
 
 ScalarFunction PrefixFun::GetFunction() {
-	ScalarFunction function("prefix", {}, LogicalType::BOOLEAN,
+	ScalarFunction function("prefix",                                     // name of the function
+	                        {LogicalType::VARCHAR, LogicalType::VARCHAR}, // argument list
+	                        LogicalType::BOOLEAN,                         // return type
 	                        ScalarFunction::BinaryFunction<string_t, string_t, bool, PrefixOperator>);
-	function.GetSignature()
-	    .AddParameter("string", LogicalType::VARCHAR)
-	    .AddParameter("search_string", LogicalType::VARCHAR);
 	function.SetFilterPruneCallback(PrefixFilterPrune);
 	return function;
 }

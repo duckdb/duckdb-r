@@ -3,7 +3,6 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/vector_operations/unary_executor.hpp"
-#include "duckdb/function/scalar/string_common.hpp"
 #include "utf8proc.hpp"
 
 #include <string.h>
@@ -17,17 +16,20 @@ struct TrimOperator {
 		auto data = input.GetData();
 		auto size = input.GetSize();
 
-		int32_t codepoint;
+		utf8proc_int32_t codepoint;
+		auto str = reinterpret_cast<const utf8proc_uint8_t *>(data);
 
 		// Find the first character that is not left trimmed
 		idx_t begin = 0;
 		if (LTRIM) {
 			while (begin < size) {
-				auto bytes = DecodeCodepoint(data + begin, size - begin, codepoint);
+				auto bytes =
+				    utf8proc_iterate(str + begin, UnsafeNumericCast<utf8proc_ssize_t>(size - begin), &codepoint);
+				D_ASSERT(bytes > 0);
 				if (utf8proc_category(codepoint) != UTF8PROC_CATEGORY_ZS) {
 					break;
 				}
-				begin += bytes;
+				begin += UnsafeNumericCast<idx_t>(bytes);
 			}
 		}
 
@@ -36,7 +38,9 @@ struct TrimOperator {
 		if (RTRIM) {
 			end = begin;
 			for (auto next = begin; next < size;) {
-				next += DecodeCodepoint(data + next, size - next, codepoint);
+				auto bytes = utf8proc_iterate(str + next, UnsafeNumericCast<utf8proc_ssize_t>(size - next), &codepoint);
+				D_ASSERT(bytes > 0);
+				next += UnsafeNumericCast<idx_t>(bytes);
 				if (utf8proc_category(codepoint) != UTF8PROC_CATEGORY_ZS) {
 					end = next;
 				}
@@ -60,13 +64,14 @@ static void UnaryTrimFunction(DataChunk &args, ExpressionState &state, Vector &r
 	UnaryExecutor::ExecuteString<string_t, string_t, TrimOperator<LTRIM, RTRIM>>(args.data[0], result);
 }
 
-static void GetIgnoredCodepoints(string_t ignored, unordered_set<int32_t> &ignored_codepoints) {
-	auto dataptr = ignored.GetData();
+static void GetIgnoredCodepoints(string_t ignored, unordered_set<utf8proc_int32_t> &ignored_codepoints) {
+	auto dataptr = reinterpret_cast<const utf8proc_uint8_t *>(ignored.GetData());
 	auto size = ignored.GetSize();
 	idx_t pos = 0;
 	while (pos < size) {
-		int32_t codepoint;
-		pos += DecodeCodepoint(dataptr + pos, size - pos, codepoint);
+		utf8proc_int32_t codepoint;
+		pos += UnsafeNumericCast<idx_t>(
+		    utf8proc_iterate(dataptr + pos, UnsafeNumericCast<utf8proc_ssize_t>(size - pos), &codepoint));
 		ignored_codepoints.insert(codepoint);
 	}
 }
@@ -78,20 +83,22 @@ static void BinaryTrimFunction(DataChunk &input, ExpressionState &state, Vector 
 		    auto data = input.GetData();
 		    auto size = input.GetSize();
 
-		    unordered_set<int32_t> ignored_codepoints;
+		    unordered_set<utf8proc_int32_t> ignored_codepoints;
 		    GetIgnoredCodepoints(ignored, ignored_codepoints);
 
-		    int32_t codepoint;
+		    utf8proc_int32_t codepoint;
+		    auto str = reinterpret_cast<const utf8proc_uint8_t *>(data);
 
 		    // Find the first character that is not left trimmed
 		    idx_t begin = 0;
 		    if (LTRIM) {
 			    while (begin < size) {
-				    auto bytes = DecodeCodepoint(data + begin, size - begin, codepoint);
+				    auto bytes =
+				        utf8proc_iterate(str + begin, UnsafeNumericCast<utf8proc_ssize_t>(size - begin), &codepoint);
 				    if (ignored_codepoints.find(codepoint) == ignored_codepoints.end()) {
 					    break;
 				    }
-				    begin += bytes;
+				    begin += UnsafeNumericCast<idx_t>(bytes);
 			    }
 		    }
 
@@ -100,7 +107,10 @@ static void BinaryTrimFunction(DataChunk &input, ExpressionState &state, Vector 
 		    if (RTRIM) {
 			    end = begin;
 			    for (auto next = begin; next < size;) {
-				    next += DecodeCodepoint(data + next, size - next, codepoint);
+				    auto bytes =
+				        utf8proc_iterate(str + next, UnsafeNumericCast<utf8proc_ssize_t>(size - next), &codepoint);
+				    D_ASSERT(bytes > 0);
+				    next += UnsafeNumericCast<idx_t>(bytes);
 				    if (ignored_codepoints.find(codepoint) == ignored_codepoints.end()) {
 					    end = next;
 				    }
@@ -121,37 +131,27 @@ static void BinaryTrimFunction(DataChunk &input, ExpressionState &state, Vector 
 
 ScalarFunctionSet TrimFun::GetFunctions() {
 	ScalarFunctionSet trim;
-	ScalarFunction unary({}, LogicalType::VARCHAR, UnaryTrimFunction<true, true>);
-	unary.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	trim.AddFunction(unary);
+	trim.AddFunction(ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, UnaryTrimFunction<true, true>));
 
-	ScalarFunction binary({}, LogicalType::VARCHAR, BinaryTrimFunction<true, true>);
-	binary.GetSignature().AddParameter("string", LogicalType::VARCHAR).AddParameter("characters", LogicalType::VARCHAR);
-	trim.AddFunction(binary);
+	trim.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                                BinaryTrimFunction<true, true>));
 	return trim;
 }
 
 ScalarFunctionSet LtrimFun::GetFunctions() {
 	ScalarFunctionSet ltrim;
-	ScalarFunction unary({}, LogicalType::VARCHAR, UnaryTrimFunction<true, false>);
-	unary.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	ltrim.AddFunction(unary);
-
-	ScalarFunction binary({}, LogicalType::VARCHAR, BinaryTrimFunction<true, false>);
-	binary.GetSignature().AddParameter("string", LogicalType::VARCHAR).AddParameter("characters", LogicalType::VARCHAR);
-	ltrim.AddFunction(binary);
+	ltrim.AddFunction(ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, UnaryTrimFunction<true, false>));
+	ltrim.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                                 BinaryTrimFunction<true, false>));
 	return ltrim;
 }
 
 ScalarFunctionSet RtrimFun::GetFunctions() {
 	ScalarFunctionSet rtrim;
-	ScalarFunction unary({}, LogicalType::VARCHAR, UnaryTrimFunction<false, true>);
-	unary.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	rtrim.AddFunction(unary);
+	rtrim.AddFunction(ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, UnaryTrimFunction<false, true>));
 
-	ScalarFunction binary({}, LogicalType::VARCHAR, BinaryTrimFunction<false, true>);
-	binary.GetSignature().AddParameter("string", LogicalType::VARCHAR).AddParameter("characters", LogicalType::VARCHAR);
-	rtrim.AddFunction(binary);
+	rtrim.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                                 BinaryTrimFunction<false, true>));
 	return rtrim;
 }
 

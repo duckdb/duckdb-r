@@ -46,10 +46,6 @@ public:
 	bool SupportsFlush() const;
 	void ThreadFlush(bool allocator_background_threads, idx_t threshold, idx_t thread_count) const;
 	void FlushAll(optional_idx extra_memory = optional_idx()) const;
-	//! Estimated memory freed but still held by the allocator
-	idx_t GetEstimatedUnflushedMemory() const;
-	//! Flush if at least threshold bytes were freed since the last reclamation check, returns whether a flush happened
-	bool TryFlushDeallocated(idx_t threshold, idx_t memory_limit, idx_t used_memory) const;
 
 private:
 	bool IsActive() const;
@@ -72,8 +68,6 @@ private:
 	const hugeint_t uuid;
 	//! Fallback allocator
 	Allocator &allocator;
-	//! Estimated memory freed but still held by the allocator
-	mutable atomic<idx_t> estimated_unflushed_memory {0};
 
 	//! Block size (power of two)
 	const idx_t block_size;

@@ -38,6 +38,7 @@ bool ColumnDataConsumer::AssignChunk(ColumnDataConsumerScanState &state) {
 	lock_guard<mutex> guard(lock);
 	if (current_chunk_index == chunk_count) {
 		// All chunks have been assigned
+		state.current_chunk_state.handles.clear();
 		state.chunk_index = DConstants::INVALID_INDEX;
 		return false;
 	}

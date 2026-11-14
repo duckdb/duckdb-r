@@ -33,9 +33,7 @@ WindowAggregatorGlobalState::WindowAggregatorGlobalState(ClientContext &client, 
       locals(0), finalized(0) {
 	if (aggr.filter) {
 		// 	Start with all invalid and set the ones that pass
-		filter_mask_data = BufferAllocator::Get(client).Allocate(group_count * sizeof(bool));
-		memset(filter_mask_data.get(), 0, filter_mask_data.GetSize());
-		filter_mask.Initialize(reinterpret_cast<bool *>(filter_mask_data.get()), group_count);
+		filter_mask.Initialize(group_count, false);
 	} else {
 		filter_mask.InitializeEmpty(group_count);
 	}

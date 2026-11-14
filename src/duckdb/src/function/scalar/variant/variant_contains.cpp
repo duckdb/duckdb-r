@@ -138,10 +138,8 @@ static void VariantContainsFunction(DataChunk &input, ExpressionState &state, Ve
 }
 
 ScalarFunctionSet VariantContainsFun::GetFunctions() {
-	ScalarFunction function("variant_contains", {}, LogicalType::BOOLEAN, VariantContainsFunction);
-	function.GetSignature()
-	    .AddParameter("variant_haystack", LogicalType::VARIANT())
-	    .AddParameter("variant_needle", LogicalType::VARIANT());
+	ScalarFunction function("variant_contains", {LogicalType::VARIANT(), LogicalType::VARIANT()}, LogicalType::BOOLEAN,
+	                        VariantContainsFunction);
 	return ScalarFunctionSet(function);
 }
 

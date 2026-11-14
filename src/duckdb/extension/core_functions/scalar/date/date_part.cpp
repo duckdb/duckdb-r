@@ -1,4 +1,3 @@
-#include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/common/vector/struct_vector.hpp"
 #include "core_functions/scalar/date_functions.hpp"
 #include "duckdb/common/case_insensitive_map.hpp"
@@ -440,19 +439,7 @@ struct DatePart {
 
 		template <class T>
 		static unique_ptr<BaseStatistics> PropagateStatistics(ClientContext &context, FunctionStatisticsInput &input) {
-			auto result = PropagateDatePartStatistics<T, ISOYearOperator>(input.child_stats);
-			if (!result) {
-				return nullptr;
-			}
-			const auto min_year = NumericStats::GetMin<int64_t>(*result);
-			const auto max_year = NumericStats::GetMax<int64_t>(*result);
-			if (min_year > 0) {
-				return PropagateDatePartStatistics<T, YearWeekOperator>(input.child_stats);
-			}
-			// the week is subtracted for years before the common era, so only bound the result by the ISO year
-			NumericStats::SetMin(*result, Value::BIGINT(min_year * 100 - 53));
-			NumericStats::SetMax(*result, Value::BIGINT(max_year * 100 + 53));
-			return result;
+			return PropagateDatePartStatistics<T, YearWeekOperator>(input.child_stats);
 		}
 	};
 
@@ -639,14 +626,11 @@ struct DatePart {
 
 		template <typename TA, typename TB, typename TR>
 		static TR Operation(TA interval, TB timetz) {
-			auto offset = interval.micros / Interval::MICROS_PER_SEC;
-			if (offset < dtime_tz_t::MIN_OFFSET || offset > dtime_tz_t::MAX_OFFSET) {
-				throw OutOfRangeException("Timezone offset out of range: %s", Interval::ToString(interval));
-			}
 			auto time = Time::NormalizeTimeTZ(timetz);
 			date_t date(0);
 			time = Interval::Add(time, interval, date);
-			return TR(time, UnsafeNumericCast<int32_t>(offset));
+			auto offset = UnsafeNumericCast<int32_t>(interval.micros / Interval::MICROS_PER_SEC);
+			return TR(time, offset);
 		}
 
 		template <typename TA, typename TB, typename TR>
@@ -1937,7 +1921,6 @@ int64_t ExtractElement(DatePartSpecifier type, T element) {
 	default:
 		throw NotImplementedException("Specifier type not implemented for DATEPART");
 	}
-	throw NotImplementedException("Specifier type not implemented for DATEPART");
 }
 
 template <typename T>
@@ -1950,7 +1933,6 @@ double ExtractDoubleElement(DatePartSpecifier type, T element) {
 	default:
 		throw NotImplementedException("Specifier type not implemented for DATEPART");
 	}
-	throw NotImplementedException("Specifier type not implemented for DATEPART");
 }
 
 template <typename T>
@@ -2058,7 +2040,7 @@ static scalar_function_t DatePartUnaryCallback(DatePartSpecifier part_code, Logi
 	case DatePartSpecifier::INVALID:
 		throw NotImplementedException("Specifier type not implemented for DATEPART");
 	}
-	throw InternalException("Unrecognized DatePartSpecifier in DatePartUnaryCallback");
+	throw NotImplementedException("Specifier type not implemented for DATEPART");
 }
 
 template <typename OP>
@@ -2138,7 +2120,7 @@ static function_statistics_t DatePartUnaryStatistics(DatePartSpecifier part_code
 	case DatePartSpecifier::INVALID:
 		throw NotImplementedException("Specifier type not implemented for DATEPART");
 	}
-	throw InternalException("Unrecognized DatePartSpecifier in DatePartUnaryStatistics");
+	throw NotImplementedException("Specifier type not implemented for DATEPART");
 }
 
 unique_ptr<FunctionData> DatePartBind(BindScalarFunctionInput &input) {
@@ -2173,15 +2155,11 @@ ScalarFunctionSet GetGenericDatePartFunction(scalar_function_t date_func, scalar
                                              scalar_function_t interval_func, function_statistics_t date_stats,
                                              function_statistics_t ts_stats) {
 	ScalarFunctionSet operator_set;
-	ScalarFunction date_fun({}, LogicalType::BIGINT, std::move(date_func), nullptr, date_stats, DATE_CACHE);
-	date_fun.GetSignature().AddParameter("ts", LogicalType::DATE);
-	operator_set.AddFunction(date_fun);
-	ScalarFunction ts_fun({}, LogicalType::BIGINT, std::move(ts_func), nullptr, ts_stats, DATE_CACHE);
-	ts_fun.GetSignature().AddParameter("ts", LogicalType::TIMESTAMP);
-	operator_set.AddFunction(ts_fun);
-	ScalarFunction interval_fun({}, LogicalType::BIGINT, std::move(interval_func));
-	interval_fun.GetSignature().AddParameter("ts", LogicalType::INTERVAL);
-	operator_set.AddFunction(interval_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::BIGINT, std::move(date_func), nullptr,
+	                                        date_stats, DATE_CACHE));
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::BIGINT, std::move(ts_func), nullptr,
+	                                        ts_stats, DATE_CACHE));
+	operator_set.AddFunction(ScalarFunction({LogicalType::INTERVAL}, LogicalType::BIGINT, std::move(interval_func)));
 	operator_set.SetFallible();
 	return operator_set;
 }
@@ -2199,40 +2177,31 @@ ScalarFunctionSet GetGenericTimePartFunction(const LogicalType &result_type, sca
                                              scalar_function_t time_func, scalar_function_t time_ns_func,
                                              scalar_function_t timetz_func, function_statistics_t date_stats,
                                              function_statistics_t ts_stats, function_statistics_t time_stats,
-                                             function_statistics_t time_ns_stats, function_statistics_t timetz_stats,
-                                             const Identifier &param_name = "ts") {
+                                             function_statistics_t time_ns_stats, function_statistics_t timetz_stats) {
 	ScalarFunctionSet operator_set;
-	ScalarFunction date_fun({}, result_type, std::move(date_func), nullptr, date_stats);
-	date_fun.GetSignature().AddParameter(param_name, LogicalType::DATE);
-	operator_set.AddFunction(date_fun);
-	ScalarFunction ts_fun({}, result_type, std::move(ts_func), nullptr, ts_stats);
-	ts_fun.GetSignature().AddParameter(param_name, LogicalType::TIMESTAMP);
-	operator_set.AddFunction(ts_fun);
-	ScalarFunction interval_fun({}, result_type, std::move(interval_func));
-	interval_fun.GetSignature().AddParameter(param_name, LogicalType::INTERVAL);
-	operator_set.AddFunction(interval_fun);
-	ScalarFunction time_fun({}, result_type, std::move(time_func), nullptr, time_stats);
-	time_fun.GetSignature().AddParameter(param_name, LogicalType::TIME);
-	operator_set.AddFunction(time_fun);
-	ScalarFunction time_ns_fun({}, result_type, std::move(time_ns_func), nullptr, time_ns_stats);
-	time_ns_fun.GetSignature().AddParameter(param_name, LogicalType::TIME_NS);
-	operator_set.AddFunction(time_ns_fun);
-	ScalarFunction timetz_fun({}, result_type, std::move(timetz_func), nullptr, timetz_stats);
-	timetz_fun.GetSignature().AddParameter(param_name, LogicalType::TIME_TZ);
-	operator_set.AddFunction(timetz_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::DATE}, result_type, std::move(date_func), nullptr, date_stats));
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIMESTAMP}, result_type, std::move(ts_func), nullptr, ts_stats));
+	operator_set.AddFunction(ScalarFunction({LogicalType::INTERVAL}, result_type, std::move(interval_func)));
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIME}, result_type, std::move(time_func), nullptr, time_stats));
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIME_NS}, result_type, std::move(time_ns_func), nullptr, time_ns_stats));
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIME_TZ}, result_type, std::move(timetz_func), nullptr, timetz_stats));
 	return operator_set;
 }
 
 template <class OP, class TR = int64_t>
-ScalarFunctionSet GetTimePartFunction(const LogicalType &result_type = LogicalType::BIGINT,
-                                      const Identifier &param_name = "ts") {
+ScalarFunctionSet GetTimePartFunction(const LogicalType &result_type = LogicalType::BIGINT) {
 	return GetGenericTimePartFunction(
 	    result_type, DatePart::UnaryFunction<date_t, TR, OP>, DatePart::UnaryFunction<timestamp_t, TR, OP>,
 	    ScalarFunction::UnaryFunction<interval_t, TR, OP>, ScalarFunction::UnaryFunction<dtime_t, TR, OP>,
 	    ScalarFunction::UnaryFunction<dtime_ns_t, TR, OP>, ScalarFunction::UnaryFunction<dtime_tz_t, TR, OP>,
 	    OP::template PropagateStatistics<date_t>, OP::template PropagateStatistics<timestamp_t>,
 	    OP::template PropagateStatistics<dtime_t>, OP::template PropagateStatistics<dtime_ns_t>,
-	    OP::template PropagateStatistics<dtime_tz_t>, param_name);
+	    OP::template PropagateStatistics<dtime_tz_t>);
 }
 
 struct LastDayOperator {
@@ -2427,8 +2396,8 @@ struct StructDatePart {
 	static ScalarFunction GetFunction(const LogicalType &temporal_type) {
 		auto part_type = LogicalType::LIST(LogicalType::VARCHAR);
 		auto result_type = LogicalType::STRUCT({});
-		ScalarFunction result({}, result_type, Function<INPUT_TYPE>, Bind);
-		result.GetSignature().AddParameter("part_list", part_type).AddParameter("ts", temporal_type);
+		ScalarFunction result({{"part_list", part_type}, {"ts", temporal_type}}, result_type, Function<INPUT_TYPE>,
+		                      Bind);
 		result.SetSerializeCallback(SerializeFunction);
 		result.SetDeserializeCallback(DeserializeFunction);
 		return result;
@@ -2442,20 +2411,11 @@ ScalarFunctionSet GetCachedDatepartFunction() {
 	    OP::template PropagateStatistics<timestamp_t>);
 }
 
-void SetNonDecreasingExceptInterval(ScalarFunctionSet &functions) {
-	functions.ApplyToFunctions([](ScalarFunction &function) {
-		// Interval components need not preserve the normalized interval ordering.
-		if (function.GetSignature().GetParameter(0).GetType() != LogicalType::INTERVAL) {
-			function.SetUnaryArgProperties(ArgProperties().NonDecreasing());
-		}
-	});
-}
-
 } // namespace
 
 ScalarFunctionSet YearFun::GetFunctions() {
 	auto set = GetCachedDatepartFunction<DatePart::YearOperator>();
-	SetNonDecreasingExceptInterval(set);
+	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return set;
 }
 
@@ -2469,19 +2429,19 @@ ScalarFunctionSet DayFun::GetFunctions() {
 
 ScalarFunctionSet DecadeFun::GetFunctions() {
 	auto set = GetDatePartFunction<DatePart::DecadeOperator>();
-	SetNonDecreasingExceptInterval(set);
+	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return set;
 }
 
 ScalarFunctionSet CenturyFun::GetFunctions() {
 	auto set = GetDatePartFunction<DatePart::CenturyOperator>();
-	SetNonDecreasingExceptInterval(set);
+	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return set;
 }
 
 ScalarFunctionSet MillenniumFun::GetFunctions() {
 	auto set = GetDatePartFunction<DatePart::MillenniumOperator>();
-	SetNonDecreasingExceptInterval(set);
+	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return set;
 }
 
@@ -2523,9 +2483,8 @@ ScalarFunctionSet TimezoneFun::GetFunctions() {
 	auto operator_set = GetTimePartFunction<DatePart::TimezoneOperator>();
 
 	//	PG also defines timezone(INTERVAL, TIME_TZ) => TIME_TZ
-	ScalarFunction function({}, LogicalType::TIME_TZ,
+	ScalarFunction function({LogicalType::INTERVAL, LogicalType::TIME_TZ}, LogicalType::TIME_TZ,
 	                        DatePart::TimezoneOperator::BinaryFunction<interval_t, dtime_tz_t, dtime_tz_t>);
-	function.GetSignature().AddParameter("offset", LogicalType::INTERVAL).AddParameter("time_tz", LogicalType::TIME_TZ);
 
 	operator_set.AddFunction(function);
 
@@ -2543,28 +2502,23 @@ ScalarFunctionSet TimezoneMinuteFun::GetFunctions() {
 }
 
 ScalarFunctionSet EpochFun::GetFunctions() {
-	auto set = GetTimePartFunction<DatePart::EpochOperator, double>(LogicalType::DOUBLE, "temporal");
-	SetNonDecreasingExceptInterval(set);
+	auto set = GetTimePartFunction<DatePart::EpochOperator, double>(LogicalType::DOUBLE);
+	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return set;
 }
 
 ScalarFunctionSet EpochNsFun::GetFunctions() {
 	using OP = DatePart::EpochNanosecondsOperator;
-	auto operator_set = GetTimePartFunction<OP>(LogicalType::BIGINT, "temporal");
+	auto operator_set = GetTimePartFunction<OP>();
 
 	//	TIMESTAMP WITH TIME ZONE has the same representation as TIMESTAMP so no need to defer to ICU
 	auto tstz_func = DatePart::UnaryFunction<timestamp_t, int64_t, OP>;
 	auto tstz_stats = OP::template PropagateStatistics<timestamp_t>;
-	ScalarFunction tstz_fun({}, LogicalType::BIGINT, tstz_func, nullptr, tstz_stats);
-	tstz_fun.GetSignature().AddParameter("temporal", LogicalType::TIMESTAMP_TZ);
-	operator_set.AddFunction(tstz_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIMESTAMP_TZ}, LogicalType::BIGINT, tstz_func, nullptr, tstz_stats));
 	auto tsns_func = DatePart::UnaryFunction<timestamp_ns_t, int64_t, OP>;
-	ScalarFunction tsns_fun({}, LogicalType::BIGINT, tsns_func);
-	tsns_fun.GetSignature().AddParameter("temporal", LogicalType::TIMESTAMP_NS);
-	operator_set.AddFunction(tsns_fun);
-	ScalarFunction tstz_ns_fun({}, LogicalType::BIGINT, tsns_func);
-	tstz_ns_fun.GetSignature().AddParameter("temporal", LogicalType::TIMESTAMP_TZ_NS);
-	operator_set.AddFunction(tstz_ns_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_NS}, LogicalType::BIGINT, tsns_func));
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_TZ_NS}, LogicalType::BIGINT, tsns_func));
 	operator_set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	// these overflow at the representable extremes, so the failure must be reportable
 	operator_set.SetFallible();
@@ -2573,14 +2527,13 @@ ScalarFunctionSet EpochNsFun::GetFunctions() {
 
 ScalarFunctionSet EpochUsFun::GetFunctions() {
 	using OP = DatePart::EpochMicrosecondsOperator;
-	auto operator_set = GetTimePartFunction<OP>(LogicalType::BIGINT, "temporal");
+	auto operator_set = GetTimePartFunction<OP>();
 
 	//	TIMESTAMP WITH TIME ZONE has the same representation as TIMESTAMP so no need to defer to ICU
 	auto tstz_func = DatePart::UnaryFunction<timestamp_t, int64_t, OP>;
 	auto tstz_stats = OP::template PropagateStatistics<timestamp_t>;
-	ScalarFunction tstz_fun({}, LogicalType::BIGINT, tstz_func, nullptr, tstz_stats);
-	tstz_fun.GetSignature().AddParameter("temporal", LogicalType::TIMESTAMP_TZ);
-	operator_set.AddFunction(tstz_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIMESTAMP_TZ}, LogicalType::BIGINT, tstz_func, nullptr, tstz_stats));
 	operator_set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	// these overflow at the representable extremes, so the failure must be reportable
 	operator_set.SetFallible();
@@ -2589,21 +2542,19 @@ ScalarFunctionSet EpochUsFun::GetFunctions() {
 
 ScalarFunctionSet EpochMsFun::GetFunctions() {
 	using OP = DatePart::EpochMillisOperator;
-	auto operator_set = GetTimePartFunction<OP>(LogicalType::BIGINT, "temporal");
+	auto operator_set = GetTimePartFunction<OP>();
 
 	//	TIMESTAMP WITH TIME ZONE has the same representation as TIMESTAMP so no need to defer to ICU
 	auto tstz_func = DatePart::UnaryFunction<timestamp_t, int64_t, OP>;
 	auto tstz_stats = OP::template PropagateStatistics<timestamp_t>;
-	ScalarFunction tstz_fun({}, LogicalType::BIGINT, tstz_func, nullptr, tstz_stats);
-	tstz_fun.GetSignature().AddParameter("temporal", LogicalType::TIMESTAMP_TZ);
-	operator_set.AddFunction(tstz_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::TIMESTAMP_TZ}, LogicalType::BIGINT, tstz_func, nullptr, tstz_stats));
 
 	//	Deprecated inverse BIGINT => TIMESTAMP
-	ScalarFunction inverse_fun({}, LogicalType::TIMESTAMP, DatePart::EpochMillisOperator::Inverse);
-	inverse_fun.GetSignature().AddParameter("temporal", LogicalType::BIGINT);
-	operator_set.AddFunction(inverse_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT}, LogicalType::TIMESTAMP, DatePart::EpochMillisOperator::Inverse));
 
-	SetNonDecreasingExceptInterval(operator_set);
+	operator_set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	// these overflow at the representable extremes, so the failure must be reportable
 	operator_set.SetFallible();
 	return operator_set;
@@ -2611,9 +2562,8 @@ ScalarFunctionSet EpochMsFun::GetFunctions() {
 
 ScalarFunctionSet MakeTimestampMsFun::GetFunctions() {
 	ScalarFunctionSet operator_set("make_timestamp_ms");
-	ScalarFunction inverse_fun({}, LogicalType::TIMESTAMP, DatePart::EpochMillisOperator::Inverse);
-	inverse_fun.GetSignature().AddParameter("nanos", LogicalType::BIGINT);
-	operator_set.AddFunction(inverse_fun);
+	operator_set.AddFunction(
+	    ScalarFunction({LogicalType::BIGINT}, LogicalType::TIMESTAMP, DatePart::EpochMillisOperator::Inverse));
 	operator_set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	// these overflow at the representable extremes, so the failure must be reportable
 	operator_set.SetFallible();
@@ -2624,23 +2574,17 @@ ScalarFunctionSet NanosecondsFun::GetFunctions() {
 	using OP = DatePart::NanosecondsOperator;
 	using TR = int64_t;
 	const LogicalType &result_type = LogicalType::BIGINT;
-	auto operator_set = GetTimePartFunction<OP, TR>(result_type, "tsns");
+	auto operator_set = GetTimePartFunction<OP, TR>();
 
 	auto ns_func = DatePart::UnaryFunction<timestamp_ns_t, TR, OP>;
 	auto ns_stats = OP::template PropagateStatistics<timestamp_ns_t>;
-	ScalarFunction ns_fun({}, result_type, ns_func, nullptr, ns_stats);
-	ns_fun.GetSignature().AddParameter("tsns", LogicalType::TIMESTAMP_NS);
-	operator_set.AddFunction(ns_fun);
-	ScalarFunction tz_ns_fun({}, result_type, ns_func, nullptr, ns_stats);
-	tz_ns_fun.GetSignature().AddParameter("tsns", LogicalType::TIMESTAMP_TZ_NS);
-	operator_set.AddFunction(tz_ns_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_NS}, result_type, ns_func, nullptr, ns_stats));
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_TZ_NS}, result_type, ns_func, nullptr, ns_stats));
 
 	//	TIMESTAMP WITH TIME ZONE has the same representation as TIMESTAMP so no need to defer to ICU
 	auto tstz_func = DatePart::UnaryFunction<timestamp_t, TR, OP>;
 	auto tstz_stats = OP::template PropagateStatistics<timestamp_t>;
-	ScalarFunction tstz_fun({}, result_type, tstz_func, nullptr, tstz_stats);
-	tstz_fun.GetSignature().AddParameter("tsns", LogicalType::TIMESTAMP_TZ);
-	operator_set.AddFunction(tstz_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP_TZ}, result_type, tstz_func, nullptr, tstz_stats));
 
 	return operator_set;
 }
@@ -2666,8 +2610,9 @@ ScalarFunctionSet HoursFun::GetFunctions() {
 }
 
 ScalarFunctionSet YearWeekFun::GetFunctions() {
-	// Not monotone on the full date domain: see YearWeekOperator::YearWeekFromParts.
-	return GetDatePartFunction<DatePart::YearWeekOperator>();
+	auto set = GetDatePartFunction<DatePart::YearWeekOperator>();
+	set.SetUnaryArgProperties(ArgProperties().NonDecreasing());
+	return set;
 }
 
 ScalarFunctionSet DayOfMonthFun::GetFunctions() {
@@ -2684,36 +2629,29 @@ ScalarFunctionSet WeekOfYearFun::GetFunctions() {
 
 ScalarFunctionSet LastDayFun::GetFunctions() {
 	ScalarFunctionSet last_day;
-	ScalarFunction date_fun({}, LogicalType::DATE, DatePart::UnaryFunction<date_t, date_t, LastDayOperator>);
-	date_fun.GetSignature().AddParameter("ts", LogicalType::DATE);
-	last_day.AddFunction(date_fun);
-	ScalarFunction ts_fun({}, LogicalType::DATE, DatePart::UnaryFunction<timestamp_t, date_t, LastDayOperator>);
-	ts_fun.GetSignature().AddParameter("ts", LogicalType::TIMESTAMP);
-	last_day.AddFunction(ts_fun);
+	last_day.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::DATE,
+	                                    DatePart::UnaryFunction<date_t, date_t, LastDayOperator>));
+	last_day.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::DATE,
+	                                    DatePart::UnaryFunction<timestamp_t, date_t, LastDayOperator>));
 	last_day.SetFallible();
-	last_day.SetUnaryArgProperties(ArgProperties().NonDecreasing());
 	return last_day;
 }
 
 ScalarFunctionSet MonthNameFun::GetFunctions() {
 	ScalarFunctionSet monthname;
-	ScalarFunction date_fun({}, LogicalType::VARCHAR, DatePart::UnaryFunction<date_t, string_t, MonthNameOperator>);
-	date_fun.GetSignature().AddParameter("ts", LogicalType::DATE);
-	monthname.AddFunction(date_fun);
-	ScalarFunction ts_fun({}, LogicalType::VARCHAR, DatePart::UnaryFunction<timestamp_t, string_t, MonthNameOperator>);
-	ts_fun.GetSignature().AddParameter("ts", LogicalType::TIMESTAMP);
-	monthname.AddFunction(ts_fun);
+	monthname.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::VARCHAR,
+	                                     DatePart::UnaryFunction<date_t, string_t, MonthNameOperator>));
+	monthname.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::VARCHAR,
+	                                     DatePart::UnaryFunction<timestamp_t, string_t, MonthNameOperator>));
 	return monthname;
 }
 
 ScalarFunctionSet DayNameFun::GetFunctions() {
 	ScalarFunctionSet dayname;
-	ScalarFunction date_fun({}, LogicalType::VARCHAR, DatePart::UnaryFunction<date_t, string_t, DayNameOperator>);
-	date_fun.GetSignature().AddParameter("ts", LogicalType::DATE);
-	dayname.AddFunction(date_fun);
-	ScalarFunction ts_fun({}, LogicalType::VARCHAR, DatePart::UnaryFunction<timestamp_t, string_t, DayNameOperator>);
-	ts_fun.GetSignature().AddParameter("ts", LogicalType::TIMESTAMP);
-	dayname.AddFunction(ts_fun);
+	dayname.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::VARCHAR,
+	                                   DatePart::UnaryFunction<date_t, string_t, DayNameOperator>));
+	dayname.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::VARCHAR,
+	                                   DatePart::UnaryFunction<timestamp_t, string_t, DayNameOperator>));
 	return dayname;
 }
 
@@ -2723,52 +2661,28 @@ ScalarFunctionSet JulianDayFun::GetFunctions() {
 	ScalarFunctionSet operator_set;
 	auto date_func = DatePart::UnaryFunction<date_t, double, OP>;
 	auto date_stats = OP::template PropagateStatistics<date_t>;
-	ScalarFunction date_fun({}, LogicalType::DOUBLE, date_func, nullptr, date_stats);
-	date_fun.GetSignature().AddParameter("ts", LogicalType::DATE);
-	operator_set.AddFunction(date_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::DOUBLE, date_func, nullptr, date_stats));
 	auto ts_func = DatePart::UnaryFunction<timestamp_t, double, OP>;
 	auto ts_stats = OP::template PropagateStatistics<timestamp_t>;
-	ScalarFunction ts_fun({}, LogicalType::DOUBLE, ts_func, nullptr, ts_stats);
-	ts_fun.GetSignature().AddParameter("ts", LogicalType::TIMESTAMP);
-	operator_set.AddFunction(ts_fun);
+	operator_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::DOUBLE, ts_func, nullptr, ts_stats));
 
 	return operator_set;
 }
 
-//! Binding date_part with a constant part replaces it with the unary part function (year, month, ...), so the bound
-//! call has one argument and must be rendered under the replacement's own name
-static unique_ptr<ParsedExpression> DatePartUnbind(FunctionUnbindInput &input) {
-	auto &function = input.expression.Function();
-	if (input.children.size() == 1) {
-		return make_uniq<FunctionExpression>(function.GetQualifiedName(), std::move(input.children));
-	}
-	if (input.children.size() != 2) {
-		return nullptr;
-	}
-	return make_uniq<FunctionExpression>(function.GetDefinition()->GetQualifiedName(), std::move(input.children));
-}
-
-// Names the "part,ts" pair shared by date_part's per-type overloads.
-static ScalarFunction NamePartTsArguments(ScalarFunction fun, const LogicalType &type) {
-	fun.GetSignature().AddParameter("part", LogicalType::VARCHAR).AddParameter("ts", type);
-	fun.SetUnbindCallback(DatePartUnbind);
-	return fun;
-}
-
 ScalarFunctionSet DatePartFun::GetFunctions() {
 	ScalarFunctionSet date_part;
-	date_part.AddFunction(NamePartTsArguments(
-	    ScalarFunction({}, LogicalType::DOUBLE, DatePartFunction<date_t>, DatePartBind), LogicalType::DATE));
-	date_part.AddFunction(NamePartTsArguments(
-	    ScalarFunction({}, LogicalType::DOUBLE, DatePartFunction<timestamp_t>, DatePartBind), LogicalType::TIMESTAMP));
-	date_part.AddFunction(NamePartTsArguments(
-	    ScalarFunction({}, LogicalType::DOUBLE, DatePartFunction<dtime_t>, DatePartBind), LogicalType::TIME));
-	date_part.AddFunction(NamePartTsArguments(
-	    ScalarFunction({}, LogicalType::DOUBLE, DatePartFunction<dtime_ns_t>, DatePartBind), LogicalType::TIME_NS));
-	date_part.AddFunction(NamePartTsArguments(
-	    ScalarFunction({}, LogicalType::DOUBLE, DatePartFunction<interval_t>, DatePartBind), LogicalType::INTERVAL));
-	date_part.AddFunction(NamePartTsArguments(
-	    ScalarFunction({}, LogicalType::DOUBLE, DatePartFunction<dtime_tz_t>, DatePartBind), LogicalType::TIME_TZ));
+	date_part.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::DATE}, LogicalType::DOUBLE,
+	                                     DatePartFunction<date_t>, DatePartBind));
+	date_part.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::TIMESTAMP}, LogicalType::DOUBLE,
+	                                     DatePartFunction<timestamp_t>, DatePartBind));
+	date_part.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::TIME}, LogicalType::DOUBLE,
+	                                     DatePartFunction<dtime_t>, DatePartBind));
+	date_part.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::TIME_NS}, LogicalType::DOUBLE,
+	                                     DatePartFunction<dtime_ns_t>, DatePartBind));
+	date_part.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::INTERVAL}, LogicalType::DOUBLE,
+	                                     DatePartFunction<interval_t>, DatePartBind));
+	date_part.AddFunction(ScalarFunction({LogicalType::VARCHAR, LogicalType::TIME_TZ}, LogicalType::DOUBLE,
+	                                     DatePartFunction<dtime_tz_t>, DatePartBind));
 
 	// struct variants
 	date_part.AddFunction(StructDatePart::GetFunction<date_t>(LogicalType::DATE));

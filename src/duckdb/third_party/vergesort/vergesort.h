@@ -47,19 +47,6 @@
 
 namespace duckdb_vergesort
 {
-    // Merge policy used for the final pairwise run merges: a callable merge(first, middle, last, compare) that
-    // merges the sorted ranges [first, middle) and [middle, last). The default is std::inplace_merge, which takes
-    // its temporary buffer from operator new; callers that want to control that memory pass their own policy.
-    struct inplace_merge_policy
-    {
-        template<typename RandomAccessIterator, typename Compare>
-        void operator()(RandomAccessIterator first, RandomAccessIterator middle,
-                        RandomAccessIterator last, Compare compare) const
-        {
-            std::inplace_merge(first, middle, last, compare);
-        }
-    };
-
     namespace detail
     {
         // In-place merge where [first, middle1), [middle1, middle2)
@@ -191,9 +178,9 @@ namespace duckdb_vergesort
             }
         }
 
-        template<typename RandomAccessIterator, typename Compare, typename Fallback, typename Merge>
+        template<typename RandomAccessIterator, typename Compare, typename Fallback>
         void vergesort(RandomAccessIterator first, RandomAccessIterator last,
-                       Compare compare, std::random_access_iterator_tag, Fallback fallback, Merge merge)
+                       Compare compare, std::random_access_iterator_tag, Fallback fallback)
         {
             typedef typename std::iterator_traits<RandomAccessIterator>::difference_type difference_type;
             difference_type dist = last - first;
@@ -334,7 +321,7 @@ namespace duckdb_vergesort
                 for (typename std::list<RandomAccessIterator>::iterator it = runs.begin() ;
                      it != runs.end() && it != detail::prev(runs.end()) ;
                      ++it) {
-                    merge(begin, *it, *detail::next(it), compare);
+                    std::inplace_merge(begin, *it, *detail::next(it), compare);
 
                     // Remove the middle iterator and advance
                     it = runs.erase(it);
@@ -344,19 +331,12 @@ namespace duckdb_vergesort
         }
     }
 
-    template<typename BidirectionalIterator, typename Compare, typename Fallback, typename Merge>
-    void vergesort(BidirectionalIterator first, BidirectionalIterator last,
-                   Compare compare, Fallback fallback, Merge merge)
-    {
-        typedef typename std::iterator_traits<BidirectionalIterator>::iterator_category category;
-        detail::vergesort(first, last, compare, category(), fallback, merge);
-    }
-
     template<typename BidirectionalIterator, typename Compare, typename Fallback>
     void vergesort(BidirectionalIterator first, BidirectionalIterator last,
                    Compare compare, Fallback fallback)
     {
-        vergesort(first, last, compare, fallback, inplace_merge_policy());
+        typedef typename std::iterator_traits<BidirectionalIterator>::iterator_category category;
+        detail::vergesort(first, last, compare, category(), fallback);
     }
 
     template<typename BidirectionalIterator, typename Fallback>

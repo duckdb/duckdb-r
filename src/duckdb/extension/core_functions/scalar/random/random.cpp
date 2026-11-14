@@ -133,15 +133,13 @@ ScalarFunction UUIDv7Fun::GetFunction() {
 }
 
 ScalarFunction UUIDExtractVersionFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::UINTEGER, ExtractVersionFunction<hugeint_t, ExtractVersionUuidOperator>);
-	function.GetSignature().AddParameter("uuid", LogicalType::UUID);
-	return function;
+	return ScalarFunction({LogicalType::UUID}, LogicalType::UINTEGER,
+	                      ExtractVersionFunction<hugeint_t, ExtractVersionUuidOperator>);
 }
 
 ScalarFunction UUIDExtractTimestampFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::TIMESTAMP_TZ,
+	ScalarFunction function({LogicalType::UUID}, LogicalType::TIMESTAMP_TZ,
 	                        ExtractTimestampFunction<hugeint_t, ExtractTimestampUuidOperator>);
-	function.GetSignature().AddParameter("uuid", LogicalType::UUID);
 	// throws if the UUID is not a version 7 UUID
 	function.SetFallible();
 	return function;

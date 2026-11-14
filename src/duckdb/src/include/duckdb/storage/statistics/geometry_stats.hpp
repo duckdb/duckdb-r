@@ -216,8 +216,6 @@ public:
 	}
 
 	vector<string> ToString(bool snake_case) const;
-	//! Add a type given its snake_case name
-	DUCKDB_API bool TryAdd(const string &type_name);
 
 	uint8_t sets[VERT_TYPES];
 };

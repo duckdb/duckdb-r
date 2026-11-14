@@ -1,6 +1,7 @@
 #include "duckdb/function/table/system_functions.hpp"
 
 #include "duckdb/catalog/catalog.hpp"
+#include "duckdb/catalog/catalog_entry/duck_table_entry.hpp"
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/trigger_catalog_entry.hpp"
@@ -71,19 +72,24 @@ unique_ptr<GlobalTableFunctionState> DuckDBTriggersInit(ClientContext &context, 
 	auto result = make_uniq<DuckDBTriggersData>();
 
 	auto schemas = Catalog::GetAllSchemas(context);
-	vector<reference<TableCatalogEntry>> tables;
+	vector<reference<DuckTableEntry>> tables;
 	for (auto &schema : schemas) {
 		schema.get().Scan(context, CatalogType::TABLE_ENTRY, [&](CatalogEntry &entry) {
 			if (entry.type != CatalogType::TABLE_ENTRY) {
 				return;
 			}
-			tables.push_back(entry.Cast<TableCatalogEntry>());
+			auto &table = entry.Cast<TableCatalogEntry>();
+			if (!table.IsDuckTable()) {
+				return;
+			}
+			auto &duck_table = entry.Cast<DuckTableEntry>();
+			tables.push_back(duck_table);
 		});
 	}
 	for (auto &table : tables) {
-		auto &table_entry = table.get();
-		auto transaction = table_entry.ParentCatalog().GetCatalogTransaction(context);
-		table_entry.ScanTriggers(transaction, [&](CatalogEntry &trigger) {
+		auto &duck_table = table.get();
+		auto transaction = CatalogTransaction(duck_table.ParentCatalog(), context);
+		duck_table.ScanTriggers(transaction, [&](CatalogEntry &trigger) {
 			result->entries.push_back(trigger.Cast<TriggerCatalogEntry>());
 		});
 	}

@@ -33,14 +33,11 @@ public:
 };
 
 PhysicalTableInOutFunction::PhysicalTableInOutFunction(PhysicalPlan &physical_plan, vector<LogicalType> types,
-                                                       BoundTableFunction function_p,
-                                                       unique_ptr<FunctionData> bind_data_p,
-                                                       vector<ColumnIndex> column_ids_p, vector<idx_t> projection_ids_p,
-                                                       unique_ptr<TableFilterSet> table_filters_p,
-                                                       idx_t estimated_cardinality, vector<column_t> project_input_p)
+                                                       TableFunction function_p, unique_ptr<FunctionData> bind_data_p,
+                                                       vector<ColumnIndex> column_ids_p, idx_t estimated_cardinality,
+                                                       vector<column_t> project_input_p)
     : PhysicalOperator(physical_plan, PhysicalOperatorType::INOUT_FUNCTION, std::move(types), estimated_cardinality),
       function(std::move(function_p)), bind_data(std::move(bind_data_p)), column_ids(std::move(column_ids_p)),
-      projection_ids(std::move(projection_ids_p)), table_filters(std::move(table_filters_p)),
       projected_input(std::move(project_input_p)) {
 }
 
@@ -48,7 +45,7 @@ unique_ptr<OperatorState> PhysicalTableInOutFunction::GetOperatorState(Execution
 	auto &gstate = op_state->Cast<TableInOutGlobalState>();
 	auto result = make_uniq<TableInOutLocalState>();
 	if (function.init_local) {
-		TableFunctionInitInput input(bind_data.get(), column_ids, projection_ids, table_filters.get());
+		TableFunctionInitInput input(bind_data.get(), column_ids, vector<idx_t>(), nullptr);
 		result->local_state = function.init_local(context, input, gstate.global_state.get());
 	}
 	if (!projected_input.empty()) {
@@ -69,7 +66,7 @@ unique_ptr<OperatorState> PhysicalTableInOutFunction::GetOperatorState(Execution
 unique_ptr<GlobalOperatorState> PhysicalTableInOutFunction::GetGlobalOperatorState(ClientContext &context) const {
 	auto result = make_uniq<TableInOutGlobalState>();
 	if (function.init_global) {
-		TableFunctionInitInput input(bind_data.get(), column_ids, projection_ids, table_filters.get());
+		TableFunctionInitInput input(bind_data.get(), column_ids, vector<idx_t>(), nullptr);
 		result->global_state = function.init_global(context, input);
 	}
 	return std::move(result);
@@ -155,7 +152,7 @@ InsertionOrderPreservingMap<string> PhysicalTableInOutFunction::ParamsToString()
 			result[it.first] = it.second;
 		}
 	} else {
-		result["Name"] = function.GetName().GetIdentifierName();
+		result["Name"] = function.name.GetIdentifierName();
 	}
 	SetEstimatedCardinality(result, estimated_cardinality);
 	return result;

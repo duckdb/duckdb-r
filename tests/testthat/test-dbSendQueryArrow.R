@@ -97,6 +97,7 @@ test_that("a read that fails fails again on the next read, rather than ending th
 })
 
 test_that("a SELECT that writes runs to completion, so ending its stream early keeps its transaction", {
+  skip_if_engine_before("2.1.0-dev83997", "fork point stops writes early")
   con <- local_con()
   dbExecute(con, "CREATE TABLE t (x INTEGER)")
   dbExecute(con, "CREATE SEQUENCE s")
@@ -130,6 +131,7 @@ test_that("dbBind() with one row of parameters streams the Arrow result", {
 })
 
 test_that("a timeout is reported on every read, not as an invalidation by another statement", {
+  skip_if_engine_before("2.1.0-dev88383", "fork-point glue times out on send")
   con <- local_con()
   dbExecute(con, "SET threads = 1")
   dbExecute(con, "SET max_execution_time = 300")

@@ -134,17 +134,16 @@ unique_ptr<BaseStatistics> ListFlattenStats(ClientContext &context, FunctionStat
 	auto &child_stats = input.child_stats;
 	auto &list_child_stats = ListStats::GetChildStats(child_stats[0]);
 	auto child_copy = list_child_stats.Copy();
-	child_copy.CopyValidity(child_stats[0]);
+	child_copy.Set(StatsInfo::CAN_HAVE_NULL_VALUES);
 	return child_copy.ToUnique();
 }
 
 } // namespace
 
 ScalarFunction ListFlattenFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::LIST(LogicalType::TEMPLATE("T")), ListFlattenFunction, nullptr,
-	                   ListFlattenStats);
-	fun.GetSignature().AddParameter("nested_list", LogicalType::LIST(LogicalType::LIST(LogicalType::TEMPLATE("T"))));
-	return fun;
+	return ScalarFunction({LogicalType::LIST(LogicalType::LIST(LogicalType::TEMPLATE("T")))},
+	                      LogicalType::LIST(LogicalType::TEMPLATE("T")), ListFlattenFunction, nullptr,
+	                      ListFlattenStats);
 }
 
 } // namespace duckdb

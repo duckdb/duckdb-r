@@ -121,6 +121,7 @@ unique_ptr<Expression> ConstantOrderNormalizationRule::Apply(LogicalOperator &op
 
 	// Reconstruct the expression.
 	FunctionBinder binder(rewriter.context);
+	ErrorData error;
 	unique_ptr<Expression> new_root = ordered_bindings[0].get().Copy();
 	vector<unique_ptr<Expression>> children;
 	children.push_back(std::move(new_root));
@@ -128,7 +129,10 @@ unique_ptr<Expression> ConstantOrderNormalizationRule::Apply(LogicalOperator &op
 		// Right child.
 		children.push_back(ordered_bindings[i].get().Copy());
 		new_root = binder.BindScalarFunction(Identifier::DefaultSchema(), root.Function().GetName(),
-		                                     std::move(children), root.IsOperator());
+		                                     std::move(children), error, root.IsOperator());
+		if (!new_root) {
+			error.Throw();
+		}
 		children.clear();
 		// Left child.
 		children.push_back(std::move(new_root));
@@ -137,7 +141,7 @@ unique_ptr<Expression> ConstantOrderNormalizationRule::Apply(LogicalOperator &op
 	D_ASSERT(children.size() == 1);
 	D_ASSERT(children[0]->GetReturnType() == root.GetReturnType());
 
-	return Expression::PreserveReturnType(root.GetReturnType(), std::move(children[0]));
+	return std::move(children[0]);
 }
 
 } // namespace duckdb

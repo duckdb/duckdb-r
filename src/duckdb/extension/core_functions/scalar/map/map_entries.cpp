@@ -25,8 +25,7 @@ ScalarFunction MapEntriesFun::GetFunction() {
 	auto map_type = LogicalType::MAP(key_type, val_type);
 	auto row_type = LogicalType::STRUCT({{"key", key_type}, {"value", val_type}});
 
-	ScalarFunction fun({}, LogicalType::LIST(row_type), MapEntriesFunction);
-	fun.GetSignature().AddParameter("map", map_type);
+	ScalarFunction fun({map_type}, LogicalType::LIST(row_type), MapEntriesFunction);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	return fun;
 }
