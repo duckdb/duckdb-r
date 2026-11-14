@@ -13,7 +13,9 @@ installs for the fast path
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 The patched side is a `RelWithDebInfo` build of `duckdb/duckdb` `main`
 (v2.1.0-dev10582) carrying
-[`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch).
+`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`.
+That patch was later retired upstream: duckdb/duckdb@973a9796b8 carries its effect,
+and the vendor commit of duckdb/duckdb@fbd180f3a4 removed it from this repository.
 The vendored engine and that build share the code the patch touches, so the two
 sides differ in the patch and not in what it patches. The same holds for
 `v1.5-variegata`; `v2.0-cyanoptera` carries a `CreateEmptyInstance()` the other
