@@ -33,6 +33,7 @@ test_that("EXPLAIN ANALYZE outputs query tree", {
 })
 
 test_that("an unfinished EXPLAIN ANALYZE leaves the next query profiled", {
+  skip_if_engine_before("2.1.0-dev88383", "patch/0044 applies from here")
   # The engine marks its profiler for EXPLAIN ANALYZE when the statement is
   # prepared and when it starts, and clears the mark only at the end of a
   # query that is still profiling; a failure rolls back and stops it first.

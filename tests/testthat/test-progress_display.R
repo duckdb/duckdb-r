@@ -87,6 +87,7 @@ test_that("a handle collected while the display is created does not deadlock", {
 })
 
 test_that("a progress callback outlives a collection between the reads of a stream", {
+  skip_if_engine_before("2.1.0-dev83997", "no max_streaming_buffer_size yet")
   skip_if_not_installed("nanoarrow")
 
   # Room for the whole result, about 4 MB, whatever the default: a read runs
@@ -99,6 +100,7 @@ test_that("a progress callback outlives a collection between the reads of a stre
 })
 
 test_that("a progress callback outlives a collection and is called by the later reads of a stream", {
+  skip_if_engine_before("2.1.0-dev83997", "no max_streaming_buffer_size yet")
   skip_if_not_installed("nanoarrow")
 
   # Far below one batch, which takes about ten of the engine's chunks, so

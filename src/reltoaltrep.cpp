@@ -10,6 +10,7 @@
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/database_manager.hpp"
+#include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/aggregate_relation.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
@@ -214,7 +215,7 @@ void AltrepRelationWrapper::MarkColumnAsTransformed(idx_t column_index) {
 	}
 }
 
-QueryResult *AltrepRelationWrapper::GetQueryResult() {
+MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
 		rapi_error_with_context("GetQueryResult", mat_error);
 	}
@@ -231,7 +232,7 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 		Execute([&]() { Materialize(); });
 	}
 	D_ASSERT(mat_result);
-	return mat_result.get();
+	return (MaterializedQueryResult *)mat_result.get();
 }
 
 // Every execution of the relation goes through here:
@@ -244,8 +245,7 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 	}
 
 	// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
-	// any open result of its connection is ended: ending one takes that lock too.
+	// A query of the same connection would wait for the lock that query holds, so it fails instead.
 	// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
 	if (ScopedInterruptHandler::IsActiveFor(*rel->context->GetContext())) {
 		rapi_error_with_context("GetQueryResult",
@@ -278,7 +278,6 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 	// Taken after the callback, which may have closed the connection
 	auto &context = *rel->context->GetContext();
 
-	EndOpenResults(context);
 	duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
 	if (!ScopedInterruptHandler::IsActive()) {
 		signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
@@ -341,9 +340,12 @@ void AltrepRelationWrapper::Materialize() {
 		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
 		return;
 	}
+	D_ASSERT(local_res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
+
+	auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 
 	if (max_rows < MAX_SIZE_T) {
-		if (local_res->RowCount() > max_rows) {
+		if (local_mat_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
 			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);
@@ -353,7 +355,7 @@ void AltrepRelationWrapper::Materialize() {
 
 	// Cache the row count so that it remains available
 	// after the materialized result has been released
-	row_count = local_res->RowCount();
+	row_count = local_mat_res->RowCount();
 	materialized = true;
 	mat_result = std::move(local_res);
 }
@@ -366,7 +368,7 @@ bool AltrepRelationWrapper::ColumnQueryPending(idx_t column_index) const {
 	return mat_error.empty() && n_cells != 0 && column_results.find(column_index) == column_results.end();
 }
 
-QueryResult *AltrepRelationWrapper::GetColumnResult(idx_t column_index, idx_t &result_index) {
+MaterializedQueryResult *AltrepRelationWrapper::GetColumnResult(idx_t column_index, idx_t &result_index) {
 	D_ASSERT(column_wise);
 	// One query per top-level column: the result holds that column alone
 	result_index = 0;
@@ -391,7 +393,7 @@ QueryResult *AltrepRelationWrapper::GetColumnResult(idx_t column_index, idx_t &r
 		it = column_results.find(column_index);
 	}
 	D_ASSERT(it != column_results.end());
-	return it->second.get();
+	return (MaterializedQueryResult *)it->second.get();
 }
 
 // Building a relation binds it, which throws where executing one returns an error result:
@@ -418,7 +420,7 @@ void AltrepRelationWrapper::CountRows() {
 	}
 
 	idx_t count = 0;
-	for (auto &chunk : res->Collection().Chunks()) {
+	for (auto &chunk : ((MaterializedQueryResult *)res.get())->Collection().Chunks()) {
 		count = chunk.GetValue(0, 0).GetValue<int64_t>();
 		break;
 	}
@@ -510,7 +512,7 @@ void AltrepRelationWrapper::FetchColumn(idx_t column_index) {
 	}
 
 	// Columns fetched by separate queries line up only if the table did not change in between
-	auto column_rows = res->RowCount();
+	auto column_rows = ((MaterializedQueryResult *)res.get())->RowCount();
 	if (column_rows != row_count) {
 		mat_error = duckdb_fmt::format(
 		    "The table changed while the lazy data frame was read: column `{}` has {} rows, expected {}. "
