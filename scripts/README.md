@@ -119,6 +119,16 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`each-mirror-test.sh`](each-mirror-test.sh) | Check scripts/each-mirror.sh, offline, against a synthetic canonical repository, a synthetic store and a stand-in for `gh api` built here: no network, no fix... |
 | [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for every open pull... |
 
+## [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)
+
+| File | Purpose |
+|---|---|
+| [`cran-lib.sh`](cran-lib.sh) | Shared helpers for scripts/cran-submit.sh and scripts/cran-release.sh: the log, the annotations, the report. |
+| [`cran-release-test.sh`](cran-release-test.sh) | Check scripts/cran-release.sh offline, against a fake P3M on 127.0.0.1 and a `gh` stub: nothing reaches GitHub. |
+| [`cran-release.sh`](cran-release.sh) | Publish the draft GitHub releases of CRAN submissions once Posit's package manager serves their version. |
+| [`cran-submit-test.sh`](cran-submit-test.sh) | Check scripts/cran-submit.sh offline, against a fake CRAN submission form on 127.0.0.1: nothing reaches CRAN. |
+| [`cran-submit.sh`](cran-submit.sh) | Build the source package, recompress it with zopfli, and upload it to CRAN the way `devtools:::upload_cran()` does. |
+
 ## [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)
 
 | File | Purpose |

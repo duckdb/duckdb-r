@@ -266,7 +266,9 @@ git push origin vX.Y.Z
 ```
 
 For the **current** line only, submit to CRAN (`cran/`);
-the submission workflow sets the tag itself, so the commands above are for the lines that do not ship to CRAN.
+the submission workflow sets the tag itself and drafts the GitHub release,
+which a nightly workflow publishes once Posit's package manager serves the version,
+so the commands above are for the lines that do not ship to CRAN.
 Acceptance is asynchronous and overlaps the next TRACK,
 so the tag and the r-universe publish do not wait for it;
 a rejection is fixed on the release branch and re-enters CUT as a follow-up patch.

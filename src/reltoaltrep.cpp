@@ -79,6 +79,10 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altvec_Dataptr_method(string_class, VectorDataptr);
 
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(logical_class, VectorDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(int_class, VectorDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(real_class, VectorDataptrOrNull);
+	R_set_altvec_Dataptr_or_null_method(string_class, VectorDataptrOrNull);
 
 	R_set_altinteger_Elt_method(rownames_class, RownamesElt);
 	R_set_altinteger_Get_region_method(rownames_class, RownamesGetRegion);
@@ -444,10 +448,19 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 			drop_partial.release();
+			converted.store(true, std::memory_order_release);
 
 			rel->MarkColumnAsTransformed();
 		}
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
+	}
+
+	// What Dataptr() returns once the column is converted, without converting it
+	const void *DataptrOrNull() {
+		if (!converted.load(std::memory_order_acquire)) {
+			return nullptr;
+		}
+		return DATAPTR_RO(transformed_vector);
 	}
 
 	SEXP RVector() {
@@ -459,6 +472,9 @@ struct AltrepVectorWrapper {
 	idx_t column_index;
 	std::vector<idx_t> parent_column_index;
 	cpp11::sexp transformed_vector;
+	// Set once transformed_vector is filled, which Dataptr() sets before it fills it.
+	// Atomic: a bind on an engine thread reads it while R's thread may be converting (src/scan.cpp).
+	std::atomic<bool> converted {false};
 };
 
 Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
@@ -630,6 +646,14 @@ void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return AltrepVectorWrapper::Get(x)->Dataptr();
+	END_CPP11
+}
+
+// Converts nothing, so the data frame scan's bind may ask from any thread (handbook/architecture/glue/threading/)
+const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	return AltrepVectorWrapper::Get(x)->DataptrOrNull();
 	END_CPP11
 }
 
@@ -868,5 +892,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 // clang-format off
 [[cpp11::init]] void RelToAltrep_Initialize(DllInfo* dll) {
 	// clang-format on
+	// R calls the init hooks on its own thread when it loads the package
+	RecordRThread();
 	RelToAltrep::Initialize(dll);
 }

@@ -308,6 +308,9 @@ parked=$(releases_from "${S%-fwd}" | head -n 1)
 # DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
 # belong to the release strand, and neither is in the tooling set the sync
 # commit rewrites, so dropping the commit drops nothing the series executes.
+# cran-comments.md is gone since 2.0.0, whose submission sends a one-line
+# comment instead (handbook/operations/releases/cran/); it stays in the list
+# for the paperwork commits in `main`'s history that a walk may still meet.
 bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 
 # Is this commit release paperwork and nothing else? Two questions, both of

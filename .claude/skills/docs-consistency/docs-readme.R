@@ -127,6 +127,10 @@ groups <- list(
     globs = c("preview-prefix*")
   ),
   list(
+    owner = "handbook/operations/releases/cran",
+    globs = c("cran-*.sh")
+  ),
+  list(
     owner = "handbook/branches/flavors",
     globs = c("series.yaml", "series-table.R")
   ),
