@@ -65,8 +65,8 @@ rm -f Makevars.system-lib
 #     checking that the DUCKDB_SOURCE_ID string in the vendored
 #     pragma_version.cpp is embedded in libduckdb.{so,dylib}.
 #   * Under `R CMD check`, the package is first tarballed by `R CMD
-#     build`, which runs cleanup and compresses src/duckdb/ into
-#     src/duckdb.tar.xz. We extract that tarball below so the headers
+#     build`, which runs cleanup and packs src/duckdb/ into
+#     src/duckdb.tar. We extract that tar below so the headers
 #     are available for compilation of the glue code.
 if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "true" ]; then
   uname_s=$(uname -s)
@@ -105,17 +105,12 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
   fi
   echo "Using system libduckdb from: ${duckdb_lib_dir}/libduckdb.${lib_ext}"
 
-  # Extract the vendored headers if R CMD build has compressed them.
+  # Extract the vendored headers if R CMD build has packed them.
   # Must happen before the version check, which reads from the vendored
   # pragma_version.cpp, and before the glue compile, which resolves
   # #include "duckdb/..." under -Iduckdb/src/include.
-  if [ -f duckdb.tar.xz ]; then
-    if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
-      TAR=gtar
-    else
-      TAR=tar
-    fi
-    $TAR xJf duckdb.tar.xz
+  if [ -f duckdb.tar ]; then
+    tar xf duckdb.tar
   fi
 
   # Hard-fail unless the system libduckdb was built from the same upstream
@@ -198,15 +193,9 @@ else
   cp include/to-tar.mk Makevars.duckdb
 fi
 
-# The duckdb sources are xz-compressed in the tarball to keep it under 5000000 bytes.
-# This happens in the cleanup script.
+# The cleanup script packs the duckdb sources into an uncompressed tar,
+# see handbook/build/source-build/README.md.
 
-if [ -f duckdb.tar.xz ]; then
-  # Use gtar if available (e.g., on macOS via Homebrew), otherwise tar.
-  if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
-    TAR=gtar
-  else
-    TAR=tar
-  fi
-  $TAR xJf duckdb.tar.xz
+if [ -f duckdb.tar ]; then
+  tar xf duckdb.tar
 fi

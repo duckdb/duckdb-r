@@ -540,20 +540,18 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	if (constant_expression_is_not_null(end_expr)) {
 		window_expr->EndExprMutable() = end_expr->Copy();
 	}
-	if (constant_expression_is_not_null(offset_expr)) {
+	// Only LEAD/LAG take an offset and a default, as their second and third argument; other functions ignore both
+	bool is_lead_lag = (function.FunctionName() == "lead" || function.FunctionName() == "lag");
+	if (is_lead_lag && constant_expression_is_not_null(offset_expr)) {
 		// LEAD/LAG offset must be BIGINT; cast to avoid type mismatch errors
 		auto offset_copy = offset_expr->Copy();
-		bool is_lead_lag = (function.FunctionName() == "lead" || function.FunctionName() == "lag");
-		if (is_lead_lag) {
-			offset_copy = make_uniq<CastExpression>(LogicalType::BIGINT, std::move(offset_copy));
-		}
+		offset_copy = make_uniq<CastExpression>(LogicalType::BIGINT, std::move(offset_copy));
 		window_expr->GetArgumentsMutable().push_back(FunctionArgument(std::move(offset_copy)));
 	}
-	if (constant_expression_is_not_null(default_expr)) {
+	if (is_lead_lag && constant_expression_is_not_null(default_expr)) {
 		// LEAD/LAG take the default as their third argument, so without an offset the default would be read as the
 		// offset: the default offset of 1 goes first
-		bool default_offset = function.FunctionName() == "lead" || function.FunctionName() == "lag";
-		if (default_offset && !constant_expression_is_not_null(offset_expr)) {
+		if (!constant_expression_is_not_null(offset_expr)) {
 			window_expr->GetArgumentsMutable().push_back(
 			    FunctionArgument(ConstantExpression::FromValue(Value::BIGINT(1))));
 		}

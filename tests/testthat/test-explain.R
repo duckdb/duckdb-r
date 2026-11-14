@@ -39,6 +39,7 @@ test_that("an unfinished EXPLAIN ANALYZE leaves the next query profiled", {
   # A mark left over makes the next query run as an EXPLAIN ANALYZE, which
   # writes no profile (patch/0044).
   con <- local_con()
+  skip_if_prebuilt_engine(con, "no engine patches in patch/ (#2954)")
   out <- withr::local_tempfile(fileext = ".json")
   DBI::dbExecute(con, "PRAGMA enable_profiling = 'json'")
   DBI::dbExecute(con, paste0("PRAGMA profiling_output = '", out, "'"))

@@ -633,6 +633,52 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
   dbQLit(con, x)
 }
 
+# dbplyr samples by numbering rows in a window ordered by `RANDOM()`,
+# and DuckDB 2.0 refuses a volatile window key (#2963).
+# So the key is drawn once per row as a column of an inner query,
+# the window orders by that column, and dbplyr's `slice_min()` does the rest.
+# @param .data A lazy table on a DuckDB connection
+# @param n Number of rows to sample from each group, one if omitted
+# @param by Columns to sample within, as in `dplyr::slice_sample()`
+slice_sample.tbl_duckdb_connection <- function(
+  .data,
+  ...,
+  n,
+  prop,
+  by = NULL,
+  weight_by = NULL,
+  replace = FALSE
+) {
+  # dbplyr refuses these on every database, before it looks at `by`,
+  # which `NextMethod()` could not forward as a column name.
+  if (
+    !missing(prop) ||
+      !rlang::quo_is_null(rlang::enquo(weight_by)) ||
+      !identical(replace, FALSE)
+  ) {
+    return(NextMethod())
+  }
+
+  # The key takes a name the table does not use, and is dropped at the end.
+  key <- "slice_sample_key"
+  while (key %in% colnames(.data)) {
+    key <- paste0(key, "_")
+  }
+  random <- list(dbplyr::sql("RANDOM()"))
+  names(random) <- key
+
+  .data <- dplyr::mutate(.data, !!!random)
+  # A missing `n` stays missing, so `slice_min()` takes one row, as dplyr does.
+  .data <- dplyr::slice_min(
+    .data,
+    !!rlang::sym(key),
+    n = n,
+    by = {{ by }},
+    with_ties = FALSE
+  )
+  dplyr::select(.data, -dplyr::all_of(key))
+}
+
 # Customized handling for tbl() to allow the use of replacement scans
 # @param src .con A [dbConnect()] object, as returned by `dbConnect()`
 # @param from Table or parquet/csv -files to be registered

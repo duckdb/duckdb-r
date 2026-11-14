@@ -6,11 +6,24 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
 
 using namespace duckdb;
+
+// Written once when R loads the package, before any engine thread exists; until then no thread is R's.
+static std::thread::id r_thread;
+
+void duckdb::RecordRThread() {
+	r_thread = std::this_thread::get_id();
+}
+
+bool duckdb::OnRThread() {
+	return std::this_thread::get_id() == r_thread;
+}
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);

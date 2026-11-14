@@ -199,9 +199,7 @@ linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 # define both fails to compile (jemalloc_cpp.cpp requires
 # DUCKDB_OVERRIDE_NEW_DELETE) and fails to link (jemalloc's constructor
 # references duckdb_malloc_ncpus(), defined only under DUCKDB_ENABLE_JEMALLOC).
-# Shipping the tree uncompiled only adds size, and its .c files fail R CMD
-# check's line-endings check on a Windows checkout, because cleanup.win turns
-# only .cc, .cpp, .h and .hpp files back to LF. Enabling jemalloc is
+# Shipping the tree uncompiled only adds size. Enabling jemalloc is
 # duckdb/duckdb-r#2365.
 shutil.rmtree(os.path.join(target_dir, 'third_party', 'jemalloc'), ignore_errors=True)
 source_list = [x for x in source_list if 'third_party/jemalloc' not in x.replace('\\', '/')]

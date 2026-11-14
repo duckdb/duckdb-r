@@ -13,7 +13,7 @@ and are not repeated here; this page holds this repository's own.
 * **ALTREP** — R's alternative-representation mechanism: how an unexecuted relation masquerades as a data frame until touched ([`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)).
 * **archive** — `krlmlr/duckdb-r-old`, holding the refs the fork does not carry; nothing reads it and nothing writes to it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **archive pull request** — a draft pull request a cutover opens and closes on the spot so that the lineage it replaces stays reachable as the pull request's head ([`branches/model/`](/handbook/branches/model/README.md)).
-* **autoload / autoinstall** — an *installed* extension loads on first use; nothing downloads without being asked ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
+* **autoload / autoinstall** — a known extension that a query needs is downloaded and loaded on first use, both on by default ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 * **buffer** — a series' `-build` ref: vendored ahead of CI, deliberately untested ([`branches/model/`](/handbook/branches/model/README.md)).
 * **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
