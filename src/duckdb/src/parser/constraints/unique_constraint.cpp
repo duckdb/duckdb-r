@@ -33,15 +33,16 @@ string UniqueConstraint::ToString() const {
 }
 
 unique_ptr<Constraint> UniqueConstraint::Copy() const {
-	return make_uniq<UniqueConstraint>(*this);
+	if (!HasIndex()) {
+		return make_uniq<UniqueConstraint>(columns, is_primary_key);
+	}
+
+	auto result = make_uniq<UniqueConstraint>(index, columns.empty() ? Identifier() : columns[0], is_primary_key);
+	return std::move(result);
 }
 
 bool UniqueConstraint::IsPrimaryKey() const {
 	return is_primary_key;
-}
-
-IndexConstraintType UniqueConstraint::GetIndexConstraintType() const {
-	return IsPrimaryKey() ? IndexConstraintType::PRIMARY : IndexConstraintType::UNIQUE;
 }
 
 bool UniqueConstraint::HasIndex() const {
@@ -86,7 +87,8 @@ vector<LogicalIndex> UniqueConstraint::GetLogicalIndexes(const ColumnList &colum
 }
 
 Identifier UniqueConstraint::GetName(const Identifier &table_name) const {
-	auto type_name = EnumUtil::ToString(GetIndexConstraintType());
+	auto type = IsPrimaryKey() ? IndexConstraintType::PRIMARY : IndexConstraintType::UNIQUE;
+	auto type_name = EnumUtil::ToString(type);
 
 	string name;
 	for (const auto &column_name : GetColumnNames()) {

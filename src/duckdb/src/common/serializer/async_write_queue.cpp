@@ -73,16 +73,20 @@ public:
 	AsyncWriteQueueTask(AsyncWriteQueue &queue_p, TaskExecutor &executor) : BaseExecutorTask(executor), queue(queue_p) {
 	}
 
-	void ExecuteTask() override {
-		queue.DrainRequests();
+	~AsyncWriteQueueTask() override {
+		if (!started) {
+			queue.CancelScheduledTask();
+		}
 	}
 
-	void Cancel() override {
-		queue.CancelScheduledTask();
+	void ExecuteTask() override {
+		started = true;
+		queue.DrainRequests();
 	}
 
 private:
 	AsyncWriteQueue &queue;
+	bool started = false;
 };
 
 AsyncWriteQueue::AsyncWriteQueue(ClientContext &client_context_p, AsyncWriteTarget &target_p)
@@ -98,12 +102,11 @@ AsyncWriteQueue::AsyncWriteQueue(ClientContext &client_context_p, AsyncWriteTarg
 
 AsyncWriteQueue::~AsyncWriteQueue() {
 	lock_guard<mutex> guard(lock);
-#ifdef D_ASSERT_IS_ENABLED
 	auto drained = pending_requests.empty() && pending_bytes == 0 && in_flight_bytes == 0 && active_tasks == 0 &&
 	               pending_tasks == 0 && scheduled_pending_bytes == 0 && pending_task_bytes.empty();
+	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
-#endif
 }
 
 bool AsyncWriteQueue::IsAsync() const {
@@ -120,7 +123,14 @@ void AsyncWriteQueue::Submit(AsyncWriteRequest request) {
 	}
 	auto request_size = request.Size();
 	if (executor && executor->HasError()) {
-		auto error = executor->GetError();
+		ErrorData error;
+		try {
+			executor->ThrowError();
+		} catch (const std::exception &ex) {
+			error = ErrorData(ex);
+		} catch (...) { // LCOV_EXCL_START
+			error = ErrorData("Unknown exception during async write");
+		} // LCOV_EXCL_STOP
 		request.payload.reset();
 		CompleteRequest(request, request_size, error);
 		error.Throw();
@@ -200,9 +210,7 @@ void AsyncWriteQueue::ScheduleTasksInternal(bool force) {
 			auto selected_bytes = SelectPendingRequestBytes(scheduled_pending_bytes + scheduled_bytes);
 			auto task_budget = TaskByteBudget();
 			auto has_active_task = active_tasks + schedule_count > 0;
-			auto unscheduled_bytes = pending_bytes - scheduled_pending_bytes - scheduled_bytes;
-			// A small leading request must not block a larger request behind it.
-			if (!force && has_active_task && unscheduled_bytes < task_budget) {
+			if (!force && has_active_task && selected_bytes < task_budget) {
 				break;
 			}
 			schedule_count++;
@@ -307,7 +315,14 @@ void AsyncWriteQueue::DrainRequests() {
 		}
 	} catch (...) {
 		auto error_ptr = std::current_exception();
-		auto error = ErrorDataFromExceptionPtr(error_ptr);
+		ErrorData error;
+		try {
+			std::rethrow_exception(error_ptr);
+		} catch (const std::exception &ex) {
+			error = ErrorData(ex);
+		} catch (...) { // LCOV_EXCL_START
+			error = ErrorData("Unknown exception during async write");
+		} // LCOV_EXCL_STOP
 		request_idx++;
 		for (; request_idx < requests.size(); request_idx++) {
 			auto &request = requests[request_idx].request;
@@ -379,12 +394,9 @@ void AsyncWriteQueue::WorkOnPendingTask() {
 		TaskScheduler::YieldThread();
 		return;
 	}
-#ifdef D_ASSERT_IS_ENABLED
 	auto result = task->Execute(TaskExecutionMode::PROCESS_ALL);
+	(void)result;
 	D_ASSERT(result != TaskExecutionResult::TASK_BLOCKED);
-#else
-	task->Execute(TaskExecutionMode::PROCESS_ALL);
-#endif
 	task.reset();
 }
 
@@ -403,10 +415,15 @@ void AsyncWriteQueue::Flush() {
 		return;
 	}
 
-	{
-		// join before leaving this scope, whether the scheduling succeeds or throws
-		TaskExecutor::JoinGuard join(*executor);
+	try {
 		ScheduleTasksInternal(true);
+		executor->WorkOnTasks();
+	} catch (...) {
+		try {
+			executor->WorkOnTasks();
+		} catch (...) {
+		}
+		throw;
 	}
 	RethrowTaskError();
 }
@@ -516,12 +533,11 @@ ManagedAsyncWriteQueue::ManagedAsyncWriteQueue(ClientContext &client_context_p, 
 
 ManagedAsyncWriteQueue::~ManagedAsyncWriteQueue() {
 	lock_guard<mutex> guard(lock);
-#ifdef D_ASSERT_IS_ENABLED
 	auto drained = pending_writes.empty() && pending_bytes == 0 && external_pending_bytes == 0 &&
 	               submitted_bytes == 0 && submitted_requests == 0;
+	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
-#endif
 }
 
 bool ManagedAsyncWriteQueue::IsAsync() const {
@@ -753,7 +769,7 @@ void ManagedAsyncWriteQueue::ApplyBackpressure() {
 		idx_t current_pending_bytes;
 		{
 			lock_guard<mutex> guard(lock);
-			// external bytes a stream wrapper has not adopted yet are still pending
+			D_ASSERT(external_pending_bytes == 0);
 			current_pending_bytes = TotalPendingBytes();
 		}
 		if (current_pending_bytes <= BackpressureBudget()) {
@@ -1046,12 +1062,11 @@ ManagedAsyncWriteStreamQueue::ManagedAsyncWriteStreamQueue(ClientContext &client
 
 ManagedAsyncWriteStreamQueue::~ManagedAsyncWriteStreamQueue() {
 	annotated_lock_guard<annotated_mutex> guard(lock);
-#ifdef D_ASSERT_IS_ENABLED
 	auto drained = batch_depth == 0 && pending_writes.empty() && pending_bytes == 0 && submitted_bytes == 0 &&
 	               submitted_requests == 0;
+	(void)drained;
 	D_ASSERT(closed || drained);
 	D_ASSERT(!closed || drained);
-#endif
 }
 
 bool ManagedAsyncWriteStreamQueue::IsAsync() const {
@@ -1320,8 +1335,10 @@ bool ManagedAsyncWriteStreamQueue::TakePendingWriteRequest(AsyncWriteRequest &re
 	}
 
 	idx_t selected_bytes = 0;
-	// The queued-byte threshold was checked above; a small prefix may precede a large zero-copy payload.
 	auto end = SelectPhysicalWriteEnd(0, selected_bytes);
+	if (policy == SchedulePolicy::THRESHOLD && selected_bytes < first_task_schedule_threshold) {
+		return false;
+	}
 
 	auto write_offset = pending_writes.front().offset;
 	unique_ptr<AsyncWritePayload> payload;

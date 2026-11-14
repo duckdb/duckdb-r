@@ -29,8 +29,7 @@ public:
 	                                        optional_ptr<int32_t> nanos = nullptr);
 	// No hour limit
 	DUCKDB_API static bool TryConvertInterval(const char *buf, idx_t len, idx_t &pos, dtime_t &result,
-	                                          bool strict = false, optional_ptr<int32_t> nanos = nullptr,
-	                                          bool negative = false);
+	                                          bool strict = false, optional_ptr<int32_t> nanos = nullptr);
 
 	//! Convert a time object to a string in the format "hh:mm:ss"
 	DUCKDB_API static string ToString(dtime_t time);
@@ -57,7 +56,7 @@ public:
 
 private:
 	static bool TryConvertInternal(const char *buf, idx_t len, idx_t &pos, dtime_t &result, bool strict,
-	                               optional_ptr<int32_t> nanos = nullptr, bool negative = false);
+	                               optional_ptr<int32_t> nanos = nullptr);
 };
 
 } // namespace duckdb

@@ -19,7 +19,6 @@ namespace duckdb {
 
 // Forward declarations.
 struct QueueProducerToken;
-struct QueueConsumerToken;
 class TaskSchedulerQueue;
 
 struct ProducerToken {
@@ -36,19 +35,6 @@ public:
 
 private:
 	array<unique_ptr<QueueProducerToken>, TASK_SCHEDULER_TYPE_COUNT> tokens;
-};
-
-//! Dequeues tasks from any producer, rotating across producers so that every query gets a turn
-struct ConsumerToken {
-public:
-	explicit ConsumerToken(array<unique_ptr<TaskSchedulerQueue>, TASK_SCHEDULER_TYPE_COUNT> &queues);
-	~ConsumerToken();
-
-public:
-	QueueConsumerToken &GetQueueConsumerToken(TaskSchedulerType pool_type);
-
-private:
-	array<unique_ptr<QueueConsumerToken>, TASK_SCHEDULER_TYPE_COUNT> tokens;
 };
 
 } // namespace duckdb

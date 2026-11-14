@@ -46,7 +46,12 @@ static unique_ptr<BoundAggregateExpression> BindAggregate(ClientContext &context
 static unique_ptr<Expression> BindScalar(ClientContext &context, const char *name,
                                          vector<unique_ptr<Expression>> children) {
 	FunctionBinder function_binder(context);
-	return function_binder.BindScalarFunction(Identifier::DefaultSchema(), name, std::move(children));
+	ErrorData error;
+	auto result = function_binder.BindScalarFunction(Identifier::DefaultSchema(), name, std::move(children), error);
+	if (!result) {
+		error.Throw();
+	}
+	return result;
 }
 
 static unique_ptr<Expression> BindScalar(ClientContext &context, const char *name, unique_ptr<Expression> child) {
@@ -122,7 +127,7 @@ struct ModeStandard {
 		return Equals::Operation(left, right);
 	}
 
-	static T *Update(T *mode, idx_t &, const T &key, AggregateInputData &) {
+	static T *Update(T *mode, uint32_t &, const T &key, AggregateInputData &) {
 		if (!mode) {
 			mode = new T(key);
 		}
@@ -151,7 +156,7 @@ struct ModeString {
 		return Equals::Operation(left, right);
 	}
 
-	static string_t *Update(string_t *mode, idx_t &alloc_size, const string_t &key,
+	static string_t *Update(string_t *mode, uint32_t &alloc_size, const string_t &key,
 	                        AggregateInputData &aggr_input_data) {
 		if (key.IsInlined()) {
 			if (!mode) {
@@ -163,14 +168,14 @@ struct ModeString {
 		}
 
 		// non-inlined string, need to allocate space for it somehow
-		const auto len = key.GetSize();
+		const auto len = UnsafeNumericCast<uint32_t>(key.GetSize());
 		char *ptr;
 		if (mode && alloc_size >= len) {
 			// this fits into the current arena allocation - reuse it
 			ptr = mode->GetDataWriteable();
 		} else {
 			// round up so repeatedly growing keys don't churn through a new arena allocation every time
-			alloc_size = NextPowerOfTwo(len);
+			alloc_size = UnsafeNumericCast<uint32_t>(NextPowerOfTwo(len));
 			ptr = char_ptr_cast(aggr_input_data.allocator.Allocate(alloc_size));
 			if (!mode) {
 				mode = new string_t(nullptr, 0);
@@ -192,8 +197,7 @@ struct ModeState {
 	SubFrames prevs;
 	Counts *frequency_map = nullptr;
 	KEY_TYPE *mode = nullptr;
-	//! Must be wide enough for NextPowerOfTwo(MAX_STRING_SIZE), which does not fit in a uint32_t
-	idx_t mode_alloc_size = 0;
+	uint32_t mode_alloc_size = 0;
 	size_t nonzero = 0;
 	bool valid = false;
 	size_t count = 0;
@@ -564,7 +568,6 @@ AggregateFunction GetFallbackModeFunction(const LogicalType &type) {
 	                       AggregateFunction::StateVoidFinalize<STATE, OP>, FunctionNullHandling::DEFAULT_NULL_HANDLING,
 	                       AggregateFunction::NoClusterUpdate());
 	aggr.SetStateDestructorCallback(AggregateFunction::StateDestroy<STATE, OP>);
-	aggr.SetIsHolistic(true);
 	return aggr;
 }
 
@@ -575,7 +578,6 @@ AggregateFunction GetTypedModeFunction(const LogicalType &type) {
 	auto func = AggregateFunction::UnaryAggregate<STATE, INPUT_TYPE, INPUT_TYPE, OP, AggregateDestructorType::LEGACY>(
 	    type, type);
 	func.SetWindowBatchCallback(OP::template Window<STATE, INPUT_TYPE, INPUT_TYPE>);
-	func.SetIsHolistic(true);
 	return func;
 }
 
@@ -630,11 +632,9 @@ unique_ptr<FunctionData> BindModeAggregate(BindAggregateFunctionInput &input) {
 
 AggregateFunctionSet ModeFun::GetFunctions() {
 	AggregateFunctionSet mode("mode");
-	AggregateFunction fun({}, LogicalTypeId::ANY, nullptr, nullptr, nullptr, nullptr, nullptr,
-	                      FunctionNullHandling::DEFAULT_NULL_HANDLING, AggregateFunction::NoClusterUpdate(),
-	                      BindModeAggregate);
-	fun.GetSignature().AddParameter("x", LogicalTypeId::ANY);
-	mode.AddFunction(fun);
+	mode.AddFunction(AggregateFunction({LogicalTypeId::ANY}, LogicalTypeId::ANY, nullptr, nullptr, nullptr, nullptr,
+	                                   nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING,
+	                                   AggregateFunction::NoClusterUpdate(), BindModeAggregate));
 	return mode;
 }
 
@@ -775,11 +775,9 @@ unique_ptr<FunctionData> BindEntropyAggregate(BindAggregateFunctionInput &input)
 
 AggregateFunctionSet EntropyFun::GetFunctions() {
 	AggregateFunctionSet entropy("entropy");
-	AggregateFunction fun({}, LogicalType::DOUBLE, nullptr, nullptr, nullptr, nullptr, nullptr,
-	                      FunctionNullHandling::DEFAULT_NULL_HANDLING, AggregateFunction::NoClusterUpdate(),
-	                      BindEntropyAggregate);
-	fun.GetSignature().AddParameter("x", LogicalTypeId::ANY);
-	entropy.AddFunction(fun);
+	entropy.AddFunction(AggregateFunction({LogicalTypeId::ANY}, LogicalType::DOUBLE, nullptr, nullptr, nullptr, nullptr,
+	                                      nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING,
+	                                      AggregateFunction::NoClusterUpdate(), BindEntropyAggregate));
 	return entropy;
 }
 

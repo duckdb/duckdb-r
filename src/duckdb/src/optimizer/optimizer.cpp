@@ -8,7 +8,6 @@
 #include "duckdb/optimizer/build_probe_side_optimizer.hpp"
 #include "duckdb/optimizer/column_lifetime_analyzer.hpp"
 #include "duckdb/optimizer/common_aggregate_optimizer.hpp"
-#include "duckdb/optimizer/constant_or_null_simplification.hpp"
 #include "duckdb/optimizer/cse_optimizer.hpp"
 #include "duckdb/optimizer/cte_inlining.hpp"
 #include "duckdb/optimizer/cte_filter_pusher.hpp"
@@ -27,7 +26,6 @@
 #include "duckdb/optimizer/limit_pushdown.hpp"
 #include "duckdb/optimizer/regex_range_filter.hpp"
 #include "duckdb/optimizer/remove_duplicate_groups.hpp"
-#include "duckdb/optimizer/remove_redundant_order_keys.hpp"
 #include "duckdb/optimizer/remove_unused_columns.hpp"
 #include "duckdb/optimizer/row_group_pruner.hpp"
 #include "duckdb/optimizer/rule/distinct_aggregate_optimizer.hpp"
@@ -54,7 +52,6 @@
 #include "duckdb/optimizer/outer_join_simplification.hpp"
 #include "duckdb/optimizer/partial_aggregate_pushdown.hpp"
 #include "duckdb/optimizer/projection_pullup.hpp"
-#include "duckdb/optimizer/projection_placement.hpp"
 #include "duckdb/optimizer/rule/contains_to_in_clause.hpp"
 #include "duckdb/optimizer/rule/monotone_preimage.hpp"
 #include "duckdb/optimizer/rule/predicate_factoring.hpp"
@@ -62,7 +59,6 @@
 #include "duckdb/planner/logical_plan_verifier.hpp"
 #include "duckdb/planner/planner.hpp"
 #include "duckdb/planner/operator/logical_prepare.hpp"
-#include "duckdb/planner/operator/logical_secure_view.hpp"
 #include "duckdb/optimizer/remote_pushdown_optimizer.hpp"
 #include "duckdb/main/database_manager.hpp"
 #include "duckdb/main/settings.hpp"
@@ -130,11 +126,13 @@ bool Optimizer::OptimizerDisabled(ClientContext &context_p, OptimizerType type) 
 		return true;
 	}
 	auto &config = DBConfig::GetConfig(context_p);
-	return config.IsOptimizerDisabled(type);
+	return config.options.disabled_optimizers.find(type) != config.options.disabled_optimizers.end();
 }
 
 void Optimizer::RunOptimizer(OptimizerType type, const std::function<void()> &callback) {
-	context.InterruptCheck();
+	if (context.IsInterrupted()) {
+		throw InterruptException();
+	}
 
 	if (OptimizerDisabled(type)) {
 		// optimizer is marked as disabled: skip
@@ -243,17 +241,9 @@ void Optimizer::RunBuiltInOptimizers() {
 	default:
 		break;
 	}
-	// determine which secure views may expose the statistics of their contents - this runs before any rewrites so
-	// that the filters the optimizer pushes into a view are not mistaken for the view restricting its own rows
-	LogicalSecureView::AnalyzeStatistics(*plan);
-
 	// first we perform expression rewrites using the ExpressionRewriter
 	// this does not change the logical plan structure, but only simplifies the expression trees
-	RunOptimizer(OptimizerType::EXPRESSION_REWRITER, [&]() {
-		rewriter.VisitOperator(*plan);
-		ConstantOrNullSimplification constant_or_null_simplification(context);
-		plan = constant_or_null_simplification.Optimize(std::move(plan));
-	});
+	RunOptimizer(OptimizerType::EXPRESSION_REWRITER, [&]() { rewriter.VisitOperator(*plan); });
 
 	// try to inline CTEs instead of materialization
 	RunOptimizer(OptimizerType::CTE_INLINING, [&]() {
@@ -291,7 +281,6 @@ void Optimizer::RunBuiltInOptimizers() {
 		CTEFilterPusher cte_filter_pusher(*this);
 		plan = cte_filter_pusher.Optimize(std::move(plan));
 	});
-	CTEFilterPusher::ClearDependencies(*plan);
 
 	RunOptimizer(OptimizerType::REGEX_RANGE, [&]() {
 		RegexRangeFilter regex_opt;
@@ -377,14 +366,9 @@ void Optimizer::RunBuiltInOptimizers() {
 		plan = join_elimination.Optimize(std::move(plan));
 	});
 
-	RunOptimizer(OptimizerType::REDUNDANT_ORDER_KEYS, [&]() {
-		RemoveRedundantOrderKeys remove_redundant_order_keys;
-		remove_redundant_order_keys.Optimize(*plan);
-	});
-
 	// rewrites UNNESTs in DelimJoins by moving them to the projection
 	RunOptimizer(OptimizerType::UNNEST_REWRITER, [&]() {
-		UnnestRewriter unnest_rewriter(context);
+		UnnestRewriter unnest_rewriter;
 		plan = unnest_rewriter.Optimize(std::move(plan));
 	});
 
@@ -462,29 +446,25 @@ void Optimizer::RunBuiltInOptimizers() {
 	// DML CTEs can invalidate the table statistics captured during planning.
 	column_binding_map_t<unique_ptr<BaseStatistics>> statistics_map;
 	bool propagated_statistics = false;
-	bool removed_expressions = false;
+	bool removed_aggregate_children = false;
 	if (!CTEContainsDML(*plan)) {
 		RunOptimizer(OptimizerType::STATISTICS_PROPAGATION, [&]() {
-			StatisticsPropagator propagator(*this, plan);
+			StatisticsPropagator propagator(*this, *plan);
 			propagator.PropagateStatistics(plan);
 			statistics_map = propagator.GetStatisticsMap();
 			propagated_statistics = true;
-			removed_expressions = propagator.HasRemovedExpressions();
+			removed_aggregate_children = propagator.HasRemovedAggregateChildren();
 		});
 	}
 	if (propagated_statistics) {
 		MultiStageAggregateRewriter costed_rewriter(*this, AggregateRewritePolicy::COST_BASED, false, statistics_map);
 		costed_rewriter.VisitOperator(plan);
 		if (costed_rewriter.WasChanged()) {
-			StatisticsPropagator propagator(*this, plan);
+			StatisticsPropagator propagator(*this, *plan);
 			propagator.PropagateStatistics(plan);
 			statistics_map = propagator.GetStatisticsMap();
-			removed_expressions |= propagator.HasRemovedExpressions();
+			removed_aggregate_children |= propagator.HasRemovedAggregateChildren();
 		}
-		RunOptimizer(OptimizerType::PROJECTION_PLACEMENT, [&]() {
-			ProjectionPlacementOptimizer projection_placement(*this, statistics_map);
-			projection_placement.Optimize(plan);
-		});
 	}
 
 	// rewrite row_number window function + filter on row_number to aggregate
@@ -499,9 +479,8 @@ void Optimizer::RunBuiltInOptimizers() {
 		common_aggregate.VisitOperator(*plan);
 	});
 
-	// statistics propagation removes filters, join conditions and aggregate children that it proves redundant.
-	// this can leave columns in a scan that nothing references any more - prune them again
-	if (removed_expressions) {
+	// COUNT(x) becomes COUNT(*) during statistics propagation, leaving unreferenced columns in the scan
+	if (removed_aggregate_children) {
 		RunOptimizer(OptimizerType::UNUSED_COLUMNS, [&]() {
 			ClearProjectionMaps(*plan);
 			RemoveUnusedColumns unused(*this);
@@ -565,7 +544,6 @@ unique_ptr<LogicalOperator> Optimizer::LowerMandatoryAggregateRewrites(unique_pt
 unique_ptr<LogicalOperator> Optimizer::Optimize(unique_ptr<LogicalOperator> plan_p) {
 	plan_p = LowerMandatoryAggregateRewrites(std::move(plan_p));
 	if (!Settings::Get<EnableOptimizerSetting>(context)) {
-		CTEFilterPusher::ClearDependencies(*plan_p);
 		return plan_p;
 	}
 	Verify(*plan_p);
@@ -583,7 +561,6 @@ unique_ptr<LogicalOperator> Optimizer::Optimize(unique_ptr<LogicalOperator> plan
 		RunOptimizer(OptimizerType::EXTENSION, [&]() {
 			OptimizerExtensionInput input {GetContext(), *this, pre_optimizer_extension.optimizer_info.get()};
 			if (pre_optimizer_extension.pre_optimize_function) {
-				CTEFilterPusher::ClearDependencies(*plan);
 				pre_optimizer_extension.pre_optimize_function(input, plan);
 			}
 		});

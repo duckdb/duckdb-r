@@ -126,10 +126,8 @@ static unique_ptr<FunctionData> ListIntersectBind(BindScalarFunctionInput &input
 
 ScalarFunction ListIntersectFun::GetFunction() {
 	auto fun =
-	    ScalarFunction({}, LogicalType::LIST(LogicalType::TEMPLATE("T")), ListIntersectFunction, ListIntersectBind);
-	fun.GetSignature()
-	    .AddParameter("list1", LogicalType::LIST(LogicalType::TEMPLATE("T")))
-	    .AddParameter("list2", LogicalType::LIST(LogicalType::TEMPLATE("T")));
+	    ScalarFunction({LogicalType::LIST(LogicalType::TEMPLATE("T")), LogicalType::LIST(LogicalType::TEMPLATE("T"))},
+	                   LogicalType::LIST(LogicalType::TEMPLATE("T")), ListIntersectFunction, ListIntersectBind);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	return fun;
 }

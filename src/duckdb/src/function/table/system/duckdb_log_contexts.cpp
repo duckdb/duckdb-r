@@ -16,6 +16,8 @@ struct DuckDBLogContextData : public GlobalTableFunctionState {
 		scan_state = log_storage->CreateScanState(LoggingTargetTable::LOG_CONTEXTS);
 		log_storage->InitializeScan(*scan_state);
 	}
+	DuckDBLogContextData() : log_storage(nullptr) {
+	}
 
 	//! The log storage we are scanning
 	shared_ptr<LogStorage> log_storage;
@@ -46,19 +48,17 @@ static unique_ptr<FunctionData> DuckDBLogContextBind(ClientContext &context, Tab
 }
 
 unique_ptr<GlobalTableFunctionState> DuckDBLogContextInit(ClientContext &context, TableFunctionInitInput &input) {
-	auto &log_manager = LogManager::Get(context);
-	if (!log_manager.CanScan(LoggingTargetTable::LOG_CONTEXTS)) {
-		throw InvalidConfigurationException(
-		    "Log storage '%s' does not support this query. Select a queryable storage, such as 'memory' or 'file', "
-		    "before generating logs.",
-		    log_manager.GetConfig().storage);
+	if (LogManager::Get(context).CanScan(LoggingTargetTable::LOG_CONTEXTS)) {
+		return make_uniq<DuckDBLogContextData>(LogManager::Get(context).GetLogStorage());
 	}
-	return make_uniq<DuckDBLogContextData>(log_manager.GetLogStorage());
+	return make_uniq<DuckDBLogContextData>();
 }
 
 void DuckDBLogContextFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
 	auto &data = data_p.global_state->Cast<DuckDBLogContextData>();
-	data.log_storage->Scan(*data.scan_state, output);
+	if (data.log_storage) {
+		data.log_storage->Scan(*data.scan_state, output);
+	}
 }
 
 static unique_ptr<TableRef> DuckDBLogContextsBindReplace(ClientContext &context, TableFunctionBindInput &input) {

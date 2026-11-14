@@ -13,7 +13,6 @@
 #include "duckdb/common/vector/string_vector.hpp"
 #include "parquet_column_schema.hpp"
 #include "parquet_types.h"
-#include "parquet_timestamp.hpp"
 
 namespace duckdb {
 class Vector;
@@ -27,10 +26,6 @@ StringColumnReader::StringColumnReader(const ParquetReader &reader, const Parque
 	fixed_width_string_length = 0;
 	if (schema.parquet_type == Type::FIXED_LEN_BYTE_ARRAY) {
 		fixed_width_string_length = schema.type_length;
-	}
-	if (schema.parquet_type == Type::INT96) {
-		// INT96 is read as a raw 12-byte blob for int96_as='struct' (which converts it to STRUCT(date, time))
-		fixed_width_string_length = sizeof(Int96);
 	}
 }
 
@@ -83,7 +78,7 @@ string_t StringColumnReader::VerifyString(const char *str_data, uint32_t str_len
 		auto new_str = Utf8Proc::RemoveInvalid(str_data, str_len);
 		auto target = StringVector::EmptyString(*current_plain_result, new_str.size());
 		auto output = target.GetDataWriteable();
-		memcpy(output, new_str.data(), new_str.size()); // NOLINT(bugprone-not-null-terminated-result)
+		memcpy(output, new_str.data(), new_str.size());
 		target.Finalize();
 		return target;
 	}

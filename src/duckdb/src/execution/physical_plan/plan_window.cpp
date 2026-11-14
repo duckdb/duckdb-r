@@ -31,7 +31,6 @@ PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalWindow &op) {
 	// Identify streaming windows and partitioned windows
 	using Columns = vector<column_t>;
 	const bool enable_optimizer = Settings::Get<EnableOptimizerSetting>(context);
-	const bool can_stream = enable_optimizer && (plan.get().GetSources().size() == 1);
 	vector<idx_t> blocking_windows;
 	vector<idx_t> streaming_windows;
 	vector<idx_t> partitioned_windows;
@@ -39,7 +38,7 @@ PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalWindow &op) {
 	for (idx_t expr_idx = 0; expr_idx < op.expressions.size(); expr_idx++) {
 		auto &wexpr = op.expressions[expr_idx]->Cast<BoundWindowExpression>();
 		Columns partition_columns;
-		if (can_stream && PhysicalStreamingWindow::IsStreamingFunction(context, wexpr)) {
+		if (enable_optimizer && PhysicalStreamingWindow::IsStreamingFunction(context, wexpr)) {
 			streaming_windows.push_back(expr_idx);
 		} else if (!wexpr.Partitions().empty() &&
 		           HasSingleValuePartitions(context, wexpr.Partitions(), plan, partition_columns)) {

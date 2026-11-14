@@ -69,10 +69,12 @@ public:
 	void Skip(idx_t num_values) override;
 	idx_t GroupRowsAvailable() override;
 
-	void GatherColumnChunks(unordered_set<idx_t> &column_chunks) override {
+	uint64_t TotalCompressedSize() override {
+		idx_t total_compressed_size = 0;
 		for (auto &child_reader : child_readers) {
-			child_reader->GatherColumnChunks(column_chunks);
+			total_compressed_size += child_reader->TotalCompressedSize();
 		}
+		return total_compressed_size;
 	}
 
 	idx_t FileOffset() const override {

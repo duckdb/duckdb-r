@@ -8,8 +8,7 @@ size_t ParserPackratKeyHash::operator()(const ParserPackratKey &key) const {
 	return std::hash<idx_t>()(key.matcher_id) ^ (std::hash<idx_t>()(key.token_index) << 1);
 }
 
-ParserPackratCache::ParserPackratCache(ArenaAllocator &arena) : entries(arena) {
-}
+ParserPackratCache::ParserPackratCache() = default;
 
 ParserPackratCache::~ParserPackratCache() = default;
 

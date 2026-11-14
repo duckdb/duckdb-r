@@ -28,8 +28,7 @@ static unique_ptr<Expression> BindTypeOfFunctionExpression(FunctionBindExpressio
 }
 
 ScalarFunction TypeOfFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::VARCHAR, TypeOfFunction);
-	fun.GetSignature().AddParameter("expression", LogicalType::ANY);
+	auto fun = ScalarFunction({LogicalType::ANY}, LogicalType::VARCHAR, TypeOfFunction);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	fun.SetBindExpressionCallback(BindTypeOfFunctionExpression);
 	return fun;
@@ -66,8 +65,7 @@ static unique_ptr<Expression> BindGetTypeFunctionExpression(FunctionBindExpressi
 }
 
 ScalarFunction GetTypeFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::TYPE(), GetTypeFunction, BindGetTypeFunction);
-	fun.GetSignature().AddParameter("expression", LogicalType::ANY);
+	auto fun = ScalarFunction({LogicalType::ANY}, LogicalType::TYPE(), GetTypeFunction, BindGetTypeFunction);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	fun.SetBindExpressionCallback(BindGetTypeFunctionExpression);
 	return fun;
@@ -104,18 +102,14 @@ static unique_ptr<Expression> BindMakeTypeFunctionExpression(FunctionBindExpress
 	vector<unique_ptr<ParsedExpression>> type_args;
 	for (idx_t i = 1; i < args.size(); i++) {
 		auto &arg = args[i];
-		auto result = ConstantExpression::FromValue(arg.second);
+		auto result = make_uniq<ConstantExpression>(arg.second);
 		result->SetAlias(Identifier(arg.first));
 
 		type_args.push_back(std::move(result));
 	}
 
 	auto type_name = args.front().second.GetValue<string>();
-	QualifiedName qualified_name;
-	string error;
-	if (!QualifiedName::TryParse(type_name, qualified_name, error)) {
-		throw ParserException(error);
-	}
+	auto qualified_name = QualifiedName::Parse(type_name);
 
 	auto unbound_type =
 	    LogicalType::UNBOUND(make_uniq<TypeExpression>(std::move(qualified_name), std::move(type_args)));
@@ -127,12 +121,10 @@ static unique_ptr<Expression> BindMakeTypeFunctionExpression(FunctionBindExpress
 }
 
 ScalarFunction MakeTypeFun::GetFunction() {
-	auto fun = ScalarFunction({}, LogicalType::TYPE(), MakeTypeFunction);
-	fun.GetSignature().AddParameter("name", LogicalType::VARCHAR);
+	auto fun = ScalarFunction({LogicalType::VARCHAR}, LogicalType::TYPE(), MakeTypeFunction);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	fun.SetBindExpressionCallback(BindMakeTypeFunctionExpression);
-	fun.GetProperties().SetRequiresExpressionNames(true);
-	fun.GetSignature().AddArgs("args", LogicalType::ANY).AddKwargs("kwargs", LogicalType::ANY);
+	fun.SetVarArgs(LogicalType::ANY);
 	return fun;
 }
 

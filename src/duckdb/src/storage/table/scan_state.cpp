@@ -73,10 +73,6 @@ ScanSamplingInfo &TableScanState::GetSamplingInfo() {
 	return sampling_info;
 }
 
-idx_t TableScanState::RowsScanned() const {
-	return table_state.rows_scanned + local_state.rows_scanned;
-}
-
 ScanFilter::ScanFilter(ClientContext &context, ProjectionIndex index, const vector<StorageIndex> &column_ids,
                        TableFilter &filter)
     : scan_column_index(index), table_column_index(column_ids[index]), filter(filter), always_true(false) {
@@ -190,16 +186,6 @@ void ColumnScanState::Next(idx_t count) {
 	}
 }
 
-void ColumnScanState::ReleasePins() {
-	current = nullptr;
-	initialized = false;
-	scan_state.reset();
-	previous_states.clear();
-	for (auto &child_state : child_states) {
-		child_state.ReleasePins();
-	}
-}
-
 const vector<StorageIndex> &CollectionScanState::GetColumnIds() {
 	return parent.GetColumnIds();
 }
@@ -219,7 +205,7 @@ TableScanOptions &CollectionScanState::GetOptions() {
 }
 
 ParallelCollectionScanState::ParallelCollectionScanState()
-    : collection(nullptr), current_row_group(nullptr), skipped_rows(0) {
+    : collection(nullptr), current_row_group(nullptr), processed_rows(0) {
 }
 
 void ParallelCollectionScanState::AssignRowGroup(optional_ptr<SegmentNode<RowGroup>> row_group) {
@@ -245,17 +231,8 @@ ParallelCollectionScanState::GetNextRowGroup(RowGroupSegmentTree &row_groups, Se
 }
 
 CollectionScanState::CollectionScanState(TableScanState &parent_p)
-    : vector_index(0), max_row_group_row(0), row_groups(nullptr), max_row(0), batch_index(0),
-      valid_sel(STANDARD_VECTOR_SIZE), random(-1), row_group(nullptr), parent(parent_p) {
-}
-
-optional_ptr<SegmentNode<RowGroup>> CollectionScanState::GetRowGroup() const {
-	return row_group;
-}
-
-void CollectionScanState::SetRowGroup(optional_ptr<SegmentNode<RowGroup>> row_group_p) {
-	row_group = row_group_p;
-	pinned_row_group = row_group ? row_group->ReferenceNode() : nullptr;
+    : row_group(nullptr), vector_index(0), max_row_group_row(0), row_groups(nullptr), max_row(0), batch_index(0),
+      valid_sel(STANDARD_VECTOR_SIZE), random(-1), parent(parent_p) {
 }
 
 optional_ptr<SegmentNode<RowGroup>> CollectionScanState::GetNextRowGroup(SegmentNode<RowGroup> &row_group) const {
@@ -279,28 +256,20 @@ optional_ptr<SegmentNode<RowGroup>> CollectionScanState::GetRootSegment() const 
 }
 
 bool CollectionScanState::Scan(DuckTransaction &transaction, DataChunk &result) {
-	return Scan(ScanOptions(TransactionData(transaction)), result);
-}
-
-bool CollectionScanState::Scan(ScanOptions options, DataChunk &result, optional_ptr<SegmentLock> l) {
 	while (row_group) {
-		pinned_row_group->Scan(options, *this, result);
+		row_group->GetNode().Scan(TransactionData(transaction), *this, result);
 		if (result.size() > 0) {
 			return true;
 		}
-		if (max_row <= row_group->GetRowStart() + pinned_row_group->count) {
-			SetRowGroup(nullptr);
+		if (max_row <= row_group->GetRowStart() + row_group->GetNode().count) {
+			row_group = nullptr;
 			return false;
 		}
 		do {
-			if (l) {
-				SetRowGroup(GetNextRowGroup(*l, *row_group));
-			} else {
-				SetRowGroup(GetNextRowGroup(*row_group));
-			}
+			row_group = GetNextRowGroup(*row_group).get();
 			if (row_group) {
 				if (row_group->GetRowStart() >= max_row) {
-					SetRowGroup(nullptr);
+					row_group = nullptr;
 					break;
 				}
 				bool scan_row_group = row_group->GetNode().InitializeScan(*this, *row_group);
@@ -316,15 +285,15 @@ bool CollectionScanState::Scan(ScanOptions options, DataChunk &result, optional_
 
 bool CollectionScanState::Scan(DataChunk &result, TableScanType type, optional_ptr<SegmentLock> l) {
 	while (row_group) {
-		pinned_row_group->Scan(*this, result, type);
+		row_group->GetNode().Scan(*this, result, type);
 		if (result.size() > 0) {
 			return true;
 		}
 		// move to the next row group
 		if (l) {
-			SetRowGroup(GetNextRowGroup(*l, *row_group));
+			row_group = GetNextRowGroup(*l, *row_group).get();
 		} else {
-			SetRowGroup(GetNextRowGroup(*row_group));
+			row_group = GetNextRowGroup(*row_group).get();
 		}
 		if (row_group) {
 			row_group->GetNode().InitializeScan(*this, *row_group);
@@ -333,17 +302,16 @@ bool CollectionScanState::Scan(DataChunk &result, TableScanType type, optional_p
 	return false;
 }
 
-bool CollectionScanState::PrepareScanIO(DuckTransaction &transaction, vector<unique_ptr<AsyncTask>> &tasks,
-                                        bool register_assignment) {
+bool CollectionScanState::PrepareScanIO(DuckTransaction &transaction, vector<unique_ptr<AsyncTask>> &tasks) {
 	if (!row_group) {
 		return false;
 	}
-	auto &current_row_group = *pinned_row_group;
+	auto &current_row_group = row_group->GetNode();
 	ScanOptions options {TransactionData(transaction)};
 	if (!current_row_group.PrepareScan(options, *this)) {
 		// the assignment is exhausted
 		D_ASSERT(max_row <= row_group->GetRowStart() + current_row_group.count);
-		SetRowGroup(nullptr);
+		row_group = nullptr;
 		return false;
 	}
 	if (prepared_vector.prepare_state == VectorPrepareState::IO_REGISTERED) {
@@ -351,58 +319,15 @@ bool CollectionScanState::PrepareScanIO(DuckTransaction &transaction, vector<uni
 		return true;
 	}
 	prepared_vector.prepare_state = VectorPrepareState::IO_REGISTERED;
-	if (register_assignment) {
-		tasks = RegisterAssignmentIO();
-	} else if (!assignment_io_registered) {
-		// read-ahead jobs registered their whole assignment when produced, otherwise collect the vector's I/O
-		tasks = current_row_group.CollectScanIOTasks(*this, prepared_vector.max_count);
-	}
+	tasks = current_row_group.CollectScanIOTasks(*this, prepared_vector.max_count);
 	return true;
-}
-
-vector<unique_ptr<AsyncTask>> CollectionScanState::RegisterAssignmentIO() {
-	D_ASSERT(row_group);
-	D_ASSERT(!assignment_io_registered);
-	assignment_io_registered = true;
-	auto &current_row_group = *pinned_row_group;
-	return current_row_group.CollectScanIOTasks(*this, current_row_group.PrefetchRowCount(*this));
-}
-
-void CollectionScanState::InitializeColumnScans() {
-	if (column_scans_pending) {
-		pinned_row_group->InitializeColumnScans(*this);
-	}
-}
-
-void TableScanState::InitializeColumnScans() {
-	table_state.InitializeColumnScans();
-	local_state.InitializeColumnScans();
-}
-
-void CollectionScanState::ReleasePins() {
-	SetRowGroup(nullptr);
-	prepared_vector.Reset();
-	column_scans_pending = false;
-	for (auto &column_scan : column_scans) {
-		column_scan.ReleasePins();
-	}
-}
-
-void TableScanState::ReleasePins() {
-	table_state.ReleasePins();
-	local_state.ReleasePins();
-}
-
-idx_t CollectionScanState::RemainingAssignmentRows() const {
-	const idx_t current_row = vector_index * STANDARD_VECTOR_SIZE;
-	return current_row < max_row_group_row ? max_row_group_row - current_row : 0;
 }
 
 void CollectionScanState::ProcessPreparedScan(DuckTransaction &transaction, DataChunk &result) {
 	D_ASSERT(row_group);
 	D_ASSERT(prepared_vector.prepare_state == VectorPrepareState::IO_REGISTERED);
 	ScanOptions options {TransactionData(transaction)};
-	pinned_row_group->ProcessPreparedScan(options, *this, result);
+	row_group->GetNode().ProcessPreparedScan(options, *this, result);
 }
 
 PreparedScanVector::PreparedScanVector() : sample_sel(STANDARD_VECTOR_SIZE) {

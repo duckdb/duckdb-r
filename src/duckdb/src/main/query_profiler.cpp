@@ -9,6 +9,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/tree_renderer.hpp"
 #include "duckdb/common/tree_renderer/text_tree_renderer.hpp"
+#include "duckdb/execution/operator/persistent/physical_merge_into.hpp"
 #include "duckdb/execution/operator/scan/physical_column_data_scan.hpp"
 #include "duckdb/execution/operator/scan/physical_table_scan.hpp"
 #include "duckdb/execution/physical_operator.hpp"
@@ -137,12 +138,6 @@ void QueryProfiler::Reset() {
 
 void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, bool start_at_optimizer) {
 	lock_guard<std::mutex> guard(lock);
-	// A query is an EXPLAIN ANALYZE only if the statement this call starts is one.
-	// EndQuery() clears the flag only for a running profiler, and a failed query's rollback resets it first,
-	// so a failed EXPLAIN ANALYZE, or one prepared and never run, would leave the flag set, and the next query
-	// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output. Preparing starts the profiler,
-	// so the one left running by a statement prepared and never executed is still running here.
-	is_explain_analyze = false;
 	// Always reset byte counters at the start of each query so the progress bar shows per-query values
 	query_metrics.bytes_read = 0;
 	query_metrics.bytes_written = 0;
@@ -165,7 +160,7 @@ void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, b
 	}
 	Start(query);
 }
-void QueryProfiler::AddParserTime(const Profiler &parser_timer, timestamp_t start_time, timestamp_t end_time) {
+void QueryProfiler::AddParserTime(const Profiler &parser_timer) {
 	if (!running || !IsEnabled()) {
 		return;
 	}
@@ -173,7 +168,7 @@ void QueryProfiler::AddParserTime(const Profiler &parser_timer, timestamp_t star
 	if (!parser_time_ns) {
 		return;
 	}
-	query_metrics.UpdateMetric(MetricParserTotalTime::Name, parser_time_ns, start_time, end_time);
+	query_metrics.UpdateMetric(MetricParserTotalTime::Name, parser_time_ns);
 }
 
 bool QueryProfiler::OperatorRequiresProfiling(const PhysicalOperatorType op_type) {
@@ -229,11 +224,7 @@ void QueryProfiler::StartExplainAnalyze() {
 
 void QueryProfiler::EndQuery() {
 	unique_lock<std::mutex> guard(lock);
-	if (!running) {
-		return;
-	}
-	if (!IsEnabled()) {
-		Reset();
+	if (!IsEnabled() || !running) {
 		return;
 	}
 
@@ -548,9 +539,6 @@ void OperatorProfiler::Flush(const PhysicalOperator &phys_op) {
 }
 
 void QueryProfiler::Flush(OperatorProfiler &profiler) {
-	if (!running.load(std::memory_order_relaxed)) {
-		return;
-	}
 	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
@@ -583,23 +571,12 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 }
 
 void QueryProfiler::SetBlockedTime(const double &blocked_thread_time) {
-	if (!running.load(std::memory_order_relaxed)) {
-		return;
-	}
 	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}
 
 	query_metrics.blocked_thread_time = blocked_thread_time;
-}
-
-void QueryProfiler::SetStreamingPeakBufferSize(idx_t peak_bytes) {
-	lock_guard<std::mutex> guard(lock);
-	if (!IsEnabled() || !running) {
-		return;
-	}
-	query_metrics.system_peak_streaming_buffer_size = peak_bytes;
 }
 
 string QueryProfiler::DrawPadded(const string &str, idx_t width) {
@@ -849,7 +826,7 @@ void QueryProfiler::ToLogInternal() const {
 	if (!root) {
 		return;
 	}
-	metrics->WriteMetricsToLog(context, query_metrics.GetMetricTimings());
+	metrics->WriteMetricsToLog(context);
 }
 
 void QueryProfiler::ToLog() const {
@@ -899,7 +876,6 @@ static LegacyCumulative LegacyOperatorToResultTree(const GatheredMetrics &info, 
 		result.AddValue("extra_info", it_extra->second);
 	}
 	result.AddValue("system_peak_buffer_memory", Value::UBIGINT(0));
-	result.AddValue("system_peak_streaming_buffer_size", Value::UBIGINT(0));
 	result.AddValue("system_peak_temp_dir_size", Value::UBIGINT(0));
 
 	LegacyCumulative cumulative;
@@ -954,7 +930,6 @@ unique_ptr<QueryProfileResult> QueryProfiler::ToLegacyResultTree() const {
 	emit("total_bytes_read", "io.total_bytes_read");
 	emit("system_peak_temp_dir_size", "system.peak_temp_dir_size");
 	emit("system_peak_buffer_memory", "system.peak_buffer_memory");
-	emit("system_peak_streaming_buffer_size", "system.peak_streaming_buffer_size");
 
 	// rows_returned = root operator's elements_returned (rows sent to client)
 	{
@@ -1014,17 +989,6 @@ QueryProfileResult &QueryProfiler::GetResult() {
 	return *result_tree;
 }
 
-void QueryProfiler::GetFinalizedProfileUnderLock(
-    const std::function<void(optional_ptr<const GatheredMetrics>, optional_ptr<const ProfilingNode>)> &callback) const {
-	lock_guard<std::mutex> guard(lock);
-	// a profile left over from before profiling was disabled is stale, and a running one is not finalized yet
-	if (!IsEnabled() || running || !metrics_finalized) {
-		callback(nullptr, nullptr);
-		return;
-	}
-	callback(metrics.get(), root.get());
-}
-
 bool QueryProfiler::HasRoot() const {
 	return root != nullptr;
 }
@@ -1065,6 +1029,15 @@ unique_ptr<ProfilingNode> QueryProfiler::CreateTree(const PhysicalOperator &root
 		if (cte_scan.cte_source) {
 			tree_map.insert(
 			    make_pair(reference<const PhysicalOperator>(*cte_scan.cte_source), reference<ProfilingNode>(*node)));
+		}
+	}
+	if (root_p.type == PhysicalOperatorType::MERGE_INTO) {
+		// merge actions hold their target operators outside of the children - add them to the tree explicitly
+		auto &merge_into = root_p.Cast<PhysicalMergeInto>();
+		for (auto &action : merge_into.actions) {
+			if (action->op) {
+				node->AddChild(CreateTree(*action->op, depth + 1));
+			}
 		}
 	}
 	auto children = root_p.GetChildren();

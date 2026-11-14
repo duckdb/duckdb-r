@@ -22,14 +22,10 @@ void SHA256Function(DataChunk &args, ExpressionState &state, Vector &result) {
 
 ScalarFunctionSet SHA256Fun::GetFunctions() {
 	ScalarFunctionSet set("sha256");
-	ScalarFunction value_fun({}, LogicalType::VARCHAR, SHA256Function, nullptr, nullptr,
-	                         crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA256>);
-	value_fun.GetSignature().AddParameter("value", LogicalType::VARCHAR);
-	set.AddFunction(value_fun);
-	ScalarFunction blob_fun({}, LogicalType::VARCHAR, SHA256Function, nullptr, nullptr,
-	                        crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA256>);
-	blob_fun.GetSignature().AddParameter("blob", LogicalType::BLOB);
-	set.AddFunction(blob_fun);
+	set.AddFunction(ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, SHA256Function, nullptr, nullptr,
+	                               crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA256>));
+	set.AddFunction(ScalarFunction({LogicalType::BLOB}, LogicalType::VARCHAR, SHA256Function, nullptr, nullptr,
+	                               crypto_hash_scalar::InitLocalState<CryptoHashFunction::SHA256>));
 	return set;
 }
 

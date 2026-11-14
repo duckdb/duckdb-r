@@ -7,6 +7,7 @@
 #include "duckdb/common/unique_ptr.hpp"
 #include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/main/client_config.hpp"
+#include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
 #include "duckdb/main/settings.hpp"
@@ -166,7 +167,7 @@ void AltrepRelationWrapper::MarkColumnAsTransformed() {
 	}
 }
 
-QueryResult *AltrepRelationWrapper::GetQueryResult() {
+MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
 		rapi_error_with_context("GetQueryResult", mat_error);
 	}
@@ -203,15 +204,13 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 
 		// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-		// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
-		// any open result of its connection is ended: ending one takes that lock too.
+		// A query of the same connection would wait for the lock that query holds, so it fails instead.
 		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
 		auto &context = *rel->context->GetContext();
 		if (ScopedInterruptHandler::IsActiveFor(context)) {
 			rapi_error_with_context("GetQueryResult",
 			                        "Cannot materialize a relation of the connection that is running the query.");
 		}
-		EndOpenResults(context);
 		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
 		if (!ScopedInterruptHandler::IsActive()) {
 			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
@@ -249,7 +248,7 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 	}
 	D_ASSERT(mat_result);
-	return mat_result.get();
+	return (MaterializedQueryResult *)mat_result.get();
 }
 
 void AltrepRelationWrapper::Materialize() {
@@ -278,9 +277,12 @@ void AltrepRelationWrapper::Materialize() {
 		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
 		return;
 	}
+	D_ASSERT(local_res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
+
+	auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 
 	if (max_rows < MAX_SIZE_T) {
-		if (local_res->RowCount() > max_rows) {
+		if (local_mat_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
 			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);
@@ -290,7 +292,7 @@ void AltrepRelationWrapper::Materialize() {
 
 	// Cache the row count so that it remains available
 	// after the materialized result has been released
-	row_count = local_res->RowCount();
+	row_count = local_mat_res->RowCount();
 	materialized = true;
 	mat_result = std::move(local_res);
 }

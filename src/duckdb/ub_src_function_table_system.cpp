@@ -26,8 +26,6 @@
 
 #include "src/function/table/system/duckdb_functions.cpp"
 
-#include "src/function/table/system/duckdb_grammar_extensions.cpp"
-
 #include "src/function/table/system/duckdb_indexes.cpp"
 
 #include "src/function/table/system/duckdb_keywords.cpp"
@@ -45,8 +43,6 @@
 #include "src/function/table/system/duckdb_prepared_statements.cpp"
 
 #include "src/function/table/system/duckdb_schemas.cpp"
-
-#include "src/function/table/system/duckdb_secret_type_parameters.cpp"
 
 #include "src/function/table/system/duckdb_secret_types.cpp"
 

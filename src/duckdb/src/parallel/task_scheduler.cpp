@@ -40,7 +40,6 @@ TaskScheduler::~TaskScheduler() {
 		for (auto &pool : pools) {
 			pool->RelaunchThreads(*this, true);
 		}
-		BlockAllocator::Get(db).FlushAll();
 	} catch (...) {
 		// nothing we can do in the destructor if this fails
 	}
@@ -104,22 +103,26 @@ void TaskScheduler::ScheduleTasks(ProducerToken &producer, vector<shared_ptr<Tas
 	SignalForTaskType(pool_type, tasks.size());
 }
 
-bool TaskScheduler::GetTaskInternal(ConsumerToken &consumer, shared_ptr<Task> &task) {
+bool TaskScheduler::GetTaskInternal(shared_ptr<Task> &task) {
 	for (auto &queue : queues) {
-		if (queue->Dequeue(consumer, task)) {
+		if (queue->Dequeue(task)) {
 			return true;
 		}
 	}
 	return false;
 }
 
+bool TaskScheduler::GetTaskInternal(shared_ptr<Task> &task, TaskSchedulerType pool_type) {
+	return GetQueue(pool_type).Dequeue(task);
+}
+
 void TaskScheduler::ExecuteForever(atomic<bool> *marker) {
 	ExecuteForever(marker, TaskSchedulerType::REGULAR);
 }
 
-bool TaskScheduler::TryDequeueAndProcessTask(const DBConfig &config, TaskSchedulerQueue &queue, ConsumerToken &consumer,
+bool TaskScheduler::TryDequeueAndProcessTask(const DBConfig &config, TaskSchedulerQueue &queue,
                                              shared_ptr<Task> &task) {
-	if (queue.Dequeue(consumer, task)) {
+	if (queue.Dequeue(task)) {
 		auto process_mode = TaskExecutionMode::PROCESS_ALL;
 		if (Settings::Get<SchedulerProcessPartialSetting>(config)) {
 			process_mode = TaskExecutionMode::PROCESS_PARTIAL;
@@ -160,7 +163,6 @@ void TaskScheduler::ExecuteForever(atomic<bool> *marker, const TaskSchedulerType
 	const auto &block_allocator = BlockAllocator::Get(db);
 	const auto &config = DBConfig::GetConfig(db);
 	auto &pool = GetPool(pool_type);
-	ConsumerToken consumer(queues);
 
 	shared_ptr<Task> task;
 	// loop until the marker is set to false
@@ -191,12 +193,12 @@ void TaskScheduler::ExecuteForever(atomic<bool> *marker, const TaskSchedulerType
 		if (pool_type == TaskSchedulerType::REGULAR) {
 			// Regular thread pool picks up tasks from all pools
 			for (auto &queue : queues) {
-				if (TryDequeueAndProcessTask(config, *queue, consumer, task)) {
+				if (TryDequeueAndProcessTask(config, *queue, task)) {
 					break;
 				}
 			}
 		} else {
-			TryDequeueAndProcessTask(config, GetQueue(pool_type), consumer, task);
+			TryDequeueAndProcessTask(config, GetQueue(pool_type), task);
 		}
 	}
 	// this thread will exit, flush all of its outstanding allocations
@@ -212,12 +214,11 @@ void TaskScheduler::ExecuteForever(atomic<bool> *marker, const TaskSchedulerType
 
 idx_t TaskScheduler::ExecuteTasks(atomic<bool> *marker, idx_t max_tasks) {
 #ifndef DUCKDB_NO_THREADS
-	ConsumerToken consumer(queues);
 	idx_t completed_tasks = 0;
 	// loop until the marker is set to false
 	while (*marker && completed_tasks < max_tasks) {
 		shared_ptr<Task> task;
-		if (!GetTaskInternal(consumer, task)) {
+		if (!GetTaskInternal(task)) {
 			return completed_tasks;
 		}
 		auto execute_result = task->Execute(TaskExecutionMode::PROCESS_ALL);
@@ -244,11 +245,10 @@ idx_t TaskScheduler::ExecuteTasks(atomic<bool> *marker, idx_t max_tasks) {
 
 void TaskScheduler::ExecuteTasks(idx_t max_tasks) {
 #ifndef DUCKDB_NO_THREADS
-	ConsumerToken consumer(queues);
 	shared_ptr<Task> task;
 	for (idx_t i = 0; i < max_tasks; i++) {
 		GetPool(TaskSchedulerType::REGULAR).Wait(TASK_TIMEOUT_USECS);
-		if (!GetTaskInternal(consumer, task)) {
+		if (!GetTaskInternal(task)) {
 			return;
 		}
 		try {

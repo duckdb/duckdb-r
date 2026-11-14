@@ -187,7 +187,7 @@ static bool TemplatedBooleanOperation(const Value &left, const Value &right) {
 				return false;
 			}
 		}
-		return ValuePositionComparator::TieBreak<OP>(left_children.size(), right_children.size());
+		return true;
 	}
 	default:
 		throw InternalException("Unimplemented type for value comparison");

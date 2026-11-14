@@ -22,10 +22,6 @@ public:
 	idx_t col_idx;
 	unique_ptr<ColumnWriterState> child_state;
 	idx_t parent_index = 0;
-	//! Null containers, excluding absent parents and empty containers
-	idx_t own_null_count = 0;
-	//! Containers with a present parent, including null and empty containers
-	idx_t num_values = 0;
 };
 
 class ListColumnWriter : public ColumnWriter {

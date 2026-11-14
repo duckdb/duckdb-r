@@ -39,9 +39,6 @@ public:
 	const Expression &Else() const {
 		return *else_expr;
 	}
-	const unique_ptr<Expression> &ElseExpression() const {
-		return else_expr;
-	}
 	unique_ptr<Expression> &ElseMutable() {
 		return else_expr;
 	}

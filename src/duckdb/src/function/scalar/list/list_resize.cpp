@@ -74,8 +74,7 @@ static void ListResizeFunction(DataChunk &args, ExpressionState &, Vector &resul
 				sel.set_index(j, row_idx);
 			}
 			const auto &default_vector = args.data[2];
-			// the selection only has an entry for every padded row
-			list.Append(default_vector, sel, remaining_count.GetValue(), 0, remaining_count.GetValue());
+			list.Append(default_vector, sel, args.size(), 0, remaining_count.GetValue());
 			continue;
 		}
 
@@ -84,58 +83,49 @@ static void ListResizeFunction(DataChunk &args, ExpressionState &, Vector &resul
 	}
 }
 
-static void ListResizeResolveTypes(ResolveScalarFunctionTypesInput &input) {
+static unique_ptr<FunctionData> ListResizeBind(BindScalarFunctionInput &input) {
+	auto &context = input.GetClientContext();
 	auto &bound_function = input.GetBoundFunction();
-	D_ASSERT(bound_function.GetArguments().size() == 2 || input.GetArgumentCount() == 3);
+	auto &arguments = input.GetArguments();
+	D_ASSERT(bound_function.GetArguments().size() == 2 || arguments.size() == 3);
 	bound_function.GetArguments()[1] = LogicalType::UBIGINT;
 
 	// If the first argument is an array, cast it to a list.
-	auto list_type = input.GetArgumentType(0);
-	if (list_type.id() == LogicalTypeId::ARRAY) {
-		list_type = LogicalType::LIST(ArrayType::GetChildType(list_type));
-		bound_function.GetArguments()[0] = list_type;
-	}
+	arguments[0] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[0]));
 
 	// Early-out, if the first argument is a constant NULL.
-	if (list_type == LogicalType::SQLNULL) {
+	if (arguments[0]->GetReturnType() == LogicalType::SQLNULL) {
 		bound_function.GetArguments()[0] = LogicalType::SQLNULL;
 		bound_function.SetReturnType(LogicalType::SQLNULL);
-		return;
+		return make_uniq<VariableReturnBindData>(bound_function.GetReturnType());
 	}
 
 	// Early-out, if the first argument is a prepared statement.
-	if (list_type == LogicalType::UNKNOWN) {
-		bound_function.SetReturnType(list_type);
-		return;
+	if (arguments[0]->GetReturnType() == LogicalType::UNKNOWN) {
+		bound_function.SetReturnType(arguments[0]->GetReturnType());
+		return make_uniq<VariableReturnBindData>(bound_function.GetReturnType());
 	}
 
 	// Attempt implicit casting, if the default type does not match list the list child type.
-	if (bound_function.GetArguments().size() == 3 && ListType::GetChildType(list_type) != input.GetArgumentType(2) &&
-	    input.GetArgumentType(2) != LogicalTypeId::SQLNULL) {
-		bound_function.GetArguments()[2] = ListType::GetChildType(list_type);
+	if (bound_function.GetArguments().size() == 3 &&
+	    ListType::GetChildType(arguments[0]->GetReturnType()) != arguments[2]->GetReturnType() &&
+	    arguments[2]->GetReturnType() != LogicalTypeId::SQLNULL) {
+		bound_function.GetArguments()[2] = ListType::GetChildType(arguments[0]->GetReturnType());
 	}
 
-	bound_function.SetReturnType(list_type);
+	bound_function.SetReturnType(arguments[0]->GetReturnType());
+	return make_uniq<VariableReturnBindData>(bound_function.GetReturnType());
 }
 
 ScalarFunctionSet ListResizeFun::GetFunctions() {
-	ScalarFunction simple_fun({}, LogicalType::LIST(LogicalTypeId::ANY), ListResizeFunction,
-	                          VariableReturnBindData::Bind);
-	simple_fun.GetSignature()
-	    .AddParameter("list", LogicalType::LIST(LogicalTypeId::ANY))
-	    .AddParameter("size", LogicalTypeId::ANY);
+	ScalarFunction simple_fun({LogicalType::LIST(LogicalTypeId::ANY), LogicalTypeId::ANY},
+	                          LogicalType::LIST(LogicalTypeId::ANY), ListResizeFunction, ListResizeBind);
 	simple_fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	simple_fun.SetFallible();
-	simple_fun.SetResolveTypesCallback(ListResizeResolveTypes);
-	ScalarFunction default_value_fun({}, LogicalType::LIST(LogicalTypeId::ANY), ListResizeFunction,
-	                                 VariableReturnBindData::Bind);
-	default_value_fun.GetSignature()
-	    .AddParameter("list", LogicalType::LIST(LogicalTypeId::ANY))
-	    .AddParameter("size", LogicalTypeId::ANY)
-	    .AddParameter("value", LogicalTypeId::ANY);
+	ScalarFunction default_value_fun({LogicalType::LIST(LogicalTypeId::ANY), LogicalTypeId::ANY, LogicalTypeId::ANY},
+	                                 LogicalType::LIST(LogicalTypeId::ANY), ListResizeFunction, ListResizeBind);
 	default_value_fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
 	default_value_fun.SetFallible();
-	default_value_fun.SetResolveTypesCallback(ListResizeResolveTypes);
 	ScalarFunctionSet list_resize_set("list_resize");
 	list_resize_set.AddFunction(simple_fun);
 	list_resize_set.AddFunction(default_value_fun);

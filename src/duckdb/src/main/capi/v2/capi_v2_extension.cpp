@@ -50,7 +50,7 @@ namespace {
 //! context to lend (startup, static linking, autoloading). Rolls back unless the load finished.
 class CAPIV2LoadScope {
 public:
-	explicit CAPIV2LoadScope(DatabaseInstance &db) : con(Connection::CreateInternal(db)) {
+	explicit CAPIV2LoadScope(DatabaseInstance &db) : con(db) {
 		con.BeginTransaction();
 	}
 
@@ -130,8 +130,7 @@ void CallEntrypoint(DuckDBExtensionLoadStateV2 &load_state, const string &extens
 	::duckdb_v2_extension_input input;
 	input.get_api = statically_linked ? nullptr : ExtensionGetAPIV2;
 	input.extension = load_state.ToCStruct();
-	capiv2::CV2CallbackContext callback_context(context);
-	input.context = capiv2::Convert(&callback_context);
+	input.context = capiv2::Convert(&context);
 	input.err = &err_handle;
 
 	(*init_fun)(&input);

@@ -114,10 +114,6 @@ static void NegatePercentileFractions(ClientContext &context, unique_ptr<Express
 }
 
 BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFunctionCatalogEntry &func, idx_t depth) {
-	auto count_star = binder.TryRewriteQualifiedCountStar(aggr);
-	if (count_star) {
-		return BindAggregate(count_star->Cast<FunctionExpression>(), func, depth);
-	}
 	if (inside_try) {
 		throw BinderException("aggregates are not allowed inside the TRY expression");
 	}
@@ -127,21 +123,6 @@ BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFu
 	if (inside_aggregate) {
 		throw BinderException(aggr, "aggregate function calls cannot be nested");
 	}
-	// an aggregate is computed over the rows of the query, not over the elements an enclosing lambda is applied to -
-	// so the parameters of the enclosing lambdas can not be referenced in the aggregate
-	struct InaccessibleLambdaBindings {
-		InaccessibleLambdaBindings(ExpressionBinder &binder_p, idx_t count)
-		    : binder(binder_p), previous_count(binder.inaccessible_lambda_binding_count) {
-			binder.inaccessible_lambda_binding_count = count;
-		}
-		~InaccessibleLambdaBindings() {
-			binder.inaccessible_lambda_binding_count = previous_count;
-		}
-		ExpressionBinder &binder;
-		idx_t previous_count;
-	};
-	InaccessibleLambdaBindings inaccessible_lambdas(*this, lambda_bindings ? lambda_bindings->size() : 0);
-
 	// first bind the child of the aggregate expression (if any)
 	this->bound_aggregate = true;
 	unique_ptr<Expression> bound_filter;
@@ -193,7 +174,7 @@ BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFu
 		for (auto &order : aggr.OrderByMutable()->orders) {
 			if (order.expression->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
 				auto &const_expr = order.expression->Cast<ConstantExpression>();
-				if (const_expr.GetLiteral().kind != LiteralKind::INTEGER) {
+				if (!const_expr.GetValue().type().IsIntegral()) {
 					auto order_by_non_integer_literal = Settings::Get<OrderByNonIntegerLiteralSetting>(context);
 					if (!order_by_non_integer_literal) {
 						throw BinderException(

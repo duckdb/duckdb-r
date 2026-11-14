@@ -81,26 +81,20 @@ unique_ptr<UpdateSetInfo> PEGTransformerFactory::TransformUpdateSetTuple(PEGTran
 	return result;
 }
 
-unique_ptr<UpdateSetInfo>
-PEGTransformerFactory::TransformUpdateSetClauseList(PEGTransformer &transformer,
-                                                    vector<unique_ptr<UpdateSetInfo>> update_set_info) {
+unique_ptr<UpdateSetInfo> PEGTransformerFactory::TransformUpdateSetElementList(
+    PEGTransformer &transformer, vector<pair<string, unique_ptr<ParsedExpression>>> update_set_element) {
 	auto result = make_uniq<UpdateSetInfo>();
-	for (auto &info : update_set_info) {
-		for (idx_t i = 0; i < info->columns.size(); i++) {
-			result->columns.emplace_back(std::move(info->columns[i]));
-			result->expressions.push_back(std::move(info->expressions[i]));
-		}
+	for (auto &element : update_set_element) {
+		result->columns.emplace_back(std::move(element.first));
+		result->expressions.push_back(std::move(element.second));
 	}
 	return result;
 }
 
-unique_ptr<UpdateSetInfo> PEGTransformerFactory::TransformUpdateSetElement(PEGTransformer &transformer,
-                                                                           const string &update_set_column_target,
-                                                                           unique_ptr<ParsedExpression> expression) {
-	auto result = make_uniq<UpdateSetInfo>();
-	result->columns.emplace_back(update_set_column_target);
-	result->expressions.push_back(std::move(expression));
-	return result;
+pair<string, unique_ptr<ParsedExpression>>
+PEGTransformerFactory::TransformUpdateSetElement(PEGTransformer &transformer, const string &update_set_column_target,
+                                                 unique_ptr<ParsedExpression> expression) {
+	return {update_set_column_target, std::move(expression)};
 }
 
 string PEGTransformerFactory::TransformUpdateSetColumnTarget(PEGTransformer &transformer, const Identifier &column_name,

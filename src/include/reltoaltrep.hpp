@@ -13,7 +13,7 @@ struct AltrepRelationWrapper {
 
 	bool Materialized() const;
 
-	QueryResult *GetQueryResult();
+	MaterializedQueryResult *GetQueryResult();
 
 	void Materialize();
 

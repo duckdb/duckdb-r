@@ -1,4 +1,4 @@
-#include "duckdb/common/types/variant/parquet_variant_iterator.hpp"
+#include "reader/variant/parquet_variant_iterator.hpp"
 #include "reader/variant_column_reader.hpp"
 
 #include "duckdb/common/types/variant/variant_builder.hpp"

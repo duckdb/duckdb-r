@@ -91,20 +91,10 @@ static void BarFunction(DataChunk &args, ExpressionState &state, Vector &result)
 
 ScalarFunctionSet BarFun::GetFunctions() {
 	ScalarFunctionSet bar;
-	ScalarFunction bar_width({}, LogicalType::VARCHAR, BarFunction);
-	bar_width.GetSignature()
-	    .AddParameter("x", LogicalType::DOUBLE)
-	    .AddParameter("min", LogicalType::DOUBLE)
-	    .AddParameter("max", LogicalType::DOUBLE)
-	    .AddParameter("width", LogicalType::DOUBLE);
-	bar.AddFunction(bar_width);
-
-	ScalarFunction bar_default_width({}, LogicalType::VARCHAR, BarFunction);
-	bar_default_width.GetSignature()
-	    .AddParameter("x", LogicalType::DOUBLE)
-	    .AddParameter("min", LogicalType::DOUBLE)
-	    .AddParameter("max", LogicalType::DOUBLE);
-	bar.AddFunction(bar_default_width);
+	bar.AddFunction(ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE, LogicalType::DOUBLE, LogicalType::DOUBLE},
+	                               LogicalType::VARCHAR, BarFunction));
+	bar.AddFunction(ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE, LogicalType::DOUBLE},
+	                               LogicalType::VARCHAR, BarFunction));
 	// throws if the bar width is out of range
 	bar.SetFallible();
 	return bar;

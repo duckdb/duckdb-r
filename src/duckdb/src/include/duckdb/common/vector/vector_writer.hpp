@@ -500,7 +500,7 @@ public:
 	}
 	DynamicListAppender(const DynamicListAppender &) = delete;
 	DynamicListAppender(DynamicListAppender &&) = delete;
-	~DynamicListAppender() { // NOLINT(bugprone-exception-escape): writer invariants make these setters non-throwing.
+	~DynamicListAppender() {
 		parent.list_data[row_idx] = {base_offset, current_length};
 		parent.child_offset = base_offset + current_length;
 		VectorWriterSetListSize(parent.list_vec, base_offset + current_length);

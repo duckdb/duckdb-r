@@ -9,11 +9,37 @@
 #pragma once
 
 #include "duckdb/common/common.hpp"
-#include "duckdb/common/typed_index.hpp"
 
 namespace duckdb {
-struct RelationIndex : public TypedIndex<RelationIndex> {
-	using TypedIndex::TypedIndex;
+struct RelationIndex {
+	RelationIndex() : index(DConstants::INVALID_INDEX) {
+	}
+	explicit RelationIndex(idx_t index) : index(index) {
+	}
+
+	idx_t index;
+
+	bool operator==(const RelationIndex &rhs) const {
+		return index == rhs.index;
+	}
+	bool operator<(const RelationIndex &rhs) const {
+		return index < rhs.index;
+	}
+	bool operator!=(const RelationIndex &other) const {
+		return !(*this == other);
+	}
+	bool operator>(const RelationIndex &other) const {
+		return other < *this;
+	}
+	bool operator<=(const RelationIndex &other) const {
+		return !(other < *this);
+	}
+	bool operator>=(const RelationIndex &other) const {
+		return !(*this < other);
+	}
+	bool IsValid() const {
+		return index != DConstants::INVALID_INDEX;
+	}
 };
 } // namespace duckdb
 

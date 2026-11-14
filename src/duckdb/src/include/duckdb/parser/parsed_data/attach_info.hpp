@@ -10,7 +10,6 @@
 
 #include "duckdb/common/identifier.hpp"
 #include "duckdb/parser/parsed_data/parse_info.hpp"
-#include "duckdb/parser/parsed_data/external_resource_options.hpp"
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/enums/on_create_conflict.hpp"
@@ -38,8 +37,6 @@ public:
 	unordered_map<string, Value> options;
 	//! What to do on create conflict
 	OnCreateConflict on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
-	//! Set iff parsed as `ATTACH TO [NEW TEMPORARY] EXTERNAL RESOURCE ...`: the resource to attach.
-	unique_ptr<ExternalResourceOptions> external_resource;
 
 public:
 	//! Copies this AttachInfo and returns an unique pointer to the new AttachInfo.

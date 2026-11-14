@@ -1,5 +1,4 @@
 #include "duckdb/common/vector/flat_vector.hpp"
-#include "duckdb/common/atomic.hpp"
 #include "duckdb/common/vector/list_vector.hpp"
 #include "duckdb/common/vector/map_vector.hpp"
 #include "duckdb/common/vector/struct_vector.hpp"
@@ -22,7 +21,7 @@ struct TestVectorTypesData : public GlobalTableFunctionState {
 	}
 
 	vector<unique_ptr<DataChunk>> entries;
-	atomic<idx_t> offset;
+	idx_t offset;
 };
 
 struct TestVectorInfo {
@@ -330,26 +329,14 @@ void TestVectorTypesFunction(ClientContext &context, TableFunctionInput &data_p,
 		return;
 	}
 	output.Reference(*data.entries[data.offset]);
-	data.offset.fetch_add(1, std::memory_order_relaxed);
-}
-
-static double TestVectorTypesProgress(ClientContext &context, const FunctionData *bind_data,
-                                      const GlobalTableFunctionState *global_state) {
-	auto &data = global_state->Cast<TestVectorTypesData>();
-	if (data.entries.empty()) {
-		return 100.0;
-	}
-	return 100.0 * static_cast<double>(data.offset) / static_cast<double>(data.entries.size());
+	data.offset++;
 }
 
 void TestVectorTypesFun::RegisterFunction(BuiltinFunctions &set) {
-	TableFunction test_vector_types("test_vector_types",
-	                                FunctionSignature().AddPositionalOnly("column", LogicalType::ANY),
-	                                TestVectorTypesFunction, TestVectorTypesBind, TestVectorTypesInit);
-	test_vector_types.GetSignature()
-	    .AddArgs("args", LogicalType::ANY)
-	    .WithTypedKwargs("options", [](TypedKwargs &options) { options.Add("all_flat", LogicalType::BOOLEAN); });
-	test_vector_types.table_scan_progress = TestVectorTypesProgress;
+	TableFunction test_vector_types("test_vector_types", {LogicalType::ANY}, TestVectorTypesFunction,
+	                                TestVectorTypesBind, TestVectorTypesInit);
+	test_vector_types.SetVarArgs(LogicalType::ANY);
+	test_vector_types.named_parameters["all_flat"] = LogicalType::BOOLEAN;
 
 	set.AddFunction(std::move(test_vector_types));
 }

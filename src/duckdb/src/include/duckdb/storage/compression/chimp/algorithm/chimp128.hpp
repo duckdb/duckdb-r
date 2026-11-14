@@ -207,6 +207,7 @@ public:
 		return trailing_zeros;
 	}
 
+	BitReader input;
 	uint8_t leading_zeros;
 	uint8_t trailing_zeros;
 	CHIMP_TYPE reference_value = 0;
@@ -228,18 +229,16 @@ public:
 	}
 
 	static inline CHIMP_TYPE Load(ChimpConstants::Flags flag, uint8_t leading_zeros[], uint32_t &leading_zero_index,
-	                              UnpackedData unpacked_data[], uint32_t &unpacked_index, DecompressState &state,
-	                              BitReader &input) {
+	                              UnpackedData unpacked_data[], uint32_t &unpacked_index, DecompressState &state) {
 		if (DUCKDB_UNLIKELY(state.first)) {
-			return LoadFirst(state, input);
+			return LoadFirst(state);
 		} else {
-			return DecompressValue(flag, leading_zeros, leading_zero_index, unpacked_data, unpacked_index, state,
-			                       input);
+			return DecompressValue(flag, leading_zeros, leading_zero_index, unpacked_data, unpacked_index, state);
 		}
 	}
 
-	static inline CHIMP_TYPE LoadFirst(DecompressState &state, BitReader &input) {
-		CHIMP_TYPE result = input.ReadValue<CHIMP_TYPE, sizeof(CHIMP_TYPE) * 8>();
+	static inline CHIMP_TYPE LoadFirst(DecompressState &state) {
+		CHIMP_TYPE result = state.input.template ReadValue<CHIMP_TYPE, sizeof(CHIMP_TYPE) * 8>();
 		state.ring_buffer.template InsertScan<true>(result);
 		state.first = false;
 		state.reference_value = result;
@@ -248,12 +247,12 @@ public:
 
 	static inline CHIMP_TYPE DecompressValue(ChimpConstants::Flags flag, uint8_t leading_zeros[],
 	                                         uint32_t &leading_zero_index, UnpackedData unpacked_data[],
-	                                         uint32_t &unpacked_index, DecompressState &state, BitReader &input) {
+	                                         uint32_t &unpacked_index, DecompressState &state) {
 		CHIMP_TYPE result;
 		switch (flag) {
 		case ChimpConstants::Flags::VALUE_IDENTICAL: {
 			//! Value is identical to previous value
-			auto index = input.ReadValue<uint8_t, 7>();
+			auto index = state.input.template ReadValue<uint8_t, 7>();
 			result = UnsafeNumericCast<CHIMP_TYPE>(state.ring_buffer.Value(index));
 			break;
 		}
@@ -261,20 +260,20 @@ public:
 			const UnpackedData &unpacked = unpacked_data[unpacked_index++];
 			state.leading_zeros = unpacked.leading_zero;
 			state.trailing_zeros = BIT_SIZE - unpacked.significant_bits - state.leading_zeros;
-			result = input.ReadValue<CHIMP_TYPE>(unpacked.significant_bits);
+			result = state.input.template ReadValue<CHIMP_TYPE>(unpacked.significant_bits);
 			result <<= state.trailing_zeros;
 			result ^= state.ring_buffer.Value(unpacked.index);
 			break;
 		}
 		case ChimpConstants::Flags::LEADING_ZERO_EQUALITY: {
-			result = input.ReadValue<CHIMP_TYPE>(BIT_SIZE - state.leading_zeros);
+			result = state.input.template ReadValue<CHIMP_TYPE>(BIT_SIZE - state.leading_zeros);
 			result ^= state.reference_value;
 			break;
 		}
 		case ChimpConstants::Flags::LEADING_ZERO_LOAD: {
 			state.leading_zeros = leading_zeros[leading_zero_index++];
 			D_ASSERT(state.leading_zeros <= BIT_SIZE);
-			result = input.ReadValue<CHIMP_TYPE>(BIT_SIZE - state.leading_zeros);
+			result = state.input.template ReadValue<CHIMP_TYPE>(BIT_SIZE - state.leading_zeros);
 			result ^= state.reference_value;
 			break;
 		}

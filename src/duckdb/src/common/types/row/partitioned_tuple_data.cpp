@@ -405,14 +405,6 @@ idx_t PartitionedTupleData::SizeInBytes() const {
 	return data_size + stl_allocator->AllocationSize();
 }
 
-idx_t PartitionedTupleData::GetAllocatedSizeInBytes() const {
-	idx_t result = stl_allocator->AllocationSize();
-	for (const auto &partition : partitions) {
-		result += partition->GetBlockAllocationSize();
-	}
-	return result;
-}
-
 idx_t PartitionedTupleData::PartitionCount() const {
 	return partitions.size();
 }

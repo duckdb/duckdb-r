@@ -17,7 +17,6 @@
 #include "duckdb/storage/storage_options.hpp"
 
 namespace duckdb {
-struct AttachOptions;
 class ActiveCheckpointWrapper;
 class BlockManager;
 class Catalog;

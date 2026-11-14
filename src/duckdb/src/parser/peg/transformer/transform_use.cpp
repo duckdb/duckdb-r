@@ -13,21 +13,23 @@ unique_ptr<SQLStatement> PEGTransformerFactory::TransformUseStatement(PEGTransfo
 		value_str = SQLIdentifier(use_target.Schema()) + "." + SQLIdentifier(use_target.Name());
 	}
 
-	auto value_expr = ConstantExpression::String(value_str);
+	auto value_expr = make_uniq<ConstantExpression>(Value(value_str));
 	return make_uniq<SetVariableStatement>("schema", std::move(value_expr), SetScope::AUTOMATIC);
 }
 
-// UseTarget <- UseTargetCatalogSchema / SchemaNameAsUseTarget / CatalogNameAsUseTarget
-// SchemaNameAsUseTarget <- SchemaName / StringLiteral
+// UseTarget <- UseTargetCatalogSchema / SchemaName / CatalogName
 QualifiedName PEGTransformerFactory::TransformSchemaNameAsUseTarget(PEGTransformer &transformer,
-                                                                    const string &schema_name) {
-	return QualifiedName(Identifier(schema_name));
+                                                                    const Identifier &schema_name) {
+	QualifiedName result;
+	result = QualifiedName(schema_name);
+	return result;
 }
 
-// CatalogNameAsUseTarget <- CatalogName / StringLiteral
 QualifiedName PEGTransformerFactory::TransformCatalogNameAsUseTarget(PEGTransformer &transformer,
-                                                                     const string &catalog_name) {
-	return QualifiedName(Identifier(catalog_name));
+                                                                     const Identifier &catalog_name) {
+	QualifiedName result;
+	result = QualifiedName(catalog_name);
+	return result;
 }
 
 // UseTargetCatalogSchema <- CatalogName '.' ReservedSchemaName DotIdentifier*

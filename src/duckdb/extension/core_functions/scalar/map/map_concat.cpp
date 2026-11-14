@@ -185,7 +185,7 @@ ScalarFunction MapConcatFun::GetFunction() {
 	//! the arguments and return types are actually set in the binder function
 	ScalarFunction fun("map_concat", {}, LogicalTypeId::LIST, MapConcatFunction, MapConcatBind);
 	fun.SetNullHandling(FunctionNullHandling::SPECIAL_HANDLING);
-	fun.GetSignature().AddArgs("args", LogicalType::ANY);
+	fun.SetVarArgs(LogicalType::ANY);
 	return fun;
 }
 

@@ -3,7 +3,6 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/vector_operations/ternary_executor.hpp"
-#include "duckdb/function/scalar/string_common.hpp"
 
 #include <string.h>
 #include <ctype.h>
@@ -14,11 +13,13 @@ namespace duckdb {
 static idx_t NextNeedle(const char *input_haystack, idx_t size_haystack, const char *input_needle,
                         const idx_t size_needle) {
 	// Needle needs something to proceed
-	if (size_needle > 0 && size_haystack > 0) {
-		auto position = FindStrInStr(const_uchar_ptr_cast(input_haystack), size_haystack,
-		                             const_uchar_ptr_cast(input_needle), size_needle);
-		if (position != DConstants::INVALID_INDEX) {
-			return position;
+	if (size_needle > 0) {
+		// Haystack should be bigger or equal size to the needle
+		for (idx_t string_position = 0; (size_haystack - string_position) >= size_needle; ++string_position) {
+			// Compare Needle to the Haystack
+			if ((memcmp(input_haystack + string_position, input_needle, size_needle) == 0)) {
+				return string_position;
+			}
 		}
 	}
 	// Did not find the needle
@@ -76,12 +77,8 @@ static void ReplaceFunction(DataChunk &args, ExpressionState &state, Vector &res
 }
 
 ScalarFunction ReplaceFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::VARCHAR, ReplaceFunction);
-	fun.GetSignature()
-	    .AddParameter("string", LogicalType::VARCHAR)
-	    .AddParameter("source", LogicalType::VARCHAR)
-	    .AddParameter("target", LogicalType::VARCHAR);
-	return fun;
+	return ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                      ReplaceFunction);
 }
 
 } // namespace duckdb

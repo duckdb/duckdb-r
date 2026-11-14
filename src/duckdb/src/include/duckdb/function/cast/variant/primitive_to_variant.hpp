@@ -17,14 +17,6 @@ public:
 	}
 
 public:
-	const string_t &GetString(idx_t index) const {
-		if (index >= size) {
-			throw InternalException("ENUM index %llu is out of range for an ENUM with %llu values", index, size);
-		}
-		return values[index];
-	}
-
-public:
 	const string_t *values;
 	idx_t size;
 };
@@ -109,19 +101,19 @@ static void WriteData(data_ptr_t ptr, const T &val, uint32_t lengths[3], EnumCon
 template <>
 void WriteData(data_ptr_t ptr, const uint8_t &val, uint32_t lengths[3], EnumConversionPayload &payload) {
 	EmptyConversionPayloadToVariant empty_payload;
-	auto &str = payload.GetString(val);
+	auto &str = payload.values[val];
 	WriteData(ptr, str, lengths, empty_payload);
 }
 template <>
 void WriteData(data_ptr_t ptr, const uint16_t &val, uint32_t lengths[3], EnumConversionPayload &payload) {
 	EmptyConversionPayloadToVariant empty_payload;
-	auto &str = payload.GetString(val);
+	auto &str = payload.values[val];
 	WriteData(ptr, str, lengths, empty_payload);
 }
 template <>
 void WriteData(data_ptr_t ptr, const uint32_t &val, uint32_t lengths[3], EnumConversionPayload &payload) {
 	EmptyConversionPayloadToVariant empty_payload;
-	auto &str = payload.GetString(val);
+	auto &str = payload.values[val];
 	WriteData(ptr, str, lengths, empty_payload);
 }
 
@@ -192,19 +184,19 @@ static void GetValueSize(const T &val, uint32_t lengths[3], idx_t &lengths_size,
 template <>
 void GetValueSize(const uint8_t &val, uint32_t lengths[3], idx_t &lengths_size, EnumConversionPayload &payload) {
 	EmptyConversionPayloadToVariant empty_payload;
-	auto &str = payload.GetString(val);
+	auto &str = payload.values[val];
 	GetValueSize(str, lengths, lengths_size, empty_payload);
 }
 template <>
 void GetValueSize(const uint16_t &val, uint32_t lengths[3], idx_t &lengths_size, EnumConversionPayload &payload) {
 	EmptyConversionPayloadToVariant empty_payload;
-	auto &str = payload.GetString(val);
+	auto &str = payload.values[val];
 	GetValueSize(str, lengths, lengths_size, empty_payload);
 }
 template <>
 void GetValueSize(const uint32_t &val, uint32_t lengths[3], idx_t &lengths_size, EnumConversionPayload &payload) {
 	EmptyConversionPayloadToVariant empty_payload;
-	auto &str = payload.GetString(val);
+	auto &str = payload.values[val];
 	GetValueSize(str, lengths, lengths_size, empty_payload);
 }
 
@@ -223,10 +215,9 @@ static bool ConvertPrimitiveTemplated(ToVariantSourceData &source, ToVariantGlob
 
 	auto &variant = result.variant;
 	uint32_t lengths[3];
+	idx_t lengths_size = 0;
 	for (idx_t i = 0; i < count; i++) {
 		auto index = source[i];
-		// the blob space to reserve for this row - nothing for NULL rows
-		idx_t lengths_size = 0;
 
 		auto result_index = selvec ? selvec->get_index(i) : i;
 		auto &blob_offset = blob_offset_data[result_index];
@@ -234,6 +225,7 @@ static bool ConvertPrimitiveTemplated(ToVariantSourceData &source, ToVariantGlob
 		if (TYPE_ID != VariantLogicalType::VARIANT_NULL && source_validity.RowIsValid(index)) {
 			//! Write the value
 			auto &val = source_data[index];
+			lengths_size = 0;
 			GetValueSize<T>(val, lengths, lengths_size, payload);
 			WriteVariantMetadata<WRITE_DATA>(result, result_index, values_offset_data, blob_offset, values_index_selvec,
 			                                 i, GetTypeId<T, TYPE_ID>(val));
@@ -248,7 +240,7 @@ static bool ConvertPrimitiveTemplated(ToVariantSourceData &source, ToVariantGlob
 		}
 
 		for (idx_t j = 0; j < lengths_size; j++) {
-			OffsetData::AddBlobOffset(blob_offset, lengths[j]);
+			blob_offset += lengths[j];
 		}
 	}
 	return true;

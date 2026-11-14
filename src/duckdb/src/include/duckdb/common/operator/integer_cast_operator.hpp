@@ -83,7 +83,7 @@ struct IntegerDecimalCastData {
 	using StoreType = int64_t;
 	StoreType result;
 	StoreType decimal;
-	idx_t decimal_digits;
+	uint16_t decimal_digits;
 };
 
 template <>
@@ -92,7 +92,7 @@ struct IntegerDecimalCastData<uint64_t> {
 	using StoreType = uint64_t;
 	StoreType result;
 	StoreType decimal;
-	idx_t decimal_digits;
+	uint16_t decimal_digits;
 };
 
 struct IntegerDecimalCastOperation : IntegerCastOperation {
@@ -129,23 +129,21 @@ struct IntegerDecimalCastOperation : IntegerCastOperation {
 		}
 
 		// Handle decimals
-		auto shift = static_cast<int64_t>(exponent) - static_cast<int64_t>(state.decimal_digits);
+		e = UnsafeNumericCast<int16_t>(exponent - state.decimal_digits);
 		store_t remainder = 0;
-		if (shift < 0) {
-			if (static_cast<uint64_t>(-shift) < NumericLimits<store_t>::Digits()) {
+		if (e < 0) {
+			if (static_cast<uint16_t>(-e) <= NumericLimits<store_t>::Digits()) {
 				store_t power = 1;
-				while (shift++ < 0) {
+				while (e++ < 0) {
 					power *= 10;
 				}
 				remainder = state.decimal % power;
 				state.decimal /= power;
 			} else {
-				// power would overflow and exceed decimal: all of decimal is fractional
-				remainder = state.decimal;
 				state.decimal = 0;
 			}
 		} else {
-			while (shift-- > 0) {
+			while (e-- > 0) {
 				if (!TryMultiplyOperator::Operation(state.decimal, (store_t)10, state.decimal)) {
 					return false;
 				}
@@ -168,10 +166,7 @@ struct IntegerDecimalCastOperation : IntegerCastOperation {
 	template <class T, bool NEGATIVE, bool ALLOW_EXPONENT>
 	static bool HandleDecimal(T &state, uint8_t digit) {
 		using store_t = typename T::StoreType;
-		// digits past this position cannot affect the result for any int16_t exponent
-		static constexpr uint16_t MAX_DECIMAL_DIGITS = -NumericLimits<int16_t>::Minimum();
-		if (DUCKDB_UNLIKELY(state.decimal_digits == MAX_DECIMAL_DIGITS ||
-		                    state.decimal > (NumericLimits<store_t>::Maximum() - digit) / 10)) {
+		if (DUCKDB_UNLIKELY(state.decimal > (NumericLimits<store_t>::Maximum() - digit) / 10)) {
 			// Simply ignore any more decimals
 			return true;
 		}
@@ -266,10 +261,6 @@ static bool IntegerCastLoop(const char *buf, idx_t len, T &result, bool strict) 
 				}
 			}
 			if (StringUtil::CharacterIsSpace(buf[pos])) {
-				if (pos == start_pos) {
-					// a sign followed only by whitespace is not a number
-					return false;
-				}
 				// skip any trailing spaces
 				while (++pos < len) {
 					if (!StringUtil::CharacterIsSpace(buf[pos])) {

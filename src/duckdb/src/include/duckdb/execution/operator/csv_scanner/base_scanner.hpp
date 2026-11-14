@@ -13,7 +13,6 @@
 #include "duckdb/execution/operator/csv_scanner/csv_state_machine.hpp"
 #include "duckdb/execution/operator/csv_scanner/csv_error.hpp"
 #include "duckdb/common/helper.hpp"
-#include "duckdb/execution/operator/csv_scanner/csv_byte_skipper.hpp"
 
 namespace duckdb {
 
@@ -184,6 +183,10 @@ public:
 	static CSVIterator SkipCSVRows(shared_ptr<CSVBufferManager> buffer_manager,
 	                               const shared_ptr<CSVStateMachine> &state_machine, idx_t rows_to_skip);
 
+	inline static bool ContainsZeroByte(uint64_t v) {
+		return (v - UINT64_C(0x0101010101010101)) & ~(v)&UINT64_C(0x8080808080808080);
+	}
+
 protected:
 	//! Boundaries of this scanner
 	CSVIterator iterator;
@@ -204,9 +207,6 @@ protected:
 	//! Initializes the scanner
 	virtual void Initialize();
 
-	//! Skips the content bytes of the current buffer, mutable because the line finder is const
-	mutable CSVByteSkipper skipper;
-
 	//! Process one chunk
 	template <class T>
 	void Process(T &result) {
@@ -226,7 +226,6 @@ protected:
 		} else {
 			to_pos = cur_buffer_handle->actual_size;
 		}
-		skipper.SetBuffer(*cur_buffer_handle);
 		while (iterator.pos.buffer_pos < to_pos) {
 			state_machine->Transition(states, buffer_handle_ptr[iterator.pos.buffer_pos]);
 			switch (states.states[1]) {
@@ -317,7 +316,21 @@ protected:
 				ever_quoted = true;
 				T::SetQuoted(result, iterator.pos.buffer_pos);
 				iterator.pos.buffer_pos++;
-				skipper.SkipToStop(state_machine->transition_array.skip_quoted, to_pos, iterator.pos.buffer_pos);
+				while (iterator.pos.buffer_pos + 8 < to_pos) {
+					const uint64_t value =
+					    Load<uint64_t>(reinterpret_cast<const_data_ptr_t>(&buffer_handle_ptr[iterator.pos.buffer_pos]));
+					if (ContainsZeroByte((value ^ state_machine->transition_array.quote) &
+					                     (value ^ state_machine->transition_array.escape))) {
+						break;
+					}
+					iterator.pos.buffer_pos += 8;
+				}
+
+				while (state_machine->transition_array
+				           .skip_quoted[static_cast<uint8_t>(buffer_handle_ptr[iterator.pos.buffer_pos])] &&
+				       iterator.pos.buffer_pos < to_pos - 1) {
+					iterator.pos.buffer_pos++;
+				}
 			} break;
 			case CSVState::UNQUOTED: {
 				if (states.states[0] == CSVState::MAYBE_QUOTED) {
@@ -338,19 +351,50 @@ protected:
 				iterator.pos.buffer_pos++;
 				used_unstrictness = true;
 				break;
-			case CSVState::STANDARD:
+			case CSVState::STANDARD: {
 				iterator.pos.buffer_pos++;
-				skipper.SkipToStop(state_machine->transition_array.skip_standard, to_pos, iterator.pos.buffer_pos);
+				while (iterator.pos.buffer_pos + 8 < to_pos) {
+					uint64_t value =
+					    Load<uint64_t>(reinterpret_cast<const_data_ptr_t>(&buffer_handle_ptr[iterator.pos.buffer_pos]));
+					if (ContainsZeroByte((value ^ state_machine->transition_array.delimiter) &
+					                     (value ^ state_machine->transition_array.new_line) &
+					                     (value ^ state_machine->transition_array.carriage_return) &
+					                     (value ^ state_machine->transition_array.escape) &
+					                     (value ^ state_machine->transition_array.comment))) {
+						break;
+					}
+					iterator.pos.buffer_pos += 8;
+				}
+				while (state_machine->transition_array
+				           .skip_standard[static_cast<uint8_t>(buffer_handle_ptr[iterator.pos.buffer_pos])] &&
+				       iterator.pos.buffer_pos < to_pos - 1) {
+					iterator.pos.buffer_pos++;
+				}
 				break;
+			}
 			case CSVState::QUOTED_NEW_LINE:
 				T::QuotedNewLine(result);
 				iterator.pos.buffer_pos++;
 				break;
-			case CSVState::COMMENT:
+			case CSVState::COMMENT: {
 				T::SetComment(result, iterator.pos.buffer_pos);
 				iterator.pos.buffer_pos++;
-				skipper.SkipToStop(state_machine->transition_array.skip_comment, to_pos, iterator.pos.buffer_pos);
+				while (iterator.pos.buffer_pos + 8 < to_pos) {
+					const uint64_t value =
+					    Load<uint64_t>(reinterpret_cast<const_data_ptr_t>(&buffer_handle_ptr[iterator.pos.buffer_pos]));
+					if (ContainsZeroByte((value ^ state_machine->transition_array.new_line) &
+					                     (value ^ state_machine->transition_array.carriage_return))) {
+						break;
+					}
+					iterator.pos.buffer_pos += 8;
+				}
+				while (state_machine->transition_array
+				           .skip_comment[static_cast<uint8_t>(buffer_handle_ptr[iterator.pos.buffer_pos])] &&
+				       iterator.pos.buffer_pos < to_pos - 1) {
+					iterator.pos.buffer_pos++;
+				}
 				break;
+			}
 			default:
 				iterator.pos.buffer_pos++;
 				break;

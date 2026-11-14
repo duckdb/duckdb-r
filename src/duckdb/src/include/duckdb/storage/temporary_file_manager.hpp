@@ -41,28 +41,6 @@ enum class TemporaryBufferSize : uint64_t {
 	DEFAULT = DEFAULT_BLOCK_ALLOC_SIZE,
 };
 
-//! The instance a temporary file belongs to: the process that created it, and which
-//! DatabaseInstance within that process.
-struct TemporaryFileOwner {
-	int64_t pid = 0;
-	idx_t instance = 0;
-
-	bool operator==(const TemporaryFileOwner &other) const {
-		return pid == other.pid && instance == other.instance;
-	}
-};
-
-//! "duckdb_temp_<pid>_<instance>_", the start of every temporary file name. It keeps instances
-//! sharing a temp_directory off each other's paths, and says who to ask whether they are still live.
-DUCKDB_API string TemporaryFilePrefix(const TemporaryFileOwner &owner);
-//! An empty file that exists for as long as an instance uses the directory. Creating it exclusively
-//! is what claims an id; no file of an instance's own is proof, since every one of them can be
-//! deleted again while the instance is still live and about to write more.
-DUCKDB_API string TemporaryOwnerMarkerName(const TemporaryFileOwner &owner);
-//! Extracts the owner, if the name carries one. Names from a version that did not name files after
-//! their owner do not, and are left alone: a running instance of that version may still own them.
-DUCKDB_API bool TryParseTemporaryFileOwner(const string &file_name, TemporaryFileOwner &owner);
-
 //===--------------------------------------------------------------------===//
 // TemporaryFileIdentifier/TemporaryFileIndex
 //===--------------------------------------------------------------------===//
@@ -88,8 +66,7 @@ public:
 struct TemporaryFileIndex {
 public:
 	TemporaryFileIndex();
-	TemporaryFileIndex(TemporaryFileIdentifier identifier, idx_t block_index, idx_t block_header_size,
-	                   FileBufferType buffer_type);
+	TemporaryFileIndex(TemporaryFileIdentifier identifier, idx_t block_index, idx_t block_header_size);
 
 public:
 	//! Whether this temporary file index is valid (fields have been set)
@@ -102,8 +79,6 @@ public:
 	optional_idx block_index;
 	//! The block header size
 	optional_idx block_header_size;
-	//! The buffer type
-	FileBufferType buffer_type = FileBufferType::MANAGED_BUFFER;
 };
 
 //===--------------------------------------------------------------------===//
@@ -112,7 +87,7 @@ public:
 struct BlockIndexManager {
 public:
 	BlockIndexManager();
-	explicit BlockIndexManager(TemporaryFileManager &manager, bool encrypted = false);
+	explicit BlockIndexManager(TemporaryFileManager &manager);
 
 public:
 	//! Obtains a new block index from the index manager
@@ -140,8 +115,6 @@ private:
 	set<idx_t> indexes_in_use;
 	//! The TemporaryFileManager that "owns" this BlockIndexManager
 	optional_ptr<TemporaryFileManager> manager;
-	//! Whether the tracked file is encrypted
-	bool encrypted;
 };
 
 //===--------------------------------------------------------------------===//
@@ -165,13 +138,13 @@ public:
 
 public:
 	//! Try to get an index of where to write in this file. Returns an invalid index if full
-	TemporaryFileIndex TryGetBlockIndex(idx_t block_header_size, FileBufferType buffer_type);
+	TemporaryFileIndex TryGetBlockIndex(idx_t block_header_size);
 	//! Remove block index from this TemporaryFileHandle
 	void EraseBlockIndex(block_id_t block_index);
 
 	//! Read/Write temporary buffers at given positions in this file (potentially compressed)
 	unique_ptr<FileBuffer> ReadTemporaryBuffer(QueryContext context, const TemporaryFileIndex &index_in_file,
-	                                           unique_ptr<FileBuffer> buffer) const;
+	                                           unique_ptr<FileBuffer> reusable_buffer) const;
 	void WriteTemporaryBuffer(QueryContext context, FileBuffer &buffer, idx_t block_index,
 	                          AllocatedData &compressed_buffer) const;
 
@@ -290,8 +263,7 @@ class TemporaryFileManager {
 	friend class TemporaryFileHandle;
 
 public:
-	TemporaryFileManager(DatabaseInstance &db, const string &temp_directory_p, atomic<idx_t> &size_on_disk,
-	                     string file_prefix);
+	TemporaryFileManager(DatabaseInstance &db, const string &temp_directory_p, atomic<idx_t> &size_on_disk);
 	~TemporaryFileManager();
 
 private:
@@ -351,8 +323,6 @@ private:
 
 private:
 	//! Reference to the DB instance
-	//! Prefix shared by every file this manager creates
-	string file_prefix;
 	DatabaseInstance &db;
 	//! The temporary directory
 	string temp_directory;
@@ -387,30 +357,9 @@ public:
 	TemporaryFileManager &GetTempFile() const;
 
 private:
-	//! Removes this instance's temporary files and, if it created it, the directory. May throw; the
-	//! destructor is what guarantees nothing escapes.
-	void CleanupTemporaryDirectory();
-	//! Removes files of instances whose process is gone. Never throws.
-	void SweepAbandonedInstances();
-	//! Files in the directory that belong to this instance.
-	vector<string> ListOwnFiles();
-	//! Names this instance after its process, taking an id by creating its marker exclusively.
-	//! Sets owner and file_prefix.
-	void ClaimOwner();
-
-public:
-	//! Prefix every temporary file of this instance carries.
-	const string &GetFilePrefix() const {
-		return file_prefix;
-	}
-
-private:
 	DatabaseInstance &db;
 	string temp_directory;
 	bool created_directory = false;
-	//! Who this instance is in the directory, and the prefix built from it
-	TemporaryFileOwner owner;
-	string file_prefix;
 	unique_ptr<TemporaryFileManager> temp_file;
 };
 

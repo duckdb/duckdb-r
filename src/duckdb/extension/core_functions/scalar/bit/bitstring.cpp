@@ -37,20 +37,13 @@ static void BitStringFunction(DataChunk &args, ExpressionState &state, Vector &r
 }
 
 ScalarFunctionSet BitStringFun::GetFunctions() {
-	ScalarFunctionSet set("bitstring");
-
-	ScalarFunction fun_varchar({}, LogicalType::BIT, BitStringFunction<true>);
-	fun_varchar.GetSignature()
-	    .AddParameter("bitstring", LogicalType::VARCHAR)
-	    .AddParameter("length", LogicalType::INTEGER);
-	set.AddFunction(std::move(fun_varchar));
-
-	ScalarFunction fun_bit({}, LogicalType::BIT, BitStringFunction<false>);
-	fun_bit.GetSignature().AddParameter("bitstring", LogicalType::BIT).AddParameter("length", LogicalType::INTEGER);
-	set.AddFunction(std::move(fun_bit));
-
-	set.SetFallible();
-	return set;
+	ScalarFunctionSet bitstring;
+	bitstring.AddFunction(
+	    ScalarFunction({LogicalType::VARCHAR, LogicalType::INTEGER}, LogicalType::BIT, BitStringFunction<true>));
+	bitstring.AddFunction(
+	    ScalarFunction({LogicalType::BIT, LogicalType::INTEGER}, LogicalType::BIT, BitStringFunction<false>));
+	bitstring.SetFallible();
+	return bitstring;
 }
 
 namespace {
@@ -78,9 +71,7 @@ static void BitStringSortKeyFunction(DataChunk &args, ExpressionState &state, Ve
 }
 
 ScalarFunction BitStringSortKeyFun::GetFunction() {
-	ScalarFunction func({}, LogicalType::BLOB, BitStringSortKeyFunction);
-	func.GetSignature().AddParameter("bitstring", LogicalType::BIT);
-	return func;
+	return ScalarFunction({LogicalType::BIT}, LogicalType::BLOB, BitStringSortKeyFunction);
 }
 
 //===--------------------------------------------------------------------===//
@@ -91,7 +82,7 @@ namespace {
 struct GetBitOperator {
 	template <class TA, class TB, class TR>
 	static inline TR Operation(TA input, TB n) {
-		if (n < 0 || UnsafeNumericCast<idx_t>(n) >= Bit::BitLength(input)) {
+		if (n < 0 || (idx_t)n > Bit::BitLength(input) - 1) {
 			throw OutOfRangeException("bit index %s out of valid range (0..%s)", NumericHelper::ToString(n),
 			                          NumericHelper::ToString(Bit::BitLength(input) - 1));
 		}
@@ -101,9 +92,8 @@ struct GetBitOperator {
 
 } // namespace
 ScalarFunction GetBitFun::GetFunction() {
-	ScalarFunction func({}, LogicalType::INTEGER,
+	ScalarFunction func({LogicalType::BIT, LogicalType::INTEGER}, LogicalType::INTEGER,
 	                    ScalarFunction::BinaryFunction<string_t, int32_t, int32_t, GetBitOperator>);
-	func.GetSignature().AddParameter("bitstring", LogicalType::BIT).AddParameter("index", LogicalType::INTEGER);
 	func.SetFallible();
 	return func;
 }
@@ -117,7 +107,7 @@ static void SetBitOperation(DataChunk &args, ExpressionState &state, Vector &res
 		    if (new_value != 0 && new_value != 1) {
 			    throw InvalidInputException("The new bit must be 1 or 0");
 		    }
-		    if (n < 0 || UnsafeNumericCast<idx_t>(n) >= Bit::BitLength(input)) {
+		    if (n < 0 || (idx_t)n > Bit::BitLength(input) - 1) {
 			    throw OutOfRangeException("bit index %s out of valid range (0..%s)", NumericHelper::ToString(n),
 			                              NumericHelper::ToString(Bit::BitLength(input) - 1));
 		    }
@@ -129,11 +119,8 @@ static void SetBitOperation(DataChunk &args, ExpressionState &state, Vector &res
 }
 
 ScalarFunction SetBitFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::BIT, SetBitOperation);
-	function.GetSignature()
-	    .AddParameter("bitstring", LogicalType::BIT)
-	    .AddParameter("index", LogicalType::INTEGER)
-	    .AddParameter("new_value", LogicalType::INTEGER);
+	ScalarFunction function({LogicalType::BIT, LogicalType::INTEGER, LogicalType::INTEGER}, LogicalType::BIT,
+	                        SetBitOperation);
 	function.SetFallible();
 	return function;
 }
@@ -156,10 +143,8 @@ struct BitPositionOperator {
 } // namespace
 
 ScalarFunction BitPositionFun::GetFunction() {
-	ScalarFunction func({}, LogicalType::INTEGER,
-	                    ScalarFunction::BinaryFunction<string_t, string_t, int32_t, BitPositionOperator>);
-	func.GetSignature().AddParameter("substring", LogicalType::BIT).AddParameter("bitstring", LogicalType::BIT);
-	return func;
+	return ScalarFunction({LogicalType::BIT, LogicalType::BIT}, LogicalType::INTEGER,
+	                      ScalarFunction::BinaryFunction<string_t, string_t, int32_t, BitPositionOperator>);
 }
 
 } // namespace duckdb

@@ -15,7 +15,6 @@
 
 #include <vector>
 #include <stdexcept>
-#include <exception>
 
 namespace duckdb {
 enum class PhysicalType : uint8_t;

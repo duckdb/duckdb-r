@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "duckdb/common/array_ptr.hpp"
 #include "duckdb/storage/compression/chimp/algorithm/chimp_utils.hpp"
 #ifdef DEBUG
 #include "duckdb/common/vector.hpp"
@@ -35,13 +34,12 @@ struct FlagBufferConstants {
 template <bool EMPTY>
 class FlagBuffer {
 public:
-	explicit FlagBuffer(unsafe_array_ptr<const uint8_t> buffer)
-	    : counter(0), read_buffer(buffer), write_buffer(nullptr) {
+	FlagBuffer() : counter(0), buffer(nullptr) {
 	}
 
 public:
 	void SetBuffer(uint8_t *buffer) {
-		write_buffer = buffer;
+		this->buffer = buffer;
 		this->counter = 0;
 	}
 	void Reset() {
@@ -65,7 +63,7 @@ public:
 		if (!EMPTY) {
 			if ((counter & 3) == 0) {
 				// Start the new byte fresh
-				write_buffer[counter >> 2] = 0;
+				buffer[counter >> 2] = 0;
 #ifdef DEBUG
 				flags.clear();
 #endif
@@ -73,16 +71,16 @@ public:
 #ifdef DEBUG
 			flags.push_back((uint8_t)value);
 #endif
-			write_buffer[counter >> 2] |= (((uint8_t)value & 3) << FlagBufferConstants::SHIFTS[counter & 3]);
+			buffer[counter >> 2] |= (((uint8_t)value & 3) << FlagBufferConstants::SHIFTS[counter & 3]);
 #ifdef DEBUG
 			// Verify that the bits are serialized correctly
-			D_ASSERT(flags[counter & 3] == ExtractValue(write_buffer[counter >> 2], counter & 3));
+			D_ASSERT(flags[counter & 3] == ExtractValue(buffer[counter >> 2], counter & 3));
 #endif
 		}
 		counter++;
 	}
 	inline uint8_t Extract() {
-		const uint8_t result = (read_buffer[counter >> 2] & FlagBufferConstants::MASKS[counter & 3]) >>
+		const uint8_t result = (buffer[counter >> 2] & FlagBufferConstants::MASKS[counter & 3]) >>
 		                       FlagBufferConstants::SHIFTS[counter & 3];
 		counter++;
 		return result;
@@ -99,8 +97,7 @@ public:
 private:
 private:
 	uint32_t counter = 0;
-	unsafe_array_ptr<const uint8_t> read_buffer;
-	uint8_t *write_buffer;
+	uint8_t *buffer;
 #ifdef DEBUG
 	vector<uint8_t> flags;
 #endif

@@ -239,16 +239,10 @@ void ExtensionLoader::RegisterFunction(PragmaFunction function) {
 
 void ExtensionLoader::RegisterFunction(PragmaFunctionSet function) {
 	D_ASSERT(!function.name.empty());
-	RegisterFunction(CreatePragmaFunctionInfo(std::move(function)));
-}
-
-void ExtensionLoader::RegisterFunction(CreatePragmaFunctionInfo info) {
-	D_ASSERT(!info.functions.name.empty());
+	CreatePragmaFunctionInfo info(std::move(function));
 	info.extension_name = GetRegisteredExtensionName();
-	if (info.GetQualifiedName().Schema() == DEFAULT_SCHEMA) {
-		info.SetQualifiedName(QualifiedName(info.GetQualifiedName().Catalog(), loader_info.extension_schema,
-		                                    info.GetQualifiedName().Name()));
-	}
+	info.SetQualifiedName(
+	    QualifiedName(info.GetQualifiedName().Catalog(), loader_info.extension_schema, info.GetQualifiedName().Name()));
 	auto &system_catalog = Catalog::GetSystemCatalog(db);
 	auto data = CatalogTransaction::GetSystemTransaction(db);
 	system_catalog.CreatePragmaFunction(data, info);
@@ -303,15 +297,13 @@ void ExtensionLoader::RegisterCoordinateSystem(CreateCoordinateSystemInfo &info)
 
 void ExtensionLoader::AddFunctionOverload(ScalarFunction function) {
 	auto &scalar_function = GetFunction(function.name);
-	scalar_function.functions.AddFunction(scalar_function.FinalizeFunction(std::move(function)));
+	scalar_function.functions.AddFunction(std::move(function));
 }
 
 void ExtensionLoader::AddFunctionOverload(ScalarFunctionSet functions) { // NOLINT
 	D_ASSERT(!functions.name.empty());
 	auto &scalar_function = GetFunction(functions.name);
-	for (auto &function : functions.functions) {
-		function = scalar_function.FinalizeFunction(*function);
-	}
+	functions.ApplyToFunctions([&](ScalarFunction &function) { function.name = functions.name; });
 	for (auto &function : functions.functions) {
 		scalar_function.functions.AddFunction(std::move(function));
 	}
@@ -319,7 +311,7 @@ void ExtensionLoader::AddFunctionOverload(ScalarFunctionSet functions) { // NOLI
 
 void ExtensionLoader::AddFunctionOverload(TableFunctionSet functions) { // NOLINT
 	auto &table_function = GetTableFunction(functions.name);
-	functions.ApplyToFunctions([&](TableFunction &function) { table_function.FinalizeFunction(function); });
+	functions.ApplyToFunctions([&](TableFunction &function) { function.name = functions.name; });
 	for (auto &function : functions.functions) {
 		table_function.functions.AddFunction(std::move(function));
 	}

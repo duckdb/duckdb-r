@@ -35,8 +35,8 @@ public:
 		return child_column_reader->GroupRowsAvailable() + overflow_child_count;
 	}
 
-	void GatherColumnChunks(unordered_set<idx_t> &column_chunks) override {
-		child_column_reader->GatherColumnChunks(column_chunks);
+	uint64_t TotalCompressedSize() override {
+		return child_column_reader->TotalCompressedSize();
 	}
 
 	void RegisterPrefetch(ThriftFileTransport &transport, bool allow_merge) override {

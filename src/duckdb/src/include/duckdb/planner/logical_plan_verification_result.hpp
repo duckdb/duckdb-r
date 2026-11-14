@@ -18,7 +18,7 @@ namespace duckdb {
 
 enum class LogicalPlanVerificationPathRoot { LOGICAL_PLAN, STANDALONE_EXPRESSION };
 
-enum class LogicalPlanVerificationPathComponentType : int32_t { OPERATOR_CHILD, OPERATOR_EXPRESSION, EXPRESSION_CHILD };
+enum class LogicalPlanVerificationPathComponentType { OPERATOR_CHILD, OPERATOR_EXPRESSION, EXPRESSION_CHILD };
 
 struct LogicalPlanVerificationPathComponent {
 	LogicalPlanVerificationPathComponentType type;
@@ -92,7 +92,7 @@ struct LogicalPlanVerificationConstructIdentity {
 	DUCKDB_API bool operator<(const LogicalPlanVerificationConstructIdentity &other) const;
 };
 
-enum class LogicalPlanVerificationIssueCode : int32_t {
+enum class LogicalPlanVerificationIssueCode {
 	INVALID_BINDING,
 	TYPE_MISMATCH,
 	UNSUPPORTED_OPERATOR,
@@ -105,7 +105,7 @@ enum class LogicalPlanVerificationIssueCode : int32_t {
 	INTERNAL_INVARIANT
 };
 
-enum class LogicalPlanVerificationPhase : int32_t { VERIFY, EXPRESSION_EXPORT, PLAN_EXPORT };
+enum class LogicalPlanVerificationPhase { VERIFY, EXPRESSION_EXPORT, PLAN_EXPORT };
 
 struct LogicalPlanVerificationIssue {
 	LogicalPlanVerificationIssueCode code = LogicalPlanVerificationIssueCode::INTERNAL_INVARIANT;
@@ -134,13 +134,6 @@ public:
 		return LogicalPlanVerificationResult(optional<T>(std::move(value)), {});
 	}
 
-	//! Propagate the normalized issues of a failed result carrying a different value type
-	template <class U>
-	static LogicalPlanVerificationResult Failure(const LogicalPlanVerificationResult<U> &failed) {
-		D_ASSERT(failed.HasError());
-		return LogicalPlanVerificationResult(optional<T>(), failed.GetIssues());
-	}
-
 	static LogicalPlanVerificationResult Failure(vector<LogicalPlanVerificationIssue> issues) {
 		for (auto &issue : issues) {
 			if (!issue.IsValid()) {
@@ -164,16 +157,12 @@ public:
 	}
 
 	T &GetValue() {
-		if (!value) {
-			throw InternalException("Cannot get the value of a failed logical plan verification result");
-		}
+		D_ASSERT(IsSuccess());
 		return *value;
 	}
 
 	const T &GetValue() const {
-		if (!value) {
-			throw InternalException("Cannot get the value of a failed logical plan verification result");
-		}
+		D_ASSERT(IsSuccess());
 		return *value;
 	}
 

@@ -1,5 +1,4 @@
 #include "duckdb/function/table/system_functions.hpp"
-#include "duckdb/common/atomic.hpp"
 
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
@@ -20,7 +19,7 @@ struct DuckDBColumnsData : public GlobalTableFunctionState {
 	}
 
 	vector<reference<CatalogEntry>> entries;
-	atomic<idx_t> offset;
+	idx_t offset;
 	idx_t column_offset;
 };
 
@@ -415,23 +414,12 @@ static void DuckDBColumnsFunction(ClientContext &context, TableFunctionInput &da
 		}
 	}
 	// WriteColumns appends to the child vectors - record the resulting cardinality on the chunk
-	data.offset.store(next, std::memory_order_relaxed);
+	data.offset = next;
 	data.column_offset = column_offset;
 }
 
-static double DuckDBColumnsProgress(ClientContext &context, const FunctionData *bind_data,
-                                    const GlobalTableFunctionState *global_state) {
-	auto &data = global_state->Cast<DuckDBColumnsData>();
-	if (data.entries.empty()) {
-		return 100.0;
-	}
-	return 100.0 * static_cast<double>(data.offset) / static_cast<double>(data.entries.size());
-}
-
 void DuckDBColumnsFun::RegisterFunction(BuiltinFunctions &set) {
-	TableFunction columns("duckdb_columns", {}, DuckDBColumnsFunction, DuckDBColumnsBind, DuckDBColumnsInit);
-	columns.table_scan_progress = DuckDBColumnsProgress;
-	set.AddFunction(columns);
+	set.AddFunction(TableFunction("duckdb_columns", {}, DuckDBColumnsFunction, DuckDBColumnsBind, DuckDBColumnsInit));
 }
 
 } // namespace duckdb

@@ -10,6 +10,7 @@
 
 #include "duckdb/common/bswap.hpp"
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/fast_mem.hpp"
 #include "duckdb/common/smaller_binary.hpp"
 #include "duckdb/common/typedefs.hpp"
 #include "duckdb/common/types/string_type.hpp"
@@ -183,7 +184,7 @@ public:
 		} else if (str.IsInlined()) {
 			memcpy(&sort_key.part0, str.GetPrefix(), string_t::INLINE_LENGTH);
 		} else {
-			memcpy(&sort_key.part0, str.GetPointer(), str.GetSize());
+			FastMemcpy(&sort_key.part0, str.GetPointer(), str.GetSize());
 		}
 
 		// IMPORTANT NOTE: We don't actually store the data in byte-comparable order!

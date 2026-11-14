@@ -19,6 +19,8 @@ public:
 	DuckSchemaEntry(Catalog &catalog, CreateSchemaInfo &info, optional_ptr<SchemaCatalogEntry> parent_schema = nullptr);
 
 private:
+	//! The parent schema (for a nested schema), or nullptr for a top-level schema
+	optional_ptr<SchemaCatalogEntry> parent_schema;
 	//! The catalog set holding the nested schemas
 	CatalogSet schemas;
 	//! The catalog set holding the tables
@@ -68,8 +70,6 @@ public:
 	optional_ptr<CatalogEntry> CreateSchema(CatalogTransaction transaction, CreateSchemaInfo &info);
 	void Alter(CatalogTransaction transaction, AlterInfo &info) override;
 	void Scan(ClientContext &context, CatalogType type, const std::function<void(CatalogEntry &)> &callback) override;
-	void Scan(CatalogTransaction transaction, CatalogType type,
-	          const std::function<void(CatalogEntry &)> &callback) override;
 	void Scan(CatalogType type, const std::function<void(CatalogEntry &)> &callback) override;
 	void DropEntry(ClientContext &context, DropInfo &info) override;
 	optional_ptr<CatalogEntry> LookupEntry(CatalogTransaction transaction, const EntryLookupInfo &lookup_info) override;
@@ -81,13 +81,16 @@ public:
 
 	void Verify(Catalog &catalog) override;
 
+	unique_ptr<CreateInfo> GetInfo() const override;
+
+	optional_ptr<SchemaCatalogEntry> GetParentSchema() const override {
+		return parent_schema;
+	}
+
 	//! Get the catalog set for the specified type
 	CatalogSet &GetCatalogSet(CatalogType type);
 
 private:
-	//! Drop an entry and remove the foreign key references to it from its referenced tables
-	bool DropEntryInternal(CatalogTransaction transaction, CatalogEntry &entry, const Identifier &name, bool cascade,
-	                       bool allow_drop_internal);
 	void OnDropEntry(CatalogTransaction transaction, CatalogEntry &entry);
 };
 } // namespace duckdb

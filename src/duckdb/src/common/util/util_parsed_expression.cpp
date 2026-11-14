@@ -384,10 +384,7 @@ bool CastExpression::Equals(const ParsedExpression &other) const {
 	if (!ParsedExpression::Equals(child, other_p.child)) {
 		return false;
 	}
-	if (static_cast<bool>(cast_type) != static_cast<bool>(other_p.cast_type)) {
-		return false;
-	}
-	if (cast_type && !cast_type->Equals(*other_p.cast_type)) {
+	if (cast_type != other_p.cast_type) {
 		return false;
 	}
 	if (try_cast != other_p.try_cast) {
@@ -398,7 +395,7 @@ bool CastExpression::Equals(const ParsedExpression &other) const {
 
 hash_t CastExpression::Hash() const {
 	hash_t hash = ParsedExpression::Hash();
-	hash = CombineHash(hash, cast_type ? cast_type->Hash() : 0);
+	hash = CombineHash(hash, cast_type.Hash());
 	hash = CombineHash(hash, duckdb::Hash<bool>(try_cast));
 	return hash;
 }
@@ -406,7 +403,7 @@ hash_t CastExpression::Hash() const {
 unique_ptr<ParsedExpression> CastExpression::Copy() const {
 	auto copy = duckdb::unique_ptr<CastExpression>(new CastExpression());
 	copy->child = child ? child->Copy() : nullptr;
-	copy->cast_type = cast_type ? unique_ptr_cast<ParsedExpression, TypeExpression>(cast_type->Copy()) : nullptr;
+	copy->cast_type = cast_type;
 	copy->try_cast = try_cast;
 	copy->CopyBase(*this);
 	return std::move(copy);
@@ -545,7 +542,7 @@ bool ConstantExpression::Equals(const ParsedExpression &other) const {
 		return false;
 	}
 	auto &other_p = other.Cast<ConstantExpression>();
-	if (literal != other_p.literal) {
+	if (value.type() != other_p.value.type() || ValueOperations::DistinctFrom(value, other_p.value)) {
 		return false;
 	}
 	return true;
@@ -553,13 +550,13 @@ bool ConstantExpression::Equals(const ParsedExpression &other) const {
 
 hash_t ConstantExpression::Hash() const {
 	hash_t hash = ParsedExpression::Hash();
-	hash = CombineHash(hash, literal.Hash());
+	hash = CombineHash(hash, value.Hash());
 	return hash;
 }
 
 unique_ptr<ParsedExpression> ConstantExpression::Copy() const {
 	auto copy = duckdb::unique_ptr<ConstantExpression>(new ConstantExpression());
-	copy->literal = literal;
+	copy->value = value;
 	copy->CopyBase(*this);
 	return std::move(copy);
 }

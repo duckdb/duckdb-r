@@ -1,5 +1,4 @@
 #include "duckdb/parser/peg/transformer/peg_transformer.hpp"
-#include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
 #include "duckdb/parser/query_node/recursive_cte_node.hpp"
 #include "duckdb/parser/query_node/set_operation_node.hpp"
@@ -102,9 +101,6 @@ PEGTransformerFactory::TransformCreateViewStmt(PEGTransformer &transformer, cons
 	if (create_secure) {
 		info->security_type = ViewSecurityType::SECURE_VIEW;
 	}
-	if (create_recursive && !insert_column_list) {
-		throw ParserException("CREATE RECURSIVE VIEW requires a column list");
-	}
 	if (insert_column_list) {
 		info->aliases = StringsToIdentifiers(*insert_column_list);
 	}
@@ -116,12 +112,12 @@ PEGTransformerFactory::TransformCreateViewStmt(PEGTransformer &transformer, cons
 			if (option_entry.second->GetExpressionClass() != ExpressionClass::CONSTANT) {
 				throw InvalidInputException("Defer binding option must be a constant value");
 			}
-			auto &literal = option_entry.second->Cast<ConstantExpression>().GetLiteral();
-			if (literal.IsNull()) {
+			auto &val = option_entry.second->Cast<ConstantExpression>().GetValue();
+			if (val.IsNull()) {
 				info->binding_mode = CreateViewBindingMode::SKIP_BINDING;
-			} else if (literal.kind != LiteralKind::BOOLEAN) {
+			} else if (val.type().id() != LogicalTypeId::BOOLEAN) {
 				throw InvalidInputException("Defer binding option must be a boolean");
-			} else if (BooleanValue::Get(literal.ToValue())) {
+			} else if (BooleanValue::Get(val)) {
 				info->binding_mode = CreateViewBindingMode::SKIP_BINDING;
 			}
 		}

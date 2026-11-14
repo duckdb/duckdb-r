@@ -22,9 +22,7 @@ static void URLEncodeFunction(DataChunk &args, ExpressionState &state, Vector &r
 }
 
 ScalarFunction UrlEncodeFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::VARCHAR, URLEncodeFunction);
-	fun.GetSignature().AddParameter("string", LogicalType::VARCHAR);
-	return fun;
+	return ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, URLEncodeFunction);
 }
 
 struct URLDecodeOperator {
@@ -45,8 +43,7 @@ static void URLDecodeFunction(DataChunk &args, ExpressionState &state, Vector &r
 }
 
 ScalarFunction UrlDecodeFun::GetFunction() {
-	ScalarFunction fun({}, LogicalType::VARCHAR, URLDecodeFunction);
-	fun.GetSignature().AddParameter("string", LogicalType::VARCHAR);
+	ScalarFunction fun({LogicalType::VARCHAR}, LogicalType::VARCHAR, URLDecodeFunction);
 	// throws if the decoded value is not valid UTF8
 	fun.SetFallible();
 	return fun;

@@ -12,7 +12,6 @@
 
 namespace duckdb {
 
-//! Numeric HTTP status codes; valid values need not have a named enumerator.
 enum class HTTPStatusCode : uint16_t {
 	INVALID = 0,
 	// Information responses

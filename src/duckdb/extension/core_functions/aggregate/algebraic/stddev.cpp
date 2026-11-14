@@ -5,38 +5,28 @@
 namespace duckdb {
 
 AggregateFunction StdDevSampFun::GetFunction() {
-	auto fun = AggregateFunction::UnaryAggregate<StddevState, double, double, STDDevSampOperation>(LogicalType::DOUBLE,
-	                                                                                               LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("x");
-	return fun;
+	return AggregateFunction::UnaryAggregate<StddevState, double, double, STDDevSampOperation>(LogicalType::DOUBLE,
+	                                                                                           LogicalType::DOUBLE);
 }
 
 AggregateFunction StdDevPopFun::GetFunction() {
-	auto fun = AggregateFunction::UnaryAggregate<StddevState, double, double, STDDevPopOperation>(LogicalType::DOUBLE,
-	                                                                                              LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("x");
-	return fun;
+	return AggregateFunction::UnaryAggregate<StddevState, double, double, STDDevPopOperation>(LogicalType::DOUBLE,
+	                                                                                          LogicalType::DOUBLE);
 }
 
 AggregateFunction VarPopFun::GetFunction() {
-	auto fun = AggregateFunction::UnaryAggregate<StddevState, double, double, VarPopOperation>(LogicalType::DOUBLE,
-	                                                                                           LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("x");
-	return fun;
+	return AggregateFunction::UnaryAggregate<StddevState, double, double, VarPopOperation>(LogicalType::DOUBLE,
+	                                                                                       LogicalType::DOUBLE);
 }
 
 AggregateFunction VarSampFun::GetFunction() {
-	auto fun = AggregateFunction::UnaryAggregate<StddevState, double, double, VarSampOperation>(LogicalType::DOUBLE,
-	                                                                                            LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("x");
-	return fun;
+	return AggregateFunction::UnaryAggregate<StddevState, double, double, VarSampOperation>(LogicalType::DOUBLE,
+	                                                                                        LogicalType::DOUBLE);
 }
 
 AggregateFunction StandardErrorOfTheMeanFun::GetFunction() {
-	auto fun = AggregateFunction::UnaryAggregate<StddevState, double, double, StandardErrorOfTheMeanOperation>(
+	return AggregateFunction::UnaryAggregate<StddevState, double, double, StandardErrorOfTheMeanOperation>(
 	    LogicalType::DOUBLE, LogicalType::DOUBLE);
-	fun.GetSignature().GetParameter(0).SetName("x");
-	return fun;
 }
 
 } // namespace duckdb

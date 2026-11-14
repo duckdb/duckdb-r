@@ -124,8 +124,10 @@ static void ListExtractFunction(DataChunk &args, ExpressionState &state, Vector 
 
 static unique_ptr<FunctionData> ListExtractBind(BindScalarFunctionInput &input) {
 	auto &context = input.GetClientContext();
+	auto &bound_function = input.GetBoundFunction();
+	(void)bound_function;
 	auto &arguments = input.GetArguments();
-	D_ASSERT(input.GetBoundFunction().GetArguments().size() == 2);
+	D_ASSERT(bound_function.GetArguments().size() == 2);
 	arguments[0] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[0]));
 	return nullptr;
 }
@@ -158,9 +160,6 @@ static unique_ptr<BaseStatistics> ListExtractStats(ClientContext &context, Funct
 	auto child_copy = list_child_stats.Copy();
 	// list_extract always pushes a NULL, since if the offset is out of range for a list it inserts a null
 	child_copy.Set(StatsInfo::CAN_HAVE_NULL_VALUES);
-	if (!child_stats[0].CanHaveNoNull() || !child_stats[1].CanHaveNoNull()) {
-		child_copy.Set(StatsInfo::CANNOT_HAVE_VALID_VALUES);
-	}
 	return child_copy.ToUnique();
 }
 
@@ -176,9 +175,6 @@ ScalarFunctionSet ListExtractFun::GetFunctions() {
 
 	ScalarFunction sfun({LogicalType::VARCHAR, LogicalType::BIGINT}, LogicalType::VARCHAR, ListExtractFunction,
 	                    StringExtractBind);
-	sfun.GetSignature().GetParameter(0).SetName("string");
-	sfun.GetSignature().GetParameter(1).SetName("index");
-
 	lfun.SetFallible();
 	list_extract_set.AddFunction(lfun);
 	list_extract_set.AddFunction(sfun);
@@ -192,11 +188,11 @@ ScalarFunctionSet ArrayExtractFun::GetFunctions() {
 	ScalarFunction lfun({LogicalType::LIST(LogicalType::TEMPLATE("T")), LogicalType::BIGINT},
 	                    LogicalType::TEMPLATE("T"), ListExtractFunction, ListExtractBind, ListExtractStats);
 
-	lfun.GetSignature().GetParameter(0).SetName("list");
+	lfun.GetSignature().GetParameter(0).SetName("array");
 	lfun.GetSignature().GetParameter(1).SetName("index");
 
-	ScalarFunction sfun({}, LogicalType::VARCHAR, ListExtractFunction, StringExtractBind);
-	sfun.GetSignature().AddParameter("string", LogicalType::VARCHAR).AddParameter("index", LogicalType::BIGINT);
+	ScalarFunction sfun({LogicalType::VARCHAR, LogicalType::BIGINT}, LogicalType::VARCHAR, ListExtractFunction,
+	                    StringExtractBind);
 
 	array_extract_set.AddFunction(lfun);
 	array_extract_set.AddFunction(sfun);

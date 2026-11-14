@@ -90,20 +90,8 @@ struct ReplacementScan {
 		return table_name;
 	}
 
-	//! Joins every component of the name, which can be qualified deeper than [catalog, schema]
-	static string GetFullPath(const QualifiedName &name) {
-		string table_name;
-		for (auto &component : name.Path()) {
-			if (component.empty()) {
-				continue;
-			}
-			table_name += (!table_name.empty() ? "." : "") + component.GetIdentifierName();
-		}
-		return table_name;
-	}
-
 	static string GetFullPath(ReplacementScanInput &input) {
-		return GetFullPath(input.name);
+		return GetFullPath(input.catalog_name, input.schema_name, input.table_name);
 	}
 
 	replacement_scan_t function;

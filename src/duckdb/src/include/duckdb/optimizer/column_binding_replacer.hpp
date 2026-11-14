@@ -10,8 +10,6 @@
 
 #include "duckdb/planner/logical_operator.hpp"
 
-#include <functional>
-
 namespace duckdb {
 
 class BoundColumnRefExpression;
@@ -63,7 +61,7 @@ public:
 	ColumnBindingReplacer();
 
 public:
-	//! Update each operator of the plan, recursing directly into children without resolving projection maps
+	//! Update each operator of the plan
 	void VisitOperator(LogicalOperator &op) override;
 	//! Update bindings owned by this operator without visiting its children
 	virtual void VisitOperatorBindings(LogicalOperator &op);
@@ -94,12 +92,6 @@ protected:
 //! Applies binding replacements together with their projection-layout invariants.
 class ColumnBindingRewrite {
 public:
-	//! Rewrite a child, preserving the parent's explicit and implicit projection selections and updating its bindings.
-	//! The callback may replace or wrap the child and must record its binding replacements in the supplied graph.
-	//! Callers must still rewrite affected ancestors and resolve operator types after the complete transformation.
-	static void
-	RewriteChild(unique_ptr<LogicalOperator> &op, idx_t child_index,
-	             const std::function<void(unique_ptr<LogicalOperator> &, BindingReplacementGraph &)> &rewrite);
 	//! Apply the output-boundary view of a complete replacement graph to one parent-child edge.
 	static void ApplyToChild(unique_ptr<LogicalOperator> &op, idx_t child_index,
 	                         vector<ColumnBinding> old_child_bindings, const BindingReplacementGraph &replacements);

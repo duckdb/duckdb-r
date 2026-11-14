@@ -41,7 +41,6 @@ protected:
 
 public:
 	// Source interface
-	ProgressData GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
 	unique_ptr<LocalSourceState> GetLocalSourceState(ExecutionContext &context,
 	                                                 GlobalSourceState &gstate) const override;

@@ -51,8 +51,7 @@ static void JaccardFunction(DataChunk &args, ExpressionState &state, Vector &res
 }
 
 ScalarFunction JaccardFun::GetFunction() {
-	ScalarFunction function({}, LogicalType::DOUBLE, JaccardFunction);
-	function.GetSignature().AddParameter("s1", LogicalType::VARCHAR).AddParameter("s2", LogicalType::VARCHAR);
+	ScalarFunction function({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::DOUBLE, JaccardFunction);
 	// throws if one of the strings is empty
 	function.SetFallible();
 	return function;

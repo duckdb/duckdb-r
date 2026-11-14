@@ -2,9 +2,8 @@
 
 #include "duckdb/execution/operator/join/join_filter_pushdown.hpp"
 #include "duckdb/execution/operator/join/physical_comparison_join.hpp"
-#include "duckdb/function/aggregate/distributive_functions.hpp"
+#include "duckdb/function/aggregate/distributive_function_utils.hpp"
 #include "duckdb/function/function_binder.hpp"
-#include "duckdb/function/builtin_function_lookup.hpp"
 #include "duckdb/optimizer/optimizer.hpp"
 #include "duckdb/planner/expression/bound_aggregate_expression.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
@@ -368,9 +367,6 @@ void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &joi
 		JoinFilterPushdownFilter get_filter;
 		get_filter.dynamic_filters = get.dynamic_filters;
 		get_filter.columns = std::move(target.columns);
-		if (get.has_estimated_cardinality) {
-			get_filter.estimated_scan_cardinality = get.estimated_cardinality;
-		}
 		pushdown_info->probe_info.push_back(std::move(get_filter));
 	}
 
@@ -387,15 +383,15 @@ void JoinFilterPushdownOptimizer::GenerateJoinFilters(LogicalComparisonJoin &joi
 	}
 
 	// set up the min/max aggregates for each of the filters
-	auto &context = optimizer.GetContext();
+	vector<AggregateFunction> aggr_functions;
+	aggr_functions.push_back(MinFunction::GetFunction());
+	aggr_functions.push_back(MaxFunction::GetFunction());
 	for (auto &join_condition : pushdown_info->join_condition) {
-		for (const auto &aggr_name : {MinFun::Name, MaxFun::Name}) {
-			FunctionBinder function_binder(context);
+		for (auto &aggr : aggr_functions) {
+			FunctionBinder function_binder(optimizer.GetContext());
 			vector<unique_ptr<Expression>> aggr_children;
 			aggr_children.push_back(join.conditions[join_condition].GetRHS().Copy());
-			// the one-argument overload of the min/max set is the plain aggregate, min(x, n) takes two
-			auto aggr = GetBuiltinAggregateFunction(context, aggr_name, {aggr_children[0]->GetReturnType()});
-			auto aggr_expr = function_binder.BindAggregateFunction(std::move(aggr), std::move(aggr_children), nullptr,
+			auto aggr_expr = function_binder.BindAggregateFunction(aggr, std::move(aggr_children), nullptr,
 			                                                       AggregateType::NON_DISTINCT);
 			if (aggr_expr->GetChildren().size() != 1) {
 				// min/max with collation - not supported

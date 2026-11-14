@@ -56,7 +56,7 @@ PerfectAggregateHashTable::PerfectAggregateHashTable(ClientContext &context, All
 	RowOperations::InitializeStates(*layout_ptr, addresses, *FlatVector::IncrementalSelectionVector(), init_count);
 }
 
-PerfectAggregateHashTable::~PerfectAggregateHashTable() { // NOLINT(bugprone-exception-escape)
+PerfectAggregateHashTable::~PerfectAggregateHashTable() {
 	Destroy();
 }
 
@@ -266,10 +266,9 @@ static void ReconstructGroupVectorTemplated(uint32_t group_values[], Value &min,
 			// if it is 0, the value is NULL
 			data.WriteNull();
 		} else {
-			// otherwise we add the value (minus 1) to the min value - subtracting first, as the min value can be close
-			// to the maximum (e.g. the infinite timestamp)
+			// otherwise we add the value (minus 1) to the min value
 			data.WriteValue(UnsafeNumericCast<T>(UnsafeNumericCast<int64_t>(min_data) +
-			                                     (UnsafeNumericCast<int64_t>(group_index) - 1)));
+			                                     UnsafeNumericCast<int64_t>(group_index) - 1));
 		}
 	}
 }

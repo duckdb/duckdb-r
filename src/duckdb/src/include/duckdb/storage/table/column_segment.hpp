@@ -9,7 +9,6 @@
 #pragma once
 
 #include "duckdb/common/enums/scan_vector_type.hpp"
-#include "duckdb/common/optional.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/function/compression_function.hpp"
@@ -43,8 +42,7 @@ public:
 	ColumnSegment(DatabaseInstance &db, shared_ptr<BlockHandle> block, const ColumnSegmentType segment_type,
 	              const idx_t count, const CompressionFunction &function_p, BaseStatistics statistics,
 	              const block_id_t block_id_p, const idx_t offset, const idx_t segment_size_p,
-	              unique_ptr<ColumnSegmentState> segment_state_p = nullptr,
-	              optional<uint32_t> data_size_in_bytes = optional<uint32_t>());
+	              unique_ptr<ColumnSegmentState> segment_state_p = nullptr);
 	//! Construct a column segment from another column segment.
 	//! The other column segment becomes invalid (std::move).
 	ColumnSegment(ColumnSegment &other);
@@ -52,7 +50,10 @@ public:
 
 public:
 	static unique_ptr<ColumnSegment> CreatePersistentSegment(DatabaseInstance &db, BlockManager &block_manager,
-	                                                         DataPointer &data_pointer);
+	                                                         block_id_t id, idx_t offset, idx_t count,
+	                                                         CompressionType compression_type,
+	                                                         BaseStatistics statistics,
+	                                                         unique_ptr<ColumnSegmentState> segment_state);
 	static unique_ptr<ColumnSegment> CreateTransientSegment(DatabaseInstance &db, const CompressionFunction &function,
 	                                                        const LogicalType &type, const idx_t segment_size,
 	                                                        BlockManager &block_manager);
@@ -63,8 +64,7 @@ public:
 	//! Scan one vector from this segment
 	void Scan(ColumnScanState &state, idx_t scan_count, Vector &result, idx_t result_offset, ScanVectorType scan_type);
 	//! Scan a subset of a vector (defined by the selection vector)
-	void Select(ColumnScanState &state, idx_t scan_count, Vector &result, const SelectionVector &sel, idx_t sel_count,
-	            idx_t result_offset, ScanVectorType scan_type);
+	void Select(ColumnScanState &state, idx_t scan_count, Vector &result, const SelectionVector &sel, idx_t sel_count);
 	//! Scan one vector while applying a filter to the vector, returning only the matching elements
 	void Filter(ColumnScanState &state, idx_t scan_count, Vector &result, SelectionVector &sel, idx_t &sel_count,
 	            const TableFilter &filter, TableFilterState &filter_state);
@@ -125,14 +125,6 @@ public:
 		return offset;
 	}
 
-	const optional<uint32_t> &GetDataSize() const {
-		return data_size_in_bytes;
-	}
-
-	void SetByteSize(uint32_t data_size_in_bytes_p) {
-		data_size_in_bytes = data_size_in_bytes_p;
-	}
-
 	optional_ptr<CompressedSegmentState> GetSegmentState() const {
 		return segment_state.get();
 	}
@@ -182,8 +174,6 @@ private:
 	idx_t offset;
 	//! The allocated segment size, which is bounded by Storage::BLOCK_SIZE
 	idx_t segment_size;
-	//! Number of bytes occupied by this segment within its block, if recorded
-	optional<uint32_t> data_size_in_bytes;
 	//! Storage associated with the compressed segment
 	unique_ptr<CompressedSegmentState> segment_state;
 	//! The statistics for the segment

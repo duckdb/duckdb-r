@@ -15,9 +15,6 @@ namespace duckdb {
 //! LogicalDummyScan represents a dummy scan returning a single row
 class LogicalDummyScan : public LogicalOperator {
 public:
-	LogicalPlanSQLExportResult ToSQL(LogicalPlanSQLExportContext &context,
-	                                 const LogicalPlanVerificationPath &path) override;
-
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_DUMMY_SCAN;
 
 public:

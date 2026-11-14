@@ -197,12 +197,6 @@ protected:
 		WriteValue(ptr.get());
 	}
 
-	// Optional Pointer Ref
-	template <typename T>
-	void WriteValue(const optional_ptr<T> &ptr) {
-		WriteValue(ptr.get());
-	}
-
 	// Pointer
 	template <typename T>
 	void WriteValue(const T *ptr) {
@@ -406,15 +400,7 @@ protected:
 		WriteValue(value.GetIndexUnsafe());
 	}
 	void WriteValue(optional_idx value) {
-		if (!value.IsValid()) {
-			WriteValue(DConstants::INVALID_INDEX);
-			return;
-		}
-		// INVALID_INDEX marks an unset optional_idx in the serialized format
-		if (value.GetIndex() == DConstants::INVALID_INDEX) {
-			throw InternalException("Cannot serialize an optional_idx that is set to INVALID_INDEX");
-		}
-		WriteValue(value.GetIndex());
+		WriteValue(value.IsValid() ? value.GetIndex() : DConstants::INVALID_INDEX);
 	}
 	void WriteValue(PerColumnMetadataBlock value) {
 		WriteValue(value.GetPacked());

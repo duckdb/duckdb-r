@@ -1,5 +1,4 @@
 #include "duckdb/function/lambda_functions.hpp"
-#include "duckdb/common/exception/binder_exception.hpp"
 #include "duckdb/main/client_context.hpp"
 
 #include "duckdb/common/serializer/serializer.hpp"

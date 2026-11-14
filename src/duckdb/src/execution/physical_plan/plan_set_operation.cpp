@@ -5,7 +5,6 @@
 #include "duckdb/execution/operator/join/physical_hash_join.hpp"
 #include "duckdb/execution/operator/projection/physical_projection.hpp"
 #include "duckdb/execution/operator/set/physical_union.hpp"
-#include "duckdb/function/builtin_function_lookup.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/planner/expression/bound_window_expression.hpp"
 #include "duckdb/planner/expression_binder.hpp"
@@ -18,7 +17,7 @@ namespace duckdb {
 static vector<unique_ptr<Expression>> CreatePartitionedRowNumExpression(ClientContext &client,
                                                                         const vector<LogicalType> &types) {
 	vector<unique_ptr<Expression>> res;
-	auto expr = GetBuiltinWindowFunction(client, RowNumberFun::Name, {})->Bind(client);
+	auto expr = RowNumberFun::GetFunction().Bind(client);
 	expr->WindowStartMutable() = WindowBoundary::UNBOUNDED_PRECEDING;
 	expr->WindowEndMutable() = WindowBoundary::UNBOUNDED_FOLLOWING;
 	for (idx_t i = 0; i < types.size(); i++) {
@@ -37,24 +36,6 @@ static JoinCondition CreateNotDistinctComparison(ClientContext &context, const L
 	ExpressionBinder::PushCollation(context, cond.RightReference(), type);
 
 	return cond;
-}
-
-//! The types to compare the columns of EXCEPT / INTERSECT with - a collation of either side applies (as for UNION)
-static vector<LogicalType> GetComparisonTypes(ClientContext &context, const LogicalSetOperation &op,
-                                              const vector<LogicalType> &left_types,
-                                              const vector<LogicalType> &right_types) {
-	// the types only differ in their collations here, but a collation can be missing from a child (e.g. when the
-	// projection applying a COLLATE was removed) or from the operator (it takes the types of the left child)
-	vector<LogicalType> types;
-	for (idx_t i = 0; i < left_types.size(); i++) {
-		auto type = LogicalType::ForceMaxLogicalType(context, left_types[i], right_types[i]);
-		// the operator types can be outdated (e.g. compressed children), only take a collation from them
-		if (i < op.types.size() && op.types[i].id() == type.id()) {
-			type = LogicalType::ForceMaxLogicalType(context, op.types[i], type);
-		}
-		types.push_back(std::move(type));
-	}
-	return types;
 }
 
 PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalSetOperation &op) {
@@ -81,7 +62,7 @@ PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalSetOperation &op) {
 		}
 		auto &left = children[0];
 		auto &right = children[1];
-		auto types = GetComparisonTypes(context, op, left.get().GetTypes(), right.get().GetTypes());
+		auto &types = left.get().GetTypes();
 		vector<JoinCondition> conditions;
 		// create equality condition for all columns
 		for (idx_t i = 0; i < types.size(); i++) {

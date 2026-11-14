@@ -19,10 +19,9 @@ CatalogType AlterTableFunctionInfo::GetCatalogType() const {
 //===--------------------------------------------------------------------===//
 // AddTableFunctionOverloadInfo
 //===--------------------------------------------------------------------===//
-AddTableFunctionOverloadInfo::AddTableFunctionOverloadInfo(const AlterEntryData &data, TableFunctionSet new_overloads_p,
-                                                           vector<FunctionDescription> new_descriptions_p)
+AddTableFunctionOverloadInfo::AddTableFunctionOverloadInfo(const AlterEntryData &data, TableFunctionSet new_overloads_p)
     : AlterTableFunctionInfo(AlterTableFunctionType::ADD_FUNCTION_OVERLOADS, data),
-      new_overloads(std::move(new_overloads_p)), new_descriptions(std::move(new_descriptions_p)) {
+      new_overloads(std::move(new_overloads_p)) {
 	this->allow_internal = true;
 }
 
@@ -30,8 +29,7 @@ AddTableFunctionOverloadInfo::~AddTableFunctionOverloadInfo() {
 }
 
 unique_ptr<AlterInfo> AddTableFunctionOverloadInfo::Copy() const {
-	return make_uniq_base<AlterInfo, AddTableFunctionOverloadInfo>(GetAlterEntryData(), new_overloads,
-	                                                               new_descriptions);
+	return make_uniq_base<AlterInfo, AddTableFunctionOverloadInfo>(GetAlterEntryData(), new_overloads);
 }
 
 string AddTableFunctionOverloadInfo::ToString() const {

@@ -71,11 +71,11 @@ union arrow_string_view_t {
 	const char *GetInlineData() const {
 		return IsInline() ? inlined.data : ref.prefix;
 	}
-	int32_t GetBufferIndex() const {
+	int32_t GetBufferIndex() {
 		D_ASSERT(!IsInline());
 		return ref.buffer_index;
 	}
-	int32_t GetOffset() const {
+	int32_t GetOffset() {
 		D_ASSERT(!IsInline());
 		return ref.offset;
 	}

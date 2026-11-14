@@ -73,10 +73,9 @@ public:
 	}
 	void SetQualifiedName(QualifiedName name) {
 		qualified_name = std::move(name);
-		type = WindowToExpressionType(qualified_name.Name().GetIdentifierName());
 	}
 	void SetQualifiedName(Identifier catalog, Identifier schema, Identifier name) {
-		SetQualifiedName(QualifiedName(std::move(catalog), std::move(schema), std::move(name)));
+		qualified_name = QualifiedName(std::move(catalog), std::move(schema), std::move(name));
 	}
 	const Identifier &FunctionName() const {
 		return qualified_name.Name();

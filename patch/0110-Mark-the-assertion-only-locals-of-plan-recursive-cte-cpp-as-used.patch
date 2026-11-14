@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Mark the assertion-only locals of plan_recursive_cte.cpp as used
+
+plan_recursive_cte.cpp declares locals that only D_ASSERT() reads (normalize_current),
+so in a release build, where D_ASSERT() expands to nothing, they are unused
+and -Wunused-variable or -Wunused-but-set-variable says so. Each is cast
+to void after its declaration, which changes no behavior.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+diff --git a/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp b/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp
+--- a/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp
++++ b/src/duckdb/src/execution/physical_plan/plan_recursive_cte.cpp
+@@ -120,6 +120,7 @@ PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalRecursiveCTE &op) {
+ 			    make_uniq<BoundReferenceExpression>(payload_types[i], payload_types.size() + i);
+ 			const auto normalize_previous = ExpressionBinder::PushCollation(context, previous, payload_types[i]);
+ 			const auto normalize_current = ExpressionBinder::PushCollation(context, current, payload_types[i]);
++			(void)normalize_current;
+ 			D_ASSERT(normalize_previous == normalize_current);
+ 			if (normalize_previous) {
+ 				payload_comparisons.push_back(BoundComparisonExpression::Create(

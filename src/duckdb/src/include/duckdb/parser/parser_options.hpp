@@ -15,31 +15,19 @@
 #include "duckdb/common/optional_ptr.hpp"
 
 namespace duckdb {
-class ClientContext;
 class ExtensionCallbackManager;
 class ParserExtension;
-struct CompiledGrammar;
+struct ParserCache;
 
 struct ParserOptions {
-private:
-	ParserOptions() {
-	}
-	friend class ClientContext;
-
-public:
-	//! Explicit configuration for parsing without a client context.
-	DUCKDB_API static ParserOptions Builtin();
-
-public:
 	IdentifierCaseMode identifier_case_mode = IdentifierCaseMode::PRESERVE_CASE;
 	bool integer_division = false;
+	bool debug_heap_based_parser = false;
 	RegexMatchOperatorSemantics regex_match_operator_semantics = RegexMatchOperatorSemantics::PARTIAL;
 	idx_t max_expression_depth = 1000;
 	optional_ptr<const ExtensionCallbackManager> extensions;
 	AllowParserOverride parser_override_setting = AllowParserOverride::DEFAULT_OVERRIDE;
-	shared_ptr<CompiledGrammar> compiled_grammar;
-	//! The client context the statement is parsed for (not set when parsing without a client context)
-	optional_ptr<ClientContext> context;
+	optional_ptr<ParserCache> parser_cache;
 };
 
 } // namespace duckdb

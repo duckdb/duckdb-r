@@ -3,10 +3,6 @@
 
 namespace duckdb {
 
-identifier_set_t CreateHTTPSecretFunctions::GetRedactedKeys() {
-	return {"http_proxy_password", "bearer_token", "extra_http_headers"};
-}
-
 vector<SecretType> CreateHTTPSecretFunctions::GetDefaultSecretTypes() {
 	vector<SecretType> result;
 
@@ -93,7 +89,7 @@ unique_ptr<BaseSecret> CreateHTTPSecretFunctions::CreateHTTPSecretFromEnv(Client
 	secret->TrySetValue("bearer_token", input);
 
 	//! Set redact keys
-	secret->redact_keys = GetRedactedKeys();
+	secret->redact_keys = {"http_proxy_password", "bearer_token"};
 
 	return std::move(secret);
 }
@@ -111,7 +107,7 @@ unique_ptr<BaseSecret> CreateHTTPSecretFunctions::CreateHTTPSecretFromConfig(Cli
 	secret->TrySetValue("bearer_token", input);
 
 	//! Set redact keys
-	secret->redact_keys = GetRedactedKeys();
+	secret->redact_keys = {"http_proxy_password", "bearer_token"};
 
 	return std::move(secret);
 }

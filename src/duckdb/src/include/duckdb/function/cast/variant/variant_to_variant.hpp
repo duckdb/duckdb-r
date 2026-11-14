@@ -290,6 +290,9 @@ bool ConvertVariantToVariant(ToVariantSourceData &source_data, ToVariantGlobalRe
 			result.values_index_data[values_index_selvec->get_index(source_index)] = values_offset;
 		}
 
+		//! FIXME: we might want to add some checks to make sure the NumericLimits<uint32_t>::Maximum isn't exceeded,
+		//! but that's hard to test
+
 		//! First write all children
 		//! NOTE: this has to happen first because we use 'values_offset', which is increased when we write the values
 		auto source_children_list_entry = source.GetChildrenListEntry(scan_index);
@@ -342,14 +345,14 @@ bool ConvertVariantToVariant(ToVariantSourceData &source_data, ToVariantGlobalRe
 			for (uint32_t source_value_index = 0; source_value_index < source_values_list_entry.length;
 			     source_value_index++) {
 				values_offset_data[result_index]++;
-				OffsetData::AddBlobOffset(blob_size, VariantVisitor<VariantToVariantSizeAnalyzer>::Visit(
-				                                         source, scan_index, source_value_index, analyze_state));
+				blob_size += VariantVisitor<VariantToVariantSizeAnalyzer>::Visit(source, scan_index, source_value_index,
+				                                                                 analyze_state);
 			}
 		}
 
 		keys_offset += keys_count;
 		children_offset += source_children_list_entry.length;
-		OffsetData::AddBlobOffset(blob_offset, blob_size);
+		blob_offset += blob_size;
 	}
 	return true;
 }

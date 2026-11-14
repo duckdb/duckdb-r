@@ -299,7 +299,6 @@ public:
 	//! Fetches a chunk from the sample. If destroy = true this method is descructive
 	unique_ptr<DataChunk> GetChunk() override;
 	void Finalize() override;
-	idx_t GetActiveSampleCount() const;
 
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<BlockingSample> Deserialize(Deserializer &deserializer);

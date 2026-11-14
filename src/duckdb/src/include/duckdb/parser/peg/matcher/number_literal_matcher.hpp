@@ -6,16 +6,16 @@
 
 namespace duckdb {
 
-class NumberLiteralMatcher : public AtomicMatcher {
+class NumberLiteralMatcher : public Matcher {
 public:
 	static constexpr MatcherType TYPE = MatcherType::NUMBER_LITERAL;
 
 public:
-	explicit NumberLiteralMatcher() : AtomicMatcher(TYPE) {
+	explicit NumberLiteralMatcher() : Matcher(TYPE) {
 		name = "NumberLiteral";
 	}
 
-	MatcherResult MatchAtomic(MatchState &state) const override {
+	MatcherResult MatchParseResultInternal(MatchState &state) const override {
 		auto token = state.token_iterator.Current();
 		if (!token) {
 			return MatcherResult::Failure();
@@ -29,7 +29,7 @@ public:
 		state.token_iterator.SetPreviousTokenType(TokenType::NUMBER_LITERAL);
 		auto result = state.AllocateParseResult<NumberParseResult>(token_text, start_offset, token_length);
 		if (result.HasParseResult()) {
-			result.GetParseResult()->SetNameFrom(*this);
+			result.GetParseResult()->name = name;
 		}
 		return result;
 	}
@@ -40,10 +40,6 @@ public:
 
 	string ToString() const override {
 		return "NUMBER_LITERAL";
-	}
-
-	void InitializeFirstSet(MatcherFirstSet &first_set, const GrammarLiteralTable &table) const override {
-		first_set.class_mask = MatcherTokenClass::NUMBER;
 	}
 
 private:
@@ -61,15 +57,7 @@ private:
 			return false;
 		}
 		bool scientific_notation = false;
-		bool has_dot = token_text[0] == '.';
 		for (idx_t i = 1; i < token_text.size(); i++) {
-			if (token_text[i] == '.') {
-				// a number has at most one dot, and none in its exponent
-				if (has_dot || scientific_notation) {
-					return false;
-				}
-				has_dot = true;
-			}
 			if (Tokenizer::CharacterIsScientific(token_text[i])) {
 				if (scientific_notation) {
 					throw ParserException("Already found scientific notation");
