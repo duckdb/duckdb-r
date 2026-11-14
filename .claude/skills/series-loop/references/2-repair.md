@@ -167,8 +167,10 @@ is reading; they are the same bytes:
 | `Error ('test-….R:N:M')` | real test failure | fix test/R code at origin |
 | the cause is in `src/duckdb/` itself and the next upstream commit fixes it | upstream was transiently broken | fold the pair into one; if the next one is red too, forward-port (below) |
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
-| `-- vendored: not clean.`, closing a `-- vendored warnings (N):` listing of the engine files that warned | an engine file under `src/duckdb/` warns under the gate's flags | answer it as [`build/warnings/`](/handbook/build/warnings/README.md) prescribes for the `vendored` scope: a new `patch/` entry on the vendor strand, folded with its effect into the vendor commit that raised it, or the scope decision that page describes for a category that is upstream's style; never glue, never a rerun |
-| `-- glue: not clean.`, closing a `-- glue warnings (N):` listing of the package's own files that warned | the package's own C++ warns under the `glue` scope's flags | fix the glue at origin; never a rerun |
+| `-- vendored: not clean.`, closing a `-- vendored warnings (N):` listing of the engine files that warned | an engine file under `src/duckdb/` warns under the gate's flags | answer it as [`build/warnings/`](/handbook/build/warnings/README.md#when-a-new-warning-appears) says for the `vendored` scope; a `patch/` entry goes on the vendor strand and is folded into the vendor commit that raised the warning; never glue, never a rerun |
+| `-- glue: not clean.`, closing a `-- glue warnings (N):` listing of the package's own files that warned | the package's own C++ warns under the `glue` scope's flags | fix it at origin, as [`build/warnings/`](/handbook/build/warnings/README.md#when-a-new-warning-appears) says for the file that warned; never a rerun |
+| `warnings: no install log at …` | gate `warnings` never saw the install's log, so the vendored scope went unjudged: a fault of `scripts/rcc-one.sh` or of the job that runs it, not of the tree | fix it on `main`, where the harness lives; never glue |
+| `-- glue does not compile:`, above the compiler's errors | the install had already built the same glue, so the gate's own compile line diverged from it: a fault of `scripts/warnings.sh` or of the runner's compiler, not of the tree | fix it on `main`, where the harness lives; never glue |
 | `Error: R CMD check found WARNINGs` / `ERRORs`, with the `❯ checking …` headers above it naming which checks | `R CMD check --as-cran` is unhappy about the tree, or about the environment CI built it in | read the named checks; fix at origin, or on `main` when the cause is the job's own setup |
 | a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
 | the leg's record names a failed stage (`"failed_stages":["install"]`) and no rule above matched | the stage failed on its merits — most often an `install` that a glue call site this series' engine no longer offers stopped | fix the glue at origin; never a rerun |
@@ -178,12 +180,21 @@ Never classify by absence of a marker:
 `"Job is waiting for a hosted runner"` appears in every log
 and means nothing.
 
+**A log can match several rows, and each one is answered.**
+Every gate runs, whatever failed before it, and the commit is red for each gate that failed,
+so answer every row the log matches, in the order the gates ran,
+and fold the fixes into the offending commit together.
+A warnings listing is never dropped because another row matched.
+
 **A red from gate `warnings` is answered in the scope its listing names.**
-The listing is printed again at the end of the log, under `gate warnings, repeated:`,
+The gate runs first, and its listing is printed again at the end of the log, under `gate warnings, repeated:`,
 so the tail holds it even when the check gate's output has pushed the first copy out
 ([`scripts/rcc-one.sh`](/scripts/rcc-one.sh)).
-Its rows sit above the failed-stage row, which would send a vendored warning to the glue,
-and above `R CMD check`'s, because the listing already names the file and line to fix.
+Its rows sit above the failed-stage row because, when only the warnings gate failed,
+the record names that stage alone, and the failed-stage row would send a vendored warning to the glue.
+Its other two failures are the harness's, not the tree's:
+no gate runs unless the install reached `DONE`, so it has already compiled the glue the gate compiles again,
+and it has written the log the gate reads.
 
 Repair the **oldest** failure first — later reds usually inherit it.
 Fold the fix into the offending commit
