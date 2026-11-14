@@ -72,6 +72,9 @@ get_duckdb_version <- function() {{
 # The horizontal pair keeps its upstream name; the stacked pair is the package
 # logo, and pkgdown finds that one by the name man/figures/logo.svg rather than
 # by configuration, so the rename is not ours to choose.
+#
+# The content of the horizontal pair is then patched by
+# patch/0100-Use-the-updated-horizontal-logos.patch.
 logo_files = [
     ('DuckDB_Logo-horizontal.svg', 'DuckDB_Logo-horizontal.svg'),
     ('DuckDB_Logo-horizontal-dark-mode.svg', 'DuckDB_Logo-horizontal-dark-mode.svg'),
