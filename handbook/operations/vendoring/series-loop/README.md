@@ -4,7 +4,7 @@ The scheduled routine that vendors every series.
 The procedures are machine-loaded playbooks under
 [`.claude/skills/`](/.claude/skills) —
 [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) with its
-siblings `series-forward`, `series-rebase`, `series-open`, `series-rc`, `series-alpha`, `series-land` —
+siblings `series-forward`, `series-cutover`, `series-rebase`, `series-open`, `series-rc`, `series-alpha`, `series-land` —
 linked from here, never restated:
 a reader who wants to *run* the loop follows the link;
 what runs is this page's topic.
@@ -90,7 +90,7 @@ to do, and they run in this order:
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
   A live forward counterpart does **not** hold the base series back: it
-  consumes, ports and verifies at full speed until a human swaps the
+  consumes, ports and verifies at full speed until a cutover swaps the
   refs, which costs CI on a lineage about to be retired and buys the
   only thing that makes retiring it checkable rather than hopeful
   (below).
@@ -107,10 +107,14 @@ to do, and they run in this order:
   what the forwarding explains and what it does not; the findings go
   into the report and to the stage that should have moved them. A
   caught-up counterpart is *reported* with the cutover command, never
-  executed; that move is a human's, and the script prints the same
-  comparison and the review of the forward's R side before it asks for
-  confirmation, archives what it replaces as closed pull requests, and
-  deletes the forward's refs in both repositories afterwards
+  executed by a firing. The decision is a human's; the run is that human's,
+  or a session's they send with the decision recorded where the series is
+  coordinated, which passes it to the script as `--confirm <S>`
+  ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
+  The script prints the same comparison and the review of the forward's
+  R side before the confirmation, archives what it replaces as closed pull
+  requests, and deletes the forward's refs in both repositories afterwards,
+  listing whatever a remote refused with the line that removes it
   ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 * **Report what the tooling got wrong** — a firing that had to work
   around a script opens a pull request against it,
@@ -219,6 +223,9 @@ Everything else is an option, spelled identically in all of them:
   touches git.
 * Anything else beginning with `-`, an option missing its value, or a
   positional the script does not name: the usage on stderr, exit **2**.
+  So is a confirmation that names something else:
+  `series-cutover.sh <S> --confirm <S>` stands in for the name typed at its prompt,
+  and any other name, or `--prepare` beside it, is a command that contradicts itself.
   Two is the usage status everywhere, so a caller can tell a wrong
   invocation from a wrong answer —
   `series-converge.sh` already reserved 1 for *diverged*.

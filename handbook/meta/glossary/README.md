@@ -18,7 +18,7 @@ and are not repeated here; this page holds this repository's own.
 * **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **CRAN guard** — the gate that keeps the bundled engine off CRAN's check farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
-* **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place, after archive pull requests keep what it replaces ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover** — the swap a human decides that puts a verified `-fwd` counterpart in a series' place, after archive pull requests keep what it replaces; run by that human, or by a session on their recorded decision ([`branches/model/`](/handbook/branches/model/README.md)).
 * **cutover litter** — `-fwd` refs and derived strands a cutover's deletion left behind, whose tips the series' refs already reach ([`branches/model/`](/handbook/branches/model/README.md)).
 * **DBI** — R's database-interface standard, which the package implements as a driver ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **dbplyr backend** — the methods that translate dplyr expressions into DuckDB SQL ([`usage/integrations/`](/handbook/usage/integrations/README.md)).

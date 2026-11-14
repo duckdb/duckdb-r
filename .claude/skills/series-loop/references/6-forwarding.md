@@ -139,7 +139,11 @@ deciding that r-universe should build a different lineage today
 is not, so a human owns that.
 
 The script enforces its own half:
-it refuses to run without a terminal
-and takes the series name as confirmation,
+it swaps only on a confirmation that names the series,
+typed on a terminal or given as `--confirm <S>`,
 so a firing that tries anyway achieves nothing.
-Treat that refusal as the answer, not as an obstacle to route around.
+A firing never passes `--confirm`:
+the option carries the maintainer's decision, recorded where the series is coordinated,
+to the session they send to run the cutover ([`series-cutover/SKILL.md`](../../series-cutover/SKILL.md)),
+and a firing carries no decision.
+Treat the refusal as the answer, not as an obstacle to route around.
