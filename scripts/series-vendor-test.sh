@@ -49,7 +49,7 @@ git config user.email test@example.invalid
 git config commit.gpgsign false
 git remote add origin "$REMOTE"
 
-mkdir -p scripts R src/duckdb/src/function/table/version src/include patch man/figures
+mkdir -p scripts R src/duckdb/src/function/table/version src/include patch
 for s in series-vendor.sh series-config.sh series-lib.sh vendor-lib.sh; do cp "$HERE/$s" scripts/; done
 chmod +x scripts/*.sh
 
@@ -67,7 +67,6 @@ same_vendor() { [ "$(vendor_paths "$1")" = "$(vendor_paths "$2")" ]; }
 
 desc duckdb 1.5.5.9000
 engine aaaa111 1.5.5
-echo 'logo' > man/figures/logo.svg
 echo 'glue 1' > src/glue.cpp
 echo 'tool v1' > scripts/tool.sh
 echo 'foo <- function() 1' > R/foo.R

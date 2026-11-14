@@ -56,30 +56,13 @@ That spelling is the one every `scripts/series-*.sh` shares
 `src/duckdb/`, `src/include/sources.mk`, the Makevars files
 (`src/Makevars` and `src/Makevars.win`) from `Makevars.in`,
 `R/version.R`,
-and the logos in `man/figures/`
-copied from the upstream checkout's `logo/` —
 all committed, all corrected at the generator.
 That set is the mechanical path set a vendor commit may touch,
 and the generator is its list.
 
-The logos are the one thing in that set that is not a source,
-and they are there because the package shows them:
-the horizontal pair is the banner `.github/README.md` renders,
-the stacked pair is the package logo the site puts in its header,
-and carrying them on the vendor commit is what keeps either
-from drifting away from the engine it documents.
-The horizontal pair keeps its upstream name;
-the stacked pair is renamed on the way in,
-because pkgdown finds the package logo by the name
-`man/figures/logo.svg` rather than by configuration.
-The previous README hotlinked `duckdb.org` instead,
-those URLs went away,
-and GitHub — which proxies README images
-and serves nothing for a URL it cannot fetch — showed no logo at all.
-A checkout that cannot supply them stops the run before the
-regeneration, rather than leaving the vendored copies stale:
-upstream renaming a logo is a decision for a human,
-since the new name has to reach `README.md` too.
+**The logos in `man/figures/` are not in that set.**
+They are the R side's, and they change by hand on `main`;
+vendoring neither copies them nor treats them as vendored.
 
 **The regenerated tree is byte-reproducible, and cheap to re-hash**, and neither was
 always true — both are properties the pipeline now enforces rather than caveats a reader carries.

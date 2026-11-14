@@ -111,7 +111,7 @@ Two kinds stay behind, neither of them a judgement about the fix:
 the buffer's own strand — `src/duckdb/` and `patch/`,
 since a forward regenerates the tree from its own patches —
 and what vendoring regenerates:
-`R/version.R`, `src/include/sources.mk`, the Makevars, the logos,
+`R/version.R`, `src/include/sources.mk`, the Makevars,
 which differ between any two vendor runs of the same SHA
 and are noise wearing the shape of a fix.
 

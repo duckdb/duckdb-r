@@ -58,9 +58,9 @@ series_generate_derived() { # <strand|full>
 
 # What a vendor-strand commit carries (scripts/series-vendor.sh): the vendored
 # tree, the patch stack applied to it, and every file vendoring writes from the
-# tree and from the templates it fills, which here is all of them, the logos
-# included. Never the counter, never the glue.
-series_vendor_paths=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win man/figures)
+# tree and from the templates it fills, which here is all of them. Never the
+# counter, never the glue, never the logos, which are the R side's.
+series_vendor_paths=(src/duckdb patch R/version.R src/include/sources.mk src/Makevars src/Makevars.win)
 
 # What the buffer regenerates after a strand commit is picked onto it, beyond
 # the counter: nothing here, because every generated file is the strand's. A
@@ -73,7 +73,7 @@ series_regenerate() { :; }
 # same upstream commit and is never carried as a fix (scripts/series-advance.sh):
 # files, and directories.
 series_regenerated=(R/version.R src/include/sources.mk src/Makevars src/Makevars.win src/Makevars.in)
-series_regenerated_dirs=(man/figures)
+series_regenerated_dirs=()
 
 # The tooling `main` owns, ported onto every series by stage 4 and never carried
 # sideways (scripts/series-port.sh).

@@ -91,8 +91,7 @@
 # does not overwrite the one the buffer's own vendor run just produced -- and
 # that exclusion is no evidence they may differ. On the three live series they
 # do not: at a matching upstream SHA `R/version.R`, `src/include/sources.mk` and
-# the Makevars are identical, and the logos under `man/figures/` are not derived
-# from upstream at all, so a difference there is a finding like any other.
+# the Makevars are identical, so a difference there is a finding like any other.
 #
 # Everything else is unexplained and printed as a finding -- glue under `src/`,
 # tests, R code, and the tooling directories, which stage 4 brings to `main`'s
@@ -264,7 +263,7 @@ while IFS=$'\t' read -r add del f; do
       ;;
     *)
       # The vendored strand and what vendoring regenerates
-      # (scripts/series-config.sh); the logos are a finding like any other.
+      # (scripts/series-config.sh).
       if series_in_strand "$f" || series_is_regenerated "$f"; then
         if [ -n "$same" ]; then
           unexplained+=("$f|$add/$del|vendored strand, at one and the same upstream commit")

@@ -143,7 +143,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
-| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and the logos. |
+| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R, and the Makevars files. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
 | [`vendor-lib.sh`](vendor-lib.sh) | The glue gate: whether the glue compiles against the headers the tree vendors. |
 | [`vendor-one-test.sh`](vendor-one-test.sh) | Check scripts/vendor-one.sh --strand offline, against a synthetic upstream and package built here: no network, no fixtures on disk, the generator stubbed in ... |

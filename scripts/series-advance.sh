@@ -30,7 +30,7 @@
 # Two kinds are excluded, and neither is a judgement about the fix: the buffer's
 # own strand (`src/duckdb/`, `patch/` -- a forward regenerates the tree from its
 # own patches) and what vendoring regenerates (`R/version.R`,
-# `src/include/sources.mk`, the Makevars, the logos), which differs between any
+# `src/include/sources.mk`, the Makevars), which differs between any
 # two vendor runs of the same SHA and is noise wearing the shape of a fix.
 # Carried glue is reported as it goes, because glue the base `-dev` has and the
 # base `-build` lacks is buffer drift and wants mirroring there.
@@ -323,7 +323,7 @@ twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
 #     there is about which patches the two branches had, not about a fix
 #     travelling. Missing compile fixes belong on the buffer, mirrored there.
 #   * what vendoring regenerates -- `R/version.R`, `src/include/sources.mk`,
-#     the Makevars, the logos under `man/figures/`. Those differ between any
+#     the Makevars. Those differ between any
 #     two vendor runs of the same upstream SHA, which is noise wearing the
 #     shape of a fix.
 #
