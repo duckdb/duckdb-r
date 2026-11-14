@@ -82,6 +82,7 @@ The commit status is a display surface: nothing decides from it.
 Selection reads the verdict store on the `rcc2` branch instead —
 CI-side, that is what "decided" means, in the planner
 ([`each-plan.sh`](/scripts/each-plan.sh)), in a leg's resume check,
+in the follow-up ([`each-follow-up.sh`](/scripts/each-follow-up.sh)),
 and in the backstop, all of them through
 [`rcc-decided.sh`](/scripts/rcc-decided.sh).
 [`series-check.sh`](/scripts/series-check.sh), [`series-advance.sh`](/scripts/series-advance.sh)
