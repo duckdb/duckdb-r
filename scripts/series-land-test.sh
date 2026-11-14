@@ -26,6 +26,8 @@
 #      first one it has not, and prints the fast-forward once every one passed.
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
+#      A hand-written version bump may be the landing's last commit, and nothing
+#      may sit above it.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -327,6 +329,38 @@ is "each names the landing commit it halves" \
 sleep 1 # a date not pinned would differ by now
 out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
 has "a rerun mints the same branch" "$out" "v2.0-x-land-review: already on upstream"
+
+# --- 9b: the version bump ------------------------------------------------------
+
+echo
+echo "== a hand-written version bump may be the last commit"
+git checkout -q -b bump "$TIP"
+sed -i 's/^Version: .*/Version: 1.5.6.9002/' DESCRIPTION
+commit 'chore: Bump version to 1.5.6.9002 with hand-written release notes'
+BUMP=$(git rev-parse HEAD)
+git push -q origin "$BUMP:refs/heads/v2.0-x-land-dev"
+git checkout -q rcc2
+rec "$BUMP" success
+commit 'chore: store stub, the bump'
+git push -q origin rcc2
+git checkout -q main
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
+has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
+out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+is "the review takes it" "$st" 0
+hasnt "and does not call it out of place" "$out" "is not main"
+
+git checkout -q bump
+echo 'bar <- 1' > R/bar.R
+commit 'fix: A commit on top of the bump'
+git push -q origin "HEAD:refs/heads/v2.0-x-land-dev"
+git checkout -q main
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) || true
+hasnt "a commit above the bump is not ready" "$out" "READY: every"
+git push -q -f origin "$TIP:refs/heads/v2.0-x-land-dev"
+git branch -q -D bump
 
 # --- 10: a wrong resolution, replayed --------------------------------------
 

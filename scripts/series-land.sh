@@ -214,15 +214,20 @@ strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
-# commits only? A fix is folded into the commit that introduced the defect, so
-# that every commit passes; nothing sits on top. Prints the first commit out of
-# place.
+# commits only, and at most one version bump as the last commit? A fix is folded
+# into the commit that introduced the defect, so that every commit passes;
+# nothing else sits on top. The bump is the one commit written by hand, because
+# fledge::bump_version() would list every vendor commit in NEWS.md
+# (handbook/operations/releases/versioning/README.md). Prints the first commit
+# out of place.
 out_of_place() { # <tip>
-  local c subj seen=''
+  local c subj seen='' bump=''
   while IFS=$'\t' read -r c subj; do
+    [ -z "$bump" ] || { echo "$c $subj"; return; }
     # shellcheck disable=SC2254
     case "$subj" in
       vendor:* | $series_vendor_glob) seen=1 ;;
+      "chore: Bump version to "*) bump=1 ;;
       *) [ -z "$seen" ] || { echo "$c $subj"; return; } ;;
     esac
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
