@@ -7,11 +7,11 @@
 # An iteration of a landing answers a review by folding each fix into the
 # commit that introduced the defect, so that every commit from there on carries
 # it and every intermediate commit passes; nothing is stacked on top of the
-# vendor commits, which scripts/series-land.sh refuses. A repair on `-dev`
-# follows the same rule, so that every commit of the chain stays independently
-# green. A fix is written as a commit whose parent is the commit it folds into,
-# on any branch, so it applies where it was written; the replay carries it up
-# through every commit above.
+# vendor commits, which scripts/series-land.sh refuses, except the landing's
+# version bump. A repair on `-dev` follows the same rule, so that every commit
+# of the chain stays independently green. A fix is written as a commit whose
+# parent is the commit it folds into, on any branch, so it applies where it was
+# written; the replay carries it up through every commit above.
 #
 # The fold is one `git rebase --interactive` over the landing's first-parent
 # chain, from the lowest target up: each target is picked, and the fix is

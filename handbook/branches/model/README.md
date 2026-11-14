@@ -153,7 +153,7 @@ and `<S>-rc-alpha` the same stamp on its rc twin,
 because upstream publishes extensions under that version and never under the commit a `-dev` stamp looks in.
 Each is one commit on a verified one, moved by the loop when a newer alpha appears
 ([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
-**`<L>-land-dev` is a line on its way onto `main`**: the frozen `main` plus the series' vendor commits, unflavored,
+**`<L>-land-dev` is a line on its way onto `main`**: the frozen `main` plus the series' vendor commits, unflavored, and a hand-written version bump,
 which `main` fast-forwards onto once CI has passed every one.
 `<L>-land-green` marks how far CI has passed it, starting at the frozen `main`.
 The pair exists only while a landing is in flight, and has no buffer, so the loop never serves it.

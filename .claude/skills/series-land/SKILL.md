@@ -1,6 +1,6 @@
 ---
 name: series-land
-description: Land a release line on `main`, so that `main` starts releasing it. Freeze `main`, build `<L>-land-dev` from the series' rc strand as vendor commits only, let CI judge every commit, fast-forward `main` onto it, and park the line `main` released before. Use when `main` is to take a line that has its own series (v2.0 replacing v1.5), or when asked to land, move or promote a series onto `main`.
+description: Land a release line on `main`, so that `main` starts releasing it. Freeze `main`, build `<L>-land-dev` from the series' rc strand as vendor commits and a hand-written version bump, let CI judge every commit, fast-forward `main` onto it, and park the line `main` released before. Use when `main` is to take a line that has its own series (v2.0 replacing v1.5), or when asked to land, move or promote a series onto `main`.
 ---
 
 # Landing a line on `main`
@@ -11,7 +11,8 @@ the release process, of which this is the change of line.*
 `main` releases one line at a time.
 When the next one has a series of its own, `main` takes it by **fast-forwarding onto that series' vendor commits**:
 every upstream commit the series vendored, with the R-side fix CI demanded folded into it,
-replayed without the flavor onto `main` itself and judged by CI one by one.
+replayed without the flavor onto `main` itself and judged by CI one by one,
+and then the version bump written by hand, the landing's last commit (step 3).
 Nothing else reaches `main`:
 no flavor, no seed, and no port, because everything a port carries is `main`'s already.
 The line `main` released before parks on its own baseline and keeps its series,
@@ -33,11 +34,11 @@ flowchart LR
   LD -.->|"R side only,<br>--review"| R["#60;L#62;-land-review:<br>a draft pull request, never merged"]
 ```
 
-* **`<L>-land-dev`**, in the fork: `main` plus the vendor commits, and nothing else.
+* **`<L>-land-dev`**, in the fork: `main` plus the vendor commits and, last, the version bump, and nothing else.
   CI judges it like any `-dev` ([`scripts/each-plan.sh`](/scripts/each-plan.sh)).
 * **`<L>-land-green`**, in the fork: where CI's judgement starts.
   It is pushed at the frozen `main` and advanced over the commits that passed;
-  the landing is ready when it equals `<L>-land-dev`.
+  the landing is ready when it equals `<L>-land-dev`, the bump included.
 
 * **`<L>-land-review`**, in the canonical repository: the same landing without its engine,
   for a draft pull request that is read and never merged (step 4).
@@ -179,6 +180,26 @@ it is adapted in the base, written to hold on both engines, and ported to the se
 Committer dates are pinned to the frozen `main`'s, so a rebuild from the same inputs mints the same SHAs
 and CI does not judge a commit twice.
 
+**The version bump is the landing's last commit.**
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns why the first bump after a landing is by hand.
+The build ends on the series' version, `<prefix>.9000.<n>`,
+where `<prefix>` is the preview prefix `main` carries while it previews the line (`1.99.99` for v2.0).
+Once the build is pushed, add the bump in its kept worktree and push it onto `<L>-land-dev`, a plain fast-forward:
+
+* **`DESCRIPTION`**: set `Version:` to `<prefix>.9001`.
+  `main`'s own counter is the fourth component, and the fifth, the vendor counter, is dropped.
+* **`NEWS.md`**: write the `# duckdb <prefix>.9001` section for users of the package,
+  directly above the section of the last release.
+  It replaces the development sections since that release,
+  keeps their user-facing items, leaves out the tooling, and names the engine the landing vendors.
+  It starts with fledge's marker line, as the versioning page says.
+* **The commit**: `chore: Bump version to <prefix>.9001 with hand-written release notes`.
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md` and the `Version:` line,
+  with nothing above it, and `--status` prints `READY` only on a landing that ends on it.
+
+CI judges the bump like every other commit.
+A rebuild drops it, so after one, add it again.
+
 ## 4. Open the R side for review
 
 The landing's own diff is the engine's, hundreds of thousands of lines.
@@ -233,13 +254,31 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
   In the kept worktree, `git reset --hard` to the parent of the red commit,
   then rerun the build: it follows the realigned strand and replays from there,
   so the landing never carries a fix the series does not.
+* **the bump's**: amend it and force-push `<L>-land-dev`; `<L>-land-green` stays at the last vendor commit.
 
 ## 6. Fast-forward `main`
 
 When `--status` prints `READY`, every commit has passed and `main` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `main` unjudged.
-Lift the freeze, push, and put it back until the step below is done:
+Before lifting the freeze, close the version pull request the nightly fledge run may have opened against the frozen `main`,
+so that it does not merge the moment the freeze lifts
+([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
+The run force-pushes the branch `fledge` and the version tag of its bump, and the tag is deleted with the branch.
+Its version is in the pull request's title, and the tag is the pull request's own when it points at the pull request's head:
+
+```sh
+R=duckdb/duckdb-r
+gh api "repos/$R/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title, .head.sha] | @tsv'
+n=<number>
+v=$(gh api repos/$R/pulls/$n --jq '.title | sub("^fledge: Bump version to "; "")')
+git ls-remote upstream "refs/tags/v$v^{}"    # the same SHA as the pull request's head
+gh api -X PATCH repos/$R/pulls/$n -f state=closed
+gh api -X DELETE repos/$R/git/refs/heads/fledge
+gh api -X DELETE repos/$R/git/refs/tags/v$v
+```
+
+Lift the freeze, push, put the freeze back, and then tag the bump:
 
 ```sh
 sha=<the SHA the READY line names>
@@ -253,27 +292,35 @@ git ls-remote upstream refs/heads/main
 The push is a plain one, so git refuses it unless it is a fast-forward.
 It needs the existing `main` ruleset's admin bypass, because it is not a pull request.
 
+Then tag the bump, which is the commit `READY` named.
+fledge counts from the newest version tag
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
+and the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
+It is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <prefix>.9001`, then the `NEWS.md` section as body.
+
+```sh
+v=<prefix>.9001
+{ printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
+[ "$(grep -c . tag-message)" -gt 1 ] || { echo "no NEWS.md section for $v" >&2; false; }
+git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha"
+git push upstream "refs/tags/v$v"
+```
+
 ## 7. After the landing
 
-Delete the freeze, so that `main` takes pull requests again:
+A nightly run between the push of `main` and the tag may have opened another fledge pull request, against the version the landing just bumped to.
+Repeat step 6's listing and cleanup first, because the freeze's deletion would let it merge.
+Then delete the freeze, so that `main` takes pull requests again:
 
 ```sh
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
 gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 ```
 
-The nightly fledge run may open its version pull request first, against a version it does not expect;
-close it in favour of the one below.
-
 The first pull request on `main`:
 
 * **The CRAN row** in `scripts/series.yaml`: `duckdb` now tracks `<L>`.
   Regenerate the tables ([`series-open`](/.claude/skills/series-open/SKILL.md), step 6).
-* **`main`'s version.** The landing ends on the series' version, `1.99.99.9000.<n>`,
-  which is the preview prefix `main` carries while it previews the line
-  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-  `main`'s own counter is the fourth component, so the first bump sets it explicitly,
-  `fledge::bump_version("1.99.99.9001")`, which also drops the vendor counter.
 
 Then the series:
 
