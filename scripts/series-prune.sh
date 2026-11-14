@@ -22,7 +22,11 @@
 # forward's tips are the series' refs, and the derived strands are recomputed
 # from `<S>-dev`
 # (scripts/series-rc.sh, scripts/series-alpha.sh). Nothing here deletes
-# anything either: the commands are printed, and a human runs them.
+# anything either: the commands are printed, and a human runs them, in two
+# forms: one `git push --delete` per repository, and, for a remote on GitHub,
+# one `gh api -X DELETE` per ref, for where git may not delete at all, as in a
+# cloud session, whose git proxy refuses it. The second is the form
+# scripts/series-cutover.sh prints for what its own deletion left.
 #
 # Usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]
 #   series-prune.sh v2.0-cyanoptera
@@ -36,6 +40,8 @@
 # Exit status: 0, whatever it finds; 2 on a usage or lookup error.
 
 set -euo pipefail
+# shellcheck source=series-lib.sh
+. "$(dirname "$0")/series-lib.sh"
 
 usage='usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]'
 argerr() { echo "$usage" >&2; exit 2; }
@@ -118,4 +124,15 @@ if [ ${#fwd_refs[@]} -gt 0 ]; then
   echo
 fi
 [ -z "$canon_has_fwd" ] || echo "git push --delete $canonical $S-fwd-green"
+gh_lines=()
+if [ -n "$(series_github_slug "$remote")" ]; then
+  for r in "${fwd_refs[@]}"; do gh_lines+=("$(series_delete_line "$remote" "$r")"); done
+fi
+if [ -n "$canon_has_fwd" ] && [ -n "$(series_github_slug "$canonical")" ]; then
+  gh_lines+=("$(series_delete_line "$canonical" "$S-fwd-green")")
+fi
+if [ ${#gh_lines[@]} -gt 0 ]; then
+  echo "or, where git may not delete, one call per ref:"
+  printf '%s\n' "${gh_lines[@]}"
+fi
 echo "Nothing above was run."

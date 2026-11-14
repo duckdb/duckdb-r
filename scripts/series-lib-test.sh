@@ -15,6 +15,8 @@
 #   5. On a repository: the seed, the base scan past a non-vendor commit in the
 #      scan directory, its bound, the `-build` equivalent of a re-stamped
 #      commit, and the engine and the stamp read off a tree.
+#   6. The GitHub repository a remote names, and the command that deletes one
+#      of its branches.
 #
 # The engine's own formats are the block right below the helpers: what a tree
 # holds for `series_engine_of()` and `series_stamped_version()` to read, where
@@ -156,6 +158,19 @@ v2t=$(c "vendor: Update vendored sources (tag $tag) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
+
+echo "--- 6. the GitHub repository a remote names"
+for url in https://github.com/o/r https://github.com/o/r.git https://github.com/o/r/ git@github.com:o/r.git ssh://git@github.com/o/r; do
+  git remote add gh-url "$url"
+  is "$url names o/r" "$(series_github_slug gh-url)" o/r
+  git remote remove gh-url
+done
+git remote add proxied http://proxy@127.0.0.1:1/git/o/r
+is "a URL that is not GitHub's names nothing" "$(series_github_slug proxied)" ""
+is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-dev)" "git push --delete proxied b-fwd-dev"
+git config remote.proxied.github o/r
+is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
+is "and then with one gh api call per branch" "$(series_delete_line proxied b-fwd-dev)" "gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev"
 
 echo
 echo "$pass passed, $fail failed"

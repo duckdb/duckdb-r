@@ -26,10 +26,13 @@
 # It is also the one move the series loop never makes: the loop reports a ready
 # cutover and stops (.claude/skills/series-loop/SKILL.md), because retiring the
 # lineage r-universe builds from is a decision, not a stage. This script is the
-# mechanical half of that rule -- it runs from a terminal, on a typed
-# confirmation, and nowhere else. `--prepare` is the part that needs neither:
-# the gates, the convergence read and the review, written for a human to read
-# before deciding, with nothing moved and nothing opened.
+# mechanical half of that rule: it swaps only on a confirmation that names the
+# series, typed on a terminal, or given as `--confirm <series>` by a session
+# the maintainer sent to run a cutover they decided
+# (.claude/skills/series-cutover/SKILL.md). The loop gives neither.
+# `--prepare` is the part that needs no confirmation: the gates, the
+# convergence read and the review, written for a human to read before
+# deciding, with nothing moved and nothing opened.
 #
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace.
@@ -49,9 +52,11 @@
 # against what the series it replaces carries.
 #
 # Usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>]
-#                          [--upstream <path>] [--out <dir>] [--prepare] [--no-archive]
+#                          [--upstream <path>] [--out <dir>]
+#                          [--prepare | --confirm <series>] [--no-archive]
 #   series-cutover.sh main --upstream ../../../duckdb
 #   series-cutover.sh main --upstream ../../../duckdb --prepare --out /tmp/main-cutover
+#   series-cutover.sh main --upstream ../../../duckdb --confirm main
 #
 # `--canonical <name>` names the repository r-universe publishes the base
 # flavors from -- default `upstream`, as in series-advance.sh -- which carries a
@@ -73,6 +78,15 @@
 #                     temporary directory, named on screen.
 #   --prepare         the gates, the reads and the review only: no terminal
 #                     needed, no pull request opened, no ref moved.
+#   --confirm <series>
+#                     the confirmation the prompt asks for, given on the
+#                     command line, so that no terminal is needed and the
+#                     command itself records it. It must name the series being
+#                     cut over: another name, a missing one, or --prepare
+#                     beside it is a usage error, before anything is read.
+#                     Nobody reads the screen before it swaps, so the coverage
+#                     gate must be verified: without --upstream it refuses
+#                     where a terminal run only warns.
 #   --no-archive      swap without the archive pull requests.
 # Both are spelled the same in every scripts/series-*.sh; see the shared
 # contract in handbook/operations/vendoring/series-loop/README.md.
@@ -83,19 +97,38 @@
 # $SERIES_GH names another `gh`.
 #
 # The upstream clone is needed for the coverage gate (an ancestry check
-# between vendored upstream SHAs); without it the gate degrades to a warning.
+# between vendored upstream SHAs); without it the gate degrades to a warning,
+# except under --confirm, where it refuses.
+#
+# After the swap the script prints the archive pull requests, number and URL,
+# and the undo: one leased push per repository that puts the old tips back from
+# the archive pull requests' heads and the forward's refs beside them.
+#
+# Exit status:
+#   0  swapped and cleaned up, or prepared.
+#   1  refused or failed before or at the swap, so nothing was swapped: a gate,
+#      a typed confirmation that does not match, no terminal and no --confirm,
+#      an archive that could not be opened, or a lease the swap lost. Archive
+#      pull requests already opened stay, and a rerun finds them.
+#   2  a usage error, a --confirm that does not name the series among them;
+#      nothing was read or moved.
+#   9  swapped, with something left behind: a forward ref the remote refused
+#      to delete, which is cutover litter, or the canonical copy of green it
+#      refused to move. Each is printed with the one command that finishes it,
+#      under a last line `SWAPPED, LEFT BEHIND`; the swap stands, and a rerun
+#      is not what finishes it.
 
 set -euo pipefail
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>] [--out <dir>] [--prepare] [--no-archive]'
+usage='usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>] [--upstream <path>] [--out <dir>] [--prepare | --confirm <series>] [--no-archive]'
 argerr() { echo "$usage" >&2; exit 2; }
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
 upstream=${UPSTREAM_CLONE:-}
 gh=${SERIES_GH:-gh}
-out='' prepare='' archive=1
+out='' prepare='' archive=1 confirm='' confirmed=''
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -104,6 +137,7 @@ while [ $# -gt 0 ]; do
     --upstream) [ $# -ge 2 ] || argerr; upstream=$2; shift 2 ;;
     --out) [ $# -ge 2 ] || argerr; out=$2; shift 2 ;;
     --prepare) prepare=1; shift ;;
+    --confirm) [ $# -ge 2 ] || argerr; confirm=$2; confirmed=1; shift 2 ;;
     --no-archive) archive=''; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
@@ -112,17 +146,33 @@ while [ $# -gt 0 ]; do
 done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
+# The confirmation on the command line is checked before anything is read: it
+# is the operator's statement of which series to replace, so a name that is not
+# this one is a command that contradicts itself, and so is one that both swaps
+# and moves nothing.
+if [ -n "$confirmed" ]; then
+  if [ -n "$prepare" ]; then
+    echo "Error: --prepare moves nothing and --confirm swaps; pass one of them." >&2
+    argerr
+  fi
+  if [ "$confirm" != "$S" ]; then
+    echo "Error: --confirm names '$confirm', but the series to cut over is '$S'; nothing was moved." >&2
+    argerr
+  fi
+fi
 here=$(cd "$(dirname "$0")" && pwd)
 # Pathspecs below are the repository's, wherever this was started from.
 cd "$(git rev-parse --show-toplevel)"
 
-# Fail before the fetch, not after it: an unattended firing has no terminal, so
-# there is nothing for it to confirm with and no reason to do any work first.
-# `--prepare` moves nothing and may run anywhere.
-if [ -z "$prepare" ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
-  echo "Error: cutover is a manual operation; run this script from a terminal." >&2
-  echo "  The series loop reports a ready cutover and stops; a human runs it." >&2
-  echo "  See .claude/skills/series-forward/SKILL.md and series-loop." >&2
+# Fail before the fetch, not after it: without a terminal and without
+# --confirm there is nothing to confirm with, and no reason to do any work
+# first. An unattended firing of the loop is that case, and never passes
+# --confirm. `--prepare` moves nothing and may run anywhere.
+if [ -z "$prepare" ] && [ -z "$confirmed" ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
+  echo "Error: a cutover swaps only on a confirmation that names the series:" >&2
+  echo "  type it on a terminal, or pass --confirm <series> once a maintainer has decided" >&2
+  echo "  the cutover (.claude/skills/series-cutover/SKILL.md)." >&2
+  echo "  The series loop reports a ready cutover and stops; it never confirms one." >&2
   echo "  --prepare runs the gates and the review alone, from anywhere." >&2
   exit 1
 fi
@@ -176,27 +226,17 @@ version_cmp() {
   if [ "${sorted%%$'\n'*}" = "$1" ]; then printf '%s\n' -1; else printf '%s\n' 1; fi
 }
 
-# The GitHub repository a remote names, `owner/repo`, for `gh api`. The config
-# key comes first so a fixture whose URL is a path can still name one.
-github_slug() { # <remote> -> owner/repo | ""
-  local slug url
-  slug=$(git config "remote.$1.github" 2>/dev/null || true)
-  if [ -z "$slug" ]; then
-    url=$(git remote get-url "$1" 2>/dev/null || true)
-    slug=$(sed -nr 's#^(https://|git@|ssh://git@)github\.com[:/]([^/]+/[^/]+?)(\.git)?/?$#\2#p' <<<"$url")
-  fi
-  echo "$slug"
-}
-
 # Open a draft pull request from <head> against <base> in the repository
-# <remote> names, and close it at once. Printed, then done; a failure stops the
+# <remote> names, and close it at once. Printed, with its URL, and recorded in
+# `archived` for the summary and the undo after the swap; a failure stops the
 # run before anything is swapped, since the archive is what keeps the swap
 # readable afterwards. A rerun after a swap that failed finds the pull request
 # it opened the first time, by its title and the tip its body names, and opens
 # no second one.
+archived=() # "<remote> <head> <owner/repo> <number>"
 archive_pr() { # <remote> <head> <base> -> prints the pull request
   local r=$1 head=$2 base=$3 slug n body tip title existing
-  slug=$(github_slug "$r")
+  slug=$(series_github_slug "$r")
   [ -n "$slug" ] || {
     echo "Error: $r is not a GitHub remote, so $head cannot be archived there." >&2
     echo "  Set 'git config remote.$r.github <owner>/<repo>' or pass --no-archive." >&2
@@ -207,7 +247,8 @@ archive_pr() { # <remote> <head> <base> -> prints the pull request
   existing=$("$gh" api -X GET "repos/$slug/pulls" -f state=closed -f head="${slug%%/*}:$head" -f per_page=20 \
     --jq "[.[] | select(.title == \"$title\" and (.body | contains(\"$tip\")))][0].number // empty" 2>/dev/null || true)
   if [ -n "$existing" ]; then
-    echo "  already archived $head as $slug#$existing (its head is refs/pull/$existing/head there)"
+    echo "  already archived $head as $slug#$existing (its head is refs/pull/$existing/head there): https://github.com/$slug/pull/$existing"
+    archived+=("$r $head $slug $existing")
     return
   fi
   body="Archive of \`$head\` as it stood before the cutover of \`$S\` on $(date -u +%Y-%m-%d): \`$tip\`.
@@ -222,7 +263,8 @@ The cutover moves \`$head\` onto the lineage of \`$base\`, which this history is
     echo "Error: could not close the archive pull request $slug#$n" >&2
     exit 1
   }
-  echo "  archived $head as $slug#$n (closed; its head is refs/pull/$n/head there)"
+  echo "  archived $head as $slug#$n (closed; its head is refs/pull/$n/head there): https://github.com/$slug/pull/$n"
+  archived+=("$r $head $slug $n")
 }
 
 for r in build dev green build-base; do
@@ -275,6 +317,12 @@ if [ -n "$old_up" ]; then
       echo "Error: forward green does not cover old green; coverage would regress"
       exit 1
     }
+  elif [ -n "$confirmed" ]; then
+    # On a terminal the operator reads the warning below before typing the
+    # name; under --confirm nobody does, so the gate holds rather than degrades.
+    echo "Error: no upstream clone given, so the coverage gate cannot be verified, and --confirm" >&2
+    echo "  swaps with nobody to read a warning; pass --upstream <path>. Nothing was moved." >&2
+    exit 1
   else
     echo "Warning: no upstream clone given, coverage gate not verified"
   fi
@@ -330,6 +378,12 @@ fi
 
 leases=()
 refspecs=()
+# The undo is the swap read backwards: each base ref leased on the forward's
+# tip and put back on its old one, or deleted where the swap created it, and
+# each forward ref written again at the tip it gave. Those carry no lease and no
+# `+`, so a forward ref the deletion left at that tip is no change.
+undo_leases=()
+undo_refspecs=()
 echo "refs to swap:"
 for r in "${swap[@]}"; do
   new=$(git rev-parse "refs/remotes/$remote/$S-fwd-$r")
@@ -340,6 +394,8 @@ for r in "${swap[@]}"; do
   cur=$(git rev-parse -q --verify "refs/remotes/$remote/$S-$r") || cur=
   leases+=("--force-with-lease=refs/heads/$S-$r:$cur")
   refspecs+=("$new:refs/heads/$S-$r")
+  undo_leases+=("--force-with-lease=refs/heads/$S-$r:$new")
+  undo_refspecs+=("$cur:refs/heads/$S-$r" "$new:refs/heads/$S-fwd-$r")
   short=${cur:0:7}
   oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
   newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
@@ -452,7 +508,7 @@ if [ ${#archives[@]} -gt 0 ]; then
   echo "archive pull requests, opened and closed before the swap:"
   for a in "${archives[@]}"; do
     read -r r head base <<<"$a"
-    slug=$(github_slug "$r")
+    slug=$(series_github_slug "$r")
     echo "  $head -> $base in ${slug:-$r (not a GitHub remote: set remote.$r.github or pass --no-archive)}"
   done
   command -v "$gh" >/dev/null 2>&1 || echo "  ($gh is not installed; the swap will refuse without --no-archive)"
@@ -481,7 +537,8 @@ fi
 
 if [ -n "$prepare" ]; then
   echo
-  echo "Prepared; nothing was opened, pushed or deleted. Run without --prepare, from a terminal, to cut over."
+  echo "Prepared; nothing was opened, pushed or deleted. To cut over, run without --prepare, from a terminal,"
+  echo "  or with --confirm $S once a maintainer has decided the cutover (.claude/skills/series-cutover/SKILL.md)."
   exit 0
 fi
 
@@ -489,11 +546,16 @@ fi
 # comes last so the operator confirms with the coverage lines, the package
 # versions and the four ref moves on screen, and it takes the series name
 # rather than a keystroke because the mistake worth catching is cutting over
-# the wrong series.
+# the wrong series. `--confirm` gave that name on the command line, checked
+# before anything was read, where it stays on record with the command.
 echo
-printf 'Replace series %s with %s-fwd-*? Type the series name to confirm: ' "$S" "$S"
-read -r confirm
-[ "$confirm" = "$S" ] || { echo "Aborted; nothing was pushed."; exit 1; }
+if [ -n "$confirmed" ]; then
+  echo "Replacing series $S with $S-fwd-*, confirmed by --confirm $S."
+else
+  printf 'Replace series %s with %s-fwd-*? Type the series name to confirm: ' "$S" "$S"
+  read -r confirm
+  [ "$confirm" = "$S" ] || { echo "Aborted; nothing was pushed."; exit 1; }
+fi
 
 # Archive first: a pull request moves no ref, and a failure here leaves the
 # series exactly as it was.
@@ -509,49 +571,122 @@ if [ ${#archives[@]} -gt 0 ]; then
   done
 fi
 
-git push --atomic "${leases[@]}" "$remote" "${refspecs[@]}"
+git push --atomic "${leases[@]}" "$remote" "${refspecs[@]}" || {
+  echo "Error: the swap was refused, and an atomic push moves nothing when it is; nothing was swapped." >&2
+  exit 1
+}
 if [ ${#missing[@]} -eq 4 ]; then
   echo "Series $S created from its forward counterpart."
 else
   echo "Series $S replaced by its forward counterpart."
 fi
 
+# What the remotes refuse from here on is left behind rather than fatal: the
+# swap stands, so a rerun is not what finishes it. Each is printed at the end
+# with the one command that does, and the run exits 9.
+left=()          # "<remote> <ref>": a deletion refused
+green_left=''    # the push that moves the canonical copy of green, refused
+canon_undo=''    # the canonical half of the undo
+new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
+
 # The canonical repository carries a copy of green for r-universe to publish
 # from, and the swap just moved green onto a lineage the old one is no more an
 # ancestor of. This is the only place that copy is forced: the loop's own mirror
 # is fast-forward only and would stop the next firing on exactly this
 # divergence. After the swap, never before, so the canonical copy is never ahead
-# of the fork -- and under a lease, so a green nobody here wrote is not
-# overwritten silently. The forward's copy there goes with the fork's `-fwd`
-# refs: its tip is `<S>-green` now.
-if [ -n "$canonical" ]; then
-  new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
-  git fetch -q "$canonical" "$S-green" 2>/dev/null || true
-  cur=$(git rev-parse -q --verify FETCH_HEAD) || cur=
+# of the fork; and under a lease on the copy this run read and archived, so a
+# green nobody here wrote, or archived, is not overwritten silently. The
+# forward's copy there goes with the fork's `-fwd` refs: its tip is `<S>-green`
+# now.
+if [ -n "$canonical" ] && ! git remote get-url "$canonical" >/dev/null 2>&1; then
+  echo "Note: there is no remote $canonical, so no canonical copy of $S-green was moved; --canonical names it."
+elif [ -n "$canonical" ]; then
+  cur=$(git rev-parse -q --verify "refs/remotes/$canonical/$S-green") || cur=
   if [ "$cur" = "$new_green" ]; then
     echo "canonical $S-green already at $(git rev-parse --short "$new_green")"
   elif git push --force-with-lease="refs/heads/$S-green:$cur" \
       "$canonical" "$new_green:refs/heads/$S-green"; then
     echo "canonical $S-green -> $(git rev-parse --short "$new_green")"
+    canon_undo="git push --force-with-lease=refs/heads/$S-green:$new_green $canonical $cur:refs/heads/$S-green"
+    [ -z "$canon_fwd" ] || canon_undo="$canon_undo $new_green:refs/heads/$S-fwd-green"
   else
-    echo "Warning: could not move $S-green in $canonical; r-universe still" >&2
-    echo "  publishes the pre-cutover lineage until it is moved by hand." >&2
+    green_left="git push --force-with-lease=refs/heads/$S-green:$cur $canonical $new_green:refs/heads/$S-green"
   fi
   if [ -n "$canon_fwd" ] && ! git push "$canonical" ":refs/heads/$S-fwd-green"; then
-    echo "Warning: could not delete $S-fwd-green in $canonical; scripts/series-prune.sh $S lists it" >&2
+    left+=("$canonical $S-fwd-green")
   fi
 fi
 
-# Best-effort: some git proxies refuse deletions. Until these refs are gone,
-# the loop ignores a forward series whose refs equal its base series, and
-# scripts/series-prune.sh prints the deletion for a human.
+# Some git proxies refuse deletions, a cloud session's among them. Until these
+# refs are gone, the loop ignores a forward series whose green is an ancestor of
+# its base series' green, and scripts/series-prune.sh lists them too. A push
+# that was refused may still have deleted some, so what is left is read back
+# rather than assumed, and taken to be all of them when even that fails.
 dels=()
 for r in "${leftovers[@]}"; do dels+=(":refs/heads/$r"); done
 if [ ${#dels[@]} -gt 0 ] && ! git push "$remote" "${dels[@]}"; then
-  echo "Warning: could not delete ${leftovers[*]} on $remote; remove them via the forge UI," >&2
-  echo "  or from the commands scripts/series-prune.sh $S prints" >&2
+  still=$(git ls-remote --heads "$remote") || still=
+  for r in "${leftovers[@]}"; do
+    if [ -z "$still" ] || cut -f2 <<<"$still" | grep -qxF "refs/heads/$r"; then
+      left+=("$remote $r")
+    fi
+  done
 fi
+
+# What a session quotes: the archive pull requests, and the undo, filled in.
+# The undo fetches the archive pull requests' heads first, so it runs in any
+# clone, not only this one; green and -build-base are on those lineages.
+if [ ${#archived[@]} -gt 0 ]; then
+  echo
+  echo "archive pull requests, closed and never merged; each head keeps the lineage it names:"
+  for a in "${archived[@]}"; do
+    read -r r head slug n <<<"$a"
+    echo "  $head: $slug#$n https://github.com/$slug/pull/$n"
+  done
+fi
+echo
+echo "undo, while nothing has moved since: one leased push per repository puts the old tips back,"
+echo "  and the forward's refs at the tips they gave; re-cut the derived strands of both afterwards:"
+# A canonical green this run did not move needs no undo there.
+for repo in "$remote" "$canonical"; do
+  [ -n "$repo" ] || continue
+  [ "$repo" = "$remote" ] || [ -n "$canon_undo" ] || continue
+  pulls=()
+  for a in "${archived[@]}"; do
+    read -r r head slug n <<<"$a"
+    [ "$r" != "$repo" ] || pulls+=("refs/pull/$n/head")
+  done
+  [ ${#pulls[@]} -eq 0 ] || echo "  git fetch $repo ${pulls[*]}"
+  if [ "$repo" = "$remote" ]; then
+    echo "  git push --atomic ${undo_leases[*]} $remote ${undo_refspecs[*]}"
+  else
+    echo "  $canon_undo"
+  fi
+done
+
+echo
 echo "Re-cut the derived strands from the swapped-in series where it had them:"
 echo "  scripts/series-rc.sh $S --push, scripts/series-alpha.sh $S --push (.claude/skills/series-rc, series-alpha)."
 echo "The fork's universe still names $S-fwd-green for the forward's flavor; nothing installs it, and the"
 echo "  next forward writes the ref again (handbook/branches/flavors/README.md)."
+
+if [ ${#left[@]} -gt 0 ] || [ -n "$green_left" ]; then
+  echo
+  echo "left behind: the swap stands, and the remotes refused what follows it."
+  if [ -n "$green_left" ]; then
+    echo "  $S-green in $canonical is still on the pre-cutover lineage, which r-universe publishes; move it:"
+    echo "    $green_left"
+  fi
+  for repo in "$remote" "$canonical"; do
+    refs=()
+    for l in "${left[@]}"; do
+      read -r r ref <<<"$l"
+      [ "$r" != "$repo" ] || refs+=("$ref")
+    done
+    [ ${#refs[@]} -gt 0 ] || continue
+    echo "  cutover litter in $repo, which loses nothing when deleted: ${refs[*]}"
+    for ref in "${refs[@]}"; do echo "    $(series_delete_line "$repo" "$ref")"; done
+  done
+  echo "SWAPPED, LEFT BEHIND: $S is cut over; run the lines above, or hand them to a maintainer."
+  exit 9
+fi
