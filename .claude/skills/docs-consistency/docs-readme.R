@@ -144,7 +144,11 @@ groups <- list(
   ),
   list(
     owner = "handbook/operations/ci/per-commit/legs",
-    globs = c("each-shard.sh", "rcc-one.sh")
+    globs = c("each-shard.sh", "each-follow-up.sh", "each-follow-up-test.sh", "rcc-one.sh")
+  ),
+  list(
+    owner = "handbook/operations/ci/per-commit/upstream",
+    globs = c("each-mirror.sh", "each-mirror-test.sh")
   ),
   list(
     owner = "handbook/operations/ci/per-commit/store",

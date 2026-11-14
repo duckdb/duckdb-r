@@ -3,7 +3,8 @@
 Every commit on a series branch gets a gate verdict of its own,
 so every `*-dev` branch is bisectable end to end
 ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
-[`each.yaml`](/.github/workflows/each.yaml) is what runs.
+[`each.yaml`](/.github/workflows/each.yaml) is what runs, in the fork;
+[`each-mirror.yaml`](/.github/workflows/each-mirror.yaml) copies its verdicts into the canonical repository.
 
 **Nothing here coordinates; everything recomputes.**
 No part of this system asks another what it is doing,
@@ -18,3 +19,4 @@ and a re-run cost only what was lost.
 * [`legs/`](legs/) — the jobs, the scripts, one leg's workspace
 * [`store/`](store/) — the `rcc2` branch and its writers
 * [`operating/`](operating/) — knobs, failures, what to do
+* [`upstream/`](upstream/): the verdicts shown in the canonical repository

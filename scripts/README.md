@@ -82,6 +82,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
+| [`each-follow-up-test.sh`](each-follow-up-test.sh) | Check scripts/each-follow-up.sh, offline, against a synthetic branch, a synthetic store and a stand-in for `gh api` built here, and the part of scripts/each-... |
+| [`each-follow-up.sh`](each-follow-up.sh) | Dispatch one more `each-rcc` run when this one left planned commits undecided. |
 | [`each-shard.sh`](each-shard.sh) | Build one shard of an `each-rcc` plan: many commits, one job, one workspace. |
 | [`rcc-one.sh`](rcc-one.sh) | Run the per-commit `rcc` gate against the working tree, once. |
 
@@ -111,6 +113,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rcc-publish.sh`](rcc-publish.sh) | Publish a staging directory to the verdict store on the orphan `rcc2` branch. |
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 | [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
+
+## [`operations/ci/per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)
+
+| File | Purpose |
+|---|---|
+| [`each-mirror-test.sh`](each-mirror-test.sh) | Check scripts/each-mirror.sh, offline, against a synthetic canonical repository, a synthetic store and a stand-in for `gh api` built here: no network, no fix... |
+| [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for the open pull r... |
 
 ## [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)
 

@@ -60,6 +60,14 @@ on:
         description: "Rebuild commits that already have a verdict"
         type: boolean
         default: false
+      follow-up-of:
+        description: "The run this one follows up, set by that run (scripts/each-follow-up.sh)"
+        type: string
+        default: ""
+      follow-up-head:
+        description: "The commit that run planned from, set by it once it judged its retry tip again; a retry tip equal to it is not replanned"
+        type: string
+        default: ""
   workflow_call:
     inputs:
       branch:
@@ -130,7 +138,6 @@ jobs:
 
     permissions:
       contents: read
-      actions: write
 
     # Begin custom: services
     # End custom: services
@@ -151,6 +158,8 @@ jobs:
           MAX_COMMITS: ${{ env.EACH_MAX_COMMITS }}
           SPLIT_FACTOR: ${{ env.EACH_SPLIT_FACTOR }}
           FORCE: ${{ inputs.force && '1' || '' }}
+          FOLLOW_UP_OF: ${{ inputs.follow-up-of }}
+          FOLLOW_UP_HEAD: ${{ inputs.follow-up-head }}
           OUT: ${{ runner.temp }}/plan.json
         run: scripts/each-plan.sh
         shell: bash
@@ -286,3 +295,60 @@ jobs:
           path: ${{ runner.temp }}/each-logs
           if-no-files-found: ignore
           retention-days: 14
+
+  # A leg that reaches its deadline defers the commits it did not get to, and
+  # nothing else would plan them before the next push. So the run dispatches
+  # itself once more on the branch, and the follow-up waits in the branch's
+  # concurrency group, `each-rcc-<ref>`, until this run completes, then plans
+  # whatever is still undecided. When it dispatches, and why a chain of
+  # follow-ups ends, is stated once, in "The follow-up run" of
+  # handbook/operations/ci/per-commit/legs/README.md; scripts/each-follow-up.sh
+  # holds the mechanism.
+  #
+  # `!cancelled()` rather than the implicit `success()`, so that a leg that
+  # failed or timed out is followed up, while a run somebody cancelled stays
+  # retired. `needs.plan.result` keeps the job off where `plan` is skipped and
+  # has no outputs to compare.
+  follow-up:
+    needs:
+      - plan
+      - build
+
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.shards != '0' }}
+
+    runs-on: ubuntu-26.04
+
+    # Two git reads, a records fetch and two API calls: minutes at the very
+    # most, and nothing worth an hour of a stuck runner.
+    timeout-minutes: 10
+
+    name: "Follow up on undecided commits"
+
+    permissions:
+      contents: read
+      # Dispatches the follow-up, and lists the runs already waiting on the branch.
+      actions: write
+
+    steps:
+      # The scripts of the commit this run's workflow was read from, not the
+      # branch: a branch that moved or was deleted since must reach the script's
+      # "moved" exit rather than fail the checkout.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: scripts
+          filter: blob:none
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: each-plan
+          path: ${{ runner.temp }}/plan
+
+      - name: Dispatch a follow-up run if commits remain undecided
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLAN: ${{ runner.temp }}/plan/plan.json
+          INPUTS: ${{ toJSON(inputs) }}
+          RCC_READ_DIR: ${{ runner.temp }}/rcc-read
+        run: scripts/each-follow-up.sh
+        shell: bash

@@ -87,12 +87,20 @@ never derived from git; the tag follows `DESCRIPTION`.
 Commit messages on `main` are written to be read as changelog entries, which is what `NEWS.md` is written from.
 [`fledge.yaml`](/.github/workflows/fledge.yaml) runs fledge on `main` only while the first line of `NEWS.md` names fledge,
 which is what its `check_news` job tests.
-`NEWS.md` carries no such line, so the nightly run skips the bump.
+`NEWS.md` carries no such line after a release, so the nightly run skips the bump until a bump writes the line back.
 It also skips the step that published the GitHub release once Posit's package manager served the released version,
 which [`cran-release.yaml`](/.github/workflows/cran-release.yaml) does now
 ([`cran/`](/handbook/operations/releases/cran/README.md)).
-`fledge::bump_version()` run interactively writes the line back, which turns the nightly run on again;
+`fledge::bump_version()` run interactively writes the line back, as does the hand-written bump after a landing below,
+which turns the nightly run on again;
 run non-interactively, it refuses a `NEWS.md` without the line.
+
+**The first bump after a landing is written by hand, as the landing's last commit.**
+A landing brings the series' version onto `main`, and every vendor commit it carried comes after the newest version tag.
+`fledge::bump_version()` would turn each of them into a `NEWS.md` entry.
+So the landing ends on a bump that sets the version in `DESCRIPTION` and writes its `NEWS.md` section by hand,
+and its commit on `main` takes the annotated version tag that fledge's next bump counts from
+([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6).
 
 **A preview line carries the prefix of the line it previews**, which is the one
 [fledge](https://fledge.cynkra.com/) would write for it:

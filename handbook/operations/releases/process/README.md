@@ -306,7 +306,7 @@ coordinate at the **cluster** level:
   lives in a long-running TRACK/STABILIZE:
   its STABILIZE *is* the upstream release-candidate window.
   Its CUT is a **landing**: `main` fast-forwards onto the series' vendor commits,
-  replayed without the flavor onto the frozen `main` and judged by CI one by one,
+  replayed without the flavor onto the frozen `main`, ending on a hand-written version bump, and judged by CI one by one,
   and the line `main` released before parks on its own baseline
   ([`series-land`](/.claude/skills/series-land/SKILL.md)).
   Every line has a series of its own, opened when upstream cuts its branch
