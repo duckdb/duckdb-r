@@ -22,7 +22,8 @@
 #   3. --prepare prints the gates, the convergence read, the package on both
 #      sides, the review stat with the engine excluded, the archive plan, the
 #      cleanup plan, what --confirm would refuse on, the SHA to decide on and
-#      the command for a terminal, writes the review diff, and moves nothing.
+#      the command for a terminal with the run's options, writes the review
+#      diff, and moves nothing.
 #   4. A cutover whose archive fails swaps nothing, on a terminal and with
 #      --confirm alike; one that would archive in a remote not on GitHub, the
 #      fork or the canonical repository, or without a gh, refuses too, before
@@ -367,6 +368,10 @@ out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$U
 has "with a clone, coverage is verified" "$out" "EXIT=0"
 hasnt "and --confirm would refuse on nothing" "$out" "--confirm would refuse on"
 has "the clone is in the command for a terminal" "$out" "--canonical upstream --upstream $(printf '%q' "$UP")"
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --canonical '' --no-archive)
+has "and so is every other option the run was given" "$out" \
+  "  scripts/series-cutover.sh v9.9-x --remote origin --canonical '' --out $(printf '%q' "$OUT") --no-archive"
+hasnt "--prepare aside" "$(grep -F 'scripts/series-cutover.sh v9.9-x' <<<"$out")" "--prepare"
 is "the review diff is written" "$([ -s "$OUT/review.diff" ] && echo yes)" yes
 hasnt "without the version bookkeeping" "$(cat "$OUT/review.stat")" "DESCRIPTION"
 has "with the forward's R side" "$(cat "$OUT/review.diff")" "+glue series"

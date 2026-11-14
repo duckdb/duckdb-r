@@ -177,6 +177,13 @@ while [ $# -gt 0 ]; do
 done
 [ ${#args[@]} -eq 1 ] || argerr
 S=${args[0]}
+# The command --prepare prints for a terminal: this run's options, --prepare
+# aside, with the remotes spelled out, since the variables that set them may
+# not be set where it is typed.
+again="scripts/series-cutover.sh $(printf '%q' "$S") --remote $(printf '%q' "$remote") --canonical $(printf '%q' "$canonical")"
+[ -z "$upstream" ] || again+=" --upstream $(printf '%q' "$upstream")"
+[ -z "$out" ] || again+=" --out $(printf '%q' "$out")"
+[ -n "$archive" ] || again+=" --no-archive"
 # The confirmation on the command line is checked before anything is read: it
 # is the operator's statement of which series to replace, and on which state,
 # so a name that is not this one is a command that contradicts itself, and so is
@@ -692,8 +699,6 @@ if [ -n "$prepare" ]; then
   fi
   # The SHA, not a command to paste: a cutover without a terminal names the
   # state a maintainer decided on (.claude/skills/series-cutover/SKILL.md).
-  again="scripts/series-cutover.sh $(printf '%q' "$S") --remote $(printf '%q' "$remote") --canonical $(printf '%q' "$canonical")"
-  [ -z "$upstream" ] || again+=" --upstream $(printf '%q' "$upstream")"
   echo "Prepared; nothing was opened, pushed or deleted. The state to decide on:"
   echo "  $S-fwd-green at $fwd_green"
   echo "To cut over on a terminal, which asks for the series name:"
