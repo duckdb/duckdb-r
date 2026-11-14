@@ -104,9 +104,10 @@ This file is what names the contents, so nothing here is an orphan.
 * [`2026-09-19-instance-cache-in-use/`](2026-09-19-instance-cache-in-use/) —
   which state the engine's instance cache is in when it finds an entry
   whose handle is gone, how each is reached from the C API, and what
-  reporting a live instance without a grace period costs; supports
-  [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
-  and [`usage/connections/`](/handbook/usage/connections/README.md).
+  reporting a live instance without a grace period costs; supported
+  `patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`,
+  retired with the vendoring of duckdb/duckdb@fbd180f3a4 once duckdb/duckdb@973a9796b8 carried its effect upstream,
+  and supports [`usage/connections/`](/handbook/usage/connections/README.md).
 * [`2026-09-26-connection-per-result/`](2026-09-26-connection-per-result/):
   what an engine context scopes and what a second one does not see,
   which calls end a streaming result on its connection and how that shows,

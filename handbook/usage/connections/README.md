@@ -100,12 +100,13 @@ The load-bearing facts:
   and a driver never connected to releases it when it is garbage-collected,
   or at the end of the session.
 * The engine keeps an instance cache of its own,
-  which waits for a shutdown that is finishing
-  and cannot tell that from an instance nothing is shutting down,
-  so it spins forever on the second.
-  [`patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch`](/patch/0042-Tell-a-database-still-in-use-from-a-shutdown-in-flight.patch)
-  makes it report instead, measured in
+  which waits for a shutdown that is finishing.
+  It once could not tell that from an instance nothing is shutting down, and spun forever on the second,
+  as measured in
   [`experiments/2026-09-19-instance-cache-in-use/`](/experiments/2026-09-19-instance-cache-in-use/README.md).
+  Since duckdb/duckdb@973a9796b8 the cache hands out an instance that a connection or a result still holds,
+  so it no longer reaches the spin;
+  the R-side patch that made it report instead was retired with the vendoring of duckdb/duckdb@fbd180f3a4.
   No call from R reaches that cache today, because `duckdb()` builds its instance directly.
   Handing the driver cache to it is [#2857](https://github.com/duckdb/duckdb-r/issues/2857),
   which collects what the attempt in [#2644](https://github.com/duckdb/duckdb-r/pull/2644) found.
