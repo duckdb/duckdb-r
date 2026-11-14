@@ -241,8 +241,56 @@ last_gate() { # <log> -> the gate rcc-one.sh opened last, i.e. where it stopped
   grep -oE '^::group::gate: [a-z]+' <<<"$1" | tail -1 | awk '{print $NF}'
 }
 
+# What gate `warnings` found, by the verdict line scripts/warnings.sh prints for
+# each scope that warned. Counted only where rcc-one.sh's summary marks the gate
+# FAIL: the install the vendored scope rides prints the same lines, and keeps
+# them in a run that deselects the gate. The line carries the answer stage 2's
+# table gives that scope (.claude/skills/series-loop/SKILL.md), and the kind
+# names the scope.
+warnings_found() { # <log> -> "<kind>|<one line>", empty if the gate found nothing
+  local v="" g=""
+  grep -q '^| warnings | FAIL ' <<<"$1" || return 0
+  if grep -q '^-- vendored: not clean\.' <<<"$1"; then
+    v="vendored warning: a patch/ entry on the vendor strand, folded into this commit"
+  fi
+  if grep -q '^-- glue: not clean\.' <<<"$1"; then
+    g="glue warning: fix the glue at origin"
+  fi
+  if [ -n "$v" ]; then
+    echo "vendored-warning|$v${g:+; $g}"
+  elif [ -n "$g" ]; then
+    echo "glue-warning|$g"
+  fi
+  return 0
+}
+
+# The harness rows of stage 2's table: gate `warnings` failed without judging
+# the tree. No gate runs unless the install reached DONE, so the tree built, and
+# the scripts that judged it are at fault. Those are the scripts the commit
+# carries (scripts/each-shard.sh), so a fix that only reaches `main` and the
+# port above `-dev` never changes this commit's verdict: it is folded in as
+# well, and sent to `main` as a stage 7 PR.
+harness_found() { # <sha> <log> -> "harness|<one line>", empty if none
+  local why="" scope
+  grep -q '^| warnings | FAIL ' <<<"$2" || return 0
+  if grep -q '^warnings: no install log at ' <<<"$2"; then
+    why="gate warnings found no install log, so fix scripts/rcc-one.sh"
+  elif grep -qE '^-- [a-z]+ does not compile:' <<<"$2"; then
+    scope=$(grep -oE '^-- [a-z]+ does not compile:' <<<"$2" | head -1 | awk '{print $2}')
+    why="gate warnings could not compile the $scope scope the install built, so fix scripts/warnings.sh"
+  elif grep -q '^Error: could not compose the compile flags\.' <<<"$2"; then
+    why="gate warnings could not compose its compile flags, so fix scripts/warnings.sh"
+  elif [ "$(failed_stages_of "$1")" = warnings ] && [ -z "$(warnings_found "$2")" ]; then
+    why="gate warnings failed without a verdict on the tree, so fix its scripts"
+  fi
+  if [ -n "$why" ]; then
+    echo "harness|$why, fold the fix into this commit, which its own scripts judge, and send it to main (stage 7)"
+  fi
+  return 0
+}
+
 classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do not repair
-  local log gate rc
+  local log gate rc warned harness also
   log=$(git show "$remote/$rcc:logs2.d/${1:0:2}/$1.log" 2>/dev/null || true)
   [ -z "$log" ] && { echo "unknown|failure, no log harvested yet"; return; }
   # Budget first, and ahead of every log rule: a commit the shard killed never
@@ -264,12 +312,18 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
       "— the gate did not finish, rerunning it buys the same kill"
     return
   fi
+  # Stage 2 answers every tree and harness row a log matches, so neither a red
+  # from gate `warnings` nor its harness is dropped from the line: the rules
+  # ahead of their own carry them.
+  warned=$(warnings_found "$log")
+  harness=$(harness_found "$1" "$log")
+  also=${warned:+; and ${warned#*|}}${harness:+; and harness: ${harness#*|}}
   if grep -qE "Updating snapshots: '" <<<"$log"; then
-    echo "snapshot|snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))"
+    echo "snapshot|snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))$also"
   elif grep -qE "Error \('test-[^']+'\)" <<<"$log"; then
-    echo "test|test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))"
+    echo "test|test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))$also"
   elif grep -q "Changes detected in workflow_dispatch build" <<<"$log"; then
-    echo "style|style/roxygen drift"
+    echo "style|style/roxygen drift$also"
   elif grep -qE '^Error: R CMD check found (ERROR|WARNING|NOTE)' <<<"$log"; then
     # The check gate's own verdict, and it is definite: `--as-cran` named the
     # checks it is unhappy about, so a rerun buys the same answer. Ahead of the
@@ -277,7 +331,17 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
     # snapshot, a test or a style diff says more precisely what to fix.
     echo "check|$(grep -oE 'R CMD check found .*' <<<"$log" | head -1)" \
       "($(grep -E '^❯ checking' <<<"$log" | sed 's/^❯ //; s/ \.\.\..*//' |
-        tr '\n' '\a' | sed 's/\a$//; s/\a/; /g'))"
+        tr '\n' '\a' | sed 's/\a$//; s/\a/; /g'))$also"
+  elif [ -n "$warned" ]; then
+    # Gate `warnings`, with the answer stage 2's table gives the scope that
+    # warned. A tree row, so ahead of the network rule: a listing beside a
+    # refused download is a REPAIR, and a rerun would buy the same listing.
+    echo "$warned${harness:+; and harness: ${harness#*|}}"
+  elif [ -n "$harness" ]; then
+    # The gate's harness, definite as well: a rerun judges the commit with the
+    # same scripts, so ahead of the network rule too, and ahead of the stage
+    # rule, which would send a record naming `warnings` alone to the glue.
+    echo "$harness"
   elif grep -qE "$net_re" <<<"$log"; then
     gate=$(failed_gate "$log")
     echo "transient|network failure in the ${gate:-unnamed} gate ($(grep -oE "$net_re" <<<"$log" | head -1))"
