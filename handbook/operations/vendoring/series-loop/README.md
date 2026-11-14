@@ -109,7 +109,8 @@ to do, and they run in this order:
   caught-up counterpart is *reported* with the cutover command, never
   executed by a firing. The decision is a human's; the run is that human's,
   or a session's they send with the decision recorded where the series is
-  coordinated, which passes it to the script as `--confirm <S>`
+  coordinated, which passes it to the script as `--confirm <S>@<sha>`,
+  the tip of `<S>-fwd-green` the decision was taken on
   ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
   The script prints the same comparison and the review of the forward's
   R side before the confirmation, archives what it replaces as closed pull
@@ -224,8 +225,9 @@ Everything else is an option, spelled identically in all of them:
 * Anything else beginning with `-`, an option missing its value, or a
   positional the script does not name: the usage on stderr, exit **2**.
   So is a confirmation that names something else:
-  `series-cutover.sh <S> --confirm <S>` stands in for the name typed at its prompt,
-  and any other name, or `--prepare` beside it, is a command that contradicts itself.
+  `series-cutover.sh <S> --confirm <S>@<sha>` stands in for the name typed at its prompt,
+  and another name, a SHA of another shape, or an option it excludes beside it is a wrong invocation,
+  as [its header](/scripts/series-cutover.sh) lists.
   Two is the usage status everywhere, so a caller can tell a wrong
   invocation from a wrong answer —
   `series-converge.sh` already reserved 1 for *diverged*.

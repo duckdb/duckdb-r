@@ -14,8 +14,10 @@
 #   IDLE               nothing in flight and nothing buffered
 #
 # A forward series that has caught up with the green it replaces additionally
-# gets a CUTOVER line: the command to run, for a human to run. The loop never
-# swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
+# gets a CUTOVER line: the command a human runs on a terminal once they have
+# decided the cutover, or sends a session to run on the state they decided on
+# (.claude/skills/series-cutover/SKILL.md). The loop never swaps a serving
+# green itself (.claude/skills/series-loop/SKILL.md).
 #
 # A series whose `-dev` carries `patch/` entries its `-build` lacks gets a
 # PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
@@ -755,7 +757,7 @@ for S in "${series[@]}"; do
     echo "           It archives the replaced lineages in closed pull requests, then"
     echo "           swaps; --prepare prints its gates and review and moves nothing."
     echo "           Coverage is only half of it; what the two branches carry is"
-    echo "           the other half, and the cutover prints it before it asks:"
+    echo "           the other half, and the cutover prints it before it swaps:"
     echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done

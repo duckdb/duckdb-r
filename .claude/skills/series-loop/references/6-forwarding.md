@@ -124,26 +124,31 @@ what it replaces stays readable only because it archives each lineage
 as a closed pull request's head first (`series-forward/SKILL.md`).
 Its coverage gate is also the one gate the loop cannot fully evaluate:
 the ancestry check needs an upstream clone,
-and degrades to a warning without one,
-so an unattended firing would be authorizing the swap on a warning.
+and without one a terminal run only warns.
 Coverage is in any case only half the question —
 it asks how much upstream the forward reaches
 and nothing about what it carries —
 so `series-cutover.sh` prints the convergence report
-immediately before it asks for confirmation.
-It reports rather than refuses:
+before its confirmation.
+On a terminal it reports rather than refuses:
 whether a difference is explicable is exactly the judgement
 no script can make.
+Under `--confirm` nobody is there to make it,
+so a divergence, an unverified gate and every other warning refuse instead
+(the header of [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) lists them).
 Verification is mechanical, so the loop owns it;
 deciding that r-universe should build a different lineage today
 is not, so a human owns that.
 
-The script enforces its own half:
-it swaps only on a confirmation that names the series,
-typed on a terminal or given as `--confirm <S>`,
-so a firing that tries anyway achieves nothing.
-A firing never passes `--confirm`:
-the option carries the maintainer's decision, recorded where the series is coordinated,
-to the session they send to run the cutover ([`series-cutover/SKILL.md`](../../series-cutover/SKILL.md)),
-and a firing carries no decision.
-Treat the refusal as the answer, not as an obstacle to route around.
+The script swaps only on a confirmation that names the series,
+typed on a terminal or given as `--confirm <S>@<sha>`,
+and it cannot tell a firing from a session the maintainer sent: either can type that option.
+What keeps a firing from cutting over is what it is told:
+the routine's prompt and this stage say never to cut over,
+and the decision rule in [`series-cutover/SKILL.md`](../../series-cutover/SKILL.md) takes only the maintainer's recorded decision,
+which a firing never carries.
+The SHA, the tip of `<S>-fwd-green` that `--prepare` showed, ties a run to the state that decision was taken on:
+the script refuses once the forward has moved.
+A firing never passes `--confirm`;
+without it the script refuses to swap off a terminal,
+and that refusal is the answer, not an obstacle to route around.

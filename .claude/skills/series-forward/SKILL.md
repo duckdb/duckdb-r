@@ -235,7 +235,7 @@ The series loop reports a ready cutover and stops there
 (`series-loop/SKILL.md`, stage 6),
 and the script swaps only on a confirmation that names the series:
 typed on a terminal,
-or given as `--confirm <S>` by a session the maintainer sent to run a cutover they decided,
+or given as `--confirm <S>@<sha>` by a session the maintainer sent to run a cutover they decided on the state `--prepare` showed,
 which [`series-cutover`](../series-cutover/SKILL.md) describes, from the decision to the undo.
 `--prepare` is the half that needs no confirmation:
 it prints the gates and the reads below, writes the review, and moves nothing,
@@ -244,7 +244,8 @@ Pass the upstream clone:
 without it the coverage gate degrades to a warning,
 and a warning is not what should authorize
 retiring the lineage consumers are reading.
-Under `--confirm` nobody reads that warning, so the script refuses instead.
+Under `--confirm` nobody reads that warning, so the script refuses instead,
+as it does on every warning below.
 
 **The review comes before the swap.**
 The script prints, as a stat, everything `<S>-fwd-green` changes against current `main` outside the engine,
@@ -264,7 +265,7 @@ The report names the package on both sides —
 before and after —
 so the confirmation is given with the version
 consumers will be offered on screen.
-A version that would go **backwards** is warned about, not refused:
+A version that would go **backwards** is warned about on a terminal, not refused:
 the replay renumbers the fifth component
 as a counter of its own chain,
 which starts well below the one the base series accumulated,
@@ -296,7 +297,7 @@ Green and `-build-base` are on those lineages already and need none of their own
 Nothing is merged, and the names stay what they were:
 r-universe keeps building `<S>-green`, and no entry anywhere changes.
 A remote that is not on GitHub cannot be archived that way;
-the script refuses rather than swapping anyway, and `--no-archive` is the explicit override.
+the script refuses rather than swapping anyway, and `--no-archive` is the explicit override, on a terminal only.
 
 It then swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
