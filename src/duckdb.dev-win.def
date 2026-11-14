@@ -14,4 +14,4 @@
 ; The name of this file and the symbol below both carry the package name, so
 ; scripts/flavor.patch renames and rewrites them for a flavor.
 EXPORTS
-R_init_duckdb
+R_init_duckdb_dev
