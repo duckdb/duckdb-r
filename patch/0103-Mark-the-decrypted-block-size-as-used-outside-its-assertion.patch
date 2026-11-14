@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 22:55:39 +0000
+Subject: [PATCH] Mark the decrypted block size as used outside its assertion
+
+The decrypting transport's ReadBlock() keeps the byte count that
+Process() returns only for D_ASSERT() to compare against the block it
+read, so in a release build, where D_ASSERT() expands to nothing, the
+local is unused and -Wunused-variable says so. A (void) cast after the
+assertion marks it used, the way the engine already treats locals that
+only an assertion reads.
+
+Carried here until upstream takes it; not proposed upstream yet.
+---
+ src/duckdb/extension/parquet/parquet_crypto.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/duckdb/extension/parquet/parquet_crypto.cpp b/src/duckdb/extension/parquet/parquet_crypto.cpp
+index aebc50fc1a..f558eeb010 100644
+--- a/src/duckdb/extension/parquet/parquet_crypto.cpp
++++ b/src/duckdb/extension/parquet/parquet_crypto.cpp
+@@ -364,6 +364,7 @@ private:
+ 		// Decrypt directly into the destination only after checking that the whole block fits.
+ 		auto size = aes->Process(read_buffer + ParquetCrypto::BLOCK_SIZE, read_buffer_size, buf, buffer_size);
+ 		D_ASSERT(size == read_buffer_size);
++		(void)size;
+ 		read_buffer_offset = 0;
+ 	}
+ 
