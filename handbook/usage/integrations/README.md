@@ -46,9 +46,17 @@ the query
 into lazy tables;
 `simulate_duckdb()` renders SQL without a connection.
 
-The backend translates *expressions*, not verbs,
-and literals are escaped by dbplyr —
-the boundaries users keep hitting:
+**`slice_sample()` is the one verb the backend implements.**
+dbplyr numbers the rows in a window ordered by `RANDOM()`,
+and DuckDB 2.0 refuses a volatile window key by design
+([duckdb/duckdb#25482](https://github.com/duckdb/duckdb/pull/25482)).
+The backend draws the key as a column of an inner query and leaves the rest to dbplyr's `slice_min()`,
+so groups, `by`, and dbplyr's refusals of `prop`, `weight_by` and `replace` stay as they were
+([#2963](https://github.com/duckdb/duckdb-r/issues/2963)).
+
+Otherwise the backend translates *expressions*, not verbs,
+and literals are escaped by dbplyr;
+these are the boundaries users keep hitting:
 
 * `tbl()` cannot open a table holding a type R cannot hold, `BIT`, `BIGNUM`, `TIME_NS` or `UNION`:
   dbplyr reads the fields through a query R has to convert, and reports "Can't query fields".
@@ -76,6 +84,10 @@ the boundaries users keep hitting:
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on
   [tidyverse/dbplyr#1838](https://github.com/tidyverse/dbplyr/issues/1838)).
+* A window ordered by a random value fails to bind, as `slice_sample()` did.
+  That covers `row_number(runif(n()))`, `slice_min(runif(n()))` and `lag(x, order_by = runif(n()))`.
+  Drawing the value as a column first works: `mutate(r = runif(n()), i = row_number(r))` computes `r` in a subquery.
+  `arrange(runif(n()))` sorts the result rather than a window, and is unaffected.
 
 ## duckplyr
 

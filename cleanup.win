@@ -7,11 +7,22 @@ set -ex
 # warnings when extracting on Linux.
 TAR="$(which gtar 2>/dev/null || which tar)"
 
-# For CI/CD: only compress if expansion is possible too
-if which xz > /dev/null; then
-  if [ -d .git ]; then git clean -fdx src; fi
-  cd src
-  find duckdb -type f | egrep '[.](cc|cpp|h|hpp)$' | xargs dos2unix
-  $TAR cvJf duckdb.tar.xz duckdb
-  rm -rf duckdb
+# Pack the vendored sources into an uncompressed tar, which configure.win
+# unpacks again; the .tar.gz that R CMD build writes compresses it.
+# Why: handbook/build/source-build/README.md.
+if [ -d .git ]; then git clean -fdx src; fi
+cd src
+
+# R CMD build turns CRLF line endings back to LF only after cleanup, in the
+# files it can still see, so convert the sources before packing them, with
+# the file name pattern R CMD check inspects. Not every Windows host has
+# dos2unix, so when none is on the PATH, sed stands in: R's own Windows build
+# rules (share/make/winshlib.mk) call it, so every host that builds R packages
+# has it.
+if command -v dos2unix >/dev/null 2>&1; then
+  find duckdb -type f | grep -E '[.]([cfh]|cc|cpp|hpp)$' | xargs dos2unix
+else
+  find duckdb -type f | grep -E '[.]([cfh]|cc|cpp|hpp)$' | xargs sed -i 's/\r$//'
 fi
+$TAR cf duckdb.tar duckdb
+rm -rf duckdb

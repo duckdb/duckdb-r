@@ -16,17 +16,28 @@
 #   scripts/install-libduckdb.sh                 # install to ~/.local
 #   scripts/install-libduckdb.sh --prefix DIR    # install to DIR (DIR/lib, DIR/include)
 #   scripts/install-libduckdb.sh --version vX.Y.Z  # override the version
+#   scripts/install-libduckdb.sh --url URL       # install this archive
 #
-# The vendored DuckDB version may be a tagged release (e.g. v1.5.3) or a
-# development snapshot between releases (e.g. v1.5.4-dev157). Released
-# versions are fetched from the GitHub release assets; development
-# snapshots are fetched from the DuckDB nightly staging bucket, keyed by
-# the commit recorded in the vendored pragma_version.cpp (DUCKDB_SOURCE_ID).
+# The vendored DuckDB version may be a tagged release (e.g. v2.0.0) or a
+# development snapshot between releases (e.g. v2.0.1-dev157). A tagged
+# release is fetched from its GitHub release assets, and when those are
+# missing, from upstream's build of the same commit and version on its
+# public staging host, keyed by the commit recorded in the vendored
+# pragma_version.cpp (DUCKDB_SOURCE_ID). A development snapshot is not
+# fetched: upstream stages a commit's build only under a release or alpha
+# version, never under the -dev stamp the vendored headers carry. Whenever
+# no prebuilt is found, nothing is installed and the script exits 0, so
+# the caller can compile the vendored sources instead.
+#
+# Up to v1.5, a platform's library is published as libduckdb-<platform>.zip;
+# from v2.0, as duckdb-shared-libs-<platform>.tar.gz. Both hold the library
+# and the C headers at the top level.
 #
 # Environment:
 #   DUCKDB_R_LIB_VERSION  override the version (same as --version)
-#   DUCKDB_R_LIB_URL      explicit URL of the libduckdb-<platform>.zip to use
-#                         (overrides version-based URL construction)
+#   DUCKDB_R_LIB_URL      explicit URL of the archive to use (same as --url):
+#                         a .zip or a .tar.gz laid out as above. It replaces
+#                         the lookup, and failing to download it is an error.
 #   DUCKDB_R_LIB_PREFIX   default prefix, when --prefix is not given
 
 set -eu
@@ -82,7 +93,7 @@ case "${uname_s}-${uname_m}" in
   Linux-arm64)   platform=linux-arm64 ;;
   Darwin-*)      platform=osx-universal ;;
   MINGW*|MSYS*|CYGWIN*)
-    # DuckDB does publish libduckdb-windows-amd64.zip, but it cannot serve
+    # DuckDB does publish a Windows libduckdb, but it cannot serve
     # this package: it is built with MSVC, and R's Windows toolchain is the
     # Rtools MinGW-w64 GCC. The glue calls DuckDB C++ internals, and the two
     # compilers do not even mangle those names the same way, so the linker
@@ -99,45 +110,79 @@ case "${uname_s}-${uname_m}" in
     ;;
 esac
 
-if [ -z "${url}" ]; then
+# Upstream renamed the asset in v2.0, and packs it as a tarball since.
+case "${version}" in
+  v0.*|v1.*) asset="libduckdb-${platform}.zip" ;;
+  *)         asset="duckdb-shared-libs-${platform}.tar.gz" ;;
+esac
+
+# The archives to try, in order, as the positional parameters.
+if [ -n "${url}" ]; then
+  set -- "${url}"
+else
   case "${version}" in
-    *-dev*|*-dev)
-      # No public per-commit libduckdb is published for development
-      # snapshots between releases (the DuckDB staging bucket is not
-      # exposed via a stable HTTP gateway). Exit cleanly so callers can
-      # fall back to compiling the vendored sources; an explicit
-      # DUCKDB_R_LIB_URL override is honored above for cases where a
-      # caller has a private build.
+    *-dev*)
+      # Upstream stages a build under the version it stamped into it, which
+      # is a release or vX.Y.Z-alphaN, never a -dev stamp. An alpha of the
+      # same commit reports another version, so it is not taken silently;
+      # DUCKDB_R_LIB_URL is how a caller asks for it, or for a private build.
       echo "libduckdb ${version} is a development snapshot (commit ${source_id:-unknown})." >&2
-      echo "No matching prebuilt is published; skipping install." >&2
-      echo "Set DUCKDB_R_LIB_URL to a libduckdb-${platform}.zip if you have one." >&2
+      echo "No prebuilt with that stamp is published; skipping install." >&2
+      echo "Set DUCKDB_R_LIB_URL to a ${asset} if you have one." >&2
       exit 0
       ;;
-    *)
-      # Tagged release: GitHub release assets.
-      url="https://github.com/duckdb/duckdb/releases/download/${version}/libduckdb-${platform}.zip"
-      ;;
   esac
+  set -- "https://github.com/duckdb/duckdb/releases/download/${version}/${asset}"
+  # Upstream's release workflow publishes the release assets from its
+  # staging host, where each build sits under the first 10 characters of its
+  # commit and its version: the same file, there before the release is.
+  if [ -n "${source_id}" ]; then
+    sha10=$(printf '%s' "${source_id}" | cut -c1-10)
+    set -- "$@" "https://duckdb-staging.duckdb.org/${sha10}/${version}/duckdb/duckdb/github_release/${asset}"
+  fi
 fi
 
-echo "Downloading libduckdb ${version} (commit ${source_id:-unknown}) for ${platform}"
-echo "  from: ${url}"
-echo "  to:   ${prefix}/lib (and ${prefix}/include)"
-
-tmpdir=$(mktemp -d)
-trap 'rm -rf "${tmpdir}"' EXIT
-
-zip="${tmpdir}/libduckdb-${platform}.zip"
 if command -v curl >/dev/null 2>&1; then
-  curl --fail --location --silent --show-error --output "${zip}" "${url}"
+  fetch() { curl --fail --location --silent --show-error --output "$2" "$1"; }
 elif command -v wget >/dev/null 2>&1; then
-  wget --quiet -O "${zip}" "${url}"
+  fetch() { wget --quiet -O "$2" "$1"; }
 else
   echo "Neither curl nor wget is available." >&2
   exit 1
 fi
 
-unzip -q -o "${zip}" -d "${tmpdir}/extracted"
+echo "Downloading libduckdb ${version} (commit ${source_id:-unknown}) for ${platform}"
+echo "  to:   ${prefix}/lib (and ${prefix}/include)"
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "${tmpdir}"' EXIT
+
+archive=""
+for candidate in "$@"; do
+  echo "  from: ${candidate}"
+  # The file keeps the URL's name, whose extension picks the unpacker below.
+  file="${tmpdir}/$(basename "${candidate%%\?*}")"
+  if fetch "${candidate}" "${file}"; then
+    archive="${file}"
+    break
+  fi
+done
+
+if [ -z "${archive}" ]; then
+  if [ -n "${url}" ]; then
+    echo "Could not download ${url}." >&2
+    exit 1
+  fi
+  echo "No prebuilt libduckdb ${version} (commit ${source_id:-unknown}) for ${platform} could be downloaded; skipping install." >&2
+  echo "Compile the vendored sources instead, or set DUCKDB_R_LIB_URL to a ${asset} you have." >&2
+  exit 0
+fi
+
+mkdir "${tmpdir}/extracted"
+case "${archive}" in
+  *.zip) unzip -q -o "${archive}" -d "${tmpdir}/extracted" ;;
+  *)     tar -xzf "${archive}" -C "${tmpdir}/extracted" ;;
+esac
 
 # Use sudo only when we're not root and the prefix isn't writable, which
 # the default prefix never is -- it is under $HOME. Only a --prefix the
