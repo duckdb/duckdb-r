@@ -183,12 +183,19 @@ and means nothing.
 **A log can match several rows.**
 Once the install is done, every selected gate runs, whatever failed before it,
 and the commit is red for each gate that failed.
-Each tree row the log matches (a fix at origin) is answered, in the order the gates ran,
+A row's answer says what kind it is:
+a tree row is answered by a fold into the offending commit,
+a harness row by a fix on `main`,
+and an infra row by a rerun;
+a row that offers a fix at origin or on `main` is a tree row when the cause is the tree
+and a harness row when it is the job's setup.
+Each tree row the log matches is answered, in the order the gates ran,
 and those fixes are folded into the offending commit together.
 A warnings listing is never dropped because another row matched.
-A harness row (fixed on `main`) or an infra row (a rerun) is answered on its own,
-and a rerun waits until the tree fixes are in:
+A harness row is answered on its own, on `main`.
+No rerun is pushed while a tree row matched:
 the fold re-mints the commit, and CI judges the new one anyway.
+A rerun is pushed only when no tree row matched.
 
 **A red from gate `warnings` is answered in the scope its listing names.**
 Gate `warnings` runs first,

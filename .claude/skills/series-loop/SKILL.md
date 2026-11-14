@@ -192,11 +192,19 @@ Every commit in `<S>-green..<S>-dev` was decided by an `each-rcc` leg, and that 
   A log can match several rows:
   once the install is done, every selected gate runs, whatever failed before it,
   and the commit is red for each gate that failed.
-  Answer each tree row it matches (a fix at origin), in the order the gates ran,
+  A row's answer says what kind it is:
+  a tree row is answered by a fold into the offending commit,
+  a harness row by a fix on `main`,
+  and an infra row by a rerun;
+  a row that offers a fix at origin or on `main` is a tree row when the cause is the tree
+  and a harness row when it is the job's setup.
+  Answer each tree row the log matches, in the order the gates ran,
   and fold those fixes into the offending commit together;
   a warnings listing is never dropped because another row matched.
-  A harness row (fixed on `main`) or an infra row (a rerun) is answered on its own,
-  and a rerun waits until the tree fixes are in.
+  A harness row is answered on its own, on `main`.
+  No rerun is pushed while a tree row matched:
+  the fold re-mints the commit, and CI judges the new one anyway.
+  A rerun is pushed only when no tree row matched.
   Never classify by absence of a marker.
 * **Repair the oldest failure first.**
   Write the fix as a commit on the offending commit and let
