@@ -377,6 +377,8 @@ has "the vendor strand's" "$out" "  v9.9-x-vendor: test/fork#102 https://github.
 has "and the canonical green's" "$out" "  v9.9-x-green: test/canonical#103 https://github.com/test/canonical/pull/103"
 has "the undo fetches the fork's archive heads" "$out" "  git fetch origin refs/pull/101/head refs/pull/99/head refs/pull/102/head"
 has "and the canonical one's" "$out" "  git fetch upstream refs/pull/103/head"
+has "with one atomic push there too" "$out" \
+  "  git push --atomic --force-with-lease=refs/heads/v9.9-x-green:$NEW_GREEN upstream $OLD_GREEN:refs/heads/v9.9-x-green $NEW_GREEN:refs/heads/v9.9-x-fwd-green"
 has "and leases the fork's refs on the forward's tips" "$out" "--force-with-lease=refs/heads/v9.9-x-green:$NEW_GREEN"
 hasnt "nothing is left behind" "$out" "SWAPPED, LEFT BEHIND"
 

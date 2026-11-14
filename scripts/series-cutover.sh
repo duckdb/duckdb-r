@@ -117,6 +117,11 @@
 #      refused to move. Each is printed with the one command that finishes it,
 #      under a last line `SWAPPED, LEFT BEHIND`; the swap stands, and a rerun
 #      is not what finishes it.
+#   Any other status is a command that failed, such as git's 128 under
+#   `set -e`, and it comes before the swap, so nothing was swapped, as for 1.
+#   After the swap every command that can fail is checked and reported, save
+#   the writing of this output: a reader that stops reading ends the run there,
+#   by SIGPIPE (141) or as a failed write, and then the refs say what happened.
 
 set -euo pipefail
 # shellcheck source=series-lib.sh
@@ -585,7 +590,8 @@ fi
 # swap stands, so a rerun is not what finishes it. Each is printed at the end
 # with the one command that does, and the run exits 9.
 left=()          # "<remote> <ref>": a deletion refused
-green_left=''    # the push that moves the canonical copy of green, refused
+green_left=''    # the push that moves the canonical copy of green, not made
+green_why=()     # what green_left is printed under
 canon_undo=''    # the canonical half of the undo
 new_green=$(git rev-parse "refs/remotes/$remote/$S-fwd-green")
 
@@ -607,10 +613,21 @@ elif [ -n "$canonical" ]; then
   elif git push --force-with-lease="refs/heads/$S-green:$cur" \
       "$canonical" "$new_green:refs/heads/$S-green"; then
     echo "canonical $S-green -> $(git rev-parse --short "$new_green")"
-    canon_undo="git push --force-with-lease=refs/heads/$S-green:$new_green $canonical $cur:refs/heads/$S-green"
+    canon_undo="git push --atomic --force-with-lease=refs/heads/$S-green:$new_green $canonical $cur:refs/heads/$S-green"
     [ -z "$canon_fwd" ] || canon_undo="$canon_undo $new_green:refs/heads/$S-fwd-green"
   else
-    green_left="git push --force-with-lease=refs/heads/$S-green:$cur $canonical $new_green:refs/heads/$S-green"
+    # The line that finishes it leases on what the canonical repository holds
+    # now, read again, so that a green that moved after this run read it does
+    # not get the line refused too; what moved is named, to be read first.
+    now=$(git ls-remote "$canonical" "refs/heads/$S-green" | cut -f1) || now=$cur
+    if [ "$now" = "$new_green" ]; then
+      echo "canonical $S-green already at $(git rev-parse --short "$new_green"), moved there by another push"
+    else
+      green_why=("$S-green in $canonical is still on the pre-cutover lineage, which r-universe publishes; move it:")
+      [ "$now" = "$cur" ] || green_why+=("It is at ${now:-<nothing>} now, not at the ${cur:-<nothing>} this run read and archived;"
+        "read what moved there before running this.")
+      green_left="git push --force-with-lease=refs/heads/$S-green:$now $canonical $new_green:refs/heads/$S-green"
+    fi
   fi
   if [ -n "$canon_fwd" ] && ! git push "$canonical" ":refs/heads/$S-fwd-green"; then
     left+=("$canonical $S-fwd-green")
@@ -627,7 +644,9 @@ for r in "${leftovers[@]}"; do dels+=(":refs/heads/$r"); done
 if [ ${#dels[@]} -gt 0 ] && ! git push "$remote" "${dels[@]}"; then
   still=$(git ls-remote --heads "$remote") || still=
   for r in "${leftovers[@]}"; do
-    if [ -z "$still" ] || cut -f2 <<<"$still" | grep -qxF "refs/heads/$r"; then
+    # `grep -q` would stop reading at the first match, and `cut` then die of
+    # SIGPIPE, which `pipefail` reports as no match: a ref still there, missed.
+    if [ -z "$still" ] || cut -f2 <<<"$still" | grep -xF "refs/heads/$r" >/dev/null; then
       left+=("$remote $r")
     fi
   done
@@ -652,7 +671,8 @@ for repo in "$remote" "$canonical"; do
   [ -n "$repo" ] || continue
   [ "$repo" = "$remote" ] || [ -n "$canon_undo" ] || continue
   pulls=()
-  for a in "${archived[@]}"; do
+  # Empty after --no-archive; the `+` form keeps `set -u` quiet on any bash.
+  for a in ${archived[@]+"${archived[@]}"}; do
     read -r r head slug n <<<"$a"
     [ "$r" != "$repo" ] || pulls+=("refs/pull/$n/head")
   done
@@ -674,12 +694,12 @@ if [ ${#left[@]} -gt 0 ] || [ -n "$green_left" ]; then
   echo
   echo "left behind: the swap stands, and the remotes refused what follows it."
   if [ -n "$green_left" ]; then
-    echo "  $S-green in $canonical is still on the pre-cutover lineage, which r-universe publishes; move it:"
+    printf '  %s\n' "${green_why[@]}"
     echo "    $green_left"
   fi
   for repo in "$remote" "$canonical"; do
     refs=()
-    for l in "${left[@]}"; do
+    for l in ${left[@]+"${left[@]}"}; do
       read -r r ref <<<"$l"
       [ "$r" != "$repo" ] || refs+=("$ref")
     done
