@@ -8,9 +8,8 @@
 # commit that introduced the defect, so that every commit from there on carries
 # it and every intermediate commit passes; nothing is stacked on top of the
 # vendor commits, which scripts/series-land.sh refuses, except the landing's
-# version bump. A repair on `-dev`
-# follows the same rule, so that every commit of the chain stays independently
-# green. A fix is written as a commit whose parent is the commit it folds into,
+# version bump. A repair on `-dev` follows the same rule, so that every commit
+# of the chain stays independently green. A fix is written as a commit whose parent is the commit it folds into,
 # on any branch, so it applies where it was written; the replay carries it up
 # through every commit above.
 #

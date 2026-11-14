@@ -100,7 +100,7 @@ A landing brings the series' version onto `main`, and every vendor commit it car
 `fledge::bump_version()` would turn each of them into a `NEWS.md` entry.
 So the landing ends on a bump that sets the version in `DESCRIPTION` and writes its `NEWS.md` section by hand,
 and its commit on `main` takes the annotated version tag that fledge's next bump counts from
-([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 7).
+([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6).
 
 **A preview line carries the prefix of the line it previews**, which is the one
 [fledge](https://fledge.cynkra.com/) would write for it:

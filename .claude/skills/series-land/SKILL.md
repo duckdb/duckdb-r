@@ -262,9 +262,19 @@ When `--status` prints `READY`, every commit has passed and `main` is still the 
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `main` unjudged.
 Before lifting the freeze, close the version pull request the nightly fledge run may have opened against the frozen `main`,
-or disable its auto-merge, so that it does not merge the moment the freeze lifts
+so that it does not merge the moment the freeze lifts
 ([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
-Lift the freeze, push, tag the bump, and put the freeze back until the step below is done:
+The run force-pushes the branch `fledge` and its version tag, which are deleted with it:
+
+```sh
+gh api "repos/duckdb/duckdb-r/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title] | @tsv'
+gh api -X PATCH repos/duckdb/duckdb-r/pulls/<number> -f state=closed
+gh api -X DELETE repos/duckdb/duckdb-r/git/refs/heads/fledge
+git ls-remote --tags upstream 'v*' | tail -n 3    # the tag is the version in the pull request's title
+gh api -X DELETE repos/duckdb/duckdb-r/git/refs/tags/v<its version>
+```
+
+Lift the freeze, push, put the freeze back, and then tag the bump:
 
 ```sh
 sha=<the SHA the READY line names>
@@ -275,6 +285,9 @@ gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=active
 git ls-remote upstream refs/heads/main
 ```
 
+The push is a plain one, so git refuses it unless it is a fast-forward.
+It needs the existing `main` ruleset's admin bypass, because it is not a pull request.
+
 Then tag the bump, which is the commit `READY` named.
 fledge counts from the newest version tag
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
@@ -284,13 +297,10 @@ It is annotated the way `cran-submission.yaml` annotates the release tags: the s
 ```sh
 v=<prefix>.9001
 { printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
-[ "$(wc -l < tag-message)" -gt 2 ] || { echo "no NEWS.md section for $v" >&2; false; }
+[ "$(grep -c . tag-message)" -gt 1 ] || { echo "no NEWS.md section for $v" >&2; false; }
 git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha"
 git push upstream "refs/tags/v$v"
 ```
-
-The push is a plain one, so git refuses it unless it is a fast-forward.
-It needs the existing `main` ruleset's admin bypass, because it is not a pull request.
 
 ## 7. After the landing
 

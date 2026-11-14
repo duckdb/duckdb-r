@@ -343,64 +343,113 @@ passed() { # <sha>
   git push -q origin rcc2
   git checkout -q main
 }
-bump_msg='chore: Bump version to 1.5.6.9002 with hand-written release notes'
-git checkout -q -b bump "$TIP"
-sed -i 's/^Version: .*/Version: 1.5.6.9002/' DESCRIPTION
-echo '# duckdb 1.5.6.9002' > NEWS.md
+marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->'
+bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
+write_bump() { # <version>
+  sed -i "s/^Version: .*/Version: $1/" DESCRIPTION
+  printf '%s\n\n# duckdb %s\n\n- Something for users.\n' "$marker" "$1" > NEWS.md
+}
+status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
+  dev_at "$1"
+  passed "$1"
+  out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+  [ -z "${KEEP:-}" ] || echo "$out"
+}
+refused() { # <label>: the probe in the working tree is committed under the bump's subject
+  commit "${BSUBJ:-$bump_msg}"
+  local sha
+  sha=$(git rev-parse HEAD)
+  status_of "$sha"
+  is "$1" "$st" 1
+  has "  and names it" "$out" "carries a commit out of place: $(git rev-parse --short "$sha")"
+  git checkout -q -f main
+}
+probe() { git checkout -q -f -B probe "$TIP"; }
+
+probe
+write_bump 1.99.99.9001
 commit "$bump_msg"
 BUMP=$(git rev-parse HEAD)
-dev_at "$BUMP"
-passed "$BUMP"
-out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) || true
-[ -z "${KEEP:-}" ] || echo "$out"
+status_of "$BUMP"
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
 is "the review takes it" "$st" 0
 hasnt "and does not call it out of place" "$out" "out of place"
+git checkout -q -f main
 
 echo "== and it is nothing else"
-git checkout -q -b smuggle "$TIP"
-sed -i 's/^Version: .*/Version: 1.5.6.9002/' DESCRIPTION
-echo 'foo <- function() 99' > R/foo.R
-commit "$bump_msg"
-SMUGGLE=$(git rev-parse HEAD)
-dev_at "$SMUGGLE"
-passed "$SMUGGLE"
-out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
-is "a bump that changes R code is refused" "$st" 1
-has "naming the commit" "$out" "carries a commit out of place: $(git rev-parse --short "$SMUGGLE")"
+probe; write_bump 1.99.99.9001; echo 'foo <- function() 99' > R/foo.R
+refused "a bump that changes R code is refused"
 out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
 is "the review refuses it" "$st" 1
-git checkout -q -b smuggle2 "$TIP"
-printf 'Imports: DBI\n' >> DESCRIPTION
-commit "$bump_msg"
-dev_at "$(git rev-parse HEAD)"
-passed "$(git rev-parse HEAD)"
-out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
-is "nor may it change DESCRIPTION beyond Version:" "$st" 1
+probe; write_bump 1.99.99.9001; printf 'Imports: DBI\n' >> DESCRIPTION
+refused "nor may it change DESCRIPTION beyond Version:"
+probe; write_bump 1.99.99.9001; sed -i 's/^Version: .*/&\nVersion: 1.99.99.9002/' DESCRIPTION
+refused "nor may it carry two Version: lines"
+probe
+refused_empty() { git commit -q --allow-empty -m "$bump_msg"; status_of "$(git rev-parse HEAD)"; is "an empty commit is refused" "$st" 1; git checkout -q -f main; }
+refused_empty
+probe; printf '%s\n\n# duckdb 1.99.99.9001\n\n- Something.\n' "$marker" > NEWS.md
+refused "a NEWS-only commit is refused"
+probe; write_bump 1.99.99.9000.2
+refused "a lowered version is refused"
+probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
+refused "a deleted NEWS.md is refused"
+probe; write_bump 1.99.99.9001
+BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
+probe; write_bump 1.99.99.9001; sed -i 1,2d NEWS.md
+refused "a NEWS.md without fledge's marker is refused"
+probe; write_bump 1.99.99.9001; printf '%s\n\n# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' "$marker" > NEWS.md
+refused "a section with nothing in it is refused"
+probe; write_bump 1.99.99.9001
+git checkout -q -f -B side "$TIP"; write_bump 1.99.99.9001; commit "$bump_msg"
+git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+is "a merge commit is refused" "$st" 1
+git checkout -q -f main; git branch -q -D side
 
 echo "== and nothing sits above it"
-git checkout -q "$BUMP"
+git checkout -q -f -B probe "$BUMP"
 echo 'bar <- 1' > R/bar.R
 commit 'fix: A commit on top of the bump'
-dev_at "$(git rev-parse HEAD)"
-passed "$(git rev-parse HEAD)"
-out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+status_of "$(git rev-parse HEAD)"
 is "a commit above the bump is refused" "$st" 1
 hasnt "and is not ready" "$out" "READY: every"
+git checkout -q -f main
 
-echo "== and a rebuild drops it"
-git checkout -q main
+echo "== and a rebuild drops it, and only it"
 dev_at "$TIP"
-git branch -q -D bump smuggle smuggle2
 read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "a rerun with the bump in the kept worktree still builds" "$st" 0
-has "and says the bump is dropped" "$out" "the version bump above the vendor commits is dropped"
+has "and says which bump is dropped" "$out" "the version bump"
+has "and that it is dropped" "$out" "above the vendor commits is dropped"
 is "the kept build ends on the vendor commits again" "$(git -C "$KWT" rev-parse HEAD)" "$TIP"
+git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
+echo 'staged' > "$KWT/R/staged.R"
+git -C "$KWT" add R/staged.R
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
+hasnt "work staged in the tree is not discarded" "$out" "is dropped"
+git -C "$KWT" reset -q --hard "$TIP"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+
+# A bump `main` made itself sits at the base of a build that stopped before it
+# replayed anything, and is never dropped.
+git checkout -q -f -B mainbump "$M"
+git commit -q --allow-empty -m 'chore: Bump version to 2.0.0.9000'
+MB=$(git rev-parse HEAD)
+git push -q upstream "$MB:refs/heads/mainbump"
+git checkout -q -f main
+scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump >/dev/null 2>&1 || true
+read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+git -C "$KWT" reset -q --hard "$MB"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump 2>&1) || true
+hasnt "main's own bump at the base is kept" "$out" "is dropped"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+git branch -q -D mainbump probe
 
 # --- 10: a wrong resolution, replayed --------------------------------------
 
