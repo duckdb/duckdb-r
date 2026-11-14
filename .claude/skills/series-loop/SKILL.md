@@ -387,6 +387,7 @@ git push --force-with-lease origin \
 * **The branch is the ledger**: `retry-<S>-dev` already on this commit means it has had its one rerun and failed again,
   which is REPAIR, never RETRY; pointing elsewhere, force-update it and rerun.
 * The verdict reaches the loop from the rerun's own run, which carries the higher run id, and that run's last job moves `<S>-green` over it.
+  A retried commit whose tree predates that job leaves green to the next `each-rcc` run on `<S>-dev`.
 * A verdict the job decided rather than the tree is dropped, `scripts/rcc-drop.sh <sha>...`, so the commit is planned again;
   never run `rcc-logs.sh` behind a drop.
 * A series whose commits predate `each.yaml` retries by hand: dispatch `each-rcc` on `retry-<S>-dev` with `force=true` and `max-commits=1`.

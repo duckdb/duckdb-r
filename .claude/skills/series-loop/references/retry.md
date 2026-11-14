@@ -118,5 +118,8 @@ push the branch, dispatch `each-rcc` on `retry-<S>-dev`
 with `force=true` and `max-commits=1`,
 and — on the store path only — drop the stale record once the rerun is green,
 both copies of it, per above.
+The job that ends every run by moving `<S>-green` ([`scripts/series-green.sh`](/scripts/series-green.sh)) comes from that tree as well,
+so a retried commit whose tree predates it leaves green where it stands,
+and the next `each-rcc` run on `<S>-dev`, pushed or dispatched, moves green over the new verdict.
 A rebase onto a newer mainline (`series-rebase/SKILL.md`)
 is what carries the automatic path into a forward series.
