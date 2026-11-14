@@ -151,6 +151,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-alpha-test.sh`](series-alpha-test.sh) | Check scripts/series-alpha.sh offline, against a synthetic remote and clone built here, with `curl` stubbed: no network, no fixtures on disk. |
 | [`series-alpha.sh`](series-alpha.sh) | Derive the alpha strand of a series: `<S>-alpha`, a green commit stamped with the version of upstream's alpha build of its engine, so that `INSTALL` finds th... |
 | [`series-args-test.sh`](series-args-test.sh) | Check the argument contract every scripts/series-*.sh shares, offline. |
+| [`series-check-test.sh`](series-check-test.sh) | Check how scripts/series-check.sh classifies a red commit, offline, against a synthetic fork and verdict store built here: no network, no fixtures on disk. |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
 | [`series-config.sh`](series-config.sh) | What this repository tells the series tooling about the engine it vendors, and nothing else. |
 | [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
