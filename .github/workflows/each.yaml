@@ -323,9 +323,12 @@ jobs:
     steps:
       # Commits only, and the scripts: the walk needs ancestry, not trees, and
       # the store is read from a records-only clone of its own below.
+      # The scripts come from the commit this run's workflow came from, not the
+      # branch tip, which a retry branch may have left for an older commit
+      # without them; the script reads every ref from the remote, not HEAD.
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.branch || github.ref }}
+          ref: ${{ inputs.branch || github.sha }}
           fetch-depth: 0
           filter: tree:0
           sparse-checkout: scripts

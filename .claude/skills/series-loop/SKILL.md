@@ -229,7 +229,9 @@ scripts/r-universe-check.sh --log <id>   # the log behind one of them
 * **Green is not the firing's to move.**
   The last job of every `each-rcc` run fast-forwards `<S>-green` over what passed ([`scripts/series-green.sh`](/scripts/series-green.sh)).
   When `series-advance.sh` reports commits passed above a green that has not taken them,
-  read that job's summary in the newest run on `<S>-dev`, report what it says, and never push green from the firing.
+  read the summary of that job in the newest run on `<S>-dev` or `retry-<S>-dev` that carries it and finished after the verdict landed,
+  report what it says, and never push green from the firing.
+  No such run means the job has not run since ([`references/3-advance.md`](references/3-advance.md)).
   **A job that found green off `<S>-dev`'s lineage means something rewrote verified history: stop and say so.**
 * Mirror every series' green into the canonical repository, the forward's too, with a plain push;
   **scream on a refusal, never force it**.
@@ -387,7 +389,8 @@ git push --force-with-lease origin \
 * **The branch is the ledger**: `retry-<S>-dev` already on this commit means it has had its one rerun and failed again,
   which is REPAIR, never RETRY; pointing elsewhere, force-update it and rerun.
 * The verdict reaches the loop from the rerun's own run, which carries the higher run id, and that run's last job moves `<S>-green` over it.
-  A retried commit whose tree predates that job leaves green to the next `each-rcc` run on `<S>-dev`.
+  A retry of a commit older than that job moves nothing;
+  [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) says what moves green then.
 * A verdict the job decided rather than the tree is dropped, `scripts/rcc-drop.sh <sha>...`, so the commit is planned again;
   never run `rcc-logs.sh` behind a drop.
 * A series whose commits predate `each.yaml` retries by hand: dispatch `each-rcc` on `retry-<S>-dev` with `force=true` and `max-commits=1`.

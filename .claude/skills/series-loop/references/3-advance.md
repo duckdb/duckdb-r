@@ -20,10 +20,15 @@ and the firing stops and says so.
 
 **A green below what passed is a finding, not a move to make.**
 `series-advance.sh` walks above green read-only and names the newest commit the store has passed.
-Green below it means the job has not run since the verdict landed, or could not push.
-The job's summary in the newest `each-rcc` run on `<S>-dev` says which:
-most often a commit that changes `.github/workflows/`, which the job's own token may not move a branch across.
-Report it; the firing does not push green, and a human with such a token runs `scripts/series-green.sh <S> --push`.
+Green below it means the job could not push, or has not run since the verdict landed.
+A refusal is in the summary of the job that tried,
+in the run on `<S>-dev`, or on `retry-<S>-dev` where a retry decided the commit:
+most often a commit that changes `.github/workflows/`, which the job's own token may not move a branch across,
+and a human with a token that may runs `scripts/series-green.sh <S> --push`.
+No run with the job since the verdict landed means a retry of a commit older than the job, whose run has none,
+or a series nothing has pushed to since;
+[`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) says what moves green then.
+Report either; the firing does not push green.
 
 **Then mirror it into the canonical repository, every series' green, the forward's too.**
 r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership

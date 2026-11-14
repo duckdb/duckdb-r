@@ -138,6 +138,12 @@ fast-forwards `<S>-green` over what the store says passed ([`scripts/series-gree
 A series takes the passed prefix, the newest commit with every commit below it passed,
 and a landing moves all or nothing, to its tip once every commit has passed:
 the series loop's rule and the landing's, with the reason for each in the script's header.
+A run takes its workflow from the commit it was started on, and a retry run from the retried commit,
+so a retry of a commit older than the job moves nothing,
+and the next run on a `<S>-dev` that carries the job takes the verdict.
+On a series nothing pushes to, green waits for that run:
+a human dispatches `each-rcc` on `<S>-dev`, which builds nothing already decided and ends with the job,
+or runs the script by hand.
 The firing keeps the rest of stage 3 and reports a green that lags what passed;
 it never pushes green itself, and a human runs the script where the job could not.
 Nothing races for the ref.

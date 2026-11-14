@@ -61,7 +61,7 @@ A series opened before the strand existed derives one from its buffer once, with
 No CI runs on it, nothing publishes it, and it is not mirrored;
 a cutover swaps it with the four and archives the replaced lineage like theirs.
 
-The refs of one series, as the loop moves them; the `-dev` line below green is what CI has passed,
+The refs of one series, as the loop and its per-commit CI move them; the `-dev` line below green is what CI has passed,
 above it what is in flight, and the buffer runs ahead of both:
 
 ```mermaid

@@ -25,8 +25,9 @@
 #      newest commit that leaves `.github/workflows/` alone, names the commit
 #      it could not cross, and fails; a landing's does not move.
 #  11. The store is read from a records-only clone when RCC_READ_DIR is set.
-#  12. In a treeless partial clone, the shape of the job's checkout, green
-#      moves, and the workflow fallback reads the trees it needs lazily.
+#  12. In a treeless partial clone detached at the run's commit, the shape of
+#      the job's checkout, green moves, and the workflow fallback reads the
+#      trees it needs lazily.
 #
 # Usage:
 #   scripts/series-green-test.sh
@@ -301,6 +302,8 @@ echo
 echo "== 12. a treeless partial clone"
 git clone -q --filter=tree:0 --no-checkout "file://$REMOTE" "$SCRATCH/treeless"
 cd "$SCRATCH/treeless"
+# The job checks out the commit the run is for, detached, not the branch.
+git checkout -q --detach origin/k-dev
 set +e
 out=$(RCC_REMOTE="file://$REMOTE" RCC_READ_DIR="$SCRATCH/rcc-read-2" "$GREEN" k --push 2>&1)
 st=$?
