@@ -265,23 +265,23 @@ gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 **`main`'s version is bumped by hand**, as the landing's last commit or as the first pull request on `main`,
 because `fledge::bump_version()` would write a `NEWS.md` entry for every vendor commit
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-The landing ends on the series' version, `1.99.99.9000.<n>`,
-which is the preview prefix `main` carries while it previews the line, followed by the vendor counter.
+The landing ends on the series' version, `<prefix>.9000.<n>`,
+where `<prefix>` is the preview prefix `main` carries while it previews the line (`1.99.99` for v2.0), followed by the vendor counter.
 [#2941](https://github.com/duckdb/duckdb-r/pull/2941) landed v2.0 this way, with the bump as its last commit.
 
-* **`DESCRIPTION`**: set `Version:` to `1.99.99.9001`.
+* **`DESCRIPTION`**: set `Version:` to `<prefix>.9001`.
   `main`'s own counter is the fourth component, and the fifth, the vendor counter, is dropped.
-* **`NEWS.md`**: write the `# duckdb 1.99.99.9001` section by hand, for users of the package,
-  directly above the last release's section, `# duckdb 1.5.6` for v2.0.
+* **`NEWS.md`**: write the `# duckdb <prefix>.9001` section by hand, for users of the package,
+  directly above the section of the last release.
   It replaces the development sections since that release,
   keeps their user-facing items, leaves out the tooling, and names the engine the landing vendors.
-* **The tag**: once the bump is on `main`, tag that commit `v1.99.99.9001` and push the tag before the nightly fledge run,
-  which counts from the newest version tag up to the version in `DESCRIPTION`.
-  A run without it bumps again and lists every vendor commit.
+* **The tag**: once the bump is on `main`, tag that commit `v<prefix>.9001` and push the tag.
+  fledge counts from the newest version tag up to the version in `DESCRIPTION`,
+  so a later bump without it lists every vendor commit again.
 
   ```sh
-  git tag v1.99.99.9001 <the bump's commit on main>
-  git push upstream refs/tags/v1.99.99.9001
+  git tag v<prefix>.9001 <the bump's commit on main>
+  git push upstream refs/tags/v<prefix>.9001
   ```
 
 The first pull request on `main`:
