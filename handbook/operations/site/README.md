@@ -30,7 +30,7 @@ to a `data-bs-theme` attribute on the page.
 [`pkgdown/extra.css`](/pkgdown/extra.css) keys the package logo off that
 attribute, which is the only way it can follow one:
 pkgdown knows one logo and no dark variant, so the dark file is swapped
-in by hand. Both files are vendored
+in by hand. Both files are the R side's, kept by hand in `man/figures/`
 ([`vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 
 **The home page carries one logo, and it is that one.**
