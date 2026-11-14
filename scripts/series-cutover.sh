@@ -68,8 +68,10 @@
 # place that copy is forced -- under a lease, and after the swap, so the
 # canonical repository is never ahead of the fork -- and the forward's copy
 # there is deleted with the fork's `-fwd` refs. An empty name says there is no
-# canonical repository; a name no remote here answers to leaves that copy
-# neither archived nor moved, which a terminal run reports as left behind.
+# canonical repository. The run reads it once, with `git ls-remote`, and fetches
+# what that listed; a name no remote here answers to, or a remote that cannot be
+# read, leaves that copy neither archived nor moved, which a terminal run
+# reports as left behind.
 #
 # The two are different kinds of thing, and a `gh` clone carries names that made
 # them easy to swap while both were positional:
@@ -111,8 +113,8 @@
 # clone or of a vendored SHA it can read on the old green; a convergence read
 # that diverged or did not finish; a package name the swap changes; a `-dev` or
 # `-green` version that does not move forward, or versions not compared for
-# want of GNU sort; and a --canonical remote that does not exist. --prepare
-# lists the ones it found, as what --confirm would refuse on.
+# want of GNU sort; and a --canonical remote that does not exist or cannot be
+# read. --prepare lists the ones it found, as what --confirm would refuse on.
 #
 # After the swap the script prints the archive pull requests, number and URL,
 # and the undo: one leased push per repository that puts the old tips back from
@@ -128,10 +130,13 @@
 #   2  a usage error, a --confirm that does not name the series and a SHA among
 #      them; nothing was read or moved.
 #   9  swapped, with something left behind: a forward ref the remote refused
-#      to delete, which is cutover litter, or the canonical copy of green it
-#      refused to move or no remote here names. Each is printed with the
-#      command that finishes it, under a last line `SWAPPED, LEFT BEHIND`; the
-#      swap stands, and a rerun is not what finishes it.
+#      to delete, which is cutover litter; the canonical copy of green the
+#      remote refused to move; or that copy out of reach, as no remote here
+#      names it or the remote could not be read. Each is printed above a last
+#      line `SWAPPED, LEFT BEHIND`: litter and a refused move with the command
+#      that finishes them, and a copy out of reach with the archive and the
+#      leased move it is still owed, which wait on reading the tip it holds.
+#      The swap stands, and a rerun is not what finishes any of them.
 #   Any other status is a command that failed, such as git's 128 under
 #   `set -e`, and it comes before the swap, so nothing was swapped, as for 1.
 #   After the swap every command that can fail is checked and reported, save
@@ -222,9 +227,9 @@ hold() { held+=("$1"); }
 # say there is none (SERIES_CANONICAL='' or --canonical ''), so a name nothing
 # here answers to is a clone set up otherwise: a terminal run ends in exit 9
 # with that copy left behind, and --confirm refuses before the fetch.
-canon_missing=
+canon_why= # why the canonical copy of green is out of this run's reach
 if [ -n "$canonical" ] && ! git remote get-url "$canonical" >/dev/null 2>&1; then
-  canon_missing=1
+  canon_why="no remote here is called $canonical"
   if [ -n "$confirmed" ]; then
     echo "Error: there is no remote '$canonical', so the canonical copy of $S-green would be neither archived" >&2
     echo "  nor moved, and --confirm swaps with nobody to move it. Name the remote with --canonical <name>," >&2
@@ -237,17 +242,39 @@ if [ -n "$canonical" ] && ! git remote get-url "$canonical" >/dev/null 2>&1; the
   hold "canonical: no remote '$canonical'"
 fi
 
-git fetch -q "$remote"
+# A fork that cannot be fetched ends the run here, before anything is opened or
+# moved; --prune drops what was deleted there, so nothing below plans on it.
+git fetch -q --prune "$remote"
 # `main` for the review is the canonical repository's; the fork's mirror may lag
 # by a cycle (handbook/branches/mirrors/README.md). The two greens there are
-# what the archive and the cleanup read.
+# what the archive, the move and the cleanup read. The repository is read once,
+# and only what that read listed is fetched: a tracking ref an earlier fetch
+# left is dropped where the read did not list it, and a remote that cannot be
+# read (an auth failure, a proxy refusing it) puts that copy out of reach, as a
+# missing remote does, rather than leaving the plan to a ref nobody read.
 main_ref="refs/remotes/$remote/main"
-if [ -n "$canonical" ] && [ -z "$canon_missing" ]; then
-  git fetch -q "$canonical" main 2>/dev/null || true
-  git fetch -q "$canonical" "$S-green" "$S-fwd-green" 2>/dev/null ||
-    git fetch -q "$canonical" "$S-green" 2>/dev/null ||
-    git fetch -q "$canonical" "$S-fwd-green" 2>/dev/null || true
-  git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null && main_ref="refs/remotes/$canonical/main"
+canon_read= # set once the canonical repository has been read and fetched
+if [ -n "$canonical" ] && [ -z "$canon_why" ]; then
+  if listed=$(git ls-remote "$canonical" refs/heads/main "refs/heads/$S-green" "refs/heads/$S-fwd-green"); then
+    specs=()
+    for b in main "$S-green" "$S-fwd-green"; do
+      if awk -v ref="refs/heads/$b" '$2 == ref { f = 1 } END { exit !f }' <<<"$listed"; then
+        specs+=("+refs/heads/$b:refs/remotes/$canonical/$b")
+      else
+        git update-ref -d "refs/remotes/$canonical/$b"
+      fi
+    done
+    if [ ${#specs[@]} -eq 0 ] || git fetch -q "$canonical" "${specs[@]}"; then canon_read=1; fi
+  fi
+  if [ -z "$canon_read" ]; then
+    canon_why="$canonical could not be read"
+    echo "Warning: could not read $canonical (above), so the canonical copy of $S-green would be neither"
+    echo "  archived nor moved, and a swap on a terminal ends in exit 9 with it left behind. Check the remote's"
+    echo "  URL and access, or pass --canonical '' where there is no canonical repository."
+    hold "canonical: could not read $canonical"
+  elif git rev-parse -q --verify "refs/remotes/$canonical/main" >/dev/null; then
+    main_ref="refs/remotes/$canonical/main"
+  fi
 fi
 
 # One field of a branch's DESCRIPTION, empty when the ref or the field is not
@@ -600,8 +627,7 @@ if [ -n "$archive" ]; then
     git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-vendor" >/dev/null; then
     archives+=("$remote $S-vendor $S-fwd-vendor")
   fi
-  if [ -n "$canonical" ] && [ -z "$canon_missing" ] &&
-    git rev-parse -q --verify "refs/remotes/$canonical/$S-green" >/dev/null; then
+  if [ -n "$canon_read" ] && git rev-parse -q --verify "refs/remotes/$canonical/$S-green" >/dev/null; then
     if git rev-parse -q --verify "refs/remotes/$canonical/$S-fwd-green" >/dev/null; then
       archives+=("$canonical $S-green $S-fwd-green")
     else
@@ -635,7 +661,7 @@ done
 git rev-parse -q --verify "refs/remotes/$remote/retry-$S-fwd-dev" >/dev/null && leftovers+=("retry-$S-fwd-dev")
 echo "deleted after the swap: ${leftovers[*]} on $remote"
 canon_fwd=
-if [ -n "$canonical" ] && git rev-parse -q --verify "refs/remotes/$canonical/$S-fwd-green" >/dev/null; then
+if [ -n "$canon_read" ] && git rev-parse -q --verify "refs/remotes/$canonical/$S-fwd-green" >/dev/null; then
   canon_fwd=1
   echo "                        $S-fwd-green on $canonical"
 fi
@@ -724,11 +750,16 @@ new_green=$fwd_green
 # green nobody here wrote, or archived, is not overwritten silently. The
 # forward's copy there goes with the fork's `-fwd` refs: its tip is `<S>-green`
 # now.
-if [ -n "$canon_missing" ]; then
-  green_why=("$S-green in the canonical repository was neither archived nor moved, as no remote here is called"
-    "$canonical; r-universe publishes it. Add the remote, archive the copy it holds, and move it under a lease on that copy:")
+#
+# A copy out of this run's reach has no tip to lease on, so what it is owed is
+# printed as steps rather than as a command to run as it stands: the archive
+# first, as above, then the move under a lease on the tip it holds.
+if [ -n "$canon_why" ]; then
+  green_why=("$S-green in the canonical repository was neither archived nor moved, as $canon_why; r-universe publishes it."
+    "Once a remote here reads it, archive the copy it holds as the pull requests above were, then move it under a lease"
+    "on that tip:")
   green_left="git push --force-with-lease=refs/heads/$S-green:<the tip it holds> $canonical $new_green:refs/heads/$S-green"
-elif [ -n "$canonical" ]; then
+elif [ -n "$canon_read" ]; then
   cur=$(git rev-parse -q --verify "refs/remotes/$canonical/$S-green") || cur=
   if [ "$cur" = "$new_green" ]; then
     echo "canonical $S-green already at $(git rev-parse --short "$new_green")"

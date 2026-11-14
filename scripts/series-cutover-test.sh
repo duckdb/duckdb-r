@@ -27,9 +27,10 @@
 #      unless --no-archive. Under --confirm, a forward green not at the SHA it
 #      names, or moved since --prepare, refuses, and so does each warning a
 #      terminal run prints: coverage not verified, for want of a clone or of a
-#      vendored SHA on the old green, a canonical remote that does not exist, a
-#      divergence, a renamed package, a version that keeps or goes back, and
-#      versions not compared; each before anything is opened or moved.
+#      vendored SHA on the old green, a canonical remote that does not exist or
+#      cannot be read, a divergence, a renamed package, a version that keeps or
+#      goes back, and versions not compared; each before anything is opened or
+#      moved.
 #   5. The cutover, confirmed on a terminal: four archive pull requests opened
 #      as drafts and closed (-dev, -build and the vendor strand in
 #      the fork, green's copy in the canonical repository), the four refs and
@@ -44,8 +45,9 @@
 #      and the canonical green moved, the forward's refs listed as litter, and
 #      exit 9.
 #   8. The canonical copy of green: with --canonical '' there is none, and the
-#      run exits 0; a --canonical naming no remote leaves it neither archived
-#      nor moved, exit 9; and one that moves under the run is printed with a
+#      run exits 0; a --canonical naming no remote, or one that cannot be read,
+#      leaves it neither archived nor moved, exit 9, with no lease on a tip the
+#      run did not read; and one that moves under the run is printed with a
 #      push leased on where it is now, which works.
 #   9. The cutover with --confirm, against remotes that refuse deletions, and a
 #      canonical repository that refuses to move green: archived and swapped
@@ -501,6 +503,24 @@ has "versions not compared are printed" "$out" "Note: no GNU sort here, so the v
 has "and refused under --confirm" "$out" "  version: not compared, for want of GNU sort"
 has "and the run stops" "$out" "EXIT=1"
 untouched "versions not compared"
+# A canonical remote that exists and cannot be read, whose tracking refs an
+# earlier fetch left: nothing is planned on them.
+git remote add broken "$SCRATCH/does-not-exist.git"
+git config remote.broken.github test/canonical
+for b in main v9.9-x-green v9.9-x-fwd-green; do git update-ref "refs/remotes/broken/$b" "refs/remotes/upstream/$b"; done
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$UP" --canonical broken)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a canonical remote that cannot be read warns on --prepare" "$out" \
+  "Warning: could not read broken (above), so the canonical copy of v9.9-x-green would be neither"
+has "and is what --confirm would refuse on" "$out" "  canonical: could not read broken"
+hasnt "nothing is archived on the copy an earlier fetch left" "$out" "v9.9-x-green -> v9.9-x-fwd-green in test/canonical"
+hasnt "nor deleted" "$out" "v9.9-x-fwd-green on broken"
+out=$(confirm "$SHA" --canonical broken)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "under --confirm it refuses" "$out" "--confirm swaps with nobody to weigh a warning, and this run printed these:"
+has "naming it" "$out" "  canonical: could not read broken"
+has "and the run stops" "$out" "EXIT=1"
+untouched "a canonical remote that cannot be read"
 
 echo
 echo "=== 5. the cutover: archive, swap, mirror, delete"
@@ -618,6 +638,21 @@ has "with the push that moves it once its tip is read" "$out" \
 has "and exit 9" "$out" "EXIT=9"
 is "no archive is opened in the canonical repository" "$(grep -c 'repos/test/canonical' "$GH_LOG" || true)" 0
 is "and its green is untouched" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
+restore
+# The remote from 4 that cannot be read, its stale tracking refs still there.
+out=$(tty_run scripts/series-cutover.sh v9.9-x --upstream "$UP" --out "$OUT" --canonical broken)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a canonical remote that cannot be read warns on a terminal" "$out" "Warning: could not read broken (above)"
+has "the cutover runs" "$out" "Series v9.9-x replaced by its forward counterpart."
+has "the canonical green is left behind, as not read" "$out" \
+  "  v9.9-x-green in the canonical repository was neither archived nor moved, as broken could not be read;"
+has "with the move it is owed once its tip is read" "$out" \
+  "    git push --force-with-lease=refs/heads/v9.9-x-green:<the tip it holds> broken $NEW_GREEN:refs/heads/v9.9-x-green"
+hasnt "and no lease on a tip it never read" "$out" "--force-with-lease=refs/heads/v9.9-x-green: "
+hasnt "nor on the one an earlier fetch left" "$out" "--force-with-lease=refs/heads/v9.9-x-green:$OLD_GREEN broken"
+has "and exit 9" "$out" "EXIT=9"
+is "no archive is opened in the canonical repository" "$(grep -c 'repos/test/canonical' "$GH_LOG" || true)" 0
+git remote remove broken
 restore
 # The loop's mirror moves the canonical green while the run archives: this
 # `gh` does that on the first pull request it opens.
