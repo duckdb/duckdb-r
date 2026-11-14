@@ -229,11 +229,13 @@ is_bump() { # <commit>
     { echo "changes more than NEWS.md and DESCRIPTION"; return 1; }
   [ "$(git show "$c~1:DESCRIPTION" | grep -v '^Version:')" = "$(git show "$c:DESCRIPTION" | grep -v '^Version:')" ] ||
     { echo "changes DESCRIPTION beyond Version:"; return 1; }
+  # shellcheck disable=SC2015
   [ "$(git show "$c~1:DESCRIPTION" | grep -c '^Version:')" = 1 ] &&
     [ "$(git show "$c:DESCRIPTION" | grep -c '^Version:')" = 1 ] ||
     { echo "DESCRIPTION does not have exactly one Version: line"; return 1; }
   old=$(git show "$c~1:DESCRIPTION" | sed -n 's/^Version: //p')
   new=$(git show "$c:DESCRIPTION" | sed -n 's/^Version: //p')
+  # shellcheck disable=SC2015
   [ "$old" != "$new" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] ||
     { echo "does not raise the version from $old"; return 1; }
   subj=$(git log -1 --format=%s "$c")
