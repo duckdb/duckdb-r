@@ -144,7 +144,7 @@ The script swaps only on a confirmation that names the series,
 typed on a terminal or given as `--confirm <S>@<sha>`,
 and it cannot tell a firing from a session the maintainer sent: either can type that option.
 What keeps a firing from cutting over is what it is told:
-the routine's prompt and this stage say never to cut over,
+stage 6 and the [invariants](../SKILL.md#invariants) of the loop's skill say a firing never runs the swap and never passes `--confirm`,
 and the decision rule in [`series-cutover/SKILL.md`](../../series-cutover/SKILL.md) takes only the maintainer's recorded decision,
 which a firing never carries.
 The SHA, the tip of `<S>-fwd-green` that `--prepare` showed, ties a run to the state that decision was taken on:

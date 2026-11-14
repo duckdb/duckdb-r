@@ -56,11 +56,13 @@ The failure classes, and what each needs:
   the buffer's last vendored commit is not on the first-parent line of the clone's `HEAD`.
   Check out the upstream branch the series tracks in the clone and rerun.
 * **A cutover swapped and left something behind** (`SWAPPED, LEFT BEHIND`, exit 9, in `series-cutover.sh`):
-  the swap stands, and what follows it did not happen:
-  a remote refused the deletion of the forward's refs, as a cloud session's git proxy does, or the move of the canonical copy of green,
-  or no remote here answers to the `--canonical` name.
-  The run prints each with the one command that finishes it, a `gh api -X DELETE` line per ref left,
-  so run those or hand them to a maintainer; a rerun of the cutover finishes nothing
+  the swap stands, and something that follows it did not happen,
+  as the exit status in the [script's header](/scripts/series-cutover.sh) lists:
+  a deletion or a move the remotes refused, as a cloud session's git proxy refuses a deletion,
+  a forward ref that moved after the run read it, or a canonical copy of green the run could not reach.
+  The run prints what to do about each, as a command wherever it read the state that command acts on;
+  for a copy of green it could not reach, the archive and the leased move that copy is owed wait on reading its tip.
+  Run those or hand them to a maintainer; a rerun of the cutover finishes nothing
   ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
 * **A patch stopped applying** — if it reverses cleanly the run
   retires it and continues; if it neither applies nor reverses the run

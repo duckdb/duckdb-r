@@ -1,6 +1,6 @@
 ---
 name: series-cutover
-description: Run a cutover the maintainer has decided, without a terminal, by swapping a forward series `<S>-fwd-*` in for its base series with `scripts/series-cutover.sh <S> --confirm <S>@<sha>`, then quoting the archive pull requests, verifying both repositories, and handing back what the remotes refused. Use when the maintainer has decided a cutover where the series is coordinated and asks a session to run it, or when asked to cut over, swap in or retire a series. Never from the scheduled loop, which only reports a ready cutover.
+description: Run a cutover the maintainer has decided, without a terminal, by swapping a forward series `<S>-fwd-*` in for its base series with `scripts/series-cutover.sh <S> --confirm <S>@<sha>`, then quoting the archive pull requests, verifying both repositories, and handing back what the run left behind. Use when the maintainer has decided a cutover where the series is coordinated and asks a session to run it, or when asked to cut over, swap in or retire a series. Never from the scheduled loop, which only reports a ready cutover.
 ---
 
 # Running a decided cutover
@@ -30,7 +30,8 @@ The decision stays a human's, and the run may be a session's.
 * **Never from the scheduled loop.**
   A firing reports a ready cutover in stage 6 and stops ([`series-loop`](../series-loop/SKILL.md)).
   It never passes `--confirm`, whatever was decided, because the run belongs to the session the maintainer sent.
-  The script cannot tell the two apart; this rule and the routine's own instructions are what keep a firing out.
+  The script cannot tell the two apart; this rule and the loop's own, among its [invariants](../series-loop/SKILL.md#invariants),
+  are what keep a firing out.
 
 ## The steps
 
@@ -47,12 +48,11 @@ name its repository with `git config remote.<name>.github <owner>/<repo>`, or th
    scripts/series-cutover.sh <S> --remote <fork> --canonical <canonical> --upstream <clone> --prepare --out <dir>
    ```
 
-   It prints the coverage gate, the convergence read, the package and the version of each ref before and after,
-   the review stat, the archive plan and the cleanup plan, and moves nothing.
-   It ends with what `--confirm` would refuse on, where there is anything, and the tip of `<S>-fwd-green` to decide on.
+   It moves nothing, and its output is what the decision is taken on:
+   the [script's header](/scripts/series-cutover.sh) says what each part of it is,
+   and its last lines name the tip of `<S>-fwd-green` to decide on.
 2. **Stop on anything `--confirm` would refuse on, or a tip the decision does not name.**
-   Under `--confirm` every warning a terminal run leaves to the operator refuses,
-   as the header of [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) lists,
+   Under `--confirm` every warning a terminal run leaves to the operator refuses, as the script's header lists,
    so a cutover that needs one weighed, a version going back on a preview line among them, is the maintainer's to run on a terminal.
    So is one whose archive plan names a remote not on GitHub: `--no-archive` beside `--confirm` is a usage error.
    Stopping means reporting the reading on the pull request and waiting for a new decision.
@@ -62,12 +62,10 @@ name its repository with `git config remote.<name>.github <owner>/<repo>`, or th
    scripts/series-cutover.sh <S> --remote <fork> --canonical <canonical> --upstream <clone> --confirm <S>@<sha>
    ```
 
-   `<sha>` is the tip the decision names, as `--prepare` printed it, at least its first 12 hex digits.
-   The run fetches again and refuses, with nothing moved, once `<S>-fwd-green` is anywhere else;
-   then the gates and the warnings run again, each a refusal now,
-   and the archive pull requests are opened and closed before the swap.
-   The exit status says what happened, as the script's header documents;
-   whatever it is, it goes into the record with the run's last lines.
+   `<sha>` is the tip the decision names, as `--prepare` printed it.
+   The script's header says what the run checks under `--confirm` before it opens or moves anything,
+   and what each exit status means;
+   whatever the status, it goes into the record with the run's last lines.
 4. **Quote the archive pull requests**, the block the run prints after the swap, number and URL for each,
    and the undo it prints beneath them.
 5. **Verify** both repositories against the run's `refs to swap` lines, and read the verdict:
@@ -80,11 +78,11 @@ name its repository with `git config remote.<name>.github <owner>/<repo>`, or th
 
    Each `<S>-*` ref sits at the tip its `-fwd` twin had, the canonical `<S>-green` equals the fork's,
    and no `-fwd` ref is left but those listed under `left behind`.
-   Then re-cut the derived strands and check the mirror rules, as the run's last lines say:
-   `scripts/series-rc.sh <S> --push`, `scripts/series-alpha.sh <S> --push` where the series has them,
-   and `scripts/pull-config.sh --check`.
+   Then re-cut the derived strands where the series has them, as the run's last lines say,
+   and check the mirror rules with `scripts/pull-config.sh --check`, the last line of the block the loop's stage 6 reports.
 6. **Hand the lines under `left behind` to the maintainer**, as printed.
-   A litter ref's deletion loses nothing, and a refused one is not routed around.
+   A litter ref's deletion loses nothing, but a moved ref may hold commits no other ref has, so what moved is read first,
+   and nothing refused is routed around.
 7. **Record the outcome** on the pull request that carried the decision:
    the command and its exit status, the archive pull requests, the verification, the undo, and the delete lines,
    each block fenced so that it can be run as it stands.
