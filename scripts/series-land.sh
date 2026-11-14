@@ -84,7 +84,8 @@
 # scripts/each-plan.sh scans `<L>-land-green..<L>-land-dev` as it scans any
 # series, the base's own commits included, and `--status` advances it over the
 # commits CI has passed, the way stage 3 advances a series' green
-# (scripts/series-advance.sh). The landing is ready when the two refs are equal and it ends on the bump.
+# (scripts/series-advance.sh). The landing is ready when the two refs are equal
+# and it ends on the bump.
 # There is no `-land-build`, so the loop's discovery never mistakes the pair for
 # a series.
 #
@@ -214,27 +215,35 @@ strand=("${series_strand[@]}" "${series_makevars[@]}")
 strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
-# Is <bump> the hand-written version bump? Not a merge; it changes `NEWS.md` and
-# `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one `Version:`
-# line, which rises and is the version the subject names; and its `NEWS.md`
-# starts with fledge's marker line and has a section for that version with
-# something in it (handbook/operations/releases/versioning/README.md).
+# Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
+# and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
+# `Version:` line, which rises and is the version the subject names; and its
+# `NEWS.md` starts with fledge's marker line and has a section for that version
+# with something in it (handbook/operations/releases/versioning/README.md).
+# Prints the first condition it fails.
 bump_subject='chore: Bump version to '
 is_bump() { # <commit>
   local c=$1 old new subj
-  ! git rev-parse -q --verify "$c^2" >/dev/null || return 1
-  [ -z "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] || return 1
-  [ "$(git show "$c~1:DESCRIPTION" | grep -v '^Version:')" = "$(git show "$c:DESCRIPTION" | grep -v '^Version:')" ] || return 1
-  [ "$(git show "$c~1:DESCRIPTION" | grep -c '^Version:')" = 1 ] || return 1
-  [ "$(git show "$c:DESCRIPTION" | grep -c '^Version:')" = 1 ] || return 1
+  ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
+  [ -z "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] ||
+    { echo "changes more than NEWS.md and DESCRIPTION"; return 1; }
+  [ "$(git show "$c~1:DESCRIPTION" | grep -v '^Version:')" = "$(git show "$c:DESCRIPTION" | grep -v '^Version:')" ] ||
+    { echo "changes DESCRIPTION beyond Version:"; return 1; }
+  [ "$(git show "$c~1:DESCRIPTION" | grep -c '^Version:')" = 1 ] &&
+    [ "$(git show "$c:DESCRIPTION" | grep -c '^Version:')" = 1 ] ||
+    { echo "DESCRIPTION does not have exactly one Version: line"; return 1; }
   old=$(git show "$c~1:DESCRIPTION" | sed -n 's/^Version: //p')
   new=$(git show "$c:DESCRIPTION" | sed -n 's/^Version: //p')
-  [ "$old" != "$new" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] || return 1
+  [ "$old" != "$new" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] ||
+    { echo "does not raise the version from $old"; return 1; }
   subj=$(git log -1 --format=%s "$c")
-  [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] || return 1
-  # Whole pipelines, never `head` or `grep -q` ending one early under pipefail.
-  [[ "$(git show "$c:NEWS.md" 2>/dev/null | sed -n 1p)" == *fledge* ]] || return 1
-  [ -n "$(git show "$c:NEWS.md" | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ]
+  [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
+    { echo "the subject does not name version $new"; return 1; }
+  # `sed -n 1p` reads the whole pipeline; `head` or `grep -q` would end it early under pipefail.
+  [[ "$(git show "$c:NEWS.md" 2>/dev/null | sed -n 1p)" == *fledge* ]] ||
+    { echo "NEWS.md does not start with fledge's marker line"; return 1; }
+  [ -n "$(git show "$c:NEWS.md" | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ] ||
+    { echo "NEWS.md has nothing under # duckdb $new"; return 1; }
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
@@ -243,7 +252,7 @@ is_bump() { # <commit>
 # nothing else sits on top. The bump is the one commit written by hand, and it
 # is accepted only after a vendor commit. Prints the first commit out of place.
 out_of_place() { # <tip>
-  local c subj seen='' bump=''
+  local c subj why seen='' bump=''
   while IFS=$'\t' read -r c subj; do
     [ -z "$bump" ] || { echo "$c $subj"; return; }
     # shellcheck disable=SC2254
@@ -252,7 +261,7 @@ out_of_place() { # <tip>
     esac
     [ -n "$seen" ] || continue
     case "$subj" in "$bump_subject"*) ;; *) echo "$c $subj"; return ;; esac
-    is_bump "$c" || { echo "$c $subj"; return; }
+    why=$(is_bump "$c") || { echo "$c $subj ($why)"; return; }
     bump=1
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
 }
@@ -312,8 +321,7 @@ if [ -n "$status" ]; then
       exit 1
     elif [ -n "$(out_of_place "$dev")" ]; then
       echo "NOT READY: $L-land-dev carries a commit out of place: $(out_of_place "$dev")"
-      echo "  Above main it is the base's own commits, vendor commits, and at most a version bump" \
-        "that changes only NEWS.md and the Version: line."
+      echo "  Above main it is the base's own commits, vendor commits, and at most a hand-written version bump last."
       exit 1
     elif [[ "$(git log -1 --format=%s "$dev")" != "$bump_subject"* ]]; then
       echo "NOT READY: $L-land-dev does not end on the version bump;" \
@@ -346,8 +354,7 @@ if [ -n "$review" ]; then
   fi
   if [ -n "$(out_of_place "$tip")" ]; then
     echo "Error: the landing $(git rev-parse --short "$tip") carries a commit out of place: $(out_of_place "$tip")" >&2
-    echo "  Above main it is the base's own commits, vendor commits, and at most a version bump" \
-      "that changes only NEWS.md and the Version: line." >&2
+    echo "  Above main it is the base's own commits, vendor commits, and at most a hand-written version bump last." >&2
     exit 1
   fi
   if [ -f "$STATE" ]; then
@@ -473,20 +480,6 @@ if [ -f "$STATE" ]; then
   [ "$kept" = "$S" ] ||
     { echo "Error: the kept build lands ${kept:-another series}, not $S; --abort it first" >&2; exit 1; }
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
-  # A version bump added above the vendor commits is not the build's: drop it,
-  # so the replay resumes from the vendor commits, and add it again afterwards.
-  # Only a commit above a vendor commit is dropped, never `main`'s own bump at
-  # the base nor work a stopped build left in the tree.
-  wt_head=$(git -C "$wt" rev-parse HEAD)
-  if [ "$wt_head" != "$base" ] &&
-    [[ "$(git -C "$wt" log -1 --format=%s)" == "$bump_subject"* ]] &&
-    series_is_vendor "$(git -C "$wt" log -1 --format=%s HEAD~1)" &&
-    ! git -C "$wt" rev-parse -q --verify CHERRY_PICK_HEAD >/dev/null &&
-    git -C "$wt" diff --quiet HEAD && git -C "$wt" diff --quiet --cached HEAD; then
-    git -C "$wt" reset -q --hard HEAD~1
-    echo "$L: the version bump $(git rev-parse --short "$wt_head") above the vendor commits is dropped;" \
-      "add it again once the build is pushed"
-  fi
   if [ -n "$base_arg" ] && [ "$base_req" != "$base" ]; then
     echo "Error: the kept build stands on $(git rev-parse --short "$base"), not on --base $base_arg;" \
       "--abort it first" >&2
@@ -497,6 +490,22 @@ if [ -f "$STATE" ]; then
     echo "  since this landing was started, so it can no longer fast-forward main." >&2
     echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
+  fi
+  # A version bump added above the vendor commits is not the build's: drop it,
+  # so the replay resumes from the vendor commits, and add it again afterwards.
+  # Only a commit above a vendor commit is dropped, never `main`'s own bump at
+  # the base, nor work a stopped build left in the tree: a stopped pick is the
+  # file series-forward-build.sh records, since `cherry-pick -n` leaves no
+  # CHERRY_PICK_HEAD.
+  wt_head=$(git -C "$wt" rev-parse HEAD)
+  if [ "$wt_head" != "$base" ] &&
+    [[ "$(git -C "$wt" log -1 --format=%s)" == "$bump_subject"* ]] &&
+    series_is_vendor "$(git -C "$wt" log -1 --format=%s HEAD~1)" &&
+    [ ! -f "$(git -C "$wt" rev-parse --absolute-git-dir)/series-forward-pick" ] &&
+    git -C "$wt" diff --quiet HEAD && git -C "$wt" diff --quiet --cached HEAD; then
+    git -C "$wt" reset -q --hard HEAD~1
+    echo "$L: the version bump $(git rev-parse --short "$wt_head") above the vendor commits is dropped;" \
+      "add it again once the build is pushed"
   fi
   git fetch -q "$remote" "+refs/heads/$src_name:refs/remotes/$remote/$src_name"
   if [ "$(git rev-parse "$rc")" != "$src" ]; then

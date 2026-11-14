@@ -362,6 +362,7 @@ refused() { # <label>: the probe in the working tree is committed under the bump
   status_of "$sha"
   is "$1" "$st" 1
   has "  and names it" "$out" "carries a commit out of place: $(git rev-parse --short "$sha")"
+  [ -z "${2:-}" ] || has "  and says why" "$out" "$2"
   git checkout -q -f main
 }
 probe() { git checkout -q -f -B probe "$TIP"; }
@@ -380,7 +381,7 @@ git checkout -q -f main
 
 echo "== and it is nothing else"
 probe; write_bump 1.99.99.9001; echo 'foo <- function() 99' > R/foo.R
-refused "a bump that changes R code is refused"
+refused "a bump that changes R code is refused" "changes more than NEWS.md and DESCRIPTION"
 out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
 is "the review refuses it" "$st" 1
 probe; write_bump 1.99.99.9001; printf 'Imports: DBI\n' >> DESCRIPTION
@@ -393,13 +394,13 @@ refused_empty
 probe; printf '%s\n\n# duckdb 1.99.99.9001\n\n- Something.\n' "$marker" > NEWS.md
 refused "a NEWS-only commit is refused"
 probe; write_bump 1.99.99.9000.2
-refused "a lowered version is refused"
+refused "a lowered version is refused" "does not raise the version"
 probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
 refused "a deleted NEWS.md is refused"
 probe; write_bump 1.99.99.9001
 BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
 probe; write_bump 1.99.99.9001; sed -i 1,2d NEWS.md
-refused "a NEWS.md without fledge's marker is refused"
+refused "a NEWS.md without fledge's marker is refused" "does not start with fledge's marker line"
 probe; write_bump 1.99.99.9001; printf '%s\n\n# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' "$marker" > NEWS.md
 refused "a section with nothing in it is refused"
 probe; write_bump 1.99.99.9001
@@ -437,8 +438,10 @@ git -C "$KWT" reset -q --hard "$TIP"
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 # A bump `main` made itself sits at the base of a build that stopped before it
-# replayed anything, and is never dropped.
+# replayed anything, and is never dropped, even with a vendor commit under it,
+# so that the base check stands on its own.
 git checkout -q -f -B mainbump "$M"
+git commit -q --allow-empty -m 'vendor: Update vendored sources to duckdb/duckdb@ffff000'
 git commit -q --allow-empty -m 'chore: Bump version to 2.0.0.9000'
 MB=$(git rev-parse HEAD)
 git push -q upstream "$MB:refs/heads/mainbump"
@@ -448,8 +451,45 @@ read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 git -C "$KWT" reset -q --hard "$MB"
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump 2>&1) || true
 hasnt "main's own bump at the base is kept" "$out" "is dropped"
+has "and the build resumes on it" "$out" "resuming the build in"
+is "the base is in the kept history" "$(git -C "$KWT" merge-base --is-ancestor "$MB" HEAD && echo yes)" yes
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
-git branch -q -D mainbump probe
+git branch -q -D mainbump
+
+# The real case: `main` edits a test file the rewind touches, so the first pick
+# conflicts and the build stops on `main`'s bump with a resolution staged.
+git checkout -q -f -B mainbump2 "$M"
+echo 'test main' > tests/testthat/test-foo.R
+commit 'chore: Bump version to 2.0.0.9000'
+MB2=$(git rev-parse HEAD)
+git push -q upstream "$MB2:refs/heads/mainbump2"
+git checkout -q -f main
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump2 2>&1) && st=0 || st=$?
+is "a first pick that conflicts stops the build" "$st" 1
+has "on the conflict" "$out" "Conflict at"
+read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+is "at main's bump, which is the base" "$(git -C "$KWT" rev-parse HEAD)" "$MB2"
+echo 'test resolved' > "$KWT/tests/testthat/test-foo.R"
+git -C "$KWT" add tests/testthat/test-foo.R
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump2 2>&1) || true
+hasnt "the rerun keeps main's bump" "$out" "is dropped"
+is "and the base" "$(git -C "$KWT" merge-base --is-ancestor "$MB2" HEAD && echo yes)" yes
+is "and the resolution that was staged" \
+  "$(git -C "$KWT" show "$(git -C "$KWT" rev-list --reverse "$MB2..HEAD" | head -n 1):tests/testthat/test-foo.R")" "test resolved"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+git branch -q -D mainbump2 probe
+
+# A refused run leaves the kept worktree as it was: the bump is dropped only
+# once the run is past its refusals.
+scripts/series-land.sh v2.0-x-fwd --no-check-glue >/dev/null 2>&1 || true
+read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
+before=$(git -C "$KWT" rev-parse HEAD)
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump2 2>&1) && st=0 || st=$?
+is "a run with another base is refused" "$st" 1
+has "saying where the kept build stands" "$out" "the kept build stands on"
+is "and the bump is still there" "$(git -C "$KWT" rev-parse HEAD)" "$before"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 # --- 10: a wrong resolution, replayed --------------------------------------
 

@@ -264,14 +264,18 @@ so a repair pushed in between cannot reach `main` unjudged.
 Before lifting the freeze, close the version pull request the nightly fledge run may have opened against the frozen `main`,
 so that it does not merge the moment the freeze lifts
 ([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
-The run force-pushes the branch `fledge` and its version tag, which are deleted with it:
+The run force-pushes the branch `fledge` and the version tag of its bump, and the tag is deleted with the branch.
+Its version is in the pull request's title, and the tag is the pull request's own when it points at the pull request's head:
 
 ```sh
-gh api "repos/duckdb/duckdb-r/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title] | @tsv'
-gh api -X PATCH repos/duckdb/duckdb-r/pulls/<number> -f state=closed
-gh api -X DELETE repos/duckdb/duckdb-r/git/refs/heads/fledge
-git ls-remote --tags upstream 'v*' | tail -n 3    # the tag is the version in the pull request's title
-gh api -X DELETE repos/duckdb/duckdb-r/git/refs/tags/v<its version>
+R=duckdb/duckdb-r
+gh api "repos/$R/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title, .head.sha] | @tsv'
+n=<number>
+v=$(gh api repos/$R/pulls/$n --jq '.title | sub("^chore: Bump version to "; "")')
+git ls-remote upstream "refs/tags/v$v^{}"    # the same SHA as the pull request's head
+gh api -X PATCH repos/$R/pulls/$n -f state=closed
+gh api -X DELETE repos/$R/git/refs/heads/fledge
+gh api -X DELETE repos/$R/git/refs/tags/v$v
 ```
 
 Lift the freeze, push, put the freeze back, and then tag the bump:
@@ -304,7 +308,9 @@ git push upstream "refs/tags/v$v"
 
 ## 7. After the landing
 
-Delete the freeze, so that `main` takes pull requests again:
+A nightly run between the push of `main` and the tag may have opened another fledge pull request, against the version the landing just bumped to.
+Repeat step 6's listing and cleanup first, because the freeze's deletion would let it merge.
+Then delete the freeze, so that `main` takes pull requests again:
 
 ```sh
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
