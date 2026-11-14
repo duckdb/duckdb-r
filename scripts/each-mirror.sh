@@ -3,18 +3,17 @@
 # repository, as commit statuses with context `each-rcc (fork)`, for every open
 # pull request whose head is in the fork. A pull request's commit list then
 # shows each commit's verdict, linked to the leg in the fork that decided it.
+# Why it runs in the canonical repository, what it covers and why a run is
+# bounded: handbook/operations/ci/per-commit/upstream/README.md.
 #
-# It runs in the canonical repository (.github/workflows/each-mirror.yaml),
-# because a workflow in the fork cannot write a status there with its own
-# token, and the canonical repository's own token can: the store it reads is
-# public, so no secret crosses between the two repositories.
-#
-# **What it copies.** The commits of each open pull request from the fork, read
-# with git as `<base>..refs/pull/<n>/head` rather than from the API, whose list
-# of a pull request's commits stops at 250. Of those, the ones the verdict store
+# **What it copies.** The open pull requests whose head is in FORK and whose
+# `author_association` is OWNER, MEMBER or COLLABORATOR. Their commits, read
+# with git as `<base>..refs/pull/<n>/head`. Of those, the ones the verdict store
 # holds a record for, `runs2.d/<xx>/<sha>.ndjson` on the fork's `rcc2` branch,
-# whose newest line wins: its state, its `target_url` (the leg's job in the
-# fork) and its description become the status.
+# whose newest line wins: its state, its description cut to GitHub's 140
+# characters, and its `target_url` (the leg's job) only when that is a run in
+# FORK, `https://github.com/<FORK>/actions/runs/<id>...`; any other URL is left
+# out.
 #
 # **Idempotent, and bounded per run.** A watermark file, kept between runs in
 # the Actions cache, holds `<sha> <blob>` for every record already confirmed on
@@ -23,16 +22,17 @@
 # request, newly judged, or judged again. A candidate's current status is read
 # before anything is written, 100 commits to one GraphQL query, and a status
 # already there with the same state and URL is confirmed and never posted
-# again. So a lost cache costs one query per hundred commits, not a request per
-# commit, and a run reads at most MAX_READS candidates; the rest wait for the
-# next run.
+# again. A run reads at most MAX_READS candidates; the rest wait for the next
+# run.
 #
-# **Rate-limited writes.** GitHub allows about 500 content-creating requests an
-# hour, so a run posts at most MAX_WRITES statuses, PAUSE seconds apart, and
-# stops at the first refusal rather than pressing on into the secondary limit.
-# What it did not post stays a candidate.
-#
-# See handbook/operations/ci/per-commit/upstream/README.md.
+# **Paced writes.** A run posts at most MAX_WRITES statuses, PAUSE seconds
+# apart, and fewer when the token's REST budget, read with one call before the
+# first post, holds less than that above RESERVE requests. It posts nothing
+# more once BUDGET seconds have passed since it started, and nothing more after
+# a refusal with HTTP 403 or 429, the permission and rate limits, which also
+# fails the run. Any other refusal, such as the 422 for a commit that already
+# holds GitHub's maximum of statuses, is a warning and skips that commit
+# alone. What it did not post stays a candidate.
 #
 # Usage:
 #   GH_TOKEN=<token> scripts/each-mirror.sh
@@ -53,7 +53,14 @@
 #   MAX_READS     - candidates whose status a run reads (default: 3000)
 #   MAX_WRITES    - statuses a run posts (default: 300)
 #   PAUSE         - seconds between two posts (default: 7.5)
+#   BUDGET        - seconds after the start past which a run posts nothing
+#                   more (default: 2700)
+#   RESERVE       - REST requests a run leaves to the token's other users
+#                   (default: 300)
 #   DRY_RUN       - if non-empty, print the posts instead of sending them
+#
+# MAX_READS, MAX_WRITES, BUDGET and RESERVE are whole numbers; anything else
+# stops the run before its first request.
 #
 # Runs in a clone of REPO, whose `origin` serves `refs/pull/<n>/head`.
 
@@ -70,6 +77,15 @@ STATE="${STATE:-${RUNNER_TEMP:-/tmp}/each-mirror/state}"
 MAX_READS="${MAX_READS:-3000}"
 MAX_WRITES="${MAX_WRITES:-300}"
 PAUSE="${PAUSE:-7.5}"
+BUDGET="${BUDGET:-2700}"
+RESERVE="${RESERVE:-300}"
+
+for knob in MAX_READS MAX_WRITES BUDGET RESERVE; do
+  if ! [[ "${!knob}" =~ ^[0-9]+$ ]]; then
+    echo "each-mirror: ${knob} must be a whole number, not '${!knob}'" >&2
+    exit 2
+  fi
+done
 
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=rcc-lib.sh
@@ -77,6 +93,10 @@ here="$(cd "$(dirname "$0")" && pwd)"
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
+
+# The field separator of every file below: a URL or a description can be
+# empty, and `read` collapses empty fields between whitespace separators.
+sep=$'\037'
 
 report() {
   echo "$*"
@@ -87,10 +107,13 @@ report() {
 
 # ------------------------------------------------- the commits that matter --
 
-# Open pull requests whose head is in the fork: number and base branch.
+# Open pull requests whose head is in the fork and whose author belongs to
+# REPO: number and base branch.
 gh api --paginate "repos/${REPO}/pulls?state=open&per_page=100" |
-  jq -r --arg fork "${FORK}" \
-    '.[] | select(.head.repo.full_name == $fork) | [.number, .base.ref] | @tsv' \
+  jq -r --arg fork "${FORK}" '.[]
+    | select(.head.repo.full_name == $fork)
+    | select(.author_association | IN("OWNER", "MEMBER", "COLLABORATOR"))
+    | [.number, .base.ref] | @tsv' \
     > "${work}/pulls"
 
 # Their commits, newest first and each once, so a capped run reads the commits
@@ -135,12 +158,14 @@ touch "${STATE}"
 awk 'FILENAME == ARGV[1] { done[$0]; next } !($0 in done)' "${STATE}" "${work}/judged" > "${work}/candidates.all"
 head -n "${MAX_READS}" "${work}/candidates.all" > "${work}/candidates"
 
-# What each candidate's record says: `<sha>\t<state>\t<url>\t<description>`.
-# One `cat-file --batch` for all of them; a record's lines follow the line that
-# names its blob, and the newest one wins.
+# What each candidate's record says: sha, state, URL and description. One
+# `cat-file --batch` for all of them; a record's lines follow the line that
+# names its blob, and the newest one wins. A URL that is not a run in the fork
+# is dropped, the description is cut to GitHub's 140 characters, and a control
+# character, the separator among them, becomes a space.
 cut -d' ' -f2 "${work}/candidates" |
   git -C "${STORE_DIR}" cat-file --batch='%(objectname)' |
-  jq -nrR '
+  jq -nrR --arg runs "https://github.com/${FORK}/actions/runs/" '
     reduce inputs as $l ({cur: null, out: {}};
       if ($l | test("^[0-9a-f]{40}$")) then .cur = $l
       else (try ($l | fromjson) catch null) as $r
@@ -148,14 +173,18 @@ cut -d' ' -f2 "${work}/candidates" |
       end)
     | .out | to_entries[]
     | select(.value.status.state | IN("success", "failure", "error", "pending"))
-    | [.key, .value.status.state, (.value.status.target_url // ""),
-       (.value.status.description // "")] | @tsv' > "${work}/wanted.byblob"
-awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { sha[$2] = $1; next } ($1 in sha) { $1 = sha[$1]; print }' \
-  <(tr ' ' '\t' < "${work}/candidates") "${work}/wanted.byblob" > "${work}/wanted"
+    | (.value.status.target_url // "" | tostring) as $url
+    | [.key, .value.status.state,
+       (if ($url | startswith($runs)) and ($url[($runs | length):] | test("^[0-9]+"))
+        then $url else "" end),
+       (.value.status.description // "" | tostring | .[0:140])]
+    | map(gsub("[[:cntrl:]]"; " ")) | join("\u001f")' > "${work}/wanted.byblob"
+awk -F "${sep}" -v OFS="${sep}" 'FILENAME == ARGV[1] { sha[$2] = $1; next } ($1 in sha) { $1 = sha[$1]; print }' \
+  <(tr ' ' "${sep}" < "${work}/candidates") "${work}/wanted.byblob" > "${work}/wanted"
 
 # ---------------------------------------------- what the commits show now --
 
-# `<sha>\t<state>\t<url>` for every candidate that carries a status in this
+# Sha, state and URL for every candidate that carries a status in this
 # context, read 100 commits to a query.
 owner="${REPO%%/*}"
 name="${REPO#*/}"
@@ -176,40 +205,69 @@ for batch in "${work}"/batch.*; do
     jq -r '.data.repository | to_entries[]
       | select(.value.status.context != null)
       | [(.key | ltrimstr("c")), (.value.status.context.state | ascii_downcase),
-         (.value.status.context.targetUrl // "")] | @tsv' |
-    awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { sha[FNR - 1] = $1; next } { print sha[$1], $2, $3 }' \
+         (.value.status.context.targetUrl // "")] | join("\u001f")' |
+    awk -F "${sep}" -v OFS="${sep}" 'FILENAME == ARGV[1] { sha[FNR - 1] = $1; next } { print sha[$1], $2, $3 }' \
       <(cut -d' ' -f1 "${batch}") - >> "${work}/shown"
 done
 
 # ----------------------------------------------------------------- write --
 
 # A status already shown with the same state and URL is confirmed as it is;
-# every other one is posted, up to MAX_WRITES of them.
-awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { shown[$1] = $2 "\t" $3; next }
-  { print ((shown[$1] == ($2 "\t" $3)) ? "same" : "post"), $0 }' \
+# every other one is to be posted.
+awk -F "${sep}" -v OFS="${sep}" 'FILENAME == ARGV[1] { shown[$1] = $2 OFS $3; next }
+  { print ((shown[$1] == ($2 OFS $3)) ? "same" : "post"), $0 }' \
   "${work}/shown" "${work}/wanted" > "${work}/plan"
 
-# After a refusal or past the cap nothing more is posted, and what is already
-# shown is still confirmed.
+# The posts this run may make: MAX_WRITES, or what the token's REST budget
+# holds above RESERVE if that is less. One read, and only when there is
+# something to post.
+writes="${MAX_WRITES}"
+if grep -q "^post${sep}" "${work}/plan"; then
+  remaining="$(gh api rate_limit | jq -r '.resources.core.remaining')" || remaining=0
+  [[ "${remaining}" =~ ^[0-9]+$ ]] || remaining=0
+  room=$((remaining > RESERVE ? remaining - RESERVE : 0))
+  [ "${room}" -ge "${writes}" ] || writes="${room}"
+fi
+
+# Past the cap, the time budget or a 403 or 429 nothing more is posted, and
+# what is already shown is still confirmed. Any other refusal skips its commit.
 : > "${work}/confirmed"
-posted=0 same=0 failed=''
-while IFS=$'\t' read -r verdict sha state url desc; do
+tried=0 posted=0 same=0 skipped=0 stop='' failed=''
+while IFS="${sep}" read -r verdict sha state url desc; do
   if [ "${verdict}" = same ]; then
     same=$((same + 1))
     echo "${sha}" >> "${work}/confirmed"
     continue
   fi
-  if [ -n "${failed}" ] || [ "${posted}" -ge "${MAX_WRITES}" ]; then
+  if [ -n "${stop}" ] || [ "${tried}" -ge "${writes}" ]; then
     continue
   fi
-  [ "${posted}" -eq 0 ] || sleep "${PAUSE}"
+  if [ "${SECONDS}" -ge "${BUDGET}" ]; then
+    stop="the time budget of ${BUDGET} seconds ran out"
+    continue
+  fi
   args=(-f state="${state}" -f context="${CONTEXT}" -f description="${desc}")
   [ -z "${url}" ] || args+=(-f target_url="${url}")
+  tried=$((tried + 1))
   if [ -n "${DRY_RUN:-}" ]; then
     echo "[dry-run] POST repos/${REPO}/statuses/${sha} ${state} ${url}"
-  elif ! gh api -X POST "repos/${REPO}/statuses/${sha}" "${args[@]}" > /dev/null; then
-    failed="${sha}"
-    continue
+  else
+    [ "${tried}" -eq 1 ] || sleep "${PAUSE}"
+    if ! gh api -X POST "repos/${REPO}/statuses/${sha}" "${args[@]}" > /dev/null 2> "${work}/err"; then
+      cat "${work}/err" >&2
+      code="$(grep -o '(HTTP [0-9]*)' "${work}/err" | tail -n 1 | tr -dc '0-9')" || code=''
+      case "${code}" in
+        403 | 429)
+          stop="the post for ${sha} was refused with HTTP ${code}"
+          failed=1
+          ;;
+        *)
+          echo "::warning::each-mirror: the post for ${sha} was refused${code:+ with HTTP ${code}}; skipped, it waits for the next run"
+          skipped=$((skipped + 1))
+          ;;
+      esac
+      continue
+    fi
   fi
   posted=$((posted + 1))
   echo "${sha}" >> "${work}/confirmed"
@@ -228,8 +286,13 @@ read_now="$(wc -l < "${work}/candidates" | tr -d ' ')"
 report "each-mirror: ${pulls} pull request(s) from ${FORK}," \
   "$(wc -l < "${work}/commits.uniq" | tr -d ' ') commit(s), $(wc -l < "${work}/judged" | tr -d ' ') judged;" \
   "${candidates_all} not confirmed yet, ${read_now} read this run;" \
-  "${same} already shown, ${posted} posted, $((read_now - same - posted)) left for the next run."
-if [ -n "${failed}" ]; then
-  report "each-mirror: the post for ${failed} was refused; stopped there, the rest waits for the next run."
-  exit 1
+  "${same} already shown, ${posted} posted, ${skipped} refused and skipped," \
+  "$((read_now - same - posted)) left for the next run."
+if [ "${writes}" -lt "${MAX_WRITES}" ]; then
+  report "each-mirror: the token had ${remaining} REST request(s) left and ${RESERVE} stay in reserve," \
+    "so this run posted at most ${writes}."
 fi
+if [ -n "${stop}" ]; then
+  report "each-mirror: ${stop}; stopped there, the rest waits for the next run."
+fi
+[ -z "${failed}" ] || exit 1

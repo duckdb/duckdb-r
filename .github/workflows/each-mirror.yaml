@@ -1,13 +1,10 @@
 # Copy the per-commit verdicts of the fork onto the same commits here, as
 # commit statuses with context `each-rcc (fork)`, for every open pull request
 # whose head is in the fork, so its commit list shows each commit's verdict and
-# links to the leg that decided it. The design, the watermark and the rate are
-# scripts/each-mirror.sh's; the place in the CI is
-# handbook/operations/ci/per-commit/upstream/README.md.
-#
-# Runs in the canonical repository only: a workflow in the fork cannot write a
-# status here with its own token, and this repository's own token can, reading
-# the fork's public `rcc2` branch with no secret at all.
+# links to the leg that decided it. It runs in the canonical repository only.
+# The mechanism, the watermark and the limits on a run among it, is in
+# scripts/each-mirror.sh's header; why it runs here and is bounded that way is
+# in handbook/operations/ci/per-commit/upstream/README.md.
 
 name: each-rcc-mirror
 
@@ -17,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       max-writes:
-        description: "Statuses this run posts at most"
+        description: "Statuses this run posts at most, a whole number"
         type: string
         default: ""
       dry-run:
@@ -44,8 +41,9 @@ jobs:
 
     name: "Copy the fork's verdicts onto open pull requests"
 
-    # MAX_WRITES posts PAUSE seconds apart, 37.5 minutes at the defaults, and
-    # the reads and fetches around them.
+    # MAX_WRITES posts PAUSE seconds apart take 37.5 minutes, and BUDGET stops
+    # the posts 45 minutes into the script, so the cache save after it always
+    # runs.
     timeout-minutes: 55
 
     steps:
@@ -57,13 +55,12 @@ jobs:
           filter: tree:0
           sparse-checkout: scripts
 
-      # The watermark: every record already confirmed on its commit. Restored
-      # from the newest run that saved one; losing it costs a read per hundred
-      # commits, never a status posted twice.
+      # The watermark: every record already confirmed on its commit, restored
+      # from the newest run or attempt that saved one.
       - uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/each-mirror
-          key: each-mirror-${{ github.run_id }}
+          key: each-mirror-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: each-mirror-
 
       - name: Copy the verdicts
@@ -74,12 +71,16 @@ jobs:
           STATE: ${{ runner.temp }}/each-mirror/state
           MAX_WRITES: ${{ inputs.max-writes || '300' }}
           PAUSE: "7.5"
+          BUDGET: "2700"
+          RESERVE: "300"
           DRY_RUN: ${{ inputs.dry-run && '1' || '' }}
         run: scripts/each-mirror.sh
         shell: bash
 
+      # A key per attempt, because a cache key that exists is never written
+      # again, and a re-run's watermark has to be saved too.
       - uses: actions/cache/save@v5
         if: always()
         with:
           path: ${{ runner.temp }}/each-mirror
-          key: each-mirror-${{ github.run_id }}
+          key: each-mirror-${{ github.run_id }}-${{ github.run_attempt }}

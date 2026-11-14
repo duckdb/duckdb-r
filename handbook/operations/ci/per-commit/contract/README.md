@@ -84,9 +84,11 @@ CI-side, that is what "decided" means, in the planner
 ([`each-plan.sh`](/scripts/each-plan.sh)), in a leg's resume check,
 and in the backstop, all of them through
 [`rcc-decided.sh`](/scripts/rcc-decided.sh).
-[`series-check.sh`](/scripts/series-check.sh), [`series-advance.sh`](/scripts/series-advance.sh)
-and [`each-mirror.sh`](/scripts/each-mirror.sh) read the per-commit record,
+[`series-check.sh`](/scripts/series-check.sh) and [`series-advance.sh`](/scripts/series-advance.sh)
+read the per-commit record,
 so they see a verdict minutes after it happens rather than at the end of a run.
+[`each-mirror.sh`](/scripts/each-mirror.sh) reads the same record on an hourly schedule,
+so a verdict reaches the canonical repository no sooner than its next run.
 [`rcc-logs.sh`](/scripts/rcc-logs.sh) writes records to the same place.
 
 The **series loop reads the runs first** and treats the store as its fallback
