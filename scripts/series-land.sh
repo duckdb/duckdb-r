@@ -214,22 +214,28 @@ strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
-# commits only, and at most one version bump as the last commit? A fix is folded
+# commits, and at most one version bump as the last commit? A fix is folded
 # into the commit that introduced the defect, so that every commit passes;
-# nothing else sits on top. The bump is the one commit written by hand, because
-# fledge::bump_version() would list every vendor commit in NEWS.md
-# (handbook/operations/releases/versioning/README.md). Prints the first commit
-# out of place.
+# nothing else sits on top. The bump is the one commit written by hand
+# (handbook/operations/releases/versioning/README.md), and it is accepted only
+# after a vendor commit and only if it changes nothing but `NEWS.md` and the
+# `Version:` line of `DESCRIPTION`. Prints the first commit out of place.
+bump_subject='chore: Bump version to '
 out_of_place() { # <tip>
   local c subj seen='' bump=''
   while IFS=$'\t' read -r c subj; do
     [ -z "$bump" ] || { echo "$c $subj"; return; }
     # shellcheck disable=SC2254
     case "$subj" in
-      vendor:* | $series_vendor_glob) seen=1 ;;
-      "chore: Bump version to "*) bump=1 ;;
-      *) [ -z "$seen" ] || { echo "$c $subj"; return; } ;;
+      vendor:* | $series_vendor_glob) seen=1; continue ;;
     esac
+    [ -n "$seen" ] || continue
+    case "$subj" in "$bump_subject"*) ;; *) echo "$c $subj"; return ;; esac
+    if [ -n "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] ||
+      [ "$(git show "$c~1:DESCRIPTION" | grep -v '^Version:')" != "$(git show "$c:DESCRIPTION" | grep -v '^Version:')" ]; then
+      echo "$c $subj"; return
+    fi
+    bump=1
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
 }
 
@@ -282,13 +288,21 @@ if [ -n "$status" ]; then
     fi
   fi
   if [ "$new_green" = "$dev" ]; then
-    if git merge-base --is-ancestor "$main" "$dev" && [ -z "$(out_of_place "$dev")" ]; then
-      echo "READY: every commit has passed, and main ($(git rev-parse --short "$main")) fast-forwards to it:"
-      echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/main"
-    else
+    if ! git merge-base --is-ancestor "$main" "$dev"; then
       echo "NOT READY: main ($(git rev-parse --short "$main")) is not the base of $L-land-dev;" \
         "it moved, so the landing has to be rebuilt on it"
       exit 1
+    elif [ -n "$(out_of_place "$dev")" ]; then
+      echo "NOT READY: $L-land-dev carries a commit out of place: $(out_of_place "$dev")" >&2
+      echo "  Above main it is vendor commits and a version bump that changes only NEWS.md and the Version: line." >&2
+      exit 1
+    elif [[ "$(git log -1 --format=%s "$dev")" != "$bump_subject"* ]]; then
+      echo "NOT READY: $L-land-dev does not end on the version bump;" \
+        "add it (.claude/skills/series-land/SKILL.md, step 3)"
+      exit 1
+    else
+      echo "READY: every commit has passed, and main ($(git rev-parse --short "$main")) fast-forwards to it:"
+      echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/main"
     fi
   fi
   exit 0
@@ -307,9 +321,14 @@ if [ -n "$review" ]; then
     tip=$(git rev-parse "$dev_ref")
   fi
   base=$main
-  if ! git merge-base --is-ancestor "$base" "$tip" || [ -n "$(out_of_place "$tip")" ]; then
-    echo "Error: the landing $(git rev-parse --short "$tip") is not main $(git rev-parse --short "$base")," \
-      "the base's own commits, and vendor commits" >&2
+  if ! git merge-base --is-ancestor "$base" "$tip"; then
+    echo "Error: main moved: $(git rev-parse --short "$base") is not below the landing $(git rev-parse --short "$tip")" >&2
+    exit 1
+  fi
+  if [ -n "$(out_of_place "$tip")" ]; then
+    echo "Error: the landing $(git rev-parse --short "$tip") carries a commit out of place: $(out_of_place "$tip")" >&2
+    echo "  Above main it is the base's own commits, vendor commits, and at most a version bump" \
+      "that changes only NEWS.md and the Version: line." >&2
     exit 1
   fi
   if [ -f "$STATE" ]; then
@@ -365,7 +384,7 @@ builds or tests it.")
           echo
           git log -1 --format=%B "$c"
         else
-          # The base's own commit, as it lands.
+          # The base's own commit or the version bump, as it lands.
           git log -1 --format=%B "$c"
         fi
         echo "Landing-commit: $c"; } |
@@ -435,6 +454,12 @@ if [ -f "$STATE" ]; then
   [ "$kept" = "$S" ] ||
     { echo "Error: the kept build lands ${kept:-another series}, not $S; --abort it first" >&2; exit 1; }
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
+  # A version bump added above the vendor commits is not the build's: drop it,
+  # so the replay resumes from the vendor commits, and add it again afterwards.
+  if [[ "$(git -C "$wt" log -1 --format=%s)" == "$bump_subject"* ]]; then
+    git -C "$wt" reset -q --hard HEAD~1
+    echo "$L: the version bump above the vendor commits is dropped; add it again once the build is pushed"
+  fi
   if [ -n "$base_arg" ] && [ "$base_req" != "$base" ]; then
     echo "Error: the kept build stands on $(git rev-parse --short "$base"), not on --base $base_arg;" \
       "--abort it first" >&2

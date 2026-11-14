@@ -36,7 +36,7 @@ and are not repeated here; this page holds this repository's own.
 * **graft** — a commit whose tree is a fork point's verbatim, parented on current `main`, how an opening re-roots the parent line ([`.claude/skills/series-open/SKILL.md`](/.claude/skills/series-open/SKILL.md)).
 * **harvest** — the sweep an operator runs by hand that records commits no leg published a verdict for, onto the verdict store ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Once also a per-run fan-in, now retired.
 * **in-memory database** — the default, file-less instance: never cached, fresh per `duckdb()` call ([`usage/connections/`](/handbook/usage/connections/README.md)).
-* **landing** — moving a line onto `main`: the series' vendor commits replayed unflavored onto the frozen `main`, judged one by one, then fast-forwarded ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+* **landing** — moving a line onto `main`: the series' vendor commits replayed unflavored onto the frozen `main`, with a hand-written version bump last, judged one by one, then fast-forwarded ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
 * **leg** — the one CI job that builds and judges a shard, commit by commit, in a single workspace ([`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)).
 * **libduckdb** — a prebuilt engine library, linked by the fast path instead of compiling ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **line** — one upstream release branch of `duckdb/duckdb` together with the series that serves it and, while one is in flight, that series' forward ([`branches/model/`](/handbook/branches/model/README.md)).

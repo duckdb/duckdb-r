@@ -3,7 +3,7 @@
 # canonical repository and clone built here: no network, no fixtures on disk.
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
-# the series' vendor commits and nothing else, and that its tip is the package
+# the series' vendor commits and a version bump, and nothing else, and that its tip is the package
 # the series' rc strand holds. Fourteen things are checked.
 #
 #   1. Without --push the build writes no ref, and says what it would write.
@@ -26,8 +26,9 @@
 #      first one it has not, and prints the fast-forward once every one passed.
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
-#      A hand-written version bump may be the landing's last commit, and nothing
-#      may sit above it.
+#      A landing is ready only on its hand-written version bump, which may
+#      change nothing but NEWS.md and the Version: line, with nothing above it;
+#      a rebuild drops a bump added to the kept worktree.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -304,8 +305,8 @@ git push -q origin rcc2
 git checkout -q main
 out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
-has "every commit passed" "$out" "READY: every commit has passed"
-has "and it prints the fast-forward" "$out" "git push upstream $TIP:refs/heads/main"
+has "every commit passed, but the landing does not end on the bump" "$out" "NOT READY: v2.0-x-land-dev does not end on the version bump"
+hasnt "so it prints no fast-forward" "$out" "git push upstream"
 
 echo
 echo "== --review writes the R side alone"
@@ -333,34 +334,73 @@ has "a rerun mints the same branch" "$out" "v2.0-x-land-review: already on upstr
 # --- 9b: the version bump ------------------------------------------------------
 
 echo
-echo "== a hand-written version bump may be the last commit"
+echo "== a hand-written version bump is the last commit"
+dev_at() { git push -q -f origin "$1:refs/heads/v2.0-x-land-dev"; }
+passed() { # <sha>
+  git checkout -q rcc2
+  rec "$1" success
+  commit 'chore: store stub'
+  git push -q origin rcc2
+  git checkout -q main
+}
+bump_msg='chore: Bump version to 1.5.6.9002 with hand-written release notes'
 git checkout -q -b bump "$TIP"
 sed -i 's/^Version: .*/Version: 1.5.6.9002/' DESCRIPTION
-commit 'chore: Bump version to 1.5.6.9002 with hand-written release notes'
+echo '# duckdb 1.5.6.9002' > NEWS.md
+commit "$bump_msg"
 BUMP=$(git rev-parse HEAD)
-git push -q origin "$BUMP:refs/heads/v2.0-x-land-dev"
-git checkout -q rcc2
-rec "$BUMP" success
-commit 'chore: store stub, the bump'
-git push -q origin rcc2
-git checkout -q main
+dev_at "$BUMP"
+passed "$BUMP"
 out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
 is "the review takes it" "$st" 0
-hasnt "and does not call it out of place" "$out" "is not main"
+hasnt "and does not call it out of place" "$out" "out of place"
 
-git checkout -q bump
+echo "== and it is nothing else"
+git checkout -q -b smuggle "$TIP"
+sed -i 's/^Version: .*/Version: 1.5.6.9002/' DESCRIPTION
+echo 'foo <- function() 99' > R/foo.R
+commit "$bump_msg"
+SMUGGLE=$(git rev-parse HEAD)
+dev_at "$SMUGGLE"
+passed "$SMUGGLE"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+is "a bump that changes R code is refused" "$st" 1
+has "naming the commit" "$out" "carries a commit out of place: $(git rev-parse --short "$SMUGGLE")"
+out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+is "the review refuses it" "$st" 1
+git checkout -q -b smuggle2 "$TIP"
+printf 'Imports: DBI\n' >> DESCRIPTION
+commit "$bump_msg"
+dev_at "$(git rev-parse HEAD)"
+passed "$(git rev-parse HEAD)"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+is "nor may it change DESCRIPTION beyond Version:" "$st" 1
+
+echo "== and nothing sits above it"
+git checkout -q "$BUMP"
 echo 'bar <- 1' > R/bar.R
 commit 'fix: A commit on top of the bump'
-git push -q origin "HEAD:refs/heads/v2.0-x-land-dev"
+dev_at "$(git rev-parse HEAD)"
+passed "$(git rev-parse HEAD)"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+is "a commit above the bump is refused" "$st" 1
+hasnt "and is not ready" "$out" "READY: every"
+
+echo "== and a rebuild drops it"
 git checkout -q main
-out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) || true
-hasnt "a commit above the bump is not ready" "$out" "READY: every"
-git push -q -f origin "$TIP:refs/heads/v2.0-x-land-dev"
-git branch -q -D bump
+dev_at "$TIP"
+git branch -q -D bump smuggle smuggle2
+read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a rerun with the bump in the kept worktree still builds" "$st" 0
+has "and says the bump is dropped" "$out" "the version bump above the vendor commits is dropped"
+is "the kept build ends on the vendor commits again" "$(git -C "$KWT" rev-parse HEAD)" "$TIP"
 
 # --- 10: a wrong resolution, replayed --------------------------------------
 
@@ -436,7 +476,7 @@ git checkout -q main
 out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the base's commit counts among those CI passed" "$out" "5 of 5 commits above v2.0-x-land-green passed"
-has "and main fast-forwards across both" "$out" "git push upstream $LTIP:refs/heads/main"
+has "and without the bump it is not ready" "$out" "does not end on the version bump"
 
 out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"

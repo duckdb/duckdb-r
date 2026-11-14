@@ -181,7 +181,6 @@ Committer dates are pinned to the frozen `main`'s, so a rebuild from the same in
 and CI does not judge a commit twice.
 
 **The version bump is the landing's last commit.**
-`fledge::bump_version()` would write a `NEWS.md` entry for every vendor commit;
 [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns why the first bump after a landing is by hand.
 The build ends on the series' version, `<prefix>.9000.<n>`,
 where `<prefix>` is the preview prefix `main` carries while it previews the line (`1.99.99` for v2.0).
@@ -193,11 +192,12 @@ Once the build is pushed, add the bump in its kept worktree and push it onto `<L
   directly above the section of the last release.
   It replaces the development sections since that release,
   keeps their user-facing items, leaves out the tooling, and names the engine the landing vendors.
-  The first line stays as `main`'s has it, fledge's marker line or not.
+  It starts with fledge's marker line, as the versioning page says.
 * **The commit**: `chore: Bump version to <prefix>.9001 with hand-written release notes`.
-  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits, and nothing above it.
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md` and the `Version:` line,
+  with nothing above it, and `--status` prints `READY` only on a landing that ends on it.
 
-CI judges the bump like every other commit, and `READY` names it.
+CI judges the bump like every other commit.
 A rebuild drops it, so after one, add it again.
 
 ## 4. Open the R side for review
@@ -254,13 +254,17 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
   In the kept worktree, `git reset --hard` to the parent of the red commit,
   then rerun the build: it follows the realigned strand and replays from there,
   so the landing never carries a fix the series does not.
+* **the bump's**: amend it and force-push `<L>-land-dev`; `<L>-land-green` stays at the last vendor commit.
 
 ## 6. Fast-forward `main`
 
 When `--status` prints `READY`, every commit has passed and `main` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `main` unjudged.
-Lift the freeze, push, and put it back until the step below is done:
+Before lifting the freeze, close the version pull request the nightly fledge run may have opened against the frozen `main`,
+or disable its auto-merge, so that it does not merge the moment the freeze lifts
+([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
+Lift the freeze, push, tag the bump, and put the freeze back until the step below is done:
 
 ```sh
 sha=<the SHA the READY line names>
@@ -269,6 +273,20 @@ gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=disabled
 git push upstream $sha:refs/heads/main
 gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=active
 git ls-remote upstream refs/heads/main
+```
+
+Then tag the bump, which is the commit `READY` named.
+fledge counts from the newest version tag
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
+and the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
+It is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <prefix>.9001`, then the `NEWS.md` section as body.
+
+```sh
+v=<prefix>.9001
+{ printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
+[ "$(wc -l < tag-message)" -gt 2 ] || { echo "no NEWS.md section for $v" >&2; false; }
+git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha"
+git push upstream "refs/tags/v$v"
 ```
 
 The push is a plain one, so git refuses it unless it is a fast-forward.
@@ -282,26 +300,6 @@ Delete the freeze, so that `main` takes pull requests again:
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq '.[] | select(.name == "freeze main") | .id')
 gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 ```
-
-The bump reached `main` with the fast-forward, so the version tag goes on it now:
-
-* **The tag**: tag the landing's last commit `v<prefix>.9001` and push it right after the fast-forward, ahead of the next scheduled fledge run.
-  [`fledge.yaml`](/.github/workflows/fledge.yaml) counts from the newest version tag
-  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
-  so until the tag is there, a run may open a version pull request against the previous tag that lists every vendor commit.
-  Close it in favour of the hand-written bump.
-  The tag is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <prefix>.9001`, then the `NEWS.md` section as body.
-
-  ```sh
-  v=<prefix>.9001
-  { printf 'duckdb %s\n\n' "$v"; awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f' NEWS.md; } > tag-message
-  git tag -a "v$v" --cleanup=whitespace -F tag-message <the SHA that READY named>
-  git push upstream "refs/tags/v$v"
-  ```
-
-* **A fledge pull request opened during the freeze**, when `main`'s `NEWS.md` still starts with fledge's marker line, as it did for v2.0:
-  the nightly run keeps bumping `main` as it stands, and the freeze blocks the merge, so such a pull request waits.
-  After the fast-forward it is against a `main` that no longer exists; close it.
 
 The first pull request on `main`:
 
