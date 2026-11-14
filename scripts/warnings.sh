@@ -83,10 +83,8 @@ warnings_of() {
 #   src_backend_parser_gram.cpp, src_backend_parser_scan.cpp  bison and flex
 #   yyjson.cpp                                                the amalgamation
 #   cpp11.cpp                                                 cpp11::cpp_register()
-# The bison and flex output is libpg_query's, the parser of the engines before
-# v2.0. `main`'s engine parses with a PEG parser and vendors none of it, but
-# this script is every series' tooling, and the lines before v2.0 still vendor
-# it. The bison output carries `#line` directives, so its diagnostics point at
+# The bison and flex output is libpg_query's; see handbook/build/warnings/. Its
+# bison output carries `#line` directives, so its diagnostics point at
 # `libpg_query/grammar/…`, a path this repository does not even contain; that
 # prefix names the same generated code and belongs here too.
 classify='
