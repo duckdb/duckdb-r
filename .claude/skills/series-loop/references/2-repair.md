@@ -167,6 +167,8 @@ is reading; they are the same bytes:
 | `Error ('test-….R:N:M')` | real test failure | fix test/R code at origin |
 | the cause is in `src/duckdb/` itself and the next upstream commit fixes it | upstream was transiently broken | fold the pair into one; if the next one is red too, forward-port (below) |
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
+| `-- vendored: not clean.`, closing a `-- vendored warnings (N):` listing of the engine files that warned | an engine file under `src/duckdb/` warns under the gate's flags | answer it as [`build/warnings/`](/handbook/build/warnings/README.md) prescribes for the `vendored` scope: a new `patch/` entry on the vendor strand, folded with its effect into the vendor commit that raised it, or the scope decision that page describes for a category that is upstream's style; never glue, never a rerun |
+| `-- glue: not clean.`, closing a `-- glue warnings (N):` listing of the package's own files that warned | the package's own C++ warns under the `glue` scope's flags | fix the glue at origin; never a rerun |
 | `Error: R CMD check found WARNINGs` / `ERRORs`, with the `❯ checking …` headers above it naming which checks | `R CMD check --as-cran` is unhappy about the tree, or about the environment CI built it in | read the named checks; fix at origin, or on `main` when the cause is the job's own setup |
 | a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
 | the leg's record names a failed stage (`"failed_stages":["install"]`) and no rule above matched | the stage failed on its merits — most often an `install` that a glue call site this series' engine no longer offers stopped | fix the glue at origin; never a rerun |
@@ -175,6 +177,13 @@ is reading; they are the same bytes:
 Never classify by absence of a marker:
 `"Job is waiting for a hosted runner"` appears in every log
 and means nothing.
+
+**A red from gate `warnings` is answered in the scope its listing names.**
+The listing is printed again at the end of the log, under `gate warnings, repeated:`,
+so the tail holds it even when the check gate's output has pushed the first copy out
+([`scripts/rcc-one.sh`](/scripts/rcc-one.sh)).
+Its rows sit above the failed-stage row, which would send a vendored warning to the glue,
+and above `R CMD check`'s, because the listing already names the file and line to fix.
 
 Repair the **oldest** failure first — later reds usually inherit it.
 Fold the fix into the offending commit
