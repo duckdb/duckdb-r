@@ -241,8 +241,27 @@ last_gate() { # <log> -> the gate rcc-one.sh opened last, i.e. where it stopped
   grep -oE '^::group::gate: [a-z]+' <<<"$1" | tail -1 | awk '{print $NF}'
 }
 
+# What gate `warnings` found, by the verdict line scripts/warnings.sh prints for
+# each scope that warned. The line carries the answer stage 2's table gives that
+# scope (.claude/skills/series-loop/SKILL.md), and the kind names the scope.
+warnings_found() { # <log> -> "<kind>|<one line>", empty if the gate found nothing
+  local v="" g=""
+  if grep -q '^-- vendored: not clean\.' <<<"$1"; then
+    v="vendored warning: a patch/ entry on the vendor strand, folded into this commit"
+  fi
+  if grep -q '^-- glue: not clean\.' <<<"$1"; then
+    g="glue warning: fix the glue at origin"
+  fi
+  if [ -n "$v" ]; then
+    echo "vendored-warning|$v${g:+; $g}"
+  elif [ -n "$g" ]; then
+    echo "glue-warning|$g"
+  fi
+  return 0
+}
+
 classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do not repair
-  local log gate rc
+  local log gate rc warned also scope
   log=$(git show "$remote/$rcc:logs2.d/${1:0:2}/$1.log" 2>/dev/null || true)
   [ -z "$log" ] && { echo "unknown|failure, no log harvested yet"; return; }
   # Budget first, and ahead of every log rule: a commit the shard killed never
@@ -264,12 +283,16 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
       "— the gate did not finish, rerunning it buys the same kill"
     return
   fi
+  # Stage 2 answers every tree row a log matches, so a red from gate `warnings`
+  # is never dropped from the line: the four rules ahead of its own carry it.
+  warned=$(warnings_found "$log")
+  also=${warned:+; and ${warned#*|}}
   if grep -qE "Updating snapshots: '" <<<"$log"; then
-    echo "snapshot|snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))"
+    echo "snapshot|snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))$also"
   elif grep -qE "Error \('test-[^']+'\)" <<<"$log"; then
-    echo "test|test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))"
+    echo "test|test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))$also"
   elif grep -q "Changes detected in workflow_dispatch build" <<<"$log"; then
-    echo "style|style/roxygen drift"
+    echo "style|style/roxygen drift$also"
   elif grep -qE '^Error: R CMD check found (ERROR|WARNING|NOTE)' <<<"$log"; then
     # The check gate's own verdict, and it is definite: `--as-cran` named the
     # checks it is unhappy about, so a rerun buys the same answer. Ahead of the
@@ -277,7 +300,21 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
     # snapshot, a test or a style diff says more precisely what to fix.
     echo "check|$(grep -oE 'R CMD check found .*' <<<"$log" | head -1)" \
       "($(grep -E '^❯ checking' <<<"$log" | sed 's/^❯ //; s/ \.\.\..*//' |
-        tr '\n' '\a' | sed 's/\a$//; s/\a/; /g'))"
+        tr '\n' '\a' | sed 's/\a$//; s/\a/; /g'))$also"
+  elif [ -n "$warned" ]; then
+    # Gate `warnings`, with the answer stage 2's table gives the scope that
+    # warned. A tree row, so ahead of the network rule: a listing beside a
+    # refused download is a REPAIR, and a rerun would buy the same listing.
+    echo "$warned"
+  elif grep -q '^warnings: no install log at ' <<<"$log"; then
+    # The gate's two harness rows in stage 2's table. No gate runs unless the
+    # install reached DONE, so neither is the tree's; both are definite, so
+    # ahead of the network rule too.
+    echo "harness|gate warnings found no install log: fix scripts/rcc-one.sh or its job on main, not this commit"
+  elif grep -qE '^-- [a-z]+ does not compile:' <<<"$log"; then
+    scope=$(grep -oE '^-- [a-z]+ does not compile:' <<<"$log" | head -1 | awk '{print $2}')
+    echo "harness|gate warnings could not compile the $scope scope the install built:" \
+      "fix scripts/warnings.sh on main, not this commit"
   elif grep -qE "$net_re" <<<"$log"; then
     gate=$(failed_gate "$log")
     echo "transient|network failure in the ${gate:-unnamed} gate ($(grep -oE "$net_re" <<<"$log" | head -1))"
