@@ -68,6 +68,9 @@ the horizontal pair is the banner `.github/README.md` renders,
 the stacked pair is the package logo the site puts in its header,
 and carrying them on the vendor commit is what keeps either
 from drifting away from the engine it documents.
+The horizontal pair is patched to the package's own versions by
+[`patch/0100-Use-the-updated-horizontal-logos.patch`](/patch/0100-Use-the-updated-horizontal-logos.patch),
+which retires itself once upstream ships them.
 The horizontal pair keeps its upstream name;
 the stacked pair is renamed on the way in,
 because pkgdown finds the package logo by the name
