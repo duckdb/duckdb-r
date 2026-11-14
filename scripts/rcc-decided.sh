@@ -10,12 +10,13 @@
 # tree-only fetch rather than a request per commit.
 #
 # This is what work selection reads: scripts/each-plan.sh to choose what to
-# build, scripts/each-shard.sh to skip what a previous attempt already decided.
-# Both used to read commit statuses instead, which made the record store and the
-# status store two answers to the same question that had to be reconciled --
-# newest-writer rules, a `PENDING_TTL_HOURS` heuristic, and a backstop that
-# derived records *from* statuses. One store needs none of that. Statuses stay,
-# as a display surface on the commit list.
+# build, scripts/each-shard.sh to skip what a previous attempt already decided,
+# and scripts/each-follow-up.sh to tell what a run left undecided.
+# The first two used to read commit statuses instead, which made the record
+# store and the status store two answers to the same question that had to be
+# reconciled -- newest-writer rules, a `PENDING_TTL_HOURS` heuristic, and a
+# backstop that derived records *from* statuses. One store needs none of that.
+# Statuses stay, as a display surface on the commit list.
 #
 # The store keeps `RCC_RETENTION_DAYS` of history, so a commit older than that
 # reports as undecided. Nothing asks: selection is bounded by `<S>-green`, which

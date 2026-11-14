@@ -149,15 +149,17 @@ It fires on push to `each-*`/`*-dev`, on `workflow_dispatch`, and on
 `workflow_call`.
 After a lost leg the branch is left with one `pending` commit and a tail of
 statusless ones, and the run's follow-up replans them, as it replans what a leg deferred
-([below](#the-follow-up-run)).
+([the follow-up run](#the-follow-up-run)).
 Where no follow-up fires, the replanning waits until somebody pushes to that branch or dispatches the workflow.
 
 **The series loop's recovery for a lost commit waits 12 hours.**
 [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) presumes a commit
 still without a verdict after that long lost, and pushes `retry-<S>-dev` at it,
 which replans it on its own SHA and rewrites nothing above it.
-Re-running the failed job, or dispatching `each-rcc` again, needs no wait,
-and costs only the commits that are undecided.
+Dispatching `each-rcc` again needs no wait, and costs only the commits that are undecided.
+Re-running the failed job costs as little,
+but it queues in the branch's concurrency group behind the follow-up the run dispatched, if it dispatched one,
+and that follow-up has usually replanned the lost commit by the time the re-run starts.
 
 ## The follow-up run
 
@@ -169,20 +171,30 @@ and the follow-up plans whatever the store still lacks when it starts.
 It waits as pending in the branch's concurrency group until the run that dispatched it has completed.
 The job runs, and [`each-follow-up.sh`](/scripts/each-follow-up.sh) dispatches, only when all of these hold:
 
-* **The run was not cancelled.**
-  Cancelling is how a landing retires the run of a branch it force-pushes, so the job's `if:` is `!cancelled()`.
+* **The run was not cancelled**, which the job's `if:`, `!cancelled()`, checks.
+  Nothing in the series tooling cancels a run, a landing included,
+  and a force-push does not either, because the group's `cancel-in-progress` is `false`:
+  a cancelled run is one somebody retired by hand, and it stays retired.
   A leg that failed or timed out is not a cancellation, and its undecided commits are followed up.
 * **The branch has not moved** since the plan was made, because a push brings a run of its own.
-* **Commits remain**: a planned commit without a record on `rcc2`, read as the planner reads it, or one deferred past the shard cap.
-* **The run made progress**: fewer planned commits lack a record than when the plan was made.
+  The branch is read after the store, and a dispatch refused because the branch moved meanwhile ends the job without failing it.
+* **Commits remain** that a follow-up can decide:
+  a planned commit without a record on `rcc2`, read as the planner reads it;
+  a commit deferred past the shard cap that still has none;
+  or a `retry-<S>-dev` tip whose record does not name this run.
+* **The run made progress**: fewer of the commits it set out to decide are undecided than when the plan was made.
+  A planned commit that had no record counts as decided once it has one,
+  and one planned despite a record, a forced run's or a retry tip, once its record names this run.
   Every follow-up decides a commit or ends the chain, so a chain is finite.
   A commit that alone outlasts a leg's budget cannot stall one, because the first commit a leg builds is never deferred.
 * **No other run is waiting on the branch.**
   GitHub keeps only the newest pending run of a group,
   so a dispatch would cancel a push's or an operator's run, which plans the same commits anyway.
+  A push in the moment between this check and the dispatch still loses its pending run,
+  but the follow-up that takes its place plans from the new tip.
 
-A follow-up never forces.
-A forced run's deferred commits keep the verdicts they had,
-and a `retry-<S>-dev` tip is not replanned again,
-because the `follow-up-of` input, the dispatching run's id, tells the planner that the run before planned it already.
-A retry tip that a leg deferred therefore keeps its old verdict until `each-rcc` is dispatched on the retry branch by hand.
+A follow-up never forces, so a forced run's commits that a leg deferred keep the verdicts they had.
+A retry tip is forced again only when the run before did not judge it:
+that run sends the commit it planned from, `follow-up-head`, only once the tip's record names it,
+and the planner forces a retry tip that differs from that head, as on any push.
+So a tip a leg deferred is judged by the follow-up, and a tip judged once is not judged twice.

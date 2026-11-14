@@ -77,7 +77,8 @@ Two details make it work in practice:
   and the run's follow-up replans them
   ([`legs/`](/handbook/operations/ci/per-commit/legs/README.md#the-follow-up-run)).
 * **A leg dies hard mid-commit** — that commit has no record,
-  so the next run replans it;
+  and the run's follow-up replans it
+  ([`legs/`](/handbook/operations/ci/per-commit/legs/README.md#the-follow-up-run));
   every commit the leg had already decided is on the `rcc2` branch.
 * **A leg is re-run after dying** — commits it already decided are skipped,
   not rebuilt.
