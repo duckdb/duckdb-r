@@ -22,9 +22,9 @@
 
 #include "src/main/relation/limit_relation.cpp"
 
-#include "src/main/relation/order_relation.cpp"
+#include "src/main/relation/materialized_relation.cpp"
 
-#include "src/main/relation/update_relation.cpp"
+#include "src/main/relation/order_relation.cpp"
 
 #include "src/main/relation/projection_relation.cpp"
 
@@ -42,13 +42,13 @@
 
 #include "src/main/relation/table_relation.cpp"
 
-#include "src/main/relation/value_relation.cpp"
+#include "src/main/relation/update_relation.cpp"
 
-#include "src/main/relation/materialized_relation.cpp"
+#include "src/main/relation/value_relation.cpp"
 
 #include "src/main/relation/view_relation.cpp"
 
-#include "src/main/relation/write_parquet_relation.cpp"
-
 #include "src/main/relation/write_csv_relation.cpp"
+
+#include "src/main/relation/write_parquet_relation.cpp"
 

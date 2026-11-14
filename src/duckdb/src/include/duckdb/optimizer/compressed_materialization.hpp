@@ -16,7 +16,20 @@ namespace duckdb {
 
 class Optimizer;
 class ClientContext;
+class ColumnBindingReplacer;
 class LogicalOperator;
+class Expression;
+class BoundColumnRefExpression;
+class BoundFunctionExpression;
+struct JoinCondition;
+
+enum class CompressedMaterializationType : uint8_t {
+	INVALID = 0,
+	//! Use the opaque internal (de-)compress functions
+	FUNCTION = 1,
+	//! Use down- and upcasts that are transparent to subsequent optimizers
+	CAST = 2
+};
 
 struct CMChildInfo {
 public:
@@ -42,7 +55,7 @@ public:
 
 	//! Type before compressing
 	LogicalType type;
-	bool needs_decompression;
+	CompressedMaterializationType materialization_type;
 	unique_ptr<BaseStatistics> stats;
 };
 
@@ -62,11 +75,13 @@ public:
 
 struct CompressExpression {
 public:
-	CompressExpression(unique_ptr<Expression> expression, unique_ptr<BaseStatistics> stats);
+	CompressExpression(unique_ptr<Expression> expression, unique_ptr<BaseStatistics> stats,
+	                   CompressedMaterializationType materialization_type);
 
 public:
 	unique_ptr<Expression> expression;
 	unique_ptr<BaseStatistics> stats;
+	CompressedMaterializationType materialization_type;
 };
 
 typedef column_binding_map_t<unique_ptr<BaseStatistics>> statistics_map_t;
@@ -75,6 +90,12 @@ typedef column_binding_map_t<unique_ptr<BaseStatistics>> statistics_map_t;
 //! but only if the data enters a materializing operator
 class CompressedMaterialization {
 private:
+	struct VariantJoinKeyInfo {
+		optional_ptr<const Expression> child;
+		LogicalType shredded_type;
+		unique_ptr<BaseStatistics> typed_stats;
+	};
+
 	//! Somewhat defensive constants that try to limit when compressed materialization is triggered for joins
 	//! We only consider compressed materialization for joins when the build cardinality is greater than this
 	static constexpr idx_t JOIN_BUILD_CARDINALITY_THRESHOLD = 1048576;
@@ -84,7 +105,9 @@ private:
 	static constexpr double JOIN_CARDINALITY_RATIO_THRESHOLD = 8;
 
 public:
-	CompressedMaterialization(Optimizer &optimizer, LogicalOperator &root, statistics_map_t &statistics_map);
+	CompressedMaterialization(Optimizer &optimizer, LogicalOperator &root,
+	                          const vector<reference<unique_ptr<LogicalOperator>>> &ancestors,
+	                          statistics_map_t &statistics_map);
 
 	void Compress(unique_ptr<LogicalOperator> &op);
 
@@ -102,8 +125,12 @@ private:
 
 	//! Adds bindings referenced in expression to referenced_bindings
 	static void GetReferencedBindings(const Expression &expression, column_binding_set_t &referenced_bindings);
+	static bool IsVariantWrapperFunction(const BoundFunctionExpression &expr);
+	static optional_ptr<const BoundColumnRefExpression> TryGetVariantWrapperColumnRef(const Expression &expr);
 	//! Updates CMBindingInfo in the binding_map in info
-	void UpdateBindingInfo(CompressedMaterializationInfo &info, const ColumnBinding &binding, bool needs_decompression);
+	void UpdateBindingInfo(CompressedMaterializationInfo &info, const ColumnBinding &binding,
+	                       CompressedMaterializationType materialization_type);
+	optional_ptr<BaseStatistics> GetVariantWrapperStats(const Expression &expr);
 
 	//! Create (de)compress projections around the operator
 	void CreateProjections(unique_ptr<LogicalOperator> &op, CompressedMaterializationInfo &info);
@@ -113,6 +140,10 @@ private:
 	                              vector<unique_ptr<CompressExpression>> compress_exprs,
 	                              CompressedMaterializationInfo &info, CMChildInfo &child_info);
 	void CreateDecompressProjection(unique_ptr<LogicalOperator> &op, CompressedMaterializationInfo &info);
+	//! Rebind references to compressed bindings, which can only occur in the ancestors of the compressed operator
+	void RebindAncestors(ColumnBindingReplacer &replacer);
+	unique_ptr<Expression> CreateRestoreExpression(unique_ptr<Expression> input, const CMBindingInfo &binding_info,
+	                                               const BaseStatistics &stats);
 
 	//! Create expressions that apply a scalar compression function
 	unique_ptr<CompressExpression> GetCompressExpression(const ColumnBinding &binding, const LogicalType &type,
@@ -120,6 +151,14 @@ private:
 	unique_ptr<CompressExpression> GetCompressExpression(unique_ptr<Expression> input, const BaseStatistics &stats);
 	unique_ptr<CompressExpression> GetIntegralCompress(unique_ptr<Expression> input, const BaseStatistics &stats);
 	unique_ptr<CompressExpression> GetStringCompress(unique_ptr<Expression> input, const BaseStatistics &stats);
+	unique_ptr<CompressExpression> GetGeometryCompress(unique_ptr<Expression> input, const BaseStatistics &stats);
+	unique_ptr<CompressExpression> GetVariantCompress(unique_ptr<Expression> input, const BaseStatistics &stats);
+	bool TryGetVariantJoinKeyInfo(const Expression &expr, VariantJoinKeyInfo &result);
+	static unique_ptr<BaseStatistics> CastVariantJoinKeyStats(const VariantJoinKeyInfo &key_info,
+	                                                          const LogicalType &target_type);
+	unique_ptr<Expression> CreateVariantJoinKeyCast(unique_ptr<Expression> input, const LogicalType &shredded_type,
+	                                                const LogicalType &target_type);
+	bool TryCompressVariantComparisonJoinKey(JoinCondition &condition);
 
 	//! Create an expression that applies a scalar decompression function
 	unique_ptr<Expression> GetDecompressExpression(unique_ptr<Expression> input, const LogicalType &result_type,
@@ -128,12 +167,18 @@ private:
 	                                             const BaseStatistics &stats);
 	unique_ptr<Expression> GetStringDecompress(unique_ptr<Expression> input, const LogicalType &result_type,
 	                                           const BaseStatistics &stats);
+	unique_ptr<Expression> GetGeometryDecompress(unique_ptr<Expression> input, const LogicalType &result_type,
+	                                             const BaseStatistics &stats);
+	unique_ptr<Expression> GetVariantDecompress(unique_ptr<Expression> input, const LogicalType &result_type,
+	                                            const BaseStatistics &stats);
 
 private:
 	Optimizer &optimizer;
 	ClientContext &context;
 	//! The root of the query plan
 	optional_ptr<LogicalOperator> root;
+	//! The chain of operators from the root down to the operator being compressed
+	const vector<reference<unique_ptr<LogicalOperator>>> &ancestors;
 	//! The map of ColumnBinding -> statistics for the various nodes
 	statistics_map_t &statistics_map;
 };

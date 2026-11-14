@@ -6,7 +6,11 @@
 #include "duckdb/logging/log_manager.hpp"
 #include "duckdb/logging/logging.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "duckdb/main/config.hpp"
+#include "duckdb/main/settings.hpp"
 #include "duckdb/main/database.hpp"
+#include "duckdb/main/extension_entries.hpp"
+#include "duckdb/main/extension_helper.hpp"
 
 namespace duckdb {
 
@@ -25,38 +29,64 @@ static void EnableLogging(ClientContext &context, TableFunctionInput &data, Data
 
 	DUCKDB_LOG_WARNING(context, "The logging settings have been changed so you may lose warnings printed in the CLI.\n"
 	                            "To continue printing warnings to the console, set storage='shell_log_storage'.\n"
-	                            "For more info see https://duckdb.org/docs/stable/operations_manual/logging/overview.")
+	                            "For more info see https://duckdb.org/docs/current/operations_manual/logging/overview.")
 
 	auto &log_manager = context.db->GetLogManager();
 
-	// Apply the config generated from the input
-	log_manager.SetConfig(*context.db, bind_data.config);
+	// Apply the config generated from the input - restoring the previous config if that fails part-way
+	auto previous_config = log_manager.GetConfig();
+	try {
+		log_manager.SetConfig(*context.db, bind_data.config);
 
-	if (bind_data.log_types_to_set.empty()) {
-		log_manager.SetEnableLogging(true);
-		log_manager.SetLogMode(LogMode::LEVEL_ONLY);
-	} else {
-		log_manager.SetEnableStructuredLoggers(bind_data.log_types_to_set);
-	}
+		if (bind_data.log_types_to_set.empty()) {
+			log_manager.SetEnableLogging(true);
+			log_manager.SetLogMode(LogMode::LEVEL_ONLY);
+		} else {
+			log_manager.SetEnableStructuredLoggers(bind_data.log_types_to_set);
+		}
 
-	if (!bind_data.storage_config.empty()) {
-		log_manager.UpdateLogStorageConfig(*context.db, bind_data.storage_config);
+		if (!bind_data.storage_config.empty()) {
+			log_manager.UpdateLogStorageConfig(*context.db, bind_data.storage_config);
+		}
+	} catch (...) {
+		log_manager.SetConfig(*context.db, previous_config);
+		throw;
 	}
 }
 
+//! Log types are registered by extensions when they are loaded, so an unknown type may just belong to an extension
+//! that is not loaded yet
+static void TryAutoloadLogTypeExtension(ClientContext &context, const string &log_type) {
+	auto &db = *context.db;
+	if (db.GetLogManager().LookupLogType(log_type)) {
+		return;
+	}
+	ExtensionHelper::TryAutoloadFromEntry(db, Identifier(log_type), EXTENSION_LOG_TYPES);
+}
+
 static unique_ptr<FunctionData> BindEnableLogging(ClientContext &context, TableFunctionBindInput &input,
-                                                  vector<LogicalType> &return_types, vector<string> &names) {
+                                                  vector<LogicalType> &return_types, vector<Identifier> &names) {
 	if (input.inputs.size() > 1) {
 		throw InvalidInputException("EnableLogging: expected 0 or 1 parameter");
 	}
+
+	auto &config = DBConfig::GetConfig(context);
+	config.CheckLock(EnableLogging::Name);
+	config.CheckLock(EnabledLogTypes::Name);
+	config.CheckLock(LoggingLevel::Name);
+	config.CheckLock(LoggingMode::Name);
+	config.CheckLock(LoggingStorage::Name);
 
 	auto result = make_uniq<EnableLoggingBindData>();
 
 	bool storage_isset = false;
 
 	for (const auto &param : input.named_parameters) {
-		auto key = StringUtil::Lower(param.first);
+		auto &key = param.first;
 		if (key == "level") {
+			if (param.second.IsNull()) {
+				throw InvalidInputException("EnableLogging: level cannot be NULL");
+			}
 			result->config.level = EnumUtil::FromString<LogLevel>(param.second.ToString());
 		} else if (key == "storage") {
 			storage_isset = true;
@@ -67,7 +97,8 @@ static unique_ptr<FunctionData> BindEnableLogging(ClientContext &context, TableF
 			}
 			auto &children = StructValue::GetChildren(param.second);
 			for (idx_t i = 0; i < children.size(); i++) {
-				result->storage_config[StructType::GetChildName(param.second.type(), i)] = children[i];
+				result->storage_config[StructType::GetChildName(param.second.type(), i).GetIdentifierName()] =
+				    children[i];
 			}
 		} else if (key == "storage_path") {
 			result->storage_config["path"] = param.second;
@@ -122,6 +153,14 @@ static unique_ptr<FunctionData> BindEnableLogging(ClientContext &context, TableF
 		}
 	}
 
+	for (const auto &log_type : result->log_types_to_set) {
+		TryAutoloadLogTypeExtension(context, log_type);
+		// verify the log types before changing any of the logging settings
+		if (!context.db->GetLogManager().LookupLogType(log_type)) {
+			throw InvalidInputException("Unknown log type: '%s'", log_type);
+		}
+	}
+
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
 
@@ -139,7 +178,8 @@ static void TruncateLogs(ClientContext &context, TableFunctionInput &data, DataC
 }
 
 static unique_ptr<FunctionData> BindDisableLogging(ClientContext &context, TableFunctionBindInput &input,
-                                                   vector<LogicalType> &return_types, vector<string> &names) {
+                                                   vector<LogicalType> &return_types, vector<Identifier> &names) {
+	DBConfig::GetConfig(context).CheckLock(EnableLogging::Name);
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
 
@@ -147,7 +187,7 @@ static unique_ptr<FunctionData> BindDisableLogging(ClientContext &context, Table
 }
 
 static unique_ptr<FunctionData> BindTruncateLogs(ClientContext &context, TableFunctionBindInput &input,
-                                                 vector<LogicalType> &return_types, vector<string> &names) {
+                                                 vector<LogicalType> &return_types, vector<Identifier> &names) {
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
 
@@ -157,17 +197,18 @@ static unique_ptr<FunctionData> BindTruncateLogs(ClientContext &context, TableFu
 void EnableLoggingFun::RegisterFunction(BuiltinFunctions &set) {
 	auto enable_fun = TableFunction("enable_logging", {}, EnableLogging, BindEnableLogging, nullptr, nullptr);
 
-	// Base config
-	enable_fun.named_parameters.emplace("level", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("storage", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("storage_config", LogicalType::ANY);
+	enable_fun.GetSignature()
+	    .AddArgs("args", LogicalType::ANY)
+	    .AddKeywordOnly("level", LogicalType::VARCHAR, Value("INFO"))
+	    .WithTypedKwargs("options", [](TypedKwargs &options) {
+		    options.Add("storage", LogicalType::VARCHAR)
+		        .Add("storage_config", LogicalType::ANY)
+		        // forwarded to the storage_config struct as syntactic sugar
+		        .Add("storage_path", LogicalType::VARCHAR)
+		        .Add("storage_normalize", LogicalType::BOOLEAN)
+		        .Add("storage_buffer_size", LogicalType::UBIGINT);
+	    });
 
-	// Config that is forwarded to the storage_config struct as syntactic sugar
-	enable_fun.named_parameters.emplace("storage_path", LogicalType::VARCHAR);
-	enable_fun.named_parameters.emplace("storage_normalize", LogicalType::BOOLEAN);
-	enable_fun.named_parameters.emplace("storage_buffer_size", LogicalType::UBIGINT);
-
-	enable_fun.varargs = LogicalType::ANY;
 	set.AddFunction(enable_fun);
 
 	auto disable_fun = TableFunction("disable_logging", {}, DisableLogging, BindDisableLogging, nullptr, nullptr);

@@ -1306,7 +1306,8 @@ private:
 	template<AllocationMode canAlloc, typename U>
 	inline bool inner_enqueue(producer_token_t const& token, U&& element)
 	{
-		return static_cast<ExplicitProducer*>(token.producer)->ConcurrentQueue::ExplicitProducer::template enqueue<canAlloc>(std::forward<U>(element));
+		auto producer = static_cast<ExplicitProducer*>(token.producer);
+		return producer == nullptr ? false : producer->ConcurrentQueue::ExplicitProducer::template enqueue<canAlloc>(std::forward<U>(element));
 	}
 	
 	template<AllocationMode canAlloc, typename U>
@@ -1319,7 +1320,8 @@ private:
 	template<AllocationMode canAlloc, typename It>
 	inline bool inner_enqueue_bulk(producer_token_t const& token, It itemFirst, size_t count)
 	{
-		return static_cast<ExplicitProducer*>(token.producer)->ConcurrentQueue::ExplicitProducer::template enqueue_bulk<canAlloc>(itemFirst, count);
+		auto producer = static_cast<ExplicitProducer*>(token.producer);
+		return producer == nullptr ? false : producer->ConcurrentQueue::ExplicitProducer::template enqueue_bulk<canAlloc>(itemFirst, count);
 	}
 	
 	template<AllocationMode canAlloc, typename It>

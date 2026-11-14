@@ -1,6 +1,10 @@
+#include "src/planner/binder/statement/bind_alter.cpp"
+
 #include "src/planner/binder/statement/bind_attach.cpp"
 
 #include "src/planner/binder/statement/bind_call.cpp"
+
+#include "src/planner/binder/statement/bind_connect.cpp"
 
 #include "src/planner/binder/statement/bind_copy.cpp"
 
@@ -24,6 +28,8 @@
 
 #include "src/planner/binder/statement/bind_extension.cpp"
 
+#include "src/planner/binder/statement/bind_external_resource.cpp"
+
 #include "src/planner/binder/statement/bind_insert.cpp"
 
 #include "src/planner/binder/statement/bind_load.cpp"
@@ -42,9 +48,9 @@
 
 #include "src/planner/binder/statement/bind_set.cpp"
 
-#include "src/planner/binder/statement/bind_simple.cpp"
-
 #include "src/planner/binder/statement/bind_summarize.cpp"
+
+#include "src/planner/binder/statement/bind_transaction.cpp"
 
 #include "src/planner/binder/statement/bind_update.cpp"
 

@@ -1,9 +1,12 @@
+#include "duckdb/execution/ie_join_union.hpp"
 #include "duckdb/execution/operator/join/physical_iejoin.hpp"
 
 #include "duckdb/common/atomic.hpp"
+#include "duckdb/common/mutex.hpp"
 #include "duckdb/common/bit_utils.hpp"
 #include "duckdb/common/row_operations/row_operations.hpp"
 #include "duckdb/common/sorting/sort_key.hpp"
+#include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/parallel/event.hpp"
 #include "duckdb/parallel/meta_pipeline.hpp"
@@ -12,6 +15,9 @@
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 
 #include <utility>
+#include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/common/types/column/column_data_scan_states.hpp"
+#include "duckdb/storage/buffer_manager.hpp"
 
 namespace duckdb {
 
@@ -24,19 +30,19 @@ PhysicalIEJoin::PhysicalIEJoin(PhysicalPlan &physical_plan, LogicalComparisonJoi
 	D_ASSERT(conditions.size() >= 2);
 	for (idx_t i = 0; i < 2; ++i) {
 		auto &cond = conditions[i];
-		D_ASSERT(cond.left->return_type == cond.right->return_type);
-		join_key_types.push_back(cond.left->return_type);
+		D_ASSERT(cond.GetLHS().GetReturnType() == cond.GetRHS().GetReturnType());
+		join_key_types.push_back(cond.GetLHS().GetReturnType());
 
 		// Convert the conditions to sort orders
-		auto left = cond.left->Copy();
-		auto right = cond.right->Copy();
+		auto left = cond.GetLHS().Copy();
+		auto right = cond.GetRHS().Copy();
 		auto sense = OrderType::INVALID;
 
 		// 2. if (op1 ∈ {>, ≥}) sort L1 in descending order
 		// 3. else if (op1 ∈ {<, ≤}) sort L1 in ascending order
 		// 4. if (op2 ∈ {>, ≥}) sort L2 in ascending order
 		// 5. else if (op2 ∈ {<, ≤}) sort L2 in descending order
-		switch (cond.comparison) {
+		switch (cond.GetComparisonType()) {
 		case ExpressionType::COMPARE_GREATERTHAN:
 		case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
 			sense = i ? OrderType::ASCENDING : OrderType::DESCENDING;
@@ -54,8 +60,8 @@ PhysicalIEJoin::PhysicalIEJoin(PhysicalPlan &physical_plan, LogicalComparisonJoi
 
 	for (idx_t i = 2; i < conditions.size(); ++i) {
 		auto &cond = conditions[i];
-		D_ASSERT(cond.left->return_type == cond.right->return_type);
-		join_key_types.push_back(cond.left->return_type);
+		D_ASSERT(cond.GetLHS().GetReturnType() == cond.GetRHS().GetReturnType());
+		join_key_types.push_back(cond.GetLHS().GetReturnType());
 	}
 }
 
@@ -191,13 +197,13 @@ SinkFinalizeType PhysicalIEJoin::Finalize(Pipeline &pipeline, Event &event, Clie
                                           OperatorSinkFinalizeInput &input) const {
 	auto &gstate = input.global_state.Cast<IEJoinGlobalState>();
 	if (filter_pushdown && !gstate.skip_filter_pushdown && gstate.child == 1) {
-		(void)filter_pushdown->Finalize(client, nullptr, *gstate.global_filter_state, *this);
+		(void)filter_pushdown->Finalize(client, *gstate.global_filter_state, *this);
 	}
 	auto &table = *gstate.tables[gstate.child];
 
 	if ((gstate.child == 1 && PropagatesBuildSide(join_type)) || (gstate.child == 0 && IsLeftOuterJoin(join_type))) {
 		// for FULL/LEFT/RIGHT OUTER JOIN, initialize found_match to false for every tuple
-		table.IntializeMatches();
+		table.InitializeMatches();
 	}
 
 	SinkFinalizeType res;
@@ -229,18 +235,19 @@ OperatorResultType PhysicalIEJoin::ExecuteInternal(ExecutionContext &context, Da
 // Source
 //===--------------------------------------------------------------------===//
 enum class IEJoinSourceStage : uint8_t {
-	INIT,
-	SINK_L1,
-	FINALIZE_L1,
-	MATERIALIZE_L1,
-	EXTRACT_LI,
-	SINK_L2,
-	FINALIZE_L2,
-	MATERIALIZE_L2,
-	EXTRACT_P,
-	INNER,
-	OUTER,
-	DONE
+	INIT = 0,
+	SINK_L1 = 1,
+	FINALIZE_L1 = 2,
+	MATERIALIZE_L1 = 3,
+	EXTRACT_LI = 4,
+	SINK_L2 = 5,
+	FINALIZE_L2 = 6,
+	MATERIALIZE_L2 = 7,
+	EXTRACT_P = 8,
+	INNER = 9,
+	OUTER = 10,
+	ANTI = 11,
+	DONE = 12
 };
 
 struct IEJoinSourceTask {
@@ -314,9 +321,9 @@ public:
 	//! The processing stage
 	atomic<IEJoinSourceStage> stage;
 	//! The the number of tasks per stage.
-	vector<idx_t> stage_tasks;
-	//! The the first task in the stage.
-	vector<idx_t> stage_begin;
+	array<idx_t, static_cast<uint8_t>(IEJoinSourceStage::DONE) + 1> stage_tasks;
+	//! The the first task in the stage, all values are initialized to 0.
+	array<idx_t, static_cast<uint8_t>(IEJoinSourceStage::DONE) + 1> stage_begin = {};
 	//! The next task to process
 	idx_t next_task = 0;
 	//! The total number of tasks
@@ -328,16 +335,18 @@ public:
 	//! Stop producing tasks
 	atomic<bool> stopped;
 	//! The number of completed tasks for each stage
-	array<atomic<idx_t>, static_cast<size_t>(IEJoinSourceStage::DONE)> completed;
+	array<atomic<idx_t>, static_cast<size_t>(IEJoinSourceStage::DONE) + 1> completed;
+	//! The progress of the tasks
+	TaskProgress task_progress;
 
 	//! L1
 	unique_ptr<SortedTable> l1;
 	//! L2
 	unique_ptr<SortedTable> l2;
 	//! Li
-	unsafe_vector<int64_t> li;
+	unique_ptr<ColumnDataCollection> li;
 	//! P
-	unsafe_vector<idx_t> p;
+	unique_ptr<ColumnDataCollection> p;
 
 	// Join queue state
 	idx_t l2_blocks = 0;
@@ -355,436 +364,6 @@ protected:
 	bool TryNextTask(Task &task);
 };
 
-struct IEJoinUnion {
-	using SortedTable = PhysicalRangeJoin::GlobalSortedTable;
-	using ChunkRange = std::pair<idx_t, idx_t>;
-
-	//	Comparison utilities
-	static bool IsStrictComparison(ExpressionType comparison) {
-		switch (comparison) {
-		case ExpressionType::COMPARE_LESSTHAN:
-		case ExpressionType::COMPARE_GREATERTHAN:
-			return true;
-		case ExpressionType::COMPARE_LESSTHANOREQUALTO:
-		case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
-			return false;
-		default:
-			throw InternalException("Unimplemented comparison type for IEJoin!");
-		}
-	}
-
-	template <typename T>
-	static inline bool Compare(const T &lhs, const T &rhs, const bool strict) {
-		const bool less_than = lhs < rhs;
-		if (!less_than && !strict) {
-			return !(rhs < lhs);
-		}
-		return less_than;
-	}
-
-	static idx_t AppendKey(ExecutionContext &context, InterruptState &interrupt, SortedTable &table,
-	                       ExpressionExecutor &executor, SortedTable &marked, int64_t increment, int64_t rid,
-	                       const ChunkRange &range);
-
-	template <typename T, typename VECTOR_TYPE = T>
-	static void ExtractColumn(SortedTable &table, idx_t col_idx, unsafe_vector<T> &result) {
-		result.clear();
-		result.reserve(table.count);
-
-		auto &collection = *table.sorted->payload_data;
-		vector<column_t> scan_ids(1, col_idx);
-		TupleDataScanState state;
-		collection.InitializeScan(state, scan_ids);
-
-		DataChunk payload;
-		collection.InitializeScanChunk(state, payload);
-
-		while (collection.Scan(state, payload)) {
-			const auto count = payload.size();
-			const auto data_ptr = reinterpret_cast<T *>(FlatVector::GetData<VECTOR_TYPE>(payload.data[0]));
-			result.insert(result.end(), data_ptr, data_ptr + count);
-		}
-	}
-
-	class UnionIterator {
-	public:
-		UnionIterator(SortedTable &table, bool strict) : state(table.CreateIteratorState()), strict(strict) {
-		}
-
-		inline idx_t GetIndex() const {
-			return index;
-		}
-
-		inline void SetIndex(idx_t i) {
-			index = i;
-		}
-
-		inline idx_t GetChunkIndex() const {
-			idx_t chunk_idx;
-			idx_t tuple_idx;
-			state->RandomAccess(chunk_idx, tuple_idx, index);
-			return chunk_idx;
-		}
-
-		inline void SetChunkIndex(idx_t chunk_idx) {
-			index = state->GetDivisor() * chunk_idx;
-		}
-
-		UnionIterator &operator++() {
-			++index;
-			return *this;
-		}
-
-		void Repin() {
-			state->SetKeepPinned(true);
-			state->SetPinPayload(true);
-		}
-
-		unique_ptr<ExternalBlockIteratorState> state;
-		idx_t index = 0;
-		const bool strict;
-	};
-
-	IEJoinUnion(IEJoinGlobalSourceState &gsource, const ChunkRange &chunks);
-
-	idx_t SearchL1(idx_t pos);
-
-	template <SortKeyType SORT_KEY_TYPE>
-	bool NextRow();
-
-	using next_row_t = bool (duckdb::IEJoinUnion::*)();
-	next_row_t next_row_func;
-
-	//! Constructor arguments
-	IEJoinGlobalSourceState &gsource;
-
-	//! Inverted loop
-	idx_t JoinComplexBlocks(unsafe_vector<idx_t> &lsel, unsafe_vector<idx_t> &rsel);
-
-	//! B
-	vector<validity_t> bit_array;
-	ValidityMask bit_mask;
-	//! Bloom Filter
-	static constexpr idx_t BLOOM_CHUNK_BITS = 1024;
-	idx_t bloom_count;
-	vector<validity_t> bloom_array;
-	ValidityMask bloom_filter;
-
-	//! Iteration state
-	idx_t n;
-	idx_t i;
-	idx_t n_j;
-	idx_t j;
-	unique_ptr<UnionIterator> op2;
-	unique_ptr<UnionIterator> off2;
-	int64_t lrid;
-};
-
-idx_t IEJoinUnion::AppendKey(ExecutionContext &context, InterruptState &interrupt, SortedTable &table,
-                             ExpressionExecutor &executor, SortedTable &marked, int64_t increment, int64_t rid,
-                             const ChunkRange &chunk_range) {
-	const auto chunk_begin = chunk_range.first;
-	const auto chunk_end = chunk_range.second;
-
-	if (chunk_begin == chunk_end) {
-		return 0;
-	}
-
-	// Reading
-	const auto valid = table.count - table.has_null;
-	auto &source = *table.sorted->payload_data;
-	TupleDataScanState scanner;
-	source.InitializeScan(scanner);
-
-	DataChunk scanned;
-	source.InitializeScanChunk(scanner, scanned);
-	idx_t table_idx = source.Seek(scanner, chunk_begin);
-
-	// Writing
-	auto &sort = *marked.sort;
-	auto local_sort_state = sort.GetLocalSinkState(context);
-	vector<LogicalType> types;
-	for (const auto &expr : executor.expressions) {
-		types.emplace_back(expr->return_type);
-	}
-	const idx_t rid_idx = types.size();
-	types.emplace_back(LogicalType::BIGINT);
-
-	DataChunk keys;
-	DataChunk payload;
-	keys.Initialize(Allocator::DefaultAllocator(), types);
-
-	OperatorSinkInput sink {*marked.global_sink, *local_sort_state, interrupt};
-	idx_t inserted = 0;
-	for (auto chunk_idx = chunk_begin; chunk_idx < chunk_end; ++chunk_idx) {
-		source.Scan(scanner, scanned);
-
-		// NULLs are at the end, so stop when we reach them
-		auto scan_count = scanned.size();
-		if (table_idx + scan_count > valid) {
-			if (table_idx >= valid) {
-				scan_count = 0;
-				;
-			} else {
-				scan_count = valid - table_idx;
-				scanned.SetCardinality(scan_count);
-			}
-		}
-		if (scan_count == 0) {
-			break;
-		}
-		table_idx += scan_count;
-
-		// Compute the input columns from the payload
-		keys.Reset();
-		keys.Split(payload, rid_idx);
-		executor.Execute(scanned, keys);
-
-		// Mark the rid column
-		payload.data[0].Sequence(rid, increment, scan_count);
-		payload.SetCardinality(scan_count);
-		keys.Fuse(payload);
-		rid += increment * UnsafeNumericCast<int64_t>(scan_count);
-
-		// Sort on the sort columns (which will no longer be needed)
-		sort.Sink(context, keys, sink);
-		inserted += scan_count;
-	}
-	OperatorSinkCombineInput combine {*marked.global_sink, *local_sort_state, interrupt};
-	sort.Combine(context, combine);
-	marked.count += inserted;
-
-	return inserted;
-}
-
-IEJoinUnion::IEJoinUnion(IEJoinGlobalSourceState &gsource, const ChunkRange &chunks) : gsource(gsource), n(0), i(0) {
-	auto &op = gsource.op;
-
-	// 7. initialize bit-array B (|B| = n), and set all bits to 0
-	auto &l2 = *gsource.l2;
-	n_j = l2.count.load();
-	bit_array.resize(ValidityMask::EntryCount(n_j), 0);
-	bit_mask.Initialize(bit_array.data(), n_j);
-
-	// Bloom filter
-	bloom_count = (n_j + (BLOOM_CHUNK_BITS - 1)) / BLOOM_CHUNK_BITS;
-	bloom_array.resize(ValidityMask::EntryCount(bloom_count), 0);
-	bloom_filter.Initialize(bloom_array.data(), bloom_count);
-
-	// 11. for(i←1 to n) do
-	const auto strict2 = IsStrictComparison(op.conditions[1].comparison);
-	op2 = make_uniq<UnionIterator>(l2, strict2);
-	off2 = make_uniq<UnionIterator>(l2, strict2);
-	n = l2.BlockStart(chunks.second);
-	i = l2.BlockStart(chunks.first);
-	j = i;
-
-	const auto sort_key_type = l2.GetSortKeyType();
-	switch (sort_key_type) {
-	case SortKeyType::NO_PAYLOAD_FIXED_8:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::NO_PAYLOAD_FIXED_8>;
-		break;
-	case SortKeyType::NO_PAYLOAD_FIXED_16:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::NO_PAYLOAD_FIXED_16>;
-		break;
-	case SortKeyType::NO_PAYLOAD_FIXED_24:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::NO_PAYLOAD_FIXED_24>;
-		break;
-	case SortKeyType::NO_PAYLOAD_FIXED_32:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::NO_PAYLOAD_FIXED_32>;
-		break;
-	case SortKeyType::NO_PAYLOAD_VARIABLE_32:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::NO_PAYLOAD_VARIABLE_32>;
-		break;
-	case SortKeyType::PAYLOAD_FIXED_16:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::PAYLOAD_FIXED_16>;
-		break;
-	case SortKeyType::PAYLOAD_FIXED_24:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::PAYLOAD_FIXED_24>;
-		break;
-	case SortKeyType::PAYLOAD_FIXED_32:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::PAYLOAD_FIXED_32>;
-		break;
-	case SortKeyType::PAYLOAD_VARIABLE_32:
-		next_row_func = &IEJoinUnion::NextRow<SortKeyType::PAYLOAD_VARIABLE_32>;
-		break;
-	default:
-		throw NotImplementedException("IEJoinUnion for %s", EnumUtil::ToString(sort_key_type));
-	}
-
-	(this->*next_row_func)();
-}
-
-template <SortKeyType SORT_KEY_TYPE>
-bool IEJoinUnion::NextRow() {
-	using SORT_KEY = SortKey<SORT_KEY_TYPE>;
-	using BLOCKS_ITERATOR = block_iterator_t<ExternalBlockIteratorState, SORT_KEY>;
-
-	BLOCKS_ITERATOR off2_itr(*off2->state);
-	BLOCKS_ITERATOR op2_itr(*op2->state);
-	const auto strict = off2->strict;
-
-	auto &li = gsource.li;
-	auto &p = gsource.p;
-
-	auto pinned_idx = off2->GetChunkIndex();
-	for (; i < n; ++i) {
-		// 12. pos ← P[i]
-		auto pos = p[i];
-		lrid = li[pos];
-		if (lrid < 0) {
-			continue;
-		}
-
-		// 16. B[pos] ← 1
-		op2->SetIndex(i);
-		for (; off2->GetIndex() < n_j; ++(*off2)) {
-			//	Prevent buildup of pinned blocks
-			if (off2->GetChunkIndex() != pinned_idx) {
-				off2->Repin();
-				pinned_idx = off2->GetChunkIndex();
-			}
-			if (!Compare(off2_itr[off2->GetIndex()], op2_itr[op2->GetIndex()], strict)) {
-				break;
-			}
-			const auto p2 = p[off2->GetIndex()];
-			if (li[p2] < 0) {
-				// Only mark rhs matches.
-				bit_mask.SetValidUnsafe(p2);
-				bloom_filter.SetValidUnsafe(p2 / BLOOM_CHUNK_BITS);
-			}
-		}
-
-		// 9.  if (op1 ∈ {≤,≥} and op2 ∈ {≤,≥}) eqOff = 0
-		// 10. else eqOff = 1
-		// No, because there could be more than one equal value.
-		// Find the leftmost off1 where L1[pos] op1 L1[off1..n]
-		// These are the rows that satisfy the op1 condition
-		// and that is where we should start scanning B from
-		j = pos;
-
-		return true;
-	}
-	return false;
-}
-
-static idx_t NextValid(const ValidityMask &bits, idx_t j, const idx_t n) {
-	if (j >= n) {
-		return n;
-	}
-
-	// We can do a first approximation by checking entries one at a time
-	// which gives 64:1.
-	idx_t entry_idx, idx_in_entry;
-	bits.GetEntryIndex(j, entry_idx, idx_in_entry);
-
-	// Copy first entry to local and trim the bits before the start position
-	auto first_entry = bits.GetValidityEntryUnsafe(entry_idx++);
-	first_entry &= (ValidityMask::ValidityBuffer::MAX_ENTRY << idx_in_entry);
-
-	// If the first entry has a valid bit, we can return immediately
-	if (first_entry) {
-		return j + CountZeros<validity_t>::Trailing(first_entry) - idx_in_entry;
-	}
-
-	// The first entry did not have a valid bit
-	j += ValidityMask::BITS_PER_VALUE - idx_in_entry;
-
-	// Loop over non-ragged entries
-	const auto entry_count_minus_one = bits.EntryCount(n) - 1;
-	const auto entry_idx_before = entry_idx;
-
-	// The compiler has a hard time optimizing this loop for some reason
-	// Creating a static inner loop like this improves performance by almost 2x
-	static constexpr idx_t NEXT_VALID_UNROLL = 8;
-	for (; entry_idx + NEXT_VALID_UNROLL < entry_count_minus_one; entry_idx += NEXT_VALID_UNROLL) {
-		for (idx_t unroll_idx = 0; unroll_idx < NEXT_VALID_UNROLL; unroll_idx++) {
-			const auto unroll_entry_idx = entry_idx + unroll_idx;
-			const auto &entry = bits.GetValidityEntryUnsafe(unroll_entry_idx);
-			if (entry) {
-				return j + (unroll_entry_idx - entry_idx_before) * ValidityMask::BITS_PER_VALUE +
-				       CountZeros<validity_t>::Trailing(entry);
-			}
-		}
-	}
-
-	for (; entry_idx < entry_count_minus_one; ++entry_idx) {
-		const auto &entry = bits.GetValidityEntryUnsafe(entry_idx);
-		if (entry) {
-			return j + (entry_idx - entry_idx_before) * ValidityMask::BITS_PER_VALUE +
-			       CountZeros<validity_t>::Trailing(entry);
-		}
-	}
-
-	// Update j once after the loop so we don't have to update it in each iteration
-	j += (entry_idx - entry_idx_before) * ValidityMask::BITS_PER_VALUE;
-
-	// Check the final entry
-	return j >= n ? n : j + CountZeros<validity_t>::Trailing(bits.GetValidityEntryUnsafe(entry_idx));
-}
-
-idx_t IEJoinUnion::JoinComplexBlocks(unsafe_vector<idx_t> &lsel, unsafe_vector<idx_t> &rsel) {
-	const auto &li = gsource.li;
-
-	// Release pinned blocks
-	op2->Repin();
-	off2->Repin();
-
-	// 8. initialize join result as an empty list for tuple pairs
-	idx_t result_count = 0;
-
-	lsel.resize(STANDARD_VECTOR_SIZE);
-	rsel.resize(STANDARD_VECTOR_SIZE);
-
-	// 11. for(i←1 to n) do
-	while (i < n) {
-		// 13. for (j ← pos+eqOff to n) do
-		for (;;) {
-			// 14. if B[j] = 1 then
-
-			//	Use the Bloom filter to find candidate blocks
-			while (j < n_j) {
-				auto bloom_begin = NextValid(bloom_filter, j / BLOOM_CHUNK_BITS, bloom_count) * BLOOM_CHUNK_BITS;
-				auto bloom_end = MinValue<idx_t>(n_j, bloom_begin + BLOOM_CHUNK_BITS);
-
-				j = MaxValue<idx_t>(j, bloom_begin);
-				j = NextValid(bit_mask, j, bloom_end);
-				if (j < bloom_end) {
-					break;
-				}
-			}
-
-			if (j >= n_j) {
-				break;
-			}
-
-			// Filter out tuples with the same sign (they come from the same table)
-			const auto rrid = li[j];
-			++j;
-
-			D_ASSERT(lrid > 0 && rrid < 0);
-			// 15. add tuples w.r.t. (L1[j], L1[i]) to join result
-			lsel[result_count] = static_cast<idx_t>(+lrid - 1);
-			rsel[result_count] = static_cast<idx_t>(-rrid - 1);
-			++result_count;
-			if (result_count == STANDARD_VECTOR_SIZE) {
-				// out of space!
-				return result_count;
-			}
-		}
-		++i;
-
-		if (!(this->*next_row_func)()) {
-			break;
-		}
-	}
-
-	lsel.resize(result_count);
-	rsel.resize(result_count);
-
-	return result_count;
-}
-
 IEJoinGlobalSourceState::IEJoinGlobalSourceState(const PhysicalIEJoin &op, ClientContext &client,
                                                  IEJoinGlobalState &gsink)
     : op(op), gsink(gsink), stage(IEJoinSourceStage::INIT), started(0), finished(0), stopped(false) {
@@ -801,65 +380,7 @@ IEJoinGlobalSourceState::IEJoinGlobalSourceState(const PhysicalIEJoin &op, Clien
 		right_outers = right_blocks;
 	}
 
-	// input : query Q with 2 join predicates t1.X op1 t2.X' and t1.Y op2 t2.Y', tables T, T' of sizes m and n resp.
-	// output: a list of tuple pairs (ti , tj)
-	// Note that T/T' are already sorted on X/X' and contain the payload data
-	// We only join the two block numbers and use the sizes of the blocks as the counts
-
-	// 1. let L1 (resp. L2) be the array of column X (resp. Y )
-	const auto &order1 = op.lhs_orders[0];
-	const auto &order2 = op.lhs_orders[1];
-
-	// 2. if (op1 ∈ {>, ≥}) sort L1 in descending order
-	// 3. else if (op1 ∈ {<, ≤}) sort L1 in ascending order
-
-	// For the union algorithm, we make a unified table with the keys and the rids as the payload:
-	//		X/X', Y/Y', R/R'/Li
-	// The first position is the sort key.
-	vector<LogicalType> types;
-	types.emplace_back(order2.expression->return_type);
-	types.emplace_back(LogicalType::BIGINT);
-
-	// Sort on the first expression
-	auto ref = make_uniq<BoundReferenceExpression>(order1.expression->return_type, 0U);
-	vector<BoundOrderByNode> orders;
-	orders.emplace_back(order1.type, order1.null_order, std::move(ref));
-	// The goal is to make i (from the left table) < j (from the right table),
-	// if value[i] and value[j] match the condition 1.
-	// Add a column from_left to solve the problem when there exist multiple equal values in l1.
-	// If the operator is loose inequality, make t1.from_left (== true) sort BEFORE t2.from_left (== false).
-	// Otherwise, make t1.from_left sort (== true) sort AFTER t2.from_left (== false).
-	// For example, if t1.time <= t2.time
-	// | value     | 1     | 1     | 1     | 1     |
-	// | --------- | ----- | ----- | ----- | ----- |
-	// | from_left | T(l2) | T(l2) | F(r1) | F(r2) |
-	// if t1.time < t2.time
-	// | value     | 1     | 1     | 1     | 1     |
-	// | --------- | ----- | ----- | ----- | ----- |
-	// | from_left | F(r2) | F(r1) | T(l2) | T(l1) |
-	// Using this OrderType, if i < j then value[i] (from left table) and value[j] (from right table) match
-	// the condition (t1.time <= t2.time or t1.time < t2.time), then from_left will force them into the correct order.
-	auto from_left = make_uniq<BoundConstantExpression>(Value::BOOLEAN(true));
-	const auto strict1 = IEJoinUnion::IsStrictComparison(op.conditions[0].comparison);
-	orders.emplace_back(!strict1 ? OrderType::DESCENDING : OrderType::ASCENDING, OrderByNullType::ORDER_DEFAULT,
-	                    std::move(from_left));
-
-	l1 = make_uniq<SortedTable>(client, orders, types, op);
-
-	// 4. if (op2 ∈ {>, ≥}) sort L2 in ascending order
-	// 5. else if (op2 ∈ {<, ≤}) sort L2 in descending order
-
-	// We sort on Y/Y' to obtain the sort keys and the permutation array.
-	// For this we just need a two-column table of Y, P
-	types.clear();
-	types.emplace_back(LogicalType::BIGINT);
-
-	// Sort on the first expression
-	orders.clear();
-	ref = make_uniq<BoundReferenceExpression>(order2.expression->return_type, 0U);
-	orders.emplace_back(order2.type, order2.null_order, std::move(ref));
-
-	l2 = make_uniq<SortedTable>(client, orders, types, op);
+	IEJoinUnion::InitializeTables(client, op, op.conditions, l1, l2);
 
 	//	The number of blocks in L2 is not quite the sum of the blocks in the two tables...
 	const auto join_count = left_table.count.load() + right_table.count.load();
@@ -867,7 +388,7 @@ IEJoinGlobalSourceState::IEJoinGlobalSourceState(const PhysicalIEJoin &op, Clien
 
 	//	Schedule the largest group on as many threads as possible
 	auto &ts = TaskScheduler::GetScheduler(client);
-	const auto threads = NumericCast<idx_t>(ts.NumberOfThreads());
+	const auto threads = ts.NumberOfThreads();
 	per_thread = BinValue<idx_t>(l2_blocks, threads);
 
 	Initialize();
@@ -877,7 +398,7 @@ void IEJoinGlobalSourceState::ExecuteLiTask(ClientContext &client) {
 	// We don't actually need the L1 column, just its sort key, which is in the sort blocks
 	l1->GetSortedRun(client);
 
-	IEJoinUnion::ExtractColumn<int64_t>(*l1, 1, li);
+	li = IEJoinUnion::ExtractColumn(*l1, 1, BufferManager::GetBufferManager(client));
 }
 
 void IEJoinGlobalSourceState::ExecutePermutationTask(ClientContext &client) {
@@ -885,7 +406,7 @@ void IEJoinGlobalSourceState::ExecutePermutationTask(ClientContext &client) {
 	l2->GetSortedRun(client);
 
 	// 6. compute the permutation array P of L2 w.r.t. L1
-	IEJoinUnion::ExtractColumn<idx_t, int64_t>(*l2, 0, p);
+	p = IEJoinUnion::ExtractColumn(*l2, 0, BufferManager::GetBufferManager(client));
 }
 
 class IEJoinLocalSourceState : public LocalSourceState {
@@ -894,8 +415,8 @@ public:
 	using TaskPtr = optional_ptr<Task>;
 
 	IEJoinLocalSourceState(ClientContext &client, IEJoinGlobalSourceState &gsource)
-	    : gsource(gsource), lsel(STANDARD_VECTOR_SIZE), rsel(STANDARD_VECTOR_SIZE), true_sel(STANDARD_VECTOR_SIZE),
-	      left_executor(client), right_executor(client), left_matches(nullptr), right_matches(nullptr)
+	    : gsource(gsource), true_sel(STANDARD_VECTOR_SIZE), left_executor(client), right_executor(client),
+	      simple_sel(STANDARD_VECTOR_SIZE), pred_executor(client), left_matches(nullptr), right_matches(nullptr)
 
 	{
 		auto &op = gsource.op;
@@ -917,6 +438,11 @@ public:
 		left_scan_state = left_table.CreateScanState(client);
 		right_scan_state = right_table.CreateScanState(client);
 
+		if (op.predicate) {
+			pred_executor.AddExpression(*op.predicate);
+			pred_matches.Initialize();
+		}
+
 		if (op.conditions.size() < 3) {
 			return;
 		}
@@ -926,11 +452,11 @@ public:
 		for (idx_t i = 2; i < op.conditions.size(); ++i) {
 			const auto &cond = op.conditions[i];
 
-			left_types.push_back(cond.left->return_type);
-			left_executor.AddExpression(*cond.left);
+			left_types.push_back(cond.GetLHS().GetReturnType());
+			left_executor.AddExpression(cond.GetLHS());
 
-			right_types.push_back(cond.left->return_type);
-			right_executor.AddExpression(*cond.right);
+			right_types.push_back(cond.GetLHS().GetReturnType());
+			right_executor.AddExpression(cond.GetRHS());
 		}
 
 		left_keys.Initialize(allocator, left_types);
@@ -958,6 +484,20 @@ public:
 	}
 
 	bool TryAssignTask();
+	//! Reports the progress of the current task
+	void UpdateProgress() {
+		if (!task) {
+			return;
+		}
+		if (TaskFinished()) {
+			task_progress.Finish(gsource.task_progress);
+		} else if (task->stage == IEJoinSourceStage::INNER && joiner) {
+			// the inner join advances over the rows of its range
+			auto done = joiner->i > inner_begin ? joiner->i - inner_begin : 0;
+			auto total = joiner->n > inner_begin ? joiner->n - inner_begin : 0;
+			task_progress.Update(gsource.task_progress, done, total);
+		}
+	}
 	//	Sort L1
 	void ExecuteSinkL1Task(ExecutionContext &context, InterruptState &interrupt);
 	//	Finalize L1 sort
@@ -970,12 +510,38 @@ public:
 	void ExecuteFinalizeL2Task(ExecutionContext &context, InterruptState &interrupt);
 	//	Materialize L2
 	void ExecuteMaterializeL2Task(ExecutionContext &context, InterruptState &interrupt);
+	// 	Resolve simple and complex inner joins
+	void ResolveInnerJoin(ExecutionContext &context, DataChunk &result);
+	//	Derive an SV that applies the remaining conditions
+	const SelectionVector *ApplyTailConditions();
+	//	Combine the two payloads into a single chunk that can be used for projection or predicate evaluation
+	void MergePayloads(DataChunk &chunk);
+	//	Separate a merged chunk back into the two payloads.
+	void SplitPayloads(DataChunk &chunk);
+	// Apply any arbitrary predicate and return the new SV
+	const SelectionVector *ApplyArbitraryPredicate(DataChunk &chunk);
+	// resolve joins that can potentially output N elements (SEMI, ANTI, MARK)
+	void ResolveSimpleJoin(ExecutionContext &context);
+	// Use the given SV to strip out LHS duplicates. Return the number of unique rows
+	idx_t FilterSemiJoin(const SelectionVector *sel);
+	//	Build a set of values and matches fror ANTI and MARK joins
+	idx_t FindSimpleMatches(ExecutionContext &context, bool *found_match = nullptr);
+	// 	Resolve SEMI joins
+	void ResolveSemiJoin(ExecutionContext &context, DataChunk &result);
+	// 	Resolve ANTI joins
+	void ResolveAntiJoin(ExecutionContext &context, DataChunk &result);
+	// 	Resolve MARK joins
+	void ResolveMarkJoin(ExecutionContext &context, DataChunk &result);
 	// resolve joins that can potentially output N*M elements (INNER, LEFT, RIGHT, FULL)
 	void ResolveComplexJoin(ExecutionContext &context, DataChunk &result);
 	//	Resolve left join results
 	void ExecuteLeftTask(ExecutionContext &context, DataChunk &result);
 	//	Resolve right join results
 	void ExecuteRightTask(ExecutionContext &context, DataChunk &result);
+	//	Resolve ANTI join results from NULL columns.
+	void ExecuteAntiTask(ExecutionContext &context, DataChunk &result);
+	//	Resolve MARK join results from NULL columns.
+	void ExecuteMarkTask(ExecutionContext &context, DataChunk &result);
 	//	Execute the current task
 	void ExecuteTask(ExecutionContext &context, DataChunk &result, InterruptState &interrupt);
 
@@ -985,6 +551,10 @@ public:
 	TaskPtr task;
 	//! The task storage
 	Task task_local;
+	//! The progress reported for the current task
+	TaskProgressTracker task_progress;
+	//! The first row of the current inner join task
+	idx_t inner_begin = 0;
 
 	// Joining
 	unique_ptr<IEJoinUnion> joiner;
@@ -1016,18 +586,29 @@ public:
 
 	DataChunk unprojected;
 
-	// Outer joins
+	//! Simple join subselection
+	SelectionVector simple_sel;
+
+	//! Arbitrary expressions
+	ExpressionExecutor pred_executor;
+	SelectionVector pred_matches;
+
+	//! Outer joins
 	unsafe_vector<idx_t> outer_sel;
 	idx_t outer_idx;
 	idx_t outer_count;
 	bool *left_matches;
 	bool *right_matches;
+
+	//! Simple Joins
+	idx_t anti_lsel = 0;
 };
 
 bool IEJoinLocalSourceState::TryAssignTask() {
 	// Because downstream operators may be using our internal buffers,
 	// we can't "finish" a task until we are about to get the next one.
 	if (task) {
+		task_progress.Finish(gsource.task_progress);
 		++gsource.GetStageNext(task->stage);
 		left_matches = nullptr;
 		right_matches = nullptr;
@@ -1036,6 +617,7 @@ bool IEJoinLocalSourceState::TryAssignTask() {
 	if (!gsource.TryNextTask(task, task_local)) {
 		return false;
 	}
+	task_progress.Start();
 
 	auto &gsink = gsource.gsink;
 	auto &left_table = *gsink.tables[0];
@@ -1059,7 +641,8 @@ bool IEJoinLocalSourceState::TryAssignTask() {
 		right_block_index = 0;
 		right_base = 0;
 
-		joiner = make_uniq<IEJoinUnion>(gsource, task->range);
+		joiner = make_uniq<IEJoinUnion>(*gsource.l2, *gsource.li, *gsource.p, gsource.op.conditions, task->range);
+		inner_begin = joiner->i;
 		break;
 	case IEJoinSourceStage::OUTER:
 		if (task->thread_idx < gsource.left_outers) {
@@ -1076,6 +659,17 @@ bool IEJoinLocalSourceState::TryAssignTask() {
 			right_matches = right_table.found_match.get() + right_base;
 			outer_idx = 0;
 			outer_count = right_table.BlockSize(right_block_index);
+		}
+		break;
+	case IEJoinSourceStage::ANTI:
+		left_block_index = task->range.first;
+		outer_idx = 0;
+		outer_count = left_table.BlockSize(left_block_index);
+		//	Skip any non-NULL entries in the block
+		left_base = left_table.BlockStart(left_block_index);
+		right_base = left_table.count - left_table.has_null;
+		if (left_base < right_base) {
+			outer_idx = right_base - left_base;
 		}
 		break;
 	case IEJoinSourceStage::INIT:
@@ -1122,7 +716,7 @@ void IEJoinLocalSourceState::ExecuteSinkL1Task(ExecutionContext &context, Interr
 		// RHS has negative rids
 		ExpressionExecutor r_executor(context.client);
 		r_executor.AddExpression(*op.rhs_orders[0].expression);
-		// add const column flase
+		// add const column false
 		auto right_const = make_uniq<BoundConstantExpression>(Value::BOOLEAN(false));
 		r_executor.AddExpression(*right_const);
 		r_executor.AddExpression(*op.rhs_orders[1].expression);
@@ -1145,7 +739,7 @@ void IEJoinLocalSourceState::ExecuteSinkL2Task(ExecutionContext &context, Interr
 
 	auto &op = gsource.op;
 	const auto &order2 = op.lhs_orders[1];
-	auto ref = make_uniq<BoundReferenceExpression>(order2.expression->return_type, 0U);
+	auto ref = make_uniq<BoundReferenceExpression>(order2.expression->GetReturnType(), 0U);
 
 	ExpressionExecutor executor(context.client);
 	executor.AddExpression(*ref);
@@ -1192,7 +786,7 @@ void IEJoinLocalSourceState::ExecuteTask(ExecutionContext &context, DataChunk &r
 		gsource.ExecutePermutationTask(context.client);
 		break;
 	case IEJoinSourceStage::INNER:
-		ResolveComplexJoin(context, result);
+		ResolveInnerJoin(context, result);
 		break;
 	case IEJoinSourceStage::OUTER:
 		if (left_matches != nullptr) {
@@ -1201,26 +795,386 @@ void IEJoinLocalSourceState::ExecuteTask(ExecutionContext &context, DataChunk &r
 			ExecuteRightTask(context, result);
 		}
 		break;
+	case IEJoinSourceStage::ANTI:
+		if (gsource.op.join_type == JoinType::ANTI) {
+			ExecuteAntiTask(context, result);
+		} else {
+			ExecuteMarkTask(context, result);
+		}
+		break;
 	}
+}
+
+void IEJoinLocalSourceState::ResolveInnerJoin(ExecutionContext &context, DataChunk &result) {
+	// simple joins can have max STANDARD_VECTOR_SIZE matches per chunk
+	switch (gsource.op.join_type) {
+	case JoinType::SEMI:
+		ResolveSemiJoin(context, result);
+		break;
+	case JoinType::ANTI:
+		ResolveAntiJoin(context, result);
+		break;
+	case JoinType::MARK:
+		ResolveMarkJoin(context, result);
+		break;
+	case JoinType::LEFT:
+	case JoinType::INNER:
+	case JoinType::RIGHT:
+	case JoinType::OUTER:
+		ResolveComplexJoin(context, result);
+		break;
+	default:
+		throw NotImplementedException("Unimplemented join type for IEJoin!");
+	}
+
+	if (result.size() == 0) {
+		// exhausted this pair
+		joiner.reset();
+	}
+}
+
+const SelectionVector *IEJoinLocalSourceState::ApplyTailConditions() {
+	auto &op = gsource.op;
+	const auto &conditions = op.conditions;
+	auto sel = FlatVector::IncrementalSelectionVector();
+	if (conditions.size() <= 2) {
+		return sel;
+	}
+
+	// If there are more expressions to compute,
+	// use the left and right payloads
+	// to we can compute the values for comparison.
+	const auto tail_cols = conditions.size() - 2;
+
+	left_executor.SetChunk(lpayload);
+	right_executor.SetChunk(rpayload);
+
+	auto result_count = lpayload.size();
+	auto tail_count = result_count;
+	auto match_sel = &true_sel;
+	left_keys.Reset();
+	right_keys.Reset();
+	for (size_t cmp_idx = 0; cmp_idx < tail_cols; ++cmp_idx) {
+		auto &left = left_keys.data[cmp_idx];
+		left_executor.ExecuteExpression(cmp_idx, left);
+
+		auto &right = right_keys.data[cmp_idx];
+		right_executor.ExecuteExpression(cmp_idx, right);
+
+		if (tail_count < result_count) {
+			left.Slice(*sel, tail_count);
+			right.Slice(*sel, tail_count);
+		}
+		tail_count =
+		    op.SelectJoinTail(conditions[cmp_idx + 2].GetComparisonType(), left, right, sel, tail_count, match_sel);
+		sel = match_sel;
+	}
+
+	if (tail_count < result_count) {
+		lpayload.Slice(*sel, tail_count);
+		rpayload.Slice(*sel, tail_count);
+	}
+
+	return sel;
+}
+
+void IEJoinLocalSourceState::MergePayloads(DataChunk &chunk) {
+	//	Merge the payloads
+	auto &op = gsource.op;
+	const auto left_cols = op.children[0].get().GetTypes().size();
+	chunk.Reset();
+	for (column_t col_idx = 0; col_idx < chunk.ColumnCount(); ++col_idx) {
+		if (col_idx < left_cols) {
+			chunk.data[col_idx].Reference(lpayload.data[col_idx]);
+		} else {
+			chunk.data[col_idx].Reference(rpayload.data[col_idx - left_cols]);
+		}
+	}
+	chunk.SetChildCardinality(lpayload.size());
+}
+
+void IEJoinLocalSourceState::SplitPayloads(DataChunk &chunk) {
+	//	Extract the payloads from a merged chunk
+	auto &op = gsource.op;
+	const auto left_cols = op.children[0].get().GetTypes().size();
+	lpayload.Reset();
+	rpayload.Reset();
+	for (column_t col_idx = 0; col_idx < chunk.ColumnCount(); ++col_idx) {
+		if (col_idx < left_cols) {
+			lpayload.data[col_idx].Reference(chunk.data[col_idx]);
+		} else {
+			rpayload.data[col_idx - left_cols].Reference(chunk.data[col_idx]);
+		}
+	}
+}
+
+const SelectionVector *IEJoinLocalSourceState::ApplyArbitraryPredicate(DataChunk &chunk) {
+	//	Apply any arbitrary predicate
+	D_ASSERT(gsource.op.predicate);
+
+	const auto result_count = pred_executor.SelectExpression(chunk, pred_matches);
+	chunk.Slice(pred_matches, result_count);
+	return &pred_matches;
+}
+
+idx_t IEJoinLocalSourceState::FilterSemiJoin(const SelectionVector *sel) {
+	//	Strip out remaining left side duplicates
+	const auto result_count = lpayload.size();
+	idx_t unique_count = 0;
+	if (!result_count) {
+		return unique_count;
+	}
+
+	simple_sel.set_index(unique_count, 0);
+	lsel[unique_count++] = lsel[sel->get_index(0)];
+	for (idx_t i = 1; i < result_count; ++i) {
+		const auto iprev = sel->get_index(i - 1);
+		const auto icurr = sel->get_index(i - 0);
+		if (lsel[icurr] == lsel[iprev]) {
+			continue;
+		}
+		simple_sel.set_index(unique_count, i);
+		lsel[unique_count++] = lsel[icurr];
+	}
+	lsel.resize(unique_count);
+
+	//	Slice the join pairs down to the unique rows
+	if (unique_count < result_count) {
+		lpayload.Slice(simple_sel, unique_count);
+		rpayload.Slice(simple_sel, unique_count);
+	}
+
+	return unique_count;
+}
+
+void IEJoinLocalSourceState::ResolveSimpleJoin(ExecutionContext &context) {
+	auto &op = gsource.op;
+	const auto &conditions = op.conditions;
+	D_ASSERT(conditions.size() >= 2);
+
+	auto &ie_sink = op.sink_state->Cast<IEJoinGlobalState>();
+	auto &left_table = *ie_sink.tables[0];
+
+	lpayload.Reset();
+
+	do {
+		auto result_count = joiner->JoinBlocks(lsel, rsel);
+		if (result_count == 0) {
+			// exhausted this pair
+			return;
+		}
+
+		// Apply any remaining filters
+		if (conditions.size() > 2 || op.predicate) {
+			//	Read all the LHS rows because we need to apply the filters to every possible match
+			left_table.Repin(*left_iterator);
+			op.SliceSortedPayload(lpayload, left_table, *left_iterator, left_chunk_state, left_block_index, lsel,
+			                      *left_scan_state);
+
+			auto &right_table = *ie_sink.tables[1];
+			right_table.Repin(*right_iterator);
+			op.SliceSortedPayload(rpayload, right_table, *right_iterator, right_chunk_state, right_block_index, rsel,
+			                      *right_scan_state);
+
+			//	Apply any tail conditions
+			if (conditions.size() > 2) {
+				//	Strip out remaining left side duplicates
+				auto sel = ApplyTailConditions();
+				result_count = FilterSemiJoin(sel);
+
+				//	If we filtered out everything, go back for more
+				if (result_count == 0) {
+					continue;
+				}
+			}
+
+			//	Apply any arbitrary predicate
+			if (op.predicate) {
+				//	Arbitrary predicates require a merged chunk,
+				//	but we need to make sure no one is reusing SVs so we resplit.
+				auto &chunk = unprojected;
+				MergePayloads(chunk);
+
+				auto sel = ApplyArbitraryPredicate(chunk);
+				SplitPayloads(chunk);
+
+				//	Strip out remaining left side duplicates
+				result_count = FilterSemiJoin(sel);
+
+				//	If we filtered out everything, go back for more
+				if (!result_count) {
+					continue;
+				}
+			}
+		} else {
+			//	Fast track for only two predicates
+			//	Strip out left side duplicates
+			idx_t unique_count = 1;
+			for (idx_t i = 1; i < result_count; ++i) {
+				if (lsel[i] == lsel[i - 1]) {
+					continue;
+				}
+				lsel[unique_count++] = lsel[i];
+			}
+			lsel.resize(unique_count);
+			result_count = unique_count;
+
+			// Read the remaining unique rows
+			left_table.Repin(*left_iterator);
+			op.SliceSortedPayload(lpayload, left_table, *left_iterator, left_chunk_state, left_block_index, lsel,
+			                      *left_scan_state);
+		}
+
+		//	Handle chunk boundaries: If we found a match for the last value
+		//	then move to the next rid (which might be negative).
+		//	Note that the saved rid is offset by 1.
+		if (joiner->lrid > 0 && lsel[result_count - 1] == UnsafeNumericCast<idx_t>(joiner->lrid - 1)) {
+			joiner->FinishRow();
+		}
+	} while (lpayload.size() == 0);
+}
+
+void IEJoinLocalSourceState::ResolveSemiJoin(ExecutionContext &context, DataChunk &result) {
+	//	SEMI JOINs return all the columns from the LHS
+	ResolveSimpleJoin(context);
+	result.Reference(lpayload);
+	result.Verify(context.client.db);
+}
+
+idx_t IEJoinLocalSourceState::FindSimpleMatches(ExecutionContext &context, bool *found_match) {
+	//	Merge lsel and unmatched LHS rids into (the unused) rsel, tracking the matches
+	auto &msel = rsel;
+	idx_t result_count = 0;
+	msel.resize(STANDARD_VECTOR_SIZE);
+
+	//	Scan through Li, merging anything in lsel.
+	//	They are both ordered in the same way, so we can ratchet
+	const auto i = MinValue(joiner->i, joiner->n);
+	auto &anti_i = joiner->anti_i;
+	auto &p = joiner->p;
+	auto &li = joiner->li;
+
+	//	Scan through the SEMI JOIN rids
+	//	Note that if there are no more matches, then lsel will be empty()
+	//	and i will be at the end of the range
+	while (anti_i < i) {
+		//	Get the next lrid
+		auto pos = p[anti_i++];
+		auto rid = li[pos];
+		if (rid <= 0) {
+			continue;
+		}
+		const auto lrid = UnsafeNumericCast<idx_t>(rid - 1);
+
+		//	If the lrid is in the SEMI JOIN, then merge it and mark the row as matched.
+		if (anti_lsel < lsel.size() && lsel[anti_lsel] == lrid) {
+			++anti_lsel;
+			//	If we are not tracking matches, then only keep the unmatched rows
+			if (!found_match) {
+				continue;
+			}
+			found_match[result_count] = true;
+		} else if (found_match) {
+			//	Found an unmatched rid, so mark it as unmatched
+			found_match[result_count] = false;
+		}
+		msel[result_count++] = lrid;
+
+		//	If we have a full vector, stop
+		if (result_count >= STANDARD_VECTOR_SIZE) {
+			break;
+		}
+	}
+	msel.resize(result_count);
+
+	return result_count;
+}
+
+void IEJoinLocalSourceState::ResolveAntiJoin(ExecutionContext &context, DataChunk &result) {
+	auto &op = gsource.op;
+	auto &ie_sink = op.sink_state->Cast<IEJoinGlobalState>();
+	auto &left_table = *ie_sink.tables[0];
+
+	//	Generate the SEMI JOIN and then invert it.
+	//	This can result in more than one chunk at a time,
+	//	so we only call ResolveSemiJoin to "refill" the buffer (find the next batch of matches)
+	//	when we run out of anti-matches
+	do {
+		if (anti_lsel >= lsel.size()) {
+			ResolveSimpleJoin(context);
+			anti_lsel = 0;
+		}
+
+		//	Put all the non-matches into rsel
+		const idx_t result_count = FindSimpleMatches(context);
+
+		if (result_count == 0) {
+			//	If there were no SEMI rows and we didn't find any past the last one,
+			//	then we are done.
+			if (lsel.empty()) {
+				return;
+			}
+			continue;
+		}
+
+		// 	Read the remaining unique rows
+		left_table.Repin(*left_iterator);
+		op.SliceSortedPayload(lpayload, left_table, *left_iterator, left_chunk_state, left_block_index, rsel,
+		                      *left_scan_state);
+
+		result.Reference(lpayload);
+		result.Verify(context.client.db);
+	} while (result.size() == 0);
+}
+
+void IEJoinLocalSourceState::ResolveMarkJoin(ExecutionContext &context, DataChunk &result) {
+	//	MARK JOINs return all the columns from the LHS plus the mark column
+	auto &op = gsource.op;
+	auto &ie_sink = op.sink_state->Cast<IEJoinGlobalState>();
+	auto &left_table = *ie_sink.tables[0];
+	auto &right_table = *ie_sink.tables[1];
+
+	//	We need to have _all_ the rows, so we perform the SEMI JOIN,
+	//	then go back and merge in the ANTI JOIN rows.
+	//	This means we might not consume all the SEMI rows, so only get more when we have run out.
+	if (anti_lsel >= lsel.size()) {
+		ResolveSimpleJoin(context);
+		anti_lsel = 0;
+	}
+
+	//	Merge lsel and unmatched LHS rids into (the unused) rsel, tracking the matches
+	bool found_match[STANDARD_VECTOR_SIZE];
+	FindSimpleMatches(context, found_match);
+
+	//	Read the lhs rows
+	left_table.Repin(*left_iterator);
+	op.SliceSortedPayload(lpayload, left_table, *left_iterator, left_chunk_state, left_block_index, rsel,
+	                      *left_scan_state);
+
+	//	Compute the residual keys
+	//	We know here that the two sort columns are not NULL, so the tail columns are all we need
+	left_executor.Execute(&lpayload, left_keys);
+
+	//	Now hand it off to code that knows the rules...
+	//	Note that it can handle left_keys.ColumnCount().empty()
+	PhysicalJoin::ConstructMarkJoinResult(left_keys, lpayload, result, found_match, right_table.has_null);
+
+	result.Verify(context.client.db);
 }
 
 void IEJoinLocalSourceState::ResolveComplexJoin(ExecutionContext &context, DataChunk &result) {
 	auto &op = gsource.op;
 	auto &ie_sink = op.sink_state->Cast<IEJoinGlobalState>();
-	const auto &conditions = op.conditions;
 
 	auto &chunk = unprojected;
 
 	auto &left_table = *ie_sink.tables[0];
-	const auto left_cols = op.children[0].get().GetTypes().size();
-
 	auto &right_table = *ie_sink.tables[1];
 
 	do {
-		auto result_count = joiner->JoinComplexBlocks(lsel, rsel);
+		auto result_count = joiner->JoinBlocks(lsel, rsel);
 		if (result_count == 0) {
 			// exhausted this pair
-			joiner.reset();
 			return;
 		}
 
@@ -1234,51 +1188,23 @@ void IEJoinLocalSourceState::ResolveComplexJoin(ExecutionContext &context, DataC
 		op.SliceSortedPayload(rpayload, right_table, *right_iterator, right_chunk_state, right_block_index, rsel,
 		                      *right_scan_state);
 
-		auto sel = FlatVector::IncrementalSelectionVector();
-		if (conditions.size() > 2) {
-			// If there are more expressions to compute,
-			// use the left and right payloads
-			// to we can compute the values for comparison.
-			const auto tail_cols = conditions.size() - 2;
+		auto sel = ApplyTailConditions();
 
-			left_executor.SetChunk(lpayload);
-			right_executor.SetChunk(rpayload);
-
-			auto tail_count = result_count;
-			auto match_sel = &true_sel;
-			for (size_t cmp_idx = 0; cmp_idx < tail_cols; ++cmp_idx) {
-				auto &left = left_keys.data[cmp_idx];
-				left_executor.ExecuteExpression(cmp_idx, left);
-
-				auto &right = right_keys.data[cmp_idx];
-				right_executor.ExecuteExpression(cmp_idx, right);
-
-				if (tail_count < result_count) {
-					left.Slice(*sel, tail_count);
-					right.Slice(*sel, tail_count);
-				}
-				tail_count =
-				    op.SelectJoinTail(conditions[cmp_idx + 2].comparison, left, right, sel, tail_count, match_sel);
-				sel = match_sel;
-			}
-
-			if (tail_count < result_count) {
-				result_count = tail_count;
-				lpayload.Slice(*sel, result_count);
-				rpayload.Slice(*sel, result_count);
-			}
+		//	If we filtered out everything, go back for more
+		result_count = lpayload.size();
+		if (!result_count) {
+			continue;
 		}
 
-		//	Merge the payloads
-		chunk.Reset();
-		for (column_t col_idx = 0; col_idx < chunk.ColumnCount(); ++col_idx) {
-			if (col_idx < left_cols) {
-				chunk.data[col_idx].Reference(lpayload.data[col_idx]);
-			} else {
-				chunk.data[col_idx].Reference(rpayload.data[col_idx - left_cols]);
+		//	Apply any arbitrary predicate
+		MergePayloads(chunk);
+		if (op.predicate) {
+			sel = ApplyArbitraryPredicate(chunk);
+			result_count = chunk.size();
+			if (!result_count) {
+				continue;
 			}
 		}
-		chunk.SetCardinality(result_count);
 
 		//	We need all of the data to compute other predicates,
 		//	but we only return what is in the projection map
@@ -1298,59 +1224,69 @@ void IEJoinLocalSourceState::ResolveComplexJoin(ExecutionContext &context, DataC
 				right_table.found_match[right_base + rsel[sel->get_index(i)]] = true;
 			}
 		}
-		result.Verify();
+		result.Verify(context.client.db);
 	} while (result.size() == 0);
 }
 
 void IEJoinGlobalSourceState::Initialize() {
 	//	INIT
-	stage_tasks.emplace_back(0);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::INIT)] = 0;
 
 	//	SINK_L1
 	idx_t l1_tasks = 0;
 	if (per_thread) {
 		l1_tasks = BinValue<idx_t>(left_blocks + right_blocks, per_thread);
 	}
-	stage_tasks.emplace_back(l1_tasks);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::SINK_L1)] = l1_tasks;
 
 	//	FINALIZE_L1
-	stage_tasks.emplace_back(1);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::FINALIZE_L1)] = 1;
 
 	//	MATERIALIZE_L1
-	stage_tasks.emplace_back(MaxValue<idx_t>(l1_tasks, 1));
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::MATERIALIZE_L1)] = MaxValue<idx_t>(l1_tasks, 1);
 
 	//	EXTRACT_LI
-	stage_tasks.emplace_back(1);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::EXTRACT_LI)] = 1;
 
 	//	SINK_L2
 	idx_t l2_tasks = 0;
 	if (per_thread) {
 		l2_tasks = BinValue<idx_t>(l2_blocks, per_thread);
 	}
-	stage_tasks.emplace_back(l2_tasks);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::SINK_L2)] = l2_tasks;
 
 	//	FINALIZE_L2
-	stage_tasks.emplace_back(1);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::FINALIZE_L2)] = 1;
 
 	//	MATERIALIZE_L2
-	stage_tasks.emplace_back(MaxValue<idx_t>(l2_tasks, 1));
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::MATERIALIZE_L2)] = MaxValue<idx_t>(l2_tasks, 1);
 
 	//	EXTRACT_P
-	stage_tasks.emplace_back(1);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::EXTRACT_P)] = 1;
 
 	//	INNER
-	stage_tasks.emplace_back(l2_tasks);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::INNER)] = l2_tasks;
 
 	//	OUTER
-	stage_tasks.emplace_back(left_outers + right_outers);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::OUTER)] = left_outers + right_outers;
+
+	//	ANTI
+	idx_t anti_tasks = 0;
+	if (op.join_type == JoinType::ANTI || op.join_type == JoinType::MARK) {
+		auto &left_table = *gsink.tables[0];
+		const auto null_block = (left_table.count - left_table.has_null) / STANDARD_VECTOR_SIZE;
+		anti_tasks = left_blocks - null_block;
+	}
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::ANTI)] = anti_tasks;
 
 	//	DONE
-	stage_tasks.emplace_back(0);
+	stage_tasks[static_cast<uint8_t>(IEJoinSourceStage::DONE)] = 0;
 
 	//	Accumulate task counts so we can find boundaries reliably
 	idx_t begin = 0;
-	for (const auto &stage_task : stage_tasks) {
-		stage_begin.emplace_back(begin);
+	for (idx_t i = 0; i < stage_tasks.size(); i++) {
+		auto &stage_task = stage_tasks[i];
+		stage_begin[i] = begin;
 		begin += stage_task;
 	}
 
@@ -1386,7 +1322,7 @@ bool IEJoinGlobalSourceState::TryPrepareNextStage() {
 
 idx_t IEJoinGlobalSourceState::MaxThreads() {
 	// We can't leverage any more threads than tasks.
-	return *max_element(stage_tasks.begin(), stage_tasks.end());
+	return *std::max_element(stage_tasks.begin(), stage_tasks.end());
 }
 
 void IEJoinGlobalSourceState::FinishTask(TaskPtr task) {
@@ -1399,7 +1335,7 @@ void IEJoinGlobalSourceState::FinishTask(TaskPtr task) {
 }
 
 bool IEJoinGlobalSourceState::TryNextTask(TaskPtr &task, Task &task_local) {
-	auto guard = Lock();
+	annotated_lock_guard<annotated_mutex> guard(lock);
 	FinishTask(task);
 
 	if (!HasMoreTasks()) {
@@ -1408,7 +1344,7 @@ bool IEJoinGlobalSourceState::TryNextTask(TaskPtr &task, Task &task_local) {
 	}
 
 	if (TryPrepareNextStage()) {
-		UnblockTasks(guard);
+		UnblockTasks();
 	}
 
 	if (TryNextTask(task_local)) {
@@ -1474,6 +1410,15 @@ bool IEJoinGlobalSourceState::TryNextTask(Task &task) {
 			task.range = {right_task, right_task + 1};
 		}
 		break;
+	case IEJoinSourceStage::ANTI: {
+		//	ANTI JOINs return every row with NULL comparisons.
+		const auto &left_table = *gsink.tables[0];
+		const auto null_start = (left_table.count - left_table.has_null);
+		const auto null_block = null_start / STANDARD_VECTOR_SIZE;
+		const auto anti_task = task.thread_idx;
+		task.range = {null_block + anti_task, null_block + anti_task + 1};
+		break;
+	}
 	case IEJoinSourceStage::INIT:
 	case IEJoinSourceStage::DONE:
 		break;
@@ -1486,17 +1431,12 @@ bool IEJoinGlobalSourceState::TryNextTask(Task &task) {
 
 ProgressData IEJoinGlobalSourceState::GetProgress() const {
 	const auto count = GetTaskCount();
-
-	const auto returned = finished.load();
-
-	ProgressData res;
-	if (count) {
-		res.done = double(returned);
-		res.total = double(count);
-	} else {
+	if (!count) {
+		ProgressData res;
 		res.SetInvalid();
+		return res;
 	}
-	return res;
+	return task_progress.GetProgress(count);
 }
 unique_ptr<GlobalSourceState> PhysicalIEJoin::GetGlobalSourceState(ClientContext &client) const {
 	auto &gsink = sink_state->Cast<IEJoinGlobalState>();
@@ -1524,12 +1464,13 @@ SourceResultType PhysicalIEJoin::GetDataInternal(ExecutionContext &context, Data
 	while (gsource.stage != IEJoinSourceStage::DONE && result.size() == 0) {
 		if (!lsource.TaskFinished() || lsource.TryAssignTask()) {
 			lsource.ExecuteTask(context, result, input.interrupt_state);
+			lsource.UpdateProgress();
 		} else {
-			auto guard = gsource.Lock();
+			annotated_lock_guard<annotated_mutex> guard(gsource.lock);
 			if (gsource.TryPrepareNextStage() || gsource.stage == IEJoinSourceStage::DONE) {
-				gsource.UnblockTasks(guard);
+				gsource.UnblockTasks();
 			} else {
-				return gsource.BlockSource(guard, input.interrupt_state);
+				return gsource.BlockSource(input.interrupt_state);
 			}
 		}
 	}
@@ -1561,14 +1502,12 @@ void IEJoinLocalSourceState::ExecuteLeftTask(ExecutionContext &context, DataChun
 		if (col_idx < left_cols) {
 			chunk.data[col_idx].Reference(lpayload.data[col_idx]);
 		} else {
-			chunk.data[col_idx].SetVectorType(VectorType::CONSTANT_VECTOR);
-			ConstantVector::SetNull(chunk.data[col_idx], true);
+			ConstantVector::SetNull(chunk.data[col_idx], count_t(count));
 		}
 	}
 
 	op.ProjectResult(chunk, result);
-	result.SetCardinality(count);
-	result.Verify();
+	result.Verify(context.client.db);
 }
 
 void IEJoinLocalSourceState::ExecuteRightTask(ExecutionContext &context, DataChunk &result) {
@@ -1593,16 +1532,76 @@ void IEJoinLocalSourceState::ExecuteRightTask(ExecutionContext &context, DataChu
 	chunk.Reset();
 	for (column_t col_idx = 0; col_idx < chunk.ColumnCount(); ++col_idx) {
 		if (col_idx < left_cols) {
-			chunk.data[col_idx].SetVectorType(VectorType::CONSTANT_VECTOR);
-			ConstantVector::SetNull(chunk.data[col_idx], true);
+			ConstantVector::SetNull(chunk.data[col_idx], count_t(count));
 		} else {
 			chunk.data[col_idx].Reference(rpayload.data[col_idx - left_cols]);
 		}
 	}
 
 	op.ProjectResult(chunk, result);
-	result.SetCardinality(count);
-	result.Verify();
+	result.Verify(context.client.db);
+}
+
+void IEJoinLocalSourceState::ExecuteAntiTask(ExecutionContext &context, DataChunk &result) {
+	auto &op = gsource.op;
+	auto &ie_sink = op.sink_state->Cast<IEJoinGlobalState>();
+
+	outer_sel.reserve(STANDARD_VECTOR_SIZE);
+	outer_sel.resize(0);
+	while (outer_idx < outer_count) {
+		outer_sel.emplace_back(outer_idx++);
+		if (outer_sel.size() >= STANDARD_VECTOR_SIZE) {
+			break;
+		}
+	}
+	const idx_t count = outer_sel.size();
+	if (!count) {
+		return;
+	}
+
+	auto &left_table = *ie_sink.tables[0];
+
+	left_table.Repin(*left_iterator);
+	op.SliceSortedPayload(result, left_table, *left_iterator, left_chunk_state, left_block_index, outer_sel,
+	                      *left_scan_state);
+	result.Verify(context.client.db);
+}
+
+void IEJoinLocalSourceState::ExecuteMarkTask(ExecutionContext &context, DataChunk &result) {
+	auto &op = gsource.op;
+	auto &ie_sink = op.sink_state->Cast<IEJoinGlobalState>();
+
+	outer_sel.reserve(STANDARD_VECTOR_SIZE);
+	outer_sel.resize(0);
+	while (outer_idx < outer_count) {
+		outer_sel.emplace_back(outer_idx++);
+		if (outer_sel.size() >= STANDARD_VECTOR_SIZE) {
+			break;
+		}
+	}
+	const idx_t count = outer_sel.size();
+	if (!count) {
+		return;
+	}
+
+	auto &left_table = *ie_sink.tables[0];
+	left_table.Repin(*left_iterator);
+	op.SliceSortedPayload(lpayload, left_table, *left_iterator, left_chunk_state, left_block_index, outer_sel,
+	                      *left_scan_state);
+
+	// for the initial set of columns we just reference the left side
+	result.SetChildCardinality(lpayload.size());
+	for (idx_t i = 0; i < lpayload.ColumnCount(); i++) {
+		result.data[i].Reference(lpayload.data[i]);
+	}
+
+	//	One of the two main keys is NULL, so the result is NULL
+	auto &mark_vector = result.data.back();
+	mark_vector.SetVectorType(VectorType::FLAT_VECTOR);
+	auto &mask = FlatVector::ValidityMutable(mark_vector);
+	mask.SetAllInvalid(count);
+
+	result.Verify(context.client.db);
 }
 
 //===--------------------------------------------------------------------===//

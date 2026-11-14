@@ -27,9 +27,9 @@ public:
 
 public:
 	unique_ptr<LogicalOperator> plan;
-	vector<string> names;
+	vector<Identifier> names;
 	vector<LogicalType> types;
-	case_insensitive_map_t<BoundParameterData> parameter_data;
+	identifier_map_t<BoundParameterData> parameter_data;
 
 	shared_ptr<Binder> binder;
 	ClientContext &context;
@@ -39,6 +39,8 @@ public:
 
 public:
 	void CreatePlan(unique_ptr<SQLStatement> statement);
+	//! Apply the execution planner's optimizer policy, including mandatory rewrites.
+	void Optimize();
 	static void VerifyPlan(ClientContext &context, unique_ptr<LogicalOperator> &op,
 	                       optional_ptr<bound_parameter_map_t> map = nullptr);
 

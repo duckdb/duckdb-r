@@ -218,7 +218,7 @@ ArrowErrorCode ArrowSchemaInitDateTime(struct ArrowSchema *schema, enum ArrowTyp
 /// \brief Make a (recursive) copy of a schema
 ///
 /// Allocates and copies fields of schema into schema_out.
-ArrowErrorCode ArrowSchemaDeepCopy(struct ArrowSchema *schema, struct ArrowSchema *schema_out);
+ArrowErrorCode ArrowSchemaDeepCopy(const struct ArrowSchema *schema, struct ArrowSchema *schema_out);
 
 /// \brief Copy format into schema->format
 ///
@@ -284,7 +284,7 @@ ArrowErrorCode ArrowMetadataGetValue(const char *metadata, const char *key, cons
 /// Contains more readily extractable values than a raw ArrowSchema.
 /// Clients can stack or statically allocate this structure but are
 /// encouraged to use the provided getters to ensure forward
-/// compatiblity.
+/// compatibility.
 struct ArrowSchemaView {
 	/// \brief A pointer to the schema represented by this view
 	struct ArrowSchema *schema;

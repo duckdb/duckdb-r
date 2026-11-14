@@ -1,5 +1,6 @@
 #include "duckdb/execution/index/fixed_size_allocator.hpp"
 
+#include "duckdb/storage/buffer_manager.hpp"
 #include "duckdb/storage/metadata/metadata_reader.hpp"
 
 namespace duckdb {
@@ -69,10 +70,9 @@ IndexPointer FixedSizeAllocator::New() {
 
 	D_ASSERT(buffers.find(buffer_id) != buffers.end());
 	auto &buffer = buffers.find(buffer_id)->second;
-	auto offset = buffer->GetOffset(bitmask_count, available_segments_per_buffer);
+	auto offset = buffer->AllocateSegment(bitmask_count, available_segments_per_buffer);
 
 	total_segment_count++;
-	buffer->segment_count++;
 
 	// If the buffer is full, we cache the next buffer that we're going to fill.
 	if (buffer->segment_count == available_segments_per_buffer) {
@@ -91,22 +91,11 @@ void FixedSizeAllocator::Free(const IndexPointer ptr) {
 	D_ASSERT(buffer_it != buffers.end());
 	auto &buffer = buffer_it->second;
 
-	{
-		// Get a handle to the buffer's validity mask (offset 0).
-		SegmentHandle handle(*buffer, 0);
-		const auto bitmask_ptr = handle.GetPtr<validity_t>();
-
-		ValidityMask mask(bitmask_ptr, offset + 1); // FIXME
-		D_ASSERT(!mask.RowIsValid(offset));
-		mask.SetValid(offset);
-	}
-
-	D_ASSERT(total_segment_count > 0);
-	D_ASSERT(buffer->segment_count > 0);
+	buffer->FreeSegment(offset, available_segments_per_buffer);
 
 	// Adjust the allocator fields.
+	D_ASSERT(total_segment_count > 0);
 	total_segment_count--;
-	buffer->segment_count--;
 
 	// Early-out, if the buffer is not empty.
 	if (buffer->segment_count != 0) {
@@ -268,6 +257,7 @@ IndexPointer FixedSizeAllocator::VacuumPointer(const IndexPointer old_ptr) {
 
 	auto old_handle = GetHandle(old_ptr);
 	auto new_handle = GetHandle(new_ptr);
+	new_handle.MarkModified();
 
 	memcpy(new_handle.GetPtr(), old_handle.GetPtr(), segment_size);
 	return new_ptr;
@@ -337,8 +327,14 @@ void FixedSizeAllocator::Init(const FixedSizeAllocatorInfo &info) {
 		auto allocation_size = info.allocation_sizes[i];
 
 		// create the FixedSizeBuffer
-		buffers[buffer_id] =
-		    make_uniq<FixedSizeBuffer>(block_manager, segment_count, allocation_size, buffer_block_pointer);
+		if (info.transient_block_handles) {
+			D_ASSERT(info.transient_block_handles->size() == info.buffer_ids.size());
+			buffers[buffer_id] = make_uniq<FixedSizeBuffer>(block_manager, segment_count, allocation_size,
+			                                                std::move((*info.transient_block_handles)[i]));
+		} else {
+			buffers[buffer_id] =
+			    make_uniq<FixedSizeBuffer>(block_manager, segment_count, allocation_size, buffer_block_pointer);
+		}
 		total_segment_count += segment_count;
 	}
 

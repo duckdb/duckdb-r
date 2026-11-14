@@ -9,6 +9,8 @@
 #pragma once
 
 #include "duckdb/common/constants.hpp"
+#include "duckdb/common/identifier.hpp"
+#include "duckdb/common/optional_idx.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/common/exception.hpp"
 
@@ -31,15 +33,15 @@ enum class ConstraintType : uint8_t {
 enum class ForeignKeyType : uint8_t {
 	FK_TYPE_PRIMARY_KEY_TABLE = 0,   // main table
 	FK_TYPE_FOREIGN_KEY_TABLE = 1,   // referencing table
-	FK_TYPE_SELF_REFERENCE_TABLE = 2 // self refrencing table
+	FK_TYPE_SELF_REFERENCE_TABLE = 2 // self referencing table
 };
 
 struct ForeignKeyInfo {
 	ForeignKeyType type;
-	string schema;
+	Identifier schema;
 	//! if type is FK_TYPE_FOREIGN_KEY_TABLE, means main key table, if type is FK_TYPE_PRIMARY_KEY_TABLE, means foreign
 	//! key table
-	string table;
+	Identifier table;
 	//! The set of main key table's column's index
 	vector<PhysicalIndex> pk_keys;
 	//! The set of foreign key table's column's index
@@ -72,6 +74,9 @@ public:
 	DUCKDB_API virtual void Serialize(Serializer &serializer) const;
 	DUCKDB_API static unique_ptr<Constraint> Deserialize(Deserializer &deserializer);
 
+	idx_t GetBackingIndexOid() const;
+	void SetBackingIndexOid(idx_t oid);
+
 public:
 	template <class TARGET>
 	TARGET &Cast() {
@@ -88,5 +93,12 @@ public:
 		}
 		return reinterpret_cast<const TARGET &>(*this);
 	}
+
+private:
+	//! Whether the table enforces this constraint through an index it owns.
+	bool NeedsBackingIndex() const;
+
+	//! The backing index identity is local to this database instance and is never persisted.
+	optional_idx backing_index_oid;
 };
 } // namespace duckdb

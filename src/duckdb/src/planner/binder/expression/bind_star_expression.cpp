@@ -1,4 +1,5 @@
 #include "duckdb/planner/binder.hpp"
+#include "duckdb/planner/table_binding.hpp"
 #include "duckdb/parser/expression/star_expression.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
@@ -8,16 +9,34 @@
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/function/scalar/regexp.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
+#include "duckdb/parser/expression/lambda_expression.hpp"
+#include "duckdb/parser/expression/case_expression.hpp"
+#include "duckdb/parser/expression/conjunction_expression.hpp"
+#include "duckdb/parser/expression/window_expression.hpp"
 
 namespace duckdb {
 
 string GetColumnsStringValue(ParsedExpression &expr) {
 	if (expr.GetExpressionType() == ExpressionType::COLUMN_REF) {
 		auto &colref = expr.Cast<ColumnRefExpression>();
-		return colref.GetColumnName();
+		return colref.GetColumnName().GetIdentifierName();
 	} else {
 		return expr.ToString();
 	}
+}
+
+static const vector<FunctionArgument> &GetFunctionArguments(const ParsedExpression &expr) {
+	if (expr.GetExpressionClass() == ExpressionClass::WINDOW) {
+		return expr.Cast<WindowExpression>().GetArguments();
+	}
+	return expr.Cast<FunctionExpression>().GetArguments();
+}
+
+static vector<FunctionArgument> &GetFunctionArgumentsMutable(ParsedExpression &expr) {
+	if (expr.GetExpressionClass() == ExpressionClass::WINDOW) {
+		return expr.Cast<WindowExpression>().GetArgumentsMutable();
+	}
+	return expr.Cast<FunctionExpression>().GetArgumentsMutable();
 }
 
 StarExpressionType Binder::FindStarExpression(unique_ptr<ParsedExpression> &expr, StarExpression **star, bool is_root,
@@ -25,7 +44,7 @@ StarExpressionType Binder::FindStarExpression(unique_ptr<ParsedExpression> &expr
 	StarExpressionType has_star = StarExpressionType::NONE;
 	if (expr->GetExpressionType() == ExpressionType::OPERATOR_UNPACK) {
 		auto &operator_expr = expr->Cast<OperatorExpression>();
-		auto res = FindStarExpression(operator_expr.children[0], star, is_root, in_columns);
+		auto res = FindStarExpression(operator_expr.GetChildrenMutable()[0], star, is_root, in_columns);
 		if (res != StarExpressionType::STAR && res != StarExpressionType::COLUMNS) {
 			throw BinderException(
 			    "UNPACK can only be used in combination with a STAR (*) expression or COLUMNS expression");
@@ -48,12 +67,12 @@ StarExpressionType Binder::FindStarExpression(unique_ptr<ParsedExpression> &expr
 				    "STAR expression is only allowed as the root element of an expression. Use COLUMNS(*) instead.");
 			}
 
-			if (!current_star.replace_list.empty()) {
+			if (!current_star.ReplaceList().empty()) {
 				// '*' inside COLUMNS can not have a REPLACE list
 				throw BinderException(
 				    "STAR expression with REPLACE list is only allowed as the root element of COLUMNS");
 			}
-			if (!current_star.rename_list.empty()) {
+			if (!current_star.RenameList().empty()) {
 				// '*' inside COLUMNS can not have a REPLACE list
 				throw BinderException(
 				    "STAR expression with RENAME list is only allowed as the root element of COLUMNS");
@@ -69,7 +88,7 @@ StarExpressionType Binder::FindStarExpression(unique_ptr<ParsedExpression> &expr
 				values.emplace_back(GetColumnsStringValue(*element));
 			}
 			D_ASSERT(!values.empty());
-			expr = make_uniq<ConstantExpression>(Value::LIST(LogicalType::VARCHAR, values));
+			expr = ConstantExpression::FromValue(Value::LIST(LogicalType::VARCHAR, values));
 			return StarExpressionType::STAR;
 		}
 		if (in_columns) {
@@ -88,7 +107,15 @@ StarExpressionType Binder::FindStarExpression(unique_ptr<ParsedExpression> &expr
 		*star = &current_star;
 		has_star = StarExpressionType::STAR;
 	}
+	// the star of COUNT(tbl.*) is rewritten when the aggregate is bound
+	optional_ptr<const ParsedExpression> count_star;
+	if (IsQualifiedCountStar(*expr)) {
+		count_star = &GetFunctionArguments(*expr)[0].GetExpression();
+	}
 	ParsedExpressionIterator::EnumerateChildren(*expr, [&](unique_ptr<ParsedExpression> &child_expr) {
+		if (child_expr.get() == count_star.get()) {
+			return;
+		}
 		auto res = FindStarExpression(child_expr, star, false, in_columns);
 		if (res != StarExpressionType::NONE) {
 			has_star = res;
@@ -153,7 +180,7 @@ string Binder::ReplaceColumnsAlias(const string &alias, const string &column_nam
 void TryTransformStarLike(unique_ptr<ParsedExpression> &root) {
 	// detect "* LIKE [literal]" and similar expressions
 	bool inverse = root->GetExpressionType() == ExpressionType::OPERATOR_NOT;
-	auto &expr = inverse ? root->Cast<OperatorExpression>().children[0] : root;
+	auto &expr = inverse ? root->Cast<OperatorExpression>().GetChildrenMutable()[0] : root;
 	if (!expr) {
 		return;
 	}
@@ -161,16 +188,16 @@ void TryTransformStarLike(unique_ptr<ParsedExpression> &root) {
 		return;
 	}
 	auto &function = expr->Cast<FunctionExpression>();
-	if (function.children.size() < 2 || function.children.size() > 3) {
+	if (function.GetArguments().size() < 2 || function.GetArguments().size() > 3) {
 		return;
 	}
-	auto &left = function.children[0];
+	auto &left = function.GetArgumentsMutable()[0];
 	// expression must have a star on the LHS, and a literal on the RHS
-	if (left->GetExpressionClass() != ExpressionClass::STAR) {
+	if (left.GetExpression().GetExpressionClass() != ExpressionClass::STAR) {
 		return;
 	}
-	auto &star = left->Cast<StarExpression>();
-	if (star.columns) {
+	auto &star = left.GetExpressionMutable()->Cast<StarExpression>();
+	if (star.IsColumns()) {
 		// COLUMNS(*) has different semantics
 		return;
 	}
@@ -181,38 +208,40 @@ void TryTransformStarLike(unique_ptr<ParsedExpression> &root) {
 	                                     "~~*",
 	                                     "!~~*",
 	                                     "regexp_full_match",
+	                                     "regexp_matches",
 	                                     "not_like_escape",
 	                                     "ilike_escape",
 	                                     "not_ilike_escape",
 	                                     "like_escape"};
-	if (supported_ops.count(function.function_name) == 0) {
+	if (supported_ops.count(function.FunctionName().GetIdentifierName()) == 0) {
 		// unsupported op for * expression
-		throw BinderException(*root, "Function \"%s\" cannot be applied to a star expression", function.function_name);
+		throw BinderException(*root, "Function \"%s\" cannot be applied to a star expression", function.FunctionName());
 	}
-	auto &right = function.children[1];
-	if (right->GetExpressionClass() != ExpressionClass::CONSTANT) {
+	auto &right = function.GetArgumentsMutable()[1];
+	if (right.GetExpression().GetExpressionClass() != ExpressionClass::CONSTANT) {
 		throw BinderException(*root, "Pattern applied to a star expression must be a constant");
 	}
-	if (!star.rename_list.empty()) {
+	if (!star.RenameList().empty()) {
 		throw BinderException(*root, "Rename list cannot be combined with a filtering operation");
 	}
-	if (!star.replace_list.empty()) {
+	if (!star.ReplaceList().empty()) {
 		throw BinderException(*root, "Replace list cannot be combined with a filtering operation");
 	}
 	auto original_alias = root->GetAlias();
 	auto star_expr = std::move(left);
 	unique_ptr<ParsedExpression> child_expr;
-	if (!inverse && function.function_name == "regexp_full_match" && star.exclude_list.empty()) {
+	if (!inverse && function.FunctionName() == "regexp_full_match" && function.GetArguments().size() == 2 &&
+	    star.ExcludeList().empty()) {
 		// * SIMILAR TO '[regex]' is equivalent to COLUMNS('[regex]') so we can just move the expression directly
-		child_expr = std::move(right);
+		child_expr = std::move(right.GetExpressionMutable());
 	} else {
 		// for other expressions -> generate a columns expression
 		// "* LIKE '%literal%'
 		// -> COLUMNS(list_filter(*, x -> x LIKE '%literal%'))
 		vector<string> named_parameters;
 		named_parameters.push_back("__lambda_col");
-		function.children[0] = make_uniq<ColumnRefExpression>("__lambda_col");
-		function.children[1] = std::move(right);
+		function.GetArgumentsMutable()[0] = FunctionArgument(make_uniq<ColumnRefExpression>("__lambda_col"));
+		function.GetArgumentsMutable()[1] = std::move(right);
 
 		unique_ptr<ParsedExpression> lambda_body = std::move(expr);
 		if (inverse) {
@@ -223,14 +252,14 @@ void TryTransformStarLike(unique_ptr<ParsedExpression> &root) {
 		auto lambda = make_uniq<LambdaExpression>(std::move(named_parameters), std::move(lambda_body));
 
 		vector<unique_ptr<ParsedExpression>> filter_children;
-		filter_children.push_back(std::move(star_expr));
+		filter_children.push_back(std::move(star_expr.GetExpressionMutable()));
 		filter_children.push_back(std::move(lambda));
 		child_expr = make_uniq<FunctionExpression>("list_filter", std::move(filter_children));
 	}
 
-	auto columns_expr = make_uniq<StarExpression>(star.relation_name);
-	columns_expr->columns = true;
-	columns_expr->expr = std::move(child_expr);
+	auto columns_expr = make_uniq<StarExpression>(star.RelationName());
+	columns_expr->IsColumnsMutable() = true;
+	columns_expr->ExpressionMutable() = std::move(child_expr);
 	columns_expr->SetAlias(std::move(original_alias));
 	root = std::move(columns_expr);
 }
@@ -242,13 +271,146 @@ optional_ptr<ParsedExpression> Binder::GetResolvedColumnExpression(ParsedExpress
 			break;
 		}
 		if (expr->GetExpressionType() == ExpressionType::OPERATOR_COALESCE) {
-			expr = expr->Cast<OperatorExpression>().children[0].get();
+			expr = expr->Cast<OperatorExpression>().GetChildrenMutable()[0].get();
 		} else {
 			// unknown expression
 			return nullptr;
 		}
 	}
 	return expr;
+}
+
+static bool IsQualifiedStar(const ParsedExpression &expr) {
+	if (!StarExpression::IsStar(expr)) {
+		return false;
+	}
+	auto &star = expr.Cast<StarExpression>();
+	if (star.RelationName().empty()) {
+		return false;
+	}
+	if (!star.ExcludeList().empty()) {
+		return false;
+	}
+	if (!star.ReplaceList().empty()) {
+		return false;
+	}
+	if (!star.RenameList().empty()) {
+		return false;
+	}
+	return true;
+}
+
+static bool IsCount(const Identifier &function_name, bool distinct) {
+	return function_name == "count" && !distinct;
+}
+
+bool Binder::IsQualifiedCountStar(const ParsedExpression &expr) {
+	switch (expr.GetExpressionClass()) {
+	case ExpressionClass::FUNCTION: {
+		auto &function = expr.Cast<FunctionExpression>();
+		if (!IsCount(function.FunctionName(), function.Distinct())) {
+			return false;
+		}
+		break;
+	}
+	case ExpressionClass::WINDOW: {
+		auto &window = expr.Cast<WindowExpression>();
+		if (!IsCount(window.FunctionName(), window.Distinct())) {
+			return false;
+		}
+		break;
+	}
+	default:
+		return false;
+	}
+	auto &arguments = GetFunctionArguments(expr);
+	return arguments.size() == 1 && IsQualifiedStar(arguments[0].GetExpression());
+}
+
+//! CASE WHEN col1 IS NOT NULL OR ... OR coln IS NOT NULL THEN 1 END
+static unique_ptr<ParsedExpression> AnyColumnNotNull(vector<unique_ptr<ParsedExpression>> columns) {
+	vector<unique_ptr<ParsedExpression>> checks;
+	for (auto &column : columns) {
+		checks.push_back(make_uniq<OperatorExpression>(ExpressionType::OPERATOR_IS_NOT_NULL, std::move(column)));
+	}
+	auto case_expr = make_uniq<CaseExpression>();
+	CaseCheck case_check;
+	case_check.when_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_OR, std::move(checks));
+	case_check.then_expr = ConstantExpression::FromValue(Value::BIGINT(1));
+	case_expr->CaseChecksMutable().push_back(std::move(case_check));
+	case_expr->ElseMutable() = ConstantExpression::FromValue(Value());
+	return std::move(case_expr);
+}
+
+static unique_ptr<ParsedExpression> GetRowIdColumn(Binding &binding) {
+	if (binding.GetBindingType() != BindingType::TABLE) {
+		return nullptr;
+	}
+	auto &virtual_columns = binding.Cast<TableBinding>().virtual_columns;
+	auto entry = virtual_columns.find(COLUMN_IDENTIFIER_ROW_ID);
+	if (entry == virtual_columns.end()) {
+		return nullptr;
+	}
+	column_t column_index;
+	if (!binding.TryGetBindingIndex(entry->second.name, column_index) || column_index != COLUMN_IDENTIFIER_ROW_ID) {
+		// the row id is shadowed by a regular column
+		return nullptr;
+	}
+	return make_uniq<ColumnRefExpression>(entry->second.name, binding.GetBindingAlias());
+}
+
+//! Returns the argument that COUNT(tbl.*) counts, or nullptr if every row of tbl is counted
+static unique_ptr<ParsedExpression> GetCountStarArgument(StarExpression &star, BindContext &bind_context) {
+	if (bind_context.GetBindingsList().empty()) {
+		// nothing to resolve the relation against (e.g. when verifying a macro definition)
+		return nullptr;
+	}
+	ErrorData error;
+	auto binding = bind_context.GetBinding(star.RelationName(), error);
+	if (binding) {
+		if (!binding->IsNullExtended()) {
+			return nullptr;
+		}
+		auto row_id = GetRowIdColumn(*binding);
+		if (row_id) {
+			// the row id is only NULL for NULL-extended rows
+			return row_id;
+		}
+		// without a row id, a row in which all columns are NULL is indistinguishable from a NULL-extended row
+		vector<unique_ptr<ParsedExpression>> columns;
+		bind_context.GenerateAllColumnExpressions(star, columns);
+		return AnyColumnNotNull(std::move(columns));
+	}
+	// struct.*
+	auto struct_binding = bind_context.GetMatchingBinding(star.RelationName(), star);
+	if (!struct_binding) {
+		error.Throw();
+	}
+	if (!struct_binding->IsNullExtended()) {
+		return nullptr;
+	}
+	return make_uniq<ColumnRefExpression>(star.RelationName(), struct_binding->GetBindingAlias());
+}
+
+//! COUNT(tbl.*) counts every row of tbl, except for the rows that an outer join NULL-extended
+unique_ptr<ParsedExpression> Binder::TryRewriteQualifiedCountStar(const ParsedExpression &expr) {
+	if (!IsQualifiedCountStar(expr)) {
+		return nullptr;
+	}
+	auto result = expr.Copy();
+	if (result->GetAlias().empty()) {
+		// the rewrite is an implementation detail - keep the original expression as the name
+		result->SetAlias(Identifier(expr.ToString()));
+	}
+	auto &arguments = GetFunctionArgumentsMutable(*result);
+	auto &star = arguments[0].GetExpressionMutable()->Cast<StarExpression>();
+	auto count_argument = GetCountStarArgument(star, bind_context);
+	if (count_argument) {
+		arguments[0] = FunctionArgument(std::move(count_argument));
+	} else {
+		arguments.clear();
+	}
+	return result;
 }
 
 void Binder::ExpandStarExpression(unique_ptr<ParsedExpression> expr,
@@ -272,17 +434,17 @@ void Binder::ExpandStarExpression(unique_ptr<ParsedExpression> expr,
 	bind_context.GenerateAllColumnExpressions(*star, star_list);
 
 	unique_ptr<duckdb_re2::RE2> regex;
-	if (star->expr) {
+	if (star->Expression()) {
 		// COLUMNS with an expression
 		// two options:
 		// VARCHAR parameter <- this is a regular expression
 		// LIST of VARCHAR parameters <- this is a set of columns
 		TableFunctionBinder binder(*this, context);
-		auto child = star->expr->Copy();
+		auto child = star->Expression()->Copy();
 		auto result = binder.Bind(child);
 		if (!result->IsFoldable()) {
 			// cannot resolve parameters here
-			if (star->expr->HasParameter()) {
+			if (star->Expression()->HasParameter()) {
 				throw ParameterNotResolvedException();
 			} else {
 				throw BinderException("Unsupported expression in COLUMNS");
@@ -307,7 +469,7 @@ void Binder::ExpandStarExpression(unique_ptr<ParsedExpression> expr,
 					continue;
 				}
 				auto &colref = child_expr->Cast<ColumnRefExpression>();
-				if (!RE2::PartialMatch(colref.GetColumnName(), *regex)) {
+				if (!RE2::PartialMatch(colref.GetColumnName().GetIdentifierName(), *regex)) {
 					continue;
 				}
 				new_list.push_back(std::move(expanded_expr));
@@ -320,7 +482,7 @@ void Binder::ExpandStarExpression(unique_ptr<ParsedExpression> expr,
 						continue;
 					}
 					auto &colref = child_expr->Cast<ColumnRefExpression>();
-					candidates.push_back(colref.GetColumnName());
+					candidates.emplace_back(colref.GetColumnName());
 				}
 				string candidate_str;
 				if (!candidates.empty()) {
@@ -396,7 +558,9 @@ void Binder::ExpandStarExpression(unique_ptr<ParsedExpression> expr,
 				if (new_expr->GetAlias().empty()) {
 					new_expr->SetAlias(colref.GetColumnName());
 				} else {
-					new_expr->SetAlias(ReplaceColumnsAlias(new_expr->GetAlias(), colref.GetColumnName(), regex.get()));
+					new_expr->SetAlias(
+					    Identifier(ReplaceColumnsAlias(new_expr->GetAlias().GetIdentifierName(),
+					                                   colref.GetColumnName().GetIdentifierName(), regex.get())));
 				}
 			}
 		}

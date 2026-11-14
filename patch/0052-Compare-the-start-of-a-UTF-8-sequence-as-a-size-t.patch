@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 20:41:25 +0000
+Subject: [PATCH] Compare the start of a UTF-8 sequence as a size_t
+
+Utf8Proc::Analyze() walks the string with a size_t index and keeps the
+start of the current sequence as an int, and the rewind after a bad
+continuation byte compares the two, which -Wsign-compare reports. The
+start is a position in the same string, taken from the index, so it
+is compared as a size_t.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/third_party/utf8proc/utf8proc_wrapper.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/third_party/utf8proc/utf8proc_wrapper.cpp b/src/duckdb/third_party/utf8proc/utf8proc_wrapper.cpp
+index 6d046d1120..9315bce262 100644
+--- a/src/duckdb/third_party/utf8proc/utf8proc_wrapper.cpp
++++ b/src/duckdb/third_party/utf8proc/utf8proc_wrapper.cpp
+@@ -210,7 +210,7 @@ std::string Utf8Proc::RemoveInvalid(const char *s, size_t len) {
+ 			// A bad continuation byte (not a truncated tail, not a bad codepoint after a fully well-formed sequence) 
+ 			// means the byte at invalid_pos was never actually consumed as part of this sequence 
+ 			// rewind so it gets reprocessed on its own next iteration
+-			if (invalid_reason == UnicodeInvalidReason::BYTE_MISMATCH && i > first_pos_seq) {
++			if (invalid_reason == UnicodeInvalidReason::BYTE_MISMATCH && i > static_cast<size_t>(first_pos_seq)) {
+ 				i = invalid_pos - 1;
+ 			}
+ 			continue;

@@ -10,9 +10,12 @@
 
 #include "duckdb/common/constants.hpp"
 #include "duckdb/common/optional_ptr.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/common/helper.hpp"
+#include "duckdb/common/atomic.hpp"
 
+#include <limits>
 
 namespace duckdb {
 
@@ -28,10 +31,18 @@ class CoordinateReferenceSystem;
 struct string_t; // NOLINT: mimic std casing
 
 template <class T>
-using child_list_t = vector<std::pair<std::string, T>>;
-//! FIXME: this should be a single_thread_ptr
+using child_list_t = vector<std::pair<Identifier, T>>;
 template <class T>
 using buffer_ptr = shared_ptr<T>;
+
+template <class... Args>
+struct VectorStructType;
+
+template <class T>
+struct VectorListType;
+
+//! Marker type selecting the VARIANT specialization of VectorIterator (see variant_iterator.hpp)
+struct VectorVariantType;
 
 template <class T, typename... ARGS>
 buffer_ptr<T> make_buffer(ARGS &&...args) { // NOLINT: mimic std casing
@@ -171,7 +182,7 @@ enum class PhysicalType : uint8_t {
 	/// DuckDB Extensions
 	VARCHAR = 200, // our own string representation, different from STRING and LARGE_STRING above
 	UINT128 = 203, // 128-bit unsigned integers
-	INT128 = 204, // 128-bit integers
+	INT128 = 204,  // 128-bit integers
 	UNKNOWN = 205, // Unknown physical type of user defined types
 	/// Boolean as 1 bit, LSB bit-packed ordering
 	BIT = 206,
@@ -187,7 +198,7 @@ enum class LogicalTypeId : uint8_t {
 	SQLNULL = 1, /* NULL type, used for constant NULL */
 	UNKNOWN = 2, /* unknown type, used for parameter expressions */
 	ANY = 3,     /* ANY type, used for functions that accept any type as parameter */
-	UNBOUND = 4,    /* A parsed but unbound type, used during query planning */
+	UNBOUND = 4, /* A parsed but unbound type, used during query planning */
 
 	// A "template" type functions as a "placeholder" type for function arguments and return types.
 	// Templates only exist during the binding phase, in the scope of a function, and are replaced with concrete types
@@ -196,7 +207,7 @@ enum class LogicalTypeId : uint8_t {
 	// name are always resolved to the same concrete type.
 	TEMPLATE = 5,
 
-	TYPE = 6,    /* Type type, used for type parameters */
+	TYPE = 6, /* Type type, used for type parameters */
 
 	BOOLEAN = 10,
 	TINYINT = 11,
@@ -221,11 +232,12 @@ enum class LogicalTypeId : uint8_t {
 	UINTEGER = 30,
 	UBIGINT = 31,
 	TIMESTAMP_TZ = 32,
+	TIMESTAMP_TZ_NS = 33,
 	TIME_TZ = 34,
 	TIME_NS = 35,
 	BIT = 36,
-	STRING_LITERAL = 37, /* string literals, used for constant strings - only exists while binding */
-	INTEGER_LITERAL = 38,/* integer literals, used for constant integers - only exists while binding */
+	STRING_LITERAL = 37,  /* string literals, used for constant strings - only exists while binding */
+	INTEGER_LITERAL = 38, /* integer literals, used for constant integers - only exists while binding */
 	BIGNUM = 39,
 	UHUGEINT = 49,
 	HUGEINT = 50,
@@ -240,34 +252,130 @@ enum class LogicalTypeId : uint8_t {
 	MAP = 102,
 	TABLE = 103,
 	ENUM = 104,
-	AGGREGATE_STATE = 105,
+	LEGACY_AGGREGATE_STATE = 105,
 	LAMBDA = 106,
 	UNION = 107,
 	ARRAY = 108,
-	VARIANT = 109
+	VARIANT = 109,
+	TUPLE = 110 /* unnamed struct - shares the physical representation of STRUCT */
 };
 
-struct ExtraTypeInfo;
 struct ExtensionTypeInfo;
 
-struct aggregate_state_t; // NOLINT: mimic std casing
+//! The kind of a LogicalTypeInfo
+enum class LogicalTypeInfoType : uint8_t {
+	INVALID_TYPE_INFO = 0,
+	GENERIC_TYPE_INFO = 1,
+	DECIMAL_TYPE_INFO = 2,
+	STRING_TYPE_INFO = 3,
+	LIST_TYPE_INFO = 4,
+	STRUCT_TYPE_INFO = 5,
+	ENUM_TYPE_INFO = 6,
+	UNBOUND_TYPE_INFO = 7,
+	LEGACY_AGGREGATE_STATE_TYPE_INFO = 8,
+	ARRAY_TYPE_INFO = 9,
+	ANY_TYPE_INFO = 10,
+	INTEGER_LITERAL_TYPE_INFO = 11,
+	TEMPLATE_TYPE_INFO = 12,
+	GEO_TYPE_INFO = 13
+};
+
+//! The intrusively ref-counted data behind a LogicalType. Types without parameters use an INVALID_TYPE_INFO.
+//! Once adopted by a LogicalType the info is shared and only ever accessed as const.
+struct LogicalTypeInfo {
+	explicit LogicalTypeInfo(LogicalTypeInfoType type) noexcept;
+	explicit LogicalTypeInfo(LogicalTypeInfoType type, string alias);
+	virtual ~LogicalTypeInfo();
+
+	// the 1-byte fields and the ref count are declared first so they pack into one word after the vtable pointer
+	const LogicalTypeInfoType type;
+
+private:
+	friend struct LogicalType;
+	//! The id and physical type of the LogicalType that owns this info - set when a LogicalType adopts it
+	LogicalTypeId id = LogicalTypeId::INVALID;
+	PhysicalType physical_type = PhysicalType::INVALID;
+	//! Immortal infos (e.g. the one behind LogicalType::INTEGER) are shared without ref-counting and never freed.
+	bool immortal = false;
+	//! Atomic intrusive ref-count. This comes after the other members to avoid extra padding.
+	mutable atomic<uint32_t> ref_count {0};
+
+public:
+	string alias;
+	unique_ptr<ExtensionTypeInfo> extension_info;
+
+protected:
+	// copy	constructor (protected)
+	LogicalTypeInfo(const LogicalTypeInfo &other);
+
+public:
+	LogicalTypeInfo &operator=(const LogicalTypeInfo &other) = delete;
+
+	inline void AddRef() const {
+		if (immortal) {
+			return;
+		}
+		auto previous = ref_count.fetch_add(1, std::memory_order_relaxed);
+		D_ASSERT(previous < std::numeric_limits<uint32_t>::max());
+		(void)previous;
+	}
+	inline void Release() const {
+		if (immortal) {
+			return;
+		}
+		auto previous = ref_count.fetch_sub(1, std::memory_order_acq_rel);
+		D_ASSERT(previous > 0);
+		if (previous == 1) {
+			delete this;
+		}
+	}
+
+	bool Equals(const LogicalTypeInfo &other) const;
+
+	virtual void Serialize(Serializer &serializer) const;
+	static unique_ptr<LogicalTypeInfo> Deserialize(Deserializer &source);
+	//! Creates an unshared copy of the info - nested types are shared with the original
+	virtual unique_ptr<LogicalTypeInfo> Copy() const;
+	//! Copy the base fields (alias, extension info) into "target" - used by Copy implementations that
+	//! reconstruct the type info instead of copy-constructing it
+	void CopyBaseInfo(LogicalTypeInfo &target) const;
+
+	template <class TARGET>
+	TARGET &Cast() {
+		DynamicCastCheck<TARGET>(this);
+		return reinterpret_cast<TARGET &>(*this);
+	}
+	template <class TARGET>
+	const TARGET &Cast() const {
+		DynamicCastCheck<TARGET>(this);
+		return reinterpret_cast<const TARGET &>(*this);
+	}
+
+protected:
+	virtual bool EqualsInternal(const LogicalTypeInfo *other_p) const;
+};
 
 struct LogicalType {
 	DUCKDB_API LogicalType();
 	DUCKDB_API LogicalType(LogicalTypeId id); // NOLINT: Allow implicit conversion from `LogicalTypeId`
-	DUCKDB_API LogicalType(LogicalTypeId id, shared_ptr<ExtraTypeInfo> type_info);
-	DUCKDB_API LogicalType(const LogicalType &other);
+	DUCKDB_API LogicalType(LogicalTypeId id, unique_ptr<LogicalTypeInfo> type_info);
+	inline LogicalType(const LogicalType &other) : type_info_(other.type_info_) {
+		type_info_.get().AddRef();
+	}
 	DUCKDB_API LogicalType(LogicalType &&other) noexcept;
 
-	DUCKDB_API ~LogicalType();
+	inline ~LogicalType() {
+		type_info_.get().Release();
+	}
 
 	inline LogicalTypeId id() const { // NOLINT: mimic std casing
-		return id_;
+		return type_info_.get().id;
 	}
 	inline PhysicalType InternalType() const {
-		return physical_type_;
+		return type_info_.get().physical_type;
 	}
-	inline const optional_ptr<ExtraTypeInfo> AuxInfo() const {
+	//! The type info - always present, of type INVALID_TYPE_INFO for types without parameters
+	inline const LogicalTypeInfo &GetTypeInfo() const {
 		return type_info_.get();
 	}
 	inline bool IsNested() const {
@@ -284,45 +392,41 @@ struct LogicalType {
 		return false;
 	}
 	inline bool IsUnknown() const {
-		return id_ == LogicalTypeId::UNKNOWN;
+		return id() == LogicalTypeId::UNKNOWN;
 	}
 	inline bool IsUnbound() const {
-		return id_ == LogicalTypeId::UNBOUND;
+		return id() == LogicalTypeId::UNBOUND;
 	}
+	//! Gives up this type's reference to its info without releasing it - the reference must be taken back with
+	//! AdoptTypeInfo. Used to hand types across an ABI boundary (e.g. the C API) without copying them.
+	DUCKDB_API const LogicalTypeInfo &ReleaseTypeInfo() &&;
+	//! Creates a type that takes over a reference given up by ReleaseTypeInfo
+	DUCKDB_API static LogicalType AdoptTypeInfo(const LogicalTypeInfo &type_info);
+	//! Whether this type carries the type info its id is parameterized by (e.g. the child type of a LIST). Does not
+	//! look at child types - false for a bare LogicalTypeId::LIST, true for LIST(ANY).
+	DUCKDB_API bool HasParameters() const;
 
-	inline shared_ptr<ExtraTypeInfo> GetAuxInfoShrPtr() const {
-		return type_info_;
-	}
-
-	//! Copies the logical type, making a new ExtraTypeInfo
+	//! Copies the logical type, making a new (unshared) LogicalTypeInfo
 	LogicalType Copy() const;
-	//! DeepCopy() will make a unique copy of any nested ExtraTypeInfo as well
-	LogicalType DeepCopy() const;
 
-	inline void CopyAuxInfo(const LogicalType &other) {
-		type_info_ = other.type_info_;
-	}
 	bool EqualTypeInfo(const LogicalType &rhs) const;
 
 	// copy assignment
 	inline LogicalType &operator=(const LogicalType &other) {
-		if (this == &other) {
-			return *this;
-		}
-		id_ = other.id_;
-		physical_type_ = other.physical_type_;
+		other.type_info_.get().AddRef();
+		type_info_.get().Release();
 		type_info_ = other.type_info_;
 		return *this;
 	}
 	// move assignment
 	inline LogicalType &operator=(LogicalType &&other) noexcept {
-		id_ = other.id_;
-		physical_type_ = other.physical_type_;
 		std::swap(type_info_, other.type_info_);
 		return *this;
 	}
 
 	DUCKDB_API bool operator==(const LogicalType &rhs) const;
+	//! Logical type equality including collations in this type and its children.
+	DUCKDB_API bool EqualsIncludingCollation(const LogicalType &rhs) const;
 	inline bool operator!=(const LogicalType &rhs) const {
 		return !(*this == rhs);
 	}
@@ -345,24 +449,41 @@ struct LogicalType {
 	DUCKDB_API static bool IsNumeric(LogicalTypeId type);
 	DUCKDB_API bool IsTemporal() const;
 	DUCKDB_API hash_t Hash() const;
-	DUCKDB_API void SetAlias(string alias);
+	//! Returns a copy of this type with "alias" as its alias - never modifies types that share our type info
+	DUCKDB_API LogicalType WithAlias(string alias) const;
 	DUCKDB_API bool HasAlias() const;
 	DUCKDB_API string GetAlias() const;
 
 	DUCKDB_API bool HasExtensionInfo() const;
 	DUCKDB_API optional_ptr<const ExtensionTypeInfo> GetExtensionInfo() const;
-	DUCKDB_API optional_ptr<ExtensionTypeInfo> GetExtensionInfo();
-	DUCKDB_API void SetExtensionInfo(unique_ptr<ExtensionTypeInfo> info);
+	//! Returns a copy of this type with "info" as its extension info - never modifies types that share our type info
+	DUCKDB_API LogicalType WithExtensionInfo(unique_ptr<ExtensionTypeInfo> info) const;
 
-	//! Returns the maximum logical type when combining the two types - or throws an exception if combining is not possible
-	DUCKDB_API static LogicalType MaxLogicalType(ClientContext &context, const LogicalType &left, const LogicalType &right);
-	DUCKDB_API static bool TryGetMaxLogicalType(ClientContext &context, const LogicalType &left, const LogicalType &right, LogicalType &result);
-	DUCKDB_API static bool TryGetMaxLogicalTypeUnchecked(const LogicalType &left, const LogicalType &right, LogicalType &result);
-	//! Forcibly returns a maximum logical type - similar to MaxLogicalType but never throws. As a fallback either left or right are returned.
-	DUCKDB_API static LogicalType ForceMaxLogicalType(const LogicalType &left, const LogicalType &right);
+	//! Returns the maximum logical type when combining the two types - or throws an exception if combining is not
+	//! possible
+	DUCKDB_API static LogicalType MaxLogicalType(ClientContext &context, const LogicalType &left,
+	                                             const LogicalType &right);
+	DUCKDB_API static bool TryGetMaxLogicalType(ClientContext &context, const LogicalType &left,
+	                                            const LogicalType &right, LogicalType &result);
+	DUCKDB_API static bool TryGetMaxLogicalTypeUnchecked(ClientContext &context, const LogicalType &left,
+	                                                     const LogicalType &right, LogicalType &result);
+	//! Variant of TryGetMaxLogicalTypeUnchecked for call-sites that have no ClientContext available; uses only the
+	//! built-in CastRules (no extension-registered casts).
+	DUCKDB_API static bool DefaultTryGetMaxLogicalTypeUnchecked(const LogicalType &left, const LogicalType &right,
+	                                                            LogicalType &result);
+	//! Forcibly returns a maximum logical type - similar to MaxLogicalType but never throws. As a fallback either left
+	//! or right are returned.
+	DUCKDB_API static LogicalType ForceMaxLogicalType(ClientContext &context, const LogicalType &left,
+	                                                  const LogicalType &right);
+	//! Variant of ForceMaxLogicalType for call-sites that have no ClientContext available; uses only the built-in
+	//! CastRules (no extension-registered casts).
+	DUCKDB_API static LogicalType DefaultForceMaxLogicalType(const LogicalType &left, const LogicalType &right);
 	//! Normalize a type - removing literals
 	DUCKDB_API static LogicalType NormalizeType(const LogicalType &type);
-
+	//! Nested type children with Parquet style names
+	DUCKDB_API static child_list_t<LogicalType> GetNamedChildTypes(const LogicalType &type);
+	//! Rebuild a nested type with new children
+	DUCKDB_API static LogicalType ConstructNestedType(const LogicalType &type, child_list_t<LogicalType> children);
 
 	//! Gets the decimal properties of a numeric type. Fails if the type is not numeric.
 	DUCKDB_API bool GetDecimalProperties(uint8_t &width, uint8_t &scale) const;
@@ -379,14 +500,22 @@ struct LogicalType {
 	//! True, if this type supports in-place updates.
 	bool SupportsRegularUpdate() const;
 
+private:
+	//! Takes over a reference to "type_info"
+	explicit LogicalType(const LogicalTypeInfo &type_info) : type_info_(type_info) {
+	}
+
+	const_reference<LogicalTypeInfo> type_info_; // NOLINT: allow this naming for legacy reasons
 
 private:
-	LogicalTypeId id_; // NOLINT: allow this naming for legacy reasons
-	PhysicalType physical_type_; // NOLINT: allow this naming for legacy reasons
-	shared_ptr<ExtraTypeInfo> type_info_; // NOLINT: allow this naming for legacy reasons
-
-private:
-	PhysicalType GetInternalType();
+	//! The immortal type info of a type without parameters - created once per id
+	DUCKDB_API static const LogicalTypeInfo &GetBuiltinTypeInfo(LogicalTypeId id);
+	//! The builtin info for an id, or nullptr for an invalid id - creating the builtins never allocates, so cannot fail
+	static const LogicalTypeInfo *TryGetBuiltinTypeInfo(LogicalTypeId id) noexcept;
+	//! Takes ownership of a new info for a type with the given id - or returns the builtin info if there is none
+	static const LogicalTypeInfo &AdoptNewTypeInfo(LogicalTypeId id, unique_ptr<LogicalTypeInfo> type_info);
+	//! Creates a type whose info is never ref-counted or freed - for types that are built once and shared
+	static LogicalType CreateImmortal(LogicalTypeId id, unique_ptr<LogicalTypeInfo> type_info);
 
 public:
 	static constexpr const LogicalTypeId SQLNULL = LogicalTypeId::SQLNULL;
@@ -410,6 +539,7 @@ public:
 	static constexpr const LogicalTypeId TIME = LogicalTypeId::TIME;
 	static constexpr const LogicalTypeId TIME_NS = LogicalTypeId::TIME_NS;
 	static constexpr const LogicalTypeId TIMESTAMP_TZ = LogicalTypeId::TIMESTAMP_TZ;
+	static constexpr const LogicalTypeId TIMESTAMP_TZ_NS = LogicalTypeId::TIMESTAMP_TZ_NS;
 	static constexpr const LogicalTypeId TIME_TZ = LogicalTypeId::TIME_TZ;
 	static constexpr const LogicalTypeId VARCHAR = LogicalTypeId::VARCHAR;
 	static constexpr const LogicalTypeId ANY = LogicalTypeId::ANY;
@@ -429,29 +559,31 @@ public:
 	static constexpr const LogicalTypeId ROW_TYPE = LogicalTypeId::BIGINT;
 
 	// explicitly allowing these functions to be capitalized to be in-line with the remaining functions
-	DUCKDB_API static LogicalType DECIMAL(uint8_t width, uint8_t scale);                 // NOLINT
-	DUCKDB_API static LogicalType VARCHAR_COLLATION(string collation);           // NOLINT
-	DUCKDB_API static LogicalType LIST(const LogicalType &child);                // NOLINT
-	DUCKDB_API static LogicalType STRUCT(child_list_t<LogicalType> children);    // NOLINT
-	DUCKDB_API static LogicalType AGGREGATE_STATE(aggregate_state_t state_type); // NOLINT
-	DUCKDB_API static LogicalType MAP(const LogicalType &child);                 // NOLINT
-	DUCKDB_API static LogicalType MAP(LogicalType key, LogicalType value);       // NOLINT
-	DUCKDB_API static LogicalType UNION(child_list_t<LogicalType> members);      // NOLINT
-	DUCKDB_API static LogicalType ARRAY(const LogicalType &child, optional_idx index);   // NOLINT
-	DUCKDB_API static LogicalType ENUM(Vector &ordered_data, idx_t size); // NOLINT
-	DUCKDB_API static LogicalType GEOMETRY(); // NOLINT
+	DUCKDB_API static LogicalType DECIMAL(uint8_t width, uint8_t scale);      // NOLINT
+	DUCKDB_API static LogicalType VARCHAR_COLLATION(string collation);        // NOLINT
+	DUCKDB_API static LogicalType LIST(const LogicalType &child);             // NOLINT
+	DUCKDB_API static LogicalType STRUCT(child_list_t<LogicalType> children); // NOLINT
+	//! Unnamed struct - shares the physical representation of STRUCT but is a distinct logical type
+	DUCKDB_API static LogicalType TUPLE(child_list_t<LogicalType> children);           // NOLINT
+	DUCKDB_API static LogicalType TUPLE(vector<LogicalType> children);                 // NOLINT
+	DUCKDB_API static LogicalType MAP(const LogicalType &child);                       // NOLINT
+	DUCKDB_API static LogicalType MAP(LogicalType key, LogicalType value);             // NOLINT
+	DUCKDB_API static LogicalType UNION(child_list_t<LogicalType> members);            // NOLINT
+	DUCKDB_API static LogicalType ARRAY(const LogicalType &child, optional_idx index); // NOLINT
+	DUCKDB_API static LogicalType ENUM(const Vector &ordered_data, idx_t size);        // NOLINT
+	DUCKDB_API static LogicalType GEOMETRY();                                          // NOLINT
 	DUCKDB_API static LogicalType GEOMETRY(const string &crs);
 	DUCKDB_API static LogicalType GEOMETRY(const CoordinateReferenceSystem &crs);
 	// ANY but with special rules (default is LogicalType::ANY, 5)
 	DUCKDB_API static LogicalType ANY_PARAMS(LogicalType target, idx_t cast_score = 5); // NOLINT
-	DUCKDB_API static LogicalType TEMPLATE(const string &name);							// NOLINT
-	DUCKDB_API static LogicalType VARIANT(); // NOLINT
+	DUCKDB_API static LogicalType TEMPLATE(const string &name);                         // NOLINT
+	DUCKDB_API static LogicalType VARIANT();                                            // NOLINT
 	//! Integer literal of the specified value
-	DUCKDB_API static LogicalType INTEGER_LITERAL(const Value &constant);               // NOLINT
+	DUCKDB_API static LogicalType INTEGER_LITERAL(const Value &constant); // NOLINT
 	// DEPRECATED - provided for backwards compatibility
-	DUCKDB_API static LogicalType ENUM(const string &enum_name, Vector &ordered_data, idx_t size); // NOLINT
-	DUCKDB_API static LogicalType UNBOUND(unique_ptr<ParsedExpression> expr);	// NOLINT
-	DUCKDB_API static LogicalType TYPE(); // NOLINT
+	DUCKDB_API static LogicalType ENUM(const string &enum_name, const Vector &ordered_data, idx_t size); // NOLINT
+	DUCKDB_API static LogicalType UNBOUND(unique_ptr<ParsedExpression> expr);                            // NOLINT
+	DUCKDB_API static LogicalType TYPE();                                                                // NOLINT
 	//! A list of all NUMERIC types (integral and floating point types)
 	DUCKDB_API static const vector<LogicalType> Numeric();
 	//! A list of all INTEGRAL types
@@ -466,6 +598,7 @@ public:
 	static constexpr auto JSON_TYPE_NAME = "JSON";
 	DUCKDB_API static LogicalType JSON(); // NOLINT
 	DUCKDB_API bool IsJSONType() const;
+	DUCKDB_API bool IsAggregateState() const;
 };
 
 struct DecimalType {
@@ -482,11 +615,11 @@ struct ListType {
 	DUCKDB_API static const LogicalType &GetChildType(const LogicalType &type);
 };
 
-
 struct UnboundType {
 	// Try to bind the unbound type into a concrete type, using just the built in types
 	DUCKDB_API static LogicalType TryParseAndDefaultBind(const string &type_str);
 	DUCKDB_API static LogicalType TryDefaultBind(const LogicalType &unbound_type);
+	DUCKDB_API static LogicalType TryDefaultBind(const ParsedExpression &type_expr);
 	DUCKDB_API static const unique_ptr<ParsedExpression> &GetTypeExpression(const LogicalType &type);
 };
 
@@ -502,10 +635,27 @@ struct EnumType {
 struct StructType {
 	DUCKDB_API static const child_list_t<LogicalType> &GetChildTypes(const LogicalType &type);
 	DUCKDB_API static const LogicalType &GetChildType(const LogicalType &type, idx_t index);
-	DUCKDB_API static const string &GetChildName(const LogicalType &type, idx_t index);
+	DUCKDB_API static const Identifier &GetChildName(const LogicalType &type, idx_t index);
 	DUCKDB_API static idx_t GetChildIndexUnsafe(const LogicalType &type, const string &name);
 	DUCKDB_API static idx_t GetChildCount(const LogicalType &type);
+	//! Whether the type is an unnamed struct, i.e. a TUPLE
 	DUCKDB_API static bool IsUnnamed(const LogicalType &type);
+	//! Whether all (and at least one) of the children are unnamed - LogicalType::STRUCT turns these into a TUPLE
+	DUCKDB_API static bool AllUnnamed(const child_list_t<LogicalType> &children);
+	//! Whether the type is backed by StructTypeInfo and laid out as a struct (STRUCT or TUPLE)
+	DUCKDB_API static bool IsStruct(const LogicalType &type);
+	DUCKDB_API static bool IsStruct(LogicalTypeId id);
+};
+
+//! Helpers for the unnamed-struct TUPLE type. A TUPLE has no member names; when a name is required (e.g. when
+//! converting to a format that mandates field names), positional names "element1", "element2", ... are synthesized -
+//! matching the names produced by UNNEST of a struct.
+struct TupleType {
+	//! The synthesized positional name for the i-th (0-based) member: "element1", "element2", ...
+	DUCKDB_API static string GetChildName(idx_t index);
+	//! Returns the child types of a struct-like type, with synthesized names for any unnamed (empty-named) members.
+	//! Members that already have a name keep it.
+	DUCKDB_API static child_list_t<LogicalType> NamedChildren(const LogicalType &type);
 };
 
 struct MapType {
@@ -517,7 +667,7 @@ struct UnionType {
 	DUCKDB_API static const idx_t MAX_UNION_MEMBERS = 255;
 	DUCKDB_API static idx_t GetMemberCount(const LogicalType &type);
 	DUCKDB_API static const LogicalType &GetMemberType(const LogicalType &type, idx_t index);
-	DUCKDB_API static const string &GetMemberName(const LogicalType &type, idx_t index);
+	DUCKDB_API static const Identifier &GetMemberName(const LogicalType &type, idx_t index);
 	DUCKDB_API static const child_list_t<LogicalType> CopyMemberTypes(const LogicalType &type);
 };
 
@@ -528,11 +678,6 @@ struct ArrayType {
 	DUCKDB_API static constexpr idx_t MAX_ARRAY_SIZE = 100000; // 100k for now
 	//! Recursively replace all ARRAY types to LIST types within the given type
 	DUCKDB_API static LogicalType ConvertToList(const LogicalType &type);
-};
-
-struct AggregateStateType {
-	DUCKDB_API static const string GetTypeName(const LogicalType &type);
-	DUCKDB_API static const aggregate_state_t &GetStateType(const LogicalType &type);
 };
 
 struct AnyType {
@@ -576,21 +721,5 @@ DUCKDB_API bool TypeIsInteger(PhysicalType type);
 
 bool ApproxEqual(float l, float r);
 bool ApproxEqual(double l, double r);
-
-struct aggregate_state_t {
-	aggregate_state_t() {
-	}
-	// NOLINTNEXTLINE: work around bug in clang-tidy
-	aggregate_state_t(string function_name_p, LogicalType return_type_p, vector<LogicalType> bound_argument_types_p)
-	    : function_name(std::move(function_name_p)), return_type(std::move(return_type_p)),
-	      bound_argument_types(std::move(bound_argument_types_p)) {
-	}
-
-	string function_name;
-	LogicalType return_type;
-	vector<LogicalType> bound_argument_types;
-};
-
-
 
 } // namespace duckdb

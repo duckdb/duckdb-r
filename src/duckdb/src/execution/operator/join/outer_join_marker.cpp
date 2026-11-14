@@ -1,6 +1,21 @@
 #include "duckdb/execution/operator/join/outer_join_marker.hpp"
+#include "duckdb/common/vector/constant_vector.hpp"
+#include "duckdb/common/types/vector.hpp"
 
 namespace duckdb {
+
+ProgressData OuterJoinGlobalScanState::GetProgress() const {
+	const auto total = data->Count();
+	if (total == 0) {
+		return ProgressData {1.0, 1.0, false};
+	}
+	return ProgressData {double(rows_scanned.load()), double(total), false};
+}
+
+void OuterJoinLocalScanState::Reset() {
+	scan_chunk.Reset();
+	local_scan = ColumnDataLocalScanState();
+}
 
 OuterJoinMarker::OuterJoinMarker(bool enabled_p) : enabled(enabled_p), count(0) {
 }
@@ -16,6 +31,9 @@ void OuterJoinMarker::Initialize(idx_t count_p) {
 
 void OuterJoinMarker::Reset() {
 	if (!enabled) {
+		return;
+	}
+	if (count == 0) {
 		return;
 	}
 	memset(found_match.get(), 0, sizeof(bool) * count);
@@ -56,8 +74,7 @@ void OuterJoinMarker::ConstructLeftJoinResult(DataChunk &left, DataChunk &result
 	if (remaining_count > 0) {
 		result.Slice(left, remaining_sel, remaining_count);
 		for (idx_t idx = left.ColumnCount(); idx < result.ColumnCount(); idx++) {
-			result.data[idx].SetVectorType(VectorType::CONSTANT_VECTOR);
-			ConstantVector::SetNull(result.data[idx], true);
+			ConstantVector::SetNull(result.data[idx], count_t(remaining_count));
 		}
 	}
 }
@@ -68,6 +85,7 @@ idx_t OuterJoinMarker::MaxThreads() const {
 
 void OuterJoinMarker::InitializeScan(ColumnDataCollection &data, OuterJoinGlobalScanState &gstate) {
 	gstate.data = &data;
+	gstate.rows_scanned = 0;
 	data.InitializeScan(gstate.global_scan);
 }
 
@@ -92,14 +110,12 @@ void OuterJoinMarker::Scan(OuterJoinGlobalScanState &gstate, OuterJoinLocalScanS
 			// if there were any tuples that didn't find a match, output them
 			idx_t left_column_count = result.ColumnCount() - lstate.scan_chunk.ColumnCount();
 			for (idx_t i = 0; i < left_column_count; i++) {
-				result.data[i].SetVectorType(VectorType::CONSTANT_VECTOR);
-				ConstantVector::SetNull(result.data[i], true);
+				ConstantVector::SetNull(result.data[i], count_t(result_count));
 			}
-			for (idx_t col_idx = left_column_count; col_idx < result.ColumnCount(); col_idx++) {
-				result.data[col_idx].Slice(lstate.scan_chunk.data[col_idx - left_column_count], lstate.match_sel,
-				                           result_count);
-			}
-			result.SetCardinality(result_count);
+			result.Slice(lstate.scan_chunk, lstate.match_sel, result_count, left_column_count);
+		}
+		gstate.rows_scanned.fetch_add(lstate.scan_chunk.size(), std::memory_order_relaxed);
+		if (result_count > 0) {
 			return;
 		}
 	}

@@ -13,7 +13,7 @@ struct AltrepRelationWrapper {
 
 	bool Materialized() const;
 
-	MaterializedQueryResult *GetQueryResult();
+	QueryResult *GetQueryResult();
 
 	void Materialize();
 
@@ -64,6 +64,7 @@ struct RelToAltrep {
 
 	static R_xlen_t VectorLength(SEXP x);
 	static void *VectorDataptr(SEXP x, Rboolean writeable);
+	static const void *VectorDataptrOrNull(SEXP x);
 	static Rboolean RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int));
 
 	static SEXP VectorStringElt(SEXP x, R_xlen_t i);

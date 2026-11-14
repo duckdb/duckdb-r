@@ -8,9 +8,8 @@
 
 #pragma once
 
-#include "duckdb/function/table_function.hpp"
-#include "duckdb/function/copy_function.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
+#include "duckdb/common/types/selection_vector.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/common/open_file_info.hpp"
 #include <numeric>
@@ -27,6 +26,22 @@ public:
 	virtual idx_t Filter(row_t start_row_index, idx_t count, SelectionVector &result_sel) = 0;
 };
 
+//! A delete filter that forwards to one owned by somebody else - used to hand a reader the filter of the scan it is
+//! part of, which outlives it
+class BorrowedDeleteFilter : public DeleteFilter {
+public:
+	explicit BorrowedDeleteFilter(DeleteFilter &filter_p) : filter(filter_p) {
+	}
+
+public:
+	idx_t Filter(row_t start_row_index, idx_t count, SelectionVector &result_sel) override {
+		return filter.Filter(start_row_index, count, result_sel);
+	}
+
+private:
+	DeleteFilter &filter;
+};
+
 struct HivePartitioningIndex {
 	HivePartitioningIndex(string value, idx_t index);
 
@@ -39,6 +54,11 @@ struct HivePartitioningIndex {
 
 struct MultiFileColumnDefinition {
 public:
+	MultiFileColumnDefinition(Identifier name_p, LogicalType type_p)
+	    : name(std::move(name_p)), type(std::move(type_p)) {
+	}
+	MultiFileColumnDefinition(const char *name, const LogicalType &type) : name(name), type(type) {
+	}
 	MultiFileColumnDefinition(const string &name, const LogicalType &type) : name(name), type(type) {
 	}
 
@@ -60,7 +80,7 @@ public:
 	}
 
 public:
-	static MultiFileColumnDefinition CreateFromNameAndType(const string &name, const LogicalType &type) {
+	static MultiFileColumnDefinition CreateFromNameAndType(const Identifier &name, const LogicalType &type) {
 		MultiFileColumnDefinition result(name, type);
 		if (type.id() == LogicalTypeId::STRUCT) {
 			// recursively create for children
@@ -71,7 +91,15 @@ public:
 		return result;
 	}
 
-	static vector<MultiFileColumnDefinition> ColumnsFromNamesAndTypes(const vector<string> &names,
+	//! The definition of a column, with a child for every nested field an identifier can be attached to: the fields of
+	//! a STRUCT, the elements of a LIST or ARRAY, the "key_value" entries of a MAP, and the members of a UNION
+	DUCKDB_API static MultiFileColumnDefinition CreateNested(const Identifier &name, const LogicalType &type);
+	//! The definition of the nested field a path of child indexes addresses, starting at this column: a STRUCT field by
+	//! its index, the elements of a LIST or ARRAY by 0, the keys of a MAP by 0 and its values by 1, and a UNION member
+	//! by its index. Requires a definition from CreateNested; throws when the path addresses no nested field
+	DUCKDB_API MultiFileColumnDefinition &ResolveChildPath(const vector<idx_t> &child_path);
+
+	static vector<MultiFileColumnDefinition> ColumnsFromNamesAndTypes(const vector<Identifier> &names,
 	                                                                  const vector<LogicalType> &types) {
 		vector<MultiFileColumnDefinition> columns;
 		D_ASSERT(names.size() == types.size());
@@ -88,7 +116,7 @@ public:
 		D_ASSERT(names.empty());
 		D_ASSERT(types.empty());
 		for (auto &column : columns) {
-			names.push_back(column.name);
+			names.push_back(column.name.GetIdentifierName());
 			types.push_back(column.type);
 		}
 	}
@@ -99,28 +127,26 @@ public:
 		return identifier.GetValue<int32_t>();
 	}
 
+	DUCKDB_API void Serialize(Serializer &serializer) const;
+	DUCKDB_API static MultiFileColumnDefinition Deserialize(Deserializer &deserializer);
+
 	string GetIdentifierName() const {
 		if (identifier.IsNull()) {
 			// No identifier was provided, assume the name as the identifier
-			return name;
+			return name.GetIdentifierName();
 		}
 		D_ASSERT(identifier.type().id() == LogicalTypeId::VARCHAR);
 		return identifier.GetValue<string>();
 	}
 
-	Value GetDefaultValue() const {
-		D_ASSERT(default_expression);
-		if (default_expression->type != ExpressionType::VALUE_CONSTANT) {
-			throw NotImplementedException("Default expression that isn't constant is not supported yet");
-		}
-		auto &constant_expr = default_expression->Cast<ConstantExpression>();
-		return constant_expr.value;
-	}
-
 public:
-	string name;
+	Identifier name;
 	LogicalType type;
 	vector<MultiFileColumnDefinition> children;
+	//! Fallback when no file column/field matches this definition. A NULL fallback must be an explicit
+	//! ConstantExpression containing a typed NULL, rather than a nullptr.
+	//! With field-id mapping, nullptr requires a matching field; a missing field raises InvalidInputException.
+	//! With name mapping, nullptr rejects missing root columns but fills missing nested fields with NULL.
 	unique_ptr<ParsedExpression> default_expression;
 
 	//! Either the field_id or the name to map on
@@ -131,6 +157,8 @@ public:
 struct MultiFileCastMap;
 struct MultiFileFilterEntry;
 
+//! MultiFileLocalColumnId refers to an absolute column index within a specific file we are reading
+// i.e. if the file has columns "a, b, c", a will have MultiFileLocalColumnId(0), b = 1, c = 2
 struct MultiFileLocalColumnId {
 	friend struct MultiFileCastMap;
 
@@ -158,6 +186,9 @@ struct MultiFileColumnMapping;
 struct MultiFileFilterMap;
 struct MultiFileConstantMap;
 
+//! MultiFileLocalIndex refers to a ProjectionIndex locally within a specific file that we are reading
+//! This refers to an entry in the "column_ids" list - i.e. to get the absolute column (MultiFileLocalColumnId)
+// we can use column_ids[#MultiFileLocalColumnId]
 struct MultiFileLocalIndex {
 	//! these are allowed to access the index
 	template <class T>
@@ -166,15 +197,45 @@ struct MultiFileLocalIndex {
 	friend struct MultiFileFilterEntry;
 
 public:
-	explicit MultiFileLocalIndex(idx_t index) : index(index) {
+	explicit MultiFileLocalIndex(idx_t index = DConstants::INVALID_INDEX) : index(index) {
+	}
+	explicit MultiFileLocalIndex(ProjectionIndex projection) : index(projection) {
 	}
 
 public:
 	operator idx_t() const { // NOLINT: allow implicit conversion
-		return index;
+		return GetIndex();
 	}
 	idx_t GetIndex() const {
+		if (!IsValid()) {
+			throw InternalException("MultiFileLocalIndex::GetIndex called on invalid index");
+		}
 		return index;
+	}
+	bool IsValid() const {
+		return index != DConstants::INVALID_INDEX;
+	}
+	operator ProjectionIndex() const { // NOLINT: allow implicit conversion to projection index
+		return ProjectionIndex(index);
+	}
+
+	inline bool operator==(const MultiFileLocalIndex &rhs) const {
+		return index == rhs.index;
+	};
+	inline bool operator<(const MultiFileLocalIndex &rhs) const {
+		return index < rhs.index;
+	};
+	bool operator!=(const MultiFileLocalIndex &other) const {
+		return !(*this == other);
+	}
+	bool operator>(const MultiFileLocalIndex &other) const {
+		return other < *this;
+	}
+	bool operator<=(const MultiFileLocalIndex &other) const {
+		return !(other < *this);
+	}
+	bool operator>=(const MultiFileLocalIndex &other) const {
+		return !(*this < other);
 	}
 
 private:
@@ -195,6 +256,28 @@ public:
 	}
 	idx_t GetIndex() const {
 		return index;
+	}
+	operator ProjectionIndex() const { // NOLINT: allow implicit conversion to projection index
+		return ProjectionIndex(index);
+	}
+
+	inline bool operator==(const MultiFileGlobalIndex &rhs) const {
+		return index == rhs.index;
+	};
+	inline bool operator<(const MultiFileGlobalIndex &rhs) const {
+		return index < rhs.index;
+	};
+	bool operator!=(const MultiFileGlobalIndex &other) const {
+		return !(*this == other);
+	}
+	bool operator>(const MultiFileGlobalIndex &other) const {
+		return other < *this;
+	}
+	bool operator<=(const MultiFileGlobalIndex &other) const {
+		return !(other < *this);
+	}
+	bool operator>=(const MultiFileGlobalIndex &other) const {
+		return !(*this < other);
 	}
 
 private:
@@ -343,3 +426,13 @@ private:
 };
 
 } // namespace duckdb
+
+namespace std {
+
+template <>
+struct hash<duckdb::MultiFileGlobalIndex> {
+	size_t operator()(const duckdb::MultiFileGlobalIndex &global_idx) const {
+		return std::hash<uint64_t> {}(global_idx.GetIndex());
+	}
+};
+} // namespace std

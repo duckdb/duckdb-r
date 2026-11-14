@@ -67,7 +67,16 @@ string StatementTypeToString(StatementType type) {
 		return "UPDATE_EXTENSIONS";
 	case StatementType::MERGE_INTO_STATEMENT:
 		return "MERGE_INTO";
+	case StatementType::CONNECT_STATEMENT:
+		return "CONNECT";
+	case StatementType::DISCONNECT_STATEMENT:
+		return "DISCONNECT";
+	case StatementType::EXTERNAL_RESOURCE_STATEMENT:
+		return "EXTERNAL_RESOURCE";
+	case StatementType::PASSTHROUGH_STATEMENT:
+		return "PASSTHROUGH";
 	case StatementType::INVALID_STATEMENT:
+	case StatementType::ENUM_SIZE:
 		break;
 	}
 	return "INVALID";

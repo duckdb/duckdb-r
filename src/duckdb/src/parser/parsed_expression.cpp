@@ -47,60 +47,6 @@ bool ParsedExpression::HasSubquery() const {
 	return has_subquery;
 }
 
-bool ParsedExpression::Equals(const BaseExpression &other) const {
-	if (!BaseExpression::Equals(other)) {
-		return false;
-	}
-	switch (expression_class) {
-	case ExpressionClass::BETWEEN:
-		return BetweenExpression::Equal(Cast<BetweenExpression>(), other.Cast<BetweenExpression>());
-	case ExpressionClass::CASE:
-		return CaseExpression::Equal(Cast<CaseExpression>(), other.Cast<CaseExpression>());
-	case ExpressionClass::CAST:
-		return CastExpression::Equal(Cast<CastExpression>(), other.Cast<CastExpression>());
-	case ExpressionClass::COLLATE:
-		return CollateExpression::Equal(Cast<CollateExpression>(), other.Cast<CollateExpression>());
-	case ExpressionClass::COLUMN_REF:
-		return ColumnRefExpression::Equal(Cast<ColumnRefExpression>(), other.Cast<ColumnRefExpression>());
-	case ExpressionClass::COMPARISON:
-		return ComparisonExpression::Equal(Cast<ComparisonExpression>(), other.Cast<ComparisonExpression>());
-	case ExpressionClass::CONJUNCTION:
-		return ConjunctionExpression::Equal(Cast<ConjunctionExpression>(), other.Cast<ConjunctionExpression>());
-	case ExpressionClass::CONSTANT:
-		return ConstantExpression::Equal(Cast<ConstantExpression>(), other.Cast<ConstantExpression>());
-	case ExpressionClass::DEFAULT:
-		return true;
-	case ExpressionClass::FUNCTION:
-		return FunctionExpression::Equal(Cast<FunctionExpression>(), other.Cast<FunctionExpression>());
-	case ExpressionClass::LAMBDA:
-		return LambdaExpression::Equal(Cast<LambdaExpression>(), other.Cast<LambdaExpression>());
-	case ExpressionClass::OPERATOR:
-		return OperatorExpression::Equal(Cast<OperatorExpression>(), other.Cast<OperatorExpression>());
-	case ExpressionClass::PARAMETER:
-		return ParameterExpression::Equal(Cast<ParameterExpression>(), other.Cast<ParameterExpression>());
-	case ExpressionClass::POSITIONAL_REFERENCE:
-		return PositionalReferenceExpression::Equal(Cast<PositionalReferenceExpression>(),
-		                                            other.Cast<PositionalReferenceExpression>());
-	case ExpressionClass::STAR:
-		return StarExpression::Equal(Cast<StarExpression>(), other.Cast<StarExpression>());
-	case ExpressionClass::SUBQUERY:
-		return SubqueryExpression::Equal(Cast<SubqueryExpression>(), other.Cast<SubqueryExpression>());
-	case ExpressionClass::WINDOW:
-		return WindowExpression::Equal(Cast<WindowExpression>(), other.Cast<WindowExpression>());
-	case ExpressionClass::TYPE:
-		return TypeExpression::Equal(Cast<TypeExpression>(), other.Cast<TypeExpression>());
-	default:
-		throw SerializationException("Unsupported type for expression comparison!");
-	}
-}
-
-hash_t ParsedExpression::Hash() const {
-	hash_t hash = duckdb::Hash<uint32_t>(static_cast<uint32_t>(type));
-	ParsedExpressionIterator::EnumerateChildren(
-	    *this, [&](const ParsedExpression &child) { hash = CombineHash(child.Hash(), hash); });
-	return hash;
-}
-
 bool ParsedExpression::Equals(const unique_ptr<ParsedExpression> &left, const unique_ptr<ParsedExpression> &right) {
 	if (left.get() == right.get()) {
 		return true;
@@ -114,6 +60,116 @@ bool ParsedExpression::Equals(const unique_ptr<ParsedExpression> &left, const un
 bool ParsedExpression::ListEquals(const vector<unique_ptr<ParsedExpression>> &left,
                                   const vector<unique_ptr<ParsedExpression>> &right) {
 	return ExpressionUtil::ListEquals(left, right);
+}
+
+static bool IsComparisonType(ExpressionType type) {
+	switch (type) {
+	case ExpressionType::COMPARE_EQUAL:
+	case ExpressionType::COMPARE_NOTEQUAL:
+	case ExpressionType::COMPARE_LESSTHAN:
+	case ExpressionType::COMPARE_GREATERTHAN:
+	case ExpressionType::COMPARE_LESSTHANOREQUALTO:
+	case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
+	case ExpressionType::COMPARE_DISTINCT_FROM:
+	case ExpressionType::COMPARE_NOT_DISTINCT_FROM:
+		return true;
+	default:
+		return false;
+	}
+}
+
+//! Whether an OperatorExpression of the given type can have the given number of children
+static bool IsValidOperator(ExpressionType type, idx_t child_count) {
+	switch (type) {
+	case ExpressionType::COMPARE_IN:
+	case ExpressionType::COMPARE_NOT_IN:
+		return child_count >= 2;
+	case ExpressionType::OPERATOR_UNPACK:
+	case ExpressionType::OPERATOR_TRY:
+	case ExpressionType::OPERATOR_NOT:
+	case ExpressionType::OPERATOR_IS_NULL:
+	case ExpressionType::OPERATOR_IS_NOT_NULL:
+		return child_count == 1;
+	case ExpressionType::GROUPING_FUNCTION:
+		return true;
+	case ExpressionType::OPERATOR_COALESCE:
+		return child_count >= 1;
+	case ExpressionType::ARRAY_EXTRACT:
+	case ExpressionType::STRUCT_EXTRACT:
+		return child_count == 2;
+	case ExpressionType::ARRAY_SLICE:
+		return child_count == 3 || child_count == 4;
+	case ExpressionType::ARRAY_CONSTRUCTOR:
+		return true;
+	default:
+		return IsComparisonType(type) && child_count == 2;
+	}
+}
+
+void ParsedExpression::VerifyDeserialized() {
+	auto invalid = [&](const string &reason) {
+		return SerializationException("Failed to deserialize %s expression: %s",
+		                              EnumUtil::ToString(GetExpressionClass()), reason);
+	};
+	for (auto &child : ChildrenMutable()) {
+		if (!child) {
+			throw invalid("missing child expression");
+		}
+	}
+	switch (GetExpressionClass()) {
+	case ExpressionClass::COLUMN_REF:
+		if (Cast<ColumnRefExpression>().ColumnNames().empty()) {
+			throw invalid("no column names");
+		}
+		break;
+	case ExpressionClass::COMPARISON:
+		if (!IsComparisonType(GetExpressionType())) {
+			throw invalid("invalid comparison type " + EnumUtil::ToString(GetExpressionType()));
+		}
+		break;
+	case ExpressionClass::CONJUNCTION:
+		if (GetExpressionType() != ExpressionType::CONJUNCTION_AND &&
+		    GetExpressionType() != ExpressionType::CONJUNCTION_OR) {
+			throw invalid("invalid conjunction type " + EnumUtil::ToString(GetExpressionType()));
+		}
+		if (Cast<ConjunctionExpression>().GetChildren().empty()) {
+			throw invalid("no children");
+		}
+		break;
+	case ExpressionClass::OPERATOR:
+		if (!IsValidOperator(GetExpressionType(), Cast<OperatorExpression>().GetChildren().size())) {
+			throw invalid("invalid operator type " + EnumUtil::ToString(GetExpressionType()) + " for " +
+			              to_string(Cast<OperatorExpression>().GetChildren().size()) + " children");
+		}
+		break;
+	case ExpressionClass::CASE:
+		if (Cast<CaseExpression>().CaseChecks().empty()) {
+			throw invalid("no WHEN clauses");
+		}
+		break;
+	case ExpressionClass::FUNCTION:
+		if (!Cast<FunctionExpression>().OrderBy()) {
+			throw invalid("missing ORDER BY modifier");
+		}
+		break;
+	case ExpressionClass::SUBQUERY: {
+		auto &subquery = Cast<SubqueryExpression>();
+		if (!subquery.Subquery() || !subquery.Subquery()->node) {
+			throw invalid("missing subquery");
+		}
+		if ((subquery.GetSubqueryType() == SubqueryType::ANY) != (subquery.GetChild() != nullptr)) {
+			throw invalid("a child is required for, and only for, ANY subqueries");
+		}
+		if (subquery.GetSubqueryType() == SubqueryType::INVALID) {
+			throw invalid("invalid subquery type");
+		}
+		break;
+	}
+	case ExpressionClass::LAMBDA_REF:
+		throw invalid("lambda references cannot be deserialized");
+	default:
+		break;
+	}
 }
 
 } // namespace duckdb

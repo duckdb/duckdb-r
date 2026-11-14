@@ -1,3 +1,5 @@
+#include "duckdb/common/vector/flat_vector.hpp"
+#include "duckdb/common/vector/string_vector.hpp"
 #include "duckdb/storage/string_uncompressed.hpp"
 
 #include "duckdb/common/serializer/deserializer.hpp"
@@ -6,6 +8,46 @@
 #include "duckdb/storage/table/column_data.hpp"
 
 namespace duckdb {
+
+//===--------------------------------------------------------------------===//
+// Error Helpers
+//===--------------------------------------------------------------------===//
+[[noreturn]] static void ThrowInvalidStringDictionary() {
+	throw DataCorruptionException("Corrupted uncompressed string segment: dictionary is outside the segment");
+}
+
+[[noreturn]] static void ThrowStringOffsetTableOutOfBounds() {
+	throw DataCorruptionException("Corrupted uncompressed string segment: offset table overlaps the dictionary");
+}
+
+[[noreturn]] static void ThrowDictionaryOffsetMinimumValue() {
+	throw DataCorruptionException("Corrupted uncompressed string segment: dictionary offset is INT32_MIN");
+}
+
+[[noreturn]] static void ThrowDictionaryOffsetOutOfBounds(uint32_t offset, uint32_t dictionary_size) {
+	throw DataCorruptionException(
+	    "Corrupted uncompressed string segment: dictionary offset %u exceeds dictionary size %u", offset,
+	    dictionary_size);
+}
+
+[[noreturn]] static void ThrowDecreasingDictionaryOffset(uint32_t offset, uint32_t previous_offset) {
+	throw DataCorruptionException(
+	    "Corrupted uncompressed string segment: dictionary offset %u is smaller than preceding offset %u", offset,
+	    previous_offset);
+}
+
+[[noreturn]] static void ThrowInvalidDictionaryEntryMarker() {
+	throw DataCorruptionException(
+	    "Corrupted uncompressed string segment: negative dictionary offset does not describe an overflow marker");
+}
+
+[[noreturn]] static void ThrowInvalidOverflowStringBlock() {
+	throw DataCorruptionException("Corrupted uncompressed string segment: invalid overflow string block ID");
+}
+
+[[noreturn]] static void ThrowOverflowStringOffsetOutOfBounds() {
+	throw DataCorruptionException("Corrupted uncompressed string segment: overflow string offset is outside its block");
+}
 
 //===--------------------------------------------------------------------===//
 // Storage Class
@@ -21,8 +63,8 @@ UncompressedStringSegmentState::~UncompressedStringSegmentState() {
 // Analyze
 //===--------------------------------------------------------------------===//
 struct StringAnalyzeState : public AnalyzeState {
-	explicit StringAnalyzeState(const CompressionInfo &info)
-	    : AnalyzeState(info), count(0), total_string_size(0), overflow_strings(0) {
+	explicit StringAnalyzeState(BlockManager &block_manager)
+	    : AnalyzeState(block_manager), count(0), total_string_size(0), overflow_strings(0) {
 	}
 
 	idx_t count;
@@ -31,15 +73,15 @@ struct StringAnalyzeState : public AnalyzeState {
 };
 
 unique_ptr<AnalyzeState> UncompressedStringStorage::StringInitAnalyze(ColumnData &col_data, PhysicalType type) {
-	CompressionInfo info(col_data.GetBlockManager());
-	return make_uniq<StringAnalyzeState>(info);
+	return make_uniq<StringAnalyzeState>(col_data.GetBlockManager());
 }
 
-bool UncompressedStringStorage::StringAnalyze(AnalyzeState &state_p, Vector &input, idx_t count) {
+bool UncompressedStringStorage::StringAnalyze(AnalyzeState &state_p, const Vector &input) {
 	auto &state = state_p.Cast<StringAnalyzeState>();
 	UnifiedVectorFormat vdata;
-	input.ToUnifiedFormat(count, vdata);
+	input.ToUnifiedFormat(vdata);
 
+	const auto count = input.size();
 	state.count += count;
 	auto data = UnifiedVectorFormat::GetData<string_t>(vdata);
 	for (idx_t i = 0; i < count; i++) {
@@ -63,13 +105,16 @@ idx_t UncompressedStringStorage::StringFinalAnalyze(AnalyzeState &state_p) {
 //===--------------------------------------------------------------------===//
 // Scan
 //===--------------------------------------------------------------------===//
+StringScanState::StringScanState(BufferHandle handle_p) : handle(std::move(handle_p)) {
+}
+
 void UncompressedStringInitPrefetch(ColumnSegment &segment, PrefetchState &prefetch_state) {
-	prefetch_state.AddBlock(segment.block);
+	prefetch_state.AddBlock(segment.GetBlockHandle());
 	auto segment_state = segment.GetSegmentState();
 	if (segment_state) {
 		auto &state = segment_state->Cast<UncompressedStringSegmentState>();
-		auto &block_manager = segment.block->GetBlockManager();
-		for (auto &block_id : state.on_disk_blocks) {
+		auto &block_manager = segment.GetBlockHandle()->GetBlockManager();
+		for (auto &block_id : state.GetOnDiskBlocks()) {
 			auto block_handle = state.GetHandle(block_manager, block_id);
 			prefetch_state.AddBlock(block_handle);
 		}
@@ -78,10 +123,9 @@ void UncompressedStringInitPrefetch(ColumnSegment &segment, PrefetchState &prefe
 
 unique_ptr<SegmentScanState> UncompressedStringStorage::StringInitScan(const QueryContext &context,
                                                                        ColumnSegment &segment) {
-	auto result = make_uniq<StringScanState>();
-	auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
-	result->handle = buffer_manager.Pin(segment.block);
-	return std::move(result);
+	auto &buffer_manager = BufferManager::GetBufferManager(segment.GetDatabase());
+	auto handle = buffer_manager.Pin(context, segment.GetBlockHandle());
+	return make_uniq<StringScanState>(std::move(handle));
 }
 
 //===--------------------------------------------------------------------===//
@@ -91,22 +135,17 @@ void UncompressedStringStorage::StringScanPartial(ColumnSegment &segment, Column
                                                   Vector &result, idx_t result_offset) {
 	// clear any previously locked buffers and get the primary buffer handle
 	auto &scan_state = state.scan_state->Cast<StringScanState>();
+	auto layout = StringSegmentLayout::Read(scan_state.handle, segment);
 	auto start = state.GetPositionInSegment();
+	D_ASSERT(start <= segment.count.load());
+	D_ASSERT(scan_count <= segment.count.load() - start);
 
-	auto baseptr = scan_state.handle.Ptr() + segment.GetBlockOffset();
-	auto dict_end = GetDictionaryEnd(segment, scan_state.handle);
-	auto base_data = reinterpret_cast<int32_t *>(baseptr + DICTIONARY_HEADER_SIZE);
-	auto result_data = FlatVector::GetData<string_t>(result);
-
-	int32_t previous_offset = start > 0 ? base_data[start - 1] : 0;
+	auto result_data = FlatVector::GetDataMutable<string_t>(result);
+	auto strings = layout.ValidateRange(start, scan_count);
 
 	for (idx_t i = 0; i < scan_count; i++) {
-		// std::abs used since offsets can be negative to indicate big strings
-		auto current_offset = base_data[start + i];
-		auto string_length = UnsafeNumericCast<uint32_t>(std::abs(current_offset) - std::abs(previous_offset));
-		result_data[result_offset + i] =
-		    FetchStringFromDict(segment, dict_end, result, baseptr, current_offset, string_length);
-		previous_offset = base_data[start + i];
+		auto entry = strings.GetEntry(i);
+		result_data[result_offset + i] = FetchStringFromEntry(state.context, segment, result, entry);
 	}
 }
 
@@ -119,22 +158,24 @@ void UncompressedStringStorage::StringScan(ColumnSegment &segment, ColumnScanSta
 // Select
 //===--------------------------------------------------------------------===//
 void UncompressedStringStorage::Select(ColumnSegment &segment, ColumnScanState &state, idx_t vector_count,
-                                       Vector &result, const SelectionVector &sel, idx_t sel_count) {
+                                       Vector &result, const SelectionVector &sel, idx_t sel_count, idx_t result_offset,
+                                       ScanVectorType) {
 	// clear any previously locked buffers and get the primary buffer handle
 	auto &scan_state = state.scan_state->Cast<StringScanState>();
+	auto layout = StringSegmentLayout::Read(scan_state.handle, segment);
 	auto start = state.GetPositionInSegment();
+	D_ASSERT(start <= segment.count.load());
+	D_ASSERT(vector_count <= segment.count.load() - start);
+	D_ASSERT(sel_count <= vector_count);
 
-	auto baseptr = scan_state.handle.Ptr() + segment.GetBlockOffset();
-	auto dict_end = GetDictionaryEnd(segment, scan_state.handle);
-	auto base_data = reinterpret_cast<int32_t *>(baseptr + DICTIONARY_HEADER_SIZE);
-	auto result_data = FlatVector::GetData<string_t>(result);
+	auto result_data = FlatVector::GetDataMutable<string_t>(result);
+	auto strings = layout.ValidateRange(start, vector_count);
 
 	for (idx_t i = 0; i < sel_count; i++) {
-		idx_t index = start + sel.get_index(i);
-		auto current_offset = base_data[index];
-		auto prev_offset = index > 0 ? base_data[index - 1] : 0;
-		auto string_length = UnsafeNumericCast<uint32_t>(std::abs(current_offset) - std::abs(prev_offset));
-		result_data[i] = FetchStringFromDict(segment, dict_end, result, baseptr, current_offset, string_length);
+		auto selection_index = sel.get_index(i);
+		D_ASSERT(selection_index < vector_count);
+		auto entry = strings.GetEntry(selection_index);
+		result_data[result_offset + i] = FetchStringFromEntry(state.context, segment, result, entry);
 	}
 }
 
@@ -142,13 +183,13 @@ void UncompressedStringStorage::Select(ColumnSegment &segment, ColumnScanState &
 // Fetch
 //===--------------------------------------------------------------------===//
 BufferHandle &ColumnFetchState::GetOrInsertHandle(ColumnSegment &segment) {
-	auto primary_id = segment.block->BlockId();
+	auto primary_id = segment.GetBlockHandle()->BlockId();
 
 	auto entry = handles.find(primary_id);
 	if (entry == handles.end()) {
 		// not pinned yet: pin it
-		auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
-		auto handle = buffer_manager.Pin(segment.block);
+		auto &buffer_manager = BufferManager::GetBufferManager(segment.GetDatabase());
+		auto handle = buffer_manager.Pin(context, segment.GetBlockHandle());
 		auto pinned_entry = handles.insert(make_pair(primary_id, std::move(handle)));
 		return pinned_entry.first->second;
 	} else {
@@ -159,24 +200,19 @@ BufferHandle &ColumnFetchState::GetOrInsertHandle(ColumnSegment &segment) {
 
 void UncompressedStringStorage::StringFetchRow(ColumnSegment &segment, ColumnFetchState &state, row_t row_id,
                                                Vector &result, idx_t result_idx) {
+	D_ASSERT(row_id >= 0);
+	auto row_index = NumericCast<idx_t>(row_id);
+	D_ASSERT(row_index < segment.count.load());
+
 	// fetch a single row from the string segment
 	// first pin the main buffer if it is not already pinned
 	auto &handle = state.GetOrInsertHandle(segment);
+	auto layout = StringSegmentLayout::Read(handle, segment);
 
-	auto baseptr = handle.Ptr() + segment.GetBlockOffset();
-	auto dict_end = GetDictionaryEnd(segment, handle);
-	auto base_data = reinterpret_cast<int32_t *>(baseptr + DICTIONARY_HEADER_SIZE);
-	auto result_data = FlatVector::GetData<string_t>(result);
+	auto result_data = FlatVector::GetDataMutable<string_t>(result);
 
-	auto dict_offset = base_data[row_id];
-	uint32_t string_length;
-	if (DUCKDB_UNLIKELY(row_id == 0LL)) {
-		// edge case where this is the first string in the dict
-		string_length = NumericCast<uint32_t>(std::abs(dict_offset));
-	} else {
-		string_length = NumericCast<uint32_t>(std::abs(dict_offset) - std::abs(base_data[row_id - 1]));
-	}
-	result_data[result_idx] = FetchStringFromDict(segment, dict_end, result, baseptr, dict_offset, string_length);
+	auto entry = layout.ValidateAndGetEntry(row_index);
+	result_data[result_idx] = FetchStringFromEntry(state.context, segment, result, entry);
 }
 
 //===--------------------------------------------------------------------===//
@@ -196,9 +232,9 @@ void SerializedStringSegmentState::Serialize(Serializer &serializer) const {
 unique_ptr<CompressedSegmentState>
 UncompressedStringStorage::StringInitSegment(ColumnSegment &segment, block_id_t block_id,
                                              optional_ptr<ColumnSegmentState> segment_state) {
-	auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
+	auto &buffer_manager = BufferManager::GetBufferManager(segment.GetDatabase());
 	if (block_id == INVALID_BLOCK) {
-		auto handle = buffer_manager.Pin(segment.block);
+		auto handle = buffer_manager.Pin(segment.GetBlockHandle());
 		StringDictionaryContainer dictionary;
 		dictionary.size = 0;
 		dictionary.end = UnsafeNumericCast<uint32_t>(segment.SegmentSize());
@@ -207,21 +243,21 @@ UncompressedStringStorage::StringInitSegment(ColumnSegment &segment, block_id_t 
 	auto result = make_uniq<UncompressedStringSegmentState>();
 	if (segment_state) {
 		auto &serialized_state = segment_state->Cast<SerializedStringSegmentState>();
-		result->on_disk_blocks = std::move(serialized_state.blocks);
+		result->InitializeOnDiskBlocks(std::move(serialized_state.blocks));
 	}
 	return std::move(result);
 }
 
-idx_t UncompressedStringStorage::FinalizeAppend(ColumnSegment &segment, SegmentStatistics &) {
-	auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
-	auto handle = buffer_manager.Pin(segment.block);
+idx_t UncompressedStringStorage::FinalizeAppend(ColumnSegment &segment, BaseStatistics &) {
+	auto &buffer_manager = BufferManager::GetBufferManager(segment.GetDatabase());
+	auto handle = buffer_manager.Pin(segment.GetBlockHandle());
 	auto dict = GetDictionary(segment, handle);
 	D_ASSERT(dict.end == segment.SegmentSize());
 	// compute the total size required to store this segment
 	auto offset_size = DICTIONARY_HEADER_SIZE + segment.count * sizeof(int32_t);
 	auto total_size = offset_size + dict.size;
 
-	CompressionInfo info(segment.block->GetBlockManager());
+	CompressionInfo info(segment.GetBlockHandle()->GetBlockManager());
 	if (total_size >= info.GetCompactionFlushLimit()) {
 		// the block is full enough, don't bother moving around the dictionary
 		return segment.SegmentSize();
@@ -230,7 +266,7 @@ idx_t UncompressedStringStorage::FinalizeAppend(ColumnSegment &segment, SegmentS
 	// the block has space left: figure out how much space we can save
 	auto move_amount = segment.SegmentSize() - total_size;
 	// move the dictionary so it lines up exactly with the offsets
-	auto dataptr = handle.Ptr();
+	auto dataptr = handle.GetDataMutable() + segment.GetBlockOffset();
 	memmove(dataptr + offset_size, dataptr + dict.end - dict.size, dict.size);
 	dict.end -= move_amount;
 	D_ASSERT(dict.end == total_size);
@@ -244,11 +280,11 @@ idx_t UncompressedStringStorage::FinalizeAppend(ColumnSegment &segment, SegmentS
 //===--------------------------------------------------------------------===//
 unique_ptr<ColumnSegmentState> UncompressedStringStorage::SerializeState(ColumnSegment &segment) {
 	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
-	if (state.on_disk_blocks.empty()) {
+	if (state.GetOnDiskBlocks().empty()) {
 		// no on-disk blocks - nothing to write
 		return nullptr;
 	}
-	return make_uniq<SerializedStringSegmentState>(state.on_disk_blocks);
+	return make_uniq<SerializedStringSegmentState>(state.GetOnDiskBlocks());
 }
 
 unique_ptr<ColumnSegmentState> UncompressedStringStorage::DeserializeState(Deserializer &deserializer) {
@@ -259,7 +295,7 @@ unique_ptr<ColumnSegmentState> UncompressedStringStorage::DeserializeState(Deser
 
 void UncompressedStringStorage::VisitBlockIds(const ColumnSegment &segment, BlockIdVisitor &visitor) {
 	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
-	for (auto &block_id : state.on_disk_blocks) {
+	for (auto &block_id : state.GetOnDiskBlocks()) {
 		visitor.Visit(block_id);
 	}
 }
@@ -284,11 +320,155 @@ CompressionFunction StringUncompressed::GetFunction(PhysicalType data_type) {
 }
 
 //===--------------------------------------------------------------------===//
+// Dictionary Validation
+//===--------------------------------------------------------------------===//
+//! Returns the absolute offset without validating it.
+static inline uint32_t GetDictionaryOffset(const int32_t encoded_offset) {
+	// Widen first so taking the absolute value of INT32_MIN does not overflow.
+	return UnsafeNumericCast<uint32_t>(AbsValue<int64_t>(encoded_offset));
+}
+
+static uint32_t ValidateAndGetDictionaryOffset(const int32_t encoded_offset, const uint32_t dictionary_size) {
+	if (encoded_offset == NumericLimits<int32_t>::Minimum()) {
+		ThrowDictionaryOffsetMinimumValue();
+	}
+
+	const auto dictionary_offset = GetDictionaryOffset(encoded_offset);
+	if (dictionary_offset > dictionary_size) {
+		ThrowDictionaryOffsetOutOfBounds(dictionary_offset, dictionary_size);
+	}
+	return dictionary_offset;
+}
+
+//! SIMD friendly version of ValidateDictionaryEntry that avoids early exits.
+//! Returns 1 if ValidateDictionaryEntry would accept the offsets, otherwise 0.
+static uint32_t ValidateDictionaryEntryFast(const int32_t current_offset, const int32_t previous_offset,
+                                            const uint32_t dictionary_size) {
+	const auto current_dictionary_offset = GetDictionaryOffset(current_offset);
+	const auto previous_dictionary_offset = GetDictionaryOffset(previous_offset);
+	// Offsets store the cumulative number of dictionary bytes used.
+	const auto string_length = current_dictionary_offset - previous_dictionary_offset;
+	uint32_t invalid = current_offset == NumericLimits<int32_t>::Minimum();
+	invalid |= current_dictionary_offset > dictionary_size;
+	// Dictionary offsets must not decrease.
+	invalid |= current_dictionary_offset < previous_dictionary_offset;
+
+	// If the offset is negative, the entry is either NULL or an overflow string.
+	const uint32_t is_negative = current_offset < 0;
+	const uint32_t has_zero_length = string_length == 0;
+	const uint32_t has_bytes = string_length != 0;
+	const uint32_t offset_changed = current_offset != previous_offset;
+	const uint32_t wrong_marker_size = string_length != UncompressedStringStorage::BIG_STRING_MARKER_SIZE;
+
+	// If it is NULL, the current offset must be inherited unchanged from the previous entry.
+	const auto invalid_null = has_zero_length & offset_changed;
+	// If it is an overflow string, the entry's length must match the marker's length.
+	const auto invalid_overflow = has_bytes & wrong_marker_size;
+	invalid |= is_negative & (invalid_null | invalid_overflow);
+
+	return invalid == 0;
+}
+
+//! Validates both offsets and their entry, throwing on invalid data.
+static void ValidateDictionaryEntry(const int32_t current_offset, const int32_t previous_offset,
+                                    const uint32_t dictionary_size) {
+	const auto previous_dictionary_offset = ValidateAndGetDictionaryOffset(previous_offset, dictionary_size);
+	const auto current_dictionary_offset = ValidateAndGetDictionaryOffset(current_offset, dictionary_size);
+
+	// Dictionary offsets must not decrease.
+	if (current_dictionary_offset < previous_dictionary_offset) {
+		D_ASSERT(!ValidateDictionaryEntryFast(current_offset, previous_offset, dictionary_size));
+		ThrowDecreasingDictionaryOffset(current_dictionary_offset, previous_dictionary_offset);
+	}
+
+	// Offsets store the cumulative number of dictionary bytes used.
+	const auto string_length = current_dictionary_offset - previous_dictionary_offset;
+
+	// If the offset is negative, the entry is either NULL or an overflow string.
+	if (current_offset < 0) {
+		// If it is NULL, the current offset must be inherited unchanged from the previous entry.
+		if (string_length == 0 && current_offset != previous_offset) {
+			D_ASSERT(!ValidateDictionaryEntryFast(current_offset, previous_offset, dictionary_size));
+			ThrowInvalidDictionaryEntryMarker();
+		}
+
+		// If it is an overflow string, the entry's length must match the marker's length.
+		if (string_length > 0 && string_length != UncompressedStringStorage::BIG_STRING_MARKER_SIZE) {
+			D_ASSERT(!ValidateDictionaryEntryFast(current_offset, previous_offset, dictionary_size));
+			ThrowInvalidDictionaryEntryMarker();
+		}
+	}
+
+	D_ASSERT(ValidateDictionaryEntryFast(current_offset, previous_offset, dictionary_size));
+}
+
+StringSegmentLayout StringSegmentLayout::Read(const BufferHandle &handle, const ColumnSegment &segment) {
+	auto reader = CompressionSegmentReader::FromSegment(handle, segment, "uncompressed string segment");
+	// Appends change the dictionary size, so reading it during a scan would race.
+	// The dictionary end does not change during appends, so use that instead.
+	auto dictionary_end = NumericCast<idx_t>(reader.Get<uint32_t>(sizeof(uint32_t)));
+	if (dictionary_end > reader.Size()) {
+		ThrowInvalidStringDictionary();
+	}
+	auto offset_count = segment.count.load();
+	if (dictionary_end < UncompressedStringStorage::DICTIONARY_HEADER_SIZE ||
+	    offset_count > (dictionary_end - UncompressedStringStorage::DICTIONARY_HEADER_SIZE) / sizeof(int32_t)) {
+		ThrowStringOffsetTableOutOfBounds();
+	}
+	// Dictionary bytes do not overlap the offsets table, so use the end of the table
+	// as the lower bound instead of reading the dictionary size.
+	auto dictionary_start = UncompressedStringStorage::DICTIONARY_HEADER_SIZE + offset_count * sizeof(int32_t);
+	auto dictionary_data = reader.GetBytes(dictionary_start, dictionary_end - dictionary_start);
+	auto offsets = reader.GetArray<int32_t>(UncompressedStringStorage::DICTIONARY_HEADER_SIZE, offset_count);
+	return {dictionary_data, offsets};
+}
+
+ValidatedStringRange StringSegmentLayout::ValidateRange(const idx_t start, const idx_t count) const {
+	D_ASSERT(start <= offsets.size());
+	D_ASSERT(count <= offsets.size() - start);
+	auto range_offsets = offsets.SubArray(start, count);
+	const auto previous_offset = start > 0 ? offsets[start - 1] : 0;
+	const auto dictionary_size = NumericCast<uint32_t>(dictionary_data.size());
+	const auto preceding_dictionary_offset = ValidateAndGetDictionaryOffset(previous_offset, dictionary_size);
+	if (DUCKDB_UNLIKELY(count == 0)) {
+		return ValidatedStringRange(dictionary_data, range_offsets, preceding_dictionary_offset);
+	}
+
+	uint32_t valid = ValidateDictionaryEntryFast(range_offsets[0], previous_offset, dictionary_size);
+	// Hot path assumes no errors, so accumulate and later deal with them.
+	for (idx_t i = 1; i < count; i++) {
+		valid &= ValidateDictionaryEntryFast(range_offsets[i], range_offsets[i - 1], dictionary_size);
+	}
+
+	// If we have an error, find it and report it.
+	if (DUCKDB_UNLIKELY(!valid)) {
+		for (idx_t i = 0; i < count; i++) {
+			ValidateDictionaryEntry(range_offsets[i], i > 0 ? range_offsets[i - 1] : previous_offset, dictionary_size);
+		}
+		throw InternalException("ValidateDictionaryEntryFast and ValidateDictionaryEntry disagree");
+	}
+
+	return ValidatedStringRange(dictionary_data, range_offsets, preceding_dictionary_offset);
+}
+
+StringDictionaryEntry StringSegmentLayout::ValidateAndGetEntry(const idx_t row_index) const {
+	D_ASSERT(row_index < offsets.size());
+	const auto current_offset = offsets[row_index];
+	const auto previous_offset = row_index > 0 ? offsets[row_index - 1] : 0;
+	ValidateDictionaryEntry(current_offset, previous_offset, NumericCast<uint32_t>(dictionary_data.size()));
+	const auto previous_dictionary_offset = GetDictionaryOffset(previous_offset);
+	const auto current_dictionary_offset = GetDictionaryOffset(current_offset);
+	const auto string_length = current_dictionary_offset - previous_dictionary_offset;
+	const auto is_overflow = current_offset < 0 && string_length > 0;
+	return {dictionary_data.SubArray(dictionary_data.size() - current_dictionary_offset, string_length), is_overflow};
+}
+
+//===--------------------------------------------------------------------===//
 // Helper Functions
 //===--------------------------------------------------------------------===//
 void UncompressedStringStorage::SetDictionary(ColumnSegment &segment, BufferHandle &handle,
                                               StringDictionaryContainer container) {
-	auto startptr = handle.Ptr() + segment.GetBlockOffset();
+	auto startptr = handle.GetDataMutable() + segment.GetBlockOffset();
 	Store<uint32_t>(container.size, startptr);
 	Store<uint32_t>(container.end, startptr + sizeof(uint32_t));
 }
@@ -299,11 +479,6 @@ StringDictionaryContainer UncompressedStringStorage::GetDictionary(ColumnSegment
 	container.size = Load<uint32_t>(startptr);
 	container.end = Load<uint32_t>(startptr + sizeof(uint32_t));
 	return container;
-}
-
-uint32_t UncompressedStringStorage::GetDictionaryEnd(ColumnSegment &segment, BufferHandle &handle) {
-	auto startptr = handle.Ptr() + segment.GetBlockOffset();
-	return Load<uint32_t>(startptr + sizeof(uint32_t));
 }
 
 idx_t UncompressedStringStorage::RemainingSpace(ColumnSegment &segment, BufferHandle &handle) {
@@ -332,7 +507,7 @@ void UncompressedStringStorage::WriteStringMemory(ColumnSegment &segment, string
 	shared_ptr<BlockHandle> block;
 	BufferHandle handle;
 
-	auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
+	auto &buffer_manager = BufferManager::GetBufferManager(segment.GetDatabase());
 	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
 	// check if the string fits in the current block
 	if (!state.head || state.head->offset + total_length >= state.head->size) {
@@ -358,31 +533,39 @@ void UncompressedStringStorage::WriteStringMemory(ColumnSegment &segment, string
 	result_offset = UnsafeNumericCast<int32_t>(state.head->offset);
 
 	// copy the string and the length there
-	auto ptr = handle.Ptr() + state.head->offset;
+	auto ptr = handle.GetDataMutable() + state.head->offset;
 	Store<uint32_t>(UnsafeNumericCast<uint32_t>(string.GetSize()), ptr);
 	ptr += sizeof(uint32_t);
 	memcpy(ptr, string.GetData(), string.GetSize());
 	state.head->offset += total_length;
 }
 
-string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, Vector &result, block_id_t block,
-                                                       int32_t offset) {
-	auto &buffer_manager = segment.block->GetMemory().GetBufferManager();
+string_t UncompressedStringStorage::ReadOverflowString(const QueryContext &context, ColumnSegment &segment,
+                                                       Vector &result, block_id_t block, int32_t offset) {
+	auto &buffer_manager = segment.GetBlockHandle()->GetMemory().GetBufferManager();
 	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
 
-	D_ASSERT(block != INVALID_BLOCK);
-	D_ASSERT(offset < NumericCast<int32_t>(segment.GetBlockSize()));
+	if (block < 0) {
+		ThrowInvalidOverflowStringBlock();
+	}
+	if (offset < 0) {
+		ThrowOverflowStringOffsetOutOfBounds();
+	}
 
 	if (block < MAXIMUM_BLOCK) {
 		// read the overflow string from disk
 		// pin the initial handle and read the length
-		auto block_handle = state.GetHandle(segment.block->GetBlockManager(), block);
-		auto handle = buffer_manager.Pin(block_handle);
+		auto block_handle = state.GetHandle(segment.GetBlockHandle()->GetBlockManager(), block);
+		auto handle = buffer_manager.Pin(context, block_handle);
 
 		// read header
-		uint32_t length = Load<uint32_t>(handle.Ptr() + offset);
+		auto block_size = segment.GetBlockSize();
+		auto string_space = block_size - sizeof(block_id_t);
+		CompressionSegmentReader block_reader(handle.Ptr(), block_size, "overflow string block");
+		auto reader = block_reader.GetSubReader(0, string_space, "overflow string data");
+		reader.SetPosition(NumericCast<idx_t>(offset));
+		uint32_t length = reader.Read<uint32_t>();
 		uint32_t remaining = length;
-		offset += sizeof(uint32_t);
 
 		BufferHandle target_handle;
 		string_t overflow_string;
@@ -391,7 +574,7 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 		if (allocate_block) {
 			// overflow string is bigger than a block - allocate a temporary buffer for it
 			target_handle = buffer_manager.Allocate(MemoryTag::OVERFLOW_STRINGS, length);
-			target_ptr = target_handle.Ptr();
+			target_ptr = target_handle.GetDataMutable();
 		} else {
 			// overflow string is smaller than a block - add it to the vector directly
 			overflow_string = StringVector::EmptyString(result, length);
@@ -400,24 +583,23 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 
 		// now append the string to the single buffer
 		while (remaining > 0) {
-			idx_t to_write = MinValue<idx_t>(remaining, segment.GetBlockSize() - sizeof(block_id_t) -
-			                                                UnsafeNumericCast<idx_t>(offset));
-			memcpy(target_ptr, handle.Ptr() + offset, to_write);
+			idx_t to_write = MinValue<idx_t>(remaining, reader.Remaining());
+			reader.ReadBytesInto(target_ptr, to_write);
 			remaining -= to_write;
-			offset += UnsafeNumericCast<int32_t>(to_write);
 			target_ptr += to_write;
 			if (remaining > 0) {
 				// read the next block
-				block_id_t next_block = Load<block_id_t>(handle.Ptr() + offset);
-				block_handle = state.GetHandle(segment.block->GetBlockManager(), next_block);
-				handle = buffer_manager.Pin(block_handle);
-				offset = 0;
+				block_id_t next_block = block_reader.Get<block_id_t>(string_space);
+				block_handle = state.GetHandle(segment.GetBlockHandle()->GetBlockManager(), next_block);
+				handle = buffer_manager.Pin(context, block_handle);
+				block_reader = CompressionSegmentReader(handle.Ptr(), block_size, "overflow string block");
+				reader = block_reader.GetSubReader(0, string_space, "overflow string data");
 			}
 		}
 		if (allocate_block) {
 			auto final_buffer = target_handle.Ptr();
 			StringVector::AddHandle(result, std::move(target_handle));
-			return ReadString(final_buffer, 0, length);
+			return string_t(const_char_ptr_cast(final_buffer), length);
 		} else {
 			overflow_string.Finalize();
 			return overflow_string;
@@ -427,35 +609,24 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 	// read the overflow string from memory
 	// first pin the handle, if it is not pinned yet
 	auto string_block = state.FindOverflowBlock(block);
-	auto handle = buffer_manager.Pin(string_block.get().block);
+	auto handle = buffer_manager.Pin(context, string_block.get().block);
 	auto final_buffer = handle.Ptr();
 	StringVector::AddHandle(result, std::move(handle));
-	return ReadStringWithLength(final_buffer, offset);
+	CompressionSegmentReader reader(final_buffer, string_block.get().size, "in-memory overflow string block");
+	return ReadStringWithLength(reader, offset);
 }
 
-string_t UncompressedStringStorage::ReadString(data_ptr_t target, int32_t offset, uint32_t string_length) {
-	auto ptr = target + offset;
-	auto str_ptr = char_ptr_cast(ptr);
-	return string_t(str_ptr, string_length);
-}
-
-string_t UncompressedStringStorage::ReadStringWithLength(data_ptr_t target, int32_t offset) {
-	auto ptr = target + offset;
-	auto str_length = Load<uint32_t>(ptr);
-	auto str_ptr = char_ptr_cast(ptr + sizeof(uint32_t));
-	return string_t(str_ptr, str_length);
+string_t UncompressedStringStorage::ReadStringWithLength(CompressionSegmentReader reader, int32_t offset) {
+	reader.SetPosition(NumericCast<idx_t>(offset));
+	auto string_length = reader.Read<uint32_t>();
+	auto string_data = reader.ReadBytes(string_length);
+	return string_t(const_char_ptr_cast(string_data.data()), string_length);
 }
 
 void UncompressedStringStorage::WriteStringMarker(data_ptr_t target, block_id_t block_id, int32_t offset) {
 	memcpy(target, &block_id, sizeof(block_id_t));
 	target += sizeof(block_id_t);
 	memcpy(target, &offset, sizeof(int32_t));
-}
-
-void UncompressedStringStorage::ReadStringMarker(data_ptr_t target, block_id_t &block_id, int32_t &offset) {
-	memcpy(&block_id, target, sizeof(block_id_t));
-	target += sizeof(block_id_t);
-	memcpy(&offset, target, sizeof(int32_t));
 }
 
 } // namespace duckdb

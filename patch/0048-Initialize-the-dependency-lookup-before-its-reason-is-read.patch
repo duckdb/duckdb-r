@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 20:41:24 +0000
+Subject: [PATCH] Initialize the dependency lookup before its reason is read
+
+DependencyManager::VerifyExistence() declares a CatalogSet::EntryLookup
+and fills it on two paths of three: a schema entry, or any other entry
+whose schema was found. When the schema path leads nowhere the lookup
+is read with its reason uninitialized, which -Wmaybe-uninitialized
+reports, and the DELETED test that follows answers from whatever the
+stack held. The lookup starts out as NOT_PRESENT with no result, which
+is what a missing schema means for its subject.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/catalog/dependency_manager.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/catalog/dependency_manager.cpp b/src/duckdb/src/catalog/dependency_manager.cpp
+index e3d2db1871..3b8f5adc63 100644
+--- a/src/duckdb/src/catalog/dependency_manager.cpp
++++ b/src/duckdb/src/catalog/dependency_manager.cpp
+@@ -553,7 +553,7 @@ void DependencyManager::VerifyExistence(CatalogTransaction transaction, Dependen
+ 
+ 	// navigate the (possibly nested) schema path to the schema that directly contains the subject
+ 	auto schema = NavigateSchemaPath(transaction, schema_path);
+-	CatalogSet::EntryLookup lookup_result;
++	CatalogSet::EntryLookup lookup_result {nullptr, CatalogSet::EntryLookup::FailureReason::NOT_PRESENT};
+ 	if (type == CatalogType::SCHEMA_ENTRY) {
+ 		auto &container = schema ? schema->Cast<DuckSchemaEntry>().GetCatalogSet(CatalogType::SCHEMA_ENTRY)
+ 		                         : catalog.GetSchemaCatalogSet();

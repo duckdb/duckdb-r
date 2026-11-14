@@ -5,6 +5,7 @@
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
 #include "duckdb/planner/expression/bound_operator_expression.hpp"
+#include "duckdb/planner/expression_iterator.hpp"
 #include "duckdb/planner/filter/expression_filter.hpp"
 #include "duckdb/planner/operator/list.hpp"
 #include "duckdb/storage/statistics/base_statistics.hpp"
@@ -12,6 +13,22 @@
 #include <algorithm>
 
 namespace duckdb {
+
+bool ExpressionBecomesNull(const Expression &expr,
+                           const std::function<bool(const BoundColumnRefExpression &)> &column_becomes_null) {
+	if (expr.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
+		auto &column = expr.Cast<BoundColumnRefExpression>();
+		return column_becomes_null(column);
+	}
+	if (!expr.PropagatesNullValues()) {
+		return false;
+	}
+	bool child_becomes_null = false;
+	ExpressionIterator::EnumerateChildren(expr, [&](const Expression &child) {
+		child_becomes_null |= ExpressionBecomesNull(child, column_becomes_null);
+	});
+	return child_becomes_null;
+}
 
 NotNullExpressionAnalyzer::NotNullExpressionAnalyzer(ClientContext &context_p,
                                                      optional_ptr<LogicalOperator> plan_root_p)
@@ -23,21 +40,17 @@ static bool GetColumnRefBinding(const Expression &expr, ColumnBinding &binding) 
 		return false;
 	}
 	auto &colref = expr.Cast<BoundColumnRefExpression>();
-	if (colref.depth != 0) {
+	if (colref.Depth() != 0) {
 		return false;
 	}
-	binding = colref.binding;
+	binding = colref.Binding();
 	return true;
 }
 
-static bool IsComparisonType(ExpressionType type) {
-	return type >= ExpressionType::COMPARE_EQUAL && type <= ExpressionType::COMPARE_NOT_DISTINCT_FROM;
-}
-
-static bool FilterRejectsNull(const Expression &filter, const Expression &expr) {
+bool FilterRejectsNull(const Expression &filter, const Expression &expr) {
 	if (filter.GetExpressionType() == ExpressionType::CONJUNCTION_AND) {
 		auto &conjunction = filter.Cast<BoundConjunctionExpression>();
-		for (auto &child : conjunction.children) {
+		for (auto &child : conjunction.GetChildren()) {
 			if (FilterRejectsNull(*child, expr)) {
 				return true;
 			}
@@ -46,10 +59,10 @@ static bool FilterRejectsNull(const Expression &filter, const Expression &expr) 
 	}
 	if (filter.GetExpressionType() == ExpressionType::CONJUNCTION_OR) {
 		auto &conjunction = filter.Cast<BoundConjunctionExpression>();
-		if (conjunction.children.empty()) {
+		if (conjunction.GetChildren().empty()) {
 			return false;
 		}
-		for (auto &child : conjunction.children) {
+		for (auto &child : conjunction.GetChildren()) {
 			if (!FilterRejectsNull(*child, expr)) {
 				return false;
 			}
@@ -58,15 +71,16 @@ static bool FilterRejectsNull(const Expression &filter, const Expression &expr) 
 	}
 	if (filter.GetExpressionType() == ExpressionType::OPERATOR_IS_NOT_NULL) {
 		auto &op = filter.Cast<BoundOperatorExpression>();
-		return !op.children.empty() && Expression::Equals(*op.children[0], expr);
+		return !op.GetChildren().empty() && Expression::Equals(*op.GetChildren()[0], expr);
 	}
-	if (!IsComparisonType(filter.GetExpressionType()) ||
+	if (!BoundComparisonExpression::IsComparison(filter) ||
 	    filter.GetExpressionType() == ExpressionType::COMPARE_DISTINCT_FROM ||
 	    filter.GetExpressionType() == ExpressionType::COMPARE_NOT_DISTINCT_FROM) {
 		return false;
 	}
-	auto &comparison = filter.Cast<BoundComparisonExpression>();
-	return Expression::Equals(*comparison.left, expr) || Expression::Equals(*comparison.right, expr);
+	auto &comparison = filter.Cast<BoundFunctionExpression>();
+	return Expression::Equals(BoundComparisonExpression::Left(comparison), expr) ||
+	       Expression::Equals(BoundComparisonExpression::Right(comparison), expr);
 }
 
 static bool JoinOutputPreservesChildNonNullability(JoinType join_type, idx_t child_idx) {
@@ -90,7 +104,7 @@ static bool JoinOutputPreservesChildNonNullability(JoinType join_type, idx_t chi
 	return false;
 }
 
-optional_ptr<LogicalCTE> NotNullExpressionAnalyzer::FindCTE(idx_t cte_index) {
+optional_ptr<LogicalCTE> NotNullExpressionAnalyzer::FindCTE(TableIndex cte_index) {
 	if (!plan_root) {
 		return nullptr;
 	}
@@ -110,7 +124,7 @@ optional_ptr<LogicalCTE> NotNullExpressionAnalyzer::FindCTE(idx_t cte_index) {
 	return nullptr;
 }
 
-bool NotNullExpressionAnalyzer::IsNotNull(LogicalOperator &op, const Expression &expr, vector<idx_t> &seen_ctes) {
+bool NotNullExpressionAnalyzer::IsNotNull(LogicalOperator &op, const Expression &expr, vector<TableIndex> &seen_ctes) {
 	switch (op.type) {
 	case LogicalOperatorType::LOGICAL_PROJECTION: {
 		auto &projection = op.Cast<LogicalProjection>();
@@ -177,21 +191,25 @@ bool NotNullExpressionAnalyzer::IsNotNull(LogicalOperator &op, const Expression 
 		if (binding.table_index != get.table_index) {
 			return false;
 		}
-		auto &column_ids = get.GetColumnIds();
-		if (binding.column_index >= column_ids.size()) {
-			return false;
-		}
-		auto &column_index = column_ids[binding.column_index];
-		if (!column_index.HasPrimaryIndex() || column_index.HasChildren() ||
-		    column_index.GetPrimaryIndex() == DConstants::INVALID_INDEX) {
-			return false;
+		if (get.table_filters.HasFilter(binding.column_index)) {
+			auto column_expr = make_uniq<BoundColumnRefExpression>(expr.GetReturnType(), binding);
+			auto filter_expr =
+			    get.table_filters.GetFilterByColumnIndex(binding.column_index).ToExpression(*column_expr);
+			if (FilterRejectsNull(*filter_expr, expr)) {
+				return true;
+			}
 		}
 		auto table = get.GetTable();
 		if (!table) {
 			return false;
 		}
+		auto &column_index = get.GetColumnIndex(binding);
+		if (!column_index.HasPrimaryIndex() || column_index.HasChildren() ||
+		    column_index.GetPrimaryIndex() == DConstants::INVALID_INDEX) {
+			return false;
+		}
 		auto stats = table->GetStatistics(context, column_index.GetPrimaryIndex());
-		//! Unknown statistics must not count as proof of non-nullability
+		// unknown statistics must not count as proof of non-nullability
 		return stats && stats->CanHaveNoNull() && !stats->CanHaveNull();
 	}
 	case LogicalOperatorType::LOGICAL_CTE_REF: {
@@ -208,16 +226,15 @@ bool NotNullExpressionAnalyzer::IsNotNull(LogicalOperator &op, const Expression 
 		if (!cte || cte->children.empty()) {
 			return false;
 		}
-		auto column_index = binding.column_index;
+		auto column_index = binding.column_index.GetIndex();
 		auto &cte_source = *cte->children[0];
 		auto source_bindings = cte_source.GetColumnBindings();
-		if (column_index >= source_bindings.size() || column_index >= cte_source.types.size()) {
+		if (column_index >= source_bindings.size()) {
 			return false;
 		}
 		seen_ctes.push_back(cte_ref.cte_index);
-		auto source_expr =
-		    make_uniq<BoundColumnRefExpression>(cte_source.types[column_index], source_bindings[column_index]);
-		auto result = IsNotNull(cte_source, *source_expr, seen_ctes);
+		auto source_expr = BoundColumnRefExpression(expr.GetReturnType(), source_bindings[column_index]);
+		auto result = IsNotNull(cte_source, source_expr, seen_ctes);
 		seen_ctes.pop_back();
 		return result;
 	}
@@ -227,7 +244,7 @@ bool NotNullExpressionAnalyzer::IsNotNull(LogicalOperator &op, const Expression 
 }
 
 bool NotNullExpressionAnalyzer::IsNotNull(LogicalOperator &op, const Expression &expr) {
-	vector<idx_t> seen_ctes;
+	vector<TableIndex> seen_ctes;
 	return IsNotNull(op, expr, seen_ctes);
 }
 

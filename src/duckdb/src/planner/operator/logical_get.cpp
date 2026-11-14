@@ -9,15 +9,67 @@
 #include "duckdb/storage/data_table.hpp"
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
-#include "duckdb/parser/tableref/table_function_ref.hpp"
+#include "duckdb/planner/filter/expression_filter.hpp"
 
 namespace duckdb {
+
+static void ConvertLegacyTableFilters(LogicalGet &get) {
+	vector<pair<ProjectionIndex, unique_ptr<TableFilter>>> converted_filters;
+	for (auto &entry : get.table_filters) {
+		auto filter_idx = entry.GetIndex();
+		auto &filter = entry.Filter();
+		if (filter.filter_type == TableFilterType::EXPRESSION_FILTER) {
+			continue;
+		}
+		if (filter_idx.GetIndex() >= get.GetColumnIds().size()) {
+			throw SerializationException("LogicalGet::Deserialize - filter index %llu is out of bounds for column ids",
+			                             filter_idx.GetIndex());
+		}
+		auto &column_index = get.GetColumnIds()[filter_idx.GetIndex()];
+		auto &column_type = get.GetColumnType(column_index);
+		converted_filters.emplace_back(filter_idx, ExpressionFilter::FromTableFilter(filter, column_type));
+	}
+	for (auto &entry : converted_filters) {
+		get.table_filters.SetFilterByColumnIndex(entry.first, std::move(entry.second));
+	}
+}
+
+//! Pre-v2.0.0 versions key their table filters by table column index. Map each key to the scanned column it names.
+static void MapLegacyTableFilterKeys(LogicalGet &get) {
+	if (get.table_filters.HasMultiColumnFilters()) {
+		throw SerializationException(
+		    "LogicalGet::Deserialize - unexpected multi-column filters in legacy table filters");
+	}
+	auto &column_ids = get.GetColumnIds();
+	vector<pair<ProjectionIndex, unique_ptr<TableFilter>>> filters;
+	for (auto &entry : get.table_filters) {
+		auto table_column = entry.GetIndex().GetIndexUnsafe();
+		optional_idx projection_index;
+		for (idx_t i = 0; i < column_ids.size(); i++) {
+			auto &column_index = column_ids[i];
+			if (column_index.HasPrimaryIndex() && !column_index.IsPushdownExtract() &&
+			    column_index.GetPrimaryIndex() == table_column) {
+				projection_index = i;
+				break;
+			}
+		}
+		if (!projection_index.IsValid()) {
+			throw SerializationException("LogicalGet::Deserialize - table filter on column %llu that is not scanned",
+			                             table_column);
+		}
+		filters.emplace_back(ProjectionIndex(projection_index.GetIndex()), entry.TakeFilter());
+	}
+	get.table_filters.ClearFilters();
+	for (auto &filter : filters) {
+		get.table_filters.SetFilterByColumnIndex(filter.first, std::move(filter.second));
+	}
+}
 
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
 }
 
-LogicalGet::LogicalGet(idx_t table_index, TableFunction function, unique_ptr<FunctionData> bind_data,
-                       vector<LogicalType> returned_types, vector<string> returned_names,
+LogicalGet::LogicalGet(TableIndex table_index, BoundTableFunction function, unique_ptr<FunctionData> bind_data,
+                       vector<LogicalType> returned_types, vector<Identifier> returned_names,
                        virtual_column_map_t virtual_columns_p)
     : LogicalOperator(LogicalOperatorType::LOGICAL_GET), table_index(table_index), function(std::move(function)),
       bind_data(std::move(bind_data)), returned_types(std::move(returned_types)), names(std::move(returned_names)),
@@ -25,10 +77,10 @@ LogicalGet::LogicalGet(idx_t table_index, TableFunction function, unique_ptr<Fun
 }
 
 optional_ptr<TableCatalogEntry> LogicalGet::GetTable() const {
-	if (!function.get_bind_info) {
+	if (!function.get_table_entry) {
 		return nullptr;
 	}
-	return function.get_bind_info(bind_data.get()).table;
+	return function.get_table_entry(bind_data.get());
 }
 
 InsertionOrderPreservingMap<string> LogicalGet::ParamsToString() const {
@@ -36,21 +88,37 @@ InsertionOrderPreservingMap<string> LogicalGet::ParamsToString() const {
 
 	string filters_info;
 	bool first_item = true;
-	for (auto &kv : table_filters.filters) {
-		auto &column_index = kv.first;
-		auto &filter = kv.second;
-		if (column_index < names.size()) {
+	for (auto &kv : table_filters) {
+		auto filter_idx = kv.GetIndex();
+		auto &filter = kv.Filter().Cast<ExpressionFilter>();
+		auto &col_id_entry = column_ids[filter_idx];
+		const auto col_id = col_id_entry.GetPrimaryIndex();
+		if (col_id_entry.IsVirtualColumn()) {
+			auto entry = virtual_columns.find(col_id);
+			if (entry != virtual_columns.end()) {
+				if (!first_item) {
+					filters_info += "\n";
+				}
+				first_item = false;
+				filters_info += filter.ToString(entry->second.name.GetIdentifierName());
+			}
+		} else if (col_id < names.size()) {
 			if (!first_item) {
 				filters_info += "\n";
 			}
+			auto column_name = col_id_entry.GetName(names[col_id].GetIdentifierName());
 			first_item = false;
-			filters_info += filter->ToString(names[column_index]);
+			filters_info += filter.ToString(column_name);
 		}
 	}
 	result["Filters"] = filters_info;
 
 	if (extra_info.sample_options) {
-		result["Sample Method"] = "System: " + extra_info.sample_options->sample_size.ToString() + "%";
+		if (extra_info.sample_options->is_percentage) {
+			result["Sample Method"] = "System: " + extra_info.sample_options->sample_size.ToString() + "%";
+		} else {
+			result["Sample Method"] = "System: " + extra_info.sample_options->sample_size.ToString() + " rows";
+		}
 	}
 
 	if (!extra_info.file_filters.empty()) {
@@ -76,8 +144,10 @@ void LogicalGet::SetColumnIds(vector<ColumnIndex> &&column_ids) {
 	this->column_ids = std::move(column_ids);
 }
 
-void LogicalGet::AddColumnId(column_t column_id) {
+ProjectionIndex LogicalGet::AddColumnId(column_t column_id) {
+	ProjectionIndex result(column_ids.size());
 	column_ids.emplace_back(column_id);
+	return result;
 }
 
 void LogicalGet::ClearColumnIds() {
@@ -92,14 +162,34 @@ vector<ColumnIndex> &LogicalGet::GetMutableColumnIds() {
 	return column_ids;
 }
 
+ProjectionIndex LogicalGet::TryGetProjectionIndex(idx_t col_idx) const {
+	for (idx_t c = 0; c < column_ids.size(); c++) {
+		if (column_ids[c].GetPrimaryIndex() == col_idx) {
+			return ProjectionIndex(c);
+		}
+	}
+	return ProjectionIndex();
+}
+
+const ColumnIndex &LogicalGet::GetColumnIndex(ColumnBinding binding) const {
+	if (binding.table_index != table_index) {
+		throw InternalException("LogicalGet::GetColumnIndex - table index does not match LogicalGet table index");
+	}
+	return column_ids[binding.column_index];
+}
+
+const ColumnIndex &LogicalGet::GetColumnIndex(ProjectionIndex proj_index) const {
+	return GetColumnIndex(ColumnBinding(table_index, proj_index));
+}
+
 vector<ColumnBinding> LogicalGet::GetColumnBindings() {
 	if (column_ids.empty()) {
-		return {ColumnBinding(table_index, 0)};
+		return {ColumnBinding(table_index, ProjectionIndex(0))};
 	}
 	vector<ColumnBinding> result;
 	if (projection_ids.empty()) {
-		for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
-			result.emplace_back(table_index, col_idx);
+		for (auto col_idx : ProjectionIndex::GetIndexes(column_ids.size())) {
+			result.emplace_back(table_index, ProjectionIndex(col_idx));
 		}
 	} else {
 		for (auto proj_id : projection_ids) {
@@ -133,7 +223,7 @@ const LogicalType &LogicalGet::GetColumnType(const ColumnIndex &index) const {
 	}
 }
 
-const string &LogicalGet::GetColumnName(const ColumnIndex &index) const {
+const Identifier &LogicalGet::GetColumnName(const ColumnIndex &index) const {
 	if (index.IsVirtualColumn()) {
 		auto entry = virtual_columns.find(index.GetPrimaryIndex());
 		if (entry == virtual_columns.end()) {
@@ -216,7 +306,13 @@ idx_t LogicalGet::EstimateCardinality(ClientContext &context) {
 	if (has_estimated_cardinality) {
 		return estimated_cardinality;
 	}
-	if (function.cardinality) {
+	return EstimateSourceCardinality(context);
+}
+
+idx_t LogicalGet::EstimateSourceCardinality(ClientContext &context) {
+	// planning a LogicalGet consumes its bind data - the callbacks that require it must not be called,
+	// while callbacks that accept a null bind data (e.g. the range functions) return no estimate anyway
+	if (function.cardinality && bind_data) {
 		auto node_stats = function.cardinality(context, bind_data.get());
 		if (node_stats && node_stats->has_estimated_cardinality) {
 			return node_stats->estimated_cardinality;
@@ -236,7 +332,18 @@ void LogicalGet::SetScanOrder(unique_ptr<RowGroupOrderOptions> options) {
 	function.set_scan_order(std::move(options), bind_data.get());
 }
 
+void LogicalGet::SetPartitionsToScan(vector<idx_t> partition_indices) {
+	if (!function.set_partitions_to_scan) {
+		throw InternalException("LogicalGet::SetPartitionsToScan called but function is not defined");
+	}
+	scan_partition_indices = partition_indices;
+	function.set_partitions_to_scan(std::move(partition_indices), bind_data.get());
+}
+
 void LogicalGet::Serialize(Serializer &serializer) const {
+	if (bind_info) {
+		throw NotImplementedException("Cannot serialize a table function with process-local bind input");
+	}
 	LogicalOperator::Serialize(serializer);
 	serializer.WriteProperty(200, "table_index", table_index);
 	serializer.WriteProperty(201, "returned_types", returned_types);
@@ -245,9 +352,7 @@ void LogicalGet::Serialize(Serializer &serializer) const {
 	serializer.WriteProperty(204, "projection_ids", projection_ids);
 	serializer.WriteProperty(205, "table_filters", table_filters);
 	FunctionSerializer::Serialize(serializer, function, bind_data.get());
-	if (!function.serialize) {
-		D_ASSERT(!function.serialize);
-		// no serialize method: serialize input values and named_parameters for rebinding purposes
+	if (!function.HasSerializationCallbacks() || serializer.ShouldSerialize(StorageVersion::V2_0_0)) {
 		serializer.WriteProperty(206, "parameters", parameters);
 		serializer.WriteProperty(207, "named_parameters", named_parameters);
 		serializer.WriteProperty(208, "input_table_types", input_table_types);
@@ -259,6 +364,12 @@ void LogicalGet::Serialize(Serializer &serializer) const {
 	serializer.WritePropertyWithDefault<optional_idx>(213, "ordinality_idx", ordinality_idx);
 	serializer.WritePropertyWithDefault<unique_ptr<RowGroupOrderOptions>>(214, "row_group_order_options",
 	                                                                      row_group_order_options);
+	serializer.WritePropertyWithDefault(215, "scan_partition_indices", scan_partition_indices, vector<idx_t>());
+	serializer.WritePropertyWithDefault(216, "source_ordinality", source_ordinality,
+	                                    OrdinalityType::WITHOUT_ORDINALITY);
+	serializer.WriteProperty(217, "table_filters_by_projection", true);
+	serializer.WritePropertyWithDefault(218, "has_pushed_projection", has_pushed_projection, false);
+	serializer.WritePropertyWithDefault(219, "at_clause", at_clause);
 }
 
 unique_ptr<LogicalOperator> LogicalGet::Deserialize(Deserializer &deserializer) {
@@ -271,26 +382,35 @@ unique_ptr<LogicalOperator> LogicalGet::Deserialize(Deserializer &deserializer) 
 	deserializer.ReadPropertyWithDefault(203, "column_ids", legacy_column_ids);
 	deserializer.ReadProperty(204, "projection_ids", result->projection_ids);
 	deserializer.ReadProperty(205, "table_filters", result->table_filters);
-	auto entry = FunctionSerializer::DeserializeBase<TableFunction, TableFunctionCatalogEntry>(
-	    deserializer, CatalogType::TABLE_FUNCTION_ENTRY);
+	auto entry = FunctionSerializer::DeserializeTableFunction(deserializer);
 	result->function = entry.first;
 	auto &function = result->function;
 	auto has_serialize = entry.second;
 	unique_ptr<FunctionData> bind_data;
-	if (!has_serialize) {
-		deserializer.ReadProperty(206, "parameters", result->parameters);
-		deserializer.ReadProperty(207, "named_parameters", result->named_parameters);
-		deserializer.ReadProperty(208, "input_table_types", result->input_table_types);
-		deserializer.ReadProperty(209, "input_table_names", result->input_table_names);
-	} else {
+	if (has_serialize) {
 		bind_data = FunctionSerializer::FunctionDeserialize(deserializer, function);
 	}
+	deserializer.ReadPropertyWithDefault(206, "parameters", result->parameters);
+	deserializer.ReadPropertyWithDefault(207, "named_parameters", result->named_parameters);
+	// a plan written by an older version holds only the arguments the call passed
+	function.GetSignature().FillNamedDefaults(deserializer.Get<ClientContext &>(), result->named_parameters);
+	deserializer.ReadPropertyWithDefault(208, "input_table_types", result->input_table_types);
+	deserializer.ReadPropertyWithDefault(209, "input_table_names", result->input_table_names);
 	deserializer.ReadProperty(210, "projected_input", result->projected_input);
 	deserializer.ReadPropertyWithDefault(211, "column_indexes", result->column_ids);
 	result->extra_info = deserializer.ReadPropertyWithExplicitDefault<ExtraOperatorInfo>(212, "extra_info", {});
 	deserializer.ReadPropertyWithDefault<optional_idx>(213, "ordinality_idx", result->ordinality_idx);
 	auto row_group_order_options =
 	    deserializer.ReadPropertyWithDefault<unique_ptr<RowGroupOrderOptions>>(214, "row_group_order_options");
+	auto scan_partition_indices =
+	    deserializer.ReadPropertyWithExplicitDefault<vector<idx_t>>(215, "scan_partition_indices", vector<idx_t>());
+	result->source_ordinality = deserializer.ReadPropertyWithExplicitDefault<OrdinalityType>(
+	    216, "source_ordinality", OrdinalityType::WITHOUT_ORDINALITY);
+	auto table_filters_by_projection =
+	    deserializer.ReadPropertyWithExplicitDefault<bool>(217, "table_filters_by_projection", false);
+	result->has_pushed_projection =
+	    deserializer.ReadPropertyWithExplicitDefault<bool>(218, "has_pushed_projection", false);
+	result->at_clause = deserializer.ReadPropertyWithDefault<unique_ptr<BoundAtClause>>(219, "at_clause");
 	if (!legacy_column_ids.empty()) {
 		if (!result->column_ids.empty()) {
 			throw SerializationException(
@@ -300,18 +420,21 @@ unique_ptr<LogicalOperator> LogicalGet::Deserialize(Deserializer &deserializer) 
 			result->column_ids.emplace_back(col_id);
 		}
 	}
+	if (!table_filters_by_projection) {
+		MapLegacyTableFilterKeys(*result);
+	}
 	auto &context = deserializer.Get<ClientContext &>();
 	virtual_column_map_t virtual_columns;
 	if (!has_serialize) {
 		TableFunctionRef empty_ref;
 		TableFunctionBindInput input(result->parameters, result->named_parameters, result->input_table_types,
 		                             result->input_table_names, function.function_info.get(), nullptr, result->function,
-		                             empty_ref);
+		                             empty_ref, nullptr);
 
 		vector<LogicalType> bind_return_types;
-		vector<string> bind_names;
+		vector<Identifier> bind_names;
 		if (!function.bind) {
-			throw InternalException("Table function \"%s\" has neither bind nor (de)serialize", function.name);
+			throw InternalException("Table function \"%s\" has neither bind nor (de)serialize", function.GetName());
 		}
 		bind_data = function.bind(context, input, bind_return_types, bind_names);
 		if (result->ordinality_idx.IsValid()) {
@@ -334,10 +457,9 @@ unique_ptr<LogicalOperator> LogicalGet::Deserialize(Deserializer &deserializer) 
 				auto &ret_type = result->returned_types[idx];
 				auto &col_name = result->names[idx];
 				if (bind_return_types[idx] != ret_type) {
-					throw SerializationException(
-					    "Table function deserialization failure in function \"%s\" - column with "
-					    "name %s was serialized with type %s, but now has type %s",
-					    function.name, col_name, ret_type, bind_return_types[idx]);
+					throw SerializationException("Table function deserialization failure in function %s - column with "
+					                             "name %s was serialized with type %s, but now has type %s",
+					                             function.GetName(), col_name, ret_type, bind_return_types[idx]);
 				}
 			}
 		}
@@ -347,23 +469,28 @@ unique_ptr<LogicalOperator> LogicalGet::Deserialize(Deserializer &deserializer) 
 	}
 	result->virtual_columns = std::move(virtual_columns);
 	result->bind_data = std::move(bind_data);
+	ConvertLegacyTableFilters(*result);
 	if (row_group_order_options) {
 		result->SetScanOrder(std::move(row_group_order_options));
+	}
+	if (!scan_partition_indices.empty()) {
+		result->SetPartitionsToScan(std::move(scan_partition_indices));
 	}
 	return std::move(result);
 }
 
-vector<idx_t> LogicalGet::GetTableIndex() const {
-	return vector<idx_t> {table_index};
+vector<TableIndex> LogicalGet::GetTableIndex() const {
+	return vector<TableIndex> {table_index};
 }
 
 string LogicalGet::GetName() const {
 #ifdef DEBUG
 	if (DBConfigOptions::debug_print_bindings) {
-		return StringUtil::Upper(function.name) + StringUtil::Format(" #%llu", table_index);
+		return StringUtil::Upper(function.GetName().GetIdentifierName()) +
+		       StringUtil::Format(" #%llu", table_index.index);
 	}
 #endif
-	return StringUtil::Upper(function.name);
+	return StringUtil::Upper(function.GetName().GetIdentifierName());
 }
 
 } // namespace duckdb

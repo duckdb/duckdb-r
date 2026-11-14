@@ -8,12 +8,18 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include "duckdb.hpp"
 #include "parquet_dbp_decoder.hpp"
 #include "resizable_buffer.hpp"
+#include "duckdb/common/shared_ptr_ipp.hpp"
+#include "duckdb/common/typedefs.hpp"
 
 namespace duckdb {
 class ColumnReader;
+class ResizeableBuffer;
+class Vector;
 
 class DeltaLengthByteArrayDecoder {
 public:
@@ -27,7 +33,7 @@ public:
 	void Skip(uint8_t *defines, idx_t skip_count);
 
 private:
-	template <bool HAS_DEFINES, bool VALIDATE_INDIVIDUAL_STRINGS>
+	template <bool HAS_DEFINES>
 	void ReadInternal(shared_ptr<ResizeableBuffer> &block, uint8_t *defines, idx_t read_count, Vector &result,
 	                  idx_t result_offset);
 	template <bool HAS_DEFINES>

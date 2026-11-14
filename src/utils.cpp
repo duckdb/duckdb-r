@@ -6,11 +6,24 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
 
 using namespace duckdb;
+
+// Written once when R loads the package, before any engine thread exists; until then no thread is R's.
+static std::thread::id r_thread;
+
+void duckdb::RecordRThread() {
+	r_thread = std::this_thread::get_id();
+}
+
+bool duckdb::OnRThread() {
+	return std::this_thread::get_id() == r_thread;
+}
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
@@ -138,15 +151,13 @@ RStrings::RStrings() {
 }
 
 LogicalType RStringsType::Get() {
-	LogicalType r_string_type(LogicalTypeId::POINTER);
-	r_string_type.SetAlias(R_STRING_TYPE_NAME);
-	return r_string_type;
+	return LogicalType(LogicalTypeId::POINTER).WithAlias(R_STRING_TYPE_NAME);
 }
 
 template <class SRC, class DST, class RTYPE>
 static void AppendColumnSegment(SRC *source_data, Vector &result, idx_t count) {
 	auto result_data = FlatVector::GetData<DST>(result);
-	auto &result_mask = FlatVector::Validity(result);
+	auto &result_mask = FlatVector::ValidityMutable(result);
 	for (idx_t i = 0; i < count; i++) {
 		auto val = source_data[i];
 		if (RTYPE::IsNull(val)) {

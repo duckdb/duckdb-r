@@ -18,7 +18,7 @@ static void RevertFilterPullup(LogicalProjection &proj, vector<unique_ptr<Expres
 }
 
 static void ReplaceExpressionBinding(vector<unique_ptr<Expression>> &proj_expressions, Expression &expr,
-                                     idx_t proj_table_idx) {
+                                     TableIndex proj_table_idx) {
 	if (expr.GetExpressionType() == ExpressionType::BOUND_COLUMN_REF) {
 		bool found_proj_col = false;
 		BoundColumnRefExpression &colref = expr.Cast<BoundColumnRefExpression>();
@@ -27,8 +27,8 @@ static void ReplaceExpressionBinding(vector<unique_ptr<Expression>> &proj_expres
 			auto &proj_expr = *proj_expressions[proj_idx];
 			if (proj_expr.GetExpressionType() == ExpressionType::BOUND_COLUMN_REF) {
 				if (colref.Equals(proj_expr)) {
-					colref.binding.table_index = proj_table_idx;
-					colref.binding.column_index = proj_idx;
+					colref.BindingMutable().table_index = proj_table_idx;
+					colref.BindingMutable().column_index = ProjectionIndex(proj_idx);
 					found_proj_col = true;
 					break;
 				}
@@ -37,9 +37,9 @@ static void ReplaceExpressionBinding(vector<unique_ptr<Expression>> &proj_expres
 		if (!found_proj_col) {
 			// Project a new column
 			auto new_colref = colref.Copy();
-			colref.binding.table_index = proj_table_idx;
-			colref.binding.column_index = proj_expressions.size();
-			proj_expressions.push_back(std::move(new_colref));
+			colref.BindingMutable().table_index = proj_table_idx;
+			colref.BindingMutable().column_index =
+			    ColumnBinding::PushExpression(proj_expressions, std::move(new_colref));
 		}
 	}
 	ExpressionIterator::EnumerateChildren(
@@ -80,6 +80,13 @@ unique_ptr<LogicalOperator> FilterPullup::PullupProjection(unique_ptr<LogicalOpe
 	op->children[0] = Rewrite(std::move(op->children[0]));
 	if (!filters_expr_pullup.empty()) {
 		auto &proj = op->Cast<LogicalProjection>();
+		for (auto &expr : filters_expr_pullup) {
+			if (expr->CanThrow()) {
+				// Keep fallible predicates and their guards below the projection.
+				RevertFilterPullup(proj, filters_expr_pullup);
+				return op;
+			}
+		}
 		// INTERSECT, EXCEPT, and DISTINCT
 		if (!can_add_column) {
 			// special treatment for operators that cannot add columns, e.g., INTERSECT, EXCEPT, and DISTINCT

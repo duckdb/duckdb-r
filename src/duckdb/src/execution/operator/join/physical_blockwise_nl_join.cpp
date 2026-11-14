@@ -216,7 +216,8 @@ OperatorResultType PhysicalBlockwiseNLJoin::ExecuteInternal(ExecutionContext &co
 InsertionOrderPreservingMap<string> PhysicalBlockwiseNLJoin::ParamsToString() const {
 	InsertionOrderPreservingMap<string> result;
 	result["Join Type"] = EnumUtil::ToString(join_type);
-	result["Condition"] = condition->GetName();
+	result["Condition"] = condition->GetName().GetIdentifierName();
+	SetEstimatedCardinality(result, estimated_cardinality);
 	return result;
 }
 
@@ -251,6 +252,10 @@ public:
 
 	OuterJoinLocalScanState scan_state;
 };
+
+ProgressData PhysicalBlockwiseNLJoin::GetProgress(ClientContext &context, GlobalSourceState &gstate) const {
+	return gstate.Cast<BlockwiseNLJoinGlobalScanState>().scan_state.GetProgress();
+}
 
 unique_ptr<GlobalSourceState> PhysicalBlockwiseNLJoin::GetGlobalSourceState(ClientContext &context) const {
 	return make_uniq<BlockwiseNLJoinGlobalScanState>(*this);

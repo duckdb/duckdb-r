@@ -18,10 +18,10 @@ void ColumnDependencyManager::AddGeneratedColumn(const ColumnDefinition &column,
 	column.GetListOfDependencies(referenced_columns);
 	vector<LogicalIndex> indices;
 	for (auto &col : referenced_columns) {
-		if (!list.ColumnExists(col)) {
+		if (!list.ColumnExists(Identifier(col))) {
 			throw BinderException("Column \"%s\" referenced by generated column does not exist", col);
 		}
-		auto &entry = list.GetColumn(col);
+		auto &entry = list.GetColumn(Identifier(col));
 		indices.push_back(entry.Logical());
 	}
 	return AddGeneratedColumn(column.Logical(), indices);
@@ -63,6 +63,15 @@ void ColumnDependencyManager::AddGeneratedColumn(LogicalIndex index, const vecto
 	for (auto &dependent : dependents) {
 		AddGeneratedColumn(dependent, indices, false);
 	}
+}
+
+ColumnDependencyManager ColumnDependencyManager::Copy() const {
+	ColumnDependencyManager result;
+	result.dependencies_map = dependencies_map;
+	result.dependents_map = dependents_map;
+	result.direct_dependencies = direct_dependencies;
+	result.deleted_columns = deleted_columns;
+	return result;
 }
 
 vector<LogicalIndex> ColumnDependencyManager::RemoveColumn(LogicalIndex index, idx_t column_amount) {

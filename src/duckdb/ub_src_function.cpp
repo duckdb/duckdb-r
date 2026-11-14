@@ -1,10 +1,18 @@
 #include "src/function/aggregate_function.cpp"
 
+#include "src/function/aggregate_state_serialization.cpp"
+
 #include "src/function/built_in_functions.cpp"
+
+#include "src/function/builtin_function_lookup.cpp"
 
 #include "src/function/cast_rules.cpp"
 
+#include "src/function/combine_types_rules.cpp"
+
 #include "src/function/compression_config.cpp"
+
+#include "src/function/copy_blob.cpp"
 
 #include "src/function/copy_function.cpp"
 
@@ -18,21 +26,21 @@
 
 #include "src/function/function_set.cpp"
 
-#include "src/function/pragma_function.cpp"
-
 #include "src/function/macro_function.cpp"
+
+#include "src/function/pragma_function.cpp"
 
 #include "src/function/register_function_list.cpp"
 
-#include "src/function/scalar_macro_function.cpp"
-
-#include "src/function/table_macro_function.cpp"
-
 #include "src/function/scalar_function.cpp"
+
+#include "src/function/scalar_macro_function.cpp"
 
 #include "src/function/table_function.cpp"
 
-#include "src/function/udf_function.cpp"
+#include "src/function/table_macro_function.cpp"
 
-#include "src/function/copy_blob.cpp"
+#include "src/function/type_constructor.cpp"
+
+#include "src/function/window_function.cpp"
 

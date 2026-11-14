@@ -33,6 +33,11 @@ public:
 	ArrowArrayWrapper(ArrowArrayWrapper &&other) noexcept : arrow_array(other.arrow_array) {
 		other.arrow_array.release = nullptr;
 	}
+	//! Hands the array to the caller, who releases it from then on
+	void MoveTo(ArrowArray &out) {
+		out = arrow_array;
+		arrow_array.release = nullptr;
+	}
 	ArrowArrayWrapper &operator=(ArrowArrayWrapper &&other) noexcept {
 		if (this != &other) {
 			if (arrow_array.release) {
@@ -49,7 +54,6 @@ public:
 class ArrowArrayStreamWrapper {
 public:
 	ArrowArrayStream arrow_array_stream;
-	int64_t number_of_rows;
 
 public:
 	void GetSchema(ArrowSchemaWrapper &schema);

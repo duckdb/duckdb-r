@@ -3,6 +3,7 @@
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/function/scalar/variant_utils.hpp"
 #include "duckdb/common/types/vector.hpp"
+#include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/common/types/variant.hpp"
 #include "duckdb/common/types/selection_vector.hpp"
 #include "duckdb/common/owning_string_map.hpp"
@@ -10,6 +11,7 @@
 #include "duckdb/common/serializer/varint.hpp"
 #include "duckdb/common/types/decimal.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
+#include "duckdb/common/checked_integer.hpp"
 
 namespace duckdb {
 namespace variant {
@@ -19,24 +21,35 @@ void InitializeOffsets(DataChunk &offsets, idx_t count);
 struct OffsetData {
 public:
 	static uint32_t *GetKeys(DataChunk &offsets) {
-		return FlatVector::GetData<uint32_t>(offsets.data[0]);
+		return FlatVector::GetDataMutable<uint32_t>(offsets.data[0]);
 	}
 	static uint32_t *GetChildren(DataChunk &offsets) {
-		return FlatVector::GetData<uint32_t>(offsets.data[1]);
+		return FlatVector::GetDataMutable<uint32_t>(offsets.data[1]);
 	}
 	static uint32_t *GetValues(DataChunk &offsets) {
-		return FlatVector::GetData<uint32_t>(offsets.data[2]);
+		return FlatVector::GetDataMutable<uint32_t>(offsets.data[2]);
 	}
 	static uint32_t *GetBlob(DataChunk &offsets) {
-		return FlatVector::GetData<uint32_t>(offsets.data[3]);
+		return FlatVector::GetDataMutable<uint32_t>(offsets.data[3]);
+	}
+	//! Adds len to offset, throwing if the running total would exceed what a uint32_t blob offset can represent.
+	static void AddBlobOffset(uint32_t &offset, uint32_t len) {
+		try {
+			offset = uinteger_t(offset) += len;
+		} catch (OutOfRangeException &) {
+			throw InvalidInputException(
+			    "Cannot convert value to VARIANT: encoded row size exceeds the maximum supported %u bytes",
+			    NumericLimits<uint32_t>::Maximum());
+		}
 	}
 };
 
 struct ToVariantGlobalResultData {
 public:
 	ToVariantGlobalResultData(VariantVectorData &variant, DataChunk &offsets,
-	                          OrderedOwningStringMap<uint32_t> &dictionary, SelectionVector &keys_selvec)
-	    : variant(variant), offsets(offsets), dictionary(dictionary), keys_selvec(keys_selvec) {
+	                          OrderedOwningStringMap<uint32_t> &dictionary, SelectionVector &keys_selvec,
+	                          Allocator &allocator)
+	    : variant(variant), offsets(offsets), dictionary(dictionary), keys_selvec(keys_selvec), allocator(allocator) {
 	}
 
 public:
@@ -53,14 +66,15 @@ public:
 	OrderedOwningStringMap<uint32_t> &dictionary;
 	//! The selection vector to populate with mapping from keys index -> dictionary index
 	SelectionVector &keys_selvec;
+	//! Allocator for temporary conversion memory (e.g. JSON parsing), tracked by DuckDB's memory accounting
+	Allocator &allocator;
 };
 
 template <bool WRITE_DATA>
 void WriteContainerData(VariantVectorData &result, idx_t result_index, uint32_t &blob_offset, idx_t length,
                         idx_t children_offset) {
 	const auto length_varint_size = GetVarintSize(length);
-	const auto child_offset_varint_size =
-	    NumericCast<uint32_t>(length_varint_size ? GetVarintSize(children_offset) : 0);
+	const auto child_offset_varint_size = NumericCast<uint32_t>(length ? GetVarintSize(children_offset) : 0);
 
 	if (WRITE_DATA) {
 		auto &blob_value = result.blob_data[result_index];
@@ -71,13 +85,15 @@ void WriteContainerData(VariantVectorData &result, idx_t result_index, uint32_t 
 		}
 	}
 
-	blob_offset += length_varint_size + child_offset_varint_size;
+	OffsetData::AddBlobOffset(blob_offset, length_varint_size + child_offset_varint_size);
 }
 
 struct ContainerSelectionVectors {
 public:
 	explicit ContainerSelectionVectors(idx_t max_size)
-	    : new_selection(0, max_size), non_null_selection(0, max_size), children_selection(0, max_size) {
+	    : new_selection(SelectionVector::Incremental(max_size)),
+	      non_null_selection(SelectionVector::Incremental(max_size)),
+	      children_selection(SelectionVector::Incremental(max_size)) {
 	}
 
 public:
@@ -145,15 +161,15 @@ void HandleVariantNull(ToVariantGlobalResultData &result, idx_t result_index, ui
 struct ToVariantSourceData {
 public:
 	ToVariantSourceData(Vector &source, idx_t source_size) : vec(source), source_size(source_size) {
-		vec.ToUnifiedFormat(source_size, source_format);
+		vec.ToUnifiedFormat(source_format);
 	}
 	ToVariantSourceData(Vector &source, idx_t source_size, const SelectionVector &sel)
 	    : vec(source), source_size(source_size), source_sel(sel) {
-		vec.ToUnifiedFormat(source_size, source_format);
+		vec.ToUnifiedFormat(source_format);
 	}
 	ToVariantSourceData(Vector &source, idx_t source_size, optional_ptr<const SelectionVector> sel)
 	    : vec(source), source_size(source_size), source_sel(sel) {
-		vec.ToUnifiedFormat(source_size, source_format);
+		vec.ToUnifiedFormat(source_format);
 	}
 
 public:

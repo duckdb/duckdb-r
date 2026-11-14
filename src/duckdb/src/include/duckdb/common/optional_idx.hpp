@@ -9,19 +9,16 @@
 #pragma once
 
 #include "duckdb/common/exception.hpp"
+#include "duckdb/common/optional.hpp"
 
 namespace duckdb {
 
 class optional_idx {
-	static constexpr const idx_t INVALID_INDEX = idx_t(-1);
-
 public:
-	optional_idx() : index(INVALID_INDEX) {
+	constexpr optional_idx() {
 	}
-	optional_idx(idx_t index) : index(index) { // NOLINT: allow implicit conversion from idx_t
-		if (index == INVALID_INDEX) {
-			throw InternalException("optional_idx cannot be initialized with an invalid index");
-		}
+	// NOLINTNEXTLINE: allow implicit conversion from idx_t
+	constexpr optional_idx(idx_t index_p) : index(index_p) {
 	}
 
 	static optional_idx Invalid() {
@@ -29,18 +26,18 @@ public:
 	}
 
 	bool IsValid() const {
-		return index != INVALID_INDEX;
+		return index.has_value();
 	}
 
 	void SetInvalid() {
-		index = INVALID_INDEX;
+		index.reset();
 	}
 
 	idx_t GetIndex() const {
-		if (index == INVALID_INDEX) {
-			throw InternalException("Attempting to get the index of an optional_idx that is not set");
+		if (!index.has_value()) {
+			ThrowNotSet();
 		}
-		return index;
+		return *index;
 	}
 
 	inline bool operator==(const optional_idx &rhs) const {
@@ -52,7 +49,11 @@ public:
 	}
 
 private:
-	idx_t index;
+	//! Kept out-of-line so that the throwing path does not block inlining of the accessors
+	[[noreturn]] DUCKDB_API static void ThrowNotSet();
+
+private:
+	optional<idx_t> index;
 };
 
 } // namespace duckdb

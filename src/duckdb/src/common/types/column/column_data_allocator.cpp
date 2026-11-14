@@ -1,4 +1,5 @@
 #include "duckdb/common/types/column/column_data_allocator.hpp"
+#include "duckdb/main/client_context.hpp"
 
 #include "duckdb/common/radix_partitioning.hpp"
 #include "duckdb/common/types/column/column_data_collection_segment.hpp"
@@ -48,7 +49,7 @@ ColumnDataAllocator::ColumnDataAllocator(ColumnDataAllocator &other) {
 	case ColumnDataAllocatorType::HYBRID:
 		alloc.buffer_manager = other.alloc.buffer_manager;
 		if (other.managed_result_set.IsValid()) {
-			ResultSetManager::Get(alloc.buffer_manager->GetDatabase()).Add(*this);
+			managed_result_set = ResultSetManager::Get(alloc.buffer_manager->GetDatabase()).Add(*this);
 		}
 		break;
 	case ColumnDataAllocatorType::IN_MEMORY_ALLOCATOR:
@@ -79,13 +80,14 @@ ColumnDataAllocator::~ColumnDataAllocator() {
 
 BufferHandle ColumnDataAllocator::Pin(uint32_t block_id) {
 	D_ASSERT(type == ColumnDataAllocatorType::BUFFER_MANAGER_ALLOCATOR || type == ColumnDataAllocatorType::HYBRID);
+	if (!shared) {
+		return blocks[block_id].Pin(*alloc.buffer_manager);
+	}
 	shared_ptr<BlockHandle> handle;
-	if (shared) {
+	{
 		// we only need to grab the lock when accessing the vector, because vector access is not thread-safe:
 		// the vector can be resized by another thread while we try to access it
 		lock_guard<mutex> guard(lock);
-		handle = blocks[block_id].GetHandle();
-	} else {
 		handle = blocks[block_id].GetHandle();
 	}
 	return alloc.buffer_manager->Pin(handle);
@@ -151,8 +153,7 @@ void ColumnDataAllocator::AllocateBuffer(idx_t size, uint32_t &block_id, uint32_
 	block_id = NumericCast<uint32_t>(blocks.size() - 1);
 	if (chunk_state && chunk_state->handles.find(block_id) == chunk_state->handles.end()) {
 		// not guaranteed to be pinned already by this thread (if shared allocator)
-		auto handle = blocks[block_id].GetHandle();
-		chunk_state->handles[block_id] = alloc.buffer_manager->Pin(handle);
+		chunk_state->handles[block_id] = block.Pin(*alloc.buffer_manager);
 	}
 	offset = block.size;
 	block.size += size;
@@ -194,6 +195,40 @@ void ColumnDataAllocator::AllocateData(idx_t size, uint32_t &block_id, uint32_t 
 	}
 }
 
+void ColumnDataAllocator::Reset() {
+	for (auto &block : blocks) {
+		block.size = 0;
+	}
+}
+
+void ColumnDataAllocator::ResetPreserveLastBlock() {
+	if (blocks.empty()) {
+		return;
+	}
+	if (type == ColumnDataAllocatorType::IN_MEMORY_ALLOCATOR) {
+		D_ASSERT(blocks.size() == allocated_data.size());
+		if (blocks.size() > 1) {
+			auto last_block = std::move(blocks.back());
+			auto last_allocated = std::move(allocated_data.back());
+			blocks.clear();
+			allocated_data.clear();
+			blocks.push_back(std::move(last_block));
+			allocated_data.push_back(std::move(last_allocated));
+		}
+	} else if (blocks.size() > 1) {
+		auto last_block = std::move(blocks.back());
+		blocks.clear();
+		blocks.push_back(std::move(last_block));
+	}
+	for (auto &block : blocks) {
+		block.size = 0;
+	}
+	allocated_size = 0;
+	for (auto &block : blocks) {
+		allocated_size += block.capacity;
+	}
+}
+
 void ColumnDataAllocator::Initialize(ColumnDataAllocator &other) {
 	D_ASSERT(other.HasBlocks());
 	blocks.push_back(other.blocks.back());
@@ -213,23 +248,26 @@ data_ptr_t ColumnDataAllocator::GetDataPointer(ChunkManagementState &state, uint
 		}
 	}
 	D_ASSERT(state.handles.find(block_id) != state.handles.end());
-	return state.handles[block_id].Ptr() + offset;
+	return state.handles[block_id].GetDataMutable() + offset;
 }
 
 void ColumnDataAllocator::UnswizzlePointers(ChunkManagementState &state, Vector &result,
                                             SwizzleMetaData &swizzle_segment, const VectorMetaData &string_heap_segment,
                                             const idx_t &v_offset, const bool &copied) {
 	D_ASSERT(result.GetType().InternalType() == PhysicalType::VARCHAR);
-	lock_guard<mutex> guard(lock);
-	const auto old_base_ptr = char_ptr_cast(swizzle_segment.ptr);
 	const auto new_base_ptr =
 	    char_ptr_cast(GetDataPointer(state, string_heap_segment.block_id, string_heap_segment.offset));
+	if (!copied && swizzle_segment.ptr.load(std::memory_order_acquire) == data_ptr_cast(new_base_ptr)) {
+		return;
+	}
+	lock_guard<mutex> guard(lock);
+	const auto old_base_ptr = char_ptr_cast(swizzle_segment.ptr.load(std::memory_order_relaxed));
 	if (old_base_ptr == new_base_ptr) {
 		return; // pointers are still valid
 	}
 
 	const auto &validity = FlatVector::Validity(result);
-	const auto strings = FlatVector::GetData<string_t>(result);
+	const auto strings = FlatVector::GetDataMutable<string_t>(result);
 
 	// recompute pointers
 	const auto start = NumericCast<idx_t>(v_offset + swizzle_segment.offset);
@@ -251,7 +289,7 @@ void ColumnDataAllocator::UnswizzlePointers(ChunkManagementState &state, Vector 
 
 	if (!copied) {
 		// if the data was not copied, we modified data on the blocks. store the new base ptr
-		swizzle_segment.ptr = data_ptr_cast(new_base_ptr);
+		swizzle_segment.ptr.store(data_ptr_cast(new_base_ptr), std::memory_order_release);
 	}
 }
 
@@ -323,6 +361,14 @@ shared_ptr<BlockHandle> BlockMetaData::GetHandle() const {
 		throw ConnectionException("Trying to access a query result after the database instance has been closed");
 	}
 	return res;
+}
+
+BufferHandle BlockMetaData::Pin(BufferManager &buffer_manager) {
+	if (handle) {
+		return buffer_manager.Pin(handle);
+	}
+	auto owned_handle = GetHandle();
+	return buffer_manager.Pin(owned_handle);
 }
 
 void BlockMetaData::SetHandle(ManagedResultSet &managed_result_set, shared_ptr<BlockHandle> handle_p) {

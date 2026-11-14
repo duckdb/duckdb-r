@@ -11,30 +11,28 @@
 namespace duckdb {
 
 unique_ptr<BoundPragmaInfo> Binder::BindPragma(PragmaInfo &info, QueryErrorContext error_context) {
-	vector<Value> params;
-	named_parameter_map_t named_parameters;
+	// the arguments are bound here and folded to constants only after the overload has been chosen, so that a
+	// literal keeps its literal type for overload selection - as for every other function kind
+	vector<unique_ptr<Expression>> positional_arguments;
+	vector<pair<Identifier, unique_ptr<Expression>>> named_arguments;
 
-	// resolve the parameters
 	ConstantBinder pragma_binder(*this, context, "PRAGMA value");
 	for (auto &param : info.parameters) {
-		auto bound_value = pragma_binder.Bind(param);
-		auto value = ExpressionExecutor::EvaluateScalar(context, *bound_value, true);
-		params.push_back(std::move(value));
+		positional_arguments.push_back(pragma_binder.Bind(param));
 	}
-
 	for (auto &entry : info.named_parameters) {
-		auto bound_value = pragma_binder.Bind(entry.second);
-		auto value = ExpressionExecutor::EvaluateScalar(context, *bound_value, true);
-		named_parameters.insert(make_pair(entry.first, std::move(value)));
+		named_arguments.emplace_back(Identifier(entry.first), pragma_binder.Bind(entry.second));
 	}
 
 	// bind the pragma function
-	auto entry = Catalog::GetEntry<PragmaFunctionCatalogEntry>(context, INVALID_CATALOG, DEFAULT_SCHEMA, info.name,
-	                                                           OnEntryNotFound::RETURN_NULL);
+	auto entry = Catalog::GetEntry<PragmaFunctionCatalogEntry>(
+	    context, QualifiedName(Identifier::InvalidCatalog(), Identifier::DefaultSchema(), info.name),
+	    OnEntryNotFound::RETURN_NULL);
 	if (!entry) {
-		// try to find whether a table extry might exist
-		auto table_entry = Catalog::GetEntry<TableFunctionCatalogEntry>(context, INVALID_CATALOG, DEFAULT_SCHEMA,
-		                                                                info.name, OnEntryNotFound::RETURN_NULL);
+		// try to find whether a table entry might exist
+		auto table_entry = Catalog::GetEntry<TableFunctionCatalogEntry>(
+		    context, QualifiedName(Identifier::InvalidCatalog(), Identifier::DefaultSchema(), info.name),
+		    OnEntryNotFound::RETURN_NULL);
 		if (table_entry) {
 			// there is a table entry with the same name, now throw more explicit error message
 			throw CatalogException("Pragma Function with name %s does not exist, but a table function with the same "
@@ -42,21 +40,24 @@ unique_ptr<BoundPragmaInfo> Binder::BindPragma(PragmaInfo &info, QueryErrorConte
 			                       info.name, info.name);
 		}
 		// rebind to throw exception
-		entry = Catalog::GetEntry<PragmaFunctionCatalogEntry>(context, INVALID_CATALOG, DEFAULT_SCHEMA, info.name,
-		                                                      OnEntryNotFound::THROW_EXCEPTION);
+		entry = Catalog::GetEntry<PragmaFunctionCatalogEntry>(
+		    context, QualifiedName(Identifier::InvalidCatalog(), Identifier::DefaultSchema(), info.name),
+		    OnEntryNotFound::THROW_EXCEPTION);
 	}
 
 	FunctionBinder function_binder(*this);
 	ErrorData error;
-	auto bound_idx = function_binder.BindFunction(entry->name, entry->functions, params, error);
+	// selection, folding, casting and named-argument checking all happen in the function binder
+	vector<Value> params;
+	named_argument_map_t named_parameters;
+	auto bound_idx = function_binder.BindFunction(entry->name, entry->functions, positional_arguments, named_arguments,
+	                                              params, named_parameters, error);
 	if (!bound_idx.IsValid()) {
 		D_ASSERT(error.HasError());
 		error.AddQueryLocation(error_context);
 		error.Throw();
 	}
-	auto bound_function = entry->functions.GetFunctionByOffset(bound_idx.GetIndex());
-	// bind and check named params
-	BindNamedParameters(bound_function.named_parameters, named_parameters, error_context, bound_function.name);
+	auto bound_function = *entry->functions.GetFunctionByOffset(bound_idx.GetIndex());
 	return make_uniq<BoundPragmaInfo>(std::move(bound_function), std::move(params), std::move(named_parameters));
 }
 

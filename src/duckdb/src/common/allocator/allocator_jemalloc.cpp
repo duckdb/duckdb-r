@@ -1,5 +1,6 @@
 #include "duckdb/common/allocator.hpp"
 #include "duckdb/common/numeric_utils.hpp"
+#include "duckdb/common/string_util.hpp"
 
 #include <thread>
 #include <cstdint>
@@ -18,7 +19,7 @@ extern "C" {
 
 unsigned duckdb_malloc_ncpus() {
 #ifdef DUCKDB_NO_THREADS
-	return 1
+	return 1;
 #else
 	unsigned concurrency = duckdb::NumericCast<unsigned>(std::thread::hardware_concurrency());
 	return std::max(concurrency, 1u);
@@ -74,6 +75,23 @@ optional_idx Allocator::DecayDelay() {
 	return NumericCast<idx_t>(DUCKDB_JEMALLOC_DECAY);
 }
 
+optional_idx Allocator::GetMappedMemory() const {
+	if (allocate_function != DefaultAllocate || free_function != DefaultFree ||
+	    reallocate_function != DefaultReallocate) {
+		return optional_idx();
+	}
+	uint64_t epoch = 1;
+	if (duckdb_je_mallctl("epoch", nullptr, nullptr, &epoch, sizeof(epoch)) != 0) {
+		return optional_idx();
+	}
+	size_t mapped = 0;
+	size_t mapped_size = sizeof(mapped);
+	if (duckdb_je_mallctl("stats.mapped", &mapped, &mapped_size, nullptr, 0) != 0) {
+		return optional_idx();
+	}
+	return optional_idx(mapped);
+}
+
 bool Allocator::SupportsFlush() {
 	return true;
 }
@@ -93,11 +111,7 @@ void Allocator::ThreadFlush(bool allocator_background_threads, idx_t threshold, 
 		// Flush thread-local cache
 		SetJemallocCTL("thread.tcache.flush");
 
-		// Flush this thread's arena
-		const auto purge_arena = PurgeArenaString(idx_t(GetJemallocCTL<unsigned>("thread.arena")));
-		SetJemallocCTL(purge_arena.c_str());
-
-		// Reset the peak after resetting
+		// Reset the peak after flushing
 		SetJemallocCTL("thread.peak.reset");
 	}
 }

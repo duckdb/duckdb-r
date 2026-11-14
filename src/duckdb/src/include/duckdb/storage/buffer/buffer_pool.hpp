@@ -16,6 +16,7 @@
 #include "duckdb/common/optional_ptr.hpp"
 #include "duckdb/common/typedefs.hpp"
 #include "duckdb/storage/buffer/block_handle.hpp"
+#include "duckdb/storage/buffer/temporary_file_information.hpp"
 
 namespace duckdb {
 
@@ -62,9 +63,11 @@ public:
 
 	idx_t GetMaxMemory() const;
 
-	virtual idx_t GetQueryMaxMemory() const;
+	virtual idx_t GetOperatorMemoryLimit() const;
 
 	TemporaryMemoryManager &GetTemporaryMemoryManager();
+
+	vector<EvictionQueueInformation> GetEvictionQueueInfo() const;
 
 	//! Take per-database ObjectCache under buffer pool's memory management.
 	//! Notice, object cache should be registered for at most once, otherwise InvalidInput exception is thrown.
@@ -86,13 +89,21 @@ protected:
 		bool success;
 		TempBufferPoolReservation reservation;
 	};
-	virtual EvictionResult EvictBlocks(MemoryTag tag, idx_t extra_memory, idx_t memory_limit,
+	virtual EvictionResult EvictBlocks(QueryContext context, MemoryTag tag, idx_t extra_memory, idx_t memory_limit,
 	                                   unique_ptr<FileBuffer> *buffer = nullptr);
-	virtual EvictionResult EvictBlocksInternal(EvictionQueue &queue, MemoryTag tag, idx_t extra_memory,
-	                                           idx_t memory_limit, unique_ptr<FileBuffer> *buffer = nullptr);
+	virtual EvictionResult EvictBlocksInternal(QueryContext context, EvictionQueue &queue, MemoryTag tag,
+	                                           idx_t extra_memory, idx_t memory_limit,
+	                                           unique_ptr<FileBuffer> *buffer = nullptr);
 
 	//! Evict object cache entries if needed.
 	EvictionResult EvictObjectCacheEntries(MemoryTag tag, idx_t extra_memory, idx_t memory_limit);
+
+	//! Return freed memory to the OS, optionally releasing up to extra_memory from the block allocator's pool
+	void FlushAllocator(optional_idx extra_memory = optional_idx());
+	//! Flush the allocator if the memory freed since the last flush could push resident memory past the limit
+	void FlushOnBulkDeallocation();
+	//! Freed memory that has to accumulate before the allocator is flushed
+	idx_t GetBulkDeallocationFlushThreshold() const;
 
 	//! Purge all blocks that haven't been pinned within the last N seconds
 	idx_t PurgeAgedBlocks(uint32_t max_age_sec);
@@ -124,16 +135,23 @@ protected:
 	};
 
 	struct MemoryUsage {
-		//! The maximum difference between memory statistics and actual usage is 2MB (64 * 32k)
+		//! Total memory accounting differs from actual usage by at most 2MB (64 * 32k)
 		static constexpr idx_t MEMORY_USAGE_CACHE_COUNT = 64;
 		static constexpr idx_t MEMORY_USAGE_CACHE_THRESHOLD = 32 << 10;
+		//! Per-tag statistics are flushed when read and can use a larger cache threshold.
+		static constexpr idx_t MEMORY_USAGE_TAG_CACHE_THRESHOLD = 1 << 20;
 		static constexpr idx_t TOTAL_MEMORY_USAGE_INDEX = MEMORY_TAG_COUNT;
 		using MemoryUsageCounters = array<atomic<int64_t>, MEMORY_TAG_COUNT + 1>;
+
+		//! Keep neighboring caches separate on machines with 64- or 128-byte cache lines.
+		struct alignas(128) MemoryUsageCache {
+			MemoryUsageCounters counters;
+		};
 
 		//! global memory usage counters
 		MemoryUsageCounters memory_usage;
 		//! cache memory usage to improve performance
-		array<MemoryUsageCounters, MEMORY_USAGE_CACHE_COUNT> memory_usage_caches;
+		array<MemoryUsageCache, MEMORY_USAGE_CACHE_COUNT> memory_usage_caches;
 
 		MemoryUsage();
 
@@ -152,7 +170,7 @@ protected:
 			}
 			int64_t cached = 0;
 			for (auto &cache : memory_usage_caches) {
-				cached += cache[index].exchange(0, std::memory_order_relaxed);
+				cached += cache.counters[index].exchange(0, std::memory_order_relaxed);
 			}
 			auto used_memory = memory_usage[index].fetch_add(cached, std::memory_order_relaxed) + cached;
 			return used_memory > 0 ? static_cast<idx_t>(used_memory) : 0;
@@ -167,6 +185,8 @@ protected:
 	atomic<idx_t> maximum_memory;
 	//! If bulk deallocation larger than this occurs, flush outstanding allocations
 	atomic<idx_t> allocator_bulk_deallocation_flush_threshold;
+	//! Freed memory is flushed once it exceeds this fraction of the memory limit
+	static constexpr idx_t BULK_DEALLOCATION_FLUSH_DIVISOR = 16;
 	//! Record timestamps of buffer manager unpin() events. Usable by custom eviction policies.
 	bool track_eviction_timestamps;
 	//! Eviction queues

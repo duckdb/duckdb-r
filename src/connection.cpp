@@ -39,6 +39,12 @@ unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
 }
 
 void RProgressBarDisplay::Initialize() {
+	// Reached from ClientContext::PendingPreparedStatementInternal(), which
+	// constructs the ProgressBar -- and with it this display -- while it holds
+	// the client context lock. Looking the callback up evaluates R code, and
+	// with it a garbage collection.
+	RCallbackScope callback_scope;
+
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::environment duckdb_namespace(getNamespace(RStrings::get().duckdb_str));
 	cpp11::sexp get_progress_display(Rf_lang1(RStrings::get().get_progress_display_sym));
@@ -51,7 +57,7 @@ void RProgressBarDisplay::Initialize() {
 }
 
 // The engine builds the display when a query starts, on the thread that issues it, which is R's.
-RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay(), r_thread(std::this_thread::get_id()) {
+RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
 	ReleaseOrphanedCallbacks();
 	Initialize();
 }
@@ -68,16 +74,15 @@ RProgressBarDisplay::~RProgressBarDisplay() {
 	orphaned_callbacks.push_back(progress_callback);
 }
 
-bool RProgressBarDisplay::OnRThread() const {
-	return std::this_thread::get_id() == r_thread;
-}
-
 void RProgressBarDisplay::Update(double percentage) {
 	// The engine updates the display from whichever thread fetches a streaming result,
 	// a thread of arrow's pool among them, and R runs on its own thread only.
 	if (progress_callback == R_NilValue || !OnRThread()) {
 		return;
 	}
+
+	// Called from the executor while the query that drives it holds the lock.
+	RCallbackScope callback_scope;
 
 	try {
 		cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));

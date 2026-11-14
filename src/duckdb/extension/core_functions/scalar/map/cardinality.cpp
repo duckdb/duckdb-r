@@ -1,39 +1,48 @@
 #include "core_functions/scalar/map_functions.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb/parser/expression/bound_expression.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/function/scalar/nested_functions.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
 
 namespace duckdb {
 
+// the number of entries of a MAP or LIST (both are stored as a list of entries)
 static void CardinalityFunction(DataChunk &args, ExpressionState &state, Vector &result) {
-	auto &map = args.data[0];
-	UnifiedVectorFormat map_data;
-	result.SetVectorType(VectorType::FLAT_VECTOR);
-	auto result_data = FlatVector::GetData<uint64_t>(result);
-	auto &result_validity = FlatVector::Validity(result);
+	const auto &map = args.data[0];
+	auto entries = map.Values<list_entry_t>();
 
-	map.ToUnifiedFormat(args.size(), map_data);
+	auto result_data = FlatVector::Writer<uint64_t>(result, args.size());
 	for (idx_t row = 0; row < args.size(); row++) {
-		auto list_entry = UnifiedVectorFormat::GetData<list_entry_t>(map_data)[map_data.sel->get_index(row)];
-		result_data[row] = list_entry.length;
-		result_validity.Set(row, map_data.validity.RowIsValid(map_data.sel->get_index(row)));
-	}
-
-	if (args.size() == 1) {
-		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+		auto entry = entries[row];
+		if (!entry.IsValid()) {
+			result_data.WriteNull();
+			continue;
+		}
+		result_data.WriteValue(entries.GetValueUnsafe(row).length);
 	}
 }
 
-static unique_ptr<FunctionData> CardinalityBind(ClientContext &context, ScalarFunction &bound_function,
-                                                vector<unique_ptr<Expression>> &arguments) {
+static unique_ptr<FunctionData> CardinalityBind(BindScalarFunctionInput &input) {
+	auto &bound_function = input.GetBoundFunction();
+	auto &arguments = input.GetArguments();
 	if (arguments.size() != 1) {
 		throw BinderException("Cardinality must have exactly one arguments");
 	}
 
-	if (arguments[0]->return_type.id() != LogicalTypeId::MAP) {
-		throw BinderException("Cardinality can only operate on MAPs");
+	auto &context = input.GetClientContext();
+	switch (arguments[0]->GetReturnType().id()) {
+	case LogicalTypeId::MAP:
+	case LogicalTypeId::LIST:
+		break;
+	case LogicalTypeId::ARRAY: {
+		// a fixed-size array is read as a list
+		auto target_type = LogicalType::LIST(ArrayType::GetChildType(arguments[0]->GetReturnType()));
+		arguments[0] = BoundCastExpression::AddCastToType(context, std::move(arguments[0]), target_type);
+		break;
+	}
+	default:
+		throw BinderException("Cardinality can only operate on MAPs, LISTs and ARRAYs");
 	}
 
 	bound_function.SetReturnType(LogicalType::UBIGINT);
@@ -41,8 +50,9 @@ static unique_ptr<FunctionData> CardinalityBind(ClientContext &context, ScalarFu
 }
 
 ScalarFunction CardinalityFun::GetFunction() {
-	ScalarFunction fun({LogicalType::ANY}, LogicalType::UBIGINT, CardinalityFunction, CardinalityBind);
-	fun.varargs = LogicalType::ANY;
+	ScalarFunction fun({}, LogicalType::UBIGINT, CardinalityFunction, CardinalityBind);
+	fun.GetSignature().AddParameter("map", LogicalType::ANY);
+	fun.GetSignature().AddArgs("args", LogicalType::ANY);
 	fun.SetNullHandling(FunctionNullHandling::DEFAULT_NULL_HANDLING);
 	return fun;
 }

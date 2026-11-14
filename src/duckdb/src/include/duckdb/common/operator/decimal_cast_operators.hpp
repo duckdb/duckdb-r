@@ -445,19 +445,19 @@ DUCKDB_API bool TryCastToDecimalCommaSeparated::Operation(string_t input, hugein
 
 struct StringCastFromDecimal {
 	template <class SRC>
-	static inline string_t Operation(SRC input, uint8_t width, uint8_t scale, Vector &result) {
+	static inline string_t Operation(SRC input, uint8_t width, uint8_t scale, StringHeap &heap) {
 		throw NotImplementedException("Unimplemented type for string cast!");
 	}
 };
 
 template <>
-string_t StringCastFromDecimal::Operation(int16_t input, uint8_t width, uint8_t scale, Vector &result);
+string_t StringCastFromDecimal::Operation(int16_t input, uint8_t width, uint8_t scale, StringHeap &heap);
 template <>
-string_t StringCastFromDecimal::Operation(int32_t input, uint8_t width, uint8_t scale, Vector &result);
+string_t StringCastFromDecimal::Operation(int32_t input, uint8_t width, uint8_t scale, StringHeap &heap);
 template <>
-string_t StringCastFromDecimal::Operation(int64_t input, uint8_t width, uint8_t scale, Vector &result);
+string_t StringCastFromDecimal::Operation(int64_t input, uint8_t width, uint8_t scale, StringHeap &heap);
 template <>
-string_t StringCastFromDecimal::Operation(hugeint_t input, uint8_t width, uint8_t scale, Vector &result);
+string_t StringCastFromDecimal::Operation(hugeint_t input, uint8_t width, uint8_t scale, StringHeap &heap);
 
 //===--------------------------------------------------------------------===//
 // Cast VARCHAR <-> Decimal
@@ -497,6 +497,17 @@ struct DecimalCastData {
 	StoreType limit;
 };
 
+//! StoreType max/min divided by 10, for the overflow check in DecimalCastOperation::HandleDigit.
+//! These are forced to be compile-time constants so the division is folded away: with a hugeint_t
+//! store type it is a 128-bit division that would otherwise run for every digit. hugeint_t::operator/
+//! is constexpr, but it is too large to be inlined at the call site, so the compiler does not fold it
+//! unless constant evaluation is actually required.
+template <class T>
+struct DecimalCastLimits {
+	static constexpr T MaximumDiv10 = NumericLimits<T>::Maximum() / 10;
+	static constexpr T MinimumDiv10 = NumericLimits<T>::Minimum() / 10;
+};
+
 struct DecimalCastOperation {
 	template <class T, bool NEGATIVE>
 	static bool HandleDigit(T &state, uint8_t digit) {
@@ -510,12 +521,12 @@ struct DecimalCastOperation {
 		}
 		state.digit_count++;
 		if (NEGATIVE) {
-			if (state.result < (NumericLimits<typename T::StoreType>::Minimum() / 10)) {
+			if (state.result < DecimalCastLimits<typename T::StoreType>::MinimumDiv10) {
 				return false;
 			}
 			state.result = state.result * 10 - digit;
 		} else {
-			if (state.result > (NumericLimits<typename T::StoreType>::Maximum() / 10)) {
+			if (state.result > DecimalCastLimits<typename T::StoreType>::MaximumDiv10) {
 				return false;
 			}
 			state.result = state.result * 10 + digit;
@@ -569,7 +580,7 @@ struct DecimalCastOperation {
 				auto mod = state.result % 10;
 				round_up = NEGATIVE ? mod <= -5 : mod >= 5;
 				state.result /= 10;
-				if (state.result == 0) {
+				if (state.result == 0 && mod == 0) {
 					break;
 				}
 			}

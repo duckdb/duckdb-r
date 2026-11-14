@@ -1,8 +1,10 @@
-#include "src/function/table/system/duckdb_connection_count.cpp"
+#include "src/function/table/system/create_external_resource.cpp"
 
 #include "src/function/table/system/duckdb_approx_database_count.cpp"
 
 #include "src/function/table/system/duckdb_columns.cpp"
+
+#include "src/function/table/system/duckdb_connection_count.cpp"
 
 #include "src/function/table/system/duckdb_constraints.cpp"
 
@@ -12,11 +14,21 @@
 
 #include "src/function/table/system/duckdb_dependencies.cpp"
 
+#include "src/function/table/system/duckdb_dialects.cpp"
+
+#include "src/function/table/system/duckdb_eviction_queues.cpp"
+
+#include "src/function/table/system/duckdb_extension_repositories.cpp"
+
 #include "src/function/table/system/duckdb_extensions.cpp"
 
 #include "src/function/table/system/duckdb_external_file_cache.cpp"
 
 #include "src/function/table/system/duckdb_functions.cpp"
+
+#include "src/function/table/system/duckdb_grammar_extensions.cpp"
+
+#include "src/function/table/system/duckdb_indexes.cpp"
 
 #include "src/function/table/system/duckdb_keywords.cpp"
 
@@ -24,21 +36,21 @@
 
 #include "src/function/table/system/duckdb_log_contexts.cpp"
 
-#include "src/function/table/system/duckdb_indexes.cpp"
-
 #include "src/function/table/system/duckdb_memory.cpp"
+
+#include "src/function/table/system/duckdb_metrics.cpp"
 
 #include "src/function/table/system/duckdb_optimizers.cpp"
 
-#include "src/function/table/system/duckdb_schemas.cpp"
-
-#include "src/function/table/system/duckdb_secrets.cpp"
-
 #include "src/function/table/system/duckdb_prepared_statements.cpp"
 
-#include "src/function/table/system/duckdb_which_secret.cpp"
+#include "src/function/table/system/duckdb_schemas.cpp"
+
+#include "src/function/table/system/duckdb_secret_type_parameters.cpp"
 
 #include "src/function/table/system/duckdb_secret_types.cpp"
+
+#include "src/function/table/system/duckdb_secrets.cpp"
 
 #include "src/function/table/system/duckdb_sequences.cpp"
 
@@ -48,13 +60,21 @@
 
 #include "src/function/table/system/duckdb_temporary_files.cpp"
 
+#include "src/function/table/system/duckdb_triggers.cpp"
+
 #include "src/function/table/system/duckdb_types.cpp"
 
 #include "src/function/table/system/duckdb_variables.cpp"
 
 #include "src/function/table/system/duckdb_views.cpp"
 
+#include "src/function/table/system/duckdb_which_secret.cpp"
+
 #include "src/function/table/system/enable_profiling.cpp"
+
+#include "src/function/table/system/external_resource_types.cpp"
+
+#include "src/function/table/system/external_resources.cpp"
 
 #include "src/function/table/system/logging_utils.cpp"
 

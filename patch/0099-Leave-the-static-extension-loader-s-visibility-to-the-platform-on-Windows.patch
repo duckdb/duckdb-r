@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:11:49 +0000
+Subject: [PATCH] Leave the static extension loader's visibility to the platform on Windows
+
+The loader that package_build.py generates marks
+duckdb_register_static_extensions() hidden whenever the compiler is GCC
+or clang. MinGW's GCC targets PE/COFF, which has no symbol visibility,
+so it drops the attribute and -Wattributes says so on every Windows
+build. The attribute now applies off Windows only, the way duckdb.h
+spells its own visibility macros; a Linux or macOS build keeps the
+symbol hidden as before. The generator is upstream's, so the lasting fix
+belongs in package_build.py; this patch reapplies after every
+regeneration.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/generated_extension_loader_package_build.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/generated_extension_loader_package_build.cpp b/src/duckdb/generated_extension_loader_package_build.cpp
+index a1196a176a..6afd69a582 100644
+--- a/src/duckdb/generated_extension_loader_package_build.cpp
++++ b/src/duckdb/generated_extension_loader_package_build.cpp
+@@ -81,7 +81,7 @@ int32_t duckdb_extension_core_functions_describe(duckdb_extension_descriptor *de
+ #endif
+ 
+ #ifndef DUCKDB_STATIC_EXTENSION_LOADER_API
+-#if defined(__GNUC__) || defined(__clang__)
++#if !defined(_WIN32) && (defined(__GNUC__) || defined(__clang__))
+ #define DUCKDB_STATIC_EXTENSION_LOADER_API __attribute__((visibility("hidden")))
+ #else
+ #define DUCKDB_STATIC_EXTENSION_LOADER_API

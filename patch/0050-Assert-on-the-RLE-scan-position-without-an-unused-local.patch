@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 20:41:25 +0000
+Subject: [PATCH] Assert on the RLE scan position without an unused local
+
+RLESkip() and RLEScanPartialInternal() read the position in the
+segment into a local that only D_ASSERT() uses, so in a release build,
+where D_ASSERT() expands to nothing, each holds an unused variable and
+-Wunused-variable says so. The assertions read the position from the
+scan state themselves.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/storage/compression/rle.cpp | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/duckdb/src/storage/compression/rle.cpp b/src/duckdb/src/storage/compression/rle.cpp
+index e5e0df6e2e..0af07836fd 100644
+--- a/src/duckdb/src/storage/compression/rle.cpp
++++ b/src/duckdb/src/storage/compression/rle.cpp
+@@ -427,9 +427,8 @@ unique_ptr<SegmentScanState> RLEInitScan(const QueryContext &context, ColumnSegm
+ //===--------------------------------------------------------------------===//
+ template <class T>
+ void RLESkip(ColumnSegment &segment, ColumnScanState &state, idx_t skip_count) {
+-	auto end = state.GetPositionInSegment();
+-	D_ASSERT(end <= segment.count);
+-	D_ASSERT(skip_count <= end);
++	D_ASSERT(state.GetPositionInSegment() <= segment.count);
++	D_ASSERT(skip_count <= state.GetPositionInSegment());
+ 	auto &scan_state = state.scan_state->Cast<RLEScanState<T>>();
+ 	scan_state.Skip(segment, skip_count);
+ }
+@@ -466,8 +465,8 @@ static void RLEScanConstant(RLEScanState<T> &scan_state, const typename RLEScanS
+ template <class T, bool ENTIRE_VECTOR>
+ void RLEScanPartialInternal(ColumnSegment &segment, ColumnScanState &state, idx_t scan_count, Vector &result,
+                             idx_t result_offset) {
+-	auto start = state.GetPositionInSegment();
+-	D_ASSERT(start <= segment.count && scan_count <= segment.count - start);
++	D_ASSERT(state.GetPositionInSegment() <= segment.count &&
++	         scan_count <= segment.count - state.GetPositionInSegment());
+ 	auto &scan_state = state.scan_state->Cast<RLEScanState<T>>();
+ 
+ 	// If we are scanning an entire Vector and it contains only a single run

@@ -38,8 +38,6 @@ public:
 	bool convert_mark_to_semi = true;
 	//! Scans where we should push generated filters into (if any)
 	unique_ptr<JoinFilterPushdownInfo> filter_pushdown;
-	//! Filtering predicate from the ON clause with expressions that don't reference both sides
-	unique_ptr<Expression> predicate;
 
 public:
 	InsertionOrderPreservingMap<string> ParamsToString() const override;
@@ -55,25 +53,25 @@ public:
 	static unique_ptr<LogicalOperator> CreateJoin(JoinType type, JoinRefType ref_type,
 	                                              unique_ptr<LogicalOperator> left_child,
 	                                              unique_ptr<LogicalOperator> right_child,
-	                                              vector<JoinCondition> conditions,
-	                                              vector<unique_ptr<Expression>> arbitrary_expressions);
+	                                              vector<JoinCondition> conditions);
 
 	static void ExtractJoinConditions(ClientContext &context, JoinType type, JoinRefType ref_type,
 	                                  unique_ptr<LogicalOperator> &left_child, unique_ptr<LogicalOperator> &right_child,
-	                                  unique_ptr<Expression> condition, vector<JoinCondition> &conditions,
-	                                  vector<unique_ptr<Expression>> &arbitrary_expressions);
+	                                  const unordered_set<TableIndex> &left_bindings,
+	                                  const unordered_set<TableIndex> &right_bindings,
+	                                  vector<unique_ptr<Expression>> &expressions, vector<JoinCondition> &conditions);
 	static void ExtractJoinConditions(ClientContext &context, JoinType type, JoinRefType ref_type,
 	                                  unique_ptr<LogicalOperator> &left_child, unique_ptr<LogicalOperator> &right_child,
-	                                  vector<unique_ptr<Expression>> &expressions, vector<JoinCondition> &conditions,
-	                                  vector<unique_ptr<Expression>> &arbitrary_expressions);
+	                                  vector<unique_ptr<Expression>> &expressions, vector<JoinCondition> &conditions);
 	static void ExtractJoinConditions(ClientContext &context, JoinType type, JoinRefType ref_type,
 	                                  unique_ptr<LogicalOperator> &left_child, unique_ptr<LogicalOperator> &right_child,
-	                                  const unordered_set<idx_t> &left_bindings,
-	                                  const unordered_set<idx_t> &right_bindings,
-	                                  vector<unique_ptr<Expression>> &expressions, vector<JoinCondition> &conditions,
-	                                  vector<unique_ptr<Expression>> &arbitrary_expressions);
+	                                  unique_ptr<Expression> condition, vector<JoinCondition> &conditions);
 
 	bool HasEquality(idx_t &range_count) const;
+	bool HasArbitraryConditions() const;
+	//! Two-valued MARK comparisons with at least one null-safe equality hash key.
+	bool HasNullSafeMarkJoinConditions() const;
+	bool TryGetMarkJoinGroupTypes(vector<LogicalType> &group_types) const;
 };
 
 } // namespace duckdb

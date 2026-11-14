@@ -9,7 +9,9 @@
 #pragma once
 
 #include "duckdb/common/common.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/common/optional_idx.hpp"
+#include "duckdb/common/query_location.hpp"
 #include "duckdb/common/enums/tableref_type.hpp"
 #include "duckdb/parser/parsed_data/sample_options.hpp"
 #include "duckdb/main/external_dependencies.hpp"
@@ -28,15 +30,15 @@ public:
 	}
 
 	TableReferenceType type;
-	string alias;
+	Identifier alias;
 	//! Sample options (if any)
 	unique_ptr<SampleOptions> sample;
-	//! The location in the query (if any)
-	optional_idx query_location;
+	//! The source location in the query (if any)
+	QueryLocation query_location;
 	//! External dependencies of this table function
 	shared_ptr<ExternalDependency> external_dependency;
 	//! Aliases for the column names
-	vector<string> column_name_alias;
+	vector<Identifier> column_name_alias;
 
 public:
 	//! Convert the object to a string
@@ -53,6 +55,8 @@ public:
 
 	virtual void Serialize(Serializer &serializer) const;
 	static unique_ptr<TableRef> Deserialize(Deserializer &deserializer);
+	//! Throws a SerializationException if a deserialized table reference does not have a valid shape
+	void VerifyDeserialized() const;
 
 public:
 	template <class TARGET>
@@ -73,8 +77,8 @@ public:
 
 protected:
 	string BaseToString(string result) const;
-	string BaseToString(string result, const vector<string> &column_name_alias) const;
-	string AliasToString(const vector<string> &column_name_alias) const;
+	string BaseToString(string result, const vector<Identifier> &column_name_alias) const;
+	string AliasToString(const vector<Identifier> &column_name_alias) const;
 	string SampleToString() const;
 };
 } // namespace duckdb

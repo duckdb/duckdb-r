@@ -1,8 +1,10 @@
 #include "duckdb/common/csv_writer.hpp"
+#include "duckdb/common/serializer/async_file_writer.hpp"
 #include "duckdb/common/serializer/write_stream.hpp"
 #include "duckdb/common/serializer/memory_stream.hpp"
 #include "duckdb/execution/operator/csv_scanner/csv_reader_options.hpp"
 #include "duckdb/common/serializer/buffered_file_writer.hpp"
+#include "duckdb/planner/expression.hpp"
 
 namespace duckdb {
 
@@ -16,7 +18,7 @@ CSVWriterState::CSVWriterState()
 }
 
 CSVWriterState::CSVWriterState(ClientContext &context, idx_t flush_size_p)
-    : flush_size(flush_size_p), stream(make_uniq<MemoryStream>(Allocator::Get(context), flush_size)) {
+    : flush_size(flush_size_p), stream(make_uniq<MemoryStream>(BufferAllocator::Get(context), flush_size)) {
 }
 
 CSVWriterState::CSVWriterState(DatabaseInstance &db, idx_t flush_size_p)
@@ -30,17 +32,29 @@ CSVWriterState::~CSVWriterState() {
 	}
 }
 
-CSVWriterOptions::CSVWriterOptions(const string &delim, const char &quote, const string &write_newline) {
+CSVWriterOptions::CSVWriterOptions(const string &delim, const char &quote, const string &write_newline,
+                                   char comment_char) {
 	requires_quotes = vector<bool>(256, false);
 	requires_quotes['\n'] = true;
 	requires_quotes['\r'] = true;
-	requires_quotes['#'] = true;
-	requires_quotes[NumericCast<idx_t>(delim[0])] = true;
-	requires_quotes[NumericCast<idx_t>(quote)] = true;
+	// quote values containing the comment char so they are not read back as comments (see #17744)
+	if (comment_char != '\0') {
+		requires_quotes[static_cast<uint8_t>(comment_char)] = true;
+	}
+	// values containing the (first byte of the) delimiter are quoted
+	requires_quotes[static_cast<uint8_t>(delim[0])] = true;
+	requires_quotes[static_cast<uint8_t>(quote)] = true;
 
 	if (!write_newline.empty()) {
 		newline = TransformNewLine(write_newline);
 	}
+}
+
+// The comment char to protect on write. Defaults to '#' when unset, since the sniffer detects '#'
+// comments by default; an explicit comment (including the empty '\0' from `comment ''`) is honored.
+static char GetWriteCommentChar(CSVReaderOptions &options) {
+	auto &comment = options.dialect_options.state_machine_options.comment;
+	return comment.IsSetByUser() ? comment.GetValue() : '#';
 }
 
 CSVWriterOptions::CSVWriterOptions(CSVReaderOptions &options)
@@ -48,33 +62,45 @@ CSVWriterOptions::CSVWriterOptions(CSVReaderOptions &options)
                        options.dialect_options.state_machine_options.quote.GetValue(), options.write_newline) {
 }
 
-CSVWriter::CSVWriter(WriteStream &stream, vector<string> name_list, bool shared)
+CSVWriter::CSVWriter(WriteStream &stream, vector<Identifier> name_list, bool shared)
     : writer_options(options.dialect_options.state_machine_options.delimiter.GetValue(),
                      options.dialect_options.state_machine_options.quote.GetValue(), options.write_newline),
       write_stream(stream), should_initialize(true), shared(shared) {
 	auto size = name_list.size();
 	options.name_list = std::move(name_list);
 	options.force_quote.resize(size, false);
-	options.force_quote.resize(size, false);
 
+	if (!shared) {
+		global_write_state = make_uniq<CSVWriterState>();
+	}
+}
+
+CSVWriter::CSVWriter(CSVReaderOptions &options_p, AsyncFileWriter &file_writer_p, bool shared)
+    : options(options_p), writer_options(options.dialect_options.state_machine_options.delimiter.GetValue(),
+                                         options.dialect_options.state_machine_options.quote.GetValue(),
+                                         options.write_newline, GetWriteCommentChar(options)),
+      async_file_writer(file_writer_p), write_stream(file_writer_p), should_initialize(true), shared(shared) {
 	if (!shared) {
 		global_write_state = make_uniq<CSVWriterState>();
 	}
 }
 
 CSVWriter::CSVWriter(CSVReaderOptions &options_p, FileSystem &fs, const string &file_path,
-                     FileCompressionType compression, bool shared)
-    : options(options_p),
-      writer_options(options.dialect_options.state_machine_options.delimiter.GetValue(),
-                     options.dialect_options.state_machine_options.quote.GetValue(), options.write_newline),
+                     FileCompressionType compression, QueryContext context, bool shared)
+    : options(options_p), writer_options(options.dialect_options.state_machine_options.delimiter.GetValue(),
+                                         options.dialect_options.state_machine_options.quote.GetValue(),
+                                         options.write_newline, GetWriteCommentChar(options)),
       file_writer(make_uniq<BufferedFileWriter>(fs, file_path,
                                                 FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW |
-                                                    FileLockType::WRITE_LOCK | compression)),
+                                                    FileLockType::WRITE_LOCK | std::move(compression),
+                                                context)),
       write_stream(*file_writer), should_initialize(true), shared(shared) {
 	if (!shared) {
 		global_write_state = make_uniq<CSVWriterState>();
 	}
 }
+
+CSVWriter::~CSVWriter() = default;
 
 void CSVWriter::Initialize(bool force) {
 	if (!force && !should_initialize) {
@@ -137,15 +163,21 @@ void CSVWriter::Flush(CSVWriterState &local_state) {
 	if (shared) {
 		lock_guard<mutex> flock(lock);
 		FlushInternal(local_state);
+		if (async_file_writer) {
+			async_file_writer->ApplyBackpressure();
+		}
 	} else {
 		FlushInternal(local_state);
+		if (async_file_writer) {
+			async_file_writer->ApplyBackpressure();
+		}
 	}
 }
 
 void CSVWriter::Flush() {
 	// Method intended for non-shared use only
 	D_ASSERT(!shared);
-	FlushInternal(*global_write_state);
+	Flush(*global_write_state);
 }
 
 void CSVWriter::Reset(optional_ptr<CSVWriterState> local_state) {
@@ -175,10 +207,9 @@ void CSVWriter::FlushInternal(CSVWriterState &local_state) {
 		return;
 	}
 
-	if (!written_anything) {
-		written_anything = true;
-	} else if (writer_options.newline_writing_mode == CSVNewLineMode::WRITE_BEFORE) {
+	if (written_anything && writer_options.newline_writing_mode == CSVNewLineMode::WRITE_BEFORE) {
 		write_stream.WriteData(const_data_ptr_cast(writer_options.newline.c_str()), writer_options.newline.size());
+		bytes_written += writer_options.newline.size();
 	}
 
 	written_anything = true;
@@ -215,7 +246,13 @@ static idx_t GetFileSize(unique_ptr<BufferedFileWriter> &file_writer, idx_t &byt
 idx_t CSVWriter::FileSize() {
 	if (shared) {
 		lock_guard<mutex> flock(lock);
+		if (async_file_writer) {
+			return async_file_writer->GetPhysicalFileSize();
+		}
 		return GetFileSize(file_writer, bytes_written);
+	}
+	if (async_file_writer) {
+		return async_file_writer->GetPhysicalFileSize();
 	}
 	return GetFileSize(file_writer, bytes_written);
 }
@@ -320,6 +357,10 @@ void CSVWriter::WriteQuotedString(WriteStream &writer, const char *str, idx_t le
 // Write a chunk to a csv file
 void CSVWriter::WriteChunk(DataChunk &input, MemoryStream &writer, CSVReaderOptions &options, bool &written_anything,
                            CSVWriterOptions &writer_options) {
+	vector<VectorIterator<string_t>> input_iterators;
+	for (const auto &col : input.data) {
+		input_iterators.emplace_back(col.Values<string_t>());
+	}
 	// now loop over the vectors and output the values
 	for (idx_t row_idx = 0; row_idx < input.size(); row_idx++) {
 		if (row_idx == 0 && !written_anything) {
@@ -331,23 +372,24 @@ void CSVWriter::WriteChunk(DataChunk &input, MemoryStream &writer, CSVReaderOpti
 		D_ASSERT(options.null_str.size() == 1);
 		for (idx_t col_idx = 0; col_idx < input.ColumnCount(); col_idx++) {
 			if (col_idx != 0) {
-				CSVWriter::WriteQuoteOrEscape(writer,
-				                              options.dialect_options.state_machine_options.delimiter.GetValue()[0]);
+				// the delimiter can consist of multiple bytes
+				auto &delimiter = options.dialect_options.state_machine_options.delimiter.GetValue();
+				writer.WriteData(const_data_ptr_cast(delimiter.c_str()), delimiter.size());
 			}
-			if (FlatVector::IsNull(input.data[col_idx], row_idx)) {
+			auto input_val = input_iterators[col_idx][row_idx];
+			if (!input_val.IsValid()) {
 				// write null value
 				writer.WriteData(const_data_ptr_cast(options.null_str[0].c_str()), options.null_str[0].size());
 				continue;
 			}
 
 			// non-null value, fetch the string value from the cast chunk
-			auto str_data = FlatVector::GetData<string_t>(input.data[col_idx]);
+			auto &str_val = input_val.GetValue();
 			// FIXME: we could gain some performance here by checking for certain types if they ever require quotes
 			// (e.g. integers only require quotes if the delimiter is a number, decimals only require quotes if the
 			// delimiter is a number or "." character)
 
-			WriteQuotedString(writer, str_data[row_idx].GetData(), str_data[row_idx].GetSize(), col_idx, options,
-			                  writer_options);
+			WriteQuotedString(writer, str_val.GetData(), str_val.GetSize(), col_idx, options, writer_options);
 		}
 		if (writer_options.newline_writing_mode == CSVNewLineMode::WRITE_AFTER) {
 			writer.WriteData(const_data_ptr_cast(writer_options.newline.c_str()), writer_options.newline.size());
@@ -358,7 +400,8 @@ void CSVWriter::WriteChunk(DataChunk &input, MemoryStream &writer, CSVReaderOpti
 void CSVWriter::WriteHeader(MemoryStream &stream, CSVReaderOptions &options, CSVWriterOptions &writer_options) {
 	for (idx_t i = 0; i < options.name_list.size(); i++) {
 		if (i != 0) {
-			WriteQuoteOrEscape(stream, options.dialect_options.state_machine_options.delimiter.GetValue()[0]);
+			auto &delimiter = options.dialect_options.state_machine_options.delimiter.GetValue();
+			stream.WriteData(const_data_ptr_cast(delimiter.c_str()), delimiter.size());
 		}
 
 		WriteQuotedString(stream, options.name_list[i].c_str(), options.name_list[i].size(), i, options,

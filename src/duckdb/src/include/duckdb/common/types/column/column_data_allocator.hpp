@@ -32,6 +32,7 @@ private:
 
 public:
 	shared_ptr<BlockHandle> GetHandle() const;
+	BufferHandle Pin(BufferManager &buffer_manager);
 	void SetHandle(ManagedResultSet &managed_result_set, shared_ptr<BlockHandle> handle);
 	uint32_t Capacity();
 };
@@ -83,6 +84,8 @@ public:
 
 public:
 	void AllocateData(idx_t size, uint32_t &block_id, uint32_t &offset, ChunkManagementState *chunk_state);
+	void Reset();
+	void ResetPreserveLastBlock();
 
 	void Initialize(ColumnDataAllocator &other);
 	void InitializeChunkState(ChunkManagementState &state, ChunkMetaData &meta_data);

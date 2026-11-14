@@ -1,34 +1,17 @@
-<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
+# duckdb 2.0.0.9000
 
-# duckdb 1.5.6.9005
+- Commits since 2.0.0: <https://github.com/duckdb/duckdb-r/compare/v2.0.0...main>.
+
+
+# duckdb 2.0.0
 
 ## Breaking changes
 
-- The vendored engine is a development snapshot of DuckDB v2.0, `2.0.0-dev87994` (duckdb/duckdb@0f5ff0a9d6).
+- Update to DuckDB v2.0.0, see <https://github.com/duckdb/duckdb/releases/tag/v2.0.0> for details.
 
-- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
-
-- An error's `LINE` context underlines the whole offending token, not just its first character.
-
-- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
-
-- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
-
-- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE AS` makes a `NULL`-typed column of it.
-
-- The progress display is quiet past an Arrow stream's first batch.
+- `SELECT NULL` has the `NULL` type: the Arrow route hands it on as a null array, format `n`, rather than `int32`, and `CREATE TABLE ... AS` makes a `NULL`-typed column of it.
 
 - A `SELECT` that writes, one calling `nextval()` for instance, runs to completion before `dbSendQueryArrow()` returns rather than streaming.
-
-- A relational constant renders with a cast that keeps its type: `expr_constant(-42)` prints as `CAST(-42.0 AS DOUBLE)` rather than `-42.0`, and an empty typed list as `CAST("system".main.list_value() AS INTEGER[])` rather than `[]`.
-
-- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name with "`file_name` must be a non-empty string." rather than the engine's I/O error.
-
-## Bug fixes
-
-- `dbExistsTable()` leaves an open transaction usable with DuckDB 2.0 (#2892, #2893).
-
-- Run the tests behind `TEST_RE2` everywhere but in R-hub's runs, and fix what they caught in `duckdb_read_csv()` and `dbExistsTable()` (#2896).
 
 ## Features
 
@@ -36,82 +19,53 @@
 
 - `TUPLE` columns read as data frames whose columns are named `element1`, `element2`, ... rather than left unnamed, and an empty `STRUCT` as a data frame without columns.
 
-### series
+- `EXPLAIN` renders its plan in a more compact layout, with operators named like `Dummy Scan` rather than `DUMMY_SCAN`, and `rel_explain()`'s HTML output is an interactive document.
 
-- Stamp a green commit with upstream's alpha version, so `INSTALL` finds its extensions (#2897).
+- An error's `LINE` context underlines the whole offending token, not just its first character.
 
+## Compatibility
 
-# duckdb 1.5.6.9004
+- Patches to the vendored engine fix compiler warnings that GCC, clang and MinGW raise in its sources.
+
+- Installing from source no longer needs `xz`, and `SystemRequirements` no longer lists it (#2960).
 
 ## Bug fixes
 
 - A `POSIXct` or `difftime` halfway between two microseconds writes rounded to even, as `dbQuoteLiteral()` quotes it (#2887).
 
-### series
+- `dbExistsTable()` leaves an open transaction usable,
+  and raises rather than returning `FALSE` in a transaction that has already failed
+  or for a name that cannot be quoted, such as `NA` (#2892, #2893, #2896).
 
-- Keep a zero fifth version component through the `ours-version` merge driver (#2886).
+- `duckdb_read_csv()` applies `col.names` given without `col.types`, names unnamed `col.types` after the file's columns,
+  and refuses a `col.names` of the wrong length (#2896).
 
-## Features
+- With `enable_profiling` and `profiling_output` set,
+  an `EXPLAIN ANALYZE` that failed, or was prepared and never run,
+  no longer leaves the next query on the connection without a profile (#2904).
 
-### series
+- An R error from materializing a duckdb ALTREP column while a data frame scan binds fails the query
+  rather than leaving the session busy,
+  and a relation of another connection materializes there as it does through `rel_from_df()` (#2909).
+  Bound on one of the engine's own threads, as in a join with `pragma_table_info()`,
+  a registered data frame is read without calling R,
+  and a column that only R can read, such as a list or struct column of `rel_to_altrep()`, fails with an error that says what to do (#2965).
 
-- Carry `patch/` entries onto the buffer as part of porting (#2660).
+- `rel_to_csv()` and `rel_to_parquet()` refuse an empty file name or `NA` with "`file_name` must be a non-empty string.",
+  rather than failing with the engine's I/O error or writing a file called `NA` (#2941, #2952).
 
+- `slice_sample()` on a dbplyr lazy table draws its random key in a subquery,
+  so it works with DuckDB 2.0, which refuses a window ordered by a random value (#2964).
 
-# duckdb 1.5.6.9003
+- A query that scans an Arrow stream on the stream's own connection fails with the invalidation error rather than waiting for good.
 
-## Chore
+- `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
 
-- Auto-update from GitHub Actions (#2884).
+## Known issues
 
-
-# duckdb 1.5.6.9002
-
-## Bug fixes
-
-### series-advance
-
-- Look a carry's twin up above the forward's green (@krlmlr, #2877).
-
-### series-advance
-
-- Compile the glue after a carry that touches it (@krlmlr, #2880).
-
-## Documentation
-
-### series-loop
-
-- Record how to resolve the cpp11 binding conflict a port brings (#2851).
-
-### series-loop
-
-- Record the cpp11 include path the buffers still generate (#2847).
-
-
-# duckdb 1.5.6.9001
-
-## Features
-
-### series
-
-- Rebuild the rewind at the foot of a forward, gate the glue, and mirror `-dev` without its flavor (@krlmlr, #2875).
-
-## Continuous integration
-
-- Key the build caches by architecture (@krlmlr, #2876).
-
-
-# duckdb 1.5.6.9000
-
-## Bug fixes
-
-### series
-
-- Read `main` from the canonical repository, not the fork's mirror (#2865).
-
-## Uncategorized
-
-- Merge remote-tracking branch 'upstream/cran-1.5.6'.
+- The progress display stops after the first batch of a result read as an Arrow stream
+  (`dbSendQueryArrow()` or `dbGetQueryArrow()`, then `$get_next()`).
+  The engine reports progress while it computes the first batch and treats the query as finished from then on (#2967).
 
 
 # duckdb 1.5.6

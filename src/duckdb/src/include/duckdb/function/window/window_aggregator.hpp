@@ -33,7 +33,7 @@ public:
 			idx_t nframes = 0;
 			if (exclude_mode == WindowExcludeMode::NO_OTHER) {
 				auto begin = begins[i];
-				auto end = ends[i];
+				auto end = MaxValue(ends[i], begin);
 				frames[nframes++] = FrameBounds(begin, end);
 			} else {
 				//	The frame_exclusion option allows rows around the current row to be excluded from the frame,
@@ -57,7 +57,7 @@ public:
 
 				//	WindowExcludePart::LEFT
 				const auto frame_begin = begins[i];
-				const auto frame_end = ends[i];
+				const auto frame_end = MaxValue(ends[i], frame_begin);
 				auto begin = frame_begin;
 				auto end = (exclude_mode == WindowExcludeMode::CURRENT_ROW) ? cur_row : peer_begin[i];
 				end = MinValue(end, frame_end);
@@ -116,7 +116,7 @@ public:
 	const idx_t state_size;
 	//! The window exclusion clause
 	const WindowExcludeMode exclude_mode;
-	//! Partition collection column indicies
+	//! Partition collection column indices
 	vector<column_t> child_idx;
 };
 
@@ -133,11 +133,16 @@ public:
 	//! The aggregator data
 	const WindowAggregator &aggregator;
 
+	//! Partition starts
+	vector<idx_t> partition_offsets;
+
 	//! The aggregate function
 	const AggregateObject aggr;
 
 	//! The filtered rows in inputs.
 	ValidityArray filter_mask;
+	//! Storage of the filter mask (one byte per row), from the buffer allocator so that it counts against the limit
+	AllocatedData filter_mask_data;
 
 	//! Lock for single threading
 	mutable mutex lock;
@@ -147,6 +152,9 @@ public:
 
 	//! Number of finalised states
 	std::atomic<idx_t> finalized;
+
+protected:
+	void BuildPartitionOffsets(const idx_t group_count, const ValidityMask &partition_mask);
 };
 
 class WindowAggregatorLocalState : public LocalSinkState {

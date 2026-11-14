@@ -1,4 +1,8 @@
 #include "duckdb/common/sorting/full_sort.hpp"
+#include "duckdb/common/vector/constant_vector.hpp"
+#include "duckdb/common/types/vector.hpp"
+#include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/main/client_context.hpp"
 #include "duckdb/common/sorting/sorted_run.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 
@@ -34,7 +38,7 @@ public:
 	FullSortGlobalSinkState(ClientContext &client, const FullSort &full_sort);
 
 	// OVER(PARTITION BY...) (hash grouping)
-	ProgressData GetSinkProgress(ClientContext &context, const ProgressData source_progress) const;
+	ProgressData GetSinkProgress(ClientContext &context, const ProgressData source_progress);
 
 	//! System and query state
 	ClientContext &client;
@@ -46,6 +50,8 @@ public:
 
 	// Threading
 	atomic<idx_t> count;
+	//! Keeps the sink progress monotonic
+	MonotonicProgress sink_progress;
 };
 
 FullSortGlobalSinkState::FullSortGlobalSinkState(ClientContext &client, const FullSort &full_sort)
@@ -54,23 +60,10 @@ FullSortGlobalSinkState::FullSortGlobalSinkState(ClientContext &client, const Fu
 	hash_group = make_uniq<FullSortGroup>(client, *full_sort.sort);
 }
 
-ProgressData FullSortGlobalSinkState::GetSinkProgress(ClientContext &client, const ProgressData source) const {
-	ProgressData result;
-	result.done = source.done / 2;
-	result.total = source.total;
-	result.invalid = source.invalid;
-
-	// Sort::GetSinkProgress assumes that there is only 1 sort.
-	// So we just use it to figure out how many rows have been sorted.
-	const ProgressData zero_progress;
+ProgressData FullSortGlobalSinkState::GetSinkProgress(ClientContext &client, const ProgressData source) {
 	lock_guard<mutex> guard(lock);
-	const auto &sort = full_sort.sort;
-
-	const auto group_progress = sort->GetSinkProgress(client, *hash_group->sort_global, zero_progress);
-	result.done += group_progress.done;
-	result.invalid = result.invalid || group_progress.invalid;
-
-	return result;
+	const auto sorted_count = hash_group ? full_sort.sort->GetSortedCount(*hash_group->sort_global) : 0;
+	return Sort::GetSinkProgress(source, sorted_count, count, sink_progress);
 }
 
 SinkFinalizeType FullSort::Finalize(ClientContext &client, OperatorSinkFinalizeInput &finalize) const {
@@ -133,7 +126,7 @@ FullSortLocalSinkState::FullSortLocalSinkState(ExecutionContext &context, const 
     : full_sort(full_sort), sort_exec(context.client) {
 	vector<LogicalType> sort_types;
 	for (const auto &expr : full_sort.sort_exprs) {
-		sort_types.emplace_back(expr->return_type);
+		sort_types.emplace_back(expr->GetReturnType());
 		sort_exec.AddExpression(*expr);
 	}
 	sort_chunk.Initialize(context.client, sort_types);
@@ -173,11 +166,8 @@ SinkResultType FullSort::Sink(ExecutionContext &context, DataChunk &input_chunk,
 	if (force_payload) {
 		auto &vec = payload_chunk.data[input_chunk.ColumnCount() + sort_chunk.ColumnCount()];
 		D_ASSERT(vec.GetType().id() == LogicalTypeId::BOOLEAN);
-		vec.SetVectorType(VectorType::CONSTANT_VECTOR);
-		ConstantVector::SetNull(vec, true);
+		ConstantVector::SetNull(vec, count_t(input_chunk.size()));
 	}
-
-	payload_chunk.SetCardinality(input_chunk);
 
 	//	OVER(ORDER BY...)
 	auto &sort_local = lstate.sort_local;
@@ -251,13 +241,13 @@ FullSort::FullSort(ClientContext &client, const vector<BoundOrderByNode> &order_
 		auto &expr = *order.expression;
 		if (expr.GetExpressionClass() == ExpressionClass::BOUND_REF) {
 			auto &ref = expr.Cast<BoundReferenceExpression>();
-			sort_ids.emplace_back(ref.index);
+			sort_ids.emplace_back(ref.Index());
 			continue;
 		}
 
 		//	Real expression - replace with a ref and save the expression
 		auto saved = std::move(order.expression);
-		const auto type = saved->return_type;
+		const auto type = saved->GetReturnType();
 		const auto idx = payload_types.size();
 		order.expression = make_uniq<BoundReferenceExpression>(type, idx);
 		sort_ids.emplace_back(idx);

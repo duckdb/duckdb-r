@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:11:48 +0000
+Subject: [PATCH] Zero the range bounds before the inputs fill them
+
+RangeFunctionBindData's constructor copies its one to three inputs into
+an array of three, and GetParameters() reads at least the first
+element. RangeFunctionBind() refuses an empty input list before it
+constructs the bind data, so that element is always set, but GCC 10
+cannot know that and -Wmaybe-uninitialized reports the read. The array
+starts out zeroed, as the engine writes such arrays elsewhere.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/function/table/range.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/function/table/range.cpp b/src/duckdb/src/function/table/range.cpp
+index 038189e31b..03d194bdb3 100644
+--- a/src/duckdb/src/function/table/range.cpp
++++ b/src/duckdb/src/function/table/range.cpp
+@@ -30,7 +30,7 @@ static void GetParameters(int64_t values[], idx_t value_count, hugeint_t &start,
+ 
+ struct RangeFunctionBindData : public TableFunctionData {
+ 	explicit RangeFunctionBindData(const vector<Value> &inputs, bool generate_series) : cardinality(0) {
+-		int64_t values[3];
++		int64_t values[3] = {};
+ 		for (idx_t i = 0; i < inputs.size(); i++) {
+ 			if (inputs[i].IsNull()) {
+ 				return;

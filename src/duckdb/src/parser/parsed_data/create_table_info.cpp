@@ -2,22 +2,23 @@
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog.hpp"
+#include "duckdb/parser/constraints/not_null_constraint.hpp"
 
 namespace duckdb {
 
-CreateTableInfo::CreateTableInfo() : CreateInfo(CatalogType::TABLE_ENTRY, INVALID_SCHEMA) {
+CreateTableInfo::CreateTableInfo() : CreateInfo(CatalogType::TABLE_ENTRY, Identifier::InvalidSchema()) {
 }
 
-CreateTableInfo::CreateTableInfo(string catalog_p, string schema_p, string name_p)
-    : CreateInfo(CatalogType::TABLE_ENTRY, std::move(schema_p), std::move(catalog_p)), table(std::move(name_p)) {
+CreateTableInfo::CreateTableInfo(QualifiedName qualified_name_p) : CreateInfo(CatalogType::TABLE_ENTRY) {
+	SetQualifiedName(std::move(qualified_name_p));
 }
 
-CreateTableInfo::CreateTableInfo(SchemaCatalogEntry &schema, string name_p)
-    : CreateTableInfo(schema.catalog.GetName(), schema.name, std::move(name_p)) {
+CreateTableInfo::CreateTableInfo(SchemaCatalogEntry &schema, const Identifier &name_p)
+    : CreateTableInfo(schema.GetQualifiedName(name_p)) {
 }
 
 unique_ptr<CreateInfo> CreateTableInfo::Copy() const {
-	auto result = make_uniq<CreateTableInfo>(catalog, schema, table);
+	auto result = make_uniq<CreateTableInfo>(GetQualifiedName());
 	CopyProperties(*result);
 	result->columns = columns.Copy();
 	for (auto &constraint : constraints) {
@@ -36,6 +37,16 @@ unique_ptr<CreateInfo> CreateTableInfo::Copy() const {
 		result->query = unique_ptr_cast<SQLStatement, SelectStatement>(query->Copy());
 	}
 	return std::move(result);
+}
+
+optional_idx CreateTableInfo::FindNotNullConstraint(LogicalIndex column) const {
+	for (idx_t constraint_idx = 0; constraint_idx < constraints.size(); constraint_idx++) {
+		auto &constraint = *constraints[constraint_idx];
+		if (constraint.type == ConstraintType::NOT_NULL && constraint.Cast<NotNullConstraint>().index == column) {
+			return constraint_idx;
+		}
+	}
+	return optional_idx();
 }
 
 string CreateTableInfo::ExtraOptionsToString() const {
@@ -69,7 +80,7 @@ string CreateTableInfo::ExtraOptionsToString() const {
 
 string CreateTableInfo::ToString() const {
 	string ret = GetCreatePrefix("TABLE");
-	ret += QualifierToString(temporary ? "" : catalog, schema, table);
+	ret += QualifiedNameToString();
 
 	if (query != nullptr) {
 		ret += TableCatalogEntry::ColumnNamesToSQL(columns);

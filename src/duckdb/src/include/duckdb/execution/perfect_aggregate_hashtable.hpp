@@ -10,6 +10,7 @@
 
 #include "duckdb/execution/base_aggregate_hashtable.hpp"
 #include "duckdb/storage/arena_allocator.hpp"
+#include "duckdb/common/clustered_aggregate.hpp"
 
 namespace duckdb {
 
@@ -26,6 +27,10 @@ public:
 
 	//! Combines the target perfect aggregate HT into this one
 	void Combine(PerfectAggregateHashTable &other);
+
+	idx_t Capacity() const {
+		return total_groups;
+	}
 
 	//! Scan the HT starting from the scan_position
 	void Scan(idx_t &scan_position, DataChunk &result);
@@ -61,7 +66,11 @@ protected:
 	//! Owning arena allocators that this HT has data from
 	vector<unique_ptr<ArenaAllocator>> stored_allocators;
 
+	ClusteredAggrState clustered_state;
+
 private:
+	//! Try adding a chunk using the clustered aggregation path. Returns false if not applicable.
+	bool AddChunkClustered(uintptr_t *address_data, DataChunk &payload);
 	//! Destroy the perfect aggregate HT (called automatically by the destructor)
 	void Destroy();
 };
