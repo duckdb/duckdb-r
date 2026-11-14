@@ -16,7 +16,7 @@
 # The difference is the one stage 5's carry takes (scripts/series-advance.sh):
 # the paths the `-dev` commit changed, less the buffer's own strand
 # (`src/duckdb/`, `patch/`), what vendoring regenerates (`R/version.R`,
-# `src/include/sources.mk`, the Makevars, the logos), the tooling stage 4 ports,
+# `src/include/sources.mk`, the Makevars), the tooling stage 4 ports,
 # and `DESCRIPTION`; and of those, only the paths whose blob differs from the
 # twin's, so glue the buffer already carries is not reported as learned.
 # What is printed for each is the commit's own change to those paths,
