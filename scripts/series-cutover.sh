@@ -104,7 +104,9 @@
 # The archive pull requests are opened with `gh api` (REST, no GraphQL) against
 # the repository a remote's URL names; `git config remote.<name>.github
 # <owner>/<repo>` names it where the URL does not, as in a test fixture.
-# $SERIES_GH names another `gh`.
+# $SERIES_GH names another `gh`. A plan that archives in a remote naming no
+# repository, or finds no `gh`, refuses before the confirmation, on a terminal
+# too, and before any pull request is opened.
 #
 # The upstream clone is needed for the coverage gate (an ancestry check
 # between vendored upstream SHAs); without it the gate degrades to a warning.
@@ -327,12 +329,7 @@ version_cmp() {
 archived=() # "<remote> <head> <owner/repo> <number>"
 archive_pr() { # <remote> <head> <base> -> prints the pull request
   local r=$1 head=$2 base=$3 slug n body tip title existing
-  slug=$(series_github_slug "$r")
-  [ -n "$slug" ] || {
-    echo "Error: $r is not a GitHub remote, so $head cannot be archived there." >&2
-    echo "  Set 'git config remote.$r.github <owner>/<repo>' or pass --no-archive." >&2
-    exit 1
-  }
+  slug=$(series_github_slug "$r") # never empty: the plan refused a remote without one
   tip=$(git rev-parse "refs/remotes/$r/$head")
   title="chore(series): Archive $head before its cutover"
   existing=$("$gh" api -X GET "repos/$slug/pulls" -f state=closed -f head="${slug%%/*}:$head" -f per_page=20 \
@@ -616,9 +613,10 @@ archives=() # "<remote> <head> <base>"
 if [ -n "$archive" ]; then
   kept=()
   for r in dev build green build-base; do
-    grep -qxF "$r" <<<"$(printf '%s\n' "${present[@]}")" || continue
+    # Empty arrays in the `+` form, which keeps `set -u` quiet on any bash.
+    grep -qxF "$r" <<<"$(printf '%s\n' ${present[@]+"${present[@]}"})" || continue
     covered=
-    for o in "${kept[@]}"; do
+    for o in ${kept[@]+"${kept[@]}"}; do
       if git merge-base --is-ancestor "refs/remotes/$remote/$S-$r" "refs/remotes/$remote/$S-$o"; then
         covered=$o
         break
@@ -639,14 +637,23 @@ if [ -n "$archive" ]; then
     fi
   fi
 fi
+# Each remote archived in has to name its repository, and `gh` has to be there,
+# or the swap refuses; both are read here, so that it refuses before the first
+# pull request is opened rather than after the archive in another remote.
+unarchivable=()
 if [ ${#archives[@]} -gt 0 ]; then
   echo "archive pull requests, opened and closed before the swap:"
   for a in "${archives[@]}"; do
     read -r r head base <<<"$a"
     slug=$(series_github_slug "$r")
-    echo "  $head -> $base in ${slug:-$r (not a GitHub remote: set remote.$r.github or pass --no-archive)}"
+    if [ -n "$slug" ]; then
+      echo "  $head -> $base in $slug"
+    else
+      echo "  $head -> $base in $r, which is not a GitHub remote"
+      unarchivable+=("$r is not a GitHub remote, so $head cannot be archived there; set 'git config remote.$r.github <owner>/<repo>'")
+    fi
   done
-  command -v "$gh" >/dev/null 2>&1 || echo "  ($gh is not installed; the swap will refuse without --no-archive)"
+  command -v "$gh" >/dev/null 2>&1 || unarchivable+=("$gh is not installed, so nothing can be archived")
 elif [ -n "$archive" ]; then
   echo "archive pull requests: none needed; nothing on $remote is replaced"
 else
@@ -673,6 +680,11 @@ fi
 
 if [ -n "$prepare" ]; then
   echo
+  if [ ${#unarchivable[@]} -gt 0 ]; then
+    echo "the swap would refuse, on a terminal too, as the archive cannot be opened; --no-archive is the terminal's override:"
+    printf '  %s\n' "${unarchivable[@]}"
+    echo
+  fi
   if [ ${#held[@]} -gt 0 ]; then
     echo "--confirm would refuse on what this run warned about, which a terminal run leaves to the operator:"
     printf '  %s\n' "${held[@]}"
@@ -698,6 +710,12 @@ fi
 # SHA of the state decided on, checked after the fetch; what this run held for
 # the operator to weigh refuses it here instead, before anything is opened.
 echo
+if [ ${#unarchivable[@]} -gt 0 ]; then
+  echo "Error: the swap archives what it replaces first, and this run cannot:" >&2
+  printf '  %s\n' "${unarchivable[@]}" >&2
+  echo "  Nothing was opened or moved. On a terminal, --no-archive swaps without the archive." >&2
+  exit 1
+fi
 if [ -n "$confirmed" ] && [ ${#held[@]} -gt 0 ]; then
   echo "Error: --confirm swaps with nobody to weigh a warning, and this run printed these:" >&2
   printf '  %s\n' "${held[@]}" >&2
@@ -716,10 +734,6 @@ fi
 # Archive first: a pull request moves no ref, and a failure here leaves the
 # series exactly as it was.
 if [ ${#archives[@]} -gt 0 ]; then
-  command -v "$gh" >/dev/null 2>&1 || {
-    echo "Error: $gh is not installed, so nothing can be archived; pass --no-archive to swap anyway." >&2
-    exit 1
-  }
   echo "archiving:"
   for a in "${archives[@]}"; do
     read -r r head base <<<"$a"

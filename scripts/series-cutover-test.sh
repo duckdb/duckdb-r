@@ -24,14 +24,15 @@
 #      cleanup plan, what --confirm would refuse on, the SHA to decide on and
 #      the command for a terminal, writes the review diff, and moves nothing.
 #   4. A cutover whose archive fails swaps nothing, on a terminal and with
-#      --confirm alike; one against a remote that is not on GitHub refuses too,
-#      unless --no-archive. Under --confirm, a forward green not at the SHA it
-#      names, or moved since --prepare, refuses, and so does each warning a
-#      terminal run prints: coverage not verified, for want of a clone or of a
-#      vendored SHA on the old green, a canonical remote that does not exist or
-#      cannot be read, a divergence, a renamed package, a version that keeps or
-#      goes back, and versions not compared; each before anything is opened or
-#      moved.
+#      --confirm alike; one that would archive in a remote not on GitHub, the
+#      fork or the canonical repository, or without a gh, refuses too, before
+#      any pull request, unless --no-archive. Under --confirm, a forward green
+#      not at the SHA it names, or moved since --prepare, refuses, and so does
+#      each warning a terminal run prints: coverage not verified, for want of a
+#      clone or of a vendored SHA on the old green, a canonical remote that does
+#      not exist or cannot be read, a divergence, a renamed package, a version
+#      that keeps or goes back, and versions not compared; each before anything
+#      is opened or moved.
 #   5. The cutover, confirmed on a terminal: four archive pull requests opened
 #      as drafts and closed (-dev, -build and the vendor strand in
 #      the fork, green's copy in the canonical repository), the four refs and
@@ -404,9 +405,11 @@ is "and the canonical repository's" "$(heads upstream)" "$before_canon"
 git config --unset remote.origin.github
 out=$(tty_run scripts/series-cutover.sh v9.9-x --out "$OUT")
 has "a remote that is not on GitHub is refused" "$out" "origin is not a GitHub remote, so v9.9-x-dev cannot be archived there"
-has "naming the override" "$out" "pass --no-archive"
+has "naming the override" "$out" "On a terminal, --no-archive swaps without the archive."
 has "and the run stops" "$out" "EXIT=1"
+hasnt "before the confirmation is asked for" "$out" "Type the series name to confirm"
 is "with the fork's refs untouched" "$(heads origin)" "$before_fork"
+is "and gh was not called" "$(wc -l < "$GH_LOG")" 0
 out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --no-archive)
 has "--no-archive says what it costs" "$out" "archive pull requests: skipped (--no-archive); the replaced history is reachable from nothing"
 git config remote.origin.github test/fork
@@ -525,6 +528,33 @@ has "under --confirm it refuses" "$out" "--confirm swaps with nobody to weigh a 
 has "naming it" "$out" "  canonical: could not read broken"
 has "and the run stops" "$out" "EXIT=1"
 untouched "a canonical remote that cannot be read"
+# A plan that archives in a remote naming no repository refuses before the
+# first pull request, here the canonical one's after the fork's; so does a
+# missing gh.
+git config --unset remote.upstream.github
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$UP")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "--prepare names the canonical remote as not on GitHub" "$out" "v9.9-x-green -> v9.9-x-fwd-green in upstream, which is not a GitHub remote"
+has "and says the swap would refuse on it" "$out" \
+  "the swap would refuse, on a terminal too, as the archive cannot be opened; --no-archive is the terminal's override:"
+has "naming the setting" "$out" \
+  "  upstream is not a GitHub remote, so v9.9-x-green cannot be archived there; set 'git config remote.upstream.github <owner>/<repo>'"
+out=$(confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "under --confirm it refuses" "$out" "Error: the swap archives what it replaces first, and this run cannot:"
+has "naming the remote" "$out" "  upstream is not a GitHub remote, so v9.9-x-green cannot be archived there"
+has "and the run stops" "$out" "EXIT=1"
+untouched "a canonical remote not on GitHub, under --confirm"
+out=$(tty_run scripts/series-cutover.sh v9.9-x --out "$OUT" --upstream "$UP")
+has "on a terminal it refuses too" "$out" "  upstream is not a GitHub remote, so v9.9-x-green cannot be archived there"
+hasnt "before the confirmation is asked for" "$out" "Type the series name to confirm"
+untouched "a canonical remote not on GitHub, on a terminal"
+git config remote.upstream.github test/canonical
+out=$(SERIES_GH=$SCRATCH/no-such-gh confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a gh that is not installed refuses" "$out" "  $SCRATCH/no-such-gh is not installed, so nothing can be archived"
+has "and the run stops" "$out" "EXIT=1"
+untouched "a gh that is not installed"
 
 echo
 echo "=== 5. the cutover: archive, swap, mirror, delete"
