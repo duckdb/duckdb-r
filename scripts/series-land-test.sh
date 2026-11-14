@@ -310,10 +310,12 @@ hasnt "so it prints no fast-forward" "$out" "git push upstream"
 
 echo
 echo "== --review writes the R side alone"
+# The canonical remote is a path here, so its repository is named in the config.
+git config remote.upstream.github test/canonical
 out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it counts the commits that change the R side" "$out" "3 of 3 landing commits change the R side"
-has "and prints the draft pull request" "$out" "gh pr create --repo"
+has "and prints the draft pull request" "$out" "gh pr create --repo test/canonical --draft"
 has "with what the landing does to the tests" "$out" "changed   tests/testthat/test-foo.R"
 git fetch -q upstream v2.0-x-land-review
 REV=$(git rev-parse upstream/v2.0-x-land-review)
