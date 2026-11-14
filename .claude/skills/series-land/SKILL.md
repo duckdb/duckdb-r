@@ -275,12 +275,14 @@ where `<prefix>` is the preview prefix `main` carries while it previews the line
   directly above the section of the last release.
   It replaces the development sections since that release,
   keeps their user-facing items, leaves out the tooling, and names the engine the landing vendors.
-  Keep fledge's marker line as the first line of `NEWS.md`, as [`2f82664af`](https://github.com/duckdb/duckdb-r/commit/2f82664af) did:
-  it turns the nightly fledge run on, and leaving it out keeps the run off.
-  Until the bump is on `main`, that run may open its version pull request first, against a version it does not expect;
-  close it in favour of the hand-written bump.
-* **The tag**: once the bump is on `main`, tag that commit `v<prefix>.9001` and push the tag.
-  The tag is annotated, with the version as its message, as every version tag on `main` is.
+  Keep fledge's marker line as the first line of `NEWS.md`, as [`2f82664af`](https://github.com/duckdb/duckdb-r/commit/2f82664af) did.
+  A release leaves `NEWS.md` without it, and `fledge.yaml`'s `check_news` job keeps the nightly fledge run off until the line is back;
+  the landed `NEWS.md` already carries it, so that run may be on throughout the landing.
+  Leaving the line out keeps it off.
+* **The tag**: tag the bump's commit `v<prefix>.9001` and push the tag right after the bump reaches `main`, ahead of the next nightly run (21:40 UTC).
+  fledge counts from the newest version tag, so until the tag is there, that run may open a version pull request
+  against the previous tag that lists every vendor commit; close it in favour of the hand-written bump.
+  The tag is annotated, with the subject `duckdb <prefix>.9001`, as the release tooling's tags are, which also carry the `NEWS.md` section as body.
 
   ```sh
   git tag -a v<prefix>.9001 -m "duckdb <prefix>.9001" <the bump's commit on main>
