@@ -16,7 +16,7 @@ struct AltrepRelationWrapper {
 
 	bool Materialized() const;
 
-	MaterializedQueryResult *GetQueryResult();
+	QueryResult *GetQueryResult();
 
 	void Materialize();
 
@@ -27,7 +27,7 @@ struct AltrepRelationWrapper {
 	// and a column is fetched by a query of its own when it is first read.
 	bool ColumnWise() const;
 	// The engine result that holds top-level column `column_index`, and the position of the column in it
-	MaterializedQueryResult *GetColumnResult(idx_t column_index, idx_t &result_index);
+	QueryResult *GetColumnResult(idx_t column_index, idx_t &result_index);
 	// Whether reading top-level column `column_index` would execute a query now
 	bool ColumnQueryPending(idx_t column_index) const;
 

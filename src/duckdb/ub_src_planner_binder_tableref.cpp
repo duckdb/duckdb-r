@@ -14,8 +14,6 @@
 
 #include "src/planner/binder/tableref/bind_match_recognize_ref.cpp"
 
-#include "src/planner/binder/tableref/bind_named_parameters.cpp"
-
 #include "src/planner/binder/tableref/bind_pivot.cpp"
 
 #include "src/planner/binder/tableref/bind_showref.cpp"
