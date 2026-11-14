@@ -138,6 +138,12 @@ void QueryProfiler::Reset() {
 
 void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, bool start_at_optimizer) {
 	lock_guard<std::mutex> guard(lock);
+	// A query is an EXPLAIN ANALYZE only if the statement this call starts is one.
+	// EndQuery() clears the flag only for a running profiler, and a failed query's rollback resets it first,
+	// so a failed EXPLAIN ANALYZE, or one prepared and never run, would leave the flag set, and the next query
+	// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output. Preparing starts the profiler,
+	// so the one left running by a statement prepared and never executed is still running here.
+	is_explain_analyze = false;
 	// Always reset byte counters at the start of each query so the progress bar shows per-query values
 	query_metrics.bytes_read = 0;
 	query_metrics.bytes_written = 0;
@@ -547,6 +553,9 @@ void OperatorProfiler::Flush(const PhysicalOperator &phys_op) {
 }
 
 void QueryProfiler::Flush(OperatorProfiler &profiler) {
+	if (!running.load(std::memory_order_relaxed)) {
+		return;
+	}
 	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
@@ -579,6 +588,9 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 }
 
 void QueryProfiler::SetBlockedTime(const double &blocked_thread_time) {
+	if (!running.load(std::memory_order_relaxed)) {
+		return;
+	}
 	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
