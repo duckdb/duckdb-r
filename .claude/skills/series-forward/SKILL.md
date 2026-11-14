@@ -322,6 +322,7 @@ with the forward's rc and alpha strands and its retry ledger,
 and `<S>-fwd-green`'s copy is deleted in the canonical repository:
 their tips are the series' refs now, and the derived strands are re-cut from the swapped-in series
 ([`series-rc/SKILL.md`](../series-rc/SKILL.md), [`series-alpha/SKILL.md`](../series-alpha/SKILL.md)).
+Each deletion is leased on the tip the run read, so a ref that moved since is kept, and the run shows what moved.
 If the remote refuses ref deletion (some git proxies do, a cloud session's among them),
 or a cutover predates this cleanup,
 what stays is cutover litter.

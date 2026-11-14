@@ -10,8 +10,9 @@
 # forward leaves behind in both repositories, prints the archive pull requests
 # and an undo that works, refuses to move anything when it cannot archive, or
 # under --confirm on anything a terminal run leaves to the operator, and lists
-# what a refused deletion leaves; and that scripts/series-prune.sh offers only
-# cutover litter, and runs nothing. Twelve things are checked.
+# what a refused deletion leaves, keeping a forward ref that moved meanwhile;
+# and that scripts/series-prune.sh offers only cutover litter, and runs
+# nothing. Thirteen things are checked.
 #
 #   1. Without a terminal and without --confirm the cutover refuses before
 #      fetching anything, and names --confirm and --prepare.
@@ -59,6 +60,9 @@
 #  12. series-advance.sh mirrors a forward's green into the canonical repository
 #      under a lease, so a rebase that reset it does not stop the firing, and
 #      a base green plainly, so a divergence there does.
+#  13. A forward ref that moves while the run archives, in the fork or in the
+#      canonical repository, is kept and shown with what moved, not deleted,
+#      and the run exits 9.
 #
 # Usage:
 #   scripts/series-cutover-test.sh
@@ -694,7 +698,7 @@ has "the series is replaced" "$out" "Series v9.9-x replaced by its forward count
 is "-dev is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$NEW_DEV"
 is "-green is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
 is "the canonical green is refused" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
-has "the run says the swap stands, and what is left" "$out" "left behind: the swap stands, and the remotes refused what follows it."
+has "the run says the swap stands, and what is left" "$out" "left behind: the swap stands, and what follows it did not happen."
 has "the canonical green among it" "$out" \
   "  v9.9-x-green in upstream is still on the pre-cutover lineage, which r-universe publishes; move it:"
 move=(git push "--force-with-lease=refs/heads/v9.9-x-green:$OLD_GREEN" upstream "$NEW_GREEN:refs/heads/v9.9-x-green")
@@ -784,6 +788,54 @@ out=$(run scripts/series-advance.sh v9.9-x --chunk 0)
 has "a base green that would not fast-forward stops the firing" "$out" "v9.9-x-green would not fast-forward in upstream"
 has "with an error" "$out" "EXIT=1"
 is "and the canonical copy is untouched" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
+
+echo
+echo "=== 13. a forward ref that moves while the run archives is kept, not deleted"
+restore
+# A commit an overlapping firing pushes onto the forward while gh runs: onto
+# its green and -dev in the fork, and green's copy in the canonical repository.
+git checkout -q --detach "$NEW_GREEN"
+echo 'baz <- function() 4' > R/baz.R
+commit 'feat: Add baz()'
+LATE=$(git rev-parse HEAD)
+git checkout -q main
+git push -q origin "$LATE:refs/heads/tmp-late"
+cat > "$BIN/gh-race" <<'GH'
+#!/bin/bash
+if [ ! -e "$RACED" ]; then
+  touch "$RACED"
+  git -C "$FORK_DIR" update-ref refs/heads/v9.9-x-fwd-green "$LATE"
+  git -C "$FORK_DIR" update-ref refs/heads/v9.9-x-fwd-dev "$LATE"
+  git -C "$FORK_DIR" update-ref -d refs/heads/tmp-late
+  git -C "$FORK_DIR" push -q "$CANON_DIR" "$LATE:refs/heads/v9.9-x-fwd-green"
+fi
+exec "$REAL_GH" "$@"
+GH
+chmod +x "$BIN/gh-race"
+out=$(RACED=$SCRATCH/raced FORK_DIR=$FORK CANON_DIR=$CANON LATE=$LATE REAL_GH=$BIN/gh SERIES_GH=$BIN/gh-race \
+  run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+is "the forward moved during the archive" "$([ -e "$SCRATCH/raced" ] && echo yes)" yes
+has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
+is "by the green the confirmation names" "$(git ls-remote origin refs/heads/v9.9-x-green | cut -f1)" "$NEW_GREEN"
+is "the forward's green that moved is kept" "$(git ls-remote origin refs/heads/v9.9-x-fwd-green | cut -f1)" "$LATE"
+is "and its -dev" "$(git ls-remote origin refs/heads/v9.9-x-fwd-dev | cut -f1)" "$LATE"
+is "the rest of the forward is deleted" "$(git ls-remote origin 'refs/heads/*fwd*' | wc -l)" 2
+is "the canonical copy that moved is kept" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | cut -f1)" "$LATE"
+has "the moved refs are named in the fork" "$out" \
+  "  moved in origin since this run read them, so kept: each may hold commits no other ref has. Read them:"
+has "each with the tip read and the tip now" "$out" "    v9.9-x-fwd-green, read at ${NEW_GREEN:0:12}, at ${LATE:0:12} now:"
+has "and -dev" "$out" "    v9.9-x-fwd-dev, read at ${NEW_DEV:0:12}, at ${LATE:0:12} now:"
+show="git fetch origin refs/heads/v9.9-x-fwd-green && git log --oneline $NEW_GREEN..FETCH_HEAD"
+has "with the line that shows what moved" "$out" "      $show"
+has "and in the canonical repository" "$out" "  moved in upstream since this run read them, so kept"
+has "with what to do about them" "$out" "What v9.9-x needs of them goes onto v9.9-x-dev as a repair; then delete each by hand, never by a rerun."
+hasnt "and none as litter that loses nothing" "$out" "cutover litter"
+has "the run ends as left behind" "$out" "SWAPPED, LEFT BEHIND"
+has "exit 9" "$out" "EXIT=9"
+has "the line shows the commit that moved" "$(cd "$WORK" && bash -c "$show")" "feat: Add baz()"
+is "which a ref still reaches" "$(git -C "$FORK" for-each-ref --contains "$LATE" --format='%(refname)' | tr '\n' ' ')" \
+  "refs/heads/v9.9-x-fwd-dev refs/heads/v9.9-x-fwd-green "
 
 echo
 echo "$pass passed, $fail failed"
