@@ -1,19 +1,21 @@
 #!/bin/bash
 # Copy the fork's per-commit verdicts onto the same commits in the canonical
-# repository, as commit statuses with context `each-rcc (fork)`, for every open
-# pull request whose head is in the fork. A pull request's commit list then
-# shows each commit's verdict, linked to the leg in the fork that decided it.
+# repository, as commit statuses with context `each-rcc (fork)`, for the open
+# pull requests whose head is in the fork and whose author belongs to the
+# canonical repository. Such a pull request's commit list then shows each
+# commit's verdict, linked to the leg in the fork that decided it.
 # Why it runs in the canonical repository, what it covers and why a run is
 # bounded: handbook/operations/ci/per-commit/upstream/README.md.
 #
 # **What it copies.** The open pull requests whose head is in FORK and whose
-# `author_association` is OWNER, MEMBER or COLLABORATOR. Their commits, read
-# with git as `<base>..refs/pull/<n>/head`. Of those, the ones the verdict store
-# holds a record for, `runs2.d/<xx>/<sha>.ndjson` on the fork's `rcc2` branch,
-# whose newest line wins: its state, its description cut to GitHub's 140
-# characters, and its `target_url` (the leg's job) only when that is a run in
-# FORK, `https://github.com/<FORK>/actions/runs/<id>...`; any other URL is left
-# out.
+# `author_association` is OWNER, MEMBER or COLLABORATOR; the run reports how
+# many others from FORK it left out. Their commits, read with git as
+# `<base>..refs/pull/<n>/head`. Of those, the ones the verdict store holds a
+# record for, `runs2.d/<xx>/<sha>.ndjson` on the fork's `rcc2` branch, whose
+# newest line wins if it has a `status` object: its state, its description cut
+# to GitHub's 140 characters, and its `target_url` (the leg's job) only when it
+# is exactly `https://github.com/<FORK>/actions/runs/<id>`, optionally followed
+# by `/job/<id>`; any other URL is left out.
 #
 # **Idempotent, and bounded per run.** A watermark file, kept between runs in
 # the Actions cache, holds `<sha> <blob>` for every record already confirmed on
@@ -32,7 +34,9 @@
 # a refusal with HTTP 403 or 429, the permission and rate limits, which also
 # fails the run. Any other refusal, such as the 422 for a commit that already
 # holds GitHub's maximum of statuses, is a warning and skips that commit
-# alone. What it did not post stays a candidate.
+# alone; five in a row stop the posts and fail the run, and so does a run whose
+# every post was refused. A REST budget it cannot read posts nothing, with a
+# warning. What it did not post stays a candidate.
 #
 # Usage:
 #   GH_TOKEN=<token> scripts/each-mirror.sh
@@ -59,8 +63,9 @@
 #                   (default: 300)
 #   DRY_RUN       - if non-empty, print the posts instead of sending them
 #
-# MAX_READS, MAX_WRITES, BUDGET and RESERVE are whole numbers; anything else
-# stops the run before its first request.
+# MAX_READS, MAX_WRITES, BUDGET and RESERVE are whole numbers without a leading
+# zero, and PAUSE a decimal number; anything else stops the run before its
+# first request.
 #
 # Runs in a clone of REPO, whose `origin` serves `refs/pull/<n>/head`.
 
@@ -80,12 +85,17 @@ PAUSE="${PAUSE:-7.5}"
 BUDGET="${BUDGET:-2700}"
 RESERVE="${RESERVE:-300}"
 
+# A leading zero is refused because `$(( ))` reads it as octal.
 for knob in MAX_READS MAX_WRITES BUDGET RESERVE; do
-  if ! [[ "${!knob}" =~ ^[0-9]+$ ]]; then
-    echo "each-mirror: ${knob} must be a whole number, not '${!knob}'" >&2
+  if ! [[ "${!knob}" =~ ^(0|[1-9][0-9]*)$ ]]; then
+    echo "each-mirror: ${knob} must be a whole number without a leading zero, not '${!knob}'" >&2
     exit 2
   fi
 done
+if ! [[ "${PAUSE}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+  echo "each-mirror: PAUSE must be a number of seconds, not '${PAUSE}'" >&2
+  exit 2
+fi
 
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=rcc-lib.sh
@@ -107,14 +117,21 @@ report() {
 
 # ------------------------------------------------- the commits that matter --
 
-# Open pull requests whose head is in the fork and whose author belongs to
-# REPO: number and base branch.
+# Open pull requests whose head is in the fork: number, base branch and the
+# author's association with REPO. Those whose author belongs to REPO are kept,
+# and the others counted, because the association GitHub reports depends on
+# what the token can see.
 gh api --paginate "repos/${REPO}/pulls?state=open&per_page=100" |
   jq -r --arg fork "${FORK}" '.[]
     | select(.head.repo.full_name == $fork)
-    | select(.author_association | IN("OWNER", "MEMBER", "COLLABORATOR"))
-    | [.number, .base.ref] | @tsv' \
-    > "${work}/pulls"
+    | [.number, .base.ref, (.author_association // "")] | @tsv' \
+    > "${work}/pulls.fork"
+awk -F'\t' -v OFS='\t' '$3 == "OWNER" || $3 == "MEMBER" || $3 == "COLLABORATOR" { print $1, $2 }' \
+  "${work}/pulls.fork" > "${work}/pulls"
+dropped=$(($(wc -l < "${work}/pulls.fork") - $(wc -l < "${work}/pulls")))
+if [ "${dropped}" -gt 0 ] && ! [ -s "${work}/pulls" ]; then
+  echo "::warning::each-mirror: every one of the ${dropped} pull request(s) from ${FORK} was left out by its author's association"
+fi
 
 # Their commits, newest first and each once, so a capped run reads the commits
 # a reviewer is looking at before the ones below them.
@@ -160,9 +177,10 @@ head -n "${MAX_READS}" "${work}/candidates.all" > "${work}/candidates"
 
 # What each candidate's record says: sha, state, URL and description. One
 # `cat-file --batch` for all of them; a record's lines follow the line that
-# names its blob, and the newest one wins. A URL that is not a run in the fork
-# is dropped, the description is cut to GitHub's 140 characters, and a control
-# character, the separator among them, becomes a space.
+# names its blob, and the newest one wins if it has a `status` object. A URL
+# that is not a run or a job in the fork is dropped, the description is cut to
+# GitHub's 140 characters, and a control character, the separator among them,
+# becomes a space.
 cut -d' ' -f2 "${work}/candidates" |
   git -C "${STORE_DIR}" cat-file --batch='%(objectname)' |
   jq -nrR --arg runs "https://github.com/${FORK}/actions/runs/" '
@@ -172,10 +190,12 @@ cut -d' ' -f2 "${work}/candidates" |
         | if ($r | type) == "object" then .out[.cur] = $r else . end
       end)
     | .out | to_entries[]
+    | select((.value.status | type) == "object")
     | select(.value.status.state | IN("success", "failure", "error", "pending"))
     | (.value.status.target_url // "" | tostring) as $url
     | [.key, .value.status.state,
-       (if ($url | startswith($runs)) and ($url[($runs | length):] | test("^[0-9]+"))
+       (if ($url | startswith($runs))
+           and ($url[($runs | length):] | test("\\A[0-9]+(/job/[0-9]+)?\\z"))
         then $url else "" end),
        (.value.status.description // "" | tostring | .[0:140])]
     | map(gsub("[[:cntrl:]]"; " ")) | join("\u001f")' > "${work}/wanted.byblob"
@@ -220,19 +240,26 @@ awk -F "${sep}" -v OFS="${sep}" 'FILENAME == ARGV[1] { shown[$1] = $2 OFS $3; ne
 
 # The posts this run may make: MAX_WRITES, or what the token's REST budget
 # holds above RESERVE if that is less. One read, and only when there is
-# something to post.
+# something to post. A budget it cannot read posts nothing.
 writes="${MAX_WRITES}"
+blind=''
 if grep -q "^post${sep}" "${work}/plan"; then
-  remaining="$(gh api rate_limit | jq -r '.resources.core.remaining')" || remaining=0
-  [[ "${remaining}" =~ ^[0-9]+$ ]] || remaining=0
-  room=$((remaining > RESERVE ? remaining - RESERVE : 0))
-  [ "${room}" -ge "${writes}" ] || writes="${room}"
+  if remaining="$(gh api rate_limit | jq -r '.resources.core.remaining')" &&
+    [[ "${remaining}" =~ ^(0|[1-9][0-9]*)$ ]]; then
+    room=$((remaining > RESERVE ? remaining - RESERVE : 0))
+    [ "${room}" -ge "${writes}" ] || writes="${room}"
+  else
+    echo "::warning::each-mirror: could not read the REST budget; posting nothing"
+    blind=1
+    writes=0
+  fi
 fi
 
-# Past the cap, the time budget or a 403 or 429 nothing more is posted, and
-# what is already shown is still confirmed. Any other refusal skips its commit.
+# Past the cap, the time budget, a 403 or 429, or five other refusals in a
+# row nothing more is posted, and what is already shown is still confirmed.
+# Any other refusal skips its commit.
 : > "${work}/confirmed"
-tried=0 posted=0 same=0 skipped=0 stop='' failed=''
+tried=0 posted=0 same=0 skipped=0 streak=0 stop='' failed=''
 while IFS="${sep}" read -r verdict sha state url desc; do
   if [ "${verdict}" = same ]; then
     same=$((same + 1))
@@ -264,11 +291,17 @@ while IFS="${sep}" read -r verdict sha state url desc; do
         *)
           echo "::warning::each-mirror: the post for ${sha} was refused${code:+ with HTTP ${code}}; skipped, it waits for the next run"
           skipped=$((skipped + 1))
+          streak=$((streak + 1))
+          if [ "${streak}" -ge 5 ]; then
+            stop="${streak} posts in a row were refused"
+            failed=1
+          fi
           ;;
       esac
       continue
     fi
   fi
+  streak=0
   posted=$((posted + 1))
   echo "${sha}" >> "${work}/confirmed"
 done < "${work}/plan"
@@ -283,16 +316,22 @@ fi
 
 candidates_all="$(wc -l < "${work}/candidates.all" | tr -d ' ')"
 read_now="$(wc -l < "${work}/candidates" | tr -d ' ')"
-report "each-mirror: ${pulls} pull request(s) from ${FORK}," \
+report "each-mirror: ${pulls} pull request(s) from ${FORK}, ${dropped} left out by author association;" \
   "$(wc -l < "${work}/commits.uniq" | tr -d ' ') commit(s), $(wc -l < "${work}/judged" | tr -d ' ') judged;" \
   "${candidates_all} not confirmed yet, ${read_now} read this run;" \
   "${same} already shown, ${posted} posted, ${skipped} refused and skipped," \
   "$((read_now - same - posted)) left for the next run."
-if [ "${writes}" -lt "${MAX_WRITES}" ]; then
+if [ -n "${blind}" ]; then
+  report "each-mirror: could not read the REST budget, so this run posted nothing."
+elif [ "${writes}" -lt "${MAX_WRITES}" ]; then
   report "each-mirror: the token had ${remaining} REST request(s) left and ${RESERVE} stay in reserve," \
     "so this run posted at most ${writes}."
 fi
 if [ -n "${stop}" ]; then
   report "each-mirror: ${stop}; stopped there, the rest waits for the next run."
+fi
+if [ "${skipped}" -gt 0 ] && [ "${posted}" -eq 0 ]; then
+  report "each-mirror: every post this run made was refused."
+  failed=1
 fi
 [ -z "${failed}" ] || exit 1

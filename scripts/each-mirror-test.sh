@@ -4,14 +4,14 @@
 # network, no fixtures on disk.
 #
 # The claim the script makes is that every commit of an open pull request from
-# the fork shows the verdict the store holds for it, that nothing already
-# shown is posted again, and that a run's API use is bounded. Twelve things
-# are checked.
+# the fork, by an author who belongs to the canonical repository, shows the
+# verdict the store holds for it, that nothing already shown is posted again,
+# and that a run's API use is bounded. Fourteen things are checked.
 #
 #   1. Only pull requests whose head is in the fork and whose author is an
-#      owner, member or collaborator are covered, and a pull request's commits
-#      are read with git from its base, so a stacked one covers its own commits
-#      and not those below it.
+#      owner, member or collaborator are covered, the others from the fork are
+#      counted, and a pull request's commits are read with git from its base,
+#      so a stacked one covers its own commits and not those below it.
 #   2. A status shown with the same state and URL is not posted again; every
 #      other judged commit gets the state, URL and description of its record,
 #      and the newest line of a record wins.
@@ -27,17 +27,25 @@
 #   8. A post refused with 403 or 429 stops the posting, fails the run, and
 #      leaves the refused commit and those after it to the next run; any other
 #      refusal skips its commit alone, with a warning, and leaves it to the
-#      next run.
+#      next run, but a run whose every post was refused fails.
 #   9. A dry run posts nothing, confirms nothing and does not pause; a run
 #      pauses between two posts only.
 #  10. A record without a URL posts none and keeps its description, a URL
-#      that is not a run in the fork is left out, and a description is cut to
-#      140 characters.
-#  11. A MAX_WRITES that is not a whole number stops the run before its first
-#      request, and a run past BUDGET seconds posts nothing more but still
-#      saves its watermark.
+#      that is not exactly a run or a job in the fork is left out, a
+#      description is cut to 140 characters and its control characters become
+#      spaces, and a record whose newest line has no `status` object is passed
+#      over without failing the run.
+#  11. A MAX_WRITES that is not a whole number without a leading zero, or a
+#      PAUSE that is not a number, stops the run before its first request, and
+#      a run past BUDGET seconds posts nothing more but still saves its
+#      watermark.
 #  12. The posts stop at RESERVE requests left in the token's REST budget,
-#      read with one call.
+#      read with one call, and a budget that cannot be read posts nothing,
+#      with a warning.
+#  13. Five refusals in a row, other than 403 or 429, stop the posting and
+#      fail the run.
+#  14. A run that leaves out every pull request from the fork for its
+#      author's association warns.
 #
 # Usage:
 #   scripts/each-mirror-test.sh
@@ -220,6 +228,7 @@ echo "== 1, 2. the first run"
 out=$(run env)
 has "it succeeds" "$out" "EXIT=0"
 has "covering the two pull requests from the fork" "$out" "2 pull request(s) from krlmlr/duckdb-r"
+has "and counting the one by a stranger it left out" "$out" "1 left out by author association"
 has "and their five commits, four of them judged" "$out" "5 commit(s), 4 judged"
 is "one query reads what the four show" "$(calls graphql)" 1
 is "three statuses are posted" "$(calls '-X POST')" 3
@@ -308,6 +317,8 @@ has "the refused one is counted" "$out" "1 refused and skipped"
 out=$(run env)
 is "the next run tries the refused one again" "$(grep -c "^api -X POST repos/duckdb/duckdb-r/statuses/$P4" "$FAKE/calls" || true)" 1
 is "and nothing else" "$(calls '-X POST')" 1
+has "a run whose every post was refused fails" "$out" "EXIT=1"
+has "saying so" "$out" "every post this run made was refused"
 rm -f "$FAKE/refuse"
 out=$(run env)
 is "once it is accepted, it is shown" "$(shown "$P4" | cut -d' ' -f1)" success
@@ -340,23 +351,41 @@ out=$(run env)
 is "a record without a URL posts none, and keeps its description" "$(shown "$P1")" "success  no link here"
 is "a URL that is not a run in the fork is left out" "$(shown "$P2")" "success  elsewhere"
 is "so is another repository's run, and a description is cut to 140" "$(shown "$P3")" "failure  $x140"
+recs "$P1" '{"state":"failure","target_url":"https://github.com/krlmlr/duckdb-r/actions/runs/1/../../x","description":"a\u001fb\nc"}'
+recs "$P2" '{"state":"failure","target_url":"https://github.com/krlmlr/duckdb-r/actions/runs/1\nfoo","description":"newline"}'
+recs "$P3" '{"state":"success","target_url":"https://github.com/krlmlr/duckdb-r/actions/runs/7","description":"a run"}'
+recs "$P4" '"oops"'
+store 'chore: Records that try to escape'
+out=$(run env)
+is "a URL that climbs out of the fork's run is left out" "$(shown "$P1" | cut -d' ' -f1-2)" "failure "
+is "and control characters in a description become spaces" "$(shown "$P1" | cut -d' ' -f3-)" "a b c"
+is "so is a URL with more after the run" "$(shown "$P2")" "failure  newline"
+is "a run without a job keeps its URL" "$(shown "$P3")" "success https://github.com/krlmlr/duckdb-r/actions/runs/7 a run"
+has "a record whose status is not an object fails nothing" "$out" "EXIT=0"
+is "and posts nothing for it" "$(grep -c "statuses/$P4" "$FAKE/calls" || true)" 0
 
 # --- 11: the knobs and the time budget -----------------------------------------
 
 echo
 echo "== 11. the knobs and the time budget"
 out=$(run env MAX_WRITES=3x)
-has "a MAX_WRITES that is not a whole number stops the run" "$out" "MAX_WRITES must be a whole number, not '3x'"
+has "a MAX_WRITES that is not a whole number stops the run" "$out" "MAX_WRITES must be a whole number without a leading zero, not '3x'"
 has "with an error" "$out" "EXIT=2"
+is "before its first request" "$(grep -c . "$FAKE/calls" || true)" 0
+out=$(run env MAX_WRITES=08)
+has "so does one with a leading zero, which would read as octal" "$out" "not '08'"
+out=$(run env PAUSE=7.5s)
+has "and a PAUSE that is not a number" "$out" "PAUSE must be a number of seconds, not '7.5s'"
 is "before its first request" "$(grep -c . "$FAKE/calls" || true)" 0
 rec "$P1" failure 24
 rec "$R1" failure 16
-store 'chore: P1 judged again, R1 recorded as it is shown'
+rec "$P4" success 18
+store 'chore: P1 judged again, R1 and P4 recorded as they are shown'
 out=$(run env BUDGET=0)
 has "past BUDGET a run posts nothing more" "$out" "the time budget of 0 seconds ran out"
 is "not one post" "$(calls '-X POST')" 0
 has "and still succeeds" "$out" "EXIT=0"
-has "confirming what is shown all the same" "$out" "1 already shown, 0 posted"
+has "confirming what is shown all the same" "$out" "2 already shown, 0 posted"
 out=$(run env)
 has "and saving it: the next run reads only what waited" "$out" "1 not confirmed yet"
 is "and posts it" "$(calls '-X POST')" 1
@@ -382,6 +411,41 @@ rm -f "$FAKE/remaining"
 out=$(run env)
 is "the next run with room posts what waited" "$(calls '-X POST')" 1
 is "all three are shown" "$(for x in "$P1" "$P2" "$P3"; do shown "$x" | cut -d' ' -f1; done | sort -u)" success
+rec "$P1" failure 29
+store 'chore: P1 judged again'
+echo x > "$FAKE/remaining"
+out=$(run env)
+is "a budget that cannot be read posts nothing" "$(calls '-X POST')" 0
+has "and warns" "$out" "::warning::each-mirror: could not read the REST budget; posting nothing"
+rm -f "$FAKE/remaining"
+out=$(run env)
+is "the next run posts what waited" "$(calls '-X POST')" 1
+
+# --- 13: refusals in a row -------------------------------------------------------
+
+echo
+echo "== 13. refusals in a row"
+: > "$FAKE/refuse"
+for i in $(seq 0 6); do rec "${BIG[$i]}" failure 30; echo "${BIG[$i]} 502" >> "$FAKE/refuse"; done
+store 'chore: Seven commits judged again'
+out=$(run env)
+is "five refusals in a row stop the posting" "$(calls '-X POST')" 5
+has "and fail the run" "$out" "EXIT=1"
+has "saying so" "$out" "5 posts in a row were refused"
+rm -f "$FAKE/refuse"
+out=$(run env)
+is "the next run posts all seven" "$(calls '-X POST')" 7
+
+# --- 14: every pull request left out -----------------------------------------------
+
+echo
+echo "== 14. every pull request left out"
+cp "$FAKE/pulls.json" "$FAKE/pulls.json.all"
+jq -c 'map(.author_association = "CONTRIBUTOR")' "$FAKE/pulls.json.all" > "$FAKE/pulls.json"
+out=$(run env)
+has "covers none" "$out" "0 pull request(s) from krlmlr/duckdb-r, 4 left out by author association"
+has "and warns" "$out" "::warning::each-mirror: every one of the 4 pull request(s) from krlmlr/duckdb-r was left out"
+mv "$FAKE/pulls.json.all" "$FAKE/pulls.json"
 
 echo
 echo "$pass passed, $fail failed"

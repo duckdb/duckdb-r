@@ -117,7 +117,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | File | Purpose |
 |---|---|
 | [`each-mirror-test.sh`](each-mirror-test.sh) | Check scripts/each-mirror.sh, offline, against a synthetic canonical repository, a synthetic store and a stand-in for `gh api` built here: no network, no fix... |
-| [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for every open pull... |
+| [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for the open pull r... |
 
 ## [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)
 

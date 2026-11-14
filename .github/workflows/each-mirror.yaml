@@ -1,10 +1,11 @@
 # Copy the per-commit verdicts of the fork onto the same commits here, as
-# commit statuses with context `each-rcc (fork)`, for every open pull request
-# whose head is in the fork, so its commit list shows each commit's verdict and
-# links to the leg that decided it. It runs in the canonical repository only.
-# The mechanism, the watermark and the limits on a run among it, is in
-# scripts/each-mirror.sh's header; why it runs here and is bounded that way is
-# in handbook/operations/ci/per-commit/upstream/README.md.
+# commit statuses with context `each-rcc (fork)`, for the open pull requests
+# whose head is in the fork and whose author belongs to this repository, so
+# their commit lists show each commit's verdict and link to the leg that
+# decided it. It runs in the canonical repository only. How it does that, the
+# watermark and the limits on a run included, is in scripts/each-mirror.sh's
+# header; why it runs here and is bounded that way is in
+# handbook/operations/ci/per-commit/upstream/README.md.
 
 name: each-rcc-mirror
 
