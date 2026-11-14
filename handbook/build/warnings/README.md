@@ -37,6 +37,9 @@ and what another scope owns is counted rather than listed.
   `src/cpp11.cpp` (from `cpp11::cpp_register()`),
   `yyjson.cpp` (upstream's amalgamation),
   and libpg_query's bison and flex output.
+  `main`'s v2.0 engine parses with a PEG parser and vendors no libpg_query,
+  but the lines before v2.0 still do, and they run this check too, because every series takes `main`'s tooling
+  ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
   This is a list, not a rule — the files carry no marker to match on —
   so it grows when a generated file starts warning.
 

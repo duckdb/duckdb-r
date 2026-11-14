@@ -83,7 +83,9 @@ test_that("a lower-case drive letter resolves on that drive, not in the working 
   # The engine walks up to the drive and turns it into its root, and a bare
   # `c:` is the working directory on that drive rather than its root. Only a
   # Windows engine knows drive letters: elsewhere `c:` is a relative name.
-  # The engine upper-cases the drive letter, so `c:` arrives as `C:`.
+  # `LocalFileSystem::MakePathAbsolute()` parses the path with `Path`, which
+  # upper-cases the drive letter (vendored src/duckdb/src/common/path.cpp), so
+  # `c:` reaches the walk as `C:`.
   skip_if_not(.Platform$OS.type == "windows", "drive letters are Windows-only")
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
