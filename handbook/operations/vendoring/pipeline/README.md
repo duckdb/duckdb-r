@@ -65,10 +65,11 @@ and the generator is its list.
 The logos are the one thing in that set that is not a source,
 and they are there because the package shows them:
 the horizontal pair is the banner `.github/README.md` renders,
-the stacked pair is the package logo the site puts in its header,
-and carrying them on the vendor commit is what keeps either
-from drifting away from the engine it documents.
-The horizontal pair is patched to the package's own versions by
+the stacked pair is the package logo the site puts in its header.
+They come from upstream with each vendor run,
+so that neither drifts away from the engine it documents,
+except where a `patch/` entry says otherwise:
+the horizontal pair is patched to the package's own versions by
 [`patch/0100-Use-the-updated-horizontal-logos.patch`](/patch/0100-Use-the-updated-horizontal-logos.patch),
 which retires itself once upstream ships them.
 The horizontal pair keeps its upstream name;
