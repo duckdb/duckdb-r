@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 22:55:39 +0000
+Subject: [PATCH] Declare the unused nanosecond date part specializations
+ inline
+
+The member templates of DatePart's operators are declared inline in
+their structs, but an explicit specialization does not inherit that,
+and two of them are reached by no function the file registers yet:
+EpochNanosecondsOperator for timestamp_tz_ns_t and DayParentOperator
+for timestamp_ns_t. Inside the file's anonymous namespace,
+-Wunused-function reports each as defined but not used. Declaring them
+inline, as the templates they specialize are, keeps both definitions
+for the day the registration reaches them, where dropping them would
+let that day fall back to the generic template without a word.
+
+Carried here until upstream takes it; not proposed upstream yet.
+---
+ src/duckdb/extension/core_functions/scalar/date/date_part.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/extension/core_functions/scalar/date/date_part.cpp b/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
+index ba4656d005..b8fd871d9b 100644
+--- a/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
++++ b/src/duckdb/extension/core_functions/scalar/date/date_part.cpp
+@@ -1254,7 +1254,7 @@ int64_t DatePart::YearWeekOperator::Operation(dtime_tz_t input) {
+ }
+ 
+ template <>
+-int64_t DatePart::EpochNanosecondsOperator::Operation(timestamp_tz_ns_t input) {
++inline int64_t DatePart::EpochNanosecondsOperator::Operation(timestamp_tz_ns_t input) {
+ 	D_ASSERT(input.IsFinite());
+ 	return Timestamp::GetEpochNanoSeconds(timestamp_ns_t(input.value));
+ }
+@@ -1529,7 +1529,7 @@ int64_t DatePart::DayParentOperator::Operation(timestamp_t input) {
+ }
+ 
+ template <>
+-int64_t DatePart::DayParentOperator::Operation(timestamp_ns_t input) {
++inline int64_t DatePart::DayParentOperator::Operation(timestamp_ns_t input) {
+ 	return Timestamp::GetDateNS(input).days;
+ }
+ 
