@@ -12,7 +12,7 @@
 # under --confirm on anything a terminal run leaves to the operator, and lists
 # what a refused deletion leaves, keeping a forward ref that moved meanwhile;
 # and that scripts/series-prune.sh offers only cutover litter, and runs
-# nothing. Thirteen things are checked.
+# nothing. Fourteen things are checked.
 #
 #   1. Without a terminal and without --confirm the cutover refuses before
 #      fetching anything, and names --confirm and --prepare.
@@ -31,9 +31,9 @@
 #      not at the SHA it names, or moved since --prepare, refuses, and so does
 #      each warning a terminal run prints: coverage not verified, for want of a
 #      clone or of a vendored SHA on the old green, a canonical remote that does
-#      not exist or cannot be read, a divergence, a renamed package, a version
-#      that keeps or goes back, and versions not compared; each before anything
-#      is opened or moved.
+#      not exist or cannot be read, a divergence, a convergence read that
+#      stopped, a renamed package, a version that keeps or goes back, and
+#      versions not compared; each before anything is opened or moved.
 #   5. The cutover, confirmed on a terminal: four archive pull requests opened
 #      as drafts and closed (-dev, -build and the vendor strand in
 #      the fork, green's copy in the canonical repository), the four refs and
@@ -46,7 +46,7 @@
 #   7. The cutover with --confirm and no terminal, against remotes that refuse
 #      deletions alone, as a cloud session's git proxy does: archived, swapped
 #      and the canonical green moved, the forward's refs listed as litter, and
-#      exit 9.
+#      exit 9, read back correctly from a listing thousands of branches long.
 #   8. The canonical copy of green: with --canonical '' there is none, and the
 #      run exits 0; a --canonical naming no remote, or one that cannot be read,
 #      leaves it neither archived nor moved, exit 9, with no lease on a tip the
@@ -65,6 +65,8 @@
 #  13. A forward ref that moves while the run archives, in the fork or in the
 #      canonical repository, is kept and shown with what moved, not deleted,
 #      and the run exits 9.
+#  14. On a terminal, a divergence is printed, and the swap follows the
+#      confirmation.
 #
 # Usage:
 #   scripts/series-cutover-test.sh
@@ -560,6 +562,19 @@ out=$(SERIES_GH=$SCRATCH/no-such-gh confirm)
 has "a gh that is not installed refuses" "$out" "  $SCRATCH/no-such-gh is not installed, so nothing can be archived"
 has "and the run stops" "$out" "EXIT=1"
 untouched "a gh that is not installed"
+# The convergence read that stops for another reason than a divergence.
+printf '#!/bin/bash\necho "converge: could not read the store" >&2\nexit 3\n' > scripts/series-converge.sh
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT" --upstream "$UP")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a convergence read that stopped is printed" "$out" "the convergence read stopped with status 3 although v9.9-x-dev exists;"
+has "and is what --confirm would refuse on" "$out" "  convergence: the read stopped with status 3"
+out=$(confirm)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "under --confirm it refuses" "$out" "--confirm swaps with nobody to weigh a warning, and this run printed these:"
+has "naming it" "$out" "  convergence: the read stopped with status 3"
+has "and the run stops" "$out" "EXIT=1"
+untouched "a convergence read that stopped"
+cp "$HERE/series-converge.sh" scripts/series-converge.sh
 
 echo
 echo "=== 5. the cutover: archive, swap, mirror, delete"
@@ -637,6 +652,9 @@ echo "=== 7. --confirm without a terminal, against remotes that refuse deletions
 restore
 git -C "$FORK" config receive.denyDeletes true
 git -C "$CANON" config receive.denyDeletes true
+# Enough branches after the forward's, in the listing the run reads back, that
+# a reader stopping at the first match would end the one before it by SIGPIPE.
+for i in $(seq -w 1 4000); do echo "create refs/heads/zz-pad-$i $MAIN"; done | git -C "$FORK" update-ref --stdin
 out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
@@ -653,6 +671,7 @@ is "the last line says the swap stands" "$(grep -v '^EXIT=' <<<"$out" | tail -n 
 has "and a refused deletion alone is exit 9" "$out" "EXIT=9"
 git -C "$FORK" config --unset receive.denyDeletes
 git -C "$CANON" config --unset receive.denyDeletes
+git -C "$FORK" for-each-ref --format='delete %(refname)' 'refs/heads/zz-pad-*' | git -C "$FORK" update-ref --stdin
 
 echo
 echo "=== 8. the canonical copy of green: none, no remote, or moved under the run"
@@ -871,6 +890,21 @@ has "exit 9" "$out" "EXIT=9"
 has "the line shows the commit that moved" "$(cd "$WORK" && bash -c "$show")" "feat: Add baz()"
 is "which a ref still reaches" "$(git -C "$FORK" for-each-ref --contains "$LATE" --format='%(refname)' | tr '\n' ' ')" \
   "refs/heads/v9.9-x-fwd-dev refs/heads/v9.9-x-fwd-green "
+
+echo
+echo "=== 14. on a terminal, a divergence is printed, and the swap follows the confirmation"
+restore
+DIVERGED_DEV=$(move_to "$OLD_DEV" R/foo.R 'foo <- function() 5' v9.9-x-dev)
+out=$(tty_run scripts/series-cutover.sh v9.9-x --upstream "$UP" --out "$OUT")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the divergence is printed" "$out" "DIVERGED: 1 path(s) the forwarding does not explain."
+has "for the operator to read" "$out" "^ read these before confirming. A swap does not resolve them: it makes"
+has "the confirmation is asked for after it" "$out" "Type the series name to confirm"
+has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
+has "the diverged -dev is archived" "$out" "archived v9.9-x-dev as test/fork#"
+is "-dev is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$NEW_DEV"
+is "and the diverged one is the archive's head" "$(git -C "$FORK" for-each-ref --points-at "$DIVERGED_DEV" --format='%(refname)' 'refs/pull/*/head' | wc -l | tr -d ' ')" 1
+has "and the run exits 0" "$out" "EXIT=0"
 
 echo
 echo "$pass passed, $fail failed"
