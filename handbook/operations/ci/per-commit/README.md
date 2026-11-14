@@ -18,3 +18,4 @@ and a re-run cost only what was lost.
 * [`legs/`](legs/) — the jobs, the scripts, one leg's workspace
 * [`store/`](store/) — the `rcc2` branch and its writers
 * [`operating/`](operating/) — knobs, failures, what to do
+* [`upstream/`](upstream/): the verdicts shown in the canonical repository
