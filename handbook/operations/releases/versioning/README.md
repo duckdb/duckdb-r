@@ -122,9 +122,9 @@ the abbreviated SHA the vendored tree records as `DUCKDB_SOURCE_ID`, which every
 R CMD build and check accept it, as they accept any field under `Config/`
 ([Writing R Extensions](https://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file)).
 No port carries a bump, so a series lacks the line or lags it, and a landing's tree check takes it as the branch's.
-The merge driver resolves it as it resolves `Version:`: ours keeps its own record, or none where it has none,
-so a pick or a port never rewrites the engine a branch records, and a field changed near it merges cleanly.
-A bump that is itself replayed by a pick therefore loses its new record, and the landing's check says so.
+The merge driver resolves it as it resolves `Version:`:
+theirs where theirs changed the record, which only a bump does, so a bump replayed by a rebase or a fold keeps it,
+and ours everywhere else, so a pick or a port never rewrites the engine a branch records, and a field changed near it merges cleanly.
 A graft never reaches the driver and keeps `main`'s record with the rest of `main`'s tree.
 The commit takes the annotated tag `v<version>`, `v2.0.99.9001`.
 The merge driver keeps working across these bumps:

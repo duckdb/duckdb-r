@@ -18,14 +18,18 @@
 # forward-port (e.g. 1.5.x -> 1.4.x LTS) keeps ours unchanged and never inherits
 # a foreign prefix.
 #
-# The engine record, `Config/duckdb/upstream:`, is pinned the same way: ours
-# keeps its own, so a port onto a series or a release branch never rewrites the
-# engine that branch records, and a branch without one gets none. It lives on the
-# line right below `Version:` (handbook/operations/releases/versioning/README.md),
-# and all three sides are written that way before the merge, so a change to a
-# field near it -- `Config/roxygen2/version:` at the end of the file -- never
-# conflicts with it. A graft (`git merge -s ours`) never reaches this driver and
-# keeps `main`'s record with the rest of `main`'s tree.
+# The engine record, `Config/duckdb/upstream:`, is pinned the same way. Only a
+# landing's bump writes it, so theirs wins where theirs changed it against the
+# base -- a bump replayed by a rebase or by scripts/series-fold.sh keeps its
+# record -- and ours stays everywhere else, so a port of any other commit onto a
+# series or a release branch never rewrites the engine that branch records. It
+# lives on the line right below `Version:`
+# (handbook/operations/releases/versioning/README.md), and all three sides are
+# written that way before the merge, so a change to a field near it --
+# `Config/roxygen2/version:` at the end of the file -- never conflicts with it.
+# Where ours has no `Version:` line the record is left to the three-way merge
+# like any other line. A graft (`git merge -s ours`) never reaches this driver
+# and keeps `main`'s record with the rest of `main`'s tree.
 #
 # All other lines of DESCRIPTION still go through a normal 3-way merge, so a
 # genuine concurrent edit (e.g. two branches touching Imports:) still surfaces
@@ -77,9 +81,13 @@ if [ -n "$va" ] && [ -n "$vb" ]; then
   O="$to"; B="$tb"
 fi
 
-# The engine record: ours, right below `Version:`, on all three sides; absent
-# from all three where ours has none.
+# The engine record: theirs where theirs changed it, ours otherwise, right below
+# `Version:` on all three sides, and absent from all three where that side has
+# none.
+up_o=$(grep -m 1 '^Config/duckdb/upstream:' "$O" || true)
+up_b=$(grep -m 1 '^Config/duckdb/upstream:' "$B" || true)
 up_line=$(grep -m 1 '^Config/duckdb/upstream:' "$A" || true)
+[ "$up_b" = "$up_o" ] || up_line=$up_b
 pin_upstream() { # <file>: rewrite it in place
   local t
   t=$(mktemp)
@@ -95,7 +103,9 @@ pin_upstream() { # <file>: rewrite it in place
 oo=$(mktemp); bb=$(mktemp)
 trap 'rm -f "${to:-}" "${tb:-}" "${ta:-}" "$oo" "$bb"' EXIT
 cp "$O" "$oo"; cp "$B" "$bb"
-pin_upstream "$oo"; pin_upstream "$bb"; pin_upstream "$A"
+if grep -q '^Version:' "$A"; then
+  pin_upstream "$oo"; pin_upstream "$bb"; pin_upstream "$A"
+fi
 O="$oo"; B="$bb"
 
 # 3-way merge the remainder; exit status propagates a genuine conflict to git.
