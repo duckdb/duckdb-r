@@ -491,6 +491,11 @@ has "the series' version without its vendor counter is a bump, a first landing's
 git checkout -q -f main
 probe; write_bump 1.99.99.9001
 BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
+probe; write_bump 1.99.99.9001; printf '# duckdb 1.5.5\n\n- Old.\n' > NEWS.md
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+has "a bump that rewrites NEWS.md without the version's section is still READY" "$out" "READY: every commit has passed"
+git checkout -q -f main
 probe; write_bump 1.99.99.9001
 git checkout -q -f -B side "$TIP"; write_bump 1.99.99.9001; commit "$bump_msg"
 git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
