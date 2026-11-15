@@ -102,6 +102,8 @@
 
 #include "src/optimizer/sampling_pushdown.cpp"
 
+#include "src/optimizer/scalar_aggregate_merger.cpp"
+
 #include "src/optimizer/scalar_fn_pushdown.cpp"
 
 #include "src/optimizer/self_join_aggregate.cpp"
