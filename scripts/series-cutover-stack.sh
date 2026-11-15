@@ -69,6 +69,8 @@
 # A `2-engine` an earlier build pushed, which this one has no use for, is left where it is:
 # GitHub closes a pull request whose base branch is deleted, as the `3-fwd` one's is,
 # so the script prints the steps that retire it, for the session to take in their order.
+# Where the remote refuses a deletion, the `gh api` line it prints instead checks the tip first,
+# since the API takes no lease.
 #
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
@@ -763,7 +765,12 @@ report=$tmp/report
     echo "2. Close the pull request of $stale."
     echo "3. Delete the branch, leased on the tip this run read:"
     echo "   git push --force-with-lease=refs/heads/$stale:${LEASE[2-engine]} $remote :refs/heads/$stale"
-    [ -z "$slug" ] || echo "   or, where the remote refuses a deletion: $(series_delete_line "$remote" "$stale")"
+    if [ -n "$slug" ]; then
+      echo "   or, where the remote refuses a deletion, checked against that tip first, since the API takes no lease:"
+      # shellcheck disable=SC2016  # a command for a person to run, printed as it stands
+      printf '   if [ "$(gh api repos/%s/git/ref/heads/%s --jq .object.sha)" = %s ]; then %s; else echo '"'"'%s is not at %s: read what moved before deleting it'"'"'; fi\n' \
+        "$slug" "$stale" "${LEASE[2-engine]}" "$(series_delete_line "$remote" "$stale")" "$stale" "${LEASE[2-engine]}"
+    fi
   fi
 } > "$report"
 
