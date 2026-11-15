@@ -17,16 +17,15 @@
 # is live, and nothing of it is offered. Where no `<S>-fwd-dev` exists at all,
 # every remaining `<S>-fwd-*` ref and the ledger are litter by definition.
 #
-# Nothing here is lost by deletion: the replaced lineages and the vendor strand
-# are the heads of the closed archive pull requests the cutover opened, the
-# forward's tips are the series' refs, and the derived strands are recomputed
-# from `<S>-dev`
-# (scripts/series-rc.sh, scripts/series-alpha.sh). Nothing here deletes
-# anything either: the commands are printed, and a human runs them, in two
-# forms: one `git push --delete` per repository, and, for a remote on GitHub,
-# one `gh api -X DELETE` per ref, for where git may not delete at all, as in a
-# cloud session, whose git proxy refuses it. The second is the form
-# scripts/series-cutover.sh prints for what its own deletion left.
+# Nothing here is lost by deletion:
+# the replaced lineages and the vendor strand are under the heads of the stacks' first pull requests,
+# which pin them (scripts/series-cutover-stack.sh),
+# the forward's tips are the series' refs,
+# and the derived strands are recomputed from `<S>-dev` (scripts/series-rc.sh, scripts/series-alpha.sh).
+# Nothing here deletes anything either: the commands are printed, and a human runs them, in two forms:
+# one `git push --delete` per repository, and, for a remote on GitHub, one `gh api -X DELETE` per ref,
+# for where git may not delete at all, as in a cloud session, whose git proxy refuses it.
+# The second is the form scripts/series-cutover.sh prints for what its own deletion left.
 #
 # Usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]
 #   series-prune.sh v2.0-cyanoptera
@@ -115,7 +114,7 @@ echo "cutover litter:"
 printf '  %s\n' "${fwd_refs[@]}"
 [ -z "$canon_has_fwd" ] || echo "  $S-fwd-green on $canonical"
 echo
-echo "The replaced lineages are the heads of the archive pull requests the cutover opened,"
+echo "The replaced lineages are under the heads of the stacks' first pull requests,"
 echo "and the derived strands are recomputed by scripts/series-rc.sh and series-alpha.sh,"
 echo "so the deletion loses nothing. To run by hand:"
 if [ ${#fwd_refs[@]} -gt 0 ]; then
