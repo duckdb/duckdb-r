@@ -1,95 +1,95 @@
 #!/bin/bash
 # Build the review stack of one strand of a cutover and push it to the fork:
-# the old tip with `main`'s changes replayed onto it, the forward's engine, the
-# forward's tree, and the old tree again, each layer a branch on the one before.
+# the old tip with `main`'s changes replayed onto it, the forward's engine, the forward's tree, and the old tree again,
+# each layer a branch on the one before.
 #
-# A cutover swaps `<S>-fwd-*` in for `<S>-*` (scripts/series-cutover.sh), and
-# what the two differ by is reviewed first, as one stack of draft pull requests
-# per strand that the session running the cutover opens with its own GitHub
-# tools (.claude/skills/series-cutover/SKILL.md). This script builds and pushes
-# the branches, prints the pull requests to open, and opens nothing: it never
-# calls `gh`. For a strand <X> of `vendor`, `build`, `dev` or `green`, the
-# layers are, in the fork:
+# A cutover swaps `<S>-fwd-*` in for `<S>-*` (scripts/series-cutover.sh),
+# and what the two differ by is reviewed first, as one stack of draft pull requests per strand
+# that the session running the cutover opens with its own GitHub tools (.claude/skills/series-cutover/SKILL.md).
+# This script builds and pushes the branches, prints the pull requests to open, and opens nothing: it never calls `gh`.
+# For a strand <X> of `vendor`, `build`, `dev` or `green`, the layers are, in the fork:
 #
-#   cutover/<S>/<X>/1-main    `<S>-<X>` with `main`'s changes replayed onto it
-#   cutover/<S>/<X>/2-engine  the forward's engine copied in, only where the
-#                             two tips vendor different upstream commits
+#   cutover/<S>/<X>/1-main    `<S>-<X>` with `main`'s changes replayed onto it, its engine kept
+#   cutover/<S>/<X>/2-engine  the forward's engine copied in, only where it differs from the one below
 #   cutover/<S>/<X>/3-fwd     the tree of `<S>-fwd-<X>`
 #   cutover/<S>/<X>/4-old     the tree of `<S>-<X>` again
 #
-# The first layer stands on the old tip, so a pull request with it as head keeps
-# the old lineage reachable as `refs/pull/<n>/head`, which is what the swap
-# checks before it moves a ref.
+# `main` stands for the branch the series releases from, on which the base under its seed lies:
+# `main` itself for most series, and another branch, such as `v2.0-cyanoptera`, for a series that releases from it.
+# The layer is called `1-main` all the same.
 #
-# The replay spans `main` from the old series' base to the forward's base, each
-# the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
-# and the flavor commits scripts/flavor.sh writes below it, read on `<S>-dev`
-# and on `<S>-fwd-dev`; a `-dev` with no seed takes its merge base with the
-# fork's `main`. Where the old base is an ancestor of the forward's base,
-# `main`'s first-parent commits in the span are cherry-picked onto the old tip
-# one by one, with `-x`, a merge against its first parent. A vendor commit is
-# picked without its vendor paths (`series_vendor_paths`) and its DESCRIPTION,
-# where vendoring stamps the counter, which a carry leaves out for the same
-# reason (`series_carry_filter`, scripts/series-lib.sh): this layer keeps the
-# old tip's engine, and the next one brings the forward's. A vendor commit that
-# carries nothing else is recorded as vendoring only. A commit whose change the
-# old strand already has, as the same patch or as a pick that changes nothing,
-# is recorded as present. Where the old base is not an ancestor of the
-# forward's, the layer is one commit, labeled as such: the three-way merge
-# `git merge-tree --write-tree --merge-base=<old base> <old tip> <forward base>`,
-# with the forward base's vendor paths read from the old base, for the same
-# reason.
+# The first layer stands on the old tip,
+# so a pull request with it as head keeps the old lineage reachable as `refs/pull/<n>/head`,
+# which is what the swap checks before it moves a ref.
 #
-# A conflict stops the build with the worktree kept, as stage 5 stops on a
-# carry: resolve it there, `git add` the paths, and rerun with --continue, or
-# throw the build away with --abort. Nothing is pushed before every layer is
-# built. rerere records each resolution (scripts/setup-git.sh, which this script
-# runs), so a rebuild that meets the same conflict resolves it the same way
-# without stopping; the commit names the paths either way.
+# The replay spans `main` from the old series' base to the forward's base,
+# each the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
+# and the flavor commits scripts/flavor.sh writes below it, read on `<S>-dev` and on `<S>-fwd-dev`;
+# a `-dev` with no seed takes its merge base with the fork's `main`.
+# Where the old base is an ancestor of the forward's base,
+# `main`'s first-parent commits in the span are cherry-picked onto the old tip one by one, with `-x`,
+# a merge against its first parent.
+# Every pick leaves out the engine paths, the vendor paths (`series_vendor_paths`) but `patch/`,
+# so that this layer keeps the old tip's engine and the next one brings the forward's,
+# while a change to the patch stack is replayed like any other change.
+# A vendor commit leaves out its DESCRIPTION too, where vendoring stamps the counter,
+# which a carry leaves out for the same reason (`series_carry_filter`, scripts/series-lib.sh).
+# A commit that carries nothing else is recorded as vendoring only, or as an engine change only.
+# A commit whose change the old strand already has, as the same patch or as a pick that changes nothing,
+# is recorded as present.
+# Where the old base is not an ancestor of the forward's, the layer is one commit, labeled as such:
+# the three-way merge `git merge-tree --write-tree --merge-base=<old base> <old tip> <forward base>`,
+# with the forward base's engine paths read from the old base, for the same reason.
 #
-# Commits are deterministic: a pick keeps its author and its dates, every
-# commit has the same committer, and every other commit is dated by the newer
-# of the two tips, so the same inputs give the same SHAs on any machine. The
-# layers go up in one atomic push, each leased on the tip this run read, or on
-# its absence, so a rebuild moves existing branches only from where it found
-# them. A `2-engine` an earlier build pushed, which this one has no use for, is
-# deleted under its lease too.
+# `2-engine` copies the forward's engine paths onto `1-main` wherever the two differ:
+# where the tips vendor different upstream commits,
+# and where they vendor the same one but the engine changed beside vendoring, as a commit of the patch stack changes it.
+# `patch/` stays that of `1-main`, so that what the forward changed in the patch stack shows in `3-fwd`.
 #
-# Then the script prints a summary per layer, written to be the body of the
-# layer's pull request: what was replayed, what was recorded as present or as
-# vendoring only, which conflicts were resolved, and the diff stat. Last come
-# the pull requests to open, with repository, base, head and title. It reads
-# no terminal: stdin is /dev/null, and a conflict stops the run for the next
-# one to resume.
+# A conflict stops the build with the worktree kept, as stage 5 stops on a carry:
+# resolve it there, `git add` the paths, and rerun with --continue, or throw the build away with --abort.
+# Nothing is pushed before every layer is built.
+# rerere records each resolution (scripts/setup-git.sh, which this script runs),
+# so a rebuild that meets the same conflict resolves it the same way without stopping;
+# the commit names the paths either way.
+#
+# Commits are deterministic: a pick keeps its author and its dates, every commit has the same committer,
+# and every other commit is dated by the newer of the two tips,
+# so the same inputs give the same SHAs on any machine.
+# The layers go up in one atomic push, each leased on the tip this run read, or on its absence,
+# so a rebuild moves existing branches only from where it found them.
+# A `2-engine` an earlier build pushed, which this one has no use for, is deleted under its lease too.
+#
+# Then the script prints a summary per layer, written to be the body of the layer's pull request:
+# what was replayed, what was recorded as present, as vendoring only or as an engine change only,
+# which conflicts were resolved, and the diff stat.
+# Last come the pull requests to open, with repository, base, head and title.
+# The script reads no terminal: stdin is /dev/null, and a conflict stops the run for the next one to resume.
 #
 # Usage: series-cutover-stack.sh <series> <strand> [--remote <name>] [--upstream <path>] [--summary <file>] [--continue | --abort]
 #   series-cutover-stack.sh v2.0-cyanoptera dev --upstream ../../../duckdb --summary /tmp/dev.md
 #   <strand>          one of vendor, build, dev, green.
-#   --remote <name>   the remote of this repository carrying the series refs,
-#                     the fork, where the stack is pushed. Default `origin`, or
-#                     $SERIES_REMOTE.
-#   --upstream <path> a duckdb/duckdb checkout, read with `git -C` to count the
-#                     upstream commits a `2-engine` spans; default
-#                     $UPSTREAM_CLONE. Without one the range is named and not
-#                     counted. It changes no commit.
+#   --remote <name>   the remote of this repository carrying the series refs, the fork, where the stack is pushed.
+#                     Default `origin`, or $SERIES_REMOTE.
+#   --upstream <path> a duckdb/duckdb checkout, read with `git -C` to count the upstream commits a `2-engine` spans;
+#                     default $UPSTREAM_CLONE. Without one the range is named and not counted.
+#                     It changes no commit.
 #   --summary <file>  also write the summary and the pull requests to <file>.
-#   --continue        finish a build that stopped on a conflict, with the
-#                     options it was started with; --summary and --upstream
-#                     given here replace theirs.
+#   --continue        finish a build that stopped on a conflict, with the options it was started with;
+#                     --summary and --upstream given here replace theirs.
 #   --abort           discard a stopped build and its worktree.
-# The options are spelled as in every scripts/series-*.sh; see the shared
-# contract in handbook/operations/vendoring/series-loop/README.md.
+# The options are spelled as in every scripts/series-*.sh;
+# see the shared contract in handbook/operations/vendoring/series-loop/README.md.
 #
 # Exit status:
 #   0  built and pushed.
-#   1  refused or failed, and nothing pushed: a ref missing, an engine that
-#      cannot be read, a stopped build in the way, a lease the push lost. A
-#      rerun reads the refs anew.
+#   1  refused or failed, and nothing pushed: a ref missing, an engine that cannot be read,
+#      a stopped build in the way, a lease the push lost.
+#      A rerun reads the refs anew.
 #   2  a usage error; nothing was read.
-#   3  stopped on a conflict, the worktree and the build kept for --continue;
-#      nothing was pushed.
-#   9  built and pushed, and a `2-engine` of an earlier build left behind, which
-#      the remote refused to delete: printed with the line that deletes it.
+#   3  stopped on a conflict, the worktree and the build kept for --continue; nothing was pushed.
+#   9  built and pushed, and a `2-engine` of an earlier build left behind, which the remote refused to delete:
+#      printed with the line that deletes it.
 #   Any other status is a command that failed, before the push.
 
 set -euo pipefail
@@ -132,12 +132,11 @@ cut="cutover/$S/$X"
 self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 common=$(git rev-parse --path-format=absolute --git-common-dir)
 # A stopped build lives here, in the repository rather than in one worktree,
-# so --continue works from the kept worktree as well as from the checkout that
-# started it.
+# so --continue works from the kept worktree as well as from the checkout that started it.
 STATE="$common/series-cutover-stack/${S//\//-}-$X"
 
-# Every commit this script writes has this committer, and the commits that are
-# not picks this author; see the header for the dates.
+# Every commit this script writes has this committer, and the commits that are not picks this author;
+# see the header for the dates.
 id_name=series-cutover-stack
 id_email=series-cutover-stack@invalid
 short() { git rev-parse --short=10 "$1"; }
@@ -159,9 +158,8 @@ fi
 
 tmp=$(mktemp -d)
 wt='' keep=''
-# A build that fails before its first stop leaves nothing behind; one that has
-# stopped once keeps its worktree whatever happens, since it may hold a
-# resolution somebody made.
+# A build that fails before its first stop leaves nothing behind;
+# one that has stopped once keeps its worktree whatever happens, since it may hold a resolution somebody made.
 cleanup() {
   rm -rf "$tmp"
   if [ -z "$keep" ] && [ -n "$wt" ]; then
@@ -178,14 +176,13 @@ paths_re() { # <path or glob>... -> an ERE matching each as itself or as a direc
   for p in "$@"; do re="${re:+$re|}$(series_re_of "$p")"; done
   printf '^(%s)(/|$)' "$re"
 }
-# What a vendor commit carries beyond its fixes, and what `2-engine` takes from
-# the forward: the same paths, `patch/` aside, so that a change to the patch
-# stack shows in `3-fwd`.
-vendor_re=$(paths_re "${series_vendor_paths[@]}")
-vendor_commit_re=$(paths_re "${series_vendor_paths[@]}" DESCRIPTION)
+# The engine paths, the vendor paths but `patch/`: what every pick leaves out of `1-main`, and what `2-engine` takes from the forward.
+# A vendor commit leaves out DESCRIPTION too, where vendoring stamps the counter.
+# A change to the patch stack is replayed like any other, so that what the forward changed there shows in `3-fwd`.
 engine_paths=()
 for p in "${series_vendor_paths[@]}"; do [ "$p" = patch ] || engine_paths+=("$p"); done
 engine_re=$(paths_re "${engine_paths[@]}")
+vendor_commit_re=$(paths_re "${engine_paths[@]}" DESCRIPTION)
 zero=$(git hash-object -t blob --stdin < /dev/null | tr '0-9a-f' '0')
 
 tree_with() { # <tree-ish> <tree-ish to take paths from> <ERE> -> a tree
@@ -201,8 +198,7 @@ tree_with() { # <tree-ish> <tree-ish to take paths from> <ERE> -> a tree
   GIT_INDEX_FILE=$idx git write-tree
 }
 
-# A commit of <tree> on <parent>, for a pick to apply: its change is the one
-# between the two, and nothing of it is kept but that.
+# A commit of <tree> on <parent>, for a pick to apply: its change is the one between the two, and nothing of it is kept but that.
 synthetic() { # <tree> <parent> -> commit
   GIT_AUTHOR_NAME=$id_name GIT_AUTHOR_EMAIL=$id_email GIT_AUTHOR_DATE=$stamp \
     GIT_COMMITTER_NAME=$id_name GIT_COMMITTER_EMAIL=$id_email GIT_COMMITTER_DATE=$stamp \
@@ -221,7 +217,7 @@ record() { # <kind> <commit> [<detail>]
 
 save_vars() {
   declare -p S X remote upstream summary wt old fwd old_base fwd_base mode stamp \
-    old_engine fwd_engine stopped stopped_v stopped_kind stopped_paths LEASE > "$STATE/vars"
+    old_engine fwd_engine stopped stopped_left stopped_kind stopped_paths LEASE > "$STATE/vars"
 }
 
 clear_merge_state() {
@@ -231,7 +227,7 @@ clear_merge_state() {
 
 # --- the build, or the stopped one resumed ------------------------------------
 
-stopped='' stopped_v='' stopped_kind='' stopped_paths=''
+stopped='' stopped_left='' stopped_kind='' stopped_paths=''
 if [ "$action" = resume ]; then
   [ -f "$STATE/vars" ] || { echo "Error: no stopped build of $S $X to continue" >&2; exit 1; }
   given_summary=$summary given_upstream=$upstream given_remote=$remote
@@ -258,8 +254,7 @@ else
   git config --get merge.ours-version.driver >/dev/null ||
     { echo "Error: merge driver not registered, run scripts/setup-git.sh" >&2; exit 1; }
 
-  # One read of the fork: the four tips, and the stack an earlier build left,
-  # whose tips are what this build's push is leased on.
+  # One read of the fork: the four tips, and the stack an earlier build left, whose tips are what this build's push is leased on.
   listing=$(git ls-remote --heads "$remote" "refs/heads/$S-$X" "refs/heads/$S-fwd-$X" \
     "refs/heads/$S-dev" "refs/heads/$S-fwd-dev" "refs/heads/$cut/*") ||
     { echo "Error: cannot read '$remote'" >&2; exit 1; }
@@ -280,8 +275,7 @@ else
   for L in 1-main 2-engine 3-fwd 4-old; do LEASE[$L]=${HEAD_OF[$cut/$L]:-}; done
   old=${HEAD_OF[$S-$X]} fwd=${HEAD_OF[$S-fwd-$X]}
 
-  # The base a series stands on: the commit under its seed and the flavor
-  # commits below that, as scripts/flavor.sh names them.
+  # The base a series stands on: the commit under its seed and the flavor commits below that, as scripts/flavor.sh names them.
   flavor_re='^chore: Update (flavor patch|version) to '
   base_of() { # <-dev tip> -> commit, empty when none
     local seed c
@@ -303,8 +297,7 @@ else
   [ -n "$fwd_base" ] || { echo "Error: no base found under the seed of $S-fwd-dev" >&2; exit 1; }
   if git merge-base --is-ancestor "$old_base" "$fwd_base"; then mode=pick; else mode=merge; fi
 
-  # The engine each tip vendors, as its tree records it, or else as its newest
-  # vendor subject names it.
+  # The engine each tip vendors, as its tree records it, or else as its newest vendor subject names it.
   engine_of() { # <commit> -> abbreviated upstream SHA, empty when unreadable
     local e
     e=$(series_engine_of "$1")
@@ -326,9 +319,8 @@ else
   wt=$(mktemp -d)
   git worktree add --detach -q "$wt" "$old"
 
-  # What to replay, oldest first, each with the commit of the old strand that
-  # already carries it as the same patch, or `-`. Vendor commits are never
-  # matched by patch: what they carry beyond vendoring is read when they come up.
+  # What to replay, oldest first, each with the commit of the old strand that already carries it as the same patch, or `-`.
+  # Vendor commits are never matched by patch: what they carry beyond vendoring is read when they come up.
   todo=()
   if [ "$mode" = merge ]; then
     todo=("merge -")
@@ -357,8 +349,8 @@ else
   save_vars
 fi
 
-stop() { # <commit or `merge`> <vendor flag> <pick|merge> <conflicted paths>
-  stopped=$1 stopped_v=$2 stopped_kind=$3 stopped_paths=$4
+stop() { # <commit or `merge`> <left out> <pick|merge> <conflicted paths>
+  stopped=$1 stopped_left=$2 stopped_kind=$3 stopped_paths=$4
   : > "$STATE/todo"
   [ "${#todo[@]}" -le $((i + 1)) ] || printf '%s\n' "${todo[@]:i+1}" > "$STATE/todo"
   save_vars
@@ -382,10 +374,10 @@ stop() { # <commit or `merge`> <vendor flag> <pick|merge> <conflicted paths>
 }
 
 # shellcheck disable=SC2016  # Markdown backticks in the messages, not commands
-# A pick or the merge whose result is staged in the worktree: committed, or,
-# where it changes nothing, recorded as present. <paths> are the conflicts it
-# stopped on, resolved by hand or by rerere.
-commit_pick() { # <commit> <vendor flag> <paths>
+# A pick whose result is staged in the worktree: committed, or, where it changes nothing, recorded as present.
+# <left out> is `v` for a vendor commit without its engine paths and DESCRIPTION, `e` for another without its engine paths,
+# and empty for a whole one; <paths> are the conflicts it stopped on, resolved by hand or by rerere.
+commit_pick() { # <commit> <left out> <paths>
   local c=$1 head tree body msg=$tmp/msg new an ae ad cd
   head=$(git -C "$wt" rev-parse HEAD)
   [ -z "$3" ] || git -C "$wt" rerere >/dev/null 2>&1 || true
@@ -399,7 +391,10 @@ commit_pick() { # <commit> <vendor flag> <paths>
   body=$(git log -1 --format=%B "$c")
   {
     printf '%s\n\n' "$body"
-    [ -z "$2" ] || printf 'Its vendor paths and DESCRIPTION are left out: this layer keeps the engine of `%s`.\n\n' "$S-$X"
+    case "$2" in
+      v) printf 'Its engine paths and DESCRIPTION are left out: this layer keeps the engine of `%s`.\n\n' "$S-$X" ;;
+      e) printf 'Its engine paths are left out: this layer keeps the engine of `%s`.\n\n' "$S-$X" ;;
+    esac
     [ -z "$3" ] || printf 'Conflicts resolved replaying it onto `%s`: %s.\n\n' "$S-$X" "$3"
     printf '(cherry picked from commit %s)\n' "$c"
   } > "$msg"
@@ -414,7 +409,7 @@ commit_pick() { # <commit> <vendor flag> <paths>
     git -C "$wt" commit-tree --no-gpg-sign "$tree" -p "$head" -F "$msg")
   git -C "$wt" update-ref HEAD "$new"
   clear_merge_state
-  if [ -n "$2" ]; then record pick-v "$c"; else record pick "$c"; fi
+  record "pick${2:+-$2}" "$c"
 }
 
 commit_merge() { # <paths>
@@ -428,7 +423,7 @@ commit_merge() { # <paths>
     printf 'so main'"'"'s changes between the two are applied as one three-way merge,\n'
     printf 'not commit by commit:\n\n'
     printf '    git merge-tree --write-tree --merge-base=%s %s %s\n\n' "$old_base" "$old" "$fwd_base"
-    printf 'with the vendor paths of the forward'"'"'s base read from the old base,\n'
+    printf 'with the engine paths of the forward'"'"'s base read from the old base,\n'
     printf 'so that this layer keeps the engine of %s.\n' "$S-$X"
     [ -z "$1" ] || printf '\nConflicts resolved: %s.\n' "$1"
   } > "$msg"
@@ -439,13 +434,12 @@ commit_merge() { # <paths>
   record merge "$new"
 }
 
-finish() { # <commit or `merge`> <vendor flag> <pick|merge> <paths>
+finish() { # <commit or `merge`> <left out> <pick|merge> <paths>
   if [ "$3" = merge ]; then commit_merge "$4"; else commit_pick "$1" "$2" "$4"; fi
 }
 
-# A step that did not apply: resolved by rerere where it holds a resolution for
-# every conflicted path, stopped otherwise.
-conflicted() { # <commit or `merge`> <vendor flag> <pick|merge> <git's output>
+# A step that did not apply: resolved by rerere where it holds a resolution for every conflicted path, stopped otherwise.
+conflicted() { # <commit or `merge`> <left out> <pick|merge> <git's output>
   local -a paths
   mapfile -t paths < <(git -C "$wt" diff --name-only --diff-filter=U)
   if [ ${#paths[@]} -eq 0 ]; then
@@ -462,31 +456,33 @@ conflicted() { # <commit or `merge`> <vendor flag> <pick|merge> <git's output>
   stop "$1" "$2" "$3" "${paths[*]}"
 }
 
+# A commit of `main`, picked without its engine paths, and without its DESCRIPTION where it is a vendor commit;
+# one that carries nothing else is recorded as vendoring only, or as an engine change only, and left out.
 pick() { # <commit>
-  local c=$1 src=$1 v='' t p1 out=$tmp/out
+  local c=$1 src=$1 left=e re=$engine_re t p1 out=$tmp/out
   local -a m=()
   p1=$(git rev-parse "$c^1")
-  if series_is_vendor "$(git log -1 --format=%s "$c")"; then
-    v=1
-    t=$(tree_with "$c^{tree}" "$p1^{tree}" "$vendor_commit_re")
-    if [ "$t" = "$(git rev-parse "$p1^{tree}")" ]; then
-      record vendor "$c"
-      return 0
-    fi
+  ! series_is_vendor "$(git log -1 --format=%s "$c")" || left=v re=$vendor_commit_re
+  t=$(tree_with "$c^{tree}" "$p1^{tree}" "$re")
+  if [ "$t" = "$(git rev-parse "$c^{tree}")" ]; then
+    left=''
+    ! git rev-parse -q --verify "$c^2" >/dev/null || m=(-m 1)
+  elif [ "$t" = "$(git rev-parse "$p1^{tree}")" ]; then
+    if [ "$left" = v ]; then record vendor "$c"; else record engine "$c"; fi
+    return 0
+  else
     src=$(synthetic "$t" "$p1")
-  elif git rev-parse -q --verify "$c^2" >/dev/null; then
-    m=(-m 1)
   fi
   if git -C "$wt" -c advice.mergeConflict=false cherry-pick --no-commit "${m[@]}" "$src" > "$out" 2>&1; then
-    commit_pick "$c" "$v" ''
+    commit_pick "$c" "$left" ''
   else
-    conflicted "$c" "$v" pick "$out"
+    conflicted "$c" "$left" pick "$out"
   fi
 }
 
 merge_step() {
   local theirs syn out st t
-  theirs=$(tree_with "$fwd_base^{tree}" "$old_base^{tree}" "$vendor_re")
+  theirs=$(tree_with "$fwd_base^{tree}" "$old_base^{tree}" "$engine_re")
   syn=$(synthetic "$theirs" "$old_base")
   set +e
   out=$(git -C "$wt" merge-tree --write-tree --merge-base="$old_base" "$old" "$syn" 2>&1)
@@ -499,8 +495,7 @@ merge_step() {
       commit_merge ''
       ;;
     1)
-      # The same merge, made in the worktree so that the conflict can be
-      # resolved there: a pick of the change from the old base.
+      # The same merge, made in the worktree so that the conflict can be resolved there: a pick of the change from the old base.
       if git -C "$wt" -c advice.mergeConflict=false cherry-pick --no-commit "$syn" > "$tmp/out" 2>&1; then
         commit_merge ''
       else
@@ -515,7 +510,7 @@ if [ -n "$stopped" ]; then
   unmerged=$(git -C "$wt" diff --name-only --diff-filter=U)
   if [ -n "$unmerged" ]; then
     i=-1
-    stop "$stopped" "$stopped_v" "$stopped_kind" "$stopped_paths"
+    stop "$stopped" "$stopped_left" "$stopped_kind" "$stopped_paths"
   fi
   if [ "$stopped" = merge ]; then
     echo "$S $X: resuming after the merge"
@@ -525,7 +520,7 @@ if [ -n "$stopped" ]; then
   record resolved "$stopped" "$stopped_paths"
   s=$stopped
   stopped=''
-  finish "$s" "$stopped_v" "$stopped_kind" "$stopped_paths"
+  finish "$s" "$stopped_left" "$stopped_kind" "$stopped_paths"
 fi
 
 i=0
@@ -568,15 +563,24 @@ same_engine() { # <sha> <sha>: one an abbreviation of the other
   case "$2" in "$1"*) return 0 ;; esac
   return 1
 }
-if ! same_engine "$old_engine" "$fwd_engine"; then
+# The forward's engine paths on `1-main`, whose own are the old tip's: a layer wherever the two differ,
+# by the upstream commit they vendor or by what changed in the engine beside vendoring.
+engine_tree=$(tree_with "$top^{tree}" "$fwd^{tree}" "$engine_re")
+if [ "$engine_tree" != "$(git rev-parse "$top^{tree}")" ]; then
   {
     printf 'chore(cutover): Take the engine of %s\n\n' "$S-fwd-$X"
-    printf 'The vendor paths of %s at %s, patch/ aside: %s.\n' "$S-fwd-$X" "$(short "$fwd")" "${engine_paths[*]}"
-    printf 'They span the upstream range %s@%s..%s,\n' "$series_upstream_repo" "$old_engine" "$fwd_engine"
-    printf 'from the engine of %s to the engine of %s.\n' "$S-$X" "$S-fwd-$X"
+    printf 'The engine paths of %s at %s, its vendor paths but patch/: %s.\n' "$S-fwd-$X" "$(short "$fwd")" "${engine_paths[*]}"
+    if same_engine "$old_engine" "$fwd_engine"; then
+      printf 'Both tips vendor %s@%s, so the two differ by what changed in the engine beside vendoring,\n' \
+        "$series_upstream_repo" "$fwd_engine"
+      printf 'in a commit of main whose engine paths the layer below leaves out, or on the forward.\n'
+    else
+      printf 'They span the upstream range %s@%s..%s,\n' "$series_upstream_repo" "$old_engine" "$fwd_engine"
+      printf 'from the engine of %s to the engine of %s.\n' "$S-$X" "$S-fwd-$X"
+    fi
     printf 'The patch stack stays that of the layer below, so its changes show in the next.\n'
   } > "$tmp/msg"
-  SHA[2-engine]=$(layer_commit "$(tree_with "$top^{tree}" "$fwd^{tree}" "$engine_re")" "$top" "$tmp/msg")
+  SHA[2-engine]=$(layer_commit "$engine_tree" "$top" "$tmp/msg")
   top=${SHA[2-engine]}
   layers+=(2-engine)
 fi
@@ -647,27 +651,38 @@ section() { # <layer>
           "$(short "$old_base")" "$S-dev" "$(short "$fwd_base")" "$S-fwd-dev"
         printf 'applied onto `%s` at `%s` as one three-way merge, because the old base is not an ancestor of the forward'"'"'s.\n' \
           "$S-$X" "$(short "$old")"
-        printf 'The vendor paths stay those of `%s`.\n' "$S-$X"
+        printf 'The engine paths stay those of `%s`.\n' "$S-$X"
       else
         printf '`main`'"'"'s first-parent commits from `%s`, the base of `%s`, to `%s`, the base of `%s`,\n' \
           "$(short "$old_base")" "$S-dev" "$(short "$fwd_base")" "$S-fwd-dev"
         printf 'replayed onto `%s` at `%s` one by one, with `-x`.\n\n' "$S-$X" "$(short "$old")"
-        printf -- '- replayed: %s, %s of them vendor commits without their vendor paths\n' \
-          "$(($(count pick) + $(count pick-v)))" "$(count pick-v)"
+        printf -- '- replayed whole: %s\n' "$(count pick)"
+        printf -- '- replayed without their engine paths: %s\n' "$(count pick-e)"
+        printf -- '- vendor commits replayed without their engine paths and `DESCRIPTION`: %s\n' "$(count pick-v)"
         printf -- '- recorded as present: %s\n' "$(count present)"
         printf -- '- vendoring only, left out: %s\n' "$(count vendor)"
+        printf -- '- engine changes only, left out: %s\n' "$(count engine)"
         printf -- '- conflicts resolved: %s\n' "$(count resolved)"
         listed present 'Recorded as present:'
         listed vendor "Vendoring only, left out because this layer keeps the engine of \`$S-$X\`:"
-        listed pick-v 'Replayed without their vendor paths:'
+        listed engine "Engine changes only, left out because this layer keeps the engine of \`$S-$X\`:"
+        listed pick-v 'Vendor commits replayed without their engine paths and `DESCRIPTION`:'
+        listed pick-e 'Replayed without their engine paths, which `2-engine` shows as the forward has them:'
       fi
       listed resolved 'Conflicts resolved:'
       ;;
     2-engine)
-      printf 'The engine of `%s` at `%s`, `%s@%s`, where `%s` vendors `%s@%s`:\n' \
-        "$S-fwd-$X" "$(short "$fwd")" "$series_upstream_repo" "$fwd_engine" "$S-$X" "$series_upstream_repo" "$old_engine"
-      printf 'its vendor paths copied in, `patch/` aside, so that a change to the patch stack shows in the next layer.\n'
-      upstream_count
+      if same_engine "$old_engine" "$fwd_engine"; then
+        printf 'The engine of `%s` at `%s`, where both tips vendor `%s@%s`:\n' \
+          "$S-fwd-$X" "$(short "$fwd")" "$series_upstream_repo" "$fwd_engine"
+        printf 'its engine paths copied in, `patch/` aside, which differ by what changed in the engine beside vendoring,\n'
+        printf 'in a commit of `main` whose engine paths the layer below leaves out, or on the forward.\n'
+      else
+        printf 'The engine of `%s` at `%s`, `%s@%s`, where `%s` vendors `%s@%s`:\n' \
+          "$S-fwd-$X" "$(short "$fwd")" "$series_upstream_repo" "$fwd_engine" "$S-$X" "$series_upstream_repo" "$old_engine"
+        printf 'its engine paths copied in, `patch/` aside, so that a change to the patch stack shows in the next layer.\n'
+        upstream_count
+      fi
       ;;
     3-fwd) printf 'The tree of `%s` at `%s`.\n' "$S-fwd-$X" "$(short "$fwd")" ;;
     4-old) printf 'The tree of `%s` at `%s`, which the stack started from.\n' "$S-$X" "$(short "$old")" ;;
@@ -708,7 +723,7 @@ report=$tmp/report
   done
   if [ -n "$stale" ]; then
     echo
-    echo "No longer in the stack: $stale, as the two tips now vendor the same upstream commit."
+    echo "No longer in the stack: $stale, as the engine of $cut/1-main is now the forward's."
     echo "Close its pull request."
   fi
 } > "$report"
@@ -723,8 +738,8 @@ for L in "${layers[@]}"; do
 done
 if ! out=$(git push "${push_args[@]}" "$remote" "${refspecs[@]}" 2>&1); then
   echo "$out" >&2
-  echo "Error: $S $X: the push was refused, and nothing moved: a branch of the stack" >&2
-  echo "  moved since this run read it, or the remote refused the push. Built, not pushed:" >&2
+  echo "Error: $S $X: the push was refused, and nothing moved:" >&2
+  echo "  a branch of the stack moved since this run read it, or the remote refused the push. Built, not pushed:" >&2
   for L in "${layers[@]}"; do echo "  ${SHA[$L]} $cut/$L" >&2; done
   keep=''
   exit 1
