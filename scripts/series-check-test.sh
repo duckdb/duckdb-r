@@ -23,8 +23,11 @@
 #   9. FORWARD-PORT names the commits of the branch the CRAN flavor publishes
 #      from that `main` has no counterpart of, and none of those it has by
 #      patch-id or by a `cherry picked from commit` trailer either way, nor
-#      vendor commits or release paperwork; and nothing while that branch is
-#      `main`.
+#      vendor commits or release paperwork (a submission record included);
+#      a vendor commit carrying an
+#      R-side change is named, marked. Nothing while that branch is `main`, a
+#      quoted declaration reads the same, and a branch it cannot read, or one
+#      with no merge base with `main`, is reported as missing data.
 #
 # Usage:
 #   scripts/series-check-test.sh
@@ -237,8 +240,15 @@ is "nothing while the CRAN flavor publishes from main" "$(fwd)" ""
 git checkout -q -b rel cmain
 echo 'engine bbbb222' > src/duckdb/engine.cpp
 git commit -qam 'vendor: Update vendored sources to duckdb/duckdb@bbbb222'
+echo 'engine bbbb333' > src/duckdb/engine.cpp
+mkdir -p R; echo 'glue for bbbb333' > R/glue.R
+git add -A; git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@bbbb333'
+VR=$(git rev-parse HEAD)
 echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
 git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
+echo 'Version: 9.9.1' > DESCRIPTION; echo '# duckdb 9.9.1' > NEWS.md; echo 'Version: 9.9.1' > CRAN-SUBMISSION
+git add -A; git commit -qm 'chore: Release 9.9.1'
+
 echo 'fix a' > a.R; git add -A; git commit -qm 'fix: A, picked onto main'
 A=$(git rev-parse HEAD)
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, the same patch on main'
@@ -258,13 +268,45 @@ echo 'fix d, as rel needs it' > d.R; git commit -q --amend -a --no-edit
 git push -q canon cmain:main rel
 git checkout -q main
 out=$(fwd)
-has "it names the branch and counts what is owed" "$out" "rel has 1 commit(s) main has no counterpart of"
+has "it names the branch and what is owed" "$out" "commit(s) main has no counterpart of"
 has "the commit main lacks" "$out" "$(git rev-parse --short "$C") fix: C, owed to main"
 hasnt "not one main picked with -x" "$out" "fix: A"
 hasnt "not one main has by patch-id" "$out" "fix: B"
 hasnt "not a backport from main, edited" "$out" "fix: D"
-hasnt "not a vendor commit" "$out" "vendor:"
 hasnt "not release paperwork" "$out" "Bump version"
+hasnt "nor a release with its submission record" "$out" "Release 9.9.1"
+has "but a vendor commit with an R-side change, marked" "$out" \
+  "$(git rev-parse --short "$VR") vendor: Update vendored sources to duckdb/duckdb@bbbb333 [vendor commit with an R-side change]"
+hasnt "and not one without" "$out" "bbbb222"
+has "so two are owed in all" "$out" "rel has 2 commit(s)"
+
+git checkout -q cmain
+sed -i 's/publishes_from: rel/publishes_from: "rel"/' scripts/series.yaml
+git commit -qam 'chore: Quote the branch'
+git push -q canon cmain:main
+git checkout -q main
+has "a quoted publishes_from reads the same" "$(fwd)" "rel has 2 commit(s)"
+
+git checkout -q cmain
+sed -i 's/publishes_from: "rel"/publishes_from: gone/' scripts/series.yaml
+git commit -qam 'chore: Name a branch that is not there'
+git push -q canon cmain:main
+git checkout -q main
+out=$(fwd)
+has "a branch it cannot read is missing data" "$out" "could not read gone beside main"
+
+git checkout -q --orphan lone
+git rm -rqf .
+echo 'unrelated' > u.R; git add -A; git commit -qm 'fix: On a history of its own'
+git push -q canon lone
+git checkout -q -f cmain
+sed -i 's/publishes_from: gone/publishes_from: lone/' scripts/series.yaml
+git commit -qam 'chore: Name an unrelated branch'
+git push -q canon cmain:main
+git checkout -q main
+out=$(fwd)
+has "a branch with no merge base is missing data" "$out" "could not read a merge base of lone and main"
+hasnt "rather than owing all of it" "$out" "On a history of its own"
 
 echo
 echo "$pass passed, $fail failed"

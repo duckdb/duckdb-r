@@ -90,8 +90,9 @@
 # counterpart is a commit `main` has by patch-id, a `main` commit naming it in a
 # `cherry picked from commit` trailer, or the `main` commit its own trailer names,
 # because a pick whose text changed in a conflict has another patch-id. Vendor
-# commits and release paperwork are the branch's own and never owed: `main` takes
-# its engine from upstream `main`.
+# commits and release paperwork are the branch's own and not owed, since `main`
+# takes its engine from upstream `main`; a vendor commit that also carries an
+# R-side change is reported, marked.
 #
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
@@ -868,11 +869,19 @@ fi
 # flavor, so nothing is reported while that is `main` and nothing here names a
 # line. Its commits are read from the canonical repository first and the fork's
 # mirror second, like the declaration itself.
+#
+# A vendor commit is the branch's own engine, which `main` takes from upstream
+# `main` instead, so it is skipped -- unless it also changes something outside
+# the vendored strand, the Makevars generated from it and `DESCRIPTION`'s
+# stamp: an R-side fix folded into it, which `main` may need as well. Whether
+# that change answers the branch's engine alone is a judgement, so it is
+# reported, marked, rather than decided here.
 cran_branch=$(declaration 2>/dev/null | awk '
   function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
+  function val(v) { gsub(/["'"'"']/, "", v); return v }
   /^  - / { flush() }
-  /^    kind:/ { k = $2 }
-  /^    publishes_from:/ { pf = $2 }
+  /^    kind:/ { k = val($2) }
+  /^    publishes_from:/ { pf = val($2) }
   END { flush() }' | head -n 1 || true)
 if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
   if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
@@ -884,30 +893,44 @@ if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
     b=$(git rev-parse -q --verify "refs/remotes/$r/$cran_branch" || true)
     if [ -n "$m" ] && [ -n "$b" ]; then fp_main=$m fp_rel=$b; break; fi
   done
-  if [ -z "$fp_rel" ]; then
+  mb=''
+  [ -z "$fp_rel" ] || mb=$(git merge-base "$fp_main" "$fp_rel" 2>/dev/null || true)
+  if [ -z "$fp_rel" ] || [ -z "$mb" ]; then
+    # Without both refs, or without a merge base (a shallow clone, unrelated
+    # histories), every commit would read as owed: say so instead.
     echo
-    echo "FORWARD-PORT  could not read $cran_branch beside main, so this firing does not"
+    if [ -z "$fp_rel" ]; then
+      echo "FORWARD-PORT  could not read $cran_branch beside main, so this firing does not"
+    else
+      echo "FORWARD-PORT  could not read a merge base of $cran_branch and main (a shallow clone?),"
+      echo "              so this firing does not"
+    fi
     echo "              know what main still owes it. Missing data, not a clean result."
   else
-    mb=$(git merge-base "$fp_main" "$fp_rel" || true)
     # What `main` has by patch-id, and the commits its trailers name.
-    have=$(git cherry "$fp_main" "$fp_rel" ${mb:+"$mb"} | sed -n 's/^- //p'
-      git log --format=%B ${mb:+"$mb.."}"$fp_main" |
+    have=$(git cherry "$fp_main" "$fp_rel" "$mb" | sed -n 's/^- //p'
+      git log --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
-    main_shas=$(git rev-list ${mb:+"$mb.."}"$fp_main")
+    main_shas=$(git rev-list "$mb..$fp_main")
+    engine_paths=()
+    for x in "${series_strand[@]}" "${series_makevars[@]}" DESCRIPTION; do engine_paths+=(":(exclude)$x"); done
     owed=()
     while IFS= read -r c; do
       [ -n "$c" ] || continue
       subj=$(git log -1 --format=%s "$c")
-      series_is_vendor "$subj" && continue
-      # Release paperwork: a version bump, its notes, nothing else.
+      mark=''
+      if series_is_vendor "$subj"; then
+        [ -n "$(git diff-tree --no-commit-id --name-only -r "$c" -- . "${engine_paths[@]}")" ] || continue
+        mark=' [vendor commit with an R-side change]'
+      fi
+      # Release paperwork: a version bump, its notes, the submission record.
       [ -n "$(git diff-tree --no-commit-id --name-only -r "$c" |
-        grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md)$' || true)" ] || continue
+        grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || continue
       grep -qx "$c" <<<"$have" && continue
       src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
       if [ -n "$src" ] && grep -qx "$src" <<<"$main_shas"; then continue; fi
-      owed+=("$(git rev-parse --short "$c") $subj")
-    done < <(git rev-list --reverse --no-merges ${mb:+"$mb.."}"$fp_rel")
+      owed+=("$(git rev-parse --short "$c") $subj$mark")
+    done < <(git rev-list --reverse --no-merges "$mb..$fp_rel")
     if [ ${#owed[@]} -gt 0 ]; then
       echo
       echo "FORWARD-PORT  $cran_branch has ${#owed[@]} commit(s) main has no counterpart of, oldest first:"
