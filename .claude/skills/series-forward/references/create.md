@@ -345,4 +345,4 @@ is answered with a correction committed on the forward commit that carries it an
 so that `-fwd-build` is the better buffer before the loop starts verifying it.
 The strand is pushed beside the four `-fwd` refs, force-pushed like any WIP ref,
 extended by stage 1 like the series' own, rebased again when the forward moves (`series-rebase/SKILL.md`),
-and swapped with the four at the cutover, the replaced one archived like the rest (the playbook's cutover section).
+and swapped with the four at the cutover, the replaced one pinned by its review stack like the rest (the playbook's cutover section).

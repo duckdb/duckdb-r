@@ -17,8 +17,8 @@ stop and say so.
 r-universe publishes the base flavors from `duckdb/duckdb-r` and reads ownership
 from the URL of the branch it builds, so `<S>-green` is the one branch that
 travels out of the fork — no buffer and no `-dev`.
-`<S>-fwd-green` travels as well, though the fork's own universe is what builds it:
-the cutover archives the replaced copy of `<S>-green` against it there, and deletes it afterwards
+`<S>-fwd-green` travels as well, though the fork's own universe is what builds it,
+and the cutover deletes it there once the swap has made its tip `<S>-green`
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 `--canonical <name>` names the remote, defaulting to `upstream`, and the push is
 a plain one, so git refuses anything that is not a forward.
