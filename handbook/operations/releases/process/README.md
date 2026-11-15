@@ -264,7 +264,8 @@ set it explicitly so `DESCRIPTION` matches the upstream tag:
 fledge::bump_version("X.Y.Z")
 ```
 
-Then rebase the LTS branch, one rename commit on top of the release branch:
+Then rebase the LTS branch, one rename commit on top of the release branch.
+These blocks run on a maintainer's machine and push over SSH, so they name the canonical repository by its SSH URL:
 
 ```bash
 C=git@github.com:duckdb/duckdb-r.git   # the canonical repository, where both branches live
@@ -288,7 +289,7 @@ S=v1.4-andium                          # the line just released
 R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
 git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R"   # the tip as it is now, after the rebase
 v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p')
-git tag "v$v" "canonical/$R"
+git tag -a "v$v" -m "duckdb $v" "canonical/$R"
 git push "$C" "refs/tags/v$v"
 ```
 
