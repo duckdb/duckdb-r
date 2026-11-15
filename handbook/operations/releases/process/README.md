@@ -267,8 +267,9 @@ fledge::bump_version("X.Y.Z")
 Then rebase the LTS branch, one rename commit on top of the release branch:
 
 ```bash
-# in the <S>-lts worktree
-git rebase origin/<S> && git push origin <S>-lts
+S=v1.4-andium   # the LTS line just released
+git fetch origin "$S" "$S-lts"
+git switch "$S-lts" && git rebase "origin/$S" && git push origin "$S-lts"
 ```
 
 Build the source tarball and take it through WinBuilder and the CRAN
@@ -279,8 +280,10 @@ preflight before tagging (`cran/`).
 Tag the release and push; r-universe rebuilds automatically:
 
 ```bash
-git tag vX.Y.Z origin/<S>-lts   # or origin/<S> per series convention
-git push origin vX.Y.Z
+S=v1.4-andium   # the line just released; tag "origin/$S" instead where it has no -lts branch
+v=$(git show "origin/$S-lts:DESCRIPTION" | sed -n 's/^Version: //p')
+git tag "v$v" "origin/$S-lts"
+git push origin "v$v"
 ```
 
 For the **current** line only, submit to CRAN (`cran/`);
