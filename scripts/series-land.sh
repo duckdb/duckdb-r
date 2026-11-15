@@ -207,6 +207,9 @@ fi
 # `v2.0-cyanoptera` onto its release branch -- would take over the first one's
 # build and refs. Such a request is refused rather than followed. A landing on
 # --remote records no branch of its own, so this guards the clone that built it.
+# The subject of the hand-written version bump (is_bump below).
+bump_subject='chore: Bump version to '
+
 onto_kept=''
 if [ -f "$STATE" ]; then
   read -r _ _ _ _ _ _ onto_kept < "$STATE" || true
@@ -217,6 +220,52 @@ if [ -n "$onto" ] && [ -n "$onto_kept" ] && [ "$onto" != "$onto_kept" ]; then
     "finish it, or --abort it first" >&2
   exit 1
 fi
+
+# With neither a kept build nor --onto, a landing already on --remote says which
+# branch it was built on, and a clone that did not build it -- a fresh one, a
+# scheduled session -- reads it from there rather than assuming `main`: a READY
+# line must never name a branch that does not hold the landing's base. Walking
+# `<L>-land-dev` down its first parents, the landing is vendor commits and the
+# bump above the commit where it joins the canonical `main`. Anything else in
+# between is another branch's own history, a release branch's, or commits
+# pinned with --base, which this cannot tell apart, so it asks for --onto.
+infer_onto() {
+  local dev c subj base='' join='' foreign='' cran
+  git fetch -q "$remote" "+refs/heads/$L-land-dev:refs/remotes/$remote/$L-land-dev" 2>/dev/null || return 0
+  dev=$(git rev-parse -q --verify "refs/remotes/$remote/$L-land-dev") || return 0
+  [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 || return 0
+  git fetch -q "$canonical" main 2>/dev/null || return 0
+  local tip
+  tip=$(git rev-parse "refs/remotes/$canonical/main")
+  while IFS=$'\t' read -r c subj; do
+    if git merge-base --is-ancestor "$c" "$tip"; then join=$c; break; fi
+    if [ -z "$foreign" ] && { series_is_vendor "$subj" || [[ "$subj" == "$bump_subject"* ]]; }; then
+      continue
+    fi
+    # The first commit below the landing's own: its frozen base.
+    [ -n "$foreign" ] || base=$c
+    foreign=1
+  done < <(git log --first-parent --format='%H%x09%s' "$dev")
+  [ -n "$join" ] && [ -z "$foreign" ] && return 0
+  echo "Error: $L-land-dev on $remote does not stand on $canonical's main, and no kept build says" >&2
+  echo "  which branch it lands onto." >&2
+  cran=$({ git show "$tip:scripts/series.yaml" 2>/dev/null || true; } | awk '
+    function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
+    function val(v) { gsub(/["'"'"']/, "", v); return v }
+    /^  - / { flush() }
+    /^    kind:/ { k = val($2) }
+    /^    publishes_from:/ { pf = val($2) }
+    END { flush() }' | head -n 1)
+  if [ -n "$cran" ] && [ "$cran" != main ] && [ -n "$base" ] &&
+    git fetch -q "$canonical" "$cran" 2>/dev/null &&
+    git merge-base --is-ancestor "$base" "$(git rev-parse "refs/remotes/$canonical/$cran")"; then
+    echo "  $cran, the branch the CRAN flavor publishes from, holds its base: pass --onto $cran." >&2
+  else
+    echo "  Pass --onto <branch>, the branch it was built on." >&2
+  fi
+  exit 1
+}
+[ -n "$onto" ] || [ -n "$onto_kept" ] || infer_onto
 onto=${onto:-${onto_kept:-main}}
 
 # The landing stands on the canonical `main` and on nothing else: a mirror that
@@ -255,7 +304,6 @@ for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 # `NEWS.md` starts with fledge's marker line and has a section for that version
 # with something in it (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
-bump_subject='chore: Bump version to '
 is_bump() { # <commit>
   local c=$1 old new subj
   ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
