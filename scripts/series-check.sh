@@ -933,7 +933,8 @@ if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
       total=$((total + 1))
       subj=$(git log -1 --format=%s "$c")
       if series_is_vendor "$subj"; then vendor=$((vendor + 1)); continue; fi
-      if [[ "$subj" == 'chore: Bump version to '* ]] || paperwork "$c"; then
+      # By content alone: a bump riding on R-side files is listed like any.
+      if paperwork "$c"; then
         paper=$((paper + 1)); continue
       fi
       src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')

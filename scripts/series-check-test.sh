@@ -249,6 +249,9 @@ git add -A; git commit -qm 'fix: Require DBI >= 1.2'
 DBI=$(git rev-parse HEAD)
 printf 'Version: 9.9.0.9002\nImports: DBI (>= 1.2)\n' > DESCRIPTION; echo '# duckdb 9.9.0.9002' > NEWS.md
 git add -A; git commit -qm 'Increment version number'
+printf 'Version: 9.9.0.9003\nImports: DBI (>= 1.2)\n' > DESCRIPTION; echo 'synced' > sync.R
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9003'
+SYNC=$(git rev-parse HEAD)
 echo 'fix a' > a.R; git add -A; git commit -qm 'fix: A, picked onto main'
 A=$(git rev-parse HEAD)
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, the same patch on main'
@@ -266,19 +269,20 @@ echo 'fix d, as rel needs it' > d.R; git commit -q --amend -a --no-edit
 git push -q canon cmain:main rel
 git checkout -q main
 out=$(fwd)
-has "it counts what main has not grafted" "$out" "rel has 10 commit(s) main has not grafted: 3 vendor, 2 release paperwork,"
-has "and the R-side commits" "$out" "5 R-side, 2 of them not yet picked"
+has "it counts what main has not grafted" "$out" "rel has 11 commit(s) main has not grafted: 3 vendor, 2 release paperwork,"
+has "and the R-side commits" "$out" "6 R-side, 3 of them not yet picked"
+has "a bump that also carries R-side files is listed" "$out" "$(git rev-parse --short "$SYNC") not yet  chore: Bump version to 9.9.0.9003"
 has "a DESCRIPTION change beyond the version is R-side" "$out" "$(git rev-parse --short "$DBI") not yet  fix: Require DBI >= 1.2"
 hasnt "a version-only change under another subject is paperwork" "$out" "Increment version number"
 has "a pick with -x, edited, is picked" "$out" "picked   fix: A"
 has "the same patch is picked" "$out" "picked   fix: B"
 has "a backport from main is picked" "$out" "picked   fix: D"
 hasnt "vendor commits are not listed one by one" "$out" "bbbb22"
-hasnt "nor the bump" "$out" "Bump version"
+hasnt "nor a bump that is only paperwork" "$out" "Bump version to 9.9.0.9001"
 has "the rest is not yet" "$out" "$(git rev-parse --short "$C") not yet  fix: C"
 git push -q -f origin cmain:main rel:rel
 has "without a canonical remote it reads the fork's mirrors" \
-  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 10 commit(s)"
+  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 11 commit(s)"
 
 git checkout -q cmain
 git cherry-pick -x "$C" >/dev/null
