@@ -60,10 +60,10 @@ and could sever a coupled change
 (a script from the test that exercises it),
 minting a commit whose message describes more than it contains.
 The one file a pick leaves as the series has it is `NEWS.md`.
-The notes are the release strand's, like the version:
-a bullet on `main` sits under `main`'s open section,
-and once a landing's bump has turned that heading into the version's,
-a pick carrying the bullet conflicts on every series.
+The notes are the release strand's, like the version,
+kept for `main`'s versions by a process of their own,
+so a pick carrying `main`'s notes meets a copy they were not written against
+and conflicts on every series at once.
 So each pick is applied without committing, `NEWS.md` is restored from the series,
 and the rest is committed under the original message, author and trailer;
 a pick with nothing left, because it wrote only `NEWS.md` or its content is already there,

@@ -42,18 +42,19 @@
 # vendoring owns that strand.
 #
 # **Every pick keeps the series' NEWS.md.** The notes are the release strand's,
-# like the version: a bullet on `main` sits under `main`'s open section, and the
-# bump that releases a line turns that heading into the version's, so a pick
-# carrying `main`'s bullets conflicts on every series once a landing has
-# renamed it. Each pick is applied without committing, NEWS.md is restored from
-# the series, and the rest is committed under the original message, author and
-# `-x` trailer. A pick that comes out empty, because it wrote nothing but
-# NEWS.md or its content is already here, is committed empty and named as
-# empty, because its trailer is what retires it. A pick matches its main commit
-# by patch-id only when that commit left NEWS.md alone; the trailer retires the
-# others from the walk, and a rebase onto a base that carries them drops them as
-# empty. A pick committed empty is kept by a rebase, as git keeps every commit
-# that starts empty, and left behind by the next forward like every port.
+# like the version, kept for `main`'s versions by a process of their own
+# (handbook/operations/releases/versioning/README.md), so a pick carrying
+# `main`'s notes meets a copy they were not written against and conflicts on
+# every series at once. Each pick is applied without committing, NEWS.md is
+# restored from the series, and the rest is committed under the original
+# message, author and `-x` trailer. A pick that comes out empty, because it
+# wrote nothing but NEWS.md or its content is already here, is committed empty
+# and named as empty, because its trailer is what retires it. A pick matches
+# its main commit by patch-id only when that commit left NEWS.md alone; the
+# trailer retires the others from the walk, and a rebase onto a base that
+# carries them drops them as empty. A pick committed empty is kept by a rebase,
+# as git keeps every commit that starts empty, and left behind by the next
+# forward like every port.
 #
 # **A VERSION commit is not auto-picked either**, because `main`'s R-client
 # counter is not this series'. A series' version says which release line it was

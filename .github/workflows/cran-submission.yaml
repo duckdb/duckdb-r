@@ -135,7 +135,7 @@ jobs:
             echo
             echo "#### How to proceed"
             echo
-            echo "- Bump the version by hand, \`Version: X.Y.Z\` in \`DESCRIPTION\` and \`# <package> X.Y.Z\` as the heading of \`NEWS.md\`'s open section, in one commit \`chore: Bump version to X.Y.Z\`, and dispatch this workflow on that commit."
+            echo "- Bump the version by hand, \`Version: X.Y.Z\` in \`DESCRIPTION\`, in one commit \`chore: Bump version to X.Y.Z\`, and dispatch this workflow on that commit."
             echo "- If submitting this version is really intended, dispatch again with \`allow-dev-version\` on: \`$rerun -f allow-dev-version=true\`."
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1

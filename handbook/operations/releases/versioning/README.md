@@ -1,7 +1,7 @@
 # Versioning
 
 The package version — `Version:` in `DESCRIPTION`, the one place
-it lives — its components, what advances them, and how `NEWS.md` is kept beside it.
+it lives — its components, what advances them, and who keeps `NEWS.md` beside it.
 The full version handling inside the release sequence is in
 [`process/`](/handbook/operations/releases/process/README.md).
 
@@ -83,27 +83,24 @@ and the counter is read back from `HEAD` at each step,
 which is what makes the replay restartable after a conflict.
 
 **A version bump is written by hand, as one commit named `chore: Bump version to <version>`.**
-It sets `Version:` in `DESCRIPTION`, closes the open `NEWS.md` section under the version's heading, and changes nothing else.
+It sets `Version:` in `DESCRIPTION`, and touches no other file but `NEWS.md`, which it need not touch at all.
 A released version is the bare three-component prefix, matching the upstream tag,
 set explicitly and never derived from git; the tag follows `DESCRIPTION`.
 A landing ends on a bump, its last commit
 ([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6),
 which takes the annotated tag `v<version>`, `v2.0.99.9001`,
-its message the subject `duckdb <version>` and then the section the bump closed.
+its message the subject `duckdb <version>` and then the section `NEWS.md` has for that version.
 A release's tag is written the same way, by the CRAN submission
 ([`cran/`](/handbook/operations/releases/cran/README.md)),
 or by hand on a line that does not ship to CRAN
 ([`process/`](/handbook/operations/releases/process/README.md), step 5).
 After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
-in a bump that changes `DESCRIPTION` alone, there being no section to close, and takes no tag.
+in a bump that takes no tag.
 
-**`NEWS.md` is kept by hand: a change users notice brings its bullet in the pull request that makes it.**
-The bullet goes into the open section at the top of the file, headed `# duckdb (development version)`,
-and a pull request that finds no open section writes that heading above the newest version's.
-Bullets sit under the subsection headings the released sections use, `## Features` and `## Bug fixes` among them,
-and a change only the tooling notices takes none.
-The bump that closes the section, a landing's or a release's, turns its heading into `# duckdb <version>`,
-or writes the version's section above the newest one where no pull request opened it.
+**`NEWS.md` is kept by a separate process, not by pull requests, ports or landings.**
+A port keeps the series' copy ([`series-loop`](/.claude/skills/series-loop/references/4-port.md)),
+and a landing's bump is recognized by its subject and its `DESCRIPTION` change, whether or not it touches `NEWS.md`
+([`scripts/series-land.sh`](/scripts/series-land.sh)).
 
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
@@ -112,10 +109,7 @@ A release branch landing its own line's commits short of an upstream patch relea
 and a landing that brings an upstream release sets that release's three components, `2.0.1`.
 [`scripts/series-land.sh`](/scripts/series-land.sh) refuses a bump that does not rise above the branch's version as well as the series',
 because a series not forwarded since the last landing still stamps the older fourth.
-The `NEWS.md` section a landing's bump closes takes as its first bullet the engine,
-`Vendored duckdb/duckdb main up to duckdb/duckdb@<sha> (<date>).`, the upstream branch in place of `main` for a release branch's landing,
-with a compare link from the previous landing's engine, `https://github.com/duckdb/duckdb/compare/<previous sha>...<sha>`.
-The bump also records the engine for scripts, which need not parse prose:
+The bump also records the engine:
 `Config/duckdb/upstream:` in `DESCRIPTION`, the full SHA of the upstream commit the landing vendors up to,
 on the line right below `Version:`.
 [`scripts/series-land.sh`](/scripts/series-land.sh) holds it to the engine the landing's last vendor commit vendors,

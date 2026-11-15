@@ -11,7 +11,7 @@ Little of this is codified; what is settled:
   phrased to be read:
   it is what squashes onto `main`.
   The commit messages inside the branch are discarded.
-* Add a bullet to `NEWS.md` in the same pull request when users will notice the change
+* Write no `NEWS.md` entry for the change
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * Run the tests the change touches
   ([`testing/suite/`](/handbook/testing/suite/README.md));

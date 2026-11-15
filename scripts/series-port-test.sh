@@ -23,8 +23,8 @@
 #      picked what it wanted, offers that pick and nothing the second parent
 #      brings.
 #   7. --apply keeps the series' NEWS.md on every pick. A commit that brings
-#      code and a bullet under `main`'s open section applies cleanly after a
-#      landing has renamed that heading, under its own author and trailer, and
+#      code and a NEWS.md entry applies cleanly after `main` has renamed the
+#      section the series carries too, under its own author and trailer, and
 #      leaves the series' NEWS.md as it was; a commit that writes nothing but
 #      NEWS.md comes out empty and is committed empty, so its trailer retires it.
 #   8. A ported commit keeps the whole message of the commit it ports, a
@@ -284,14 +284,13 @@ hasnt "nor the graft itself" "$out_graft" 'Graft rel-line'
 
 echo
 echo "series-port.sh: --apply keeps the series' NEWS.md"
-# A series cut from `main` while its section was open, carrying a bullet of its
-# own, and `main` releasing that section afterwards: the bump turns the heading
-# into the version's, and the next bullet opens a new section above it. Picked
-# whole, that commit conflicts in NEWS.md on the series.
+# A series cut from `main`, carrying a NEWS.md entry of its own, and `main`
+# renaming the section both carry afterwards and starting a new one above it.
+# Picked whole, that commit conflicts in NEWS.md on the series.
 git checkout -q main
 printf '# duckdb (development version)\n\n- A bullet both have.\n\n# duckdb 1.0.1\n\n- Something a user meets.\n' > NEWS.md
 git add -A
-git commit -qm 'docs(news): A bullet under the open section'
+git commit -qm 'docs(news): A bullet both have'
 git push -q upstream main
 git checkout -q -b t-dev
 echo 'flavored t' > R/flavor.R
