@@ -29,8 +29,8 @@ Four refs matter here:
   r-universe builds plain `duckdb` from `main` instead ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
   `main` is no release branch: it carries upstream `main`'s engine and releases nothing
   ([`branches/model/`](/handbook/branches/model/README.md)).
-  That holds once `v2.0-cyanoptera` is cut; until then `main` is the 2.0 line's release branch
-  ([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
+  That holds fully once the v2.0 series releases from `v2.0-cyanoptera` and `main` has moved on
+  ([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
@@ -264,8 +264,9 @@ in the one commit [`versioning/`](/handbook/operations/releases/versioning/READM
 Then rebase the LTS branch, one rename commit on top of the release branch:
 
 ```bash
-# in the <S>-lts worktree
-git rebase origin/<S> && git push origin <S>-lts
+S=v1.4-andium   # the LTS line just released
+git fetch origin "$S" "$S-lts"
+git switch "$S-lts" && git rebase "origin/$S" && git push origin "$S-lts"
 ```
 
 Build the source tarball and take it through WinBuilder and the CRAN
@@ -276,7 +277,9 @@ preflight before tagging (`cran/`).
 Tag the release with the annotated tag `versioning/` describes, and push; r-universe rebuilds automatically:
 
 ```bash
-v=X.Y.Z ref=origin/<S>-lts   # or origin/<S> per series convention
+S=v1.4-andium       # the line just released
+ref=origin/$S-lts   # origin/$S where the line has no -lts branch
+v=$(git show "$ref:DESCRIPTION" | sed -n 's/^Version: //p')
 { printf 'duckdb %s\n\n' "$v"; git show "$ref:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
 if [ "$(grep -c . tag-message)" -gt 1 ]; then
   git tag -a "v$v" --cleanup=whitespace -F tag-message "$ref" &&

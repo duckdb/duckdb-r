@@ -36,6 +36,9 @@ and `series-land.sh` refuses a `-fwd` series.
 `<B>` is the canonical branch it lands on, `main` or the line's release branch:
 the series' `releases_from` in `scripts/series.yaml`, which `series-land.sh` reads from the canonical `main`,
 and `<v>` the version the bump sets ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+Every command block below pastes as it stands, from the repository's root,
+with `upstream` naming `duckdb/duckdb-r` and `origin` the fork:
+it reads `<B>` with `series-land.sh --target`, and what a human chooses, the series first, is one variable at its top.
 
 ## The refs
 
@@ -88,7 +91,9 @@ A human runs these, and reads each output before the next.
 Inspect: the rulesets on `<B>`, and the commit it freezes at.
 
 ```sh
-R=duckdb/duckdb-r B=<B>
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+R=duckdb/duckdb-r
 gh api repos/$R/rulesets --jq '.[] | [.id, .name, .enforcement] | @tsv'
 gh api repos/$R/commits/$B --jq .sha
 ```
@@ -96,7 +101,8 @@ gh api repos/$R/commits/$B --jq .sha
 Freeze:
 
 ```sh
-B=<B>
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
 gh api -X POST repos/duckdb/duckdb-r/rulesets --input - <<EOF
 {
   "name": "freeze $B",
@@ -116,7 +122,8 @@ EOF
 Verify: an `update` row from the new ruleset, and `never`.
 
 ```sh
-B=<B>
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
 gh api repos/duckdb/duckdb-r/rules/branches/$B --jq '.[] | [.type, .ruleset_id] | @tsv'
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq ".[] | select(.name == \"freeze $B\") | .id")
 gh api repos/duckdb/duckdb-r/rulesets/$id --jq .current_user_can_bypass
@@ -130,17 +137,22 @@ The landing goes up to the tip of `<S>-rc-dev` as it stands when the build start
 Read off the engine it vendors and the engine `<B>` vendors, for the `NEWS.md` bullet the bump writes (step 3):
 
 ```sh
-git fetch origin <S>-rc-dev && git fetch upstream <B>
-git log -1 --format=%s origin/<S>-rc-dev -- src/duckdb   # its subject names duckdb/duckdb@<sha>
-git log -1 --format=%s upstream/<B> -- src/duckdb        # the previous landing's engine
-git -C "$UPSTREAM_CLONE" log -1 --format='%H %cs' <sha>  # the full SHA and its date
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+git fetch origin "$S-rc-dev" && git fetch upstream "$B"
+engine() { git show "$1:src/duckdb/src/function/table/version/pragma_version.cpp" |
+  sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p'; }
+for e in "$(engine "upstream/$B")" "$(engine "origin/$S-rc-dev")"; do   # the previous landing's, then this one's
+  gh api "repos/duckdb/duckdb/commits/$e" --jq '[.sha, .commit.committer.date[0:10]] | @tsv'
+done
 ```
 
 ## 3. Build the landing
 
 ```sh
-scripts/series-land.sh <S> --remote origin --canonical upstream          # build and check
-scripts/series-land.sh <S> --remote origin --canonical upstream --push   # and write both refs
+S=main   # the serving series that lands: main, or v2.0-cyanoptera
+scripts/series-land.sh "$S" --remote origin --canonical upstream          # build and check
+scripts/series-land.sh "$S" --remote origin --canonical upstream --push   # and write both refs
 ```
 
 It prints `<B>`'s tip as the commit it builds on; a series `scripts/series.yaml` does not declare lands on `main`.
@@ -206,11 +218,16 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   which the build holds to that commit's `DUCKDB_SOURCE_ID`:
 
   ```sh
+  RELEASE=''   # the upstream release this landing brings, such as 2.0.1; empty for none
+  S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+  B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+  cur=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
+  v=${RELEASE:-$(awk -F. '{ printf "%s.%s.%s.%d", $1, $2, $3, ($4 == "" ? 9000 : $4) + 1 }' <<<"$cur")}
   eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
-  full=$(git -C "$UPSTREAM_CLONE" rev-parse --verify "$eng^{commit}")
-  sed -i 's/^Version: .*/Version: <v>/; /^Config\/duckdb\/upstream:/d' DESCRIPTION
-  printf 'Config/duckdb/upstream: %s\n' "$full" >> DESCRIPTION
-  git diff DESCRIPTION
+  full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
+  sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
+  git diff DESCRIPTION   # the record sits right below Version:, where the merge driver keeps it
+  echo "$v"              # the version the NEWS.md section and the subject name
   ```
 
 * **`NEWS.md`**: close the open section, turning its heading into `# duckdb <v>`,
@@ -232,9 +249,11 @@ The landing's own diff is the engine's, hundreds of thousands of lines.
 What changes for `<B>`'s maintainers is the rest: the glue, R code and tests the series changed on the way.
 
 ```sh
-scripts/series-land.sh <S> --remote origin --canonical upstream --review --push
-gh pr create --repo duckdb/duckdb-r --draft --base <B> --head <L>-land-review \
-  --title "Review: the R side of the <L> landing"
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+scripts/series-land.sh "$S" --remote origin --canonical upstream --review --push
+gh pr create --repo duckdb/duckdb-r --draft --base "$B" --head "$S-land-review" \
+  --title "Review: the R side of the $S landing"
 ```
 
 The run prints the build's test report as well; it belongs in the pull request's description,
@@ -269,7 +288,8 @@ Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-lan
 Read and advance it with
 
 ```sh
-scripts/series-land.sh <S> --status --push
+S=main   # the serving series that lands: main, or v2.0-cyanoptera
+scripts/series-land.sh "$S" --status --push
 ```
 
 which moves `<L>-land-green` over the commits that passed and names the first that has not.
@@ -290,7 +310,10 @@ so a repair pushed in between cannot reach `<B>` unjudged.
 Lift the freeze, push, put the freeze back, and then tag the bump:
 
 ```sh
-B=<B> sha=<the SHA the READY line names>
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+sha=$(scripts/series-land.sh "$S" --status | sed -n 's/^  git push [^ ]* \([0-9a-f]\{40\}\):refs\/heads\/.*/\1/p')
+[ -n "$sha" ] || { echo "not READY" >&2; false; }
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq ".[] | select(.name == \"freeze $B\") | .id")
 gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=disabled
 git push upstream $sha:refs/heads/$B
@@ -309,7 +332,7 @@ A bump to an upstream release is tagged when the release is published instead
 ([`operations/releases/process/`](/handbook/operations/releases/process/README.md), step 5).
 
 ```sh
-v=<v>
+v=$(git show "$sha:DESCRIPTION" | sed -n 's/^Version: //p')
 { printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
 if [ "$(grep -c . tag-message)" -gt 1 ]; then
   git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha" &&
@@ -324,7 +347,8 @@ fi
 Delete the freeze, so that `<B>` takes pull requests again:
 
 ```sh
-B=<B>
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq ".[] | select(.name == \"freeze $B\") | .id")
 gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
 ```
@@ -350,7 +374,7 @@ Every commit since the last graft is either picked onto `main` or declined.
 List them, each marked picked, vendor or not yet:
 
 ```sh
-git fetch upstream main <B>
+git fetch upstream main
 scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
@@ -362,31 +386,46 @@ Rerun the listing until every commit left is one `main` declines: the vendor com
 Inspect what it records:
 
 ```sh
-git fetch upstream main <B>
-git log --reverse --no-merges --format='%h %s' upstream/main..upstream/<B>
+S=v2.0-cyanoptera                            # the series that landed on the release branch
+B=$(scripts/series-land.sh "$S" --target)   # that branch
+git fetch upstream main "$B"
+git log --reverse --no-merges --format='%h %s' "upstream/main..upstream/$B"
 ```
 
 Write the message, one line per declined commit with its reason, and make the merge:
 
 ```sh
-B=<B> v=<the version the landing bumped to>
-git switch -c graft/$B-$v upstream/main
-{ printf 'chore: Graft %s at %s\n\n' "$B" "$v"
-  printf 'main keeps its tree; this records %s as taken.\n\nDeclined:\n' "$B"
-  echo '- <sha> <subject>: <reason>'      # one line per declined commit, edited by hand
-} > graft-message
-"${EDITOR:-vi}" graft-message
-git merge --no-ff -s ours -F graft-message upstream/$B
+S=v2.0-cyanoptera                            # the series that landed on the release branch
+B=$(scripts/series-land.sh "$S" --target)   # that branch
+DECLINE_REASON="the release line's engine needs it and main's does not"   # why main declines what is not picked yet
+git fetch upstream main "$B"
+v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
+notyet=$(scripts/series-check.sh --canonical upstream 2>&1 |
+  sed -n "s/^ *\([0-9a-f]\{7,\}\) not yet  \(.*\)\$/- \1 \2: $DECLINE_REASON/p")
+cat > graft-message <<EOF
+chore: Graft $B at $v
+
+main keeps its tree; this records $B up to $(git rev-parse --short "upstream/$B") as taken.
+
+Declined:
+- every vendor commit: main takes its engine from upstream main
+$notyet
+EOF
+cat graft-message
+git switch -c "graft/$B-$v" upstream/main
+git merge --no-ff -s ours -F graft-message "upstream/$B"
 git diff --stat upstream/main HEAD       # empty: the graft changes no file
-git push upstream HEAD:refs/heads/graft/$B-$v
-gh api repos/duckdb/duckdb-r/pulls -f base=main -f head=graft/$B-$v -f title="chore: Graft $B at $v" -F body=@graft-message
+git push upstream "HEAD:refs/heads/graft/$B-$v"
+gh api repos/duckdb/duckdb-r/pulls -f base=main -f head="graft/$B-$v" -f title="chore: Graft $B at $v" -F body=@graft-message
 ```
 
 A squash or rebase merge would drop the second parent, so the reviewed commit goes onto `main` as it is,
-a fast-forward that GitHub records as the pull request's merge, with the branch ruleset's admin bypass:
+a fast-forward that GitHub records as the pull request's merge.
+It needs the admin bypass of `main`'s ruleset twice over: a direct push where pull requests are required,
+and a merge commit where history must be linear.
 
 ```sh
-sha=$(git rev-parse HEAD)
+sha=$(git rev-parse HEAD)   # the graft, still checked out
 git fetch upstream main && git merge-base --is-ancestor upstream/main "$sha" && echo "fast-forward"
 git push upstream "$sha:refs/heads/main"
 git ls-remote upstream refs/heads/main
@@ -406,17 +445,21 @@ and the line it shipped before keeps its release branch, parked.
    Inspect, cut, confirm, each read before the next:
 
    ```sh
+   N=$(git ls-remote --heads https://github.com/duckdb/duckdb 'v*' | sed 's#.*refs/heads/##' | sort -V | tail -n 1)   # upstream's newest release branch
+   echo "$N"
    git fetch upstream main
-   git ls-remote upstream refs/heads/<N>      # nothing yet
+   git ls-remote upstream "refs/heads/$N"      # nothing yet
    git log -1 --format='%h %s' upstream/main -- src/duckdb
    ```
 
    ```sh
-   git push upstream upstream/main:refs/heads/<N>
+   N=$(git ls-remote --heads https://github.com/duckdb/duckdb 'v*' | sed 's#.*refs/heads/##' | sort -V | tail -n 1)   # upstream's newest release branch
+   git push upstream "upstream/main:refs/heads/$N"
    ```
 
    ```sh
-   git ls-remote upstream refs/heads/<N> refs/heads/main
+   N=$(git ls-remote --heads https://github.com/duckdb/duckdb 'v*' | sed 's#.*refs/heads/##' | sort -V | tail -n 1)   # upstream's newest release branch
+   git ls-remote upstream "refs/heads/$N" refs/heads/main
    ```
 
 2. **Declare it**, in one pull request on `main` before the landing:

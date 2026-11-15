@@ -119,11 +119,13 @@
 #        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
 #                       [--canonical <name>] [--push]
+#        series-land.sh <S> --target [--canonical <name>]
 #        series-land.sh <S> --abort
 #   <S> is the serving series whose rc strand lands, `v2.0-cyanoptera` for
 #   `v2.0-cyanoptera-rc-dev`, never a `-fwd` series; the refs are named for it,
 #   `v2.0-cyanoptera-land-*`, on --remote. The branch landed on is its
 #   `releases_from`, read with `main` from --canonical.
+#   --target prints that branch and nothing else, for a command block to read.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
@@ -144,12 +146,12 @@ shopt -s inherit_errexit
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --target | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
+push='' status='' target='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -167,13 +169,14 @@ while [ $# -gt 0 ]; do
     --status) status=1; shift ;;
     --review) review=1; shift ;;
     --abort) abort=1; shift ;;
+    --target) target=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
   esac
 done
 [ ${#args[@]} -eq 1 ] || argerr
-[ $((${status:-0} + ${review:-0} + ${abort:-0})) -le 1 ] || argerr
+[ $((${status:-0} + ${review:-0} + ${abort:-0} + ${target:-0})) -le 1 ] || argerr
 S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
@@ -207,22 +210,36 @@ fi
 # has not caught up is an older `main`, and a landing built on it cannot
 # fast-forward the real one.
 if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; then
-  echo "Error: no canonical remote \"$canonical\" to read $onto from." >&2
+  echo "Error: no canonical remote \"$canonical\" to read main and the branch $S lands onto from." >&2
   echo "  Add $series_canonical_repo as 'upstream', or pass --canonical <name>." >&2
   exit 1
 fi
 # The branch landed on is the series' `releases_from` in the canonical `main`'s
-# scripts/series.yaml, `main` where it declares none, quotes and all read bare.
+# scripts/series.yaml, quotes and all read bare. `main`'s own series needs no
+# row; any other series without one, or a row without `releases_from`, is
+# refused rather than landed on `main` by default, since a misspelt name would
+# otherwise land a release line there.
 git fetch -q "$canonical" main
-onto=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
+row=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
   awk -v s="$S" '
     function val(v) { gsub(/["'"'"']/, "", v); return v }
-    function flush() { if (ser == s && rf != "") print rf; ser = ""; rf = "" }
+    function flush() { if (ser == s) print "row " rf; ser = ""; rf = "" }
     /^  - / { flush() }
     /^    series:/ { ser = val($2) }
     /^    releases_from:/ { rf = val($2) }
     END { flush() }' | head -n 1)
-onto=${onto:-main}
+onto=${row#row }
+onto=${onto# }
+if [ -z "$onto" ]; then
+  if [ "$S" = main ] && [ -z "$row" ]; then
+    onto=main
+  else
+    echo "Error: $canonical's main declares no releases_from for the series $S in scripts/series.yaml;" >&2
+    echo "  declare it there, or name the serving series as series.yaml does." >&2
+    exit 1
+  fi
+fi
+if [ -n "$target" ]; then echo "$onto"; exit 0; fi
 # `main` holds the tip of that branch, whatever its name.
 if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
   echo "Error: could not fetch $onto from $canonical, the branch $S releases from:" >&2
@@ -313,7 +330,8 @@ is_bump() { # <commit>
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
-# commits, and at most one version bump as the last commit? A fix is folded
+# commits, and at most one version bump as the last commit, never without a
+# vendor commit under it? A fix is folded
 # into the commit that introduced the defect, so that every commit passes;
 # nothing else sits on top. The bump is the one commit written by hand, and it
 # is accepted only after a vendor commit. Prints the first commit out of place.
@@ -330,6 +348,14 @@ out_of_place() { # <tip>
     why=$(is_bump "$c") || { echo "$c $subj ($why)"; return; }
     bump=1
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
+  # A bump with no vendor commit under it lands no engine and would pass
+  # unchecked as one of the base's own commits: an empty landing.
+  if [ -z "$seen" ] && [ "$(git rev-parse "$1")" != "$(git rev-parse "$main")" ]; then
+    subj=$(git log -1 --format=%s "$1")
+    case "$subj" in
+      "$bump_subject"*) echo "$(git rev-parse --short "$1") $subj (a bump with no vendor commit under it)" ;;
+    esac
+  fi
 }
 
 # --- --status: what CI has decided, and green over the passed prefix ----------

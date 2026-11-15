@@ -20,13 +20,14 @@
 #
 # And one report about branches rather than a red commit:
 #
-#   9. FORWARD-PORT lists the commits of the CRAN line's release branch that
-#      `main` has not grafted, each marked picked (by patch-id or a `cherry
-#      picked from commit` trailer either way), vendor, or not yet, and none
-#      once `main` has grafted the branch, a graft's second parent never
-#      counting as `main`'s own; nothing before the branch is cut, a quoted
-#      declaration reads the same, and a branch with no merge base with `main`
-#      is reported as missing data.
+#   9. FORWARD-PORT counts the commits of the CRAN line's release branch that
+#      `main` has not grafted: vendor commits and release paperwork by number,
+#      each R-side commit listed as picked (by patch-id or a `cherry picked from
+#      commit` trailer either way) or not yet; none once `main` has grafted the
+#      branch, a graft's second parent never counting as `main`'s own. Nothing
+#      before the branch is cut, a quoted declaration reads the same, and a
+#      branch it cannot read, without a canonical remote or with no merge base
+#      with `main`, is reported as missing data.
 #
 # Usage:
 #   scripts/series-check-test.sh
@@ -232,9 +233,17 @@ git add -A; git commit -qm 'chore: Declare the flavors'
 git push -q canon cmain:main
 is "nothing before the line's branch is cut" "$(fwd)" ""
 
+git push -q -f origin cmain:main
+out=$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')
+has "without a canonical remote or a mirror, it says it could not read" "$out" "could not read rel beside main"
+
 git checkout -q -b rel cmain
-echo 'engine bbbb222' > src/duckdb/engine.cpp
-git commit -qam 'vendor: Update vendored sources to duckdb/duckdb@bbbb222'
+for e in bbbb222 bbbb223 bbbb224; do
+  echo "engine $e" > src/duckdb/engine.cpp
+  git commit -qam "vendor: Update vendored sources to duckdb/duckdb@$e"
+done
+echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
 echo 'fix a' > a.R; git add -A; git commit -qm 'fix: A, picked onto main'
 A=$(git rev-parse HEAD)
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, the same patch on main'
@@ -252,12 +261,17 @@ echo 'fix d, as rel needs it' > d.R; git commit -q --amend -a --no-edit
 git push -q canon cmain:main rel
 git checkout -q main
 out=$(fwd)
-has "it counts what main has not grafted" "$out" "rel has 5 commit(s) main has not grafted, 1 not yet picked"
+has "it counts what main has not grafted" "$out" "rel has 8 commit(s) main has not grafted: 3 vendor, 1 release paperwork,"
+has "and the R-side commits" "$out" "4 R-side, 1 of them not yet picked"
 has "a pick with -x, edited, is picked" "$out" "picked   fix: A"
 has "the same patch is picked" "$out" "picked   fix: B"
 has "a backport from main is picked" "$out" "picked   fix: D"
-has "the engine is vendor" "$out" "vendor   vendor: Update vendored sources to duckdb/duckdb@bbbb222"
+hasnt "vendor commits are not listed one by one" "$out" "bbbb22"
+hasnt "nor the bump" "$out" "Bump version"
 has "the rest is not yet" "$out" "$(git rev-parse --short "$C") not yet  fix: C"
+git push -q -f origin cmain:main rel:rel
+has "without a canonical remote it reads the fork's mirrors" \
+  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 8 commit(s)"
 
 git checkout -q cmain
 git cherry-pick -x "$C" >/dev/null
@@ -276,7 +290,7 @@ echo 'fix f' > f.R; git add -A; git commit -qm 'fix: F, main after the graft'
 git push -q canon cmain:main
 git checkout -q main
 out=$(fwd)
-has "a commit after the graft is listed alone" "$out" "rel has 1 commit(s) main has not grafted, 1 not yet picked"
+has "a commit after the graft is listed alone" "$out" "rel has 1 commit(s) main has not grafted: 0 vendor, 0 release paperwork,"
 hasnt "and nothing the graft took" "$out" "fix: C"
 
 git checkout -q --orphan lone

@@ -49,7 +49,10 @@
 #  15. The branch landed on is the series' `releases_from` in `main`'s
 #      scripts/series.yaml: the build stands on its tip, --status prints its
 #      fast-forward, --review targets it, and the version bump has to rise
-#      above that branch's version too. A `-fwd` series is refused.
+#      above that branch's version too. A `-fwd` series is refused, and so is
+#      one series.yaml does not declare, except `main`'s own; a bump with no
+#      vendor commit under it is not a landing; and without a canonical remote
+#      the script says so itself.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -122,6 +125,7 @@ echo 'glue 1' > src/glue.cpp
 echo 'test 1' > tests/testthat/test-foo.R
 printf 'a\nb\nc\n' > tests/testthat/test-bar.R
 echo '# duckdb 1.5.5.9000' > NEWS.md
+printf 'flavors:\n  - flavor: duckdb.x.dev\n    kind: dev\n    series: v2.0-x\n    releases_from: main\n' > scripts/series.yaml
 echo 'readme at the base' > README.md
 commit 'vendor: Update vendored sources to duckdb/duckdb@aaaa111 (#1)'
 B=$(git rev-parse HEAD)
@@ -357,8 +361,7 @@ ENGINE_FULL=dddd444000000000000000000000000000000000
 # The open section's heading turned into the version's, as the bump closes it:
 # NEWS.md starts with that section, with no line above it.
 write_bump() { # <version> [<engine record>]
-  sed -i "s/^Version: .*/Version: $1/; /^Config\/duckdb\/upstream:/d" DESCRIPTION
-  printf 'Config/duckdb/upstream: %s\n' "${2-$ENGINE_FULL}" >> DESCRIPTION
+  sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
   printf '# duckdb %s\n\n- Something for users.\n\n# duckdb 1.5.5.9000\n' "$1" > NEWS.md
 }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
@@ -433,6 +436,19 @@ git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
 status_of "$(git rev-parse HEAD)"
 is "a merge commit is refused" "$st" 1
 git checkout -q -f main; git branch -q -D side
+
+echo "== and it never stands alone"
+GA=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git push -q -f origin "$M:refs/heads/v2.0-x-land-green"
+git checkout -q -f -B probe "$M"
+write_bump 1.99.99.9001
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+is "a bump with no vendor commit under it is refused" "$st" 1
+has "  and says so" "$out" "a bump with no vendor commit under it"
+hasnt "  and is not ready" "$out" "READY: every"
+git checkout -q -f main
+git push -q -f origin "$GA:refs/heads/v2.0-x-land-green"
 
 echo "== and nothing sits above it"
 git checkout -q -f -B probe "$BUMP"
@@ -716,6 +732,7 @@ git push -q upstream canonmain:main
 git checkout -q -f main
 out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
+is "--target prints that branch" "$(scripts/series-land.sh v2.0-x --target 2>&1)" hi
 has "the build stands on that branch, read through quotes" "$out" "vendor commits on $(git rev-parse --short "$HI")"
 has "its engine record is the branch's, and no difference" "$out" "Config/duckdb/upstream:, is the branch's"
 hasnt "  so the landing is the series' package" "$out" "DIVERGED"
@@ -751,6 +768,18 @@ has "the review pull request targets it" "$out" "--draft --base hi --head v2.0-x
 git checkout -q -f main
 git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
 git branch -q -D probe hi canonmain
+
+echo
+echo "== the series must be declared, and the canonical remote named"
+out=$(scripts/series-land.sh v9.9-none --no-check-glue 2>&1) && st=0 || st=$?
+is "a series series.yaml does not declare is refused" "$st" 1
+has "  naming it" "$out" "declares no releases_from for the series v9.9-none"
+out=$(scripts/series-land.sh main --status 2>&1) || true
+hasnt "main's own series needs no row" "$out" "declares no releases_from"
+out=$(SERIES_CANONICAL='' scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
+is "without a canonical remote it stops" "$st" 1
+has "  with its own error" "$out" "Error: no canonical remote"
+hasnt "  not the shell's" "$out" "unbound variable"
 
 echo
 echo "$pass passed, $fail failed"

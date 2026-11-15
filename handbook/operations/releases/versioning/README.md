@@ -116,14 +116,17 @@ The `NEWS.md` section a landing's bump closes takes as its first bullet the engi
 `Vendored duckdb/duckdb main up to duckdb/duckdb@<sha> (<date>).`, the upstream branch in place of `main` for a release branch's landing,
 with a compare link from the previous landing's engine, `https://github.com/duckdb/duckdb/compare/<previous sha>...<sha>`.
 The bump also records the engine for scripts, which need not parse prose:
-`Config/duckdb/upstream:` in `DESCRIPTION`, the full SHA of the upstream commit the landing vendors up to.
+`Config/duckdb/upstream:` in `DESCRIPTION`, the full SHA of the upstream commit the landing vendors up to,
+on the line right below `Version:`.
 [`scripts/series-land.sh`](/scripts/series-land.sh) holds it to the engine the landing's last vendor commit vendors,
 the abbreviated SHA the vendored tree records as `DUCKDB_SOURCE_ID`, which every vendor commit writes whatever its subject says.
 R CMD build and check accept it, as they accept any field under `Config/`
 ([Writing R Extensions](https://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file)).
-No port carries a bump, so a series lacks the line or lags it, and a landing's tree check takes it as the branch's;
-the merge driver merges it three-way like every line but `Version:`, so two sides that changed it differently conflict,
-and a graft keeps `main`'s, as it keeps all of `main`'s tree.
+No port carries a bump, so a series lacks the line or lags it, and a landing's tree check takes it as the branch's.
+The merge driver resolves it as it resolves `Version:`: ours keeps its own record, or none where it has none,
+so a pick or a port never rewrites the engine a branch records, and a field changed near it merges cleanly.
+A bump that is itself replayed by a pick therefore loses its new record, and the landing's check says so.
+A graft never reaches the driver and keeps `main`'s record with the rest of `main`'s tree.
 The merge driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
@@ -139,7 +142,7 @@ the strand vendors and stamps it, keeping the vendor counter and refusing a vers
 would not rise; `--check` reports and exits 1 where it is owed.
 The prefix names the line being previewed, never the one seeded from, so it is read off the target:
 a series previewing **2.1** takes `2.0.99.9000`, one previewing **2.0** takes `1.99.99.9000`.
-Once the line CRAN ships has a branch of its own, `main` carries the prefix itself
+Once the line CRAN ships releases from a branch of its own, `main` carries the prefix itself
 ([`branches/model/`](/handbook/branches/model/README.md) says when that is),
 `2.0.99` while upstream `main` heads for 2.1, and its fourth component counts landings above `.9000`,
 so the series tracking upstream `main`, seeded on it, takes `main`'s version as it stands,
