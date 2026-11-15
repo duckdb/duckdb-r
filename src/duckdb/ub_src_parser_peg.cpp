@@ -32,3 +32,5 @@
 
 #include "src/parser/peg/sql_formatter.cpp"
 
+#include "src/parser/peg/syntax_error.cpp"
+
