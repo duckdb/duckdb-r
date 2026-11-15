@@ -186,7 +186,7 @@ for url in https://github.com/o/r https://github.com/o/r.git https://github.com/
 done
 # A token in the URL names the repository as the bare URL does, and is never printed.
 git remote add gh-url https://x-access-token:s3cr3t@github.com:443/o/r.git
-unread="gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev  # for a maintainer's shell: the tip of b-fwd-dev could not be read; read it first"
+unread="git ls-remote gh-url refs/heads/b-fwd-dev  # the tip of b-fwd-dev could not be read: once this reads it, rerun for the line that deletes it"
 dispatch="gh api -X POST repos/o/r/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]="
 is "a URL with a user, a token and a port names o/r" "$(series_github_slug gh-url)" o/r
 is "and the token is in neither of its lines" "$(series_github_slug gh-url; series_delete_line gh-url b-fwd-dev)" \
@@ -203,7 +203,7 @@ is "a URL that is not GitHub's names nothing" "$(series_github_slug proxied)" ""
 is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-dev)" "git push --delete proxied b-fwd-dev"
 git config remote.proxied.github o/r
 is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
-is "and then with gh api, for a remote it cannot read" "$(series_delete_line proxied b-fwd-dev)" "$unread"
+is "and then, for a remote it cannot read, with the read that deletes nothing" "$(series_delete_line proxied b-fwd-dev)" "${unread/gh-url/proxied}"
 # A remote it can read: the pull request is the lowest-numbered one whose head is the tip.
 git init -q --bare "$SCRATCH/gh.git"
 tipc=$(git rev-parse HEAD)

@@ -83,6 +83,15 @@ no() { fail=$((fail + 1)); echo "  FAIL $1"; }
 is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
 has() { case "$2" in *"$3"*) ok "$1" ;; *) no "$1"; echo "       missing: $3" ;; esac; }
 hasnt() { case "$2" in *"$3"*) no "$1"; echo "     unexpected: $3" ;; *) ok "$1" ;; esac; }
+# The tip-checked deletion printed for a maintainer, for a ref no pull request's head pins: <remote> <slug> <branch>,
+# at the tip the remote holds now.
+checked() {
+  local t
+  t=$(git ls-remote "$1" "refs/heads/$3" | cut -f1)
+  # shellcheck disable=SC2016  # the command as it is printed
+  printf 'if [ "$(gh api repos/%s/git/ref/heads/%s --jq .object.sha)" = %s ]; then gh api -X DELETE repos/%s/git/refs/heads/%s; else echo '"'"'%s is not at %s: read what moved before deleting it'"'"'; fi  # for a maintainer'"'"'s shell: no pull request'"'"'s head is at %s, so the workflow cannot pin it' \
+    "$2" "$3" "$t" "$2" "$3" "$3" "${t:0:12}" "${t:0:12}"
+}
 
 # --- the fixture -----------------------------------------------------------
 #
@@ -756,10 +765,10 @@ hasnt "and offers none for the green it did not move" "$out" "upstream $OLD_GREE
 has "the litter in the fork is named" "$out" \
   "  cutover litter in origin, which loses nothing when deleted: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor"
 for r in build dev green build-base vendor; do
-  has "with one tip-checked deletion for -fwd-$r, for a maintainer, as no pull request pins it" "$out" "    if [ \"\$(gh api repos/test/fork/git/ref/heads/v9.9-x-fwd-$r --jq .object.sha)\" = "
+  has "with one tip-checked deletion for -fwd-$r, for a maintainer, as no pull request pins it" "$out" "    $(checked origin test/fork "v9.9-x-fwd-$r")"
 done
 has "and the canonical copy" "$out" "  cutover litter in upstream, which loses nothing when deleted: v9.9-x-fwd-green"
-has "with its own" "$out" "    if [ \"\$(gh api repos/test/canonical/git/ref/heads/v9.9-x-fwd-green --jq .object.sha)\" = "
+has "with its own" "$out" "    $(checked upstream test/canonical v9.9-x-fwd-green)"
 is "the last line says so" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
   "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
 has "and the status is 9" "$out" "EXIT=9"
@@ -804,8 +813,8 @@ has "and the canonical copy" "$out" "  v9.9-x-fwd-green on upstream"
 has "the vendor strand among it too" "$out" "  v9.9-x-fwd-vendor"
 has "the deletion in the fork" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev"
 has "and in the canonical repository" "$out" "git push --delete upstream v9.9-x-fwd-green"
-has "and one line per ref in the fork" "$out" "if [ \"\$(gh api repos/test/fork/git/ref/heads/v9.9-x-fwd-rc-dev --jq .object.sha)\" = "
-has "and in the canonical repository" "$out" "if [ \"\$(gh api repos/test/canonical/git/ref/heads/v9.9-x-fwd-green --jq .object.sha)\" = "
+has "and one line per ref in the fork" "$out" "$(checked origin test/fork v9.9-x-fwd-rc-dev)"
+has "and in the canonical repository" "$out" "$(checked upstream test/canonical v9.9-x-fwd-green)"
 has "a ref no pull request's head is at is for a maintainer's shell, and says why" "$out" \
   "# for a maintainer's shell: no pull request's head is at ${NEW_DEV:0:12}, so the workflow cannot pin it"
 has "and nothing was run" "$out" "Nothing above was run."

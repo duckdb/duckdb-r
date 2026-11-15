@@ -235,7 +235,9 @@ series_github_slug() { # <remote> -> owner/repo, empty when none
 # lines loads it once with `series_delete_listing <remote>`, outside the command
 # substitutions that call `series_delete_line`, which then read it; without it,
 # each line runs its own `git ls-remote`. A remote that cannot be read is not
-# cached, and each line then says its tip could not be read.
+# cached, and each line then says its tip could not be read. The cache is kept
+# per remote name and never invalidated, so load it after the last push to
+# that remote, or the lines name tips that have moved.
 declare -gA series_delete_cache=()
 series_delete_listing() { # <remote>
   local refs
@@ -256,7 +258,8 @@ series_delete_listing() { # <remote>
 # all in a comment, since the lowest may be open. Where no pull request's head
 # is the tip, as for cutover litter, the workflow cannot pin it, and the line is
 # a maintainer's: a `gh api -X DELETE` that checks the tip first, since the API
-# takes no lease. Whether another branch at the same tip should pin it is open:
+# takes no lease. A tip it cannot read gets the `git ls-remote` that reads it,
+# which deletes nothing. Whether another branch at the same tip should pin it is open:
 # https://github.com/duckdb/duckdb-r/pull/2992#issuecomment-6896800985
 # One line per ref, so each can be run, or quoted, on its own.
 series_delete_line() { # <remote> <branch> -> one command
@@ -274,7 +277,7 @@ series_delete_line() { # <remote> <branch> -> one command
   fi
   tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
   if [ -z "$tip" ]; then
-    echo "gh api -X DELETE repos/$slug/git/refs/heads/$2  # for a maintainer's shell: the tip of $2 could not be read; read it first"
+    echo "git ls-remote $1 refs/heads/$2  # the tip of $2 could not be read: once this reads it, rerun for the line that deletes it"
     return
   fi
   prs=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); print p[3] }' <<<"$refs" |
