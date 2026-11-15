@@ -1,21 +1,13 @@
 #include "duckdb/main/db_instance_cache.hpp"
 #include "duckdb/main/extension_helper.hpp"
 #include "duckdb/main/database_file_path_manager.hpp"
-#include "duckdb/common/chrono.hpp"
-#include "duckdb/parallel/task_scheduler.hpp"
 
 namespace duckdb {
-
-//! How long to wait for an in-flight shutdown before reporting that the database is still in use
-static constexpr int64_t SHUTDOWN_WAIT_SECONDS = 5;
-
-//! How long a shutdown is given to finish before a live instance is reported as still in use
-static constexpr int64_t IN_USE_GRACE_MILLIS = 100;
 
 DatabaseCacheEntry::DatabaseCacheEntry() {
 }
 
-DatabaseCacheEntry::DatabaseCacheEntry(const shared_ptr<DuckDB> &database_p) : database(database_p) {
+DatabaseCacheEntry::DatabaseCacheEntry(const shared_ptr<DatabaseInstance> &instance_p) : instance(instance_p) {
 }
 
 DatabaseCacheEntry::~DatabaseCacheEntry() {
@@ -78,69 +70,37 @@ shared_ptr<DuckDB> DBInstanceCache::GetInstanceInternal(const string &database, 
 		db_instances.erase(entry);
 		return nullptr;
 	}
-	shared_ptr<DuckDB> db_instance;
+	shared_ptr<DatabaseInstance> db_instance;
 	{
 		db_instances_lock.unlock();
 		std::lock_guard<mutex> create_db_lock(cache_entry->update_database_mutex);
-		db_instance = cache_entry->database.lock();
+		db_instance = cache_entry->instance.lock();
 	}
 	// cache entry exists - check if the actual database still exists
 	if (!db_instance) {
-		// an entry whose handle is gone is usually a shutdown finishing, which takes microseconds. but a
-		// DatabaseInstance can outlive that handle, because a ClientContext holds one and a connection or an
-		// unfinished result holds a ClientContext - then nothing is shutting down, the entry is released on
-		// the last line of ~DatabaseInstance and never expires, and waiting for it is futile
-		//
-		// we report rather than fall through to CreateInstance: the file lock does not fire within a single
-		// process, so creating would succeed and leave two instances writing the same file
+		// if the instance does not exist, but the cache entry still exists, the instance is being shut down
+		// we need to wait until the database is fully shut down to safely proceed
+		// we do this here using a busy spin
 		cache_entry.reset();
-		auto now = std::chrono::steady_clock::now();
-		// the grace period is what keeps a shutdown that is genuinely in flight from being reported as in
-		// use: ~DuckDB drops the handle before it drops the instance, so the instance is briefly alive
-		// while a real shutdown runs
-		auto grace = now + std::chrono::milliseconds(IN_USE_GRACE_MILLIS);
-		auto deadline = now + std::chrono::seconds(SHUTDOWN_WAIT_SECONDS);
 		while (!weak_cache_entry.expired()) {
-			TaskScheduler::YieldThread();
-			now = std::chrono::steady_clock::now();
-			if (now > grace) {
-				auto entry = weak_cache_entry.lock();
-				shared_ptr<DatabaseInstance> live_instance;
-				if (entry) {
-					live_instance = entry->instance.lock();
-				}
-				entry.reset();
-				if (live_instance) {
-					auto connections = ConnectionManager::Get(*live_instance).GetConnectionCount();
-					live_instance.reset();
-					if (connections > 0) {
-						throw ConnectionException("Database \"%s\" is still in use: %llu connection(s) are open on it",
-						                          database, connections);
-					}
-					throw ConnectionException("Database \"%s\" is still in use: no connections are open, but "
-					                          "something still holds it, such as an unfinished query result",
-					                          database);
-				}
-				grace = now + std::chrono::milliseconds(IN_USE_GRACE_MILLIS);
-			}
-			if (now > deadline) {
-				throw ConnectionException("Database \"%s\" did not finish shutting down within %d seconds", database,
-				                          SHUTDOWN_WAIT_SECONDS);
-			}
 		}
 		D_ASSERT(!cache_entry);
 		// the cache entry has now been deleted - clear it from the set of database instances and return
 		db_instances_lock.lock();
-		db_instances.erase(cache_key);
+		// another thread can have cached a new entry under the same key by now
+		auto current_entry = db_instances.find(cache_key);
+		if (current_entry != db_instances.end() && current_entry->second.expired()) {
+			db_instances.erase(current_entry);
+		}
 		db_instances_lock.unlock();
 		return nullptr;
 	}
 	// the database instance exists - check that the config matches
-	if (db_instance->instance->config != config) {
+	if (db_instance->config != config) {
 		throw ConnectionException("Can't open a connection to same database file with a different configuration "
 		                          "than existing connections");
 	}
-	return db_instance;
+	return make_shared_ptr<DuckDB>(*db_instance);
 }
 
 shared_ptr<DuckDB> DBInstanceCache::GetInstance(const string &database, const DBConfig &config) {
@@ -177,7 +137,6 @@ shared_ptr<DuckDB> DBInstanceCache::CreateInstanceInternal(const string &databas
 		db_instances[cache_key] = cache_entry;
 		db_instances_lock.unlock();
 		db_instance = make_shared_ptr<DuckDB>(instance_path, &config);
-		cache_entry->database = db_instance;
 		cache_entry->instance = db_instance->instance;
 	} else {
 		db_instances_lock.unlock();
