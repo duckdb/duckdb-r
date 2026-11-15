@@ -80,6 +80,7 @@
 # The calls that link them are the skill's, since only the pull requests' numbers fill them in.
 # --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves,
 # and removes it again where the push is refused, so that no summary of a build that was never pushed is left behind.
+# Only a regular file is removed: a link or a device is left as it is, and the run says what it left.
 # The script reads no terminal: stdin is /dev/null, and a conflict stops the run for the next one to resume.
 #
 # Usage: series-cutover-stack.sh <series> <strand> [--remote <name>] [--upstream <path>] [--summary <file>] [--continue | --abort]
@@ -101,7 +102,7 @@
 #   0  built and pushed.
 #   1  refused or failed, and nothing pushed: a ref missing, a series on its forward's lineage,
 #      an engine that cannot be read, a stopped build in the way, a summary file that cannot be written,
-#      a push refused, a lease it lost among them, which removes the --summary file again.
+#      a push refused, a lease it lost among them, which removes a regular --summary file again.
 #      A rerun reads the refs anew.
 #   2  a usage error; nothing was read.
 #   3  stopped on a conflict, the worktree and the build kept for --continue; nothing was pushed.
@@ -807,8 +808,14 @@ if ! out=$(git push "${push_args[@]}" "$remote" "${refspecs[@]}" 2>&1); then
   echo "  a branch of the stack moved since this run read it, or the remote refused the push. Built, not pushed:" >&2
   for L in "${layers[@]}"; do echo "  ${SHA[$L]} $cut/$L" >&2; done
   # The summary describes this build, which no branch holds.
+  # `rm` would take a link and leave the file written through it, or take a device whole.
   if [ -n "$summary" ]; then
-    if rm -f -- "$summary"; then
+    if [ -L "$summary" ]; then
+      echo "  The summary of this build, which was not pushed, was written through the link $summary" >&2
+      echo "  to $(readlink -f -- "$summary" || readlink -- "$summary"), and both are left as they are: remove the summary there by hand." >&2
+    elif [ ! -f "$summary" ]; then
+      echo "  $summary is not a regular file, so it is left as it is, with whatever it took of the summary of this build, which was not pushed." >&2
+    elif rm -f -- "$summary"; then
       echo "  The summary written to $summary for this build is removed, since the build was not pushed." >&2
     else
       echo "  The summary written to $summary is of this build, which was not pushed, and it could not be removed: remove it." >&2
