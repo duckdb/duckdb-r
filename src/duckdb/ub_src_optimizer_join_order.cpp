@@ -10,6 +10,8 @@
 
 #include "src/optimizer/join_order/join_order_optimizer.cpp"
 
+#include "src/optimizer/join_order/join_order_source_stats.cpp"
+
 #include "src/optimizer/join_order/join_predicate.cpp"
 
 #include "src/optimizer/join_order/join_relation_set.cpp"
