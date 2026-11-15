@@ -75,6 +75,7 @@ scripts=(
   series-converge.sh
   series-cut.sh
   series-cutover.sh
+  series-cutover-stack.sh
   series-forward-build.sh
   series-glue.sh
   series-land.sh
@@ -97,6 +98,7 @@ remote_scripts=(
   series-converge.sh
   series-cut.sh
   series-cutover.sh
+  series-cutover-stack.sh
   series-glue.sh
   series-land.sh
   series-learned.sh
@@ -106,7 +108,7 @@ remote_scripts=(
   series-rc.sh
   series-vendor.sh
 )
-upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
+upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh series-cutover-stack.sh)
 canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh series-prune.sh)
 
 echo "== -h and --help print the usage and exit 0"
@@ -146,6 +148,9 @@ is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed
 is "series-learned.sh --since (bare)"            "$(rc series-learned.sh s --since)" 2
 is "series-cutover.sh --out (bare)"              "$(rc series-cutover.sh s --out)" 2
 is "series-cutover.sh --confirm (bare)"          "$(rc series-cutover.sh s --confirm)" 2
+is "series-cutover-stack.sh --summary (bare)"    "$(rc series-cutover-stack.sh s dev --summary)" 2
+is "series-cutover-stack.sh <S> <not a strand>"  "$(rc series-cutover-stack.sh s build-base)" 2
+is "series-cutover-stack.sh --continue --abort"  "$(rc series-cutover-stack.sh s dev --continue --abort)" 2
 is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
 is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
 is "series-land.sh --source (bare)"              "$(rc series-land.sh s --source)" 2
@@ -178,8 +183,8 @@ done
 echo
 echo "== a confirmation names what it confirms"
 # The swap's confirmation, given on the command line, is checked before git is:
-# a name other than the series, a SHA of another shape, or one beside --prepare
-# or --no-archive, is a wrong invocation and not a wrong answer.
+# a name other than the series, a SHA of another shape, or one beside --prepare,
+# is a wrong invocation and not a wrong answer; so is a run that names neither.
 sha=0123456789abcdef0123456789abcdef01234567
 is "series-cutover.sh accepts --confirm" "$(out series-cutover.sh --help | grep -c -- '--confirm <series>@<sha>')" 1
 is "series-cutover.sh s --confirm t@<sha>"     "$(rc series-cutover.sh s --confirm "t@$sha")" 2
@@ -193,13 +198,14 @@ is "series-cutover.sh s --confirm s@<not hex>" "$(rc series-cutover.sh s --confi
 is "series-cutover.sh s --confirm s@<capitals>" "$(rc series-cutover.sh s --confirm s@0123456789ABCDEF)" 2
 is "series-cutover.sh s --confirm s@<sha> --prepare" "$(rc series-cutover.sh s --confirm "s@$sha" --prepare)" 2
 is "series-cutover.sh s --prepare --confirm s@<sha>" "$(rc series-cutover.sh s --prepare --confirm "s@$sha")" 2
-is "series-cutover.sh s --confirm s@<sha> --no-archive" "$(rc series-cutover.sh s --confirm "s@$sha" --no-archive)" 2
+is "series-cutover.sh s (neither --prepare nor --confirm)" "$(rc series-cutover.sh s)" 2
+is "series-cutover.sh s --confirm s@<sha> --no-archive (gone)" "$(rc series-cutover.sh s --confirm "s@$sha" --no-archive)" 2
 isnt "series-cutover.sh s --confirm s@<12 hex> is not a usage error" \
   "$(rc series-cutover.sh s --confirm "s@${sha:0:12}")" 2
 isnt "series-cutover.sh s --confirm s@<40 hex> is not a usage error" \
   "$(rc series-cutover.sh s --confirm "s@$sha")" 2
-isnt "series-cutover.sh s --no-archive alone is not a usage error" \
-  "$(rc series-cutover.sh s --no-archive)" 2
+isnt "series-cutover.sh s --prepare is not a usage error" \
+  "$(rc series-cutover.sh s --prepare)" 2
 
 echo
 echo "== --chunk takes a number"
@@ -217,7 +223,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
+for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-cutover-stack.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.

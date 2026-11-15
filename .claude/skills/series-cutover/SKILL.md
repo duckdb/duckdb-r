@@ -1,74 +1,132 @@
 ---
 name: series-cutover
-description: Run a cutover the maintainer has decided, without a terminal, by swapping a forward series `<S>-fwd-*` in for its base series with `scripts/series-cutover.sh <S> --confirm <S>@<sha>`, then quoting the archive pull requests, verifying both repositories, and handing back what the run left behind. Use when the maintainer has decided a cutover where the series is coordinated and asks a session to run it, or when asked to cut over, swap in or retire a series. Never from the scheduled loop, which only reports a ready cutover.
+description: Run a cutover the maintainer has asked for, every mechanical step of it, by opening a cutover pull request, building and opening a review stack of pull requests per strand with `scripts/series-cutover-stack.sh`, folding what the review finds into the forward, asking the maintainer to sign off on the `<S>-fwd-green` SHA, swapping with `scripts/series-cutover.sh <S> --confirm <S>@<sha>` once he has, verifying, and closing and deleting what the cutover opened. Use when the maintainer asks a session to cut over, swap in or retire a series, or to prepare one for his sign-off. Never from the scheduled loop, which only reports a ready cutover.
 ---
 
-# Running a decided cutover
+# Running a cutover
 
-*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md),
-what this routine is, and when it runs.*
+*Handbook: [`branches/model/`](/handbook/branches/model/README.md),
+what a cutover replaces and what keeps the replaced history reachable.*
 
-A cutover swaps a forward series in for its base series, and what the swap does, and why, is
-[`series-forward`](../series-forward/SKILL.md)'s "Cut over" section: the gates, the review, the archive pull requests,
-the one atomic leased push, and the cleanup.
-This skill is how a session runs one that the maintainer has decided.
-The decision stays a human's, and the run may be a session's.
+A cutover swaps a forward series in for its base series,
+and what the swap does, and why, is [`series-forward`](../series-forward/SKILL.md)'s "Cut over" section.
+This skill is the whole run, from the request to the cleanup.
+The session runs every mechanical step of it:
+it builds the stacks, opens and closes the pull requests, folds the fixes, swaps and cleans up.
+The maintainer reviews the stacks and signs off, in a pull request rather than in a script.
 
-## When a session may cut over
+## Who decides, and who runs it
 
-* **Only on the maintainer's explicit decision for that series**,
-  recorded where the series is coordinated, such as a ticked question on the pull request that carries the forward.
-  Quote the link to that decision before the first command, and record the outcome beside it.
-  A decision given only in chat is posted there first, as a question the maintainer ticks, and nothing runs until it is.
-  The session never ticks or edits that question itself:
-  it writes as the maintainer's account, so a tick it made could not be told from theirs.
-  Anyone else's comment is information, not a decision.
-* **The decision covers the state it was taken on**,
-  the tip of `<S>-fwd-green` that `--prepare` printed, which the question names.
-  A forward that has moved since, or a gate, a convergence finding or a version warning the decision did not see,
-  goes back to the maintainer as a new question.
+* **The maintainer starts a cutover**, by asking a session to run one for a series.
+  Anyone else's request or comment is information, not a start.
+* **He signs it off by ticking the decision question on the cutover pull request**,
+  which names the tip of `<S>-fwd-green` the swap is to put in place (step 7).
+  That tick is the sign-off, and the only one.
+  The session never gives it or simulates it, by a tick, an approving review or anything else:
+  it writes through the maintainer's account, so its own tick or approval could not be told from his and would not be his.
+  GitHub also refuses an approving review from a pull request's own author, so a review could not carry it anyway.
+  A sign-off given only in chat is posted as that question first, and nothing swaps until he ticks it.
+* **The sign-off covers the state it names.**
+  A `<S>-fwd-green` that moved since, or a stack that changed in a way the review did not read, goes back to him as a new question.
 * **Never from the scheduled loop.**
   A firing reports a ready cutover in stage 6 and stops ([`series-loop`](../series-loop/SKILL.md)).
-  It never passes `--confirm`, whatever was decided, because the run belongs to the session the maintainer sent.
-  The script cannot tell the two apart; this rule and the loop's own, among its [invariants](../series-loop/SKILL.md#invariants),
+  It never builds a stack, opens a cutover pull request or passes `--confirm`, whatever was decided,
+  because the run belongs to the session the maintainer sent.
+  The scripts cannot tell the two apart; this rule and the loop's own, among its [invariants](../series-loop/SKILL.md#invariants),
   are what keep a firing out.
+
+## Before the first step
+
+Run from current `main`, with refs fetched from both repositories, as stage 6's block does
+([`references/6-forwarding.md`](../series-loop/references/6-forwarding.md)).
+`<fork>` is the remote of `krlmlr/duckdb-r`, which carries `<S>-green`, `<canonical>` the remote of `duckdb/duckdb-r`,
+and `<clone>` a `duckdb/duckdb` checkout; the scripts read its commits alone, so a `--filter=blob:none` clone serves.
+`<dir>` is a scratch directory for the stacks' summaries.
+`scripts/setup-git.sh` registers the `DESCRIPTION` merge driver and rerere, which the stack script also runs.
+The cutover pull request and the stacks live in the fork, beside the series refs, and keep the canonical repository's list clean.
+
+Pull requests are opened, edited and closed with the session's own GitHub tools:
+the GitHub MCP server's pull request tools, or `gh` where it works.
+No script calls `gh`, so none of this waits on one being installed or allowed.
+A pull request body takes reflowed paragraphs, not semantic line breaks.
 
 ## The steps
 
-Run them from current `main` with refs fetched from both repositories,
-as stage 6's block does ([`references/6-forwarding.md`](../series-loop/references/6-forwarding.md)).
-`<fork>` is the remote carrying `<S>-green`, `<canonical>` the remote of `duckdb/duckdb-r`,
-and `<clone>` a `duckdb/duckdb` checkout; the coverage gate reads its commits alone, so a `--filter=blob:none` clone serves.
-Where a remote's URL is not a `github.com` one, such as a local proxy's address,
-name its repository with `git config remote.<name>.github <owner>/<repo>`, or the archive refuses.
-
-1. **Prepare, and read the gates.**
+1. **Open the cutover pull request**, one per cutover, as a draft in the fork:
+   an empty commit on the fork's `main`, pushed as `cutover/<S>/pr`, into `main`.
 
    ```sh
-   scripts/series-cutover.sh <S> --remote <fork> --canonical <canonical> --upstream <clone> --prepare --out <dir>
+   git fetch <fork> main
+   git push <fork> "$(git commit-tree '<fork>/main^{tree}' -p <fork>/main -m 'Cutover <S>')":refs/heads/cutover/<S>/pr
    ```
 
-   It moves nothing, and its output is what the decision is taken on:
-   the [script's header](/scripts/series-cutover.sh) says what each part of it is,
-   and its last lines name the tip of `<S>-fwd-green` to decide on.
-2. **Stop on anything `--confirm` would refuse on, or a tip the decision does not name.**
-   Under `--confirm` every warning a terminal run leaves to the operator refuses, as the script's header lists,
-   so a cutover that needs one weighed, a version going back on a preview line among them, is the maintainer's to run on a terminal.
-   So is one whose archive plan names a remote not on GitHub: `--no-archive` beside `--confirm` is a usage error.
-   Stopping means reporting the reading on the pull request and waiting for a new decision.
-3. **Swap.**
+   Title it `Cutover <S>`, and give its body a section for each of the report, the stacks, the review, the decision and the outcome,
+   each filled in as its step comes.
+   It coordinates and is never merged.
+   The branch is `cutover/<S>/pr` and not `cutover/<S>`, which git could not hold beside the stack branches under it.
+2. **Report.**
+
+   ```sh
+   scripts/series-cutover.sh <S> --remote <fork> --canonical <canonical> --upstream <clone> --prepare
+   ```
+
+   It moves nothing and decides nothing.
+   The [script's header](/scripts/series-cutover.sh) says what each part of the report is,
+   and its last lines name the tip of `<S>-fwd-green` the decision would be taken on.
+   Quote the output, fenced, in the cutover pull request.
+   A coverage that regresses exits 1 here and refuses the swap later; report it and stop.
+3. **Build the stacks**, one per strand, `vendor`, `build`, `dev` and `green` in turn:
+
+   ```sh
+   scripts/series-cutover-stack.sh <S> <X> --remote <fork> --upstream <clone> --summary <dir>/<X>.md
+   ```
+
+   The [script's header](/scripts/series-cutover-stack.sh) says what each layer is, how the replay is made, and what each exit status means.
+   A conflict stops it with the worktree kept (exit 3): resolve it to what the forward made of the same change,
+   `git add` the paths, and rerun with `--continue`.
+   A conflict is also a reading for the review: where the forward made something else of it, that is a surprise (step 6).
+   A `2-engine` an earlier build left and this one dropped is printed with its pull request to close,
+   and a deletion the remote refused with the line that deletes it (exit 9).
+4. **Open each stack's pull requests**, as the script's closing block lists them:
+   as drafts in the fork, from the bottom up, each layer into the one below it,
+   with its title, its section of the summary as body, and a link to the cutover pull request.
+   Add the expectation for that strand and layer (below) to the body, so that the review reads against it.
+   Link every stack's pull requests from the cutover pull request.
+   The first pull request of each stack stays open until after the swap:
+   its head is the pin that keeps the old tip reachable as `refs/pull/<n>/head`
+   ([`branches/model/`](/handbook/branches/model/README.md)), and a closed pull request's head no longer follows its branch.
+   A rebuild moves the branches under open pull requests; update a body whose section changed,
+   and close the pull request of a head the closing block no longer lists.
+5. **Review the stacks cleanly**, every layer against its expectation, and explain each difference on the pull request that shows it.
+   The maintainer reads them too, where they are unclear.
+6. **Fix a surprise in the forward, at the exact commit.**
+   A difference no explanation covers, or a conflict the forward resolved otherwise, is fixed on the `-fwd` strand that carries it,
+   in the commit where the problem lies, with [`scripts/series-fold.sh`](/scripts/series-fold.sh):
+   on `<S>-fwd-dev`, on `<S>-fwd-build` where the fix is glue, and on `<S>-fwd-vendor` where it is a patch,
+   as [`series-forward`](../series-forward/SKILL.md) answers a fix found wanting on the new base.
+   Push the folded refs leased; where the fold lands at or below `<S>-fwd-green`, set it back below the folded commit,
+   which a forward in progress allows and which the commits above it have to earn again.
+   CI judges them again, the loop's stage 3 carries green over them, and then the stacks are rebuilt (step 3) and read again.
+   Different upstream commits on the two sides are exceptional, and they ask for more judgment, not a refusal:
+   the forward vendored and judged every commit of the range `2-engine` names.
+7. **Ask for the sign-off.**
+   Once every stack is read and explained, run `--prepare` again (step 2), and post on the cutover pull request a question,
+   with a box to tick, that names the tip of `<S>-fwd-green` it printed and links the stacks and their review.
+   Then wait for the maintainer's tick (above).
+8. **Swap.**
+   The base series keeps vendoring while the stacks are read, so rebuild every stack first (step 3),
+   and read what a moved old tip added.
 
    ```sh
    scripts/series-cutover.sh <S> --remote <fork> --canonical <canonical> --upstream <clone> --confirm <S>@<sha>
    ```
 
-   `<sha>` is the tip the decision names, as `--prepare` printed it.
-   The script's header says what the run checks under `--confirm` before it opens or moves anything,
-   and what each exit status means;
-   whatever the status, it goes into the record with the run's last lines.
-4. **Quote the archive pull requests**, the block the run prints after the swap, number and URL for each,
-   and the undo it prints beneath them.
-5. **Verify** both repositories against the run's `refs to swap` lines, and read the verdict:
+   `<sha>` is the tip the ticked question names.
+   The [script's header](/scripts/series-cutover.sh) says what the run enforces, the pins among them, and what each exit status means.
+   A ref no pin holds refuses the swap before anything moves
+   ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md));
+   whatever the status, the command and its last lines go into the record.
+9. **Verify** both repositories against the run's `refs to swap` lines, and read the verdict:
 
    ```sh
    git ls-remote <fork> 'refs/heads/<S>-*' 'refs/heads/retry-<S>-*'
@@ -77,20 +135,40 @@ name its repository with `git config remote.<name>.github <owner>/<repo>`, or th
    ```
 
    Each `<S>-*` ref sits at the tip its `-fwd` twin had, the canonical `<S>-green` equals the fork's,
-   and no `-fwd` ref is left but those listed under `left behind`.
+   and no `-fwd` ref is left but those the run lists as left behind.
    Then re-cut the derived strands where the series has them, as the run's last lines say,
    and check the mirror rules with `scripts/pull-config.sh --check`, the last line of the block the loop's stage 6 reports.
-6. **Hand the lines under `left behind` to the maintainer**, as printed.
-   A litter ref's deletion loses nothing, but a moved ref may hold commits no other ref has, so what moved is read first,
-   and nothing refused is routed around.
-7. **Record the outcome** on the pull request that carried the decision:
-   the command and its exit status, the archive pull requests, the verification, the undo, and the delete lines,
-   each block fenced so that it can be run as it stands.
+10. **Close and clean up.**
+    Close every stack pull request with a comment naming the outcome; a closed pull request keeps its head,
+    so each pin stays readable for as long as the pull request exists.
+    Delete the stack branches and `cutover/<S>/pr`:
+
+    ```sh
+    git push --delete <fork> $(git ls-remote --heads <fork> 'refs/heads/cutover/<S>/*' | sed 's#.*refs/heads/##')
+    ```
+
+    Where the remote refuses a deletion, as a cloud session's git proxy does,
+    hand the maintainer one `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` line per branch,
+    beside what the swap left behind, as it printed it.
+    A litter ref's deletion loses nothing, but a moved ref may hold commits no other ref has, so what moved is read first,
+    and nothing refused is routed around.
+    Then close the cutover pull request with the outcome:
+    the command and its exit status, the verification, the undo, and the delete lines, each fenced so that it can be run as it stands.
+
+## What each layer is expected to show
+
+| Layer | `vendor` | `build` | `dev` and `green` |
+|---|---|---|---|
+| `1-main` | every commit of `main` applies, or is recorded | the same | the same; a commit the series ported is recorded as present |
+| `2-engine` | the engine of the range it names, where the tips differ | the same | the same |
+| `3-fwd` | empty, but for `patch/` where the engines differ | the commits that differ, the forward's glue adaptations | the forward's own repairs and carries, each explained |
+| `4-old` | roughly the inverse of the layers below | the same | the same |
+
+What `4-old` shows beyond that inverse is something the old series has and the forward does not, and it is read like a surprise.
 
 ## How to undo
 
-The archive pull requests' heads hold the old lineage,
-and the run prints the undo under them, filled in, one leased push per repository (step 4).
+The swap prints the undo, filled in: one leased push per repository that puts the old tips back from the pins.
 That printed copy, quoted in the record, is the one to use.
 The leases refuse once the loop has moved a ref since the swap;
 read what moved before leasing on it, since that work is lost by the undo.
