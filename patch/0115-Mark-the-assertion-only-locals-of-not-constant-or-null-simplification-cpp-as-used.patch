@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Mark the assertion-only locals of not_constant_or_null_simplification.cpp as used
+
+not_constant_or_null_simplification.cpp declares locals that only D_ASSERT() reads (not_expr),
+so in a release build, where D_ASSERT() expands to nothing, they are unused
+and -Wunused-variable or -Wunused-but-set-variable says so. Each is cast
+to void after its declaration, which changes no behavior.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+diff --git a/src/duckdb/src/optimizer/rule/not_constant_or_null_simplification.cpp b/src/duckdb/src/optimizer/rule/not_constant_or_null_simplification.cpp
+--- a/src/duckdb/src/optimizer/rule/not_constant_or_null_simplification.cpp
++++ b/src/duckdb/src/optimizer/rule/not_constant_or_null_simplification.cpp
+@@ -28,6 +28,7 @@ unique_ptr<Expression> NotConstantOrNullSimplificationRule::Apply(LogicalOperato
+                                                                   vector<reference<Expression>> &bindings,
+                                                                   bool &changes_made, bool is_root) {
+ 	auto &not_expr = bindings[0].get().Cast<BoundOperatorExpression>();
++	(void)not_expr;
+ 	auto &func = bindings[1].get().Cast<BoundFunctionExpression>();
+ 	auto &value_expr = bindings[2].get().Cast<BoundConstantExpression>();
+ 	D_ASSERT(not_expr.GetExpressionType() == ExpressionType::OPERATOR_NOT);
