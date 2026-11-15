@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 17 Nov 2026 12:00:00 +0100
+Subject: [PATCH] Mark the normalized equivalence binding as used outside its
+ assertion
+
+QueryGraphManager::GetEquivalenceBinding() reads `normalized` only inside
+D_ASSERT(), so in a release build -Wunused-variable reports it. A (void)
+reference after the assertion marks it used, as upstream adds at the same
+place in duckdb/duckdb@3d4faf1e69; the vendored tree lacks that line until
+then.
+
+Retired at duckdb/duckdb@3d4faf1e69, where upstream takes the line itself.
+---
+diff --git a/src/duckdb/src/optimizer/join_order/query_graph_manager.cpp b/src/duckdb/src/optimizer/join_order/query_graph_manager.cpp
+--- a/src/duckdb/src/optimizer/join_order/query_graph_manager.cpp
++++ b/src/duckdb/src/optimizer/join_order/query_graph_manager.cpp
+@@ -316,6 +316,7 @@
+ 	if (source.table_index.IsValid()) {
+ 		auto normalized = relation_manager.TryNormalizeBinding(source, binding);
+ 		D_ASSERT(normalized);
++		(void)normalized;
+ 	}
+ }
+ 
