@@ -125,7 +125,7 @@ jobs:
           fi
 
           # The way to proceed is the bump handbook/operations/releases/versioning/README.md describes:
-          # it sets DESCRIPTION alone, and the separate process that keeps NEWS.md writes the version's section.
+          # it sets DESCRIPTION and need not touch NEWS.md, where the separate process that keeps that file writes the version's section.
           echo "::error title=Development version::DESCRIPTION carries the version '$version', and CRAN takes release versions only: three components, such as 2.0.0. Nothing was built, tagged or uploaded."
           {
             echo "### Version: failed"
@@ -189,7 +189,7 @@ jobs:
             found && /^# / { exit }
             found { print }
           ' NEWS.md > "$message"
-          # The bump does not write the section: the separate process that keeps NEWS.md does, before the submission
+          # The bump need not write the section: the separate process that keeps NEWS.md does, before the submission
           # (handbook/operations/releases/versioning/README.md).
           if [ ! -s "$message" ]; then
             echo "::error::NEWS.md has no section for $pkg_name $pkg_version, which the separate process that keeps NEWS.md writes before a submission."
