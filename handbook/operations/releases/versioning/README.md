@@ -95,7 +95,8 @@ in a bump that takes no tag.
 Its message is the subject `duckdb <version>`,
 then the section `NEWS.md` has for that version, and nothing more where it has none,
 the shape the `v1.5.6.90xx` tags have.
-[`series-land`](/.claude/skills/series-land/SKILL.md), step 6, holds the commands, and `scripts/series-land.sh --status` prints them once the landing is ready.
+`scripts/series-land.sh --status` prints the commands once the landing is ready,
+and [`series-land`](/.claude/skills/series-land/SKILL.md), step 6, runs them as printed.
 A landing that brings an upstream release is tagged by the release instead, in the same shape:
 by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md)),
 or by hand on a line that does not ship to CRAN
