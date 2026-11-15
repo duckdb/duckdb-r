@@ -107,8 +107,11 @@ and its commit on `main` takes the annotated version tag that fledge's next bump
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
 so its bump raises the fourth component by one above the version the branch carries, `2.0.99.9000` to `2.0.99.9001`.
-Where the branch carries another prefix than the series, the bump takes the series' prefix at `.9000`:
+Where the series carries a newer prefix than the branch, the bump opens it at `.9000`:
 `main`'s first landing of its own series takes it from `2.0.0.9000` to `2.0.99.9000`.
+A branch on a released version without a fourth component opens it at `.9000`, `2.0.1` to `2.0.1.9000`,
+whatever older prefix the series still carries.
+[`scripts/landing-version.sh`](/scripts/landing-version.sh) prints that version.
 A release branch landing its own line's commits short of an upstream patch release does the same, `2.0.0.9000` to `2.0.0.9001`,
 and a landing that brings an upstream release sets that release's three components, `2.0.1`.
 [`scripts/series-land.sh`](/scripts/series-land.sh) refuses a bump that keeps the fifth component or falls below the series' first four,

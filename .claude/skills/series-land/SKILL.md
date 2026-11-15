@@ -208,8 +208,8 @@ and CI does not judge a commit twice.
 
 **The version bump is the landing's last commit.**
 [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns why it is by hand and which version `<v>` it sets:
-the fourth component one above `<B>`'s, `2.0.99.9000` to `2.0.99.9001` on `main`,
-the series' own prefix at `.9000` where `<B>` carries another, `2.0.99.9000` on `main`'s first landing,
+the next one above `<B>`'s that [`scripts/landing-version.sh`](/scripts/landing-version.sh) prints,
+`2.0.99.9000` to `2.0.99.9001` on `main` and `2.0.99.9000` on `main`'s first landing,
 or the release's three components where the batch brings an upstream release.
 The build ends on the series' version, five components;
 once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-dev`, a plain fast-forward:
@@ -224,9 +224,7 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
   cur=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
   ser=$(sed -n 's/^Version: //p' DESCRIPTION)   # the series' version the build ends on
-  v=${RELEASE:-$(awk -F. -v ser="$ser" '{ split(ser, s, ".")
-    if (s[1] "." s[2] "." s[3] != $1 "." $2 "." $3) printf "%s.%s.%s.9000", s[1], s[2], s[3]
-    else printf "%s.%s.%s.%d", $1, $2, $3, ($4 == "" ? 9000 : $4) + 1 }' <<<"$cur")}
+  v=${RELEASE:-$(scripts/landing-version.sh "$cur" "$ser")}
   eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
   full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
