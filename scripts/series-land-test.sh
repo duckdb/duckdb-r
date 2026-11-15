@@ -30,12 +30,14 @@
 #      change nothing but NEWS.md, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
 #      commit vendors, with nothing above it, whatever NEWS.md holds; a rebuild
-#      drops a bump added to the kept worktree. The tag commands printed with
-#      the fast-forward, run as printed once `main` has the bump, tag it
+#      drops a bump added to the kept worktree. Step 6's tag block, read off
+#      the series-land skill, runs the tag commands printed with the
+#      fast-forward only on READY; run once `main` has the bump, they tag it
 #      `duckdb <version>`, with NEWS.md's section for it below where there is
 #      one; run before that, even with a tag named like the branch at the bump,
-#      or over a stale local tag of that name, they fail and send nothing. A
-#      release's version is left to the release.
+#      or over a stale local tag of that name, they fail and send nothing. On a
+#      landing not READY the block stops before them, and on a release's
+#      version, which is left to the release, it tags nothing.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -367,15 +369,19 @@ ENGINE_FULL=dddd444000000000000000000000000000000000
 write_bump() { # <version> [<engine record>]
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
 }
-# Runs the tag commands --status printed, as a maintainer pastes them, with
-# nothing to stop them at a failure but themselves, and prints whether they
-# failed, then the tag's target and message upstream, or that upstream is as it
-# was.
+# Step 6's tag block, read off the skill by the marker above it and set to this
+# fixture's series rather than `main`: it reruns --status and runs the tag
+# commands printed there only on READY, so its gate and its sed are the skill's
+# own, and a drift between the skill and --status fails here.
+awk '$0 == "<!-- series-land: tag block -->" {m = 1; next} m && $0 == "```sh" {f = 1; next} f && $0 == "```" {exit} f' \
+  "$HERE/../.claude/skills/series-land/SKILL.md" | sed 's/^S=main /S=v2.0-x /' > "$SCRATCH/tag-block"
+is "step 6's tag block is read off the skill, for this series" "$(grep -c '^S=v2.0-x ' "$SCRATCH/tag-block")" 1
+# Runs it as a maintainer pastes it, and prints whether it failed, then the
+# tag's target and message upstream, or that upstream is as it was.
 tag_as_printed() { # <tag>
   local refs
-  sed -n '/^Then tag it on /,$p' <<<"$out" | tail -n +2 | sed 's/^  //' > "$SCRATCH/tag-commands"
   refs=$(git -C "$CANON" for-each-ref)
-  bash "$SCRATCH/tag-commands" >/dev/null 2>&1 || echo "the tag commands failed"
+  bash "$SCRATCH/tag-block" >/dev/null 2>&1 || echo "the tag block failed"
   [ "$(git -C "$CANON" for-each-ref)" != "$refs" ] || { echo "upstream is unchanged"; return; }
   git -C "$CANON" rev-parse -q --verify "refs/tags/$1^{commit}" || echo "no $1 on upstream"
   git -C "$CANON" tag -l --format='%(contents)' "$1"
@@ -401,6 +407,10 @@ refused() { # <label>: the probe in the working tree is committed under the bump
 }
 probe() { git checkout -q -f -B probe "$TIP"; }
 
+dev_at "$TIP"
+is "on a landing that does not end on the bump, the tag block stops at its READY gate and sends nothing" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
+
 probe
 write_bump 1.99.99.9001
 commit "$bump_msg"
@@ -415,11 +425,11 @@ has "they fetch the branch by its full name into its remote-tracking ref" "$out"
   "git fetch -q upstream +refs/heads/main:refs/remotes/upstream/main &&"
 has "  and look for the bump there, not in FETCH_HEAD" "$out" "git merge-base --is-ancestor $BUMP refs/remotes/upstream/main ||"
 is "run as printed while main lacks the bump, as after a fast-forward refused, they send nothing and fail" \
-  "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
 # A tag named like the branch, at the bump: a fetch by the short name takes it for the branch.
 git push -q upstream "$BUMP:refs/tags/main"
 is "nor do they while a tag named like the branch has the bump" \
-  "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
 git push -q upstream :refs/tags/main
 git tag -d main >/dev/null 2>&1 || true
 landed "$BUMP"
@@ -446,7 +456,7 @@ unlanded
 status_of "$BUMP"
 landed "$BUMP"
 is "run as printed over a stale local tag of that name, they send nothing and fail" \
-  "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
 git tag -d v1.99.99.9001 >/dev/null
 unlanded
 git checkout -q -f main
@@ -456,6 +466,7 @@ status_of "$(git rev-parse HEAD)"
 has "a bump to a release is ready" "$out" "READY: every commit has passed"
 has "and its tag is left to the release" "$out" "Its tag, v2.0.0, is the release's"
 hasnt "  with no tag command" "$out" "git tag"
+is "  so the tag block tags nothing, and succeeds" "$(tag_as_printed v2.0.0)" "upstream is unchanged"
 git checkout -q -f main
 dev_at "$BUMP"
 out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?

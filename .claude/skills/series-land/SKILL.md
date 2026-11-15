@@ -356,11 +356,13 @@ Then tag the bump, which is the commit `READY` named, as every landing's bump is
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md));
 the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
 `--status` prints `READY` again once `<B>` is the bump, and below the push the commands that tag it,
-which the block runs as printed: they tag nothing `<B>` lacks, and push no tag they did not create.
+which the block runs as printed, and only on `READY`: they tag nothing `<B>` lacks, and push no tag they did not create.
 A bump to an upstream release is tagged when the release is published instead
 ([`operations/releases/process/`](/handbook/operations/releases/process/README.md), step 5),
-so `--status` prints a line saying so in their place, and the block tags nothing.
+so `--status` prints a line saying so in their place, and the block tags nothing
+(`scripts/series-land-test.sh` runs it against a scratch repository):
 
+<!-- series-land: tag block -->
 ```sh
 ( set -eu
 S=main                                                # the serving series that landed: main, or v2.0-cyanoptera
