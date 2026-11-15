@@ -26,7 +26,9 @@
 #   7. Where the old base is not an ancestor of the forward's, `1-main` is one three-way merge,
 #      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way.
 #   8. Usage errors exit 2; a missing forward, a series on its forward's lineage as after the swap,
+#      read on `-dev` by the forward's seed, whatever was folded above it since,
 #      and a summary file that cannot be written refuse with 1 and push nothing.
+#      A forward at birth, whose green sits below its seed on a commit the series' green has, builds its green stack.
 #   9. Nothing called `gh`.
 #  10. Nothing read a terminal: the wrapper every run went through gives neither stdin nor a controlling terminal,
 #      and no build or worktree is left behind.
@@ -215,9 +217,14 @@ tick
 OLDMAIN_Y=$(git commit-tree "$OLD_MAIN^{tree}" -m 'main, before its history was replaced')
 series v8.8-y "$OLDMAIN_Y" duckdb.8.8 'two (y)' 2 '' 0
 series v8.8-y-fwd "$FWD_MAIN" duckdb.8.8 'two (main, y)' 3 '' 1
+# `v6.6-w` and a forward of it at birth on the same base: the forward's green sits on the commit its seed sits on,
+# below the flavor commits, which the series' green has too.
+series v6.6-w "$OLD_MAIN" duckdb.6.6 'two (w)' 2 '' 0
+series v6.6-w-fwd "$OLD_MAIN" duckdb.6.6 'two (w, forward)' 2 '' 0
+git branch -f v6.6-w-fwd-green "$OLD_MAIN"
 git checkout -q main
 unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
-git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 2>/dev/null
+git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 2>/dev/null
 for b in $(git for-each-ref --format='%(refname:short)' 'refs/heads/v*'); do git branch -q -D "$b"; done
 git branch -q -D side
 
@@ -460,22 +467,32 @@ is "a series with no forward refuses" "$(status "$out")" 1
 has "naming the ref" "$out" "has no v7.7-z-dev"
 # After the swap the series' tips are the forward's, and -fwd refs a proxy would not delete stay beside them.
 fetch
-ov=$(tip v9.9-x-vendor) fv=$(tip v9.9-x-fwd-vendor) before=$(stack v9.9-x/vendor)
-git checkout -q --detach "$fv"
+ov=$(tip v9.9-x-vendor) fv=$(tip v9.9-x-fwd-vendor) od=$(tip v9.9-x-dev) fd=$(tip v9.9-x-fwd-dev)
+before=$(stack v9.9-x/vendor)
+git checkout -q --detach "$fd"
 tick
 echo 'later <- function() 9' > R/later.R
 git add -A
 git commit -qm 'fix: Something the series added after its swap'
 later=$(git rev-parse HEAD)
 git checkout -q main
-for pos in "at its forward's tip:$fv" "behind it:$(git rev-parse "$fv~1")" "past it:$later"; do
-  git push -q -f origin "${pos#*:}:refs/heads/v9.9-x-vendor"
+# A fold since the swap rewrote the commit the forward's -dev ended on, above its seed.
+folded=$(git commit-tree "$fd^{tree}" -p "$fd~1" -m "$(git log -1 --format=%B "$fd")")
+for pos in "at its forward's tip:$fd" "behind it:$(git rev-parse "$fd~1")" "past it:$later" "folded since:$folded"; do
+  git push -q -f origin "${pos#*:}:refs/heads/v9.9-x-dev" "$fv:refs/heads/v9.9-x-vendor"
   out=$(run "$STACK" v9.9-x vendor)
   is "a series ${pos%%:*}, on its lineage, refuses" "$(status "$out")" 1
   has "${pos%%:*}: saying why" "$out" "are one lineage, as after the swap"
   is "${pos%%:*}: and pushes nothing" "$(stack v9.9-x/vendor)" "$before"
 done
-git push -q -f origin "$ov:refs/heads/v9.9-x-vendor"
+git push -q -f origin "$od:refs/heads/v9.9-x-dev" "$ov:refs/heads/v9.9-x-vendor"
+out=$(run "$STACK" v6.6-w green)
+holds "a forward's green at birth is on its series' lineage" \
+  git merge-base --is-ancestor "$(tip v6.6-w-fwd-green)" "$(tip v6.6-w-green)"
+is "and its green stack builds all the same" "$(status "$out")" 0
+is "with its layers" "$(stack v6.6-w/green | awk '{ sub(".*/", "", $2); print $2 }' | tr '\n' ' ')" "1-main 2-engine 3-fwd 4-old "
+is "the last one the old green's tree" "$(git -C "$FORK" rev-parse "refs/heads/cutover/v6.6-w/green/4-old^{tree}")" \
+  "$(git -C "$FORK" rev-parse "refs/heads/v6.6-w-green^{tree}")"
 out=$(run "$STACK" v9.9-x build --summary "$SCRATCH/no/such/dir/build.md")
 is "a summary file that cannot be written refuses" "$(status "$out")" 1
 has "saying nothing was pushed" "$out" "cannot write the summary to $SCRATCH/no/such/dir/build.md, so nothing was pushed"

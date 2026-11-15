@@ -23,7 +23,11 @@
 # which is what the swap checks before it moves a ref.
 # Once the swap has run, `<S>-<X>` is the forward's tip, and `-fwd` refs a remote refused to delete may stay beside it:
 # a stack built then would move `1-main` onto the forward's lineage, and the head of an open pull request with it.
-# So the script refuses where `<S>-<X>` and `<S>-fwd-<X>` are one commit, or one is an ancestor of the other.
+# So the script refuses where `<S>-dev` and `<S>-fwd-dev` are one lineage:
+# where `<S>-dev` carries the seed of `<S>-fwd-dev`, which a forward's `-dev` never sits below,
+# and which the series' `-dev` carries only once the swap has put the forward's lineage in its place,
+# whatever was folded above the seed since; a forward's `-dev` without a seed is read by ancestry, either way.
+# The strand itself cannot tell: a forward's green sits below its seed at birth, on a commit the series' green may have too.
 #
 # The replay spans `main` from the old series' base to the forward's base,
 # each the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
@@ -90,7 +94,7 @@
 #
 # Exit status:
 #   0  built and pushed.
-#   1  refused or failed, and nothing pushed: a ref missing, an old tip on the forward's lineage,
+#   1  refused or failed, and nothing pushed: a ref missing, a series on its forward's lineage,
 #      an engine that cannot be read, a stopped build in the way, a summary file that cannot be written,
 #      a lease the push lost.
 #      A rerun reads the refs anew.
@@ -285,9 +289,19 @@ else
   for L in 1-main 2-engine 3-fwd 4-old; do LEASE[$L]=${HEAD_OF[$cut/$L]:-}; done
   old=${HEAD_OF[$S-$X]} fwd=${HEAD_OF[$S-fwd-$X]}
 
-  # One lineage, as after the swap with the forward's refs left behind: a stack built on it would move the pin (see the header).
-  if git merge-base --is-ancestor "$old" "$fwd" || git merge-base --is-ancestor "$fwd" "$old"; then
-    echo "Error: $S-$X at $(short "$old") and $S-fwd-$X at $(short "$fwd") are one lineage, as after the swap" >&2
+  # One lineage, as after the swap with the forward's refs left behind: a stack built on it would move the pin.
+  # Read on `-dev`, by the forward's seed (see the header).
+  one_lineage() { # <series -dev> <forward -dev>
+    local seed
+    seed=$(series_seed_of "$2")
+    if [ -n "$seed" ]; then
+      git merge-base --is-ancestor "$seed" "$1"
+    else
+      git merge-base --is-ancestor "$2" "$1" || git merge-base --is-ancestor "$1" "$2"
+    fi
+  }
+  if one_lineage "${HEAD_OF[$S-dev]}" "${HEAD_OF[$S-fwd-dev]}"; then
+    echo "Error: $S-dev at $(short "${HEAD_OF[$S-dev]}") and $S-fwd-dev at $(short "${HEAD_OF[$S-fwd-dev]}") are one lineage, as after the swap" >&2
     echo "  with the forward's refs left behind: a stack built on it would move $cut/1-main off the old tip it pins." >&2
     echo "  Nothing was pushed. Delete the forward's refs, as scripts/series-prune.sh $S lists them." >&2
     exit 1
