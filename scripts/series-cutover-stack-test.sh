@@ -20,7 +20,8 @@
 #      as their engines differ by the patch `main` added, and rerere resolves the conflict `-dev` resolved, unattended.
 #   4. A rebuild mints the same SHAs, in this clone and in another one with another identity and time zone.
 #   5. A rebuild over existing branches moves them under their leases;
-#      a branch that moved since the build read it refuses the whole push, and the next rebuild moves it back.
+#      a branch that moved since the build read it refuses the whole push and removes the --summary file,
+#      and the next rebuild moves it back.
 #   6. Once the engines agree, `2-engine` leaves the stack, and its branch stays:
 #      the run exits 9 with the steps that retire it, and once they are taken a rebuild exits 0.
 #      Both deletions it prints refuse a branch that moved and delete one at the tip read:
@@ -393,9 +394,11 @@ wt=$(sed -n 's/^  cd //p' <<<"$out")
 git push -q --force origin "$FWD_MAIN:refs/heads/$c/dev/4-old"
 printf 'foo <- function() {\n  "two (main, series)"\n}\n' > "$wt/R/foo.R"
 git -C "$wt" add R/foo.R
-out=$(run "$STACK" v9.9-x dev --continue)
+out=$(run "$STACK" v9.9-x dev --continue --summary "$SCRATCH/refused.md")
 is "a branch that moved meanwhile refuses the push" "$(status "$out")" 1
 has "and says nothing moved" "$out" "the push was refused, and nothing moved"
+holds "the summary written for the build is removed" test ! -e "$SCRATCH/refused.md"
+has "which it says" "$out" "The summary written to $SCRATCH/refused.md for this build is removed, since the build was not pushed."
 is "the moved branch stays" "$(tip "$c/dev/4-old")" "$FWD_MAIN"
 is "and the others with it" "$(tip "$c/dev/1-main")" "$d1"
 out=$(run "$STACK" v9.9-x dev --continue)

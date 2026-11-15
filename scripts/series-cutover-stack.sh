@@ -76,7 +76,8 @@
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
 # which conflicts were resolved, and the diff stat.
 # Last come the pull requests to open, with repository, base, head and title.
-# --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves.
+# --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves,
+# and removes it again where the push is refused, so that no summary of a build that was never pushed is left behind.
 # The script reads no terminal: stdin is /dev/null, and a conflict stops the run for the next one to resume.
 #
 # Usage: series-cutover-stack.sh <series> <strand> [--remote <name>] [--upstream <path>] [--summary <file>] [--continue | --abort]
@@ -98,7 +99,7 @@
 #   0  built and pushed.
 #   1  refused or failed, and nothing pushed: a ref missing, a series on its forward's lineage,
 #      an engine that cannot be read, a stopped build in the way, a summary file that cannot be written,
-#      a lease the push lost.
+#      a push refused, a lease it lost among them, which removes the --summary file again.
 #      A rerun reads the refs anew.
 #   2  a usage error; nothing was read.
 #   3  stopped on a conflict, the worktree and the build kept for --continue; nothing was pushed.
@@ -795,6 +796,14 @@ if ! out=$(git push "${push_args[@]}" "$remote" "${refspecs[@]}" 2>&1); then
   echo "Error: $S $X: the push was refused, and nothing moved:" >&2
   echo "  a branch of the stack moved since this run read it, or the remote refused the push. Built, not pushed:" >&2
   for L in "${layers[@]}"; do echo "  ${SHA[$L]} $cut/$L" >&2; done
+  # The summary describes this build, which no branch holds.
+  if [ -n "$summary" ]; then
+    if rm -f -- "$summary"; then
+      echo "  The summary written to $summary for this build is removed, since the build was not pushed." >&2
+    else
+      echo "  The summary written to $summary is of this build, which was not pushed, and it could not be removed: remove it." >&2
+    fi
+  fi
   keep=''
   exit 1
 fi
