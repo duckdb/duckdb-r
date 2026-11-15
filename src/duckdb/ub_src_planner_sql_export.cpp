@@ -24,6 +24,8 @@
 
 #include "src/planner/sql_export/sql_export_sources.cpp"
 
+#include "src/planner/sql_export/sql_export_statements.cpp"
+
 #include "src/planner/sql_export/sql_export_values.cpp"
 
 #include "src/planner/sql_export/sql_export_window.cpp"
