@@ -4,8 +4,8 @@
 # (handbook/operations/releases/versioning/README.md).
 #
 # A series previewing an unreleased line takes the prefix that sorts between the
-# line released before it and its own release -- `a.b.99` before a minor
-# release, `a.99.99` before a major one -- so previewing 2.1 is `2.0.99.9000`
+# line released before it and its own release: `a.b.99` before a minor
+# release, `a.99.99` before a major one. So previewing 2.1 is `2.0.99.9000`
 # and previewing 2.0 is `1.99.99.9000`. Which line is being previewed is read
 # from the engine the strand vendors, so this needs no input and cannot drift
 # from the tree it stamps.

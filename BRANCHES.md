@@ -323,10 +323,12 @@ release.
   until that line's release branch is cut and takes `2.1.0`.
 - **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
   `dev` is at or ahead of `Z`.
-- **V3 — Counters.** The **4th** component free-runs as the R-client dev counter
-  *only* on the canonical branches (`main`: `…9003`, `…9004`), where a landing
-  without an upstream release advances it too; on `-dev`
-  branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
+- **V3 — Counters.** The **4th** component is the R-client dev counter
+  *only* on the canonical branches (`main`: `…9000`, `…9001`),
+  where each landing without an upstream release takes it one up
+  and the development version after a release starts it again at `.9000`
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md));
+  on `-dev` branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
   vendor counter, strictly monotone along `dev` (one bump per vendor commit).
   On a series-loop dev branch the seed's `chore: Add fifth version component`
   commit stamps it at `.0`;
