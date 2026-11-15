@@ -328,7 +328,7 @@ so that it does not merge the moment the freeze lifts
 ([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
 The run force-pushes the branch `fledge` and the version tag of its bump, and the tag is deleted with the branch.
 Its version is in the pull request's title, and the tag is the pull request's own when it points at the pull request's head;
-the block deletes the tag only then.
+the block closes the pull request and deletes the branch in any case, and deletes the tag only when it is the pull request's own.
 Paste the blocks of this step into bash: zsh reads `$sha:r` as a modifier and, by default, `#` comments as commands.
 
 ```sh
@@ -340,11 +340,14 @@ n=<number>
 v=$(gh api "repos/$R/pulls/$n" --jq '.title | sub("^fledge: Bump version to "; "")')
 [[ $v =~ ^[0-9]+(\.[0-9]+){2,3}$ ]] || { echo "not a fledge version pull request: '$v'" >&2; exit 1; }
 head=$(gh api "repos/$R/pulls/$n" --jq .head.sha)
-tag=$(git ls-remote upstream "refs/tags/v$v" "refs/tags/v$v^{}" | tail -n 1 | cut -f1)   # peeled when annotated
-[[ $head =~ ^[0-9a-f]{40}$ && $tag == "$head" ]] || { echo "tag v$v is not the pull request's own: '$tag' vs '$head'" >&2; exit 1; }
 gh api -X PATCH "repos/$R/pulls/$n" -f state=closed
 gh api -X DELETE "repos/$R/git/refs/heads/fledge"
-gh api -X DELETE "repos/$R/git/refs/tags/v$v"
+tag=$(git ls-remote upstream "refs/tags/v$v*" | awk -v r="refs/tags/v$v" '$2 == r || $2 == r "^{}" { t = $1 } END { print t }')   # peeled when annotated
+if [[ $head =~ ^[0-9a-f]{40}$ && $tag == "$head" ]]; then
+  gh api -X DELETE "repos/$R/git/refs/tags/v$v"
+else
+  echo "kept tag v$v, which is not the pull request's own: '$tag' vs '$head'" >&2
+fi
 )
 ```
 
