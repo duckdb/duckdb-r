@@ -1,6 +1,7 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
 Version: 2.0.99.9000
+Config/duckdb/upstream: d54cbbe3df17e8e5ce68312f483b4155836112aa
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
@@ -82,7 +83,6 @@ Config/comment/gha/extra-packages: arrow does not compile against Rtools45,
     Rtools45 has to build it again. Explained in
     handbook/operations/ci/matrix/README.md.
 Config/testthat/edition: 3
-Config/duckdb/upstream: d54cbbe3df17e8e5ce68312f483b4155836112aa
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.1.9000
