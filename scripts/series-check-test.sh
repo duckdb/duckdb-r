@@ -20,14 +20,13 @@
 #
 # And one report about branches rather than a red commit:
 #
-#   9. FORWARD-PORT names the commits of the branch the CRAN flavor publishes
-#      from that `main` has no counterpart of, and none of those it has by
-#      patch-id or by a `cherry picked from commit` trailer either way, nor
-#      vendor commits or release paperwork (a submission record included), nor
-#      those scripts/forward-port-declined lists; a vendor commit carrying an
-#      R-side change is named, marked. Nothing while that branch is `main`, a
-#      quoted declaration reads the same, and a branch it cannot read, or one
-#      with no merge base with `main`, is reported as missing data.
+#   9. FORWARD-PORT lists the commits of the CRAN line's release branch that
+#      `main` has not grafted, each marked picked (by patch-id or a `cherry
+#      picked from commit` trailer either way), vendor, or not yet, and none
+#      once `main` has grafted the branch, a graft's second parent never
+#      counting as `main`'s own; nothing before the branch is cut, a quoted
+#      declaration reads the same, and a branch with no merge base with `main`
+#      is reported as missing data.
 #
 # Usage:
 #   scripts/series-check-test.sh
@@ -221,39 +220,25 @@ out=$(verdict)
 has "beside the install's own listing, with the gate deselected" "$out" "RETRY  $RED"
 hasnt "which is no warning" "$out" "vendored warning"
 
-echo "=== 9. what the CRAN line has that main lacks"
+echo "=== 9. what main has not grafted of the CRAN line"
 CANON=$SCRATCH/canonical.git
 git init -q --bare -b main "$CANON"
 git remote add canon "$CANON"
 fwd() { UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical canon 2>&1 | sed -n '/^FORWARD-PORT/,$p'; }
-decl() { # <publishes_from of the CRAN flavor>
-  printf 'flavors:\n  - flavor: duckdb\n    kind: CRAN\n    upstream: v9.9-x\n    publishes_from: %s\n    repo: duckdb/duckdb-r\n' "$1" \
-    > scripts/series.yaml
-}
+is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
 git checkout -q -b cmain main
-decl main
+printf 'flavors:\n  - flavor: duckdb\n    kind: CRAN\n    upstream: "rel"\n    publishes_from: main\n' > scripts/series.yaml
 git add -A; git commit -qm 'chore: Declare the flavors'
 git push -q canon cmain:main
-is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
-is "nothing while the CRAN flavor publishes from main" "$(fwd)" ""
+is "nothing before the line's branch is cut" "$(fwd)" ""
 
 git checkout -q -b rel cmain
 echo 'engine bbbb222' > src/duckdb/engine.cpp
 git commit -qam 'vendor: Update vendored sources to duckdb/duckdb@bbbb222'
-echo 'engine bbbb333' > src/duckdb/engine.cpp
-mkdir -p R; echo 'glue for bbbb333' > R/glue.R
-git add -A; git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@bbbb333'
-VR=$(git rev-parse HEAD)
-echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
-git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
-echo 'Version: 9.9.1' > DESCRIPTION; echo '# duckdb 9.9.1' > NEWS.md; echo 'Version: 9.9.1' > CRAN-SUBMISSION
-git add -A; git commit -qm 'chore: Release 9.9.1'
-echo 'fix e' > e.R; git add -A; git commit -qm 'fix: E, declined by main'
-E=$(git rev-parse HEAD)
 echo 'fix a' > a.R; git add -A; git commit -qm 'fix: A, picked onto main'
 A=$(git rev-parse HEAD)
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, the same patch on main'
-echo 'fix c' > c.R; git add -A; git commit -qm 'fix: C, owed to main'
+echo 'fix c' > c.R; git add -A; git commit -qm 'fix: C, not picked yet'
 C=$(git rev-parse HEAD)
 git checkout -q cmain
 echo 'fix d' > d.R; git add -A; git commit -qm 'fix: D, born on main'
@@ -261,59 +246,46 @@ D=$(git rev-parse HEAD)
 git cherry-pick -x "$A" >/dev/null
 echo 'fix a, edited' > a.R; git commit -q --amend -a --no-edit
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, written again on main'
-printf '# why main does without\n\n  %s E fixes what main never had\n%s\nnot a sha at all\n' \
-  "$(tr a-f A-F <<<"$E")" "$C" > scripts/forward-port-declined
-decl rel
-git add -A; git commit -qm 'chore: Publish plain duckdb from rel'
 git checkout -q rel
 git cherry-pick -x "$D" >/dev/null
 echo 'fix d, as rel needs it' > d.R; git commit -q --amend -a --no-edit
 git push -q canon cmain:main rel
 git checkout -q main
 out=$(fwd)
-has "it names the branch and what is owed" "$out" "commit(s) main has no counterpart of"
-has "the commit main lacks" "$out" "$(git rev-parse --short "$C") fix: C, owed to main"
-hasnt "not one main picked with -x" "$out" "fix: A"
-hasnt "not one main has by patch-id" "$out" "fix: B"
-hasnt "not a backport from main, edited" "$out" "fix: D"
-hasnt "not release paperwork" "$out" "Bump version"
-hasnt "nor a release with its submission record" "$out" "Release 9.9.1"
-hasnt "not one main declined, indented and in capitals" "$out" "fix: E"
-has "a SHA with no reason is named" "$out" "scripts/forward-port-declined, line 4"
-has "and so is a line that is no SHA" "$out" "line 5"
-has "and declines nothing" "$out" "fix: C, owed to main"
-hasnt "a comment or a blank line is no finding" "$out" "line 1"
-has "but a vendor commit with an R-side change, marked" "$out" \
-  "$(git rev-parse --short "$VR") vendor: Update vendored sources to duckdb/duckdb@bbbb333 [vendor commit with an R-side change]"
-hasnt "and not one without" "$out" "bbbb222"
-has "so two are owed in all" "$out" "rel has 2 commit(s)"
+has "it counts what main has not grafted" "$out" "rel has 5 commit(s) main has not grafted, 1 not yet picked"
+has "a pick with -x, edited, is picked" "$out" "picked   fix: A"
+has "the same patch is picked" "$out" "picked   fix: B"
+has "a backport from main is picked" "$out" "picked   fix: D"
+has "the engine is vendor" "$out" "vendor   vendor: Update vendored sources to duckdb/duckdb@bbbb222"
+has "the rest is not yet" "$out" "$(git rev-parse --short "$C") not yet  fix: C"
 
 git checkout -q cmain
-sed -i 's/publishes_from: rel/publishes_from: "rel"/' scripts/series.yaml
-git commit -qam 'chore: Quote the branch'
+git cherry-pick -x "$C" >/dev/null
+git merge -q -s ours --no-edit -m 'Graft rel
+
+Declined: the vendor commit, the engine main takes from upstream main.' rel
 git push -q canon cmain:main
 git checkout -q main
-has "a quoted publishes_from reads the same" "$(fwd)" "rel has 2 commit(s)"
+is "nothing once main has grafted the branch" "$(fwd)" ""
 
+git checkout -q rel
+echo 'fix e' > e.R; git add -A; git commit -qm 'fix: E, after the graft'
+git push -q canon rel
 git checkout -q cmain
-sed -i 's/publishes_from: "rel"/publishes_from: gone/' scripts/series.yaml
-git commit -qam 'chore: Name a branch that is not there'
+echo 'fix f' > f.R; git add -A; git commit -qm 'fix: F, main after the graft'
 git push -q canon cmain:main
 git checkout -q main
 out=$(fwd)
-has "a branch it cannot read is missing data" "$out" "could not read gone beside main"
+has "a commit after the graft is listed alone" "$out" "rel has 1 commit(s) main has not grafted, 1 not yet picked"
+hasnt "and nothing the graft took" "$out" "fix: C"
 
 git checkout -q --orphan lone
 git rm -rqf .
 echo 'unrelated' > u.R; git add -A; git commit -qm 'fix: On a history of its own'
-git push -q canon lone
-git checkout -q -f cmain
-sed -i 's/publishes_from: gone/publishes_from: lone/' scripts/series.yaml
-git commit -qam 'chore: Name an unrelated branch'
-git push -q canon cmain:main
-git checkout -q main
+git push -q -f canon lone:rel
+git checkout -q -f main
 out=$(fwd)
-has "a branch with no merge base is missing data" "$out" "could not read a merge base of lone and main"
+has "a branch with no merge base is missing data" "$out" "could not read rel beside main, or their merge base"
 hasnt "rather than owing all of it" "$out" "On a history of its own"
 
 echo
