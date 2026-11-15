@@ -72,8 +72,8 @@
 # there is deleted with the fork's `-fwd` refs. An empty name says there is no
 # canonical repository. The run reads it once, with `git ls-remote`, and fetches
 # what that listed; a name no remote here answers to, or a remote that cannot be
-# read, leaves that copy neither archived nor moved, which a terminal run
-# reports as left behind.
+# read, leaves that copy neither archived nor moved, and the forward's copy
+# there not deleted, which a terminal run reports as left behind.
 #
 # The two are different kinds of thing, and a `gh` clone carries names that made
 # them easy to swap while both were positional:
@@ -122,7 +122,8 @@
 #
 # After the swap the script prints the archive pull requests, number and URL,
 # and the undo: one leased push per repository that puts the old tips back from
-# the archive pull requests' heads and the forward's refs beside them.
+# the archive pull requests' heads and the forward's refs beside them, save a
+# forward ref that moved since the run read it, which was never deleted.
 #
 # Exit status:
 #   0  swapped and cleaned up, or prepared.
@@ -135,14 +136,18 @@
 #      them; nothing was read or moved.
 #   9  swapped, with something left behind: a forward ref the remote refused
 #      to delete, which is cutover litter; a forward ref that moved since the
-#      run read it, whose deletion the lease refused; the canonical copy of
-#      green the remote refused to move; or that copy out of reach, as no
-#      remote here names it or the remote could not be read. Each is printed
+#      run read it, whose deletion the lease refused; a forward ref whose
+#      deletion was refused and that could not be read back, in a state the run
+#      does not know; the canonical copy of green the remote refused to move;
+#      or that copy out of reach, as no remote here names it or the remote
+#      could not be read, and the forward's copy there with it. Each is printed
 #      above a last line `SWAPPED, LEFT BEHIND`: litter and a refused move with
 #      the command that finishes them, a moved ref with the command that shows
-#      what moved, and a copy out of reach with the archive and the leased
-#      move it is still owed, which wait on reading the tip it holds. The swap
-#      stands, and a rerun is not what finishes any of them.
+#      what moved, a ref not read back with the command that reads it, and a
+#      copy out of reach with the archive and the leased move it is still owed,
+#      and the leased deletion of the forward's copy, which wait on reading the
+#      tips they hold. The swap stands, and a rerun is not what finishes any of
+#      them.
 #   Any other status is a command that failed, such as git's 128 under
 #   `set -e`, and it comes before the swap, so nothing was swapped, as for 1.
 #   After the swap every command that can fail is checked and reported, save
@@ -512,9 +517,11 @@ refspecs=()
 # The undo is the swap read backwards: each base ref leased on the forward's
 # tip and put back on its old one, or deleted where the swap created it, and
 # each forward ref written again at the tip it gave. Those carry no lease and no
-# `+`, so a forward ref the deletion left at that tip is no change.
+# `+`, so a forward ref the deletion left at that tip is no change; one that
+# moved since the run read it was never deleted, and the undo leaves it out.
 undo_leases=()
 undo_refspecs=()
+undo_fwd=() # "<ref> <tip>": a forward ref the undo writes back, unless it moved
 echo "refs to swap:"
 for r in "${swap[@]}"; do
   new=$(git rev-parse "refs/remotes/$remote/$S-fwd-$r")
@@ -526,7 +533,8 @@ for r in "${swap[@]}"; do
   leases+=("--force-with-lease=refs/heads/$S-$r:$cur")
   refspecs+=("$new:refs/heads/$S-$r")
   undo_leases+=("--force-with-lease=refs/heads/$S-$r:$new")
-  undo_refspecs+=("$cur:refs/heads/$S-$r" "$new:refs/heads/$S-fwd-$r")
+  undo_refspecs+=("$cur:refs/heads/$S-$r")
+  undo_fwd+=("$S-fwd-$r $new")
   short=${cur:0:7}
   oldv=$(desc_field "refs/remotes/$remote/$S-$r" Version)
   newv=$(desc_field "refs/remotes/$remote/$S-fwd-$r" Version)
@@ -761,9 +769,9 @@ fi
 # what does, and the run exits 9.
 left=()          # "<remote> <ref>": a deletion refused, of a ref at the tip read
 moved=()         # "<remote> <ref> <tip read> <tip now>": a deletion the lease refused
-green_left=''    # the push that moves the canonical copy of green, not made
-green_why=()     # what green_left is printed under
-canon_undo=''    # the canonical half of the undo
+unread=()        # "<remote> <ref> <tip read>": a deletion refused, and not read back
+canon_left=()    # what the canonical repository is still owed: why, and the commands, indented
+canon_undo=''    # the canonical half of the undo, its forward green aside
 new_green=$fwd_green
 
 # Delete <ref>s in <repo>, each under a lease on the tip this run read: a ref
@@ -771,11 +779,13 @@ new_green=$fwd_green
 # firing's, and deleting it would leave them on no ref. Some git proxies refuse
 # deletions outright, a cloud session's among them, and a push that was refused
 # may still have deleted some, so what is left is read back rather than
-# assumed: a ref still at the tip read is litter, and one anywhere else, or not
-# read back at all, has moved. Until litter is gone, the loop ignores a forward
-# whose green is an ancestor of its base's, and scripts/series-prune.sh lists it.
+# assumed: a ref still at the tip read is litter, and one anywhere else has
+# moved. A listing that cannot be read says neither, so each ref is reported as
+# not read back, in a state this run does not know. Until litter is gone, the
+# loop ignores a forward whose green is an ancestor of its base's, and
+# scripts/series-prune.sh lists it.
 delete_leased() { # <repo> <ref> <tip> [<ref> <tip>]...
-  local repo=$1 still r t now i readback=1
+  local repo=$1 still r t now i
   shift
   dl_pairs=("$@") dl_leases=() dl_refs=()
   for ((i = 0; i < ${#dl_pairs[@]}; i += 2)); do
@@ -783,15 +793,16 @@ delete_leased() { # <repo> <ref> <tip> [<ref> <tip>]...
     dl_refs+=(":refs/heads/${dl_pairs[i]}")
   done
   git push "${dl_leases[@]}" "$repo" "${dl_refs[@]}" && return 0
-  still=$(git ls-remote --heads "$repo") || readback=
+  if ! still=$(git ls-remote --heads "$repo"); then
+    for ((i = 0; i < ${#dl_pairs[@]}; i += 2)); do unread+=("$repo ${dl_pairs[i]} ${dl_pairs[i + 1]}"); done
+    return 0
+  fi
   for ((i = 0; i < ${#dl_pairs[@]}; i += 2)); do
-    r=${dl_pairs[i]} t=${dl_pairs[i + 1]} now=
+    r=${dl_pairs[i]} t=${dl_pairs[i + 1]}
     # awk reads the whole listing: `grep -q` would stop at the first match, and
     # `cut` before it die of SIGPIPE, which `pipefail` reports as no match.
-    if [ -n "$readback" ]; then
-      now=$(awk -v ref="refs/heads/$r" '$2 == ref { print $1 }' <<<"$still")
-      [ -n "$now" ] || continue
-    fi
+    now=$(awk -v ref="refs/heads/$r" '$2 == ref { print $1 }' <<<"$still")
+    [ -n "$now" ] || continue
     if [ "$now" = "$t" ]; then
       left+=("$repo $r")
     else
@@ -812,12 +823,17 @@ delete_leased() { # <repo> <ref> <tip> [<ref> <tip>]...
 #
 # A copy out of this run's reach has no tip to lease on, so what it is owed is
 # printed as steps rather than as a command to run as it stands: the archive
-# first, as above, then the move under a lease on the tip it holds.
+# first, as above, then the move under a lease on the tip it holds. The
+# forward's copy there was not read either, so its deletion waits on the same
+# read: a tip the new green reaches is litter, and any other is a moved ref.
 if [ -n "$canon_why" ]; then
-  green_why=("$S-green in the canonical repository was neither archived nor moved, as $canon_why; r-universe publishes it."
+  canon_left=("$S-green in the canonical repository was neither archived nor moved, as $canon_why; r-universe publishes it."
     "Once a remote here reads it, archive the copy it holds as the pull requests above were, then move it under a lease"
-    "on that tip:")
-  green_left="git push --force-with-lease=refs/heads/$S-green:<the tip it holds> $canonical $new_green:refs/heads/$S-green"
+    "on that tip:"
+    "  git push --force-with-lease=refs/heads/$S-green:<the tip it holds> $canonical $new_green:refs/heads/$S-green"
+    "Nor was the forward's copy there, $S-fwd-green, deleted, where it holds one. Once read, a tip $S-green does not"
+    "reach may hold commits no other ref has, to read first; a tip it reaches is litter, deleted under a lease on it:"
+    "  git push --force-with-lease=refs/heads/$S-fwd-green:<the tip it holds> $canonical :refs/heads/$S-fwd-green")
 elif [ -n "$canon_read" ]; then
   cur=$(git rev-parse -q --verify "refs/remotes/$canonical/$S-green") || cur=
   if [ "$cur" = "$new_green" ]; then
@@ -826,7 +842,6 @@ elif [ -n "$canon_read" ]; then
       "$canonical" "$new_green:refs/heads/$S-green"; then
     echo "canonical $S-green -> $(git rev-parse --short "$new_green")"
     canon_undo="git push --atomic --force-with-lease=refs/heads/$S-green:$new_green $canonical $cur:refs/heads/$S-green"
-    [ -z "$canon_fwd" ] || canon_undo="$canon_undo $canon_fwd:refs/heads/$S-fwd-green"
   else
     # The line that finishes it leases on what the canonical repository holds
     # now, read again, so that a green that moved after this run read it does
@@ -835,10 +850,10 @@ elif [ -n "$canon_read" ]; then
     if [ "$now" = "$new_green" ]; then
       echo "canonical $S-green already at $(git rev-parse --short "$new_green"), moved there by another push"
     else
-      green_why=("$S-green in $canonical is still on the pre-cutover lineage, which r-universe publishes; move it:")
-      [ "$now" = "$cur" ] || green_why+=("It is at ${now:-<nothing>} now, not at the ${cur:-<nothing>} this run read and archived;"
+      canon_left=("$S-green in $canonical is still on the pre-cutover lineage, which r-universe publishes; move it:")
+      [ "$now" = "$cur" ] || canon_left+=("It is at ${now:-<nothing>} now, not at the ${cur:-<nothing>} this run read and archived;"
         "read what moved there before running this.")
-      green_left="git push --force-with-lease=refs/heads/$S-green:$now $canonical $new_green:refs/heads/$S-green"
+      canon_left+=("  git push --force-with-lease=refs/heads/$S-green:$now $canonical $new_green:refs/heads/$S-green")
     fi
   fi
   [ -z "$canon_fwd" ] || delete_leased "$canonical" "$S-fwd-green" "$canon_fwd"
@@ -858,6 +873,24 @@ if [ ${#archived[@]} -gt 0 ]; then
     read -r r head slug n <<<"$a"
     echo "  $head: $slug#$n https://github.com/$slug/pull/$n"
   done
+fi
+# A forward ref that moved since this run read it was never deleted, and the
+# tip read would be a non-fast-forward against the one it holds now, refusing
+# the whole atomic push; so the undo leaves it out, and says so.
+kept_moved() { # <repo> <ref>: whether the deletion's lease refused it
+  local l r ref
+  for l in ${moved[@]+"${moved[@]}"}; do
+    read -r r ref _ <<<"$l"
+    [ "$r $ref" != "$1 $2" ] || return 0
+  done
+  return 1
+}
+for u in "${undo_fwd[@]}"; do
+  read -r ref tip <<<"$u"
+  kept_moved "$remote" "$ref" || undo_refspecs+=("$tip:refs/heads/$ref")
+done
+if [ -n "$canon_undo" ] && [ -n "$canon_fwd" ] && ! kept_moved "$canonical" "$S-fwd-green"; then
+  canon_undo="$canon_undo $canon_fwd:refs/heads/$S-fwd-green"
 fi
 echo
 echo "undo, while nothing has moved since: one leased push per repository puts the old tips back,"
@@ -879,6 +912,10 @@ for repo in "$remote" "$canonical"; do
     echo "  $canon_undo"
   fi
 done
+[ ${#moved[@]} -eq 0 ] || {
+  echo "  It leaves out the forward's refs that moved since this run read them, listed below:"
+  echo "  they were never deleted, so they need no undo."
+}
 
 echo
 echo "Re-cut the derived strands from the swapped-in series where it had them:"
@@ -886,13 +923,10 @@ echo "  scripts/series-rc.sh $S --push, scripts/series-alpha.sh $S --push (.clau
 echo "The fork's universe still names $S-fwd-green for the forward's flavor; nothing installs it, and the"
 echo "  next forward writes the ref again (handbook/branches/flavors/README.md)."
 
-if [ ${#left[@]} -gt 0 ] || [ ${#moved[@]} -gt 0 ] || [ -n "$green_left" ]; then
+if [ ${#left[@]} -gt 0 ] || [ ${#moved[@]} -gt 0 ] || [ ${#unread[@]} -gt 0 ] || [ ${#canon_left[@]} -gt 0 ]; then
   echo
   echo "left behind: the swap stands, and what follows it did not happen."
-  if [ -n "$green_left" ]; then
-    printf '  %s\n' "${green_why[@]}"
-    echo "    $green_left"
-  fi
+  [ ${#canon_left[@]} -eq 0 ] || printf '  %s\n' "${canon_left[@]}"
   for repo in "$remote" "$canonical"; do
     refs=()
     for l in ${left[@]+"${left[@]}"}; do
@@ -915,12 +949,30 @@ if [ ${#left[@]} -gt 0 ] || [ ${#moved[@]} -gt 0 ] || [ -n "$green_left" ]; then
         echo "  moved in $repo since this run read them, so kept: each may hold commits no other ref has. Read them:"
         first=
       fi
-      where="at ${now:0:12} now"
-      [ -n "$now" ] || where="not read back"
-      echo "    $ref, read at ${tip:0:12}, $where:"
+      echo "    $ref, read at ${tip:0:12}, at ${now:0:12} now:"
       echo "      git fetch $repo refs/heads/$ref && git log --oneline $tip..FETCH_HEAD"
     done
     [ -n "$first" ] || echo "    What $S needs of them goes onto $S-dev as a repair; then delete each by hand, never by a rerun."
+  done
+  # A ref not read back may be gone, still at the tip read, or moved: a refused
+  # push may have deleted some of what it named. Each is shown with the line
+  # that reads it, and what each answer means.
+  for repo in "$remote" "$canonical"; do
+    first=1
+    for l in ${unread[@]+"${unread[@]}"}; do
+      read -r r ref tip <<<"$l"
+      [ "$r" = "$repo" ] || continue
+      if [ -n "$first" ]; then
+        echo "  not read back from $repo after a deletion was refused there, so in a state this run does not know:"
+        first=
+      fi
+      echo "    $ref, read at ${tip:0:12}:"
+      echo "      git ls-remote $repo refs/heads/$ref"
+    done
+    [ -n "$first" ] || {
+      echo "    One gone needs nothing; one still at the tip read is cutover litter, which loses nothing when deleted;"
+      echo "    one anywhere else moved and may hold commits no other ref has: read <tip read>..<its tip> before deleting it."
+    }
   done
   echo "SWAPPED, LEFT BEHIND: $S is cut over; run the lines above, or hand them to a maintainer."
   exit 9

@@ -12,7 +12,7 @@
 # under --confirm on anything a terminal run leaves to the operator, and lists
 # what a refused deletion leaves, keeping a forward ref that moved meanwhile;
 # and that scripts/series-prune.sh offers only cutover litter, and runs
-# nothing. Fourteen things are checked.
+# nothing. Seventeen things are checked.
 #
 #   1. Without a terminal and without --confirm the cutover refuses before
 #      fetching anything, and names --confirm and --prepare.
@@ -49,9 +49,10 @@
 #      exit 9, read back correctly from a listing thousands of branches long.
 #   8. The canonical copy of green: with --canonical '' there is none, and the
 #      run exits 0; a --canonical naming no remote, or one that cannot be read,
-#      leaves it neither archived nor moved, exit 9, with no lease on a tip the
-#      run did not read; and one that moves under the run is printed with a
-#      push leased on where it is now, which works.
+#      leaves it neither archived nor moved, and the forward's copy there not
+#      deleted, exit 9, with no lease on a tip the run did not read; and one
+#      that moves under the run is printed with a push leased on where it is
+#      now, which works.
 #   9. The cutover with --confirm, against remotes that refuse deletions, and a
 #      canonical repository that refuses to move green: archived and swapped
 #      all the same, every ref left behind listed with the one command that
@@ -64,9 +65,15 @@
 #      a base green plainly, so a divergence there does.
 #  13. A forward ref that moves while the run archives, in the fork or in the
 #      canonical repository, is kept and shown with what moved, not deleted,
-#      and the run exits 9.
+#      and the run exits 9; the undo it prints leaves that ref out, and works.
 #  14. On a terminal, a divergence is printed, and the swap follows the
 #      confirmation.
+#  15. A ref deleted since an earlier fetch, in the fork or the canonical
+#      repository, is neither archived against nor deleted nor undone.
+#  16. A canonical forward green that lags the fork's is undone to its own tip.
+#  17. A refused deletion whose remote cannot be read back is reported as in a
+#      state the run does not know, not as moved, with the line that reads
+#      each ref, and the run exits 9.
 #
 # Usage:
 #   scripts/series-cutover-test.sh
@@ -693,6 +700,10 @@ has "the canonical green is left behind" "$out" \
   "  v9.9-x-green in the canonical repository was neither archived nor moved, as no remote here is called"
 has "with the push that moves it once its tip is read" "$out" \
   "    git push --force-with-lease=refs/heads/v9.9-x-green:<the tip it holds> nosuch $NEW_GREEN:refs/heads/v9.9-x-green"
+has "the forward's copy there is left behind too" "$out" \
+  "  Nor was the forward's copy there, v9.9-x-fwd-green, deleted, where it holds one."
+has "with the deletion it is owed once its tip is read" "$out" \
+  "    git push --force-with-lease=refs/heads/v9.9-x-fwd-green:<the tip it holds> nosuch :refs/heads/v9.9-x-fwd-green"
 has "and exit 9" "$out" "EXIT=9"
 is "no archive is opened in the canonical repository" "$(grep -c 'repos/test/canonical' "$GH_LOG" || true)" 0
 is "and its green is untouched" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
@@ -708,6 +719,10 @@ has "with the move it is owed once its tip is read" "$out" \
   "    git push --force-with-lease=refs/heads/v9.9-x-green:<the tip it holds> broken $NEW_GREEN:refs/heads/v9.9-x-green"
 hasnt "and no lease on a tip it never read" "$out" "--force-with-lease=refs/heads/v9.9-x-green: "
 hasnt "nor on the one an earlier fetch left" "$out" "--force-with-lease=refs/heads/v9.9-x-green:$OLD_GREEN broken"
+has "the forward's copy there is left behind too" "$out" \
+  "  Nor was the forward's copy there, v9.9-x-fwd-green, deleted, where it holds one."
+has "with the deletion it is owed once its tip is read" "$out" \
+  "    git push --force-with-lease=refs/heads/v9.9-x-fwd-green:<the tip it holds> broken :refs/heads/v9.9-x-fwd-green"
 has "and exit 9" "$out" "EXIT=9"
 is "no archive is opened in the canonical repository" "$(grep -c 'repos/test/canonical' "$GH_LOG" || true)" 0
 git remote remove broken
@@ -890,6 +905,22 @@ has "exit 9" "$out" "EXIT=9"
 has "the line shows the commit that moved" "$(cd "$WORK" && bash -c "$show")" "feat: Add baz()"
 is "which a ref still reaches" "$(git -C "$FORK" for-each-ref --contains "$LATE" --format='%(refname)' | tr '\n' ' ')" \
   "refs/heads/v9.9-x-fwd-dev refs/heads/v9.9-x-fwd-green "
+undo=$(awk '/^undo, while nothing has moved since/ { f = 1; next } f && /^$/ { f = 0 } f && /^  git / { sub(/^  /, ""); print }' <<<"$out")
+[ -z "${KEEP:-}" ] || echo "$undo"
+hasnt "the undo writes no moved ref back, in the fork" "$undo" "refs/heads/v9.9-x-fwd-dev"
+hasnt "nor in the canonical repository" "$undo" "refs/heads/v9.9-x-fwd-green"
+has "but the forward's refs it deleted" "$undo" "$NEW_BUILD:refs/heads/v9.9-x-fwd-build"
+has "and says why" "$out" "  It leaves out the forward's refs that moved since this run read them, listed below:"
+has "as never deleted" "$out" "  they were never deleted, so they need no undo."
+out=$(run bash -ec "$undo")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "that undo runs" "$out" "EXIT=0"
+is "-dev is the old one" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$OLD_DEV"
+is "the canonical green too" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
+is "the forward's -build is back" "$(git ls-remote origin refs/heads/v9.9-x-fwd-build | cut -f1)" "$NEW_BUILD"
+is "the moved ones are where they moved, in the fork" \
+  "$(git ls-remote origin refs/heads/v9.9-x-fwd-green refs/heads/v9.9-x-fwd-dev | cut -f1 | sort -u)" "$LATE"
+is "and in the canonical repository" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | cut -f1)" "$LATE"
 
 echo
 echo "=== 14. on a terminal, a divergence is printed, and the swap follows the confirmation"
@@ -905,6 +936,82 @@ has "the diverged -dev is archived" "$out" "archived v9.9-x-dev as test/fork#"
 is "-dev is the forward's" "$(git ls-remote origin refs/heads/v9.9-x-dev | cut -f1)" "$NEW_DEV"
 is "and the diverged one is the archive's head" "$(git -C "$FORK" for-each-ref --points-at "$DIVERGED_DEV" --format='%(refname)' 'refs/pull/*/head' | wc -l | tr -d ' ')" 1
 has "and the run exits 0" "$out" "EXIT=0"
+
+echo
+echo "=== 15. what an earlier fetch left of a ref deleted since is not planned on"
+restore
+# A strand deleted in the fork after an earlier fetch, and the forward's copy of
+# green deleted in the canonical repository: both tracking refs are left here.
+git update-ref refs/remotes/origin/v9.9-x-fwd-alpha "$NEW_DEV"
+git -C "$CANON" update-ref -d refs/heads/v9.9-x-fwd-green
+is "the canonical copy's tracking ref is left too" "$(git rev-parse refs/remotes/upstream/v9.9-x-fwd-green)" "$NEW_GREEN"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the fork's cleanup is what the fork holds" "$out" \
+  "deleted after the swap: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor on origin"
+hasnt "and not the strand deleted there since" "$out" "v9.9-x-fwd-alpha"
+hasnt "nor the canonical copy deleted there since" "$out" "v9.9-x-fwd-green on upstream"
+has "whose green is archived against main instead" "$(cat "$GH_LOG")" "-f head=v9.9-x-green -f base=main"
+undo=$(awk '/^undo, while nothing has moved since/ { f = 1; next } f && /^$/ { f = 0 } f && /^  git push / { sub(/^  /, ""); print }' <<<"$out")
+is "nor written back there by the undo, which puts green back alone" "$(grep -F ' upstream ' <<<"$undo")" \
+  "git push --atomic --force-with-lease=refs/heads/v9.9-x-green:$NEW_GREEN upstream $OLD_GREEN:refs/heads/v9.9-x-green"
+is "both tracking refs are dropped" \
+  "$(git for-each-ref --format='%(refname)' refs/remotes/origin/v9.9-x-fwd-alpha refs/remotes/upstream/v9.9-x-fwd-green)" ""
+has "and the run exits 0" "$out" "EXIT=0"
+
+echo
+echo "=== 16. a canonical forward green a cycle behind the fork's is undone to where it was"
+restore
+LAG=$(git rev-parse "$NEW_GREEN^")
+git push -q -f upstream "$LAG:refs/heads/v9.9-x-fwd-green"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the cutover runs" "$out" "EXIT=0"
+is "and deletes the lagging copy" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | wc -l)" 0
+has "the canonical undo writes it back at the tip it had" "$out" \
+  "  git push --atomic --force-with-lease=refs/heads/v9.9-x-green:$NEW_GREEN upstream $OLD_GREEN:refs/heads/v9.9-x-green $LAG:refs/heads/v9.9-x-fwd-green"
+undo=$(awk '/^undo, while nothing has moved since/ { f = 1; next } f && /^$/ { f = 0 } f && /^  git / { sub(/^  /, ""); print }' <<<"$out")
+out=$(run bash -ec "$undo")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "that undo runs" "$out" "EXIT=0"
+is "the canonical green is the old one" "$(git ls-remote upstream refs/heads/v9.9-x-green | cut -f1)" "$OLD_GREEN"
+is "and the forward's copy is where it lagged" "$(git ls-remote upstream refs/heads/v9.9-x-fwd-green | cut -f1)" "$LAG"
+
+echo
+echo "=== 17. a refused deletion that cannot be read back is reported as not known, not as moved"
+restore
+# The fork refuses to delete the forward's green alone, as a per-ref rule does,
+# deleting the rest of the push, and cannot be read after that.
+cat > "$FORK/hooks/update" <<HOOK
+#!/bin/bash
+[ "\$3" != 0000000000000000000000000000000000000000 ] || [ "\$1" != refs/heads/v9.9-x-fwd-green ] ||
+  { touch "$FORK/unreadable"; echo "deletion refused" >&2; exit 1; }
+HOOK
+chmod +x "$FORK/hooks/update"
+cat > "$BIN/upload-pack" <<PACK
+#!/bin/bash
+[ ! -e "$FORK/unreadable" ] || { echo "upload-pack: refused" >&2; exit 1; }
+exec git upload-pack "\$@"
+PACK
+chmod +x "$BIN/upload-pack"
+git config remote.origin.uploadpack "$BIN/upload-pack"
+out=$(run scripts/series-cutover.sh v9.9-x --confirm "v9.9-x@$SHA" --upstream "$UP" --out "$OUT" </dev/null)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the series is replaced" "$out" "Series v9.9-x replaced by its forward counterpart."
+is "the fork could not be read afterwards" "$([ -e "$FORK/unreadable" ] && echo yes)" yes
+rm -f "$FORK/hooks/update" "$FORK/unreadable"
+git config --unset remote.origin.uploadpack
+is "the push deleted all but the forward's green" "$(git ls-remote origin 'refs/heads/*fwd*' | cut -f2)" refs/heads/v9.9-x-fwd-green
+has "every ref it named is reported as not known" "$out" \
+  "  not read back from origin after a deletion was refused there, so in a state this run does not know:"
+has "a deleted one among them" "$out" "    v9.9-x-fwd-dev, read at ${NEW_DEV:0:12}:"
+has "each with the line that reads it" "$out" "      git ls-remote origin refs/heads/v9.9-x-fwd-dev"
+has "and what each answer means" "$out" "    One gone needs nothing; one still at the tip read is cutover litter"
+hasnt "none as moved" "$out" "moved in origin since this run read them"
+hasnt "nor as litter" "$out" "cutover litter in origin"
+is "the last line says the swap stands" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
+  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
+has "exit 9" "$out" "EXIT=9"
 
 echo
 echo "$pass passed, $fail failed"
