@@ -22,9 +22,14 @@
 # which pin them (scripts/series-cutover-stack.sh),
 # the forward's tips are the series' refs,
 # and the derived strands are recomputed from `<S>-dev` (scripts/series-rc.sh, scripts/series-alpha.sh).
-# Nothing here deletes anything either: the commands are printed, and a human runs them, in two forms:
-# one `git push --delete` per repository, and, for a remote on GitHub, one `gh api -X DELETE` per ref,
-# for where git may not delete at all, as in a cloud session, whose git proxy refuses it.
+# Nothing here deletes anything either: the commands are printed, and a person or a session runs them, in two forms:
+# one `git push --delete` per repository, and, for a remote on GitHub,
+# one dispatch of .github/workflows/delete-branch.yaml per ref, for where git may not delete at all,
+# as in a cloud session, whose git proxy refuses it.
+# The workflow deletes a ref only where a closed pull request's head is its tip;
+# each line names the lowest-numbered pull request whose head is, read with `git ls-remote`,
+# and a placeholder with a note where none is, as for litter whose tip no pull request holds
+# (`series_delete_line`, scripts/series-lib.sh).
 # The second is the form scripts/series-cutover.sh prints for what its own deletion left.
 #
 # Usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]
@@ -140,7 +145,7 @@ if [ -n "$canon_has_fwd" ] && [ -n "$(series_github_slug "$canonical")" ]; then
   gh_lines+=("$(series_delete_line "$canonical" "$S-fwd-green")")
 fi
 if [ ${#gh_lines[@]} -gt 0 ]; then
-  echo "or, where git may not delete, one call per ref:"
+  echo "or, where git may not delete, one dispatch of the deletion workflow per ref:"
   printf '%s\n' "${gh_lines[@]}"
 fi
 echo "Nothing above was run."

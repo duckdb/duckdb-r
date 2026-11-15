@@ -17,7 +17,9 @@
 #      the scan directory, its bound, the `-build` equivalent of a re-stamped
 #      commit, and the engine and the stamp read off a tree.
 #   6. The GitHub repository a remote names, whatever user, token or port its
-#      URL carries, and the command that deletes one of its branches.
+#      URL carries, and the command that deletes one of its branches: the
+#      dispatch of the deletion workflow, naming the lowest-numbered pull
+#      request whose head is the branch's tip, or a placeholder where none is.
 #
 # The engine's own formats are the block right below the helpers: what a tree
 # holds for `series_engine_of()` and `series_stamped_version()` to read, where
@@ -173,6 +175,8 @@ is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbb
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
 
 echo "--- 6. the GitHub repository a remote names"
+# Offline: a remote that is not a local path is refused by git at once, rather than looked up.
+export GIT_ALLOW_PROTOCOL=file
 for url in https://github.com/o/r https://github.com/o/r.git https://github.com/o/r/ git@github.com:o/r.git ssh://git@github.com/o/r \
   https://user@github.com/o/r.git https://github.com:443/o/r.git ssh://git@github.com:22/o/r.git; do
   git remote add gh-url "$url"
@@ -181,9 +185,10 @@ for url in https://github.com/o/r https://github.com/o/r.git https://github.com/
 done
 # A token in the URL names the repository as the bare URL does, and is never printed.
 git remote add gh-url https://x-access-token:s3cr3t@github.com:443/o/r.git
+dispatch="gh api -X POST repos/o/r/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]="
 is "a URL with a user, a token and a port names o/r" "$(series_github_slug gh-url)" o/r
 is "and the token is in neither of its lines" "$(series_github_slug gh-url; series_delete_line gh-url b-fwd-dev)" \
-  "$(printf 'o/r\ngh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev')"
+  "$(printf 'o/r\n%s' "${dispatch}b-fwd-dev' -f 'inputs[pr]=<pr>'  # the tip of b-fwd-dev could not be read; name a closed pull request whose head is that tip")"
 git remote remove gh-url
 for url in https://github.com.example.invalid/o/r https://github.com@example.invalid/o/r https://github.com/o/r/extra git@github.com:22/o/r \
   'https://github.com/o/r?t=s3cr3t' 'https://github.com/o/r.git#s3cr3t' 'https://github.com/o?t=s3cr3t/r' 'git@github.com:o/r?t=s3cr3t'; do
@@ -196,7 +201,26 @@ is "a URL that is not GitHub's names nothing" "$(series_github_slug proxied)" ""
 is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-dev)" "git push --delete proxied b-fwd-dev"
 git config remote.proxied.github o/r
 is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
-is "and then with one gh api call per branch" "$(series_delete_line proxied b-fwd-dev)" "gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev"
+is "and then with a dispatch per branch, a placeholder for a remote it cannot read" "$(series_delete_line proxied b-fwd-dev)" \
+  "${dispatch}b-fwd-dev' -f 'inputs[pr]=<pr>'  # the tip of b-fwd-dev could not be read; name a closed pull request whose head is that tip"
+# A remote it can read: the pull request is the lowest-numbered one whose head is the tip.
+git init -q --bare "$SCRATCH/gh.git"
+tipc=$(git rev-parse HEAD)
+other=$(git rev-parse HEAD~1)
+git push -q "$SCRATCH/gh.git" "$tipc:refs/heads/b-fwd-dev" "$other:refs/heads/litter"
+for p in "9 $tipc" "10 $tipc" "2 $other" "12 $tipc"; do
+  read -r n sha <<<"$p"
+  git -C "$SCRATCH/gh.git" update-ref "refs/pull/$n/head" "$sha"
+done
+git -C "$SCRATCH/gh.git" update-ref refs/heads/unpinned "$(git rev-parse HEAD~2)"
+git remote add readable "$SCRATCH/gh.git"
+git config remote.readable.github o/r
+is "a branch at several pull requests' heads names the lowest-numbered" "$(series_delete_line readable b-fwd-dev)" \
+  "${dispatch}b-fwd-dev' -f 'inputs[pr]=9'"
+is "and one at a single head names that one" "$(series_delete_line readable litter)" "${dispatch}litter' -f 'inputs[pr]=2'"
+is "a branch no pull request's head is at gets a placeholder, and says what it needs" "$(series_delete_line readable unpinned)" \
+  "${dispatch}unpinned' -f 'inputs[pr]=<pr>'  # no pull request's head is at $(git rev-parse --short=12 HEAD~2), the tip of unpinned; name a closed one whose head is"
+unset GIT_ALLOW_PROTOCOL
 
 echo
 echo "$pass passed, $fail failed"

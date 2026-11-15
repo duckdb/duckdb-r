@@ -46,7 +46,8 @@
 #  11. Against remotes that refuse deletions, and a canonical repository that refuses to move green:
 #      swapped all the same, every ref left behind listed with the one command that finishes it, and exit 9.
 #  12. series-check.sh ignores what a refused deletion leaves as cutover litter.
-#  13. series-prune.sh lists that litter with the commands that remove it and runs none of them;
+#  13. series-prune.sh lists that litter with the commands that remove it and runs none of them,
+#      each dispatch naming the pull request whose head is the ref's tip, or a placeholder where none is;
 #      it offers nothing of a live forward, nor of one at birth, whose green sits below its seed on a commit the series' green has,
 #      which series-check.sh does not take for litter either;
 #      and both take for litter what a swap taken while the forward was at birth leaves, by its `-dev`.
@@ -117,7 +118,7 @@ git config user.email test@example.invalid
 git config commit.gpgsign false
 git remote add origin "$FORK"
 git remote add upstream "$CANON"
-# The repositories the printed `gh api -X DELETE` lines name.
+# The repositories the printed dispatches of the deletion workflow name.
 git config remote.origin.github test/fork
 git config remote.upstream.github test/canonical
 
@@ -755,10 +756,10 @@ hasnt "and offers none for the green it did not move" "$out" "upstream $OLD_GREE
 has "the litter in the fork is named" "$out" \
   "  cutover litter in origin, which loses nothing when deleted: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor"
 for r in build dev green build-base vendor; do
-  has "with one gh api line for -fwd-$r, for a person to run" "$out" "    gh api -X DELETE repos/test/fork/git/refs/heads/v9.9-x-fwd-$r"
+  has "with one dispatch for -fwd-$r, for a person to run" "$out" "    gh api -X POST repos/test/fork/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=v9.9-x-fwd-$r' -f 'inputs[pr]="
 done
 has "and the canonical copy" "$out" "  cutover litter in upstream, which loses nothing when deleted: v9.9-x-fwd-green"
-has "with its own" "$out" "    gh api -X DELETE repos/test/canonical/git/refs/heads/v9.9-x-fwd-green"
+has "with its own" "$out" "    gh api -X POST repos/test/canonical/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=v9.9-x-fwd-green' -f 'inputs[pr]="
 is "the last line says so" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
   "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
 has "and the status is 9" "$out" "EXIT=9"
@@ -803,9 +804,18 @@ has "and the canonical copy" "$out" "  v9.9-x-fwd-green on upstream"
 has "the vendor strand among it too" "$out" "  v9.9-x-fwd-vendor"
 has "the deletion in the fork" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev"
 has "and in the canonical repository" "$out" "git push --delete upstream v9.9-x-fwd-green"
-has "and one gh api line per ref in the fork" "$out" "gh api -X DELETE repos/test/fork/git/refs/heads/v9.9-x-fwd-rc-dev"
-has "and in the canonical repository" "$out" "gh api -X DELETE repos/test/canonical/git/refs/heads/v9.9-x-fwd-green"
+has "and one dispatch per ref in the fork" "$out" "gh api -X POST repos/test/fork/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=v9.9-x-fwd-rc-dev' -f 'inputs[pr]="
+has "and in the canonical repository" "$out" "gh api -X POST repos/test/canonical/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=v9.9-x-fwd-green' -f 'inputs[pr]="
+has "a ref no pull request's head is at gets a placeholder, with what it needs" "$out" \
+  "gh api -X POST repos/test/fork/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=v9.9-x-fwd-rc-dev' -f 'inputs[pr]=<pr>'  # no pull request's head is at ${NEW_DEV:0:12}, the tip of v9.9-x-fwd-rc-dev"
 has "and nothing was run" "$out" "Nothing above was run."
+# A pull request whose head is the tip of a ref is named in its dispatch, the lowest-numbered of them.
+git -C "$FORK" update-ref refs/pull/98/head "$NEW_DEV"
+git -C "$FORK" update-ref refs/pull/99/head "$NEW_DEV"
+out=$(run scripts/series-prune.sh v9.9-x)
+has "a ref at a pull request's head names it" "$out" "gh api -X POST repos/test/fork/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=v9.9-x-fwd-rc-dev' -f 'inputs[pr]=98'"
+git -C "$FORK" update-ref -d refs/pull/98/head
+git -C "$FORK" update-ref -d refs/pull/99/head
 is "the fork's refs are untouched" "$(heads origin)" "$before_fork"
 is "and the canonical repository's" "$(heads upstream)" "$before_canon"
 # A forward at birth, seeded on the commit the series now stands on: its green sits there, below its seed,

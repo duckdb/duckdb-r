@@ -92,8 +92,9 @@
 # a fetch of the pinning pull requests' heads, then one leased push per repository
 # that puts the old tips back and the forward's refs beside them,
 # save a forward ref that moved since the run read it, which was never deleted.
-# Where a remote refused a deletion it prints the line that finishes it, a `gh api -X DELETE` one on GitHub,
-# for a person to run.
+# Where a remote refused a deletion it prints the line that finishes it, for a person or a session to run:
+# on GitHub a dispatch of .github/workflows/delete-branch.yaml naming a pull request whose head is the ref's tip,
+# or a placeholder where none is (`series_delete_line`, scripts/series-lib.sh).
 #
 # Exit status:
 #   0  swapped and cleaned up, or prepared.

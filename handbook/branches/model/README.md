@@ -149,6 +149,12 @@ carries the report, the stacks' review and the sign-off, and is closed, never me
 The `-fwd` refs go afterwards, their tips being the series' refs by then,
 and what a refused deletion leaves is **cutover litter**, listed by the cutover itself and by
 [`scripts/series-prune.sh`](/scripts/series-prune.sh) for a human to remove.
+**A cloud session deletes a branch through a workflow**, since its git proxy refuses `git push --delete` and the REST deletion alike:
+it dispatches [`delete-branch.yaml`](/.github/workflows/delete-branch.yaml) with the branch and a closed pull request
+whose head is the branch's tip, and the run deletes nothing else, leased on that tip
+([`scripts/delete-branch.sh`](/scripts/delete-branch.sh)).
+That head is kept for as long as the pull request exists, so the deletion loses nothing,
+and the dispatch the cutover tooling prints names such a pull request where one exists, read with `git ls-remote`.
 **`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
 so that the package a release ships as plain `duckdb` has verdicts of its own.
 It is one ref: no buffer, since it is derived rather than vendored,
