@@ -295,6 +295,7 @@ git rm -rq --cached --ignore-unmatch -- src/duckdb
 git checkout HEAD -- src/duckdb 2>/dev/null || true
 git clean -fdq -- src/duckdb
 git commit -qm 'Merge rel-line forward into main'
+MERGE=$(git rev-parse HEAD)
 git push -q upstream main
 git checkout -q s-dev
 out_fwd=$(scripts/series-port.sh s 2>&1)
@@ -310,6 +311,25 @@ same "and no engine" "$(git ls-tree -r --name-only "$PORT" -- src/duckdb | wc -l
 out_again=$(GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=true \
   GIT_CONFIG_KEY_1=gpg.program GIT_CONFIG_VALUE_1=false scripts/series-port.sh s 2>&1 || true)
 has "a rerun names the same commit, signing configured or not" "$out_again" "$PORT Merge rel-line forward into main"
+
+# A fresh clone has no stand-in until it walks; --apply of the port's short SHA,
+# or of the merge's own, ports the merge's change all the same.
+SDEV=$(git rev-parse s-dev)
+for named in "${PORT:0:10}" "$(git rev-parse --short "$MERGE")"; do
+  rm -rf "$SCRATCH/fresh"
+  git clone -q "$REMOTE" "$SCRATCH/fresh"
+  # shellcheck disable=SC2015  # any failure is read off the output below
+  out_apply=$(cd "$SCRATCH/fresh" &&
+    git config user.name Test && git config user.email test@example.invalid && git config commit.gpgsign false &&
+    git remote add upstream "$CANON" && git checkout -q s-dev && scripts/setup-git.sh >/dev/null &&
+    scripts/series-port.sh s --apply "$named" 2>&1 || true)
+  [ -z "${KEEP:-}" ] || echo "$out_apply"
+  # The pick is what is checked; the fixture carries no tooling tree for the
+  # sync that follows it to compare, so nothing reaches the remote here.
+  has "--apply $named in a fresh clone picks the merge's port" "$out_apply" "] Merge rel-line forward into main"
+  has "  carrying its fix" "$out_apply" "create mode 100644 R/rel-fix.R"
+  git push -q -f origin "$SDEV:refs/heads/s-dev"
+done
 
 echo
 echo "$pass passed, $fail failed"

@@ -531,6 +531,25 @@ fi
 
 [ -n "$apply" ] || exit 0
 
+# A SHA named for --apply is read as the walk offers it: a forward merge's own
+# SHA stands for its port (merge_port), and so does the port's SHA, which a
+# fresh clone has only once the walk, or this, has written the stand-in.
+named=()
+for a in "$@"; do
+  c=$(git rev-parse -q --verify "$a^{commit}" 2>/dev/null || true)
+  if [ -z "$c" ]; then
+    while IFS= read -r m; do
+      x=$(merge_port "$m")
+      case "$x" in "$a"*) c=$x; break ;; esac
+    done < <(git rev-list --first-parent --merges "$mb..$src")
+  elif git rev-parse -q --verify "$c^2" >/dev/null; then
+    x=$(merge_port "$c")
+    [ -z "$x" ] || c=$x
+  fi
+  named+=("${c:-$a}")
+done
+set -- ${named[@]+"${named[@]}"}
+
 # A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a
 # forward-port that carries one -- and the ours-version merge driver is what
 # keeps that line off the conflict list. The gate at the top of this script has
