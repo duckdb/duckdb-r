@@ -447,12 +447,13 @@ From then on the release branch's commits are the newer line's ancestry, and FOR
 
 ## Changing the line CRAN ships
 
-When upstream releases the line `main`'s series has been previewing, CRAN moves to it,
-and the line it shipped before keeps its release branch, parked.
+When upstream cuts a release branch for the line `main`'s series has been previewing, we cut ours at the same time,
+and `main` moves on to preview the next line; CRAN moves to the new line with its first release
+([`branches/model/`](/handbook/branches/model/README.md) owns the cycle).
 `<N>` is the new line, upstream's new release branch, with a series of its own since upstream cut it
 ([`series-open`](/.claude/skills/series-open/SKILL.md)); `<P>` is the line CRAN ships until then, `v2.0-cyanoptera`.
 
-1. **Cut `<N>` in `duckdb/duckdb-r` from `main`**, whose R side and tooling the new line keeps.
+1. **Cut `<N>` in `duckdb/duckdb-r` from `main`**, whose R side and tooling the new line keeps, the day upstream cuts it.
    Inspect, cut, confirm, each read before the next:
 
    ```sh
@@ -479,8 +480,9 @@ and the line it shipped before keeps its release branch, parked.
    ```
 
 2. **Declare it**, in one pull request on `main` before the landing:
-   in [`scripts/series.yaml`](/scripts/series.yaml) the CRAN flavor's `upstream` becomes `<N>`, its `publishes_from` stays `main`,
-   the `<N>` series' `releases_from` becomes `<N>`, and `<P>`'s keeps `<P>`;
+   in [`scripts/series.yaml`](/scripts/series.yaml) the `<N>` series' `releases_from` becomes `<N>`, and `<P>`'s keeps `<P>`;
+   the CRAN flavor's `upstream` becomes `<N>` with `<N>`'s first release, its `publishes_from` staying `main`,
+   and a line that retires then is declared `stale: true`;
    then `.github/pull.yml` from `scripts/pull-config.sh` and the tables from `scripts/series-table.R`,
    checked with `--check` ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 3. **Land `<N>`'s series onto `<N>`**, steps 1 to 7 with `<B>` = `<N>`, ending on the bump to its first release, or short of it to `<N>`'s fourth component one up.

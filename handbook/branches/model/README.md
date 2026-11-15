@@ -15,7 +15,7 @@ sibling `<S>-dev`, so opening one is creating refs
 
 **Two repositories.**
 `duckdb/duckdb-r` is canonical:
-`main`, the release branch of the line CRAN ships, the parked stable baselines, the LTS flavor branch;
+`main`, the release branch of the line CRAN ships, the stale baselines awaiting retirement, the LTS flavor branch;
 CRAN and the numbered r-universe packages publish from here.
 `main` carries the engine of upstream `main` and makes no CRAN release,
 though r-universe builds plain `duckdb` from it, the next line ([`flavors/`](/handbook/branches/flavors/README.md));
@@ -220,6 +220,20 @@ a branch is made of, and the other three come from elsewhere:
 | **CI/CD infrastructure** | **`main`** | forward-ported to every series |
 | **cpp11** | **`main`** | forward-ported to every series |
 | R core | external — `r-devel`, CRAN policy | monitored; fixes land on the oldest active release branch first |
+
+**At most three lines are active, and CRAN follows the middle one once there are three.**
+`main` previews the next line, v2.1 today, while `v2.0-cyanoptera` serves the line CRAN ships.
+When upstream cuts a release branch for the line `main` previews, `vX.Y-<name>`, we cut ours from `main` the same day
+([`series-land`](/.claude/skills/series-land/SKILL.md), "Changing the line CRAN ships"),
+and `main` moves on to preview the line after it.
+That makes three: the oldest line, the new release branch, and `main`;
+CRAN moves to the new line, the middle one, with its first release,
+and the older lines retire as a newer one takes over, so that no more than three are active at a time,
+as [the plan for the cycle](https://github.com/duckdb/duckdb-r/pull/2987#issuecomment-6896640798) lays out.
+A fix still starts on the oldest active line and is merged forward through each newer one.
+A line no longer active is **stale** until it is retired:
+its series is declared `stale: true` in [`scripts/series.yaml`](/scripts/series.yaml) and takes no R-side ports,
+which v1.4 and v1.5 are today.
 
 **Forward-porting runs from the branch a series releases from**:
 each `<S>-dev` takes that branch's R-side commits, on every firing,
