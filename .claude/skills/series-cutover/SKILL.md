@@ -163,9 +163,9 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
 
 | Layer | `vendor` | `build` | `dev` and `green` |
 |---|---|---|---|
-| `1-main` | every commit of `main` applies without its engine paths, or is recorded | the same | the same; a commit the series ported is recorded as present |
-| `2-engine` | the forward's engine, where it differs: the upstream range it names, and the engine side of the commits `1-main` replays without it | the same | the same |
-| `3-fwd` | empty, but for `DESCRIPTION` where the version prefix or the package flavor differ (for example `1.5.5` against `2.0.0`, or `duckdb.dev` against `duckdb.2.0.dev`), and for the forward's own changes to `patch/` where the engines differ | `DESCRIPTION` as for `vendor`, its vendor counter included, and `patch/` as for `vendor`; the commits that differ, the forward's glue adaptations | `DESCRIPTION` as for `build`, and `patch/` as for `vendor`; the forward's own repairs and carries, each explained |
+| `1-main` | every commit of `main` applies without its engine paths, or is recorded; where the flavors differ, one that touches a file the flavor renames conflicts, as 3 of the 6 stops on `v2.0-cyanoptera`'s vendor strand did, and is resolved in the old flavor's names, so that the rename shows in `3-fwd` alone | the same | the same; a commit the series ported is recorded as present |
+| `2-engine` | the forward's engine, where it differs: the upstream range it names, and the engine side of the commits `1-main` replays without it, which its summary lists | the same | the same |
+| `3-fwd` | empty, but for the files the seed's `chore: Update version to` and flavor commits touch, where the version prefix or the flavor differ ([`scripts/flavor.sh`](/scripts/flavor.sh)): `DESCRIPTION` alone for `1.5.5` against `2.0.0`, the whole rename for `duckdb.dev` against `duckdb.2.0.dev`; and for the forward's own changes to `patch/` where the engines differ | the seed's files as for `vendor`, the vendor counter in `DESCRIPTION` included, and `patch/` as for `vendor`; the commits that differ, the forward's glue adaptations | the seed's files as for `build`, and `patch/` as for `vendor`; the forward's own repairs and carries, each explained |
 | `4-old` | roughly the inverse of the layers below | the same | the same |
 
 What `4-old` shows beyond that inverse is something the old series has and the forward does not, and it is read like a surprise.
