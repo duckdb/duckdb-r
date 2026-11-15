@@ -173,6 +173,14 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    and no `-fwd` ref is left but those the run lists as left behind.
    Then re-cut the derived strands where the series has them, as the run's last lines say,
    and check the mirror rules with `scripts/pull-config.sh --check`, the last line of the block the loop's stage 6 reports.
+   Last, start the verdict mirror in the canonical repository
+   ([`per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)).
+   The new `<S>-green`'s commits were covered as `<S>-fwd-green` already,
+   so it posts only what landed since the last hourly run, and the rest stays as it is shown:
+
+   ```sh
+   gh api -X POST repos/duckdb/duckdb-r/actions/workflows/each-mirror.yaml/dispatches -f ref=main
+   ```
 10. **Clean up.**
     With the stack pull requests closed since the swap, delete the stack branches, each leased on the tip read,
     as `scripts/series-prune.sh` prints its deletions, and `cutover/<S>/pr` left for last:

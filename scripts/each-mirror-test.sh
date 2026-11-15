@@ -5,8 +5,9 @@
 #
 # The claim the script makes is that every commit of an open pull request from
 # the fork, by an author who belongs to the canonical repository, shows the
-# verdict the store holds for it, that nothing already shown is posted again,
-# and that a run's API use is bounded. Fourteen things are checked.
+# verdict the store holds for it, and so does every commit of a dev series'
+# canonical green branch, that nothing already shown is posted again, and that
+# a run's API use is bounded. Fifteen things are checked.
 #
 #   1. Only pull requests whose head is in the fork and whose author is an
 #      owner, member or collaborator are covered, the others from the fork are
@@ -46,6 +47,14 @@
 #      fail the run.
 #  14. A run that leaves out every pull request from the fork for its
 #      author's association warns.
+#  15. The green branch of every dev series the canonical repository publishes
+#      is covered from the branch it releases from, and so is its `-fwd-green`;
+#      a green it does not have is skipped with a note, and a series another
+#      repository publishes is not covered. A commit both on a green branch and
+#      in a pull request is read once, in the pull request's place, before the
+#      green branches' own. Green records stay in the watermark, and a run
+#      that cannot list the branches or read the declaration still covers the
+#      pull requests.
 #
 # Usage:
 #   scripts/each-mirror-test.sh
@@ -186,7 +195,17 @@ cat > "$SCRATCH/bin/sleep" <<'EOF'
 #!/bin/sh
 echo "sleep $*" >> "$FAKE/calls"
 EOF
-chmod +x "$SCRATCH/bin/gh" "$SCRATCH/bin/sleep"
+# A stand-in for `git` that fails `git ls-remote` while `$FAKE/no-ls-remote`
+# exists, and is git otherwise.
+cat > "$SCRATCH/bin/git" <<EOF
+#!/bin/sh
+if [ "\$1" = ls-remote ] && [ -e "\$FAKE/no-ls-remote" ]; then
+  echo "fatal: refused by the test" >&2
+  exit 128
+fi
+exec $(command -v git) "\$@"
+EOF
+chmod +x "$SCRATCH/bin/gh" "$SCRATCH/bin/sleep" "$SCRATCH/bin/git"
 
 pull() { # <number> <head repo or null> <base> [<author association>]
   jq -nc --argjson n "$1" --arg r "$2" --arg b "$3" --arg a "${4:-COLLABORATOR}" \
@@ -201,6 +220,9 @@ pull() { # <number> <head repo or null> <base> [<author association>]
   pull 6 krlmlr/duckdb-r main NONE
 } | jq -sc . > "$FAKE/pulls.json"
 
+# No dev series until the green branches are checked.
+printf 'flavors:\n  - flavor: duckdb\n    publishes_from: main\n    repo: duckdb/duckdb-r\n' > "$SCRATCH/series.yaml"
+
 # Already shown: P1 as its record says, P3 as an older verdict did.
 printf '%s\teach-rcc (fork)\tsuccess\t%s\teach-rcc / shard 11\n' "$P1" "$(url 11)" > "$FAKE/statuses"
 printf '%s\teach-rcc (fork)\tfailure\t%s\teach-rcc / shard 13\n' "$P3" "$(url 13)" >> "$FAKE/statuses"
@@ -211,7 +233,7 @@ run() { # -> the output, then EXIT=<status>; the calls of this run in $FAKE/call
   set +e
   (cd "$WORK" && PATH="$SCRATCH/bin:$PATH" FAKE="$FAKE" GH_TOKEN=x REPO=duckdb/duckdb-r \
     FORK=krlmlr/duckdb-r RCC_REMOTE="file://$FORKREPO" STORE_DIR="$SCRATCH/store-clone" \
-    STATE="$STATE" PAUSE=0 "$@" "$HERE/each-mirror.sh" 2>&1)
+    STATE="$STATE" SERIES_YAML="$SCRATCH/series.yaml" PAUSE=0 "$@" "$HERE/each-mirror.sh" 2>&1)
   echo "EXIT=$?"
   set -e
 }
@@ -446,6 +468,74 @@ out=$(run env)
 has "covers none" "$out" "0 pull request(s) from krlmlr/duckdb-r, 4 left out by author association"
 has "and warns" "$out" "::warning::each-mirror: every one of the 4 pull request(s) from krlmlr/duckdb-r was left out"
 mv "$FAKE/pulls.json.all" "$FAKE/pulls.json"
+
+# --- 15: the green branches ----------------------------------------------------
+
+echo
+echo "== 15. the green branches"
+git -C "$BUILD" checkout -q -b x-green "$M0"
+G1=$(cd "$BUILD" && c g1); G2=$(cd "$BUILD" && c g2)
+git -C "$BUILD" checkout -q -b x-pull
+G3=$(cd "$BUILD" && c g3)
+git -C "$BUILD" checkout -q -b x-fwd-green "$M0"
+F1=$(cd "$BUILD" && c f1)
+git -C "$BUILD" checkout -q -b z-green "$M0"
+Z1=$(cd "$BUILD" && c z1)
+git -C "$BUILD" checkout -q main
+git -C "$BUILD" push -q "$CANON" x-green x-fwd-green z-green "$G3:refs/pull/7/head"
+{ jq -c '.[]' "$FAKE/pulls.json"; pull 7 krlmlr/duckdb-r main; } | jq -sc . > "$FAKE/pulls.json.new"
+mv "$FAKE/pulls.json.new" "$FAKE/pulls.json"
+for x in "$G1" "$G2" "$G3" "$F1" "$Z1"; do rec "$x" success 31; done
+store 'chore: The green branches judged'
+cat >> "$SCRATCH/series.yaml" <<'YAML'
+  - flavor: duckdb.x.dev
+    kind: dev
+    series: x
+    releases_from: main
+    publishes_from: x-green
+    repo: duckdb/duckdb-r
+  # A series whose green is not there yet.
+  - flavor: duckdb.y.dev
+    series: y
+    releases_from: main
+    publishes_from: y-green
+    repo: duckdb/duckdb-r
+  - flavor: duckdb.z.dev
+    series: z
+    releases_from: main
+    publishes_from: z-green
+    repo: krlmlr/duckdb-r
+YAML
+out=$(run env MAX_WRITES=1)
+has "covers the green and its forward" "$out" "4 pull request(s) from krlmlr/duckdb-r, 1 left out by author association; 2 green branch(es);"
+has "notes a green that is missing" "$out" "::notice::each-mirror: duckdb/duckdb-r has no y-green; skipped"
+is "but not a missing forward" "$(grep -c 'no y-fwd-green' <<<"$out" || true)" 0
+has "reads each shared commit once: 265 before, four new" "$out" "269 commit(s), 269 judged"
+is "and posts the pull request's commit first" "$(grep -o 'statuses/[0-9a-f]*' "$FAKE/calls")" "statuses/$G3"
+out=$(run env)
+is "the next run posts the green branches' commits" "$(calls '-X POST')" 3
+is "a commit on a green is shown" "$(shown "$G1" | cut -d' ' -f1)" success
+is "and one on a forward's green" "$(shown "$F1" | cut -d' ' -f1)" success
+is "but not one on a green another repository publishes" "$(shown "$Z1")" ""
+out=$(run env)
+is "a run with nothing new on the greens reads nothing" "$(calls graphql)" 0
+touch "$FAKE/no-ls-remote"
+rec "$G3" failure 32
+store 'chore: G3 judged again'
+out=$(run env)
+has "branches that cannot be listed cover no green" "$out" "0 green branch(es);"
+has "with a warning" "$out" "::warning::each-mirror: could not list the branches of duckdb/duckdb-r"
+is "and the pull requests are covered all the same" "$(shown "$G3" | cut -d' ' -f1)" failure
+rm -f "$FAKE/no-ls-remote"
+out=$(run env)
+is "the next run reads the green commits again" "$(calls graphql)" 1
+is "and posts none of them" "$(calls '-X POST')" 0
+mv "$SCRATCH/series.yaml" "$SCRATCH/series.yaml.away"
+out=$(run env)
+has "a declaration that cannot be read covers no green" "$out" "::warning::each-mirror: could not read $SCRATCH/series.yaml"
+has "and the run still succeeds" "$out" "EXIT=0"
+has "covering the pull requests" "$out" "4 pull request(s) from krlmlr/duckdb-r"
+mv "$SCRATCH/series.yaml.away" "$SCRATCH/series.yaml"
 
 echo
 echo "$pass passed, $fail failed"

@@ -42,7 +42,8 @@ How the to-do list is computed is
   So a change to the gate binds the commits at or after it and no others,
   and a range replayed from before one is judged without it.
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
-* **The canonical repository**: the commits of an open pull request from the fork show their verdicts there,
+* **The canonical repository**: the commits of an open pull request from the fork
+  and of every series' green branch show their verdicts there,
   as `each-rcc (fork)` statuses ([`upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)).
 * **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
   `workflow_call`.
