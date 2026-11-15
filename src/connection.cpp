@@ -1,6 +1,7 @@
 #include "cpp11/environment.hpp"
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "duckdb/main/settings.hpp"
 #include "r_progress_bar_display.hpp"
 #include "rapi.hpp"
 
@@ -100,8 +101,11 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	auto &config = ClientConfig::GetConfig(context);
 	// Set the function used to create the display for the progress bar
 	config.display_create_func = RProgressBarDisplay::Create;
-	config.enable_progress_bar = true;
-	config.wait_time = 0;
+	// Generic settings since duckdb/duckdb#28571; their callbacks refuse a bar the system disabled.
+	if (!config.system_progress_bar_disable_reason) {
+		Settings::Set<EnableProgressBarSetting>(context, SetScope::SESSION, Value::BOOLEAN(true));
+		Settings::Set<ProgressBarTimeSetting>(context, SetScope::SESSION, Value::BIGINT(0));
+	}
 }
 
 [[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual, duckdb::ConvertOpts convert_opts) {
