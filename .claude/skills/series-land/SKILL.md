@@ -405,6 +405,7 @@ git fetch upstream main
 git switch -c "forward-port/$(git rev-parse --short "$SHA")" upstream/main
 git cherry-pick -x "$SHA"
 ```
+
 Rerun the listing until every commit left is one `main` declines: the vendor commits always, and anything that answers the branch's engine alone.
 
 **Then the graft, as a pull request whose commit reaches `main` unchanged.**
@@ -422,6 +423,9 @@ Write the message, one line per declined commit with its reason, and make the me
 ```sh
 S=v2.0-cyanoptera                            # the series that landed on the release branch
 B=$(scripts/series-land.sh "$S" --target)   # that branch
+if [ "$B" = main ]; then
+  echo "$S releases from main, so there is no release branch to graft" >&2
+else
 DECLINE_REASON="the release line's engine needs it and main's does not"   # why main declines what is not picked yet
 git fetch upstream main "$B"
 v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
@@ -434,6 +438,7 @@ main keeps its tree; this records $B up to $(git rev-parse --short "upstream/$B"
 
 Declined:
 - every vendor commit: main takes its engine from upstream main
+- every version bump and its notes: main's version is its own
 $notyet
 EOF
 cat graft-message
@@ -442,6 +447,7 @@ git merge --no-ff -s ours -F graft-message "upstream/$B"
 git diff --stat upstream/main HEAD       # empty: the graft changes no file
 git push upstream "HEAD:refs/heads/graft/$B-$v"
 gh api repos/duckdb/duckdb-r/pulls -f base=main -f head="graft/$B-$v" -f title="chore: Graft $B at $v" -F body=@graft-message
+fi
 ```
 
 A squash or rebase merge would drop the second parent, so the reviewed commit goes onto `main` as it is,
