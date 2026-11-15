@@ -246,38 +246,43 @@ series_delete_listing() { # <remote>
   fi
 }
 
-# The command that deletes one branch of a remote, for where `git push --delete`
-# is refused, as a cloud session's git proxy refuses it
+# The command that deletes one branch of a remote, at a tip: the one the caller
+# passes, which it read and checked, or else the one the remote holds now. Every
+# form refuses a branch that is no longer at that tip, so a ref that moved after
+# the caller read it is never deleted by the line
 # (scripts/series-cutover.sh, scripts/series-prune.sh,
-# scripts/series-cutover-stack.sh). Off GitHub it is `git push --delete`. On
-# GitHub, where a pull request's head there is the branch's tip, it is a
+# scripts/series-cutover-stack.sh). Off GitHub it is a `git push` leased on the
+# tip. On GitHub, where a pull request's head there is the tip, it is a
 # session's to run: a dispatch of .github/workflows/delete-branch.yaml, which
 # deletes the branch only while a closed pull request's head is its tip
-# (handbook/branches/model/README.md). It names the lowest-numbered such pull
-# request, read with `git ls-remote`, and where there are several, lists them
-# all in a comment, since the lowest may be open. Where no pull request's head
-# is the tip, as for cutover litter, the workflow cannot pin it, and the line is
-# a maintainer's: a `gh api -X DELETE` that checks the tip first, since the API
-# takes no lease. A tip it cannot read gets the `git ls-remote` that reads it,
-# which deletes nothing. Whether another branch at the same tip should pin it is open:
-# https://github.com/duckdb/duckdb-r/pull/2992#issuecomment-6896800985
+# (handbook/branches/model/README.md), for where `git push --delete` is refused,
+# as a cloud session's git proxy refuses it. It names the lowest-numbered such
+# pull request, read with `git ls-remote`, and where there are several, lists
+# them all in a comment, since the lowest may be open. Where no pull request's
+# head is the tip, as for cutover litter, the workflow cannot pin it, and the
+# line is a maintainer's: a `gh api -X DELETE` that checks the tip first, since
+# the API takes no lease. A tip it cannot read gets the `git ls-remote` that
+# reads it, which deletes nothing. Whether another branch at the same tip should
+# pin it is open: https://github.com/duckdb/duckdb-r/pull/2992#issuecomment-6896800985
 # One line per ref, so each can be run, or quoted, on its own.
-series_delete_line() { # <remote> <branch> -> one command
-  local slug refs tip prs pr note
+series_delete_line() { # <remote> <branch> [<tip>] -> one command
+  local slug refs='' tip=${3:-} prs pr note
   slug=$(series_github_slug "$1")
-  if [ -z "$slug" ]; then
-    echo "git push --delete $1 $2"
+  if [ -z "$tip" ] || [ -n "$slug" ]; then
+    if [ -n "${series_delete_cache[$1]+x}" ]; then
+      refs=${series_delete_cache[$1]}
+    else
+      # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
+      refs=$(git ls-remote "$1" "refs/heads/$2" ${slug:+'refs/pull/*/head'} 2>/dev/null) || refs=''
+    fi
+    [ -n "$tip" ] || tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
+  fi
+  if [ -z "$tip" ]; then
+    echo "git ls-remote $1 refs/heads/$2  # $2 is not on $1 or could not be read: once this reads it, rerun for the line that deletes it"
     return
   fi
-  if [ -n "${series_delete_cache[$1]+x}" ]; then
-    refs=${series_delete_cache[$1]}
-  else
-    # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
-    refs=$(git ls-remote "$1" "refs/heads/$2" 'refs/pull/*/head' 2>/dev/null) || refs=''
-  fi
-  tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
-  if [ -z "$tip" ]; then
-    echo "git ls-remote $1 refs/heads/$2  # the tip of $2 could not be read: once this reads it, rerun for the line that deletes it"
+  if [ -z "$slug" ]; then
+    echo "git push --force-with-lease=refs/heads/$2:$tip $1 :refs/heads/$2"
     return
   fi
   prs=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); print p[3] }' <<<"$refs" |

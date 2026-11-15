@@ -22,8 +22,9 @@
 # which pin them (scripts/series-cutover-stack.sh),
 # the forward's tips are the series' refs,
 # and the derived strands are recomputed from `<S>-dev` (scripts/series-rc.sh, scripts/series-alpha.sh).
-# Nothing here deletes anything either: the commands are printed, and a person or a session runs them, in two forms:
-# one `git push --delete` per repository, and, for a remote on GitHub,
+# Nothing here deletes anything either: the commands are printed, and a person or a session runs them, in two forms,
+# each leased on or checked against the tip read here, so a ref that moved since is refused:
+# one `git push` per repository, and, for a remote on GitHub,
 # one line per ref, for where git may not delete at all, as in a cloud session, whose git proxy refuses it:
 # a dispatch of .github/workflows/delete-branch.yaml, for a session, where a pull request's head is the ref's tip,
 # since the workflow deletes a ref only where a closed pull request's head is its tip,
@@ -70,9 +71,9 @@ git fetch -q "$remote"
 have() { git rev-parse -q --verify "refs/remotes/$1/$2^{commit}" >/dev/null 2>&1; }
 have "$remote" "$S-green" || { echo "Error: $S-green does not exist on $remote" >&2; exit 2; }
 
-canon_has_fwd=
+canon_has_fwd='' canon_tip=''
 if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
-  if git fetch -q "$canonical" "$S-fwd-green" 2>/dev/null; then canon_has_fwd=1; fi
+  if git fetch -q "$canonical" "$S-fwd-green" 2>/dev/null; then canon_has_fwd=1 canon_tip=$(git rev-parse FETCH_HEAD); fi
 fi
 
 echo "=== $S on $remote: green $(git rev-parse --short "refs/remotes/$remote/$S-green")"
@@ -130,20 +131,25 @@ echo
 echo "The replaced lineages are under the heads of the stacks' first pull requests,"
 echo "and the derived strands are recomputed by scripts/series-rc.sh and series-alpha.sh,"
 echo "so the deletion loses nothing. To run by hand:"
+# Each deletion is leased on the tip read here, so a ref that moved since is refused rather than deleted.
+tip_of() { git rev-parse "refs/remotes/$remote/$1"; }
 if [ ${#fwd_refs[@]} -gt 0 ]; then
-  printf 'git push --delete %s' "$remote"
-  printf ' %s' "${fwd_refs[@]}"
+  printf 'git push'
+  for r in "${fwd_refs[@]}"; do printf ' --force-with-lease=refs/heads/%s:%s' "$r" "$(tip_of "$r")"; done
+  printf ' %s' "$remote"
+  printf ' :refs/heads/%s' "${fwd_refs[@]}"
   echo
 fi
-[ -z "$canon_has_fwd" ] || echo "git push --delete $canonical $S-fwd-green"
+[ -z "$canon_has_fwd" ] ||
+  echo "git push --force-with-lease=refs/heads/$S-fwd-green:$canon_tip $canonical :refs/heads/$S-fwd-green"
 gh_lines=()
 if [ -n "$(series_github_slug "$remote")" ]; then
   series_delete_listing "$remote"
-  for r in "${fwd_refs[@]}"; do gh_lines+=("$(series_delete_line "$remote" "$r")"); done
+  for r in "${fwd_refs[@]}"; do gh_lines+=("$(series_delete_line "$remote" "$r" "$(tip_of "$r")")"); done
 fi
 if [ -n "$canon_has_fwd" ] && [ -n "$(series_github_slug "$canonical")" ]; then
   series_delete_listing "$canonical"
-  gh_lines+=("$(series_delete_line "$canonical" "$S-fwd-green")")
+  gh_lines+=("$(series_delete_line "$canonical" "$S-fwd-green" "$canon_tip")")
 fi
 if [ ${#gh_lines[@]} -gt 0 ]; then
   echo "or, where git may not delete, one line per ref: a dispatch of the deletion workflow, for a session,"

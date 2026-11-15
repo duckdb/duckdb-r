@@ -782,7 +782,7 @@ report=$tmp/report
     if [ -n "$slug" ]; then
       echo "   or, where the remote refuses a deletion, once \`git ls-remote $remote refs/heads/$stale\` still shows ${LEASE[2-engine]},"
       echo "   since the workflow checks the closed pull request's head, not this lease:"
-      echo "   $(series_delete_line "$remote" "$stale")"
+      echo "   $(series_delete_line "$remote" "$stale" "${LEASE[2-engine]}")"
     fi
   fi
 } > "$report"

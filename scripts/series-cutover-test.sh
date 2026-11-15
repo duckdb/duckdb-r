@@ -83,6 +83,15 @@ no() { fail=$((fail + 1)); echo "  FAIL $1"; }
 is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
 has() { case "$2" in *"$3"*) ok "$1" ;; *) no "$1"; echo "       missing: $3" ;; esac; }
 hasnt() { case "$2" in *"$3"*) no "$1"; echo "     unexpected: $3" ;; *) ok "$1" ;; esac; }
+# The leased push series-prune.sh prints: <remote> <branch>..., at the tips the remote holds now.
+leased() {
+  local r=$1 b
+  shift
+  printf 'git push'
+  for b in "$@"; do printf ' --force-with-lease=refs/heads/%s:%s' "$b" "$(git ls-remote "$r" "refs/heads/$b" | cut -f1)"; done
+  printf ' %s' "$r"
+  printf ' :refs/heads/%s' "$@"
+}
 # The tip-checked deletion printed for a maintainer, for a ref no pull request's head pins: <remote> <slug> <branch>,
 # at the tip the remote holds now.
 checked() {
@@ -707,7 +716,7 @@ has "the litter in the fork is named" "$out" \
   "  cutover litter in origin, which loses nothing when deleted: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor"
 has "and in the canonical repository" "$out" "  cutover litter in upstream, which loses nothing when deleted: v9.9-x-fwd-green"
 is "the last line says the swap stands" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
-  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
+  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; dispatch the workflow lines above, and hand the rest to a maintainer."
 has "and a refused deletion alone is exit 9" "$out" "EXIT=9"
 git -C "$FORK" config --unset receive.denyDeletes
 git -C "$CANON" config --unset receive.denyDeletes
@@ -770,7 +779,7 @@ done
 has "and the canonical copy" "$out" "  cutover litter in upstream, which loses nothing when deleted: v9.9-x-fwd-green"
 has "with its own" "$out" "    $(checked upstream test/canonical v9.9-x-fwd-green)"
 is "the last line says so" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
-  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
+  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; dispatch the workflow lines above, and hand the rest to a maintainer."
 has "and the status is 9" "$out" "EXIT=9"
 is "the litter is what the remote holds" "$(git ls-remote origin 'refs/heads/*fwd*' | wc -l)" 5
 # Back to where a deletion that went through leaves both repositories, the canonical green moved by the line the run printed,
@@ -811,8 +820,8 @@ has "the litter is listed" "$out" "cutover litter:"
 has "the rc strand among it" "$out" "  v9.9-x-fwd-rc-dev"
 has "and the canonical copy" "$out" "  v9.9-x-fwd-green on upstream"
 has "the vendor strand among it too" "$out" "  v9.9-x-fwd-vendor"
-has "the deletion in the fork" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev"
-has "and in the canonical repository" "$out" "git push --delete upstream v9.9-x-fwd-green"
+has "the deletion in the fork, leased on every tip read" "$out" "$(leased origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev)"
+has "and in the canonical repository" "$out" "$(leased upstream v9.9-x-fwd-green)"
 has "and one line per ref in the fork" "$out" "$(checked origin test/fork v9.9-x-fwd-rc-dev)"
 has "and in the canonical repository" "$out" "$(checked upstream test/canonical v9.9-x-fwd-green)"
 has "a ref no pull request's head is at is for a maintainer's shell, and says why" "$out" \
@@ -857,7 +866,7 @@ out=$(run scripts/series-prune.sh v9.9-x)
 has "its green below its seed tells nothing" "$out" \
   "v9.9-x-fwd-green ${MAIN:0:7} sits below the seed of v9.9-x-fwd-dev, as at the forward's birth, which tells nothing"
 has "so its -dev is read, and the forward was swapped in" "$out" "v9.9-x-fwd-dev is an ancestor of v9.9-x-dev: the forward was swapped in"
-has "and it is offered as litter" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green"
+has "and it is offered as litter" "$out" "git push --force-with-lease=refs/heads/v9.9-x-fwd-build:$BIRTH --force-with-lease=refs/heads/v9.9-x-fwd-dev:$BIRTH"
 git fetch -q --prune origin
 out=$(run scripts/series-check.sh --canonical '')
 [ -z "${KEEP:-}" ] || echo "$out"
@@ -1021,7 +1030,7 @@ has "and what each answer means" "$out" "    One gone needs nothing; one still a
 hasnt "none as moved" "$out" "moved in origin since this run read them"
 hasnt "nor as litter" "$out" "cutover litter in origin"
 is "the last line says the swap stands" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
-  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; run the lines above, or hand them to a maintainer."
+  "SWAPPED, LEFT BEHIND: v9.9-x is cut over; dispatch the workflow lines above, and hand the rest to a maintainer."
 has "exit 9" "$out" "EXIT=9"
 
 echo
