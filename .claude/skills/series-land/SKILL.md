@@ -208,9 +208,8 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   ```sh
   eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
   full=$(git -C "$UPSTREAM_CLONE" rev-parse --verify "$eng^{commit}")
-  sed -i 's/^Version: .*/Version: <v>/; /^Config\/duckdb\/upstream:/d' DESCRIPTION
-  printf 'Config/duckdb/upstream: %s\n' "$full" >> DESCRIPTION
-  git diff DESCRIPTION
+  sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: <v>\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
+  git diff DESCRIPTION   # the record sits right below Version:, where the merge driver keeps it
   ```
 
 * **`NEWS.md`**: write the `# duckdb <v>` section, by hand, directly above the newest section.

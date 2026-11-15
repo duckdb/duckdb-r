@@ -143,6 +143,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | File | Purpose |
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
+| [`merge-version-test.sh`](merge-version-test.sh) | Check scripts/merge-version.sh, the DESCRIPTION merge driver, offline, on files and in a repository built here. |
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and the logos. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |

@@ -355,8 +355,7 @@ marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors sh
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
 ENGINE_FULL=dddd444000000000000000000000000000000000
 write_bump() { # <version> [<engine record>]
-  sed -i "s/^Version: .*/Version: $1/; /^Config\/duckdb\/upstream:/d" DESCRIPTION
-  printf 'Config/duckdb/upstream: %s\n' "${2-$ENGINE_FULL}" >> DESCRIPTION
+  sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
   printf '%s\n\n# duckdb %s\n\n- Something for users.\n' "$marker" "$1" > NEWS.md
 }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
