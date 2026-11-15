@@ -18,14 +18,20 @@
 # forward-port (e.g. 1.5.x -> 1.4.x LTS) keeps ours unchanged and never inherits
 # a foreign prefix.
 #
-# The engine record, `Config/duckdb/upstream:`, is pinned the same way: ours
-# keeps its own, so a port onto a series or a release branch never rewrites the
-# engine that branch records, and a branch without one gets none. It lives on the
-# line right below `Version:` (handbook/operations/releases/versioning/README.md),
-# and all three sides are written that way before the merge, so a change to a
-# field near it -- `Config/roxygen2/version:` at the end of the file -- never
-# conflicts with it. A graft (`git merge -s ours`) never reaches this driver and
-# keeps `main`'s record with the rest of `main`'s tree.
+# The engine record, `Config/duckdb/upstream:`, is pinned the same way: ours,
+# always. Each branch keeps the engine it records, so a port, a pick or a
+# cutover's replay of another branch's commits, a landing's bump among them,
+# never rewrites it, and a branch without one gets none. A bump that is itself
+# replayed -- by scripts/series-fold.sh, or a rebuilt landing -- therefore
+# arrives with the record of the commit it lands on, and scripts/series-land.sh
+# refuses it until it is stamped again (.claude/skills/series-land/SKILL.md). It
+# lives on the line right below `Version:`
+# (handbook/operations/releases/versioning/README.md), and all three sides are
+# written that way before the merge, so a change to a field near it --
+# `Config/roxygen2/version:` at the end of the file -- never conflicts with it.
+# Where ours has no `Version:` line the record is left to the three-way merge
+# like any other line. A graft (`git merge -s ours`) never reaches this driver
+# and keeps `main`'s record with the rest of `main`'s tree.
 #
 # All other lines of DESCRIPTION still go through a normal 3-way merge, so a
 # genuine concurrent edit (e.g. two branches touching Imports:) still surfaces
@@ -95,7 +101,9 @@ pin_upstream() { # <file>: rewrite it in place
 oo=$(mktemp); bb=$(mktemp)
 trap 'rm -f "${to:-}" "${tb:-}" "${ta:-}" "$oo" "$bb"' EXIT
 cp "$O" "$oo"; cp "$B" "$bb"
-pin_upstream "$oo"; pin_upstream "$bb"; pin_upstream "$A"
+if grep -q '^Version:' "$A"; then
+  pin_upstream "$oo"; pin_upstream "$bb"; pin_upstream "$A"
+fi
 O="$oo"; B="$bb"
 
 # 3-way merge the remainder; exit status propagates a genuine conflict to git.

@@ -261,12 +261,16 @@ The package version is **not** derived from the git tag:
 the bump sets it explicitly to `X.Y.Z`, so `DESCRIPTION` matches the upstream tag,
 in the one commit [`versioning/`](/handbook/operations/releases/versioning/README.md) describes.
 
-Then rebase the LTS branch, one rename commit on top of the release branch:
+Then rebase the LTS branch, one rename commit on top of the release branch.
+These blocks run on a maintainer's machine and push over SSH, so they name the canonical repository by its SSH URL:
 
 ```bash
-S=v1.4-andium   # the LTS line just released
-git fetch origin "$S" "$S-lts"
-git switch "$S-lts" && git rebase "origin/$S" && git push origin "$S-lts"
+C=git@github.com:duckdb/duckdb-r.git   # the canonical repository, where both branches live
+S=v1.4-andium                          # the LTS line just released
+git fetch "$C" "+refs/heads/$S:refs/remotes/canonical/$S" "+refs/heads/$S-lts:refs/remotes/canonical/$S-lts"
+git switch -C "$S-lts" "canonical/$S-lts"   # from the canonical tip, never a stale local branch
+git rebase "canonical/$S"
+git push --force-with-lease="refs/heads/$S-lts:$(git rev-parse "canonical/$S-lts")" "$C" "HEAD:refs/heads/$S-lts"
 ```
 
 Build the source tarball and take it through WinBuilder and the CRAN
@@ -277,13 +281,15 @@ preflight before tagging (`cran/`).
 Tag the release with the annotated tag `versioning/` describes, and push; r-universe rebuilds automatically:
 
 ```bash
-S=v1.4-andium       # the line just released
-ref=origin/$S-lts   # origin/$S where the line has no -lts branch
-v=$(git show "$ref:DESCRIPTION" | sed -n 's/^Version: //p')
-{ printf 'duckdb %s\n\n' "$v"; git show "$ref:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
+C=git@github.com:duckdb/duckdb-r.git   # the canonical repository
+S=v1.4-andium                          # the line just released
+R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
+git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R"   # the tip as it is now, after the rebase
+v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p')
+{ printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
 if [ "$(grep -c . tag-message)" -gt 1 ]; then
-  git tag -a "v$v" --cleanup=whitespace -F tag-message "$ref" &&
-    git push origin "v$v"
+  git tag -a "v$v" --cleanup=whitespace -F tag-message "canonical/$R" &&
+    git push "$C" "refs/tags/v$v"
 else
   echo "no NEWS.md section for $v" >&2
 fi

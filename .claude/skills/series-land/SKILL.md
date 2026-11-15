@@ -242,6 +242,19 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
 
 CI judges the bump like every other commit.
 A rebuild drops it, so after one, add it again.
+A bump replayed by a fold or a rebase over a changed `DESCRIPTION` meets the merge driver,
+which takes the vendor counter back into its version and keeps the engine record of the commit it lands on,
+and `--status` then refuses it.
+Stamp it again from its subject and the vendored tree, in the kept worktree with the bump checked out:
+
+```sh
+eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
+full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
+v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
+sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
+git diff DESCRIPTION
+git commit --amend --no-edit DESCRIPTION
+```
 
 ## 4. Open the R side for review
 
@@ -371,15 +384,30 @@ A landing on `main` itself skips this step.
 
 **Forward-port first.**
 Every commit since the last graft is either picked onto `main` or declined.
-List them, each marked picked, vendor or not yet:
+FORWARD-PORT counts the vendor commits and version bumps and lists each R-side commit, picked or not yet:
 
 ```sh
 git fetch upstream main
 scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
-Each fix `main` needs goes in as a pull request of `git cherry-pick -x <sha>`, one per fix or several together,
+Each fix `main` needs goes in as a pull request of `git cherry-pick -x`, one per fix or several together,
 merged with the `cherry picked from commit` line kept in the squashed message, so the report marks it picked.
+Register the `DESCRIPTION` merge driver in the clone first, or a pick that touches `DESCRIPTION` conflicts on its version lines:
+
+```sh
+SHA=$(scripts/series-check.sh --canonical upstream 2>&1 |
+  sed -n 's/^ *\([0-9a-f]\{7,\}\) not yet  .*/\1/p' | head -n 1)   # the oldest not yet picked; or another from the listing
+if [ -z "$SHA" ]; then
+  echo "nothing to forward-port: no commit is listed as not yet picked" >&2
+else
+  scripts/setup-git.sh
+  git fetch upstream main
+  git switch -C "forward-port/$(git rev-parse --short "$SHA")" upstream/main   # a rerun starts over from main
+  git cherry-pick -x "$SHA"
+fi
+```
+
 Rerun the listing until every commit left is one `main` declines: the vendor commits always, and anything that answers the branch's engine alone.
 
 **Then the graft, as a pull request whose commit reaches `main` unchanged.**
@@ -397,6 +425,9 @@ Write the message, one line per declined commit with its reason, and make the me
 ```sh
 S=v2.0-cyanoptera                            # the series that landed on the release branch
 B=$(scripts/series-land.sh "$S" --target)   # that branch
+if [ "$B" = main ]; then
+  echo "$S releases from main, so there is no release branch to graft" >&2
+else
 DECLINE_REASON="the release line's engine needs it and main's does not"   # why main declines what is not picked yet
 git fetch upstream main "$B"
 v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
@@ -409,6 +440,7 @@ main keeps its tree; this records $B up to $(git rev-parse --short "upstream/$B"
 
 Declined:
 - every vendor commit: main takes its engine from upstream main
+- every version bump and its notes: main's version is its own
 $notyet
 EOF
 cat graft-message
@@ -417,6 +449,7 @@ git merge --no-ff -s ours -F graft-message "upstream/$B"
 git diff --stat upstream/main HEAD       # empty: the graft changes no file
 git push upstream "HEAD:refs/heads/graft/$B-$v"
 gh api repos/duckdb/duckdb-r/pulls -f base=main -f head="graft/$B-$v" -f title="chore: Graft $B at $v" -F body=@graft-message
+fi
 ```
 
 A squash or rebase merge would drop the second parent, so the reviewed commit goes onto `main` as it is,
@@ -454,7 +487,12 @@ and the line it shipped before keeps its release branch, parked.
 
    ```sh
    N=$(git ls-remote --heads https://github.com/duckdb/duckdb 'v*' | sed 's#.*refs/heads/##' | sort -V | tail -n 1)   # upstream's newest release branch
-   git push upstream "upstream/main:refs/heads/$N"
+   git fetch upstream main
+   if git ls-remote --exit-code upstream "refs/heads/$N" >/dev/null; then
+     echo "$N exists in duckdb/duckdb-r already: nothing to cut, and pushing main there would move it" >&2
+   else
+     git push --force-with-lease="refs/heads/$N:" upstream "upstream/main:refs/heads/$N"   # refused if one appeared meanwhile
+   fi
    ```
 
    ```sh

@@ -394,6 +394,36 @@ is "the review takes it" "$st" 0
 hasnt "and does not call it out of place" "$out" "out of place"
 git checkout -q -f main
 
+echo "== a bump replayed over a changed DESCRIPTION is refused until stamped again"
+# A fold below the bump that touched DESCRIPTION: the replay meets the driver.
+GR=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git push -q -f origin "$TIP~1:refs/heads/v2.0-x-land-green"
+git checkout -q -f -B replay "$TIP~1"
+git checkout -q "$TIP" -- .
+sed -i 's/^Package: .*/&\nTitle: Folded/' DESCRIPTION
+git add -A
+git commit -q -m "$(git log -1 --format=%B "$TIP")"
+FOLDED=$(git rev-parse HEAD)
+git cherry-pick "$BUMP" >/dev/null 2>&1 || true
+is "the replay applies" "$(git log -1 --format=%s)" "$bump_msg"
+REPLAYED=$(git rev-parse HEAD)
+passed "$FOLDED"
+status_of "$REPLAYED"
+is "the replayed bump is refused" "$st" 1
+has "  for its engine record" "$out" "Config/duckdb/upstream:"
+git checkout -q -f replay
+eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
+full=${eng}$(printf '0%.0s' $(seq $((40 - ${#eng}))))
+v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
+sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
+git commit -q --amend --no-edit DESCRIPTION
+STAMPED=$(git rev-parse HEAD)
+status_of "$STAMPED"
+has "stamped again from the vendored source id, it is ready" "$out" "READY: every commit has passed"
+git checkout -q -f main
+git branch -q -D replay
+git push -q -f origin "$GR:refs/heads/v2.0-x-land-green"
+
 echo "== and it is nothing else"
 probe; write_bump 1.99.99.9001; echo 'foo <- function() 99' > R/foo.R
 refused "a bump that changes R code is refused" "changes more than NEWS.md and DESCRIPTION"

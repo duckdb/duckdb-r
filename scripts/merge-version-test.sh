@@ -7,8 +7,9 @@
 # checked:
 #
 #   1. `Version:` takes the component-wise maximum under one prefix.
-#   2. The engine record, `Config/duckdb/upstream:`, is ours: theirs never
-#      replaces it, and a side without one gets none.
+#   2. The engine record, `Config/duckdb/upstream:`, is always ours: theirs
+#      never replaces it, a bump replayed included, and a side without one
+#      gets none; a side without a `Version:` line keeps its record.
 #   3. A port of a roxygen bump from `main` onto a branch whose engine record
 #      differs applies cleanly, keeping the branch's record, below `Version:`.
 #   4. Two sides that change another line differently still conflict.
@@ -51,13 +52,22 @@ desc O 2.0.99.9000; desc A 2.0.99.9000.5; desc B 2.0.99.9001
 is "it merges" "$(merge)" 0
 is "to the component-wise maximum" "$(field Version)" 2.0.99.9001.5
 
-echo "== 2. the engine record is ours"
-desc O 2.0.99.9000 aaaa; desc A 2.0.99.9000 bbbb; desc B 2.0.99.9000 cccc
-is "both sides changed it, and it merges" "$(merge)" 0
-is "to ours" "$(field Config/duckdb/upstream)" bbbb
+echo "== 2. the engine record"
+desc O 2.0.99.9000 aaaa; desc A 2.0.99.9001 bbbb; desc B 2.0.99.9002 cccc
+is "a bump replayed onto a branch that moved its own merges" "$(merge)" 0
+is "  to ours" "$(field Config/duckdb/upstream)" bbbb
+desc O 2.0.99.9000 aaaa; desc A 2.0.99.9000 bbbb; desc B 2.0.99.9000 aaaa
+is "theirs leaving it alone merges" "$(merge)" 0
+is "  to ours" "$(field Config/duckdb/upstream)" bbbb
 desc O 2.0.99.9000; desc A 2.0.99.9000; desc B 2.0.99.9000 cccc
-is "theirs adding one merges" "$(merge)" 0
-is "and ours stays without" "$(grep -c '^Config/duckdb/upstream:' A || true)" 0
+is "theirs adding one, a bump, merges" "$(merge)" 0
+is "  and ours stays without" "$(grep -c '^Config/duckdb/upstream:' A || true)" 0
+desc O 2.0.99.9000 aaaa; desc A 2.0.99.9000 bbbb; printf 'Package: duckdb\nVersion: 2.0.99.9000\nImports: DBI\nConfig/roxygen2/version: 8.1.1\n' > B
+is "theirs dropping it merges" "$(merge)" 0
+is "  and ours keeps it" "$(field Config/duckdb/upstream)" bbbb
+printf 'Package: duckdb\nConfig/duckdb/upstream: bbbb\n' > O; cp O A; printf 'Package: duckdb\nImports: DBI\nConfig/duckdb/upstream: bbbb\n' > B
+is "without a Version: line it merges" "$(merge)" 0
+is "  keeping the record" "$(field Config/duckdb/upstream)" bbbb
 
 echo "== 3. a port of a roxygen bump, the record appended right after it"
 export END=1
