@@ -207,7 +207,7 @@ fi
 # has not caught up is an older `main`, and a landing built on it cannot
 # fast-forward the real one.
 if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; then
-  echo "Error: no canonical remote \"$canonical\" to read $onto from." >&2
+  echo "Error: no canonical remote \"$canonical\" to read main and the branch $S lands onto from." >&2
   echo "  Add $series_canonical_repo as 'upstream', or pass --canonical <name>." >&2
   exit 1
 fi

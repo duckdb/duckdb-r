@@ -48,7 +48,8 @@
 #  15. The branch landed on is the series' `releases_from` in `main`'s
 #      scripts/series.yaml: the build stands on its tip, --status prints its
 #      fast-forward, --review targets it, and the version bump has to rise
-#      above that branch's version too. A `-fwd` series is refused.
+#      above that branch's version too. A `-fwd` series is refused, and
+#      without a canonical remote the script says so itself.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -742,6 +743,13 @@ has "the review pull request targets it" "$out" "--draft --base hi --head v2.0-x
 git checkout -q -f main
 git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
 git branch -q -D probe hi canonmain
+
+echo
+echo "== the canonical remote named"
+out=$(SERIES_CANONICAL='' scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
+is "without a canonical remote it stops" "$st" 1
+has "  with its own error" "$out" "Error: no canonical remote"
+hasnt "  not the shell's" "$out" "unbound variable"
 
 echo
 echo "$pass passed, $fail failed"
