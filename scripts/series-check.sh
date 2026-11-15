@@ -915,15 +915,22 @@ if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
       git log --first-parent --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
     main_shas=$(git rev-list --first-parent "$mb..$fp_main")
+    # Release paperwork: notes and submission records, and in DESCRIPTION
+    # nothing but the version and the engine record. A DESCRIPTION change to
+    # anything else, a dependency say, is package content main may want.
+    paperwork() { # <commit>
+      [ -z "$(git diff-tree --no-commit-id --name-only -r "$1" |
+        grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || return 1
+      [ -z "$(git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' |
+        grep -vE '^[-+](Version|Config/duckdb/upstream):' || true)" ]
+    }
     rows=() total=0 open=0 vendor=0 paper=0
     while IFS= read -r c; do
       [ -n "$c" ] || continue
       total=$((total + 1))
       subj=$(git log -1 --format=%s "$c")
       if series_is_vendor "$subj"; then vendor=$((vendor + 1)); continue; fi
-      if [[ "$subj" == 'chore: Bump version to '* ]] ||
-        [ -z "$(git diff-tree --no-commit-id --name-only -r "$c" |
-          grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ]; then
+      if [[ "$subj" == 'chore: Bump version to '* ]] || paperwork "$c"; then
         paper=$((paper + 1)); continue
       fi
       src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
