@@ -19,6 +19,9 @@
 #      strand, and the series has no section to put them in. A commit that
 #      edits DESCRIPTION without moving the version is package content and is
 #      still offered.
+#   6. A graft, a release branch taken with `git merge -s ours` after `main`
+#      picked what it wanted, offers that pick and nothing the second parent
+#      brings.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -230,6 +233,29 @@ out_live=$(scripts/series-port.sh s 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_live"
 hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
 has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
+
+# A graft: `main` takes a release branch cut from it with `-s ours`, after
+# picking the one fix it wants. Only that pick, a commit of `main`'s own, is
+# offered; what the graft's second parent brings never is.
+git checkout -q main
+git checkout -q -b rel-line
+echo 'fix rel' > R/rel-fix.R
+git add -A; git commit -qm 'fix: A fix on the release branch, picked onto main'
+RELFIX=$(git rev-parse HEAD)
+echo 'only rel' > R/rel-only.R
+git add -A; git commit -qm 'fix: A fix main declines'
+git checkout -q main
+git cherry-pick -x "$RELFIX" >/dev/null
+git merge -q -s ours --no-edit -m 'chore: Graft rel-line
+
+Declined: the fix main does without.' rel-line
+git push -q upstream main
+git checkout -q s-dev
+out_graft=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_graft"
+has "the pick main made is offered" "$out_graft" 'A fix on the release branch, picked onto main'
+hasnt "the commit the graft declined is not" "$out_graft" 'A fix main declines'
+hasnt "nor the graft itself" "$out_graft" 'Graft rel-line'
 
 echo
 echo "$pass passed, $fail failed"
