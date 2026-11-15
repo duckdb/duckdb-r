@@ -3,7 +3,16 @@
 # series replayed without its flavor onto the `main` it will fast-forward
 # (.claude/skills/series-land/SKILL.md).
 #
-# A line moves onto `main` when `main` starts releasing it. The series already
+# **The branch landed on is the one the series releases from.** The routine
+# landing is `main`'s own series, a batch of upstream `main` commits onto
+# `main`; a release branch such as `v2.0-cyanoptera` takes its own series the
+# same way. Which branch is read from `releases_from` in `main`'s
+# scripts/series.yaml, `main` where the series has no row, so nothing typed can
+# disagree with what the loop ports from. Wherever `main` appears below, it is
+# that branch, read from --canonical. Only a serving series lands: a `-fwd`
+# series is cut over first and lands under its serving name.
+#
+# A batch of a series moves onto its branch once CI has judged it. The series already
 # holds the history `main` needs (one commit per upstream commit, each judged
 # by CI with the R-side fix it needed folded in), but on a lineage of its own:
 # its seed is an older `main`, everything `main` gained since arrived as ports,
@@ -49,7 +58,8 @@
 # **The landing is checked against the series before it is pushed.** Its tip
 # and the rc commit it was built up to must be the same package: the same tree,
 # except where the landing takes `main`'s side by construction. That is
-# `NEWS.md`, the release paperwork no port carries, and the three READMEs, which
+# `NEWS.md` and `DESCRIPTION`'s engine record, the release paperwork no port
+# carries, and the three READMEs, which
 # no port carries either (scripts/series-converge.sh has the evidence for both
 # classes). `DESCRIPTION` agrees whole, version included, because the counter
 # restarts on `main` exactly as it did on the series. A difference anywhere else
@@ -109,16 +119,19 @@
 #        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
 #                       [--canonical <name>] [--push]
+#        series-land.sh <S> --target [--canonical <name>]
 #        series-land.sh <S> --abort
-#   <S> is the series whose rc strand lands, `v2.0-cyanoptera-fwd` for
-#   `v2.0-cyanoptera-fwd-rc-dev`; the refs are named for its line,
-#   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
+#   <S> is the serving series whose rc strand lands, `v2.0-cyanoptera` for
+#   `v2.0-cyanoptera-rc-dev`, never a `-fwd` series; the refs are named for it,
+#   `v2.0-cyanoptera-land-*`, on --remote. The branch landed on is its
+#   `releases_from`, read with `main` from --canonical.
+#   --target prints that branch and nothing else, for a command block to read.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
 #   --remote or the landing --landing names: an iteration reviewed before the
 #   series carries it, for example `--landing <L>-land-v2 --suffix -v2`.
-#   --base defaults to `main`; a ref the clone lacks is fetched from --canonical.
+#   --base defaults to the branch landed on; a ref the clone lacks is fetched from --canonical.
 #   --source names the ref the landing is built up to, on --remote, in place of
 #   `<S>-rc-dev`: it is taken as it stands, with no realignment, for a series
 #   that carries no flavor and so has no rc strand.
@@ -133,12 +146,12 @@ shopt -s inherit_errexit
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --target | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
+push='' status='' target='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -156,18 +169,20 @@ while [ $# -gt 0 ]; do
     --status) status=1; shift ;;
     --review) review=1; shift ;;
     --abort) abort=1; shift ;;
+    --target) target=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
   esac
 done
 [ ${#args[@]} -eq 1 ] || argerr
-[ $((${status:-0} + ${review:-0} + ${abort:-0})) -le 1 ] || argerr
+[ $((${status:-0} + ${review:-0} + ${abort:-0} + ${target:-0})) -le 1 ] || argerr
 S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
+  *-fwd) echo "Error: $S is a forward; cut it over first, then land ${S%-fwd} (.claude/skills/series-land/SKILL.md)" >&2; exit 2 ;;
 esac
-L=${S%-fwd}
+L=$S
 here=$(cd "$(dirname "$0")" && pwd)
 # Pathspecs below are the repository's, wherever this was started from.
 cd "$(git rev-parse --show-toplevel)"
@@ -190,16 +205,48 @@ if [ -n "$abort" ]; then
   exit 0
 fi
 
+
 # The landing stands on the canonical `main` and on nothing else: a mirror that
 # has not caught up is an older `main`, and a landing built on it cannot
 # fast-forward the real one.
 if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; then
-  echo "Error: no canonical remote \"$canonical\" to read main from." >&2
+  echo "Error: no canonical remote \"$canonical\" to read main and the branch $S lands onto from." >&2
   echo "  Add $series_canonical_repo as 'upstream', or pass --canonical <name>." >&2
   exit 1
 fi
+# The branch landed on is the series' `releases_from` in the canonical `main`'s
+# scripts/series.yaml, quotes and all read bare. `main`'s own series needs no
+# row; any other series without one, or a row without `releases_from`, is
+# refused rather than landed on `main` by default, since a misspelt name would
+# otherwise land a release line there.
 git fetch -q "$canonical" main
-main=$(git rev-parse "refs/remotes/$canonical/main" 2>/dev/null || git rev-parse FETCH_HEAD)
+row=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
+  awk -v s="$S" '
+    function val(v) { gsub(/["'"'"']/, "", v); return v }
+    function flush() { if (ser == s) print "row " rf; ser = ""; rf = "" }
+    /^  - / { flush() }
+    /^    series:/ { ser = val($2) }
+    /^    releases_from:/ { rf = val($2) }
+    END { flush() }' | head -n 1)
+onto=${row#row }
+onto=${onto# }
+if [ -z "$onto" ]; then
+  if [ "$S" = main ] && [ -z "$row" ]; then
+    onto=main
+  else
+    echo "Error: $canonical's main declares no releases_from for the series $S in scripts/series.yaml;" >&2
+    echo "  declare it there, or name the serving series as series.yaml does." >&2
+    exit 1
+  fi
+fi
+if [ -n "$target" ]; then echo "$onto"; exit 0; fi
+# `main` holds the tip of that branch, whatever its name.
+if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
+  echo "Error: could not fetch $onto from $canonical, the branch $S releases from:" >&2
+  echo "$err" >&2
+  exit 1
+fi
+main=$(git rev-parse -q --verify "refs/remotes/$canonical/$onto" || git rev-parse FETCH_HEAD)
 
 dev_ref="refs/remotes/$remote/$L-land-dev"
 green_ref="refs/remotes/$remote/$L-land-green"
@@ -215,41 +262,72 @@ strand=("${series_strand[@]}" "${series_makevars[@]}")
 strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
+bump_subject='chore: Bump version to '
+# The DESCRIPTION lines the bump writes (handbook/operations/releases/versioning/README.md).
+bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
 # Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
 # and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
-# `Version:` line, which rises and is the version the subject names; and its
-# `NEWS.md` starts with fledge's marker line and has a section for that version
-# with something in it (handbook/operations/releases/versioning/README.md).
+# `Version:` line, which has at most four components, rises and is the version
+# the subject names, and its one
+# `Config/duckdb/upstream:` line, the full SHA of the engine the landing's last
+# vendor commit vendors. `NEWS.md` is kept by a separate process, so nothing is
+# asked of it (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
-bump_subject='chore: Bump version to '
 is_bump() { # <commit>
   local c=$1 old new subj
   ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
   [ -z "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] ||
     { echo "changes more than NEWS.md and DESCRIPTION"; return 1; }
-  [ "$(git show "$c~1:DESCRIPTION" | grep -v '^Version:')" = "$(git show "$c:DESCRIPTION" | grep -v '^Version:')" ] ||
-    { echo "changes DESCRIPTION beyond Version:"; return 1; }
+  [ "$(git show "$c~1:DESCRIPTION" | grep -v "$bump_fields_re")" = "$(git show "$c:DESCRIPTION" | grep -v "$bump_fields_re")" ] ||
+    { echo "changes DESCRIPTION beyond Version: and Config/duckdb/upstream:"; return 1; }
   # shellcheck disable=SC2015
   [ "$(git show "$c~1:DESCRIPTION" | grep -c '^Version:')" = 1 ] &&
     [ "$(git show "$c:DESCRIPTION" | grep -c '^Version:')" = 1 ] ||
     { echo "DESCRIPTION does not have exactly one Version: line"; return 1; }
   old=$(git show "$c~1:DESCRIPTION" | sed -n 's/^Version: //p')
   new=$(git show "$c:DESCRIPTION" | sed -n 's/^Version: //p')
+  # The engine record: the full SHA, which the vendored tree abbreviates in its
+  # DUCKDB_SOURCE_ID (series_engine_of, scripts/series-config.sh), the one
+  # place every vendor commit records its engine whatever its subject says.
+  local up eng
+  [ "$(git show "$c:DESCRIPTION" | grep -c '^Config/duckdb/upstream:')" = 1 ] ||
+    { echo "DESCRIPTION does not have exactly one Config/duckdb/upstream: line"; return 1; }
+  up=$(git show "$c:DESCRIPTION" | sed -n 's/^Config\/duckdb\/upstream: *//p')
+  eng=$(series_engine_of "$c~1")
+  [[ "$up" =~ ^[0-9a-f]{40}$ ]] ||
+    { echo "Config/duckdb/upstream: is not a full SHA: $up"; return 1; }
   # shellcheck disable=SC2015
-  [ "$old" != "$new" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] ||
+  [ -n "$eng" ] && [[ "$up" == "$eng"* ]] ||
+    { echo "Config/duckdb/upstream: $up is not the engine the landing vendors, ${eng:-none}"; return 1; }
+  # The bump drops the vendor counter, so it is held to the series' version
+  # without it: `main`'s first landing bumps to the very `2.0.99.9000` the
+  # series stamps `2.0.99.9000.<n>` under, and later ones above it
+  # (handbook/operations/releases/versioning/README.md).
+  [[ "$new" != *.*.*.*.* ]] || { echo "keeps a fifth component, $new"; return 1; }
+  local old4
+  old4=$(cut -d. -f1-4 <<<"$old")
+  [ "$(printf '%s\n%s\n' "$old4" "$new" | sort -V | tail -n 1)" = "$new" ] ||
     { echo "does not raise the version from $old"; return 1; }
+  # Nor may it fall to or below the branch landed on: every landing there took
+  # the fourth component one up and a tag of that version, and a series not
+  # forwarded since still stamps an older one, so the landing's bump is the next
+  # one above the branch's, not above the series'
+  # (handbook/operations/releases/versioning/README.md). Where that branch is
+  # `main`, the only bump this refuses that the rule above let through is one
+  # that would lower `main`'s own version, which no landing meant.
+  local onto_v
+  onto_v=$(git show "$main:DESCRIPTION" | sed -n 's/^Version: //p')
+  # shellcheck disable=SC2015
+  [ "$onto_v" != "$new" ] && [ "$(printf '%s\n%s\n' "$onto_v" "$new" | sort -V | tail -n 1)" = "$new" ] ||
+    { echo "does not raise the version above $onto's $onto_v"; return 1; }
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
-  # `sed -n 1p` reads the whole pipeline; `head` or `grep -q` would end it early under pipefail.
-  [[ "$(git show "$c:NEWS.md" 2>/dev/null | sed -n 1p)" == *fledge* ]] ||
-    { echo "NEWS.md does not start with fledge's marker line"; return 1; }
-  [ -n "$(git show "$c:NEWS.md" | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ] ||
-    { echo "NEWS.md has nothing under # duckdb $new"; return 1; }
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
-# commits, and at most one version bump as the last commit? A fix is folded
+# commits, and at most one version bump as the last commit, never without a
+# vendor commit under it? A fix is folded
 # into the commit that introduced the defect, so that every commit passes;
 # nothing else sits on top. The bump is the one commit written by hand, and it
 # is accepted only after a vendor commit. Prints the first commit out of place.
@@ -266,6 +344,14 @@ out_of_place() { # <tip>
     why=$(is_bump "$c") || { echo "$c $subj ($why)"; return; }
     bump=1
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
+  # A bump with no vendor commit under it lands no engine and would pass
+  # unchecked as one of the base's own commits: an empty landing.
+  if [ -z "$seen" ] && [ "$(git rev-parse "$1")" != "$(git rev-parse "$main")" ]; then
+    subj=$(git log -1 --format=%s "$1")
+    case "$subj" in
+      "$bump_subject"*) echo "$(git rev-parse --short "$1") $subj (a bump with no vendor commit under it)" ;;
+    esac
+  fi
 }
 
 # --- --status: what CI has decided, and green over the passed prefix ----------
@@ -318,7 +404,7 @@ if [ -n "$status" ]; then
   fi
   if [ "$new_green" = "$dev" ]; then
     if ! git merge-base --is-ancestor "$main" "$dev"; then
-      echo "NOT READY: main ($(git rev-parse --short "$main")) is not the base of $L-land-dev;" \
+      echo "NOT READY: $onto ($(git rev-parse --short "$main")) is not the base of $L-land-dev;" \
         "it moved, so the landing has to be rebuilt on it"
       exit 1
     elif [ -n "$(out_of_place "$dev")" ]; then
@@ -330,8 +416,8 @@ if [ -n "$status" ]; then
         "add it (.claude/skills/series-land/SKILL.md, step 3)"
       exit 1
     else
-      echo "READY: every commit has passed, and main ($(git rev-parse --short "$main")) fast-forwards to it:"
-      echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/main"
+      echo "READY: every commit has passed, and $onto ($(git rev-parse --short "$main")) fast-forwards to it:"
+      echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/$onto"
     fi
   fi
   exit 0
@@ -351,7 +437,7 @@ if [ -n "$review" ]; then
   fi
   base=$main
   if ! git merge-base --is-ancestor "$base" "$tip"; then
-    echo "Error: main moved: $(git rev-parse --short "$base") is not below the landing $(git rev-parse --short "$tip")" >&2
+    echo "Error: $onto moved: $(git rev-parse --short "$base") is not below the landing $(git rev-parse --short "$tip")" >&2
     exit 1
   fi
   if [ -n "$(out_of_place "$tip")" ]; then
@@ -448,7 +534,7 @@ builds or tests it.")
     echo "$rb -> $(git rev-parse --short "$head") on $canonical"
   fi
   echo "Open it as a draft, never to be merged:"
-  echo "  gh pr create --repo ${slug:-<owner>/<repo>} --draft --base main --head $rb \\"
+  echo "  gh pr create --repo ${slug:-<owner>/<repo>} --draft --base $onto --head $rb \\"
   echo "    --title \"Review: the R side of the $L landing${suffix:+, ${suffix#-}}\""
   exit 0
 fi
@@ -474,13 +560,13 @@ if [ -n "$base_arg" ]; then
     { git fetch -q "$canonical" "$base_arg" && git rev-parse FETCH_HEAD; })
 fi
 git merge-base --is-ancestor "$main" "$base_req" || {
-  echo "Error: --base $base_arg is not above main $(git rev-parse --short "$main")," \
-    "so main could not fast-forward onto a landing built on it" >&2
+  echo "Error: --base $base_arg is not above $onto $(git rev-parse --short "$main")," \
+    "so $onto could not fast-forward onto a landing built on it" >&2
   exit 1
 }
 
 if [ -f "$STATE" ]; then
-  read -r wt base src seed prefix kept < "$STATE"
+  read -r wt base src seed prefix kept _ < "$STATE"
   [ "$kept" = "$S" ] ||
     { echo "Error: the kept build lands ${kept:-another series}, not $S; --abort it first" >&2; exit 1; }
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
@@ -490,9 +576,9 @@ if [ -f "$STATE" ]; then
     exit 1
   fi
   if ! git merge-base --is-ancestor "$main" "$base"; then
-    echo "Error: main moved from below $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
-    echo "  since this landing was started, so it can no longer fast-forward main." >&2
-    echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
+    echo "Error: $onto moved from below $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
+    echo "  since this landing was started, so it can no longer fast-forward $onto." >&2
+    echo "  Freeze $onto first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
   fi
   # A version bump added above the vendor commits is not the build's: drop it,
@@ -627,6 +713,13 @@ while IFS=$'\t' read -r add del path; do
     NEWS.md | README.Rmd | README.md | .github/README.md)
       explained+=("$(row "$path" "$add/$del" "main's by construction; no port carries it")") ;;
     DESCRIPTION)
+      # The engine record is the branch's, written by each landing's bump and
+      # never ported, so a series lacks or lags it by construction.
+      if [ "$(git show "$tip:DESCRIPTION" | grep -v '^Config/duckdb/upstream:')" = \
+        "$(git show "$expect:DESCRIPTION" | grep -v '^Config/duckdb/upstream:')" ]; then
+        explained+=("$(row "$path" "$add/$del" "the engine record, Config/duckdb/upstream:, is the branch's")")
+        continue
+      fi
       why=''
       [ "$(version_of "$tip")" = "$(version_of "$expect")" ] ||
         why="version $(version_of "$tip") here, $(version_of "$expect") on the series"

@@ -4,7 +4,7 @@
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
 # the series' vendor commits and a version bump, and nothing else, and that its tip is the package
-# the series' rc strand holds. Fourteen things are checked.
+# the series' rc strand holds. Fifteen things are checked.
 #
 #   1. Without --push the build writes no ref, and says what it would write.
 #   2. Only vendor commits land, on `main` itself, unflavored.
@@ -27,7 +27,9 @@
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #      A landing is ready only on its hand-written version bump, which may
-#      change nothing but NEWS.md and the Version: line, with nothing above it;
+#      change nothing but NEWS.md, which it may leave alone, the Version: line and the
+#      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
+#      commit vendors, with nothing above it;
 #      a rebuild drops a bump added to the kept worktree.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
@@ -43,6 +45,13 @@
 #      pushed, `DESCRIPTION` included.
 #  14. A fresh build up to a ref --source names fetches it first, so a stale
 #      copy from an earlier fetch is not what it builds.
+#  15. The branch landed on is the series' `releases_from` in `main`'s
+#      scripts/series.yaml: the build stands on its tip, --status prints its
+#      fast-forward, --review targets it, and the version bump has to rise
+#      above that branch's version too. A `-fwd` series is refused, and so is
+#      one series.yaml does not declare, except `main`'s own; a bump with no
+#      vendor commit under it is not a landing; and without a canonical remote
+#      the script says so itself.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -115,6 +124,7 @@ echo 'glue 1' > src/glue.cpp
 echo 'test 1' > tests/testthat/test-foo.R
 printf 'a\nb\nc\n' > tests/testthat/test-bar.R
 echo '# duckdb 1.5.5.9000' > NEWS.md
+printf 'flavors:\n  - flavor: duckdb.x.dev\n    kind: dev\n    series: v2.0-x\n    releases_from: main\n' > scripts/series.yaml
 echo 'readme at the base' > README.md
 commit 'vendor: Update vendored sources to duckdb/duckdb@aaaa111 (#1)'
 B=$(git rev-parse HEAD)
@@ -175,12 +185,12 @@ engine dddd444 1.99.99-dev3
 echo 'test 3, as dddd444 answers' > tests/testthat/test-foo.R
 desc duckdb.2.0.dev 1.99.99.9000.3
 commit 'vendor: Update vendored sources to duckdb/duckdb@dddd444'
-git push -q origin s:refs/heads/v2.0-x-fwd-dev
+git push -q origin s:refs/heads/v2.0-x-dev
 git checkout -q main
 
-scripts/series-rc.sh v2.0-x-fwd --push >/dev/null 2>&1
+scripts/series-rc.sh v2.0-x --push >/dev/null 2>&1
 git fetch -q origin
-RC=$(git rev-parse origin/v2.0-x-fwd-rc-dev)
+RC=$(git rev-parse origin/v2.0-x-rc-dev)
 
 # The resolution the port above recorded would answer the landing's conflict
 # too, since rerere matches the hunk whichever side it is on; a clone that never
@@ -190,7 +200,7 @@ rm -rf "$(git rev-parse --git-common-dir)/rr-cache"
 # --- 1: a build without --push ------------------------------------------------
 
 echo "== a build stops on a conflict, and resumes"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "the build stops" "$st" 1
 has "on the pick that meets main's change" "$out" "Conflict at"
@@ -201,12 +211,12 @@ git -C "$WT" add tests/testthat/test-bar.R
 
 echo
 echo "== a build without --push writes no ref"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it reports the landing" "$out" "3 vendor commits on $(git rev-parse --short "$M")"
 has "and that it was not pushed" "$out" "Not pushed; --push writes v2.0-x-land-dev"
 is "no land-dev on the fork" "$(git ls-remote origin refs/heads/v2.0-x-land-dev | wc -l)" 0
-rout=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+rout=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?
 is "nothing to review before the landing is pushed" "$st" 1
 has "and it says so" "$rout" "build and --push it first"
 
@@ -255,7 +265,7 @@ is "the trees agree everywhere else" \
 
 echo
 echo "== --push writes both refs"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 git fetch -q origin
 is "land-dev is the tip" "$(git rev-parse origin/v2.0-x-land-dev)" "$TIP"
@@ -265,8 +275,8 @@ is "land-green is main" "$(git rev-parse origin/v2.0-x-land-green)" "$M"
 
 echo
 echo "== a rebuild from the same inputs is the same chain"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) || true
+scripts/series-land.sh v2.0-x --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "rerere resolved the conflict" "$out" "rerere resolved that stop; continuing"
 has "nothing to push" "$out" "v2.0-x-land-dev: already on origin"
@@ -290,7 +300,7 @@ commit 'chore: store stub'
 git push -q origin rcc2
 git checkout -q main
 
-out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it counts what passed" "$out" "2 of 3 commits above v2.0-x-land-green passed"
 has "and names the first that has not" "$out" "first not passed: $(git rev-parse --short "$TIP") (missing)"
@@ -303,7 +313,7 @@ rec "$TIP" success
 commit 'chore: store stub, the tip'
 git push -q origin rcc2
 git checkout -q main
-out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "every commit passed, but the landing does not end on the bump" "$out" "NOT READY: v2.0-x-land-dev does not end on the version bump"
 hasnt "so it prints no fast-forward" "$out" "git push upstream"
@@ -312,7 +322,7 @@ echo
 echo "== --review writes the R side alone"
 # The canonical remote is a path here, so its repository is named in the config.
 git config remote.upstream.github test/canonical
-out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --review --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it counts the commits that change the R side" "$out" "3 of 3 landing commits change the R side"
 has "and prints the draft pull request" "$out" "gh pr create --repo test/canonical --draft"
@@ -330,7 +340,7 @@ is "no subject reads as a vendor commit" "$(git log --format=%s "$M..$REV" | gre
 is "each names the landing commit it halves" \
   "$(git log -1 --format=%B "$REV" | sed -n 's/^Landing-commit: //p')" "$TIP"
 sleep 1 # a date not pinned would differ by now
-out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --review --push 2>&1) || true
 has "a rerun mints the same branch" "$out" "v2.0-x-land-review: already on upstream"
 
 # --- 9b: the version bump ------------------------------------------------------
@@ -347,14 +357,14 @@ passed() { # <sha>
 }
 marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->'
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
-write_bump() { # <version>
-  sed -i "s/^Version: .*/Version: $1/" DESCRIPTION
-  printf '%s\n\n# duckdb %s\n\n- Something for users.\n' "$marker" "$1" > NEWS.md
+ENGINE_FULL=dddd444000000000000000000000000000000000
+write_bump() { # <version> [<engine record>]: DESCRIPTION alone, as the skill writes it
+  sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
 }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
   passed "$1"
-  out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+  out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
   [ -z "${KEEP:-}" ] || echo "$out"
 }
 refused() { # <label>: the probe in the working tree is committed under the bump's subject
@@ -376,18 +386,54 @@ BUMP=$(git rev-parse HEAD)
 status_of "$BUMP"
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
-out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?
 is "the review takes it" "$st" 0
 hasnt "and does not call it out of place" "$out" "out of place"
 git checkout -q -f main
 
+echo "== a bump replayed over a changed DESCRIPTION is refused until stamped again"
+# A fold below the bump that touched DESCRIPTION: the replay meets the driver.
+GR=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git push -q -f origin "$TIP~1:refs/heads/v2.0-x-land-green"
+git checkout -q -f -B replay "$TIP~1"
+git checkout -q "$TIP" -- .
+sed -i 's/^Package: .*/&\nTitle: Folded/' DESCRIPTION
+git add -A
+git commit -q -m "$(git log -1 --format=%B "$TIP")"
+FOLDED=$(git rev-parse HEAD)
+git cherry-pick "$BUMP" >/dev/null 2>&1 || true
+is "the replay applies" "$(git log -1 --format=%s)" "$bump_msg"
+REPLAYED=$(git rev-parse HEAD)
+passed "$FOLDED"
+status_of "$REPLAYED"
+is "the replayed bump is refused" "$st" 1
+has "  for its engine record" "$out" "Config/duckdb/upstream:"
+git checkout -q -f replay
+eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
+full=${eng}$(printf '0%.0s' $(seq $((40 - ${#eng}))))
+v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
+sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
+git commit -q --amend --no-edit DESCRIPTION
+STAMPED=$(git rev-parse HEAD)
+status_of "$STAMPED"
+has "stamped again from the vendored source id, it is ready" "$out" "READY: every commit has passed"
+git checkout -q -f main
+git branch -q -D replay
+git push -q -f origin "$GR:refs/heads/v2.0-x-land-green"
+
 echo "== and it is nothing else"
 probe; write_bump 1.99.99.9001; echo 'foo <- function() 99' > R/foo.R
 refused "a bump that changes R code is refused" "changes more than NEWS.md and DESCRIPTION"
-out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?
 is "the review refuses it" "$st" 1
 probe; write_bump 1.99.99.9001; printf 'Imports: DBI\n' >> DESCRIPTION
-refused "nor may it change DESCRIPTION beyond Version:"
+refused "nor may it change DESCRIPTION beyond Version: and the engine record"
+probe; write_bump 1.99.99.9001; sed -i '/^Config\/duckdb\/upstream:/d' DESCRIPTION
+refused "a bump without the engine record is refused" "exactly one Config/duckdb/upstream: line"
+probe; write_bump 1.99.99.9001 dddd444
+refused "an abbreviated engine record is refused" "is not a full SHA"
+probe; write_bump 1.99.99.9001 cccc333000000000000000000000000000000000
+refused "an engine record naming another engine is refused" "is not the engine the landing vendors, dddd444"
 probe; write_bump 1.99.99.9001; sed -i 's/^Version: .*/&\nVersion: 1.99.99.9002/' DESCRIPTION
 refused "nor may it carry two Version: lines"
 probe
@@ -395,22 +441,41 @@ refused_empty() { git commit -q --allow-empty -m "$bump_msg"; status_of "$(git r
 refused_empty
 probe; printf '%s\n\n# duckdb 1.99.99.9001\n\n- Something.\n' "$marker" > NEWS.md
 refused "a NEWS-only commit is refused"
-probe; write_bump 1.99.99.9000.2
+probe; write_bump 1.99.99.8999
 refused "a lowered version is refused" "does not raise the version"
-probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
-refused "a deleted NEWS.md is refused"
+probe; write_bump 1.99.99.9001.1
+refused "a version that keeps a fifth component is refused" "keeps a fifth component"
+probe; write_bump 1.99.99.9000
+commit 'chore: Bump version to 1.99.99.9000 with hand-written release notes'
+status_of "$(git rev-parse HEAD)"
+has "the series' version without its vendor counter is a bump, a first landing's" "$out" "READY: every commit has passed"
+git checkout -q -f main
 probe; write_bump 1.99.99.9001
 BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
-probe; write_bump 1.99.99.9001; sed -i 1,2d NEWS.md
-refused "a NEWS.md without fledge's marker is refused" "does not start with fledge's marker line"
-probe; write_bump 1.99.99.9001; printf '%s\n\n# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' "$marker" > NEWS.md
-refused "a section with nothing in it is refused"
+probe; write_bump 1.99.99.9001; printf '# duckdb 1.5.5\n\n- Old.\n' > NEWS.md
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+has "NEWS.md is not the bump's: one without fledge's marker or a section of its own is a bump" "$out" "READY: every commit has passed"
+git checkout -q -f main
 probe; write_bump 1.99.99.9001
 git checkout -q -f -B side "$TIP"; write_bump 1.99.99.9001; commit "$bump_msg"
 git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
 status_of "$(git rev-parse HEAD)"
 is "a merge commit is refused" "$st" 1
 git checkout -q -f main; git branch -q -D side
+
+echo "== and it never stands alone"
+GA=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git push -q -f origin "$M:refs/heads/v2.0-x-land-green"
+git checkout -q -f -B probe "$M"
+write_bump 1.99.99.9001
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+is "a bump with no vendor commit under it is refused" "$st" 1
+has "  and says so" "$out" "a bump with no vendor commit under it"
+hasnt "  and is not ready" "$out" "READY: every"
+git checkout -q -f main
+git push -q -f origin "$GA:refs/heads/v2.0-x-land-green"
 
 echo "== and nothing sits above it"
 git checkout -q -f -B probe "$BUMP"
@@ -425,7 +490,7 @@ echo "== and a rebuild drops it, and only it"
 dev_at "$TIP"
 read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "a rerun with the bump in the kept worktree still builds" "$st" 0
 has "and says which bump is dropped" "$out" "the version bump"
@@ -434,10 +499,10 @@ is "the kept build ends on the vendor commits again" "$(git -C "$KWT" rev-parse 
 git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
 echo 'staged' > "$KWT/R/staged.R"
 git -C "$KWT" add R/staged.R
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
 hasnt "work staged in the tree is not discarded" "$out" "is dropped"
 git -C "$KWT" reset -q --hard "$TIP"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 
 # A bump `main` made itself sits at the base of a build that stopped before it
 # replayed anything, and is never dropped, even with a vendor commit under it,
@@ -448,14 +513,14 @@ git commit -q --allow-empty -m 'chore: Bump version to 2.0.0.9000'
 MB=$(git rev-parse HEAD)
 git push -q upstream "$MB:refs/heads/mainbump"
 git checkout -q -f main
-scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump >/dev/null 2>&1 || true
+scripts/series-land.sh v2.0-x --no-check-glue --base mainbump >/dev/null 2>&1 || true
 read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 git -C "$KWT" reset -q --hard "$MB"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --base mainbump 2>&1) || true
 hasnt "main's own bump at the base is kept" "$out" "is dropped"
 has "and the build resumes on it" "$out" "resuming the build in"
 is "the base is in the kept history" "$(git -C "$KWT" merge-base --is-ancestor "$MB" HEAD && echo yes)" yes
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 git branch -q -D mainbump
 
 # The real case: `main` edits a test file the rewind touches, so the first pick
@@ -466,53 +531,53 @@ commit 'chore: Bump version to 2.0.0.9000'
 MB2=$(git rev-parse HEAD)
 git push -q upstream "$MB2:refs/heads/mainbump2"
 git checkout -q -f main
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump2 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --base mainbump2 2>&1) && st=0 || st=$?
 is "a first pick that conflicts stops the build" "$st" 1
 has "on the conflict" "$out" "Conflict at"
 read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 is "at main's bump, which is the base" "$(git -C "$KWT" rev-parse HEAD)" "$MB2"
 echo 'test resolved' > "$KWT/tests/testthat/test-foo.R"
 git -C "$KWT" add tests/testthat/test-foo.R
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump2 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --base mainbump2 2>&1) || true
 hasnt "the rerun keeps main's bump" "$out" "is dropped"
 is "and the base" "$(git -C "$KWT" merge-base --is-ancestor "$MB2" HEAD && echo yes)" yes
 is "and the resolution that was staged" \
   "$(git -C "$KWT" show "$(git -C "$KWT" rev-list --reverse "$MB2..HEAD" | head -n 1):tests/testthat/test-foo.R")" "test resolved"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 git branch -q -D mainbump2 probe
 
 # A refused run leaves the kept worktree as it was: the bump is dropped only
 # once the run is past its refusals.
-scripts/series-land.sh v2.0-x-fwd --no-check-glue >/dev/null 2>&1 || true
+scripts/series-land.sh v2.0-x --no-check-glue >/dev/null 2>&1 || true
 read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 git -C "$KWT" -c user.name=Test -c user.email=t@example.invalid commit -q --allow-empty -m "$bump_msg"
 before=$(git -C "$KWT" rev-parse HEAD)
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base mainbump2 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --base mainbump2 2>&1) && st=0 || st=$?
 is "a run with another base is refused" "$st" 1
 has "saying where the kept build stands" "$out" "the kept build stands on"
 is "and the bump is still there" "$(git -C "$KWT" rev-parse HEAD)" "$before"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 
 # --- 10: a wrong resolution, replayed --------------------------------------
 
 echo
 echo "== a resolution rerere replays wrongly is named, and can be redone"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 rm -rf "$(git rev-parse --git-common-dir)/rr-cache"
-scripts/series-land.sh v2.0-x-fwd --no-check-glue >/dev/null 2>&1 || true
+scripts/series-land.sh v2.0-x --no-check-glue >/dev/null 2>&1 || true
 read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 printf 'a\nb wrong\nc\n' > "$WT/tests/testthat/test-bar.R"
 git -C "$WT" add tests/testthat/test-bar.R
-scripts/series-land.sh v2.0-x-fwd --no-check-glue >/dev/null 2>&1 || true
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+scripts/series-land.sh v2.0-x --no-check-glue >/dev/null 2>&1 || true
+scripts/series-land.sh v2.0-x --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "the replayed rebuild is refused" "$st" 1
 has "the check names the path" "$out" "tests/testthat/test-bar.R"
 has "and says rerere answered it" "$out" "rerere replayed a resolution for: tests/testthat/test-bar.R"
 
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --attended 2>&1) && st=0 || st=$?
+scripts/series-land.sh v2.0-x --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --attended 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "an attended rebuild stops at the conflict" "$st" 1
 has "with rerere's answer filled in" "$out" "Resolved 'tests/testthat/test-bar.R' using previous resolution"
@@ -520,7 +585,7 @@ read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 git -C "$WT" rerere forget tests/testthat/test-bar.R >/dev/null 2>&1
 printf 'a\nb v2 main\nc\n' > "$WT/tests/testthat/test-bar.R"
 git -C "$WT" add tests/testthat/test-bar.R
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --attended 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --attended 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "redone, the landing is the series' again" "$out" "v2.0-x-land-dev: already on origin"
 
@@ -529,10 +594,10 @@ git checkout -q s
 engine eeee555 1.99.99-dev4
 desc duckdb.2.0.dev 1.99.99.9000.4
 commit 'vendor: Update vendored sources to duckdb/duckdb@eeee555'
-git push -q origin s:refs/heads/v2.0-x-fwd-dev
+git push -q origin s:refs/heads/v2.0-x-dev
 git checkout -q main
-scripts/series-rc.sh v2.0-x-fwd --push >/dev/null 2>&1
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) || true
+scripts/series-rc.sh v2.0-x --push >/dev/null 2>&1
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the kept build follows the moved strand" "$out" "following it"
 has "and lands the new commit too" "$out" "4 vendor commits on $(git rev-parse --short "$M")"
@@ -542,14 +607,14 @@ hasnt "and is the series' package" "$out" "DIVERGED"
 
 echo
 echo "== a landing stands on a base above main"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 git checkout -q -b pin "$M"
 echo 'test_that("a pinned expectation", expect_true(TRUE))' > tests/testthat/test-pin.R
 commit 'test: Pin what the line must keep (#10)'
 PIN=$(git rev-parse HEAD)
 git push -q upstream pin
 git checkout -q main
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --base pin --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --base pin --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it builds on the base" "$out" "4 vendor commits on $(git rev-parse --short "$PIN")"
 has "and names the base's own commits" "$out" "1 commit(s) of its own"
@@ -564,12 +629,12 @@ for c in $(git rev-list "$M..$LTIP"); do rec "$c" success; done
 commit 'chore: store stub, the landing on a base'
 git push -q origin rcc2
 git checkout -q main
-out=$(scripts/series-land.sh v2.0-x-fwd --status --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --status --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the base's commit counts among those CI passed" "$out" "5 of 5 commits above v2.0-x-land-green passed"
 has "and without the bump it is not ready" "$out" "does not end on the version bump"
 
-out=$(scripts/series-land.sh v2.0-x-fwd --review --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --review --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 git fetch -q upstream v2.0-x-land-review
 is "the review shows the base's commit as it lands" \
@@ -586,7 +651,7 @@ git cherry-pick "$LTIP~3..$LTIP" >/dev/null
 git branch -f land-v2 HEAD
 git push -q origin "land-v2:refs/heads/v2.0-x-land-v2"
 git checkout -q main
-out=$(scripts/series-land.sh v2.0-x-fwd --review --landing v2.0-x-land-v2 --suffix -v2 --push 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --review --landing v2.0-x-land-v2 --suffix -v2 --push 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "an iteration gets a review branch of its own" "$out" "v2.0-x-land-review-v2 ->"
 has "and a title that names it" "$out" "the R side of the v2.0-x landing, v2"
@@ -601,7 +666,7 @@ echo 'one more' > src/more.cpp
 commit 'fix: A commit on top'
 git push -q origin "land-v3:refs/heads/v2.0-x-land-v3"
 git checkout -q main
-out=$(scripts/series-land.sh v2.0-x-fwd --review --landing v2.0-x-land-v3 --suffix -v3 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --review --landing v2.0-x-land-v3 --suffix -v3 2>&1) && st=0 || st=$?
 is "a commit on top of the vendor commits is refused" "$st" 1
 LAND_BEFORE=$LTIP
 
@@ -614,10 +679,10 @@ engine ffff666 1.99.99-dev5
 git rm -q tests/testthat/test-bar.R
 desc duckdb.2.0.dev 1.99.99.9000.5
 commit 'vendor: Update vendored sources to duckdb/duckdb@ffff666'
-git push -q origin s:refs/heads/v2.0-x-fwd-dev
+git push -q origin s:refs/heads/v2.0-x-dev
 git checkout -q main
-scripts/series-rc.sh v2.0-x-fwd --push >/dev/null 2>&1
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) && st=0 || st=$?
+scripts/series-rc.sh v2.0-x --push >/dev/null 2>&1
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --push 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "the build is refused" "$st" 1
 has "the report names the test" "$out" "deleted   tests/testthat/test-bar.R"
@@ -636,16 +701,16 @@ echo 'foo <- function() 3' > R/foo.R
 printf 'Imports: DBI\n' >> DESCRIPTION
 commit 'fix: A fix the series never ported (#8)'
 git push -q upstream main
-out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
 is "the pushed landing is not ready on it" "$st" 1
 has "and says main moved" "$out" "NOT READY"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "the kept build refuses" "$st" 1
 has "and says main moved" "$out" "Error: main moved from below $(git rev-parse --short "$PIN")"
 
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) && st=0 || st=$?
+scripts/series-land.sh v2.0-x --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --push 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "a rebuild the series does not match fails" "$st" 1
 has "it names the path" "$out" "R/foo.R"
@@ -654,7 +719,7 @@ has "and refuses to push" "$out" "DIVERGED"
 git fetch -q origin
 is "land-dev is where it was" "$(git rev-parse origin/v2.0-x-land-dev)" "$LAND_BEFORE"
 
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
 
 # --- 14: a named source -------------------------------------------------------
 
@@ -662,10 +727,86 @@ echo
 echo "== a fresh build up to a named ref takes it as the fork has it now"
 git push -q origin "$RC:refs/heads/land-src"
 git update-ref refs/remotes/origin/land-src "$RC~1"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --source land-src 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x --no-check-glue --source land-src 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it fetches the ref rather than reading a stale copy" "$out" "built up to land-src $(git rev-parse --short "$RC")"
-scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+scripts/series-land.sh v2.0-x --abort >/dev/null
+
+# --- 15: the branch the series releases from -----------------------------------
+
+echo
+echo "== a forward is never landed"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+is "a -fwd series is refused as a usage error" "$st" 2
+has "  saying to cut it over first" "$out" "cut it over first, then land v2.0-x"
+
+echo
+echo "== the landing goes onto the branch series.yaml names"
+G0=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git checkout -q -f -B hi "$M"
+sed -i 's/^Version: .*/Version: 1.99.99.9007/' DESCRIPTION
+printf 'Config/duckdb/upstream: %s\n' aaaa112000000000000000000000000000000000 >> DESCRIPTION
+commit 'chore: Bump version to 1.99.99.9007'
+git push -q -f upstream hi
+HI=$(git rev-parse HEAD)
+MAIN15=$(git ls-remote upstream refs/heads/main | cut -f1)
+git checkout -q -f -B canonmain "$MAIN15"
+mkdir -p scripts
+printf 'flavors:\n  - flavor: duckdb.x.dev\n    kind: dev\n    series: "v2.0-x"\n    releases_from: '"'"'hi'"'"'\n' > scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: The v2.0-x series releases from hi'
+git push -q upstream canonmain:main
+git checkout -q -f main
+out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+is "--target prints that branch" "$(scripts/series-land.sh v2.0-x --target 2>&1)" hi
+has "the build stands on that branch, read through quotes" "$out" "vendor commits on $(git rev-parse --short "$HI")"
+has "its engine record is the branch's, and no difference" "$out" "Config/duckdb/upstream:, is the branch's"
+hasnt "  so the landing is the series' package" "$out" "DIVERGED"
+read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+FIRST=$(git -C "$WT" rev-list --reverse "$HI..HEAD" | head -n 1)
+is "its first landing commit's parent is that branch's tip" "$(git -C "$WT" rev-parse "$FIRST~1")" "$HI"
+scripts/series-land.sh v2.0-x --abort >/dev/null
+
+# A landing on hi by hand: the vendor commit, then a bump that clears the
+# series' version but not hi's, which earlier landings there advanced.
+V=$(git commit-tree "$TIP^{tree}" -p "$HI" -m 'vendor: Update vendored sources to duckdb/duckdb@dddd444')
+git push -q -f origin "$HI:refs/heads/v2.0-x-land-green"
+git checkout -q -f -B probe "$V"
+write_bump 1.99.99.9001
+commit "$bump_msg"
+LOW=$(git rev-parse HEAD)
+dev_at "$LOW"; passed "$V"; passed "$LOW"
+out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a bump below the branch's version is refused" "$st" 1
+has "  and says why" "$out" "does not raise the version above hi's 1.99.99.9007"
+git checkout -q -f probe~1
+write_bump 1.99.99.9008
+commit 'chore: Bump version to 1.99.99.9008 with hand-written release notes'
+HIGH=$(git rev-parse HEAD)
+dev_at "$HIGH"; passed "$HIGH"
+out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the next version above it is ready" "$out" "READY: every commit has passed, and hi"
+has "and the fast-forward is that branch" "$out" "git push upstream $HIGH:refs/heads/hi"
+out=$(scripts/series-land.sh v2.0-x --review --suffix -hi --push 2>&1) || true
+has "the review pull request targets it" "$out" "--draft --base hi --head v2.0-x-land-review"
+git checkout -q -f main
+git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
+git branch -q -D probe hi canonmain
+
+echo
+echo "== the series must be declared, and the canonical remote named"
+out=$(scripts/series-land.sh v9.9-none --no-check-glue 2>&1) && st=0 || st=$?
+is "a series series.yaml does not declare is refused" "$st" 1
+has "  naming it" "$out" "declares no releases_from for the series v9.9-none"
+out=$(scripts/series-land.sh main --status 2>&1) || true
+hasnt "main's own series needs no row" "$out" "declares no releases_from"
+out=$(SERIES_CANONICAL='' scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
+is "without a canonical remote it stops" "$st" 1
+has "  with its own error" "$out" "Error: no canonical remote"
+hasnt "  not the shell's" "$out" "unbound variable"
 
 echo
 echo "$pass passed, $fail failed"

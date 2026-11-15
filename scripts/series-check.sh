@@ -82,6 +82,15 @@
 # an edit and a PR. Cutting the refs is not, and stays
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
+# One more block is about the branches rather than the series: `FORWARD-PORT`
+# lists, for each active release branch, the commits not yet merged forward
+# into the next newer line: `<newer>..<older>`, the newest release branch's
+# into `main`. A fix is written on the oldest active release branch and merged
+# forward from there (handbook/branches/model/), so this is what the next
+# forward merge brings. Vendor commits, the branch's engine, which the forward
+# merge leaves out, and release paperwork are counted; each R-side commit is
+# listed.
+#
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
 #   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
@@ -855,3 +864,96 @@ elif [ ${#unserved[@]} -gt 0 ]; then
   echo "          upstream commit on it."
   echo "=============================================================================="
 fi
+
+# --- FORWARD-PORT: what is not yet merged forward ------------------------------
+#
+# The active release branches are the CRAN flavor's `upstream`, the line it
+# ships, and every `releases_from` other than `main` on a row not declared
+# `stale: true`, each named here as upstream names its line; a name the
+# canonical repository has no branch for, a line not cut yet, is left out. They
+# are taken oldest first, by version, each followed by the next newer one and the
+# newest by `main`, and the walk covers `<newer>..<older>`, merges skipped. The
+# canonical repository is read first and the fork's mirrors second; with neither
+# carrying both branches of a pair the block says it could not read them.
+fp_lines=$(declaration 2>/dev/null | awk '
+  function val(v) { gsub(/["'"'"']/, "", v); return v }
+  function flush() {
+    if (k == "CRAN" && up != "") print up
+    if (rf != "" && rf != "main" && st != "true") print rf
+    k = ""; up = ""; rf = ""; st = ""
+  }
+  /^  - / { flush() }
+  /^    kind:/ { k = val($2) }
+  /^    upstream:/ { up = val($2) }
+  /^    releases_from:/ { rf = val($2) }
+  /^    stale:/ { st = val($2) }
+  END { flush() }' | grep -v '^main$' | sort -u -V || true)
+fp_refs() { # <branch> -> its tip, canonical first, mirror second; empty when neither
+  local b=$1 r
+  for r in ${canonical:+"$canonical"} "$remote"; do
+    git rev-parse -q --verify "refs/remotes/$r/$b" && return 0
+  done
+  return 0
+}
+fp_active=()
+if [ -n "$fp_lines" ]; then
+  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+    # Every branch read fresh, `main` too, so a forward merge already made never
+    # shows its commits as owed.
+    for b in main $fp_lines; do
+      git fetch -q "$canonical" "+refs/heads/$b:refs/remotes/$canonical/$b" 2>/dev/null || true
+    done
+    canon_heads=$(git ls-remote --heads "$canonical" 2>/dev/null | sed 's#.*refs/heads/##' || true)
+  else
+    canon_heads=''
+  fi
+  for b in $fp_lines; do
+    # Not cut yet: the canonical repository answers and has no such branch.
+    if [ -n "$canon_heads" ] && ! grep -qx "$b" <<<"$canon_heads"; then continue; fi
+    fp_active+=("$b")
+  done
+fi
+# Release paperwork: notes and submission records, and in DESCRIPTION nothing but
+# the version and the engine record. A DESCRIPTION change to anything else, a
+# dependency say, is package content the newer line may want.
+paperwork() { # <commit>
+  [ -z "$(git diff-tree --no-commit-id --name-only -r "$1" |
+    grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || return 1
+  [ -z "$(git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' |
+    grep -vE '^[-+](Version|Config/duckdb/upstream):' || true)" ]
+}
+for ((fp_i = 0; fp_i < ${#fp_active[@]}; fp_i++)); do
+  older=${fp_active[fp_i]}
+  newer=${fp_active[fp_i + 1]:-main}
+  fp_old=$(fp_refs "$older")
+  fp_new=$(fp_refs "$newer")
+  mb=''
+  [ -z "$fp_old" ] || [ -z "$fp_new" ] || mb=$(git merge-base "$fp_new" "$fp_old" 2>/dev/null || true)
+  if [ -z "$mb" ]; then
+    # No branch to read, or one with no merge base with the newer line (a
+    # shallow clone), which would read as all owed.
+    echo
+    echo "FORWARD-PORT  could not read $older beside $newer, or their merge base,"
+    echo "              so this firing does not know what is not yet merged forward."
+    echo "              Missing data, not a clean result."
+    continue
+  fi
+  rows=() total=0 vendor=0 paper=0
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    total=$((total + 1))
+    subj=$(git log -1 --format=%s "$c")
+    if series_is_vendor "$subj"; then vendor=$((vendor + 1)); continue; fi
+    # By content alone: a bump riding on R-side files is listed like any.
+    if paperwork "$c"; then paper=$((paper + 1)); continue; fi
+    rows+=("$(git rev-parse --short "$c") $subj")
+  done < <(git rev-list --reverse --no-merges "$fp_new..$fp_old")
+  if [ "$total" -gt 0 ]; then
+    echo
+    echo "FORWARD-PORT  $older has $total commit(s) not yet merged forward into $newer:"
+    echo "              $vendor vendor, $paper release paperwork, ${#rows[@]} R-side, oldest first:"
+    [ ${#rows[@]} -eq 0 ] || printf '              %s\n' "${rows[@]}"
+    echo "              Merge $older into $newer, keeping $newer's engine"
+    echo "              (.claude/skills/series-land/SKILL.md, step 8)."
+  fi
+done
