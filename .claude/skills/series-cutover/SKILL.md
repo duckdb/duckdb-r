@@ -182,10 +182,12 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    gh api -X POST repos/<owner>/<repo>/actions/workflows/each-mirror.yaml/dispatches -f ref=main
    ```
 10. **Clean up.**
-    With the stack pull requests closed since the swap, delete the stack branches and `cutover/<S>/pr`:
+    With the stack pull requests closed since the swap, delete the stack branches, each leased on the tip read,
+    as `scripts/series-prune.sh` prints its deletions, and `cutover/<S>/pr` left for last:
 
     ```sh
-    git push --delete <fork> $(git ls-remote --heads <fork> 'refs/heads/cutover/<S>/*' | sed 's#.*refs/heads/##')
+    heads=$(git ls-remote --heads <fork> 'refs/heads/cutover/<S>/*' | awk '$2 != "refs/heads/cutover/<S>/pr"')
+    git push $(awk '{ print "--force-with-lease=" $2 ":" $1 }' <<<"$heads") <fork> $(awk '{ print ":" $2 }' <<<"$heads")
     ```
 
     Where the remote refuses a deletion, as a cloud session's git proxy does,
@@ -193,7 +195,7 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
     naming each stack branch's own closed pull request:
 
     ```sh
-    gh api -X POST repos/<owner>/<repo>/actions/workflows/delete-branch.yaml/dispatches \
+    gh api -X POST repos/krlmlr/duckdb-r/actions/workflows/delete-branch.yaml/dispatches \
       -f ref=main -f 'inputs[branch]=<branch>' -f 'inputs[pr]=<number>'
     ```
 
@@ -208,7 +210,9 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
     and nothing refused is routed around.
     Then close the cutover pull request with the outcome:
     the command and its exit status, the verification, the undo, and the delete lines, each fenced so that it can be run as it stands;
-    `cutover/<S>/pr` goes last, by a dispatch that names the cutover pull request, once it is closed.
+    `cutover/<S>/pr` goes last, once that pull request is closed:
+    by `git push --force-with-lease=refs/heads/cutover/<S>/pr:<tip> <fork> :refs/heads/cutover/<S>/pr`,
+    or by a dispatch in the fork that names the cutover pull request.
 
 ## What each layer is expected to show
 
