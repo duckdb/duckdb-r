@@ -395,6 +395,9 @@ Then the series:
 
 After a landing on a release branch, and after any fix merged into it, the branch is merged forward into the next newer line,
 `main` today ([`branches/model/`](/handbook/branches/model/README.md) owns the rule).
+This applies once the v2.0 series releases from `v2.0-cyanoptera` ([#2991](https://github.com/duckdb/duckdb-r/pull/2991));
+until then its `--target` is `main`, and the blocks below say there is nothing to merge forward
+([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 A landing on `main` itself skips this step.
 List what the merge brings: FORWARD-PORT counts the vendor commits and version bumps and lists each R-side commit:
 
