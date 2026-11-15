@@ -131,10 +131,12 @@ a frozen R side is not a frozen CI,
 and the identity goal above holds for every series either way.
 Run the script for a frozen series like any other;
 the default needs no judgement.
-Every other series walks the branch it releases from, its `releases_from`:
+Every other series walks the first parents of the branch it releases from, its `releases_from`:
 `main` for `main`'s own series, and the line's release branch for the v2.0 series,
 whose fixes are written there first and merged forward into `main`
 ([`branches/model/`](/handbook/branches/model/README.md)).
+A forward merge on that branch is offered as one port of its change outside the engine,
+and none of the commits behind it alone.
 
 **Frozen is not untouchable.**
 A change the r-universe build genuinely needs still lands —

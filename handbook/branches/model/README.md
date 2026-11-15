@@ -267,8 +267,8 @@ and the `DESCRIPTION` merge driver keeps its version and engine record
 and [`scripts/series-check.sh`](/scripts/series-check.sh) lists for each active release branch what is not yet merged forward,
 counting its vendor commits and version bumps and listing each R-side commit.
 A path-limited walk of the engine follows a forward merge's first parent by itself, since the merge keeps that side of the engine,
-and `git cherry`, which the port stage walks with, skips merges,
-so the older line's vendor commits never count as the newer line's own.
+and the port stage walks the newer line's first parents, offering each forward merge as one port of its change outside the engine,
+so the commits behind it, the older line's vendor commits and fixes, never reach the newer line's series one by one.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 

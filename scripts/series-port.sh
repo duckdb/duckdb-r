@@ -411,6 +411,37 @@ ancestry_only_commits() {
   done < <(git rev-list --merges "$mb..$src")
 }
 
+# **A forward merge is one port, not the commits behind it.** A release branch
+# merged forward into the branch a series releases from brings its own commits
+# as the merge's second parent, R-side fixes and vendor commits alike, and the
+# merge keeps this line's engine (handbook/branches/model/). Offered one by one,
+# those commits would be picked outside the merge's own conflict resolution, and
+# the glue folded into a vendor commit there would never come at all, vendor
+# commits being skipped. So the walk follows the first parents only, and each
+# merge on them that changed the tree is offered as one commit: its change
+# against its first parent outside the engine paths, the vendored strand and
+# the Makevars generated from it, on that parent. The commit is written here,
+# deterministically -- the merge's author, dates and message -- so a rerun
+# names the same SHA and the `-x` trailer of an earlier port excludes it.
+merge_port() { # <merge> -> the commit standing for it, empty when it changes nothing outside the engine
+  local m=$1 idx tree x
+  local -a ex=()
+  for x in "${series_strand[@]}" "${series_makevars[@]}"; do ex+=(":(exclude)$x"); done
+  [ -n "$(git diff --name-only "$m^1" "$m" -- . "${ex[@]}")" ] || return 0
+  idx=$(mktemp)
+  GIT_INDEX_FILE=$idx git read-tree "$m^1"
+  git diff --binary "$m^1" "$m" -- . "${ex[@]}" | GIT_INDEX_FILE=$idx git apply --cached --binary
+  tree=$(GIT_INDEX_FILE=$idx git write-tree)
+  rm -f "$idx"
+  { git log -1 --format=%B "$m"
+    echo "The change this merge made outside the engine, as one commit to port."; } |
+    GIT_AUTHOR_NAME=$(git log -1 --format=%an "$m") GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae "$m") \
+    GIT_AUTHOR_DATE=$(git log -1 --format=%ad --date=raw "$m") \
+    GIT_COMMITTER_NAME=$(git log -1 --format=%cn "$m") GIT_COMMITTER_EMAIL=$(git log -1 --format=%ce "$m") \
+    GIT_COMMITTER_DATE=$(git log -1 --format=%cd --date=raw "$m") \
+    git commit-tree "$tree" -p "$m^1"
+}
+
 candidates=()
 declare -A klass=()
 
@@ -445,7 +476,29 @@ else
       sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
   declare -A ancestry_only=()
   while IFS= read -r m; do ancestry_only[$m]=1; done < <(ancestry_only_commits)
-  mapfile -t all < <(git cherry "$dev" "$src" | sed -n 's/^+ //p')
+  # The branch's own commits are its first parents; what a merge's second
+  # parent brings is offered as the merge's one port instead (merge_port).
+  declare -A first_parent=()
+  while IFS= read -r m; do first_parent[$m]=1; done < <(git rev-list --first-parent --no-merges "$mb..$src")
+  declare -A stands_for=()
+  while IFS= read -r m; do
+    [ -z "${ancestry_only[$m]:-}" ] || continue
+    [ "$(git rev-parse "$m^{tree}")" != "$(git rev-parse "$m^1^{tree}")" ] || continue
+    x=$(merge_port "$m")
+    [ -n "$x" ] && stands_for[$m]=$x
+  done < <(git rev-list --first-parent --merges "$mb..$src")
+  # What `git cherry` drops, read by patch-id against the series' own commits.
+  declare -A dev_pid=()
+  while read -r pid _; do dev_pid[$pid]=1; done < <(git log --no-merges -p "$mb..$dev" | git patch-id --stable)
+  all=()
+  while IFS= read -r m; do
+    if [ -n "${stands_for[$m]:-}" ]; then m=${stands_for[$m]}
+    elif [ -z "${first_parent[$m]:-}" ]; then continue
+    fi
+    pid=$(git show "$m" | git patch-id --stable | cut -d' ' -f1)
+    [ -n "$pid" ] && [ -n "${dev_pid[$pid]:-}" ] && continue
+    all+=("$m")
+  done < <(git rev-list --reverse --first-parent "$mb..$src")
   for sha in "${all[@]}"; do
     [ -n "${ported[$sha]:-}" ] && continue
     [ -n "${ancestry_only[$sha]:-}" ] && continue

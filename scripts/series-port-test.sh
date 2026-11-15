@@ -2,25 +2,28 @@
 # Check which commits stage 4 offers, offline, against a synthetic remote and
 # clone built here -- no network, no fixtures on disk.
 #
-# The question is what "`main` has it and the series does not" means. `git
-# cherry` answers by patch-id over `mb..main`, which counts a commit `main`
-# merged for its ancestry alone -- a merge whose tree is its first parent's, so
-# nothing of the lineage it records ever entered main's tree. Porting one
-# applies a tree from another era on top of this one. Seven things are checked.
+# The question is what "the branch has it and the series does not" means. The
+# walk reads the branch's first parents by patch-id, so a lineage merged in is
+# never offered commit by commit: one merged for its ancestry alone -- a merge
+# whose tree is its first parent's -- brings nothing, and one merged for its
+# content, a forward merge among them, is offered as one port of its change.
+# Seven things are checked.
 #
 #   1. An ordinary `main` commit the series lacks is offered.
 #   2. A commit that reached `main` only through an ancestry-only merge is not.
 #   3. Nor is the ancestry-only merge itself.
-#   4. A real merge is not an ancestry-only one: its side commits did reach
-#      main's tree, so they are still offered. The test is the tree, not the
-#      shape of the commit.
+#   4. A real merge is not an ancestry-only one: it changed main's tree, so
+#      it is offered, as one port, and its side commits are not offered alone.
+#      The test is the tree, not the shape of the commit.
 #   5. Release paperwork is held back whether or not it moves `Version:`:
 #      notes written into NEWS.md for main's next release belong to the release
 #      strand, and the series has no section to put them in. A commit that
 #      edits DESCRIPTION without moving the version is package content and is
 #      still offered.
-#   6. A release branch taken with `git merge -s ours` after `main` picked
-#      what it wanted offers that pick and nothing the second parent brings.
+#   6. A forward merge of a release branch, keeping main's engine, is offered
+#      as one port carrying its R-side fix and the glue folded into its vendor
+#      commit and no engine; neither commit behind it is offered alone, and a
+#      rerun names the same port.
 #   7. A series whose `releases_from` names a release branch takes its R side
 #      from that branch and not from `main`; one declared `stale: true` is
 #      frozen, its forward with it; one releasing from `main` takes `main`'s.
@@ -159,7 +162,8 @@ has "an ordinary commit is offered" "$out" 'An ordinary commit the series lacks'
 hasnt "ancestry-only content is not offered" "$out" 'Ancient work that never reached the tree'
 hasnt "nor the rest of that lineage" "$out" 'More of the same'
 hasnt "nor the ancestry-only merge itself" "$out" 'Record the old tag on the mainline'
-has "a real merge's content is still offered" "$out" 'Live work that did reach the tree'
+has "a real merge is offered as one port" "$out" 'chore: Merge the live line'
+hasnt "  and the commit behind it is not offered alone" "$out" 'Live work that did reach the tree'
 
 # The class of the listed commit whose subject contains the given text.
 klass() { echo "$out" | grep -F -- "$2" | head -n 1 | awk '{print $1}'; }
@@ -255,28 +259,38 @@ out_live=$(scripts/series-port.sh s 2>&1)
 hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
 has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
 
-# An ancestry-only merge: `main` takes a release branch cut from it with `-s ours`, after
-# picking the one fix it wants. Only that pick, a commit of `main`'s own, is
-# offered; what the merge's second parent brings never is.
+# A forward merge: the release branch, cut from main, takes a vendor commit
+# whose engine main must not take, with glue folded into it, and an R-side fix;
+# main merges it forward keeping its own engine. The merge is offered as one
+# port, its change outside the engine; neither commit behind it is offered alone.
 git checkout -q main
 git checkout -q -b rel-line
+mkdir -p src/duckdb src
+echo 'engine of the release line' > src/duckdb/engine.cpp
+echo 'glue the release engine needed' > src/glue.cpp
+git add -A; git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@abcdef0123'
 echo 'fix rel' > R/rel-fix.R
-git add -A; git commit -qm 'fix: A fix on the release branch, picked onto main'
-RELFIX=$(git rev-parse HEAD)
-echo 'only rel' > R/rel-only.R
-git add -A; git commit -qm 'fix: A fix main declines'
+git add -A; git commit -qm 'fix: A fix written on the release branch'
 git checkout -q main
-git cherry-pick -x "$RELFIX" >/dev/null
-git merge -q -s ours --no-edit -m 'chore: Graft rel-line
-
-Declined: the fix main does without.' rel-line
+git merge -q --no-commit --no-ff rel-line
+git rm -rq --cached --ignore-unmatch -- src/duckdb
+git checkout HEAD -- src/duckdb 2>/dev/null || true
+git clean -fdq -- src/duckdb
+git commit -qm 'Merge rel-line forward into main'
 git push -q upstream main
 git checkout -q s-dev
-out_graft=$(scripts/series-port.sh s 2>&1)
-[ -z "${KEEP:-}" ] || echo "$out_graft"
-has "the pick main made is offered" "$out_graft" 'A fix on the release branch, picked onto main'
-hasnt "the commit the graft declined is not" "$out_graft" 'A fix main declines'
-hasnt "nor the graft itself" "$out_graft" 'Graft rel-line'
+out_fwd=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_fwd"
+has "the forward merge is offered as one port" "$out_fwd" 'Merge rel-line forward into main'
+hasnt "the fix behind it is not offered alone" "$out_fwd" 'A fix written on the release branch'
+hasnt "nor the vendor commit behind it" "$out_fwd" 'duckdb/duckdb@abcdef0123'
+PORT=$(sed -n 's/^[A-Z]* *\([0-9a-f]*\) Merge rel-line forward into main$/\1/p' <<<"$out_fwd")
+same() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
+same "the port carries the fix" "$(git show "$PORT:R/rel-fix.R" 2>&1)" 'fix rel'
+same "and the glue folded into the vendor commit" "$(git show "$PORT:src/glue.cpp" 2>&1)" 'glue the release engine needed'
+same "and no engine" "$(git ls-tree -r --name-only "$PORT" -- src/duckdb | wc -l)" 0
+out_again=$(scripts/series-port.sh s 2>&1)
+has "a rerun names the same commit" "$out_again" "$PORT Merge rel-line forward into main"
 
 echo
 echo "$pass passed, $fail failed"
