@@ -88,12 +88,41 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    `git add` the paths, and rerun with `--continue`.
    A conflict is also a reading for the review: where the forward made something else of it, that is a surprise (step 6).
    A `2-engine` an earlier build left and this one no longer needs stays where it is, and the run exits 9 with the steps that retire it:
-   take them in their order, which retargets the `3-fwd` pull request before the branch goes.
+   take them in their order, which retargets the `3-fwd` pull request before the branch goes,
+   with the strand's GitHub stack taken apart first and linked again after (step 4).
 4. **Open each stack's pull requests**, as the script's closing block lists them:
    as drafts in the fork, from the bottom up, each layer into the one below it,
    with its title, its section of the summary as body, and a link to the cutover pull request.
    Add the expectation for that strand and layer (below) to the body, so that the review reads against it.
    Link every stack's pull requests from the cutover pull request.
+
+   Then link each strand's pull requests into one GitHub stack, bottom to top, in the order the closing block lists them,
+   and record each stack's number beside its pull requests in the cutover pull request.
+   No GitHub tool does it, so it is the REST API, the pull request numbers unquoted:
+   the stack is created once the first two are open, and each later one is added on top, under the number the first call answers.
+   `<owner>/<repo>` is the repository the closing block names.
+
+   ```sh
+   gh api -X POST repos/<owner>/<repo>/stacks --input - <<<'{"pull_requests":[<1-main>,<next>]}' --jq .number
+   gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" repos/<owner>/<repo>/stacks/<number>/add --input - <<<'{"pull_requests":[<next>]}'
+   ```
+
+   Where `gh` cannot reach the API, hand the maintainer each stack's calls filled in, with no placeholder left,
+   as one fenced block that runs as it stands and prints the stack's number,
+   here for pull requests 72 to 75 of `krlmlr/duckdb-r`, the `vendor` stack of the `v2.0-cyanoptera` cutover:
+
+   ```sh
+   n=$(gh api -X POST repos/krlmlr/duckdb-r/stacks --input - <<<'{"pull_requests":[72,73]}' --jq .number) && echo "stack $n" &&
+     gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" "repos/krlmlr/duckdb-r/stacks/$n/add" --input - <<<'{"pull_requests":[74]}' &&
+     gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" "repos/krlmlr/duckdb-r/stacks/$n/add" --input - <<<'{"pull_requests":[75]}'
+   ```
+
+   A stack can be linked after the fact too, as that cutover's were, stacks 88 to 91 in the fork.
+   A stack also retargets each pull request as the one below it merges; these are closed, never merged, so it only groups them.
+   Where a rebuild changes which layers a strand has, take its stack apart before any base changes or pull request closes,
+   with `gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" repos/<owner>/<repo>/stacks/<number>/unstack`,
+   handed over the same way where `gh` cannot reach the API,
+   and link the pull requests again once they stand as the closing block lists them, recording the new number.
    The first pull request of each stack stays open until after the swap:
    its head is the pin that keeps the old tip reachable as `refs/pull/<n>/head`
    ([`branches/model/`](/handbook/branches/model/README.md)), and a closed pull request's head no longer follows its branch.

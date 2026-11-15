@@ -75,7 +75,9 @@
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
 # which conflicts were resolved, which commits of `main` `2-engine` carries the engine paths of, and the diff stat.
-# Last come the pull requests to open, with repository, base, head and title.
+# Last come the pull requests to open, with repository, base, head and title,
+# in the order the session links them into one GitHub stack.
+# The calls that link them are the skill's, since only the pull requests' numbers fill them in.
 # --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves,
 # and removes it again where the push is refused, so that no summary of a build that was never pushed is left behind.
 # The script reads no terminal: stdin is /dev/null, and a conflict stops the run for the next one to resume.
@@ -752,6 +754,7 @@ report=$tmp/report
   echo
   echo "As drafts, each layer into the one below it, its section above as the body;"
   echo "a pull request already open for a head takes this base, title and body instead."
+  echo "Then link them into one GitHub stack, in this order (.claude/skills/series-cutover/SKILL.md)."
   n=0
   for L in "${layers[@]}"; do
     n=$((n + 1))
@@ -766,7 +769,8 @@ report=$tmp/report
     echo
     echo "No longer in the stack: $stale, as the engine of $cut/1-main is now the forward's."
     echo "It is the base of the pull request of $cut/3-fwd, which GitHub would close if the branch went first,"
-    echo "so the branch is left where it is. Retire it in this order:"
+    echo "so the branch is left where it is. Retire it in this order,"
+    echo "with the GitHub stack of these pull requests taken apart first and linked again after (.claude/skills/series-cutover/SKILL.md):"
     echo
     echo "1. Retarget the pull request of $cut/3-fwd onto $cut/1-main."
     echo "2. Close the pull request of $stale."
