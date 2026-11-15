@@ -53,12 +53,6 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`pull-config.sh`](pull-config.sh) | Read-only: does `.github/pull.yml` rule every mirror a badge measures against? |
 
-## [`branches/model/`](/handbook/branches/model/README.md)
-
-| File | Purpose |
-|---|---|
-| [`forward-port-declined`](forward-port-declined) | Commits of the CRAN line's release branch that `main` does without on purpose. |
-
 ## [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 
 | File | Purpose |

@@ -171,10 +171,6 @@ groups <- list(
     globs = c("flavor*", "reflavor*")
   ),
   list(
-    owner = "handbook/branches/model",
-    globs = c("forward-port-declined")
-  ),
-  list(
     owner = "handbook/branches/mirrors",
     globs = c("pull-config.sh")
   ),

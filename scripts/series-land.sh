@@ -3,11 +3,14 @@
 # series replayed without its flavor onto the `main` it will fast-forward
 # (.claude/skills/series-land/SKILL.md).
 #
-# **The branch landed on is named, and it is `main` unless --onto says
-# otherwise.** The routine landing is `main`'s own series, a batch of upstream
-# `main` commits onto `main`; a release branch such as `v2.0-cyanoptera` takes
-# its own series the same way, with --onto naming it. Wherever `main` appears
-# below, it is that branch, read from --canonical.
+# **The branch landed on is the one the series releases from.** The routine
+# landing is `main`'s own series, a batch of upstream `main` commits onto
+# `main`; a release branch such as `v2.0-cyanoptera` takes its own series the
+# same way. Which branch is read from `releases_from` in `main`'s
+# scripts/series.yaml, `main` where the series has no row, so nothing typed can
+# disagree with what the loop ports from. Wherever `main` appears below, it is
+# that branch, read from --canonical. Only a serving series lands: a `-fwd`
+# series is cut over first and lands under its serving name.
 #
 # A batch of a series moves onto its branch once CI has judged it. The series already
 # holds the history `main` needs (one commit per upstream commit, each judged
@@ -111,23 +114,21 @@
 # request's description.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
-#                       [--onto <branch>] [--base <ref>] [--placed <sha>]... [--no-check-glue]
-#                       [--attended]
-#        series-land.sh <S> --status [--onto <branch>] [--remote <name>] [--canonical <name>] [--push]
-#        series-land.sh <S> --review [--onto <branch>] [--landing <ref>] [--suffix <s>]
-#                       [--remote <name>] [--canonical <name>] [--push]
+#                       [--base <ref>] [--placed <sha>]... [--no-check-glue] [--attended]
+#        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
+#        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
+#                       [--canonical <name>] [--push]
 #        series-land.sh <S> --abort
-#   <S> is the series whose rc strand lands, `v2.0-cyanoptera-fwd` for
-#   `v2.0-cyanoptera-fwd-rc-dev`; the refs are named for its line,
-#   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
-#   --onto names the canonical branch the landing fast-forwards in its place,
-#   `v2.0-cyanoptera` for a landing of the v2.0 series; default `main`.
+#   <S> is the serving series whose rc strand lands, `v2.0-cyanoptera` for
+#   `v2.0-cyanoptera-rc-dev`, never a `-fwd` series; the refs are named for it,
+#   `v2.0-cyanoptera-land-*`, on --remote. The branch landed on is its
+#   `releases_from`, read with `main` from --canonical.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
 #   --remote or the landing --landing names: an iteration reviewed before the
 #   series carries it, for example `--landing <L>-land-v2 --suffix -v2`.
-#   --base defaults to the branch --onto names; a ref the clone lacks is fetched from --canonical.
+#   --base defaults to the branch landed on; a ref the clone lacks is fetched from --canonical.
 #   --source names the ref the landing is built up to, on --remote, in place of
 #   `<S>-rc-dev`: it is taken as it stands, with no realignment, for a series
 #   that carries no flavor and so has no rc strand.
@@ -142,12 +143,11 @@ shopt -s inherit_errexit
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--onto <branch>] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-onto=''
 push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
@@ -155,7 +155,6 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
-    --onto) [ $# -ge 2 ] || argerr; onto=$2; shift 2 ;;
     --base) [ $# -ge 2 ] || argerr; base_arg=$2; shift 2 ;;
     --source) [ $# -ge 2 ] || argerr; source_arg=$2; shift 2 ;;
     --landing) [ $# -ge 2 ] || argerr; landing_arg=$2; shift 2 ;;
@@ -177,15 +176,16 @@ done
 S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
+  *-fwd) echo "Error: $S is a forward; cut it over first, then land ${S%-fwd} (.claude/skills/series-land/SKILL.md)" >&2; exit 2 ;;
 esac
-L=${S%-fwd}
+L=$S
 here=$(cd "$(dirname "$0")" && pwd)
 # Pathspecs below are the repository's, wherever this was started from.
 cd "$(git rev-parse --show-toplevel)"
 
 # A stopped or finished build lives here: the worktree it kept, the `main` it
-# stands on, the rc commit it builds up to, that strand's seed, the prefix, the
-# series it lands, and the branch it lands onto.
+# stands on, the rc commit it builds up to, that strand's seed, the prefix, and
+# the series it lands.
 STATE="$(git rev-parse --git-dir)/series-land-$L"
 
 if [ -n "$abort" ]; then
@@ -201,72 +201,6 @@ if [ -n "$abort" ]; then
   exit 0
 fi
 
-# The branch landed on is the kept build's, where there is one: the refs are
-# named for the line, `<L>-land-*`, whatever the branch, so a second landing of
-# the same line onto another branch -- `v2.0-cyanoptera-fwd` onto `main` beside
-# `v2.0-cyanoptera` onto its release branch -- would take over the first one's
-# build and refs. Such a request is refused rather than followed. A landing on
-# --remote records no branch of its own, so this guards the clone that built it.
-# The subject of the hand-written version bump (is_bump below).
-bump_subject='chore: Bump version to '
-
-onto_kept=''
-if [ -f "$STATE" ]; then
-  read -r _ _ _ _ _ _ onto_kept < "$STATE" || true
-  onto_kept=${onto_kept:-main}
-fi
-if [ -n "$onto" ] && [ -n "$onto_kept" ] && [ "$onto" != "$onto_kept" ]; then
-  echo "Error: the kept $L landing lands onto $onto_kept, not --onto $onto;" \
-    "finish it, or --abort it first" >&2
-  exit 1
-fi
-
-# With neither a kept build nor --onto, a landing already on --remote says which
-# branch it was built on, and a clone that did not build it -- a fresh one, a
-# scheduled session -- reads it from there rather than assuming `main`: a READY
-# line must never name a branch that does not hold the landing's base. Walking
-# `<L>-land-dev` down its first parents, the landing is vendor commits and the
-# bump above the commit where it joins the canonical `main`. Anything else in
-# between is another branch's own history, a release branch's, or commits
-# pinned with --base, which this cannot tell apart, so it asks for --onto.
-infer_onto() {
-  local dev c subj base='' join='' foreign='' cran
-  git fetch -q "$remote" "+refs/heads/$L-land-dev:refs/remotes/$remote/$L-land-dev" 2>/dev/null || return 0
-  dev=$(git rev-parse -q --verify "refs/remotes/$remote/$L-land-dev") || return 0
-  [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 || return 0
-  git fetch -q "$canonical" main 2>/dev/null || return 0
-  local tip
-  tip=$(git rev-parse "refs/remotes/$canonical/main")
-  while IFS=$'\t' read -r c subj; do
-    if git merge-base --is-ancestor "$c" "$tip"; then join=$c; break; fi
-    if [ -z "$foreign" ] && { series_is_vendor "$subj" || [[ "$subj" == "$bump_subject"* ]]; }; then
-      continue
-    fi
-    # The first commit below the landing's own: its frozen base.
-    [ -n "$foreign" ] || base=$c
-    foreign=1
-  done < <(git log --first-parent --format='%H%x09%s' "$dev")
-  [ -n "$join" ] && [ -z "$foreign" ] && return 0
-  echo "Error: $L-land-dev on $remote does not stand on $canonical's main, and no kept build says" >&2
-  echo "  which branch it lands onto." >&2
-  cran=$({ git show "$tip:scripts/series.yaml" 2>/dev/null || true; } | awk '
-    function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
-    function val(v) { gsub(/["'"'"']/, "", v); return v }
-    /^  - / { flush() }
-    /^    kind:/ { k = val($2) }
-    /^    publishes_from:/ { pf = val($2) }
-    END { flush() }' | head -n 1)
-  if [ -n "$cran" ] && [ "$cran" != main ] && [ -n "$base" ] &&
-    git fetch -q "$canonical" "$cran" 2>/dev/null &&
-    git merge-base --is-ancestor "$base" "$(git rev-parse "refs/remotes/$canonical/$cran")"; then
-    echo "  $cran, the branch the CRAN flavor publishes from, holds its base: pass --onto $cran." >&2
-  else
-    echo "  Pass --onto <branch>, the branch it was built on." >&2
-  fi
-  exit 1
-}
-[ -n "$onto" ] || [ -n "$onto_kept" ] || infer_onto
-onto=${onto:-${onto_kept:-main}}
 
 # The landing stands on the canonical `main` and on nothing else: a mirror that
 # has not caught up is an older `main`, and a landing built on it cannot
@@ -276,9 +210,21 @@ if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; the
   echo "  Add $series_canonical_repo as 'upstream', or pass --canonical <name>." >&2
   exit 1
 fi
-# `main` holds the tip of the branch landed on, --onto's, whatever its name.
+# The branch landed on is the series' `releases_from` in the canonical `main`'s
+# scripts/series.yaml, `main` where it declares none, quotes and all read bare.
+git fetch -q "$canonical" main
+onto=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
+  awk -v s="$S" '
+    function val(v) { gsub(/["'"'"']/, "", v); return v }
+    function flush() { if (ser == s && rf != "") print rf; ser = ""; rf = "" }
+    /^  - / { flush() }
+    /^    series:/ { ser = val($2) }
+    /^    releases_from:/ { rf = val($2) }
+    END { flush() }' | head -n 1)
+onto=${onto:-main}
+# `main` holds the tip of that branch, whatever its name.
 if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
-  echo "Error: could not fetch $onto from $canonical, the branch --onto names:" >&2
+  echo "Error: could not fetch $onto from $canonical, the branch $S releases from:" >&2
   echo "$err" >&2
   exit 1
 fi
@@ -298,6 +244,7 @@ strand=("${series_strand[@]}" "${series_makevars[@]}")
 strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
+bump_subject='chore: Bump version to '
 # Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
 # and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
 # `Version:` line, which rises and is the version the subject names; and its
@@ -325,9 +272,9 @@ is_bump() { # <commit>
   # the fourth component one up and a tag of that version, and a series not
   # forwarded since still stamps an older one, so the landing's bump is the next
   # one above the branch's, not above the series'
-  # (handbook/operations/releases/versioning/README.md). Without --onto that
-  # branch is `main`, and the only bump this refuses that the rule above let
-  # through is one that would lower `main`'s own version, which no landing meant.
+  # (handbook/operations/releases/versioning/README.md). Where that branch is
+  # `main`, the only bump this refuses that the rule above let through is one
+  # that would lower `main`'s own version, which no landing meant.
   local onto_v
   onto_v=$(git show "$main:DESCRIPTION" | sed -n 's/^Version: //p')
   # shellcheck disable=SC2015
@@ -564,7 +511,7 @@ check_aligned() {
     exit 1
   }
 }
-write_state() { echo "$wt $base $src $seed $prefix $S $onto" > "$STATE"; }
+write_state() { echo "$wt $base $src $seed $prefix $S" > "$STATE"; }
 
 # The base the build is asked for: `main`, or a commit above it.
 base_req=$main

@@ -21,6 +21,9 @@ The families, in one breath:
   ([`model/`](/handbook/branches/model/README.md)).
 * **Linearity** — the active history is linear and merge-free,
   so it stays bisectable; forward-ports are cherry-picks.
+  The one merge is `main`'s graft of the CRAN line's release branch, which changes no tree,
+  so `main`'s first parents stay linear and bisectable
+  ([`model/`](/handbook/branches/model/README.md)).
 * **Flavor / identity** — the names inside a branch agree with each other,
   everywhere in the branch.
 * **Version** — each strand advances its own counter and freezes the other
@@ -30,7 +33,7 @@ The families, in one breath:
   the one exception is vendor-coupled glue on the preview line,
   born beside the vendor commit that forces it.
   Between `main` and the release branch of the line CRAN ships,
-  a fix travels either way, as a `cherry-pick -x`, never as a merge
+  a fix travels either way, as a `cherry-pick -x`, and `main` grafts the branch after each landing there
   ([`model/`](/handbook/branches/model/README.md)).
 * **CI / green** — a `-green` ref only ever fast-forwards to
   commits with recorded successful runs; the one sideways move, a cutover,

@@ -83,17 +83,15 @@
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
 # One more block is about the branches rather than the series: `FORWARD-PORT`
-# names the commits of the branch plain `duckdb` publishes from, where that is
-# not `main`, which `main` has no counterpart of. A fix reaches the CRAN line
-# either as a backport from `main` or written there first, and in the second case
-# it is owed to `main` as a `git cherry-pick -x` (handbook/branches/model/). A
-# counterpart is a commit `main` has by patch-id, a `main` commit naming it in a
-# `cherry picked from commit` trailer, or the `main` commit its own trailer names,
-# because a pick whose text changed in a conflict has another patch-id. Vendor
-# commits and release paperwork are the branch's own and not owed, since `main`
-# takes its engine from upstream `main`; a vendor commit that also carries an
-# R-side change is reported, marked. A commit `main` does without on purpose is
-# recorded in scripts/forward-port-declined on `main`, and not reported again.
+# lists the commits of the line CRAN ships, on its release branch here, that
+# `main` has not grafted yet: `main..<branch>`. Each landing there ends with
+# `main` picking what it wants with `git cherry-pick -x` and then taking the
+# branch with `git merge -s ours`, the graft, whose message names what it
+# declined (handbook/branches/model/), so once grafted a commit is never listed
+# again. Each is marked: `picked` where `main`'s own history since the last graft
+# has it, by patch-id or a `cherry picked from commit` trailer either way;
+# `vendor` for the branch's engine, which `main` takes from upstream `main`
+# instead; and `not yet` otherwise.
 #
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
@@ -864,102 +862,67 @@ elif [ ${#unserved[@]} -gt 0 ]; then
   echo "=============================================================================="
 fi
 
-# --- FORWARD-PORT: what the CRAN line has that `main` lacks -------------------
+# --- FORWARD-PORT: what `main` has not grafted of the CRAN line's branch ------
 #
-# The branch is read from the declaration, the `publishes_from` of the CRAN
-# flavor, so nothing is reported while that is `main` and nothing here names a
-# line. Its commits are read from the canonical repository first and the fork's
-# mirror second, like the declaration itself.
-#
-# A vendor commit is the branch's own engine, which `main` takes from upstream
-# `main` instead, so it is skipped -- unless it also changes something outside
-# the vendored strand, the Makevars generated from it and `DESCRIPTION`'s
-# stamp: an R-side fix folded into it, which `main` may need as well. Whether
-# that change answers the branch's engine alone is a judgement, so it is
-# reported, marked, rather than decided here.
-#
-# A commit `main` deliberately does without is recorded on `main`, in
-# scripts/forward-port-declined, one full SHA and a reason per line, and is not
-# reported again.
-cran_branch=$(declaration 2>/dev/null | awk '
-  function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
+# The branch is the CRAN flavor's `upstream`, the line it ships, which is also
+# the name of that line's release branch here; before the branch is cut there is
+# nothing to report. `main`'s own history since the last graft is its first
+# parents, since a graft's second parent is the branch itself.
+cran_line=$(declaration 2>/dev/null | awk '
+  function flush() { if (k == "CRAN" && up != "") print up; k = ""; up = "" }
   function val(v) { gsub(/["'"'"']/, "", v); return v }
   /^  - / { flush() }
   /^    kind:/ { k = val($2) }
-  /^    publishes_from:/ { pf = val($2) }
+  /^    upstream:/ { up = val($2) }
   END { flush() }' | head -n 1 || true)
-if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
+if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
+  fp_main='' fp_rel='' unread=''
   if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
-    git fetch -q "$canonical" "$cran_branch" 2>/dev/null || true
+    if heads=$(git ls-remote --heads "$canonical" "$cran_line" 2>/dev/null); then
+      if [ -n "$heads" ]; then
+        git fetch -q "$canonical" "$cran_line" 2>/dev/null || true
+        fp_main=$(git rev-parse -q --verify "refs/remotes/$canonical/main" || true)
+        fp_rel=$(git rev-parse -q --verify "refs/remotes/$canonical/$cran_line" || true)
+        [ -n "$fp_main" ] && [ -n "$fp_rel" ] || unread=1
+      fi
+    else
+      unread=1
+    fi
   fi
-  fp_main='' fp_rel=''
-  for r in ${canonical:+"$canonical"} "$remote"; do
-    m=$(git rev-parse -q --verify "refs/remotes/$r/main" || true)
-    b=$(git rev-parse -q --verify "refs/remotes/$r/$cran_branch" || true)
-    if [ -n "$m" ] && [ -n "$b" ]; then fp_main=$m fp_rel=$b; break; fi
-  done
   mb=''
   [ -z "$fp_rel" ] || mb=$(git merge-base "$fp_main" "$fp_rel" 2>/dev/null || true)
-  if [ -z "$fp_rel" ] || [ -z "$mb" ]; then
-    # Without both refs, or without a merge base (a shallow clone, unrelated
-    # histories), every commit would read as owed: say so instead.
+  if [ -n "$unread" ] || { [ -n "$fp_rel" ] && [ -z "$mb" ]; }; then
+    # A branch the canonical repository has but this clone cannot read, or one
+    # with no merge base with `main` (a shallow clone), would read as all owed.
     echo
-    if [ -z "$fp_rel" ]; then
-      echo "FORWARD-PORT  could not read $cran_branch beside main, so this firing does not"
-    else
-      echo "FORWARD-PORT  could not read a merge base of $cran_branch and main (a shallow clone?),"
-      echo "              so this firing does not"
-    fi
-    echo "              know what main still owes it. Missing data, not a clean result."
-  else
-    # What `main` has by patch-id, and the commits its trailers name.
+    echo "FORWARD-PORT  could not read $cran_line beside main, or their merge base,"
+    echo "              so this firing does not know what main has not grafted yet."
+    echo "              Missing data, not a clean result."
+  elif [ -n "$fp_rel" ]; then
     have=$(git cherry "$fp_main" "$fp_rel" "$mb" | sed -n 's/^- //p'
-      git log --format=%B "$mb..$fp_main" |
+      git log --first-parent --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
-    main_shas=$(git rev-list "$mb..$fp_main")
-    # A line is a full SHA, in either case and after any indentation, then a
-    # reason; blank lines and `#` comments are skipped, and anything else is
-    # named below rather than dropped unseen.
-    declined_raw=$({ git show "$fp_main:scripts/forward-port-declined" 2>/dev/null || true; } |
-      awk '{ sub(/^[[:space:]]+/, "") }
-        $0 == "" || /^#/ { next }
-        /^[0-9a-fA-F]{40}[[:space:]]+[^[:space:]]/ { print "ok " tolower(substr($0, 1, 40)); next }
-        { print "bad " NR ": " $0 }')
-    declined=$(sed -n 's/^ok //p' <<<"$declined_raw")
-    declined_bad=$(sed -n 's/^bad //p' <<<"$declined_raw")
-    if [ -n "$declined_bad" ]; then
-      echo
-      while IFS= read -r l; do
-        echo "FORWARD-PORT  scripts/forward-port-declined, line $l"
-        echo "              is not a full SHA and a reason, so it declines nothing."
-      done <<<"$declined_bad"
-    fi
-    engine_paths=()
-    for x in "${series_strand[@]}" "${series_makevars[@]}" DESCRIPTION; do engine_paths+=(":(exclude)$x"); done
-    owed=()
+    main_shas=$(git rev-list --first-parent "$mb..$fp_main")
+    rows=() open=0
     while IFS= read -r c; do
       [ -n "$c" ] || continue
-      grep -qx "$c" <<<"$declined" && continue
       subj=$(git log -1 --format=%s "$c")
-      mark=''
-      if series_is_vendor "$subj"; then
-        [ -n "$(git diff-tree --no-commit-id --name-only -r "$c" -- . "${engine_paths[@]}")" ] || continue
-        mark=' [vendor commit with an R-side change]'
-      fi
-      # Release paperwork: a version bump, its notes, the submission record.
-      [ -n "$(git diff-tree --no-commit-id --name-only -r "$c" |
-        grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || continue
-      grep -qx "$c" <<<"$have" && continue
       src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
-      if [ -n "$src" ] && grep -qx "$src" <<<"$main_shas"; then continue; fi
-      owed+=("$(git rev-parse --short "$c") $subj$mark")
-    done < <(git rev-list --reverse --no-merges "$mb..$fp_rel")
-    if [ ${#owed[@]} -gt 0 ]; then
+      if grep -qx "$c" <<<"$have" || { [ -n "$src" ] && grep -qx "$src" <<<"$main_shas"; }; then
+        mark=picked
+      elif series_is_vendor "$subj"; then
+        mark=vendor
+      else
+        mark='not yet' open=$((open + 1))
+      fi
+      rows+=("$(printf '%s %-8s %s' "$(git rev-parse --short "$c")" "$mark" "$subj")")
+    done < <(git rev-list --reverse --no-merges "$fp_main..$fp_rel")
+    if [ ${#rows[@]} -gt 0 ]; then
       echo
-      echo "FORWARD-PORT  $cran_branch has ${#owed[@]} commit(s) main has no counterpart of, oldest first:"
-      printf '              %s\n' "${owed[@]}"
-      echo "              Pick each onto main with git cherry-pick -x, or record why main does"
-      echo "              without it in scripts/forward-port-declined (handbook/branches/model/)."
+      echo "FORWARD-PORT  $cran_line has ${#rows[@]} commit(s) main has not grafted, $open not yet picked, oldest first:"
+      printf '              %s\n' "${rows[@]}"
+      echo "              Pick what main needs with git cherry-pick -x, then graft the branch"
+      echo "              with git merge -s ours, naming what it declines (handbook/branches/model/)."
     fi
   fi
 fi

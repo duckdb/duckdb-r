@@ -6,7 +6,7 @@
 # cherry` answers by patch-id over `mb..main`, which counts a commit `main`
 # merged for its ancestry alone -- a merge whose tree is its first parent's, so
 # nothing of the lineage it records ever entered main's tree. Porting one
-# applies a tree from another era on top of this one. Six things are checked.
+# applies a tree from another era on top of this one. What is checked:
 #
 #   1. An ordinary `main` commit the series lacks is offered.
 #   2. A commit that reached `main` only through an ancestry-only merge is not.
@@ -19,15 +19,18 @@
 #      strand, and the series has no section to put them in. A commit that
 #      edits DESCRIPTION without moving the version is package content and is
 #      still offered.
-#   6. --apply keeps the series' NEWS.md on every pick. A commit that brings
+#   6. A graft, a release branch taken with `git merge -s ours` after `main`
+#      picked what it wanted, offers that pick and nothing the second parent
+#      brings.
+#   7. --apply keeps the series' NEWS.md on every pick. A commit that brings
 #      code and a bullet under `main`'s open section applies cleanly after a
 #      landing has renamed that heading, under its own author and trailer, and
 #      leaves the series' NEWS.md as it was; a commit that writes nothing but
 #      NEWS.md comes out empty and is committed empty, so its trailer retires it.
-#   7. A ported commit keeps the whole message of the commit it ports, a
+#   8. A ported commit keeps the whole message of the commit it ports, a
 #      `# Conflicts:` line in its body included, and then the trailer; so does
 #      the commit the guidance prints when a pick conflicts.
-#   8. A conflict on the last commit named by hand prints no rerun, because a
+#   9. A conflict on the last commit named by hand prints no rerun, because a
 #      bare --apply would port what the named subset left out; one on an
 #      earlier commit prints a rerun with the commits named after it.
 #
@@ -247,6 +250,29 @@ out_live=$(scripts/series-port.sh s 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_live"
 hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
 has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
+
+# A graft: `main` takes a release branch cut from it with `-s ours`, after
+# picking the one fix it wants. Only that pick, a commit of `main`'s own, is
+# offered; what the graft's second parent brings never is.
+git checkout -q main
+git checkout -q -b rel-line
+echo 'fix rel' > R/rel-fix.R
+git add -A; git commit -qm 'fix: A fix on the release branch, picked onto main'
+RELFIX=$(git rev-parse HEAD)
+echo 'only rel' > R/rel-only.R
+git add -A; git commit -qm 'fix: A fix main declines'
+git checkout -q main
+git cherry-pick -x "$RELFIX" >/dev/null
+git merge -q -s ours --no-edit -m 'chore: Graft rel-line
+
+Declined: the fix main does without.' rel-line
+git push -q upstream main
+git checkout -q s-dev
+out_graft=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_graft"
+has "the pick main made is offered" "$out_graft" 'A fix on the release branch, picked onto main'
+hasnt "the commit the graft declined is not" "$out_graft" 'A fix main declines'
+hasnt "nor the graft itself" "$out_graft" 'Graft rel-line'
 
 echo
 echo "series-port.sh: --apply keeps the series' NEWS.md"
