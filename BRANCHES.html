@@ -129,20 +129,21 @@
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>(upstream C++)       (CI/CD fork)            (canonical R pkg)</span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>──────────────       ──────────────          ───────────────       ─────────────────</span>
 <span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>main            ──►  main-dev           ──►  main               ──►  duckdb (r-universe)</span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>                                                                     duckdb.dev</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>v1.5-variegata  ──►  v1.5-variegata-dev ──►  main               ──►  duckdb (CRAN)</span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>                                                                     duckdb.1.5.dev (r-universe)</span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ──►  duckdb.1.4 (r-universe)</span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>                                             v1.4-andium-lts         duckdb.1.4.dev (r-universe)</span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>   │              ^        ^       │                ^</span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>   │  vendor      │        │       │ during release │</span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>   │  (daily)     │        │       │  preparation   │</span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>   │  + patches   │        │       │     only       │</span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>   │  from patch/ │        │       └────────────────┘</span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>   └──────────────┘        │</span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>                    the Pull app (mirrors krlmlr/main from duckdb/main)</span></code></pre></div>
-<p>The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents the release merge. Patches from <code>patch/</code> are applied to the vendored C++ code during every vendor run (see <a href="#patch-stack">Patch Stack</a> below).</p>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>                                                                     duckdb.dev (r-universe)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>v2.0-cyanoptera ──►  v2.0-cyanoptera-dev──►  v2.0-cyanoptera    ──►  duckdb (CRAN)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>                                                                     duckdb.2.0.dev (r-universe)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>v1.5-variegata  ──►  v1.5-variegata-dev ──►  v1.5-variegata     ──►  duckdb.1.5.dev (r-universe)</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ──►  duckdb.1.4 (r-universe)</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>                                             v1.4-andium-lts         duckdb.1.4.dev (r-universe)</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>   │              ^        ^       │                ^</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>   │  vendor      │        │       │   landings,    │</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>   │  (daily)     │        │       │   one batch    │</span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>   │  + patches   │        │       │   at a time    │</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>   │  from patch/ │        │       └────────────────┘</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>   └──────────────┘        │</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>                    the Pull app (mirrors the canonical branches into the fork)</span></code></pre></div>
+<p>This is the layout once the v2.0 series releases from <code>v2.0-cyanoptera</code> and <code>main</code> has moved on; until then <code>main</code> still plays its row’s part (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>, “Until the switch”). The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents a landing: <code>main</code> takes batches of upstream <code>main</code>, and the release branch of the line CRAN ships takes its own line’s batches and releases (<a href="/.claude/skills/series-land/SKILL.html"><code>series-land</code></a>). Patches from <code>patch/</code> are applied to the vendored C++ code during every vendor run (see <a href="#patch-stack">Patch Stack</a> below).</p>
 </div>
 <div class="section level2">
 <h2 id="repositories">Repositories<a class="anchor" aria-label="anchor" href="#repositories"></a></h2>
@@ -151,6 +152,7 @@
 <div class="section level2">
 <h2 id="branch-overview">Branch Overview<a class="anchor" aria-label="anchor" href="#branch-overview"></a></h2>
 <p>Each supported DuckDB minor version has a series of branches organised into two repos. The branches that publish something are below, and which package each publishes is <a href="/handbook/branches/flavors/README.html"><code>branches/flavors/</code></a>’s live table. Three more refs sit beside every <code>&lt;S&gt;-dev</code> in the fork — <code>&lt;S&gt;-build</code>, <code>&lt;S&gt;-green</code> and <code>&lt;S&gt;-build-base</code>, the series loop’s working refs, each with one meaning and one allowed motion (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>) — and the root <a href="/README.html"><code>README.md</code></a>’s badges count the gaps between them. The <code>dev</code>/<code>dev-base</code> pair the four replaced is retired, its refs archived in <code>krlmlr/duckdb-r-old</code>.</p>
+<p>The table is the layout once the v2.0 series releases from <code>v2.0-cyanoptera</code> and <code>main</code> has moved on (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>, “Until the switch”).</p>
 <table class="table"><colgroup><col width="21%"><col width="15%"><col width="14%"><col width="48%"></colgroup><thead><tr><th>Branch</th>
 <th>Repo</th>
 <th><code>Package:</code></th>
@@ -163,10 +165,18 @@
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb.dev</code></td>
 <td>Vendored dev on upstream <code>main</code>; the preview line</td>
+</tr><tr><td><code>v2.0-cyanoptera</code></td>
+<td><code>duckdb/duckdb-r</code></td>
+<td><code>duckdb</code></td>
+<td>Release branch of the current line; CRAN releases from it</td>
+</tr><tr><td><code>v2.0-cyanoptera-dev</code></td>
+<td><code>krlmlr/duckdb-r</code></td>
+<td><code>duckdb.2.0.dev</code></td>
+<td>Bleeding edge on v2.0 upstream</td>
 </tr><tr><td><code>v1.5-variegata</code></td>
 <td><code>duckdb/duckdb-r</code></td>
 <td><code>duckdb</code></td>
-<td>Stable baseline for current release</td>
+<td>Parked baseline of the previous line</td>
 </tr><tr><td><code>v1.5-variegata-lts</code></td>
 <td></td>
 <td></td>
@@ -209,13 +219,13 @@
 <li>
 <strong>S2, S3 — retired.</strong> Both described the unflavored <code>dev-base</code> baseline and how <code>dev</code> sat above it. No series carries one: a series-loop seed is flavored from day one, per the bootstrap rule in <code>.claude/skills/series-loop/SKILL.md</code>, and the <code>dev-base</code> refs are archived in <code>krlmlr/duckdb-r-old</code>.</li>
 <li>
-<strong>S4 — <code>dev</code> contents.</strong> Every commit above the seed is either a <code>vendor:</code> commit or a forward-port equivalent to a commit on <code>main</code> (<code>git cherry main dev</code> shows no unmatched non-vendor <code>+</code>). <strong>Glue is never <em>born</em> on a <code>dev</code> branch.</strong> <em>Exception:</em> on the preview line (tracking upstream <code>main</code>), vendor-coupled glue — adaptation forced by a new upstream C++ API — is born on <code>dev</code> alongside the vendor commit that requires it, because <code>main</code> does not yet carry that upstream version.</li>
+<strong>S4 — <code>dev</code> contents.</strong> Every commit above the seed is either a <code>vendor:</code> commit or a forward-port equivalent to a commit on the branch the series releases from, <code>&lt;R&gt;</code>: <code>main</code>, or the line’s own release branch (<code>git cherry &lt;R&gt; dev</code> shows no unmatched non-vendor <code>+</code>). <strong>Glue is never <em>born</em> on a <code>dev</code> branch.</strong> <em>Exception:</em> on the preview line (tracking upstream <code>main</code>), vendor-coupled glue — adaptation forced by a new upstream C++ API — is born on <code>dev</code> alongside the vendor commit that requires it, because <code>main</code> does not yet carry that upstream version.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="linearity-and-ancestry">Linearity and ancestry<a class="anchor" aria-label="anchor" href="#linearity-and-ancestry"></a></h3>
 <p>History is <strong>linear going forward</strong> — the cost of extra rebases and CI runs is accepted in exchange for a bisectable, merge-free active history.</p>
 <ul><li>
-<strong>L — No new merge commits.</strong> The active region above the seed and every release transition are linear: forward-ports are <code>cherry-pick</code>s, releases are fast-forwards or rebases, and PRs never create a merge commit (use “Rebase and merge”, or a fast-forward push). Deep history below the release baselines still contains ~170 historical PR merges from before this policy; those are grandfathered. <em>(Currently nearly satisfied: <code>main-dev</code> adds 0 merges over 402 commits, <code>v1.4-andium-dev</code> 0 over 3 — but <code>v1.5-variegata-dev</code> carries 1 stray merge in its 21-commit window that should be rebased out, and the 1.5.4 release landed on <code>main</code> via a merge commit, which this policy replaces with FF/rebase.)</em>
+<strong>L — No new merge commits.</strong> The active region above the seed and every release transition are linear: forward-ports are <code>cherry-pick</code>s, releases are fast-forwards or rebases, and PRs never create a merge commit (use “Rebase and merge”, or a fast-forward push). <em>Exception:</em> a forward merge, an older release branch merged into the next newer line with a merge commit, which keeps the newer line’s engine and leaves its first-parent line linear (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>). Deep history below the release baselines still contains ~170 historical PR merges from before this policy; those are grandfathered. <em>(Currently nearly satisfied: <code>main-dev</code> adds 0 merges over 402 commits, <code>v1.4-andium-dev</code> 0 over 3 — but <code>v1.5-variegata-dev</code> carries 1 stray merge in its 21-commit window that should be rebased out, and the 1.5.4 release landed on <code>main</code> via a merge commit, which this policy replaces with FF/rebase.)</em>
 </li>
 <li>
 <strong>A1 — Dev descends from its release point.</strong> Within a patch series, <code>release-content ⊑ dev</code> as linear ancestors, where <code>release-content</code> is the released tree — this may sit a couple of commits <em>below</em> <code>stable</code>’s tip when that tip carries release mechanics (the CRAN merge + post-release bump). <code>dev</code> grows by append and is rewritten (force-push) only to re-anchor onto a new release point or to drop a non-green commit. The <code>flavor.sh</code> rename is the first group of commits above the seed.</li>
@@ -260,20 +270,22 @@
 <div class="section level3">
 <h3 id="version">Version<a class="anchor" aria-label="anchor" href="#version"></a></h3>
 <ul><li>
-<strong>V1 — Prefix lock.</strong> <code>major.minor</code> equals <code>L</code> on every branch of the series. <em>Exception:</em> the preview line carries a synthetic placeholder prefix greater than any current release (<code>main-dev</code> is <code>1.5.99.…</code>) until the flip sets the real number (e.g. <code>2.0.0</code>).</li>
+<strong>V1 — Prefix lock.</strong> <code>major.minor</code> equals <code>L</code> on every branch of the series. <em>Exception:</em> the preview line carries the prefix of the line it previews, <code>main</code> and <code>main-dev</code> both <code>2.0.99.…</code> while upstream <code>main</code> heads for 2.1 (from the first landing of <code>main</code>’s own series, whose bump is <code>2.0.99.9000</code>; <code>main</code> is <code>2.0.0.9000</code> until then), until that line’s release branch is cut and takes <code>2.1.0</code>.</li>
 <li>
 <strong>V2 — Patch ordering.</strong> <code>stable</code> and <code>lts</code> share the released patch <code>Z</code>; <code>dev</code> is at or ahead of <code>Z</code>.</li>
 <li>
-<strong>V3 — Counters.</strong> The <strong>4th</strong> component free-runs as the R-client dev counter <em>only</em> on the glue source of truth (<code>main</code>: <code>…9003</code>, <code>…9004</code>); on <code>-dev</code> branches it is a fixed marker (<code>.9000</code> / <code>.9001</code>). The <strong>5th</strong> component is the vendor counter, strictly monotone along <code>dev</code> (one bump per vendor commit). On a series-loop dev branch the seed’s <code>chore: Add fifth version component</code> commit stamps it at <code>.0</code>; elsewhere it is absent until the first vendor commit mints <code>.1</code> — e.g. <code>v1.4-andium-dev</code> at <code>1.4.5.9000</code> has no vendor commits yet. Regular LTS flavors never carry a fifth component. Componentwise within the prefix, <code>dev ≥ stable</code>.</li>
+<strong>V3 — Counters.</strong> The <strong>4th</strong> component free-runs as the R-client dev counter <em>only</em> on the canonical branches (<code>main</code>: <code>…9003</code>, <code>…9004</code>), where a landing without an upstream release advances it too; on <code>-dev</code> branches it is a fixed marker (<code>.9000</code> / <code>.9001</code>). The <strong>5th</strong> component is the vendor counter, strictly monotone along <code>dev</code> (one bump per vendor commit). On a series-loop dev branch the seed’s <code>chore: Add fifth version component</code> commit stamps it at <code>.0</code>; elsewhere it is absent until the first vendor commit mints <code>.1</code> — e.g. <code>v1.4-andium-dev</code> at <code>1.4.5.9000</code> has no vendor commits yet. Regular LTS flavors never carry a fifth component. Componentwise within the prefix, <code>dev ≥ stable</code>.</li>
 <li>
 <strong>V4 — Release shape.</strong> A released <code>stable</code>/<code>lts</code> version is the bare three-component prefix (no 4th/5th component).</li>
 </ul></div>
 <div class="section level3">
 <h3 id="source-of-truth-cross-series">Source of truth (cross-series)<a class="anchor" aria-label="anchor" href="#source-of-truth-cross-series"></a></h3>
 <ul><li>
-<strong>G1 — Glue monotone down the chain.</strong> At the forward-port frontier, glue/R/tests/CI/cpp11 satisfy <code>main ⊇ newer-dev ⊇ … ⊇ older-dev</code>; older lines lag only by pending forward-ports. (S4 applied across the whole chain.)</li>
+<strong>G1 — Glue monotone down the chain.</strong> At the forward-port frontier, every <code>dev</code> carries the glue/R/tests/CI/cpp11 of the branch it releases from, and lags it only by pending forward-ports. (S4 applied across the whole chain.) A line with its own release branch takes its R side from that branch, not from <code>main</code>, and fixes reach the newer lines by forward merges (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>), so along the chain of lines, older ⊆ newer once each is merged forward, and <code>main ⊇ dev</code> holds only for the series that release from <code>main</code>.</li>
 <li>
 <strong>G2 — Patch-stack derivation.</strong> Each <code>dev</code>’s <code>patch/</code> equals <code>main</code>’s patch set minus the patches already merged into <em>that series’</em> upstream branch. <code>patch/</code> may therefore legitimately differ between series; it is never hand-authored per series beyond dropping patches that landed upstream.</li>
+<li>
+<strong>G3 — Forward merges.</strong> Each active release branch is merged forward into the next newer line, the newest into <code>main</code>, after each landing on it and whenever it takes a fix, so every older branch is an ancestor of the newer ones; <code>scripts/series-check.sh</code> lists what is not merged forward yet (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>).</li>
 </ul></div>
 <div class="section level3">
 <h3 id="ci--green">CI / green<a class="anchor" aria-label="anchor" href="#ci--green"></a></h3>
@@ -285,13 +297,13 @@
 <div class="section level3">
 <h3 id="prerelease-during-stabilize">Prerelease (during STABILIZE)<a class="anchor" aria-label="anchor" href="#prerelease-during-stabilize"></a></h3>
 <ul><li>
-<strong>P1 — Release branches frozen.</strong> Pre-release mutates only <code>main</code> (fold-back fixes) and <code>dev</code> (forward-ports + vendor); <code>stable</code> and <code>lts</code> stay at the previous release until CUT. A half-finished pre-release is abortable with zero rollback on the release branches.</li>
+<strong>P1 — Release branches frozen.</strong> Pre-release mutates only the branch the fold-back fixes are written on and <code>dev</code> (forward-ports + vendor); <code>stable</code> and <code>lts</code> stay at the previous release until CUT. A half-finished pre-release is abortable with zero rollback on the release branches.</li>
 <li>
 <strong>P2 — Candidate ⊆ release.</strong> The revdep-tested pinned candidate is an ancestor of the <code>dev</code> tip that will be cut; any delta added after a revdep run is reviewed (and re-checked if risky). What ships was tested.</li>
 <li>
-<strong>P3 — Fold-back ordering.</strong> Every fold-back fix lands on <code>main</code> before any <code>dev</code> (a <code>dev</code> fix lacking a <code>main</code> ancestor violates S4).</li>
+<strong>P3 — Fold-back ordering.</strong> Every fold-back fix lands on a canonical branch, the one the series releases from, before any <code>dev</code> (a <code>dev</code> fix with no counterpart there violates S4). For the line with its own release branch that is the release branch, and the fix reaches the newer lines by forward merges (<a href="/handbook/branches/model/README.html"><code>branches/model/</code></a>).</li>
 <li>
-<strong>P4 — Freeze convergence (barrier).</strong> At GLUE FREEZE, <code>git cherry main dev</code> is empty for <em>every</em> releasing series simultaneously, so all releasing lines share identical glue. This is the multi-line synchronization invariant.</li>
+<strong>P4 — Freeze convergence (barrier).</strong> At GLUE FREEZE, <code>git cherry &lt;R&gt; dev</code> is empty for <em>every</em> releasing series simultaneously, each against the branch <code>&lt;R&gt;</code> it releases from, so every releasing line carries its release branch’s glue. This is the multi-line synchronization invariant.</li>
 </ul></div>
 </div>
 <div class="section level2">
