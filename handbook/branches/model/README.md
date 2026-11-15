@@ -59,7 +59,7 @@ A `patch/` entry belongs to the strand, since the tree it is applied to does, so
 [`scripts/series-check.sh`](/scripts/series-check.sh) says when the buffer and the strand are out of step.
 A series opened before the strand existed derives one from its buffer once, with nothing re-vendored.
 No CI runs on it, nothing publishes it, and it is not mirrored;
-a cutover swaps it with the four and archives the replaced lineage like theirs.
+a cutover swaps it with the four, and pins the replaced lineage like theirs.
 
 The refs of one series, as the loop moves them; the `-dev` line below green is what CI has passed,
 above it what is in flight, and the buffer runs ahead of both:
@@ -86,7 +86,7 @@ flowchart LR
   V["#60;S#62;-fwd-vendor: the vendor strand<br>rebased onto the new seed"]
   S -->|"series-forward: replay -dev,<br>the loop verifies again"| F
   S -.->|"series-vendor.sh --forward: rebase,<br>a rewind's foot written whole;<br>series-learned.sh --vendor reads<br>the forward against it"| V
-  S -->|"archive: closed pull requests<br>keep -dev, -build, -vendor and the canonical green"| A["refs/pull/#60;n#62;/head"]
+  S -->|"pins: each strand's review stack,<br>its first pull request on the old tip"| A["refs/pull/#60;n#62;/head"]
   F -->|"one atomic leased push:<br>the four refs and the strand<br>take the forward's tips"| S2["#60;S#62;-*: serving,<br>on current main"]
   V --> S2
   F -.->|"deleted afterwards;<br>litter goes by series-prune.sh"| X[" "]
@@ -131,16 +131,23 @@ So the port stage syncs the buffer's tooling too
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 and the model's "no CI" holds because something maintains it.
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart, one at a time,
-verified from scratch and swapped in by a human-run **cutover**
-([`series-forward`](/.claude/skills/series-forward/SKILL.md));
+verified from scratch and swapped in by a **cutover** the maintainer signs off
+([`series-forward`](/.claude/skills/series-forward/SKILL.md)),
+run by a session he sends ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md));
 a serving `-green` never moves sideways on its own.
-The names are static, so nothing outside the two repositories learns of a cutover,
-and the lineages the swap replaces are kept first,
-each as the head of a draft pull request opened and closed on the spot,
-which GitHub keeps reachable as `refs/pull/<n>/head` for as long as it exists:
-the fork's `<S>-dev`, `<S>-build` and `<S>-vendor`, and the canonical repository's copy of `<S>-green`.
+The names are static, so nothing outside the two repositories learns of a cutover.
+What the swap replaces is read and kept first, in the fork, as a **review stack** per strand `<X>`,
+whose layers [`scripts/series-cutover-stack.sh`](/scripts/series-cutover-stack.sh) lists in its header,
+each a draft pull request into the one below.
+The first, `cutover/<S>/<X>/1-main`, stands on the old tip `<S>-<X>`, and its head is a **pin**:
+GitHub keeps it reachable as `refs/pull/<n>/head` for as long as the pull request exists, closed or not,
+and the swap refuses to move a ref no pin holds,
+of `<S>-dev`, `<S>-build`, `<S>-vendor`, `<S>-green` and `<S>-build-base`,
+and the canonical repository's copy of `<S>-green` unless it is the fork's green.
+The **cutover pull request**, an empty draft from `cutover/<S>/pr` into the fork's `main`,
+carries the report, the stacks' review and the sign-off, and is closed, never merged.
 The `-fwd` refs go afterwards, their tips being the series' refs by then,
-and what a refused deletion leaves is **cutover litter**, listed by
+and what a refused deletion leaves is **cutover litter**, listed by the cutover itself and by
 [`scripts/series-prune.sh`](/scripts/series-prune.sh) for a human to remove.
 **`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
 so that the package a release ships as plain `duckdb` has verdicts of its own.

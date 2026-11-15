@@ -78,7 +78,7 @@ The buffer and `-dev` are working branches nothing installs,
 and duplicating either is the thing this avoids.
 A `-fwd-green` is a rebuild published from the fork's own universe
 to verify a cutover before it happens, and nothing publishes its copy here;
-it travels so that the cutover can archive the replaced copy of `<S>-green` against it in this repository,
+it travels with the rest,
 and it is deleted here with the fork's `-fwd` refs once the swap has made its tip `<S>-green`
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 
@@ -95,8 +95,8 @@ the old green is no ancestor of.
 That is the one legitimate non-fast-forward,
 so [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) forces the copy itself,
 under a lease and after the swap, rather than leaving the next firing to trip on it,
-and only after the copy it replaces has become the head of a closed pull request here,
-so the move loses no history.
+and only where the copy it replaces is the fork's green or under a pin in the fork
+([`model/`](/handbook/branches/model/README.md)), so the move loses no history.
 
 Unlike the mirrors above, this one is ours to push:
 Pull carries branches from the canonical repository into the fork and never back.

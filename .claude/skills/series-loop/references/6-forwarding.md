@@ -61,23 +61,21 @@ git -C ../../../duckdb fetch --prune --tags origin
 scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
 scripts/series-converge.sh <S>
 
-# The gates, the convergence report, the review diff and the plan, with
-# nothing moved: read it, then decide.
-scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepare --out <dir>
+# The refs to swap, coverage, convergence, package and versions, and the
+# tip of <S>-fwd-green to decide on, with nothing moved. The canonical
+# repository is the remote named with --canonical where it is not `upstream`.
+scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepare
 
-# The swap. It asks for the series name, archives each replaced lineage as
-# the head of a closed pull request, swaps the four refs, and moves the copy
-# of green that r-universe publishes from -- name that remote with
-# --canonical where it is not `upstream`, or the copy keeps serving the
-# pre-cutover lineage -- then deletes the forward's refs in both repositories.
-scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
+# The rest is a session's, on the maintainer's request: the cutover pull
+# request, a review stack per strand, his sign-off on the SHA above, the swap.
+# See .claude/skills/series-cutover/SKILL.md.
 
 # A retired lineage moves the badge table, and the mirror rules with it.
 scripts/pull-config.sh --check
 ```
 
 `--remote` names whichever remote of that checkout carries `<S>-green`,
-and `--upstream` the `duckdb/duckdb` checkout on disk —
+and `--upstream` the `duckdb/duckdb` checkout on disk:
 `../../../duckdb` is where `vendor-one.sh` looks for one when nobody names it,
 so it is the path the project already assumes.
 Substitute either where it is not the reader's;
@@ -85,28 +83,23 @@ the names are the same in every `scripts/series-*.sh`
 (`handbook/operations/vendoring/series-loop/README.md`),
 and naming them is what makes the remote-for-path swap unsayable
 rather than merely diagnosable.
-Check that the `main` the block lands on is the canonical one —
+Check that the `main` the block lands on is the canonical one:
 a fork's mirror lags by however long the mirroring takes,
-and a cutover run off a stale mirror runs a stale `series-cutover.sh`.
+and a report run off a stale mirror runs a stale `series-cutover.sh`.
 
 **Emit the block whole, on every firing the condition holds**,
 with `<S>` and the paths substituted rather than left as placeholders.
-`series-check.sh` prints the swap alone, which is the one line
-that cannot usefully be pasted by itself:
-a cutover typed on a clone that last fetched hours ago
-runs its coverage gate against refs that have since moved,
-and a firing that abbreviates the block to the line it already saw
+`series-check.sh` prints the report's command alone,
+and a report run on a clone that last fetched hours ago
+reads coverage and convergence off refs that have since moved,
+so a firing that abbreviates the block to the line it already saw
 hands the reader exactly that.
-The reads above the swap are not ceremony either —
-`series-cutover.sh` runs the convergence report itself,
-but it runs it *after* the fetches and one prompt before the push,
-which is too late to be the moment anybody decides anything.
 Repeating the block costs a firing nothing;
 it is not summarised into a sentence, and not dropped
 because an earlier firing already printed it.
 
 That is the whole stage.
-The routine does not run the script,
+The routine does not build a review stack, open a cutover pull request or run the swap,
 and does not swap the four refs by hand instead.
 
 Cutover is the one move that retires a lineage consumers are reading.
@@ -114,32 +107,28 @@ Everything else the loop does is bounded and recoverable:
 a bad repair is repaired again,
 a wrong extension is replayed,
 and `-green` only ever moves forward over commits CI called green.
-The swap moves a serving green *sideways*
-— the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`),
+The swap moves a serving green *sideways*,
+the single sanctioned non-fast-forward of one (`series-forward/SKILL.md`),
 and the one place the canonical repository's copy of green is forced rather than
-fast-forwarded, which is why `--canonical` belongs on this line and nowhere else
-the routine types by hand —
-and it deletes the counterpart that would let it be undone;
-what it replaces stays readable only because it archives each lineage
-as a closed pull request's head first (`series-forward/SKILL.md`).
-Its coverage gate is also the one gate the loop cannot fully evaluate:
-the ancestry check needs an upstream clone,
-and degrades to a warning without one,
-so an unattended firing would be authorizing the swap on a warning.
-Coverage is in any case only half the question —
+fast-forwarded, which is why `--canonical` belongs on that run and nowhere else
+the routine types by hand;
+and it deletes the counterpart that would let it be undone.
+What it replaces stays readable only because a review stack's pull request pins each old tip first
+(`series-forward/SKILL.md`).
+Coverage is only half the question:
 it asks how much upstream the forward reaches
-and nothing about what it carries —
-so `series-cutover.sh` prints the convergence report
-immediately before it asks for confirmation.
-It reports rather than refuses:
-whether a difference is explicable is exactly the judgement
-no script can make.
+and nothing about what it carries.
+What it carries is read in the stacks, a strand at a time and a layer at a time,
+because whether a difference is explicable is exactly the judgement no script can make.
 Verification is mechanical, so the loop owns it;
 deciding that r-universe should build a different lineage today
-is not, so a human owns that.
+is not, so a human owns that, and signs it off on the cutover pull request.
 
-The script enforces its own half:
-it refuses to run without a terminal
-and takes the series name as confirmation,
-so a firing that tries anyway achieves nothing.
-Treat that refusal as the answer, not as an obstacle to route around.
+The swap runs only with `--confirm <S>@<sha>`,
+and it cannot tell a firing from a session the maintainer sent: either can type that option.
+What keeps a firing from cutting over is what it is told:
+stage 6 and the [invariants](../SKILL.md#invariants) of the loop's skill say a firing never runs the swap and never passes `--confirm`,
+and [`series-cutover/SKILL.md`](../../series-cutover/SKILL.md) swaps only on the maintainer's sign-off,
+which a firing never carries.
+The SHA, the tip of `<S>-fwd-green` the sign-off names, ties a run to the state it was given on:
+the script refuses once the forward has moved.

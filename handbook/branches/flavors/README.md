@@ -99,19 +99,22 @@ The universe is not in the picture: the entry's branch is `<S>-green` before and
 ```mermaid
 sequenceDiagram
   participant SL as series loop
-  participant H as a human
+  participant M as the maintainer
+  participant H as a session he sends
   participant F as fork
   participant C as duckdb/duckdb-r
-  SL->>H: CUTOVER line: #60;S#62;-fwd-green covers #60;S#62;-green
-  H->>H: series-cutover.sh #60;S#62; --prepare: coverage, convergence, review diff
-  H->>F: draft pull requests, closed at once: #60;S#62;-dev, #60;S#62;-build and #60;S#62;-vendor as they stand
-  H->>C: draft pull request, closed at once: the copy of #60;S#62;-green as it stands
+  SL->>M: CUTOVER line: #60;S#62;-fwd-green covers #60;S#62;-green
+  M->>H: run the cutover of #60;S#62;
+  H->>F: the cutover pull request, from cutover/#60;S#62;/pr
+  H->>H: series-cutover.sh #60;S#62; --prepare: coverage, convergence, versions, the SHA
+  H->>F: a review stack per strand, each layer a draft pull request on the one below
+  M->>F: reviews the stacks, and ticks the question naming the SHA
   H->>F: one atomic leased push: the four refs and the vendor strand take the forward's tips
   H->>C: #60;S#62;-green forced to the new green, under a lease
-  H->>F: the -fwd refs, the rc and alpha strands and the ledger deleted
+  H->>F: the -fwd refs, the rc and alpha strands and the ledger deleted; the pull requests closed
   H->>C: #60;S#62;-fwd-green deleted
   C-->>SL: r-universe builds #60;S#62;-green, now the forward's history
-  Note over SL,C: The replaced history is each closed pull request's head. What a refused deletion leaves, series-prune.sh lists
+  Note over SL,C: The replaced history is each stack's first pull request's head. What a refused deletion leaves, series-prune.sh lists
 ```
 
 A universe is a repository of its own, `<user>/<user>.r-universe.dev`,
