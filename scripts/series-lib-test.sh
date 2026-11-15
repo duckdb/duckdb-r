@@ -15,8 +15,8 @@
 #   5. On a repository: the seed, whether a green stands above it, which ref
 #      tells a forward swapped in, the base scan past a non-vendor commit in
 #      the scan directory, its bound, the `-build` equivalent of a re-stamped
-#      commit, and the engine and the stamp read off a tree; a graft's second
-#      parent never answers the base scan.
+#      commit, and the engine and the stamp read off a tree; the second parent of
+#      a merge that keeps the engine never answers the base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches.
 #
@@ -172,15 +172,15 @@ v2t=$(c "vendor: Update vendored sources (tag $tag) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
-# A graft: a release branch's newer vendor commit taken with `-s ours`, whose
-# tree is the first parent's, so the base scan never reads its engine.
+# A forward merge: a release branch's newer vendor commit merged keeping the
+# first parent's engine, so the base scan never reads the second's.
 git checkout -q -b rel
 echo 'r' > "$series_scan_dir/a"
 GIT_COMMITTER_DATE='2099-01-01 00:00:00 +0000' GIT_AUTHOR_DATE='2099-01-01 00:00:00 +0000' \
   c "vendor: Update vendored sources to $repo@cccccccccc" > /dev/null
 git checkout -q main
 git merge -q -s ours --no-edit rel
-is "the base scan follows a graft's first parent" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
+is "the base scan follows the first parent of a merge that keeps the engine" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
 
 echo "--- 6. the GitHub repository a remote names"
 for url in https://github.com/o/r https://github.com/o/r.git https://github.com/o/r/ git@github.com:o/r.git ssh://git@github.com/o/r \
