@@ -22,6 +22,8 @@
 
 #include "src/function/function_binder.cpp"
 
+#include "src/function/function_binder_result.cpp"
+
 #include "src/function/function_list.cpp"
 
 #include "src/function/function_set.cpp"
