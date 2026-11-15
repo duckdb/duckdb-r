@@ -267,9 +267,12 @@ fledge::bump_version("X.Y.Z")
 Then rebase the LTS branch, one rename commit on top of the release branch:
 
 ```bash
-S=v1.4-andium   # the LTS line just released
-git fetch origin "$S" "$S-lts"
-git switch "$S-lts" && git rebase "origin/$S" && git push origin "$S-lts"
+C=git@github.com:duckdb/duckdb-r.git   # the canonical repository, where both branches live
+S=v1.4-andium                          # the LTS line just released
+git fetch "$C" "+refs/heads/$S:refs/remotes/canonical/$S" "+refs/heads/$S-lts:refs/remotes/canonical/$S-lts"
+git switch -C "$S-lts" "canonical/$S-lts"   # from the canonical tip, never a stale local branch
+git rebase "canonical/$S"
+git push --force-with-lease="refs/heads/$S-lts:$(git rev-parse "canonical/$S-lts")" "$C" "HEAD:refs/heads/$S-lts"
 ```
 
 Build the source tarball and take it through WinBuilder and the CRAN
@@ -280,10 +283,13 @@ preflight before tagging (`cran/`).
 Tag the release and push; r-universe rebuilds automatically:
 
 ```bash
-S=v1.4-andium   # the line just released; tag "origin/$S" instead where it has no -lts branch
-v=$(git show "origin/$S-lts:DESCRIPTION" | sed -n 's/^Version: //p')
-git tag "v$v" "origin/$S-lts"
-git push origin "v$v"
+C=git@github.com:duckdb/duckdb-r.git   # the canonical repository
+S=v1.4-andium                          # the line just released
+R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
+git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R"   # the tip as it is now, after the rebase
+v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p')
+git tag "v$v" "canonical/$R"
+git push "$C" "refs/tags/v$v"
 ```
 
 For the **current** line only, submit to CRAN (`cran/`);
