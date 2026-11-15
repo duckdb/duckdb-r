@@ -15,8 +15,26 @@ sibling `<S>-dev`, so opening one is creating refs
 
 **Two repositories.**
 `duckdb/duckdb-r` is canonical:
-`main`, the parked stable baselines, the LTS flavor branch;
+`main`, the release branch of the line CRAN ships, the stale baselines awaiting retirement, the LTS flavor branch;
 CRAN and the numbered r-universe packages publish from here.
+`main` carries the engine of upstream `main` and makes no CRAN release;
+the line CRAN ships has a branch of its own, named as upstream names it, `v2.0-cyanoptera`, from which its releases are cut
+([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+Plain `duckdb` on r-universe is built from `main` all the same, by decision, so r-universe shows the next line and CRAN the current one:
+that is why the flavor table names `main` as where `duckdb` is published from
+([`flavors/`](/handbook/branches/flavors/README.md)).
+**Until the switch, part of the layout before it holds.**
+`v2.0-cyanoptera` exists in `duckdb/duckdb-r`, cut from `main` at `e913ab08fd`.
+The rest of the layout takes effect once `scripts/series.yaml` names it as the v2.0 series' `releases_from`
+([#2991](https://github.com/duckdb/duckdb-r/pull/2991)).
+Until then the v2.0 series still releases from `main`:
+`scripts/series-port.sh` ports `main`'s R side into it, `scripts/series-land.sh --target` names `main` for it, and it seeds on `main`;
+and `main` still carries the 2.0 engine at `2.0.0.9000`, so it takes no landing of upstream `main` and no forward merge yet.
+`main` stays at `2.0.0.9000` until the first landing of its own series, whose bump is `2.0.99.9000`
+([`versioning/`](/handbook/operations/releases/versioning/README.md)).
+FORWARD-PORT in `scripts/series-check.sh` already reads `v2.0-cyanoptera`, the CRAN row's `upstream`,
+so it lists what lands there before the v2.0 series releases from it.
+The pages describing the two-branch layout link here for that.
 `krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
 network, not a copy that shares its name — used for CI/CD
 so the per-commit builds do not consume
@@ -160,9 +178,12 @@ and `<S>-rc-alpha` the same stamp on its rc twin,
 because upstream publishes extensions under that version and never under the commit a `-dev` stamp looks in.
 Each is one commit on a verified one, moved by the loop when a newer alpha appears
 ([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
-**`<L>-land-dev` is a line on its way onto `main`**: the frozen `main` plus the series' vendor commits, unflavored, and a hand-written version bump,
-which `main` fast-forwards onto once CI has passed every one.
-`<L>-land-green` marks how far CI has passed it, starting at the frozen `main`.
+**`<L>-land-dev` is a batch of a series on its way onto the canonical branch it lands on**:
+the frozen branch plus the series' vendor commits, unflavored, and a hand-written version bump,
+which the branch fast-forwards onto once CI has passed every one.
+`<L>` is the series' line, so `main`'s own series lands as `main-land-dev` onto `main`,
+and the v2.0 series as `v2.0-cyanoptera-land-dev` onto `v2.0-cyanoptera`; one landing per line is in flight at a time.
+`<L>-land-green` marks how far CI has passed it, starting at the frozen branch.
 The pair exists only while a landing is in flight, and has no buffer, so the loop never serves it.
 `<L>-land-review`, in the canonical repository, is the landing without its engine,
 which a draft pull request shows for review and never merges
@@ -193,29 +214,73 @@ An upstream-lag badge — how far behind `duckdb/duckdb` itself — is not expre
 because that comparison crosses repositories.
 The table's upkeep is [`series-open`](/.claude/skills/series-open/SKILL.md)'s.
 
-**`main` in `duckdb/duckdb-r` is the source of truth** for four of the seven components
+**The canonical branches of `duckdb/duckdb-r` are the source of truth** for four of the seven components
 a branch is made of, and the other three come from elsewhere:
 
 | Component | Source of truth | |
 |---|---|---|
 | DuckDB core | `duckdb/duckdb` upstream | vendored independently into each series |
 | Flavor | per branch, via [`flavor.sh`](/scripts/flavor.sh) | applied mechanically on top of the baseline |
-| **Glue code** | **`main`** | forward-ported to every series |
-| **R code and tests** | **`main`** | forward-ported to every series |
+| **Glue code** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
+| **R code and tests** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **CI/CD infrastructure** | **`main`** | forward-ported to every series |
 | **cpp11** | **`main`** | forward-ported to every series |
-| R core | external — `r-devel`, CRAN policy | monitored; fixes land in `main` first |
+| R core | external — `r-devel`, CRAN policy | monitored; fixes land on the oldest active release branch first |
 
-**Forward-porting runs from `main` to every series, and never in reverse**:
-each `<S>-dev` takes `main`'s commits directly, on every firing,
+**At most three lines are active, and CRAN follows the middle one once there are three.**
+`main` previews the next line, v2.1 today, while `v2.0-cyanoptera` serves the line CRAN ships.
+When upstream cuts a release branch for the line `main` previews, `vX.Y-<name>`, we cut ours from `main` the same day
+([`series-land`](/.claude/skills/series-land/SKILL.md), "Changing the line CRAN ships"),
+and `main` moves on to preview the line after it.
+That makes three: the oldest line, the new release branch, and `main`;
+CRAN moves to the new line, the middle one, with its first release,
+and the older lines retire as a newer one takes over, so that no more than three are active at a time,
+as [the plan for the cycle](https://github.com/duckdb/duckdb-r/pull/2987#issuecomment-6896640798) lays out.
+A fix still starts on the oldest active line and is merged forward through each newer one.
+A line no longer active is **stale** until it is retired:
+its series is declared `stale: true` in [`scripts/series.yaml`](/scripts/series.yaml) and takes no R-side ports,
+which v1.4 and v1.5 are today.
+
+**Forward-porting runs from the branch a series releases from**:
+each `<S>-dev` takes that branch's R-side commits, on every firing,
 by [`series-port.sh`](/scripts/series-port.sh), the loop's port stage
-([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md));
-no series ports from another, and a parked line takes the tooling sync alone.
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)):
+`main`'s for `main`'s own series, and the line's release branch's for a line that has one.
+Tooling comes from `main` for every series, no series ports from another,
+and a line declared `stale: true` in [`scripts/series.yaml`](/scripts/series.yaml) takes the tooling sync alone.
+
+**An R-side fix is written on the oldest active release branch and merged forward.**
+A fix goes to the oldest line it applies to, as a pull request against that line's release branch, `v2.0-cyanoptera` today,
+and reaches every newer line by merging the older branch into the next newer one:
+`v2.0-cyanoptera` into `main` today, and with three lines `v2.0` into `v2.1` and `v2.1` into `main`.
+A fix only a newer line needs is written on that line directly,
+and a fix written on a newer line first and then found to be needed on an older one is picked back with `git cherry-pick -x`.
+Tooling is `main`'s alone, and reaches a release branch only as such a pick.
+This turns the R-package convention around, where `main` is roughly what CRAN has:
+here `main` is the newest line, and CRAN's is an older release branch.
+It is deliberate: a fix written once on the oldest line and merged forward is built and checked once per line,
+where the same fix cherry-picked into every line repeats the CI work for little extra value,
+and the branches follow upstream's, one per line.
+
+**A forward merge keeps the newer line's engine.**
+It is an ordinary merge, made as a pull request and merged with "Create a merge commit", never squashed or rebased.
+A landing on the older branch brings that line's vendor commits, which the newer line must not take,
+so the merge keeps the newer side of the vendored strand and what is generated from it,
+`series_strand` and `series_makevars` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+the `DESCRIPTION` merge driver keeps its version and engine record,
+and the `NEWS.md` merge driver orders both lines' sections newest version first
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+[`series-land`](/.claude/skills/series-land/SKILL.md) has the commands,
+and [`scripts/series-check.sh`](/scripts/series-check.sh) lists for each active release branch what is not yet merged forward,
+counting its vendor commits and version bumps and listing each R-side commit.
+A path-limited walk of the engine follows a forward merge's first parent by itself, since the merge keeps that side of the engine,
+and the port stage walks the newer line's first parents, offering each forward merge as one port of its change outside the engine,
+so the commits behind it, the older line's vendor commits and fixes, never reach the newer line's series one by one.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 
 That ordering is what makes the vendor strand the only thing a series owns.
-Everything else it carries was born on `main` and arrived by port,
+Everything else it carries was born on the branch it releases from and arrived by port,
 which is why a regenerated seed is allowed to replace a series' whole R side
 and why a replay takes the new base for everything the vendor commits do not touch
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).

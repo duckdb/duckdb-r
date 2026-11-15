@@ -135,6 +135,9 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
+| [`landing-version-test.sh`](landing-version-test.sh) | Check scripts/landing-version.sh, offline. |
+| [`landing-version.sh`](landing-version.sh) | Print the version a landing's hand-written bump sets, short of an upstream release. |
+| [`preview-prefix-test.sh`](preview-prefix-test.sh) | Check scripts/preview-prefix.sh, offline, in a repository built here. |
 | [`preview-prefix.sh`](preview-prefix.sh) | Stamp a preview line's version prefix onto the strand checked out here: the prefix of the line it *previews*, not the one it was seeded from (handbook/operat... |
 
 ## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
@@ -142,6 +145,9 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | File | Purpose |
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
+| [`merge-news-test.sh`](merge-news-test.sh) | Check scripts/merge-news.sh, the NEWS.md merge driver, offline, on files and in a repository built here. |
+| [`merge-news.sh`](merge-news.sh) | Git merge driver for NEWS.md: merge it section by section, and leave the sections in version order, newest first. |
+| [`merge-version-test.sh`](merge-version-test.sh) | Check scripts/merge-version.sh, the DESCRIPTION merge driver, offline, on files and in a repository built here. |
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and the logos. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |

@@ -152,6 +152,7 @@ is "series-cutover-stack.sh --summary (bare)"    "$(rc series-cutover-stack.sh s
 is "series-cutover-stack.sh <S> <not a strand>"  "$(rc series-cutover-stack.sh s build-base)" 2
 is "series-cutover-stack.sh --continue --abort"  "$(rc series-cutover-stack.sh s dev --continue --abort)" 2
 is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
+is "series-land.sh --target --status"              "$(rc series-land.sh s --target --status)" 2
 is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
 is "series-land.sh --source (bare)"              "$(rc series-land.sh s --source)" 2
 is "series-land.sh --landing (bare)"             "$(rc series-land.sh s --landing)" 2

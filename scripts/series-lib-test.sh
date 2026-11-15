@@ -15,9 +15,13 @@
 #   5. On a repository: the seed, whether a green stands above it, which ref
 #      tells a forward swapped in, the base scan past a non-vendor commit in
 #      the scan directory, its bound, the `-build` equivalent of a re-stamped
-#      commit, and the engine and the stamp read off a tree.
+#      commit, and the engine and the stamp read off a tree; the second parent of
+#      a merge that keeps the engine never answers the base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches.
+#   7. A forward merge that conflicts in the engine, the version file and the
+#      Makevars, adds an engine file and deletes a patch the other side changed
+#      keeps this side's engine byte for byte, and merges the R side.
 #
 # The engine's own formats are the block right below the helpers: what a tree
 # holds for `series_engine_of()` and `series_stamped_version()` to read, where
@@ -117,6 +121,7 @@ is "the carry filter keeps the fix and drops the rest" "$carried" "src/glue.cpp 
 is "nothing to carry is not an error" "$(printf '%s\n' DESCRIPTION | series_carry_filter; echo "rc=$?")" "rc=0"
 is "a glob in a configured path matches as a pathspec does" \
   "$(series_strand=('R/aaa-*.R'); series_in_strand R/aaa-two.R && echo yes)" yes
+# shellcheck disable=SC2030  # a subshell's own configuration, on purpose
 is "and not beyond its directory" \
   "$(series_strand=('R/aaa-*.R'); series_in_strand src/R/aaa-two.R || echo no)" no
 tooling_re=$(series_tooling_re)
@@ -171,6 +176,15 @@ v2t=$(c "vendor: Update vendored sources (tag $tag) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
+# A forward merge: a release branch's newer vendor commit merged keeping the
+# first parent's engine, so the base scan never reads the second's.
+git checkout -q -b rel
+echo 'r' > "$series_scan_dir/a"
+GIT_COMMITTER_DATE='2099-01-01 00:00:00 +0000' GIT_AUTHOR_DATE='2099-01-01 00:00:00 +0000' \
+  c "vendor: Update vendored sources to $repo@cccccccccc" > /dev/null
+git checkout -q main
+git merge -q -s ours --no-edit rel
+is "the base scan follows the first parent of a merge that keeps the engine" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
 
 echo "--- 6. the GitHub repository a remote names"
 for url in https://github.com/o/r https://github.com/o/r.git https://github.com/o/r/ git@github.com:o/r.git ssh://git@github.com/o/r \
@@ -197,6 +211,58 @@ is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-d
 git config remote.proxied.github o/r
 is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
 is "and then with one gh api call per branch" "$(series_delete_line proxied b-fwd-dev)" "gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev"
+
+echo "--- 7. a forward merge keeps this side's engine"
+KE=$SCRATCH/keep-engine
+git init -q -b main "$KE"
+cd "$KE"
+git config user.name Test
+git config user.email test@example.invalid
+git config commit.gpgsign false
+mkdir -p src/duckdb patch R src/include
+printf 'engine base\n' > src/duckdb/a.cpp
+printf 'a file the release branch renames\n' > src/duckdb/old.cpp
+printf 'patch base\n' > patch/0001-fix.patch
+printf 'duckdb_version <- "base"\n' > R/version.R
+printf 'SOURCES = base\n' > src/include/sources.mk
+printf 'OBJECTS = base\n' > src/Makevars
+printf 'f <- 1\n' > R/f.R
+git add -A; git commit -qm base
+git checkout -q -b rel
+printf 'engine rel\n' > src/duckdb/a.cpp
+printf 'added by rel\n' > src/duckdb/new.cpp
+git mv src/duckdb/old.cpp src/duckdb/renamed.cpp
+git rm -q patch/0001-fix.patch
+printf 'duckdb_version <- "rel"\n' > R/version.R
+printf 'OBJECTS = rel\n' > src/Makevars
+printf 'f <- 2\n' > R/f.R
+git add -A; git commit -qm 'vendor and fix on the release branch'
+git checkout -q main
+printf 'engine main\n' > src/duckdb/a.cpp
+printf 'patch main\n' > patch/0001-fix.patch
+printf 'duckdb_version <- "main"\n' > R/version.R
+printf 'OBJECTS = main\n' > src/Makevars
+git add -A; git commit -qm 'main moves its engine'
+# shellcheck disable=SC2031  # the array is the configuration's, unchanged here
+engine_before=$(git ls-tree -r HEAD -- "${series_strand[@]}" "${series_makevars[@]}")
+printf 'a scratch file of the user\n' > src/duckdb/mine.txt
+git merge -q --no-commit --no-ff rel >/dev/null 2>&1 || true
+is "the merge stops on conflicts" "$(git diff --name-only --diff-filter=U | sort | tr '\n' ' ')" \
+  "R/version.R patch/0001-fix.patch src/Makevars src/duckdb/a.cpp "
+series_keep_engine && st=0 || st=$?
+is "keeping the engine succeeds" "$st" 0
+is "and leaves nothing unmerged" "$(git diff --name-only --diff-filter=U | wc -l)" 0
+is "nor the file the release branch added" "$( [ -e src/duckdb/new.cpp ] && echo there || echo gone)" gone
+is "nor the name the release branch renamed a file to" "$( [ -e src/duckdb/renamed.cpp ] && echo there || echo gone)" gone
+is "  and the file is back under its old name" "$(cat src/duckdb/old.cpp)" 'a file the release branch renames'
+is "and an untracked file of the user's is kept" "$(cat src/duckdb/mine.txt)" 'a scratch file of the user'
+rm src/duckdb/mine.txt
+is "while the R side is merged" "$(git diff --cached --name-only)" "R/f.R"
+git commit -qm 'Merge rel forward'
+# shellcheck disable=SC2031
+is "the engine is byte for byte this side's" "$(git ls-tree -r HEAD -- "${series_strand[@]}" "${series_makevars[@]}")" "$engine_before"
+is "and the merge has both parents" "$(git rev-list --parents -n 1 HEAD | wc -w)" 3
+cd "$SCRATCH"
 
 echo
 echo "$pass passed, $fail failed"

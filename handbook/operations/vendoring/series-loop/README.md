@@ -39,7 +39,7 @@ to do, and they run in this order:
   A red there never rewinds green; it is recorded in the commit
   message of the `-dev` commit that answers it, which is where the
   next forward reads it.
-* **Forward-port** — bring `main`'s R-side work onto the series
+* **Forward-port** — bring the R-side work of the branch the series releases from onto the series
   ([`scripts/series-port.sh`](/scripts/series-port.sh)),
   and bring every ref's tooling level with `main` —
   the buffer included, which takes no ports but does take the sync,
@@ -50,10 +50,11 @@ to do, and they run in this order:
   tooling sync and fixes named by hand apply.
   That is read from the lineage under the seed rather than configured,
   so opening or retiring a release line changes no script.
-  The exception is a line that parks when another lands on `main`:
-  its seed sits on `main`'s own history, so it is declared instead,
-  by naming its own baseline as `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml)
-  ([`series-land`](/.claude/skills/series-land/SKILL.md)).
+  Which branch that is, `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml) says:
+  `main` for `main`'s own series, and a line's own release branch, cut from `main`, for the v2.0 series,
+  whose R side is ported from that branch, where its fixes are written first
+  ([`branches/model/`](/handbook/branches/model/README.md)).
+  A line declared `stale: true` there, no longer active and awaiting retirement, takes the tooling sync alone.
   A `patch/` entry the port brings to `-dev` does nothing there,
   because a vendor run applies the strand's stack, so the port carries
   it on to `<S>-vendor`, from where the next pick brings it to the buffer

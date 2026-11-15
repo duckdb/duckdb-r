@@ -10,7 +10,9 @@
 # sources shown, in order. A dev flavor adds series, the prefix of its four
 # refs, and releases_from, the branch it is measured ahead of -- which is also
 # the branch it seeds and forward-ports from, so the fork mirrors it
-# (handbook/branches/mirrors/).
+# (handbook/branches/mirrors/). stale: true marks a line that is no longer
+# active and awaits retirement: its series takes no R-side ports
+# (scripts/series-port.sh).
 
 flavors:
   - flavor: duckdb
@@ -54,6 +56,7 @@ flavors:
     upstream: v1.5-variegata
     series: v1.5-variegata
     releases_from: v1.5-variegata
+    stale: true
     publishes_from: v1.5-variegata-green
     repo: duckdb/duckdb-r
     badges: [r-universe]
@@ -64,6 +67,7 @@ flavors:
     upstream: v1.4-andium
     series: v1.4-andium
     releases_from: v1.4-andium
+    stale: true
     publishes_from: v1.4-andium-green
     repo: duckdb/duckdb-r
     badges: [r-universe]

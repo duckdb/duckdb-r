@@ -2,14 +2,15 @@
 
 How a release reaches CRAN, and the policy constraints the tree
 lives under year-round.
-Only the current line ships to CRAN, as `duckdb`;
+Only the current line ships to CRAN, as `duckdb`, from its release branch, never from `main`,
+though r-universe builds the same name from `main` ([`branches/flavors/`](/handbook/branches/flavors/README.md));
 every other flavor publishes to r-universe and has no CRAN tail
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 Where submission sits in the release sequence is
 [`process/`](/handbook/operations/releases/process/README.md).
 
 **Before submitting:**
-the release branch `cran-X.Y.Z` is what gets checked and submitted.
+the release branch `cran-X.Y.Z`, cut from the line's release branch, is what gets checked and submitted.
 The engine's version and source id, which extension downloads rely on,
 are committed in the vendored tree, so a tarball built from any checkout of that branch carries them.
 Pushing a `cran-*` branch triggers

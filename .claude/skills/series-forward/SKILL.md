@@ -1,6 +1,6 @@
 ---
 name: series-forward
-description: Forward a series onto a newer `main` by building an `-fwd` sibling beside it from the series' own `-dev`, so its commits keep what the series proved, and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when `main` has moved under a series and its branches need the newer base, or when asked to forward a series.
+description: Forward a series onto a newer base, `main` or the release branch it releases from, by building an `-fwd` sibling beside it from the series' own `-dev`, so its commits keep what the series proved, and swapping it in once it has caught up, so the green ref consumers depend on is never rewritten. Use when that base has moved under a series, a landing among other moves, and its branches need the newer base, or when asked to forward a series.
 ---
 
 # Forwarding a series to a newer base
@@ -24,9 +24,16 @@ Nothing schedules a forward; what makes one due is drift worth resolving.
 For a series whose own line has just released, the version is one reading of that drift:
 its seed sits below the release it produced, `1.5.5.9020.36` being under `1.5.6`,
 and re-seeding is what restores the correspondence.
-A preview line is the exception, its prefix being deliberately not `main`'s
+A preview line is the exception, its prefix being deliberately not that of the release it was seeded from
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
-so a bump on `main` moves nothing under it and only the R-side drift counts.
+so a bump on its base moves nothing under it and only the R-side drift counts.
+
+**The base is the branch the series releases from.**
+That is `main` for `main`'s own series and for every line still releasing from it,
+and a line's release branch where `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml) names one,
+`v2.0-cyanoptera` for the line CRAN ships; wherever `main` stands below as the base, read that branch.
+A landing is the commonest move of either: the series' own vendor commits arrive on its base,
+and a forward then replays only what came after them ([`series-land`](/.claude/skills/series-land/SKILL.md)).
 
 ## Create the forward series
 
@@ -44,7 +51,7 @@ and it would start vendoring onto that ref while the replay is still writing it.
    is [`references/create.md`](references/create.md); read it before the first replay and at every stop.
    The procedure:
 
-   * **Regenerate the seed** on current `main`: `scripts/flavor.sh <F>` (needs `krlmlr/cpp11`),
+   * **Regenerate the seed** on the current base: `scripts/flavor.sh <F>` (needs `krlmlr/cpp11`),
      then a separate `chore: Add fifth version component` commit appending the counter's `.0`;
      a preview line takes its own prefix there, and a seed on a released `main` takes fledge's first dev version.
    * **Read the whole glue set and what the base learned, and judge it**, before the first pick:
