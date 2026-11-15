@@ -99,7 +99,7 @@ The universe is not in the picture: the entry's branch is `<S>-green` before and
 ```mermaid
 sequenceDiagram
   participant SL as series loop
-  participant H as a human
+  participant H as a human, or a session on their decision
   participant F as fork
   participant C as duckdb/duckdb-r
   SL->>H: CUTOVER line: #60;S#62;-fwd-green covers #60;S#62;-green

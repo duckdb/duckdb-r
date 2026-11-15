@@ -541,7 +541,7 @@ fi
 #     `-build`, which is what `main-fwd-dev` shows above `main-dev`'s frontier.
 #
 # So a base series consumes its buffer like any other, and the two lineages run
-# level until a human swaps them. It is more CI on a series about to be retired;
+# level until a cutover swaps them. It is more CI on a series about to be retired;
 # it is also the only thing that makes retiring it a check rather than a hope.
 # Pending work does not hold the buffer (.claude/skills/series-loop/SKILL.md stage 5):
 # each.yaml plans every commit in green..tip that has no record, so a longer tip

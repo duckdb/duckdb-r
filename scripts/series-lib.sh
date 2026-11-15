@@ -178,3 +178,38 @@ series_tooling_re() {
   for p in "${series_tooling[@]}"; do re="${re:+$re|}$(series_re_of "$p")/"; done
   printf '^(%s)' "$re"
 }
+
+# The GitHub repository a remote names, `owner/repo`, for `gh api`; empty for a
+# remote that is not on GitHub. `git config remote.<name>.github <owner>/<repo>`
+# comes first, so a remote whose URL names no repository can still name one: a
+# test fixture's path, or a local proxy's address. A URL may carry a user, a
+# token or a port, `https://<user>:<token>@github.com:443/o/r.git`, and only the
+# path is ever returned, so the credential is never printed; a URL with a query
+# or a fragment, which may carry one too, names nothing.
+series_github_slug() { # <remote> -> owner/repo, empty when none
+  local slug url
+  slug=$(git config "remote.$1.github" 2>/dev/null || true)
+  if [ -z "$slug" ]; then
+    url=$(git remote get-url "$1" 2>/dev/null || true)
+    slug=$(sed -nE \
+      -e 's#^(https?|ssh|git)://([^/@]*@)?github\.com(:[0-9]+)?/([^/?#]+/[^/?#]+)/?$#\4#p' \
+      -e 's#^([^/@:]+@)?github\.com:([^/?#]+/[^/?#]+)/?$#\2#p' <<<"$url")
+    slug=${slug%.git}
+  fi
+  echo "$slug"
+}
+
+# The command that deletes one branch of a remote, for a human to run where
+# `git push --delete` is refused, as a cloud session's git proxy refuses it:
+# `gh api` against the repository the remote names, or `git push --delete` for
+# a remote that is not on GitHub. One line per ref, so each can be run, or
+# quoted, on its own (scripts/series-cutover.sh, scripts/series-prune.sh).
+series_delete_line() { # <remote> <branch> -> one command
+  local slug
+  slug=$(series_github_slug "$1")
+  if [ -n "$slug" ]; then
+    echo "gh api -X DELETE repos/$slug/git/refs/heads/$2"
+  else
+    echo "git push --delete $1 $2"
+  fi
+}

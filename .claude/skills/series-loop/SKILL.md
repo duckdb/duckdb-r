@@ -346,8 +346,10 @@ scripts/series-converge.sh <S>
   scripts/pull-config.sh --check
   ```
 
-* The routine does not run the script and does not swap the refs by another route;
-  the script refuses to swap without a terminal, and that refusal is the answer.
+* The routine does not run the swap, never passes `--confirm`, and does not swap the refs by another route;
+  the script refuses to swap without a terminal or `--confirm`, and that refusal is the answer.
+  A cutover the maintainer has decided is run by a session they send, never by a firing
+  ([`series-cutover`](../series-cutover/SKILL.md)).
 
 Reference: [`references/6-forwarding.md`](references/6-forwarding.md).
 
@@ -425,10 +427,11 @@ a `.dd` file naming a header the flavor renamed stops the build before the first
   `<S>-build-base` does not: it is a marker with no consumer,
   recomputed from the vendored-SHA match every stage 3,
   and set — force-pushed where it has to be — rather than advanced.
-- Cutover is manual.
+- Cutover is a human's decision.
   The loop reports that a forward series has caught up
-  and prints the command; it never runs it,
+  and prints the command; it never runs it, never passes `--confirm`,
   and never swaps the refs by another route.
+  A session runs one only on the maintainer's recorded decision ([`series-cutover`](../series-cutover/SKILL.md)).
   The script archives what it replaces before it swaps, and deletes the forward's refs afterwards;
   what a refused deletion leaves is cutover litter, which `scripts/series-prune.sh` lists for a human.
   Every other ref move in this skill is the routine's to make.

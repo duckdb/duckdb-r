@@ -54,7 +54,7 @@ Naming the line — `v2.1-<codename>` is served as `duckdb.2.1.dev` —
 is one entry in [`scripts/series.yaml`](/scripts/series.yaml),
 reviewable on its own and reversible by closing the PR.
 Cutting the four refs moves commits, and stays
-`series-open/SKILL.md`'s job and a human's, exactly as a cutover is (stage 6).
+`series-open/SKILL.md`'s job and a human's decision, exactly as a cutover is (stage 6).
 So the firing opens the declaration PR and reports the rest:
 the line, the fork point, the backlog and the skill.
 

@@ -64,13 +64,16 @@ recomputed from the match each time and force-pushed,
 which is why nothing gates it.
 
 Forward convergence sits between the two families:
-it is **measured on every firing and enforced by nobody**.
+it is **measured on every firing and judged by a human**.
 [`scripts/series-converge.sh`](/scripts/series-converge.sh) reports it,
 and [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) prints the
-same reading immediately before it asks to swap the refs —
-but neither refuses, because the invariant's second half is
+same reading before its confirmation to swap the refs,
+and neither refuses where a human reads it, because the invariant's second half is
 *explicable*, and whether a difference is explicable is a judgement no
-script can make. What the tooling can do, and does, is keep the list of
+script can make.
+A cutover confirmed with `--confirm` has nobody to make it, so there a divergence refuses,
+and the judgement goes back to a human.
+What the tooling can do, and does, is keep the list of
 differences it explains away short and evidenced, so that what is left
 is a work list rather than a verdict.
 The structural and flavor families hold **by construction** —

@@ -102,7 +102,7 @@ and it would start vendoring onto that ref while the replay is still writing it.
    **The base series keeps consuming too**, at full speed,
    vendoring, repairing, porting and extending as if no forward existed;
    `<S>-green` still serves consumers, unchanged, on the old lineage.
-   The two run level until a human swaps them,
+   The two run level until a cutover swaps them,
    which is what the invariant below needs
    and what the loop's stage 5 used to prevent.
 
@@ -213,7 +213,7 @@ so the twin's copy cannot overwrite what the buffer just regenerated;
 that says nothing about whether the two branches may differ there,
 and on the live series they do not.
 
-## Cut over — by hand, always
+## Cut over: a human decides
 
 A line has **one forward at a time**:
 the loop serves the series r-universe publishes and the forward being built beside it, and nothing else
@@ -230,18 +230,22 @@ scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepa
 scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
 ```
 
-**A human runs this, never the loop.**
+**A human decides it, never the loop.**
 The series loop reports a ready cutover and stops there
 (`series-loop/SKILL.md`, stage 6),
-and the script refuses to swap without a terminal
-and a typed confirmation.
-`--prepare` is the half that needs neither:
+and the script swaps only on a confirmation that names the series:
+typed on a terminal,
+or given as `--confirm <S>@<sha>` by a session the maintainer sent to run a cutover they decided on the state `--prepare` showed,
+which [`series-cutover`](../series-cutover/SKILL.md) describes, from the decision to the undo.
+`--prepare` is the half that needs no confirmation:
 it prints the gates and the reads below, writes the review, and moves nothing,
 so the decision is made on a page that can be read twice.
 Pass the upstream clone:
 without it the coverage gate degrades to a warning,
 and a warning is not what should authorize
 retiring the lineage consumers are reading.
+Under `--confirm` nobody reads that warning, so the script refuses instead,
+as it does on every warning below.
 
 **The review comes before the swap.**
 The script prints, as a stat, everything `<S>-fwd-green` changes against current `main` outside the engine,
@@ -261,7 +265,7 @@ The report names the package on both sides —
 before and after —
 so the confirmation is given with the version
 consumers will be offered on screen.
-A version that would go **backwards** is warned about, not refused:
+A version that would go **backwards** is warned about on a terminal, not refused:
 the replay renumbers the fifth component
 as a counter of its own chain,
 which starts well below the one the base series accumulated,
@@ -271,7 +275,7 @@ Where it does not, r-universe, which publishes from `<S>-green`, has no upgrade 
 until the new chain climbs past the old one's counter —
 a cost rather than a corruption,
 and whether it is worth paying is the judgement
-the typed confirmation already asks for.
+the confirmation already asks for.
 On a preview line it never does, and a version going back is normal there:
 the prefix is pinned to the line being previewed rather than taken from `main`
 ([`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh)),
@@ -293,7 +297,7 @@ Green and `-build-base` are on those lineages already and need none of their own
 Nothing is merged, and the names stay what they were:
 r-universe keeps building `<S>-green`, and no entry anywhere changes.
 A remote that is not on GitHub cannot be archived that way;
-the script refuses rather than swapping anyway, and `--no-archive` is the explicit override.
+the script refuses rather than swapping anyway, and `--no-archive` is the explicit override, on a terminal only.
 
 It then swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
@@ -309,7 +313,8 @@ a WIP `-fwd-green` may be reset by a rebase (above),
 but a green that consumers read
 moves fast-forward only, before and after the swap.
 The canonical copy of `<S>-green` is forced to the new green afterwards, under a lease,
-the one place that copy is ever forced.
+the one place that copy is ever forced;
+a refusal there is printed with the leased push that finishes it, as below.
 
 **Then it cleans up, and `series-prune.sh` lists what it could not.**
 The `-fwd` refs are deleted in the fork,
@@ -317,10 +322,13 @@ with the forward's rc and alpha strands and its retry ledger,
 and `<S>-fwd-green`'s copy is deleted in the canonical repository:
 their tips are the series' refs now, and the derived strands are re-cut from the swapped-in series
 ([`series-rc/SKILL.md`](../series-rc/SKILL.md), [`series-alpha/SKILL.md`](../series-alpha/SKILL.md)).
-If the remote refuses ref deletion (some git proxies do),
+Each deletion is leased on the tip the run read, so a ref that moved since is kept, and the run shows what moved.
+If the remote refuses ref deletion (some git proxies do, a cloud session's among them),
 or a cutover predates this cleanup,
-what stays is cutover litter:
-the loop ignores a forward series
+what stays is cutover litter.
+The run lists each ref it left with the `gh api -X DELETE` line that removes it, and exits 9:
+the swap stands, and the deletion is somebody's to run by hand.
+The loop ignores a forward series
 whose green is an ancestor of its base series' green,
 and
 

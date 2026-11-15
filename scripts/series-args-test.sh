@@ -145,6 +145,7 @@ is "series-forward-build.sh --buffer (bare)"     "$(rc series-forward-build.sh a
 is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed)" 2
 is "series-learned.sh --since (bare)"            "$(rc series-learned.sh s --since)" 2
 is "series-cutover.sh --out (bare)"              "$(rc series-cutover.sh s --out)" 2
+is "series-cutover.sh --confirm (bare)"          "$(rc series-cutover.sh s --confirm)" 2
 is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
 is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
 is "series-land.sh --source (bare)"              "$(rc series-land.sh s --source)" 2
@@ -172,6 +173,32 @@ done
 for s in "${canonical_scripts[@]}"; do
   is "$s accepts --canonical" "$(out "$s" --help | grep -c -- '--canonical <name>')" 1
 done
+
+echo
+echo "== a confirmation names what it confirms"
+# The swap's confirmation, given on the command line, is checked before git is:
+# a name other than the series, a SHA of another shape, or one beside --prepare
+# or --no-archive, is a wrong invocation and not a wrong answer.
+sha=0123456789abcdef0123456789abcdef01234567
+is "series-cutover.sh accepts --confirm" "$(out series-cutover.sh --help | grep -c -- '--confirm <series>@<sha>')" 1
+is "series-cutover.sh s --confirm t@<sha>"     "$(rc series-cutover.sh s --confirm "t@$sha")" 2
+is "series-cutover.sh s --confirm t"           "$(rc series-cutover.sh s --confirm t)" 2
+is "series-cutover.sh s --confirm ''"          "$(rc series-cutover.sh s --confirm '')" 2
+is "series-cutover.sh s --confirm s"           "$(rc series-cutover.sh s --confirm s)" 2
+is "series-cutover.sh s --confirm s@"          "$(rc series-cutover.sh s --confirm s@)" 2
+is "series-cutover.sh s --confirm s@<11 hex>"  "$(rc series-cutover.sh s --confirm "s@${sha:0:11}")" 2
+is "series-cutover.sh s --confirm s@<41 hex>"  "$(rc series-cutover.sh s --confirm "s@${sha}8")" 2
+is "series-cutover.sh s --confirm s@<not hex>" "$(rc series-cutover.sh s --confirm s@0123456789abcdeg)" 2
+is "series-cutover.sh s --confirm s@<capitals>" "$(rc series-cutover.sh s --confirm s@0123456789ABCDEF)" 2
+is "series-cutover.sh s --confirm s@<sha> --prepare" "$(rc series-cutover.sh s --confirm "s@$sha" --prepare)" 2
+is "series-cutover.sh s --prepare --confirm s@<sha>" "$(rc series-cutover.sh s --prepare --confirm "s@$sha")" 2
+is "series-cutover.sh s --confirm s@<sha> --no-archive" "$(rc series-cutover.sh s --confirm "s@$sha" --no-archive)" 2
+isnt "series-cutover.sh s --confirm s@<12 hex> is not a usage error" \
+  "$(rc series-cutover.sh s --confirm "s@${sha:0:12}")" 2
+isnt "series-cutover.sh s --confirm s@<40 hex> is not a usage error" \
+  "$(rc series-cutover.sh s --confirm "s@$sha")" 2
+isnt "series-cutover.sh s --no-archive alone is not a usage error" \
+  "$(rc series-cutover.sh s --no-archive)" 2
 
 echo
 echo "== --chunk takes a number"

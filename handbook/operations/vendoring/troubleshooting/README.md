@@ -55,6 +55,18 @@ The failure classes, and what each needs:
 * **The clone is on the wrong line** (`WRONG UPSTREAM LINE`, exit 5):
   the buffer's last vendored commit is not on the first-parent line of the clone's `HEAD`.
   Check out the upstream branch the series tracks in the clone and rerun.
+* **A cutover swapped and left something behind** (`SWAPPED, LEFT BEHIND`, exit 9, in `series-cutover.sh`):
+  the swap stands, and something that follows it did not happen,
+  as the exit status in the [script's header](/scripts/series-cutover.sh) lists:
+  a deletion or a move the remotes refused, as a cloud session's git proxy refuses a deletion,
+  a forward ref that moved after the run read it, one it could not read back after a refused deletion,
+  or a canonical copy of green the run could not reach.
+  The run prints what to do about each, as a command wherever it read the state that command acts on,
+  and the command that reads it where it could not;
+  for a copy of green it could not reach, the archive and the leased move that copy is owed wait on reading its tip,
+  and so does the deletion of the forward's copy there.
+  Run those or hand them to a maintainer; a rerun of the cutover finishes nothing
+  ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
 * **A patch stopped applying** — if it reverses cleanly the run
   retires it and continues; if it neither applies nor reverses the run
   stops, and the patch needs a hand rebase against the regenerated tree
