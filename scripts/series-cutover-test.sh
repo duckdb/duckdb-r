@@ -47,7 +47,8 @@
 #      swapped all the same, every ref left behind listed with the one command that finishes it, and exit 9.
 #  12. series-check.sh ignores what a refused deletion leaves as cutover litter.
 #  13. series-prune.sh lists that litter with the commands that remove it and runs none of them;
-#      it offers nothing of a live forward.
+#      it offers nothing of a live forward, nor of one at birth, whose green sits below its seed on a commit the series' green has,
+#      which series-check.sh does not take for litter either.
 #  14. series-advance.sh mirrors a forward's green into the canonical repository under a lease,
 #      so a rebase that reset it does not stop the firing, and a base green plainly, so a divergence there does.
 #  15. A forward ref that moves while the run swaps, in the fork or in the canonical repository,
@@ -806,6 +807,23 @@ has "and in the canonical repository" "$out" "gh api -X DELETE repos/test/canoni
 has "and nothing was run" "$out" "Nothing above was run."
 is "the fork's refs are untouched" "$(heads origin)" "$before_fork"
 is "and the canonical repository's" "$(heads upstream)" "$before_canon"
+# A forward at birth, seeded on the commit the series now stands on: its green sits there, below its seed,
+# where the series' green has it too.
+git checkout -q --detach "$MAIN"
+desc 1.0.0.9003.0
+commit 'chore: Add fifth version component'
+git push -q -f origin "$MAIN:refs/heads/v9.9-x-fwd-green" HEAD:refs/heads/v9.9-x-fwd-dev
+git checkout -q main
+out=$(run scripts/series-prune.sh v9.9-x)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a forward's green below its seed tells nothing" "$out" \
+  "v9.9-x-fwd-green ${MAIN:0:7} sits below the seed of v9.9-x-fwd-dev, as at the forward's birth, which tells nothing"
+has "so its -dev is read, and the forward is live" "$out" "v9.9-x-fwd-dev is not an ancestor of v9.9-x-dev: the forward is live"
+has "and nothing of it is offered" "$out" "Nothing to prune."
+git fetch -q --prune origin
+out=$(run scripts/series-check.sh --canonical '')
+[ -z "${KEEP:-}" ] || echo "$out"
+hasnt "nor does series-check.sh take it for litter" "$out" "v9.9-x-fwd: green is an ancestor of v9.9-x's"
 # A live forward: its green is no ancestor of the series'.
 git checkout -q --detach "$MAIN"
 echo "engine ${shas[3]}" > src/duckdb/engine.cpp
