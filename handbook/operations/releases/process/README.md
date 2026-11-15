@@ -276,9 +276,12 @@ Tag the release with the annotated tag `versioning/` describes, and push; r-univ
 ```bash
 v=X.Y.Z ref=origin/<S>-lts   # or origin/<S> per series convention
 { printf 'duckdb %s\n\n' "$v"; git show "$ref:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
-[ "$(grep -c . tag-message)" -gt 1 ] || { echo "no NEWS.md section for $v" >&2; false; }
-git tag -a "v$v" --cleanup=whitespace -F tag-message "$ref"
-git push origin "v$v"
+if [ "$(grep -c . tag-message)" -gt 1 ]; then
+  git tag -a "v$v" --cleanup=whitespace -F tag-message "$ref" &&
+    git push origin "v$v"
+else
+  echo "no NEWS.md section for $v" >&2
+fi
 ```
 
 For the **current** line only, submit to CRAN (`cran/`);

@@ -294,9 +294,12 @@ A bump to an upstream release is tagged by the CRAN submission instead ([`operat
 ```sh
 v=<v>
 { printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
-[ "$(grep -c . tag-message)" -gt 1 ] || { echo "no NEWS.md section for $v" >&2; false; }
-git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha"
-git push upstream "refs/tags/v$v"
+if [ "$(grep -c . tag-message)" -gt 1 ]; then
+  git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha" &&
+    git push upstream "refs/tags/v$v"
+else
+  echo "no NEWS.md section for $v" >&2
+fi
 ```
 
 ## 7. After the landing
