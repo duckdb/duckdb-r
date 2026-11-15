@@ -6,6 +6,8 @@
 
 #include "src/optimizer/aggregate_rewrite_helper.cpp"
 
+#include "src/optimizer/apply_functional_dependencies.cpp"
+
 #include "src/optimizer/build_probe_side_optimizer.cpp"
 
 #include "src/optimizer/column_binding_replacer.cpp"
