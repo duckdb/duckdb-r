@@ -176,7 +176,8 @@ What stays judgement:
   keep the series' name),
   commit it with the command the script prints,
   which keeps the pick's message, trailer and author, push,
-  and rerun the script for the rest
+  and run the rerun it prints for the rest, if it prints one,
+  never a bare `--apply` after naming SHAs, which would fill the default set again
   (reruns are exact:
   clean picks of commits that left `NEWS.md` alone dedupe by patch-id,
   every other pick, an empty one included, by its `cherry picked from` trailer);

@@ -27,6 +27,9 @@
 #   7. A ported commit keeps the whole message of the commit it ports, a
 #      `# Conflicts:` line in its body included, and then the trailer; so does
 #      the commit the guidance prints when a pick conflicts.
+#   8. A conflict on the last commit named by hand prints no rerun, because a
+#      bare --apply would port what the named subset left out; one on an
+#      earlier commit prints a rerun with the commits named after it.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -369,6 +372,7 @@ out_last=$(scripts/series-port.sh t --apply "$CLEAN" "$CONFLICT" 2>&1) && st=0 |
 if [ "$st" != 0 ]; then ok "a conflict on the last named commit stops the port"; else no "a conflict on the last named commit stops the port"; fi
 has "after the commit before it is picked" "$out_last" "picked $(git rev-parse --short "$CLEAN") feat: Code that applies"
 has "and names the conflicted file" "$out_last" '  R/flavor.R'
+hasnt "with nothing named left, it prints no rerun" "$out_last" 'series-port.sh t --apply'
 
 # The printed commit, run after a resolution that keeps the series' file: the
 # resolution is empty, and the commit still carries the whole message.
@@ -392,6 +396,11 @@ else
   no "the guidance names the worktree and the commit to run"
 fi
 
+out_first=$(scripts/series-port.sh t --apply "$CONFLICT" "$CLEAN" 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_first"
+has "a conflict on an earlier named commit prints a rerun with the rest" "$out_first" "scripts/series-port.sh t --apply $CLEAN "
+wt=$(kept_at "$out_first")
+[ -z "$wt" ] || git worktree remove --force "$wt"
 
 echo
 echo "$pass passed, $fail failed"

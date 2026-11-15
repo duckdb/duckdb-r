@@ -563,10 +563,13 @@ for i in "${!picks[@]}"; do
     echo "the empty commit is what carries the trailer that retires the pick."
     echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
     echo "  git worktree remove --force $wt"
-    if [ $# -gt 0 ] && [ $((i + 1)) -lt ${#picks[@]} ]; then
-      echo "  scripts/series-port.sh $S --apply ${picks[*]:i+1}    # finish: the rest + sync"
-    else
+    # Named SHAs resume with the ones left, and with none left there is nothing
+    # to resume: a bare --apply fills the default set again, and on a series
+    # that is not frozen that ports what the named subset left out.
+    if [ $# -eq 0 ]; then
       echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"
+    elif [ $((i + 1)) -lt ${#picks[@]} ]; then
+      echo "  scripts/series-port.sh $S --apply ${picks[*]:i+1}    # finish: the rest + sync"
     fi
     exit 1
   fi
