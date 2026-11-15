@@ -226,7 +226,7 @@ The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 
 That ordering is what makes the vendor strand the only thing a series owns.
-Everything else it carries was born on `main` and arrived by port,
+Everything else it carries was born on the branch it releases from and arrived by port,
 which is why a regenerated seed is allowed to replace a series' whole R side
 and why a replay takes the new base for everything the vendor commits do not touch
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
