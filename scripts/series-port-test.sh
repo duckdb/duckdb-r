@@ -6,7 +6,7 @@
 # cherry` answers by patch-id over `mb..main`, which counts a commit `main`
 # merged for its ancestry alone -- a merge whose tree is its first parent's, so
 # nothing of the lineage it records ever entered main's tree. Porting one
-# applies a tree from another era on top of this one. Four things are checked.
+# applies a tree from another era on top of this one. Seven things are checked.
 #
 #   1. An ordinary `main` commit the series lacks is offered.
 #   2. A commit that reached `main` only through an ancestry-only merge is not.
@@ -19,9 +19,11 @@
 #      strand, and the series has no section to put them in. A commit that
 #      edits DESCRIPTION without moving the version is package content and is
 #      still offered.
-#   6. A graft, a release branch taken with `git merge -s ours` after `main`
-#      picked what it wanted, offers that pick and nothing the second parent
-#      brings.
+#   6. A release branch taken with `git merge -s ours` after `main` picked
+#      what it wanted offers that pick and nothing the second parent brings.
+#   7. A series whose `releases_from` names a release branch takes its R side
+#      from that branch and not from `main`; one declared `stale: true` is
+#      frozen, its forward with it; one releasing from `main` takes `main`'s.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -188,10 +190,15 @@ hasnt "the fallback offers only what the mirror has" "$out_fork" 'A commit the m
 has "and still offers what it does have" "$out_fork" 'An ordinary commit the series lacks'
 
 echo
-echo "series-port.sh: a line parked in \`main\`'s declaration"
-# The series is seeded on `main`, so its lineage says it is not frozen, and a
-# line parked by a landing is in exactly that shape: `main` keeps the history
-# its seed sits on. The declaration is what says it parked.
+echo "series-port.sh: a line on a release branch of its own"
+# The series is seeded on `main`, and its line has a release branch cut from
+# `main` where that seed sits. Its R side comes from that branch: a fix there is
+# offered, and `main`'s later work is not.
+git checkout -q -B s-baseline "$(git merge-base s-dev main)"
+mkdir -p R
+echo 'release fix' > R/release-fix.R
+git add -A; git commit -qm 'fix: A fix on the release branch'
+git push -q -f upstream s-baseline
 git checkout -q main
 cat > scripts/series.yaml <<'EOF'
 flavors:
@@ -208,23 +215,37 @@ flavors:
     publishes_from: other-green
 EOF
 git add scripts/series.yaml
-git commit -qm 'chore: Park the line of series s'
+git commit -qm 'chore: Release the line of series s from its own branch'
+git push -q upstream main
+git checkout -q s-dev
+out_rel=$(scripts/series-port.sh s 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_rel"
+hasnt "a line on its own release branch is not frozen" "$out_rel" "frozen"
+has "it is offered that branch's fix" "$out_rel" 'A fix on the release branch'
+hasnt "and not main's R side" "$out_rel" 'An ordinary commit the series lacks'
+
+echo
+echo "series-port.sh: a stale line"
+git checkout -q main
+sed -i 's/releases_from: s-baseline/releases_from: s-baseline\n    stale: true/' scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Mark the line of series s stale'
 git push -q upstream main
 git checkout -q s-dev
 out_parked=$(scripts/series-port.sh s 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_parked"
-has "a parked line is frozen" "$out_parked" "s: frozen (parked on s-baseline)"
-hasnt "and offers no R-side commit" "$out_parked" 'An ordinary commit the series lacks'
+has "a stale line is frozen" "$out_parked" "s: frozen (stale)"
+hasnt "and offers no R-side commit" "$out_parked" 'A fix on the release branch'
 
-# Its forward is the same line, parked with it.
+# Its forward is the same line, stale with it.
 git push -q origin s-dev:refs/heads/s-fwd-dev
 out_fwd=$(scripts/series-port.sh s-fwd 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_fwd"
-has "and so is its forward" "$out_fwd" "s-fwd: frozen (parked on s-baseline)"
+has "and so is its forward" "$out_fwd" "s-fwd: frozen (stale)"
 
-# A line declared on `main` is live, and says nothing about parking.
+# A line declared on `main` is live, and says nothing about freezing.
 git checkout -q main
-sed -i 's/releases_from: s-baseline/releases_from: main/' scripts/series.yaml
+sed -i 's/releases_from: s-baseline/releases_from: main/; /stale: true/d' scripts/series.yaml
 git add scripts/series.yaml
 git commit -qm 'chore: Release the line of series s from main again'
 git push -q upstream main
@@ -234,9 +255,9 @@ out_live=$(scripts/series-port.sh s 2>&1)
 hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
 has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
 
-# A graft: `main` takes a release branch cut from it with `-s ours`, after
+# An ancestry-only merge: `main` takes a release branch cut from it with `-s ours`, after
 # picking the one fix it wants. Only that pick, a commit of `main`'s own, is
-# offered; what the graft's second parent brings never is.
+# offered; what the merge's second parent brings never is.
 git checkout -q main
 git checkout -q -b rel-line
 echo 'fix rel' > R/rel-fix.R

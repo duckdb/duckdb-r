@@ -86,7 +86,9 @@
 # frozen R side is not a frozen CI. The freeze is not a refusal, though: a fix
 # the build genuinely needs is picked by name, and --list shows the walk when
 # you are looking for one. Frozen is detected from the lineage under the seed,
-# or declared when a line parks on its own baseline; see the seed check below.
+# or declared with `stale: true` in scripts/series.yaml; see the seed check
+# below. Every other series walks the branch it releases from, which for a line
+# with a release branch of its own is that branch and not `main`.
 #
 # A conflict stops the sequence in place and keeps the worktree: resolving it
 # is the routine's judgement. Continue the sequence there, push, and rerun
@@ -243,12 +245,46 @@ fi
 # offers a subset of the truth -- worth saying and not worth refusing over.
 [ -n "$main" ] || main="$remote/main"
 
-mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
+# **The R side comes from the branch the series releases from; the tooling
+# from `main`.** A fix is written on the oldest active release branch and merged
+# forward into the newer ones (handbook/branches/model/), so the v2.0 series
+# takes `v2.0-cyanoptera`'s R side and `main`'s series `main`'s, each the branch
+# its `releases_from` names in `main`'s scripts/series.yaml, read from `main`
+# for the reason series-check.sh reads it there. A line declared `stale: true`
+# there, one that is no longer active and only awaits retirement, is frozen:
+# its branch takes nothing new, and the walk is skipped.
+row_field() { # <series> <field> -> the value, empty when undeclared
+  { git show "$main:scripts/series.yaml" 2>/dev/null || true; } |
+    awk -v s="$1" -v f="$2" '
+      function val(v) { gsub(/["'"'"']/, "", v); return v }
+      /^  - / { if (ser == s) print x; ser = ""; x = "" }
+      /^    series:/ { ser = val($2) }
+      index($0, "    " f ":") == 1 { x = val($2) }
+      END { if (ser == s) print x }'
+}
+rf=$(row_field "${S%-fwd}" releases_from | head -n 1)
+stale=$(row_field "${S%-fwd}" stale | head -n 1)
+src=$main src_name=main
+if [ -n "$rf" ] && [ "$rf" != main ]; then
+  src_name=$rf src=''
+  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
+    git fetch -q "$canonical" "+refs/heads/$rf:refs/remotes/$canonical/$rf" 2>/dev/null; then
+    src="$canonical/$rf"
+  elif git rev-parse -q --verify "refs/remotes/$remote/$rf" >/dev/null; then
+    echo "Warning: could not read $rf from '$canonical'; falling back to the mirror $remote/$rf" >&2
+    src="$remote/$rf"
+  else
+    echo "$S: could not read $rf, the branch it releases from; nothing is ported, and tooling follows main" >&2
+    src=$main stale=true
+  fi
+fi
+
+mb=$(git merge-base "$dev" "$src" 2>/dev/null || true)
 if [ -z "$mb" ]; then
   # A series seeded from an orphan mirror shares no history with `main`, so
   # there is no base to bound the walk at and `git cherry` has nothing to
   # compare against. Say so instead of dying on the empty expansion.
-  echo "$S: no merge base with main — the series is an unrelated lineage," >&2
+  echo "$S: no merge base with $src_name — the series is an unrelated lineage," >&2
   echo "  so stage 4 cannot port onto it; sync its tooling by hand" >&2
   exit 2
 fi
@@ -278,30 +314,11 @@ fi
 # reading, which is the shape the freeze is for.
 seed=$(git rev-list "$mb..$dev" --grep="$seed_re" | tail -n 1)
 under=0
-[ -n "$seed" ] && under=$(git cherry "$main" "$seed^" "$mb" | grep -c '^+' || true)
+[ -n "$seed" ] && under=$(git cherry "$src" "$seed^" "$mb" | grep -c '^+' || true)
 frozen=
 [ "$under" != 0 ] && frozen=1
+[ "$stale" != true ] || frozen=1
 
-# A line releasing from a branch of its own, cut from `main`, is the case the
-# lineage cannot see. Its seed sits on `main`'s own history, which `main` keeps
-# (.claude/skills/series-land/SKILL.md), so nothing under the seed is foreign
-# and the walk would offer `main`'s later R side as a backlog. The branch is
-# recorded where the badge table and the mirror rules already read it:
-# `releases_from` in `main`'s scripts/series.yaml, which names the line's own
-# baseline once it stops releasing from `main` (handbook/branches/mirrors/).
-# Read from `main` for the reason series-check.sh reads it there: a series'
-# tree lags `main` by whatever this stage has not ported yet.
-releases_from() { # <series> -> its `releases_from`, empty when undeclared
-  { git show "$main:scripts/series.yaml" 2>/dev/null || true; } |
-    awk -v s="$1" '
-      /^  - / { if (ser == s) print rf; ser = ""; rf = "" }
-      /^    series:/ { ser = $2 }
-      /^    releases_from:/ { rf = $2 }
-      END { if (ser == s) print rf }'
-}
-parked=$(releases_from "${S%-fwd}" | head -n 1)
-[ "$parked" != main ] || parked=''
-[ -z "$parked" ] || frozen=1
 
 # Files a version bump is allowed to carry and still be nothing but a bump:
 # DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
@@ -391,7 +408,7 @@ ancestry_only_commits() {
     [ -n "$parents" ] || continue
     # shellcheck disable=SC2086  # a parent list, deliberately word-split
     git rev-list $parents --not "$m^1"
-  done < <(git rev-list --merges "$mb..$main")
+  done < <(git rev-list --merges "$mb..$src")
 }
 
 candidates=()
@@ -419,7 +436,7 @@ declare -A klass=()
 # is the cost the freeze exists to remove. --list asks for it anyway, which is
 # what to do when the series needs a fix `main` already has.
 if [ -n "$frozen" ] && [ -z "$list" ]; then
-  echo "$S: frozen${parked:+ (parked on $parked)}; nothing is ported by default, and tooling follows main." \
+  echo "$S: frozen${stale:+ (stale)}; nothing is ported by default, and tooling follows main." \
     "Name a fix the build needs with --apply <sha>, or --list to see candidates"
 else
   declare -A ported=()
@@ -428,7 +445,7 @@ else
       sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
   declare -A ancestry_only=()
   while IFS= read -r m; do ancestry_only[$m]=1; done < <(ancestry_only_commits)
-  mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
+  mapfile -t all < <(git cherry "$dev" "$src" | sed -n 's/^+ //p')
   for sha in "${all[@]}"; do
     [ -n "${ported[$sha]:-}" ] && continue
     [ -n "${ancestry_only[$sha]:-}" ] && continue

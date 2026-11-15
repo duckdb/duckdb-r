@@ -123,17 +123,18 @@ which belongs to another engine's R side,
 is not a backlog it is behind on.
 `scripts/series-port.sh` reads that off the lineage under the seed
 and skips the walk for such a series,
-and does the same for a line `main`'s `scripts/series.yaml` declares on a release branch of its own,
-the line CRAN ships and every parked one, each cut from `main` ([`series-land/SKILL.md`](/.claude/skills/series-land/SKILL.md)):
-its seed sits on `main`'s own history, where the lineage cannot see the difference,
-so the sync commit is their whole default port
+and does the same for a line `main`'s `scripts/series.yaml` declares `stale: true`,
+no longer active and awaiting retirement, v1.4 and v1.5 today:
+the sync commit is their whole default port
 and their tooling still follows `main`:
 a frozen R side is not a frozen CI,
 and the identity goal above holds for every series either way.
 Run the script for a frozen series like any other;
 the default needs no judgement.
-A fix such a line shares with `main` reaches its release branch as a cherry-pick there, and its series by the next forward or landing,
-never by a port from `main` ([`branches/model/`](/handbook/branches/model/README.md)).
+Every other series walks the branch it releases from, its `releases_from`:
+`main` for `main`'s own series, and the line's release branch for the v2.0 series,
+whose fixes are written there first and merged forward into `main`
+([`branches/model/`](/handbook/branches/model/README.md)).
 
 **Frozen is not untouchable.**
 A change the r-universe build genuinely needs still lands —
