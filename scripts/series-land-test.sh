@@ -44,8 +44,9 @@
 #  14. A fresh build up to a ref --source names fetches it first, so a stale
 #      copy from an earlier fetch is not what it builds.
 #  15. --onto names the branch landed on in `main`'s place: the build stands
-#      on it, --status prints its fast-forward, --review targets it, and the
-#      version bump has to rise above that branch's version too.
+#      on its tip, --status prints its fast-forward, --review targets it, and
+#      the version bump has to rise above that branch's version too. A kept
+#      build resumes onto the branch it was started on and refuses another.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -419,6 +420,9 @@ echo "== and it rises above the branch landed on, which --onto names"
 # Earlier landings advanced the fourth component on the branch landed on, so a
 # bump that clears the series' version can still fall below the branch's.
 G0=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+# The kept build lands onto main, and would refuse another branch: set it aside.
+KEPT_STATE="$(git rev-parse --git-dir)/series-land-v2.0-x"
+mv "$KEPT_STATE" "$KEPT_STATE.aside"
 git checkout -q -f -B hi "$M"
 sed -i 's/^Version: .*/Version: 1.99.99.9007/' DESCRIPTION
 commit 'chore: Bump version to 1.99.99.9007'
@@ -448,6 +452,7 @@ has "the review pull request targets that branch" "$out" "--draft --base hi --he
 git checkout -q -f main
 git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
 dev_at "$TIP"
+mv "$KEPT_STATE.aside" "$KEPT_STATE"
 
 echo "== and nothing sits above it"
 git checkout -q -f -B probe "$BUMP"
@@ -713,6 +718,18 @@ out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto rel 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it stands on that branch, not on the main that moved" "$out" "vendor commits on $(git rev-parse --short "$M")"
 hasnt "which it does not mistake for main" "$out" "main moved"
+read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+FIRST=$(git -C "$WT" rev-list --reverse "$M..HEAD" | head -n 1)
+is "its first landing commit's parent is the tip of that branch" "$(git -C "$WT" rev-parse "$FIRST~1")" "$M"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a rerun without --onto resumes onto the kept branch" "$out" "resuming the build in"
+hasnt "rather than onto main, which moved" "$out" "main moved"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto main 2>&1) && st=0 || st=$?
+is "a rerun onto another branch is refused" "$st" 1
+has "  and says which branch the kept build lands onto" "$out" "lands onto rel, not --onto main"
+out=$(scripts/series-land.sh v2.0-x-fwd --status --onto main 2>&1) && st=0 || st=$?
+is "and so is --status onto another branch" "$st" 1
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 echo
