@@ -1,6 +1,6 @@
 ---
 name: series-land
-description: Land a batch of a series on the canonical branch it serves, `main`'s own series onto `main` or a line's series onto its release branch. Freeze the branch, build `<L>-land-dev` from the series' rc strand as vendor commits and a hand-written version bump, let CI judge every commit, and fast-forward the branch onto it. Also the rarer change of the line CRAN ships, when upstream releases a new line. Use when `main` should take newer upstream `main` commits, when a release branch should take its line's commits or release, or when asked to land, move or promote a series.
+description: Land a batch of a series on the canonical branch it serves, `main`'s own series onto `main` or a line's series onto its release branch. Only a serving series lands; a forward is cut over first. Freeze the branch, build `<L>-land-dev` from the series' rc strand as vendor commits and a hand-written version bump, let CI judge every commit, and fast-forward the branch onto it. After a landing on a release branch, `main` grafts that branch with `git merge -s ours`. Also the rarer change of the line CRAN ships, when upstream releases a new line. Use when `main` should take newer upstream `main` commits, when a release branch should take its line's commits or release, or when asked to land, move or promote a series.
 ---
 
 # Landing a series on its branch
@@ -19,8 +19,9 @@ no flavor, no seed, and no port, because everything a port carries is the branch
 * **`main`'s own series onto `main`** is the routine case.
   `main` carries upstream `main`'s engine and releases nothing, so it lands whenever a batch is worth it,
   with no upstream release to wait for, and the bump takes the fourth component one up.
-* **A line's series onto its release branch**, `v2.0-cyanoptera`, is the same procedure with `--onto` naming the branch:
-  short of an upstream patch release the bump takes the fourth component one up, and with one it takes the release.
+* **A line's series onto its release branch**, `v2.0-cyanoptera`, is the same procedure:
+  short of an upstream patch release the bump takes the fourth component one up, and with one it takes the release,
+  and `main` grafts the branch afterwards ([step 8](#8-graft-the-release-branch-into-main)).
 * **Changing the line CRAN ships**, when upstream releases the line `main` previewed, is the rarer case:
   a release branch is cut from `main` first, and the landing goes onto it
   ([Changing the line CRAN ships](#changing-the-line-cran-ships)).
@@ -29,9 +30,11 @@ The landings come often and stay small, so a rewind is rare:
 the series is forwarded onto a branch that already vendors what the previous landing brought
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 
-`<S>` is the series that lands, its live forward while one exists, because that is the one standing on today's branch;
-`<L>` is its line, `<S>` without `-fwd`, which names the landing's refs: `main` for `main`'s series, `v2.0-cyanoptera` for v2.0's.
-`<B>` is the canonical branch it lands on, `main` or the line's release branch,
+`<S>` is the series that lands, always the serving one: a forward is cut over first, and never landed,
+and `series-land.sh` refuses a `-fwd` series.
+`<L>` names the landing's refs and is `<S>` itself: `main` for `main`'s series, `v2.0-cyanoptera` for v2.0's.
+`<B>` is the canonical branch it lands on, `main` or the line's release branch:
+the series' `releases_from` in `scripts/series.yaml`, which `series-land.sh` reads from the canonical `main`,
 and `<v>` the version the bump sets ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
 ## The refs
@@ -67,6 +70,8 @@ One landing per line is in flight at a time, and all three are deleted once `<B>
 * **The convergence findings are settled**, when `<S>` is a forward
   ([`series-forward`](/.claude/skills/series-forward/SKILL.md), `scripts/series-converge.sh <L>`).
   The landing carries the forward's tree, so whatever the forward lost against its base is lost on `<B>` too.
+* **Any forward of `<S>` is cut over.**
+  A landing takes the serving series' rc strand, so a forward in flight is swapped in first, or deleted.
 * **The series stands on `<B>`.**
   `<S>`'s seed is `<B>` as some earlier landing left it, and every port of `<B>` since is on it;
   a series seeded from another branch lands nothing the build can check.
@@ -134,11 +139,11 @@ git -C "$UPSTREAM_CLONE" log -1 --format='%H %cs' <sha>  # the full SHA and its 
 ## 3. Build the landing
 
 ```sh
-scripts/series-land.sh <S> --onto <B> --remote origin --canonical upstream          # build and check
-scripts/series-land.sh <S> --onto <B> --remote origin --canonical upstream --push   # and write both refs
+scripts/series-land.sh <S> --remote origin --canonical upstream          # build and check
+scripts/series-land.sh <S> --remote origin --canonical upstream --push   # and write both refs
 ```
 
-`--onto` defaults to `main`, so `main`'s own series needs none.
+It prints `<B>`'s tip as the commit it builds on; a series `scripts/series.yaml` does not declare lands on `main`.
 
 **Tests that pin what the line must keep go underneath, not into the series afterwards.**
 A pull request of tests written on `<B>`'s engine, one commit on the frozen `<B>`,
@@ -215,7 +220,7 @@ The landing's own diff is the engine's, hundreds of thousands of lines.
 What changes for `<B>`'s maintainers is the rest: the glue, R code and tests the series changed on the way.
 
 ```sh
-scripts/series-land.sh <S> --onto <B> --remote origin --canonical upstream --review --push
+scripts/series-land.sh <S> --remote origin --canonical upstream --review --push
 gh pr create --repo duckdb/duckdb-r --draft --base <B> --head <L>-land-review \
   --title "Review: the R side of the <L> landing"
 ```
@@ -252,7 +257,7 @@ Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-lan
 Read and advance it with
 
 ```sh
-scripts/series-land.sh <S> --onto <B> --status --push
+scripts/series-land.sh <S> --status --push
 ```
 
 which moves `<L>-land-green` over the commits that passed and names the first that has not.
@@ -338,6 +343,62 @@ Then the series:
   The new seed already vendors what the landing vendored, so the forward replays only what came after, and opens on no rewind.
   Until then the next landing is built from the same series, and replays only what this one did not land.
 
+## 8. Graft the release branch into `main`
+
+After a landing on a release branch, `main` takes the branch once it has what it wants of it
+([`branches/model/`](/handbook/branches/model/README.md) owns the rule).
+A landing on `main` itself skips this step.
+
+**Forward-port first.**
+Every commit since the last graft is either picked onto `main` or declined.
+List them, each marked picked, vendor or not yet:
+
+```sh
+git fetch upstream main <B>
+scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
+```
+
+Each fix `main` needs goes in as a pull request of `git cherry-pick -x <sha>`, one per fix or several together,
+merged with the `cherry picked from commit` line kept in the squashed message, so the report marks it picked.
+Rerun the listing until every commit left is one `main` declines: the vendor commits always, and anything that answers the branch's engine alone.
+
+**Then the graft, as a pull request whose commit reaches `main` unchanged.**
+Inspect what it records:
+
+```sh
+git fetch upstream main <B>
+git log --reverse --no-merges --format='%h %s' upstream/main..upstream/<B>
+```
+
+Write the message, one line per declined commit with its reason, and make the merge:
+
+```sh
+B=<B> v=<the version the landing bumped to>
+git switch -c graft/$B-$v upstream/main
+{ printf 'chore: Graft %s at %s\n\n' "$B" "$v"
+  printf 'main keeps its tree; this records %s as taken.\n\nDeclined:\n' "$B"
+  echo '- <sha> <subject>: <reason>'      # one line per declined commit, edited by hand
+} > graft-message
+"${EDITOR:-vi}" graft-message
+git merge --no-ff -s ours -F graft-message upstream/$B
+git diff --stat upstream/main HEAD       # empty: the graft changes no file
+git push upstream HEAD:refs/heads/graft/$B-$v
+gh api repos/duckdb/duckdb-r/pulls -f base=main -f head=graft/$B-$v -f title="chore: Graft $B at $v" -F body=@graft-message
+```
+
+A squash or rebase merge would drop the second parent, so the reviewed commit goes onto `main` as it is,
+a fast-forward that GitHub records as the pull request's merge, with the branch ruleset's admin bypass:
+
+```sh
+sha=$(git rev-parse HEAD)
+git fetch upstream main && git merge-base --is-ancestor upstream/main "$sha" && echo "fast-forward"
+git push upstream "$sha:refs/heads/main"
+git ls-remote upstream refs/heads/main
+```
+
+Where `main` moved meanwhile, merge again from the new `main`; the graft is cheap to redo.
+From then on the commits up to the graft are `main`'s ancestry, and the report lists only what lands on `<B>` afterwards.
+
 ## Changing the line CRAN ships
 
 When upstream releases the line `main`'s series has been previewing, CRAN moves to it,
@@ -372,4 +433,5 @@ and the line it shipped before keeps its release branch, parked.
 4. **`main` previews the next line from here**:
    its next landing's bump takes the new prefix, `2.1.99.9001` once 2.1 is out
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   A fix `<P>` still takes reaches `main` only where `main` still needs it, by cherry-pick; it is no longer reported as owed.
+   From here `main` grafts `<N>` after its landings, and `<P>` no more:
+   a fix `<P>` still takes reaches `main` only where `main` still needs it, by cherry-pick, and is no longer listed.
