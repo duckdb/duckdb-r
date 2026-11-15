@@ -165,8 +165,10 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-config.sh`](series-config.sh) | What this repository tells the series tooling about the engine it vendors, and nothing else. |
 | [`series-converge.sh`](series-converge.sh) | Does a forward series still carry the same package as the series it replaces? |
 | [`series-cut.sh`](series-cut.sh) | Open a new series by cutting its parent's strands at the fork point: compute the fork point, find the commit on each strand that vendors it, and write the fo... |
-| [`series-cutover-test.sh`](series-cutover-test.sh) | Check a cutover, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk, and a `gh` that records what ... |
-| [`series-cutover.sh`](series-cutover.sh) | Replace a series with its forward counterpart, keeping the replaced history reachable: archive pull requests first, then one atomic swap. |
+| [`series-cutover-stack-test.sh`](series-cutover-stack-test.sh) | Check scripts/series-cutover-stack.sh offline, against a synthetic fork and upstream clone built here: no network, no fixtures on disk, a `gh` first on PATH ... |
+| [`series-cutover-stack.sh`](series-cutover-stack.sh) | Build the review stack of one strand of a cutover and push it to the fork: the old tip with `main`'s changes replayed onto it, the forward's engine, the forw... |
+| [`series-cutover-test.sh`](series-cutover-test.sh) | Check a cutover, offline, against a synthetic fork, canonical repository and clone built here: no network, no fixtures on disk, the stacks built by hand and ... |
+| [`series-cutover.sh`](series-cutover.sh) | Replace a series with its forward counterpart in one atomic swap, once every tip the swap moves a ref off is pinned by a pull request's head in the fork. |
 | [`series-fold-test.sh`](series-fold-test.sh) | Check scripts/series-fold.sh offline, against a synthetic landing built here: no network, no fixtures on disk. |
 | [`series-fold.sh`](series-fold.sh) | Fold fixes into the commits that introduced their defects, and replay everything above them: the landing commits of an iteration (.claude/skills/series-land/... |
 | [`series-forward-build-test.sh`](series-forward-build-test.sh) | Check the forward replay, offline, against a synthetic base series and seed built here: no network, no fixtures on disk. |
