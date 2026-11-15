@@ -352,7 +352,8 @@ git ls-remote upstream "refs/heads/$B"
 The push is a plain one, so git refuses it unless it is a fast-forward.
 It needs the existing branch ruleset's admin bypass, because it is not a pull request.
 
-Then tag the bump, which is the commit `READY` named, as every landing's bump is tagged, a bump to an upstream release included
+Then tag the bump, which is the commit `READY` named.
+Every landing's bump is tagged, and a bump to an upstream release is no exception
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) names the tag);
 the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
 `--status` prints `READY` again once `<B>` is the bump, and below the push the commands that tag it,
@@ -372,6 +373,9 @@ bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")"   # the tag command
 git tag -n3 --points-at "refs/remotes/upstream/$B"   # the tag: the subject, then NEWS.md's section for the version, if it has one
 )
 ```
+
+A `v<version>.9900` already on the remote stops the chain at the push and leaves the local tag behind:
+delete the local tag with `git tag -d`, and read the remote one before rerunning.
 
 ## 7. After the landing
 

@@ -85,7 +85,9 @@ which is what makes the replay restartable after a conflict.
 **A version bump is written by hand, as one commit named `chore: Bump version to <version>`.**
 It sets `Version:` in `DESCRIPTION`, and touches no other file but `NEWS.md`, which it need not touch at all.
 A released version is the bare three-component prefix, matching the upstream tag,
-set explicitly and never derived from git; the tag follows `DESCRIPTION`.
+set explicitly and never derived from git.
+A release's tag follows `DESCRIPTION`, and the landing of a release is the exception:
+its bump carries the three components and takes the tag `v<version>.9900`.
 A landing ends on a bump, its last commit
 ([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
 After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
@@ -102,6 +104,8 @@ The release takes `v<version>` itself when it is published, in the same shape,
 by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md))
 or by hand on a line that does not ship to CRAN ([`process/`](/handbook/operations/releases/process/README.md), step 5),
 so the landing's tag and the release's never clash.
+A development version never takes `.9900` as its fourth component, which counts landings up from `.9000`,
+so its `v<version>` tag never clashes with a landing's `v<version>.9900` either.
 
 **`NEWS.md` is kept by a separate process, not by pull requests, ports or landings.**
 A port keeps the series' copy ([`series-loop`](/.claude/skills/series-loop/references/4-port.md)),
