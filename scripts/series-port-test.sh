@@ -247,6 +247,24 @@ out_fwd=$(scripts/series-port.sh s-fwd 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_fwd"
 has "and so is its forward" "$out_fwd" "s-fwd: frozen (stale)"
 
+# A branch it cannot read stops the port, rather than reading as stale.
+git checkout -q main
+sed -i 's/releases_from: s-baseline/releases_from: s-nowhere/; /stale: true/d' scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Name a branch that does not exist'
+git push -q upstream main
+git checkout -q s-dev
+out_gone=$(scripts/series-port.sh s 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_gone"
+has "a branch it cannot read is said so" "$out_gone" "could not read s-nowhere"
+hasnt "  and not called stale" "$out_gone" "(stale)"
+if [ "$st" -ne 0 ]; then ok "  and stops the port"; else no "  and stops the port"; fi
+git checkout -q main
+sed -i 's/releases_from: s-nowhere/releases_from: s-baseline/' scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Name the release branch again'
+git push -q upstream main
+
 # A line declared on `main` is live, and says nothing about freezing.
 git checkout -q main
 sed -i 's/releases_from: s-baseline/releases_from: main/; /stale: true/d' scripts/series.yaml

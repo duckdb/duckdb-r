@@ -274,8 +274,9 @@ if [ -n "$rf" ] && [ "$rf" != main ]; then
     echo "Warning: could not read $rf from '$canonical'; falling back to the mirror $remote/$rf" >&2
     src="$remote/$rf"
   else
-    echo "$S: could not read $rf, the branch it releases from; nothing is ported, and tooling follows main" >&2
-    src=$main stale=true
+    echo "Error: $S: could not read $rf, the branch it releases from, from '$canonical' or the mirror $remote/$rf;" >&2
+    echo "  nothing was ported or synced" >&2
+    exit 1
   fi
 fi
 
@@ -467,7 +468,7 @@ declare -A klass=()
 # is the cost the freeze exists to remove. --list asks for it anyway, which is
 # what to do when the series needs a fix `main` already has.
 if [ -n "$frozen" ] && [ -z "$list" ]; then
-  echo "$S: frozen${stale:+ (stale)}; nothing is ported by default, and tooling follows main." \
+  echo "$S: frozen$([ "$stale" != true ] || echo ' (stale)'); nothing is ported by default, and tooling follows main." \
     "Name a fix the build needs with --apply <sha>, or --list to see candidates"
 else
   declare -A ported=()
