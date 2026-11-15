@@ -482,7 +482,8 @@ is "a 2-engine no longer needed exits 9" "$(status "$out")" 9
 has "named, with the 3-fwd pull request to retarget first" "$out" "No longer in the stack: $c/vendor/2-engine"
 has "onto 1-main" "$out" "1. Retarget the pull request of $c/vendor/3-fwd onto $c/vendor/1-main."
 has "then its own to close" "$out" "2. Close the pull request of $c/vendor/2-engine."
-has "and the dispatch that deletes it where git cannot, naming its pull request" "$out" \
+has "and, once the tip is still the lease," "$out" "once \`git ls-remote origin refs/heads/$c/vendor/2-engine\` still shows $e2,"
+has "the dispatch that deletes it where git cannot, naming its pull request" "$out" \
   "   gh api -X POST repos/test/fork/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=$c/vendor/2-engine' -f 'inputs[pr]=7'"
 is "the branch stays, for the session" "$(tip "$c/vendor/2-engine")" "$e2"
 fetch

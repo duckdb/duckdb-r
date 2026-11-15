@@ -72,6 +72,7 @@
 # Where the remote refuses a deletion, it prints a dispatch of .github/workflows/delete-branch.yaml instead,
 # naming the pull request whose head is the branch's tip, which deletes the branch only while that still holds,
 # once the step before has closed the pull request (`series_delete_line`, scripts/series-lib.sh).
+# The workflow does not check this run's lease, so the line says to compare the tip with it first.
 #
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
@@ -779,7 +780,8 @@ report=$tmp/report
     echo "3. Delete the branch, leased on the tip this run read:"
     echo "   git push --force-with-lease=refs/heads/$stale:${LEASE[2-engine]} $remote :refs/heads/$stale"
     if [ -n "$slug" ]; then
-      echo "   or, where the remote refuses a deletion, the workflow that deletes it only while it is that closed pull request's head:"
+      echo "   or, where the remote refuses a deletion, once \`git ls-remote $remote refs/heads/$stale\` still shows ${LEASE[2-engine]},"
+      echo "   since the workflow checks the closed pull request's head, not this lease:"
       echo "   $(series_delete_line "$remote" "$stale")"
     fi
   fi

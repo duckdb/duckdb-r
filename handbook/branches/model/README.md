@@ -153,8 +153,12 @@ and what a refused deletion leaves is **cutover litter**, listed by the cutover 
 it dispatches [`delete-branch.yaml`](/.github/workflows/delete-branch.yaml) with the branch and a closed pull request
 whose head is the branch's tip, and the run deletes nothing else, leased on that tip
 ([`scripts/delete-branch.sh`](/scripts/delete-branch.sh)).
-That head is kept for as long as the pull request exists, so the deletion loses nothing,
-and the dispatch the cutover tooling prints names such a pull request where one exists, read with `git ls-remote`.
+That head is kept for as long as the pull request exists, so the deletion loses nothing.
+The cutover tooling prints a dispatch, for a session, where a pull request's head is the tip, read with `git ls-remote`,
+and otherwise, as for litter no pull request's head holds, a `gh api -X DELETE` that checks the tip first, for a maintainer's shell
+([`scripts/series-lib.sh`](/scripts/series-lib.sh), `series_delete_line`);
+whether another branch at the same tip should count as a pin is
+[an open question](https://github.com/duckdb/duckdb-r/pull/2992#issuecomment-6896800985).
 **`<S>-rc-dev` is the series without its flavor**, one commit for each commit of `<S>-dev`,
 so that the package a release ships as plain `duckdb` has verdicts of its own.
 It is one ref: no buffer, since it is derived rather than vendored,

@@ -230,35 +230,64 @@ series_github_slug() { # <remote> -> owner/repo, empty when none
   echo "$slug"
 }
 
-# The command that deletes one branch of a remote, for a person or a session to
-# run where `git push --delete` is refused, as a cloud session's git proxy
-# refuses it (scripts/series-cutover.sh, scripts/series-prune.sh,
-# scripts/series-cutover-stack.sh). On GitHub it dispatches
-# .github/workflows/delete-branch.yaml in the repository the remote names,
-# which deletes the branch only where a closed pull request's head there is the
-# branch's tip (handbook/branches/model/README.md); off GitHub it is
-# `git push --delete`. The pull request is read with git alone, from
-# `git ls-remote`: the lowest-numbered one whose head is the branch's tip. Where
-# none is, or the remote cannot be read, the line names a placeholder, which the
-# workflow refuses, and a comment saying what it needs. One line per ref, so
-# each can be run, or quoted, on its own.
+# The listing `series_delete_line` reads, per remote: its branches and its pull
+# requests' heads, thousands of refs in the fork. A caller that prints several
+# lines loads it once with `series_delete_listing <remote>`, outside the command
+# substitutions that call `series_delete_line`, which then read it; without it,
+# each line runs its own `git ls-remote`. A remote that cannot be read is not
+# cached, and each line then says its tip could not be read.
+declare -gA series_delete_cache=()
+series_delete_listing() { # <remote>
+  local refs
+  if refs=$(git ls-remote "$1" 'refs/heads/*' 'refs/pull/*/head' 2>/dev/null); then
+    series_delete_cache[$1]=$refs
+  fi
+}
+
+# The command that deletes one branch of a remote, for where `git push --delete`
+# is refused, as a cloud session's git proxy refuses it
+# (scripts/series-cutover.sh, scripts/series-prune.sh,
+# scripts/series-cutover-stack.sh). Off GitHub it is `git push --delete`. On
+# GitHub, where a pull request's head there is the branch's tip, it is a
+# session's to run: a dispatch of .github/workflows/delete-branch.yaml, which
+# deletes the branch only while a closed pull request's head is its tip
+# (handbook/branches/model/README.md). It names the lowest-numbered such pull
+# request, read with `git ls-remote`, and where there are several, lists them
+# all in a comment, since the lowest may be open. Where no pull request's head
+# is the tip, as for cutover litter, the workflow cannot pin it, and the line is
+# a maintainer's: a `gh api -X DELETE` that checks the tip first, since the API
+# takes no lease. Whether another branch at the same tip should pin it is open:
+# https://github.com/duckdb/duckdb-r/pull/2992#issuecomment-6896800985
+# One line per ref, so each can be run, or quoted, on its own.
 series_delete_line() { # <remote> <branch> -> one command
-  local slug refs tip pr note=''
+  local slug refs tip prs pr note
   slug=$(series_github_slug "$1")
   if [ -z "$slug" ]; then
     echo "git push --delete $1 $2"
     return
   fi
-  # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
-  refs=$(git ls-remote "$1" "refs/heads/$2" 'refs/pull/*/head' 2>/dev/null) || refs=''
-  tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
-  pr=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); if (n == "" || p[3] + 0 < n + 0) n = p[3] }
-    END { print n }' <<<"$refs")
-  if [ -z "$tip" ]; then
-    pr='<pr>' note="  # the tip of $2 could not be read; name a closed pull request whose head is that tip"
-  elif [ -z "$pr" ]; then
-    pr='<pr>' note="  # no pull request's head is at ${tip:0:12}, the tip of $2; name a closed one whose head is"
+  if [ -n "${series_delete_cache[$1]+x}" ]; then
+    refs=${series_delete_cache[$1]}
+  else
+    # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
+    refs=$(git ls-remote "$1" "refs/heads/$2" 'refs/pull/*/head' 2>/dev/null) || refs=''
   fi
+  tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
+  if [ -z "$tip" ]; then
+    echo "gh api -X DELETE repos/$slug/git/refs/heads/$2  # for a maintainer's shell: the tip of $2 could not be read; read it first"
+    return
+  fi
+  prs=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); print p[3] }' <<<"$refs" |
+    sort -n | tr '\n' ' ')
+  prs=${prs% }
+  if [ -z "$prs" ]; then
+    # shellcheck disable=SC2016  # a command for a person to run, printed as it stands
+    printf 'if [ "$(gh api repos/%s/git/ref/heads/%s --jq .object.sha)" = %s ]; then gh api -X DELETE repos/%s/git/refs/heads/%s; else echo '"'"'%s is not at %s: read what moved before deleting it'"'"'; fi  # for a maintainer'"'"'s shell: no pull request'"'"'s head is at %s, so the workflow cannot pin it\n' \
+      "$slug" "$2" "$tip" "$slug" "$2" "$2" "${tip:0:12}" "${tip:0:12}"
+    return
+  fi
+  pr=${prs%% *} note=''
+  [ "$pr" = "$prs" ] || note="  # pull requests whose head is this tip: $prs; name a closed one"
   echo "gh api -X POST repos/$slug/actions/workflows/delete-branch.yaml/dispatches" \
     "-f ref=main -f 'inputs[branch]=$2' -f 'inputs[pr]=$pr'$note"
 }

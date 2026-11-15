@@ -24,12 +24,11 @@
 # and the derived strands are recomputed from `<S>-dev` (scripts/series-rc.sh, scripts/series-alpha.sh).
 # Nothing here deletes anything either: the commands are printed, and a person or a session runs them, in two forms:
 # one `git push --delete` per repository, and, for a remote on GitHub,
-# one dispatch of .github/workflows/delete-branch.yaml per ref, for where git may not delete at all,
-# as in a cloud session, whose git proxy refuses it.
-# The workflow deletes a ref only where a closed pull request's head is its tip;
-# each line names the lowest-numbered pull request whose head is, read with `git ls-remote`,
-# and a placeholder with a note where none is, as for litter whose tip no pull request holds
-# (`series_delete_line`, scripts/series-lib.sh).
+# one line per ref, for where git may not delete at all, as in a cloud session, whose git proxy refuses it:
+# a dispatch of .github/workflows/delete-branch.yaml, for a session, where a pull request's head is the ref's tip,
+# since the workflow deletes a ref only where a closed pull request's head is its tip,
+# and otherwise, as for litter whose tip no pull request holds, a `gh api -X DELETE` that checks the tip first,
+# for a maintainer's shell (`series_delete_line`, scripts/series-lib.sh).
 # The second is the form scripts/series-cutover.sh prints for what its own deletion left.
 #
 # Usage: series-prune.sh <series> [--remote <name>] [--canonical <name>]
@@ -139,13 +138,16 @@ fi
 [ -z "$canon_has_fwd" ] || echo "git push --delete $canonical $S-fwd-green"
 gh_lines=()
 if [ -n "$(series_github_slug "$remote")" ]; then
+  series_delete_listing "$remote"
   for r in "${fwd_refs[@]}"; do gh_lines+=("$(series_delete_line "$remote" "$r")"); done
 fi
 if [ -n "$canon_has_fwd" ] && [ -n "$(series_github_slug "$canonical")" ]; then
+  series_delete_listing "$canonical"
   gh_lines+=("$(series_delete_line "$canonical" "$S-fwd-green")")
 fi
 if [ ${#gh_lines[@]} -gt 0 ]; then
-  echo "or, where git may not delete, one dispatch of the deletion workflow per ref:"
+  echo "or, where git may not delete, one line per ref: a dispatch of the deletion workflow, for a session,"
+  echo "where a pull request's head is the tip, else a deletion that checks the tip first, for a maintainer's shell:"
   printf '%s\n' "${gh_lines[@]}"
 fi
 echo "Nothing above was run."

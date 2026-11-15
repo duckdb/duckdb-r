@@ -19,7 +19,8 @@
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches: the
 #      dispatch of the deletion workflow, naming the lowest-numbered pull
-#      request whose head is the branch's tip, or a placeholder where none is.
+#      request whose head is the branch's tip and listing them all where there
+#      are several, or a tip-checked `gh api -X DELETE` where none is.
 #
 # The engine's own formats are the block right below the helpers: what a tree
 # holds for `series_engine_of()` and `series_stamped_version()` to read, where
@@ -185,10 +186,11 @@ for url in https://github.com/o/r https://github.com/o/r.git https://github.com/
 done
 # A token in the URL names the repository as the bare URL does, and is never printed.
 git remote add gh-url https://x-access-token:s3cr3t@github.com:443/o/r.git
+unread="gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev  # for a maintainer's shell: the tip of b-fwd-dev could not be read; read it first"
 dispatch="gh api -X POST repos/o/r/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]="
 is "a URL with a user, a token and a port names o/r" "$(series_github_slug gh-url)" o/r
 is "and the token is in neither of its lines" "$(series_github_slug gh-url; series_delete_line gh-url b-fwd-dev)" \
-  "$(printf 'o/r\n%s' "${dispatch}b-fwd-dev' -f 'inputs[pr]=<pr>'  # the tip of b-fwd-dev could not be read; name a closed pull request whose head is that tip")"
+  "$(printf 'o/r\n%s' "$unread")"
 git remote remove gh-url
 for url in https://github.com.example.invalid/o/r https://github.com@example.invalid/o/r https://github.com/o/r/extra git@github.com:22/o/r \
   'https://github.com/o/r?t=s3cr3t' 'https://github.com/o/r.git#s3cr3t' 'https://github.com/o?t=s3cr3t/r' 'git@github.com:o/r?t=s3cr3t'; do
@@ -201,8 +203,7 @@ is "a URL that is not GitHub's names nothing" "$(series_github_slug proxied)" ""
 is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-dev)" "git push --delete proxied b-fwd-dev"
 git config remote.proxied.github o/r
 is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
-is "and then with a dispatch per branch, a placeholder for a remote it cannot read" "$(series_delete_line proxied b-fwd-dev)" \
-  "${dispatch}b-fwd-dev' -f 'inputs[pr]=<pr>'  # the tip of b-fwd-dev could not be read; name a closed pull request whose head is that tip"
+is "and then with gh api, for a remote it cannot read" "$(series_delete_line proxied b-fwd-dev)" "$unread"
 # A remote it can read: the pull request is the lowest-numbered one whose head is the tip.
 git init -q --bare "$SCRATCH/gh.git"
 tipc=$(git rev-parse HEAD)
@@ -216,10 +217,16 @@ git -C "$SCRATCH/gh.git" update-ref refs/heads/unpinned "$(git rev-parse HEAD~2)
 git remote add readable "$SCRATCH/gh.git"
 git config remote.readable.github o/r
 is "a branch at several pull requests' heads names the lowest-numbered" "$(series_delete_line readable b-fwd-dev)" \
-  "${dispatch}b-fwd-dev' -f 'inputs[pr]=9'"
+  "${dispatch}b-fwd-dev' -f 'inputs[pr]=9'  # pull requests whose head is this tip: 9 10 12; name a closed one"
 is "and one at a single head names that one" "$(series_delete_line readable litter)" "${dispatch}litter' -f 'inputs[pr]=2'"
-is "a branch no pull request's head is at gets a placeholder, and says what it needs" "$(series_delete_line readable unpinned)" \
-  "${dispatch}unpinned' -f 'inputs[pr]=<pr>'  # no pull request's head is at $(git rev-parse --short=12 HEAD~2), the tip of unpinned; name a closed one whose head is"
+u=$(git rev-parse HEAD~2)
+# shellcheck disable=SC2016  # the command as it is printed
+is "a branch no pull request's head is at gets a tip-checked deletion, for a maintainer" "$(series_delete_line readable unpinned)" \
+  "$(printf 'if [ "$(gh api repos/o/r/git/ref/heads/unpinned --jq .object.sha)" = %s ]; then gh api -X DELETE repos/o/r/git/refs/heads/unpinned; else echo %s; fi  # for a maintainer%ss shell: no pull request%ss head is at %s, so the workflow cannot pin it' \
+    "$u" "'unpinned is not at ${u:0:12}: read what moved before deleting it'" "'" "'" "${u:0:12}")"
+series_delete_listing readable
+git -C "$SCRATCH/gh.git" update-ref -d refs/pull/2/head
+is "a listing loaded once is read instead of the remote" "$(series_delete_line readable litter)" "${dispatch}litter' -f 'inputs[pr]=2'"
 unset GIT_ALLOW_PROTOCOL
 
 echo
