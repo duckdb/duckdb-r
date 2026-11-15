@@ -35,7 +35,8 @@
 #      line, one with CRLF line ends and one with trailing whitespace.
 #   9. A conflict on the last commit named by hand prints no rerun, because a
 #      bare --apply would port what the named subset left out; one on an
-#      earlier commit prints a rerun with the commits named after it.
+#      earlier commit prints a rerun with the commits named after it. The
+#      commands it prints forget what rerere recorded, as a clean pick does.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -446,15 +447,22 @@ has "after the commit before it is picked" "$out_last" "picked $(git rev-parse -
 has "and names the conflicted file" "$out_last" '  R/flavor.R'
 hasnt "with nothing named left, it prints no rerun" "$out_last" 'series-port.sh t --apply'
 
-# The printed commit, run after a resolution that keeps the series' file: the
-# resolution is empty, and the commit still carries the whole message.
+# The printed commands, run after a resolution that keeps the series' file: the
+# resolution is empty, the commit still carries the whole message, and rerere
+# keeps no resolution of the pick, as after a clean one.
 kept_at() { printf '%s\n' "$1" | sed -n 's/^Conflict; worktree kept at \(.*\), conflicted files:$/\1/p'; }
+printed() { printf '%s\n' "$1" | grep -E "^  git -C [^ ]+ $2" || true; }
+recorded() { find "$(git rev-parse --git-common-dir)/rr-cache" -name postimage 2>/dev/null | wc -l; }
 wt=$(kept_at "$out_last")
-commit_cmd=$(printf '%s\n' "$out_last" | grep -E '^  git -C [^ ]+ commit ' || true)
-if [ -n "$wt" ] && [ -n "$commit_cmd" ]; then
+clear_cmd=$(printed "$out_last" 'rerere clear$')
+commit_cmd=$(printed "$out_last" 'commit ')
+if [ -n "$wt" ] && [ -n "$clear_cmd" ] && [ -n "$commit_cmd" ]; then
   echo 'flavored t' > "$wt/R/flavor.R"
   git -C "$wt" add R/flavor.R
+  before=$(recorded)
+  eval "$clear_cmd" >/dev/null 2>&1
   eval "$commit_cmd" >/dev/null 2>&1
+  if [ "$(recorded)" = "$before" ]; then ok "the printed commands record no resolution"; else no "the printed commands record no resolution"; fi
   conflict_msg=$(printf '%s\n\n(cherry picked from commit %s)' "$(git log -1 --format=%B "$CONFLICT")" "$CONFLICT")
   if [ "$(git -C "$wt" log -1 --format=%B)" = "$conflict_msg" ]; then
     ok "the printed commit keeps the whole body, then the trailer"

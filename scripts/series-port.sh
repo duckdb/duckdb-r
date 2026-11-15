@@ -561,8 +561,10 @@ for i in "${!picks[@]}"; do
     echo "Conflict; worktree kept at $wt, conflicted files:"
     git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
     echo "Resolve toward main's intent; NEWS.md stays the series', as it is now."
-    echo "Then commit under the main commit's message, with the trailer that"
-    echo "retires the pick, and under its author:"
+    echo "Then forget what rerere recorded of the pick, as a clean pick does, and"
+    echo "commit under the main commit's message, with the trailer that retires"
+    echo "the pick, and under its author:"
+    printf '  git -C %q rerere clear\n' "$wt"
     printf '  git -C %q' "$wt"
     printf ' %q' "${commit[@]}"
     echo
