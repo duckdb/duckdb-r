@@ -469,7 +469,12 @@ and the line it shipped before keeps its release branch, parked.
 
    ```sh
    N=$(git ls-remote --heads https://github.com/duckdb/duckdb 'v*' | sed 's#.*refs/heads/##' | sort -V | tail -n 1)   # upstream's newest release branch
-   git push upstream "upstream/main:refs/heads/$N"
+   git fetch upstream main
+   if git ls-remote --exit-code upstream "refs/heads/$N" >/dev/null; then
+     echo "$N exists in duckdb/duckdb-r already: nothing to cut, and pushing main there would move it" >&2
+   else
+     git push --force-with-lease="refs/heads/$N:" upstream "upstream/main:refs/heads/$N"   # refused if one appeared meanwhile
+   fi
    ```
 
    ```sh
