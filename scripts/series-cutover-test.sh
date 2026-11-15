@@ -28,7 +28,8 @@
 #      each before anything is moved.
 #   5. A tip no pin reaches refuses the swap, naming the ref and the stack to build, and moves nothing:
 #      each ref moved past its stack, the canonical green off the fork's lineage,
-#      a stack branch that is no pull request's head, and one deleted since an earlier fetch.
+#      a stack branch that is no pull request's head, and one deleted since an earlier fetch,
+#      under the remote's own refspec and under one that leaves the stacks out.
 #      A canonical green behind the fork's is pinned through the fork's stacks, and swaps.
 #   6. The cutover, with stdin closed: the refs and the vendor strand swapped to the forward's tips,
 #      the canonical green moved, the forward's refs, its strands, its ledger and its canonical copy deleted,
@@ -531,6 +532,17 @@ is "the tracking ref an earlier fetch left is here" \
 refuses "a stack branch deleted since an earlier fetch is no pin" \
   "  v9.9-x-build at ${OLD_BUILD:0:12}: build the stack, scripts/series-cutover-stack.sh v9.9-x build, and open cutover/v9.9-x/build/1-main as a pull request in origin"
 is "and its tracking ref is dropped" "$(git for-each-ref refs/remotes/origin/cutover/v9.9-x/build/)" ""
+restore
+# The same under a refspec that leaves the stacks out, where only the run's own fetch of them can drop the tracking ref.
+git config --replace-all remote.origin.fetch '+refs/heads/main:refs/remotes/origin/main'
+git config --add remote.origin.fetch '+refs/heads/v9.9-x*:refs/remotes/origin/v9.9-x*'
+git -C "$FORK" update-ref -d refs/heads/cutover/v9.9-x/build/1-main
+is "the tracking ref an earlier fetch left is here too" \
+  "$(git rev-parse refs/remotes/origin/cutover/v9.9-x/build/1-main)" "$(git -C "$FORK" rev-parse refs/pull/12/head)"
+refuses "under a refspec that leaves the stacks out, it is no pin either" \
+  "  v9.9-x-build at ${OLD_BUILD:0:12}: build the stack, scripts/series-cutover-stack.sh v9.9-x build, and open cutover/v9.9-x/build/1-main as a pull request in origin"
+is "and its tracking ref is dropped there too" "$(git for-each-ref refs/remotes/origin/cutover/v9.9-x/build/)" ""
+git config --replace-all remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
 restore
 # A canonical green a cycle behind the fork's: no stack starts from it, and the fork's green stack reaches it.
 LAGC=$(git rev-parse "$OLD_GREEN^")
