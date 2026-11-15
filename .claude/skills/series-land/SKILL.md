@@ -395,6 +395,16 @@ scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 
 Each fix `main` needs goes in as a pull request of `git cherry-pick -x`, one per fix or several together,
 merged with the `cherry picked from commit` line kept in the squashed message, so the report marks it picked.
+Register the `DESCRIPTION` merge driver in the clone first, or a pick that touches `DESCRIPTION` conflicts on its version lines:
+
+```sh
+SHA=$(scripts/series-check.sh --canonical upstream 2>&1 |
+  sed -n 's/^ *\([0-9a-f]\{7,\}\) not yet  .*/\1/p' | head -n 1)   # the oldest not yet picked; or another from the listing
+scripts/setup-git.sh
+git fetch upstream main
+git switch -c "forward-port/$(git rev-parse --short "$SHA")" upstream/main
+git cherry-pick -x "$SHA"
+```
 Rerun the listing until every commit left is one `main` declines: the vendor commits always, and anything that answers the branch's engine alone.
 
 **Then the graft, as a pull request whose commit reaches `main` unchanged.**
