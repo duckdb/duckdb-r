@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Compare the excess decimals to a positive exponent as unsigned
+
+HandleExponent() compares the unsigned count of excess decimals to the
+int32_t exponent, so -Wsign-compare flags it. The comparison sits in the
+branch where the exponent is positive, so the exponent is cast to uint32_t.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+diff --git a/src/duckdb/src/include/duckdb/common/operator/decimal_cast_operators.hpp b/src/duckdb/src/include/duckdb/common/operator/decimal_cast_operators.hpp
+--- a/src/duckdb/src/include/duckdb/common/operator/decimal_cast_operators.hpp
++++ b/src/duckdb/src/include/duckdb/common/operator/decimal_cast_operators.hpp
+@@ -560,7 +560,7 @@ struct DecimalCastOperation {
+ 			state.exponent_type = ExponentType::POSITIVE;
+ 			// Positive exponents need up to 'exponent' amount of digits
+ 			// Everything beyond that amount needs to be truncated
+-			if (decimal_excess > exponent) {
++			if (decimal_excess > static_cast<uint32_t>(exponent)) {
+ 				// We've allowed too many decimals
+ 				state.excessive_decimals = UnsafeNumericCast<uint32_t>(decimal_excess - exponent);
+ 				exponent = 0;
