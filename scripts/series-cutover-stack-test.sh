@@ -14,6 +14,7 @@
 #      then `2-engine` with the forward's engine, the engine part of that commit included, and the patch stack of `1-main`,
 #      its summary naming that commit; `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`;
 #      the summary, the --summary file and the pull requests to open.
+#      A commit of `main` that changes the engine alone is left out of `1-main`, and the `2-engine` summary names it.
 #   2. A conflict on `-dev` stops the build with the worktree kept and nothing pushed;
 #      a plain rerun refuses beside it, --abort from the kept worktree discards it,
 #      and a resolution finishes with --continue. A commit the strand already carries is recorded as present.
@@ -29,11 +30,13 @@
 #      Both deletions it prints refuse a branch that moved and delete one at the tip read:
 #      the git one by its lease, the `gh api` one by checking the tip first.
 #   7. Where the old base is not an ancestor of the forward's, `1-main` is one three-way merge,
-#      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way.
+#      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way;
+#      the `2-engine` summary says it carries the engine side of the changes that merge leaves out.
 #   8. Usage errors exit 2; a missing forward, a series on its forward's lineage as after the swap,
 #      read on `-dev` by the forward's seed, whatever was folded above it since,
 #      and a summary file that cannot be written refuse with 1 and push nothing.
 #      A forward at birth, whose green sits below its seed on a commit the series' green has, builds its green stack.
+#      A forward with no seed is read by ancestry, either way: one on the series' lineage refuses, one apart builds.
 #   9. Nothing called `gh`.
 #  10. Nothing read a terminal: the wrapper every run went through gives neither stdin nor a controlling terminal,
 #      and no build or worktree is left behind.
@@ -74,6 +77,7 @@ holds() { # <what> <command...>: ok when the command succeeds
 # and its `-dev` carries a port of the feature and a fix to the same line of `R/foo.R`, folded into its u2 commit.
 # Its forward stands on FWD_MAIN and vendors u1 to u3, its green at u2.
 # `v8.8-y` is the same on a `main` whose history was replaced, so its base is no ancestor of FWD_MAIN.
+# `v5.5-v` stands on FWD_MAIN, and its forward on HOTFIX, one commit past it that changes the engine alone.
 
 FORK=$SCRATCH/fork.git
 WORK=$SCRATCH/work
@@ -227,9 +231,17 @@ series v8.8-y-fwd "$FWD_MAIN" duckdb.8.8 'two (main, y)' 3 '' 1
 series v6.6-w "$OLD_MAIN" duckdb.6.6 'two (w)' 2 '' 0
 series v6.6-w-fwd "$OLD_MAIN" duckdb.6.6 'two (w, forward)' 2 '' 0
 git branch -f v6.6-w-fwd-green "$OLD_MAIN"
+git checkout -q --detach "$FWD_MAIN"
+tick
+echo 'hotfix' > src/duckdb/hotfix.cpp
+git add -A
+git commit -qm 'fix: Patch the vendored sources in place'
+HOTFIX=$(git rev-parse HEAD)
+series v5.5-v "$FWD_MAIN" duckdb.5.5 'two (main)' 2 '' 0
+series v5.5-v-fwd "$HOTFIX" duckdb.5.5 'two (main)' 3 '' 1
 git checkout -q main
 unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
-git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 2>/dev/null
+git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 2>/dev/null
 for b in $(git for-each-ref --format='%(refname:short)' 'refs/heads/v*'); do git branch -q -D "$b"; done
 git branch -q -D side
 
@@ -316,6 +328,13 @@ has "the first goes into the old tip" "$out" "   base: v9.9-x-vendor
 has "each further one into the one below" "$out" "   base: $c/vendor/2-engine
    head: $c/vendor/3-fwd"
 is "the --summary file is what was printed" "$(cat "$SCRATCH/vendor.md")" "$(sed -n '/^## /,/^EXIT=/p' <<<"$out" | sed '/^pushed: /d; /^EXIT=/d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
+out=$(run "$STACK" v5.5-v vendor)
+is "a span whose commit changes the engine alone builds" "$(status "$out")" 0
+hotfix_line=$(printf -- '- `%s` fix: Patch the vendored sources in place' "$(git rev-parse --short=10 "$HOTFIX")")
+has "1-main leaves that commit out" "$(section cutover/v5.5-v/vendor/1-main "$out")" \
+  "$(printf 'Engine changes only, left out because this layer keeps the engine of `v5.5-v-vendor`:\n\n%s' "$hotfix_line")"
+has "and the 2-engine summary names it" "$(section cutover/v5.5-v/vendor/2-engine "$out")" \
+  "$(printf 'which `1-main` replays without them or leaves out:\n\n%s' "$hotfix_line")"
 
 echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
 out=$(run "$STACK" v9.9-x dev)
@@ -514,6 +533,11 @@ has "with the command it stands for" "$(git log -1 --format=%B "$Y1")" "git merg
 is "it takes main's changes" "$(git show "$Y1:src/glue.cpp") $(git show "$Y1:R/baz.R")" 'glue (adapted) baz <- function() 3'
 is "and keeps the old engine" "$(git show "$Y1:src/duckdb/engine.cpp")" "engine ${u[2]}"
 is "3-fwd is empty for the vendor strand" "$(git diff --name-only "origin/cutover/v8.8-y/vendor/2-engine" "origin/cutover/v8.8-y/vendor/3-fwd")" ""
+engine_section=$(section cutover/v8.8-y/vendor/2-engine "$out")
+has "the 2-engine summary says it carries the engine side the merge leaves out" "$engine_section" \
+  'Beside vendoring, it carries the engine side of `main`'"'"'s changes, as the forward has it,
+which the three-way merge of `1-main` leaves out.'
+hasnt "and lists no commit, since none was replayed on its own" "$engine_section" "the engine paths of these commits of"
 out=$(run "$STACK" v8.8-y dev)
 is "a conflict in the merge stops with 3" "$(status "$out")" 3
 has "naming the path" "$out" "  R/foo.R"
@@ -555,6 +579,31 @@ for pos in "at its forward's tip:$fd" "behind it:$(git rev-parse "$fd~1")" "past
   is "${pos%%:*}: and pushes nothing" "$(stack v9.9-x/vendor)" "$before"
 done
 git push -q -f origin "$od:refs/heads/v9.9-x-dev" "$ov:refs/heads/v9.9-x-vendor"
+# A forward with no seed, as a series cut from a parent has none, and a series on its lineage or apart from it.
+git checkout -q --detach "$FWD_MAIN"
+vend "${u[1]}"
+vend "${u[2]}"
+nf=$(git rev-parse HEAD)
+tick
+echo 'later <- function() 9' > R/later.R
+git add -A
+git commit -qm 'fix: Something the series added after its swap'
+nl=$(git rev-parse HEAD)
+git checkout -q --detach "$OLD_MAIN"
+vend "${u[1]}"
+apart=$(git rev-parse HEAD)
+git checkout -q main
+git push -q -f origin "$nf:refs/heads/v4.4-u-fwd-dev"
+for pos in "at its forward's tip:$nf" "behind it:$(git rev-parse "$nf~1")" "past it:$nl"; do
+  git push -q -f origin "${pos#*:}:refs/heads/v4.4-u-dev"
+  out=$(run "$STACK" v4.4-u dev)
+  is "a series ${pos%%:*}, its forward with no seed, refuses" "$(status "$out")" 1
+  has "${pos%%:*}, no seed: saying why" "$out" "are one lineage, as after the swap"
+done
+git push -q -f origin "$apart:refs/heads/v4.4-u-dev"
+out=$(run "$STACK" v4.4-u dev)
+is "a series apart from a forward with no seed builds its stack" "$(status "$out")" 0
+hasnt "and is not taken for one lineage" "$out" "are one lineage"
 out=$(run "$STACK" v6.6-w green)
 holds "a forward's green at birth is on its series' lineage" \
   git merge-base --is-ancestor "$(tip v6.6-w-fwd-green)" "$(tip v6.6-w-green)"
