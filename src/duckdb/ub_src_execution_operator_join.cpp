@@ -1,7 +1,5 @@
 #include "src/execution/operator/join/outer_join_marker.cpp"
 
-#include "src/execution/operator/join/perfect_hash_join_executor.cpp"
-
 #include "src/execution/operator/join/physical_asof_join.cpp"
 
 #include "src/execution/operator/join/physical_blockwise_nl_join.cpp"
