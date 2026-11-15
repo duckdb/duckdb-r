@@ -642,7 +642,7 @@ else
   # repair and the buffer touch the same paths — judgement, not mechanics.
   #
   # Every buffer commit bumps DESCRIPTION's vendor counter, so a -dev that has
-  # taken a fledge bump conflicts on the `Version:` line at the first replayed
+  # taken a version bump conflicts on the `Version:` line at the first replayed
   # commit and at every one after it. That line is what the ours-version merge
   # driver exists for, and the gate at the top of this script has registered it
   # already, so only genuine conflicts reach the judgement above.

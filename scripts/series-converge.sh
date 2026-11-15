@@ -34,11 +34,11 @@
 #     where the difference is explained: "renumbered" accounts for a counter
 #     that restarted, and for nothing that happened to the four components
 #     above it.
-#   * `NEWS.md` -- the release paperwork a `fledge:` commit carries, and stage 4
+#   * `NEWS.md` -- the release paperwork a version bump carries, and stage 4
 #     never ports a VERSION commit: `main`'s R-client counter is not a series'
 #     (.claude/skills/series-loop/SKILL.md). So the two branches hold whatever their
-#     seeds' release lines held, and the file is fledge-maintained, never edited
-#     by hand.
+#     seeds' release lines held, plus the bullets their ports brought, and a
+#     landing keeps the file of the branch it lands on (scripts/series-land.sh).
 #   * The **vendored strand** -- `src/duckdb/`, `patch/`, `R/version.R`,
 #     `src/include/sources.mk` and the Makevars -- but **only while the two
 #     branches vendor different upstream commits**, where it is the gap itself

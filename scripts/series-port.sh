@@ -44,12 +44,12 @@
 # **A VERSION commit is not auto-picked either**, because `main`'s R-client
 # counter is not this series'. A series' version says which release line it was
 # seeded from and how far its own vendoring has run; what `main` is at today is
-# read from `main` (#2496). Porting fledge's bumps made the fourth component
+# read from `main` (#2496). Porting `main`'s bumps made the fourth component
 # free-run behind `main` instead of staying at the seed, which is the opposite
 # of the model handbook/operations/releases/versioning/ describes. The class is
 # read from the content -- the commit carries nothing but release paperwork --
-# not from the `fledge:` subject, so a bump under another name is caught and a
-# bump riding on real content is not. The class covers the notes as well as the
+# not from the subject, so a bump is caught whatever it is called and a bump
+# riding on real content is not. The class covers the notes as well as the
 # bump: a commit that writes NEWS.md for `main`'s next release and touches
 # nothing else is the same strand, and the series has neither the section it
 # goes in nor the version that names it. Dropping one leaves NEWS.md at the
@@ -304,7 +304,7 @@ parked=$(releases_from "${S%-fwd}" | head -n 1)
 [ -z "$parked" ] || frozen=1
 
 # Files a version bump is allowed to carry and still be nothing but a bump:
-# DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
+# DESCRIPTION itself, plus the release paperwork a bump writes beside it. Both
 # belong to the release strand, and neither is in the tooling set the sync
 # commit rewrites, so dropping the commit drops nothing the series executes.
 # cran-comments.md is gone since 2.0.0, whose submission sends a one-line
@@ -326,13 +326,13 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 #     parent. A merge commit never gets this far: `git diff-tree` without `-m`
 #     lists no paths for it, so the first question already answers no. The
 #     content is the fact, not the subject: a bump is one whatever it is
-#     called, and `fledge:` is only today's name for it.
+#     called, and `chore: Bump version to` is only today's name for it.
 #     DESCRIPTION also carries the dependency list, so a commit that edits it
 #     without moving the version is package content and ported like any other.
 #
 # **A commit that leaves DESCRIPTION alone is paperwork without a bump.** Notes
 # written into NEWS.md for `main`'s next release are the release strand's just
-# as fledge's bumps are, and the series has neither the section they go in nor
+# as the bumps are, and the series has neither the section they go in nor
 # the version that names it: the pick conflicts on every series at once and its
 # only honest resolution is the empty commit that retires it. Requiring a moved
 # `Version:` let exactly those through -- 8f48159063 and dcfb3d2c2a, one firing,

@@ -79,7 +79,7 @@ and what `main` is at today is read from `main`
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 Here the **content** decides, not the subject:
 the commit carries nothing but release paperwork,
-so a bump under a subject other than `fledge:` is held back too,
+so a bump is held back whatever its subject,
 and a bump riding on real content is not —
 that one is a forward-port that happens to bump,
 ported whole like any other,
