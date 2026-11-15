@@ -594,7 +594,7 @@ static bool PipelineIsRepeatable(Pipeline &pipeline,
 		return false;
 	}
 	for (auto &op : pipeline.GetIntermediateOperators()) {
-		if (non_repeatable_operators.find(op) != non_repeatable_operators.end()) {
+		if (non_repeatable_operators.find(op.get()) != non_repeatable_operators.end()) {
 			return false;
 		}
 	}

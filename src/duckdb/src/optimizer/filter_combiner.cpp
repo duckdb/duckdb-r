@@ -1180,7 +1180,7 @@ FilterResult FilterCombiner::AddBoundComparisonFilter(Expression &expr) {
 		auto &right_bucket = equivalence_map.find(right_equivalence_set)->second;
 		for (auto &right_expr : right_bucket) {
 			// rewrite the equivalence set mapping for this node
-			equivalence_set_map[right_expr] = left_equivalence_set;
+			equivalence_set_map[right_expr.get()] = left_equivalence_set;
 			// add the node to the left bucket
 			left_bucket.push_back(right_expr);
 		}
