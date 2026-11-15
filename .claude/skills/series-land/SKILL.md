@@ -190,17 +190,17 @@ Committer dates are pinned to the frozen `<B>`'s, so a rebuild from the same inp
 and CI does not judge a commit twice.
 
 **The version bump is the landing's last commit.**
-[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns why it is by hand and which version `<v>` it sets:
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns how it is written and which version `<v>` it sets:
 the fourth component one above `<B>`'s, `2.0.99.9000` to `2.0.99.9001` on `main`,
 or the release's three components where the batch brings an upstream release.
 The build ends on the series' version, five components;
 once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-dev`, a plain fast-forward:
 
 * **`DESCRIPTION`**: set `Version:` to `<v>`; the fifth component, the vendor counter, is dropped.
-* **`NEWS.md`**: write the `# duckdb <v>` section, by hand, directly above the newest section.
+* **`NEWS.md`**: close the open section, turning its heading into `# duckdb <v>`,
+  or write that section above the newest one where no pull request opened it.
   Its first bullet names the engine as the versioning page spells it, with the two SHAs step 2 wrote down,
-  and the items below it are what users of the package notice, leaving out the tooling.
-  The file's first line stays as it is.
+  and anything else the batch changes that users of the package notice joins the bullets the pull requests wrote, leaving out the tooling.
 * **The commit**: `chore: Bump version to <v>`.
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md` and the `Version:` line,
   with nothing above it, and refuses one whose version does not rise above `<B>`'s;
@@ -270,23 +270,6 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
 When `--status` prints `READY`, every commit has passed and `<B>` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `<B>` unjudged.
-Before lifting the freeze, close the version pull request the nightly fledge run may have opened against the frozen `main`,
-so that it does not merge the moment the freeze lifts
-([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
-The run force-pushes the branch `fledge` and the version tag of its bump, and the tag is deleted with the branch.
-Its version is in the pull request's title, and the tag is the pull request's own when it points at the pull request's head:
-
-```sh
-R=duckdb/duckdb-r
-gh api "repos/$R/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title, .head.sha] | @tsv'
-n=<number>
-v=$(gh api repos/$R/pulls/$n --jq '.title | sub("^fledge: Bump version to "; "")')
-git ls-remote upstream "refs/tags/v$v^{}"    # the same SHA as the pull request's head
-gh api -X PATCH repos/$R/pulls/$n -f state=closed
-gh api -X DELETE repos/$R/git/refs/heads/fledge
-gh api -X DELETE repos/$R/git/refs/tags/v$v
-```
-
 Lift the freeze, push, put the freeze back, and then tag the bump:
 
 ```sh
@@ -301,10 +284,9 @@ git ls-remote upstream refs/heads/$B
 The push is a plain one, so git refuses it unless it is a fast-forward.
 It needs the existing branch ruleset's admin bypass, because it is not a pull request.
 
-Then tag the bump, which is the commit `READY` named.
-fledge counts from the newest version tag
-([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
-and the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
+Then tag the bump, which is the commit `READY` named, as every landing's bump is tagged
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md));
+the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
 It is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <v>`, then the `NEWS.md` section as body.
 A bump to an upstream release is tagged by the CRAN submission instead ([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).
 
@@ -318,9 +300,7 @@ git push upstream "refs/tags/v$v"
 
 ## 7. After the landing
 
-A nightly run between the push of `main` and the tag may have opened another fledge pull request, against the version the landing just bumped to.
-Repeat step 6's listing and cleanup first, because the freeze's deletion would let it merge.
-Then delete the freeze, so that `<B>` takes pull requests again:
+Delete the freeze, so that `<B>` takes pull requests again:
 
 ```sh
 B=<B>

@@ -27,7 +27,8 @@
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #      A landing is ready only on its hand-written version bump, which may
-#      change nothing but NEWS.md and the Version: line, with nothing above it;
+#      change nothing but NEWS.md and the Version: line, with nothing above it,
+#      and whose NEWS.md needs the version's section and no line above it;
 #      a rebuild drops a bump added to the kept worktree.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
@@ -137,7 +138,7 @@ echo 'tool v3' > scripts/tool.sh
 commit 'ci: Another tooling change (#5)'
 desc duckdb 1.5.6.9001.7
 echo '# duckdb 1.5.6.9001.7' > NEWS.md
-commit 'fledge: Bump version to 1.5.6.9001.7 (#6)'
+commit 'chore: Bump version to 1.5.6.9001.7 (#6)'
 echo 'readme on main' > README.md
 commit 'docs: The README main renders today (#7)'
 M=$(git rev-parse HEAD)
@@ -348,11 +349,12 @@ passed() { # <sha>
   git push -q origin rcc2
   git checkout -q main
 }
-marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->'
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
+# The open section's heading turned into the version's, as the bump closes it:
+# NEWS.md starts with that section, with no line above it.
 write_bump() { # <version>
   sed -i "s/^Version: .*/Version: $1/" DESCRIPTION
-  printf '%s\n\n# duckdb %s\n\n- Something for users.\n' "$marker" "$1" > NEWS.md
+  printf '# duckdb %s\n\n- Something for users.\n\n# duckdb 1.5.5.9000\n' "$1" > NEWS.md
 }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
@@ -377,6 +379,7 @@ write_bump 1.99.99.9001
 commit "$bump_msg"
 BUMP=$(git rev-parse HEAD)
 status_of "$BUMP"
+is "NEWS.md starts with the bump's section" "$(git show "$BUMP:NEWS.md" | sed -n 1p)" "# duckdb 1.99.99.9001"
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
@@ -396,17 +399,17 @@ refused "nor may it carry two Version: lines"
 probe
 refused_empty() { git commit -q --allow-empty -m "$bump_msg"; status_of "$(git rev-parse HEAD)"; is "an empty commit is refused" "$st" 1; git checkout -q -f main; }
 refused_empty
-probe; printf '%s\n\n# duckdb 1.99.99.9001\n\n- Something.\n' "$marker" > NEWS.md
+probe; printf '# duckdb 1.99.99.9001\n\n- Something.\n' > NEWS.md
 refused "a NEWS-only commit is refused"
 probe; write_bump 1.99.99.9000.2
 refused "a lowered version is refused" "does not raise the version"
 probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
-refused "a deleted NEWS.md is refused"
+refused "a deleted NEWS.md is refused" "NEWS.md has nothing under # duckdb 1.99.99.9001"
 probe; write_bump 1.99.99.9001
 BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
-probe; write_bump 1.99.99.9001; sed -i 1,2d NEWS.md
-refused "a NEWS.md without fledge's marker is refused" "does not start with fledge's marker line"
-probe; write_bump 1.99.99.9001; printf '%s\n\n# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' "$marker" > NEWS.md
+probe; write_bump 1.99.99.9001; printf '# duckdb (development version)\n\n- Something.\n\n# duckdb 1.5.5\n' > NEWS.md
+refused "a section left open is refused" "NEWS.md has nothing under # duckdb 1.99.99.9001"
+probe; write_bump 1.99.99.9001; printf '# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' > NEWS.md
 refused "a section with nothing in it is refused"
 probe; write_bump 1.99.99.9001
 git checkout -q -f -B side "$TIP"; write_bump 1.99.99.9001; commit "$bump_msg"

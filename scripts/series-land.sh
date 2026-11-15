@@ -230,8 +230,8 @@ for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 # Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
 # and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
 # `Version:` line, which rises and is the version the subject names; and its
-# `NEWS.md` starts with fledge's marker line and has a section for that version
-# with something in it (handbook/operations/releases/versioning/README.md).
+# `NEWS.md` has a section for that version with something in it
+# (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
 bump_subject='chore: Bump version to '
 is_bump() { # <commit>
@@ -263,10 +263,7 @@ is_bump() { # <commit>
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
-  # `sed -n 1p` reads the whole pipeline; `head` or `grep -q` would end it early under pipefail.
-  [[ "$(git show "$c:NEWS.md" 2>/dev/null | sed -n 1p)" == *fledge* ]] ||
-    { echo "NEWS.md does not start with fledge's marker line"; return 1; }
-  [ -n "$(git show "$c:NEWS.md" | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ] ||
+  [ -n "$(git show "$c:NEWS.md" 2>/dev/null | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ] ||
     { echo "NEWS.md has nothing under # duckdb $new"; return 1; }
 }
 
