@@ -126,13 +126,13 @@ The merge driver resolves it as it resolves `Version:`:
 ours, always, so a pick, a port or a cutover's replay never rewrites the engine a branch records, and a field changed near it merges cleanly.
 A bump that is itself replayed over a changed `DESCRIPTION`, by a fold or a rebase, therefore arrives with the record of the commit it lands on,
 and with its vendor counter back, and `series-land.sh` refuses it until it is stamped again ([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
-A graft never reaches the driver and keeps `main`'s record with the rest of `main`'s tree.
+A forward merge meets the driver like any merge, so the newer line keeps its own record.
 The commit takes the annotated tag `v<version>`, `v2.0.99.9001`.
 The merge driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
-`main`'s graft of the CRAN line's release branch is a `git merge -s ours`, which keeps `main`'s tree whole,
-`DESCRIPTION` included, so the release branch's `2.0.x` never reaches `main`'s version and the driver is never asked
+A forward merge of an older release branch into a newer line is the one merge whose prefixes differ,
+so the driver keeps the newer line's `Version:` verbatim and the older line's `2.0.x` never reaches it
 ([`branches/model/`](/handbook/branches/model/README.md)).
 
 **A preview line carries the prefix of the line it previews**, which is the one

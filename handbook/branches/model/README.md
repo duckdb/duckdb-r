@@ -27,7 +27,7 @@ The rest of the layout takes effect once `scripts/series.yaml` names it as the v
 and once `main` has moved to `2.0.99.9000`, each a pull request in progress
 ([#2987](https://github.com/duckdb/duckdb-r/pull/2987) carries the commands).
 Until then the v2.0 series still releases from `main`, ports `main`'s R side and seeds on it,
-and `main` still carries the 2.0 engine at `2.0.0.9000`, so it takes no landing of upstream `main` and no graft yet.
+and `main` still carries the 2.0 engine at `2.0.0.9000`, so it takes no landing of upstream `main` and no forward merge yet.
 The pages describing the two-branch layout link here for that.
 `krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
 network, not a copy that shares its name — used for CI/CD
@@ -208,44 +208,54 @@ An upstream-lag badge — how far behind `duckdb/duckdb` itself — is not expre
 because that comparison crosses repositories.
 The table's upkeep is [`series-open`](/.claude/skills/series-open/SKILL.md)'s.
 
-**`main` in `duckdb/duckdb-r` is the source of truth** for four of the seven components
+**The canonical branches of `duckdb/duckdb-r` are the source of truth** for four of the seven components
 a branch is made of, and the other three come from elsewhere:
 
 | Component | Source of truth | |
 |---|---|---|
 | DuckDB core | `duckdb/duckdb` upstream | vendored independently into each series |
 | Flavor | per branch, via [`flavor.sh`](/scripts/flavor.sh) | applied mechanically on top of the baseline |
-| **Glue code** | **`main`** | forward-ported to every series |
-| **R code and tests** | **`main`** | forward-ported to every series |
+| **Glue code** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
+| **R code and tests** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **CI/CD infrastructure** | **`main`** | forward-ported to every series |
 | **cpp11** | **`main`** | forward-ported to every series |
-| R core | external — `r-devel`, CRAN policy | monitored; fixes land in `main` first |
+| R core | external — `r-devel`, CRAN policy | monitored; fixes land on the oldest active release branch first |
 
-**Forward-porting runs from `main` to every series**:
-each `<S>-dev` takes `main`'s commits directly, on every firing,
+**Forward-porting runs from the branch a series releases from**:
+each `<S>-dev` takes that branch's R-side commits, on every firing,
 by [`series-port.sh`](/scripts/series-port.sh), the loop's port stage
-([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md));
-no series ports from another, and a line releasing from a branch of its own, current or parked, takes the tooling sync alone.
-Its R side comes from that branch instead, which is what its seed stands on.
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)):
+`main`'s for `main`'s own series, and the line's release branch's for a line that has one.
+Tooling comes from `main` for every series, no series ports from another,
+and a line declared `stale: true` in [`scripts/series.yaml`](/scripts/series.yaml) takes the tooling sync alone.
 
-**Between `main` and the release branch of the line CRAN ships, fixes travel as cherry-picks, and `main` grafts the branch after each landing.**
-A fix both lines need is written where it is found:
-on `main` and backported to the release branch with `git cherry-pick -x`,
-or as a pull request against the release branch and forward-ported to `main` the same way.
-The `cherry picked from commit` trailer is what pairs the two copies where a conflict changed the text.
-After each landing on the release branch, once `main` has picked what it wants of it,
-`main` takes the branch with `git merge -s ours`, the **graft**, as a pull request:
-`main`'s tree stays as it was, the release branch becomes an ancestor of `main`,
-and the merge's message names each commit `main` declined, with the reason
-([`series-land`](/.claude/skills/series-land/SKILL.md) has the commands).
-The release branch's engine is always declined, since `main` takes its own from upstream `main`.
-[`scripts/series-check.sh`](/scripts/series-check.sh) lists what `main` has not grafted yet, `main..<release branch>`,
-counting its vendor commits and version bumps and listing each R-side commit as picked or not yet,
-and a grafted commit is never listed again.
-The release branch never takes `main` the other way: `main` carries another engine.
-Tooling is the exception to "written where it is found": it is `main`'s alone, and reaches the release branch only as a backport.
-A script that walks `main`'s own history reads its first parents, or the commits a graft's tree leaves out,
-so a graft's second parent never counts as `main`'s work.
+**An R-side fix is written on the oldest active release branch and merged forward.**
+A fix goes to the oldest line it applies to, as a pull request against that line's release branch, `v2.0-cyanoptera` today,
+and reaches every newer line by merging the older branch into the next newer one:
+`v2.0-cyanoptera` into `main` today, and with three lines `v2.0` into `v2.1` and `v2.1` into `main`.
+A fix only a newer line needs is written on that line directly,
+and a fix written on a newer line first and then found to be needed on an older one is picked back with `git cherry-pick -x`.
+Tooling is `main`'s alone, and reaches a release branch only as such a pick.
+This turns the R-package convention around, where `main` is roughly what CRAN has:
+here `main` is the newest line, and CRAN's is an older release branch.
+It is deliberate: a fix written once on the oldest line and merged forward is built and checked once per line,
+where the same fix cherry-picked into every line repeats the CI work for little extra value,
+and the branches follow upstream's, one per line.
+
+**A forward merge keeps the newer line's engine.**
+It is an ordinary merge, made as a pull request and merged with a merge commit, never squashed or rebased:
+the repository's merge settings allow merge commits, and a branch ruleset that requires linear history exempts it or is bypassed.
+A landing on the older branch brings that line's vendor commits, which the newer line must not take,
+so the merge keeps the newer side of the vendored strand and what is generated from it,
+`series_strand` and `series_makevars` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+and the `DESCRIPTION` merge driver keeps its version and engine record
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+[`series-land`](/.claude/skills/series-land/SKILL.md) has the commands,
+and [`scripts/series-check.sh`](/scripts/series-check.sh) lists for each active release branch what is not yet merged forward,
+counting its vendor commits and version bumps and listing each R-side commit.
+A path-limited walk of the engine follows a forward merge's first parent by itself, since the merge keeps that side of the engine,
+and `git cherry`, which the port stage walks with, skips merges,
+so the older line's vendor commits never count as the newer line's own.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 

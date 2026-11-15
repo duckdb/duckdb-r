@@ -264,9 +264,9 @@ accepted in exchange for a bisectable, merge-free active history.
 - **L — No new merge commits.** The active region above the seed and every
   release transition are linear: forward-ports are `cherry-pick`s, releases are
   fast-forwards or rebases, and PRs never create a merge commit (use "Rebase and
-  merge", or a fast-forward push). *Exception:* `main`'s graft of the CRAN
-  line's release branch, a `git merge -s ours` after each landing there, which
-  leaves `main`'s tree and its first-parent line as they were
+  merge", or a fast-forward push). *Exception:* a forward merge, an older
+  release branch merged into the next newer line with a merge commit, which
+  keeps the newer line's engine and leaves its first-parent line linear
   ([`branches/model/`](/handbook/branches/model/README.md)). Deep history below the release baselines still
   contains ~170 historical PR merges from before this policy; those are
   grandfathered. *(Currently nearly satisfied: `main-dev` adds 0 merges over 402
@@ -348,18 +348,18 @@ release.
   `dev` carries the glue/R/tests/CI/cpp11 of the branch it releases from, and
   lags it only by pending forward-ports. (S4 applied across the whole chain.)
   A line with its own release branch takes its R side from that branch, not
-  from `main`, and the two canonical branches exchange fixes by cherry-pick
-  ([`branches/model/`](/handbook/branches/model/README.md)), so `main ⊇ dev`
-  holds only for the series that release from `main`; what `main` took of the
-  release branch, or declined, is recorded by its graft.
+  from `main`, and fixes reach the newer lines by forward merges
+  ([`branches/model/`](/handbook/branches/model/README.md)), so along the
+  chain of lines, older ⊆ newer once each is merged forward, and `main ⊇ dev`
+  holds only for the series that release from `main`.
 - **G2 — Patch-stack derivation.** Each `dev`'s `patch/` equals `main`'s patch
   set minus the patches already merged into *that series'* upstream branch.
   `patch/` may therefore legitimately differ between series; it is never
   hand-authored per series beyond dropping patches that landed upstream.
-- **G3 — Two canonical lines.** After each landing on the release branch of the
-  line CRAN ships, `main` grafts it, so the branch is an ancestor of `main`;
-  every commit since the last graft is picked onto `main` or declined in the
-  graft's message, and `scripts/series-check.sh` lists the ones not grafted yet
+- **G3 — Forward merges.** Each active release branch is merged forward into
+  the next newer line, the newest into `main`, after each landing on it and
+  whenever it takes a fix, so every older branch is an ancestor of the newer
+  ones; `scripts/series-check.sh` lists what is not merged forward yet
   ([`branches/model/`](/handbook/branches/model/README.md)).
 
 ### CI / green
@@ -370,8 +370,8 @@ release.
 
 ### Prerelease (during STABILIZE)
 
-- **P1 — Release branches frozen.** Pre-release mutates only `main` (fold-back
-  fixes) and `dev` (forward-ports + vendor); `stable` and `lts`
+- **P1 — Release branches frozen.** Pre-release mutates only the branch the
+  fold-back fixes are written on and `dev` (forward-ports + vendor); `stable` and `lts`
   stay at the previous release until CUT. A half-finished pre-release is
   abortable with zero rollback on the release branches.
 - **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an ancestor
@@ -380,8 +380,7 @@ release.
 - **P3 — Fold-back ordering.** Every fold-back fix lands on a canonical branch,
   the one the series releases from, before any `dev` (a `dev` fix with no
   counterpart there violates S4). For the line with its own release branch that
-  is the release branch, and the fix reaches `main` afterwards by cherry-pick
-  where `main` needs it too, before `main` grafts the branch
+  is the release branch, and the fix reaches the newer lines by forward merges
   ([`branches/model/`](/handbook/branches/model/README.md)).
 - **P4 — Freeze convergence (barrier).** At GLUE FREEZE, `git cherry <R> dev` is
   empty for *every* releasing series simultaneously, each against the branch
