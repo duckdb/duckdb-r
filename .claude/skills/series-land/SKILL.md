@@ -134,7 +134,7 @@ The loop keeps running: it reads `<B>` and writes no ref there.
 ## 2. Write down what the batch ends at
 
 The landing goes up to the tip of `<S>-rc-dev` as it stands when the build starts.
-Read off the engine it vendors and the engine `<B>` vendors, for the `NEWS.md` bullet the bump writes (step 3):
+Read off the engine it vendors and the engine `<B>` vendors, the range of upstream commits the landing brings:
 
 ```sh
 S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
@@ -227,17 +227,16 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
   git diff DESCRIPTION   # the record sits right below Version:, where the merge driver keeps it
-  echo "$v"              # the version the NEWS.md section and the subject name
+  echo "$v"              # the version the subject names
   ```
 
-* **`NEWS.md`**: close the open section, turning its heading into `# duckdb <v>`,
-  or write that section above the newest one where no pull request opened it.
-  Its first bullet names the engine as the versioning page spells it, with the two SHAs step 2 wrote down,
-  and anything else the batch changes that users of the package notice joins the bullets the pull requests wrote, leaving out the tooling.
+* **`NEWS.md`** is not the landing's to write
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)):
+  the bump may carry a change to it and needs none.
 * **The commit**: `chore: Bump version to <v>`.
-  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md`, the `Version:` line and the engine record,
-  with nothing above it, and refuses one whose version does not rise above `<B>`'s,
-  or whose `NEWS.md` does not start with the version's section or still has an open one;
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits
+  that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`,
+  with nothing above it, and refuses one whose version does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.
 
 CI judges the bump like every other commit.
