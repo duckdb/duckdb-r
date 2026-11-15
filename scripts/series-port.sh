@@ -533,7 +533,9 @@ fi
 
 # A SHA named for --apply is read as the walk offers it: a forward merge's own
 # SHA stands for its port (merge_port), and so does the port's SHA, which a
-# fresh clone has only once the walk, or this, has written the stand-in.
+# fresh clone has only once the walk, or this, has written the stand-in. A
+# merge that changes only engine paths has no port, and is said so rather than
+# picked; naming nothing else ports nothing.
 named=()
 for a in "$@"; do
   c=$(git rev-parse -q --verify "$a^{commit}" 2>/dev/null || true)
@@ -544,10 +546,15 @@ for a in "$@"; do
     done < <(git rev-list --first-parent --merges "$mb..$src")
   elif git rev-parse -q --verify "$c^2" >/dev/null; then
     x=$(merge_port "$c")
-    [ -z "$x" ] || c=$x
+    if [ -z "$x" ]; then
+      echo "$(git rev-parse --short "$c"): nothing to port: the merge changes only engine paths"
+      continue
+    fi
+    c=$x
   fi
   named+=("${c:-$a}")
 done
+[ $# -eq 0 ] || [ ${#named[@]} -gt 0 ] || exit 0
 set -- ${named[@]+"${named[@]}"}
 
 # A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a

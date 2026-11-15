@@ -23,7 +23,8 @@
 #   6. A forward merge of a release branch, keeping main's engine, is offered
 #      as one port carrying its R-side fix and the glue folded into its vendor
 #      commit and no engine; neither commit behind it is offered alone, and a
-#      rerun names the same port.
+#      rerun names the same port. --apply of one that changes only engine
+#      paths says there is nothing to port and picks nothing.
 #   7. A series whose `releases_from` names a release branch takes its R side
 #      from that branch and not from `main`; one declared `stale: true` is
 #      frozen, its forward with it; one releasing from `main` takes `main`'s.
@@ -330,6 +331,28 @@ for named in "${PORT:0:10}" "$(git rev-parse --short "$MERGE")"; do
   has "  carrying its fix" "$out_apply" "create mode 100644 R/rel-fix.R"
   git push -q -f origin "$SDEV:refs/heads/s-dev"
 done
+
+# A forward merge that brings only an engine change has nothing to port:
+# --apply of it says so and picks nothing.
+git checkout -q rel-line
+echo 'engine of the release line, again' > src/duckdb/engine.cpp
+git add -A; git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@abcdef4567'
+git checkout -q main
+git merge -q --no-commit --no-ff rel-line >/dev/null 2>&1 || true
+git rm -rq --cached --ignore-unmatch -- src/duckdb
+git checkout HEAD -- src/duckdb 2>/dev/null || true
+git clean -fdq -- src/duckdb
+git commit -qm 'Merge an engine-only change forward into main'
+EMERGE=$(git rev-parse HEAD)
+git push -q upstream main
+git checkout -q s-dev
+out_eng=$(scripts/series-port.sh s --apply "$EMERGE" 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_eng"
+has "--apply of an engine-only merge says there is nothing to port" "$out_eng" \
+  "$(git rev-parse --short "$EMERGE"): nothing to port: the merge changes only engine paths"
+same "  and succeeds" "$st" 0
+same "  and picks nothing" "$(git ls-remote origin refs/heads/s-dev | cut -f1)" "$SDEV"
+hasnt "  not even what the walk offers" "$out_eng" "cherry picked from commit"
 
 echo
 echo "$pass passed, $fail failed"
