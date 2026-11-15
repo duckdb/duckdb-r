@@ -23,6 +23,7 @@
 #   5. A rebuild over existing branches moves them under their leases;
 #      a branch that moved since the build read it refuses the whole push and removes the --summary file,
 #      and the next rebuild moves it back.
+#      A fork that refuses the push leaves a --summary that is a link, or no regular file, as it is, and the run says so.
 #   6. Once the engines agree, `2-engine` leaves the stack, and its branch stays:
 #      the run exits 9 with the steps that retire it, and once they are taken a rebuild exits 0.
 #      Both deletions it prints refuse a branch that moved and delete one at the tip read:
@@ -413,6 +414,32 @@ is "the moved branch stays" "$(tip "$c/dev/4-old")" "$FWD_MAIN"
 is "and the others with it" "$(tip "$c/dev/1-main")" "$d1"
 out=$(run "$STACK" v9.9-x dev --continue)
 is "the refused build is gone" "$(status "$out")" 1
+# A fork that refuses every push, for the two builds below.
+printf '#!/bin/sh\necho "refused" >&2\nexit 1\n' > "$FORK/hooks/pre-receive"
+chmod +x "$FORK/hooks/pre-receive"
+# A summary written through a link: the link and the file it leads to stay, and the run says where the summary is.
+echo 'an older summary' > "$SCRATCH/refused-target.md"
+ln -s refused-target.md "$SCRATCH/refused-link.md"
+out=$(run "$STACK" v9.9-x dev --summary "$SCRATCH/refused-link.md")
+is "a refused push with the summary written through a link" "$(status "$out")" 1
+holds "keeps the link" test -L "$SCRATCH/refused-link.md"
+has "and the summary in the file it leads to" "$(cat "$SCRATCH/refused-target.md")" "## $c/dev/1-main"
+has "which it says, naming that file" "$out" \
+  "was written through the link $SCRATCH/refused-link.md
+  to $(readlink -f "$SCRATCH/refused-target.md"), and both are left as they are"
+# A summary written into what is no regular file, a FIFO standing in for a device: left as it is, and said to be.
+mkfifo "$SCRATCH/refused.fifo"
+cat "$SCRATCH/refused.fifo" > "$SCRATCH/refused.fifo.out" &
+reader=$!
+out=$(run "$STACK" v9.9-x dev --summary "$SCRATCH/refused.fifo")
+# Opened and closed, so that a reader the run never wrote to ends.
+: <> "$SCRATCH/refused.fifo"
+wait "$reader" || true
+is "a refused push with the summary written into a FIFO" "$(status "$out")" 1
+holds "keeps the FIFO" test -p "$SCRATCH/refused.fifo"
+has "which took the summary" "$(cat "$SCRATCH/refused.fifo.out")" "## $c/dev/1-main"
+has "and says it is left" "$out" "$SCRATCH/refused.fifo is not a regular file, so it is left as it is"
+rm "$FORK/hooks/pre-receive"
 out=$(run "$STACK" v9.9-x dev)
 is "a rebuild, on the resolution rerere recorded, pushes" "$(status "$out")" 0
 is "and puts the branch back where it was" "$(tip "$c/dev/4-old")" "$d4"
