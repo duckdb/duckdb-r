@@ -38,6 +38,8 @@
 
 #include "src/optimizer/disjunctive_join_rewriter.cpp"
 
+#include "src/optimizer/duplicate_eliminated_domain_optimizer.cpp"
+
 #include "src/optimizer/empty_result_pullup.cpp"
 
 #include "src/optimizer/expression_heuristics.cpp"
