@@ -282,11 +282,10 @@ under=0
 frozen=
 [ "$under" != 0 ] && frozen=1
 
-# A line that parks when another one lands on `main` is the case the lineage
-# cannot see. Its seed sits on `main`'s own history, and `main` keeps that
-# history when it fast-forwards onto the new line
+# A line releasing from a branch of its own, cut from `main`, is the case the
+# lineage cannot see. Its seed sits on `main`'s own history, which `main` keeps
 # (.claude/skills/series-land/SKILL.md), so nothing under the seed is foreign
-# and the walk would offer the new line's R side as a backlog. The parking is
+# and the walk would offer `main`'s later R side as a backlog. The branch is
 # recorded where the badge table and the mirror rules already read it:
 # `releases_from` in `main`'s scripts/series.yaml, which names the line's own
 # baseline once it stops releasing from `main` (handbook/branches/mirrors/).

@@ -9,7 +9,7 @@
 # its own series the same way, with --onto naming it. Wherever `main` appears
 # below, it is that branch, read from --canonical.
 #
-# A line moves onto `main` when `main` starts releasing it. The series already
+# A batch of a series moves onto its branch once CI has judged it. The series already
 # holds the history `main` needs (one commit per upstream commit, each judged
 # by CI with the R-side fix it needed folded in), but on a lineage of its own:
 # its seed is an older `main`, everything `main` gained since arrived as ports,
