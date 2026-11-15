@@ -64,10 +64,10 @@ Proposed upstream in duckdb/duckdb#<PR> (placeholder: not opened yet)
 against v1.5-variegata, and carried here until a release carries it.
 ---
 diff --git a/src/duckdb/src/main/query_profiler.cpp b/src/duckdb/src/main/query_profiler.cpp
-index 7d90107477..438fed5bfa 100644
+index 48b5cb1a29..3dfa2947b9 100644
 --- a/src/duckdb/src/main/query_profiler.cpp
 +++ b/src/duckdb/src/main/query_profiler.cpp
-@@ -137,6 +137,12 @@ void QueryProfiler::Reset() {
+@@ -136,6 +136,12 @@
  
  void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, bool start_at_optimizer) {
  	lock_guard<std::mutex> guard(lock);
@@ -77,6 +77,6 @@ index 7d90107477..438fed5bfa 100644
 +	// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output. Preparing starts the profiler,
 +	// so the one left running by a statement prepared and never executed is still running here.
 +	is_explain_analyze = false;
- 	// Always reset byte counters at the start of each query so the progress bar shows per-query values
- 	query_metrics.bytes_read = 0;
- 	query_metrics.bytes_written = 0;
+ 	// the counters tracked without profiling hold per-query values: reset them once, as StartQuery is called
+ 	// several times for one query
+ 	if (!query_started) {
