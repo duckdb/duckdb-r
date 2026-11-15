@@ -36,8 +36,10 @@
 #      `duckdb <version>`, with NEWS.md's section for it below where there is
 #      one; run before that, even with a tag named like the branch at the bump,
 #      or over a stale local tag of that name, they fail and send nothing. On a
-#      landing not READY the block stops before them, and on a release's
-#      version, which is left to the release, it tags nothing.
+#      landing not READY the block stops before them. A release's version is
+#      tagged `v<version>.9900`, `duckdb <version>.9900` with the version's
+#      section, and never `v<version>`, the release's own: that tag on another
+#      commit does not stop it, and a stale local tag of the new name does.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -421,6 +423,7 @@ has "the landing ending on the bump is ready" "$out" "READY: every commit has pa
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 has "and so does the tag" "$out" "git tag -a v1.99.99.9001 --cleanup=whitespace -F - $BUMP"
 has "which goes to the canonical repository" "$out" "git push upstream refs/tags/v1.99.99.9001"
+hasnt "  under its version as it is, four components being no release" "$out" ".9900"
 has "they fetch the branch by its full name into its remote-tracking ref" "$out" \
   "git fetch -q upstream +refs/heads/main:refs/remotes/upstream/main &&"
 has "  and look for the bump there, not in FETCH_HEAD" "$out" "git merge-base --is-ancestor $BUMP refs/remotes/upstream/main ||"
@@ -461,12 +464,34 @@ git tag -d v1.99.99.9001 >/dev/null
 unlanded
 git checkout -q -f main
 probe; write_bump 2.0.0
+{ printf '# duckdb 2.0.0\n\n## Features\n\n- The release.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
 commit 'chore: Bump version to 2.0.0'
-status_of "$(git rev-parse HEAD)"
+REL=$(git rev-parse HEAD)
+status_of "$REL"
 has "a bump to a release is ready" "$out" "READY: every commit has passed"
-has "and its tag is left to the release" "$out" "Its tag, v2.0.0, is the release's"
-hasnt "  with no tag command" "$out" "git tag"
-is "  so the tag block tags nothing, and succeeds" "$(tag_as_printed v2.0.0)" "upstream is unchanged"
+has "and is tagged with .9900 appended to the release" "$out" "git tag -a v2.0.0.9900 --cleanup=whitespace -F - $REL"
+has "  which goes to the canonical repository" "$out" "git push upstream refs/tags/v2.0.0.9900"
+is "  never with the release's own tag" "$(grep -cE 'v2\.0\.0( |$)' <<<"$out" || true)" 0
+rel_msg="$REL"$'\n''duckdb 2.0.0.9900'$'\n\n''## Features'$'\n\n''- The release.'
+landed "$REL"
+is "run as printed once main has it, the tag carries the release's section below its own subject" \
+  "$(tag_as_printed v2.0.0.9900)" "$rel_msg"
+is "  and the release's own tag is not set" "$(git -C "$CANON" tag -l v2.0.0; git tag -l v2.0.0)" ""
+git tag -d v2.0.0.9900 >/dev/null
+git push -q upstream :refs/tags/v2.0.0.9900
+# The release's own tag, on another commit here and upstream.
+git tag -a -m 'duckdb 2.0.0' v2.0.0 "$TIP"
+git push -q upstream refs/tags/v2.0.0
+is "the release's own tag on another commit does not stop it" "$(tag_as_printed v2.0.0.9900)" "$rel_msg"
+is "  nor does it move" "$(git -C "$CANON" rev-parse 'refs/tags/v2.0.0^{commit}')" "$TIP"
+git push -q upstream :refs/tags/v2.0.0.9900
+git tag -f -a -m 'duckdb 2.0.0.9900' v2.0.0.9900 "$TIP" >/dev/null
+is "run as printed over a stale local tag of that name, they send nothing and fail" \
+  "$(tag_as_printed v2.0.0.9900)" "the tag block failed"$'\n'"upstream is unchanged"
+git tag -d v2.0.0 v2.0.0.9900 >/dev/null
+git push -q upstream :refs/tags/v2.0.0
+unlanded
 git checkout -q -f main
 dev_at "$BUMP"
 out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?

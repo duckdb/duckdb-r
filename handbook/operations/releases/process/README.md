@@ -278,7 +278,7 @@ preflight before tagging (`cran/`).
 
 ### 5 PUBLISHED — tag and publish
 
-Tag the release with the annotated tag `versioning/` describes, and push; r-universe rebuilds automatically:
+Tag the release `vX.Y.Z` in the shape `versioning/` describes, and push; r-universe rebuilds automatically:
 
 ```bash
 C=git@github.com:duckdb/duckdb-r.git   # the canonical repository
@@ -294,6 +294,7 @@ git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R" &&   # the tip as it i
 From the fetch on, the block is one chain that stops at the first failure:
 a local `v<version>` left from an earlier attempt fails the tag and is never pushed,
 and what it tags is the branch's tip as just fetched, so the branch has it.
+The landing that brought the release tagged its bump under a name of its own (`versioning/`), so `vX.Y.Z` is the release's alone.
 
 For the **current** line only, submit to CRAN (`cran/`);
 the submission workflow sets the tag itself and drafts the GitHub release,

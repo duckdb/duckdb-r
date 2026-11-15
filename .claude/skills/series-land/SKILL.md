@@ -352,14 +352,11 @@ git ls-remote upstream "refs/heads/$B"
 The push is a plain one, so git refuses it unless it is a fast-forward.
 It needs the existing branch ruleset's admin bypass, because it is not a pull request.
 
-Then tag the bump, which is the commit `READY` named, as every landing's bump is tagged
-([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md));
+Then tag the bump, which is the commit `READY` named, as every landing's bump is tagged, a bump to an upstream release included
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) names the tag);
 the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
 `--status` prints `READY` again once `<B>` is the bump, and below the push the commands that tag it,
-which the block runs as printed, and only on `READY`: they tag nothing `<B>` lacks, and push no tag they did not create.
-A bump to an upstream release is tagged when the release is published instead
-([`operations/releases/process/`](/handbook/operations/releases/process/README.md), step 5),
-so `--status` prints a line saying so in their place, and the block tags nothing
+which the block runs as printed, and only on `READY`: they tag nothing `<B>` lacks, and push no tag they did not create
 (`scripts/series-land-test.sh` runs it against a scratch repository):
 
 <!-- series-land: tag block -->
@@ -371,7 +368,7 @@ B=$(scripts/series-land.sh "$S" --target)             # the branch it landed ont
 out=$(scripts/series-land.sh "$S" --status) || true   # READY again, now that the branch is the bump
 printf '%s\n' "$out"
 grep -q '^READY' <<<"$out" || { echo "not READY" >&2; exit 1; }
-bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")"   # the tag commands below the push, none for a release
+bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")"   # the tag commands below the push
 git tag -n3 --points-at "refs/remotes/upstream/$B"   # the tag: the subject, then NEWS.md's section for the version, if it has one
 )
 ```

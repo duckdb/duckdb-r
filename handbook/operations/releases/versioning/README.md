@@ -91,16 +91,17 @@ A landing ends on a bump, its last commit
 After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
 in a bump that takes no tag.
 
-**Every landing's bump takes the annotated tag `v<version>`, `v2.0.99.9001`, in the canonical repository.**
-Its message is the subject `duckdb <version>`,
-then the section `NEWS.md` has for that version, and nothing more where it has none,
+**Every landing's bump takes the annotated tag `v<version>`, `v2.0.99.9001`, in the canonical repository,
+and a bump to a release's three components takes `v<version>.9900`, `v2.1.0.9900`.**
+Its message is the subject `duckdb <version>`, or `duckdb <version>.9900` with that tag,
+then the section `NEWS.md` has for `<version>`, and nothing more where it has none,
 the shape the `v1.5.6.90xx` tags have.
 `scripts/series-land.sh --status` prints the commands once the landing is ready,
 and [`series-land`](/.claude/skills/series-land/SKILL.md), step 6, runs them as printed.
-A landing that brings an upstream release is tagged by the release instead, in the same shape:
-by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md)),
-or by hand on a line that does not ship to CRAN
-([`process/`](/handbook/operations/releases/process/README.md), step 5).
+The release takes `v<version>` itself when it is published, in the same shape,
+by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md))
+or by hand on a line that does not ship to CRAN ([`process/`](/handbook/operations/releases/process/README.md), step 5),
+so the landing's tag and the release's never clash.
 
 **`NEWS.md` is kept by a separate process, not by pull requests, ports or landings.**
 A port keeps the series' copy ([`series-loop`](/.claude/skills/series-loop/references/4-port.md)),
