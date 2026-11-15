@@ -58,8 +58,6 @@ and every night [`cran-release.yaml`](/.github/workflows/cran-release.yaml) runs
 on the drafts that carry it with the tag `vX.Y.Z`.
 A draft is published, as the latest release,
 once the source index of <https://packagemanager.posit.co/cran/latest> lists the package at that version,
-the test `fledge:::release_after_cran_built_binaries()` made in `fledge.yaml` before
-([`versioning/`](/handbook/operations/releases/versioning/README.md)),
 and only if the tag exists and points at the commit the draft targets; a missing or moved tag fails the run with how to resolve it.
 A version not listed yet is one line on the summary page, and the run stays green.
 Started by hand, the workflow takes the input `dry-run`, which publishes nothing and says what it would publish;

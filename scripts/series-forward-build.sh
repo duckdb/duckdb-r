@@ -267,7 +267,7 @@ placed() { [ -f "$PLACED" ] && grep -qx "$1" "$PLACED"; }
 #     wrong: a commit the new base descends from is in the new base, whatever
 #     later commits did to the lines it touched. The content tests cannot see
 #     that, so `main`'s own commits strand whenever the base has moved past the
-#     shape they left -- a `fledge:` bump the base has bumped a hundred times
+#     shape they left -- a version bump the base has bumped a hundred times
 #     since, a `NEWS.md` section it has rewritten. Replaying a range that
 #     reached back to the parent series' 2024 seed stranded 906 such commits,
 #     903 of them plain ancestors of the base;

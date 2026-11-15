@@ -95,7 +95,8 @@
 # series, the base's own commits included, and `--status` advances it over the
 # commits CI has passed, the way stage 3 advances a series' green
 # (scripts/series-advance.sh). The landing is ready when the two refs are equal
-# and it ends on the bump.
+# and it ends on the bump, and `--status` then prints the push and the bump's
+# tag (handbook/operations/releases/versioning/README.md).
 # There is no `-land-build`, so the loop's discovery never mistakes the pair for
 # a series.
 #
@@ -265,13 +266,13 @@ for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 bump_subject='chore: Bump version to '
 # The DESCRIPTION lines the bump writes (handbook/operations/releases/versioning/README.md).
 bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
-# Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
-# and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
-# `Version:` line, which has at most four components, rises and is the version
-# the subject names, and its one
-# `Config/duckdb/upstream:` line, the full SHA of the engine the landing's last
-# vendor commit vendors. `NEWS.md` is kept by a separate process, so nothing is
-# asked of it (handbook/operations/releases/versioning/README.md).
+# Is <commit> the hand-written version bump? Not a merge; it changes
+# `DESCRIPTION` and nothing else but `NEWS.md`, which it need not touch and
+# whose layout is not read, because a separate process keeps that file
+# (handbook/operations/releases/versioning/README.md); in `DESCRIPTION` only
+# its one `Version:` line, which has at most four components, rises and is the
+# version the subject names, and its one `Config/duckdb/upstream:` line, the
+# full SHA of the engine the landing's last vendor commit vendors.
 # Prints the first condition it fails.
 is_bump() { # <commit>
   local c=$1 old new subj
@@ -323,6 +324,35 @@ is_bump() { # <commit>
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
+}
+
+# The commands that tag <bump> once the branch has it: the annotated tag
+# `v<version>`, or `v<version>.9900` where <version> is a release, which takes
+# `v<version>` itself when it is published; its message the subject
+# `duckdb <version>`, or `duckdb <version>.9900` with that tag, then the section
+# NEWS.md has for <version>, if it has one, read the way the release process
+# reads it (handbook/operations/releases/versioning/README.md). They are one
+# chain, each command run only if the one before succeeded, so pasted as
+# printed they stop at the first failure and exit with it: they tag nothing the
+# branch, fetched from the canonical repository first, does not have, so a
+# fast-forward refused leaves the bump untagged, and push no tag they did not
+# create, so a stale local tag of that name never goes up. The branch is
+# fetched by its full name into its remote-tracking ref and checked there, so
+# neither a tag of the same name nor another fetch rewriting FETCH_HEAD stands
+# in for it.
+tag_commands() { # <bump>
+  local v t
+  v=$(git show "$1:DESCRIPTION" | sed -n 's/^Version: //p')
+  t=$v
+  if [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then t=$v.9900; fi
+  # The `\n` are the printed command's own, for its printf.
+  printf '%s\n' \
+    "Then tag it on $canonical once $onto has it, with NEWS.md's section for $v below the subject if there is one:" \
+    "  git fetch -q $canonical +refs/heads/$onto:refs/remotes/$canonical/$onto &&" \
+    "    { git merge-base --is-ancestor $1 refs/remotes/$canonical/$onto || { echo 'Not tagged: $onto on $canonical does not have $1.' >&2; false; }; } &&" \
+    "    { printf 'duckdb %s\n\n' $t; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
+    "    git tag -a v$t --cleanup=whitespace -F - $1 &&" \
+    "    git push $canonical refs/tags/v$t"
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
@@ -418,6 +448,7 @@ if [ -n "$status" ]; then
     else
       echo "READY: every commit has passed, and $onto ($(git rev-parse --short "$main")) fast-forwards to it:"
       echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/$onto"
+      tag_commands "$(git rev-parse "$dev")"
     fi
   fi
   exit 0

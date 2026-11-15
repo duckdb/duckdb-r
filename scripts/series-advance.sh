@@ -642,7 +642,7 @@ else
   # repair and the buffer touch the same paths — judgement, not mechanics.
   #
   # Every buffer commit bumps DESCRIPTION's vendor counter, so a -dev that has
-  # taken a fledge bump conflicts on the `Version:` line at the first replayed
+  # taken a version bump conflicts on the `Version:` line at the first replayed
   # commit and at every one after it. That line is what the ours-version merge
   # driver exists for, and the gate at the top of this script has registered it
   # already, so only genuine conflicts reach the judgement above.
@@ -820,12 +820,12 @@ else
     remaining=$(git rev-list --reverse "$anchor..$build" | first_n "$n")
   fi
 
-  # `--empty=drop`, as series-port.sh already does: a buffer commit whose content
-  # reached -dev by another route replays to nothing, and an empty pick stops the
-  # sequencer. Stage 3 sends patch/ entries down both paths on purpose -- the port
-  # carries one onto -dev, and the same fix is committed onto -build so the next
-  # regenerated tree still has it -- so the redundancy is designed, not a mistake,
-  # and it must not abort the extend.
+  # `--empty=drop`: a buffer commit whose content reached -dev by another route
+  # replays to nothing, and an empty pick stops the sequencer. Stage 3 sends
+  # patch/ entries down both paths on purpose -- the port carries one onto
+  # -dev, and the same fix is committed onto -build so the next regenerated
+  # tree still has it -- so the redundancy is designed, not a mistake, and it
+  # must not abort the extend.
   #
   # One commit at a time, because restamp runs between the picks and reads the
   # parent it is bumping from, and because a carry amends the commit just made.

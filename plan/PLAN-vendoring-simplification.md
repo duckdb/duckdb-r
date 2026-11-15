@@ -663,9 +663,9 @@ Fork-specific switches to flip at creation:
 
 - **Workflows in a fresh fork are disabled until enabled once** in the
   fork's Actions tab, and **scheduled workflows are disabled by default
-  in forks of public repositories** — re-enable all five explicitly:
+  in forks of public repositories** — re-enable all four explicitly:
   `rcc-logs.yaml` (half-hourly),
-  `fledge.yaml`, `R-CMD-check.yaml`, `R-CMD-check-dev.yaml`,
+  `R-CMD-check.yaml`, `R-CMD-check-dev.yaml`,
   `lock.yaml` (daily).
   The Pull app is not a workflow and is unaffected by either switch;
   it needs the app installed on the fork instead.
