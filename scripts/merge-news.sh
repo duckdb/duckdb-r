@@ -10,8 +10,9 @@
 # chose. This driver merges by section instead:
 #
 #   * a section is a `# duckdb <version>` heading and its body, up to the next
-#     such heading; anything before the first heading is merged as one more
-#     section that always stays first;
+#     such heading; the version is the first token after `# duckdb `, and a date
+#     or a note after it is part of the heading. Anything before the first
+#     heading is merged as one more section that always stays first;
 #   * a section on one side only is taken, and one deleted on one side and left
 #     alone on the other is deleted;
 #   * a section changed on one side only takes that side;
@@ -35,7 +36,7 @@ import sys
 import tempfile
 
 o_path, a_path, b_path = sys.argv[1:4]
-HEAD = re.compile(r"^# duckdb (\S+)\s*$")
+HEAD = re.compile(r"^# duckdb (\S+)(\s.*)?$")
 
 
 def read(path):

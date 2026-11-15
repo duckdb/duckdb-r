@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Six things are checked:
+# version first, whichever side a section came from. Seven things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -15,6 +15,7 @@
 #   5. A section deleted on one side and left alone on the other is deleted.
 #   6. Registered by scripts/setup-git.sh, the driver is what a `git merge`
 #      of NEWS.md runs.
+#   7. A heading with a date or a note after the version orders by the version.
 #
 # Usage:
 #   scripts/merge-news-test.sh
@@ -102,6 +103,13 @@ git commit -qam 'main'
 git merge -q --no-edit rel >/dev/null 2>&1 && st=0 || st=$?
 is "the merge succeeds" "$st" 0
 is "NEWS.md newest first" "$(headings NEWS.md)" "2.0.99.9001 2.0.99.9000 2.0.1 2.0.0.9001 2.0.0 "
+
+echo "== 7. a heading with a date or a note after the version"
+printf '# duckdb 2.0.0 (2026-01-01)\n\n- old\n' > O
+printf '# duckdb 2.0.99.9001 - a note\n\n- new\n\n\n# duckdb 2.0.0 (2026-01-01)\n\n- old\n' > A
+printf '# duckdb 2.0.1 (2026-11-15)\n\n- fix\n\n\n# duckdb 2.0.0 (2026-01-01)\n\n- old\n' > B
+is "it merges cleanly" "$(merge)" 0
+is "ordered by the version alone" "$(sed -n 's/^# duckdb //p' A | tr '\n' '|')" "2.0.99.9001 - a note|2.0.1 (2026-11-15)|2.0.0 (2026-01-01)|"
 
 echo
 echo "$pass passed, $fail failed"
