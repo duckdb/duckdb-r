@@ -479,10 +479,12 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 	}
 
 	// selection, named-argument checking, folding and casting all happen in the function binder
+	FunctionBinder function_binder(*this);
+	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
 	unique_ptr<ResolvedTableFunction> resolved;
 	if (table_in_out) {
 		// the arguments are the columns of the subquery
-		auto selection = FunctionBinder::SelectFunction(context, function.functions, subquery.types);
+		auto selection = FunctionBinder::SelectFunction(context, current.functions, subquery.types);
 		if (selection.IsSuccess()) {
 			auto definition = selection.GetBinding().GetFunction<TableFunction>();
 			resolved = make_uniq<ResolvedTableFunction>(BoundTableFunction(definition));
@@ -490,8 +492,7 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 			error = selection.GetError();
 		}
 	} else {
-		FunctionBinder function_binder(*this);
-		resolved = function_binder.BindTableFunction(function.functions, positional_arguments, named_arguments, error);
+		resolved = function_binder.BindTableFunction(current.functions, positional_arguments, named_arguments, error);
 	}
 	if (!resolved) {
 		error.AddQueryLocation(ref);
