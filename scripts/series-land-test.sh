@@ -27,10 +27,19 @@
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #      A landing is ready only on its hand-written version bump, which may
-#      change nothing but NEWS.md, which it may leave alone, the Version: line and the
+#      change nothing but NEWS.md, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
-#      commit vendors, with nothing above it;
-#      a rebuild drops a bump added to the kept worktree.
+#      commit vendors, with nothing above it, whatever NEWS.md holds; a rebuild
+#      drops a bump added to the kept worktree. Step 6's tag block, read off
+#      the series-land skill, runs the tag commands printed with the
+#      fast-forward only on READY; run once `main` has the bump, they tag it
+#      `duckdb <version>`, with NEWS.md's section for it below where there is
+#      one; run before that, even with a tag named like the branch at the bump,
+#      or over a stale local tag of that name, they fail and send nothing. On a
+#      landing not READY the block stops before them. A release's version is
+#      tagged `v<version>.9900`, `duckdb <version>.9900` with the version's
+#      section, and never `v<version>`, the release's own: that tag on another
+#      commit does not stop it, and a stale local tag of the new name does.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -144,7 +153,7 @@ echo 'tool v3' > scripts/tool.sh
 commit 'ci: Another tooling change (#5)'
 desc duckdb 1.5.6.9001.7
 echo '# duckdb 1.5.6.9001.7' > NEWS.md
-commit 'fledge: Bump version to 1.5.6.9001.7 (#6)'
+commit 'chore: Bump version to 1.5.6.9001.7 (#6)'
 echo 'readme on main' > README.md
 commit 'docs: The README main renders today (#7)'
 M=$(git rev-parse HEAD)
@@ -355,15 +364,36 @@ passed() { # <sha>
   git push -q origin rcc2
   git checkout -q main
 }
-marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->'
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
 ENGINE_FULL=dddd444000000000000000000000000000000000
-write_bump() { # <version> [<engine record>]: DESCRIPTION alone, as the skill writes it
+# DESCRIPTION alone: NEWS.md is kept by a process of its own, and a bump need
+# not touch it.
+write_bump() { # <version> [<engine record>]
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
 }
+# Step 6's tag block, read off the skill by the marker above it and set to this
+# fixture's series rather than `main`: it reruns --status and runs the tag
+# commands printed there only on READY, so its gate and its sed are the skill's
+# own, and a drift between the skill and --status fails here.
+awk '$0 == "<!-- series-land: tag block -->" {m = 1; next} m && $0 == "```sh" {f = 1; next} f && $0 == "```" {exit} f' \
+  "$HERE/../.claude/skills/series-land/SKILL.md" | sed 's/^S=main /S=v2.0-x /' > "$SCRATCH/tag-block"
+is "step 6's tag block is read off the skill, for this series" "$(grep -c '^S=v2.0-x ' "$SCRATCH/tag-block")" 1
+# Runs it as a maintainer pastes it, and prints whether it failed, then the
+# tag's target and message upstream, or that upstream is as it was.
+tag_as_printed() { # <tag>
+  local refs
+  refs=$(git -C "$CANON" for-each-ref)
+  bash "$SCRATCH/tag-block" >/dev/null 2>&1 || echo "the tag block failed"
+  [ "$(git -C "$CANON" for-each-ref)" != "$refs" ] || { echo "upstream is unchanged"; return; }
+  git -C "$CANON" rev-parse -q --verify "refs/tags/$1^{commit}" || echo "no $1 on upstream"
+  git -C "$CANON" tag -l --format='%(contents)' "$1"
+}
+# The fast-forward --status prints, and its undoing.
+landed() { git push -q upstream "$1:refs/heads/main"; }
+unlanded() { git push -q -f upstream "$M:refs/heads/main"; }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
-  passed "$1"
+  git cat-file -e "rcc2:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || passed "$1"
   out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
   [ -z "${KEEP:-}" ] || echo "$out"
 }
@@ -379,13 +409,91 @@ refused() { # <label>: the probe in the working tree is committed under the bump
 }
 probe() { git checkout -q -f -B probe "$TIP"; }
 
+dev_at "$TIP"
+is "on a landing that does not end on the bump, the tag block stops at its READY gate and sends nothing" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
+
 probe
 write_bump 1.99.99.9001
 commit "$bump_msg"
 BUMP=$(git rev-parse HEAD)
 status_of "$BUMP"
+is "the bump leaves NEWS.md alone" "$(git diff --name-only "$BUMP~1" "$BUMP")" DESCRIPTION
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
+has "and so does the tag" "$out" "git tag -a v1.99.99.9001 --cleanup=whitespace -F - $BUMP"
+has "which goes to the canonical repository" "$out" "git push upstream refs/tags/v1.99.99.9001"
+hasnt "  under its version as it is, four components being no release" "$out" ".9900"
+has "they fetch the branch by its full name into its remote-tracking ref" "$out" \
+  "git fetch -q upstream +refs/heads/main:refs/remotes/upstream/main &&"
+has "  and look for the bump there, not in FETCH_HEAD" "$out" "git merge-base --is-ancestor $BUMP refs/remotes/upstream/main ||"
+is "run as printed while main lacks the bump, as after a fast-forward refused, they send nothing and fail" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
+# A tag named like the branch, at the bump: a fetch by the short name takes it for the branch.
+git push -q upstream "$BUMP:refs/tags/main"
+is "nor do they while a tag named like the branch has the bump" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
+git push -q upstream :refs/tags/main
+git tag -d main >/dev/null 2>&1 || true
+landed "$BUMP"
+status_of "$BUMP"
+has "once main is the bump, the landing is still ready" "$out" "READY: every commit has passed"
+is "and run as printed, the tag is the subject alone, NEWS.md having no section for the version" \
+  "$(tag_as_printed v1.99.99.9001)" "$BUMP"$'\n''duckdb 1.99.99.9001'
+git tag -d v1.99.99.9001 >/dev/null
+git push -q upstream :refs/tags/v1.99.99.9001
+unlanded
+probe; write_bump 1.99.99.9001
+{ printf '# duckdb 1.99.99.9001\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
+commit "$bump_msg"
+NEWS_BUMP=$(git rev-parse HEAD)
+status_of "$NEWS_BUMP"
+has "a bump that writes the version's section is ready too" "$out" "READY: every commit has passed"
+landed "$NEWS_BUMP"
+is "and its tag carries the section below the subject" "$(tag_as_printed v1.99.99.9001)" \
+  "$NEWS_BUMP"$'\n''duckdb 1.99.99.9001'$'\n\n''## Features'$'\n\n''- Something for users.'
+git push -q upstream :refs/tags/v1.99.99.9001
+unlanded
+# That bump dropped, its local tag stays behind, and the one that replaces it lands.
+status_of "$BUMP"
+landed "$BUMP"
+is "run as printed over a stale local tag of that name, they send nothing and fail" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag block failed"$'\n'"upstream is unchanged"
+git tag -d v1.99.99.9001 >/dev/null
+unlanded
+git checkout -q -f main
+probe; write_bump 2.0.0
+{ printf '# duckdb 2.0.0\n\n## Features\n\n- The release.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
+commit 'chore: Bump version to 2.0.0'
+REL=$(git rev-parse HEAD)
+status_of "$REL"
+has "a bump to a release is ready" "$out" "READY: every commit has passed"
+has "and is tagged with .9900 appended to the release" "$out" "git tag -a v2.0.0.9900 --cleanup=whitespace -F - $REL"
+has "  which goes to the canonical repository" "$out" "git push upstream refs/tags/v2.0.0.9900"
+is "  never with the release's own tag" "$(grep -cE 'v2\.0\.0( |$)' <<<"$out" || true)" 0
+rel_msg="$REL"$'\n''duckdb 2.0.0.9900'$'\n\n''## Features'$'\n\n''- The release.'
+landed "$REL"
+is "run as printed once main has it, the tag carries the release's section below its own subject" \
+  "$(tag_as_printed v2.0.0.9900)" "$rel_msg"
+is "  and the release's own tag is not set" "$(git -C "$CANON" tag -l v2.0.0; git tag -l v2.0.0)" ""
+git tag -d v2.0.0.9900 >/dev/null
+git push -q upstream :refs/tags/v2.0.0.9900
+# The release's own tag, on another commit here and upstream.
+git tag -a -m 'duckdb 2.0.0' v2.0.0 "$TIP"
+git push -q upstream refs/tags/v2.0.0
+is "the release's own tag on another commit does not stop it" "$(tag_as_printed v2.0.0.9900)" "$rel_msg"
+is "  nor does it move" "$(git -C "$CANON" rev-parse 'refs/tags/v2.0.0^{commit}')" "$TIP"
+git push -q upstream :refs/tags/v2.0.0.9900
+git tag -f -a -m 'duckdb 2.0.0.9900' v2.0.0.9900 "$TIP" >/dev/null
+is "run as printed over a stale local tag of that name, they send nothing and fail" \
+  "$(tag_as_printed v2.0.0.9900)" "the tag block failed"$'\n'"upstream is unchanged"
+git tag -d v2.0.0 v2.0.0.9900 >/dev/null
+git push -q upstream :refs/tags/v2.0.0
+unlanded
+git checkout -q -f main
+dev_at "$BUMP"
 out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?
 is "the review takes it" "$st" 0
 hasnt "and does not call it out of place" "$out" "out of place"
@@ -439,7 +547,7 @@ refused "nor may it carry two Version: lines"
 probe
 refused_empty() { git commit -q --allow-empty -m "$bump_msg"; status_of "$(git rev-parse HEAD)"; is "an empty commit is refused" "$st" 1; git checkout -q -f main; }
 refused_empty
-probe; printf '%s\n\n# duckdb 1.99.99.9001\n\n- Something.\n' "$marker" > NEWS.md
+probe; printf '# duckdb 1.99.99.9001\n\n- Something.\n' > NEWS.md
 refused "a NEWS-only commit is refused"
 probe; write_bump 1.99.99.8999
 refused "a lowered version is refused" "does not raise the version"
@@ -455,7 +563,7 @@ BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another ve
 probe; write_bump 1.99.99.9001; printf '# duckdb 1.5.5\n\n- Old.\n' > NEWS.md
 commit "$bump_msg"
 status_of "$(git rev-parse HEAD)"
-has "NEWS.md is not the bump's: one without fledge's marker or a section of its own is a bump" "$out" "READY: every commit has passed"
+has "a bump that rewrites NEWS.md without the version's section is still READY" "$out" "READY: every commit has passed"
 git checkout -q -f main
 probe; write_bump 1.99.99.9001
 git checkout -q -f -B side "$TIP"; write_bump 1.99.99.9001; commit "$bump_msg"

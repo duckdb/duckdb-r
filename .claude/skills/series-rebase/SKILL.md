@@ -73,7 +73,9 @@ the merge backend omits patch-id equivalents,
 and a stage-4 sync commit whose delta `main` caught up with
 rebases to empty and is dropped too —
 which is the intended end of their lives.
-One that survives is one `main` does not carry;
+One that survives is one `main` does not carry,
+or a pick committed empty, which git keeps as it keeps every commit that starts empty
+([`scripts/series-port.sh`](/scripts/series-port.sh));
 it rides on, and the next forward retires it.
 
 ## One seed for all four
