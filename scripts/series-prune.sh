@@ -14,7 +14,11 @@
 # The test is ancestry: a forward whose green is an ancestor of the series'
 # green has been swapped in (the series moves on afterwards, so equality cannot
 # be the test, as scripts/series-check.sh says). A forward whose green is not
-# is live, and nothing of it is offered. Where no `<S>-fwd-dev` exists at all,
+# is live, and nothing of it is offered.
+# A forward's green that still sits below its seed, as at its birth, tells nothing by its ancestry,
+# since the series' green may have that commit too (`series_green_seeded`, scripts/series-lib.sh):
+# then its `-dev` is read against the series' `-dev`, as where it has no green.
+# Where no `<S>-fwd-dev` exists at all,
 # every remaining `<S>-fwd-*` ref and the ledger are litter by definition.
 #
 # Nothing here is lost by deletion:
@@ -84,19 +88,25 @@ if [ ${#fwd_refs[@]} -eq 0 ] && [ -z "$canon_has_fwd" ]; then
 fi
 
 litter=
-if have "$remote" "$S-fwd-green"; then
-  if git merge-base --is-ancestor "refs/remotes/$remote/$S-fwd-green" "refs/remotes/$remote/$S-green"; then
-    echo "  $S-fwd-green $(git rev-parse --short "refs/remotes/$remote/$S-fwd-green") is an ancestor of $S-green: the forward was swapped in"
+fwd_green=refs/remotes/$remote/$S-fwd-green fwd_dev=refs/remotes/$remote/$S-fwd-dev
+if have "$remote" "$S-fwd-green" && { ! have "$remote" "$S-fwd-dev" || series_green_seeded "$fwd_green" "$fwd_dev"; }; then
+  if git merge-base --is-ancestor "$fwd_green" "refs/remotes/$remote/$S-green"; then
+    echo "  $S-fwd-green $(git rev-parse --short "$fwd_green") is an ancestor of $S-green: the forward was swapped in"
     litter=1
   else
-    echo "  $S-fwd-green $(git rev-parse --short "refs/remotes/$remote/$S-fwd-green") is not an ancestor of $S-green: the forward is live"
+    echo "  $S-fwd-green $(git rev-parse --short "$fwd_green") is not an ancestor of $S-green: the forward is live"
   fi
 elif have "$remote" "$S-fwd-dev"; then
-  if git merge-base --is-ancestor "refs/remotes/$remote/$S-fwd-dev" "refs/remotes/$remote/$S-dev"; then
-    echo "  $S-fwd-dev is an ancestor of $S-dev, and no $S-fwd-green exists: the forward was swapped in"
+  green_said=", and no $S-fwd-green exists" live_said=", though it has no green"
+  if have "$remote" "$S-fwd-green"; then
+    echo "  $S-fwd-green $(git rev-parse --short "$fwd_green") sits below the seed of $S-fwd-dev, as at the forward's birth, which tells nothing"
+    green_said='' live_said=''
+  fi
+  if git merge-base --is-ancestor "$fwd_dev" "refs/remotes/$remote/$S-dev"; then
+    echo "  $S-fwd-dev is an ancestor of $S-dev$green_said: the forward was swapped in"
     litter=1
   else
-    echo "  $S-fwd-dev is not an ancestor of $S-dev: the forward is live, though it has no green"
+    echo "  $S-fwd-dev is not an ancestor of $S-dev: the forward is live$live_said"
   fi
 else
   echo "  no $S-fwd-dev exists: whatever is named $S-fwd-* is derived from nothing"

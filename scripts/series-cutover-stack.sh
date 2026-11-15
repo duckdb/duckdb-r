@@ -23,7 +23,11 @@
 # which is what the swap checks before it moves a ref.
 # Once the swap has run, `<S>-<X>` is the forward's tip, and `-fwd` refs a remote refused to delete may stay beside it:
 # a stack built then would move `1-main` onto the forward's lineage, and the head of an open pull request with it.
-# So the script refuses where `<S>-<X>` and `<S>-fwd-<X>` are one commit, or one is an ancestor of the other.
+# So the script refuses where `<S>-dev` and `<S>-fwd-dev` are one lineage:
+# where `<S>-dev` carries the seed of `<S>-fwd-dev`, which a forward's `-dev` never sits below,
+# and which the series' `-dev` carries only once the swap has put the forward's lineage in its place,
+# whatever was folded above the seed since; a forward's `-dev` without a seed is read by ancestry, either way.
+# The strand itself cannot tell: a forward's green sits below its seed at birth, on a commit the series' green may have too.
 #
 # The replay spans `main` from the old series' base to the forward's base,
 # each the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
@@ -65,12 +69,17 @@
 # A `2-engine` an earlier build pushed, which this one has no use for, is left where it is:
 # GitHub closes a pull request whose base branch is deleted, as the `3-fwd` one's is,
 # so the script prints the steps that retire it, for the session to take in their order.
+# Where the remote refuses a deletion, the `gh api` line it prints instead checks the tip first,
+# since the API takes no lease.
 #
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
-# which conflicts were resolved, and the diff stat.
-# Last come the pull requests to open, with repository, base, head and title.
-# --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves.
+# which conflicts were resolved, which commits of `main` `2-engine` carries the engine paths of, and the diff stat.
+# Last come the pull requests to open, with repository, base, head and title,
+# in the order the session links them into one GitHub stack.
+# The calls that link them are the skill's, since only the pull requests' numbers fill them in.
+# --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves,
+# and removes it again where the push is refused, so that no summary of a build that was never pushed is left behind.
 # The script reads no terminal: stdin is /dev/null, and a conflict stops the run for the next one to resume.
 #
 # Usage: series-cutover-stack.sh <series> <strand> [--remote <name>] [--upstream <path>] [--summary <file>] [--continue | --abort]
@@ -90,9 +99,9 @@
 #
 # Exit status:
 #   0  built and pushed.
-#   1  refused or failed, and nothing pushed: a ref missing, an old tip on the forward's lineage,
+#   1  refused or failed, and nothing pushed: a ref missing, a series on its forward's lineage,
 #      an engine that cannot be read, a stopped build in the way, a summary file that cannot be written,
-#      a lease the push lost.
+#      a push refused, a lease it lost among them, which removes the --summary file again.
 #      A rerun reads the refs anew.
 #   2  a usage error; nothing was read.
 #   3  stopped on a conflict, the worktree and the build kept for --continue; nothing was pushed.
@@ -285,9 +294,19 @@ else
   for L in 1-main 2-engine 3-fwd 4-old; do LEASE[$L]=${HEAD_OF[$cut/$L]:-}; done
   old=${HEAD_OF[$S-$X]} fwd=${HEAD_OF[$S-fwd-$X]}
 
-  # One lineage, as after the swap with the forward's refs left behind: a stack built on it would move the pin (see the header).
-  if git merge-base --is-ancestor "$old" "$fwd" || git merge-base --is-ancestor "$fwd" "$old"; then
-    echo "Error: $S-$X at $(short "$old") and $S-fwd-$X at $(short "$fwd") are one lineage, as after the swap" >&2
+  # One lineage, as after the swap with the forward's refs left behind: a stack built on it would move the pin.
+  # Read on `-dev`, by the forward's seed (see the header).
+  one_lineage() { # <series -dev> <forward -dev>
+    local seed
+    seed=$(series_seed_of "$2")
+    if [ -n "$seed" ]; then
+      git merge-base --is-ancestor "$seed" "$1"
+    else
+      git merge-base --is-ancestor "$2" "$1" || git merge-base --is-ancestor "$1" "$2"
+    fi
+  }
+  if one_lineage "${HEAD_OF[$S-dev]}" "${HEAD_OF[$S-fwd-dev]}"; then
+    echo "Error: $S-dev at $(short "${HEAD_OF[$S-dev]}") and $S-fwd-dev at $(short "${HEAD_OF[$S-fwd-dev]}") are one lineage, as after the swap" >&2
     echo "  with the forward's refs left behind: a stack built on it would move $cut/1-main off the old tip it pins." >&2
     echo "  Nothing was pushed. Delete the forward's refs, as scripts/series-prune.sh $S lists them." >&2
     exit 1
@@ -615,10 +634,10 @@ for L in "${layers[@]:1}"; do BELOW[$L]=$cut/$prev; prev=$L; done
 
 list_cap=200
 # shellcheck disable=SC2016  # Markdown backticks, not commands
-listed() { # <kind> <heading>: a list of the log's records of that kind
+listed() { # <kinds> <heading>: a list of the log's records of those kinds, `a|b` naming two
   local -a recs
   local n r c d
-  mapfile -t recs < <(awk -F'\t' -v k="$1" '$1 == k' "$STATE/log")
+  mapfile -t recs < <(awk -F'\t' -v k="$1" '$1 ~ ("^(" k ")$")' "$STATE/log")
   [ ${#recs[@]} -gt 0 ] || return 0
   printf '\n%s\n\n' "$2"
   for r in "${recs[@]:0:list_cap}"; do
@@ -701,6 +720,12 @@ section() { # <layer>
         printf 'its engine paths copied in, `patch/` aside, so that a change to the patch stack shows in the next layer.\n'
         upstream_count
       fi
+      if [ "$mode" = merge ]; then
+        printf '\nBeside vendoring, it carries the engine side of `main`'"'"'s changes, as the forward has it,\n'
+        printf 'which the three-way merge of `1-main` leaves out.\n'
+      else
+        listed 'pick-e|engine' 'Beside vendoring, it carries the engine paths of these commits of `main`, as the forward has them, which `1-main` replays without them or leaves out:'
+      fi
       ;;
     3-fwd) printf 'The tree of `%s` at `%s`.\n' "$S-fwd-$X" "$(short "$fwd")" ;;
     4-old) printf 'The tree of `%s` at `%s`, which the stack started from.\n' "$S-$X" "$(short "$old")" ;;
@@ -729,6 +754,7 @@ report=$tmp/report
   echo
   echo "As drafts, each layer into the one below it, its section above as the body;"
   echo "a pull request already open for a head takes this base, title and body instead."
+  echo "Then link them into one GitHub stack, in this order (.claude/skills/series-cutover/SKILL.md)."
   n=0
   for L in "${layers[@]}"; do
     n=$((n + 1))
@@ -743,13 +769,19 @@ report=$tmp/report
     echo
     echo "No longer in the stack: $stale, as the engine of $cut/1-main is now the forward's."
     echo "It is the base of the pull request of $cut/3-fwd, which GitHub would close if the branch went first,"
-    echo "so the branch is left where it is. Retire it in this order:"
+    echo "so the branch is left where it is. Retire it in this order,"
+    echo "with the GitHub stack of these pull requests taken apart first and linked again after (.claude/skills/series-cutover/SKILL.md):"
     echo
     echo "1. Retarget the pull request of $cut/3-fwd onto $cut/1-main."
     echo "2. Close the pull request of $stale."
     echo "3. Delete the branch, leased on the tip this run read:"
     echo "   git push --force-with-lease=refs/heads/$stale:${LEASE[2-engine]} $remote :refs/heads/$stale"
-    [ -z "$slug" ] || echo "   or, where the remote refuses a deletion: $(series_delete_line "$remote" "$stale")"
+    if [ -n "$slug" ]; then
+      echo "   or, where the remote refuses a deletion, checked against that tip first, since the API takes no lease:"
+      # shellcheck disable=SC2016  # a command for a person to run, printed as it stands
+      printf '   if [ "$(gh api repos/%s/git/ref/heads/%s --jq .object.sha)" = %s ]; then %s; else echo '"'"'%s is not at %s: read what moved before deleting it'"'"'; fi\n' \
+        "$slug" "$stale" "${LEASE[2-engine]}" "$(series_delete_line "$remote" "$stale")" "$stale" "${LEASE[2-engine]}"
+    fi
   fi
 } > "$report"
 
@@ -774,6 +806,14 @@ if ! out=$(git push "${push_args[@]}" "$remote" "${refspecs[@]}" 2>&1); then
   echo "Error: $S $X: the push was refused, and nothing moved:" >&2
   echo "  a branch of the stack moved since this run read it, or the remote refused the push. Built, not pushed:" >&2
   for L in "${layers[@]}"; do echo "  ${SHA[$L]} $cut/$L" >&2; done
+  # The summary describes this build, which no branch holds.
+  if [ -n "$summary" ]; then
+    if rm -f -- "$summary"; then
+      echo "  The summary written to $summary for this build is removed, since the build was not pushed." >&2
+    else
+      echo "  The summary written to $summary is of this build, which was not pushed, and it could not be removed: remove it." >&2
+    fi
+  fi
   keep=''
   exit 1
 fi

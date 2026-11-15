@@ -557,12 +557,14 @@ for S in "${series[@]}"; do
     git rev-parse -q --verify "$r" >/dev/null || { echo "$S: missing ${r#"$remote"/}, skipping"; continue 2; }
   done
   # cutover litter: a forward series whose green is an ancestor of its base's
-  # (the base moves on after cutover, so equality cannot be the test)
+  # (the base moves on after cutover, so equality cannot be the test),
+  # and stands above its own seed: at birth it sits below, where the base's green may have it too
+  # (series_green_seeded, scripts/series-lib.sh)
   cutover=""
   case "$S" in *-fwd)
     base=${S%-fwd}
     if git rev-parse -q --verify "$remote/$base-green" >/dev/null; then
-      if git merge-base --is-ancestor "$green" "$remote/$base-green"; then
+      if series_green_seeded "$green" "$dev" && git merge-base --is-ancestor "$green" "$remote/$base-green"; then
         echo "$S: green is an ancestor of $base's — cutover litter, ignoring"; continue
       fi
       # Ready to cut over once the forward green vendors the upstream commit the

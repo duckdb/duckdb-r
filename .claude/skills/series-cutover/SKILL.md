@@ -88,12 +88,41 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    `git add` the paths, and rerun with `--continue`.
    A conflict is also a reading for the review: where the forward made something else of it, that is a surprise (step 6).
    A `2-engine` an earlier build left and this one no longer needs stays where it is, and the run exits 9 with the steps that retire it:
-   take them in their order, which retargets the `3-fwd` pull request before the branch goes.
+   take them in their order, which retargets the `3-fwd` pull request before the branch goes,
+   with the strand's GitHub stack taken apart first and linked again after (step 4).
 4. **Open each stack's pull requests**, as the script's closing block lists them:
    as drafts in the fork, from the bottom up, each layer into the one below it,
    with its title, its section of the summary as body, and a link to the cutover pull request.
    Add the expectation for that strand and layer (below) to the body, so that the review reads against it.
    Link every stack's pull requests from the cutover pull request.
+
+   Then link each strand's pull requests into one GitHub stack, bottom to top, in the order the closing block lists them,
+   and record each stack's number beside its pull requests in the cutover pull request.
+   No GitHub tool does it, so it is the REST API, the pull request numbers unquoted:
+   the stack is created once the first two are open, and each later one is added on top, under the number the first call answers.
+   `<owner>/<repo>` is the repository the closing block names.
+
+   ```sh
+   gh api -X POST repos/<owner>/<repo>/stacks --input - <<<'{"pull_requests":[<1-main>,<next>]}' --jq .number
+   gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" repos/<owner>/<repo>/stacks/<number>/add --input - <<<'{"pull_requests":[<next>]}'
+   ```
+
+   Where `gh` cannot reach the API, hand the maintainer each stack's calls filled in, with no placeholder left,
+   as one fenced block that runs as it stands and prints the stack's number,
+   here for pull requests 72 to 75 of `krlmlr/duckdb-r`, the `vendor` stack of the `v2.0-cyanoptera` cutover:
+
+   ```sh
+   n=$(gh api -X POST repos/krlmlr/duckdb-r/stacks --input - <<<'{"pull_requests":[72,73]}' --jq .number) && echo "stack $n" &&
+     gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" "repos/krlmlr/duckdb-r/stacks/$n/add" --input - <<<'{"pull_requests":[74]}' &&
+     gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" "repos/krlmlr/duckdb-r/stacks/$n/add" --input - <<<'{"pull_requests":[75]}'
+   ```
+
+   A stack can be linked after the fact too, as that cutover's were, stacks 88 to 91 in the fork.
+   A stack also retargets each pull request as the one below it merges; these are closed, never merged, so it only groups them.
+   Where a rebuild changes which layers a strand has, take its stack apart before any base changes or pull request closes,
+   with `gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" repos/<owner>/<repo>/stacks/<number>/unstack`,
+   handed over the same way where `gh` cannot reach the API,
+   and link the pull requests again once they stand as the closing block lists them, recording the new number.
    The first pull request of each stack stays open until after the swap:
    its head is the pin that keeps the old tip reachable as `refs/pull/<n>/head`
    ([`branches/model/`](/handbook/branches/model/README.md)), and a closed pull request's head no longer follows its branch.
@@ -163,9 +192,9 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
 
 | Layer | `vendor` | `build` | `dev` and `green` |
 |---|---|---|---|
-| `1-main` | every commit of `main` applies without its engine paths, or is recorded | the same | the same; a commit the series ported is recorded as present |
-| `2-engine` | the forward's engine, where it differs: the upstream range it names, and the engine side of the commits `1-main` replays without it | the same | the same |
-| `3-fwd` | empty, but for `DESCRIPTION` where the version prefix or the package flavor differ (for example `1.5.5` against `2.0.0`, or `duckdb.dev` against `duckdb.2.0.dev`), and for the forward's own changes to `patch/` where the engines differ | `DESCRIPTION` as for `vendor`, its vendor counter included, and `patch/` as for `vendor`; the commits that differ, the forward's glue adaptations | `DESCRIPTION` as for `build`, and `patch/` as for `vendor`; the forward's own repairs and carries, each explained |
+| `1-main` | every commit of `main` applies without its engine paths, or is recorded; where the flavors differ, one that touches a file the flavor renames conflicts, as 3 of the 6 stops on `v2.0-cyanoptera`'s vendor strand did, and is resolved in the old flavor's names, so that the rename shows in `3-fwd` alone | the same | the same; a commit the series ported is recorded as present |
+| `2-engine` | the forward's engine, where it differs: the upstream range it names, and the engine side of the commits `1-main` replays without it, which its summary lists | the same | the same |
+| `3-fwd` | empty, but for the files the seed's `chore: Update version to` and flavor commits touch, where the version prefix or the flavor differ ([`scripts/flavor.sh`](/scripts/flavor.sh)): `DESCRIPTION` alone for `1.5.5` against `2.0.0`, the whole rename for `duckdb.dev` against `duckdb.2.0.dev`; and for the forward's own changes to `patch/` where the engines differ | the seed's files as for `vendor`, the vendor counter in `DESCRIPTION` included, and `patch/` as for `vendor`; the commits that differ, the forward's glue adaptations | the seed's files as for `build`, and `patch/` as for `vendor`; the forward's own repairs and carries, each explained |
 | `4-old` | roughly the inverse of the layers below | the same | the same |
 
 What `4-old` shows beyond that inverse is something the old series has and the forward does not, and it is read like a surprise.
