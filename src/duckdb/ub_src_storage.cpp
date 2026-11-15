@@ -22,6 +22,8 @@
 
 #include "src/storage/magic_bytes.cpp"
 
+#include "src/storage/object_cache.cpp"
+
 #include "src/storage/open_file_storage_extension.cpp"
 
 #include "src/storage/optimistic_data_writer.cpp"
