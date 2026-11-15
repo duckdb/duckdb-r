@@ -448,10 +448,13 @@ if [ "$B" = main ]; then
 else
   . scripts/series-lib.sh
   v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
-  if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
-    git commit -m "Merge $B $v forward into $N" -m "Keeps $N's engine: the vendored strand and its generated Makevars are $N's."
-  fi
-  if [ -z "$(git rev-list "upstream/$N..HEAD")" ]; then
+  unmerged=$(git diff --name-only --diff-filter=U)
+  if [ -n "$unmerged" ]; then
+    echo "unresolved conflicts: $(tr '\n' ' ' <<<"$unmerged")- resolve them, git add, and rerun" >&2
+  elif git rev-parse -q --verify MERGE_HEAD >/dev/null &&
+    ! git commit -m "Merge $B $v forward into $N" -m "Keeps $N's engine: the vendored strand and its generated Makevars are $N's."; then
+    echo "the merge commit failed; see above, and rerun" >&2
+  elif [ -z "$(git rev-list "upstream/$N..HEAD")" ]; then
     echo "nothing beyond $N: no pull request to open" >&2
   elif ! git diff --quiet "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"; then
     echo "the engine differs from $N's; fix the merge before pushing:" >&2
