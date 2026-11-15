@@ -424,7 +424,7 @@ and the line it shipped before keeps its release branch, parked.
    ```
 
 2. **Declare it**, in one pull request on `main` before the landing:
-   in [`scripts/series.yaml`](/scripts/series.yaml) the CRAN flavor's `upstream` and `publishes_from` become `<N>`,
+   in [`scripts/series.yaml`](/scripts/series.yaml) the CRAN flavor's `upstream` becomes `<N>`, its `publishes_from` stays `main`,
    the `<N>` series' `releases_from` becomes `<N>`, and `<P>`'s keeps `<P>`;
    then `.github/pull.yml` from `scripts/pull-config.sh` and the tables from `scripts/series-table.R`,
    checked with `--check` ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
