@@ -115,7 +115,7 @@ groups <- list(
     owner = "handbook/operations/vendoring/pipeline",
     globs = c(
       "VENDORING.md", "vendor.sh", "vendor-one.sh", "vendor-one-test.sh", "vendor-lib.sh", "rconfigure.py",
-      "merge-version.sh", "setup-git.sh"
+      "merge-version.sh", "merge-version-test.sh", "merge-news.sh", "merge-news-test.sh", "setup-git.sh"
     )
   ),
   list(
@@ -124,7 +124,7 @@ groups <- list(
   ),
   list(
     owner = "handbook/operations/releases/versioning",
-    globs = c("preview-prefix*")
+    globs = c("preview-prefix*", "landing-version*")
   ),
   list(
     owner = "handbook/operations/releases/cran",

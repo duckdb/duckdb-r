@@ -50,7 +50,7 @@ it is the unflavored mirror of `<S>-dev`, derived commit for commit
 ([`series-rc/SKILL.md`](/.claude/skills/series-rc/SKILL.md)).
 Nor are `<S>-alpha` and `<S>-rc-alpha`, each one stamp commit on a green commit or its rc twin
 ([`series-alpha/SKILL.md`](/.claude/skills/series-alpha/SKILL.md)).
-Nor is `<L>-land-dev` with its `<L>-land-green`, a line on its way onto `main`
+Nor is `<L>-land-dev` with its `<L>-land-green`, a batch on its way onto `main` or a release branch, `main-land-dev` among them
 ([`series-land/SKILL.md`](/.claude/skills/series-land/SKILL.md)).
 
 **All four refs exist from day one, and green starts below the flavor

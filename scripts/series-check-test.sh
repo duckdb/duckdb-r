@@ -18,6 +18,16 @@
 #   8. A refused download on its own is still a RETRY, and so is one beside a
 #      listing the install printed while the gate was deselected.
 #
+# And one report about branches rather than a red commit:
+#
+#   9. FORWARD-PORT counts the commits of each active release branch not
+#      yet merged forward into the next newer line, the newest into `main`:
+#      vendor commits and release paperwork by number, each R-side commit
+#      listed; none once the branch is merged forward. Nothing before a branch
+#      is cut or for a stale line, a quoted declaration reads the same, three
+#      lines chain oldest to newest, and a branch it cannot read, without a
+#      canonical remote or with no merge base, is reported as missing data.
+#
 # Usage:
 #   scripts/series-check-test.sh
 #
@@ -209,6 +219,99 @@ store '["pkgdown"]' "$(printf '::group::install\n%s\n* DONE (duckdb)\n::endgroup
 out=$(verdict)
 has "beside the install's own listing, with the gate deselected" "$out" "RETRY  $RED"
 hasnt "which is no warning" "$out" "vendored warning"
+
+echo "=== 9. what is not yet merged forward"
+CANON=$SCRATCH/canonical.git
+git init -q --bare -b main "$CANON"
+git remote add canon "$CANON"
+fwd() { UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical canon 2>&1 | sed -n '/^FORWARD-PORT/,$p'; }
+is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
+git checkout -q -b cmain main
+printf 'flavors:\n  - flavor: duckdb\n    kind: CRAN\n    upstream: "rel"\n    publishes_from: main\n  - flavor: duckdb.old.dev\n    kind: dev\n    series: old\n    releases_from: old\n    stale: true\n' > scripts/series.yaml
+git add -A; git commit -qm 'chore: Declare the flavors'
+git push -q canon cmain:main
+is "nothing before the line's branch is cut, and nothing for a stale line" "$(fwd)" ""
+
+git push -q -f origin cmain:main
+out=$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')
+has "without a canonical remote or a mirror, it says it could not read" "$out" "could not read rel beside main"
+
+git checkout -q -b rel cmain
+for e in bbbb222 bbbb223 bbbb224; do
+  echo "engine $e" > src/duckdb/engine.cpp
+  git commit -qam "vendor: Update vendored sources to duckdb/duckdb@$e"
+done
+echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
+printf 'Version: 9.9.0.9001\nImports: DBI (>= 1.2)\n' > DESCRIPTION
+git add -A; git commit -qm 'fix: Require DBI >= 1.2'
+DBI=$(git rev-parse HEAD)
+printf 'Version: 9.9.0.9002\nImports: DBI (>= 1.2)\n' > DESCRIPTION; echo '# duckdb 9.9.0.9002' > NEWS.md
+git add -A; git commit -qm 'Increment version number'
+printf 'Version: 9.9.0.9003\nImports: DBI (>= 1.2)\n' > DESCRIPTION; echo 'synced' > sync.R
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9003'
+SYNC=$(git rev-parse HEAD)
+echo 'fix c' > c.R; git add -A; git commit -qm 'fix: C, written on the release branch'
+C=$(git rev-parse HEAD)
+git push -q canon rel
+git checkout -q main
+out=$(fwd)
+has "it counts what is not yet merged forward" "$out" "rel has 8 commit(s) not yet merged forward into main:"
+has "vendor commits and paperwork by number, the R side listed" "$out" "3 vendor, 2 release paperwork, 3 R-side"
+has "a bump that also carries R-side files is listed" "$out" "$(git rev-parse --short "$SYNC") chore: Bump version to 9.9.0.9003"
+has "a DESCRIPTION change beyond the version is R-side" "$out" "$(git rev-parse --short "$DBI") fix: Require DBI >= 1.2"
+has "and so is an ordinary fix" "$out" "$(git rev-parse --short "$C") fix: C, written on the release branch"
+hasnt "a version-only change under another subject is paperwork" "$out" "Increment version number"
+hasnt "vendor commits are not listed one by one" "$out" "bbbb22"
+hasnt "nor a bump that is only paperwork" "$out" "Bump version to 9.9.0.9001"
+git push -q -f origin cmain:main rel:rel
+has "without a canonical remote it reads the fork's mirrors" \
+  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 8 commit(s)"
+
+# The forward merge, keeping main's engine.
+git checkout -q cmain
+git merge -q --no-commit --no-ff rel >/dev/null 2>&1 || true
+git checkout HEAD -- src/duckdb
+for f in DESCRIPTION NEWS.md; do git checkout HEAD -- "$f" 2>/dev/null || git rm -qf "$f"; done
+git add -A
+git commit -qm 'Merge rel forward into main'
+git push -q canon cmain:main
+git checkout -q main
+# A copy of main fetched before the merge is refreshed, not read stale.
+git update-ref "refs/remotes/canon/main" "$(git rev-parse cmain^1)"
+is "nothing once main has merged the branch forward" "$(fwd)" ""
+
+git checkout -q rel
+echo 'fix e' > e.R; git add -A; git commit -qm 'fix: E, after the merge'
+git push -q canon rel
+git checkout -q main
+out=$(fwd)
+has "a commit after the merge is listed alone" "$out" "rel has 1 commit(s) not yet merged forward into main:"
+hasnt "and nothing the merge took" "$out" "fix: C"
+
+# A third line: `rel` is merged forward into the newer release branch `rel2`,
+# and `rel2` into main.
+git checkout -q -b rel2 cmain
+echo 'fix g' > g.R; git add -A; git commit -qm 'fix: G, on the newer release branch'
+git push -q canon rel2
+git checkout -q cmain
+printf '  - flavor: duckdb.rel2.dev\n    kind: dev\n    series: rel2\n    releases_from: rel2\n' >> scripts/series.yaml
+git commit -qam 'chore: Declare the newer line'
+git push -q canon cmain:main
+git checkout -q main
+out=$(fwd)
+has "the older line is merged into the newer one" "$out" "rel has 1 commit(s) not yet merged forward into rel2:"
+has "and the newer one into main" "$out" "rel2 has 1 commit(s) not yet merged forward into main:"
+hasnt "and not the older one into main" "$out" "rel has 1 commit(s) not yet merged forward into main"
+
+git checkout -q --orphan lone
+git rm -rqf .
+echo 'unrelated' > u.R; git add -A; git commit -qm 'fix: On a history of its own'
+git push -q -f canon lone:rel2
+git checkout -q -f main
+out=$(fwd)
+has "a branch with no merge base is missing data" "$out" "could not read rel2 beside main, or their merge base"
+hasnt "rather than owing all of it" "$out" "On a history of its own"
 
 echo
 echo "$pass passed, $fail failed"

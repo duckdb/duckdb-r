@@ -30,6 +30,14 @@
 # The vendor counter is kept: the chain does not restart, so the fifth component
 # carries over and the version still rises.
 #
+# **A fourth component above `.9000` is stamped already.** Once `main` itself
+# carries the prefix of the line it previews, `2.0.99` while upstream `main`
+# heads for 2.1, its fourth component counts landings and the bumps between them
+# (handbook/operations/releases/versioning/README.md), and a seed regenerated on
+# it takes whatever that counter has reached, `2.0.99.9004.0`. That is the
+# previewed line's prefix, and lowering it to `.9000` is what the gate below
+# would refuse, so the prefix is owed only where the three components differ.
+#
 # Usage: preview-prefix.sh [--line <a.b>] [--check]
 #   --line <a.b>  the line being previewed, where the engine cannot say.
 #   --check       report and write nothing; exit 1 if the prefix is not stamped.
@@ -99,6 +107,13 @@ fi
 cur=$("$gnu_sed" -rn 's/^Version: (.*)$/\1/p' DESCRIPTION)
 counter=$(printf '%s\n' "$cur" | "$gnu_sed" -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)$/\1/p')
 want=$prefix${counter:+.$counter}
+# The previewed line's three components with a fourth of `.9000` or more, the
+# counter `main` advances once it carries this prefix, is the prefix stamped.
+cur3=$(printf '%s\n' "$cur" | "$gnu_sed" -rn 's/^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+(\.[0-9]+)?$/\1/p')
+cur4=$(printf '%s\n' "$cur" | "$gnu_sed" -rn 's/^[0-9]+\.[0-9]+\.[0-9]+\.([0-9]+)(\.[0-9]+)?$/\1/p')
+if [ -n "$cur3" ] && [ "$cur3" = "${prefix%.9000}" ] && [ "$cur4" -ge 9000 ]; then
+  want=$cur
+fi
 
 # A released line keeps the version it was seeded with, and the prefix owed to a
 # preview line would be a downgrade here -- `1.5.5.9020.47` reporting as owing
