@@ -244,3 +244,22 @@ series_delete_line() { # <remote> <branch> -> one command
     echo "git push --delete $1 $2"
   fi
 }
+
+# Keep this side's engine through a merge in progress, a forward merge of an
+# older release branch (handbook/branches/model/): the vendored strand and the
+# Makevars generated from it, as HEAD has them, whatever the merge did to them
+# -- conflicted, added by the other side, modified on one side and deleted on
+# the other. Succeeds when those paths match HEAD afterwards, in the index and
+# the tree alike.
+series_keep_engine() {
+  local -a paths=("${series_strand[@]}" "${series_makevars[@]}")
+  local p
+  git rm -rq --cached --ignore-unmatch -- "${paths[@]}" >/dev/null
+  for p in "${paths[@]}"; do
+    if [ -n "$(git ls-tree --name-only HEAD -- "$p")" ]; then
+      git checkout HEAD -- "$p"
+    fi
+  done
+  git clean -fdq -- "${paths[@]}"
+  git diff --quiet HEAD -- "${paths[@]}" && git diff --cached --quiet HEAD -- "${paths[@]}"
+}

@@ -19,6 +19,9 @@
 #      a merge that keeps the engine never answers the base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches.
+#   7. A forward merge that conflicts in the engine, the version file and the
+#      Makevars, adds an engine file and deletes a patch the other side changed
+#      keeps this side's engine byte for byte, and merges the R side.
 #
 # The engine's own formats are the block right below the helpers: what a tree
 # holds for `series_engine_of()` and `series_stamped_version()` to read, where
@@ -118,6 +121,7 @@ is "the carry filter keeps the fix and drops the rest" "$carried" "src/glue.cpp 
 is "nothing to carry is not an error" "$(printf '%s\n' DESCRIPTION | series_carry_filter; echo "rc=$?")" "rc=0"
 is "a glob in a configured path matches as a pathspec does" \
   "$(series_strand=('R/aaa-*.R'); series_in_strand R/aaa-two.R && echo yes)" yes
+# shellcheck disable=SC2030  # a subshell's own configuration, on purpose
 is "and not beyond its directory" \
   "$(series_strand=('R/aaa-*.R'); series_in_strand src/R/aaa-two.R || echo no)" no
 tooling_re=$(series_tooling_re)
@@ -207,6 +211,51 @@ is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-d
 git config remote.proxied.github o/r
 is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
 is "and then with one gh api call per branch" "$(series_delete_line proxied b-fwd-dev)" "gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev"
+
+echo "--- 7. a forward merge keeps this side's engine"
+KE=$SCRATCH/keep-engine
+git init -q -b main "$KE"
+cd "$KE"
+git config user.name Test
+git config user.email test@example.invalid
+git config commit.gpgsign false
+mkdir -p src/duckdb patch R src/include
+printf 'engine base\n' > src/duckdb/a.cpp
+printf 'patch base\n' > patch/0001-fix.patch
+printf 'duckdb_version <- "base"\n' > R/version.R
+printf 'SOURCES = base\n' > src/include/sources.mk
+printf 'OBJECTS = base\n' > src/Makevars
+printf 'f <- 1\n' > R/f.R
+git add -A; git commit -qm base
+git checkout -q -b rel
+printf 'engine rel\n' > src/duckdb/a.cpp
+printf 'added by rel\n' > src/duckdb/new.cpp
+git rm -q patch/0001-fix.patch
+printf 'duckdb_version <- "rel"\n' > R/version.R
+printf 'OBJECTS = rel\n' > src/Makevars
+printf 'f <- 2\n' > R/f.R
+git add -A; git commit -qm 'vendor and fix on the release branch'
+git checkout -q main
+printf 'engine main\n' > src/duckdb/a.cpp
+printf 'patch main\n' > patch/0001-fix.patch
+printf 'duckdb_version <- "main"\n' > R/version.R
+printf 'OBJECTS = main\n' > src/Makevars
+git add -A; git commit -qm 'main moves its engine'
+# shellcheck disable=SC2031  # the array is the configuration's, unchanged here
+engine_before=$(git ls-tree -r HEAD -- "${series_strand[@]}" "${series_makevars[@]}")
+git merge -q --no-commit --no-ff rel >/dev/null 2>&1 || true
+is "the merge stops on conflicts" "$(git diff --name-only --diff-filter=U | sort | tr '\n' ' ')" \
+  "R/version.R patch/0001-fix.patch src/Makevars src/duckdb/a.cpp "
+series_keep_engine && st=0 || st=$?
+is "keeping the engine succeeds" "$st" 0
+is "and leaves nothing unmerged" "$(git diff --name-only --diff-filter=U | wc -l)" 0
+is "nor the file the release branch added" "$( [ -e src/duckdb/new.cpp ] && echo there || echo gone)" gone
+is "while the R side is merged" "$(git diff --cached --name-only)" "R/f.R"
+git commit -qm 'Merge rel forward'
+# shellcheck disable=SC2031
+is "the engine is byte for byte this side's" "$(git ls-tree -r HEAD -- "${series_strand[@]}" "${series_makevars[@]}")" "$engine_before"
+is "and the merge has both parents" "$(git rev-list --parents -n 1 HEAD | wc -w)" 3
+cd "$SCRATCH"
 
 echo
 echo "$pass passed, $fail failed"
