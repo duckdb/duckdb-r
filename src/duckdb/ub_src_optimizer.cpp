@@ -86,6 +86,8 @@
 
 #include "src/optimizer/remove_duplicate_groups.cpp"
 
+#include "src/optimizer/remove_redundant_order.cpp"
+
 #include "src/optimizer/remove_redundant_order_keys.cpp"
 
 #include "src/optimizer/remove_unused_columns.cpp"
