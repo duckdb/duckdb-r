@@ -198,6 +198,10 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
     ```
 
     It deletes a branch only where the pull request is closed and its head is the branch's tip, and refuses anything else.
+    A ref no pull request's head pins, such as litter the swap left, gets a tip-checked `gh api -X DELETE` line instead,
+    which is the maintainer's to run, never the session's.
+    A dispatch answers 204 and nothing more, so confirm each deletion afterwards with `git ls-remote --heads <fork> <branch>`,
+    or by the run's conclusion.
     The workflow runs from the copy on the repository's `main`, so in the fork it works only once the fork's `main` carries the file;
     until then, hand the exact dispatch lines to whoever can reach the fork, beside what the swap left behind, as it printed it.
     A litter ref's deletion loses nothing, but a moved ref may hold commits no other ref has, so what moved is read first,

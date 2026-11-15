@@ -17,7 +17,9 @@
 #   - a pull request that is not closed, since deleting its head branch would
 #     close it, or whose state cannot be read.
 # Both tips are read with one `git ls-remote`. The deletion is leased on the
-# branch tip read, so a branch that moved since is not deleted.
+# branch tip read, so a branch that moved since is not deleted. A pull request
+# reopened between the read of its state and the push is closed by the
+# deletion; its commits stay under its `refs/pull/<n>/head`.
 #
 # Usage:
 #   scripts/delete-branch.sh <branch> <pr>
@@ -93,6 +95,6 @@ case "${state}" in
 esac
 
 if ! git push --force-with-lease="refs/heads/${branch}:${tip}" "${REMOTE}" ":refs/heads/${branch}"; then
-  refuse "the leased deletion was rejected; the branch may have moved since ${tip} was read"
+  refuse "push rejected (lease, protection or ruleset); see the log above"
 fi
 report "delete-branch: deleted ${branch} at ${tip}, the head of closed pull request #${pr} in ${REPO}"

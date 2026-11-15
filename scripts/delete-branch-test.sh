@@ -133,7 +133,7 @@ exec $(command -v git) "\$@"
 EOF
 chmod +x "$SCRATCH/movebin/git"
 out=$(PATH="$SCRATCH/movebin:$PATH" run a 1)
-has "the leased deletion is refused" "$out" "the leased deletion was rejected"
+has "the leased deletion is refused" "$out" "push rejected (lease, protection or ruleset); see the log above"
 is "and the moved branch is kept" "$(tip a)" "$B"
 
 echo
