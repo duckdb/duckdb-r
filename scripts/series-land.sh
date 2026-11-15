@@ -329,8 +329,13 @@ is_bump() { # <commit>
 # The commands that tag <bump> once the branch has it: the annotated tag
 # `v<version>`, its message the subject `duckdb <version>` and then the section
 # NEWS.md has for that version, if it has one, read the way the release process
-# reads it (handbook/operations/releases/versioning/README.md). A release's
-# version is tagged when the release is published, so only a line says so.
+# reads it (handbook/operations/releases/versioning/README.md). They are one
+# chain, each command run only if the one before succeeded, so pasted as
+# printed they stop at the first failure and exit with it: they tag nothing the
+# branch, fetched from the canonical repository first, does not have, so a
+# fast-forward refused leaves the bump untagged, and push no tag they did not
+# create, so a stale local tag of that name never goes up. A release's version
+# is tagged when the release is published, so only a line says so.
 tag_commands() { # <bump>
   local v
   v=$(git show "$1:DESCRIPTION" | sed -n 's/^Version: //p')
@@ -341,10 +346,12 @@ tag_commands() { # <bump>
   fi
   # The `\n` are the printed command's own, for its printf.
   printf '%s\n' \
-    "Then tag it on $canonical, with NEWS.md's section for $v below the subject if there is one:" \
-    "  { printf 'duckdb %s\n\n' $v; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
-    "    git tag -a v$v --cleanup=whitespace -F - $1" \
-    "  git push $canonical refs/tags/v$v"
+    "Then tag it on $canonical once $onto has it, with NEWS.md's section for $v below the subject if there is one:" \
+    "  git fetch -q $canonical $onto &&" \
+    "    { git merge-base --is-ancestor $1 FETCH_HEAD || { echo 'Not tagged: $onto on $canonical does not have $1.' >&2; false; }; } &&" \
+    "    { printf 'duckdb %s\n\n' $v; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
+    "    git tag -a v$v --cleanup=whitespace -F - $1 &&" \
+    "    git push $canonical refs/tags/v$v"
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor

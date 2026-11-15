@@ -31,9 +31,10 @@
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
 #      commit vendors, with nothing above it, whatever NEWS.md holds; a rebuild
 #      drops a bump added to the kept worktree. The tag commands printed with
-#      the fast-forward, run as printed, tag the bump `duckdb <version>`, with
-#      NEWS.md's section for it below where there is one, and a release's
-#      version is left to the release.
+#      the fast-forward, run as printed once `main` has the bump, tag it
+#      `duckdb <version>`, with NEWS.md's section for it below where there is
+#      one; run before that, or over a stale local tag of that name, they fail
+#      and send nothing. A release's version is left to the release.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -365,17 +366,25 @@ ENGINE_FULL=dddd444000000000000000000000000000000000
 write_bump() { # <version> [<engine record>]
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
 }
-# Runs the tag commands --status printed, as a maintainer pastes them, and
-# prints the tag's target and message.
+# Runs the tag commands --status printed, as a maintainer pastes them, with
+# nothing to stop them at a failure but themselves, and prints whether they
+# failed, then the tag's target and message upstream, or that upstream is as it
+# was.
 tag_as_printed() { # <tag>
+  local refs
   sed -n '/^Then tag it on /,$p' <<<"$out" | tail -n +2 | sed 's/^  //' > "$SCRATCH/tag-commands"
-  bash -e "$SCRATCH/tag-commands" >/dev/null 2>&1 || echo "the tag commands failed"
+  refs=$(git -C "$CANON" for-each-ref)
+  bash "$SCRATCH/tag-commands" >/dev/null 2>&1 || echo "the tag commands failed"
+  [ "$(git -C "$CANON" for-each-ref)" != "$refs" ] || { echo "upstream is unchanged"; return; }
   git -C "$CANON" rev-parse -q --verify "refs/tags/$1^{commit}" || echo "no $1 on upstream"
   git -C "$CANON" tag -l --format='%(contents)' "$1"
 }
+# The fast-forward --status prints, and its undoing.
+landed() { git push -q upstream "$1:refs/heads/main"; }
+unlanded() { git push -q -f upstream "$M:refs/heads/main"; }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
-  passed "$1"
+  git cat-file -e "rcc2:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || passed "$1"
   out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
   [ -z "${KEEP:-}" ] || echo "$out"
 }
@@ -401,10 +410,16 @@ has "the landing ending on the bump is ready" "$out" "READY: every commit has pa
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 has "and so does the tag" "$out" "git tag -a v1.99.99.9001 --cleanup=whitespace -F - $BUMP"
 has "which goes to the canonical repository" "$out" "git push upstream refs/tags/v1.99.99.9001"
-is "run as printed, the tag is the subject alone, NEWS.md having no section for the version" \
+is "run as printed while main lacks the bump, as after a fast-forward refused, they send nothing and fail" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+landed "$BUMP"
+status_of "$BUMP"
+has "once main is the bump, the landing is still ready" "$out" "READY: every commit has passed"
+is "and run as printed, the tag is the subject alone, NEWS.md having no section for the version" \
   "$(tag_as_printed v1.99.99.9001)" "$BUMP"$'\n''duckdb 1.99.99.9001'
 git tag -d v1.99.99.9001 >/dev/null
 git push -q upstream :refs/tags/v1.99.99.9001
+unlanded
 probe; write_bump 1.99.99.9001
 { printf '# duckdb 1.99.99.9001\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
 mv NEWS.md.new NEWS.md
@@ -412,10 +427,18 @@ commit "$bump_msg"
 NEWS_BUMP=$(git rev-parse HEAD)
 status_of "$NEWS_BUMP"
 has "a bump that writes the version's section is ready too" "$out" "READY: every commit has passed"
+landed "$NEWS_BUMP"
 is "and its tag carries the section below the subject" "$(tag_as_printed v1.99.99.9001)" \
   "$NEWS_BUMP"$'\n''duckdb 1.99.99.9001'$'\n\n''## Features'$'\n\n''- Something for users.'
-git tag -d v1.99.99.9001 >/dev/null
 git push -q upstream :refs/tags/v1.99.99.9001
+unlanded
+# That bump dropped, its local tag stays behind, and the one that replaces it lands.
+status_of "$BUMP"
+landed "$BUMP"
+is "run as printed over a stale local tag of that name, they send nothing and fail" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+git tag -d v1.99.99.9001 >/dev/null
+unlanded
 git checkout -q -f main
 probe; write_bump 2.0.0
 commit 'chore: Bump version to 2.0.0'
