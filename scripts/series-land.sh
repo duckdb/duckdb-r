@@ -267,7 +267,8 @@ bump_subject='chore: Bump version to '
 bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
 # Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
 # and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
-# `Version:` line, which rises and is the version the subject names, and its one
+# `Version:` line, which has at most four components, rises and is the version
+# the subject names, and its one
 # `Config/duckdb/upstream:` line, the full SHA of the engine the landing's last
 # vendor commit vendors; and its
 # `NEWS.md` starts with fledge's marker line and has a section for that version
@@ -286,21 +287,6 @@ is_bump() { # <commit>
     { echo "DESCRIPTION does not have exactly one Version: line"; return 1; }
   old=$(git show "$c~1:DESCRIPTION" | sed -n 's/^Version: //p')
   new=$(git show "$c:DESCRIPTION" | sed -n 's/^Version: //p')
-  # shellcheck disable=SC2015
-  [ "$old" != "$new" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] ||
-    { echo "does not raise the version from $old"; return 1; }
-  # Nor may it fall to or below the branch landed on: every landing there took
-  # the fourth component one up and a tag of that version, and a series not
-  # forwarded since still stamps an older one, so the landing's bump is the next
-  # one above the branch's, not above the series'
-  # (handbook/operations/releases/versioning/README.md). Where that branch is
-  # `main`, the only bump this refuses that the rule above let through is one
-  # that would lower `main`'s own version, which no landing meant.
-  local onto_v
-  onto_v=$(git show "$main:DESCRIPTION" | sed -n 's/^Version: //p')
-  # shellcheck disable=SC2015
-  [ "$onto_v" != "$new" ] && [ "$(printf '%s\n%s\n' "$onto_v" "$new" | sort -V | tail -n 1)" = "$new" ] ||
-    { echo "does not raise the version above $onto's $onto_v"; return 1; }
   # The engine record: the full SHA, which the vendored tree abbreviates in its
   # DUCKDB_SOURCE_ID (series_engine_of, scripts/series-config.sh), the one
   # place every vendor commit records its engine whatever its subject says.
@@ -314,6 +300,27 @@ is_bump() { # <commit>
   # shellcheck disable=SC2015
   [ -n "$eng" ] && [[ "$up" == "$eng"* ]] ||
     { echo "Config/duckdb/upstream: $up is not the engine the landing vendors, ${eng:-none}"; return 1; }
+  # The bump drops the vendor counter, so it is held to the series' version
+  # without it: `main`'s first landing bumps to the very `2.0.99.9000` the
+  # series stamps `2.0.99.9000.<n>` under, and later ones above it
+  # (handbook/operations/releases/versioning/README.md).
+  [[ "$new" != *.*.*.*.* ]] || { echo "keeps a fifth component, $new"; return 1; }
+  local old4
+  old4=$(cut -d. -f1-4 <<<"$old")
+  [ "$(printf '%s\n%s\n' "$old4" "$new" | sort -V | tail -n 1)" = "$new" ] ||
+    { echo "does not raise the version from $old"; return 1; }
+  # Nor may it fall to or below the branch landed on: every landing there took
+  # the fourth component one up and a tag of that version, and a series not
+  # forwarded since still stamps an older one, so the landing's bump is the next
+  # one above the branch's, not above the series'
+  # (handbook/operations/releases/versioning/README.md). Where that branch is
+  # `main`, the only bump this refuses that the rule above let through is one
+  # that would lower `main`'s own version, which no landing meant.
+  local onto_v
+  onto_v=$(git show "$main:DESCRIPTION" | sed -n 's/^Version: //p')
+  # shellcheck disable=SC2015
+  [ "$onto_v" != "$new" ] && [ "$(printf '%s\n%s\n' "$onto_v" "$new" | sort -V | tail -n 1)" = "$new" ] ||
+    { echo "does not raise the version above $onto's $onto_v"; return 1; }
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }

@@ -442,8 +442,15 @@ refused_empty() { git commit -q --allow-empty -m "$bump_msg"; status_of "$(git r
 refused_empty
 probe; printf '%s\n\n# duckdb 1.99.99.9001\n\n- Something.\n' "$marker" > NEWS.md
 refused "a NEWS-only commit is refused"
-probe; write_bump 1.99.99.9000.2
+probe; write_bump 1.99.99.8999
 refused "a lowered version is refused" "does not raise the version"
+probe; write_bump 1.99.99.9001.1
+refused "a version that keeps a fifth component is refused" "keeps a fifth component"
+probe; write_bump 1.99.99.9000
+commit 'chore: Bump version to 1.99.99.9000 with hand-written release notes'
+status_of "$(git rev-parse HEAD)"
+has "the series' version without its vendor counter is a bump, a first landing's" "$out" "READY: every commit has passed"
+git checkout -q -f main
 probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
 refused "a deleted NEWS.md is refused"
 probe; write_bump 1.99.99.9001
