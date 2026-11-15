@@ -228,7 +228,11 @@ if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; the
   exit 1
 fi
 # `main` holds the tip of the branch landed on, --onto's, whatever its name.
-git fetch -q "$canonical" "$onto"
+if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
+  echo "Error: could not fetch $onto from $canonical, the branch --onto names:" >&2
+  echo "$err" >&2
+  exit 1
+fi
 main=$(git rev-parse -q --verify "refs/remotes/$canonical/$onto" || git rev-parse FETCH_HEAD)
 
 dev_ref="refs/remotes/$remote/$L-land-dev"

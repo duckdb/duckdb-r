@@ -46,7 +46,8 @@
 #  15. --onto names the branch landed on in `main`'s place: the build stands
 #      on its tip, --status prints its fast-forward, --review targets it, and
 #      the version bump has to rise above that branch's version too. A kept
-#      build resumes onto the branch it was started on and refuses another.
+#      build resumes onto the branch it was started on and refuses another, and
+#      a branch the canonical remote lacks is refused with its name.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -731,6 +732,9 @@ has "  and says which branch the kept build lands onto" "$out" "lands onto rel, 
 out=$(scripts/series-land.sh v2.0-x-fwd --status --onto main 2>&1) && st=0 || st=$?
 is "and so is --status onto another branch" "$st" 1
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto nowhere 2>&1) && st=0 || st=$?
+is "a branch the canonical remote lacks is refused" "$st" 1
+has "  with the branch named" "$out" "could not fetch nowhere from upstream, the branch --onto names"
 
 echo
 echo "$pass passed, $fail failed"
