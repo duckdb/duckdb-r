@@ -317,7 +317,7 @@ what stays is cutover litter.
 The run lists each ref it left with the `gh api -X DELETE` line that removes it, and exits 9:
 the swap stands, and the deletion is somebody's to run by hand.
 The loop ignores a forward series
-whose green is an ancestor of its base series' green,
+whose green, above its own seed, is an ancestor of its base series' green,
 and
 
 ```sh

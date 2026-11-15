@@ -12,9 +12,10 @@
 #      `engine_before()` makes.
 #   4. The strand, the regenerated files, the carry filter and the tooling
 #      expression, read from the configured paths rather than from literals.
-#   5. On a repository: the seed, the base scan past a non-vendor commit in the
-#      scan directory, its bound, the `-build` equivalent of a re-stamped
-#      commit, and the engine and the stamp read off a tree.
+#   5. On a repository: the seed, whether a green stands above it, the base
+#      scan past a non-vendor commit in the scan directory, its bound, the
+#      `-build` equivalent of a re-stamped commit, and the engine and the stamp
+#      read off a tree.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches.
 #
@@ -143,6 +144,9 @@ echo 'c' > "$series_scan_dir/a"
 fix=$(c "fix: a patch applied in the vendored tree")
 is "the seed" "$(series_seed_of HEAD)" "$seed"
 is "no seed below it" "$(series_seed_of "$seed~1")" ""
+is "a green above its seed stands on it" "$(series_green_seeded "$v1" HEAD && echo yes)" yes
+is "one below its seed, as at a forward's birth, does not" "$(series_green_seeded "$seed~1" HEAD || echo no)" no
+is "and a -dev with no seed asks for none" "$(series_green_seeded "$seed~1" "$seed~1" && echo yes)" yes
 is "the base scan looks past a non-vendor commit in the scan directory" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
 is "and says so when the bound is reached" \
   "$(base_scan_depth=1 series_vendored_sha HEAD 2>&1 >/dev/null | head -n 1)" \

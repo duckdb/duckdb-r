@@ -90,6 +90,17 @@ series_seed_of() { # <ref> -> commit, empty when none
   git log --first-parent --format=%H --grep="^$re\$" -1 "$1"
 }
 
+# Does a forward's green stand above its own seed?
+# At birth it sits on the commit the seed sits on, below the flavor commits (.claude/skills/series-forward/SKILL.md),
+# which the green of the series it forwards may have too without any swap,
+# so only a green above its seed tells cutover litter by ancestry (scripts/series-check.sh, scripts/series-prune.sh).
+# A `-dev` with no seed answers yes, as these read before seeds were.
+series_green_seeded() { # <green> <-dev>: status 0 when <green> carries the seed of <-dev>, or <-dev> has none
+  local seed
+  seed=$(series_seed_of "$2")
+  [ -z "$seed" ] || git merge-base --is-ancestor "$seed" "$1"
+}
+
 # Is a path on the vendored strand, including the Makevars generated from it?
 # A configured entry is a path or a glob, and matches itself or anything under it.
 series_in_strand() { # <path>

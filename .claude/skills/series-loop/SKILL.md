@@ -37,7 +37,7 @@ and `vendored_sha()` looks past non-vendor commits 20 deep and says so on stderr
 **A series is discovered, not configured**:
 every `<X>-build` with a sibling `<X>-dev` is a series the firing serves, base and forward alike.
 Not a series, and given no stage:
-a forward whose green is an ancestor of its base's green (cutover litter pending deletion),
+a forward whose green, above its own seed, is an ancestor of its base's green (cutover litter pending deletion),
 `<S>-rc-dev`, `<S>-alpha` and `<S>-rc-alpha` (derived strands),
 `<L>-land-*` (a landing),
 and `<S>-vendor` (the vendor strand the buffer is derived from, which stage 1 serves).
