@@ -177,11 +177,14 @@ What stays judgement:
   commit it with the commands the script prints,
   which forget what rerere recorded of the pick, as a clean pick does,
   and keep the pick's message, trailer and author, push,
-  and run the rerun it prints for the rest, if it prints one,
-  never a bare `--apply` after naming SHAs, which would fill the default set again
+  and run the rerun it prints for the rest, if it prints one
   (reruns are exact:
   clean picks of commits that left `NEWS.md` alone dedupe by patch-id,
-  every other pick, an empty one included, by its `cherry picked from` trailer);
+  every other pick, an empty one included, by its `cherry picked from` trailer).
+  After naming SHAs, a bare `--apply` fills the default set again.
+  On a series that is not frozen that is what the named SHAs left out, so never run one there:
+  the tooling sync waits for the next `--apply`.
+  On a frozen series the set is empty, so the bare `--apply` the script prints ports nothing and finishes the sync;
 - an OTHER commit that cannot work against this series' engine —
   apply an explicit subset without it,
   fix it on `main` (a guard, a runtime seam),

@@ -575,13 +575,19 @@ for i in "${!picks[@]}"; do
     echo "the empty commit is what carries the trailer that retires the pick."
     echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
     echo "  git worktree remove --force $wt"
-    # Named SHAs resume with the ones left, and with none left there is nothing
-    # to resume: a bare --apply fills the default set again, and on a series
-    # that is not frozen that ports what the named subset left out.
+    # Named SHAs resume with the ones left. With none left, the rerun is a bare
+    # --apply, which fills the default set again: empty on a frozen series, so
+    # there it only finishes the tooling sync, and on any other series what the
+    # named subset left out, so there the sync waits for the next --apply.
     if [ $# -eq 0 ]; then
       echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"
     elif [ $((i + 1)) -lt ${#picks[@]} ]; then
       echo "  scripts/series-port.sh $S --apply ${picks[*]:i+1}    # finish: the rest + sync"
+    elif [ -n "$frozen" ]; then
+      echo "  scripts/series-port.sh $S --apply    # finish: the tooling sync; frozen, it ports nothing"
+    else
+      echo "The tooling sync waits for the next --apply: a bare one now would"
+      echo "port what the named commits left out."
     fi
     exit 1
   fi

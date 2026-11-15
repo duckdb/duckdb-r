@@ -34,9 +34,13 @@
 #      a `---` line above its trailers, one already ending in a cherry-pick
 #      line, one with CRLF line ends and one with trailing whitespace.
 #   9. A conflict on the last commit named by hand prints no rerun, because a
-#      bare --apply would port what the named subset left out; one on an
-#      earlier commit prints a rerun with the commits named after it. The
-#      commands it prints forget what rerere recorded, as a clean pick does.
+#      bare --apply would port what the named subset left out, and says the
+#      tooling sync waits; one on an earlier commit prints a rerun with the
+#      commits named after it. The commands it prints forget what rerere
+#      recorded, as a clean pick does.
+#  10. On a frozen series the default set is empty, so a conflict on the only
+#      commit named prints the bare --apply, and running it adds the tooling
+#      sync and nothing else.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -446,6 +450,7 @@ if [ "$st" != 0 ]; then ok "a conflict on the last named commit stops the port";
 has "after the commit before it is picked" "$out_last" "picked $(git rev-parse --short "$CLEAN") feat: Code that applies"
 has "and names the conflicted file" "$out_last" '  R/flavor.R'
 hasnt "with nothing named left, it prints no rerun" "$out_last" 'series-port.sh t --apply'
+has "and says the tooling sync waits for the next --apply" "$out_last" 'The tooling sync waits for the next --apply'
 
 # The printed commands, run after a resolution that keeps the series' file: the
 # resolution is empty, the commit still carries the whole message, and rerere
@@ -481,6 +486,63 @@ out_first=$(scripts/series-port.sh t --apply "$CONFLICT" "$CLEAN" 2>&1) && st=0 
 has "a conflict on an earlier named commit prints a rerun with the rest" "$out_first" "scripts/series-port.sh t --apply $CLEAN "
 wt=$(kept_at "$out_first")
 [ -z "$wt" ] || git worktree remove --force "$wt"
+
+echo
+echo "series-port.sh: a conflict on a frozen series"
+# A line parked on its own baseline, and `main` moving its tooling and the file
+# the line flavors. The one commit named conflicts, and the bare --apply is
+# what finishes the port, since on this series it takes nothing else. The
+# tooling `main` gains includes a `.claude/`, so the sync finds every tooling
+# path it takes.
+git checkout -q -b f-dev main
+echo 'flavored f' > R/flavor.R
+git add -A
+git commit -qm 'chore: Update flavor patch to duckdb.f'
+git push -q origin f-dev
+git checkout -q main
+printf '%s\n' '' '  - flavor: duckdb.f' '    kind: dev' '    series: f' \
+  '    releases_from: f-baseline' '    publishes_from: f-green' >> scripts/series.yaml
+mkdir -p .claude
+echo '{}' > .claude/settings.json
+git add scripts/series.yaml .claude
+git commit -qm 'chore: Park the line of series f'
+echo 'flavored on main again' > R/flavor.R
+git add -A
+git commit -qm 'fix: Code that conflicts with the parked flavor'
+FROZEN_CONFLICT=$(git rev-parse HEAD)
+git push -q upstream main
+git checkout -q --detach
+out_frozen=$(scripts/series-port.sh f --apply "$FROZEN_CONFLICT" 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_frozen"
+if [ "$st" != 0 ]; then ok "a conflict on the only named commit stops the port"; else no "a conflict on the only named commit stops the port"; fi
+rerun=$(printf '%s\n' "$out_frozen" | grep -E '^  scripts/series-port\.sh f --apply +# ' || true)
+has "and prints the bare --apply that finishes the tooling sync" "$rerun" 'finish: the tooling sync'
+hasnt "  and not that the sync waits" "$out_frozen" 'The tooling sync waits'
+wt=$(kept_at "$out_frozen")
+if [ -n "$wt" ] && [ -n "$rerun" ]; then
+  echo 'flavored f' > "$wt/R/flavor.R"
+  git -C "$wt" add R/flavor.R
+  before=$(recorded)
+  for step in 'rerere clear$' 'commit ' 'push '; do
+    eval "$(printed "$out_frozen" "$step")" >/dev/null 2>&1
+  done
+  if [ "$(recorded)" = "$before" ]; then ok "the printed commands record no resolution"; else no "the printed commands record no resolution"; fi
+  resolved=$(git -C "$wt" rev-parse HEAD)
+  git worktree remove --force "$wt"
+  out_rerun=$(eval "$rerun" 2>&1) && st=0 || st=$?
+  [ -z "${KEEP:-}" ] || echo "$out_rerun"
+  git fetch -q origin
+  if [ "$st" = 0 ]; then ok "running it succeeds"; else no "running it succeeds"; printf '%s\n' "$out_rerun" | sed 's/^/       /'; fi
+  added=$(git log --format=%s "$resolved..origin/f-dev")
+  if [ "$added" = 'chore(series): Sync tooling with main' ]; then
+    ok "and adds the tooling sync alone"
+  else
+    no "and adds the tooling sync alone"
+    printf '%s\n' "${added:-nothing}" | sed 's/^/       /'
+  fi
+else
+  no "the guidance names the worktree and the rerun"
+fi
 
 echo
 echo "$pass passed, $fail failed"
