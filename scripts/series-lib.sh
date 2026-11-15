@@ -90,6 +90,37 @@ series_seed_of() { # <ref> -> commit, empty when none
   git log --first-parent --format=%H --grep="^$re\$" -1 "$1"
 }
 
+# Does a forward's green stand above its own seed?
+# At birth it sits on the commit the seed sits on, below the flavor commits (.claude/skills/series-forward/SKILL.md),
+# which the green of the series it forwards may have too without any swap,
+# so only a green above its seed tells cutover litter by ancestry (`series_fwd_swapped`).
+# A `-dev` with no seed answers yes, as these read before seeds were.
+series_green_seeded() { # <green> <-dev>: status 0 when <green> carries the seed of <-dev>, or <-dev> has none
+  local seed
+  seed=$(series_seed_of "$2")
+  [ -z "$seed" ] || git merge-base --is-ancestor "$seed" "$1"
+}
+
+# Was a forward swapped into the series it forwards, its refs left behind as cutover litter?
+# Its tips are then reached by the series' refs, so deleting them loses nothing;
+# reached, not equal, since the series moves on after the swap.
+# The forward's green answers against the series' green where it stands above its seed (`series_green_seeded`);
+# where it sits below, as at the forward's birth, or does not exist, the forward's `-dev` answers against the series' `-dev`;
+# and where no `-dev` exists, whatever is named for the forward derives from nothing, and is litter.
+# Prints the ref that answered, `green`, `dev` or `none`, for the caller to say so
+# (scripts/series-check.sh, scripts/series-prune.sh).
+series_fwd_swapped() { # <forward green> <forward -dev> <green> <-dev>, a missing forward ref empty: status 0 when swapped in
+  if [ -n "$1" ] && { [ -z "$2" ] || series_green_seeded "$1" "$2"; }; then
+    echo green
+    git merge-base --is-ancestor "$1" "$3"
+  elif [ -n "$2" ]; then
+    echo dev
+    git merge-base --is-ancestor "$2" "$4"
+  else
+    echo none
+  fi
+}
+
 # Is a path on the vendored strand, including the Makevars generated from it?
 # A configured entry is a path or a glob, and matches itself or anything under it.
 series_in_strand() { # <path>
@@ -177,4 +208,39 @@ series_tooling_re() {
   local re='' p
   for p in "${series_tooling[@]}"; do re="${re:+$re|}$(series_re_of "$p")/"; done
   printf '^(%s)' "$re"
+}
+
+# The GitHub repository a remote names, `owner/repo`, for `gh api`; empty for a
+# remote that is not on GitHub. `git config remote.<name>.github <owner>/<repo>`
+# comes first, so a remote whose URL names no repository can still name one: a
+# test fixture's path, or a local proxy's address. A URL may carry a user, a
+# token or a port, `https://<user>:<token>@github.com:443/o/r.git`, and only the
+# path is ever returned, so the credential is never printed; a URL with a query
+# or a fragment, which may carry one too, names nothing.
+series_github_slug() { # <remote> -> owner/repo, empty when none
+  local slug url
+  slug=$(git config "remote.$1.github" 2>/dev/null || true)
+  if [ -z "$slug" ]; then
+    url=$(git remote get-url "$1" 2>/dev/null || true)
+    slug=$(sed -nE \
+      -e 's#^(https?|ssh|git)://([^/@]*@)?github\.com(:[0-9]+)?/([^/?#]+/[^/?#]+)/?$#\4#p' \
+      -e 's#^([^/@:]+@)?github\.com:([^/?#]+/[^/?#]+)/?$#\2#p' <<<"$url")
+    slug=${slug%.git}
+  fi
+  echo "$slug"
+}
+
+# The command that deletes one branch of a remote, for a human to run where
+# `git push --delete` is refused, as a cloud session's git proxy refuses it:
+# `gh api` against the repository the remote names, or `git push --delete` for
+# a remote that is not on GitHub. One line per ref, so each can be run, or
+# quoted, on its own (scripts/series-cutover.sh, scripts/series-prune.sh).
+series_delete_line() { # <remote> <branch> -> one command
+  local slug
+  slug=$(series_github_slug "$1")
+  if [ -n "$slug" ]; then
+    echo "gh api -X DELETE repos/$slug/git/refs/heads/$2"
+  else
+    echo "git push --delete $1 $2"
+  fi
 }

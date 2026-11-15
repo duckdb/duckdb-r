@@ -14,8 +14,10 @@
 #   IDLE               nothing in flight and nothing buffered
 #
 # A forward series that has caught up with the green it replaces additionally
-# gets a CUTOVER line: the command to run, for a human to run. The loop never
-# swaps a serving green itself (.claude/skills/series-loop/SKILL.md).
+# gets a CUTOVER line: the report that moves nothing, which the maintainer reads
+# before he asks a session to run the cutover and signs it off
+# (.claude/skills/series-cutover/SKILL.md). The loop never swaps a serving
+# green itself (.claude/skills/series-loop/SKILL.md).
 #
 # A series whose `-dev` carries `patch/` entries its `-build` lacks gets a
 # PATCH DRIFT line: the buffer regenerates its tree from its own patch stack, so
@@ -543,14 +545,19 @@ for S in "${series[@]}"; do
   for r in "$green" "$dev" "$build"; do
     git rev-parse -q --verify "$r" >/dev/null || { echo "$S: missing ${r#"$remote"/}, skipping"; continue 2; }
   done
-  # cutover litter: a forward series whose green is an ancestor of its base's
-  # (the base moves on after cutover, so equality cannot be the test)
+  # cutover litter: a forward series whose tips its base's refs reach, as a swap whose deletions were refused leaves it,
+  # read as scripts/series-prune.sh reads it (series_fwd_swapped, scripts/series-lib.sh)
   cutover=""
   case "$S" in *-fwd)
     base=${S%-fwd}
     if git rev-parse -q --verify "$remote/$base-green" >/dev/null; then
-      if git merge-base --is-ancestor "$green" "$remote/$base-green"; then
-        echo "$S: green is an ancestor of $base's — cutover litter, ignoring"; continue
+      if by=$(series_fwd_swapped "$green" "$dev" "$remote/$base-green" "$remote/$base-dev"); then
+        if [ "$by" = green ]; then
+          echo "$S: cutover litter, ignoring: its green is an ancestor of $base's"
+        else
+          echo "$S: cutover litter, ignoring: its green sits below its seed, and its -dev is an ancestor of $base's"
+        fi
+        continue
       fi
       # Ready to cut over once the forward green vendors the upstream commit the
       # base green vendors: coverage may never regress. Tested by subject, like
@@ -751,11 +758,11 @@ for S in "${series[@]}"; do
     # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
     echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
-    echo "             --upstream ${upstream:-<path to a $series_upstream_repo checkout>}"
-    echo "           It archives the replaced lineages in closed pull requests, then"
-    echo "           swaps; --prepare prints its gates and review and moves nothing."
+    echo "             --upstream ${upstream:-<path to a $series_upstream_repo checkout>} --prepare"
+    echo "           It reports and moves nothing. The cutover is a session's, on the"
+    echo "           maintainer's request and sign-off (.claude/skills/series-cutover/SKILL.md)."
     echo "           Coverage is only half of it; what the two branches carry is"
-    echo "           the other half, and the cutover prints it before it asks:"
+    echo "           the other half, and the report prints it too:"
     echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done

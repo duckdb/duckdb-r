@@ -12,9 +12,12 @@
 #      `engine_before()` makes.
 #   4. The strand, the regenerated files, the carry filter and the tooling
 #      expression, read from the configured paths rather than from literals.
-#   5. On a repository: the seed, the base scan past a non-vendor commit in the
-#      scan directory, its bound, the `-build` equivalent of a re-stamped
+#   5. On a repository: the seed, whether a green stands above it, which ref
+#      tells a forward swapped in, the base scan past a non-vendor commit in
+#      the scan directory, its bound, the `-build` equivalent of a re-stamped
 #      commit, and the engine and the stamp read off a tree.
+#   6. The GitHub repository a remote names, whatever user, token or port its
+#      URL carries, and the command that deletes one of its branches.
 #
 # The engine's own formats are the block right below the helpers: what a tree
 # holds for `series_engine_of()` and `series_stamped_version()` to read, where
@@ -141,6 +144,18 @@ echo 'c' > "$series_scan_dir/a"
 fix=$(c "fix: a patch applied in the vendored tree")
 is "the seed" "$(series_seed_of HEAD)" "$seed"
 is "no seed below it" "$(series_seed_of "$seed~1")" ""
+is "a green above its seed stands on it" "$(series_green_seeded "$v1" HEAD && echo yes)" yes
+is "one below its seed, as at a forward's birth, does not" "$(series_green_seeded "$seed~1" HEAD || echo no)" no
+is "and a -dev with no seed asks for none" "$(series_green_seeded "$seed~1" "$seed~1" && echo yes)" yes
+# A forward whose -dev is HEAD, read against a series' green and -dev: which ref answers, and whether it was swapped in.
+swapped() { local by; if by=$(series_fwd_swapped "$@"); then echo "$by, swapped in"; else echo "$by, live"; fi; }
+is "a green above its seed answers, reached by the series' green" "$(swapped "$v1" HEAD "$v2" "$seed~1")" "green, swapped in"
+is "or not" "$(swapped "$v2" HEAD "$v1" HEAD)" "green, live"
+is "a green below its seed leaves it to -dev, reached by the series' -dev" "$(swapped "$seed~1" HEAD "$seed~1" HEAD)" "dev, swapped in"
+is "or not, whatever the series' green reaches" "$(swapped "$seed~1" HEAD HEAD "$v2")" "dev, live"
+is "so does no green" "$(swapped '' HEAD HEAD HEAD)" "dev, swapped in"
+is "a green with no -dev answers alone" "$(swapped "$seed~1" '' "$seed~1" "$seed~1")" "green, swapped in"
+is "and with neither, whatever is named for it is litter" "$(swapped '' '' "$seed~1" "$seed~1")" "none, swapped in"
 is "the base scan looks past a non-vendor commit in the scan directory" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
 is "and says so when the bound is reached" \
   "$(base_scan_depth=1 series_vendored_sha HEAD 2>&1 >/dev/null | head -n 1)" \
@@ -156,6 +171,32 @@ v2t=$(c "vendor: Update vendored sources (tag $tag) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
+
+echo "--- 6. the GitHub repository a remote names"
+for url in https://github.com/o/r https://github.com/o/r.git https://github.com/o/r/ git@github.com:o/r.git ssh://git@github.com/o/r \
+  https://user@github.com/o/r.git https://github.com:443/o/r.git ssh://git@github.com:22/o/r.git; do
+  git remote add gh-url "$url"
+  is "$url names o/r" "$(series_github_slug gh-url)" o/r
+  git remote remove gh-url
+done
+# A token in the URL names the repository as the bare URL does, and is never printed.
+git remote add gh-url https://x-access-token:s3cr3t@github.com:443/o/r.git
+is "a URL with a user, a token and a port names o/r" "$(series_github_slug gh-url)" o/r
+is "and the token is in neither of its lines" "$(series_github_slug gh-url; series_delete_line gh-url b-fwd-dev)" \
+  "$(printf 'o/r\ngh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev')"
+git remote remove gh-url
+for url in https://github.com.example.invalid/o/r https://github.com@example.invalid/o/r https://github.com/o/r/extra git@github.com:22/o/r \
+  'https://github.com/o/r?t=s3cr3t' 'https://github.com/o/r.git#s3cr3t' 'https://github.com/o?t=s3cr3t/r' 'git@github.com:o/r?t=s3cr3t'; do
+  git remote add gh-url "$url"
+  is "$url names nothing" "$(series_github_slug gh-url)" ""
+  git remote remove gh-url
+done
+git remote add proxied http://proxy@127.0.0.1:1/git/o/r
+is "a URL that is not GitHub's names nothing" "$(series_github_slug proxied)" ""
+is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-dev)" "git push --delete proxied b-fwd-dev"
+git config remote.proxied.github o/r
+is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
+is "and then with one gh api call per branch" "$(series_delete_line proxied b-fwd-dev)" "gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev"
 
 echo
 echo "$pass passed, $fail failed"

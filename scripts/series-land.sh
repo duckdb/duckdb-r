@@ -434,7 +434,9 @@ builds or tests it.")
   "$here/series-tests.sh" "$base" "$tip" --strict | sed 's/^/  /' || true
   echo
 
-  slug=$(git remote get-url "$canonical" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')
+  # Named as the cutover's archive names it: `remote.<name>.github` first, then
+  # a github.com URL (scripts/series-lib.sh).
+  slug=$(series_github_slug "$canonical")
   old=$(git ls-remote "$canonical" "refs/heads/$rb" | cut -f1)
   if [ "$old" = "$head" ]; then
     echo "$rb: already on $canonical"
@@ -446,7 +448,7 @@ builds or tests it.")
     echo "$rb -> $(git rev-parse --short "$head") on $canonical"
   fi
   echo "Open it as a draft, never to be merged:"
-  echo "  gh pr create --repo $slug --draft --base main --head $rb \\"
+  echo "  gh pr create --repo ${slug:-<owner>/<repo>} --draft --base main --head $rb \\"
   echo "    --title \"Review: the R side of the $L landing${suffix:+, ${suffix#-}}\""
   exit 0
 fi

@@ -12,14 +12,14 @@ and are not repeated here; this page holds this repository's own.
 
 * **ALTREP** — R's alternative-representation mechanism: how an unexecuted relation masquerades as a data frame until touched ([`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)).
 * **archive** — `krlmlr/duckdb-r-old`, holding the refs the fork does not carry; nothing reads it and nothing writes to it ([`branches/model/`](/handbook/branches/model/README.md)).
-* **archive pull request** — a draft pull request a cutover opens and closes on the spot so that the lineage it replaces stays reachable as the pull request's head ([`branches/model/`](/handbook/branches/model/README.md)).
 * **autoload / autoinstall** — a known extension that a query needs is downloaded and loaded on first use, both on by default ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 * **buffer** — a series' `-build` ref: vendored ahead of CI, deliberately untested ([`branches/model/`](/handbook/branches/model/README.md)).
 * **carry** — stage 5's folding of the fix a base `-dev` commit holds into the forward commit for the same upstream SHA, where the forward's buffer lacks it ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **commit-match guard** — the fast path's check that library and vendored headers share one upstream commit ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **CRAN guard** — the gate that keeps the bundled engine off CRAN's check farm ([`testing/guards/`](/handbook/testing/guards/README.md)).
-* **cutover** — the human-run swap that puts a verified `-fwd` counterpart in a series' place, after archive pull requests keep what it replaces ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover** — the swap that puts a verified `-fwd` counterpart in a series' place once review stacks pin what it replaces, run by a session on the maintainer's sign-off ([`branches/model/`](/handbook/branches/model/README.md)).
 * **cutover litter** — `-fwd` refs and derived strands a cutover's deletion left behind, whose tips the series' refs already reach ([`branches/model/`](/handbook/branches/model/README.md)).
+* **cutover pull request** — the empty draft pull request in the fork, from `cutover/<S>/pr` into `main`, that carries one cutover's report, review and sign-off, and is closed, never merged ([`branches/model/`](/handbook/branches/model/README.md)).
 * **DBI** — R's database-interface standard, which the package implements as a driver ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **dbplyr backend** — the methods that translate dplyr expressions into DuckDB SQL ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
@@ -43,11 +43,13 @@ and are not repeated here; this page holds this repository's own.
 * **mirror** — a fork branch whose only motion is to take a canonical branch's tip, by hard reset ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * **nanoarrow array stream** — the zero-copy, batch-by-batch result format of the Arrow API ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+* **pin** — the head of a review stack's first pull request, `refs/pull/<n>/head`, which keeps an old tip reachable; the swap refuses to move a ref no pin holds ([`branches/model/`](/handbook/branches/model/README.md)).
 * **preview line** — a series serving an upstream line that has no release yet: the one tracking upstream `main`, and a release branch cut ahead of its own release ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
 * **preview prefix** — the version prefix a preview line carries, fledge's for the line it previews ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **prune** — removing cutover litter from both repositories, by hand, from the commands `series-prune.sh` prints ([`branches/model/`](/handbook/branches/model/README.md)).
 * **register** — expose an R data frame as a scannable table without copying ([`usage/data-import/`](/handbook/usage/data-import/README.md)); Arrow objects register the same way ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`usage/relational/`](/handbook/usage/relational/README.md)).
+* **review stack** — the branches `cutover/<S>/<X>/1-main` to `4-old` built for one strand of a cutover, each a draft pull request into the one below, splitting what the forward differs by into `main`'s share, the engine's and its own ([`branches/model/`](/handbook/branches/model/README.md)).
 * **rewind** — a forward's first pick that vendors an engine older than the seed's, so the strand is taken whole and the glue adapted back ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
 * **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).
 * **seed** — the flavored `main` plus the fifth-component commit a forward's `-dev`, `-build` and `-build-base` start at, its green starting below them; an opening cuts its refs from the parent's strands instead ([`branches/model/`](/handbook/branches/model/README.md)).

@@ -4,7 +4,7 @@ The scheduled routine that vendors every series.
 The procedures are machine-loaded playbooks under
 [`.claude/skills/`](/.claude/skills) —
 [`series-loop/SKILL.md`](/.claude/skills/series-loop/SKILL.md) with its
-siblings `series-forward`, `series-rebase`, `series-open`, `series-rc`, `series-alpha`, `series-land` —
+siblings `series-forward`, `series-cutover`, `series-rebase`, `series-open`, `series-rc`, `series-alpha`, `series-land` —
 linked from here, never restated:
 a reader who wants to *run* the loop follows the link;
 what runs is this page's topic.
@@ -90,7 +90,7 @@ to do, and they run in this order:
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
   A live forward counterpart does **not** hold the base series back: it
-  consumes, ports and verifies at full speed until a human swaps the
+  consumes, ports and verifies at full speed until a cutover swaps the
   refs, which costs CI on a lineage about to be retired and buys the
   only thing that makes retiring it checkable rather than hopeful
   (below).
@@ -106,11 +106,15 @@ to do, and they run in this order:
   `<S>-dev` against `<S>-fwd-dev` and sorts each differing path into
   what the forwarding explains and what it does not; the findings go
   into the report and to the stage that should have moved them. A
-  caught-up counterpart is *reported* with the cutover command, never
-  executed; that move is a human's, and the script prints the same
-  comparison and the review of the forward's R side before it asks for
-  confirmation, archives what it replaces as closed pull requests, and
-  deletes the forward's refs in both repositories afterwards
+  caught-up counterpart is *reported* with the command of the cutover's
+  report, never cut over by a firing. The cutover is a session's, sent by
+  the maintainer: it opens a cutover pull request, reviews a stack of pull
+  requests per strand, and swaps with `--confirm <S>@<sha>` once he has
+  ticked the question naming that tip of `<S>-fwd-green`
+  ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
+  The swap refuses a ref no stack pins, and deletes the forward's refs in
+  both repositories afterwards, listing whatever a remote refused with the
+  line that removes it
   ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
 * **Report what the tooling got wrong** — a firing that had to work
   around a script opens a pull request against it,
@@ -196,14 +200,14 @@ series' verdict read-only and is always safe to run
 
 **Every `scripts/series-*.sh` takes the same arguments.**
 Positional is only what the script *names* —
-a series, a rev-range, the two refs a forward replay is bounded by.
+a series, the strand of one a cutover stack is built for, a rev-range, the two refs a forward replay is bounded by.
 Everything else is an option, spelled identically in all of them:
 
 * `--remote <name>` — the remote of *this* repository carrying the series
   refs. Default `origin`, or `$SERIES_REMOTE`.
 * `--upstream <path>` — a `duckdb/duckdb` checkout on disk, read with
   `git -C`. Default `$UPSTREAM_CLONE`, and for `series-cut.sh` then `../../../duckdb`.
-  Only `series-check.sh`, `series-cut.sh` and `series-cutover.sh` read one.
+  Only `series-check.sh`, `series-cut.sh`, `series-cutover.sh` and `series-cutover-stack.sh` read one.
 * `--canonical <name>` — the remote of the canonical repository: where
   r-universe publishes the base flavors from, and where `main` itself lives.
   Default `$SERIES_CANONICAL`, then `upstream`, which is what a `gh` clone of a
@@ -219,6 +223,10 @@ Everything else is an option, spelled identically in all of them:
   touches git.
 * Anything else beginning with `-`, an option missing its value, or a
   positional the script does not name: the usage on stderr, exit **2**.
+  So is a confirmation that names something else:
+  `series-cutover.sh <S> --confirm <S>@<sha>` names the series it swaps and the SHA it swaps to,
+  and another name, a SHA of another shape, an option it excludes beside it, or a run with neither
+  `--confirm` nor `--prepare` is a wrong invocation, as [its header](/scripts/series-cutover.sh) lists.
   Two is the usage status everywhere, so a caller can tell a wrong
   invocation from a wrong answer —
   `series-converge.sh` already reserved 1 for *diverged*.
