@@ -247,16 +247,14 @@ scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --confi
 it prints the refs to swap, the coverage, the convergence read, the package and the versions,
 and the tip of `<S>-fwd-green` to decide on.
 Pass the upstream clone:
-the coverage gate is the one gate the swap enforces beside the mechanics, and it needs the clone's ancestry.
+coverage is among what the swap enforces, as the [script's header](/scripts/series-cutover.sh) lists it, and it needs the clone's ancestry.
 Convergence, the package and the versions are reported, never enforced:
 the stacks and the sign-off weigh them.
 
 **The review reads a stack per strand, before the swap.**
 For each of `-vendor`, `-build`, `-dev` and `-green`,
-[`scripts/series-cutover-stack.sh`](/scripts/series-cutover-stack.sh) builds branches in the fork, each one commit on the previous:
-the old tip with `main`'s changes replayed onto it commit by commit,
-the forward's engine where the two tips vendor different upstream commits,
-the forward's tree, and the old tree again.
+[`scripts/series-cutover-stack.sh`](/scripts/series-cutover-stack.sh) builds the layers its header lists,
+as branches in the fork, each one commit on the previous.
 Opened as draft pull requests, each layer into the one below,
 they split what the forward differs by into `main`'s share, the engine's, and the forward's own,
 and each is read against what it is expected to show ([`series-cutover`](../series-cutover/SKILL.md)).
