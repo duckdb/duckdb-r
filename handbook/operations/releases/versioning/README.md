@@ -11,10 +11,10 @@ that advance on different strands and never interfere:
 | Component | Example | Meaning | Advanced by |
 |---|---|---|---|
 | 1–3 | `1.5.5` | release-line identity — the upstream DuckDB tag | set explicitly at release |
-| 4th | `1.5.5.9004` | R-client counter | fledge, on `main` |
+| 4th | `1.5.5.9004` | R-client counter | a version bump, by hand |
 | 5th | `1.5.5.9004.42` | vendor counter | `scripts/vendor-one.sh`, once per vendor commit |
 
-The 4th free-runs on `main`,
+The 4th advances on `main`,
 where every glue and R change is born,
 and is inherited frozen on a `-dev` branch —
 frozen at the value the series was seeded with,
@@ -24,7 +24,7 @@ version bump `VERSION` and does not port it
 A `-dev` version says which release line the series was seeded from
 and how far its own vendoring has run;
 what `main` is at today is read from `main`.
-On `main` and on a release branch the 4th also counts landings,
+On `main` and on a release branch the 4th counts landings,
 each landing without an upstream release taking it one up.
 The 5th exists only on `-dev` branches, making every vendor commit
 installable as a distinct version on r-universe.
@@ -82,27 +82,26 @@ so the new chain counts itself rather than carrying the old one's numbering —
 and the counter is read back from `HEAD` at each step,
 which is what makes the replay restartable after a conflict.
 
-A released version is the bare three-component prefix, matching
-the upstream tag, set explicitly with
-`fledge::bump_version("X.Y.Z")` —
-never derived from git; the tag follows `DESCRIPTION`.
-Commit messages on `main` are written to be read as changelog entries, which is what `NEWS.md` is written from.
-[`fledge.yaml`](/.github/workflows/fledge.yaml) runs fledge on `main` only while the first line of `NEWS.md` names fledge,
-which is what its `check_news` job tests.
-`NEWS.md` carries no such line after a release, so the nightly run skips the bump until a bump writes the line back.
-It also skips the step that published the GitHub release once Posit's package manager served the released version,
-which [`cran-release.yaml`](/.github/workflows/cran-release.yaml) does now
+**A version bump is written by hand, as one commit named `chore: Bump version to <version>`.**
+It sets `Version:` in `DESCRIPTION`, closes the open `NEWS.md` section under the version's heading, and changes nothing else.
+A released version is the bare three-component prefix, matching the upstream tag,
+set explicitly and never derived from git; the tag follows `DESCRIPTION`.
+A landing ends on a bump, its last commit
+([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6),
+which takes the annotated tag `v<version>`, `v2.0.99.9001`,
+its message the subject `duckdb <version>` and then the section the bump closed.
+A release's tag is written the same way, by the CRAN submission
 ([`cran/`](/handbook/operations/releases/cran/README.md)).
-`fledge::bump_version()` run interactively writes the line back, as does the hand-written bump after a landing below,
-which turns the nightly run on again;
-run non-interactively, it refuses a `NEWS.md` without the line.
+After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
+in a bump that changes `DESCRIPTION` alone, there being no section to close, and takes no tag.
 
-**The first bump after a landing is written by hand, as the landing's last commit.**
-A landing brings the series' version onto the branch it lands on, and every vendor commit it carried comes after the newest version tag.
-`fledge::bump_version()` would turn each of them into a `NEWS.md` entry.
-So the landing ends on a bump that sets the version in `DESCRIPTION` and writes its `NEWS.md` section by hand,
-and its commit on `main` takes the annotated version tag that fledge's next bump counts from
-([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6).
+**`NEWS.md` is kept by hand: a change users notice brings its bullet in its own pull request.**
+The bullet goes into the open section at the top of the file, headed `# duckdb (development version)`,
+and a pull request that finds no open section writes that heading above the newest version's.
+Bullets sit under the subsection headings the released sections use, `## Features` and `## Bug fixes` among them,
+and a change only the tooling notices takes none.
+The bump that closes the section, a landing's or a release's, turns its heading into `# duckdb <version>`,
+or writes the version's section above the newest one where no pull request opened it.
 
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
@@ -111,17 +110,16 @@ A release branch landing its own line's commits short of an upstream patch relea
 and a landing that brings an upstream release sets that release's three components, `2.0.1`.
 [`scripts/series-land.sh`](/scripts/series-land.sh) refuses a bump that does not rise above the branch's version as well as the series',
 because a series not forwarded since the last landing still stamps the older fourth.
-The `NEWS.md` section the bump writes is headed `# duckdb <version>`, and its first bullet names the engine,
+The `NEWS.md` section a landing's bump closes takes as its first bullet the engine,
 `Vendored duckdb/duckdb main up to duckdb/duckdb@<sha> (<date>).`, the upstream branch in place of `main` for a release branch's landing,
 with a compare link from the previous landing's engine, `https://github.com/duckdb/duckdb/compare/<previous sha>...<sha>`.
-The commit takes the annotated tag `v<version>`, `v2.0.99.9001`.
 The merge driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
 
-**A preview line carries the prefix of the line it previews**, which is the one
-[fledge](https://fledge.cynkra.com/) would write for it:
-`a.b.99` before a minor release and `a.99.99` before a major one, its `pre-minor` and `pre-major` bumps.
+**A preview line carries the prefix of the line it previews**,
+which sorts above every version of the line released before it and below the release it previews:
+`a.b.99` before a minor release and `a.99.99` before a major one.
 [`scripts/preview-prefix.sh`](/scripts/preview-prefix.sh) reads the line off the engine
 the strand vendors and stamps it, keeping the vendor counter and refusing a version that
 would not rise; `--check` reports and exits 1 where it is owed.
@@ -147,8 +145,8 @@ A line still taking patches is one a released version names, and its ordering is
 `1.5.5.9020.36` sits below `1.5.6`, so the day that patch ships the series reads as older
 than the release its own line just made, and re-seeding on the new `main` is what restores that
 ([`.claude/skills/series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)).
-Taking fledge's prefix rather than inventing one buys the version's plain reading,
-and it is what `main` itself will carry when the line opens there.
+The prefix buys the version's plain reading,
+and it is what `main` itself carries while it previews the line.
 Versions never compare across flavors, which are separate package names that coexist by design
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)),
 so what the prefix must not break is the ordering within one name across re-seeds,

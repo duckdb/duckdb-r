@@ -120,7 +120,7 @@ stateDiagram-v2
 | **1 VENDORED** | tag lands on `<S>-dev` | tagged vendor commit present | advancing toward the tag | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `<S>-dev` |
 | **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on `main`, forward-port |
 | **3 PROVEN** | review ok | — | **has advanced over the tagged commit** | — | green covers the tag | red → 1 |
-| **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; `fledge` bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
+| **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
 | **5 PUBLISHED** | merged | — | — | tag `vX.Y.Z` pushed; r-universe builds; CRAN submitted (current line) | tag pushed | CRAN reject → new patch cycle |
 
 The **On failure** column is the whole of rollback:
@@ -248,12 +248,10 @@ the only rewriting is dropping that rename.
 A late tag that no re-stamp reached (step 1) ends the range at the plain vendor commit for the tag,
 and the re-stamp is made on the release branch before the bump.
 
-The package version is **not** derived from the git tag —
-set it explicitly so `DESCRIPTION` matches the upstream tag:
-
-```r
-fledge::bump_version("X.Y.Z")
-```
+The package version is **not** derived from the git tag:
+the bump sets it explicitly so `DESCRIPTION` matches the upstream tag,
+a hand edit of `Version:` to `X.Y.Z` and of the open `NEWS.md` section's heading to `# duckdb X.Y.Z`,
+committed as `chore: Bump version to X.Y.Z` (`versioning/`).
 
 Then rebase the LTS branch, one rename commit on top of the release branch:
 
@@ -291,8 +289,8 @@ that had not been reseeded into the loop, from the released tip plus the
 flavor rename; every series runs the loop now
 ([`branches/model/`](/handbook/branches/model/README.md)).
 
-Separately, the glue source of truth (`main`) moves to its ongoing
-development version via `fledge` (`versioning/`).
+Separately, the branch released from moves on to its development version,
+`X.Y.Z.9000`, in a bump written by hand (`versioning/`).
 The vendor counter is not a release-time concern: it rises on `<S>-dev` as
 the buffer is consumed, and the one thing that re-derives it is a forward
 rebuild, which has nothing to do with a release having happened.
