@@ -24,6 +24,9 @@
 #      landing has renamed that heading, under its own author and trailer, and
 #      leaves the series' NEWS.md as it was; a commit that writes nothing but
 #      NEWS.md comes out empty and is skipped.
+#   7. A ported commit keeps the whole message of the commit it ports, a
+#      `# Conflicts:` line in its body included, and then the trailer; so does
+#      the commit the guidance prints when a pick conflicts.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -302,6 +305,90 @@ if [ "$st" = 0 ]; then ok "a NEWS-only commit named by hand is no error"; else n
 has "it is skipped, and says why" "$out_news" "skipped $(git rev-parse --short "$NEWS_ONLY") docs(news): A bullet alone: nothing but NEWS.md is left of it"
 has "so nothing is ported" "$out_news" 'nothing to port'
 if [ "$(git rev-parse origin/t-dev)" = "$tip" ]; then ok "and the series has not moved"; else no "and the series has not moved"; fi
+
+echo
+echo "series-port.sh: a message whose body lists conflicts"
+# A squash keeps the messages of the commits it squashed, and a merge resolved
+# by hand writes a `# Conflicts:` list into its own, so `main` has such lines in
+# commit bodies. The commit touches NEWS.md as well, so its port has no patch-id
+# in common with it, and only the trailer stops it being offered again.
+git checkout -q main
+echo 'bar <- function() 1' > R/bar.R
+sed -i 's/^- Code with its bullet\.$/&\n\n- A bullet beside more code./' NEWS.md
+git add -A
+printf '%s\n' 'feat: Code squashed from a merge resolved by hand' '' \
+  'The squashed branch merged main and resolved it.' '' \
+  '# Conflicts:' '#	R/bar.R' '' 'What follows the list is the rest of the body.' |
+  git commit -q --cleanup=verbatim -F -
+SQUASH=$(git rev-parse HEAD)
+git push -q upstream main
+git checkout -q --detach
+out_squash=$(scripts/series-port.sh t --apply 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_squash"
+git fetch -q origin
+if [ "$st" = 0 ]; then ok "the squash applies"; else no "the squash applies"; printf '%s\n' "$out_squash" | sed 's/^/       /'; fi
+has "and is picked" "$out_squash" "picked $(git rev-parse --short "$SQUASH") feat: Code squashed from a merge resolved by hand"
+squash_msg=$(printf '%s\n\n(cherry picked from commit %s)' "$(git log -1 --format=%B "$SQUASH")" "$SQUASH")
+if [ "$(git log -1 --format=%B origin/t-dev)" = "$squash_msg" ]; then
+  ok "the port keeps the whole body, then the trailer"
+else
+  no "the port keeps the whole body, then the trailer"
+  git log -1 --format=%B origin/t-dev | sed 's/^/       /'
+fi
+out_again=$(scripts/series-port.sh t 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_again"
+hasnt "so the squash is not offered again" "$out_again" 'Code squashed from a merge resolved by hand'
+
+echo
+echo "series-port.sh: a conflict on a commit named by hand"
+# Three commits on `main`: one the named subset leaves out, one that applies,
+# and one that conflicts with the series' own flavor file, its body listing
+# conflicts of its own.
+git checkout -q main
+echo 'baz <- function() 1' > R/baz.R
+git add -A
+git commit -qm 'feat: Code the named subset leaves out'
+echo 'qux <- function() 1' > R/qux.R
+git add -A
+git commit -qm 'feat: Code that applies'
+CLEAN=$(git rev-parse HEAD)
+echo 'flavored on main' > R/flavor.R
+git add -A
+printf '%s\n' 'fix: Code that conflicts with the flavor' '' \
+  '# Conflicts:' '#	R/flavor.R' '' 'The body goes on after the list.' |
+  git commit -q --cleanup=verbatim -F -
+CONFLICT=$(git rev-parse HEAD)
+git push -q upstream main
+git checkout -q --detach
+
+out_last=$(scripts/series-port.sh t --apply "$CLEAN" "$CONFLICT" 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_last"
+if [ "$st" != 0 ]; then ok "a conflict on the last named commit stops the port"; else no "a conflict on the last named commit stops the port"; fi
+has "after the commit before it is picked" "$out_last" "picked $(git rev-parse --short "$CLEAN") feat: Code that applies"
+has "and names the conflicted file" "$out_last" '  R/flavor.R'
+
+# The printed commit, run after a resolution that keeps the series' file: the
+# resolution is empty, and the commit still carries the whole message.
+kept_at() { printf '%s\n' "$1" | sed -n 's/^Conflict; worktree kept at \(.*\), conflicted files:$/\1/p'; }
+wt=$(kept_at "$out_last")
+commit_cmd=$(printf '%s\n' "$out_last" | grep -E '^  git -C [^ ]+ commit ' || true)
+if [ -n "$wt" ] && [ -n "$commit_cmd" ]; then
+  echo 'flavored t' > "$wt/R/flavor.R"
+  git -C "$wt" add R/flavor.R
+  eval "$commit_cmd" >/dev/null 2>&1
+  conflict_msg=$(printf '%s\n\n(cherry picked from commit %s)' "$(git log -1 --format=%B "$CONFLICT")" "$CONFLICT")
+  if [ "$(git -C "$wt" log -1 --format=%B)" = "$conflict_msg" ]; then
+    ok "the printed commit keeps the whole body, then the trailer"
+  else
+    no "the printed commit keeps the whole body, then the trailer"
+    git -C "$wt" log -1 --format=%B | sed 's/^/       /'
+  fi
+  if git -C "$wt" diff --quiet HEAD^ HEAD; then ok "and commits an empty resolution"; else no "and commits an empty resolution"; fi
+  git worktree remove --force "$wt"
+else
+  no "the guidance names the worktree and the commit to run"
+fi
+
 
 echo
 echo "$pass passed, $fail failed"

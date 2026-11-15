@@ -496,12 +496,12 @@ git worktree add --detach -q "$wt" "$dev"
 
 # One pick at a time, each keeping the series' NEWS.md (see the header):
 # applied with `-n`, the file restored from the series, and committed under the
-# original author. `-x` records the main commit in the message the pick
-# prepares, MERGE_MSG, which is what the commit takes, less the conflict list
-# git appends there when NEWS.md was a conflict this step has just resolved.
-# The comment character is pinned so that list is the one cut. A pick left with
-# nothing to commit is skipped, as `--empty=drop` skipped one when the picks ran
-# as one sequence.
+# original author and the message `cherry-pick -x` would have written. That
+# message is built from the main commit, never cut out of the MERGE_MSG the pick
+# prepares: git appends a `# Conflicts:` list there when NEWS.md conflicted, and
+# a squash message on `main` can carry the same line in its body, so no cut can
+# tell the two apart. A pick left with nothing to commit is skipped, as
+# `--empty=drop` skipped one when the picks ran as one sequence.
 #
 # The `-x` trailer is the second dedupe layer, not decoration, so the guidance
 # below names it: a resolution that diverges from main's patch has no patch-id
@@ -509,7 +509,15 @@ git worktree add --detach -q "$wt" "$dev"
 # being offered and reconflicting on every firing. It prints the SHA in full,
 # because the reader above matches 40 hex digits and every other SHA on screen
 # is abbreviated.
-pick_msg=$(git -C "$wt" rev-parse --path-format=absolute --git-path MERGE_MSG)
+pick_msg=$(git -C "$wt" rev-parse --path-format=absolute --git-path SERIES_PORT_MSG)
+x_message() { # <sha> -> its message and trailer, laid out as `cherry-pick -x` does
+  local m
+  m=$(git log -1 --format=%B "$1")
+  printf '%s\n' "$m"
+  # The trailer joins a trailer block the message ends in, else opens its own.
+  [ -n "$(printf '%s\n' "$m" | git interpret-trailers --parse)" ] || echo
+  echo "(cherry picked from commit $1)"
+}
 keep_news() {
   if git -C "$wt" cat-file -e HEAD:NEWS.md 2>/dev/null; then
     git -C "$wt" checkout HEAD -- NEWS.md
@@ -521,8 +529,12 @@ for i in "${!picks[@]}"; do
   sha=$(git rev-parse -q --verify "${picks[$i]}^{commit}") ||
     { echo "Error: not a commit: ${picks[$i]}; worktree kept at $wt"; exit 1; }
   line="$(git rev-parse --short "$sha") $(git log -1 --format=%s "$sha")"
+  x_message "$sha" > "$pick_msg"
+  commit=(commit --allow-empty --cleanup=verbatim -F "$pick_msg"
+    --author="$(git log -1 --format='%an <%ae>' "$sha")"
+    --date="$(git log -1 --format=%aI "$sha")")
   st=0
-  out=$(git -C "$wt" -c core.commentChar='#' cherry-pick -n -x "$sha" 2>&1) || st=$?
+  out=$(git -C "$wt" cherry-pick -n "$sha" 2>&1) || st=$?
   if [ "$st" != 0 ] && [ -z "$(git -C "$wt" diff --name-only --diff-filter=U)" ]; then
     echo "$out"
     echo "Error: could not pick $line; worktree kept at $wt"
@@ -537,10 +549,11 @@ for i in "${!picks[@]}"; do
     echo "Conflict; worktree kept at $wt, conflicted files:"
     git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
     echo "Resolve toward main's intent; NEWS.md stays the series', as it is now."
-    echo "Then commit under the message the pick prepared, whose trailer retires"
-    echo "the pick, and under its author:"
-    printf '  git -C %q commit --allow-empty --cleanup=strip --no-edit --author=%q --date=%q\n' \
-      "$wt" "$(git log -1 --format='%an <%ae>' "$sha")" "$(git log -1 --format=%aI "$sha")"
+    echo "Then commit under the main commit's message, with the trailer that"
+    echo "retires the pick, and under its author:"
+    printf '  git -C %q' "$wt"
+    printf ' %q' "${commit[@]}"
+    echo
     echo "Writing the message by hand instead? Keep the trailer it would have"
     echo "written, or this pick is offered again on every firing:"
     echo "  (cherry picked from commit $sha)"
@@ -562,11 +575,7 @@ for i in "${!picks[@]}"; do
     echo "skipped $line: $why"
     continue
   fi
-  sed '/^# Conflicts:$/,$d' "$pick_msg" |
-    GIT_AUTHOR_NAME=$(git log -1 --format=%an "$sha") \
-      GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae "$sha") \
-      GIT_AUTHOR_DATE=$(git log -1 --format=%aI "$sha") \
-      git -C "$wt" commit -q --no-verify --cleanup=whitespace -F -
+  git -C "$wt" "${commit[@]}" -q --no-verify
   echo "picked $line"
 done
 
