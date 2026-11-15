@@ -14,20 +14,22 @@
 #      then `2-engine` with the forward's engine, the engine part of that commit included, and the patch stack of `1-main`,
 #      `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`; the summary, the --summary file and the pull requests to open.
 #   2. A conflict on `-dev` stops the build with the worktree kept and nothing pushed;
-#      a plain rerun refuses beside it, --abort discards it,
+#      a plain rerun refuses beside it, --abort from the kept worktree discards it,
 #      and a resolution finishes with --continue. A commit the strand already carries is recorded as present.
 #   3. `-green`, whose two tips vendor the same upstream commit, has a `2-engine` all the same,
 #      as their engines differ by the patch `main` added, and rerere resolves the conflict `-dev` resolved, unattended.
 #   4. A rebuild mints the same SHAs, in this clone and in another one with another identity and time zone.
 #   5. A rebuild over existing branches moves them under their leases;
 #      a branch that moved since the build read it refuses the whole push, and the next rebuild moves it back.
-#   6. Once the engines agree, `2-engine` leaves the stack:
-#      a refused deletion exits 9 with the line that deletes it, and an allowed one deletes it.
+#   6. Once the engines agree, `2-engine` leaves the stack, and its branch stays:
+#      the run exits 9 with the steps that retire it, and once they are taken a rebuild exits 0.
 #   7. Where the old base is not an ancestor of the forward's, `1-main` is one three-way merge,
 #      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way.
-#   8. Usage errors exit 2, and a missing forward refuses with 1.
+#   8. Usage errors exit 2; a missing forward, a series on its forward's lineage as after the swap,
+#      and a summary file that cannot be written refuse with 1 and push nothing.
 #   9. Nothing called `gh`.
-#  10. Nothing read a terminal: every run had stdin closed and no controlling terminal, and none of them hung.
+#  10. Nothing read a terminal: the wrapper every run went through gives neither stdin nor a controlling terminal,
+#      and no build or worktree is left behind.
 #
 # Usage:
 #   scripts/series-cutover-stack-test.sh
@@ -296,7 +298,7 @@ has "each further one into the one below" "$out" "   base: $c/vendor/2-engine
    head: $c/vendor/3-fwd"
 is "the --summary file is what was printed" "$(cat "$SCRATCH/vendor.md")" "$(sed -n '/^## /,/^EXIT=/p' <<<"$out" | sed '/^pushed: /d; /^EXIT=/d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
 
-echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort, --continue"
+echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
 out=$(run "$STACK" v9.9-x dev)
 is "the replay stops with 3" "$(status "$out")" 3
 has "naming the path" "$out" "  R/foo.R"
@@ -307,10 +309,11 @@ has "the worktree holds the conflict" "$(cat "$wt/R/foo.R")" "<<<<<<<"
 out=$(run "$STACK" v9.9-x dev)
 is "a fresh build beside it refuses" "$(status "$out")" 1
 has "and says so" "$out" "stopped at"
-out=$(run "$STACK" v9.9-x dev --abort)
-is "--abort discards it" "$(status "$out")" 0
+out=$(cd "$wt" && run "$WORK/$STACK" v9.9-x dev --abort)
+is "--abort, from the kept worktree, discards it" "$(status "$out")" 0
 holds "with its worktree" test ! -d "$wt"
 hasnt "which git forgets too" "$(git worktree list)" "$wt"
+is "and the build's state" "$(ls "$(git rev-parse --git-common-dir)/series-cutover-stack" 2>/dev/null)" ""
 out=$(run "$STACK" v9.9-x dev --continue)
 is "--continue with nothing stopped refuses" "$(status "$out")" 1
 out=$(run "$STACK" v9.9-x dev)
@@ -392,7 +395,7 @@ out=$(run "$STACK" v9.9-x dev)
 is "a rebuild, on the resolution rerere recorded, pushes" "$(status "$out")" 0
 is "and puts the branch back where it was" "$(tip "$c/dev/4-old")" "$d4"
 
-echo "=== 6. 2-engine leaves the stack once the engines agree"
+echo "=== 6. 2-engine leaves the stack once the engines agree, and the session retires it"
 # The old vendor strand carries main's patch and catches up with the forward's engine.
 git checkout -q --detach "$(tip v9.9-x-vendor)"
 tick
@@ -404,20 +407,24 @@ vend "${u[4]}"
 git push -q origin HEAD:refs/heads/v9.9-x-vendor
 git checkout -q main
 e2=$(tip "$c/vendor/2-engine")
-git -C "$FORK" config receive.denyDeletes true
 out=$(run "$STACK" v9.9-x vendor)
-is "a refused deletion exits 9" "$(status "$out")" 9
-has "with the line that deletes it" "$out" "gh api -X DELETE repos/test/fork/git/refs/heads/$c/vendor/2-engine"
-has "and its pull request to close" "$out" "No longer in the stack: $c/vendor/2-engine"
-is "the branch stays" "$(tip "$c/vendor/2-engine")" "$e2"
+is "a 2-engine no longer needed exits 9" "$(status "$out")" 9
+has "named, with the 3-fwd pull request to retarget first" "$out" "No longer in the stack: $c/vendor/2-engine"
+has "onto 1-main" "$out" "1. Retarget the pull request of $c/vendor/3-fwd onto $c/vendor/1-main."
+has "then its own to close" "$out" "2. Close the pull request of $c/vendor/2-engine."
+has "and the line that deletes it where git cannot" "$out" "gh api -X DELETE repos/test/fork/git/refs/heads/$c/vendor/2-engine"
+is "the branch stays, for the session" "$(tip "$c/vendor/2-engine")" "$e2"
 fetch
 is "3-fwd stands on 1-main" "$(git rev-parse "origin/$c/vendor/3-fwd^")" "$(git rev-parse "origin/$c/vendor/1-main")"
 has "main's patch is recorded as present" "$out" \
   "$(printf -- '- `%s` fix(patch): Patch the engine: applies as no change' "$(git rev-parse --short=10 "$PATCH")")"
-git -C "$FORK" config --unset receive.denyDeletes
-out=$(run "$STACK" v9.9-x vendor)
-is "an allowed deletion exits 0" "$(status "$out")" 0
+del=$(sed -n 's/^   \(git push --force-with-lease=.*\)$/\1/p' <<<"$out")
+out=$(run bash -c "$del")
+is "the leased deletion it prints works" "$(status "$out")" 0
 is "and the branch is gone" "$(tip "$c/vendor/2-engine")" ""
+out=$(run "$STACK" v9.9-x vendor)
+is "a rebuild then exits 0" "$(status "$out")" 0
+hasnt "and names no branch to retire" "$out" "No longer in the stack"
 
 echo "=== 7. no shared history: one three-way merge"
 out=$(run "$STACK" v8.8-y vendor)
@@ -451,13 +458,38 @@ is "--summary without a file" "$(status "$(run "$STACK" v9.9-x dev --summary)")"
 out=$(run "$STACK" v7.7-z dev)
 is "a series with no forward refuses" "$(status "$out")" 1
 has "naming the ref" "$out" "has no v7.7-z-dev"
+# After the swap the series' tips are the forward's, and -fwd refs a proxy would not delete stay beside them.
+fetch
+ov=$(tip v9.9-x-vendor) fv=$(tip v9.9-x-fwd-vendor) before=$(stack v9.9-x/vendor)
+git checkout -q --detach "$fv"
+tick
+echo 'later <- function() 9' > R/later.R
+git add -A
+git commit -qm 'fix: Something the series added after its swap'
+later=$(git rev-parse HEAD)
+git checkout -q main
+for pos in "at its forward's tip:$fv" "behind it:$(git rev-parse "$fv~1")" "past it:$later"; do
+  git push -q -f origin "${pos#*:}:refs/heads/v9.9-x-vendor"
+  out=$(run "$STACK" v9.9-x vendor)
+  is "a series ${pos%%:*}, on its lineage, refuses" "$(status "$out")" 1
+  has "${pos%%:*}: saying why" "$out" "are one lineage, as after the swap"
+  is "${pos%%:*}: and pushes nothing" "$(stack v9.9-x/vendor)" "$before"
+done
+git push -q -f origin "$ov:refs/heads/v9.9-x-vendor"
+out=$(run "$STACK" v9.9-x build --summary "$SCRATCH/no/such/dir/build.md")
+is "a summary file that cannot be written refuses" "$(status "$out")" 1
+has "saying nothing was pushed" "$out" "cannot write the summary to $SCRATCH/no/such/dir/build.md, so nothing was pushed"
+is "and nothing is" "$(stack v9.9-x/build)" ""
 
 echo "=== 9. nothing called gh"
 is "the failing gh is the one on PATH" "$(command -v gh)" "$BIN/gh"
 is "and was never called" "$(cat "$GH_LOG")" ""
 
 echo "=== 10. nothing read a terminal"
-ok "every run above had stdin closed and no controlling terminal, and finished"
+probe=$(run bash -c 'if (: < /dev/tty) 2>/dev/null; then echo "a terminal"; fi; if read -r _; then echo "a stdin"; fi; echo probed')
+has "the wrapper every run above went through runs its command to the end" "$probe" probed
+hasnt "with no controlling terminal to read" "$probe" "a terminal"
+hasnt "and no stdin" "$probe" "a stdin"
 is "no build is left stopped" "$(ls "$(git rev-parse --git-common-dir)/series-cutover-stack" 2>/dev/null)" ""
 is "and no worktree is left" "$(git worktree list | wc -l | tr -d ' ')" 1
 

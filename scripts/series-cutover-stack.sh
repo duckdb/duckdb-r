@@ -21,6 +21,9 @@
 # The first layer stands on the old tip,
 # so a pull request with it as head keeps the old lineage reachable as `refs/pull/<n>/head`,
 # which is what the swap checks before it moves a ref.
+# Once the swap has run, `<S>-<X>` is the forward's tip, and `-fwd` refs a remote refused to delete may stay beside it:
+# a stack built then would move `1-main` onto the forward's lineage, and the head of an open pull request with it.
+# So the script refuses where `<S>-<X>` and `<S>-fwd-<X>` are one commit, or one is an ancestor of the other.
 #
 # The replay spans `main` from the old series' base to the forward's base,
 # each the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
@@ -47,7 +50,8 @@
 # `patch/` stays that of `1-main`, so that what the forward changed in the patch stack shows in `3-fwd`.
 #
 # A conflict stops the build with the worktree kept, as stage 5 stops on a carry:
-# resolve it there, `git add` the paths, and rerun with --continue, or throw the build away with --abort.
+# resolve it there, `git add` the paths, and rerun with --continue, or throw the build away with --abort,
+# from the worktree or from the checkout that started the build.
 # Nothing is pushed before every layer is built.
 # rerere records each resolution (scripts/setup-git.sh, which this script runs),
 # so a rebuild that meets the same conflict resolves it the same way without stopping;
@@ -58,12 +62,15 @@
 # so the same inputs give the same SHAs on any machine.
 # The layers go up in one atomic push, each leased on the tip this run read, or on its absence,
 # so a rebuild moves existing branches only from where it found them.
-# A `2-engine` an earlier build pushed, which this one has no use for, is deleted under its lease too.
+# A `2-engine` an earlier build pushed, which this one has no use for, is left where it is:
+# GitHub closes a pull request whose base branch is deleted, as the `3-fwd` one's is,
+# so the script prints the steps that retire it, for the session to take in their order.
 #
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
 # which conflicts were resolved, and the diff stat.
 # Last come the pull requests to open, with repository, base, head and title.
+# --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves.
 # The script reads no terminal: stdin is /dev/null, and a conflict stops the run for the next one to resume.
 #
 # Usage: series-cutover-stack.sh <series> <strand> [--remote <name>] [--upstream <path>] [--summary <file>] [--continue | --abort]
@@ -83,13 +90,14 @@
 #
 # Exit status:
 #   0  built and pushed.
-#   1  refused or failed, and nothing pushed: a ref missing, an engine that cannot be read,
-#      a stopped build in the way, a lease the push lost.
+#   1  refused or failed, and nothing pushed: a ref missing, an old tip on the forward's lineage,
+#      an engine that cannot be read, a stopped build in the way, a summary file that cannot be written,
+#      a lease the push lost.
 #      A rerun reads the refs anew.
 #   2  a usage error; nothing was read.
 #   3  stopped on a conflict, the worktree and the build kept for --continue; nothing was pushed.
-#   9  built and pushed, and a `2-engine` of an earlier build left behind, which the remote refused to delete:
-#      printed with the line that deletes it.
+#   9  built and pushed, and a `2-engine` of an earlier build left for the session to retire,
+#      printed with the steps that do so.
 #   Any other status is a command that failed, before the push.
 
 set -euo pipefail
@@ -132,7 +140,7 @@ cut="cutover/$S/$X"
 self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 common=$(git rev-parse --path-format=absolute --git-common-dir)
 # A stopped build lives here, in the repository rather than in one worktree,
-# so --continue works from the kept worktree as well as from the checkout that started it.
+# so --continue and --abort work from the kept worktree as well as from the checkout that started it.
 STATE="$common/series-cutover-stack/${S//\//-}-$X"
 
 # Every commit this script writes has this committer, and the commits that are not picks this author;
@@ -145,6 +153,8 @@ if [ "$action" = abort ]; then
   if [ -f "$STATE/vars" ]; then
     # shellcheck source=/dev/null
     . "$STATE/vars"
+    # Out of the worktree first, where the stop sent whoever runs this: git cannot run in a directory it deleted.
+    cd "$common"
     [ ! -d "$wt" ] || git worktree remove --force "$wt"
     git worktree prune
     rm -rf "$STATE"
@@ -274,6 +284,14 @@ else
   declare -A LEASE=()
   for L in 1-main 2-engine 3-fwd 4-old; do LEASE[$L]=${HEAD_OF[$cut/$L]:-}; done
   old=${HEAD_OF[$S-$X]} fwd=${HEAD_OF[$S-fwd-$X]}
+
+  # One lineage, as after the swap with the forward's refs left behind: a stack built on it would move the pin (see the header).
+  if git merge-base --is-ancestor "$old" "$fwd" || git merge-base --is-ancestor "$fwd" "$old"; then
+    echo "Error: $S-$X at $(short "$old") and $S-fwd-$X at $(short "$fwd") are one lineage, as after the swap" >&2
+    echo "  with the forward's refs left behind: a stack built on it would move $cut/1-main off the old tip it pins." >&2
+    echo "  Nothing was pushed. Delete the forward's refs, as scripts/series-prune.sh $S lists them." >&2
+    exit 1
+  fi
 
   # The base a series stands on: the commit under its seed and the flavor commits below that, as scripts/flavor.sh names them.
   flavor_re='^chore: Update (flavor patch|version) to '
@@ -724,9 +742,24 @@ report=$tmp/report
   if [ -n "$stale" ]; then
     echo
     echo "No longer in the stack: $stale, as the engine of $cut/1-main is now the forward's."
-    echo "Close its pull request."
+    echo "It is the base of the pull request of $cut/3-fwd, which GitHub would close if the branch went first,"
+    echo "so the branch is left where it is. Retire it in this order:"
+    echo
+    echo "1. Retarget the pull request of $cut/3-fwd onto $cut/1-main."
+    echo "2. Close the pull request of $stale."
+    echo "3. Delete the branch, leased on the tip this run read:"
+    echo "   git push --force-with-lease=refs/heads/$stale:${LEASE[2-engine]} $remote :refs/heads/$stale"
+    [ -z "$slug" ] || echo "   or, where the remote refuses a deletion: $(series_delete_line "$remote" "$stale")"
   fi
 } > "$report"
+
+# Written before the push, so that a file that cannot be written leaves nothing moved.
+if [ -n "$summary" ] && ! cp "$report" "$summary"; then
+  echo "Error: $S $X: cannot write the summary to $summary, so nothing was pushed. Built, not pushed:" >&2
+  for L in "${layers[@]}"; do echo "  ${SHA[$L]} $cut/$L" >&2; done
+  keep=''
+  exit 1
+fi
 
 # --- the push -----------------------------------------------------------------
 
@@ -745,21 +778,11 @@ if ! out=$(git push "${push_args[@]}" "$remote" "${refspecs[@]}" 2>&1); then
   exit 1
 fi
 
-left=''
-if [ -n "$stale" ]; then
-  if ! git push -q --force-with-lease="refs/heads/$stale:${LEASE[2-engine]}" "$remote" ":refs/heads/$stale" 2>/dev/null; then
-    left=1
-    echo "Left behind: $stale, which the remote refused to delete; delete it with" >> "$report"
-    series_delete_line "$remote" "$stale" | sed 's/^/  /' >> "$report"
-  fi
-fi
-
 cat "$report"
-[ -z "$summary" ] || cp "$report" "$summary"
 echo
 for L in "${layers[@]}"; do echo "pushed: ${SHA[$L]} $cut/$L"; done
 
 git worktree remove --force "$wt"
 rm -rf "$STATE"
 wt='' keep=''
-[ -z "$left" ] || exit 9
+[ -z "$stale" ] || exit 9
