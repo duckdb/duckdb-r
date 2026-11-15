@@ -28,6 +28,8 @@ Four refs matter here:
   It sits at the last landing and is what CRAN and r-universe publish.
   `main` is no release branch: it carries upstream `main`'s engine and releases nothing
   ([`branches/model/`](/handbook/branches/model/README.md)).
+  That holds once `v2.0-cyanoptera` is cut; until then `main` is the 2.0 line's release branch
+  ([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
