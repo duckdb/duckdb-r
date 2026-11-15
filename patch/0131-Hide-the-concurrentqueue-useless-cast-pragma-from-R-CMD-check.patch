@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 18 Nov 2026 12:00:00 +0000
+Subject: [PATCH] Hide the concurrentqueue useless-cast pragma from R CMD check
+
+The concurrentqueue update in duckdb/duckdb#28674 wraps the cast in
+hash_thread_id() in `#pragma GCC diagnostic ignored "-Wuseless-cast"`
+(GCC only, between a push and a pop). R CMD check flags the file twice:
+as a pragma suppressing diagnostics, and as a non-portable one, since
+-Wuseless-cast is on R's list of non-portable warning flags. Its scan
+matches `#pragma GCC diagnostic ignored` with single spaces; the push,
+the pop and the MSVC `#pragma warning` blocks are not flagged.
+
+Respace the one flagged line, as patch 0016 does for mbedtls, so the
+compiler still honors it and the code compiles exactly as before.
+
+Carried here until upstream takes it; not proposed upstream yet.
+---
+ src/duckdb/third_party/concurrentqueue/concurrentqueue.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/third_party/concurrentqueue/concurrentqueue.h b/src/duckdb/third_party/concurrentqueue/concurrentqueue.h
+--- a/src/duckdb/third_party/concurrentqueue/concurrentqueue.h
++++ b/src/duckdb/third_party/concurrentqueue/concurrentqueue.h
+@@ -460,7 +460,7 @@ namespace details
+ 		static_assert(sizeof(thread_id_t) <= 8, "Expected a platform where thread IDs are at most 64-bit values");
+ #if defined(__GNUC__) && !defined(__clang__)
+ #pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wuseless-cast"
++#pragma  GCC  diagnostic  ignored "-Wuseless-cast"
+ #endif
+ 		return static_cast<size_t>(hash_32_or_64<sizeof(thread_id_converter<thread_id_t>::thread_id_hash_t)>::hash(
+ 			thread_id_converter<thread_id_t>::prehash(id)));
