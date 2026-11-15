@@ -95,7 +95,8 @@
 # series, the base's own commits included, and `--status` advances it over the
 # commits CI has passed, the way stage 3 advances a series' green
 # (scripts/series-advance.sh). The landing is ready when the two refs are equal
-# and it ends on the bump.
+# and it ends on the bump, and `--status` then prints the push and the bump's
+# tag (handbook/operations/releases/versioning/README.md).
 # There is no `-land-build`, so the loop's discovery never mistakes the pair for
 # a series.
 #
@@ -319,6 +320,27 @@ is_bump() { # <commit>
     { echo "the subject does not name version $new"; return 1; }
 }
 
+# The commands that tag <bump> once the branch has it: the annotated tag
+# `v<version>`, its message the subject `duckdb <version>` and then the section
+# NEWS.md has for that version, if it has one, read the way the release process
+# reads it (handbook/operations/releases/versioning/README.md). A release's
+# version is tagged when the release is published, so only a line says so.
+tag_commands() { # <bump>
+  local v
+  v=$(git show "$1:DESCRIPTION" | sed -n 's/^Version: //p')
+  if [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Its tag, v$v, is the release's, set when the release is published" \
+      "(handbook/operations/releases/process/README.md, step 5)."
+    return
+  fi
+  # The `\n` are the printed command's own, for its printf.
+  printf '%s\n' \
+    "Then tag it on $canonical, with NEWS.md's section for $v below the subject if there is one:" \
+    "  { printf 'duckdb %s\n\n' $v; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
+    "    git tag -a v$v --cleanup=whitespace -F - $1" \
+    "  git push $canonical refs/tags/v$v"
+}
+
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
 # commits, and at most one version bump as the last commit, never without a
 # vendor commit under it? A fix is folded
@@ -412,6 +434,7 @@ if [ -n "$status" ]; then
     else
       echo "READY: every commit has passed, and $onto ($(git rev-parse --short "$main")) fast-forwards to it:"
       echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/$onto"
+      tag_commands "$(git rev-parse "$dev")"
     fi
   fi
   exit 0

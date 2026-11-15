@@ -339,19 +339,17 @@ It needs the existing branch ruleset's admin bypass, because it is not a pull re
 Then tag the bump, which is the commit `READY` named, as every landing's bump is tagged
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md));
 the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
-It is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <v>`, then the `NEWS.md` section as body.
+`--status` prints the same commands below the push, with the SHA and the version filled in.
 A bump to an upstream release is tagged when the release is published instead
-([`operations/releases/process/`](/handbook/operations/releases/process/README.md), step 5).
+([`operations/releases/process/`](/handbook/operations/releases/process/README.md), step 5),
+and `--status` says so in their place.
 
 ```sh
 v=$(git show "$sha:DESCRIPTION" | sed -n 's/^Version: //p')
-{ printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
-if [ "$(grep -c . tag-message)" -gt 1 ]; then
-  git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha" &&
-    git push upstream "refs/tags/v$v"
-else
-  echo "no NEWS.md section for $v" >&2
-fi
+{ printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |
+  git tag -a "v$v" --cleanup=whitespace -F - "$sha"
+git push upstream "refs/tags/v$v"
+git tag -n3 -l "v$v"   # the subject, then NEWS.md's section for the version, if it has one
 ```
 
 ## 7. After the landing

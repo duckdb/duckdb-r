@@ -30,7 +30,10 @@
 #      change nothing but NEWS.md, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
 #      commit vendors, with nothing above it, whatever NEWS.md holds; a rebuild
-#      drops a bump added to the kept worktree.
+#      drops a bump added to the kept worktree. The tag commands printed with
+#      the fast-forward, run as printed, tag the bump `duckdb <version>`, with
+#      NEWS.md's section for it below where there is one, and a release's
+#      version is left to the release.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -362,6 +365,14 @@ ENGINE_FULL=dddd444000000000000000000000000000000000
 write_bump() { # <version> [<engine record>]
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
 }
+# Runs the tag commands --status printed, as a maintainer pastes them, and
+# prints the tag's target and message.
+tag_as_printed() { # <tag>
+  sed -n '/^Then tag it on /,$p' <<<"$out" | tail -n +2 | sed 's/^  //' > "$SCRATCH/tag-commands"
+  bash -e "$SCRATCH/tag-commands" >/dev/null 2>&1 || echo "the tag commands failed"
+  git -C "$CANON" rev-parse -q --verify "refs/tags/$1^{commit}" || echo "no $1 on upstream"
+  git -C "$CANON" tag -l --format='%(contents)' "$1"
+}
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
   passed "$1"
@@ -388,6 +399,32 @@ status_of "$BUMP"
 is "the bump leaves NEWS.md alone" "$(git diff --name-only "$BUMP~1" "$BUMP")" DESCRIPTION
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
+has "and so does the tag" "$out" "git tag -a v1.99.99.9001 --cleanup=whitespace -F - $BUMP"
+has "which goes to the canonical repository" "$out" "git push upstream refs/tags/v1.99.99.9001"
+is "run as printed, the tag is the subject alone, NEWS.md having no section for the version" \
+  "$(tag_as_printed v1.99.99.9001)" "$BUMP"$'\n''duckdb 1.99.99.9001'
+git tag -d v1.99.99.9001 >/dev/null
+git push -q upstream :refs/tags/v1.99.99.9001
+probe; write_bump 1.99.99.9001
+{ printf '# duckdb 1.99.99.9001\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
+commit "$bump_msg"
+NEWS_BUMP=$(git rev-parse HEAD)
+status_of "$NEWS_BUMP"
+has "a bump that writes the version's section is ready too" "$out" "READY: every commit has passed"
+is "and its tag carries the section below the subject" "$(tag_as_printed v1.99.99.9001)" \
+  "$NEWS_BUMP"$'\n''duckdb 1.99.99.9001'$'\n\n''## Features'$'\n\n''- Something for users.'
+git tag -d v1.99.99.9001 >/dev/null
+git push -q upstream :refs/tags/v1.99.99.9001
+git checkout -q -f main
+probe; write_bump 2.0.0
+commit 'chore: Bump version to 2.0.0'
+status_of "$(git rev-parse HEAD)"
+has "a bump to a release is ready" "$out" "READY: every commit has passed"
+has "and its tag is left to the release" "$out" "Its tag, v2.0.0, is the release's"
+hasnt "  with no tag command" "$out" "git tag"
+git checkout -q -f main
+dev_at "$BUMP"
 out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?
 is "the review takes it" "$st" 0
 hasnt "and does not call it out of place" "$out" "out of place"

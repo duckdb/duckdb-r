@@ -60,7 +60,7 @@ middle columns: **vendored commits enter the mainline in exactly one
 cluster (CUT), and `main`'s glue changes only in TRACK and STABILIZE.**
 The two never overlap,
 which is what keeps the release branch CRAN-releasable at all times.
-Between releases the release branch may take its line's batches by landings too, each ending on a bump of the fourth component
+Between releases the release branch may take its line's batches by landings too, each ending on a bump of the fourth component and its tag
 ([`versioning/`](/handbook/operations/releases/versioning/README.md));
 CUT's is the landing that ends on the released version.
 `main` stands outside this machine: it lands batches of upstream `main` whenever one is ready, and waits for no release
@@ -286,13 +286,9 @@ S=v1.4-andium                          # the line just released
 R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
 git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R"   # the tip as it is now, after the rebase
 v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p')
-{ printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
-if [ "$(grep -c . tag-message)" -gt 1 ]; then
-  git tag -a "v$v" --cleanup=whitespace -F tag-message "canonical/$R" &&
-    git push "$C" "refs/tags/v$v"
-else
-  echo "no NEWS.md section for $v" >&2
-fi
+{ printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |
+  git tag -a "v$v" --cleanup=whitespace -F - "canonical/$R"
+git push "$C" "refs/tags/v$v"
 ```
 
 For the **current** line only, submit to CRAN (`cran/`);

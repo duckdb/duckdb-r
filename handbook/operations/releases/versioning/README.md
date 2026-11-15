@@ -1,7 +1,7 @@
 # Versioning
 
 The package version — `Version:` in `DESCRIPTION`, the one place
-it lives — its components, what advances them, and who keeps `NEWS.md` beside it.
+it lives — its components, what advances them, the tags that mark them, and who keeps `NEWS.md` beside it.
 The full version handling inside the release sequence is in
 [`process/`](/handbook/operations/releases/process/README.md).
 
@@ -87,20 +87,25 @@ It sets `Version:` in `DESCRIPTION`, and touches no other file but `NEWS.md`, wh
 A released version is the bare three-component prefix, matching the upstream tag,
 set explicitly and never derived from git; the tag follows `DESCRIPTION`.
 A landing ends on a bump, its last commit
-([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6),
-which takes the annotated tag `v<version>`, `v2.0.99.9001`,
-its message the subject `duckdb <version>` and then the section `NEWS.md` has for that version.
-A release's tag is written the same way, by the CRAN submission
-([`cran/`](/handbook/operations/releases/cran/README.md)),
-or by hand on a line that does not ship to CRAN
-([`process/`](/handbook/operations/releases/process/README.md), step 5).
+([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
 After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
 in a bump that takes no tag.
 
+**Every landing's bump takes the annotated tag `v<version>`, `v2.0.99.9001`, in the canonical repository.**
+Its message is the subject `duckdb <version>`,
+then the section `NEWS.md` has for that version, and nothing more where it has none,
+the shape the `v1.5.6.90xx` tags have.
+[`series-land`](/.claude/skills/series-land/SKILL.md), step 6, holds the commands, and `scripts/series-land.sh --status` prints them once the landing is ready.
+A landing that brings an upstream release is tagged by the release instead, in the same shape:
+by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md)),
+or by hand on a line that does not ship to CRAN
+([`process/`](/handbook/operations/releases/process/README.md), step 5).
+
 **`NEWS.md` is kept by a separate process, not by pull requests, ports or landings.**
 A port keeps the series' copy ([`series-loop`](/.claude/skills/series-loop/references/4-port.md)),
-and a landing's bump is recognized by its subject and its `DESCRIPTION` change, whether or not it touches `NEWS.md`
-([`scripts/series-land.sh`](/scripts/series-land.sh)).
+a landing's bump is recognized by its subject and its `DESCRIPTION` change, whether or not it touches `NEWS.md`
+([`scripts/series-land.sh`](/scripts/series-land.sh)),
+and a tag copies the version's section only where the file has one.
 
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
