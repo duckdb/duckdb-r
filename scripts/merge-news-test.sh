@@ -1,0 +1,108 @@
+#!/bin/bash
+# Check scripts/merge-news.sh, the NEWS.md merge driver, offline, on files and
+# in a repository built here.
+#
+# The claim is that NEWS.md merges section by section and comes out newest
+# version first, whichever side a section came from. Six things are checked:
+#
+#   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
+#      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
+#      2.0.1, 2.0.0.9001, 2.0.0, without a conflict.
+#   2. The same with the sides swapped gives the same file.
+#   3. An edit to one existing section on one side is taken.
+#   4. An edit to one section on both sides that conflicts is a conflict, with
+#      the other sections merged and in order.
+#   5. A section deleted on one side and left alone on the other is deleted.
+#   6. Registered by scripts/setup-git.sh, the driver is what a `git merge`
+#      of NEWS.md runs.
+#
+# Usage:
+#   scripts/merge-news-test.sh
+#
+# Environment variables:
+#   KEEP - if non-empty, do not delete the scratch directory
+
+set -euo pipefail
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+SCRATCH=$(mktemp -d)
+[ -n "${KEEP:-}" ] || trap 'rm -rf "$SCRATCH"' EXIT
+[ -z "${KEEP:-}" ] || echo "scratch: $SCRATCH"
+
+pass=0
+fail=0
+ok() { pass=$((pass + 1)); echo "  ok   $1"; }
+no() { fail=$((fail + 1)); echo "  FAIL $1"; }
+is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
+has() { case "$2" in *"$3"*) ok "$1" ;; *) no "$1"; echo "       missing: $3" ;; esac; }
+
+cd "$SCRATCH"
+sec() { printf '# duckdb %s\n\n- %s\n\n\n' "$1" "${2:-Changes in $1.}"; }
+news() { local v; for v in "$@"; do sec "$v"; done; }
+headings() { sed -n 's/^# duckdb //p' "$1" | tr '\n' ' '; }
+merge() { "$HERE/merge-news.sh" O A B >/dev/null 2>&1 && echo 0 || echo $?; }
+
+echo "== 1. a forward merge"
+news 2.0.99.9000 2.0.0 > O
+{ sec 2.0.99.9001; news 2.0.99.9000 2.0.0; } > A
+{ sec 2.0.1; sec 2.0.0.9001; news 2.0.99.9000 2.0.0; } > B
+is "it merges cleanly" "$(merge)" 0
+is "newest first, from both sides" "$(headings A)" "2.0.99.9001 2.0.99.9000 2.0.1 2.0.0.9001 2.0.0 "
+has "each section keeps its body" "$(cat A)" "- Changes in 2.0.0.9001."
+cp A forward
+
+echo "== 2. the sides swapped"
+news 2.0.99.9000 2.0.0 > O
+{ sec 2.0.1; sec 2.0.0.9001; news 2.0.99.9000 2.0.0; } > A
+{ sec 2.0.99.9001; news 2.0.99.9000 2.0.0; } > B
+is "it merges cleanly" "$(merge)" 0
+is "to the same file" "$(cat A)" "$(cat forward)"
+
+echo "== 3. an edit on one side"
+news 2.0.99.9000 2.0.0 > O
+{ sec 2.0.99.9000 'Edited on ours.'; sec 2.0.0; } > A
+{ sec 2.0.1; news 2.0.99.9000 2.0.0; } > B
+is "it merges cleanly" "$(merge)" 0
+has "the edit is kept" "$(cat A)" "- Edited on ours."
+is "beside theirs' new section, in order" "$(headings A)" "2.0.99.9000 2.0.1 2.0.0 "
+
+echo "== 4. an edit on both sides"
+news 2.0.99.9000 2.0.0 > O
+{ sec 2.0.99.9001; sec 2.0.99.9000; sec 2.0.0 'Ours says this.'; } > A
+{ sec 2.0.1; sec 2.0.99.9000; sec 2.0.0 'Theirs says that.'; } > B
+is "it conflicts" "$(merge)" 1
+has "with the conflict marked in that section" "$(cat A)" "<<<<<<< ours"
+is "and the rest merged, in order" "$(headings A)" "2.0.99.9001 2.0.99.9000 2.0.1 2.0.0 "
+
+echo "== 5. a section deleted on one side"
+news 2.0.99.9000 2.0.0.9001 2.0.0 > O
+news 2.0.99.9000 2.0.0 > A
+news 2.0.99.9000 2.0.0.9001 2.0.0 > B
+is "it merges cleanly" "$(merge)" 0
+is "without the section" "$(headings A)" "2.0.99.9000 2.0.0 "
+
+echo "== 6. registered, a git merge runs it"
+git init -q -b main repo
+cd repo
+git config user.name Test
+git config user.email test@example.invalid
+git config commit.gpgsign false
+mkdir scripts
+cp "$HERE/setup-git.sh" "$HERE/merge-news.sh" "$HERE/merge-version.sh" scripts/
+printf 'DESCRIPTION merge=ours-version\nNEWS.md merge=news\n' > .gitattributes
+scripts/setup-git.sh >/dev/null
+news 2.0.99.9000 2.0.0 > NEWS.md
+git add -A; git commit -qm base
+git checkout -q -b rel
+{ sec 2.0.1; sec 2.0.0.9001; news 2.0.99.9000 2.0.0; } > NEWS.md
+git commit -qam 'release branch'
+git checkout -q main
+{ sec 2.0.99.9001; news 2.0.99.9000 2.0.0; } > NEWS.md
+git commit -qam 'main'
+git merge -q --no-edit rel >/dev/null 2>&1 && st=0 || st=$?
+is "the merge succeeds" "$st" 0
+is "NEWS.md newest first" "$(headings NEWS.md)" "2.0.99.9001 2.0.99.9000 2.0.1 2.0.0.9001 2.0.0 "
+
+echo
+echo "$pass passed, $fail failed"
+[ "$fail" -eq 0 ]

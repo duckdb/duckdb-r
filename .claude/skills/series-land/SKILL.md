@@ -407,7 +407,9 @@ scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
 The merge keeps the newer line's engine, the vendored strand and the Makevars generated from it,
-and the registered `DESCRIPTION` merge driver keeps its version and engine record.
+the registered `DESCRIPTION` merge driver keeps its version and engine record,
+and the `NEWS.md` merge driver merges the two changelogs by version section, newest first;
+`scripts/setup-git.sh` registers both, and the block runs it first.
 Anything else that conflicts is resolved as the R side needs; `git status` names it before the commit.
 
 ```sh

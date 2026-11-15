@@ -4,7 +4,8 @@
 # cherry-picks, or merges branches in this repo.
 #
 # The merge-driver *name -> command* mapping must live in .git/config; only the
-# `DESCRIPTION merge=ours-version` attribute itself is committed (.gitattributes).
+# `DESCRIPTION merge=ours-version` and `NEWS.md merge=news` attributes
+# themselves are committed (.gitattributes).
 #
 # The checkout to configure, so a caller running `main`'s copy of this script
 # configures the clone it is operating on rather than the one the script came
@@ -28,6 +29,8 @@ toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
 
 git config merge.ours-version.name   "Combine DESCRIPTION version counters (see scripts/merge-version.sh)"
 git config merge.ours-version.driver "scripts/merge-version.sh %O %A %B"
+git config merge.news.name   "Merge NEWS.md by version section, newest first (see scripts/merge-news.sh)"
+git config merge.news.driver "scripts/merge-news.sh %O %A %B"
 
 # Remember any genuine conflict resolutions across repeated rebases.
 git config rerere.enabled true
@@ -36,4 +39,4 @@ git config rerere.enabled true
 # patch/am backend bypasses them. Pin it so rebases honour the driver.
 git config rebase.backend merge
 
-echo "git configured in $toplevel: merge driver 'ours-version', rerere, rebase.backend=merge"
+echo "git configured in $toplevel: merge drivers 'ours-version' and 'news', rerere, rebase.backend=merge"

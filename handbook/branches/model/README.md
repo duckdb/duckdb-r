@@ -266,7 +266,8 @@ It is an ordinary merge, made as a pull request and merged with "Create a merge 
 A landing on the older branch brings that line's vendor commits, which the newer line must not take,
 so the merge keeps the newer side of the vendored strand and what is generated from it,
 `series_strand` and `series_makevars` in [`scripts/series-config.sh`](/scripts/series-config.sh),
-and the `DESCRIPTION` merge driver keeps its version and engine record
+the `DESCRIPTION` merge driver keeps its version and engine record,
+and the `NEWS.md` merge driver orders both lines' sections newest version first
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 [`series-land`](/.claude/skills/series-land/SKILL.md) has the commands,
 and [`scripts/series-check.sh`](/scripts/series-check.sh) lists for each active release branch what is not yet merged forward,

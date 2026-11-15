@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Git merge driver for NEWS.md: merge it section by section, and leave the
+# sections in version order, newest first.
+#
+# A forward merge of an older release branch into a newer line
+# (handbook/branches/model/) meets two NEWS.md files that both grew at the top:
+# `# duckdb 2.0.0.9001` and `# duckdb 2.0.1` on the release branch,
+# `# duckdb 2.0.99.9001` on `main`. A line-based merge conflicts there every
+# time, and resolving it by hand puts the sections in whatever order the hand
+# chose. This driver merges by section instead:
+#
+#   * a section is a `# duckdb <version>` heading and its body, up to the next
+#     such heading; anything before the first heading is merged as one more
+#     section that always stays first;
+#   * a section on one side only is taken, and one deleted on one side and left
+#     alone on the other is deleted;
+#   * a section changed on one side only takes that side;
+#   * a section changed on both sides differently is merged three-way with
+#     `git merge-file`, and a conflict there is a conflict of the whole merge;
+#   * the sections are written newest version first, compared component by
+#     component as numbers, whatever side each came from.
+#
+# Registered by scripts/setup-git.sh as the `news` driver, which .gitattributes
+# names for NEWS.md (handbook/operations/releases/versioning/README.md).
+#
+# git invokes this with:  %O = ancestor   %A = ours (= output)   %B = theirs
+set -euo pipefail
+
+[ $# -eq 3 ] || { echo "usage: merge-news.sh <ancestor> <ours> <theirs>" >&2; exit 2; }
+
+exec python3 -I - "$@" <<'PY'
+import re
+import subprocess
+import sys
+import tempfile
+
+o_path, a_path, b_path = sys.argv[1:4]
+HEAD = re.compile(r"^# duckdb (\S+)\s*$")
+
+
+def read(path):
+    with open(path, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def sections(text):
+    """The preamble and the sections, as {key: text}, key None for the preamble."""
+    out = {}
+    key, buf = None, []
+    seen = {}
+    for line in text.splitlines(keepends=True):
+        m = HEAD.match(line.rstrip("\r\n"))
+        if m:
+            out[key] = "".join(buf)
+            v = m.group(1)
+            seen[v] = seen.get(v, 0) + 1
+            key = v if seen[v] == 1 else (v, seen[v])
+            buf = [line]
+        else:
+            buf.append(line)
+    out[key] = "".join(buf)
+    if out.get(None) == "":
+        del out[None]
+    return out
+
+
+def version_key(key):
+    v, n = (key, 1) if isinstance(key, str) else key
+    parts = []
+    for p in re.split(r"[.-]", v):
+        parts.append((0, int(p), "") if p.isdigit() else (-1, 0, p))
+    return (parts, -n)
+
+
+def merge3(a, o, b):
+    """git merge-file on three texts; returns (text, conflicted)."""
+    with tempfile.TemporaryDirectory() as d:
+        paths = []
+        for name, t in (("ours", a), ("base", o), ("theirs", b)):
+            p = f"{d}/{name}"
+            with open(p, "w", encoding="utf-8", newline="") as f:
+                f.write(t or "")
+            paths.append(p)
+        r = subprocess.run(["git", "merge-file", "-p", "-L", "ours", "-L", "base", "-L", "theirs", *paths],
+                           capture_output=True, text=True)
+        if r.returncode < 0 or r.returncode > 127:
+            sys.exit(r.returncode)
+        return r.stdout, r.returncode != 0
+
+
+O, A, B = (sections(read(p)) for p in (o_path, a_path, b_path))
+merged, conflict = {}, False
+for key in list(dict.fromkeys([*A, *B, *O])):
+    o, a, b = O.get(key), A.get(key), B.get(key)
+    if a == b:
+        res = a
+    elif a == o:
+        res = b
+    elif b == o:
+        res = a
+    else:
+        res, c = merge3(a, o, b)
+        conflict = conflict or c
+    if res is not None and res != "":
+        merged[key] = res
+
+keys = sorted((k for k in merged if k is not None), key=version_key, reverse=True)
+order = ([None] if None in merged else []) + keys
+out = []
+for i, key in enumerate(order):
+    t = merged[key]
+    if not t.endswith("\n"):
+        t += "\n"
+    # A section that moved off the end still needs the blank lines before the
+    # next heading that the file uses between sections.
+    if i < len(order) - 1 and key is not None and not t.endswith("\n\n"):
+        t += "\n\n"
+    out.append(t)
+
+with open(a_path, "w", encoding="utf-8", newline="") as f:
+    f.write("".join(out))
+sys.exit(1 if conflict else 0)
+PY

@@ -127,6 +127,11 @@ ours, always, so a pick, a port or a cutover's replay never rewrites the engine 
 A bump that is itself replayed over a changed `DESCRIPTION`, by a fold or a rebase, therefore arrives with the record of the commit it lands on,
 and with its vendor counter back, and `series-land.sh` refuses it until it is stamped again ([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
 A forward merge meets the driver like any merge, so the newer line keeps its own record.
+`NEWS.md` has a merge driver of its own, [`scripts/merge-news.sh`](/scripts/merge-news.sh), registered with the other by `scripts/setup-git.sh`:
+it merges the file section by section, a section being a `# duckdb <version>` heading and its body,
+and writes the sections newest version first whichever side each came from,
+so a forward merge interleaves the older line's `2.0.1` and `2.0.0.9001` below the newer line's `2.0.99.9001` without a conflict;
+a section both sides changed differently is merged three-way, and conflicts as any line would.
 The commit takes the annotated tag `v<version>`, `v2.0.99.9001`.
 The merge driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
