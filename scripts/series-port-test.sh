@@ -29,7 +29,10 @@
 #      NEWS.md comes out empty and is committed empty, so its trailer retires it.
 #   8. A ported commit keeps the whole message of the commit it ports, a
 #      `# Conflicts:` line in its body included, and then the trailer; so does
-#      the commit the guidance prints when a pick conflicts.
+#      the commit the guidance prints when a pick conflicts. The message is
+#      byte for byte the one a real `cherry-pick -x` writes, for a message with
+#      a `---` line above its trailers, one already ending in a cherry-pick
+#      line, one with CRLF line ends and one with trailing whitespace.
 #   9. A conflict on the last commit named by hand prints no rerun, because a
 #      bare --apply would port what the named subset left out; one on an
 #      earlier commit prints a rerun with the commits named after it.
@@ -370,6 +373,49 @@ fi
 out_again=$(scripts/series-port.sh t 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_again"
 hasnt "so the squash is not offered again" "$out_again" 'Code squashed from a merge resolved by hand'
+
+echo
+echo "series-port.sh: the message a real \`cherry-pick -x\` writes"
+# Shapes whose layout a verbatim commit, or a footer read only up to a `---`
+# line, got wrong; each committed verbatim on `main`, and all ported in one run.
+git checkout -q main
+shapes=(
+  $'feat: A divider above the trailers\n\nBody.\n---\nNotes after the divider.\n\nReviewed-by: A Reviewer <r@example.invalid>'
+  $'fix: A message already picked once\n\nBody.\n\n(cherry picked from commit 0123456789abcdef0123456789abcdef01234567)'
+  $'fix: A message with CRLF line ends\r\n\r\nBody.\r\n\r\nSigned-off-by: A U Thor <a@example.invalid>\r\n'
+  $'fix: A message with trailing whitespace  \n\nBody.\t\n\n\n\nMore body.   \n\n\n'
+)
+labels=('a --- line above the trailers' 'a message already ending in a cherry-pick line'
+  'CRLF line ends' 'trailing whitespace and repeated blank lines')
+shape_shas=()
+for k in "${!shapes[@]}"; do
+  echo "msg $k" > "R/msg$k.R"
+  git add -A
+  printf '%s' "${shapes[$k]}" | git commit -q --cleanup=verbatim -F -
+  shape_shas+=("$(git rev-parse HEAD)")
+done
+git push -q upstream main
+git checkout -q --detach
+out_shapes=$(scripts/series-port.sh t --apply "${shape_shas[@]}" 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_shapes"
+git fetch -q origin
+if [ "$st" = 0 ]; then ok "the shapes apply"; else no "the shapes apply"; printf '%s\n' "$out_shapes" | sed 's/^/       /'; fi
+message_of() { git cat-file commit "$1" | sed '1,/^$/d'; }
+for k in "${!shape_shas[@]}"; do
+  c=${shape_shas[$k]}
+  git checkout -q --detach "$c^"
+  git cherry-pick -x "$c" >/dev/null
+  message_of HEAD > "$SCRATCH/real.msg"
+  port=$(git log -1 --format=%H -F --grep="(cherry picked from commit $c)" origin/t-dev)
+  if [ -n "$port" ] && message_of "$port" > "$SCRATCH/port.msg" &&
+    cmp -s "$SCRATCH/real.msg" "$SCRATCH/port.msg"; then
+    ok "${labels[$k]}: the port's message is cherry-pick -x's"
+  else
+    no "${labels[$k]}: the port's message is cherry-pick -x's"
+    diff <(od -c "$SCRATCH/real.msg") <(od -c "$SCRATCH/port.msg") | sed 's/^/       /' || true
+  fi
+done
+git checkout -q --detach
 
 echo
 echo "series-port.sh: a conflict on a commit named by hand"

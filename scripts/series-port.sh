@@ -506,6 +506,11 @@ git worktree add --detach -q "$wt" "$dev"
 # tell the two apart. A pick left with nothing to commit is committed empty all
 # the same, for the reason the walk above gives.
 #
+# The layout is `-x`'s byte for byte, as scripts/series-port-test.sh holds it
+# against a real `cherry-pick -x`: the trailer joins the footer git finds, and
+# the commit cleans whitespace as `-x`'s does, dropping trailing whitespace, CRs
+# included, and repeated blank lines while keeping `#` lines.
+#
 # The `-x` trailer is the second dedupe layer, not decoration, so the guidance
 # below names it: a resolution that diverges from main's patch has no patch-id
 # in common with it, and the trailer is then the only thing that stops the pick
@@ -517,8 +522,12 @@ x_message() { # <sha> -> its message and trailer, laid out as `cherry-pick -x` d
   local m
   m=$(git log -1 --format=%B "$1")
   printf '%s\n' "$m"
-  # The trailer joins a trailer block the message ends in, else opens its own.
-  [ -n "$(printf '%s\n' "$m" | git interpret-trailers --parse)" ] || echo
+  # The trailer joins a footer the message ends in, else opens its own. The
+  # footer is the one the sequencer finds: read past a `---` line, and counting
+  # a cherry-pick line as a trailer, which `--parse` does not print, so it is
+  # passed as `Signed-off-by:`, the other line git writes and counts alike.
+  [ -n "$(printf '%s\n' "$m" | sed 's/^(cherry picked from commit /Signed-off-by: /' |
+    git interpret-trailers --parse --no-divider)" ] || echo
   echo "(cherry picked from commit $1)"
 }
 keep_news() {
@@ -533,7 +542,7 @@ for i in "${!picks[@]}"; do
     { echo "Error: not a commit: ${picks[$i]}; worktree kept at $wt"; exit 1; }
   line="$(git rev-parse --short "$sha") $(git log -1 --format=%s "$sha")"
   x_message "$sha" > "$pick_msg"
-  commit=(commit --allow-empty --cleanup=verbatim -F "$pick_msg"
+  commit=(commit --allow-empty --cleanup=whitespace -F "$pick_msg"
     --author="$(git log -1 --format='%an <%ae>' "$sha")"
     --date="$(git log -1 --format=%aI "$sha")")
   st=0
