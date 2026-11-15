@@ -101,8 +101,10 @@ gh api repos/$R/commits/$B --jq .sha
 Freeze:
 
 ```sh
+( set -eu
 S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
 B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+[[ $B =~ ^(main|v[0-9]+\.[0-9]+-[a-z]+)$ ]] || { echo "no branch to land onto: '$B'" >&2; exit 1; }
 gh api -X POST repos/duckdb/duckdb-r/rulesets --input - <<EOF
 {
   "name": "freeze $B",
@@ -117,6 +119,7 @@ gh api -X POST repos/duckdb/duckdb-r/rulesets --input - <<EOF
   ]
 }
 EOF
+)
 ```
 
 Verify: an `update` row from the new ruleset, and `never`.
@@ -322,18 +325,28 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
 When `--status` prints `READY`, every commit has passed and `<B>` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `<B>` unjudged.
-Lift the freeze, push, put the freeze back, and then tag the bump:
+Paste the blocks of this step into bash: zsh reads `$sha:r` as a modifier and, by default, `#` comments as commands.
 
+Lift the freeze, push, put the freeze back, and then tag the bump.
+The block runs in a subshell that stops at the first failure, before the freeze is lifted unless `--status` printed `READY`,
+and puts the freeze back on its way out whether the push succeeded or not
+(`tests/testthat/test-series-land-skill.R` runs it against a scratch repository):
+
+<!-- series-land: fast-forward block -->
 ```sh
+( set -eu
 S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
 B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+[[ $B =~ ^(main|v[0-9]+\.[0-9]+-[a-z]+)$ ]] || { echo "no branch to land onto: '$B'" >&2; exit 1; }
 sha=$(scripts/series-land.sh "$S" --status | sed -n 's/^  git push [^ ]* \([0-9a-f]\{40\}\):refs\/heads\/.*/\1/p')
-[ -n "$sha" ] || { echo "not READY" >&2; false; }
+[[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "not READY" >&2; exit 1; }
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq ".[] | select(.name == \"freeze $B\") | .id")
-gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=disabled
-git push upstream $sha:refs/heads/$B
-gh api -X PUT repos/duckdb/duckdb-r/rulesets/$id -f enforcement=active
-git ls-remote upstream refs/heads/$B
+[[ $id =~ ^[0-9]+$ ]] || { echo "no single freeze ruleset for $B: '$id'" >&2; exit 1; }
+gh api -X PUT "repos/duckdb/duckdb-r/rulesets/$id" -f enforcement=disabled
+trap 'gh api -X PUT "repos/duckdb/duckdb-r/rulesets/$id" -f enforcement=active' EXIT
+git push upstream "${sha}:refs/heads/$B"
+git ls-remote upstream "refs/heads/$B"
+)
 ```
 
 The push is a plain one, so git refuses it unless it is a fast-forward.
@@ -349,12 +362,14 @@ A bump to an upstream release is tagged when the release is published instead
 so `--status` prints a line saying so in their place, and the block tags nothing.
 
 ```sh
-S=main                                        # the serving series that landed: main, or v2.0-cyanoptera
-out=$(scripts/series-land.sh "$S" --status)   # READY again, now that the branch is the bump
+( set -eu
+S=main                                                # the serving series that landed: main, or v2.0-cyanoptera
+out=$(scripts/series-land.sh "$S" --status) || true   # READY again, now that the branch is the bump
 printf '%s\n' "$out"
-grep -q '^READY' <<<"$out" &&
-  bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")" &&   # the tag commands below the push, none for a release
-  git tag -n3 --points-at FETCH_HEAD   # the tag: the subject, then NEWS.md's section for the version, if it has one
+grep -q '^READY' <<<"$out" || { echo "not READY" >&2; exit 1; }
+bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")"   # the tag commands below the push, none for a release
+git tag -n3 --points-at FETCH_HEAD   # the tag: the subject, then NEWS.md's section for the version, if it has one
+)
 ```
 
 ## 7. After the landing
@@ -362,10 +377,14 @@ grep -q '^READY' <<<"$out" &&
 Delete the freeze, so that `<B>` takes pull requests again:
 
 ```sh
+( set -eu
 S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
 B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+[[ $B =~ ^(main|v[0-9]+\.[0-9]+-[a-z]+)$ ]] || { echo "no branch to land onto: '$B'" >&2; exit 1; }
 id=$(gh api repos/duckdb/duckdb-r/rulesets --jq ".[] | select(.name == \"freeze $B\") | .id")
-gh api -X DELETE repos/duckdb/duckdb-r/rulesets/$id
+[[ $id =~ ^[0-9]+$ ]] || { echo "no single freeze ruleset for $B: '$id'" >&2; exit 1; }
+gh api -X DELETE "repos/duckdb/duckdb-r/rulesets/$id"
+)
 ```
 
 Then the series:
@@ -426,9 +445,11 @@ fi
 When `git status` shows no unmerged path, commit, check that the engine is the newer line's, and open the pull request:
 
 ```sh
+( set -eu
 S=v2.0-cyanoptera                            # the series whose release branch is merged forward
 N=main                                       # the next newer line
 B=$(scripts/series-land.sh "$S" --target)
+[[ $B =~ ^(main|v[0-9]+\.[0-9]+-[a-z]+)$ ]] || { echo "no branch to land onto: '$B'" >&2; exit 1; }
 if [ "$B" = main ]; then
   echo "$S releases from main, so there is no release branch to merge forward" >&2
 else
@@ -445,11 +466,14 @@ else
   elif ! git diff --quiet "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"; then
     echo "the engine differs from $N's; fix the merge before pushing:" >&2
     git diff --stat "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"
+  elif ! [[ $v =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]; then
+    echo "no version on upstream/$B: '$v'" >&2
   else
     git push upstream "HEAD:refs/heads/forward/$B-$v"
     gh api repos/duckdb/duckdb-r/pulls -f base="$N" -f head="forward/$B-$v" -f title="Merge $B $v forward into $N"
   fi
 fi
+)
 ```
 
 The pull request is merged with "Create a merge commit", never squashed or rebased, which would drop the second parent.
@@ -476,13 +500,16 @@ and `main` moves on to preview the next line; CRAN moves to the new line with it
    ```
 
    ```sh
+   ( set -eu
    N=$(git ls-remote --heads https://github.com/duckdb/duckdb 'v*' | sed 's#.*refs/heads/##' | sort -V | tail -n 1)   # upstream's newest release branch
+   [[ $N =~ ^v[0-9]+\.[0-9]+-[a-z]+$ ]] || { echo "not a release branch: '$N'" >&2; exit 1; }
    git fetch upstream main
    if git ls-remote --exit-code upstream "refs/heads/$N" >/dev/null; then
      echo "$N exists in duckdb/duckdb-r already: nothing to cut, and pushing main there would move it" >&2
    else
      git push --force-with-lease="refs/heads/$N:" upstream "upstream/main:refs/heads/$N"   # refused if one appeared meanwhile
    fi
+   )
    ```
 
    ```sh
