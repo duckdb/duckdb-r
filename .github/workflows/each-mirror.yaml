@@ -1,7 +1,7 @@
 # Copy the per-commit verdicts of the fork onto the same commits here, as
 # commit statuses with context `each-rcc (fork)`, for the open pull requests
 # whose head is in the fork and whose author belongs to this repository, and for
-# the green branch of every dev series this repository publishes, so their
+# the green branch of every series scripts/series.yaml declares here, so their
 # commit lists show each commit's verdict and link to the leg that decided it.
 # It runs in the canonical repository only. How it does that, the watermark and
 # the limits on a run included, is in scripts/each-mirror.sh's header; why it

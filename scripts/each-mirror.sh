@@ -12,12 +12,16 @@
 # `author_association` is OWNER, MEMBER or COLLABORATOR; the run reports how
 # many others from FORK it left out. Their commits, read with git as
 # `<base>..refs/pull/<n>/head`. Then the green branches: for every entry of
-# SERIES_YAML with a `series` field and `repo` equal to REPO, its
-# `publishes_from`, the series' `<S>-green`, and its `<S>-fwd-green` where REPO
-# has one, each read with git as `<releases_from>..<green>`. A green that REPO
-# does not have is skipped with a note, a `-fwd-green` silently. Only people
-# with write access to REPO can push its branches, so a green branch needs no
-# author filter. Pull request commits come first and green ones after, each
+# SERIES_YAML with `series`, `releases_from` and `publishes_from` fields and
+# `repo` equal to REPO, whatever its `kind`, its `publishes_from`, the series'
+# `<S>-green`, and its `<S>-fwd-green` where REPO has one, each read with git
+# as `<releases_from>..<green>`. A green that REPO does not have is skipped with
+# a notice, a `-fwd-green` silently; a SERIES_YAML that cannot be read, or
+# branches of REPO that cannot be listed, cover no green, with a warning, and
+# the pull requests are covered all the same. Such a run drops the green
+# commits' records from the watermark, so the next run reads them again and
+# confirms them without posting. Only people with write access to REPO can push
+# its branches, so a green branch needs no author filter. Pull request commits come first and green ones after, each
 # commit once, so a capped run serves reviewers first. Of those commits, the
 # ones the verdict store holds a record for, `runs2.d/<xx>/<sha>.ndjson` on the
 # fork's `rcc2` branch, whose newest line wins if it has a `status` object: its
@@ -161,18 +165,21 @@ while IFS=$'\t' read -r number base; do
   pulls=$((pulls + 1))
 done < "${work}/pulls"
 
-# The green branches: `<series> <releases_from> <publishes_from>` for every dev
+# The green branches: `<series> <releases_from> <publishes_from>` for every
 # series REPO publishes, read from the declaration as scripts/series-port.sh
 # reads it, and then each series' green and its forward's, newest first, below
 # the pull requests' commits.
-awk -v repo="${REPO}" '
+if ! awk -v repo="${REPO}" '
   function flush() { if (ser != "" && rf != "" && pf != "" && rp == repo) print ser, rf, pf; ser = rf = pf = rp = "" }
   /^[^ #]/ || /^  - / { flush() }
   /^    series:/ { ser = $2 }
   /^    releases_from:/ { rf = $2 }
   /^    publishes_from:/ { pf = $2 }
   /^    repo:/ { rp = $2 }
-  END { flush() }' "${SERIES_YAML}" > "${work}/series"
+  END { flush() }' "${SERIES_YAML}" > "${work}/series"; then
+  echo "::warning::each-mirror: could not read ${SERIES_YAML}; no green branch covered"
+  : > "${work}/series"
+fi
 if git ls-remote --heads origin > "${work}/ls-remote"; then
   sed -n 's#^[0-9a-f]*\trefs/heads/##p' "${work}/ls-remote" > "${work}/heads"
 else
@@ -183,7 +190,7 @@ greens=0
 while read -r series base green; do
   for ref in "${green}" "${series}-fwd-green"; do
     if ! grep -qxF "${ref}" "${work}/heads"; then
-      [ "${ref}" != "${green}" ] || echo "each-mirror: ${REPO} has no ${ref}; skipped"
+      [ "${ref}" != "${green}" ] || echo "::notice::each-mirror: ${REPO} has no ${ref}; skipped"
       continue
     fi
     if ! git fetch -q origin "+refs/heads/${ref}:refs/each-mirror/green/${ref}" \

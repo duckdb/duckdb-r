@@ -30,9 +30,9 @@ A status links only to a run or a job in the fork, so a record cannot send a rev
 **Every green branch is covered too, because it is in no pull request.**
 `<S>-green` and `<S>-fwd-green` are pushed straight to the canonical repository
 ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)),
-and they are what r-universe builds and what a cutover signs off,
+`<S>-green` is what r-universe builds and `<S>-fwd-green` what a cutover signs off,
 so a reader of either should see each commit's verdict as a reviewer does.
-A run covers the green branch of every dev series [`scripts/series.yaml`](/scripts/series.yaml) declares in the canonical repository,
+A run covers the green branch of every series [`scripts/series.yaml`](/scripts/series.yaml) declares in the canonical repository,
 and its `-fwd-green` while one exists,
 from the branch the series releases from.
 They need no author filter, because only people with write access to the canonical repository can push its branches.
