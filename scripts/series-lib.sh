@@ -270,10 +270,10 @@ series_delete_line() { # <remote> <branch> [<tip>] -> one command
   local slug refs='' tip=${3:-} prs pr note twin=''
   slug=$(series_github_slug "$1")
   # A forward's branch, `-fwd-` once in its name, and its twin, the name without the `fwd-`.
-  case "$2" in
-    *-fwd-*-fwd-*) ;;
-    *-fwd-*) twin=${2/-fwd-/-} ;;
-  esac
+  # Overlapping occurrences count too, as in `a-fwd-fwd-b`: each strip keeps the dash that ends one.
+  local rest=$2 count=0
+  while [[ "$rest" == *-fwd-* ]]; do rest=${rest#*-fwd} count=$((count + 1)); done
+  [ "$count" -ne 1 ] || twin=${2/-fwd-/-}
   if [ -z "$tip" ] || [ -n "$slug" ]; then
     if [ -n "${series_delete_cache[$1]+x}" ]; then
       refs=${series_delete_cache[$1]}

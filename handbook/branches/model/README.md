@@ -175,6 +175,8 @@ The proof is a closed pull request whose head is the branch's tip, kept for as l
 or, with no pull request named, for a forward's branch `<x>-fwd-<y>`, its **twin** `<x>-<y>` at the same tip,
 which is every piece of cutover litter right after the swap;
 the twin is derived from the name, so no other branch can serve as the proof.
+A forward newly built from `<S>-dev` sits at its twin's tip too, so the rule would delete it if dispatched:
+nothing is lost, but only cutover litter is dispatched.
 The cutover tooling prints such a dispatch for a session wherever the proof holds, read with `git ls-remote`,
 and otherwise, as for litter whose series ref has moved on, a `gh api -X DELETE` that checks the tip first, for a maintainer's shell
 ([`scripts/series-lib.sh`](/scripts/series-lib.sh), `series_delete_line`).

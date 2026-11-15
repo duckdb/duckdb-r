@@ -263,6 +263,9 @@ series_delete_listing readable
 is "and the loaded listing holds the twin" "$(series_delete_line readable main-fwd-green)" "${dispatch}main-fwd-green'"
 has "a twin at another tip proves nothing" "$(series_delete_line readable v2.0-x-fwd-green)" "for a maintainer's shell"
 has "nor does a name with -fwd- twice" "$(series_delete_line readable a-fwd-b-fwd-c)" "for a maintainer's shell"
+git push -q "$SCRATCH/gh.git" "$u:refs/heads/a-fwd-fwd-b" "$u:refs/heads/a-fwd-b"
+unset 'series_delete_cache[readable]'
+has "nor one with -fwd- twice, overlapping" "$(series_delete_line readable a-fwd-fwd-b)" "for a maintainer's shell"
 has "a tip the caller read that the twin is not at falls back to the other proofs" "$(series_delete_line readable b-fwd-dev "$other")" \
   "if [ \"\$(gh api repos/o/r/git/ref/heads/b-fwd-dev --jq .object.sha)\" = $other ]"
 unset GIT_ALLOW_PROTOCOL

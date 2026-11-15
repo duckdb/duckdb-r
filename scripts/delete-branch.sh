@@ -23,7 +23,8 @@
 # default branch, or a default branch that cannot be read; with a <pr>, a
 # pull request whose head ref does not exist, whose head is not the branch's
 # tip, or that is not closed or whose state cannot be read; without one, a
-# twin that does not exist or is at another tip.
+# twin that does not exist or is at another tip, or an open pull request whose
+# head is the branch, or one that cannot be ruled out.
 # The branch and its proof are read with one `git ls-remote`. The deletion is
 # leased on the branch tip read, so a branch that moved since is not deleted.
 # The proof is not leased: a pull request reopened between the read of its
@@ -82,10 +83,13 @@ if [ $# -eq 2 ]; then
   proof="refs/pull/${pr}/head"
   named="the head of pull request #${pr}"
 else
-  case "${branch}" in
-    *-fwd-*-fwd-*) usage "'${branch}' holds '-fwd-' more than once, so it has no one twin" ;;
-    *-fwd-*) ;;
-    *) usage "without a pull request, only a forward's branch, holding '-fwd-', can be deleted, not '${branch}'" ;;
+  # Occurrences of `-fwd-`, overlapping ones included, as in `a-fwd-fwd-b`: each strip keeps the dash that ends one.
+  rest=${branch} count=0
+  while [[ "${rest}" == *-fwd-* ]]; do rest=${rest#*-fwd} count=$((count + 1)); done
+  case "${count}" in
+    1) ;;
+    0) usage "without a pull request, only a forward's branch, holding '-fwd-', can be deleted, not '${branch}'" ;;
+    *) usage "'${branch}' holds '-fwd-' more than once, so it has no one twin" ;;
   esac
   twin=${branch/-fwd-/-}
   proof="refs/heads/${twin}"
@@ -122,6 +126,15 @@ if [ -n "${pr}" ]; then
     closed) named="the head of closed pull request #${pr}" ;;
     '') refuse "the state of pull request #${pr} could not be read" ;;
     *) refuse "pull request #${pr} is ${state}; deleting its head branch would close it" ;;
+  esac
+else
+  # A twin proves the commits safe, but an open pull request from the branch would still be closed by its deletion.
+  open=$(gh api "repos/${REPO}/pulls?state=open&head=${REPO%%/*}:$(jq -rn --arg b "${branch}" '$b | @uri')" --jq length) ||
+    open=''
+  case "${open}" in
+    0) ;;
+    '' | *[!0-9]*) refuse "whether an open pull request has ${branch} as its head could not be read" ;;
+    *) refuse "an open pull request has it as its head; deleting it would close that pull request" ;;
   esac
 fi
 

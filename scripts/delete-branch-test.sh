@@ -22,7 +22,8 @@
 #   6. A branch that moves after its tip was read is not deleted: the lease
 #      refuses it.
 #   7. Without a pull request, a forward's branch at its twin's tip is
-#      deleted, and one whose twin is at another tip or missing is refused;
+#      deleted, and one whose twin is at another tip or missing, or that an
+#      open pull request has as its head, or where that cannot be read, is refused;
 #      a twin that moves forward after the read still holds the tip.
 #
 # Usage:
@@ -76,13 +77,24 @@ done
 mkdir -p "$BIN"
 cat > "$BIN/gh" <<'EOF'
 #!/bin/bash
-[ "$1 $3 $4" = "api --jq .state" ] || exit 1
-state=$(sed -n "s#^${2##*/} ##p" "$GH_STATES")
-[ -n "$state" ] || { echo "gh: HTTP 404" >&2; exit 1; }
-echo "$state"
+case "$1 $3 $4" in
+  "api --jq .state")
+    state=$(sed -n "s#^${2##*/} ##p" "$GH_STATES")
+    [ -n "$state" ] || { echo "gh: HTTP 404" >&2; exit 1; }
+    echo "$state"
+    ;;
+  "api --jq length")
+    # The open pull requests whose head is the branch named, from a file of branch names; one marked broken fails.
+    b=${2##*:}
+    grep -qx "broken" "$GH_OPEN" && { echo "gh: HTTP 502" >&2; exit 1; }
+    grep -cx "$b" "$GH_OPEN" || true
+    ;;
+  *) exit 1 ;;
+esac
 EOF
 chmod +x "$BIN/gh"
-export GH_STATES=$SCRATCH/states
+export GH_STATES=$SCRATCH/states GH_OPEN=$SCRATCH/open
+: > "$SCRATCH/open"
 printf '1 closed\n2 open\n3 closed\n' > "$GH_STATES"
 export PATH="$BIN:$PATH" REPO=test/repo GITHUB_STEP_SUMMARY=$SCRATCH/summary
 
@@ -90,7 +102,7 @@ run() { "$HERE/delete-branch.sh" "$@" 2>&1 && echo "EXIT=0" || echo "EXIT=$?"; }
 tip() { git ls-remote origin "refs/heads/$1" | cut -f1; }
 
 echo "=== 1. usage errors"
-for args in "a" "x-fwd-y-fwd-z" "a 1 2" "-a 1" "a..b 1" "a 0" "a 01" "a -1" "a 1x" "'' 1"; do
+for args in "a" "x-fwd-y-fwd-z" "a-fwd-fwd-b" "a 1 2" "-a 1" "a..b 1" "a 0" "a 01" "a -1" "a 1x" "'' 1"; do
   eval "set -- $args"
   out=$(run "$@")
   has "'$args' is a usage error" "$out" "EXIT=2"
@@ -160,6 +172,18 @@ out=$(run a)
 has "a name without -fwd- is a usage error" "$out" "only a forward's branch, holding '-fwd-', can be deleted, not 'a'"
 out=$(run x-fwd-y-fwd-z)
 has "and so is one with -fwd- twice" "$out" "'x-fwd-y-fwd-z' holds '-fwd-' more than once"
+out=$(run a-fwd-fwd-b)
+has "even overlapping" "$out" "'a-fwd-fwd-b' holds '-fwd-' more than once"
+git push -q -f origin "$A:refs/heads/v9.9-x-fwd-build" "$A:refs/heads/v9.9-x-build"
+echo v9.9-x-fwd-build > "$GH_OPEN"
+out=$(run v9.9-x-fwd-build)
+has "a branch at its twin's tip that an open pull request has as its head is refused" "$out" \
+  "an open pull request has it as its head; deleting it would close that pull request"
+echo broken > "$GH_OPEN"
+out=$(run v9.9-x-fwd-build)
+has "and so is one where that cannot be read" "$out" "whether an open pull request has v9.9-x-fwd-build as its head could not be read"
+is "and the branch is kept" "$(tip v9.9-x-fwd-build)" "$A"
+: > "$GH_OPEN"
 # The twin moves forward between the read and the push, as a series ref does: the tip stays in its history.
 git push -q -f origin "$B:refs/heads/main-green" "$A:refs/heads/main-fwd-green"
 git push -q -f origin "$A:refs/heads/main-green"
