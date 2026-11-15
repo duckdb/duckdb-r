@@ -88,10 +88,10 @@
 # `main` picking what it wants with `git cherry-pick -x` and then taking the
 # branch with `git merge -s ours`, the graft, whose message names what it
 # declined (handbook/branches/model/), so once grafted a commit is never listed
-# again. Each is marked: `picked` where `main`'s own history since the last graft
-# has it, by patch-id or a `cherry picked from commit` trailer either way;
-# `vendor` for the branch's engine, which `main` takes from upstream `main`
-# instead; and `not yet` otherwise.
+# again. Vendor commits, the branch's engine, which `main` takes from upstream
+# `main` instead, and release paperwork are counted; each R-side commit is listed
+# `picked` where `main`'s own history since the last graft has it, by patch-id or
+# a `cherry picked from commit` trailer either way, and `not yet` otherwise.
 #
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
@@ -870,7 +870,9 @@ fi
 # `picked` where `main`'s first parents since the merge base carry it, by
 # patch-id or a `cherry picked from commit` trailer either way, since a graft's
 # second parent is the branch itself and says nothing about what `main` took.
-# The canonical repository is
+# Vendor commits and release paperwork (a version bump, its notes, the
+# submission record) are the branch's own and are only counted; the R-side
+# commits are listed, each `picked` or `not yet`. The canonical repository is
 # read first and the fork's mirrors second; with neither carrying both branches
 # the block says it could not read them, unless the canonical repository answers
 # that the branch is not cut yet, which is nothing to report.
@@ -913,24 +915,30 @@ if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
       git log --first-parent --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
     main_shas=$(git rev-list --first-parent "$mb..$fp_main")
-    rows=() open=0
+    rows=() total=0 open=0 vendor=0 paper=0
     while IFS= read -r c; do
       [ -n "$c" ] || continue
+      total=$((total + 1))
       subj=$(git log -1 --format=%s "$c")
+      if series_is_vendor "$subj"; then vendor=$((vendor + 1)); continue; fi
+      if [[ "$subj" == 'chore: Bump version to '* ]] ||
+        [ -z "$(git diff-tree --no-commit-id --name-only -r "$c" |
+          grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ]; then
+        paper=$((paper + 1)); continue
+      fi
       src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
       if grep -qx "$c" <<<"$have" || { [ -n "$src" ] && grep -qx "$src" <<<"$main_shas"; }; then
         mark=picked
-      elif series_is_vendor "$subj"; then
-        mark=vendor
       else
         mark='not yet' open=$((open + 1))
       fi
       rows+=("$(printf '%s %-8s %s' "$(git rev-parse --short "$c")" "$mark" "$subj")")
     done < <(git rev-list --reverse --no-merges "$fp_main..$fp_rel")
-    if [ ${#rows[@]} -gt 0 ]; then
+    if [ "$total" -gt 0 ]; then
       echo
-      echo "FORWARD-PORT  $cran_line has ${#rows[@]} commit(s) main has not grafted, $open not yet picked, oldest first:"
-      printf '              %s\n' "${rows[@]}"
+      echo "FORWARD-PORT  $cran_line has $total commit(s) main has not grafted: $vendor vendor, $paper release paperwork,"
+      echo "              ${#rows[@]} R-side, $open of them not yet picked, oldest first:"
+      [ ${#rows[@]} -eq 0 ] || printf '              %s\n' "${rows[@]}"
       echo "              Pick what main needs with git cherry-pick -x, then graft the branch"
       echo "              with git merge -s ours, naming what it declines (handbook/branches/model/)."
     fi
