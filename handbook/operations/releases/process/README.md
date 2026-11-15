@@ -23,10 +23,11 @@ that carry it.
 
 Four refs matter here:
 
-* **the release branch** — `main` for the current line,
-  the parked `vX-codename` branch for a line that is no longer current,
-  in `duckdb/duckdb-r`.
-  It sits at the last release and is what CRAN and r-universe publish.
+* **the release branch** — the `vX-codename` branch of the line in `duckdb/duckdb-r`,
+  `v2.0-cyanoptera` for the current line and a parked one for a line that is no longer current.
+  It sits at the last landing and is what CRAN and r-universe publish.
+  `main` is no release branch: it carries upstream `main`'s engine and releases nothing
+  ([`branches/model/`](/handbook/branches/model/README.md)).
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
@@ -55,7 +56,12 @@ The single most important property of the whole design is the pair of
 middle columns: **vendored commits enter the mainline in exactly one
 cluster (CUT), and `main`'s glue changes only in TRACK and STABILIZE.**
 The two never overlap,
-which is what keeps `main` CRAN-releasable at all times.
+which is what keeps the release branch CRAN-releasable at all times.
+Between releases the release branch may take its line's batches by landings too, each ending on a bump of the fourth component
+([`versioning/`](/handbook/operations/releases/versioning/README.md));
+CUT's is the landing that ends on the released version.
+`main` stands outside this machine: it lands batches of upstream `main` whenever one is ready, and waits for no release
+([`series-land`](/.claude/skills/series-land/SKILL.md)).
 
 ## State diagram
 
@@ -228,6 +234,9 @@ and the post-tag commits stay queued for the next cycle.
 Bring the tagged `<S>-dev` content onto the release branch
 **linearly, never as a merge commit** — the active history stays
 merge-free so it stays bisectable.
+For a line with a release branch of its own this is a landing onto it,
+`scripts/series-land.sh <S> --onto <release branch>`, ending on the bump to `X.Y.Z`
+([`series-land`](/.claude/skills/series-land/SKILL.md)).
 Fast-forward or rebase the tagged range onto the release branch,
 dropping the flavor rename commit.
 The `DESCRIPTION` version conflict is resolved automatically by the merge
@@ -301,17 +310,17 @@ coordinate at the **cluster** level:
 * **CUT runs per line, pipelined, CRAN line first.**
   Submit the CRAN line early because its acceptance is asynchronous;
   the r-universe-only LTS line finishes alongside with no CRAN tail.
-* **A line on its way onto `main`** — the release-branch series whose line `main` releases next,
-  having previewed it while it tracked upstream `main` —
+* **A new line takes CRAN over** — the line upstream `main` previewed,
+  once upstream cuts its release branch and the series opened for it
+  ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md))
   lives in a long-running TRACK/STABILIZE:
   its STABILIZE *is* the upstream release-candidate window.
-  Its CUT is a **landing**: `main` fast-forwards onto the series' vendor commits,
-  replayed without the flavor onto the frozen `main`, ending on a hand-written version bump, and judged by CI one by one,
-  and the line `main` released before parks on its own baseline
+  The line's release branch is cut in `duckdb/duckdb-r` from `main`, whose R side the line keeps,
+  and its CUT is a **landing** onto that branch: the series' vendor commits,
+  replayed without the flavor onto the frozen branch, ending on the bump to the release, and judged by CI one by one.
+  The CRAN flavor then publishes from the new branch, and the line it published before keeps its own as a parked baseline
   ([`series-land`](/.claude/skills/series-land/SKILL.md)).
-  Every line has a series of its own, opened when upstream cuts its branch
-  ([`plan/PLAN-v2-series-open.md`](/plan/PLAN-v2-series-open.md)),
-  and the series never descends from today's `main`, whose later work it took as ports,
+  The series never descends from the branch it lands on, whose later work it took as ports,
   so a fast-forward onto the series itself is not available.
   The durations differ from an ordinary line's and the machine does
   not, and the one other addition is that vendor-coupled glue may be *born* on
