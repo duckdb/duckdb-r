@@ -307,8 +307,9 @@ same() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: 
 same "the port carries the fix" "$(git show "$PORT:R/rel-fix.R" 2>&1)" 'fix rel'
 same "and the glue folded into the vendor commit" "$(git show "$PORT:src/glue.cpp" 2>&1)" 'glue the release engine needed'
 same "and no engine" "$(git ls-tree -r --name-only "$PORT" -- src/duckdb | wc -l)" 0
-out_again=$(scripts/series-port.sh s 2>&1)
-has "a rerun names the same commit" "$out_again" "$PORT Merge rel-line forward into main"
+out_again=$(GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=true \
+  GIT_CONFIG_KEY_1=gpg.program GIT_CONFIG_VALUE_1=false scripts/series-port.sh s 2>&1 || true)
+has "a rerun names the same commit, signing configured or not" "$out_again" "$PORT Merge rel-line forward into main"
 
 echo
 echo "$pass passed, $fail failed"

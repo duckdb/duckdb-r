@@ -423,7 +423,8 @@ ancestry_only_commits() {
 # against its first parent outside the engine paths, the vendored strand and
 # the Makevars generated from it, on that parent. The commit is written here,
 # deterministically -- the merge's author, dates and message -- so a rerun
-# names the same SHA and the `-x` trailer of an earlier port excludes it.
+# names the same SHA and the `-x` trailer of an earlier port excludes it; it is
+# never signed, whatever commit.gpgsign says, since a signature would differ.
 merge_port() { # <merge> -> the commit standing for it, empty when it changes nothing outside the engine
   local m=$1 idx tree x
   local -a ex=()
@@ -440,7 +441,7 @@ merge_port() { # <merge> -> the commit standing for it, empty when it changes no
     GIT_AUTHOR_DATE=$(git log -1 --format=%ad --date=raw "$m") \
     GIT_COMMITTER_NAME=$(git log -1 --format=%cn "$m") GIT_COMMITTER_EMAIL=$(git log -1 --format=%ce "$m") \
     GIT_COMMITTER_DATE=$(git log -1 --format=%cd --date=raw "$m") \
-    git commit-tree "$tree" -p "$m^1"
+    git -c commit.gpgsign=false commit-tree --no-gpg-sign "$tree" -p "$m^1"
 }
 
 candidates=()
