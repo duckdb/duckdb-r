@@ -439,9 +439,7 @@ git push upstream "HEAD:refs/heads/forward/$B-$v"
 gh api repos/duckdb/duckdb-r/pulls -f base="$N" -f head="forward/$B-$v" -f title="Merge $B $v forward into $N"
 ```
 
-The pull request is merged with a merge commit, never squashed or rebased, which would drop the second parent:
-the repository's merge settings must allow merge commits, and `main`'s ruleset, where it requires linear history,
-needs its admin bypass for this merge or an exemption for it.
+The pull request is merged with "Create a merge commit", never squashed or rebased, which would drop the second parent.
 CI judges the merged R side on `main` like any pull request.
 From then on the release branch's commits are the newer line's ancestry, and FORWARD-PORT lists only what lands on it afterwards.
 

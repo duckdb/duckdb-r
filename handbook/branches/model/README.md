@@ -257,8 +257,7 @@ where the same fix cherry-picked into every line repeats the CI work for little 
 and the branches follow upstream's, one per line.
 
 **A forward merge keeps the newer line's engine.**
-It is an ordinary merge, made as a pull request and merged with a merge commit, never squashed or rebased:
-the repository's merge settings allow merge commits, and a branch ruleset that requires linear history exempts it or is bypassed.
+It is an ordinary merge, made as a pull request and merged with "Create a merge commit", never squashed or rebased.
 A landing on the older branch brings that line's vendor commits, which the newer line must not take,
 so the merge keeps the newer side of the vendored strand and what is generated from it,
 `series_strand` and `series_makevars` in [`scripts/series-config.sh`](/scripts/series-config.sh),
