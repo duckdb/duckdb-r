@@ -240,7 +240,8 @@ and the merge's message names each commit `main` declined, with the reason
 ([`series-land`](/.claude/skills/series-land/SKILL.md) has the commands).
 The release branch's engine is always declined, since `main` takes its own from upstream `main`.
 [`scripts/series-check.sh`](/scripts/series-check.sh) lists what `main` has not grafted yet, `main..<release branch>`,
-each commit marked picked, vendor or not yet, and a grafted commit is never listed again.
+counting its vendor commits and version bumps and listing each R-side commit as picked or not yet,
+and a grafted commit is never listed again.
 The release branch never takes `main` the other way: `main` carries another engine.
 Tooling is the exception to "written where it is found": it is `main`'s alone, and reaches the release branch only as a backport.
 A script that walks `main`'s own history reads its first parents, or the commits a graft's tree leaves out,

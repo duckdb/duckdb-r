@@ -386,14 +386,14 @@ A landing on `main` itself skips this step.
 
 **Forward-port first.**
 Every commit since the last graft is either picked onto `main` or declined.
-List them, each marked picked, vendor or not yet:
+FORWARD-PORT counts the vendor commits and version bumps and lists each R-side commit, picked or not yet:
 
 ```sh
 git fetch upstream main
 scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
-Each fix `main` needs goes in as a pull request of `git cherry-pick -x <sha>`, one per fix or several together,
+Each fix `main` needs goes in as a pull request of `git cherry-pick -x`, one per fix or several together,
 merged with the `cherry picked from commit` line kept in the squashed message, so the report marks it picked.
 Rerun the listing until every commit left is one `main` declines: the vendor commits always, and anything that answers the branch's engine alone.
 
