@@ -93,8 +93,10 @@
 # that puts the old tips back and the forward's refs beside them,
 # save a forward ref that moved since the run read it, which was never deleted.
 # Where a remote refused a deletion it prints the line that finishes it (`series_delete_line`, scripts/series-lib.sh):
-# on GitHub, a dispatch of .github/workflows/delete-branch.yaml for a session, naming a pull request whose head is the ref's tip,
-# or, where none is, a `gh api -X DELETE` that checks the tip first, for a maintainer's shell.
+# on GitHub, a dispatch of .github/workflows/delete-branch.yaml for a session,
+# with no pull request for a `-fwd-` ref whose twin without the `fwd-` is at its tip, as the swap leaves each,
+# or naming a pull request whose head is the ref's tip;
+# where neither holds, a `gh api -X DELETE` that checks the tip first, for a maintainer's shell.
 #
 # Exit status:
 #   0  swapped and cleaned up, or prepared.
@@ -775,8 +777,8 @@ if [ ${#left[@]} -gt 0 ] || [ ${#moved[@]} -gt 0 ] || [ ${#unread[@]} -gt 0 ] ||
     done
     [ ${#refs[@]} -gt 0 ] || continue
     echo "  cutover litter in $repo, which loses nothing when deleted: ${refs[*]}"
-    echo "  one line per ref: a dispatch of the deletion workflow, for a session, where a pull request's head is the tip,"
-    echo "  else a deletion that checks the tip first, for a maintainer's shell:"
+    echo "  one line per ref: a dispatch of the deletion workflow, for a session, where the ref's twin without its fwd-"
+    echo "  or a pull request's head is at its tip, else a deletion that checks the tip first, for a maintainer's shell:"
     series_delete_listing "$repo"
     # Each line is for the tip this run read back as litter, so it refuses a ref that has moved since.
     for i in "${!refs[@]}"; do echo "    $(series_delete_line "$repo" "${refs[i]}" "${tips[i]}")"; done

@@ -92,6 +92,10 @@ leased() {
   printf ' %s' "$r"
   printf ' :refs/heads/%s' "$@"
 }
+# The dispatch printed for a forward's ref at its twin's tip: <slug> <branch>.
+twinned() {
+  printf "gh api -X POST repos/%s/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=%s'\n" "$1" "$2"
+}
 # The tip-checked deletion printed for a maintainer, for a ref no pull request's head pins: <remote> <slug> <branch>,
 # at the tip the remote holds now.
 checked() {
@@ -774,10 +778,10 @@ hasnt "and offers none for the green it did not move" "$out" "upstream $OLD_GREE
 has "the litter in the fork is named" "$out" \
   "  cutover litter in origin, which loses nothing when deleted: v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-build-base v9.9-x-fwd-vendor"
 for r in build dev green build-base vendor; do
-  has "with one tip-checked deletion for -fwd-$r, for a maintainer, as no pull request pins it" "$out" "    $(checked origin test/fork "v9.9-x-fwd-$r")"
+  has "with one dispatch for -fwd-$r, for a session, as its twin v9.9-x-$r is at its tip" "$out" "    $(twinned test/fork "v9.9-x-fwd-$r")"
 done
 has "and the canonical copy" "$out" "  cutover litter in upstream, which loses nothing when deleted: v9.9-x-fwd-green"
-has "with its own" "$out" "    $(checked upstream test/canonical v9.9-x-fwd-green)"
+has "with a tip-checked one for a maintainer, as the canonical green was not moved to its tip" "$out" "    $(checked upstream test/canonical v9.9-x-fwd-green)"
 is "the last line says so" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
   "SWAPPED, LEFT BEHIND: v9.9-x is cut over; dispatch the workflow lines above, and hand the rest to a maintainer."
 has "and the status is 9" "$out" "EXIT=9"
@@ -823,7 +827,7 @@ has "the vendor strand among it too" "$out" "  v9.9-x-fwd-vendor"
 has "the deletion in the fork, leased on every tip read" "$out" "$(leased origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green v9.9-x-fwd-vendor v9.9-x-fwd-rc-dev)"
 has "and in the canonical repository" "$out" "$(leased upstream v9.9-x-fwd-green)"
 has "and one line per ref in the fork" "$out" "$(checked origin test/fork v9.9-x-fwd-rc-dev)"
-has "and in the canonical repository" "$out" "$(checked upstream test/canonical v9.9-x-fwd-green)"
+has "and in the canonical repository, whose green the swap moved there" "$out" "$(twinned test/canonical v9.9-x-fwd-green)"
 has "a ref no pull request's head is at is for a maintainer's shell, and says why" "$out" \
   "# for a maintainer's shell: no pull request's head is at ${NEW_DEV:0:12}, so the workflow cannot pin it"
 has "and nothing was run" "$out" "Nothing above was run."

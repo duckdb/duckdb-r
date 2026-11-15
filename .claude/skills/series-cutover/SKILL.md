@@ -200,7 +200,10 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
     ```
 
     It deletes a branch only where the pull request is closed and its head is the branch's tip, and refuses anything else.
-    A ref no pull request's head pins, such as litter the swap left, gets a tip-checked `gh api -X DELETE` line instead,
+    Dispatch the litter the swap left yourself too, the lines it printed, as it printed them:
+    a `-fwd-` ref whose twin, the same name without the `fwd-`, is at its tip needs no pull request
+    ([`branches/model/`](/handbook/branches/model/README.md)).
+    A ref neither proof covers gets a tip-checked `gh api -X DELETE` line instead,
     which is the maintainer's to run, never the session's.
     A dispatch answers 204 and nothing more, so confirm each deletion afterwards with `git ls-remote --heads <fork> <branch>`,
     or by the run's conclusion.

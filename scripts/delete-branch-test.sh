@@ -4,12 +4,14 @@
 # state: no network, no fixtures on disk.
 #
 # The claim the script makes is that it deletes a branch only where a closed
-# pull request's head is the branch's tip, and refuses everything else
-# before it pushes. Six things are checked.
+# pull request's head is the branch's tip, or a forward's branch where its
+# twin is at the same tip, and refuses everything else before it pushes.
+# Seven things are checked.
 #
 #   1. Arguments that are not one valid branch name, not starting with `-`,
-#      and one positive whole number are a usage error, exit 2, and nothing
-#      is read.
+#      and an optional positive whole number are a usage error, exit 2, and
+#      nothing is read; so is a branch without a pull request whose name does
+#      not hold `-fwd-`, or holds it twice.
 #   2. A branch that does not exist, and the default branch, are refused.
 #   3. A pull request with no head ref, and one whose head is not the branch's
 #      tip, are refused.
@@ -19,6 +21,10 @@
 #      summary says so; a refusal writes its reason there too.
 #   6. A branch that moves after its tip was read is not deleted: the lease
 #      refuses it.
+#   7. Without a pull request, a forward's branch at its twin's tip is
+#      deleted, and one whose twin is at another tip or missing, or that an
+#      open pull request has as its head, or where that cannot be read, is refused;
+#      a twin that moves forward after the read still holds the tip.
 #
 # Usage:
 #   scripts/delete-branch-test.sh
@@ -71,13 +77,24 @@ done
 mkdir -p "$BIN"
 cat > "$BIN/gh" <<'EOF'
 #!/bin/bash
-[ "$1 $3 $4" = "api --jq .state" ] || exit 1
-state=$(sed -n "s#^${2##*/} ##p" "$GH_STATES")
-[ -n "$state" ] || { echo "gh: HTTP 404" >&2; exit 1; }
-echo "$state"
+case "$1 $3 $4" in
+  "api --jq .state")
+    state=$(sed -n "s#^${2##*/} ##p" "$GH_STATES")
+    [ -n "$state" ] || { echo "gh: HTTP 404" >&2; exit 1; }
+    echo "$state"
+    ;;
+  "api --jq length")
+    # The open pull requests whose head is the branch named, from a file of branch names; one marked broken fails.
+    b=${2##*:}
+    grep -qx "broken" "$GH_OPEN" && { echo "gh: HTTP 502" >&2; exit 1; }
+    grep -cx "$b" "$GH_OPEN" || true
+    ;;
+  *) exit 1 ;;
+esac
 EOF
 chmod +x "$BIN/gh"
-export GH_STATES=$SCRATCH/states
+export GH_STATES=$SCRATCH/states GH_OPEN=$SCRATCH/open
+: > "$SCRATCH/open"
 printf '1 closed\n2 open\n3 closed\n' > "$GH_STATES"
 export PATH="$BIN:$PATH" REPO=test/repo GITHUB_STEP_SUMMARY=$SCRATCH/summary
 
@@ -85,7 +102,7 @@ run() { "$HERE/delete-branch.sh" "$@" 2>&1 && echo "EXIT=0" || echo "EXIT=$?"; }
 tip() { git ls-remote origin "refs/heads/$1" | cut -f1; }
 
 echo "=== 1. usage errors"
-for args in "a" "a 1 2" "-a 1" "a..b 1" "a 0" "a 01" "a -1" "a 1x" "'' 1"; do
+for args in "a" "x-fwd-y-fwd-z" "a-fwd-fwd-b" "a 1 2" "-a 1" "a..b 1" "a 0" "a 01" "a -1" "a 1x" "'' 1"; do
   eval "set -- $args"
   out=$(run "$@")
   has "'$args' is a usage error" "$out" "EXIT=2"
@@ -102,7 +119,7 @@ echo "=== 3. no head, another head"
 out=$(run a 9)
 has "a pull request without a head ref is refused" "$out" "pull request #9 has no head in test/repo"
 out=$(run b 1)
-has "a head that is not the tip is refused" "$out" "its tip $B is not the head $A of pull request #1"
+has "a head that is not the tip is refused" "$out" "its tip $B is not the head of pull request #1, $A"
 
 echo "=== 4. an open pull request, an unknown state"
 out=$(run b 2)
@@ -135,6 +152,49 @@ chmod +x "$SCRATCH/movebin/git"
 out=$(PATH="$SCRATCH/movebin:$PATH" run a 1)
 has "the leased deletion is refused" "$out" "push rejected (lease, protection or ruleset); see the log above"
 is "and the moved branch is kept" "$(tip a)" "$B"
+
+echo "=== 7. a forward's branch at its twin's tip"
+git push -q -f origin "$A:refs/heads/v9.9-x-fwd-green" "$A:refs/heads/v9.9-x-green" "$A:refs/heads/main-fwd-green" \
+  "$B:refs/heads/main-green" "$A:refs/heads/v9.9-x-fwd-dev"
+: > "$GITHUB_STEP_SUMMARY"
+out=$(run v9.9-x-fwd-green)
+has "is deleted without a pull request" "$out" "EXIT=0"
+is "and gone" "$(tip v9.9-x-fwd-green)" ""
+has "the summary names the twin" "$(cat "$GITHUB_STEP_SUMMARY")" \
+  "delete-branch: deleted v9.9-x-fwd-green at $A, the tip of its twin v9.9-x-green in test/repo"
+is "and the twin stays" "$(tip v9.9-x-green)" "$A"
+out=$(run main-fwd-green)
+has "a twin at another tip is refused" "$out" "its tip $A is not the tip of its twin main-green, $B"
+is "and the branch kept" "$(tip main-fwd-green)" "$A"
+out=$(run v9.9-x-fwd-dev)
+has "a missing twin is refused" "$out" "its twin v9.9-x-dev does not exist in test/repo"
+out=$(run a)
+has "a name without -fwd- is a usage error" "$out" "only a forward's branch, holding '-fwd-', can be deleted, not 'a'"
+out=$(run x-fwd-y-fwd-z)
+has "and so is one with -fwd- twice" "$out" "'x-fwd-y-fwd-z' holds '-fwd-' more than once"
+out=$(run a-fwd-fwd-b)
+has "even overlapping" "$out" "'a-fwd-fwd-b' holds '-fwd-' more than once"
+git push -q -f origin "$A:refs/heads/v9.9-x-fwd-build" "$A:refs/heads/v9.9-x-build"
+echo v9.9-x-fwd-build > "$GH_OPEN"
+out=$(run v9.9-x-fwd-build)
+has "a branch at its twin's tip that an open pull request has as its head is refused" "$out" \
+  "an open pull request has it as its head; deleting it would close that pull request"
+echo broken > "$GH_OPEN"
+out=$(run v9.9-x-fwd-build)
+has "and so is one where that cannot be read" "$out" "whether an open pull request has v9.9-x-fwd-build as its head could not be read"
+is "and the branch is kept" "$(tip v9.9-x-fwd-build)" "$A"
+: > "$GH_OPEN"
+# The twin moves forward between the read and the push, as a series ref does: the tip stays in its history.
+git push -q -f origin "$B:refs/heads/main-green" "$A:refs/heads/main-fwd-green"
+git push -q -f origin "$A:refs/heads/main-green"
+cat > "$SCRATCH/movebin/git" <<EOF
+#!/bin/bash
+if [ "\$1" = push ]; then $(command -v git) -C "$REMOTE_DIR" update-ref refs/heads/main-green $B; fi
+exec $(command -v git) "\$@"
+EOF
+out=$(PATH="$SCRATCH/movebin:$PATH" run main-fwd-green)
+has "a twin that moves forward after the read does not stop the deletion" "$out" "EXIT=0"
+is "and the deleted tip is in the twin's history" "$(git -C "$REMOTE_DIR" merge-base --is-ancestor "$A" main-green && echo yes)" yes
 
 echo
 echo "$pass passed, $fail failed"
