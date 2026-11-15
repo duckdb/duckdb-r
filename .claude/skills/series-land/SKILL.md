@@ -202,12 +202,23 @@ The build ends on the series' version, five components;
 once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-dev`, a plain fast-forward:
 
 * **`DESCRIPTION`**: set `Version:` to `<v>`; the fifth component, the vendor counter, is dropped.
+  Set `Config/duckdb/upstream:` to the full SHA of the engine the last vendor commit vendors,
+  which the build holds to that commit's `DUCKDB_SOURCE_ID`:
+
+  ```sh
+  eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
+  full=$(git -C "$UPSTREAM_CLONE" rev-parse --verify "$eng^{commit}")
+  sed -i 's/^Version: .*/Version: <v>/; /^Config\/duckdb\/upstream:/d' DESCRIPTION
+  printf 'Config/duckdb/upstream: %s\n' "$full" >> DESCRIPTION
+  git diff DESCRIPTION
+  ```
+
 * **`NEWS.md`**: close the open section, turning its heading into `# duckdb <v>`,
   or write that section above the newest one where no pull request opened it.
   Its first bullet names the engine as the versioning page spells it, with the two SHAs step 2 wrote down,
   and anything else the batch changes that users of the package notice joins the bullets the pull requests wrote, leaving out the tooling.
 * **The commit**: `chore: Bump version to <v>`.
-  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md` and the `Version:` line,
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md`, the `Version:` line and the engine record,
   with nothing above it, and refuses one whose version does not rise above `<B>`'s,
   or whose `NEWS.md` does not start with the version's section or still has an open one;
   `--status` prints `READY` only on a landing that ends on it.
@@ -409,7 +420,7 @@ and the line it shipped before keeps its release branch, parked.
    ```
 
 2. **Declare it**, in one pull request on `main` before the landing:
-   in [`scripts/series.yaml`](/scripts/series.yaml) the CRAN flavor's `upstream` and `publishes_from` become `<N>`,
+   in [`scripts/series.yaml`](/scripts/series.yaml) the CRAN flavor's `upstream` becomes `<N>`, its `publishes_from` stays `main`,
    the `<N>` series' `releases_from` becomes `<N>`, and `<P>`'s keeps `<P>`;
    then `.github/pull.yml` from `scripts/pull-config.sh` and the tables from `scripts/series-table.R`,
    checked with `--check` ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).

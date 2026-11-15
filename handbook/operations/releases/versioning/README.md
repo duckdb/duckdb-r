@@ -115,6 +115,15 @@ because a series not forwarded since the last landing still stamps the older fou
 The `NEWS.md` section a landing's bump closes takes as its first bullet the engine,
 `Vendored duckdb/duckdb main up to duckdb/duckdb@<sha> (<date>).`, the upstream branch in place of `main` for a release branch's landing,
 with a compare link from the previous landing's engine, `https://github.com/duckdb/duckdb/compare/<previous sha>...<sha>`.
+The bump also records the engine for scripts, which need not parse prose:
+`Config/duckdb/upstream:` in `DESCRIPTION`, the full SHA of the upstream commit the landing vendors up to.
+[`scripts/series-land.sh`](/scripts/series-land.sh) holds it to the engine the landing's last vendor commit vendors,
+the abbreviated SHA the vendored tree records as `DUCKDB_SOURCE_ID`, which every vendor commit writes whatever its subject says.
+R CMD build and check accept it, as they accept any field under `Config/`
+([Writing R Extensions](https://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file)).
+No port carries a bump, so a series lacks the line or lags it, and a landing's tree check takes it as the branch's;
+the merge driver merges it three-way like every line but `Version:`, so two sides that changed it differently conflict,
+and a graft keeps `main`'s, as it keeps all of `main`'s tree.
 The merge driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.

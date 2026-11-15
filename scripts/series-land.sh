@@ -58,7 +58,8 @@
 # **The landing is checked against the series before it is pushed.** Its tip
 # and the rc commit it was built up to must be the same package: the same tree,
 # except where the landing takes `main`'s side by construction. That is
-# `NEWS.md`, the release paperwork no port carries, and the three READMEs, which
+# `NEWS.md` and `DESCRIPTION`'s engine record, the release paperwork no port
+# carries, and the three READMEs, which
 # no port carries either (scripts/series-converge.sh has the evidence for both
 # classes). `DESCRIPTION` agrees whole, version included, because the counter
 # restarts on `main` exactly as it did on the series. A difference anywhere else
@@ -245,11 +246,15 @@ strand_excludes=()
 for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 
 bump_subject='chore: Bump version to '
+# The DESCRIPTION lines the bump writes (handbook/operations/releases/versioning/README.md).
+bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
 # Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
 # and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
-# `Version:` line, which rises and is the version the subject names; and its
-# `NEWS.md` starts with that version's section, on line 1, with something in it,
-# and keeps no `# duckdb (development version)` section, which the bump closes
+# `Version:` line, which rises and is the version the subject names, and its one
+# `Config/duckdb/upstream:` line, the full SHA of the engine the landing's last
+# vendor commit vendors; and its `NEWS.md` starts with that version's section,
+# on line 1, with something in it, and keeps no `# duckdb (development version)`
+# section, which the bump closes
 # (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
 is_bump() { # <commit>
@@ -257,8 +262,8 @@ is_bump() { # <commit>
   ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
   [ -z "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] ||
     { echo "changes more than NEWS.md and DESCRIPTION"; return 1; }
-  [ "$(git show "$c~1:DESCRIPTION" | grep -v '^Version:')" = "$(git show "$c:DESCRIPTION" | grep -v '^Version:')" ] ||
-    { echo "changes DESCRIPTION beyond Version:"; return 1; }
+  [ "$(git show "$c~1:DESCRIPTION" | grep -v "$bump_fields_re")" = "$(git show "$c:DESCRIPTION" | grep -v "$bump_fields_re")" ] ||
+    { echo "changes DESCRIPTION beyond Version: and Config/duckdb/upstream:"; return 1; }
   # shellcheck disable=SC2015
   [ "$(git show "$c~1:DESCRIPTION" | grep -c '^Version:')" = 1 ] &&
     [ "$(git show "$c:DESCRIPTION" | grep -c '^Version:')" = 1 ] ||
@@ -280,6 +285,19 @@ is_bump() { # <commit>
   # shellcheck disable=SC2015
   [ "$onto_v" != "$new" ] && [ "$(printf '%s\n%s\n' "$onto_v" "$new" | sort -V | tail -n 1)" = "$new" ] ||
     { echo "does not raise the version above $onto's $onto_v"; return 1; }
+  # The engine record: the full SHA, which the vendored tree abbreviates in its
+  # DUCKDB_SOURCE_ID (series_engine_of, scripts/series-config.sh), the one
+  # place every vendor commit records its engine whatever its subject says.
+  local up eng
+  [ "$(git show "$c:DESCRIPTION" | grep -c '^Config/duckdb/upstream:')" = 1 ] ||
+    { echo "DESCRIPTION does not have exactly one Config/duckdb/upstream: line"; return 1; }
+  up=$(git show "$c:DESCRIPTION" | sed -n 's/^Config\/duckdb\/upstream: *//p')
+  eng=$(series_engine_of "$c~1")
+  [[ "$up" =~ ^[0-9a-f]{40}$ ]] ||
+    { echo "Config/duckdb/upstream: is not a full SHA: $up"; return 1; }
+  # shellcheck disable=SC2015
+  [ -n "$eng" ] && [[ "$up" == "$eng"* ]] ||
+    { echo "Config/duckdb/upstream: $up is not the engine the landing vendors, ${eng:-none}"; return 1; }
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
@@ -673,6 +691,13 @@ while IFS=$'\t' read -r add del path; do
     NEWS.md | README.Rmd | README.md | .github/README.md)
       explained+=("$(row "$path" "$add/$del" "main's by construction; no port carries it")") ;;
     DESCRIPTION)
+      # The engine record is the branch's, written by each landing's bump and
+      # never ported, so a series lacks or lags it by construction.
+      if [ "$(git show "$tip:DESCRIPTION" | grep -v '^Config/duckdb/upstream:')" = \
+        "$(git show "$expect:DESCRIPTION" | grep -v '^Config/duckdb/upstream:')" ]; then
+        explained+=("$(row "$path" "$add/$del" "the engine record, Config/duckdb/upstream:, is the branch's")")
+        continue
+      fi
       why=''
       [ "$(version_of "$tip")" = "$(version_of "$expect")" ] ||
         why="version $(version_of "$tip") here, $(version_of "$expect") on the series"

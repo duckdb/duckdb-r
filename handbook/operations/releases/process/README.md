@@ -25,7 +25,8 @@ Four refs matter here:
 
 * **the release branch** — the `vX-codename` branch of the line in `duckdb/duckdb-r`,
   `v2.0-cyanoptera` for the current line and a parked one for a line that is no longer current.
-  It sits at the last landing and is what CRAN and r-universe publish.
+  It sits at the last landing, and CRAN releases are cut from it;
+  r-universe builds plain `duckdb` from `main` instead ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
   `main` is no release branch: it carries upstream `main`'s engine and releases nothing
   ([`branches/model/`](/handbook/branches/model/README.md)).
   That holds once `v2.0-cyanoptera` is cut; until then `main` is the 2.0 line's release branch
@@ -329,7 +330,7 @@ coordinate at the **cluster** level:
   The line's release branch is cut in `duckdb/duckdb-r` from `main`, whose R side the line keeps,
   and its CUT is a **landing** onto that branch: the series' vendor commits,
   replayed without the flavor onto the frozen branch, ending on the bump to the release, and judged by CI one by one.
-  The CRAN flavor then publishes from the new branch, and the line it published before keeps its own as a parked baseline
+  CRAN releases are then cut from the new branch, and the line CRAN shipped before keeps its own as a parked baseline
   ([`series-land`](/.claude/skills/series-land/SKILL.md)).
   The series never descends from the branch it lands on, whose later work it took as ports,
   so a fast-forward onto the series itself is not available.

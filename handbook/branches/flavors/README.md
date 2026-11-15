@@ -39,6 +39,12 @@ The following series are only available in the package archives:
 - `v1.0-nivis` and earlier (no upstream release branch)
 <!-- flavors:end -->
 
+Plain `duckdb` is the one flavor whose two channels differ once the line CRAN ships has a branch of its own
+([`model/`](/handbook/branches/model/README.md), "Until the cut"):
+r-universe builds it from `main`, so it shows the next line, `2.0.99.…`,
+while CRAN gets the current line's releases, cut from `v2.0-cyanoptera`
+([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).
+The table names the branch r-universe builds.
 There is no `duckdb.1.5`: v1.5 is not an LTS line,
 and the current release already ships as `duckdb`.
 A new flavor is announced by adding it to `series.yaml`, which this table and

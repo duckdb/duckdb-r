@@ -138,8 +138,9 @@ Three moving parts work together to produce the published R packages:
 duckdb/duckdb        krlmlr/duckdb-r         duckdb/duckdb-r       CRAN / r-universe
 (upstream C++)       (CI/CD fork)            (canonical R pkg)
 ──────────────       ──────────────          ───────────────       ─────────────────
-main            ──►  main-dev           ──►  main               ──►  duckdb.dev (r-universe)
-v2.0-cyanoptera ──►  v2.0-cyanoptera-dev──►  v2.0-cyanoptera    ──►  duckdb (CRAN, r-universe)
+main            ──►  main-dev           ──►  main               ──►  duckdb (r-universe)
+                                                                     duckdb.dev (r-universe)
+v2.0-cyanoptera ──►  v2.0-cyanoptera-dev──►  v2.0-cyanoptera    ──►  duckdb (CRAN)
                                                                      duckdb.2.0.dev (r-universe)
 v1.5-variegata  ──►  v1.5-variegata-dev ──►  v1.5-variegata     ──►  duckdb.1.5.dev (r-universe)
 v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ──►  duckdb.1.4 (r-universe)
@@ -187,7 +188,7 @@ The table is the layout once `v2.0-cyanoptera` is cut
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
 | `main`                    | `duckdb/duckdb-r` | `duckdb`         | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
 | `main-dev`                | `krlmlr/duckdb-r` | `duckdb.dev`     | Vendored dev on upstream `main`; the preview line          |
-| `v2.0-cyanoptera`         | `duckdb/duckdb-r` | `duckdb`         | Release branch of the current line; CRAN publishes from it |
+| `v2.0-cyanoptera`         | `duckdb/duckdb-r` | `duckdb`         | Release branch of the current line; CRAN releases from it  |
 | `v2.0-cyanoptera-dev`     | `krlmlr/duckdb-r` | `duckdb.2.0.dev` | Bleeding edge on v2.0 upstream                             |
 | `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Parked baseline of the previous line                       |
 | `v1.5-variegata-lts`      |                   |                  | Does not exist, v1.5 is not an LTS                         |

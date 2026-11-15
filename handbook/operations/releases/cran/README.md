@@ -2,7 +2,8 @@
 
 How a release reaches CRAN, and the policy constraints the tree
 lives under year-round.
-Only the current line ships to CRAN, as `duckdb`, from its release branch, never from `main`;
+Only the current line ships to CRAN, as `duckdb`, from its release branch, never from `main`,
+though r-universe builds the same name from `main` ([`branches/flavors/`](/handbook/branches/flavors/README.md));
 every other flavor publishes to r-universe and has no CRAN tail
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 Where submission sits in the release sequence is
