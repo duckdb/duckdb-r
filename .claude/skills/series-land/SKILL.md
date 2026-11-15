@@ -289,7 +289,8 @@ Then tag the bump, which is the commit `READY` named, as every landing's bump is
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md));
 the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
 It is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <v>`, then the `NEWS.md` section as body.
-A bump to an upstream release is tagged by the CRAN submission instead ([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).
+A bump to an upstream release is tagged when the release is published instead
+([`operations/releases/process/`](/handbook/operations/releases/process/README.md), step 5).
 
 ```sh
 v=<v>
