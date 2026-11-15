@@ -221,6 +221,7 @@ git config user.email test@example.invalid
 git config commit.gpgsign false
 mkdir -p src/duckdb patch R src/include
 printf 'engine base\n' > src/duckdb/a.cpp
+printf 'a file the release branch renames\n' > src/duckdb/old.cpp
 printf 'patch base\n' > patch/0001-fix.patch
 printf 'duckdb_version <- "base"\n' > R/version.R
 printf 'SOURCES = base\n' > src/include/sources.mk
@@ -230,6 +231,7 @@ git add -A; git commit -qm base
 git checkout -q -b rel
 printf 'engine rel\n' > src/duckdb/a.cpp
 printf 'added by rel\n' > src/duckdb/new.cpp
+git mv src/duckdb/old.cpp src/duckdb/renamed.cpp
 git rm -q patch/0001-fix.patch
 printf 'duckdb_version <- "rel"\n' > R/version.R
 printf 'OBJECTS = rel\n' > src/Makevars
@@ -251,6 +253,8 @@ series_keep_engine && st=0 || st=$?
 is "keeping the engine succeeds" "$st" 0
 is "and leaves nothing unmerged" "$(git diff --name-only --diff-filter=U | wc -l)" 0
 is "nor the file the release branch added" "$( [ -e src/duckdb/new.cpp ] && echo there || echo gone)" gone
+is "nor the name the release branch renamed a file to" "$( [ -e src/duckdb/renamed.cpp ] && echo there || echo gone)" gone
+is "  and the file is back under its old name" "$(cat src/duckdb/old.cpp)" 'a file the release branch renames'
 is "and an untracked file of the user's is kept" "$(cat src/duckdb/mine.txt)" 'a scratch file of the user'
 rm src/duckdb/mine.txt
 is "while the R side is merged" "$(git diff --cached --name-only)" "R/f.R"
