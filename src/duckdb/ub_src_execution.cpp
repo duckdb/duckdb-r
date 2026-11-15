@@ -20,6 +20,8 @@
 
 #include "src/execution/perfect_aggregate_hashtable.cpp"
 
+#include "src/execution/perfect_hash_join_table.cpp"
+
 #include "src/execution/physical_operator.cpp"
 
 #include "src/execution/physical_plan_generator.cpp"
