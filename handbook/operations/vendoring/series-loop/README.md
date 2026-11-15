@@ -50,10 +50,12 @@ to do, and they run in this order:
   tooling sync and fixes named by hand apply.
   That is read from the lineage under the seed rather than configured,
   so opening or retiring a release line changes no script.
-  The exception is a line that parks when another lands on `main`:
+  The exception is a line whose release branch was cut from `main`, the line CRAN ships and every line parked after it:
   its seed sits on `main`'s own history, so it is declared instead,
-  by naming its own baseline as `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml)
+  by naming its own branch as `releases_from` in [`scripts/series.yaml`](/scripts/series.yaml)
   ([`series-land`](/.claude/skills/series-land/SKILL.md)).
+  Its R side reaches it from that branch, by forwards and landings, and a fix it shares with `main` by cherry-pick
+  ([`branches/model/`](/handbook/branches/model/README.md)).
   A `patch/` entry the port brings to `-dev` does nothing there,
   because a vendor run applies the strand's stack, so the port carries
   it on to `<S>-vendor`, from where the next pick brings it to the buffer
