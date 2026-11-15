@@ -420,6 +420,11 @@ public:
 	//! whose type is not concrete, such as ANY, takes it as it is
 	DUCKDB_API static Value CastToParameterType(ClientContext &context, Value value, const LogicalType &parameter_type);
 
+	//! The current version of a function's catalog entry. Binding a function's arguments can autoload an extension
+	//! that adds overloads to that very function, which supersedes the entry looked up before the arguments were bound
+	//! (the catalog keeps the superseded entry alive): the overload is then chosen from the entry that replaced it.
+	DUCKDB_API const CatalogEntry &GetCurrentEntry(const CatalogEntry &entry);
+
 	DUCKDB_API unique_ptr<Expression> BindScalarFunction(const Identifier &schema, const Identifier &name,
 	                                                     vector<unique_ptr<Expression>> children, ErrorData &error,
 	                                                     bool is_operator = false,

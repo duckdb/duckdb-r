@@ -18,7 +18,7 @@ public:
 	constexpr optional_idx() {
 	}
 	// NOLINTNEXTLINE: allow implicit conversion from idx_t
-	constexpr optional_idx(idx_t index_p) : index(index_p) {
+	constexpr optional_idx(idx_t index_p) : index(index_p), valid(true) {
 	}
 
 	static optional_idx Invalid() {
@@ -26,26 +26,27 @@ public:
 	}
 
 	bool IsValid() const {
-		return index.has_value();
+		return valid;
 	}
 
 	void SetInvalid() {
-		index.reset();
+		index = 0;
+		valid = false;
 	}
 
 	idx_t GetIndex() const {
-		if (!index.has_value()) {
+		if (!valid) {
 			ThrowNotSet();
 		}
-		return *index;
+		return index;
 	}
 
 	inline bool operator==(const optional_idx &rhs) const {
-		return index == rhs.index;
+		return valid == rhs.valid && (!valid || index == rhs.index);
 	}
 
 	inline bool operator!=(const optional_idx &rhs) const {
-		return index != rhs.index;
+		return !(*this == rhs);
 	}
 
 private:
@@ -53,7 +54,9 @@ private:
 	[[noreturn]] DUCKDB_API static void ThrowNotSet();
 
 private:
-	optional<idx_t> index;
+	//! Not std::optional: the index stays initialized while unset, since compilers may read it before the flag
+	idx_t index = 0;
+	bool valid = false;
 };
 
 } // namespace duckdb
