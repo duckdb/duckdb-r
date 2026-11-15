@@ -58,6 +58,8 @@
 
 #include "src/optimizer/in_clause_rewriter.cpp"
 
+#include "src/optimizer/join_build_properties.cpp"
+
 #include "src/optimizer/join_elimination.cpp"
 
 #include "src/optimizer/join_filter_pushdown_optimizer.cpp"
@@ -83,6 +85,8 @@
 #include "src/optimizer/projection_placement.cpp"
 
 #include "src/optimizer/projection_pullup.cpp"
+
+#include "src/optimizer/recursive_join_planning.cpp"
 
 #include "src/optimizer/regex_range_filter.cpp"
 
