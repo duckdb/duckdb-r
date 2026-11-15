@@ -1,6 +1,6 @@
 ---
 name: series-land
-description: Land a batch of a series on the canonical branch it serves, `main`'s own series onto `main` or a line's series onto its release branch. Only a serving series lands; a forward is cut over first. Freeze the branch, build `<L>-land-dev` from the series' rc strand as vendor commits and a hand-written version bump, let CI judge every commit, and fast-forward the branch onto it. After a landing on a release branch, `main` grafts that branch with `git merge -s ours`. Also the rarer change of the line CRAN ships, when upstream releases a new line. Use when `main` should take newer upstream `main` commits, when a release branch should take its line's commits or release, or when asked to land, move or promote a series.
+description: Land a batch of a series on the canonical branch it serves, `main`'s own series onto `main` or a line's series onto its release branch. Only a serving series lands; a forward is cut over first. Freeze the branch, build `<L>-land-dev` from the series' rc strand as vendor commits and a hand-written version bump, let CI judge every commit, and fast-forward the branch onto it. After a landing on a release branch, that branch is merged forward into the newer lines. Also the rarer change of the line CRAN ships, when upstream releases a new line. Use when `main` should take newer upstream `main` commits, when a release branch should take its line's commits or release, or when asked to land, move or promote a series.
 ---
 
 # Landing a series on its branch
@@ -21,7 +21,7 @@ no flavor, no seed, and no port, because everything a port carries is the branch
   with no upstream release to wait for, and the bump takes the fourth component one up.
 * **A line's series onto its release branch**, `v2.0-cyanoptera`, is the same procedure:
   short of an upstream patch release the bump takes the fourth component one up, and with one it takes the release,
-  and `main` grafts the branch afterwards ([step 8](#8-graft-the-release-branch-into-main)).
+  and the branch is merged forward into the newer lines afterwards ([step 8](#8-merge-the-release-branch-forward)).
 * **Changing the line CRAN ships**, when upstream releases the line `main` previewed, is the rarer case:
   a release branch is cut from `main` first, and the landing goes onto it
   ([Changing the line CRAN ships](#changing-the-line-cran-ships)).
@@ -391,96 +391,59 @@ Then the series:
   The new seed already vendors what the landing vendored, so the forward replays only what came after, and opens on no rewind.
   Until then the next landing is built from the same series, and replays only what this one did not land.
 
-## 8. Graft the release branch into `main`
+## 8. Merge the release branch forward
 
-After a landing on a release branch, `main` takes the branch once it has what it wants of it
-([`branches/model/`](/handbook/branches/model/README.md) owns the rule).
+After a landing on a release branch, and after any fix merged into it, the branch is merged forward into the next newer line,
+`main` today ([`branches/model/`](/handbook/branches/model/README.md) owns the rule).
 A landing on `main` itself skips this step.
-
-**Forward-port first.**
-Every commit since the last graft is either picked onto `main` or declined.
-FORWARD-PORT counts the vendor commits and version bumps and lists each R-side commit, picked or not yet:
+List what the merge brings: FORWARD-PORT counts the vendor commits and version bumps and lists each R-side commit:
 
 ```sh
 git fetch upstream main
 scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
-Each fix `main` needs goes in as a pull request of `git cherry-pick -x`, one per fix or several together,
-merged with the `cherry picked from commit` line kept in the squashed message, so the report marks it picked.
-Register the `DESCRIPTION` merge driver in the clone first, or a pick that touches `DESCRIPTION` conflicts on its version lines:
+The merge keeps the newer line's engine, the vendored strand and the Makevars generated from it,
+and the registered `DESCRIPTION` merge driver keeps its version and engine record.
+Anything else that conflicts is resolved as the R side needs; `git status` names it before the commit.
 
 ```sh
-SHA=$(scripts/series-check.sh --canonical upstream 2>&1 |
-  sed -n 's/^ *\([0-9a-f]\{7,\}\) not yet  .*/\1/p' | head -n 1)   # the oldest not yet picked; or another from the listing
-if [ -z "$SHA" ]; then
-  echo "nothing to forward-port: no commit is listed as not yet picked" >&2
+S=v2.0-cyanoptera                            # the series whose release branch is merged forward
+N=main                                       # the next newer line: main, or the next release branch once there are three
+B=$(scripts/series-land.sh "$S" --target)   # its release branch
+if [ "$B" = main ]; then
+  echo "$S releases from main, so there is no release branch to merge forward" >&2
 else
   scripts/setup-git.sh
-  git fetch upstream main
-  git switch -C "forward-port/$(git rev-parse --short "$SHA")" upstream/main   # a rerun starts over from main
-  git cherry-pick -x "$SHA"
+  . scripts/series-config.sh
+  git fetch upstream "$N" "$B"
+  v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
+  git switch -C "forward/$B-$v" "upstream/$N"
+  git merge --no-commit --no-ff "upstream/$B" || true
+  git restore --source=HEAD --staged --worktree -- "${series_strand[@]}" "${series_makevars[@]}"   # the newer line's engine
+  git status --short
 fi
 ```
 
-Rerun the listing until every commit left is one `main` declines: the vendor commits always, and anything that answers the branch's engine alone.
-
-**Then the graft, as a pull request whose commit reaches `main` unchanged.**
-Inspect what it records:
+When `git status` shows no unmerged path, commit, check that the engine is the newer line's, and open the pull request:
 
 ```sh
-S=v2.0-cyanoptera                            # the series that landed on the release branch
-B=$(scripts/series-land.sh "$S" --target)   # that branch
-git fetch upstream main "$B"
-git log --reverse --no-merges --format='%h %s' "upstream/main..upstream/$B"
-```
-
-Write the message, one line per declined commit with its reason, and make the merge:
-
-```sh
-S=v2.0-cyanoptera                            # the series that landed on the release branch
-B=$(scripts/series-land.sh "$S" --target)   # that branch
-if [ "$B" = main ]; then
-  echo "$S releases from main, so there is no release branch to graft" >&2
-else
-DECLINE_REASON="the release line's engine needs it and main's does not"   # why main declines what is not picked yet
-git fetch upstream main "$B"
+S=v2.0-cyanoptera                            # the series whose release branch is merged forward
+N=main                                       # the next newer line
+B=$(scripts/series-land.sh "$S" --target)
+. scripts/series-config.sh
 v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
-notyet=$(scripts/series-check.sh --canonical upstream 2>&1 |
-  sed -n "s/^ *\([0-9a-f]\{7,\}\) not yet  \(.*\)\$/- \1 \2: $DECLINE_REASON/p")
-cat > graft-message <<EOF
-chore: Graft $B at $v
-
-main keeps its tree; this records $B up to $(git rev-parse --short "upstream/$B") as taken.
-
-Declined:
-- every vendor commit: main takes its engine from upstream main
-- every version bump and its notes: main's version is its own
-$notyet
-EOF
-cat graft-message
-git switch -c "graft/$B-$v" upstream/main
-git merge --no-ff -s ours -F graft-message "upstream/$B"
-git diff --stat upstream/main HEAD       # empty: the graft changes no file
-git push upstream "HEAD:refs/heads/graft/$B-$v"
-gh api repos/duckdb/duckdb-r/pulls -f base=main -f head="graft/$B-$v" -f title="chore: Graft $B at $v" -F body=@graft-message
-fi
+git commit -m "Merge $B $v forward into $N" -m "Keeps $N's engine: the vendored strand and its generated Makevars are $N's."
+git diff --stat "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"   # empty
+git push upstream "HEAD:refs/heads/forward/$B-$v"
+gh api repos/duckdb/duckdb-r/pulls -f base="$N" -f head="forward/$B-$v" -f title="Merge $B $v forward into $N"
 ```
 
-A squash or rebase merge would drop the second parent, so the reviewed commit goes onto `main` as it is,
-a fast-forward that GitHub records as the pull request's merge.
-It needs the admin bypass of `main`'s ruleset twice over: a direct push where pull requests are required,
-and a merge commit where history must be linear.
-
-```sh
-sha=$(git rev-parse HEAD)   # the graft, still checked out
-git fetch upstream main && git merge-base --is-ancestor upstream/main "$sha" && echo "fast-forward"
-git push upstream "$sha:refs/heads/main"
-git ls-remote upstream refs/heads/main
-```
-
-Where `main` moved meanwhile, merge again from the new `main`; the graft is cheap to redo.
-From then on the commits up to the graft are `main`'s ancestry, and the report lists only what lands on `<B>` afterwards.
+The pull request is merged with a merge commit, never squashed or rebased, which would drop the second parent:
+the repository's merge settings must allow merge commits, and `main`'s ruleset, where it requires linear history,
+needs its admin bypass for this merge or an exemption for it.
+CI judges the merged R side on `main` like any pull request.
+From then on the release branch's commits are the newer line's ancestry, and FORWARD-PORT lists only what lands on it afterwards.
 
 ## Changing the line CRAN ships
 
@@ -525,5 +488,5 @@ and the line it shipped before keeps its release branch, parked.
 4. **`main` previews the next line from here**:
    its next landing's bump takes the new prefix, `2.1.99.9001` once 2.1 is out
    ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-   From here `main` grafts `<N>` after its landings, and `<P>` no more:
-   a fix `<P>` still takes reaches `main` only where `main` still needs it, by cherry-pick, and is no longer listed.
+   From here `<P>` is merged forward into `<N>`, and `<N>` into `main`, while `<P>` stays active
+   ([`branches/model/`](/handbook/branches/model/README.md)).
