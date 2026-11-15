@@ -1,41 +1,35 @@
 #!/bin/bash
 # shellcheck disable=SC2016  # Markdown backticks in the expected output, not commands
-# Check scripts/series-cutover-stack.sh offline, against a synthetic fork and
-# upstream clone built here: no network, no fixtures on disk, a `gh` first on
-# PATH that fails, and every run with stdin closed and no controlling terminal.
+# Check scripts/series-cutover-stack.sh offline, against a synthetic fork and upstream clone built here:
+# no network, no fixtures on disk, a `gh` first on PATH that fails, and every run with stdin closed and no controlling terminal.
 #
-# The claim is that the script builds the review stack of a strand as its header
-# says, pushes it leased and atomically, stops on a conflict and resumes, and
-# writes the same SHAs from the same inputs. Ten things are checked.
+# The claim is that the script builds the review stack of a strand as its header says,
+# pushes it leased and atomically, stops on a conflict and resumes, and writes the same SHAs from the same inputs.
+# Ten things are checked.
 #
-#   1. The commit-by-commit replay onto the vendor strand: each first-parent
-#      commit of `main` picked with `-x`, a merge against its first parent, its
-#      author and dates kept, a version bump through the DESCRIPTION merge
-#      driver; a vendor commit picked without its vendor paths and DESCRIPTION,
-#      or recorded as vendoring only; then `2-engine` with the forward's engine and
-#      the old patch stack, `3-fwd` empty, `4-old` the old tree; the old tip under
-#      `1-main`; the summary, the --summary file and the pull requests to open.
-#   2. A conflict on `-dev` stops the build with the worktree kept and nothing
-#      pushed; a plain rerun refuses beside it, --abort discards it, and a
-#      resolution finishes with --continue. A commit the strand already carries
-#      is recorded as present.
-#   3. `-green`, whose two tips vendor the same upstream commit, has no
-#      `2-engine`, and rerere resolves the conflict `-dev` resolved, unattended.
-#   4. A rebuild mints the same SHAs, in this clone and in another one with
-#      another identity and time zone.
-#   5. A rebuild over existing branches moves them under their leases; a branch
-#      that moved since the build read it refuses the whole push, and the next
-#      rebuild moves it back.
-#   6. Once the tips vendor the same upstream commit, `2-engine` leaves the
-#      stack: a refused deletion exits 9 with the line that deletes it, and an
-#      allowed one deletes it.
-#   7. Where the old base is not an ancestor of the forward's, `1-main` is one
-#      three-way merge, which keeps the old engine, and a conflict there stops
-#      and resumes the same way.
-#   8. Usage errors exit 2, and a missing forward refuses with 1.
+#   1. The commit-by-commit replay onto the vendor strand: each first-parent commit of `main` picked with `-x`,
+#      a merge against its first parent, its author and dates kept, a version bump through the DESCRIPTION merge driver;
+#      a vendor commit picked without its engine paths and DESCRIPTION, its patch change kept, or recorded as vendoring only;
+#      a commit that patches the engine picked without a conflict and without its engine paths;
+#      then `2-engine` with the forward's engine, the engine part of that commit included, and the patch stack of `1-main`,
+#      `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`; the summary, the --summary file and the pull requests to open.
+#   2. A conflict on `-dev` stops the build with the worktree kept and nothing pushed;
+#      a plain rerun refuses beside it, --abort from the kept worktree discards it,
+#      and a resolution finishes with --continue. A commit the strand already carries is recorded as present.
+#   3. `-green`, whose two tips vendor the same upstream commit, has a `2-engine` all the same,
+#      as their engines differ by the patch `main` added, and rerere resolves the conflict `-dev` resolved, unattended.
+#   4. A rebuild mints the same SHAs, in this clone and in another one with another identity and time zone.
+#   5. A rebuild over existing branches moves them under their leases;
+#      a branch that moved since the build read it refuses the whole push, and the next rebuild moves it back.
+#   6. Once the engines agree, `2-engine` leaves the stack, and its branch stays:
+#      the run exits 9 with the steps that retire it, and once they are taken a rebuild exits 0.
+#   7. Where the old base is not an ancestor of the forward's, `1-main` is one three-way merge,
+#      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way.
+#   8. Usage errors exit 2; a missing forward, a series on its forward's lineage as after the swap,
+#      and a summary file that cannot be written refuse with 1 and push nothing.
 #   9. Nothing called `gh`.
-#  10. Nothing read a terminal: every run had stdin closed and no controlling
-#      terminal, and none of them hung.
+#  10. Nothing read a terminal: the wrapper every run went through gives neither stdin nor a controlling terminal,
+#      and no build or worktree is left behind.
 #
 # Usage:
 #   scripts/series-cutover-stack-test.sh
@@ -66,13 +60,13 @@ holds() { # <what> <command...>: ok when the command succeeds
 
 # --- the fixture -----------------------------------------------------------
 #
-# `main` moves from OLD_MAIN to FWD_MAIN by a feature, a merge, a vendor commit
-# that also adapts the glue, a vendor commit that only stamps its counter, a
-# version bump, and a fix to `R/foo.R`. The series `v9.9-x` stands on OLD_MAIN: its vendor strand and buffer
-# vendor u1 and u2, and its `-dev` carries a port of the feature and a fix to
-# the same line of `R/foo.R`, folded into its u2 commit. Its forward stands on
-# FWD_MAIN and vendors u1 to u3, its green at u2. `v8.8-y` is the same on a
-# `main` whose history was replaced, so its base is no ancestor of FWD_MAIN.
+# `main` moves from OLD_MAIN to FWD_MAIN by a feature, a merge, a vendor commit that also adapts the glue and rebases a patch,
+# a commit that adds a patch and applies it to the engine, a vendor commit that only stamps its counter,
+# a version bump, and a fix to `R/foo.R`.
+# The series `v9.9-x` stands on OLD_MAIN: its vendor strand and buffer vendor u1 and u2,
+# and its `-dev` carries a port of the feature and a fix to the same line of `R/foo.R`, folded into its u2 commit.
+# Its forward stands on FWD_MAIN and vendors u1 to u3, its green at u2.
+# `v8.8-y` is the same on a `main` whose history was replaced, so its base is no ancestor of FWD_MAIN.
 
 FORK=$SCRATCH/fork.git
 WORK=$SCRATCH/work
@@ -121,10 +115,12 @@ printf 'Package: duckdb\nVersion: 1.0.0.9000\n' > DESCRIPTION
 printf 'foo <- function() {\n  "two"\n}\n' > R/foo.R
 echo 'glue' > src/glue.cpp
 echo 'patch one' > patch/0001-one.patch
-engine() { # <upstream sha>: the vendored files, as a vendor commit writes them
+engine() { # <upstream sha>: the vendored files, as a vendor commit writes them, the patch stack applied
   echo "engine $1" > src/duckdb/engine.cpp
   printf '#define DUCKDB_SOURCE_ID "%s"\n' "$1" > src/duckdb/src/function/table/version/pragma_version.cpp
   echo "duckdb_version <- \"$1\"" > R/version.R
+  echo "upstream $1" > src/duckdb/patched.cpp
+  [ ! -f patch/0002-two.patch ] || echo '// patched' >> src/duckdb/patched.cpp
 }
 engine "${u[0]}"
 git add -A
@@ -148,10 +144,17 @@ MERGE=$(git rev-parse HEAD)
 tick
 engine "${u[1]}"
 echo 'glue (adapted)' > src/glue.cpp
+echo 'patch one (rebased)' > patch/0001-one.patch
 sed -i 's/^Version: .*/Version: 1.0.0.9000.1/' DESCRIPTION
 git add -A
 git commit -qm "vendor: Update vendored sources to duckdb/duckdb@${u[1]}"
 V1=$(git rev-parse HEAD)
+tick
+echo 'patch two' > patch/0002-two.patch
+echo '// patched' >> src/duckdb/patched.cpp
+git add -A
+git commit -qm 'fix(patch): Patch the engine'
+PATCH=$(git rev-parse HEAD)
 tick
 engine "${u[2]}"
 sed -i 's/^Version: .*/Version: 1.0.0.9000.2/' DESCRIPTION
@@ -244,26 +247,33 @@ old=$(tip v9.9-x-vendor) fwdv=$(tip v9.9-x-fwd-vendor)
 L1=origin/$c/vendor/1-main L2=origin/$c/vendor/2-engine L3=origin/$c/vendor/3-fwd L4=origin/$c/vendor/4-old
 is "four layers in the fork" "$(stack v9.9-x/vendor | awk '{ sub(".*/", "", $2); print $2 }' | tr '\n' ' ')" "1-main 2-engine 3-fwd 4-old "
 holds "the old tip is under 1-main, which pins it" git merge-base --is-ancestor "$old" "$L1"
-is "1-main replays the feature, the merge, the glue of a vendor commit, the bump and the fix" \
+is "1-main replays the feature, the merge, the rest of a vendor commit, the patch, the bump and the fix" \
   "$(git log --reverse --format=%s "$old..$L1" | tr '\n' '|')" \
-  "feat: Add bar()|Merge pull request #1 from side|vendor: Update vendored sources to duckdb/duckdb@${u[1]}|chore: Bump version to 1.0.0.9001|fix: foo() says two, as main has it|"
+  "feat: Add bar()|Merge pull request #1 from side|vendor: Update vendored sources to duckdb/duckdb@${u[1]}|fix(patch): Patch the engine|chore: Bump version to 1.0.0.9001|fix: foo() says two, as main has it|"
 has "a pick says where it came from" "$(git log -1 --format=%B "$L1")" "(cherry picked from commit $FIX)"
-has "a vendor commit too" "$(git log -1 --format=%B "$L1~2")" "(cherry picked from commit $V1)"
-has "a merge too" "$(git log -1 --format=%B "$L1~3")" "(cherry picked from commit $MERGE)"
-is "the merge is replayed against its first parent" "$(git show "$L1~3:R/baz.R")" 'baz <- function() 3'
+has "a vendor commit too" "$(git log -1 --format=%B "$L1~3")" "(cherry picked from commit $V1)"
+has "a merge too" "$(git log -1 --format=%B "$L1~4")" "(cherry picked from commit $MERGE)"
+is "the merge is replayed against its first parent" "$(git show "$L1~4:R/baz.R")" 'baz <- function() 3'
 is "a pick keeps its author and its dates" "$(git log -1 --format='%an %ad %cd' --date=raw "$L1")" \
   "$(git log -1 --format='%an %ad %cd' --date=raw "$FIX")"
 is "and has the stack's committer" "$(git log --format=%cn "$old..$L4" | sort -u)" series-cutover-stack
-has "a vendor commit is picked without its vendor paths and DESCRIPTION" "$(git log -1 --format=%B "$L1~2")" \
-  "Its vendor paths and DESCRIPTION are left out"
-is "so its counter stays the old one" "$(git show "$L1~2:DESCRIPTION" | sed -n 2p)" 'Version: 1.0.0.9000.0'
+has "a vendor commit is picked without its engine paths and DESCRIPTION" "$(git log -1 --format=%B "$L1~3")" \
+  'Its engine paths and DESCRIPTION are left out: this layer keeps the engine of `v9.9-x-vendor`.'
+is "so its counter stays the old one" "$(git show "$L1~3:DESCRIPTION" | sed -n 2p)" 'Version: 1.0.0.9000.0'
 is "and a bump goes through the DESCRIPTION merge driver" "$(git show "$L1:DESCRIPTION" | sed -n 2p)" 'Version: 1.0.0.9001.0'
 is "so its glue comes" "$(git show "$L1:src/glue.cpp")" 'glue (adapted)'
+is "and so does the patch it rebased" "$(git show "$L1~3:patch/0001-one.patch")" 'patch one (rebased)'
+has "a commit that patches the engine is picked without its engine paths" "$(git log -1 --format=%B "$L1~2")" \
+  'Its engine paths are left out: this layer keeps the engine of `v9.9-x-vendor`.'
+is "so its patch comes, and the engine stays the old tip's" \
+  "$(git show "$L1:patch/0002-two.patch") / $(git show "$L1:src/duckdb/patched.cpp")" "patch two / upstream ${u[2]}"
 is "and 1-main keeps the old engine" "$(git show "$L1:src/duckdb/engine.cpp")" "engine ${u[2]}"
 has "a vendor commit with nothing else but its counter is recorded as vendoring only" "$out" \
   "$(printf -- '- `%s` vendor: Update vendored sources to duckdb/duckdb@%s' "$(git rev-parse --short=10 "$V2")" "${u[2]}")"
 is "2-engine takes the forward's engine" "$(git show "$L2:src/duckdb/engine.cpp") $(git show "$L2:R/version.R")" \
   "engine ${u[3]} duckdb_version <- \"${u[3]}\""
+is "the engine part of the commit that patches it included" "$(git show "$L2:src/duckdb/patched.cpp")" "upstream ${u[3]}
+// patched"
 is "and keeps the patch stack" "$(git rev-parse "$L2:patch")" "$(git rev-parse "$L1:patch")"
 has "its message names the upstream range" "$(git log -1 --format=%B "$L2")" "duckdb/duckdb@${u[2]}..${u[3]}"
 hasnt "in its body, not its subject" "$(git log -1 --format=%s "$L2")" "duckdb/duckdb@"
@@ -272,7 +282,13 @@ is "and is empty for the vendor strand" "$(git diff --name-only "$L2" "$L3")" ""
 is "4-old has the old tree" "$(git rev-parse "$L4^{tree}")" "$(git rev-parse "$old^{tree}")"
 is "each layer is one commit on the one before" "$(git rev-parse "$L4^" "$L3^" "$L2^" | tr '\n' ' ')" \
   "$(git rev-parse "$L3" "$L2" "$L1" | tr '\n' ' ')"
-has "the summary counts the replay" "$out" "- replayed: 5, 1 of them vendor commits without their vendor paths"
+has "the summary counts the replay" "$out" "- replayed whole: 4
+- replayed without their engine paths: 1
+- vendor commits replayed without their engine paths and \`DESCRIPTION\`: 1
+- recorded as present: 0
+- vendoring only, left out: 1
+- engine changes only, left out: 0
+- conflicts resolved: 0"
 has "and the upstream range" "$out" "Upstream, \`${u[3]}\` is 1 commits ahead of \`${u[2]}\` and 0 behind it."
 has "the pull requests name the repository" "$out" "1. repository: test/fork"
 has "the first goes into the old tip" "$out" "   base: v9.9-x-vendor
@@ -282,7 +298,7 @@ has "each further one into the one below" "$out" "   base: $c/vendor/2-engine
    head: $c/vendor/3-fwd"
 is "the --summary file is what was printed" "$(cat "$SCRATCH/vendor.md")" "$(sed -n '/^## /,/^EXIT=/p' <<<"$out" | sed '/^pushed: /d; /^EXIT=/d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
 
-echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort, --continue"
+echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
 out=$(run "$STACK" v9.9-x dev)
 is "the replay stops with 3" "$(status "$out")" 3
 has "naming the path" "$out" "  R/foo.R"
@@ -293,10 +309,11 @@ has "the worktree holds the conflict" "$(cat "$wt/R/foo.R")" "<<<<<<<"
 out=$(run "$STACK" v9.9-x dev)
 is "a fresh build beside it refuses" "$(status "$out")" 1
 has "and says so" "$out" "stopped at"
-out=$(run "$STACK" v9.9-x dev --abort)
-is "--abort discards it" "$(status "$out")" 0
+out=$(cd "$wt" && run "$WORK/$STACK" v9.9-x dev --abort)
+is "--abort, from the kept worktree, discards it" "$(status "$out")" 0
 holds "with its worktree" test ! -d "$wt"
 hasnt "which git forgets too" "$(git worktree list)" "$wt"
+is "and the build's state" "$(ls "$(git rev-parse --git-common-dir)/series-cutover-stack" 2>/dev/null)" ""
 out=$(run "$STACK" v9.9-x dev --continue)
 is "--continue with nothing stopped refuses" "$(status "$out")" 1
 out=$(run "$STACK" v9.9-x dev)
@@ -317,14 +334,18 @@ has "the ported feature is recorded as present" "$out" \
 has "the conflict is listed" "$out" "$(printf -- '- `%s` fix: foo() says two, as main has it: R/foo.R' "$(git rev-parse --short=10 "$FIX")")"
 is "the feature is not picked again" "$(git log --format=%s "$(tip v9.9-x-dev)..$D1" | grep -c 'Add bar' || true)" 0
 
-echo "=== 3. -green: the same engine, so no 2-engine, and rerere resolves"
+echo "=== 3. -green: the same upstream commit, an engine that differs all the same, and rerere resolves"
 out=$(run "$STACK" v9.9-x green)
 is "it builds without stopping" "$(status "$out")" 0
 has "the conflict resolved by rerere" "$out" "R/foo.R (by rerere)"
 fetch
-is "three layers" "$(stack v9.9-x/green | awk '{ sub(".*/", "", $2); print $2 }' | tr '\n' ' ')" "1-main 3-fwd 4-old "
-is "3-fwd stands on 1-main" "$(git rev-parse "origin/$c/green/3-fwd^")" "$(git rev-parse "origin/$c/green/1-main")"
-has "and its pull request goes into it" "$out" "   base: $c/green/1-main
+G2=origin/$c/green/2-engine
+is "four layers" "$(stack v9.9-x/green | awk '{ sub(".*/", "", $2); print $2 }' | tr '\n' ' ')" "1-main 2-engine 3-fwd 4-old "
+is "2-engine brings the engine part of main's patch alone" "$(git diff --name-only "origin/$c/green/1-main" "$G2")" src/duckdb/patched.cpp
+has "and says both tips vendor the same upstream commit" "$(git log -1 --format=%B "$G2")" "Both tips vendor duckdb/duckdb@${u[2]}"
+hasnt "so the summary counts no upstream range" "$out" "Upstream, "
+is "3-fwd stands on it" "$(git rev-parse "origin/$c/green/3-fwd^")" "$(git rev-parse "$G2")"
+has "and its pull request goes into it" "$out" "   base: $c/green/2-engine
    head: $c/green/3-fwd"
 is "the resolution is the one -dev made" "$(git rev-parse "origin/$c/green/1-main:R/foo.R")" "$(git rev-parse "$D1:R/foo.R")"
 
@@ -374,25 +395,36 @@ out=$(run "$STACK" v9.9-x dev)
 is "a rebuild, on the resolution rerere recorded, pushes" "$(status "$out")" 0
 is "and puts the branch back where it was" "$(tip "$c/dev/4-old")" "$d4"
 
-echo "=== 6. 2-engine leaves the stack once the engines agree"
+echo "=== 6. 2-engine leaves the stack once the engines agree, and the session retires it"
+# The old vendor strand carries main's patch and catches up with the forward's engine.
 git checkout -q --detach "$(tip v9.9-x-vendor)"
+tick
+git show "$PATCH:patch/0002-two.patch" > patch/0002-two.patch
+git add -A
+git commit -qm 'fix(patch): Carry the engine patch'
 vend "${u[3]}"
 vend "${u[4]}"
 git push -q origin HEAD:refs/heads/v9.9-x-vendor
 git checkout -q main
 e2=$(tip "$c/vendor/2-engine")
-git -C "$FORK" config receive.denyDeletes true
 out=$(run "$STACK" v9.9-x vendor)
-is "a refused deletion exits 9" "$(status "$out")" 9
-has "with the line that deletes it" "$out" "gh api -X DELETE repos/test/fork/git/refs/heads/$c/vendor/2-engine"
-has "and its pull request to close" "$out" "No longer in the stack: $c/vendor/2-engine"
-is "the branch stays" "$(tip "$c/vendor/2-engine")" "$e2"
+is "a 2-engine no longer needed exits 9" "$(status "$out")" 9
+has "named, with the 3-fwd pull request to retarget first" "$out" "No longer in the stack: $c/vendor/2-engine"
+has "onto 1-main" "$out" "1. Retarget the pull request of $c/vendor/3-fwd onto $c/vendor/1-main."
+has "then its own to close" "$out" "2. Close the pull request of $c/vendor/2-engine."
+has "and the line that deletes it where git cannot" "$out" "gh api -X DELETE repos/test/fork/git/refs/heads/$c/vendor/2-engine"
+is "the branch stays, for the session" "$(tip "$c/vendor/2-engine")" "$e2"
 fetch
 is "3-fwd stands on 1-main" "$(git rev-parse "origin/$c/vendor/3-fwd^")" "$(git rev-parse "origin/$c/vendor/1-main")"
-git -C "$FORK" config --unset receive.denyDeletes
-out=$(run "$STACK" v9.9-x vendor)
-is "an allowed deletion exits 0" "$(status "$out")" 0
+has "main's patch is recorded as present" "$out" \
+  "$(printf -- '- `%s` fix(patch): Patch the engine: applies as no change' "$(git rev-parse --short=10 "$PATCH")")"
+del=$(sed -n 's/^   \(git push --force-with-lease=.*\)$/\1/p' <<<"$out")
+out=$(run bash -c "$del")
+is "the leased deletion it prints works" "$(status "$out")" 0
 is "and the branch is gone" "$(tip "$c/vendor/2-engine")" ""
+out=$(run "$STACK" v9.9-x vendor)
+is "a rebuild then exits 0" "$(status "$out")" 0
+hasnt "and names no branch to retire" "$out" "No longer in the stack"
 
 echo "=== 7. no shared history: one three-way merge"
 out=$(run "$STACK" v8.8-y vendor)
@@ -426,13 +458,38 @@ is "--summary without a file" "$(status "$(run "$STACK" v9.9-x dev --summary)")"
 out=$(run "$STACK" v7.7-z dev)
 is "a series with no forward refuses" "$(status "$out")" 1
 has "naming the ref" "$out" "has no v7.7-z-dev"
+# After the swap the series' tips are the forward's, and -fwd refs a proxy would not delete stay beside them.
+fetch
+ov=$(tip v9.9-x-vendor) fv=$(tip v9.9-x-fwd-vendor) before=$(stack v9.9-x/vendor)
+git checkout -q --detach "$fv"
+tick
+echo 'later <- function() 9' > R/later.R
+git add -A
+git commit -qm 'fix: Something the series added after its swap'
+later=$(git rev-parse HEAD)
+git checkout -q main
+for pos in "at its forward's tip:$fv" "behind it:$(git rev-parse "$fv~1")" "past it:$later"; do
+  git push -q -f origin "${pos#*:}:refs/heads/v9.9-x-vendor"
+  out=$(run "$STACK" v9.9-x vendor)
+  is "a series ${pos%%:*}, on its lineage, refuses" "$(status "$out")" 1
+  has "${pos%%:*}: saying why" "$out" "are one lineage, as after the swap"
+  is "${pos%%:*}: and pushes nothing" "$(stack v9.9-x/vendor)" "$before"
+done
+git push -q -f origin "$ov:refs/heads/v9.9-x-vendor"
+out=$(run "$STACK" v9.9-x build --summary "$SCRATCH/no/such/dir/build.md")
+is "a summary file that cannot be written refuses" "$(status "$out")" 1
+has "saying nothing was pushed" "$out" "cannot write the summary to $SCRATCH/no/such/dir/build.md, so nothing was pushed"
+is "and nothing is" "$(stack v9.9-x/build)" ""
 
 echo "=== 9. nothing called gh"
 is "the failing gh is the one on PATH" "$(command -v gh)" "$BIN/gh"
 is "and was never called" "$(cat "$GH_LOG")" ""
 
 echo "=== 10. nothing read a terminal"
-ok "every run above had stdin closed and no controlling terminal, and finished"
+probe=$(run bash -c 'if (: < /dev/tty) 2>/dev/null; then echo "a terminal"; fi; if read -r _; then echo "a stdin"; fi; echo probed')
+has "the wrapper every run above went through runs its command to the end" "$probe" probed
+hasnt "with no controlling terminal to read" "$probe" "a terminal"
+hasnt "and no stdin" "$probe" "a stdin"
 is "no build is left stopped" "$(ls "$(git rev-parse --git-common-dir)/series-cutover-stack" 2>/dev/null)" ""
 is "and no worktree is left" "$(git worktree list | wc -l | tr -d ' ')" 1
 

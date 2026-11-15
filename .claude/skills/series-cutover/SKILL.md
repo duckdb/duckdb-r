@@ -82,11 +82,13 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    ```
 
    The [script's header](/scripts/series-cutover-stack.sh) says what each layer is, how the replay is made, and what each exit status means.
+   `main`'s changes there are those of the branch the series releases from, which is `main` for most series,
+   and the first layer is called `1-main` whichever branch it replays.
    A conflict stops it with the worktree kept (exit 3): resolve it to what the forward made of the same change,
    `git add` the paths, and rerun with `--continue`.
    A conflict is also a reading for the review: where the forward made something else of it, that is a surprise (step 6).
-   A `2-engine` an earlier build left and this one dropped is printed with its pull request to close,
-   and a deletion the remote refused with the line that deletes it (exit 9).
+   A `2-engine` an earlier build left and this one no longer needs stays where it is, and the run exits 9 with the steps that retire it:
+   take them in their order, which retargets the `3-fwd` pull request before the branch goes.
 4. **Open each stack's pull requests**, as the script's closing block lists them:
    as drafts in the fork, from the bottom up, each layer into the one below it,
    with its title, its section of the summary as body, and a link to the cutover pull request.
@@ -126,6 +128,10 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    A ref no pin holds refuses the swap before anything moves
    ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md));
    whatever the status, the command and its last lines go into the record.
+
+   Once the swap has run, with exit 0 or 9, close every stack pull request right away, with a comment naming the outcome.
+   A closed pull request's head no longer follows its branch, so each pin stays at the old tip whatever moves the branch later,
+   and stays readable for as long as the pull request exists.
 9. **Verify** both repositories against the run's `refs to swap` lines, and read the verdict:
 
    ```sh
@@ -138,10 +144,8 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    and no `-fwd` ref is left but those the run lists as left behind.
    Then re-cut the derived strands where the series has them, as the run's last lines say,
    and check the mirror rules with `scripts/pull-config.sh --check`, the last line of the block the loop's stage 6 reports.
-10. **Close and clean up.**
-    Close every stack pull request with a comment naming the outcome; a closed pull request keeps its head,
-    so each pin stays readable for as long as the pull request exists.
-    Delete the stack branches and `cutover/<S>/pr`:
+10. **Clean up.**
+    With the stack pull requests closed since the swap, delete the stack branches and `cutover/<S>/pr`:
 
     ```sh
     git push --delete <fork> $(git ls-remote --heads <fork> 'refs/heads/cutover/<S>/*' | sed 's#.*refs/heads/##')
@@ -159,9 +163,9 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
 
 | Layer | `vendor` | `build` | `dev` and `green` |
 |---|---|---|---|
-| `1-main` | every commit of `main` applies, or is recorded | the same | the same; a commit the series ported is recorded as present |
-| `2-engine` | the engine of the range it names, where the tips differ | the same | the same |
-| `3-fwd` | empty, but for `patch/` where the engines differ | the commits that differ, the forward's glue adaptations | the forward's own repairs and carries, each explained |
+| `1-main` | every commit of `main` applies without its engine paths, or is recorded | the same | the same; a commit the series ported is recorded as present |
+| `2-engine` | the forward's engine, where it differs: the upstream range it names, and the engine side of the commits `1-main` replays without it | the same | the same |
+| `3-fwd` | empty, but for `DESCRIPTION` where the version prefix or the package flavor differ (for example `1.5.5` against `2.0.0`, or `duckdb.dev` against `duckdb.2.0.dev`), and for the forward's own changes to `patch/` where the engines differ | `DESCRIPTION` as for `vendor`, its vendor counter included, and `patch/` as for `vendor`; the commits that differ, the forward's glue adaptations | `DESCRIPTION` as for `build`, and `patch/` as for `vendor`; the forward's own repairs and carries, each explained |
 | `4-old` | roughly the inverse of the layers below | the same | the same |
 
 What `4-old` shows beyond that inverse is something the old series has and the forward does not, and it is read like a surprise.

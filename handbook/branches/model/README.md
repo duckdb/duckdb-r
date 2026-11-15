@@ -147,11 +147,10 @@ verified from scratch and swapped in by a **cutover** the maintainer signs off
 run by a session he sends ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md));
 a serving `-green` never moves sideways on its own.
 The names are static, so nothing outside the two repositories learns of a cutover.
-What the swap replaces is read and kept first, in the fork, as a **review stack** per strand `<X>`:
-`cutover/<S>/<X>/1-main` on the old tip `<S>-<X>` with `main`'s changes replayed onto it,
-then `2-engine`, `3-fwd` and `4-old` ([`scripts/series-cutover-stack.sh`](/scripts/series-cutover-stack.sh)),
+What the swap replaces is read and kept first, in the fork, as a **review stack** per strand `<X>`,
+whose layers [`scripts/series-cutover-stack.sh`](/scripts/series-cutover-stack.sh) lists in its header,
 each a draft pull request into the one below.
-The first one's head is a **pin**:
+The first, `cutover/<S>/<X>/1-main`, stands on the old tip `<S>-<X>`, and its head is a **pin**:
 GitHub keeps it reachable as `refs/pull/<n>/head` for as long as the pull request exists, closed or not,
 and the swap refuses to move a ref no pin holds,
 of `<S>-dev`, `<S>-build`, `<S>-vendor`, `<S>-green` and `<S>-build-base`,
