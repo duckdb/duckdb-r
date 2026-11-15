@@ -110,8 +110,9 @@
 #
 # Ported and sync commits are ordinary -dev commits: they vendor nothing (the
 # consumption anchor in scripts/series-advance.sh reads vendor subjects), and
-# they are transient — a forward's seed already carries their content, and a
-# rebase drops patch-id equivalents and empty leftovers.
+# they are transient: a forward's seed already carries their content, and a
+# rebase drops patch-id equivalents and commits that come out empty; it keeps
+# a pick committed empty, which the next forward leaves behind.
 #
 # **`--dev-note` writes a stage-3 finding into the newest commit this stage
 # mints.** An r-universe failure has no per-commit record anywhere and no commit
