@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] Drop the const from the ALP minimum block size cast
+
+static_cast<const idx_t> qualifies a prvalue, which has no effect, so
+-Wignored-qualifiers flags it. The cast is to idx_t.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+diff --git a/src/duckdb/src/include/duckdb/storage/compression/alp/alp_constants.hpp b/src/duckdb/src/include/duckdb/storage/compression/alp/alp_constants.hpp
+--- a/src/duckdb/src/include/duckdb/storage/compression/alp/alp_constants.hpp
++++ b/src/duckdb/src/include/duckdb/storage/compression/alp/alp_constants.hpp
+@@ -32,7 +32,7 @@ public:
+ 	//! DOUBLE: 1024 * 64 / 8 + 1024 * (8 + 2) + 13 = 18445 bytes < 32 KiB
+ 	//! FLOAT:  1024 * 64 / 8 + 1024 * (4 + 2) + 13 = 14349 bytes < 32 KiB
+ 	//! 32 KiB also accommodates block/segment headers, vector pointers and alignment.
+-	static constexpr idx_t MIN_BLOCK_SIZE = static_cast<const idx_t>(1024 * 32);
++	static constexpr idx_t MIN_BLOCK_SIZE = static_cast<idx_t>(1024 * 32);
+ 
+ 	static constexpr uint32_t ALP_VECTOR_SIZE = 1024;
+ 	static constexpr uint32_t RG_SAMPLES = 8;
