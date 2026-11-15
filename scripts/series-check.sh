@@ -556,16 +556,19 @@ for S in "${series[@]}"; do
   for r in "$green" "$dev" "$build"; do
     git rev-parse -q --verify "$r" >/dev/null || { echo "$S: missing ${r#"$remote"/}, skipping"; continue 2; }
   done
-  # cutover litter: a forward series whose green is an ancestor of its base's
-  # (the base moves on after cutover, so equality cannot be the test),
-  # and stands above its own seed: at birth it sits below, where the base's green may have it too
-  # (series_green_seeded, scripts/series-lib.sh)
+  # cutover litter: a forward series whose tips its base's refs reach, as a swap whose deletions were refused leaves it,
+  # read as scripts/series-prune.sh reads it (series_fwd_swapped, scripts/series-lib.sh)
   cutover=""
   case "$S" in *-fwd)
     base=${S%-fwd}
     if git rev-parse -q --verify "$remote/$base-green" >/dev/null; then
-      if series_green_seeded "$green" "$dev" && git merge-base --is-ancestor "$green" "$remote/$base-green"; then
-        echo "$S: green is an ancestor of $base's — cutover litter, ignoring"; continue
+      if by=$(series_fwd_swapped "$green" "$dev" "$remote/$base-green" "$remote/$base-dev"); then
+        if [ "$by" = green ]; then
+          echo "$S: cutover litter, ignoring: its green is an ancestor of $base's"
+        else
+          echo "$S: cutover litter, ignoring: its green sits below its seed, and its -dev is an ancestor of $base's"
+        fi
+        continue
       fi
       # Ready to cut over once the forward green vendors the upstream commit the
       # base green vendors: coverage may never regress. Tested by subject, like

@@ -658,7 +658,7 @@ new_green=$fwd_green
 # and a push that was refused may still have deleted some, so what is left is read back rather than assumed:
 # a ref still at the tip read is litter, and one anywhere else has moved.
 # A listing that cannot be read says neither, so each ref is reported as not read back, in a state this run does not know.
-# Until litter is gone, the loop ignores a forward whose green, above its own seed, is an ancestor of its base's,
+# Until litter is gone, the loop ignores a forward whose tips its base's refs reach (`series_fwd_swapped`, scripts/series-lib.sh),
 # and scripts/series-prune.sh lists it.
 delete_leased() { # <repo> <ref> <tip> [<ref> <tip>]...
   local repo=$1 still r t now i

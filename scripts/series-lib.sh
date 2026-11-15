@@ -93,12 +93,32 @@ series_seed_of() { # <ref> -> commit, empty when none
 # Does a forward's green stand above its own seed?
 # At birth it sits on the commit the seed sits on, below the flavor commits (.claude/skills/series-forward/SKILL.md),
 # which the green of the series it forwards may have too without any swap,
-# so only a green above its seed tells cutover litter by ancestry (scripts/series-check.sh, scripts/series-prune.sh).
+# so only a green above its seed tells cutover litter by ancestry (`series_fwd_swapped`).
 # A `-dev` with no seed answers yes, as these read before seeds were.
 series_green_seeded() { # <green> <-dev>: status 0 when <green> carries the seed of <-dev>, or <-dev> has none
   local seed
   seed=$(series_seed_of "$2")
   [ -z "$seed" ] || git merge-base --is-ancestor "$seed" "$1"
+}
+
+# Was a forward swapped into the series it forwards, its refs left behind as cutover litter?
+# Its tips are then reached by the series' refs, so deleting them loses nothing;
+# reached, not equal, since the series moves on after the swap.
+# The forward's green answers against the series' green where it stands above its seed (`series_green_seeded`);
+# where it sits below, as at the forward's birth, or does not exist, the forward's `-dev` answers against the series' `-dev`;
+# and where no `-dev` exists, whatever is named for the forward derives from nothing, and is litter.
+# Prints the ref that answered, `green`, `dev` or `none`, for the caller to say so
+# (scripts/series-check.sh, scripts/series-prune.sh).
+series_fwd_swapped() { # <forward green> <forward -dev> <green> <-dev>, a missing forward ref empty: status 0 when swapped in
+  if [ -n "$1" ] && { [ -z "$2" ] || series_green_seeded "$1" "$2"; }; then
+    echo green
+    git merge-base --is-ancestor "$1" "$3"
+  elif [ -n "$2" ]; then
+    echo dev
+    git merge-base --is-ancestor "$2" "$4"
+  else
+    echo none
+  fi
 }
 
 # Is a path on the vendored strand, including the Makevars generated from it?
