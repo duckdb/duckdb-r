@@ -75,6 +75,7 @@ scripts=(
   series-converge.sh
   series-cut.sh
   series-cutover.sh
+  series-cutover-stack.sh
   series-forward-build.sh
   series-glue.sh
   series-land.sh
@@ -97,6 +98,7 @@ remote_scripts=(
   series-converge.sh
   series-cut.sh
   series-cutover.sh
+  series-cutover-stack.sh
   series-glue.sh
   series-land.sh
   series-learned.sh
@@ -106,7 +108,7 @@ remote_scripts=(
   series-rc.sh
   series-vendor.sh
 )
-upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh)
+upstream_scripts=(series-check.sh series-cut.sh series-cutover.sh series-cutover-stack.sh)
 canonical_scripts=(series-advance.sh series-check.sh series-cutover.sh series-land.sh series-port.sh series-prune.sh)
 
 echo "== -h and --help print the usage and exit 0"
@@ -146,6 +148,9 @@ is "series-land.sh --placed (bare)"              "$(rc series-land.sh s --placed
 is "series-learned.sh --since (bare)"            "$(rc series-learned.sh s --since)" 2
 is "series-cutover.sh --out (bare)"              "$(rc series-cutover.sh s --out)" 2
 is "series-cutover.sh --confirm (bare)"          "$(rc series-cutover.sh s --confirm)" 2
+is "series-cutover-stack.sh --summary (bare)"    "$(rc series-cutover-stack.sh s dev --summary)" 2
+is "series-cutover-stack.sh <S> <not a strand>"  "$(rc series-cutover-stack.sh s build-base)" 2
+is "series-cutover-stack.sh --continue --abort"  "$(rc series-cutover-stack.sh s dev --continue --abort)" 2
 is "series-land.sh --status --review"            "$(rc series-land.sh s --status --review)" 2
 is "series-land.sh --base (bare)"                "$(rc series-land.sh s --base)" 2
 is "series-land.sh --source (bare)"              "$(rc series-land.sh s --source)" 2
@@ -216,7 +221,7 @@ is "series-port.sh --dev-note without --apply" \
 
 echo
 echo "== a missing series is a usage error too"
-for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
+for s in series-advance.sh series-alpha.sh series-converge.sh series-cutover.sh series-cutover-stack.sh series-glue.sh series-land.sh series-patch-sync.sh series-port.sh series-prune.sh; do
   is "$s with no series" "$(rc "$s")" 2
 done
 # series-check.sh is the one whose series list is optional: it discovers them.

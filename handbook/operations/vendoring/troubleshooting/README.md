@@ -63,10 +63,19 @@ The failure classes, and what each needs:
   or a canonical copy of green the run could not reach.
   The run prints what to do about each, as a command wherever it read the state that command acts on,
   and the command that reads it where it could not;
-  for a copy of green it could not reach, the archive and the leased move that copy is owed wait on reading its tip,
+  for a copy of green it could not reach, the leased move that copy is owed waits on reading its tip,
   and so does the deletion of the forward's copy there.
   Run those or hand them to a maintainer; a rerun of the cutover finishes nothing
   ([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
+* **A cutover refuses a ref no pin holds** (`series-cutover.sh --confirm`, before anything moves):
+  an old tip the swap would replace is under no `cutover/<S>/<X>/1-main` tip that is the head of a pull request in the fork
+  ([`branches/model/`](/handbook/branches/model/README.md)).
+  The strand's stack was not built or not opened,
+  its first pull request was closed before a rebuild moved its branch, which a closed pull request's head does not follow,
+  or the old ref moved since the stack was built, as the base series goes on vendoring.
+  A canonical copy of green that is neither the fork's green nor under a pin has diverged from the fork, which is read before anything else.
+  Rebuild that strand's stack with [`scripts/series-cutover-stack.sh`](/scripts/series-cutover-stack.sh),
+  see that its first pull request is open on the rebuilt branch, read what a moved tip added, and run the swap again.
 * **A patch stopped applying** — if it reverses cleanly the run
   retires it and continues; if it neither applies nor reverses the run
   stops, and the patch needs a hand rebase against the regenerated tree
