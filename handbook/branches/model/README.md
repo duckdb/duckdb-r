@@ -17,10 +17,12 @@ sibling `<S>-dev`, so opening one is creating refs
 `duckdb/duckdb-r` is canonical:
 `main`, the release branch of the line CRAN ships, the stale baselines awaiting retirement, the LTS flavor branch;
 CRAN and the numbered r-universe packages publish from here.
-`main` carries the engine of upstream `main` and makes no CRAN release,
-though r-universe builds plain `duckdb` from it, the next line ([`flavors/`](/handbook/branches/flavors/README.md));
+`main` carries the engine of upstream `main` and makes no CRAN release;
 the line CRAN ships has a branch of its own, named as upstream names it, `v2.0-cyanoptera`, from which its releases are cut
 ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+Plain `duckdb` on r-universe is built from `main` all the same, by decision, so r-universe shows the next line and CRAN the current one:
+that is why the flavor table names `main` as where `duckdb` is published from
+([`flavors/`](/handbook/branches/flavors/README.md)).
 **Until the switch, part of the layout before it holds.**
 `v2.0-cyanoptera` exists in `duckdb/duckdb-r`, cut from `main` at `e913ab08fd`.
 The rest of the layout takes effect once `scripts/series.yaml` names it as the v2.0 series' `releases_from`,

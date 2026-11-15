@@ -497,7 +497,8 @@ and `main` moves on to preview the next line; CRAN moves to the new line with it
 
 2. **Declare it**, in one pull request on `main` before the landing:
    in [`scripts/series.yaml`](/scripts/series.yaml) the `<N>` series' `releases_from` becomes `<N>`, and `<P>`'s keeps `<P>`;
-   the CRAN flavor's `upstream` becomes `<N>` with `<N>`'s first release, its `publishes_from` staying `main`,
+   the CRAN flavor's `upstream` becomes `<N>` with `<N>`'s first release,
+   and its `publishes_from` stays `main`, since plain `duckdb` on r-universe shows the next line while CRAN's releases are cut from `<N>`,
    and a line that retires then is declared `stale: true`;
    then `.github/pull.yml` from `scripts/pull-config.sh` and the tables from `scripts/series-table.R`,
    checked with `--check` ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
