@@ -22,6 +22,8 @@
 
 #include "src/main/connection_manager.cpp"
 
+#include "src/main/context.cpp"
+
 #include "src/main/database.cpp"
 
 #include "src/main/database_file_path_manager.cpp"
