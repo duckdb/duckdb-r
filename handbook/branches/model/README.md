@@ -15,8 +15,11 @@ sibling `<S>-dev`, so opening one is creating refs
 
 **Two repositories.**
 `duckdb/duckdb-r` is canonical:
-`main`, the parked stable baselines, the LTS flavor branch;
+`main`, the release branch of the line CRAN ships, the parked stable baselines, the LTS flavor branch;
 CRAN and the numbered r-universe packages publish from here.
+`main` carries the engine of upstream `main` and releases nothing itself;
+the line CRAN ships has a branch of its own, named as upstream names it, `v2.0-cyanoptera`
+([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
 `krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
 network, not a copy that shares its name — used for CI/CD
 so the per-commit builds do not consume
@@ -154,9 +157,12 @@ and `<S>-rc-alpha` the same stamp on its rc twin,
 because upstream publishes extensions under that version and never under the commit a `-dev` stamp looks in.
 Each is one commit on a verified one, moved by the loop when a newer alpha appears
 ([`series-alpha`](/.claude/skills/series-alpha/SKILL.md)).
-**`<L>-land-dev` is a line on its way onto `main`**: the frozen `main` plus the series' vendor commits, unflavored, and a hand-written version bump,
-which `main` fast-forwards onto once CI has passed every one.
-`<L>-land-green` marks how far CI has passed it, starting at the frozen `main`.
+**`<L>-land-dev` is a batch of a series on its way onto the canonical branch it lands on**:
+the frozen branch plus the series' vendor commits, unflavored, and a hand-written version bump,
+which the branch fast-forwards onto once CI has passed every one.
+`<L>` is the series' line, so `main`'s own series lands as `main-land-dev` onto `main`,
+and the v2.0 series as `v2.0-cyanoptera-land-dev` onto `v2.0-cyanoptera`; one landing per line is in flight at a time.
+`<L>-land-green` marks how far CI has passed it, starting at the frozen branch.
 The pair exists only while a landing is in flight, and has no buffer, so the loop never serves it.
 `<L>-land-review`, in the canonical repository, is the landing without its engine,
 which a draft pull request shows for review and never merges
@@ -200,11 +206,22 @@ a branch is made of, and the other three come from elsewhere:
 | **cpp11** | **`main`** | forward-ported to every series |
 | R core | external — `r-devel`, CRAN policy | monitored; fixes land in `main` first |
 
-**Forward-porting runs from `main` to every series, and never in reverse**:
+**Forward-porting runs from `main` to every series**:
 each `<S>-dev` takes `main`'s commits directly, on every firing,
 by [`series-port.sh`](/scripts/series-port.sh), the loop's port stage
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md));
-no series ports from another, and a parked line takes the tooling sync alone.
+no series ports from another, and a line releasing from a branch of its own, current or parked, takes the tooling sync alone.
+Its R side comes from that branch instead, which is what its seed stands on.
+
+**Between `main` and the release branch of the line CRAN ships, a fix travels either way, as a cherry-pick.**
+The two carry different engines, so neither is merged into the other, and neither is grafted into the other's ancestry.
+A fix both lines need is written where it is found:
+on `main` and backported to the release branch with `git cherry-pick -x`,
+or as a pull request against the release branch and forward-ported to `main` the same way.
+The `cherry picked from commit` trailer is what pairs the two copies where a conflict changed the text,
+and [`scripts/series-check.sh`](/scripts/series-check.sh) names every commit of the release branch `main` has no counterpart of,
+its vendor commits and version bumps aside, which are the release branch's own.
+Tooling is the exception: it is `main`'s alone, and reaches the release branch only as a backport.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 
