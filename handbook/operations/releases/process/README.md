@@ -28,6 +28,8 @@ Four refs matter here:
   It sits at the last landing and is what CRAN and r-universe publish.
   `main` is no release branch: it carries upstream `main`'s engine and releases nothing
   ([`branches/model/`](/handbook/branches/model/README.md)).
+  That holds once `v2.0-cyanoptera` is cut; until then `main` is the 2.0 line's release branch
+  ([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
@@ -114,11 +116,11 @@ stateDiagram-v2
 | **0 TRACKING** | the previous release published | grows: vendor + forward-port | advances with CI | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
 | **0.1 CANDIDATE PINNED** | window opens | fixes only; pin likely release commit | advances with CI | frozen | candidate green | — |
 | **0.2 REVDEP-1** | candidate pinned | — | — | — | revdep run triaged | — |
-| **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | advances with CI | **fixes born on `main`**, then ported | findings resolved/accepted | loop to 0.4 |
+| **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | advances with CI | **fixes born on a canonical branch**, then ported | findings resolved/accepted | loop to 0.4 |
 | **0.4 REVDEP-2** | ≈ T−7 | — | — | — | **go / no-go** | fail → 0.3 |
 | **0.5 GLUE FREEZE** | go | frozen (barrier; all lines aligned) | catches up, then frozen | frozen | upstream tags `vX.Y.Z` | late glue → re-arm 0.5 |
 | **1 VENDORED** | tag lands on `<S>-dev` | tagged vendor commit present | advancing toward the tag | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `<S>-dev` |
-| **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on `main`, forward-port |
+| **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on the branch the series releases from, forward-port |
 | **3 PROVEN** | review ok | — | **has advanced over the tagged commit** | — | green covers the tag | red → 1 |
 | **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
 | **5 PUBLISHED** | merged | — | — | tag `vX.Y.Z` pushed; r-universe builds; CRAN submitted (current line) | tag pushed | CRAN reject → new patch cycle |
@@ -182,8 +184,12 @@ How they are run and where the results land is `testing/revdep/`'s.
 
 ### 0.3 Fold back
 
-Every fold-back fix is **born on `main`** and forward-ported down the
+Every fold-back fix is **born on a canonical branch** and forward-ported down the
 chain — never authored directly on a `<S>-dev` branch.
+That branch is the one the series releases from:
+`main`, or for a line with a release branch of its own that branch,
+from which the fix is picked onto `main` too where `main` needs it
+([`branches/model/`](/handbook/branches/model/README.md) owns that rule).
 C++ issues go into `patch/` and are simultaneously sent upstream as a
 pull request, so the patch can eventually retire
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
@@ -193,10 +199,11 @@ Loop back to 0.4 until clean or explained.
 ### 0.5 Glue freeze (barrier)
 
 Freeze glue across **all** releasing series
-and confirm `git cherry main <S>-dev` is empty for each —
-every releasing line now carries identical glue.
+and confirm `git cherry <R> <S>-dev` is empty for each,
+`<R>` the branch the series releases from —
+every releasing line now carries its release branch's glue.
 A late glue change after this point is allowed
-but **re-arms the freeze**: land it on `main`,
+but **re-arms the freeze**: land it on that branch,
 forward-port it to every releasing `<S>-dev`, re-run a targeted revdep,
 and only then proceed.
 The clock resets to 0.5; it is not a scramble.
@@ -323,7 +330,7 @@ coordinate at the **cluster** level:
   The durations differ from an ordinary line's and the machine does
   not, and the one other addition is that vendor-coupled glue may be *born* on
   the line's `<S>-dev`, the documented exception to R-side work being born on
-  `main`.
+  a canonical branch.
 
 ## What each cluster must leave standing
 

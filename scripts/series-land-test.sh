@@ -4,7 +4,7 @@
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
 # the series' vendor commits and a version bump, and nothing else, and that its tip is the package
-# the series' rc strand holds. Fifteen things are checked.
+# the series' rc strand holds. Sixteen things are checked.
 #
 #   1. Without --push the build writes no ref, and says what it would write.
 #   2. Only vendor commits land, on `main` itself, unflavored.
@@ -45,8 +45,15 @@
 #  14. A fresh build up to a ref --source names fetches it first, so a stale
 #      copy from an earlier fetch is not what it builds.
 #  15. --onto names the branch landed on in `main`'s place: the build stands
-#      on it, --status prints its fast-forward, --review targets it, and the
-#      version bump has to rise above that branch's version too.
+#      on its tip, --status prints its fast-forward, --review targets it, and
+#      the version bump has to rise above that branch's version too. A kept
+#      build resumes onto the branch it was started on and refuses another, and
+#      a branch the canonical remote lacks is refused with its name.
+#  16. With no kept build and no --onto, a landing on --remote that main holds
+#      is read as a landing on main, and one main does not hold is refused,
+#      naming the CRAN line's branch where that holds its base. A kept build's
+#      branch is followed by --status and --review, and one recorded before the
+#      branch was recorded reads as main.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -422,6 +429,9 @@ echo "== and it rises above the branch landed on, which --onto names"
 # Earlier landings advanced the fourth component on the branch landed on, so a
 # bump that clears the series' version can still fall below the branch's.
 G0=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+# The kept build lands onto main, and would refuse another branch: set it aside.
+KEPT_STATE="$(git rev-parse --git-dir)/series-land-v2.0-x"
+mv "$KEPT_STATE" "$KEPT_STATE.aside"
 git checkout -q -f -B hi "$M"
 sed -i 's/^Version: .*/Version: 1.99.99.9007/' DESCRIPTION
 commit 'chore: Bump version to 1.99.99.9007'
@@ -451,6 +461,7 @@ has "the review pull request targets that branch" "$out" "--draft --base hi --he
 git checkout -q -f main
 git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
 dev_at "$TIP"
+mv "$KEPT_STATE.aside" "$KEPT_STATE"
 
 echo "== and nothing sits above it"
 git checkout -q -f -B probe "$BUMP"
@@ -685,7 +696,12 @@ is "the kept build refuses" "$st" 1
 has "and says main moved" "$out" "Error: main moved from below $(git rev-parse --short "$PIN")"
 
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+# The landing on the fork stands on the pinned base, which main does not hold,
+# so a clone with no kept build is told to name the branch.
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push 2>&1) && st=0 || st=$?
+is "without a kept build, a landing main does not hold asks for --onto" "$st" 1
+has "  and says so" "$out" "Pass --onto <branch>"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --push --onto main 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out"
 is "a rebuild the series does not match fails" "$st" 1
 has "it names the path" "$out" "R/foo.R"
@@ -702,7 +718,7 @@ echo
 echo "== a fresh build up to a named ref takes it as the fork has it now"
 git push -q origin "$RC:refs/heads/land-src"
 git update-ref refs/remotes/origin/land-src "$RC~1"
-out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --source land-src 2>&1) || true
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --source land-src --onto main 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it fetches the ref rather than reading a stale copy" "$out" "built up to land-src $(git rev-parse --short "$RC")"
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
@@ -716,6 +732,86 @@ out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto rel 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it stands on that branch, not on the main that moved" "$out" "vendor commits on $(git rev-parse --short "$M")"
 hasnt "which it does not mistake for main" "$out" "main moved"
+read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+FIRST=$(git -C "$WT" rev-list --reverse "$M..HEAD" | head -n 1)
+is "its first landing commit's parent is the tip of that branch" "$(git -C "$WT" rev-parse "$FIRST~1")" "$M"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+has "a rerun without --onto resumes onto the kept branch" "$out" "resuming the build in"
+hasnt "rather than onto main, which moved" "$out" "main moved"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto main 2>&1) && st=0 || st=$?
+is "a rerun onto another branch is refused" "$st" 1
+has "  and says which branch the kept build lands onto" "$out" "lands onto rel, not --onto main"
+out=$(scripts/series-land.sh v2.0-x-fwd --status --onto main 2>&1) && st=0 || st=$?
+is "and so is --status onto another branch" "$st" 1
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto nowhere 2>&1) && st=0 || st=$?
+is "a branch the canonical remote lacks is refused" "$st" 1
+has "  with the branch named" "$out" "could not fetch nowhere from upstream, the branch --onto names"
+
+# --- 16: a clone with no kept build --------------------------------------------
+
+echo
+echo "== a clone with no kept build reads the branch off the landing"
+STATE16="$(git rev-parse --git-dir)/series-land-v2.0-x"
+rm -f "$STATE16"
+MAIN16=$(git ls-remote upstream refs/heads/main | cut -f1)
+land_on() { # <base>: a one-commit landing on <base>, green at <base>
+  local v
+  v=$(git commit-tree "$1^{tree}" -p "$1" -m 'vendor: Update vendored sources to duckdb/duckdb@9999999')
+  git push -q -f origin "$v:refs/heads/v2.0-x-land-dev" "$1:refs/heads/v2.0-x-land-green"
+}
+land_on "$MAIN16"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a landing on main is read as one" "$st" 0
+has "  and its status reported" "$out" "commits above v2.0-x-land-green passed"
+
+git checkout -q -f -B rel2 "$M"
+echo 'own' > R/rel2.R
+commit 'fix: A commit of the release branch alone'
+git push -q -f upstream rel2
+git checkout -q -f main
+land_on "$(git rev-parse rel2)"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a landing main does not hold is refused" "$st" 1
+has "  asking for the branch" "$out" "Pass --onto <branch>"
+hasnt "  and printing no push" "$out" "READY"
+out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+is "  --review too" "$st" 1
+
+git checkout -q -f -B canonmain "$MAIN16"
+mkdir -p scripts
+printf 'flavors:\n  - flavor: duckdb\n    kind: CRAN\n    publishes_from: rel2\n' > scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Publish plain duckdb from rel2'
+git push -q upstream canonmain:main
+git checkout -q -f main
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a landing on the CRAN line's branch is refused too" "$st" 1
+has "  naming that branch" "$out" "pass --onto rel2"
+out=$(scripts/series-land.sh v2.0-x-fwd --status --onto rel2 2>&1) && st=0 || st=$?
+is "  and --onto rel2 reads it" "$st" 0
+
+echo
+echo "== a kept build records its branch, and one from before reads as main"
+land_on "$M"
+git push -q -f upstream "$M:refs/heads/rel"
+scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto rel >/dev/null 2>&1 || true
+out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "--review without --onto follows the kept branch" "$st" 0
+hasnt "  rather than main, which moved" "$out" "main moved"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+is "--status without --onto follows it as well" "$st" 0
+read -r a b c d e f _ < "$STATE16"
+echo "$a $b $c $d $e $f" > "$STATE16"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a six-field kept build resumes onto main" "$st" 1
+has "  which moved under it" "$out" "Error: main moved from below"
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 echo

@@ -20,6 +20,14 @@ CRAN and the numbered r-universe packages publish from here.
 `main` carries the engine of upstream `main` and releases nothing itself;
 the line CRAN ships has a branch of its own, named as upstream names it, `v2.0-cyanoptera`
 ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+**Until the cut, the layout before it holds.**
+That layout takes effect once `v2.0-cyanoptera` exists in `duckdb/duckdb-r`,
+`scripts/series.yaml` names it as the CRAN flavor's `publishes_from` and the v2.0 series' `releases_from`,
+and `main` has moved to `2.0.99.9000`
+([#2987](https://github.com/duckdb/duckdb-r/pull/2987) carries the commands).
+Until then `main` is the 2.0 line's release branch: it vendors the 2.0 engine, CRAN publishes from it,
+the v2.0 series releases from it, and no branch named `v2.0-cyanoptera` exists here to look for.
+The pages describing the two-branch layout link here for that.
 `krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
 network, not a copy that shares its name — used for CI/CD
 so the per-commit builds do not consume
@@ -220,13 +228,16 @@ on `main` and backported to the release branch with `git cherry-pick -x`,
 or as a pull request against the release branch and forward-ported to `main` the same way.
 The `cherry picked from commit` trailer is what pairs the two copies where a conflict changed the text,
 and [`scripts/series-check.sh`](/scripts/series-check.sh) names every commit of the release branch `main` has no counterpart of,
-its vendor commits and version bumps aside, which are the release branch's own.
+its vendor commits and version bumps aside, which are the release branch's own,
+unless a vendor commit also carries an R-side change.
+A commit `main` does without on purpose is recorded with the reason in [`scripts/forward-port-declined`](/scripts/forward-port-declined) on `main`,
+and is not reported again.
 Tooling is the exception: it is `main`'s alone, and reaches the release branch only as a backport.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 
 That ordering is what makes the vendor strand the only thing a series owns.
-Everything else it carries was born on `main` and arrived by port,
+Everything else it carries was born on the branch it releases from and arrived by port,
 which is why a regenerated seed is allowed to replace a series' whole R side
 and why a replay takes the new base for everything the vendor commits do not touch
 ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).

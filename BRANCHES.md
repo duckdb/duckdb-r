@@ -154,6 +154,8 @@ v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ─�
                     the Pull app (mirrors the canonical branches into the fork)
 ```
 
+This is the layout once `v2.0-cyanoptera` is cut; until then `main` still plays its row's part
+([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
 The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents a landing:
 `main` takes batches of upstream `main`, and the release branch of the line CRAN ships takes its own line's batches and releases
 ([`series-land`](/.claude/skills/series-land/SKILL.md)). Patches from `patch/` are applied to the vendored C++ code during every vendor run (see [Patch Stack](#patch-stack) below).
@@ -177,6 +179,9 @@ each with one meaning and one allowed motion
 and the root [`README.md`](/README.md)'s badges count the gaps between them.
 The `dev`/`dev-base` pair the four replaced is retired,
 its refs archived in `krlmlr/duckdb-r-old`.
+
+The table is the layout once `v2.0-cyanoptera` is cut
+([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
@@ -241,9 +246,10 @@ other.
   one, per the bootstrap rule in `.claude/skills/series-loop/SKILL.md`, and the
   `dev-base` refs are archived in `krlmlr/duckdb-r-old`.
 - **S4 — `dev` contents.** Every commit above the seed is either a `vendor:`
-  commit or a forward-port equivalent to a commit on `main` (`git cherry main
-  dev` shows no unmatched non-vendor `+`). **Glue is never *born* on a `dev`
-  branch.** *Exception:* on the preview line (tracking upstream `main`),
+  commit or a forward-port equivalent to a commit on the branch the series
+  releases from, `<R>`: `main`, or the line's own release branch
+  (`git cherry <R> dev` shows no unmatched non-vendor `+`). **Glue is never
+  *born* on a `dev` branch.** *Exception:* on the preview line (tracking upstream `main`),
   vendor-coupled glue — adaptation forced by a new upstream C++ API — is born on
   `dev` alongside the vendor commit that requires it, because `main` does not yet
   carry that upstream version.
@@ -312,7 +318,8 @@ release.
 
 - **V1 — Prefix lock.** `major.minor` equals `L` on every branch of the series.
   *Exception:* the preview line carries the prefix of the line it previews,
-  `main` and `main-dev` both `2.0.99.…` while upstream `main` heads for 2.1,
+  `main` and `main-dev` both `2.0.99.…` while upstream `main` heads for 2.1
+  (once `v2.0-cyanoptera` is cut; `main` is `2.0.0.…` until then),
   until that line's release branch is cut and takes `2.1.0`.
 - **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
   `dev` is at or ahead of `Z`.
@@ -332,9 +339,13 @@ release.
 
 ### Source of truth (cross-series)
 
-- **G1 — Glue monotone down the chain.** At the forward-port frontier,
-  glue/R/tests/CI/cpp11 satisfy `main ⊇ newer-dev ⊇ … ⊇ older-dev`; older lines
-  lag only by pending forward-ports. (S4 applied across the whole chain.)
+- **G1 — Glue monotone down the chain.** At the forward-port frontier, every
+  `dev` carries the glue/R/tests/CI/cpp11 of the branch it releases from, and
+  lags it only by pending forward-ports. (S4 applied across the whole chain.)
+  A line with its own release branch takes its R side from that branch, not
+  from `main`, and the two canonical branches exchange fixes by cherry-pick
+  ([`branches/model/`](/handbook/branches/model/README.md)), so `main ⊇ dev`
+  holds only for the series that release from `main`.
 - **G2 — Patch-stack derivation.** Each `dev`'s `patch/` equals `main`'s patch
   set minus the patches already merged into *that series'* upstream branch.
   `patch/` may therefore legitimately differ between series; it is never
@@ -359,11 +370,15 @@ release.
 - **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an ancestor
   of the `dev` tip that will be cut; any delta added after a revdep run is
   reviewed (and re-checked if risky). What ships was tested.
-- **P3 — Fold-back ordering.** Every fold-back fix lands on `main` before any
-  `dev` (a `dev` fix lacking a `main` ancestor violates S4).
-- **P4 — Freeze convergence (barrier).** At GLUE FREEZE, `git cherry main dev` is
-  empty for *every* releasing series simultaneously, so all releasing lines share
-  identical glue. This is the multi-line synchronization invariant.
+- **P3 — Fold-back ordering.** Every fold-back fix lands on a canonical branch,
+  the one the series releases from, before any `dev` (a `dev` fix with no
+  counterpart there violates S4). For the line with its own release branch that
+  is the release branch, and the fix reaches `main` afterwards by cherry-pick
+  where `main` needs it too ([`branches/model/`](/handbook/branches/model/README.md)).
+- **P4 — Freeze convergence (barrier).** At GLUE FREEZE, `git cherry <R> dev` is
+  empty for *every* releasing series simultaneously, each against the branch
+  `<R>` it releases from, so every releasing line carries its release branch's
+  glue. This is the multi-line synchronization invariant.
 
 ## Release cycle mapping
 

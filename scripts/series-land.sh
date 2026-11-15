@@ -147,7 +147,7 @@ argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-onto=main
+onto=''
 push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
@@ -184,8 +184,8 @@ here=$(cd "$(dirname "$0")" && pwd)
 cd "$(git rev-parse --show-toplevel)"
 
 # A stopped or finished build lives here: the worktree it kept, the `main` it
-# stands on, the rc commit it builds up to, that strand's seed, the prefix, and
-# the series it lands.
+# stands on, the rc commit it builds up to, that strand's seed, the prefix, the
+# series it lands, and the branch it lands onto.
 STATE="$(git rev-parse --git-dir)/series-land-$L"
 
 if [ -n "$abort" ]; then
@@ -201,6 +201,73 @@ if [ -n "$abort" ]; then
   exit 0
 fi
 
+# The branch landed on is the kept build's, where there is one: the refs are
+# named for the line, `<L>-land-*`, whatever the branch, so a second landing of
+# the same line onto another branch -- `v2.0-cyanoptera-fwd` onto `main` beside
+# `v2.0-cyanoptera` onto its release branch -- would take over the first one's
+# build and refs. Such a request is refused rather than followed. A landing on
+# --remote records no branch of its own, so this guards the clone that built it.
+# The subject of the hand-written version bump (is_bump below).
+bump_subject='chore: Bump version to '
+
+onto_kept=''
+if [ -f "$STATE" ]; then
+  read -r _ _ _ _ _ _ onto_kept < "$STATE" || true
+  onto_kept=${onto_kept:-main}
+fi
+if [ -n "$onto" ] && [ -n "$onto_kept" ] && [ "$onto" != "$onto_kept" ]; then
+  echo "Error: the kept $L landing lands onto $onto_kept, not --onto $onto;" \
+    "finish it, or --abort it first" >&2
+  exit 1
+fi
+
+# With neither a kept build nor --onto, a landing already on --remote says which
+# branch it was built on, and a clone that did not build it -- a fresh one, a
+# scheduled session -- reads it from there rather than assuming `main`: a READY
+# line must never name a branch that does not hold the landing's base. Walking
+# `<L>-land-dev` down its first parents, the landing is vendor commits and the
+# bump above the commit where it joins the canonical `main`. Anything else in
+# between is another branch's own history, a release branch's, or commits
+# pinned with --base, which this cannot tell apart, so it asks for --onto.
+infer_onto() {
+  local dev c subj base='' join='' foreign='' cran
+  git fetch -q "$remote" "+refs/heads/$L-land-dev:refs/remotes/$remote/$L-land-dev" 2>/dev/null || return 0
+  dev=$(git rev-parse -q --verify "refs/remotes/$remote/$L-land-dev") || return 0
+  [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 || return 0
+  git fetch -q "$canonical" main 2>/dev/null || return 0
+  local tip
+  tip=$(git rev-parse "refs/remotes/$canonical/main")
+  while IFS=$'\t' read -r c subj; do
+    if git merge-base --is-ancestor "$c" "$tip"; then join=$c; break; fi
+    if [ -z "$foreign" ] && { series_is_vendor "$subj" || [[ "$subj" == "$bump_subject"* ]]; }; then
+      continue
+    fi
+    # The first commit below the landing's own: its frozen base.
+    [ -n "$foreign" ] || base=$c
+    foreign=1
+  done < <(git log --first-parent --format='%H%x09%s' "$dev")
+  [ -n "$join" ] && [ -z "$foreign" ] && return 0
+  echo "Error: $L-land-dev on $remote does not stand on $canonical's main, and no kept build says" >&2
+  echo "  which branch it lands onto." >&2
+  cran=$({ git show "$tip:scripts/series.yaml" 2>/dev/null || true; } | awk '
+    function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
+    function val(v) { gsub(/["'"'"']/, "", v); return v }
+    /^  - / { flush() }
+    /^    kind:/ { k = val($2) }
+    /^    publishes_from:/ { pf = val($2) }
+    END { flush() }' | head -n 1)
+  if [ -n "$cran" ] && [ "$cran" != main ] && [ -n "$base" ] &&
+    git fetch -q "$canonical" "$cran" 2>/dev/null &&
+    git merge-base --is-ancestor "$base" "$(git rev-parse "refs/remotes/$canonical/$cran")"; then
+    echo "  $cran, the branch the CRAN flavor publishes from, holds its base: pass --onto $cran." >&2
+  else
+    echo "  Pass --onto <branch>, the branch it was built on." >&2
+  fi
+  exit 1
+}
+[ -n "$onto" ] || [ -n "$onto_kept" ] || infer_onto
+onto=${onto:-${onto_kept:-main}}
+
 # The landing stands on the canonical `main` and on nothing else: a mirror that
 # has not caught up is an older `main`, and a landing built on it cannot
 # fast-forward the real one.
@@ -210,7 +277,11 @@ if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; the
   exit 1
 fi
 # `main` holds the tip of the branch landed on, --onto's, whatever its name.
-git fetch -q "$canonical" "$onto"
+if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
+  echo "Error: could not fetch $onto from $canonical, the branch --onto names:" >&2
+  echo "$err" >&2
+  exit 1
+fi
 main=$(git rev-parse -q --verify "refs/remotes/$canonical/$onto" || git rev-parse FETCH_HEAD)
 
 dev_ref="refs/remotes/$remote/$L-land-dev"
@@ -233,7 +304,6 @@ for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 # `NEWS.md` has a section for that version with something in it
 # (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
-bump_subject='chore: Bump version to '
 is_bump() { # <commit>
   local c=$1 old new subj
   ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
@@ -254,7 +324,9 @@ is_bump() { # <commit>
   # the fourth component one up and a tag of that version, and a series not
   # forwarded since still stamps an older one, so the landing's bump is the next
   # one above the branch's, not above the series'
-  # (handbook/operations/releases/versioning/README.md).
+  # (handbook/operations/releases/versioning/README.md). Without --onto that
+  # branch is `main`, and the only bump this refuses that the rule above let
+  # through is one that would lower `main`'s own version, which no landing meant.
   local onto_v
   onto_v=$(git show "$main:DESCRIPTION" | sed -n 's/^Version: //p')
   # shellcheck disable=SC2015
@@ -484,7 +556,7 @@ check_aligned() {
     exit 1
   }
 }
-write_state() { echo "$wt $base $src $seed $prefix $S" > "$STATE"; }
+write_state() { echo "$wt $base $src $seed $prefix $S $onto" > "$STATE"; }
 
 # The base the build is asked for: `main`, or a commit above it.
 base_req=$main
@@ -499,7 +571,7 @@ git merge-base --is-ancestor "$main" "$base_req" || {
 }
 
 if [ -f "$STATE" ]; then
-  read -r wt base src seed prefix kept < "$STATE"
+  read -r wt base src seed prefix kept _ < "$STATE"
   [ "$kept" = "$S" ] ||
     { echo "Error: the kept build lands ${kept:-another series}, not $S; --abort it first" >&2; exit 1; }
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
@@ -511,7 +583,7 @@ if [ -f "$STATE" ]; then
   if ! git merge-base --is-ancestor "$main" "$base"; then
     echo "Error: $onto moved from below $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
     echo "  since this landing was started, so it can no longer fast-forward $onto." >&2
-    echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
+    echo "  Freeze $onto first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
   fi
   # A version bump added above the vendor commits is not the build's: drop it,
