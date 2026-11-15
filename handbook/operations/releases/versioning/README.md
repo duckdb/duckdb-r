@@ -100,7 +100,7 @@ run non-interactively, it refuses a `NEWS.md` without the line.
 **The first bump after a landing is written by hand, as the landing's last commit.**
 A landing brings the series' version onto the branch it lands on, and every vendor commit it carried comes after the newest version tag.
 `fledge::bump_version()` would turn each of them into a `NEWS.md` entry.
-So the landing ends on a bump that sets the version in `DESCRIPTION` and writes its `NEWS.md` section by hand,
+So the landing ends on a bump that sets the version in `DESCRIPTION` by hand,
 and its commit on `main` takes the annotated version tag that fledge's next bump counts from
 ([`series-land`](/.claude/skills/series-land/SKILL.md), steps 3 and 6).
 
@@ -111,9 +111,9 @@ A release branch landing its own line's commits short of an upstream patch relea
 and a landing that brings an upstream release sets that release's three components, `2.0.1`.
 [`scripts/series-land.sh`](/scripts/series-land.sh) refuses a bump that does not rise above the branch's version as well as the series',
 because a series not forwarded since the last landing still stamps the older fourth.
-The `NEWS.md` section the bump writes is headed `# duckdb <version>`, and its first bullet names the engine,
-`Vendored duckdb/duckdb main up to duckdb/duckdb@<sha> (<date>).`, the upstream branch in place of `main` for a release branch's landing,
-with a compare link from the previous landing's engine, `https://github.com/duckdb/duckdb/compare/<previous sha>...<sha>`.
+The bump sets `Version:` and the engine record below and nothing else:
+`NEWS.md` is kept by a separate process, not by landings, ports or pull requests
+([#2989](https://github.com/duckdb/duckdb-r/pull/2989#issuecomment-6896691259)).
 The bump also records the engine for scripts, which need not parse prose:
 `Config/duckdb/upstream:` in `DESCRIPTION`, the full SHA of the upstream commit the landing vendors up to,
 on the line right below `Version:`.

@@ -134,7 +134,7 @@ The loop keeps running: it reads `<B>` and writes no ref there.
 ## 2. Write down what the batch ends at
 
 The landing goes up to the tip of `<S>-rc-dev` as it stands when the build starts.
-Read off the engine it vendors and the engine `<B>` vendors, for the `NEWS.md` bullet the bump writes (step 3):
+Read off the engine it vendors and the engine `<B>` vendors, for the review's description and the record the bump sets (step 3):
 
 ```sh
 S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
@@ -227,15 +227,14 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
   git diff DESCRIPTION   # the record sits right below Version:, where the merge driver keeps it
-  echo "$v"              # the version the NEWS.md section and the subject name
+  echo "$v"              # the version the subject names
   ```
 
-* **`NEWS.md`**: write the `# duckdb <v>` section, by hand, directly above the newest section.
-  Its first bullet names the engine as the versioning page spells it, with the two SHAs step 2 wrote down,
-  and the items below it are what users of the package notice, leaving out the tooling.
-  The file's first line stays as it is.
+* **`NEWS.md`** is not the bump's: it is kept by a separate process, not by landings
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **The commit**: `chore: Bump version to <v>`.
-  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md`, the `Version:` line and the engine record,
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only the `Version:` line and the engine record
+  (until [#2989](https://github.com/duckdb/duckdb-r/pull/2989) lands, its check still asks for a `NEWS.md` section as well),
   with nothing above it, and refuses one whose version does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.
 
@@ -357,14 +356,16 @@ Then tag the bump, which is the commit `READY` named.
 fledge counts from the newest version tag
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
 and the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
-It is annotated the way `cran-submission.yaml` annotates the release tags: the subject `duckdb <v>`, then the `NEWS.md` section as body.
+It is annotated, with the message `duckdb <v>`.
 A bump to an upstream release is tagged by the CRAN submission instead ([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).
 
 ```sh
+S=main                                      # the serving series that landed: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it landed onto
+git fetch upstream "$B"
+sha=$(git rev-parse "upstream/$B")          # the bump, which the fast-forward made the branch's tip
 v=$(git show "$sha:DESCRIPTION" | sed -n 's/^Version: //p')
-{ printf 'duckdb %s\n\n' "$v"; git show "$sha:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
-[ "$(grep -c . tag-message)" -gt 1 ] || { echo "no NEWS.md section for $v" >&2; false; }
-git tag -a "v$v" --cleanup=whitespace -F tag-message "$sha"
+git tag -a "v$v" -m "duckdb $v" "$sha"
 git push upstream "refs/tags/v$v"
 ```
 
