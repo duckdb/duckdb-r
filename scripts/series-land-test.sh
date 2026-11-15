@@ -724,6 +724,7 @@ git push -q upstream canonmain:main
 git checkout -q -f main
 out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
+is "--target prints that branch" "$(scripts/series-land.sh v2.0-x --target 2>&1)" hi
 has "the build stands on that branch, read through quotes" "$out" "vendor commits on $(git rev-parse --short "$HI")"
 has "its engine record is the branch's, and no difference" "$out" "Config/duckdb/upstream:, is the branch's"
 hasnt "  so the landing is the series' package" "$out" "DIVERGED"

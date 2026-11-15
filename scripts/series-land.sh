@@ -119,11 +119,13 @@
 #        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
 #                       [--canonical <name>] [--push]
+#        series-land.sh <S> --target [--canonical <name>]
 #        series-land.sh <S> --abort
 #   <S> is the serving series whose rc strand lands, `v2.0-cyanoptera` for
 #   `v2.0-cyanoptera-rc-dev`, never a `-fwd` series; the refs are named for it,
 #   `v2.0-cyanoptera-land-*`, on --remote. The branch landed on is its
 #   `releases_from`, read with `main` from --canonical.
+#   --target prints that branch and nothing else, for a command block to read.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
@@ -144,12 +146,12 @@ shopt -s inherit_errexit
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --target | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
+push='' status='' target='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -167,13 +169,14 @@ while [ $# -gt 0 ]; do
     --status) status=1; shift ;;
     --review) review=1; shift ;;
     --abort) abort=1; shift ;;
+    --target) target=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
   esac
 done
 [ ${#args[@]} -eq 1 ] || argerr
-[ $((${status:-0} + ${review:-0} + ${abort:-0})) -le 1 ] || argerr
+[ $((${status:-0} + ${review:-0} + ${abort:-0} + ${target:-0})) -le 1 ] || argerr
 S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
@@ -236,6 +239,7 @@ if [ -z "$onto" ]; then
     exit 1
   fi
 fi
+if [ -n "$target" ]; then echo "$onto"; exit 0; fi
 # `main` holds the tip of that branch, whatever its name.
 if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
   echo "Error: could not fetch $onto from $canonical, the branch $S releases from:" >&2
