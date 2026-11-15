@@ -1,3 +1,7 @@
+# duckdb 2.0.99.9000
+
+- `main` now follows upstream duckdb/duckdb `main` and lands its commits in batches; the 2.0.x line continues on the `v2.0-cyanoptera` branch, from which CRAN releases are made.
+
 # duckdb 2.0.0.9000
 
 - Commits since 2.0.0: <https://github.com/duckdb/duckdb-r/compare/v2.0.0...main>.
