@@ -49,8 +49,9 @@
 #      scripts/series.yaml: the build stands on its tip, --status prints its
 #      fast-forward, --review targets it, and the version bump has to rise
 #      above that branch's version too. A `-fwd` series is refused, and so is
-#      one series.yaml does not declare, except `main`'s own; and without a
-#      canonical remote the script says so itself.
+#      one series.yaml does not declare, except `main`'s own; a bump with no
+#      vendor commit under it is not a landing; and without a canonical remote
+#      the script says so itself.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -427,6 +428,19 @@ git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
 status_of "$(git rev-parse HEAD)"
 is "a merge commit is refused" "$st" 1
 git checkout -q -f main; git branch -q -D side
+
+echo "== and it never stands alone"
+GA=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git push -q -f origin "$M:refs/heads/v2.0-x-land-green"
+git checkout -q -f -B probe "$M"
+write_bump 1.99.99.9001
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+is "a bump with no vendor commit under it is refused" "$st" 1
+has "  and says so" "$out" "a bump with no vendor commit under it"
+hasnt "  and is not ready" "$out" "READY: every"
+git checkout -q -f main
+git push -q -f origin "$GA:refs/heads/v2.0-x-land-green"
 
 echo "== and nothing sits above it"
 git checkout -q -f -B probe "$BUMP"

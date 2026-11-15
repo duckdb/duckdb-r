@@ -321,7 +321,8 @@ is_bump() { # <commit>
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor
-# commits, and at most one version bump as the last commit? A fix is folded
+# commits, and at most one version bump as the last commit, never without a
+# vendor commit under it? A fix is folded
 # into the commit that introduced the defect, so that every commit passes;
 # nothing else sits on top. The bump is the one commit written by hand, and it
 # is accepted only after a vendor commit. Prints the first commit out of place.
@@ -338,6 +339,14 @@ out_of_place() { # <tip>
     why=$(is_bump "$c") || { echo "$c $subj ($why)"; return; }
     bump=1
   done < <(git log --reverse --first-parent --format='%h%x09%s' "$main..$1")
+  # A bump with no vendor commit under it lands no engine and would pass
+  # unchecked as one of the base's own commits: an empty landing.
+  if [ -z "$seen" ] && [ "$(git rev-parse "$1")" != "$(git rev-parse "$main")" ]; then
+    subj=$(git log -1 --format=%s "$1")
+    case "$subj" in
+      "$bump_subject"*) echo "$(git rev-parse --short "$1") $subj (a bump with no vendor commit under it)" ;;
+    esac
+  fi
 }
 
 # --- --status: what CI has decided, and green over the passed prefix ----------
