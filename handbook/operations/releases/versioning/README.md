@@ -91,7 +91,9 @@ A landing ends on a bump, its last commit
 which takes the annotated tag `v<version>`, `v2.0.99.9001`,
 its message the subject `duckdb <version>` and then the section the bump closed.
 A release's tag is written the same way, by the CRAN submission
-([`cran/`](/handbook/operations/releases/cran/README.md)).
+([`cran/`](/handbook/operations/releases/cran/README.md)),
+or by hand on a line that does not ship to CRAN
+([`process/`](/handbook/operations/releases/process/README.md), step 5).
 After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
 in a bump that changes `DESCRIPTION` alone, there being no section to close, and takes no tag.
 

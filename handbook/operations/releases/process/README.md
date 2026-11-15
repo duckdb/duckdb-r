@@ -256,9 +256,8 @@ A late tag that no re-stamp reached (step 1) ends the range at the plain vendor 
 and the re-stamp is made on the release branch before the bump.
 
 The package version is **not** derived from the git tag:
-the bump sets it explicitly so `DESCRIPTION` matches the upstream tag,
-a hand edit of `Version:` to `X.Y.Z` and of the open `NEWS.md` section's heading to `# duckdb X.Y.Z`,
-committed as `chore: Bump version to X.Y.Z` (`versioning/`).
+the bump sets it explicitly to `X.Y.Z`, so `DESCRIPTION` matches the upstream tag,
+in the one commit [`versioning/`](/handbook/operations/releases/versioning/README.md) describes.
 
 Then rebase the LTS branch, one rename commit on top of the release branch:
 
@@ -272,11 +271,14 @@ preflight before tagging (`cran/`).
 
 ### 5 PUBLISHED — tag and publish
 
-Tag the release and push; r-universe rebuilds automatically:
+Tag the release with the annotated tag `versioning/` describes, and push; r-universe rebuilds automatically:
 
 ```bash
-git tag vX.Y.Z origin/<S>-lts   # or origin/<S> per series convention
-git push origin vX.Y.Z
+v=X.Y.Z ref=origin/<S>-lts   # or origin/<S> per series convention
+{ printf 'duckdb %s\n\n' "$v"; git show "$ref:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } > tag-message
+[ "$(grep -c . tag-message)" -gt 1 ] || { echo "no NEWS.md section for $v" >&2; false; }
+git tag -a "v$v" --cleanup=whitespace -F tag-message "$ref"
+git push origin "v$v"
 ```
 
 For the **current** line only, submit to CRAN (`cran/`);
