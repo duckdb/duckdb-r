@@ -287,6 +287,8 @@ git merge -q -s ours --no-edit -m 'Graft rel
 Declined: the vendor commit, the engine main takes from upstream main.' rel
 git push -q canon cmain:main
 git checkout -q main
+# A copy of main fetched before the graft is refreshed, not read stale.
+git update-ref "refs/remotes/canon/main" "$(git rev-parse cmain^1)"
 is "nothing once main has grafted the branch" "$(fwd)" ""
 
 git checkout -q rel

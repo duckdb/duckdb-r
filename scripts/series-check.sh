@@ -890,7 +890,10 @@ if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
     if [ -z "$heads" ]; then
       uncut=1
     else
-      git fetch -q "$canonical" "$cran_line" 2>/dev/null || true
+      # Both, so a `main` fetched before the last graft does not show what it
+      # grafted as not yet picked.
+      git fetch -q "$canonical" "+refs/heads/main:refs/remotes/$canonical/main" \
+        "+refs/heads/$cran_line:refs/remotes/$canonical/$cran_line" 2>/dev/null || true
       fp_main=$(git rev-parse -q --verify "refs/remotes/$canonical/main" || true)
       fp_rel=$(git rev-parse -q --verify "refs/remotes/$canonical/$cran_line" || true)
     fi
