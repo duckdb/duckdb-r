@@ -4,17 +4,11 @@ Date: Tue, 10 Mar 2026 19:17:15 +0100
 Subject: [PATCH] uninitialized
 
 ---
- .../parquet/include/parquet_field_id.hpp         |  4 ++--
- .../src/include/duckdb/common/lru_cache.hpp      |  4 ++--
- .../types/column/column_data_scan_states.hpp     | 12 ++++++------
- .../common/types/row/tuple_data_layout.hpp       | 16 ++++++++--------
- 4 files changed, 18 insertions(+), 18 deletions(-)
-
 diff --git a/src/duckdb/extension/parquet/include/parquet_field_id.hpp b/src/duckdb/extension/parquet/include/parquet_field_id.hpp
-index 9d5dd754c..8be4a1509 100644
+index 294587d..c840db1 100644
 --- a/src/duckdb/extension/parquet/include/parquet_field_id.hpp
 +++ b/src/duckdb/extension/parquet/include/parquet_field_id.hpp
-@@ -21,8 +21,8 @@ public:
+@@ -34,8 +34,8 @@ public:
  	FieldID();
  	explicit FieldID(int32_t field_id);
  	FieldID Copy() const;
@@ -26,10 +20,10 @@ index 9d5dd754c..8be4a1509 100644
  
  	void Serialize(Serializer &serializer) const;
 diff --git a/src/duckdb/src/include/duckdb/common/lru_cache.hpp b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
-index 8fdca548f..5b2998250 100644
+index c82c06d..aa8bc04 100644
 --- a/src/duckdb/src/include/duckdb/common/lru_cache.hpp
 +++ b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
-@@ -137,11 +137,11 @@ public:
+@@ -144,11 +144,11 @@ public:
  private:
  	struct Entry {
  		shared_ptr<Val> value;
@@ -42,9 +36,9 @@ index 8fdca548f..5b2998250 100644
 +		idx_t payload_weight = 0;
  	};
  
- 	using EntryMap = unordered_map<Key, Entry, KeyHash, KeyEqual>;
+ 	using KeyConstReference = std::reference_wrapper<const Key>;
 diff --git a/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp b/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp
-index d544db851..10dd28a48 100644
+index d544db8..10dd28a 100644
 --- a/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp
 +++ b/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp
 @@ -58,11 +58,11 @@ struct ColumnDataScanState {
@@ -74,10 +68,10 @@ index d544db851..10dd28a48 100644
  
  class ColumnDataRow {
 diff --git a/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp b/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp
-index c8687c9f5..de1f0566b 100644
+index c56e644..39c2e77 100644
 --- a/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp
 +++ b/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp
-@@ -137,29 +137,29 @@ private:
+@@ -154,32 +154,32 @@ private:
  	//! Structs are a recursive TupleDataLayout
  	unique_ptr<unordered_map<idx_t, TupleDataLayout>> struct_layouts;
  	//! The width of the validity header
@@ -97,6 +91,11 @@ index c8687c9f5..de1f0566b 100644
  	//! The width of the entire row
 -	idx_t row_width;
 +	idx_t row_width = 0;
+ 	//! The width and offset of the owner-managed trailing region
+-	idx_t trailing_region_width;
+-	idx_t trailing_region_offset;
++	idx_t trailing_region_width = 0;
++	idx_t trailing_region_offset = 0;
  	//! The offsets to the columns and aggregate data in each row
  	vector<idx_t> offsets;
  	//! Whether all columns in this layout are constant size
@@ -115,6 +114,3 @@ index c8687c9f5..de1f0566b 100644
  };
  
  } // namespace duckdb
--- 
-2.52.0
-
