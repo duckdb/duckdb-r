@@ -284,12 +284,16 @@ Tag the release with the annotated tag `versioning/` describes, and push; r-univ
 C=git@github.com:duckdb/duckdb-r.git   # the canonical repository
 S=v1.4-andium                          # the line just released
 R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
-git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R"   # the tip as it is now, after the rebase
-v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p')
-{ printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |
-  git tag -a "v$v" --cleanup=whitespace -F - "canonical/$R"
-git push "$C" "refs/tags/v$v"
+git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R" &&   # the tip as it is now, after the rebase
+  v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p') &&
+  { printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |
+  git tag -a "v$v" --cleanup=whitespace -F - "canonical/$R" &&
+  git push "$C" "refs/tags/v$v"
 ```
+
+From the fetch on, the block is one chain that stops at the first failure:
+a local `v<version>` left from an earlier attempt fails the tag and is never pushed,
+and what it tags is the branch's tip as just fetched, so the branch has it.
 
 For the **current** line only, submit to CRAN (`cran/`);
 the submission workflow sets the tag itself and drafts the GitHub release,
