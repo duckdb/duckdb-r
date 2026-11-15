@@ -274,8 +274,8 @@ forward-ports from, which is why the fork mirrors it and why
 Two things the generator settles that a hand-copied row used to get wrong.
 
 **Which branch *ahead* measures from.** It is `releases_from`, which for a line
-still releasing from `main` *is* `main` — not `<U>`, and not the parked baseline
-a retired line moves to later.
+just opened *is* `main` — not `<U>`, and not the release branch the line gets in
+this repository once CRAN moves to it.
 
 **Which repository each badge is counted in**, because that differs within one
 row. shields.io compares two refs of a single repository, and the row's three
@@ -303,19 +303,20 @@ render after the generator. The change lands on `main` and is forward-ported lik
 any other R-side change; when the series later releases, it gains a stable entry
 of its own.
 
-## Later, when the line parks
+## Later, when CRAN moves to the line
 
-A line that stops being the current one parks on its own `vX-codename` baseline,
-and its `.dev` badge follows it there — the *ahead* base is the branch the series
+A line gets its own `vX-codename` branch in this repository when CRAN moves to it,
+cut from `main` ([`series-land`](/.claude/skills/series-land/SKILL.md), "Changing the line CRAN ships"),
+and keeps that branch when a newer line takes CRAN over and it parks.
+Its `.dev` badge follows it there — the *ahead* base is the branch the series
 releases from, which is no longer `main`.
-That move is what earns the outgoing line a mirror and a rule, on the day it
-parks rather than on the day it was opened, and `pull-config.sh` reports it as
+That move is what earns the line a mirror and a rule, on the day its branch is cut
+rather than on the day it was opened, and `pull-config.sh` reports it as
 soon as the badge base moves: step 7 arriving by itself rather than being
 remembered.
-The same `releases_from` freezes the line's R side: `scripts/series-port.sh`
-takes only the tooling sync for a line declared parked, which matters when the
-line parks because another one lands on `main`
-([`series-land`](/.claude/skills/series-land/SKILL.md)).
+The same `releases_from` freezes the line's R side against `main`'s: `scripts/series-port.sh`
+takes only the tooling sync for a line declared on a branch of its own,
+which matters because that branch was cut from `main` and no lineage test can tell it from a live line's.
 
 What is left of the walk-backwards problem when `<S>` releases is
 [`series-forward/SKILL.md`](/.claude/skills/series-forward/SKILL.md)'s:

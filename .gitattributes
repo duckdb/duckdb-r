@@ -1,2 +1,3 @@
 src/duckdb/** linguist-vendored
 DESCRIPTION merge=ours-version
+NEWS.md merge=news

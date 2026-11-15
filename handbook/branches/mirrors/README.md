@@ -13,7 +13,8 @@ and shields.io compares two refs of one repository,
 so the branch compared against has to be in the fork
 and not only in the canonical repo.
 `main` is carried for a second reason as well:
-it is what every series seeds from.
+it is what every series seeds from, except a line releasing from a branch of its own, which seeds from that branch,
+and that branch is mirrored for both reasons.
 Forward-porting reads the canonical `main` instead
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 because a mirror is behind for most of the cycle below

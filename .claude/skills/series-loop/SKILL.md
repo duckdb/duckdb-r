@@ -273,7 +273,8 @@ scripts/series-port.sh <S> --list           # walk a frozen series anyway
 
 * Commits are classified TOOLING / MIXED / OTHER / VENDOR / VERSION;
   all but VENDOR and VERSION are picked by default, whole, never split.
-* A frozen series (seeded from a release branch, or parked) takes the tooling sync alone by default;
+* Each series is ported from the branch it releases from, `main` or its line's release branch; tooling always from `main`.
+* A frozen series (seeded from another release line's lineage, or declared `stale: true`) takes the tooling sync alone by default;
   what its build needs is ported by SHA.
 * A conflict stops the sequence in the kept worktree: resolve toward `main`'s intent, keeping the series' flavor where the two meet,
   `cherry-pick --continue`, push, rerun.

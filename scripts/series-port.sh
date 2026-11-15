@@ -86,7 +86,9 @@
 # frozen R side is not a frozen CI. The freeze is not a refusal, though: a fix
 # the build genuinely needs is picked by name, and --list shows the walk when
 # you are looking for one. Frozen is detected from the lineage under the seed,
-# or declared when a line parks on its own baseline; see the seed check below.
+# or declared with `stale: true` in scripts/series.yaml; see the seed check
+# below. Every other series walks the branch it releases from, which for a line
+# with a release branch of its own is that branch and not `main`.
 #
 # A conflict stops the sequence in place and keeps the worktree: resolving it
 # is the routine's judgement. Continue the sequence there, push, and rerun
@@ -243,12 +245,47 @@ fi
 # offers a subset of the truth -- worth saying and not worth refusing over.
 [ -n "$main" ] || main="$remote/main"
 
-mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
+# **The R side comes from the branch the series releases from; the tooling
+# from `main`.** A fix is written on the oldest active release branch and merged
+# forward into the newer ones (handbook/branches/model/), so the v2.0 series
+# takes `v2.0-cyanoptera`'s R side and `main`'s series `main`'s, each the branch
+# its `releases_from` names in `main`'s scripts/series.yaml, read from `main`
+# for the reason series-check.sh reads it there. A line declared `stale: true`
+# there, one that is no longer active and only awaits retirement, is frozen:
+# its branch takes nothing new, and the walk is skipped.
+row_field() { # <series> <field> -> the value, empty when undeclared
+  { git show "$main:scripts/series.yaml" 2>/dev/null || true; } |
+    awk -v s="$1" -v f="$2" '
+      function val(v) { gsub(/["'"'"']/, "", v); return v }
+      /^  - / { if (ser == s) print x; ser = ""; x = "" }
+      /^    series:/ { ser = val($2) }
+      index($0, "    " f ":") == 1 { x = val($2) }
+      END { if (ser == s) print x }'
+}
+rf=$(row_field "${S%-fwd}" releases_from | head -n 1)
+stale=$(row_field "${S%-fwd}" stale | head -n 1)
+src=$main src_name=main
+if [ -n "$rf" ] && [ "$rf" != main ]; then
+  src_name=$rf src=''
+  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
+    git fetch -q "$canonical" "+refs/heads/$rf:refs/remotes/$canonical/$rf" 2>/dev/null; then
+    src="$canonical/$rf"
+  elif git rev-parse -q --verify "refs/remotes/$remote/$rf" >/dev/null; then
+    echo "Warning: could not read $rf from '$canonical'; falling back to the mirror $remote/$rf" >&2
+    src="$remote/$rf"
+  else
+    echo "Error: $S: could not read $rf, the branch it releases from, from '$canonical' or the mirror $remote/$rf;" >&2
+    echo "  nothing was ported or synced" >&2
+    exit 1
+  fi
+fi
+
+mb=$(git merge-base "$dev" "$src" 2>/dev/null || true)
 if [ -z "$mb" ]; then
   # A series seeded from an orphan mirror shares no history with `main`, so
   # there is no base to bound the walk at and `git cherry` has nothing to
   # compare against. Say so instead of dying on the empty expansion.
-  echo "$S: no merge base with main — the series is an unrelated lineage," >&2
+  echo "$S: no merge base with $src_name — the series is an unrelated lineage," >&2
   echo "  so stage 4 cannot port onto it; sync its tooling by hand" >&2
   exit 2
 fi
@@ -278,31 +315,11 @@ fi
 # reading, which is the shape the freeze is for.
 seed=$(git rev-list "$mb..$dev" --grep="$seed_re" | tail -n 1)
 under=0
-[ -n "$seed" ] && under=$(git cherry "$main" "$seed^" "$mb" | grep -c '^+' || true)
+[ -n "$seed" ] && under=$(git cherry "$src" "$seed^" "$mb" | grep -c '^+' || true)
 frozen=
 [ "$under" != 0 ] && frozen=1
+[ "$stale" != true ] || frozen=1
 
-# A line that parks when another one lands on `main` is the case the lineage
-# cannot see. Its seed sits on `main`'s own history, and `main` keeps that
-# history when it fast-forwards onto the new line
-# (.claude/skills/series-land/SKILL.md), so nothing under the seed is foreign
-# and the walk would offer the new line's R side as a backlog. The parking is
-# recorded where the badge table and the mirror rules already read it:
-# `releases_from` in `main`'s scripts/series.yaml, which names the line's own
-# baseline once it stops releasing from `main` (handbook/branches/mirrors/).
-# Read from `main` for the reason series-check.sh reads it there: a series'
-# tree lags `main` by whatever this stage has not ported yet.
-releases_from() { # <series> -> its `releases_from`, empty when undeclared
-  { git show "$main:scripts/series.yaml" 2>/dev/null || true; } |
-    awk -v s="$1" '
-      /^  - / { if (ser == s) print rf; ser = ""; rf = "" }
-      /^    series:/ { ser = $2 }
-      /^    releases_from:/ { rf = $2 }
-      END { if (ser == s) print rf }'
-}
-parked=$(releases_from "${S%-fwd}" | head -n 1)
-[ "$parked" != main ] || parked=''
-[ -z "$parked" ] || frozen=1
 
 # Files a version bump is allowed to carry and still be nothing but a bump:
 # DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
@@ -392,7 +409,39 @@ ancestry_only_commits() {
     [ -n "$parents" ] || continue
     # shellcheck disable=SC2086  # a parent list, deliberately word-split
     git rev-list $parents --not "$m^1"
-  done < <(git rev-list --merges "$mb..$main")
+  done < <(git rev-list --merges "$mb..$src")
+}
+
+# **A forward merge is one port, not the commits behind it.** A release branch
+# merged forward into the branch a series releases from brings its own commits
+# as the merge's second parent, R-side fixes and vendor commits alike, and the
+# merge keeps this line's engine (handbook/branches/model/). Offered one by one,
+# those commits would be picked outside the merge's own conflict resolution, and
+# the glue folded into a vendor commit there would never come at all, vendor
+# commits being skipped. So the walk follows the first parents only, and each
+# merge on them that changed the tree is offered as one commit: its change
+# against its first parent outside the engine paths, the vendored strand and
+# the Makevars generated from it, on that parent. The commit is written here,
+# deterministically -- the merge's author, dates and message -- so a rerun
+# names the same SHA and the `-x` trailer of an earlier port excludes it; it is
+# never signed, whatever commit.gpgsign says, since a signature would differ.
+merge_port() { # <merge> -> the commit standing for it, empty when it changes nothing outside the engine
+  local m=$1 idx tree x
+  local -a ex=()
+  for x in "${series_strand[@]}" "${series_makevars[@]}"; do ex+=(":(exclude)$x"); done
+  [ -n "$(git diff --name-only "$m^1" "$m" -- . "${ex[@]}")" ] || return 0
+  idx=$(mktemp)
+  GIT_INDEX_FILE=$idx git read-tree "$m^1"
+  git diff --binary "$m^1" "$m" -- . "${ex[@]}" | GIT_INDEX_FILE=$idx git apply --cached --binary
+  tree=$(GIT_INDEX_FILE=$idx git write-tree)
+  rm -f "$idx"
+  { git log -1 --format=%B "$m"
+    echo "The change this merge made outside the engine, as one commit to port."; } |
+    GIT_AUTHOR_NAME=$(git log -1 --format=%an "$m") GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae "$m") \
+    GIT_AUTHOR_DATE=$(git log -1 --format=%ad --date=raw "$m") \
+    GIT_COMMITTER_NAME=$(git log -1 --format=%cn "$m") GIT_COMMITTER_EMAIL=$(git log -1 --format=%ce "$m") \
+    GIT_COMMITTER_DATE=$(git log -1 --format=%cd --date=raw "$m") \
+    git -c commit.gpgsign=false commit-tree --no-gpg-sign "$tree" -p "$m^1"
 }
 
 candidates=()
@@ -420,7 +469,7 @@ declare -A klass=()
 # is the cost the freeze exists to remove. --list asks for it anyway, which is
 # what to do when the series needs a fix `main` already has.
 if [ -n "$frozen" ] && [ -z "$list" ]; then
-  echo "$S: frozen${parked:+ (parked on $parked)}; nothing is ported by default, and tooling follows main." \
+  echo "$S: frozen$([ "$stale" != true ] || echo ' (stale)'); nothing is ported by default, and tooling follows main." \
     "Name a fix the build needs with --apply <sha>, or --list to see candidates"
 else
   declare -A ported=()
@@ -429,7 +478,29 @@ else
       sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
   declare -A ancestry_only=()
   while IFS= read -r m; do ancestry_only[$m]=1; done < <(ancestry_only_commits)
-  mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
+  # The branch's own commits are its first parents; what a merge's second
+  # parent brings is offered as the merge's one port instead (merge_port).
+  declare -A first_parent=()
+  while IFS= read -r m; do first_parent[$m]=1; done < <(git rev-list --first-parent --no-merges "$mb..$src")
+  declare -A stands_for=()
+  while IFS= read -r m; do
+    [ -z "${ancestry_only[$m]:-}" ] || continue
+    [ "$(git rev-parse "$m^{tree}")" != "$(git rev-parse "$m^1^{tree}")" ] || continue
+    x=$(merge_port "$m")
+    [ -n "$x" ] && stands_for[$m]=$x
+  done < <(git rev-list --first-parent --merges "$mb..$src")
+  # What `git cherry` drops, read by patch-id against the series' own commits.
+  declare -A dev_pid=()
+  while read -r pid _; do dev_pid[$pid]=1; done < <(git log --no-merges -p "$mb..$dev" | git patch-id --stable)
+  all=()
+  while IFS= read -r m; do
+    if [ -n "${stands_for[$m]:-}" ]; then m=${stands_for[$m]}
+    elif [ -z "${first_parent[$m]:-}" ]; then continue
+    fi
+    pid=$(git show "$m" | git patch-id --stable | cut -d' ' -f1)
+    [ -n "$pid" ] && [ -n "${dev_pid[$pid]:-}" ] && continue
+    all+=("$m")
+  done < <(git rev-list --reverse --first-parent "$mb..$src")
   for sha in "${all[@]}"; do
     [ -n "${ported[$sha]:-}" ] && continue
     [ -n "${ancestry_only[$sha]:-}" ] && continue
@@ -459,6 +530,32 @@ else
 fi
 
 [ -n "$apply" ] || exit 0
+
+# A SHA named for --apply is read as the walk offers it: a forward merge's own
+# SHA stands for its port (merge_port), and so does the port's SHA, which a
+# fresh clone has only once the walk, or this, has written the stand-in. A
+# merge that changes only engine paths has no port, and is said so rather than
+# picked; naming nothing else ports nothing.
+named=()
+for a in "$@"; do
+  c=$(git rev-parse -q --verify "$a^{commit}" 2>/dev/null || true)
+  if [ -z "$c" ]; then
+    while IFS= read -r m; do
+      x=$(merge_port "$m")
+      case "$x" in "$a"*) c=$x; break ;; esac
+    done < <(git rev-list --first-parent --merges "$mb..$src")
+  elif git rev-parse -q --verify "$c^2" >/dev/null; then
+    x=$(merge_port "$c")
+    if [ -z "$x" ]; then
+      echo "$(git rev-parse --short "$c"): nothing to port: the merge changes only engine paths"
+      continue
+    fi
+    c=$x
+  fi
+  named+=("${c:-$a}")
+done
+[ $# -eq 0 ] || [ ${#named[@]} -gt 0 ] || exit 0
+set -- ${named[@]+"${named[@]}"}
 
 # A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a
 # forward-port that carries one -- and the ours-version merge driver is what
