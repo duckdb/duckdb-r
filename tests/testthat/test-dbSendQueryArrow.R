@@ -166,6 +166,9 @@ test_that("dbClearResult() ends the query of a stream not read to the end", {
   }
 
   # The sort holds every row before the first one arrives.
+  # A small streaming buffer keeps the result from being drained into
+  # untracked memory, so the sort is still running when we measure.
+  dbExecute(con, "SET max_streaming_buffer_size = '1MB'")
   res <- dbSendQueryArrow(
     con,
     "SELECT i FROM range(1000000) t(i) ORDER BY i DESC"
