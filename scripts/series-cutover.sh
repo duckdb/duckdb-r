@@ -92,8 +92,11 @@
 # a fetch of the pinning pull requests' heads, then one leased push per repository
 # that puts the old tips back and the forward's refs beside them,
 # save a forward ref that moved since the run read it, which was never deleted.
-# Where a remote refused a deletion it prints the line that finishes it, a `gh api -X DELETE` one on GitHub,
-# for a person to run.
+# Where a remote refused a deletion it prints the line that finishes it (`series_delete_line`, scripts/series-lib.sh):
+# on GitHub, a dispatch of .github/workflows/delete-branch.yaml for a session,
+# with no pull request for a `-fwd-` ref whose twin without the `fwd-` is at its tip, as the swap leaves each,
+# or naming a pull request whose head is the ref's tip;
+# where neither holds, a `gh api -X DELETE` that checks the tip first, for a maintainer's shell.
 #
 # Exit status:
 #   0  swapped and cleaned up, or prepared.
@@ -680,7 +683,7 @@ delete_leased() { # <repo> <ref> <tip> [<ref> <tip>]...
     now=$(awk -v ref="refs/heads/$r" '$2 == ref { print $1 }' <<<"$still")
     [ -n "$now" ] || continue
     if [ "$now" = "$t" ]; then
-      left+=("$repo $r")
+      left+=("$repo $r $t")
     else
       moved+=("$repo $r $t $now")
     fi
@@ -767,13 +770,18 @@ if [ ${#left[@]} -gt 0 ] || [ ${#moved[@]} -gt 0 ] || [ ${#unread[@]} -gt 0 ] ||
   [ ${#canon_left[@]} -eq 0 ] || printf '  %s\n' "${canon_left[@]}"
   for repo in "$remote" "$canonical"; do
     refs=()
+    tips=()
     for l in ${left[@]+"${left[@]}"}; do
-      read -r r ref <<<"$l"
-      [ "$r" != "$repo" ] || refs+=("$ref")
+      read -r r ref t <<<"$l"
+      [ "$r" != "$repo" ] || { refs+=("$ref"); tips+=("$t"); }
     done
     [ ${#refs[@]} -gt 0 ] || continue
     echo "  cutover litter in $repo, which loses nothing when deleted: ${refs[*]}"
-    for ref in "${refs[@]}"; do echo "    $(series_delete_line "$repo" "$ref")"; done
+    echo "  one line per ref: a dispatch of the deletion workflow, for a session, where the ref's twin without its fwd-"
+    echo "  or a pull request's head is at its tip, else a deletion that checks the tip first, for a maintainer's shell:"
+    series_delete_listing "$repo"
+    # Each line is for the tip this run read back as litter, so it refuses a ref that has moved since.
+    for i in "${!refs[@]}"; do echo "    $(series_delete_line "$repo" "${refs[i]}" "${tips[i]}")"; done
   done
   # A moved ref is not litter: what moved onto it may be on no other ref, so it is shown rather than deleted,
   # and what the series needs of it is a repair on <S>-dev before anyone deletes the ref by hand.
@@ -810,6 +818,6 @@ if [ ${#left[@]} -gt 0 ] || [ ${#moved[@]} -gt 0 ] || [ ${#unread[@]} -gt 0 ] ||
       echo "    one anywhere else moved and may hold commits no other ref has: read <tip read>..<its tip> before deleting it."
     }
   done
-  echo "SWAPPED, LEFT BEHIND: $S is cut over; run the lines above, or hand them to a maintainer."
+  echo "SWAPPED, LEFT BEHIND: $S is cut over; dispatch the workflow lines above, and hand the rest to a maintainer."
   exit 9
 fi

@@ -321,7 +321,11 @@ Each deletion is leased on the tip the run read, so a ref that moved since is ke
 If the remote refuses ref deletion (some git proxies do, a cloud session's among them),
 or a cutover predates this cleanup,
 what stays is cutover litter.
-The run lists each ref it left with the `gh api -X DELETE` line that removes it, and exits 9:
+The run lists each ref it left with the line that removes it, and exits 9:
+on GitHub, a dispatch of [`delete-branch.yaml`](/.github/workflows/delete-branch.yaml), which a session runs,
+where the ref's twin without its `fwd-` is at its tip, as it is right after the swap, or a closed pull request's head is,
+and otherwise a `gh api -X DELETE` that checks the tip first, for a maintainer's shell
+(`series_delete_line`, [`scripts/series-lib.sh`](/scripts/series-lib.sh));
 the swap stands, and the deletion is somebody's to run by hand.
 The loop ignores a forward series
 whose tips its base series' refs reach, as `series_fwd_swapped` in [`scripts/series-lib.sh`](/scripts/series-lib.sh) reads it,

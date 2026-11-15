@@ -18,7 +18,11 @@
 #      commit, and the engine and the stamp read off a tree; the second parent of
 #      a merge that keeps the engine never answers the base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
-#      URL carries, and the command that deletes one of its branches.
+#      URL carries, and the command that deletes one of its branches: the
+#      dispatch of the deletion workflow, with no pull request for a forward's
+#      branch at its twin's tip, else naming the lowest-numbered pull request
+#      whose head is the branch's tip and listing them all where there are
+#      several, or a tip-checked `gh api -X DELETE` where neither holds.
 #   7. A forward merge that conflicts in the engine, the version file and the
 #      Makevars, adds an engine file and deletes a patch the other side changed
 #      keeps this side's engine byte for byte, and merges the R side.
@@ -43,6 +47,7 @@ fail=0
 ok() { pass=$((pass + 1)); echo "  ok   $1"; }
 no() { fail=$((fail + 1)); echo "  FAIL $1"; }
 is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "       got:  $2"; echo "       want: $3"; fi; }
+has() { case "$2" in *"$3"*) ok "$1" ;; *) no "$1"; echo "       missing: $3" ;; esac; }
 yes() { if "${@:2}"; then ok "$1"; else no "$1"; fi; }
 not() { if "${@:2}"; then no "$1"; else ok "$1"; fi; }
 
@@ -187,6 +192,8 @@ git merge -q -s ours --no-edit rel
 is "the base scan follows the first parent of a merge that keeps the engine" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
 
 echo "--- 6. the GitHub repository a remote names"
+# Offline: a remote that is not a local path is refused by git at once, rather than looked up.
+export GIT_ALLOW_PROTOCOL=file
 for url in https://github.com/o/r https://github.com/o/r.git https://github.com/o/r/ git@github.com:o/r.git ssh://git@github.com/o/r \
   https://user@github.com/o/r.git https://github.com:443/o/r.git ssh://git@github.com:22/o/r.git; do
   git remote add gh-url "$url"
@@ -195,9 +202,11 @@ for url in https://github.com/o/r https://github.com/o/r.git https://github.com/
 done
 # A token in the URL names the repository as the bare URL does, and is never printed.
 git remote add gh-url https://x-access-token:s3cr3t@github.com:443/o/r.git
+unread="git ls-remote gh-url refs/heads/b-fwd-dev  # b-fwd-dev is not on gh-url or could not be read: once this reads it, rerun for the line that deletes it"
+dispatch="gh api -X POST repos/o/r/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]="
 is "a URL with a user, a token and a port names o/r" "$(series_github_slug gh-url)" o/r
 is "and the token is in neither of its lines" "$(series_github_slug gh-url; series_delete_line gh-url b-fwd-dev)" \
-  "$(printf 'o/r\ngh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev')"
+  "$(printf 'o/r\n%s' "$unread")"
 git remote remove gh-url
 for url in https://github.com.example.invalid/o/r https://github.com@example.invalid/o/r https://github.com/o/r/extra git@github.com:22/o/r \
   'https://github.com/o/r?t=s3cr3t' 'https://github.com/o/r.git#s3cr3t' 'https://github.com/o?t=s3cr3t/r' 'git@github.com:o/r?t=s3cr3t'; do
@@ -207,10 +216,59 @@ for url in https://github.com.example.invalid/o/r https://github.com@example.inv
 done
 git remote add proxied http://proxy@127.0.0.1:1/git/o/r
 is "a URL that is not GitHub's names nothing" "$(series_github_slug proxied)" ""
-is "and its branches are deleted with git" "$(series_delete_line proxied b-fwd-dev)" "git push --delete proxied b-fwd-dev"
+is "and a branch whose tip it cannot read gets the read, which deletes nothing" "$(series_delete_line proxied b-fwd-dev)" \
+  "git ls-remote proxied refs/heads/b-fwd-dev  # b-fwd-dev is not on proxied or could not be read: once this reads it, rerun for the line that deletes it"
+is "one whose tip the caller read is deleted with git, leased on that tip" "$(series_delete_line proxied b-fwd-dev "$(git rev-parse HEAD)")" \
+  "git push --force-with-lease=refs/heads/b-fwd-dev:$(git rev-parse HEAD) proxied :refs/heads/b-fwd-dev"
 git config remote.proxied.github o/r
 is "unless the configuration names the repository" "$(series_github_slug proxied)" o/r
-is "and then with one gh api call per branch" "$(series_delete_line proxied b-fwd-dev)" "gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev"
+is "and then, for a remote it cannot read, with the read that deletes nothing" "$(series_delete_line proxied b-fwd-dev)" "${unread//gh-url/proxied}"
+# A remote it can read: the pull request is the lowest-numbered one whose head is the tip.
+git init -q --bare "$SCRATCH/gh.git"
+tipc=$(git rev-parse HEAD)
+other=$(git rev-parse HEAD~1)
+git push -q "$SCRATCH/gh.git" "$tipc:refs/heads/b-fwd-dev" "$other:refs/heads/litter"
+for p in "9 $tipc" "10 $tipc" "2 $other" "12 $tipc"; do
+  read -r n sha <<<"$p"
+  git -C "$SCRATCH/gh.git" update-ref "refs/pull/$n/head" "$sha"
+done
+git -C "$SCRATCH/gh.git" update-ref refs/heads/unpinned "$(git rev-parse HEAD~2)"
+git remote add readable "$SCRATCH/gh.git"
+git config remote.readable.github o/r
+is "a branch at several pull requests' heads names the lowest-numbered" "$(series_delete_line readable b-fwd-dev)" \
+  "${dispatch}b-fwd-dev' -f 'inputs[pr]=9'  # pull requests whose head is this tip: 9 10 12; name a closed one"
+is "and one at a single head names that one" "$(series_delete_line readable litter)" "${dispatch}litter' -f 'inputs[pr]=2'"
+u=$(git rev-parse HEAD~2)
+# shellcheck disable=SC2016  # the command as it is printed
+is "a branch no pull request's head is at gets a tip-checked deletion, for a maintainer" "$(series_delete_line readable unpinned)" \
+  "$(printf 'if [ "$(gh api repos/o/r/git/ref/heads/unpinned --jq .object.sha)" = %s ]; then gh api -X DELETE repos/o/r/git/refs/heads/unpinned; else echo %s; fi  # for a maintainer%ss shell: no pull request%ss head is at %s, so the workflow cannot pin it' \
+    "$u" "'unpinned is not at ${u:0:12}: read what moved before deleting it'" "'" "'" "${u:0:12}")"
+# A tip the caller read and checked wins over the one the remote holds now, so a ref that moved since is refused by the line.
+is "a branch that moved since the caller read it is dispatched for the tip read" "$(series_delete_line readable b-fwd-dev "$other")" \
+  "${dispatch}b-fwd-dev' -f 'inputs[pr]=2'"
+has "and one no pull request pins is checked against the tip read" "$(series_delete_line readable b-fwd-dev "$u")" \
+  "= $u ]; then gh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev;"
+series_delete_listing readable
+git -C "$SCRATCH/gh.git" update-ref -d refs/pull/2/head
+is "a listing loaded once is read instead of the remote" "$(series_delete_line readable litter)" "${dispatch}litter' -f 'inputs[pr]=2'"
+# A forward's branch whose twin, the name without its `fwd-`, is at the same tip needs no pull request,
+# and that proof comes before a pull request's, read from the listing or from the remote alike.
+git push -q "$SCRATCH/gh.git" "$tipc:refs/heads/b-dev" "$u:refs/heads/v2.0-x-fwd-green" "$other:refs/heads/v2.0-x-green" \
+  "$u:refs/heads/main-fwd-green" "$u:refs/heads/main-green" "$u:refs/heads/a-fwd-b-fwd-c" "$u:refs/heads/a-b-fwd-c"
+unset 'series_delete_cache[readable]'
+is "a forward's branch at its twin's tip is dispatched without a pull request" "$(series_delete_line readable b-fwd-dev)" \
+  "${dispatch}b-fwd-dev'"
+is "main-fwd-green's twin is main-green" "$(series_delete_line readable main-fwd-green)" "${dispatch}main-fwd-green'"
+series_delete_listing readable
+is "and the loaded listing holds the twin" "$(series_delete_line readable main-fwd-green)" "${dispatch}main-fwd-green'"
+has "a twin at another tip proves nothing" "$(series_delete_line readable v2.0-x-fwd-green)" "for a maintainer's shell"
+has "nor does a name with -fwd- twice" "$(series_delete_line readable a-fwd-b-fwd-c)" "for a maintainer's shell"
+git push -q "$SCRATCH/gh.git" "$u:refs/heads/a-fwd-fwd-b" "$u:refs/heads/a-fwd-b"
+unset 'series_delete_cache[readable]'
+has "nor one with -fwd- twice, overlapping" "$(series_delete_line readable a-fwd-fwd-b)" "for a maintainer's shell"
+has "a tip the caller read that the twin is not at falls back to the other proofs" "$(series_delete_line readable b-fwd-dev "$other")" \
+  "if [ \"\$(gh api repos/o/r/git/ref/heads/b-fwd-dev --jq .object.sha)\" = $other ]"
+unset GIT_ALLOW_PROTOCOL
 
 echo "--- 7. a forward merge keeps this side's engine"
 KE=$SCRATCH/keep-engine

@@ -13,8 +13,8 @@ so editing one here puts the copy out of step,
 and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
-Four are authored here and have no counterpart in the template:
-`each.yaml`, `each-mirror.yaml`, `handbook.yaml` and `cran-release.yaml`.
+Five are authored here and have no counterpart in the template:
+`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml` and `cran-release.yaml`.
 A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 One file of the core set is left out, and a sync must not bring it back:
 the template's `fledge.yaml`, because this repository writes its version by hand and keeps `NEWS.md` apart
@@ -30,6 +30,7 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
 | [`each-mirror.yaml`](/.github/workflows/each-mirror.yaml) | hourly cron; dispatch | the fork's verdicts copied onto open pull requests from the fork ([`per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)); canonical repository only |
+| [`delete-branch.yaml`](/.github/workflows/delete-branch.yaml) | dispatch only, with the inputs `branch` and an optional `pr` | deletes the branch where the closed pull request's head is its tip, or, without one, where a `-fwd-` branch's twin is at its tip, for a session whose git proxy refuses a deletion ([`branches/model/`](/handbook/branches/model/README.md)); both repositories |
 | [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml) | `pull_request_target` | posts formatting suggestions; treats fork code strictly as data |
 | [`commit-suggest.yaml`](/.github/workflows/commit-suggest.yaml) | after an `rcc` run on a PR | turns the run's changes patch into review suggestions |
 | [`pkgdown.yaml`](/.github/workflows/pkgdown.yaml) | push to `docs*`, `cran-*`; dispatch | builds the site (main is covered by `rcc`) |

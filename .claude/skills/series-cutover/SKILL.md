@@ -174,19 +174,40 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
    Then re-cut the derived strands where the series has them, as the run's last lines say,
    and check the mirror rules with `scripts/pull-config.sh --check`, the last line of the block the loop's stage 6 reports.
 10. **Clean up.**
-    With the stack pull requests closed since the swap, delete the stack branches and `cutover/<S>/pr`:
+    With the stack pull requests closed since the swap, delete the stack branches, each leased on the tip read,
+    as `scripts/series-prune.sh` prints its deletions, and `cutover/<S>/pr` left for last:
 
     ```sh
-    git push --delete <fork> $(git ls-remote --heads <fork> 'refs/heads/cutover/<S>/*' | sed 's#.*refs/heads/##')
+    heads=$(git ls-remote --heads <fork> 'refs/heads/cutover/<S>/*' | awk '$2 != "refs/heads/cutover/<S>/pr"')
+    git push $(awk '{ print "--force-with-lease=" $2 ":" $1 }' <<<"$heads") <fork> $(awk '{ print ":" $2 }' <<<"$heads")
     ```
 
     Where the remote refuses a deletion, as a cloud session's git proxy does,
-    hand the maintainer one `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` line per branch,
-    beside what the swap left behind, as it printed it.
+    dispatch [`delete-branch.yaml`](/.github/workflows/delete-branch.yaml) yourself, one call per branch,
+    naming each stack branch's own closed pull request:
+
+    ```sh
+    gh api -X POST repos/krlmlr/duckdb-r/actions/workflows/delete-branch.yaml/dispatches \
+      -f ref=main -f 'inputs[branch]=<branch>' -f 'inputs[pr]=<number>'
+    ```
+
+    It deletes a branch only where the pull request is closed and its head is the branch's tip, and refuses anything else.
+    Dispatch the litter the swap left yourself too, the lines it printed, as it printed them:
+    a `-fwd-` ref whose twin, the same name without the `fwd-`, is at its tip needs no pull request
+    ([`branches/model/`](/handbook/branches/model/README.md)).
+    A ref neither proof covers gets a tip-checked `gh api -X DELETE` line instead,
+    which is the maintainer's to run, never the session's.
+    A dispatch answers 204 and nothing more, so confirm each deletion afterwards with `git ls-remote --heads <fork> <branch>`,
+    or by the run's conclusion.
+    The workflow runs from the copy on the repository's `main`, so in the fork it works only once the fork's `main` carries the file;
+    until then, hand the exact dispatch lines to whoever can reach the fork, beside what the swap left behind, as it printed it.
     A litter ref's deletion loses nothing, but a moved ref may hold commits no other ref has, so what moved is read first,
     and nothing refused is routed around.
     Then close the cutover pull request with the outcome:
-    the command and its exit status, the verification, the undo, and the delete lines, each fenced so that it can be run as it stands.
+    the command and its exit status, the verification, the undo, and the delete lines, each fenced so that it can be run as it stands;
+    `cutover/<S>/pr` goes last, once that pull request is closed:
+    by `git push --force-with-lease=refs/heads/cutover/<S>/pr:<tip> <fork> :refs/heads/cutover/<S>/pr`,
+    or by a dispatch in the fork that names the cutover pull request.
 
 ## What each layer is expected to show
 

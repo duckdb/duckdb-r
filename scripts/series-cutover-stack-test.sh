@@ -27,8 +27,8 @@
 #      A fork that refuses the push leaves a --summary that is a link, or no regular file, as it is, and the run says so.
 #   6. Once the engines agree, `2-engine` leaves the stack, and its branch stays:
 #      the run exits 9 with the steps that retire it, and once they are taken a rebuild exits 0.
-#      Both deletions it prints refuse a branch that moved and delete one at the tip read:
-#      the git one by its lease, the `gh api` one by checking the tip first.
+#      The git deletion it prints refuses a branch that moved by its lease and deletes one at the tip read,
+#      and the dispatch beside it names the branch's pull request, whose head is that tip.
 #   7. Where the old base is not an ancestor of the forward's, `1-main` is one three-way merge,
 #      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way;
 #      the `2-engine` summary says it carries the engine side of the changes that merge leaves out.
@@ -475,47 +475,29 @@ vend "${u[4]}"
 git push -q origin HEAD:refs/heads/v9.9-x-vendor
 git checkout -q main
 e2=$(tip "$c/vendor/2-engine")
+# Its pull request, as the session opened it.
+git -C "$FORK" update-ref refs/pull/7/head "$e2"
 out=$(run "$STACK" v9.9-x vendor)
 is "a 2-engine no longer needed exits 9" "$(status "$out")" 9
 has "named, with the 3-fwd pull request to retarget first" "$out" "No longer in the stack: $c/vendor/2-engine"
 has "onto 1-main" "$out" "1. Retarget the pull request of $c/vendor/3-fwd onto $c/vendor/1-main."
 has "then its own to close" "$out" "2. Close the pull request of $c/vendor/2-engine."
-has "and the line that deletes it where git cannot" "$out" "gh api -X DELETE repos/test/fork/git/refs/heads/$c/vendor/2-engine"
-has "after a check of the tip read, since the API takes no lease" "$out" \
-  "   if [ \"\$(gh api repos/test/fork/git/ref/heads/$c/vendor/2-engine --jq .object.sha)\" = $e2 ]; then gh api -X DELETE"
-has "with the line that tells a moved branch" "$out" "else echo '$c/vendor/2-engine is not at $e2: read what moved before deleting it'; fi"
+has "and, once the tip is still the lease," "$out" "once \`git ls-remote origin refs/heads/$c/vendor/2-engine\` still shows $e2,"
+has "the dispatch that deletes it where git cannot, naming its pull request" "$out" \
+  "   gh api -X POST repos/test/fork/actions/workflows/delete-branch.yaml/dispatches -f ref=main -f 'inputs[branch]=$c/vendor/2-engine' -f 'inputs[pr]=7'"
 is "the branch stays, for the session" "$(tip "$c/vendor/2-engine")" "$e2"
 fetch
 is "3-fwd stands on 1-main" "$(git rev-parse "origin/$c/vendor/3-fwd^")" "$(git rev-parse "origin/$c/vendor/1-main")"
 has "main's patch is recorded as present" "$out" \
   "$(printf -- '- `%s` fix(patch): Patch the engine: applies as no change' "$(git rev-parse --short=10 "$PATCH")")"
 del=$(sed -n 's/^   \(git push --force-with-lease=.*\)$/\1/p' <<<"$out")
-ghdel=$(sed -n 's/^   \(if \[ "\$(gh api .*\)$/\1/p' <<<"$out")
-# A `gh` that answers the two calls the checked line makes, against the fork, first on PATH for those runs alone.
-mkdir -p "$SCRATCH/ghapi"
-cat > "$SCRATCH/ghapi/gh" <<'EOF'
-#!/bin/bash
-if [ "$1 $2 $3" = "api -X DELETE" ]; then
-  git -C "$FORK" update-ref -d "refs/${4#repos/test/fork/git/refs/}"
-elif [ "$1 $3 $4" = "api --jq .object.sha" ]; then
-  git -C "$FORK" rev-parse -q --verify "refs/${2#repos/test/fork/git/ref/}" || true
-else
-  exit 1
-fi
-EOF
-chmod +x "$SCRATCH/ghapi/gh"
 git push -q -f origin "$FWD_MAIN:refs/heads/$c/vendor/2-engine"
 out=$(run bash -c "$del")
 holds "the leased deletion refuses a branch that moved" test "$(status "$out")" != 0
-out=$(FORK=$FORK PATH="$SCRATCH/ghapi:$PATH" run bash -c "$ghdel")
-has "and so does the checked one" "$out" "$c/vendor/2-engine is not at $e2: read what moved before deleting it"
 is "the moved branch stays" "$(tip "$c/vendor/2-engine")" "$FWD_MAIN"
 git push -q -f origin "$e2:refs/heads/$c/vendor/2-engine"
-out=$(FORK=$FORK PATH="$SCRATCH/ghapi:$PATH" run bash -c "$ghdel")
-is "the checked deletion of the tip read works" "$(status "$out") $(tip "$c/vendor/2-engine")" "0 "
-git push -q origin "$e2:refs/heads/$c/vendor/2-engine"
 out=$(run bash -c "$del")
-is "and so does the leased one" "$(status "$out")" 0
+is "the leased deletion of the tip read works" "$(status "$out")" 0
 is "and the branch is gone" "$(tip "$c/vendor/2-engine")" ""
 out=$(run "$STACK" v9.9-x vendor)
 is "a rebuild then exits 0" "$(status "$out")" 0

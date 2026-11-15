@@ -1,0 +1,68 @@
+# Delete one branch, on dispatch, only where the head of a closed pull request
+# in this repository is the branch's tip, or, with no pull request named, where
+# a forward's branch `<x>-fwd-<y>` has its twin `<x>-<y>` at the same tip, so
+# the deletion loses nothing. A
+# cloud session dispatches it because its git proxy refuses a deletion. It runs
+# in the canonical repository and in the fork alike, from the copy on `main`.
+# What it refuses is in scripts/delete-branch.sh's header; why it exists is in
+# handbook/branches/model/README.md.
+#
+# Dispatch, one call per branch:
+#   gh api -X POST repos/<owner>/<repo>/actions/workflows/delete-branch.yaml/dispatches \
+#     -f ref=main -f 'inputs[branch]=<branch>' -f 'inputs[pr]=<number>'
+# and for a forward's branch at its twin's tip, without `inputs[pr]`.
+
+name: delete-branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch to delete, without refs/heads/"
+        type: string
+        required: true
+      pr:
+        description: "The number of a closed pull request whose head is the branch's tip; empty for a -fwd- branch at its twin's tip"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: read
+
+# One run per branch at a time. A group shared by all branches would keep only
+# one pending run and cancel the others, and a cleanup dispatches several at once.
+concurrency:
+  group: delete-branch-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    # A dispatch on another ref is skipped here; it runs that ref's copy of this
+    # file, though, so the guard holds only for refs that keep it.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+
+    runs-on: ubuntu-26.04
+
+    name: "Delete a branch whose tip a closed pull request or its twin holds"
+
+    timeout-minutes: 5
+
+    steps:
+      # The script alone: both tips are read with `git ls-remote`, and the
+      # deletion pushes no objects.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          sparse-checkout: scripts
+
+      # The inputs reach the script as environment variables, never spliced into
+      # the command, and the script checks them before it reads anything.
+      - name: Delete the branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+          PR: ${{ inputs.pr }}
+        run: scripts/delete-branch.sh "$BRANCH" ${PR:+"$PR"}
+        shell: bash

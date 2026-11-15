@@ -230,19 +230,85 @@ series_github_slug() { # <remote> -> owner/repo, empty when none
   echo "$slug"
 }
 
-# The command that deletes one branch of a remote, for a human to run where
-# `git push --delete` is refused, as a cloud session's git proxy refuses it:
-# `gh api` against the repository the remote names, or `git push --delete` for
-# a remote that is not on GitHub. One line per ref, so each can be run, or
-# quoted, on its own (scripts/series-cutover.sh, scripts/series-prune.sh).
-series_delete_line() { # <remote> <branch> -> one command
-  local slug
-  slug=$(series_github_slug "$1")
-  if [ -n "$slug" ]; then
-    echo "gh api -X DELETE repos/$slug/git/refs/heads/$2"
-  else
-    echo "git push --delete $1 $2"
+# The listing `series_delete_line` reads, per remote: its branches, twins
+# included, and its pull requests' heads, thousands of refs in the fork. A caller that prints several
+# lines loads it once with `series_delete_listing <remote>`, outside the command
+# substitutions that call `series_delete_line`, which then read it; without it,
+# each line runs its own `git ls-remote`. A remote that cannot be read is not
+# cached, and each line then says its tip could not be read. The cache is kept
+# per remote name and never invalidated, so load it after the last push to
+# that remote, or the lines name tips that have moved.
+declare -gA series_delete_cache=()
+series_delete_listing() { # <remote>
+  local refs
+  if refs=$(git ls-remote "$1" 'refs/heads/*' 'refs/pull/*/head' 2>/dev/null); then
+    series_delete_cache[$1]=$refs
   fi
+}
+
+# The command that deletes one branch of a remote, at a tip: the one the caller
+# passes, which it read and checked, or else the one the remote holds now. Every
+# form refuses a branch that moved after that read, unless what it moved to is
+# again proven safe to delete
+# (scripts/series-cutover.sh, scripts/series-prune.sh,
+# scripts/series-cutover-stack.sh). Off GitHub it is a `git push` leased on the
+# tip. On GitHub it is, for where `git push --delete` is refused, as a cloud
+# session's git proxy refuses it, a dispatch of
+# .github/workflows/delete-branch.yaml for a session to run, wherever the
+# workflow's proof holds in the listing (handbook/branches/model/README.md):
+# for a forward's branch, `-fwd-` once in its name, whose twin, the name with
+# that `-fwd-` replaced by `-`, is at the tip, as all cutover litter is right
+# after the swap, a dispatch with no pull request; else, where a pull request's
+# head is the tip, a dispatch naming the lowest-numbered one, read with
+# `git ls-remote`, and listing them all in a comment where there are several,
+# since the lowest may be open. Where neither holds, the workflow cannot prove
+# the deletion safe, and the line is a maintainer's: a `gh api -X DELETE` that
+# checks the tip first, since the API takes no lease. A tip it cannot read gets
+# the `git ls-remote` that reads it, which deletes nothing.
+# One line per ref, so each can be run, or quoted, on its own.
+series_delete_line() { # <remote> <branch> [<tip>] -> one command
+  local slug refs='' tip=${3:-} prs pr note twin=''
+  slug=$(series_github_slug "$1")
+  # A forward's branch, `-fwd-` once in its name, and its twin, the name without the `fwd-`.
+  # Overlapping occurrences count too, as in `a-fwd-fwd-b`: each strip keeps the dash that ends one.
+  local rest=$2 count=0
+  while [[ "$rest" == *-fwd-* ]]; do rest=${rest#*-fwd} count=$((count + 1)); done
+  [ "$count" -ne 1 ] || twin=${2/-fwd-/-}
+  if [ -z "$tip" ] || [ -n "$slug" ]; then
+    if [ -n "${series_delete_cache[$1]+x}" ]; then
+      refs=${series_delete_cache[$1]}
+    else
+      # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
+      refs=$(git ls-remote "$1" "refs/heads/$2" ${twin:+"refs/heads/$twin"} ${slug:+'refs/pull/*/head'} 2>/dev/null) || refs=''
+    fi
+    [ -n "$tip" ] || tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
+  fi
+  if [ -z "$tip" ]; then
+    echo "git ls-remote $1 refs/heads/$2  # $2 is not on $1 or could not be read: once this reads it, rerun for the line that deletes it"
+    return
+  fi
+  if [ -z "$slug" ]; then
+    echo "git push --force-with-lease=refs/heads/$2:$tip $1 :refs/heads/$2"
+    return
+  fi
+  if [ -n "$twin" ] && [ "$(awk -v r="refs/heads/$twin" '$2 == r { print $1 }' <<<"$refs")" = "$tip" ]; then
+    echo "gh api -X POST repos/$slug/actions/workflows/delete-branch.yaml/dispatches" \
+      "-f ref=main -f 'inputs[branch]=$2'"
+    return
+  fi
+  prs=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); print p[3] }' <<<"$refs" |
+    sort -n | tr '\n' ' ')
+  prs=${prs% }
+  if [ -z "$prs" ]; then
+    # shellcheck disable=SC2016  # a command for a person to run, printed as it stands
+    printf 'if [ "$(gh api repos/%s/git/ref/heads/%s --jq .object.sha)" = %s ]; then gh api -X DELETE repos/%s/git/refs/heads/%s; else echo '"'"'%s is not at %s: read what moved before deleting it'"'"'; fi  # for a maintainer'"'"'s shell: no pull request'"'"'s head is at %s, so the workflow cannot pin it\n' \
+      "$slug" "$2" "$tip" "$slug" "$2" "$2" "${tip:0:12}" "${tip:0:12}"
+    return
+  fi
+  pr=${prs%% *} note=''
+  [ "$pr" = "$prs" ] || note="  # pull requests whose head is this tip: $prs; name a closed one"
+  echo "gh api -X POST repos/$slug/actions/workflows/delete-branch.yaml/dispatches" \
+    "-f ref=main -f 'inputs[branch]=$2' -f 'inputs[pr]=$pr'$note"
 }
 
 # Keep this side's engine through a merge in progress, a forward merge of an

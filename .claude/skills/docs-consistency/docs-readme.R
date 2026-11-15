@@ -171,6 +171,10 @@ groups <- list(
     globs = c("flavor*", "reflavor*")
   ),
   list(
+    owner = "handbook/branches/model",
+    globs = c("delete-branch.sh", "delete-branch-test.sh")
+  ),
+  list(
     owner = "handbook/branches/mirrors",
     globs = c("pull-config.sh")
   ),
