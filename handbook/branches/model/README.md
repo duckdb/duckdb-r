@@ -26,11 +26,12 @@ that is why the flavor table names `main` as where `duckdb` is published from
 **Until the switch, part of the layout before it holds.**
 `v2.0-cyanoptera` exists in `duckdb/duckdb-r`, cut from `main` at `e913ab08fd`.
 The rest of the layout takes effect once `scripts/series.yaml` names it as the v2.0 series' `releases_from`
-([#2991](https://github.com/duckdb/duckdb-r/pull/2991)),
-and once `main` has moved to `2.0.99.9000` ([#2990](https://github.com/duckdb/duckdb-r/pull/2990)).
+([#2991](https://github.com/duckdb/duckdb-r/pull/2991)).
 Until then the v2.0 series still releases from `main`:
 `scripts/series-port.sh` ports `main`'s R side into it, `scripts/series-land.sh --target` names `main` for it, and it seeds on `main`;
 and `main` still carries the 2.0 engine at `2.0.0.9000`, so it takes no landing of upstream `main` and no forward merge yet.
+`main` stays at `2.0.0.9000` until the first landing of its own series, whose bump is `2.0.99.9000`
+([`versioning/`](/handbook/operations/releases/versioning/README.md)).
 FORWARD-PORT in `scripts/series-check.sh` already reads `v2.0-cyanoptera`, the CRAN row's `upstream`,
 so it lists what lands there before the v2.0 series releases from it.
 The pages describing the two-branch layout link here for that.
