@@ -155,6 +155,8 @@ v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ─�
                     the Pull app (mirrors the canonical branches into the fork)
 ```
 
+This is the layout once `v2.0-cyanoptera` is cut; until then `main` still plays its row's part
+([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
 The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents a landing:
 `main` takes batches of upstream `main`, and the release branch of the line CRAN ships takes its own line's batches and releases
 ([`series-land`](/.claude/skills/series-land/SKILL.md)). Patches from `patch/` are applied to the vendored C++ code during every vendor run (see [Patch Stack](#patch-stack) below).
@@ -178,6 +180,9 @@ each with one meaning and one allowed motion
 and the root [`README.md`](/README.md)'s badges count the gaps between them.
 The `dev`/`dev-base` pair the four replaced is retired,
 its refs archived in `krlmlr/duckdb-r-old`.
+
+The table is the layout once `v2.0-cyanoptera` is cut
+([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
@@ -314,7 +319,8 @@ release.
 
 - **V1 — Prefix lock.** `major.minor` equals `L` on every branch of the series.
   *Exception:* the preview line carries the prefix of the line it previews,
-  `main` and `main-dev` both `2.0.99.…` while upstream `main` heads for 2.1,
+  `main` and `main-dev` both `2.0.99.…` while upstream `main` heads for 2.1
+  (once `v2.0-cyanoptera` is cut; `main` is `2.0.0.…` until then),
   until that line's release branch is cut and takes `2.1.0`.
 - **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
   `dev` is at or ahead of `Z`.

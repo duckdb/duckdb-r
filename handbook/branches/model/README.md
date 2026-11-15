@@ -20,6 +20,14 @@ CRAN and the numbered r-universe packages publish from here.
 `main` carries the engine of upstream `main` and releases nothing itself;
 the line CRAN ships has a branch of its own, named as upstream names it, `v2.0-cyanoptera`
 ([`operations/releases/process/`](/handbook/operations/releases/process/README.md)).
+**Until the cut, the layout before it holds.**
+That layout takes effect once `v2.0-cyanoptera` exists in `duckdb/duckdb-r`,
+`scripts/series.yaml` names it as the CRAN flavor's `publishes_from` and the v2.0 series' `releases_from`,
+and `main` has moved to `2.0.99.9000`
+([#2987](https://github.com/duckdb/duckdb-r/pull/2987) carries the commands).
+Until then `main` is the 2.0 line's release branch: it vendors the 2.0 engine, CRAN publishes from it,
+the v2.0 series releases from it, and no branch named `v2.0-cyanoptera` exists here to look for.
+The pages describing the two-branch layout link here for that.
 `krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
 network, not a copy that shares its name — used for CI/CD
 so the per-commit builds do not consume

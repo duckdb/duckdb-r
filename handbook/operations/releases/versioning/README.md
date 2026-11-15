@@ -127,7 +127,8 @@ the strand vendors and stamps it, keeping the vendor counter and refusing a vers
 would not rise; `--check` reports and exits 1 where it is owed.
 The prefix names the line being previewed, never the one seeded from, so it is read off the target:
 a series previewing **2.1** takes `2.0.99.9000`, one previewing **2.0** takes `1.99.99.9000`.
-Since the line CRAN ships has a branch of its own, `main` carries the prefix itself,
+Once the line CRAN ships has a branch of its own, `main` carries the prefix itself
+([`branches/model/`](/handbook/branches/model/README.md) says when that is),
 `2.0.99` while upstream `main` heads for 2.1, and its fourth component counts landings above `.9000`,
 so the series tracking upstream `main`, seeded on it, takes `main`'s version as it stands,
 which `preview-prefix.sh` reads as stamped,
