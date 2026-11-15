@@ -243,6 +243,7 @@ printf 'OBJECTS = main\n' > src/Makevars
 git add -A; git commit -qm 'main moves its engine'
 # shellcheck disable=SC2031  # the array is the configuration's, unchanged here
 engine_before=$(git ls-tree -r HEAD -- "${series_strand[@]}" "${series_makevars[@]}")
+printf 'a scratch file of the user\n' > src/duckdb/mine.txt
 git merge -q --no-commit --no-ff rel >/dev/null 2>&1 || true
 is "the merge stops on conflicts" "$(git diff --name-only --diff-filter=U | sort | tr '\n' ' ')" \
   "R/version.R patch/0001-fix.patch src/Makevars src/duckdb/a.cpp "
@@ -250,6 +251,8 @@ series_keep_engine && st=0 || st=$?
 is "keeping the engine succeeds" "$st" 0
 is "and leaves nothing unmerged" "$(git diff --name-only --diff-filter=U | wc -l)" 0
 is "nor the file the release branch added" "$( [ -e src/duckdb/new.cpp ] && echo there || echo gone)" gone
+is "and an untracked file of the user's is kept" "$(cat src/duckdb/mine.txt)" 'a scratch file of the user'
+rm src/duckdb/mine.txt
 is "while the R side is merged" "$(git diff --cached --name-only)" "R/f.R"
 git commit -qm 'Merge rel forward'
 # shellcheck disable=SC2031

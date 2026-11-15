@@ -250,16 +250,20 @@ series_delete_line() { # <remote> <branch> -> one command
 # Makevars generated from it, as HEAD has them, whatever the merge did to them
 # -- conflicted, added by the other side, modified on one side and deleted on
 # the other. Succeeds when those paths match HEAD afterwards, in the index and
-# the tree alike.
+# the tree alike. Only the files the other side added are deleted from the
+# tree, so an untracked file of the user's under those paths is left alone.
 series_keep_engine() {
   local -a paths=("${series_strand[@]}" "${series_makevars[@]}")
-  local p
+  local p added
+  added=$(git diff --name-only --diff-filter=A HEAD MERGE_HEAD -- "${paths[@]}" 2>/dev/null || true)
   git rm -rq --cached --ignore-unmatch -- "${paths[@]}" >/dev/null
   for p in "${paths[@]}"; do
     if [ -n "$(git ls-tree --name-only HEAD -- "$p")" ]; then
       git checkout HEAD -- "$p"
     fi
   done
-  git clean -fdq -- "${paths[@]}"
+  while IFS= read -r p; do
+    [ -z "$p" ] || rm -f -- "$p"
+  done <<<"$added"
   git diff --quiet HEAD -- "${paths[@]}" && git diff --cached --quiet HEAD -- "${paths[@]}"
 }
