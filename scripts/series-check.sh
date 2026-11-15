@@ -865,9 +865,15 @@ fi
 # --- FORWARD-PORT: what `main` has not grafted of the CRAN line's branch ------
 #
 # The branch is the CRAN flavor's `upstream`, the line it ships, which is also
-# the name of that line's release branch here; before the branch is cut there is
-# nothing to report. `main`'s own history since the last graft is its first
-# parents, since a graft's second parent is the branch itself.
+# the name of that line's release branch here. The walk covers `main..<branch>`,
+# merges skipped: the branch's commits no graft has reached yet. A commit is
+# `picked` where `main`'s first parents since the merge base carry it, by
+# patch-id or a `cherry picked from commit` trailer either way, since a graft's
+# second parent is the branch itself and says nothing about what `main` took.
+# The canonical repository is
+# read first and the fork's mirrors second; with neither carrying both branches
+# the block says it could not read them, unless the canonical repository answers
+# that the branch is not cut yet, which is nothing to report.
 cran_line=$(declaration 2>/dev/null | awk '
   function flush() { if (k == "CRAN" && up != "") print up; k = ""; up = "" }
   function val(v) { gsub(/["'"'"']/, "", v); return v }
@@ -876,29 +882,33 @@ cran_line=$(declaration 2>/dev/null | awk '
   /^    upstream:/ { up = val($2) }
   END { flush() }' | head -n 1 || true)
 if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
-  fp_main='' fp_rel='' unread=''
-  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
-    if heads=$(git ls-remote --heads "$canonical" "$cran_line" 2>/dev/null); then
-      if [ -n "$heads" ]; then
-        git fetch -q "$canonical" "$cran_line" 2>/dev/null || true
-        fp_main=$(git rev-parse -q --verify "refs/remotes/$canonical/main" || true)
-        fp_rel=$(git rev-parse -q --verify "refs/remotes/$canonical/$cran_line" || true)
-        [ -n "$fp_main" ] && [ -n "$fp_rel" ] || unread=1
-      fi
+  fp_main='' fp_rel='' uncut=''
+  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
+    heads=$(git ls-remote --heads "$canonical" "$cran_line" 2>/dev/null); then
+    if [ -z "$heads" ]; then
+      uncut=1
     else
-      unread=1
+      git fetch -q "$canonical" "$cran_line" 2>/dev/null || true
+      fp_main=$(git rev-parse -q --verify "refs/remotes/$canonical/main" || true)
+      fp_rel=$(git rev-parse -q --verify "refs/remotes/$canonical/$cran_line" || true)
     fi
   fi
+  if [ -z "$uncut" ] && { [ -z "$fp_main" ] || [ -z "$fp_rel" ]; }; then
+    fp_main=$(git rev-parse -q --verify "refs/remotes/$remote/main" || true)
+    fp_rel=$(git rev-parse -q --verify "refs/remotes/$remote/$cran_line" || true)
+  fi
   mb=''
-  [ -z "$fp_rel" ] || mb=$(git merge-base "$fp_main" "$fp_rel" 2>/dev/null || true)
-  if [ -n "$unread" ] || { [ -n "$fp_rel" ] && [ -z "$mb" ]; }; then
-    # A branch the canonical repository has but this clone cannot read, or one
-    # with no merge base with `main` (a shallow clone), would read as all owed.
+  [ -z "$fp_rel" ] || [ -z "$fp_main" ] || mb=$(git merge-base "$fp_main" "$fp_rel" 2>/dev/null || true)
+  if [ -n "$uncut" ]; then
+    :
+  elif [ -z "$mb" ]; then
+    # No branch to read, or one with no merge base with `main` (a shallow
+    # clone), which would read as all owed.
     echo
     echo "FORWARD-PORT  could not read $cran_line beside main, or their merge base,"
     echo "              so this firing does not know what main has not grafted yet."
     echo "              Missing data, not a clean result."
-  elif [ -n "$fp_rel" ]; then
+  else
     have=$(git cherry "$fp_main" "$fp_rel" "$mb" | sed -n 's/^- //p'
       git log --first-parent --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
