@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Eight things are checked:
+# version first, whichever side a section came from. Nine things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -15,8 +15,10 @@
 #   5. A section deleted on one side and left alone on the other is deleted.
 #   6. Registered by scripts/setup-git.sh, the driver is what a `git merge`
 #      of NEWS.md runs.
-#   7. A heading with a date or a note after the version orders by the version.
-#   8. Without python3, the file is merged line by line, conflict markers and
+#   7. A heading renamed on one side, with its section edited on the other,
+#      merges line by line, cleanly, and stays in order.
+#   8. A heading with a date or a note after the version orders by the version.
+#   9. Without python3, the file is merged line by line, conflict markers and
 #      all, with a warning.
 #
 # Usage:
@@ -106,14 +108,23 @@ git merge -q --no-edit rel >/dev/null 2>&1 && st=0 || st=$?
 is "the merge succeeds" "$st" 0
 is "NEWS.md newest first" "$(headings NEWS.md)" "2.0.99.9001 2.0.99.9000 2.0.1 2.0.0.9001 2.0.0 "
 
-echo "== 7. a heading with a date or a note after the version"
+echo "== 7. a heading renamed on one side, its section edited on the other"
+printf '# duckdb 2.0.99.9000\n\n- a\n\n\n# duckdb 2.0.0\n\n- old\n' > O
+printf '# duckdb 2.0.99.9001\n\n- a\n\n\n# duckdb 2.0.0\n\n- old\n' > A
+printf '# duckdb 2.0.99.9000\n\n- a\n- b\n\n\n# duckdb 2.0.0\n\n- old\n' > B
+is "it merges cleanly, line by line" "$(merge)" 0
+is "under the renamed heading" "$(headings A)" "2.0.99.9001 2.0.0 "
+has "with the other side's bullet" "$(cat A)" "- a
+- b"
+
+echo "== 8. a heading with a date or a note after the version"
 printf '# duckdb 2.0.0 (2026-01-01)\n\n- old\n' > O
 printf '# duckdb 2.0.99.9001 - a note\n\n- new\n\n\n# duckdb 2.0.0 (2026-01-01)\n\n- old\n' > A
 printf '# duckdb 2.0.1 (2026-11-15)\n\n- fix\n\n\n# duckdb 2.0.0 (2026-01-01)\n\n- old\n' > B
 is "it merges cleanly" "$(merge)" 0
 is "ordered by the version alone" "$(sed -n 's/^# duckdb //p' A | tr '\n' '|')" "2.0.99.9001 - a note|2.0.1 (2026-11-15)|2.0.0 (2026-01-01)|"
 
-echo "== 8. without python3, a line merge with markers"
+echo "== 9. without python3, a line merge with markers"
 news 2.0.99.9000 2.0.0 > O
 { sec 2.0.99.9001; news 2.0.99.9000 2.0.0; } > A
 { sec 2.0.1; news 2.0.99.9000 2.0.0; } > B

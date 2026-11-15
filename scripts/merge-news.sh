@@ -13,16 +13,18 @@
 #     such heading; the version is the first token after `# duckdb `, and a date
 #     or a note after it is part of the heading. Anything before the first
 #     heading is merged as one more section that always stays first;
-#   * a section on one side only is taken, and one deleted on one side and left
-#     alone on the other is deleted;
+#   * a section on one side only is taken;
 #   * a section changed on one side only takes that side;
 #   * a section changed on both sides differently is merged three-way with
 #     `git merge-file`, and a conflict there is a conflict of the whole merge;
 #   * the sections are written newest version first, compared component by
 #     component as numbers, whatever side each came from.
 #
-# Without python3 the driver merges the file line by line with `git merge-file`,
-# and says so.
+# Where a section of the base is gone from one side, renamed there or deleted,
+# sections cannot be matched safely, so the whole file is merged line by line
+# with `git merge-file` instead, and the sections of a clean result are put in
+# order the same way. Without python3 the driver falls back to that line merge
+# alone, and says so.
 #
 # Registered by scripts/setup-git.sh as the `news` driver, which .gitattributes
 # names for NEWS.md (handbook/operations/releases/versioning/README.md).
@@ -50,6 +52,11 @@ HEAD = re.compile(r"^# duckdb (\S+)(\s.*)?$")
 def read(path):
     with open(path, encoding="utf-8", newline="") as f:
         return f.read()
+
+
+def write(text):
+    with open(a_path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
 
 
 def sections(text):
@@ -97,7 +104,32 @@ def merge3(a, o, b):
         return r.stdout, r.returncode != 0
 
 
+def ordered(merged):
+    keys = sorted((k for k in merged if k is not None), key=version_key, reverse=True)
+    order = ([None] if None in merged else []) + keys
+    out = []
+    for i, key in enumerate(order):
+        t = merged[key]
+        if not t.endswith("\n"):
+            t += "\n"
+        # A section that moved off the end still needs the blank lines before
+        # the next heading that the file uses between sections.
+        if i < len(order) - 1 and key is not None and not t.endswith("\n\n"):
+            t += "\n\n"
+        out.append(t)
+    return "".join(out)
+
+
 O, A, B = (sections(read(p)) for p in (o_path, a_path, b_path))
+
+# A base section gone from one side may have been renamed there: matching by
+# heading would set the renamed section against the old one, so merge the
+# file line by line, and order a clean result.
+if any(k is not None and (k not in A or k not in B) for k in O):
+    text, conflict = merge3(read(a_path), read(o_path), read(b_path))
+    write(text if conflict else ordered(sections(text)))
+    sys.exit(1 if conflict else 0)
+
 merged, conflict = {}, False
 for key in list(dict.fromkeys([*A, *B, *O])):
     o, a, b = O.get(key), A.get(key), B.get(key)
@@ -113,20 +145,6 @@ for key in list(dict.fromkeys([*A, *B, *O])):
     if res is not None and res != "":
         merged[key] = res
 
-keys = sorted((k for k in merged if k is not None), key=version_key, reverse=True)
-order = ([None] if None in merged else []) + keys
-out = []
-for i, key in enumerate(order):
-    t = merged[key]
-    if not t.endswith("\n"):
-        t += "\n"
-    # A section that moved off the end still needs the blank lines before the
-    # next heading that the file uses between sections.
-    if i < len(order) - 1 and key is not None and not t.endswith("\n\n"):
-        t += "\n\n"
-    out.append(t)
-
-with open(a_path, "w", encoding="utf-8", newline="") as f:
-    f.write("".join(out))
+write(ordered(merged))
 sys.exit(1 if conflict else 0)
 PY
