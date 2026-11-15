@@ -4,7 +4,7 @@
 #
 # The claim scripts/series-land.sh makes is that `<L>-land-dev` is `main` plus
 # the series' vendor commits and a version bump, and nothing else, and that its tip is the package
-# the series' rc strand holds. Fourteen things are checked.
+# the series' rc strand holds. Fifteen things are checked.
 #
 #   1. Without --push the build writes no ref, and says what it would write.
 #   2. Only vendor commits land, on `main` itself, unflavored.
@@ -43,6 +43,9 @@
 #      pushed, `DESCRIPTION` included.
 #  14. A fresh build up to a ref --source names fetches it first, so a stale
 #      copy from an earlier fetch is not what it builds.
+#  15. --onto names the branch landed on in `main`'s place: the build stands
+#      on it, --status prints its fast-forward, --review targets it, and the
+#      version bump has to rise above that branch's version too.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -412,6 +415,40 @@ status_of "$(git rev-parse HEAD)"
 is "a merge commit is refused" "$st" 1
 git checkout -q -f main; git branch -q -D side
 
+echo "== and it rises above the branch landed on, which --onto names"
+# Earlier landings advanced the fourth component on the branch landed on, so a
+# bump that clears the series' version can still fall below the branch's.
+G0=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
+git checkout -q -f -B hi "$M"
+sed -i 's/^Version: .*/Version: 1.99.99.9007/' DESCRIPTION
+commit 'chore: Bump version to 1.99.99.9007'
+git push -q -f upstream hi
+V=$(git commit-tree "$TIP^{tree}" -p hi -m 'vendor: Update vendored sources to duckdb/duckdb@dddd444')
+git push -q -f origin hi:refs/heads/v2.0-x-land-green
+git checkout -q -f -B probe "$V"
+write_bump 1.99.99.9001
+commit "$bump_msg"
+LOW=$(git rev-parse HEAD)
+dev_at "$LOW"; passed "$V"; passed "$LOW"
+out=$(scripts/series-land.sh v2.0-x-fwd --status --onto hi 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a bump below the branch's version is refused" "$st" 1
+has "  and says why" "$out" "does not raise the version above hi's 1.99.99.9007"
+git checkout -q -f probe~1
+write_bump 1.99.99.9008
+commit 'chore: Bump version to 1.99.99.9008 with hand-written release notes'
+HIGH=$(git rev-parse HEAD)
+dev_at "$HIGH"; passed "$HIGH"
+out=$(scripts/series-land.sh v2.0-x-fwd --status --onto hi 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the next version above it is ready" "$out" "READY: every commit has passed, and hi"
+has "and the fast-forward is the branch --onto names" "$out" "git push upstream $HIGH:refs/heads/hi"
+out=$(scripts/series-land.sh v2.0-x-fwd --review --onto hi --suffix -hi --push 2>&1) || true
+has "the review pull request targets that branch" "$out" "--draft --base hi --head v2.0-x-land-review"
+git checkout -q -f main
+git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
+dev_at "$TIP"
+
 echo "== and nothing sits above it"
 git checkout -q -f -B probe "$BUMP"
 echo 'bar <- 1' > R/bar.R
@@ -665,6 +702,17 @@ git update-ref refs/remotes/origin/land-src "$RC~1"
 out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --source land-src 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "it fetches the ref rather than reading a stale copy" "$out" "built up to land-src $(git rev-parse --short "$RC")"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
+
+# --- 15: --onto -----------------------------------------------------------------
+
+echo
+echo "== --onto builds on the branch it names"
+git push -q -f upstream "$M:refs/heads/rel"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto rel 2>&1) || true
+[ -z "${KEEP:-}" ] || echo "$out"
+has "it stands on that branch, not on the main that moved" "$out" "vendor commits on $(git rev-parse --short "$M")"
+hasnt "which it does not mistake for main" "$out" "main moved"
 scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 echo

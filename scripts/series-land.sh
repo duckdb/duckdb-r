@@ -3,6 +3,12 @@
 # series replayed without its flavor onto the `main` it will fast-forward
 # (.claude/skills/series-land/SKILL.md).
 #
+# **The branch landed on is named, and it is `main` unless --onto says
+# otherwise.** The routine landing is `main`'s own series, a batch of upstream
+# `main` commits onto `main`; a release branch such as `v2.0-cyanoptera` takes
+# its own series the same way, with --onto naming it. Wherever `main` appears
+# below, it is that branch, read from --canonical.
+#
 # A line moves onto `main` when `main` starts releasing it. The series already
 # holds the history `main` needs (one commit per upstream commit, each judged
 # by CI with the R-side fix it needed folded in), but on a lineage of its own:
@@ -105,20 +111,23 @@
 # request's description.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
-#                       [--base <ref>] [--placed <sha>]... [--no-check-glue] [--attended]
-#        series-land.sh <S> --status [--remote <name>] [--canonical <name>] [--push]
-#        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
-#                       [--canonical <name>] [--push]
+#                       [--onto <branch>] [--base <ref>] [--placed <sha>]... [--no-check-glue]
+#                       [--attended]
+#        series-land.sh <S> --status [--onto <branch>] [--remote <name>] [--canonical <name>] [--push]
+#        series-land.sh <S> --review [--onto <branch>] [--landing <ref>] [--suffix <s>]
+#                       [--remote <name>] [--canonical <name>] [--push]
 #        series-land.sh <S> --abort
 #   <S> is the series whose rc strand lands, `v2.0-cyanoptera-fwd` for
 #   `v2.0-cyanoptera-fwd-rc-dev`; the refs are named for its line,
 #   `v2.0-cyanoptera-land-*`, on --remote. `main` is read from --canonical.
+#   --onto names the canonical branch the landing fast-forwards in its place,
+#   `v2.0-cyanoptera` for a landing of the v2.0 series; default `main`.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
 #   --remote or the landing --landing names: an iteration reviewed before the
 #   series carries it, for example `--landing <L>-land-v2 --suffix -v2`.
-#   --base defaults to `main`; a ref the clone lacks is fetched from --canonical.
+#   --base defaults to the branch --onto names; a ref the clone lacks is fetched from --canonical.
 #   --source names the ref the landing is built up to, on --remote, in place of
 #   `<S>-rc-dev`: it is taken as it stands, with no realignment, for a series
 #   that carries no flavor and so has no rc strand.
@@ -133,11 +142,12 @@ shopt -s inherit_errexit
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --abort] [--push] [--onto <branch>] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
+onto=main
 push='' status='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
@@ -145,6 +155,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --remote) [ $# -ge 2 ] || argerr; remote=$2; shift 2 ;;
     --canonical) [ $# -ge 2 ] || argerr; canonical=$2; shift 2 ;;
+    --onto) [ $# -ge 2 ] || argerr; onto=$2; shift 2 ;;
     --base) [ $# -ge 2 ] || argerr; base_arg=$2; shift 2 ;;
     --source) [ $# -ge 2 ] || argerr; source_arg=$2; shift 2 ;;
     --landing) [ $# -ge 2 ] || argerr; landing_arg=$2; shift 2 ;;
@@ -194,12 +205,13 @@ fi
 # has not caught up is an older `main`, and a landing built on it cannot
 # fast-forward the real one.
 if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; then
-  echo "Error: no canonical remote \"$canonical\" to read main from." >&2
+  echo "Error: no canonical remote \"$canonical\" to read $onto from." >&2
   echo "  Add $series_canonical_repo as 'upstream', or pass --canonical <name>." >&2
   exit 1
 fi
-git fetch -q "$canonical" main
-main=$(git rev-parse "refs/remotes/$canonical/main" 2>/dev/null || git rev-parse FETCH_HEAD)
+# `main` holds the tip of the branch landed on, --onto's, whatever its name.
+git fetch -q "$canonical" "$onto"
+main=$(git rev-parse -q --verify "refs/remotes/$canonical/$onto" || git rev-parse FETCH_HEAD)
 
 dev_ref="refs/remotes/$remote/$L-land-dev"
 green_ref="refs/remotes/$remote/$L-land-green"
@@ -238,6 +250,16 @@ is_bump() { # <commit>
   # shellcheck disable=SC2015
   [ "$old" != "$new" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -n 1)" = "$new" ] ||
     { echo "does not raise the version from $old"; return 1; }
+  # Nor may it fall to or below the branch landed on: every landing there took
+  # the fourth component one up and a tag of that version, and a series not
+  # forwarded since still stamps an older one, so the landing's bump is the next
+  # one above the branch's, not above the series'
+  # (handbook/operations/releases/versioning/README.md).
+  local onto_v
+  onto_v=$(git show "$main:DESCRIPTION" | sed -n 's/^Version: //p')
+  # shellcheck disable=SC2015
+  [ "$onto_v" != "$new" ] && [ "$(printf '%s\n%s\n' "$onto_v" "$new" | sort -V | tail -n 1)" = "$new" ] ||
+    { echo "does not raise the version above $onto's $onto_v"; return 1; }
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
@@ -318,7 +340,7 @@ if [ -n "$status" ]; then
   fi
   if [ "$new_green" = "$dev" ]; then
     if ! git merge-base --is-ancestor "$main" "$dev"; then
-      echo "NOT READY: main ($(git rev-parse --short "$main")) is not the base of $L-land-dev;" \
+      echo "NOT READY: $onto ($(git rev-parse --short "$main")) is not the base of $L-land-dev;" \
         "it moved, so the landing has to be rebuilt on it"
       exit 1
     elif [ -n "$(out_of_place "$dev")" ]; then
@@ -330,8 +352,8 @@ if [ -n "$status" ]; then
         "add it (.claude/skills/series-land/SKILL.md, step 3)"
       exit 1
     else
-      echo "READY: every commit has passed, and main ($(git rev-parse --short "$main")) fast-forwards to it:"
-      echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/main"
+      echo "READY: every commit has passed, and $onto ($(git rev-parse --short "$main")) fast-forwards to it:"
+      echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/$onto"
     fi
   fi
   exit 0
@@ -351,7 +373,7 @@ if [ -n "$review" ]; then
   fi
   base=$main
   if ! git merge-base --is-ancestor "$base" "$tip"; then
-    echo "Error: main moved: $(git rev-parse --short "$base") is not below the landing $(git rev-parse --short "$tip")" >&2
+    echo "Error: $onto moved: $(git rev-parse --short "$base") is not below the landing $(git rev-parse --short "$tip")" >&2
     exit 1
   fi
   if [ -n "$(out_of_place "$tip")" ]; then
@@ -448,7 +470,7 @@ builds or tests it.")
     echo "$rb -> $(git rev-parse --short "$head") on $canonical"
   fi
   echo "Open it as a draft, never to be merged:"
-  echo "  gh pr create --repo ${slug:-<owner>/<repo>} --draft --base main --head $rb \\"
+  echo "  gh pr create --repo ${slug:-<owner>/<repo>} --draft --base $onto --head $rb \\"
   echo "    --title \"Review: the R side of the $L landing${suffix:+, ${suffix#-}}\""
   exit 0
 fi
@@ -474,8 +496,8 @@ if [ -n "$base_arg" ]; then
     { git fetch -q "$canonical" "$base_arg" && git rev-parse FETCH_HEAD; })
 fi
 git merge-base --is-ancestor "$main" "$base_req" || {
-  echo "Error: --base $base_arg is not above main $(git rev-parse --short "$main")," \
-    "so main could not fast-forward onto a landing built on it" >&2
+  echo "Error: --base $base_arg is not above $onto $(git rev-parse --short "$main")," \
+    "so $onto could not fast-forward onto a landing built on it" >&2
   exit 1
 }
 
@@ -490,8 +512,8 @@ if [ -f "$STATE" ]; then
     exit 1
   fi
   if ! git merge-base --is-ancestor "$main" "$base"; then
-    echo "Error: main moved from below $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
-    echo "  since this landing was started, so it can no longer fast-forward main." >&2
+    echo "Error: $onto moved from below $(git rev-parse --short "$base") to $(git rev-parse --short "$main")" >&2
+    echo "  since this landing was started, so it can no longer fast-forward $onto." >&2
     echo "  Freeze main first (.claude/skills/series-land/SKILL.md), then --abort and rebuild." >&2
     exit 1
   fi
