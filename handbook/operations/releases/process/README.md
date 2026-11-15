@@ -118,7 +118,7 @@ stateDiagram-v2
 | **0.4 REVDEP-2** | ≈ T−7 | — | — | — | **go / no-go** | fail → 0.3 |
 | **0.5 GLUE FREEZE** | go | frozen (barrier; all lines aligned) | catches up, then frozen | frozen | upstream tags `vX.Y.Z` | late glue → re-arm 0.5 |
 | **1 VENDORED** | tag lands on `<S>-dev` | tagged vendor commit present | advancing toward the tag | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `<S>-dev` |
-| **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on `main`, forward-port |
+| **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on the branch the series releases from, forward-port |
 | **3 PROVEN** | review ok | — | **has advanced over the tagged commit** | — | green covers the tag | red → 1 |
 | **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; `fledge` bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
 | **5 PUBLISHED** | merged | — | — | tag `vX.Y.Z` pushed; r-universe builds; CRAN submitted (current line) | tag pushed | CRAN reject → new patch cycle |
