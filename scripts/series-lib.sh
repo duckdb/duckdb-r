@@ -184,15 +184,16 @@ series_tooling_re() {
 # comes first, so a remote whose URL names no repository can still name one: a
 # test fixture's path, or a local proxy's address. A URL may carry a user, a
 # token or a port, `https://<user>:<token>@github.com:443/o/r.git`, and only the
-# path is ever returned, so the credential is never printed.
+# path is ever returned, so the credential is never printed; a URL with a query
+# or a fragment, which may carry one too, names nothing.
 series_github_slug() { # <remote> -> owner/repo, empty when none
   local slug url
   slug=$(git config "remote.$1.github" 2>/dev/null || true)
   if [ -z "$slug" ]; then
     url=$(git remote get-url "$1" 2>/dev/null || true)
     slug=$(sed -nE \
-      -e 's#^(https?|ssh|git)://([^/@]*@)?github\.com(:[0-9]+)?/([^/]+/[^/]+)/?$#\4#p' \
-      -e 's#^([^/@:]+@)?github\.com:([^/]+/[^/]+)/?$#\2#p' <<<"$url")
+      -e 's#^(https?|ssh|git)://([^/@]*@)?github\.com(:[0-9]+)?/([^/?#]+/[^/?#]+)/?$#\4#p' \
+      -e 's#^([^/@:]+@)?github\.com:([^/?#]+/[^/?#]+)/?$#\2#p' <<<"$url")
     slug=${slug%.git}
   fi
   echo "$slug"

@@ -172,7 +172,8 @@ is "a URL with a user, a token and a port names o/r" "$(series_github_slug gh-ur
 is "and the token is in neither of its lines" "$(series_github_slug gh-url; series_delete_line gh-url b-fwd-dev)" \
   "$(printf 'o/r\ngh api -X DELETE repos/o/r/git/refs/heads/b-fwd-dev')"
 git remote remove gh-url
-for url in https://github.com.example.invalid/o/r https://github.com@example.invalid/o/r https://github.com/o/r/extra git@github.com:22/o/r; do
+for url in https://github.com.example.invalid/o/r https://github.com@example.invalid/o/r https://github.com/o/r/extra git@github.com:22/o/r \
+  'https://github.com/o/r?t=s3cr3t' 'https://github.com/o/r.git#s3cr3t' 'https://github.com/o?t=s3cr3t/r' 'git@github.com:o/r?t=s3cr3t'; do
   git remote add gh-url "$url"
   is "$url names nothing" "$(series_github_slug gh-url)" ""
   git remote remove gh-url
