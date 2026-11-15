@@ -74,7 +74,7 @@
 #
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
-# which conflicts were resolved, and the diff stat.
+# which conflicts were resolved, which commits of `main` `2-engine` carries the engine paths of, and the diff stat.
 # Last come the pull requests to open, with repository, base, head and title.
 # --summary writes the same to a file before the push, so a file that cannot be written refuses before anything moves,
 # and removes it again where the push is refused, so that no summary of a build that was never pushed is left behind.
@@ -632,10 +632,10 @@ for L in "${layers[@]:1}"; do BELOW[$L]=$cut/$prev; prev=$L; done
 
 list_cap=200
 # shellcheck disable=SC2016  # Markdown backticks, not commands
-listed() { # <kind> <heading>: a list of the log's records of that kind
+listed() { # <kinds> <heading>: a list of the log's records of those kinds, `a|b` naming two
   local -a recs
   local n r c d
-  mapfile -t recs < <(awk -F'\t' -v k="$1" '$1 == k' "$STATE/log")
+  mapfile -t recs < <(awk -F'\t' -v k="$1" '$1 ~ ("^(" k ")$")' "$STATE/log")
   [ ${#recs[@]} -gt 0 ] || return 0
   printf '\n%s\n\n' "$2"
   for r in "${recs[@]:0:list_cap}"; do
@@ -717,6 +717,12 @@ section() { # <layer>
           "$S-fwd-$X" "$(short "$fwd")" "$series_upstream_repo" "$fwd_engine" "$S-$X" "$series_upstream_repo" "$old_engine"
         printf 'its engine paths copied in, `patch/` aside, so that a change to the patch stack shows in the next layer.\n'
         upstream_count
+      fi
+      if [ "$mode" = merge ]; then
+        printf '\nBeside vendoring, it carries the engine side of `main`'"'"'s changes, as the forward has it,\n'
+        printf 'which the three-way merge of `1-main` leaves out.\n'
+      else
+        listed 'pick-e|engine' 'Beside vendoring, it carries the engine paths of these commits of `main`, as the forward has them, which `1-main` replays without them or leaves out:'
       fi
       ;;
     3-fwd) printf 'The tree of `%s` at `%s`.\n' "$S-fwd-$X" "$(short "$fwd")" ;;

@@ -12,7 +12,8 @@
 #      a vendor commit picked without its engine paths and DESCRIPTION, its patch change kept, or recorded as vendoring only;
 #      a commit that patches the engine picked without a conflict and without its engine paths;
 #      then `2-engine` with the forward's engine, the engine part of that commit included, and the patch stack of `1-main`,
-#      `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`; the summary, the --summary file and the pull requests to open.
+#      its summary naming that commit; `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`;
+#      the summary, the --summary file and the pull requests to open.
 #   2. A conflict on `-dev` stops the build with the worktree kept and nothing pushed;
 #      a plain rerun refuses beside it, --abort from the kept worktree discards it,
 #      and a resolution finishes with --continue. A commit the strand already carries is recorded as present.
@@ -246,6 +247,9 @@ status() { sed -n 's/^EXIT=//p' <<<"$1"; }
 tip() { git ls-remote "$FORK" "refs/heads/$1" | cut -f1; }
 stack() { git ls-remote "$FORK" "refs/heads/cutover/$1/*" | sort -k2; }
 fetch() { git fetch -q origin '+refs/heads/*:refs/remotes/origin/*' --prune; }
+section() { # <branch> <output>: that branch's section of the summary in a run's output
+  awk -v h="## $1" '/^## / { f = ($0 == h) } f' <<<"$2"
+}
 STACK=scripts/series-cutover-stack.sh
 c=cutover/v9.9-x
 
@@ -286,6 +290,10 @@ is "the engine part of the commit that patches it included" "$(git show "$L2:src
 // patched"
 is "and keeps the patch stack" "$(git rev-parse "$L2:patch")" "$(git rev-parse "$L1:patch")"
 has "its message names the upstream range" "$(git log -1 --format=%B "$L2")" "duckdb/duckdb@${u[2]}..${u[3]}"
+engine_section=$(section "$c/vendor/2-engine" "$out")
+has "its summary names the commit of main whose engine paths it carries" "$engine_section" \
+  "$(printf 'Beside vendoring, it carries the engine paths of these commits of `main`, as the forward has them, which `1-main` replays without them or leaves out:\n\n- `%s` fix(patch): Patch the engine' "$(git rev-parse --short=10 "$PATCH")")"
+hasnt "and no vendor commit, whose engine the upstream range is" "$engine_section" "$(git rev-parse --short=10 "$V1")"
 hasnt "in its body, not its subject" "$(git log -1 --format=%s "$L2")" "duckdb/duckdb@"
 is "3-fwd has the forward's tree" "$(git rev-parse "$L3^{tree}")" "$(git rev-parse "$fwdv^{tree}")"
 is "and is empty for the vendor strand" "$(git diff --name-only "$L2" "$L3")" ""
@@ -354,6 +362,8 @@ is "four layers" "$(stack v9.9-x/green | awk '{ sub(".*/", "", $2); print $2 }' 
 is "2-engine brings the engine part of main's patch alone" "$(git diff --name-only "origin/$c/green/1-main" "$G2")" src/duckdb/patched.cpp
 has "and says both tips vendor the same upstream commit" "$(git log -1 --format=%B "$G2")" "Both tips vendor duckdb/duckdb@${u[2]}"
 hasnt "so the summary counts no upstream range" "$out" "Upstream, "
+has "and names the commit of main that differs instead" "$(section "$c/green/2-engine" "$out")" \
+  "$(printf -- '- `%s` fix(patch): Patch the engine' "$(git rev-parse --short=10 "$PATCH")")"
 is "3-fwd stands on it" "$(git rev-parse "origin/$c/green/3-fwd^")" "$(git rev-parse "$G2")"
 has "and its pull request goes into it" "$out" "   base: $c/green/2-engine
    head: $c/green/3-fwd"
