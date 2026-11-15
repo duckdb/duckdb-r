@@ -413,15 +413,21 @@ N=main                                       # the next newer line: main, or the
 B=$(scripts/series-land.sh "$S" --target)   # its release branch
 if [ "$B" = main ]; then
   echo "$S releases from main, so there is no release branch to merge forward" >&2
+elif [ -n "$(git status --porcelain --untracked-files=no)" ] || git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  echo "the working tree has changes or a merge in progress: commit them, or 'git merge --abort', and rerun" >&2
 else
   scripts/setup-git.sh
-  . scripts/series-config.sh
+  . scripts/series-lib.sh
   git fetch upstream "$N" "$B"
   v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
   git switch -C "forward/$B-$v" "upstream/$N"
-  git merge --no-commit --no-ff "upstream/$B" || true
-  git restore --source=HEAD --staged --worktree -- "${series_strand[@]}" "${series_makevars[@]}"   # the newer line's engine
-  git status --short
+  git merge --no-commit --no-ff "upstream/$B"
+  if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+    series_keep_engine && echo "the engine is $N's"   # the vendored strand and its Makevars, as $N has them
+    git status --short
+  else
+    echo "no merge in progress: either $B is merged already, or the merge was refused above" >&2
+  fi
 fi
 ```
 
@@ -431,12 +437,24 @@ When `git status` shows no unmerged path, commit, check that the engine is the n
 S=v2.0-cyanoptera                            # the series whose release branch is merged forward
 N=main                                       # the next newer line
 B=$(scripts/series-land.sh "$S" --target)
-. scripts/series-config.sh
-v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
-git commit -m "Merge $B $v forward into $N" -m "Keeps $N's engine: the vendored strand and its generated Makevars are $N's."
-git diff --stat "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"   # empty
-git push upstream "HEAD:refs/heads/forward/$B-$v"
-gh api repos/duckdb/duckdb-r/pulls -f base="$N" -f head="forward/$B-$v" -f title="Merge $B $v forward into $N"
+if [ "$B" = main ]; then
+  echo "$S releases from main, so there is no release branch to merge forward" >&2
+else
+  . scripts/series-lib.sh
+  v=$(git show "upstream/$B:DESCRIPTION" | sed -n 's/^Version: //p')
+  if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+    git commit -m "Merge $B $v forward into $N" -m "Keeps $N's engine: the vendored strand and its generated Makevars are $N's."
+  fi
+  if [ -z "$(git rev-list "upstream/$N..HEAD")" ]; then
+    echo "nothing beyond $N: no pull request to open" >&2
+  elif ! git diff --quiet "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"; then
+    echo "the engine differs from $N's; fix the merge before pushing:" >&2
+    git diff --stat "upstream/$N" HEAD -- "${series_strand[@]}" "${series_makevars[@]}"
+  else
+    git push upstream "HEAD:refs/heads/forward/$B-$v"
+    gh api repos/duckdb/duckdb-r/pulls -f base="$N" -f head="forward/$B-$v" -f title="Merge $B $v forward into $N"
+  fi
+fi
 ```
 
 The pull request is merged with "Create a merge commit", never squashed or rebased, which would drop the second parent.
