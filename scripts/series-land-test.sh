@@ -48,8 +48,9 @@
 #  15. The branch landed on is the series' `releases_from` in `main`'s
 #      scripts/series.yaml: the build stands on its tip, --status prints its
 #      fast-forward, --review targets it, and the version bump has to rise
-#      above that branch's version too. A `-fwd` series is refused, and
-#      without a canonical remote the script says so itself.
+#      above that branch's version too. A `-fwd` series is refused, and so is
+#      one series.yaml does not declare, except `main`'s own; and without a
+#      canonical remote the script says so itself.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -122,6 +123,7 @@ echo 'glue 1' > src/glue.cpp
 echo 'test 1' > tests/testthat/test-foo.R
 printf 'a\nb\nc\n' > tests/testthat/test-bar.R
 echo '# duckdb 1.5.5.9000' > NEWS.md
+printf 'flavors:\n  - flavor: duckdb.x.dev\n    kind: dev\n    series: v2.0-x\n    releases_from: main\n' > scripts/series.yaml
 echo 'readme at the base' > README.md
 commit 'vendor: Update vendored sources to duckdb/duckdb@aaaa111 (#1)'
 B=$(git rev-parse HEAD)
@@ -745,7 +747,12 @@ git push -q -f origin "$G0:refs/heads/v2.0-x-land-green"
 git branch -q -D probe hi canonmain
 
 echo
-echo "== the canonical remote named"
+echo "== the series must be declared, and the canonical remote named"
+out=$(scripts/series-land.sh v9.9-none --no-check-glue 2>&1) && st=0 || st=$?
+is "a series series.yaml does not declare is refused" "$st" 1
+has "  naming it" "$out" "declares no releases_from for the series v9.9-none"
+out=$(scripts/series-land.sh main --status 2>&1) || true
+hasnt "main's own series needs no row" "$out" "declares no releases_from"
 out=$(SERIES_CANONICAL='' scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
 is "without a canonical remote it stops" "$st" 1
 has "  with its own error" "$out" "Error: no canonical remote"

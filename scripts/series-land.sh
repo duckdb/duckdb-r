@@ -212,17 +212,30 @@ if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; the
   exit 1
 fi
 # The branch landed on is the series' `releases_from` in the canonical `main`'s
-# scripts/series.yaml, `main` where it declares none, quotes and all read bare.
+# scripts/series.yaml, quotes and all read bare. `main`'s own series needs no
+# row; any other series without one, or a row without `releases_from`, is
+# refused rather than landed on `main` by default, since a misspelt name would
+# otherwise land a release line there.
 git fetch -q "$canonical" main
-onto=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
+row=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
   awk -v s="$S" '
     function val(v) { gsub(/["'"'"']/, "", v); return v }
-    function flush() { if (ser == s && rf != "") print rf; ser = ""; rf = "" }
+    function flush() { if (ser == s) print "row " rf; ser = ""; rf = "" }
     /^  - / { flush() }
     /^    series:/ { ser = val($2) }
     /^    releases_from:/ { rf = val($2) }
     END { flush() }' | head -n 1)
-onto=${onto:-main}
+onto=${row#row }
+onto=${onto# }
+if [ -z "$onto" ]; then
+  if [ "$S" = main ] && [ -z "$row" ]; then
+    onto=main
+  else
+    echo "Error: $canonical's main declares no releases_from for the series $S in scripts/series.yaml;" >&2
+    echo "  declare it there, or name the serving series as series.yaml does." >&2
+    exit 1
+  fi
+fi
 # `main` holds the tip of that branch, whatever its name.
 if ! err=$(git fetch -q "$canonical" "$onto" 2>&1); then
   echo "Error: could not fetch $onto from $canonical, the branch $S releases from:" >&2
