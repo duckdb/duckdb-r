@@ -14,8 +14,8 @@
 #   IDLE               nothing in flight and nothing buffered
 #
 # A forward series that has caught up with the green it replaces additionally
-# gets a CUTOVER line: the command a human runs on a terminal once they have
-# decided the cutover, or sends a session to run on the state they decided on
+# gets a CUTOVER line: the report that moves nothing, which the maintainer reads
+# before he asks a session to run the cutover and signs it off
 # (.claude/skills/series-cutover/SKILL.md). The loop never swaps a serving
 # green itself (.claude/skills/series-loop/SKILL.md).
 #
@@ -766,11 +766,11 @@ for S in "${series[@]}"; do
     # (.claude/skills/series-loop/SKILL.md stage 6).
     echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
     echo "           scripts/series-cutover.sh $cutover --remote $remote \\"
-    echo "             --upstream ${upstream:-<path to a $series_upstream_repo checkout>}"
-    echo "           It archives the replaced lineages in closed pull requests, then"
-    echo "           swaps; --prepare prints its gates and review and moves nothing."
+    echo "             --upstream ${upstream:-<path to a $series_upstream_repo checkout>} --prepare"
+    echo "           It reports and moves nothing. The cutover is a session's, on the"
+    echo "           maintainer's request and sign-off (.claude/skills/series-cutover/SKILL.md)."
     echo "           Coverage is only half of it; what the two branches carry is"
-    echo "           the other half, and the cutover prints it before it swaps:"
+    echo "           the other half, and the report prints it too:"
     echo "           scripts/series-converge.sh $cutover --remote $remote"
   fi
 done

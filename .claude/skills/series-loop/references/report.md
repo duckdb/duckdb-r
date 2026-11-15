@@ -89,10 +89,12 @@ the release branch takes the re-stamp at CUT
 Name the series, the tag and the commit, so the release does not wait on someone noticing.
 
 **A due cutover is reported the same way, above the `UNSERVED` block.**
-It is the one finding a firing may not act on at all —
-an UNSERVED line at least has its declaration PR —
-so it is the one it has to hand over completely:
-stage 6's block, filled in, every firing `series-check.sh` prints a
-`CUTOVER` line, and for the same reason —
+It is the one finding a firing may not act on at all,
+not by a cutover pull request and not by a review stack,
+which are the session's the maintainer sends ([`series-cutover`](../../series-cutover/SKILL.md)),
+while an UNSERVED line at least has its declaration PR.
+So it is the one the firing has to hand over completely:
+stage 6's block, filled in, every firing `series-check.sh` prints a `CUTOVER` line,
+and for the same reason:
 a decision nobody can take from the report alone
 is a decision the report failed to deliver.

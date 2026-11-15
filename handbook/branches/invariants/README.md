@@ -34,8 +34,8 @@ The families, in one breath:
   ([`model/`](/handbook/branches/model/README.md)).
 * **CI / green** — a `-green` ref only ever fast-forwards to
   commits with recorded successful runs; the one sideways move, a cutover,
-  keeps every lineage it replaces as a closed pull request's head before
-  it moves anything ([`model/`](/handbook/branches/model/README.md)).
+  refuses to move a lineage that no review stack's pull request pins
+  ([`model/`](/handbook/branches/model/README.md)).
 * **Forward convergence** — at the end of a forwarding, `<S>-dev` and
   `<S>-fwd-dev` are identical, or every difference between them is
   explicable. A forward is the same series rebuilt on a newer `main`
@@ -69,13 +69,13 @@ which is why nothing gates it.
 Forward convergence sits between the two families:
 it is **measured on every firing and judged by a human**.
 [`scripts/series-converge.sh`](/scripts/series-converge.sh) reports it,
-and [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) prints the
-same reading before its confirmation to swap the refs,
-and neither refuses where a human reads it, because the invariant's second half is
+and [`scripts/series-cutover.sh`](/scripts/series-cutover.sh) reports the
+same reading under `--prepare` and `--confirm` alike,
+and neither refuses on it, because the invariant's second half is
 *explicable*, and whether a difference is explicable is a judgement no
 script can make.
-A cutover confirmed with `--confirm` has nobody to make it, so there a divergence refuses,
-and the judgement goes back to a human.
+It is made on the review stacks, a strand and a layer at a time, and in the maintainer's sign-off
+([`series-cutover`](/.claude/skills/series-cutover/SKILL.md)).
 What the tooling can do, and does, is keep the list of
 differences it explains away short and evidenced, so that what is left
 is a work list rather than a verdict.

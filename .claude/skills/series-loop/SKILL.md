@@ -331,24 +331,22 @@ scripts/series-converge.sh <S>
   scripts/series-check.sh <S> <S>-fwd --upstream ../../../duckdb
   scripts/series-converge.sh <S>
 
-  # The gates, the convergence report, the review diff and the plan, with
-  # nothing moved: read it, then decide.
-  scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepare --out <dir>
+  # The refs to swap, coverage, convergence, package and versions, and the
+  # tip of <S>-fwd-green to decide on, with nothing moved. The canonical
+  # repository is the remote named with --canonical where it is not `upstream`.
+  scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb --prepare
 
-  # The swap. It asks for the series name, archives each replaced lineage as
-  # the head of a closed pull request, swaps the four refs, and moves the copy
-  # of green that r-universe publishes from -- name that remote with
-  # --canonical where it is not `upstream`, or the copy keeps serving the
-  # pre-cutover lineage -- then deletes the forward's refs in both repositories.
-  scripts/series-cutover.sh <S> --remote origin --upstream ../../../duckdb
+  # The rest is a session's, on the maintainer's request: the cutover pull
+  # request, a review stack per strand, his sign-off on the SHA above, the swap.
+  # See .claude/skills/series-cutover/SKILL.md.
 
   # A retired lineage moves the badge table, and the mirror rules with it.
   scripts/pull-config.sh --check
   ```
 
-* The routine does not run the swap, never passes `--confirm`, and does not swap the refs by another route;
-  the script refuses to swap without a terminal or `--confirm`, and that refusal is the answer.
-  A cutover the maintainer has decided is run by a session they send, never by a firing
+* The routine does not run the swap, never passes `--confirm`, builds no review stack, opens no cutover pull request,
+  and does not swap the refs by another route.
+  A cutover the maintainer has asked for is run by a session he sends, never by a firing
   ([`series-cutover`](../series-cutover/SKILL.md)).
 
 Reference: [`references/6-forwarding.md`](references/6-forwarding.md).
@@ -429,10 +427,11 @@ a `.dd` file naming a header the flavor renamed stops the build before the first
   and set — force-pushed where it has to be — rather than advanced.
 - Cutover is a human's decision.
   The loop reports that a forward series has caught up
-  and prints the command; it never runs it, never passes `--confirm`,
+  and prints the report's command; it never builds a review stack, never runs the swap, never passes `--confirm`,
   and never swaps the refs by another route.
-  A session runs one only on the maintainer's recorded decision ([`series-cutover`](../series-cutover/SKILL.md)).
-  The script archives what it replaces before it swaps, and deletes the forward's refs afterwards;
+  A session runs one only on the maintainer's request, and swaps only on his sign-off,
+  the tick on the cutover pull request's question that names the SHA ([`series-cutover`](../series-cutover/SKILL.md)).
+  The swap refuses a ref no review stack's pull request pins, and deletes the forward's refs afterwards;
   what a refused deletion leaves is cutover litter, which `scripts/series-prune.sh` lists for a human.
   Every other ref move in this skill is the routine's to make.
 - Opening a series is manual too, and its trigger is upstream's branch cut.
