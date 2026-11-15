@@ -48,7 +48,8 @@
 #  12. series-check.sh ignores what a refused deletion leaves as cutover litter.
 #  13. series-prune.sh lists that litter with the commands that remove it and runs none of them;
 #      it offers nothing of a live forward, nor of one at birth, whose green sits below its seed on a commit the series' green has,
-#      which series-check.sh does not take for litter either.
+#      which series-check.sh does not take for litter either;
+#      and both take for litter what a swap taken while the forward was at birth leaves, by its `-dev`.
 #  14. series-advance.sh mirrors a forward's green into the canonical repository under a lease,
 #      so a rebase that reset it does not stop the firing, and a base green plainly, so a divergence there does.
 #  15. A forward ref that moves while the run swaps, in the fork or in the canonical repository,
@@ -783,7 +784,7 @@ git push -q upstream "$NEW_GREEN:refs/heads/v9.9-x-fwd-green"
 git fetch -q --prune origin
 out=$(run scripts/series-check.sh --canonical '')
 [ -z "${KEEP:-}" ] || echo "$out"
-has "the forward is litter" "$out" "v9.9-x-fwd: green is an ancestor of v9.9-x's — cutover litter, ignoring"
+has "the forward is litter" "$out" "v9.9-x-fwd: cutover litter, ignoring: its green is an ancestor of v9.9-x's"
 has "and the series gets a verdict" "$out" "=== v9.9-x:"
 
 echo
@@ -813,6 +814,7 @@ git checkout -q --detach "$MAIN"
 desc 1.0.0.9003.0
 commit 'chore: Add fifth version component'
 git push -q -f origin "$MAIN:refs/heads/v9.9-x-fwd-green" HEAD:refs/heads/v9.9-x-fwd-dev
+BIRTH=$(git rev-parse HEAD)
 git checkout -q main
 out=$(run scripts/series-prune.sh v9.9-x)
 [ -z "${KEEP:-}" ] || echo "$out"
@@ -823,7 +825,27 @@ has "and nothing of it is offered" "$out" "Nothing to prune."
 git fetch -q --prune origin
 out=$(run scripts/series-check.sh --canonical '')
 [ -z "${KEEP:-}" ] || echo "$out"
-hasnt "nor does series-check.sh take it for litter" "$out" "v9.9-x-fwd: green is an ancestor of v9.9-x's"
+hasnt "nor does series-check.sh take it for litter" "$out" "v9.9-x-fwd: cutover litter"
+has "but serves it" "$out" "=== v9.9-x-fwd:"
+# A swap taken while the forward was at birth: the series' refs at the forward's tips, the forward's refs left behind.
+was=()
+for r in v9.9-x-green v9.9-x-dev v9.9-x-build v9.9-x-fwd-build; do was+=("$(git rev-parse "origin/$r"):refs/heads/$r"); done
+git push -q -f origin "$MAIN:refs/heads/v9.9-x-green" "$BIRTH:refs/heads/v9.9-x-dev" "$BIRTH:refs/heads/v9.9-x-fwd-build" \
+  "$BIRTH:refs/heads/v9.9-x-build"
+out=$(run scripts/series-prune.sh v9.9-x)
+[ -z "${KEEP:-}" ] || echo "$out"
+has "its green below its seed tells nothing" "$out" \
+  "v9.9-x-fwd-green ${MAIN:0:7} sits below the seed of v9.9-x-fwd-dev, as at the forward's birth, which tells nothing"
+has "so its -dev is read, and the forward was swapped in" "$out" "v9.9-x-fwd-dev is an ancestor of v9.9-x-dev: the forward was swapped in"
+has "and it is offered as litter" "$out" "git push --delete origin v9.9-x-fwd-build v9.9-x-fwd-dev v9.9-x-fwd-green"
+git fetch -q --prune origin
+out=$(run scripts/series-check.sh --canonical '')
+[ -z "${KEEP:-}" ] || echo "$out"
+has "series-check.sh reads it the same, and ignores it" "$out" \
+  "v9.9-x-fwd: cutover litter, ignoring: its green sits below its seed, and its -dev is an ancestor of v9.9-x's"
+hasnt "rather than serving it" "$out" "=== v9.9-x-fwd:"
+has "while the series gets a verdict" "$out" "=== v9.9-x:"
+git push -q -f origin "${was[@]}"
 # A live forward: its green is no ancestor of the series'.
 git checkout -q --detach "$MAIN"
 echo "engine ${shas[3]}" > src/duckdb/engine.cpp

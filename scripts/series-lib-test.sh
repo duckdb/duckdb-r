@@ -12,10 +12,10 @@
 #      `engine_before()` makes.
 #   4. The strand, the regenerated files, the carry filter and the tooling
 #      expression, read from the configured paths rather than from literals.
-#   5. On a repository: the seed, whether a green stands above it, the base
-#      scan past a non-vendor commit in the scan directory, its bound, the
-#      `-build` equivalent of a re-stamped commit, and the engine and the stamp
-#      read off a tree.
+#   5. On a repository: the seed, whether a green stands above it, which ref
+#      tells a forward swapped in, the base scan past a non-vendor commit in
+#      the scan directory, its bound, the `-build` equivalent of a re-stamped
+#      commit, and the engine and the stamp read off a tree.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches.
 #
@@ -147,6 +147,15 @@ is "no seed below it" "$(series_seed_of "$seed~1")" ""
 is "a green above its seed stands on it" "$(series_green_seeded "$v1" HEAD && echo yes)" yes
 is "one below its seed, as at a forward's birth, does not" "$(series_green_seeded "$seed~1" HEAD || echo no)" no
 is "and a -dev with no seed asks for none" "$(series_green_seeded "$seed~1" "$seed~1" && echo yes)" yes
+# A forward whose -dev is HEAD, read against a series' green and -dev: which ref answers, and whether it was swapped in.
+swapped() { local by; if by=$(series_fwd_swapped "$@"); then echo "$by, swapped in"; else echo "$by, live"; fi; }
+is "a green above its seed answers, reached by the series' green" "$(swapped "$v1" HEAD "$v2" "$seed~1")" "green, swapped in"
+is "or not" "$(swapped "$v2" HEAD "$v1" HEAD)" "green, live"
+is "a green below its seed leaves it to -dev, reached by the series' -dev" "$(swapped "$seed~1" HEAD "$seed~1" HEAD)" "dev, swapped in"
+is "or not, whatever the series' green reaches" "$(swapped "$seed~1" HEAD HEAD "$v2")" "dev, live"
+is "so does no green" "$(swapped '' HEAD HEAD HEAD)" "dev, swapped in"
+is "a green with no -dev answers alone" "$(swapped "$seed~1" '' "$seed~1" "$seed~1")" "green, swapped in"
+is "and with neither, whatever is named for it is litter" "$(swapped '' '' "$seed~1" "$seed~1")" "none, swapped in"
 is "the base scan looks past a non-vendor commit in the scan directory" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
 is "and says so when the bound is reached" \
   "$(base_scan_depth=1 series_vendored_sha HEAD 2>&1 >/dev/null | head -n 1)" \
