@@ -218,7 +218,7 @@ ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
 		    vector<LogicalType> types(args.data.size());
 		    types[0] = args.data[0].GetType();
 		    types[1] = args.data[1].GetType();
-		    auto variant = const_cast<ScalarFunctionSet &>(fn).GetFunctionByArguments(state.GetContext(), types);
+		    auto variant = const_cast<ScalarFunctionSet &>(fn).GetFunctionByArguments(state.GetClientContext(), types);
 
 		    auto info = StringUtil::Format("lhs = %s, rhs = %s, signature = %s", EnumUtil::ToChars(types[0].id()),
 		                                   EnumUtil::ToChars(types[1].id()), variant->ToString().c_str());
