@@ -50,7 +50,9 @@
 #      a branch the canonical remote lacks is refused with its name.
 #  16. With no kept build and no --onto, a landing on --remote that main holds
 #      is read as a landing on main, and one main does not hold is refused,
-#      naming the CRAN line's branch where that holds its base.
+#      naming the CRAN line's branch where that holds its base. A kept build's
+#      branch is followed by --status and --review, and one recorded before the
+#      branch was recorded reads as main.
 #
 # Usage:
 #   scripts/series-land-test.sh
@@ -789,6 +791,25 @@ is "a landing on the CRAN line's branch is refused too" "$st" 1
 has "  naming that branch" "$out" "pass --onto rel2"
 out=$(scripts/series-land.sh v2.0-x-fwd --status --onto rel2 2>&1) && st=0 || st=$?
 is "  and --onto rel2 reads it" "$st" 0
+
+echo
+echo "== a kept build records its branch, and one from before reads as main"
+land_on "$M"
+git push -q -f upstream "$M:refs/heads/rel"
+scripts/series-land.sh v2.0-x-fwd --no-check-glue --onto rel >/dev/null 2>&1 || true
+out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "--review without --onto follows the kept branch" "$st" 0
+hasnt "  rather than main, which moved" "$out" "main moved"
+out=$(scripts/series-land.sh v2.0-x-fwd --status 2>&1) && st=0 || st=$?
+is "--status without --onto follows it as well" "$st" 0
+read -r a b c d e f _ < "$STATE16"
+echo "$a $b $c $d $e $f" > "$STATE16"
+out=$(scripts/series-land.sh v2.0-x-fwd --no-check-glue 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out"
+is "a six-field kept build resumes onto main" "$st" 1
+has "  which moved under it" "$out" "Error: main moved from below"
+scripts/series-land.sh v2.0-x-fwd --abort >/dev/null
 
 echo
 echo "$pass passed, $fail failed"
