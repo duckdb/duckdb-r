@@ -1288,7 +1288,8 @@ test_that("Window sum expression function test works", {
   window_proj <- rel_project(rel_a, list(expr_reference("a"), aggrs))
   order_over_window <- rel_order(
     window_proj,
-    list(expr_reference("window_result"))
+    # Rows tie on window_result; `a` breaks the ties, as `order by 1,2` does above.
+    list(expr_reference("window_result"), expr_reference("a"))
   )
   res <- rel_to_altrep(order_over_window)
   expected_result <- data.frame(
