@@ -18,6 +18,14 @@
 #   8. A refused download on its own is still a RETRY, and so is one beside a
 #      listing the install printed while the gate was deselected.
 #
+# And one report about branches rather than a red commit:
+#
+#   9. FORWARD-PORT names the commits of the branch the CRAN flavor publishes
+#      from that `main` has no counterpart of, and none of those it has by
+#      patch-id or by a `cherry picked from commit` trailer either way, nor
+#      vendor commits or release paperwork; and nothing while that branch is
+#      `main`.
+#
 # Usage:
 #   scripts/series-check-test.sh
 #
@@ -209,6 +217,54 @@ store '["pkgdown"]' "$(printf '::group::install\n%s\n* DONE (duckdb)\n::endgroup
 out=$(verdict)
 has "beside the install's own listing, with the gate deselected" "$out" "RETRY  $RED"
 hasnt "which is no warning" "$out" "vendored warning"
+
+echo "=== 9. what the CRAN line has that main lacks"
+CANON=$SCRATCH/canonical.git
+git init -q --bare -b main "$CANON"
+git remote add canon "$CANON"
+fwd() { UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical canon 2>&1 | sed -n '/^FORWARD-PORT/,$p'; }
+decl() { # <publishes_from of the CRAN flavor>
+  printf 'flavors:\n  - flavor: duckdb\n    kind: CRAN\n    upstream: v9.9-x\n    publishes_from: %s\n    repo: duckdb/duckdb-r\n' "$1" \
+    > scripts/series.yaml
+}
+git checkout -q -b cmain main
+decl main
+git add -A; git commit -qm 'chore: Declare the flavors'
+git push -q canon cmain:main
+is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
+is "nothing while the CRAN flavor publishes from main" "$(fwd)" ""
+
+git checkout -q -b rel cmain
+echo 'engine bbbb222' > src/duckdb/engine.cpp
+git commit -qam 'vendor: Update vendored sources to duckdb/duckdb@bbbb222'
+echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
+echo 'fix a' > a.R; git add -A; git commit -qm 'fix: A, picked onto main'
+A=$(git rev-parse HEAD)
+echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, the same patch on main'
+echo 'fix c' > c.R; git add -A; git commit -qm 'fix: C, owed to main'
+C=$(git rev-parse HEAD)
+git checkout -q cmain
+echo 'fix d' > d.R; git add -A; git commit -qm 'fix: D, born on main'
+D=$(git rev-parse HEAD)
+git cherry-pick -x "$A" >/dev/null
+echo 'fix a, edited' > a.R; git commit -q --amend -a --no-edit
+echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, written again on main'
+decl rel
+git add -A; git commit -qm 'chore: Publish plain duckdb from rel'
+git checkout -q rel
+git cherry-pick -x "$D" >/dev/null
+echo 'fix d, as rel needs it' > d.R; git commit -q --amend -a --no-edit
+git push -q canon cmain:main rel
+git checkout -q main
+out=$(fwd)
+has "it names the branch and counts what is owed" "$out" "rel has 1 commit(s) main has no counterpart of"
+has "the commit main lacks" "$out" "$(git rev-parse --short "$C") fix: C, owed to main"
+hasnt "not one main picked with -x" "$out" "fix: A"
+hasnt "not one main has by patch-id" "$out" "fix: B"
+hasnt "not a backport from main, edited" "$out" "fix: D"
+hasnt "not a vendor commit" "$out" "vendor:"
+hasnt "not release paperwork" "$out" "Bump version"
 
 echo
 echo "$pass passed, $fail failed"

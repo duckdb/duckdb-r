@@ -25,10 +25,13 @@ The families, in one breath:
   everywhere in the branch.
 * **Version** — each strand advances its own counter and freezes the other
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-* **Source of truth** — R-side work is born on `main` and reaches
-  a series by forwarding, never the reverse;
+* **Source of truth** — R-side work reaches a series by forwarding from
+  the branch the series releases from, never the reverse;
   the one exception is vendor-coupled glue on the preview line,
   born beside the vendor commit that forces it.
+  Between `main` and the release branch of the line CRAN ships,
+  a fix travels either way, as a `cherry-pick -x`, never as a merge
+  ([`model/`](/handbook/branches/model/README.md)).
 * **CI / green** — a `-green` ref only ever fast-forwards to
   commits with recorded successful runs; the one sideways move, a cutover,
   keeps every lineage it replaces as a closed pull request's head before

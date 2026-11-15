@@ -139,23 +139,25 @@ Three moving parts work together to produce the published R packages:
 duckdb/duckdb        krlmlr/duckdb-r         duckdb/duckdb-r       CRAN / r-universe
 (upstream C++)       (CI/CD fork)            (canonical R pkg)
 ──────────────       ──────────────          ───────────────       ─────────────────
-main            ──►  main-dev           ──►  main               ──►  duckdb (r-universe)
-                                                                     duckdb.dev
-v1.5-variegata  ──►  v1.5-variegata-dev ──►  main               ──►  duckdb (CRAN)
-                                                                     duckdb.1.5.dev (r-universe)
+main            ──►  main-dev           ──►  main               ──►  duckdb.dev (r-universe)
+v2.0-cyanoptera ──►  v2.0-cyanoptera-dev──►  v2.0-cyanoptera    ──►  duckdb (CRAN, r-universe)
+                                                                     duckdb.2.0.dev (r-universe)
+v1.5-variegata  ──►  v1.5-variegata-dev ──►  v1.5-variegata     ──►  duckdb.1.5.dev (r-universe)
 v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ──►  duckdb.1.4 (r-universe)
                                              v1.4-andium-lts         duckdb.1.4.dev (r-universe)
 
    │              ^        ^       │                ^
-   │  vendor      │        │       │ during release │
-   │  (daily)     │        │       │  preparation   │
-   │  + patches   │        │       │     only       │
+   │  vendor      │        │       │   landings,    │
+   │  (daily)     │        │       │   one batch    │
+   │  + patches   │        │       │   at a time    │
    │  from patch/ │        │       └────────────────┘
    └──────────────┘        │
-                    the Pull app (mirrors krlmlr/main from duckdb/main)
+                    the Pull app (mirrors the canonical branches into the fork)
 ```
 
-The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents the release merge. Patches from `patch/` are applied to the vendored C++ code during every vendor run (see [Patch Stack](#patch-stack) below).
+The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents a landing:
+`main` takes batches of upstream `main`, and the release branch of the line CRAN ships takes its own line's batches and releases
+([`series-land`](/.claude/skills/series-land/SKILL.md)). Patches from `patch/` are applied to the vendored C++ code during every vendor run (see [Patch Stack](#patch-stack) below).
 
 ## Repositories
 
@@ -181,7 +183,9 @@ its refs archived in `krlmlr/duckdb-r-old`.
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
 | `main`                    | `duckdb/duckdb-r` | `duckdb`         | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
 | `main-dev`                | `krlmlr/duckdb-r` | `duckdb.dev`     | Vendored dev on upstream `main`; the preview line          |
-| `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for current release                        |
+| `v2.0-cyanoptera`         | `duckdb/duckdb-r` | `duckdb`         | Release branch of the current line; CRAN publishes from it |
+| `v2.0-cyanoptera-dev`     | `krlmlr/duckdb-r` | `duckdb.2.0.dev` | Bleeding edge on v2.0 upstream                             |
+| `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Parked baseline of the previous line                       |
 | `v1.5-variegata-lts`      |                   |                  | Does not exist, v1.5 is not an LTS                         |
 | `v1.5-variegata-dev`      | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Bleeding edge on v1.5 upstream                             |
 | `v1.4-andium`             | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for LTS release                            |
@@ -308,13 +312,14 @@ release.
 ### Version
 
 - **V1 — Prefix lock.** `major.minor` equals `L` on every branch of the series.
-  *Exception:* the preview line carries a synthetic placeholder prefix greater
-  than any current release (`main-dev` is `1.5.99.…`) until the flip sets the
-  real number (e.g. `2.0.0`).
+  *Exception:* the preview line carries the prefix of the line it previews,
+  `main` and `main-dev` both `2.0.99.…` while upstream `main` heads for 2.1,
+  until that line's release branch is cut and takes `2.1.0`.
 - **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
   `dev` is at or ahead of `Z`.
 - **V3 — Counters.** The **4th** component free-runs as the R-client dev counter
-  *only* on the glue source of truth (`main`: `…9003`, `…9004`); on `-dev`
+  *only* on the canonical branches (`main`: `…9003`, `…9004`), where a landing
+  without an upstream release advances it too; on `-dev`
   branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
   vendor counter, strictly monotone along `dev` (one bump per vendor commit).
   On a series-loop dev branch the seed's `chore: Add fifth version component`
@@ -335,6 +340,10 @@ release.
   set minus the patches already merged into *that series'* upstream branch.
   `patch/` may therefore legitimately differ between series; it is never
   hand-authored per series beyond dropping patches that landed upstream.
+- **G3 — Two canonical lines.** Every commit on the release branch of the line
+  CRAN ships has a counterpart on `main`, by patch-id or by a `cherry picked
+  from commit` trailer either way, except its vendor commits and version bumps;
+  `scripts/series-check.sh` names the ones that have none.
 
 ### CI / green
 

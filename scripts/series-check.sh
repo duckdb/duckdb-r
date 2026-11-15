@@ -82,6 +82,17 @@
 # an edit and a PR. Cutting the refs is not, and stays
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
+# One more block is about the branches rather than the series: `FORWARD-PORT`
+# names the commits of the branch plain `duckdb` publishes from, where that is
+# not `main`, which `main` has no counterpart of. A fix reaches the CRAN line
+# either as a backport from `main` or written there first, and in the second case
+# it is owed to `main` as a `git cherry-pick -x` (handbook/branches/model/). A
+# counterpart is a commit `main` has by patch-id, a `main` commit naming it in a
+# `cherry picked from commit` trailer, or the `main` commit its own trailer names,
+# because a pick whose text changed in a conflict has another patch-id. Vendor
+# commits and release paperwork are the branch's own and never owed: `main` takes
+# its engine from upstream `main`.
+#
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
 #   series-check.sh --upstream ../../../duckdb      # fork point too, not just names
@@ -849,4 +860,60 @@ elif [ ${#unserved[@]} -gt 0 ]; then
   echo "          the catch-up walk that opening one costs grows with every"
   echo "          upstream commit on it."
   echo "=============================================================================="
+fi
+
+# --- FORWARD-PORT: what the CRAN line has that `main` lacks -------------------
+#
+# The branch is read from the declaration, the `publishes_from` of the CRAN
+# flavor, so nothing is reported while that is `main` and nothing here names a
+# line. Its commits are read from the canonical repository first and the fork's
+# mirror second, like the declaration itself.
+cran_branch=$(declaration 2>/dev/null | awk '
+  function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
+  /^  - / { flush() }
+  /^    kind:/ { k = $2 }
+  /^    publishes_from:/ { pf = $2 }
+  END { flush() }' | head -n 1 || true)
+if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
+  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+    git fetch -q "$canonical" "$cran_branch" 2>/dev/null || true
+  fi
+  fp_main='' fp_rel=''
+  for r in ${canonical:+"$canonical"} "$remote"; do
+    m=$(git rev-parse -q --verify "refs/remotes/$r/main" || true)
+    b=$(git rev-parse -q --verify "refs/remotes/$r/$cran_branch" || true)
+    if [ -n "$m" ] && [ -n "$b" ]; then fp_main=$m fp_rel=$b; break; fi
+  done
+  if [ -z "$fp_rel" ]; then
+    echo
+    echo "FORWARD-PORT  could not read $cran_branch beside main, so this firing does not"
+    echo "              know what main still owes it. Missing data, not a clean result."
+  else
+    mb=$(git merge-base "$fp_main" "$fp_rel" || true)
+    # What `main` has by patch-id, and the commits its trailers name.
+    have=$(git cherry "$fp_main" "$fp_rel" ${mb:+"$mb"} | sed -n 's/^- //p'
+      git log --format=%B ${mb:+"$mb.."}"$fp_main" |
+        sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
+    main_shas=$(git rev-list ${mb:+"$mb.."}"$fp_main")
+    owed=()
+    while IFS= read -r c; do
+      [ -n "$c" ] || continue
+      subj=$(git log -1 --format=%s "$c")
+      series_is_vendor "$subj" && continue
+      # Release paperwork: a version bump, its notes, nothing else.
+      [ -n "$(git diff-tree --no-commit-id --name-only -r "$c" |
+        grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md)$' || true)" ] || continue
+      grep -qx "$c" <<<"$have" && continue
+      src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
+      if [ -n "$src" ] && grep -qx "$src" <<<"$main_shas"; then continue; fi
+      owed+=("$(git rev-parse --short "$c") $subj")
+    done < <(git rev-list --reverse --no-merges ${mb:+"$mb.."}"$fp_rel")
+    if [ ${#owed[@]} -gt 0 ]; then
+      echo
+      echo "FORWARD-PORT  $cran_branch has ${#owed[@]} commit(s) main has no counterpart of, oldest first:"
+      printf '              %s\n' "${owed[@]}"
+      echo "              Pick each onto main with git cherry-pick -x, or say on its pull"
+      echo "              request why main does not take it (handbook/branches/model/)."
+    fi
+  fi
 fi
