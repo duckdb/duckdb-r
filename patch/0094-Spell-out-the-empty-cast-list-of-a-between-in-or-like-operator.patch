@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 20 Oct 2026 17:11:29 +0000
+Subject: [PATCH] Spell out the empty cast list of a between, in or like operator
+
+BetweenInLikeOperator gains a third member, the casts an IN predicate
+may carry, and the two sites that brace-initialize one from its first
+two members leave it to the default: -Wmissing-field-initializers
+reports both. Spell the empty list out.
+
+Carried from this engine up.
+
+---
+ src/duckdb/src/parser/peg/transformer/transform_expression.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/parser/peg/transformer/transform_expression.cpp b/src/duckdb/src/parser/peg/transformer/transform_expression.cpp
+index 65aff7f04e..c0e1beba61 100644
+--- a/src/duckdb/src/parser/peg/transformer/transform_expression.cpp
++++ b/src/duckdb/src/parser/peg/transformer/transform_expression.cpp
+@@ -1173,7 +1173,7 @@ BetweenInLikeOperator
+ PEGTransformerFactory::TransformInPredicate(PEGTransformer &transformer, const bool &has_result,
+                                             unique_ptr<ParsedExpression> in_clause,
+                                             optional<vector<unique_ptr<ParsedExpression>>> cast_operator) {
+-	BetweenInLikeOperator result {has_result, std::move(in_clause)};
++	BetweenInLikeOperator result {has_result, std::move(in_clause), {}};
+ 	if (cast_operator) {
+ 		result.casts = std::move(*cast_operator);
+ 	}
+@@ -1189,7 +1189,7 @@ PEGTransformerFactory::TransformBetweenLikeOp(PEGTransformer &transformer, const
+ 			throw ParserException("NOT cannot precede an operator that is already negated (!~~, !~~*, !~ or !~*)");
+ 		}
+ 	}
+-	return {has_result, std::move(between_like_op_expression)};
++	return {has_result, std::move(between_like_op_expression), {}};
+ }
+ 
+ unique_ptr<ParsedExpression> PEGTransformerFactory::TransformInClause(PEGTransformer &transformer,
