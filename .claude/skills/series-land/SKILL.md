@@ -241,6 +241,19 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
 
 CI judges the bump like every other commit.
 A rebuild drops it, so after one, add it again.
+A bump replayed by a fold or a rebase over a changed `DESCRIPTION` meets the merge driver,
+which takes the vendor counter back into its version and keeps the engine record of the commit it lands on,
+and `--status` then refuses it.
+Stamp it again from its subject and the vendored tree, in the kept worktree with the bump checked out:
+
+```sh
+eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
+full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
+v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
+sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
+git diff DESCRIPTION
+git commit --amend --no-edit DESCRIPTION
+```
 
 ## 4. Open the R side for review
 

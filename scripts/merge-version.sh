@@ -18,11 +18,13 @@
 # forward-port (e.g. 1.5.x -> 1.4.x LTS) keeps ours unchanged and never inherits
 # a foreign prefix.
 #
-# The engine record, `Config/duckdb/upstream:`, is pinned the same way. Only a
-# landing's bump writes it, so theirs wins where theirs changed it against the
-# base -- a bump replayed by a rebase or by scripts/series-fold.sh keeps its
-# record -- and ours stays everywhere else, so a port of any other commit onto a
-# series or a release branch never rewrites the engine that branch records. It
+# The engine record, `Config/duckdb/upstream:`, is pinned the same way: ours,
+# always. Each branch keeps the engine it records, so a port, a pick or a
+# cutover's replay of another branch's commits, a landing's bump among them,
+# never rewrites it, and a branch without one gets none. A bump that is itself
+# replayed -- by scripts/series-fold.sh, or a rebuilt landing -- therefore
+# arrives with the record of the commit it lands on, and scripts/series-land.sh
+# refuses it until it is stamped again (.claude/skills/series-land/SKILL.md). It
 # lives on the line right below `Version:`
 # (handbook/operations/releases/versioning/README.md), and all three sides are
 # written that way before the merge, so a change to a field near it --
@@ -81,13 +83,9 @@ if [ -n "$va" ] && [ -n "$vb" ]; then
   O="$to"; B="$tb"
 fi
 
-# The engine record: theirs where theirs changed it, ours otherwise, right below
-# `Version:` on all three sides, and absent from all three where that side has
-# none.
-up_o=$(grep -m 1 '^Config/duckdb/upstream:' "$O" || true)
-up_b=$(grep -m 1 '^Config/duckdb/upstream:' "$B" || true)
+# The engine record: ours, right below `Version:`, on all three sides; absent
+# from all three where ours has none.
 up_line=$(grep -m 1 '^Config/duckdb/upstream:' "$A" || true)
-[ "$up_b" = "$up_o" ] || up_line=$up_b
 pin_upstream() { # <file>: rewrite it in place
   local t
   t=$(mktemp)

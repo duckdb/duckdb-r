@@ -123,8 +123,9 @@ R CMD build and check accept it, as they accept any field under `Config/`
 ([Writing R Extensions](https://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file)).
 No port carries a bump, so a series lacks the line or lags it, and a landing's tree check takes it as the branch's.
 The merge driver resolves it as it resolves `Version:`:
-theirs where theirs changed the record, which only a bump does, so a bump replayed by a rebase or a fold keeps it,
-and ours everywhere else, so a pick or a port never rewrites the engine a branch records, and a field changed near it merges cleanly.
+ours, always, so a pick, a port or a cutover's replay never rewrites the engine a branch records, and a field changed near it merges cleanly.
+A bump that is itself replayed over a changed `DESCRIPTION`, by a fold or a rebase, therefore arrives with the record of the commit it lands on,
+and with its vendor counter back, and `series-land.sh` refuses it until it is stamped again ([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
 A graft never reaches the driver and keeps `main`'s record with the rest of `main`'s tree.
 The commit takes the annotated tag `v<version>`, `v2.0.99.9001`.
 The merge driver keeps working across these bumps:
