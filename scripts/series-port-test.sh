@@ -114,9 +114,10 @@ git commit -qm 'feat: Live work that did reach the tree'
 git checkout -q main
 git merge -q --no-ff -m 'chore: Merge the live line' live-line
 
-# The release strand, in the three shapes that reach `main`: fledge's bump,
-# the notes written beside it before the bump lands, and a DESCRIPTION edit
-# that is not a bump at all.
+# The release strand, in the shapes that reach `main`: the hand-written bump,
+# whose NEWS.md starts with the section it closes, the same under another
+# subject, the notes written beside it before the bump lands, and a
+# DESCRIPTION edit that is not a bump at all.
 printf '# duckdb 1.0.0\n\n- Something a user meets.\n' > NEWS.md
 git add -A
 git commit -qm 'docs(news): Bullets for what merged since the last bump'
@@ -124,9 +125,13 @@ git commit -qm 'docs(news): Bullets for what merged since the last bump'
 printf 'Package: duckdb\nVersion: 1.0.1\n' > DESCRIPTION
 printf '# duckdb 1.0.1\n\n- Something a user meets.\n' > NEWS.md
 git add -A
-git commit -qm 'fledge: Bump version to 1.0.1'
+git commit -qm 'chore: Bump version to 1.0.1'
 
-printf 'Package: duckdb\nVersion: 1.0.1\nImports: DBI\n' > DESCRIPTION
+printf 'Package: duckdb\nVersion: 1.0.1.9000\n' > DESCRIPTION
+git add -A
+git commit -qm 'chore: Move on to the development version'
+
+printf 'Package: duckdb\nVersion: 1.0.1.9000\nImports: DBI\n' > DESCRIPTION
 git add -A
 git commit -qm 'chore: Declare the dependency the package gained'
 
@@ -166,7 +171,8 @@ is() { # <name> <subject text> <expected class>
 
 echo
 echo "series-port.sh: what the release strand covers"
-is "fledge's bump is release paperwork" 'Bump version to 1.0.1' VERSION
+is "the hand-written bump is release paperwork" 'Bump version to 1.0.1' VERSION
+is "so is a bump under any other subject" 'Move on to the development version' VERSION
 is "so are notes written without a bump" \
   'Bullets for what merged since the last bump' VERSION
 is "a DESCRIPTION edit that is not a bump is package content" \
