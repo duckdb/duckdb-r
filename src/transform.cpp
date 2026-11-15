@@ -446,6 +446,10 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 
 void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n,
                         const duckdb::ConvertOpts &convert_opts, const string &name) {
+	// A materialized result can carry CONSTANT and DICTIONARY vectors,
+	// the conversion below reads flat data.
+	src_vec.Flatten();
+
 	if (src_vec.GetType().GetAlias() == R_STRING_TYPE_NAME) {
 		ptrdiff_t sexp_header_size = (const_data_ptr_t)DATAPTR_RO(R_BlankString) - (const_data_ptr_t)R_BlankString;
 
