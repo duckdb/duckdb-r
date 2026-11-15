@@ -83,15 +83,13 @@
 # .claude/skills/series-open/SKILL.md's job, and a human's.
 #
 # One more block is about the branches rather than the series: `FORWARD-PORT`
-# lists the commits of the line CRAN ships, on its release branch here, that
-# `main` has not grafted yet: `main..<branch>`. Each landing there ends with
-# `main` picking what it wants with `git cherry-pick -x` and then taking the
-# branch with `git merge -s ours`, the graft, whose message names what it
-# declined (handbook/branches/model/), so once grafted a commit is never listed
-# again. Vendor commits, the branch's engine, which `main` takes from upstream
-# `main` instead, and release paperwork are counted; each R-side commit is listed
-# `picked` where `main`'s own history since the last graft has it, by patch-id or
-# a `cherry picked from commit` trailer either way, and `not yet` otherwise.
+# lists, for each active release branch, the commits not yet merged forward
+# into the next newer line: `<newer>..<older>`, the newest release branch's
+# into `main`. A fix is written on the oldest active release branch and merged
+# forward from there (handbook/branches/model/), so this is what the next
+# forward merge brings. Vendor commits, the branch's engine, which the forward
+# merge leaves out, and release paperwork are counted; each R-side commit is
+# listed.
 #
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
@@ -867,96 +865,95 @@ elif [ ${#unserved[@]} -gt 0 ]; then
   echo "=============================================================================="
 fi
 
-# --- FORWARD-PORT: what `main` has not grafted of the CRAN line's branch ------
+# --- FORWARD-PORT: what is not yet merged forward ------------------------------
 #
-# The branch is the CRAN flavor's `upstream`, the line it ships, which is also
-# the name of that line's release branch here. The walk covers `main..<branch>`,
-# merges skipped: the branch's commits no graft has reached yet. A commit is
-# `picked` where `main`'s first parents since the merge base carry it, by
-# patch-id or a `cherry picked from commit` trailer either way, since a graft's
-# second parent is the branch itself and says nothing about what `main` took.
-# Vendor commits and release paperwork (a version bump, its notes, the
-# submission record) are the branch's own and are only counted; the R-side
-# commits are listed, each `picked` or `not yet`. The canonical repository is
-# read first and the fork's mirrors second; with neither carrying both branches
-# the block says it could not read them, unless the canonical repository answers
-# that the branch is not cut yet, which is nothing to report.
-cran_line=$(declaration 2>/dev/null | awk '
-  function flush() { if (k == "CRAN" && up != "") print up; k = ""; up = "" }
+# The active release branches are the CRAN flavor's `upstream`, the line it
+# ships, and every `releases_from` other than `main` on a row not declared
+# `stale: true`, each named here as upstream names its line; a name the
+# canonical repository has no branch for, a line not cut yet, is left out. They
+# are taken oldest first, by version, each followed by the next newer one and the
+# newest by `main`, and the walk covers `<newer>..<older>`, merges skipped. The
+# canonical repository is read first and the fork's mirrors second; with neither
+# carrying both branches of a pair the block says it could not read them.
+fp_lines=$(declaration 2>/dev/null | awk '
   function val(v) { gsub(/["'"'"']/, "", v); return v }
+  function flush() {
+    if (k == "CRAN" && up != "") print up
+    if (rf != "" && rf != "main" && st != "true") print rf
+    k = ""; up = ""; rf = ""; st = ""
+  }
   /^  - / { flush() }
   /^    kind:/ { k = val($2) }
   /^    upstream:/ { up = val($2) }
-  END { flush() }' | head -n 1 || true)
-if [ -n "$cran_line" ] && [ "$cran_line" != main ]; then
-  fp_main='' fp_rel='' uncut=''
-  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1 &&
-    heads=$(git ls-remote --heads "$canonical" "$cran_line" 2>/dev/null); then
-    if [ -z "$heads" ]; then
-      uncut=1
-    else
-      # Both, so a `main` fetched before the last graft does not show what it
-      # grafted as not yet picked.
-      git fetch -q "$canonical" "+refs/heads/main:refs/remotes/$canonical/main" \
-        "+refs/heads/$cran_line:refs/remotes/$canonical/$cran_line" 2>/dev/null || true
-      fp_main=$(git rev-parse -q --verify "refs/remotes/$canonical/main" || true)
-      fp_rel=$(git rev-parse -q --verify "refs/remotes/$canonical/$cran_line" || true)
-    fi
-  fi
-  if [ -z "$uncut" ] && { [ -z "$fp_main" ] || [ -z "$fp_rel" ]; }; then
-    fp_main=$(git rev-parse -q --verify "refs/remotes/$remote/main" || true)
-    fp_rel=$(git rev-parse -q --verify "refs/remotes/$remote/$cran_line" || true)
-  fi
-  mb=''
-  [ -z "$fp_rel" ] || [ -z "$fp_main" ] || mb=$(git merge-base "$fp_main" "$fp_rel" 2>/dev/null || true)
-  if [ -n "$uncut" ]; then
-    :
-  elif [ -z "$mb" ]; then
-    # No branch to read, or one with no merge base with `main` (a shallow
-    # clone), which would read as all owed.
-    echo
-    echo "FORWARD-PORT  could not read $cran_line beside main, or their merge base,"
-    echo "              so this firing does not know what main has not grafted yet."
-    echo "              Missing data, not a clean result."
+  /^    releases_from:/ { rf = val($2) }
+  /^    stale:/ { st = val($2) }
+  END { flush() }' | grep -v '^main$' | sort -u -V || true)
+fp_refs() { # <branch> -> its tip, canonical first, mirror second; empty when neither
+  local b=$1 r
+  for r in ${canonical:+"$canonical"} "$remote"; do
+    git rev-parse -q --verify "refs/remotes/$r/$b" && return 0
+  done
+  return 0
+}
+fp_active=()
+if [ -n "$fp_lines" ]; then
+  if [ -n "$canonical" ] && git remote get-url "$canonical" >/dev/null 2>&1; then
+    # Every branch read fresh, `main` too, so a forward merge already made never
+    # shows its commits as owed.
+    for b in main $fp_lines; do
+      git fetch -q "$canonical" "+refs/heads/$b:refs/remotes/$canonical/$b" 2>/dev/null || true
+    done
+    canon_heads=$(git ls-remote --heads "$canonical" 2>/dev/null | sed 's#.*refs/heads/##' || true)
   else
-    have=$(git cherry "$fp_main" "$fp_rel" "$mb" | sed -n 's/^- //p'
-      git log --first-parent --format=%B "$mb..$fp_main" |
-        sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
-    main_shas=$(git rev-list --first-parent "$mb..$fp_main")
-    # Release paperwork: notes and submission records, and in DESCRIPTION
-    # nothing but the version and the engine record. A DESCRIPTION change to
-    # anything else, a dependency say, is package content main may want.
-    paperwork() { # <commit>
-      [ -z "$(git diff-tree --no-commit-id --name-only -r "$1" |
-        grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || return 1
-      [ -z "$(git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' |
-        grep -vE '^[-+](Version|Config/duckdb/upstream):' || true)" ]
-    }
-    rows=() total=0 open=0 vendor=0 paper=0
-    while IFS= read -r c; do
-      [ -n "$c" ] || continue
-      total=$((total + 1))
-      subj=$(git log -1 --format=%s "$c")
-      if series_is_vendor "$subj"; then vendor=$((vendor + 1)); continue; fi
-      # By content alone: a bump riding on R-side files is listed like any.
-      if paperwork "$c"; then
-        paper=$((paper + 1)); continue
-      fi
-      src=$(git log -1 --format=%B "$c" | sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
-      if grep -qx "$c" <<<"$have" || { [ -n "$src" ] && grep -qx "$src" <<<"$main_shas"; }; then
-        mark=picked
-      else
-        mark='not yet' open=$((open + 1))
-      fi
-      rows+=("$(printf '%s %-8s %s' "$(git rev-parse --short "$c")" "$mark" "$subj")")
-    done < <(git rev-list --reverse --no-merges "$fp_main..$fp_rel")
-    if [ "$total" -gt 0 ]; then
-      echo
-      echo "FORWARD-PORT  $cran_line has $total commit(s) main has not grafted: $vendor vendor, $paper release paperwork,"
-      echo "              ${#rows[@]} R-side, $open of them not yet picked, oldest first:"
-      [ ${#rows[@]} -eq 0 ] || printf '              %s\n' "${rows[@]}"
-      echo "              Pick what main needs with git cherry-pick -x, then graft the branch"
-      echo "              with git merge -s ours, naming what it declines (handbook/branches/model/)."
-    fi
+    canon_heads=''
   fi
+  for b in $fp_lines; do
+    # Not cut yet: the canonical repository answers and has no such branch.
+    if [ -n "$canon_heads" ] && ! grep -qx "$b" <<<"$canon_heads"; then continue; fi
+    fp_active+=("$b")
+  done
 fi
+# Release paperwork: notes and submission records, and in DESCRIPTION nothing but
+# the version and the engine record. A DESCRIPTION change to anything else, a
+# dependency say, is package content the newer line may want.
+paperwork() { # <commit>
+  [ -z "$(git diff-tree --no-commit-id --name-only -r "$1" |
+    grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || return 1
+  [ -z "$(git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' |
+    grep -vE '^[-+](Version|Config/duckdb/upstream):' || true)" ]
+}
+for ((fp_i = 0; fp_i < ${#fp_active[@]}; fp_i++)); do
+  older=${fp_active[fp_i]}
+  newer=${fp_active[fp_i + 1]:-main}
+  fp_old=$(fp_refs "$older")
+  fp_new=$(fp_refs "$newer")
+  mb=''
+  [ -z "$fp_old" ] || [ -z "$fp_new" ] || mb=$(git merge-base "$fp_new" "$fp_old" 2>/dev/null || true)
+  if [ -z "$mb" ]; then
+    # No branch to read, or one with no merge base with the newer line (a
+    # shallow clone), which would read as all owed.
+    echo
+    echo "FORWARD-PORT  could not read $older beside $newer, or their merge base,"
+    echo "              so this firing does not know what is not yet merged forward."
+    echo "              Missing data, not a clean result."
+    continue
+  fi
+  rows=() total=0 vendor=0 paper=0
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    total=$((total + 1))
+    subj=$(git log -1 --format=%s "$c")
+    if series_is_vendor "$subj"; then vendor=$((vendor + 1)); continue; fi
+    # By content alone: a bump riding on R-side files is listed like any.
+    if paperwork "$c"; then paper=$((paper + 1)); continue; fi
+    rows+=("$(git rev-parse --short "$c") $subj")
+  done < <(git rev-list --reverse --no-merges "$fp_new..$fp_old")
+  if [ "$total" -gt 0 ]; then
+    echo
+    echo "FORWARD-PORT  $older has $total commit(s) not yet merged forward into $newer:"
+    echo "              $vendor vendor, $paper release paperwork, ${#rows[@]} R-side, oldest first:"
+    [ ${#rows[@]} -eq 0 ] || printf '              %s\n' "${rows[@]}"
+    echo "              Merge $older into $newer, keeping $newer's engine"
+    echo "              (.claude/skills/series-land/SKILL.md, step 8)."
+  fi
+done
