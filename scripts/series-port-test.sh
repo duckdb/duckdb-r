@@ -23,7 +23,7 @@
 #      code and a bullet under `main`'s open section applies cleanly after a
 #      landing has renamed that heading, under its own author and trailer, and
 #      leaves the series' NEWS.md as it was; a commit that writes nothing but
-#      NEWS.md comes out empty and is skipped.
+#      NEWS.md comes out empty and is committed empty, so its trailer retires it.
 #   7. A ported commit keeps the whole message of the commit it ports, a
 #      `# Conflicts:` line in its body included, and then the trailer; so does
 #      the commit the guidance prints when a pick conflicts.
@@ -302,9 +302,12 @@ out_news=$(scripts/series-port.sh t --apply "$NEWS_ONLY" 2>&1) && st=0 || st=$?
 [ -z "${KEEP:-}" ] || echo "$out_news"
 git fetch -q origin
 if [ "$st" = 0 ]; then ok "a NEWS-only commit named by hand is no error"; else no "a NEWS-only commit named by hand is no error"; printf '%s\n' "$out_news" | sed 's/^/       /'; fi
-has "it is skipped, and says why" "$out_news" "skipped $(git rev-parse --short "$NEWS_ONLY") docs(news): A bullet alone: nothing but NEWS.md is left of it"
-has "so nothing is ported" "$out_news" 'nothing to port'
-if [ "$(git rev-parse origin/t-dev)" = "$tip" ]; then ok "and the series has not moved"; else no "and the series has not moved"; fi
+has "it is committed empty, and says why" "$out_news" "picked $(git rev-parse --short "$NEWS_ONLY") docs(news): A bullet alone, empty: nothing but NEWS.md is left of it"
+if [ "$(git rev-parse origin/t-dev^)" = "$tip" ] && git diff --quiet "$tip" origin/t-dev; then ok "as one empty commit on the series"; else no "as one empty commit on the series"; fi
+has "whose trailer records the pick" "$(git log -1 --format=%B origin/t-dev)" "(cherry picked from commit $NEWS_ONLY)"
+out_again=$(scripts/series-port.sh t 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_again"
+hasnt "so a rerun no longer lists it" "$out_again" 'A bullet alone'
 
 echo
 echo "series-port.sh: a message whose body lists conflicts"

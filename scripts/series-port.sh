@@ -48,10 +48,12 @@
 # renamed it. Each pick is applied without committing, NEWS.md is restored from
 # the series, and the rest is committed under the original message, author and
 # `-x` trailer. A pick that comes out empty, because it wrote nothing but
-# NEWS.md or its content is already here, is skipped and named as skipped. A
-# pick matches its main commit by patch-id only when that commit left NEWS.md
-# alone; the trailer retires the others from the walk, and a rebase onto a base
-# that carries them drops them as empty.
+# NEWS.md or its content is already here, is committed empty and named as
+# empty, because its trailer is what retires it. A pick matches its main commit
+# by patch-id only when that commit left NEWS.md alone; the trailer retires the
+# others from the walk, and a rebase onto a base that carries them drops them as
+# empty. A pick committed empty is kept by a rebase, as git keeps every commit
+# that starts empty, and left behind by the next forward like every port.
 #
 # **A VERSION commit is not auto-picked either**, because `main`'s R-client
 # counter is not this series'. A series' version says which release line it was
@@ -68,7 +70,7 @@
 # state the series was seeded with, as every pick does; that file is the
 # release strand's and outside the sync commit's path set too. Naming a VERSION
 # commit explicitly still ports what it carries beyond NEWS.md, like any other
-# SHA, and one that carries nothing beyond it is skipped as empty.
+# SHA, and one that carries nothing beyond it is committed empty.
 #
 # **The subject is what decides a VENDOR commit, never the path.** The patch
 # stack is applied to the vendored tree in place, so CRAN and
@@ -351,8 +353,8 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 # its only honest resolution was the empty commit that retires it. Requiring a
 # moved `Version:` let exactly those through: 8f48159063 and dcfb3d2c2a, one
 # firing, four series, four hand resolutions (2026-09-28). Every pick keeps the
-# series' NEWS.md now, so such a commit would come out empty and be skipped;
-# the class still lists it for what it is.
+# series' NEWS.md now, so such a commit would come out empty, and named by hand
+# it is committed empty; the class still lists it for what it is.
 version_bump() { # <sha>
   local before after f touched= desc=
   while IFS= read -r f; do
@@ -420,14 +422,14 @@ declare -A klass=()
 # original patch — those would otherwise be re-offered and re-conflict on
 # every rerun.
 #
-# Both layers need a commit to read, so a pick whose *resolution* comes out
-# empty has to be committed empty rather than skipped. That happens wherever
-# the series already carries main's change under its own flavor's name: the
-# tree is right, the patch-id is not main's, and `git cherry-pick --skip` —
-# which is what git itself suggests there — leaves neither a patch-id nor a
-# trailer, so the same pick is offered and reconflicts on every firing. The
-# guidance below says so; `--empty=drop` cannot reach this case, because it
-# judges the pick before the resolution exists.
+# Both layers need a commit to read, so a pick that comes out empty is
+# committed empty rather than skipped, whether it applied cleanly or only its
+# *resolution* is empty. That happens wherever the series already carries
+# main's change under its own flavor's name, and wherever main's commit wrote
+# nothing but NEWS.md: the tree is right, the patch-id is not main's, and a skip
+# (`git cherry-pick --skip` is what git itself suggests after a conflict)
+# leaves neither a patch-id nor a trailer, so the same pick is offered again on
+# every firing, and reconflicts if it conflicted. The guidance below says so.
 #
 # A frozen series skips the walk rather than listing what it will not take by
 # default: the list is long — an LTS line joins `main` far back, so `git cherry`
@@ -500,8 +502,8 @@ git worktree add --detach -q "$wt" "$dev"
 # message is built from the main commit, never cut out of the MERGE_MSG the pick
 # prepares: git appends a `# Conflicts:` list there when NEWS.md conflicted, and
 # a squash message on `main` can carry the same line in its body, so no cut can
-# tell the two apart. A pick left with nothing to commit is skipped, as
-# `--empty=drop` skipped one when the picks ran as one sequence.
+# tell the two apart. A pick left with nothing to commit is committed empty all
+# the same, for the reason the walk above gives.
 #
 # The `-x` trailer is the second dedupe layer, not decoration, so the guidance
 # below names it: a resolution that diverges from main's patch has no patch-id
@@ -568,15 +570,13 @@ for i in "${!picks[@]}"; do
     fi
     exit 1
   fi
-  if git -C "$wt" diff --cached --quiet HEAD --; then
-    # Nothing differs from HEAD by now; the reset drops what the pick left
-    # behind, its MERGE_MSG and rerere's record of the NEWS.md conflict.
-    git -C "$wt" reset -q --hard
-    echo "skipped $line: $why"
-    continue
-  fi
+  done_msg="picked $line"
+  git -C "$wt" diff --cached --quiet HEAD -- && done_msg="$done_msg, empty: $why"
+  # Taking the series' NEWS.md is this stage's rule, not a resolution for
+  # rerere to record and replay elsewhere.
+  git -C "$wt" rerere clear
   git -C "$wt" "${commit[@]}" -q --no-verify
-  echo "picked $line"
+  echo "$done_msg"
 done
 
 # Close the residue: make the tooling paths byte-identical to main's. `git rm`

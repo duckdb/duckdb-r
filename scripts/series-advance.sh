@@ -820,9 +820,8 @@ else
     remaining=$(git rev-list --reverse "$anchor..$build" | first_n "$n")
   fi
 
-  # `--empty=drop`, as series-port.sh already does: a buffer commit whose content
-  # reached -dev by another route replays to nothing, and an empty pick stops the
-  # sequencer. Stage 3 sends patch/ entries down both paths on purpose -- the port
+  # `--empty=drop`: a buffer commit whose content reached -dev by another route
+  # replays to nothing, and an empty pick stops the sequencer. Stage 3 sends patch/ entries down both paths on purpose -- the port
   # carries one onto -dev, and the same fix is committed onto -build so the next
   # regenerated tree still has it -- so the redundancy is designed, not a mistake,
   # and it must not abort the extend.

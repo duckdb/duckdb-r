@@ -67,7 +67,8 @@ a pick carrying the bullet conflicts on every series.
 So each pick is applied without committing, `NEWS.md` is restored from the series,
 and the rest is committed under the original message, author and trailer;
 a pick with nothing left, because it wrote only `NEWS.md` or its content is already there,
-is skipped and named as skipped.
+is committed empty and named as empty,
+because its trailer is what retires it from the next run.
 VENDOR commits are listed and never auto-picked:
 `main`'s engine is not this series' engine,
 and the series' own vendoring owns that strand.
@@ -178,7 +179,7 @@ What stays judgement:
   and rerun the script for the rest
   (reruns are exact:
   clean picks of commits that left `NEWS.md` alone dedupe by patch-id,
-  every other pick by its `cherry picked from` trailer);
+  every other pick, an empty one included, by its `cherry picked from` trailer);
 - an OTHER commit that cannot work against this series' engine —
   apply an explicit subset without it,
   fix it on `main` (a guard, a runtime seam),
