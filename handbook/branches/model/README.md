@@ -228,7 +228,10 @@ on `main` and backported to the release branch with `git cherry-pick -x`,
 or as a pull request against the release branch and forward-ported to `main` the same way.
 The `cherry picked from commit` trailer is what pairs the two copies where a conflict changed the text,
 and [`scripts/series-check.sh`](/scripts/series-check.sh) names every commit of the release branch `main` has no counterpart of,
-its vendor commits and version bumps aside, which are the release branch's own.
+its vendor commits and version bumps aside, which are the release branch's own,
+unless a vendor commit also carries an R-side change.
+A commit `main` does without on purpose is recorded with the reason in [`scripts/forward-port-declined`](/scripts/forward-port-declined) on `main`,
+and is not reported again.
 Tooling is the exception: it is `main`'s alone, and reaches the release branch only as a backport.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).

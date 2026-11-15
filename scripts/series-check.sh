@@ -92,7 +92,8 @@
 # because a pick whose text changed in a conflict has another patch-id. Vendor
 # commits and release paperwork are the branch's own and not owed, since `main`
 # takes its engine from upstream `main`; a vendor commit that also carries an
-# R-side change is reported, marked.
+# R-side change is reported, marked. A commit `main` does without on purpose is
+# recorded in scripts/forward-port-declined on `main`, and not reported again.
 #
 # Usage: series-check.sh [<series>...] [--remote <name>] [--upstream <path>]
 #   series-check.sh                                 # discover all from refs
@@ -876,6 +877,10 @@ fi
 # stamp: an R-side fix folded into it, which `main` may need as well. Whether
 # that change answers the branch's engine alone is a judgement, so it is
 # reported, marked, rather than decided here.
+#
+# A commit `main` deliberately does without is recorded on `main`, in
+# scripts/forward-port-declined, one full SHA and a reason per line, and is not
+# reported again.
 cran_branch=$(declaration 2>/dev/null | awk '
   function flush() { if (k == "CRAN" && pf != "") print pf; k = ""; pf = "" }
   function val(v) { gsub(/["'"'"']/, "", v); return v }
@@ -912,11 +917,14 @@ if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
       git log --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
     main_shas=$(git rev-list "$mb..$fp_main")
+    declined=$({ git show "$fp_main:scripts/forward-port-declined" 2>/dev/null || true; } |
+      sed -nE 's/^([0-9a-f]{40})([[:space:]].*)?$/\1/p')
     engine_paths=()
     for x in "${series_strand[@]}" "${series_makevars[@]}" DESCRIPTION; do engine_paths+=(":(exclude)$x"); done
     owed=()
     while IFS= read -r c; do
       [ -n "$c" ] || continue
+      grep -qx "$c" <<<"$declined" && continue
       subj=$(git log -1 --format=%s "$c")
       mark=''
       if series_is_vendor "$subj"; then
@@ -935,8 +943,8 @@ if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
       echo
       echo "FORWARD-PORT  $cran_branch has ${#owed[@]} commit(s) main has no counterpart of, oldest first:"
       printf '              %s\n' "${owed[@]}"
-      echo "              Pick each onto main with git cherry-pick -x, or say on its pull"
-      echo "              request why main does not take it (handbook/branches/model/)."
+      echo "              Pick each onto main with git cherry-pick -x, or record why main does"
+      echo "              without it in scripts/forward-port-declined (handbook/branches/model/)."
     fi
   fi
 fi

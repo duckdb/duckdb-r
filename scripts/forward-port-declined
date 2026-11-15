@@ -1,0 +1,8 @@
+# Commits of the CRAN line's release branch that `main` does without on purpose.
+#
+# scripts/series-check.sh reports every commit of that branch `main` has no
+# counterpart of (FORWARD-PORT), and skips the ones listed here. Read from
+# `main`. One per line: the commit's full SHA, then why `main` does not take it.
+# Lines starting with `#` and blank lines are ignored.
+#
+# Handbook: /handbook/branches/model/README.md

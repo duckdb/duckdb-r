@@ -23,8 +23,8 @@
 #   9. FORWARD-PORT names the commits of the branch the CRAN flavor publishes
 #      from that `main` has no counterpart of, and none of those it has by
 #      patch-id or by a `cherry picked from commit` trailer either way, nor
-#      vendor commits or release paperwork (a submission record included);
-#      a vendor commit carrying an
+#      vendor commits or release paperwork (a submission record included), nor
+#      those scripts/forward-port-declined lists; a vendor commit carrying an
 #      R-side change is named, marked. Nothing while that branch is `main`, a
 #      quoted declaration reads the same, and a branch it cannot read, or one
 #      with no merge base with `main`, is reported as missing data.
@@ -248,7 +248,8 @@ echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
 git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
 echo 'Version: 9.9.1' > DESCRIPTION; echo '# duckdb 9.9.1' > NEWS.md; echo 'Version: 9.9.1' > CRAN-SUBMISSION
 git add -A; git commit -qm 'chore: Release 9.9.1'
-
+echo 'fix e' > e.R; git add -A; git commit -qm 'fix: E, declined by main'
+E=$(git rev-parse HEAD)
 echo 'fix a' > a.R; git add -A; git commit -qm 'fix: A, picked onto main'
 A=$(git rev-parse HEAD)
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, the same patch on main'
@@ -260,6 +261,7 @@ D=$(git rev-parse HEAD)
 git cherry-pick -x "$A" >/dev/null
 echo 'fix a, edited' > a.R; git commit -q --amend -a --no-edit
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, written again on main'
+printf '# why main does without\n%s E fixes what main never had\n' "$E" > scripts/forward-port-declined
 decl rel
 git add -A; git commit -qm 'chore: Publish plain duckdb from rel'
 git checkout -q rel
@@ -275,6 +277,7 @@ hasnt "not one main has by patch-id" "$out" "fix: B"
 hasnt "not a backport from main, edited" "$out" "fix: D"
 hasnt "not release paperwork" "$out" "Bump version"
 hasnt "nor a release with its submission record" "$out" "Release 9.9.1"
+hasnt "not one main declined" "$out" "fix: E"
 has "but a vendor commit with an R-side change, marked" "$out" \
   "$(git rev-parse --short "$VR") vendor: Update vendored sources to duckdb/duckdb@bbbb333 [vendor commit with an R-side change]"
 hasnt "and not one without" "$out" "bbbb222"
