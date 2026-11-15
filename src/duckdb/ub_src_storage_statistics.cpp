@@ -14,6 +14,8 @@
 
 #include "src/storage/statistics/segment_statistics.cpp"
 
+#include "src/storage/statistics/stats_struct_fields.cpp"
+
 #include "src/storage/statistics/string_stats.cpp"
 
 #include "src/storage/statistics/struct_stats.cpp"
