@@ -27,7 +27,9 @@
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #      A landing is ready only on its hand-written version bump, which may
-#      change nothing but NEWS.md and the Version: line, with nothing above it;
+#      change nothing but NEWS.md, the Version: line and the
+#      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
+#      commit vendors, with nothing above it;
 #      a rebuild drops a bump added to the kept worktree.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
@@ -351,8 +353,10 @@ passed() { # <sha>
 }
 marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->'
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
-write_bump() { # <version>
-  sed -i "s/^Version: .*/Version: $1/" DESCRIPTION
+ENGINE_FULL=dddd444000000000000000000000000000000000
+write_bump() { # <version> [<engine record>]
+  sed -i "s/^Version: .*/Version: $1/; /^Config\/duckdb\/upstream:/d" DESCRIPTION
+  printf 'Config/duckdb/upstream: %s\n' "${2-$ENGINE_FULL}" >> DESCRIPTION
   printf '%s\n\n# duckdb %s\n\n- Something for users.\n' "$marker" "$1" > NEWS.md
 }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
@@ -391,7 +395,13 @@ refused "a bump that changes R code is refused" "changes more than NEWS.md and D
 out=$(scripts/series-land.sh v2.0-x --review 2>&1) && st=0 || st=$?
 is "the review refuses it" "$st" 1
 probe; write_bump 1.99.99.9001; printf 'Imports: DBI\n' >> DESCRIPTION
-refused "nor may it change DESCRIPTION beyond Version:"
+refused "nor may it change DESCRIPTION beyond Version: and the engine record"
+probe; write_bump 1.99.99.9001; sed -i '/^Config\/duckdb\/upstream:/d' DESCRIPTION
+refused "a bump without the engine record is refused" "exactly one Config/duckdb/upstream: line"
+probe; write_bump 1.99.99.9001 dddd444
+refused "an abbreviated engine record is refused" "is not a full SHA"
+probe; write_bump 1.99.99.9001 cccc333000000000000000000000000000000000
+refused "an engine record naming another engine is refused" "is not the engine the landing vendors, dddd444"
 probe; write_bump 1.99.99.9001; sed -i 's/^Version: .*/&\nVersion: 1.99.99.9002/' DESCRIPTION
 refused "nor may it carry two Version: lines"
 probe
@@ -684,6 +694,7 @@ echo "== the landing goes onto the branch series.yaml names"
 G0=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
 git checkout -q -f -B hi "$M"
 sed -i 's/^Version: .*/Version: 1.99.99.9007/' DESCRIPTION
+printf 'Config/duckdb/upstream: %s\n' aaaa112000000000000000000000000000000000 >> DESCRIPTION
 commit 'chore: Bump version to 1.99.99.9007'
 git push -q -f upstream hi
 HI=$(git rev-parse HEAD)
@@ -698,6 +709,8 @@ git checkout -q -f main
 out=$(scripts/series-land.sh v2.0-x --no-check-glue 2>&1) || true
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the build stands on that branch, read through quotes" "$out" "vendor commits on $(git rev-parse --short "$HI")"
+has "its engine record is the branch's, and no difference" "$out" "Config/duckdb/upstream:, is the branch's"
+hasnt "  so the landing is the series' package" "$out" "DIVERGED"
 read -r WT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
 FIRST=$(git -C "$WT" rev-list --reverse "$HI..HEAD" | head -n 1)
 is "its first landing commit's parent is that branch's tip" "$(git -C "$WT" rev-parse "$FIRST~1")" "$HI"

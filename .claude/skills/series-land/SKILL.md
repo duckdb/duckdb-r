@@ -202,12 +202,23 @@ The build ends on the series' version, five components;
 once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-dev`, a plain fast-forward:
 
 * **`DESCRIPTION`**: set `Version:` to `<v>`; the fifth component, the vendor counter, is dropped.
+  Set `Config/duckdb/upstream:` to the full SHA of the engine the last vendor commit vendors,
+  which the build holds to that commit's `DUCKDB_SOURCE_ID`:
+
+  ```sh
+  eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
+  full=$(git -C "$UPSTREAM_CLONE" rev-parse --verify "$eng^{commit}")
+  sed -i 's/^Version: .*/Version: <v>/; /^Config\/duckdb\/upstream:/d' DESCRIPTION
+  printf 'Config/duckdb/upstream: %s\n' "$full" >> DESCRIPTION
+  git diff DESCRIPTION
+  ```
+
 * **`NEWS.md`**: write the `# duckdb <v>` section, by hand, directly above the newest section.
   Its first bullet names the engine as the versioning page spells it, with the two SHAs step 2 wrote down,
   and the items below it are what users of the package notice, leaving out the tooling.
   The file's first line stays as it is.
 * **The commit**: `chore: Bump version to <v>`.
-  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md` and the `Version:` line,
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md`, the `Version:` line and the engine record,
   with nothing above it, and refuses one whose version does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.
 
