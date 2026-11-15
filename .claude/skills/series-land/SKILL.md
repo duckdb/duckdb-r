@@ -238,7 +238,6 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **The commit**: `chore: Bump version to <v>`.
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only the `Version:` line and the engine record
-  (until [#2989](https://github.com/duckdb/duckdb-r/pull/2989) lands, its check still asks for a `NEWS.md` section as well),
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
 or does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.

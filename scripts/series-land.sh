@@ -270,9 +270,8 @@ bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
 # `Version:` line, which has at most four components, rises and is the version
 # the subject names, and its one
 # `Config/duckdb/upstream:` line, the full SHA of the engine the landing's last
-# vendor commit vendors; and its
-# `NEWS.md` starts with fledge's marker line and has a section for that version
-# with something in it (handbook/operations/releases/versioning/README.md).
+# vendor commit vendors. `NEWS.md` is kept by a separate process, so nothing is
+# asked of it (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
 is_bump() { # <commit>
   local c=$1 old new subj
@@ -324,11 +323,6 @@ is_bump() { # <commit>
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
-  # `sed -n 1p` reads the whole pipeline; `head` or `grep -q` would end it early under pipefail.
-  [[ "$(git show "$c:NEWS.md" 2>/dev/null | sed -n 1p)" == *fledge* ]] ||
-    { echo "NEWS.md does not start with fledge's marker line"; return 1; }
-  [ -n "$(git show "$c:NEWS.md" | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ] ||
-    { echo "NEWS.md has nothing under # duckdb $new"; return 1; }
 }
 
 # Is <tip> a landing on main: main, then the base's own commits, then vendor

@@ -27,7 +27,7 @@
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
 #      A landing is ready only on its hand-written version bump, which may
-#      change nothing but NEWS.md, the Version: line and the
+#      change nothing but NEWS.md, which it may leave alone, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
 #      commit vendors, with nothing above it;
 #      a rebuild drops a bump added to the kept worktree.
@@ -358,9 +358,8 @@ passed() { # <sha>
 marker='<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->'
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
 ENGINE_FULL=dddd444000000000000000000000000000000000
-write_bump() { # <version> [<engine record>]
+write_bump() { # <version> [<engine record>]: DESCRIPTION alone, as the skill writes it
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
-  printf '%s\n\n# duckdb %s\n\n- Something for users.\n' "$marker" "$1" > NEWS.md
 }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
@@ -451,14 +450,13 @@ commit 'chore: Bump version to 1.99.99.9000 with hand-written release notes'
 status_of "$(git rev-parse HEAD)"
 has "the series' version without its vendor counter is a bump, a first landing's" "$out" "READY: every commit has passed"
 git checkout -q -f main
-probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
-refused "a deleted NEWS.md is refused"
 probe; write_bump 1.99.99.9001
 BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
-probe; write_bump 1.99.99.9001; sed -i 1,2d NEWS.md
-refused "a NEWS.md without fledge's marker is refused" "does not start with fledge's marker line"
-probe; write_bump 1.99.99.9001; printf '%s\n\n# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' "$marker" > NEWS.md
-refused "a section with nothing in it is refused"
+probe; write_bump 1.99.99.9001; printf '# duckdb 1.5.5\n\n- Old.\n' > NEWS.md
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+has "NEWS.md is not the bump's: one without fledge's marker or a section of its own is a bump" "$out" "READY: every commit has passed"
+git checkout -q -f main
 probe; write_bump 1.99.99.9001
 git checkout -q -f -B side "$TIP"; write_bump 1.99.99.9001; commit "$bump_msg"
 git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
