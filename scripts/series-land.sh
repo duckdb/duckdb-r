@@ -334,8 +334,11 @@ is_bump() { # <commit>
 # printed they stop at the first failure and exit with it: they tag nothing the
 # branch, fetched from the canonical repository first, does not have, so a
 # fast-forward refused leaves the bump untagged, and push no tag they did not
-# create, so a stale local tag of that name never goes up. A release's version
-# is tagged when the release is published, so only a line says so.
+# create, so a stale local tag of that name never goes up. The branch is
+# fetched by its full name into its remote-tracking ref and checked there, so
+# neither a tag of the same name nor another fetch rewriting FETCH_HEAD stands
+# in for it. A release's version is tagged when the release is published, so
+# only a line says so.
 tag_commands() { # <bump>
   local v
   v=$(git show "$1:DESCRIPTION" | sed -n 's/^Version: //p')
@@ -347,8 +350,8 @@ tag_commands() { # <bump>
   # The `\n` are the printed command's own, for its printf.
   printf '%s\n' \
     "Then tag it on $canonical once $onto has it, with NEWS.md's section for $v below the subject if there is one:" \
-    "  git fetch -q $canonical $onto &&" \
-    "    { git merge-base --is-ancestor $1 FETCH_HEAD || { echo 'Not tagged: $onto on $canonical does not have $1.' >&2; false; }; } &&" \
+    "  git fetch -q $canonical +refs/heads/$onto:refs/remotes/$canonical/$onto &&" \
+    "    { git merge-base --is-ancestor $1 refs/remotes/$canonical/$onto || { echo 'Not tagged: $onto on $canonical does not have $1.' >&2; false; }; } &&" \
     "    { printf 'duckdb %s\n\n' $v; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
     "    git tag -a v$v --cleanup=whitespace -F - $1 &&" \
     "    git push $canonical refs/tags/v$v"

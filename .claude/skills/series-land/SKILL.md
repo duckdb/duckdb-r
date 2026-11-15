@@ -364,11 +364,13 @@ so `--status` prints a line saying so in their place, and the block tags nothing
 ```sh
 ( set -eu
 S=main                                                # the serving series that landed: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)             # the branch it landed onto
+[[ $B =~ ^(main|v[0-9]+\.[0-9]+-[a-z]+)$ ]] || { echo "no branch to land onto: '$B'" >&2; exit 1; }
 out=$(scripts/series-land.sh "$S" --status) || true   # READY again, now that the branch is the bump
 printf '%s\n' "$out"
 grep -q '^READY' <<<"$out" || { echo "not READY" >&2; exit 1; }
 bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")"   # the tag commands below the push, none for a release
-git tag -n3 --points-at FETCH_HEAD   # the tag: the subject, then NEWS.md's section for the version, if it has one
+git tag -n3 --points-at "refs/remotes/upstream/$B"   # the tag: the subject, then NEWS.md's section for the version, if it has one
 )
 ```
 

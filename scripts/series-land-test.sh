@@ -33,8 +33,9 @@
 #      drops a bump added to the kept worktree. The tag commands printed with
 #      the fast-forward, run as printed once `main` has the bump, tag it
 #      `duckdb <version>`, with NEWS.md's section for it below where there is
-#      one; run before that, or over a stale local tag of that name, they fail
-#      and send nothing. A release's version is left to the release.
+#      one; run before that, even with a tag named like the branch at the bump,
+#      or over a stale local tag of that name, they fail and send nothing. A
+#      release's version is left to the release.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -410,8 +411,17 @@ has "the landing ending on the bump is ready" "$out" "READY: every commit has pa
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 has "and so does the tag" "$out" "git tag -a v1.99.99.9001 --cleanup=whitespace -F - $BUMP"
 has "which goes to the canonical repository" "$out" "git push upstream refs/tags/v1.99.99.9001"
+has "they fetch the branch by its full name into its remote-tracking ref" "$out" \
+  "git fetch -q upstream +refs/heads/main:refs/remotes/upstream/main &&"
+has "  and look for the bump there, not in FETCH_HEAD" "$out" "git merge-base --is-ancestor $BUMP refs/remotes/upstream/main ||"
 is "run as printed while main lacks the bump, as after a fast-forward refused, they send nothing and fail" \
   "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+# A tag named like the branch, at the bump: a fetch by the short name takes it for the branch.
+git push -q upstream "$BUMP:refs/tags/main"
+is "nor do they while a tag named like the branch has the bump" \
+  "$(tag_as_printed v1.99.99.9001)" "the tag commands failed"$'\n'"upstream is unchanged"
+git push -q upstream :refs/tags/main
+git tag -d main >/dev/null 2>&1 || true
 landed "$BUMP"
 status_of "$BUMP"
 has "once main is the bump, the landing is still ready" "$out" "READY: every commit has passed"
