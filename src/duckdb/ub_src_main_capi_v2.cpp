@@ -76,6 +76,8 @@
 
 #include "src/main/capi/v2/capi_v2_statement.cpp"
 
+#include "src/main/capi/v2/capi_v2_stats.cpp"
+
 #include "src/main/capi/v2/capi_v2_stubs.cpp"
 
 #include "src/main/capi/v2/capi_v2_tokenizer.cpp"
