@@ -35,11 +35,23 @@
 # --apply cherry-picks everything except VENDOR and VERSION — a MIXED or OTHER
 # commit is a forward-port like any other, judged by CI like every -dev commit —
 # or exactly the SHAs given, for when judgement says a commit cannot work
-# against this series' engine yet. Picks are always whole commits: a pick
-# that matches its main commit is skipped by patch-id at the next rebase,
+# against this series' engine yet. Picks are whole commits but for NEWS.md: a
+# pick that matches its main commit is skipped by patch-id at the next rebase,
 # a half-pick would only replay. VENDOR commits are never auto-picked,
 # because main's engine is not this series' engine: the series' own
 # vendoring owns that strand.
+#
+# **Every pick keeps the series' NEWS.md.** The notes are the release strand's,
+# like the version: a bullet on `main` sits under `main`'s open section, and the
+# bump that releases a line turns that heading into the version's, so a pick
+# carrying `main`'s bullets conflicts on every series once a landing has
+# renamed it. Each pick is applied without committing, NEWS.md is restored from
+# the series, and the rest is committed under the original message, author and
+# `-x` trailer. A pick that comes out empty, because it wrote nothing but
+# NEWS.md or its content is already here, is skipped and named as skipped. A
+# pick matches its main commit by patch-id only when that commit left NEWS.md
+# alone; the trailer retires the others from the walk, and a rebase onto a base
+# that carries them drops them as empty.
 #
 # **A VERSION commit is not auto-picked either**, because `main`'s R-client
 # counter is not this series'. A series' version says which release line it was
@@ -53,9 +65,10 @@
 # bump: a commit that writes NEWS.md for `main`'s next release and touches
 # nothing else is the same strand, and the series has neither the section it
 # goes in nor the version that names it. Dropping one leaves NEWS.md at the
-# state the series was seeded with; that file is the release strand's and
-# already outside the sync commit's path set. Naming a VERSION commit
-# explicitly still ports it, like any other SHA.
+# state the series was seeded with, as every pick does; that file is the
+# release strand's and outside the sync commit's path set too. Naming a VERSION
+# commit explicitly still ports what it carries beyond NEWS.md, like any other
+# SHA, and one that carries nothing beyond it is skipped as empty.
 #
 # **The subject is what decides a VENDOR commit, never the path.** The patch
 # stack is applied to the vendored tree in place, so CRAN and
@@ -88,9 +101,10 @@
 # you are looking for one. Frozen is detected from the lineage under the seed,
 # or declared when a line parks on its own baseline; see the seed check below.
 #
-# A conflict stops the sequence in place and keeps the worktree: resolving it
-# is the routine's judgement. Continue the sequence there, push, and rerun
-# this script to finish — the patch-id filter makes reruns cheap and exact.
+# A conflict stops the picks in place and keeps the worktree: resolving it is
+# the routine's judgement. Commit the resolution there as the script says, push,
+# and rerun this script for the rest; the patch-id filter and the trailer make
+# reruns cheap and exact.
 #
 # Ported and sync commits are ordinary -dev commits: they vendor nothing (the
 # consumption anchor in scripts/series-advance.sh reads vendor subjects), and
@@ -333,10 +347,12 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 # **A commit that leaves DESCRIPTION alone is paperwork without a bump.** Notes
 # written into NEWS.md for `main`'s next release are the release strand's just
 # as the bumps are, and the series has neither the section they go in nor
-# the version that names it: the pick conflicts on every series at once and its
-# only honest resolution is the empty commit that retires it. Requiring a moved
-# `Version:` let exactly those through -- 8f48159063 and dcfb3d2c2a, one firing,
-# four series, four hand resolutions (2026-09-28).
+# the version that names it: the pick conflicted on every series at once and
+# its only honest resolution was the empty commit that retires it. Requiring a
+# moved `Version:` let exactly those through: 8f48159063 and dcfb3d2c2a, one
+# firing, four series, four hand resolutions (2026-09-28). Every pick keeps the
+# series' NEWS.md now, so such a commit would come out empty and be skipped;
+# the class still lists it for what it is.
 version_bump() { # <sha>
   local before after f touched= desc=
   while IFS= read -r f; do
@@ -478,9 +494,14 @@ fi
 wt=$(mktemp -d)
 git worktree add --detach -q "$wt" "$dev"
 
-# `-x` records the main commit in the message; `--empty=drop` skips a pick
-# whose content arrived some other way. On conflict the worktree stays: the
-# sequencer holds the remaining picks, so one --continue walks the rest.
+# One pick at a time, each keeping the series' NEWS.md (see the header):
+# applied with `-n`, the file restored from the series, and committed under the
+# original author. `-x` records the main commit in the message the pick
+# prepares, MERGE_MSG, which is what the commit takes, less the conflict list
+# git appends there when NEWS.md was a conflict this step has just resolved.
+# The comment character is pinned so that list is the one cut. A pick left with
+# nothing to commit is skipped, as `--empty=drop` skipped one when the picks ran
+# as one sequence.
 #
 # The `-x` trailer is the second dedupe layer, not decoration, so the guidance
 # below names it: a resolution that diverges from main's patch has no patch-id
@@ -488,22 +509,66 @@ git worktree add --detach -q "$wt" "$dev"
 # being offered and reconflicting on every firing. It prints the SHA in full,
 # because the reader above matches 40 hex digits and every other SHA on screen
 # is abbreviated.
-if [ ${#picks[@]} -gt 0 ] && ! git -C "$wt" cherry-pick -x --empty=drop "${picks[@]}"; then
-  echo "Conflict; worktree kept at $wt, conflicted files:"
-  git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
-  echo "Resolve toward main's intent, then:"
-  echo "  git -C $wt cherry-pick --continue    # repeats through the rest"
-  echo "Writing the message by hand instead? Keep the trailer it would have"
-  echo "written, or this pick is offered again on every firing:"
-  echo "  (cherry picked from commit $(git -C "$wt" rev-parse CHERRY_PICK_HEAD))"
-  echo "A resolution that comes out empty is committed empty, never skipped —"
-  echo "the empty commit is what carries the trailer that retires the pick:"
-  echo "  git -C $wt commit --allow-empty --cleanup=strip --no-edit"
-  echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
-  echo "  git worktree remove --force $wt"
-  echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"
-  exit 1
-fi
+pick_msg=$(git -C "$wt" rev-parse --path-format=absolute --git-path MERGE_MSG)
+keep_news() {
+  if git -C "$wt" cat-file -e HEAD:NEWS.md 2>/dev/null; then
+    git -C "$wt" checkout HEAD -- NEWS.md
+  else
+    git -C "$wt" rm -q -f --ignore-unmatch -- NEWS.md
+  fi
+}
+for i in "${!picks[@]}"; do
+  sha=$(git rev-parse -q --verify "${picks[$i]}^{commit}") ||
+    { echo "Error: not a commit: ${picks[$i]}; worktree kept at $wt"; exit 1; }
+  line="$(git rev-parse --short "$sha") $(git log -1 --format=%s "$sha")"
+  st=0
+  out=$(git -C "$wt" -c core.commentChar='#' cherry-pick -n -x "$sha" 2>&1) || st=$?
+  if [ "$st" != 0 ] && [ -z "$(git -C "$wt" diff --name-only --diff-filter=U)" ]; then
+    echo "$out"
+    echo "Error: could not pick $line; worktree kept at $wt"
+    exit 1
+  fi
+  why='its content is already here'
+  git -C "$wt" diff --cached --quiet HEAD -- || why='nothing but NEWS.md is left of it'
+  keep_news
+  conflicted=$(git -C "$wt" diff --name-only --diff-filter=U)
+  if [ -n "$conflicted" ]; then
+    echo "$out"
+    echo "Conflict; worktree kept at $wt, conflicted files:"
+    git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/  /'
+    echo "Resolve toward main's intent; NEWS.md stays the series', as it is now."
+    echo "Then commit under the message the pick prepared, whose trailer retires"
+    echo "the pick, and under its author:"
+    printf '  git -C %q commit --allow-empty --cleanup=strip --no-edit --author=%q --date=%q\n' \
+      "$wt" "$(git log -1 --format='%an <%ae>' "$sha")" "$(git log -1 --format=%aI "$sha")"
+    echo "Writing the message by hand instead? Keep the trailer it would have"
+    echo "written, or this pick is offered again on every firing:"
+    echo "  (cherry picked from commit $sha)"
+    echo "A resolution that comes out empty is committed empty, never skipped:"
+    echo "the empty commit is what carries the trailer that retires the pick."
+    echo "  git -C $wt push $remote HEAD:refs/heads/$S-dev"
+    echo "  git worktree remove --force $wt"
+    if [ $# -gt 0 ] && [ $((i + 1)) -lt ${#picks[@]} ]; then
+      echo "  scripts/series-port.sh $S --apply ${picks[*]:i+1}    # finish: the rest + sync"
+    else
+      echo "  scripts/series-port.sh $S --apply    # finish: leftovers + sync"
+    fi
+    exit 1
+  fi
+  if git -C "$wt" diff --cached --quiet HEAD --; then
+    # Nothing differs from HEAD by now; the reset drops what the pick left
+    # behind, its MERGE_MSG and rerere's record of the NEWS.md conflict.
+    git -C "$wt" reset -q --hard
+    echo "skipped $line: $why"
+    continue
+  fi
+  sed '/^# Conflicts:$/,$d' "$pick_msg" |
+    GIT_AUTHOR_NAME=$(git log -1 --format=%an "$sha") \
+      GIT_AUTHOR_EMAIL=$(git log -1 --format=%ae "$sha") \
+      GIT_AUTHOR_DATE=$(git log -1 --format=%aI "$sha") \
+      git -C "$wt" commit -q --no-verify --cleanup=whitespace -F -
+  echo "picked $line"
+done
 
 # Close the residue: make the tooling paths byte-identical to main's. `git rm`
 # first, so a file the series has and main does not is deleted rather than

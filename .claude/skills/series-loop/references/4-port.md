@@ -59,6 +59,15 @@ at best to empty, at worst to a conflict —
 and could sever a coupled change
 (a script from the test that exercises it),
 minting a commit whose message describes more than it contains.
+The one file a pick leaves as the series has it is `NEWS.md`.
+The notes are the release strand's, like the version:
+a bullet on `main` sits under `main`'s open section,
+and once a landing's bump has turned that heading into the version's,
+a pick carrying the bullet conflicts on every series.
+So each pick is applied without committing, `NEWS.md` is restored from the series,
+and the rest is committed under the original message, author and trailer;
+a pick with nothing left, because it wrote only `NEWS.md` or its content is already there,
+is skipped and named as skipped.
 VENDOR commits are listed and never auto-picked:
 `main`'s engine is not this series' engine,
 and the series' own vendoring owns that strand.
@@ -159,16 +168,17 @@ is not a reason to move the series off its seed.
 
 What stays judgement:
 
-- a conflict stops the sequence in place —
+- a conflict stops the picks in place:
   resolve it in the kept worktree toward `main`'s intent,
   keeping the series' flavor where the two meet
   (`Package:`, `@useDynLib`, `DUCKDB_PACKAGE_NAME`
   keep the series' name),
-  `cherry-pick --continue` through the rest, push,
-  and rerun the script to finish
+  commit it with the command the script prints,
+  which keeps the pick's message, trailer and author, push,
+  and rerun the script for the rest
   (reruns are exact:
-  clean picks dedupe by patch-id,
-  resolved ones by their `cherry picked from` trailer);
+  clean picks of commits that left `NEWS.md` alone dedupe by patch-id,
+  every other pick by its `cherry picked from` trailer);
 - an OTHER commit that cannot work against this series' engine —
   apply an explicit subset without it,
   fix it on `main` (a guard, a runtime seam),

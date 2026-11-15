@@ -36,9 +36,9 @@
 #     above it.
 #   * `NEWS.md` -- the release paperwork a version bump carries, and stage 4
 #     never ports a VERSION commit: `main`'s R-client counter is not a series'
-#     (.claude/skills/series-loop/SKILL.md). So the two branches hold whatever their
-#     seeds' release lines held, plus the bullets their ports brought, and a
-#     landing keeps the file of the branch it lands on (scripts/series-land.sh).
+#     (.claude/skills/series-loop/SKILL.md). Every other pick keeps the series'
+#     own copy (scripts/series-port.sh), so the file is never ported, and the two
+#     branches hold whatever their seeds' release lines held.
 #   * The **vendored strand** -- `src/duckdb/`, `patch/`, `R/version.R`,
 #     `src/include/sources.mk` and the Makevars -- but **only while the two
 #     branches vendor different upstream commits**, where it is the gap itself

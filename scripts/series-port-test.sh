@@ -6,7 +6,7 @@
 # cherry` answers by patch-id over `mb..main`, which counts a commit `main`
 # merged for its ancestry alone -- a merge whose tree is its first parent's, so
 # nothing of the lineage it records ever entered main's tree. Porting one
-# applies a tree from another era on top of this one. Four things are checked.
+# applies a tree from another era on top of this one. Six things are checked.
 #
 #   1. An ordinary `main` commit the series lacks is offered.
 #   2. A commit that reached `main` only through an ancestry-only merge is not.
@@ -19,6 +19,11 @@
 #      strand, and the series has no section to put them in. A commit that
 #      edits DESCRIPTION without moving the version is package content and is
 #      still offered.
+#   6. --apply keeps the series' NEWS.md on every pick. A commit that brings
+#      code and a bullet under `main`'s open section applies cleanly after a
+#      landing has renamed that heading, under its own author and trailer, and
+#      leaves the series' NEWS.md as it was; a commit that writes nothing but
+#      NEWS.md comes out empty and is skipped.
 #
 # And one thing about *which* `main` answers. The series live in a fork whose
 # `main` is a mirror the Pull app refreshes every six hours, so the fork's copy
@@ -236,6 +241,67 @@ out_live=$(scripts/series-port.sh s 2>&1)
 [ -z "${KEEP:-}" ] || echo "$out_live"
 hasnt "a line releasing from main is not frozen" "$out_live" "frozen"
 has "and is offered main's R side" "$out_live" 'An ordinary commit the series lacks'
+
+echo
+echo "series-port.sh: --apply keeps the series' NEWS.md"
+# A series cut from `main` while its section was open, carrying a bullet of its
+# own, and `main` releasing that section afterwards: the bump turns the heading
+# into the version's, and the next bullet opens a new section above it. Picked
+# whole, that commit conflicts in NEWS.md on the series.
+git checkout -q main
+printf '# duckdb (development version)\n\n- A bullet both have.\n\n# duckdb 1.0.1\n\n- Something a user meets.\n' > NEWS.md
+git add -A
+git commit -qm 'docs(news): A bullet under the open section'
+git push -q upstream main
+git checkout -q -b t-dev
+echo 'flavored t' > R/flavor.R
+printf '# duckdb (development version)\n\n- A bullet of the series.\n\n- A bullet both have.\n\n# duckdb 1.0.1\n\n- Something a user meets.\n' > NEWS.md
+git add -A
+git commit -qm 'chore: Update flavor patch to duckdb.t'
+git push -q origin t-dev
+series_news=$(git show HEAD:NEWS.md)
+git checkout -q main
+printf 'Package: duckdb\nVersion: 1.1.0\nImports: DBI\n' > DESCRIPTION
+sed -i 's/^# duckdb (development version)$/# duckdb 1.1.0/' NEWS.md
+git add -A
+git commit -qm 'chore: Bump version to 1.1.0'
+echo 'foo <- function() 4' > R/foo.R
+{ printf '# duckdb (development version)\n\n- Code with its bullet.\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
+git add -A
+GIT_AUTHOR_NAME='Main Author' GIT_AUTHOR_EMAIL=main@example.invalid \
+  git commit -qm 'feat: Code with its bullet'
+CODE=$(git rev-parse HEAD)
+sed -i 's/^- Code with its bullet\.$/&\n\n- A bullet alone./' NEWS.md
+git add -A
+git commit -qm 'docs(news): A bullet alone'
+NEWS_ONLY=$(git rev-parse HEAD)
+git push -q upstream main
+git checkout -q --detach
+
+out_apply=$(scripts/series-port.sh t --apply 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_apply"
+git fetch -q origin
+if [ "$st" = 0 ]; then ok "the code-and-bullet commit applies after the rename"; else no "the code-and-bullet commit applies after the rename"; printf '%s\n' "$out_apply" | sed 's/^/       /'; fi
+hasnt "with no conflict on the way" "$out_apply" CONFLICT
+has "and says it picked it" "$out_apply" "picked $(git rev-parse --short "$CODE") feat: Code with its bullet"
+if [ "$(git show origin/t-dev:NEWS.md)" = "$series_news" ]; then ok "the series' NEWS.md is unchanged"; else no "the series' NEWS.md is unchanged"; fi
+if [ "$(git show origin/t-dev:R/foo.R)" = "$(git show "$CODE:R/foo.R")" ]; then ok "and the code arrived"; else no "and the code arrived"; fi
+has "under the original author" "$(git log -1 --format='%an <%ae>' origin/t-dev)" 'Main Author <main@example.invalid>'
+has "with the trailer that retires the pick" "$(git log -1 --format=%B origin/t-dev)" "(cherry picked from commit $CODE)"
+out_again=$(scripts/series-port.sh t 2>&1)
+[ -z "${KEEP:-}" ] || echo "$out_again"
+hasnt "so the pick is not offered again" "$out_again" 'Code with its bullet'
+has "while the NEWS-only commit is listed as release paperwork" "$out_again" "VERSION $(git rev-parse --short "$NEWS_ONLY") docs(news): A bullet alone"
+
+tip=$(git rev-parse origin/t-dev)
+out_news=$(scripts/series-port.sh t --apply "$NEWS_ONLY" 2>&1) && st=0 || st=$?
+[ -z "${KEEP:-}" ] || echo "$out_news"
+git fetch -q origin
+if [ "$st" = 0 ]; then ok "a NEWS-only commit named by hand is no error"; else no "a NEWS-only commit named by hand is no error"; printf '%s\n' "$out_news" | sed 's/^/       /'; fi
+has "it is skipped, and says why" "$out_news" "skipped $(git rev-parse --short "$NEWS_ONLY") docs(news): A bullet alone: nothing but NEWS.md is left of it"
+has "so nothing is ported" "$out_news" 'nothing to port'
+if [ "$(git rev-parse origin/t-dev)" = "$tip" ]; then ok "and the series has not moved"; else no "and the series has not moved"; fi
 
 echo
 echo "$pass passed, $fail failed"
