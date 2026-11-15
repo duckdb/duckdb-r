@@ -203,7 +203,8 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   and anything else the batch changes that users of the package notice joins the bullets the pull requests wrote, leaving out the tooling.
 * **The commit**: `chore: Bump version to <v>`.
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only `NEWS.md` and the `Version:` line,
-  with nothing above it, and refuses one whose version does not rise above `<B>`'s;
+  with nothing above it, and refuses one whose version does not rise above `<B>`'s,
+  or whose `NEWS.md` does not start with the version's section or still has an open one;
   `--status` prints `READY` only on a landing that ends on it.
 
 CI judges the bump like every other commit.

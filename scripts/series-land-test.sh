@@ -28,8 +28,9 @@
 #      landing commit that changes it, with every workflow removed first.
 #      A landing is ready only on its hand-written version bump, which may
 #      change nothing but NEWS.md and the Version: line, with nothing above it,
-#      and whose NEWS.md needs the version's section and no line above it;
-#      a rebuild drops a bump added to the kept worktree.
+#      and whose NEWS.md starts on line 1 with the version's section, with
+#      something in it, and keeps no open section; a rebuild drops a bump added
+#      to the kept worktree.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -386,7 +387,6 @@ write_bump 1.99.99.9001
 commit "$bump_msg"
 BUMP=$(git rev-parse HEAD)
 status_of "$BUMP"
-is "NEWS.md starts with the bump's section" "$(git show "$BUMP:NEWS.md" | sed -n 1p)" "# duckdb 1.99.99.9001"
 has "the landing ending on the bump is ready" "$out" "READY: every commit has passed"
 has "and the fast-forward names the bump" "$out" "git push upstream $BUMP:refs/heads/main"
 out=$(scripts/series-land.sh v2.0-x-fwd --review 2>&1) && st=0 || st=$?
@@ -411,11 +411,17 @@ refused "a NEWS-only commit is refused"
 probe; write_bump 1.99.99.9000.2
 refused "a lowered version is refused" "does not raise the version"
 probe; write_bump 1.99.99.9001; git rm -q -f NEWS.md
-refused "a deleted NEWS.md is refused" "NEWS.md has nothing under # duckdb 1.99.99.9001"
+refused "a deleted NEWS.md is refused" "NEWS.md does not start with # duckdb 1.99.99.9001"
 probe; write_bump 1.99.99.9001
 BSUBJ='chore: Bump version to 1.99.99.9002' refused "a subject naming another version is refused"
 probe; write_bump 1.99.99.9001; printf '# duckdb (development version)\n\n- Something.\n\n# duckdb 1.5.5\n' > NEWS.md
-refused "a section left open is refused" "NEWS.md has nothing under # duckdb 1.99.99.9001"
+refused "a section left open is refused" "NEWS.md does not start with # duckdb 1.99.99.9001"
+probe; write_bump 1.99.99.9001; printf '# duckdb (development version)\n\n- Later.\n\n# duckdb 1.99.99.9001\n\n- Something.\n' > NEWS.md
+refused "an open section left above the version's is refused" "NEWS.md does not start with # duckdb 1.99.99.9001"
+probe; write_bump 1.99.99.9001; printf '# duckdb 1.99.99.9001\n\n- Something.\n\n# duckdb (development version)\n\n- Later.\n' > NEWS.md
+refused "a version's section above a still-open one is refused" "NEWS.md still has a # duckdb (development version) section"
+probe; write_bump 1.99.99.9001; sed -i '1i A stray line\n' NEWS.md
+refused "a stray line above the section is refused" "NEWS.md does not start with # duckdb 1.99.99.9001"
 probe; write_bump 1.99.99.9001; printf '# duckdb 1.99.99.9001\n\n# duckdb 1.5.5\n\n- Old.\n' > NEWS.md
 refused "a section with nothing in it is refused"
 probe; write_bump 1.99.99.9001

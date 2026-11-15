@@ -301,11 +301,12 @@ for p in "${strand[@]}"; do strand_excludes+=(":(exclude)$p"); done
 # Is <commit> the hand-written version bump? Not a merge; it changes `NEWS.md`
 # and `DESCRIPTION` and nothing else, and in `DESCRIPTION` only its one
 # `Version:` line, which rises and is the version the subject names; and its
-# `NEWS.md` has a section for that version with something in it
+# `NEWS.md` starts with that version's section, on line 1, with something in it,
+# and keeps no `# duckdb (development version)` section, which the bump closes
 # (handbook/operations/releases/versioning/README.md).
 # Prints the first condition it fails.
 is_bump() { # <commit>
-  local c=$1 old new subj
+  local c=$1 old new subj news
   ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
   [ -z "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] ||
     { echo "changes more than NEWS.md and DESCRIPTION"; return 1; }
@@ -335,7 +336,14 @@ is_bump() { # <commit>
   subj=$(git log -1 --format=%s "$c")
   [ "$subj" = "$bump_subject$new" ] || [[ "$subj" == "$bump_subject$new "* ]] ||
     { echo "the subject does not name version $new"; return 1; }
-  [ -n "$(git show "$c:NEWS.md" 2>/dev/null | awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}')" ] ||
+  # Read once and fed by here-string: `grep -q` ends early, which under pipefail
+  # fails the `git show` writing a NEWS.md longer than the pipe holds.
+  news=$(git show "$c:NEWS.md" 2>/dev/null || true)
+  [ "${news%%$'\n'*}" = "# duckdb $new" ] ||
+    { echo "NEWS.md does not start with # duckdb $new"; return 1; }
+  ! grep -qxF '# duckdb (development version)' <<<"$news" ||
+    { echo "NEWS.md still has a # duckdb (development version) section"; return 1; }
+  [ -n "$(awk -v h="# duckdb $new" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f && NF {print; exit}' <<<"$news")" ] ||
     { echo "NEWS.md has nothing under # duckdb $new"; return 1; }
 }
 
