@@ -110,9 +110,15 @@ and a tag copies the version's section only where the file has one.
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
 so its bump raises the fourth component by one above the version the branch carries, `2.0.99.9000` to `2.0.99.9001`.
+Where the series carries a newer prefix than the branch, the bump opens it at `.9000`:
+`main`'s first landing of its own series takes it from `2.0.0.9000` to `2.0.99.9000`.
+A branch on a released version without a fourth component opens it at `.9000`, `2.0.1` to `2.0.1.9000`,
+whatever older prefix the series still carries.
+[`scripts/landing-version.sh`](/scripts/landing-version.sh) prints that version.
 A release branch landing its own line's commits short of an upstream patch release does the same, `2.0.0.9000` to `2.0.0.9001`,
 and a landing that brings an upstream release sets that release's three components, `2.0.1`.
-[`scripts/series-land.sh`](/scripts/series-land.sh) refuses a bump that does not rise above the branch's version as well as the series',
+[`scripts/series-land.sh`](/scripts/series-land.sh) refuses a bump that keeps the fifth component or falls below the series' first four,
+and one that does not rise above the branch's version,
 because a series not forwarded since the last landing still stamps the older fourth.
 The bump also records the engine:
 `Config/duckdb/upstream:` in `DESCRIPTION`, the full SHA of the upstream commit the landing vendors up to,
@@ -126,12 +132,17 @@ The merge driver resolves it as it resolves `Version:`:
 ours, always, so a pick, a port or a cutover's replay never rewrites the engine a branch records, and a field changed near it merges cleanly.
 A bump that is itself replayed over a changed `DESCRIPTION`, by a fold or a rebase, therefore arrives with the record of the commit it lands on,
 and with its vendor counter back, and `series-land.sh` refuses it until it is stamped again ([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
-A graft never reaches the driver and keeps `main`'s record with the rest of `main`'s tree.
-The merge driver keeps working across these bumps:
+A forward merge meets the driver like any merge, so the newer line keeps its own record.
+`NEWS.md` has a merge driver of its own, [`scripts/merge-news.sh`](/scripts/merge-news.sh), registered with the other by `scripts/setup-git.sh`:
+it merges the file section by section, a section being a `# duckdb <version>` heading and its body,
+and writes the sections newest version first whichever side each came from,
+so a forward merge interleaves the older line's `2.0.1` and `2.0.0.9001` below the newer line's `2.0.99.9001` without a conflict;
+a section both sides changed differently is merged three-way, and conflicts as any line would.
+The `DESCRIPTION` driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
-`main`'s graft of the CRAN line's release branch is a `git merge -s ours`, which keeps `main`'s tree whole,
-`DESCRIPTION` included, so the release branch's `2.0.x` never reaches `main`'s version and the driver is never asked
+A forward merge of an older release branch into a newer line is the one merge whose prefixes differ,
+so the driver keeps the newer line's `Version:` verbatim and the older line's `2.0.x` never reaches it
 ([`branches/model/`](/handbook/branches/model/README.md)).
 
 **A preview line carries the prefix of the line it previews**,

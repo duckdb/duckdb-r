@@ -45,6 +45,7 @@ r-universe builds it from `main`, so it shows the next line, `2.0.99.…`,
 while CRAN gets the current line's releases, cut from `v2.0-cyanoptera`
 ([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).
 The table names the branch r-universe builds.
+The v1.4 and v1.5 lines are stale, awaiting retirement ([`model/`](/handbook/branches/model/README.md)).
 There is no `duckdb.1.5`: v1.5 is not an LTS line,
 and the current release already ships as `duckdb`.
 A new flavor is announced by adding it to `series.yaml`, which this table and
