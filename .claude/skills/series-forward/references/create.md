@@ -29,7 +29,7 @@ previewing 2.0 is `1.99.99.9000`.
 `main` carries the prefix of the line upstream `main` previews itself, so a seed regenerated on it has it already,
 with `main`'s landing counter as its fourth component, and `scripts/preview-prefix.sh` reads that as stamped.
 
-**A seed on a released `main` takes fledge's first dev version as its fourth component.**
+**A seed on a released `main` takes the first development version as its fourth component.**
 On the day of a release `main` carries the bare `1.5.6`,
 and appending the counter's `.0` would leave four components where the replay reads five.
 The seed takes `1.5.6.9000.0`, the version `main`'s own next bump writes,

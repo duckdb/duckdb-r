@@ -3,11 +3,12 @@
 # prefix of the line it *previews*, not the one it was seeded from
 # (handbook/operations/releases/versioning/README.md).
 #
-# A series previewing an unreleased line takes fledge's prefix for that line --
-# `a.b.99` before a minor release, `a.99.99` before a major one -- so previewing
-# 2.1 is `2.0.99.9000` and previewing 2.0 is `1.99.99.9000`. Which line is being
-# previewed is read from the engine the strand vendors, so this needs no input
-# and cannot drift from the tree it stamps.
+# A series previewing an unreleased line takes the prefix that sorts between the
+# line released before it and its own release: `a.b.99` before a minor
+# release, `a.99.99` before a major one. So previewing 2.1 is `2.0.99.9000`
+# and previewing 2.0 is `1.99.99.9000`. Which line is being previewed is read
+# from the engine the strand vendors, so this needs no input and cannot drift
+# from the tree it stamps.
 #
 # **It is owed at a branch cut, by both series.** When upstream cuts a release
 # branch, `main` starts previewing the *next* line the same week, so the series
@@ -96,8 +97,8 @@ esac
 major=${line%%.*}
 minor=${line#*.}
 
-# fledge's own bumps: pre-minor keeps the major and pins the minor at 99;
-# pre-major pins both, one major down.
+# Before a minor release the major is kept and the patch pinned at 99, one
+# minor down; before a major one minor and patch are pinned, one major down.
 if [ "$minor" -gt 0 ]; then
   prefix="$major.$((minor - 1)).99.9000"
 else

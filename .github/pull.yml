@@ -59,3 +59,10 @@ rules:
     upstream: duckdb:v1.5-variegata
     mergeMethod: hardreset
     mergeUnstable: true
+
+  # The line CRAN ships: its release branch is the base of the
+  # `duckdb.2.0.dev` badge, and what that series seeds from.
+  - base: v2.0-cyanoptera
+    upstream: duckdb:v2.0-cyanoptera
+    mergeMethod: hardreset
+    mergeUnstable: true
