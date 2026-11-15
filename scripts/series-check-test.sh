@@ -261,7 +261,8 @@ D=$(git rev-parse HEAD)
 git cherry-pick -x "$A" >/dev/null
 echo 'fix a, edited' > a.R; git commit -q --amend -a --no-edit
 echo 'fix b' > b.R; git add -A; git commit -qm 'fix: B, written again on main'
-printf '# why main does without\n%s E fixes what main never had\n' "$E" > scripts/forward-port-declined
+printf '# why main does without\n\n  %s E fixes what main never had\n%s\nnot a sha at all\n' \
+  "$(tr a-f A-F <<<"$E")" "$C" > scripts/forward-port-declined
 decl rel
 git add -A; git commit -qm 'chore: Publish plain duckdb from rel'
 git checkout -q rel
@@ -277,7 +278,11 @@ hasnt "not one main has by patch-id" "$out" "fix: B"
 hasnt "not a backport from main, edited" "$out" "fix: D"
 hasnt "not release paperwork" "$out" "Bump version"
 hasnt "nor a release with its submission record" "$out" "Release 9.9.1"
-hasnt "not one main declined" "$out" "fix: E"
+hasnt "not one main declined, indented and in capitals" "$out" "fix: E"
+has "a SHA with no reason is named" "$out" "scripts/forward-port-declined, line 4"
+has "and so is a line that is no SHA" "$out" "line 5"
+has "and declines nothing" "$out" "fix: C, owed to main"
+hasnt "a comment or a blank line is no finding" "$out" "line 1"
 has "but a vendor commit with an R-side change, marked" "$out" \
   "$(git rev-parse --short "$VR") vendor: Update vendored sources to duckdb/duckdb@bbbb333 [vendor commit with an R-side change]"
 hasnt "and not one without" "$out" "bbbb222"

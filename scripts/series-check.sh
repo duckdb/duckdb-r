@@ -917,8 +917,23 @@ if [ -n "$cran_branch" ] && [ "$cran_branch" != main ]; then
       git log --format=%B "$mb..$fp_main" |
         sed -nE 's/^\(cherry picked from commit ([0-9a-f]{40})\)$/\1/p')
     main_shas=$(git rev-list "$mb..$fp_main")
-    declined=$({ git show "$fp_main:scripts/forward-port-declined" 2>/dev/null || true; } |
-      sed -nE 's/^([0-9a-f]{40})([[:space:]].*)?$/\1/p')
+    # A line is a full SHA, in either case and after any indentation, then a
+    # reason; blank lines and `#` comments are skipped, and anything else is
+    # named below rather than dropped unseen.
+    declined_raw=$({ git show "$fp_main:scripts/forward-port-declined" 2>/dev/null || true; } |
+      awk '{ sub(/^[[:space:]]+/, "") }
+        $0 == "" || /^#/ { next }
+        /^[0-9a-fA-F]{40}[[:space:]]+[^[:space:]]/ { print "ok " tolower(substr($0, 1, 40)); next }
+        { print "bad " NR ": " $0 }')
+    declined=$(sed -n 's/^ok //p' <<<"$declined_raw")
+    declined_bad=$(sed -n 's/^bad //p' <<<"$declined_raw")
+    if [ -n "$declined_bad" ]; then
+      echo
+      while IFS= read -r l; do
+        echo "FORWARD-PORT  scripts/forward-port-declined, line $l"
+        echo "              is not a full SHA and a reason, so it declines nothing."
+      done <<<"$declined_bad"
+    fi
     engine_paths=()
     for x in "${series_strand[@]}" "${series_makevars[@]}" DESCRIPTION; do engine_paths+=(":(exclude)$x"); done
     owed=()
