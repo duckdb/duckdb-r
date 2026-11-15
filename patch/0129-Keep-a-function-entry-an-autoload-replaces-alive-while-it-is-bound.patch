@@ -64,7 +64,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
  #include "duckdb/catalog/catalog_entry/window_function_catalog_entry.hpp"
  #include "duckdb/common/limits.hpp"
  #include "duckdb/common/numeric_utils.hpp"
-@@ -1133,10 +1134,25 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
+@@ -1148,11 +1149,26 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
  	return return_type.IsComplete() ? return_type : LogicalType::SQLNULL;
  }
  
@@ -86,12 +86,13 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
 +unique_ptr<Expression> FunctionBinder::BindScalarFunction(const ScalarFunctionCatalogEntry &func_p,
                                                            vector<pair<Identifier, unique_ptr<Expression>>> arguments,
                                                            ErrorData &error, bool is_operator,
-                                                           optional_ptr<Binder> binder) {
+                                                           optional_ptr<Binder> binder, Identifier alias,
+                                                           QueryLocation query_location) {
 +	auto &func = GetCurrentEntry(func_p).Cast<ScalarFunctionCatalogEntry>();
  	// select the best matching overload (this may name positional arguments by their alias for functions that opt
  	// into implicit argument naming, e.g. struct_pack/row)
  	vector<unique_ptr<Expression>> regular_args;
-@@ -1654,9 +1670,10 @@ FunctionBinder::BindAggregateFunction(FunctionBinding binding, vector<unique_ptr
+@@ -1688,9 +1704,10 @@ FunctionBinder::BindAggregateFunction(FunctionBinding binding, vector<unique_ptr
  }
  
  unique_ptr<BoundAggregateExpression>
@@ -103,7 +104,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
  	// select the best matching overload (this may name positional arguments by their alias for functions that opt
  	// into implicit argument naming, e.g. struct_pack/row)
  	vector<unique_ptr<Expression>> regular_args;
-@@ -1751,9 +1768,10 @@ FunctionBinder::BindWindowFunction(const FunctionBinding &binding, vector<unique
+@@ -1785,9 +1802,10 @@ FunctionBinder::BindWindowFunction(const FunctionBinding &binding, vector<unique
  }
  
  unique_ptr<BoundWindowExpression>
@@ -127,9 +128,9 @@ diff --git a/src/duckdb/src/include/duckdb/function/function_binder.hpp b/src/du
 +	//! (the catalog keeps the superseded entry alive): the overload is then chosen from the entry that replaced it.
 +	DUCKDB_API const CatalogEntry &GetCurrentEntry(const CatalogEntry &entry);
 +
- 	DUCKDB_API unique_ptr<Expression> BindScalarFunction(const Identifier &schema, const Identifier &name,
- 	                                                     vector<unique_ptr<Expression>> children, ErrorData &error,
- 	                                                     bool is_operator = false,
+ 	DUCKDB_API unique_ptr<Expression>
+ 	BindScalarFunction(const Identifier &schema, const Identifier &name, vector<unique_ptr<Expression>> children,
+ 	                   ErrorData &error, bool is_operator = false, optional_ptr<Binder> binder = nullptr,
 diff --git a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 --- a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 +++ b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
