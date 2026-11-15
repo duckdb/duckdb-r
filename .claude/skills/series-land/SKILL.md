@@ -315,7 +315,7 @@ Its version is in the pull request's title, and the tag is the pull request's ow
 ```sh
 R=duckdb/duckdb-r
 gh api "repos/$R/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title, .head.sha] | @tsv'
-n=$(gh api "repos/$R/pulls?state=open&head=duckdb:fledge" --jq '.[0].number')
+n=<number>
 v=$(gh api repos/$R/pulls/$n --jq '.title | sub("^fledge: Bump version to "; "")')
 git ls-remote upstream "refs/tags/v$v^{}"    # the same SHA as the pull request's head
 gh api -X PATCH repos/$R/pulls/$n -f state=closed
