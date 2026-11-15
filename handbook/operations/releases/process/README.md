@@ -188,7 +188,7 @@ Every fold-back fix is **born on a canonical branch** and forward-ported down th
 chain — never authored directly on a `<S>-dev` branch.
 That branch is the one the series releases from:
 `main`, or for a line with a release branch of its own that branch,
-from which the fix is picked onto `main` too where `main` needs it
+from which the fix is picked onto `main` too where `main` needs it, before `main` grafts the branch
 ([`branches/model/`](/handbook/branches/model/README.md) owns that rule).
 C++ issues go into `patch/` and are simultaneously sent upstream as a
 pull request, so the patch can eventually retire
@@ -242,7 +242,8 @@ Bring the tagged `<S>-dev` content onto the release branch
 **linearly, never as a merge commit** — the active history stays
 merge-free so it stays bisectable.
 For a line with a release branch of its own this is a landing onto it,
-`scripts/series-land.sh <S> --onto <release branch>`, ending on the bump to `X.Y.Z`
+`scripts/series-land.sh <S>` with the branch its `releases_from` names, ending on the bump to `X.Y.Z`,
+and `main` grafts the branch once it has picked what it wants
 ([`series-land`](/.claude/skills/series-land/SKILL.md)).
 Fast-forward or rebase the tagged range onto the release branch,
 dropping the flavor rename commit.

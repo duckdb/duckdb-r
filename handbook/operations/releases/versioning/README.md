@@ -118,6 +118,9 @@ The commit takes the annotated tag `v<version>`, `v2.0.99.9001`.
 The merge driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
+`main`'s graft of the CRAN line's release branch is a `git merge -s ours`, which keeps `main`'s tree whole,
+`DESCRIPTION` included, so the release branch's `2.0.x` never reaches `main`'s version and the driver is never asked
+([`branches/model/`](/handbook/branches/model/README.md)).
 
 **A preview line carries the prefix of the line it previews**, which is the one
 [fledge](https://fledge.cynkra.com/) would write for it:

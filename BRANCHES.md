@@ -263,7 +263,10 @@ accepted in exchange for a bisectable, merge-free active history.
 - **L — No new merge commits.** The active region above the seed and every
   release transition are linear: forward-ports are `cherry-pick`s, releases are
   fast-forwards or rebases, and PRs never create a merge commit (use "Rebase and
-  merge", or a fast-forward push). Deep history below the release baselines still
+  merge", or a fast-forward push). *Exception:* `main`'s graft of the CRAN
+  line's release branch, a `git merge -s ours` after each landing there, which
+  leaves `main`'s tree and its first-parent line as they were
+  ([`branches/model/`](/handbook/branches/model/README.md)). Deep history below the release baselines still
   contains ~170 historical PR merges from before this policy; those are
   grandfathered. *(Currently nearly satisfied: `main-dev` adds 0 merges over 402
   commits, `v1.4-andium-dev` 0 over 3 — but `v1.5-variegata-dev` carries 1 stray
@@ -346,15 +349,17 @@ release.
   A line with its own release branch takes its R side from that branch, not
   from `main`, and the two canonical branches exchange fixes by cherry-pick
   ([`branches/model/`](/handbook/branches/model/README.md)), so `main ⊇ dev`
-  holds only for the series that release from `main`.
+  holds only for the series that release from `main`; what `main` took of the
+  release branch, or declined, is recorded by its graft.
 - **G2 — Patch-stack derivation.** Each `dev`'s `patch/` equals `main`'s patch
   set minus the patches already merged into *that series'* upstream branch.
   `patch/` may therefore legitimately differ between series; it is never
   hand-authored per series beyond dropping patches that landed upstream.
-- **G3 — Two canonical lines.** Every commit on the release branch of the line
-  CRAN ships has a counterpart on `main`, by patch-id or by a `cherry picked
-  from commit` trailer either way, except its vendor commits and version bumps;
-  `scripts/series-check.sh` names the ones that have none.
+- **G3 — Two canonical lines.** After each landing on the release branch of the
+  line CRAN ships, `main` grafts it, so the branch is an ancestor of `main`;
+  every commit since the last graft is picked onto `main` or declined in the
+  graft's message, and `scripts/series-check.sh` lists the ones not grafted yet
+  ([`branches/model/`](/handbook/branches/model/README.md)).
 
 ### CI / green
 
@@ -375,7 +380,8 @@ release.
   the one the series releases from, before any `dev` (a `dev` fix with no
   counterpart there violates S4). For the line with its own release branch that
   is the release branch, and the fix reaches `main` afterwards by cherry-pick
-  where `main` needs it too ([`branches/model/`](/handbook/branches/model/README.md)).
+  where `main` needs it too, before `main` grafts the branch
+  ([`branches/model/`](/handbook/branches/model/README.md)).
 - **P4 — Freeze convergence (barrier).** At GLUE FREEZE, `git cherry <R> dev` is
   empty for *every* releasing series simultaneously, each against the branch
   `<R>` it releases from, so every releasing line carries its release branch's

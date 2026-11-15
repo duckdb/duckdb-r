@@ -228,15 +228,23 @@ by [`series-port.sh`](/scripts/series-port.sh), the loop's port stage
 no series ports from another, and a line releasing from a branch of its own, current or parked, takes the tooling sync alone.
 Its R side comes from that branch instead, which is what its seed stands on.
 
-**Between `main` and the release branch of the line CRAN ships, a fix travels either way, as a cherry-pick.**
-The two carry different engines, so neither is merged into the other, and neither is grafted into the other's ancestry.
+**Between `main` and the release branch of the line CRAN ships, fixes travel as cherry-picks, and `main` grafts the branch after each landing.**
 A fix both lines need is written where it is found:
 on `main` and backported to the release branch with `git cherry-pick -x`,
 or as a pull request against the release branch and forward-ported to `main` the same way.
-The `cherry picked from commit` trailer is what pairs the two copies where a conflict changed the text,
-and [`scripts/series-check.sh`](/scripts/series-check.sh) lists the commits of the release branch `main` has not taken yet,
-each marked picked, vendor or not yet.
-Tooling is the exception: it is `main`'s alone, and reaches the release branch only as a backport.
+The `cherry picked from commit` trailer is what pairs the two copies where a conflict changed the text.
+After each landing on the release branch, once `main` has picked what it wants of it,
+`main` takes the branch with `git merge -s ours`, the **graft**, as a pull request:
+`main`'s tree stays as it was, the release branch becomes an ancestor of `main`,
+and the merge's message names each commit `main` declined, with the reason
+([`series-land`](/.claude/skills/series-land/SKILL.md) has the commands).
+The release branch's engine is always declined, since `main` takes its own from upstream `main`.
+[`scripts/series-check.sh`](/scripts/series-check.sh) lists what `main` has not grafted yet, `main..<release branch>`,
+each commit marked picked, vendor or not yet, and a grafted commit is never listed again.
+The release branch never takes `main` the other way: `main` carries another engine.
+Tooling is the exception to "written where it is found": it is `main`'s alone, and reaches the release branch only as a backport.
+A script that walks `main`'s own history reads its first parents, or the commits a graft's tree leaves out,
+so a graft's second parent never counts as `main`'s work.
 The fork's `main` takes no part in it: it is a mirror and moves on its own
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
 
