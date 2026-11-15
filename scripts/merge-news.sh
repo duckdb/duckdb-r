@@ -21,6 +21,9 @@
 #   * the sections are written newest version first, compared component by
 #     component as numbers, whatever side each came from.
 #
+# Without python3 the driver merges the file line by line with `git merge-file`,
+# and says so.
+#
 # Registered by scripts/setup-git.sh as the `news` driver, which .gitattributes
 # names for NEWS.md (handbook/operations/releases/versioning/README.md).
 #
@@ -28,6 +31,11 @@
 set -euo pipefail
 
 [ $# -eq 3 ] || { echo "usage: merge-news.sh <ancestor> <ours> <theirs>" >&2; exit 2; }
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "merge-news.sh: no python3, so NEWS.md is merged line by line and not put in version order" >&2
+  exec git merge-file -L ours -L base -L theirs "$2" "$1" "$3"
+fi
 
 exec python3 -I - "$@" <<'PY'
 import re
