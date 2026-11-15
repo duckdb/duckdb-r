@@ -1,5 +1,7 @@
 # Delete one branch, on dispatch, only where the head of a closed pull request
-# in this repository is the branch's tip, so the deletion loses nothing. A
+# in this repository is the branch's tip, or, with no pull request named, where
+# a forward's branch `<x>-fwd-<y>` has its twin `<x>-<y>` at the same tip, so
+# the deletion loses nothing. A
 # cloud session dispatches it because its git proxy refuses a deletion. It runs
 # in the canonical repository and in the fork alike, from the copy on `main`.
 # What it refuses is in scripts/delete-branch.sh's header; why it exists is in
@@ -8,6 +10,7 @@
 # Dispatch, one call per branch:
 #   gh api -X POST repos/<owner>/<repo>/actions/workflows/delete-branch.yaml/dispatches \
 #     -f ref=main -f 'inputs[branch]=<branch>' -f 'inputs[pr]=<number>'
+# and for a forward's branch at its twin's tip, without `inputs[pr]`.
 
 name: delete-branch
 
@@ -19,9 +22,10 @@ on:
         type: string
         required: true
       pr:
-        description: "The number of a closed pull request whose head is the branch's tip"
+        description: "The number of a closed pull request whose head is the branch's tip; empty for a -fwd- branch at its twin's tip"
         type: string
-        required: true
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -60,5 +64,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ inputs.branch }}
           PR: ${{ inputs.pr }}
-        run: scripts/delete-branch.sh "$BRANCH" "$PR"
+        run: scripts/delete-branch.sh "$BRANCH" ${PR:+"$PR"}
         shell: bash

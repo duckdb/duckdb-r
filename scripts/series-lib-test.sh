@@ -19,9 +19,10 @@
 #      a merge that keeps the engine never answers the base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches: the
-#      dispatch of the deletion workflow, naming the lowest-numbered pull
-#      request whose head is the branch's tip and listing them all where there
-#      are several, or a tip-checked `gh api -X DELETE` where none is.
+#      dispatch of the deletion workflow, with no pull request for a forward's
+#      branch at its twin's tip, else naming the lowest-numbered pull request
+#      whose head is the branch's tip and listing them all where there are
+#      several, or a tip-checked `gh api -X DELETE` where neither holds.
 #   7. A forward merge that conflicts in the engine, the version file and the
 #      Makevars, adds an engine file and deletes a patch the other side changed
 #      keeps this side's engine byte for byte, and merges the R side.
@@ -250,6 +251,20 @@ has "and one no pull request pins is checked against the tip read" "$(series_del
 series_delete_listing readable
 git -C "$SCRATCH/gh.git" update-ref -d refs/pull/2/head
 is "a listing loaded once is read instead of the remote" "$(series_delete_line readable litter)" "${dispatch}litter' -f 'inputs[pr]=2'"
+# A forward's branch whose twin, the name without its `fwd-`, is at the same tip needs no pull request,
+# and that proof comes before a pull request's, read from the listing or from the remote alike.
+git push -q "$SCRATCH/gh.git" "$tipc:refs/heads/b-dev" "$u:refs/heads/v2.0-x-fwd-green" "$other:refs/heads/v2.0-x-green" \
+  "$u:refs/heads/main-fwd-green" "$u:refs/heads/main-green" "$u:refs/heads/a-fwd-b-fwd-c" "$u:refs/heads/a-b-fwd-c"
+unset 'series_delete_cache[readable]'
+is "a forward's branch at its twin's tip is dispatched without a pull request" "$(series_delete_line readable b-fwd-dev)" \
+  "${dispatch}b-fwd-dev'"
+is "main-fwd-green's twin is main-green" "$(series_delete_line readable main-fwd-green)" "${dispatch}main-fwd-green'"
+series_delete_listing readable
+is "and the loaded listing holds the twin" "$(series_delete_line readable main-fwd-green)" "${dispatch}main-fwd-green'"
+has "a twin at another tip proves nothing" "$(series_delete_line readable v2.0-x-fwd-green)" "for a maintainer's shell"
+has "nor does a name with -fwd- twice" "$(series_delete_line readable a-fwd-b-fwd-c)" "for a maintainer's shell"
+has "a tip the caller read that the twin is not at falls back to the other proofs" "$(series_delete_line readable b-fwd-dev "$other")" \
+  "if [ \"\$(gh api repos/o/r/git/ref/heads/b-fwd-dev --jq .object.sha)\" = $other ]"
 unset GIT_ALLOW_PROTOCOL
 
 echo "--- 7. a forward merge keeps this side's engine"

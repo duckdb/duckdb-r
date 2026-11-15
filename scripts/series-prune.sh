@@ -26,9 +26,10 @@
 # each leased on or checked against the tip read here, so a ref that moved since is refused:
 # one `git push` per repository, and, for a remote on GitHub,
 # one line per ref, for where git may not delete at all, as in a cloud session, whose git proxy refuses it:
-# a dispatch of .github/workflows/delete-branch.yaml, for a session, where a pull request's head is the ref's tip,
-# since the workflow deletes a ref only where a closed pull request's head is its tip,
-# and otherwise, as for litter whose tip no pull request holds, a `gh api -X DELETE` that checks the tip first,
+# a dispatch of .github/workflows/delete-branch.yaml, for a session, where the workflow can prove the deletion safe:
+# for a `-fwd-` ref whose twin, the same name without the `fwd-`, is at its tip, as litter is right after a swap,
+# or where a closed pull request's head is the ref's tip;
+# and otherwise, as for litter whose series ref has moved on since, a `gh api -X DELETE` that checks the tip first,
 # for a maintainer's shell (`series_delete_line`, scripts/series-lib.sh).
 # The second is the form scripts/series-cutover.sh prints for what its own deletion left.
 #
@@ -152,8 +153,9 @@ if [ -n "$canon_has_fwd" ] && [ -n "$(series_github_slug "$canonical")" ]; then
   gh_lines+=("$(series_delete_line "$canonical" "$S-fwd-green" "$canon_tip")")
 fi
 if [ ${#gh_lines[@]} -gt 0 ]; then
-  echo "or, where git may not delete, one line per ref: a dispatch of the deletion workflow, for a session,"
-  echo "where a pull request's head is the tip, else a deletion that checks the tip first, for a maintainer's shell:"
+  echo "or, where git may not delete, one line per ref: a dispatch of the deletion workflow, for a session, where the"
+  echo "ref's twin without its fwd- or a pull request's head is at its tip, else a deletion that checks the tip first,"
+  echo "for a maintainer's shell:"
   printf '%s\n' "${gh_lines[@]}"
 fi
 echo "Nothing above was run."

@@ -230,8 +230,8 @@ series_github_slug() { # <remote> -> owner/repo, empty when none
   echo "$slug"
 }
 
-# The listing `series_delete_line` reads, per remote: its branches and its pull
-# requests' heads, thousands of refs in the fork. A caller that prints several
+# The listing `series_delete_line` reads, per remote: its branches, twins
+# included, and its pull requests' heads, thousands of refs in the fork. A caller that prints several
 # lines loads it once with `series_delete_listing <remote>`, outside the command
 # substitutions that call `series_delete_line`, which then read it; without it,
 # each line runs its own `git ls-remote`. A remote that cannot be read is not
@@ -248,32 +248,38 @@ series_delete_listing() { # <remote>
 
 # The command that deletes one branch of a remote, at a tip: the one the caller
 # passes, which it read and checked, or else the one the remote holds now. Every
-# form refuses a branch that is no longer at that tip, so a ref that moved after
-# the caller read it is never deleted by the line
+# form refuses a branch that moved after that read, unless what it moved to is
+# again proven safe to delete
 # (scripts/series-cutover.sh, scripts/series-prune.sh,
 # scripts/series-cutover-stack.sh). Off GitHub it is a `git push` leased on the
-# tip. On GitHub, where a pull request's head there is the tip, it is a
-# session's to run: a dispatch of .github/workflows/delete-branch.yaml, which
-# deletes the branch only while a closed pull request's head is its tip
-# (handbook/branches/model/README.md), for where `git push --delete` is refused,
-# as a cloud session's git proxy refuses it. It names the lowest-numbered such
-# pull request, read with `git ls-remote`, and where there are several, lists
-# them all in a comment, since the lowest may be open. Where no pull request's
-# head is the tip, as for cutover litter, the workflow cannot pin it, and the
-# line is a maintainer's: a `gh api -X DELETE` that checks the tip first, since
-# the API takes no lease. A tip it cannot read gets the `git ls-remote` that
-# reads it, which deletes nothing. Whether another branch at the same tip should
-# pin it is open: https://github.com/duckdb/duckdb-r/pull/2992#issuecomment-6896800985
+# tip. On GitHub it is, for where `git push --delete` is refused, as a cloud
+# session's git proxy refuses it, a dispatch of
+# .github/workflows/delete-branch.yaml for a session to run, wherever the
+# workflow's proof holds in the listing (handbook/branches/model/README.md):
+# for a forward's branch, `-fwd-` once in its name, whose twin, the name with
+# that `-fwd-` replaced by `-`, is at the tip, as all cutover litter is right
+# after the swap, a dispatch with no pull request; else, where a pull request's
+# head is the tip, a dispatch naming the lowest-numbered one, read with
+# `git ls-remote`, and listing them all in a comment where there are several,
+# since the lowest may be open. Where neither holds, the workflow cannot prove
+# the deletion safe, and the line is a maintainer's: a `gh api -X DELETE` that
+# checks the tip first, since the API takes no lease. A tip it cannot read gets
+# the `git ls-remote` that reads it, which deletes nothing.
 # One line per ref, so each can be run, or quoted, on its own.
 series_delete_line() { # <remote> <branch> [<tip>] -> one command
-  local slug refs='' tip=${3:-} prs pr note
+  local slug refs='' tip=${3:-} prs pr note twin=''
   slug=$(series_github_slug "$1")
+  # A forward's branch, `-fwd-` once in its name, and its twin, the name without the `fwd-`.
+  case "$2" in
+    *-fwd-*-fwd-*) ;;
+    *-fwd-*) twin=${2/-fwd-/-} ;;
+  esac
   if [ -z "$tip" ] || [ -n "$slug" ]; then
     if [ -n "${series_delete_cache[$1]+x}" ]; then
       refs=${series_delete_cache[$1]}
     else
       # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
-      refs=$(git ls-remote "$1" "refs/heads/$2" ${slug:+'refs/pull/*/head'} 2>/dev/null) || refs=''
+      refs=$(git ls-remote "$1" "refs/heads/$2" ${twin:+"refs/heads/$twin"} ${slug:+'refs/pull/*/head'} 2>/dev/null) || refs=''
     fi
     [ -n "$tip" ] || tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
   fi
@@ -283,6 +289,11 @@ series_delete_line() { # <remote> <branch> [<tip>] -> one command
   fi
   if [ -z "$slug" ]; then
     echo "git push --force-with-lease=refs/heads/$2:$tip $1 :refs/heads/$2"
+    return
+  fi
+  if [ -n "$twin" ] && [ "$(awk -v r="refs/heads/$twin" '$2 == r { print $1 }' <<<"$refs")" = "$tip" ]; then
+    echo "gh api -X POST repos/$slug/actions/workflows/delete-branch.yaml/dispatches" \
+      "-f ref=main -f 'inputs[branch]=$2'"
     return
   fi
   prs=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); print p[3] }' <<<"$refs" |
