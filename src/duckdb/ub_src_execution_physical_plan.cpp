@@ -48,8 +48,6 @@
 
 #include "src/execution/physical_plan/plan_empty_result.cpp"
 
-#include "src/execution/physical_plan/plan_execute.cpp"
-
 #include "src/execution/physical_plan/plan_explain.cpp"
 
 #include "src/execution/physical_plan/plan_export.cpp"

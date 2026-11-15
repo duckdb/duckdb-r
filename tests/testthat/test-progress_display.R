@@ -111,15 +111,16 @@ test_that("a progress callback outlives a collection between the reads of a stre
   }
   calls <- 0L
 
-  # The engine reports progress on a stream's first read, which runs the query,
-  # and on no read after it, so only that read can show the callback survived.
+  # The query runs from its submission on, and which read reports progress
+  # depends on how far it got meanwhile; the last one always does, when the
+  # query finishes, so the callback must have run by the end of the stream.
   rows <- 0
   batch <- stream$get_next()
-  expect_gt(calls, 0L)
   while (!is.null(batch)) {
     rows <- rows + batch$length
     batch <- stream$get_next()
   }
+  expect_gt(calls, 0L)
   expect_equal(rows, 500000)
 })
 

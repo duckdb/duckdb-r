@@ -6,8 +6,6 @@
 
 #include "src/execution/operator/helper/physical_disconnect.cpp"
 
-#include "src/execution/operator/helper/physical_execute.cpp"
-
 #include "src/execution/operator/helper/physical_explain_analyze.cpp"
 
 #include "src/execution/operator/helper/physical_external_resource.cpp"
