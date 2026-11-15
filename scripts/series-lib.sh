@@ -230,17 +230,35 @@ series_github_slug() { # <remote> -> owner/repo, empty when none
   echo "$slug"
 }
 
-# The command that deletes one branch of a remote, for a human to run where
-# `git push --delete` is refused, as a cloud session's git proxy refuses it:
-# `gh api` against the repository the remote names, or `git push --delete` for
-# a remote that is not on GitHub. One line per ref, so each can be run, or
-# quoted, on its own (scripts/series-cutover.sh, scripts/series-prune.sh).
+# The command that deletes one branch of a remote, for a person or a session to
+# run where `git push --delete` is refused, as a cloud session's git proxy
+# refuses it (scripts/series-cutover.sh, scripts/series-prune.sh,
+# scripts/series-cutover-stack.sh). On GitHub it dispatches
+# .github/workflows/delete-branch.yaml in the repository the remote names,
+# which deletes the branch only where a closed pull request's head there is the
+# branch's tip (handbook/branches/model/README.md); off GitHub it is
+# `git push --delete`. The pull request is read with git alone, from
+# `git ls-remote`: the lowest-numbered one whose head is the branch's tip. Where
+# none is, or the remote cannot be read, the line names a placeholder, which the
+# workflow refuses, and a comment saying what it needs. One line per ref, so
+# each can be run, or quoted, on its own.
 series_delete_line() { # <remote> <branch> -> one command
-  local slug
+  local slug refs tip pr note=''
   slug=$(series_github_slug "$1")
-  if [ -n "$slug" ]; then
-    echo "gh api -X DELETE repos/$slug/git/refs/heads/$2"
-  else
+  if [ -z "$slug" ]; then
     echo "git push --delete $1 $2"
+    return
   fi
+  # The whole listing is read, never stopped at the first match, so the reader cannot end `git ls-remote` by SIGPIPE.
+  refs=$(git ls-remote "$1" "refs/heads/$2" 'refs/pull/*/head' 2>/dev/null) || refs=''
+  tip=$(awk -v r="refs/heads/$2" '$2 == r { print $1 }' <<<"$refs")
+  pr=$(awk -v t="$tip" '$1 == t && $2 ~ /^refs\/pull\/[0-9]+\/head$/ { split($2, p, "/"); if (n == "" || p[3] + 0 < n + 0) n = p[3] }
+    END { print n }' <<<"$refs")
+  if [ -z "$tip" ]; then
+    pr='<pr>' note="  # the tip of $2 could not be read; name a closed pull request whose head is that tip"
+  elif [ -z "$pr" ]; then
+    pr='<pr>' note="  # no pull request's head is at ${tip:0:12}, the tip of $2; name a closed one whose head is"
+  fi
+  echo "gh api -X POST repos/$slug/actions/workflows/delete-branch.yaml/dispatches" \
+    "-f ref=main -f 'inputs[branch]=$2' -f 'inputs[pr]=$pr'$note"
 }

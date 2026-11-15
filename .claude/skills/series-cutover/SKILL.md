@@ -189,12 +189,22 @@ A pull request body takes reflowed paragraphs, not semantic line breaks.
     ```
 
     Where the remote refuses a deletion, as a cloud session's git proxy does,
-    hand the maintainer one `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` line per branch,
-    beside what the swap left behind, as it printed it.
+    dispatch [`delete-branch.yaml`](/.github/workflows/delete-branch.yaml) yourself, one call per branch,
+    naming each stack branch's own closed pull request:
+
+    ```sh
+    gh api -X POST repos/<owner>/<repo>/actions/workflows/delete-branch.yaml/dispatches \
+      -f ref=main -f 'inputs[branch]=<branch>' -f 'inputs[pr]=<number>'
+    ```
+
+    It deletes a branch only where the pull request is closed and its head is the branch's tip, and refuses anything else.
+    The workflow runs from the copy on the repository's `main`, so in the fork it works only once the fork's `main` carries the file;
+    until then, hand the exact dispatch lines to whoever can reach the fork, beside what the swap left behind, as it printed it.
     A litter ref's deletion loses nothing, but a moved ref may hold commits no other ref has, so what moved is read first,
     and nothing refused is routed around.
     Then close the cutover pull request with the outcome:
-    the command and its exit status, the verification, the undo, and the delete lines, each fenced so that it can be run as it stands.
+    the command and its exit status, the verification, the undo, and the delete lines, each fenced so that it can be run as it stands;
+    `cutover/<S>/pr` goes last, by a dispatch that names the cutover pull request, once it is closed.
 
 ## What each layer is expected to show
 

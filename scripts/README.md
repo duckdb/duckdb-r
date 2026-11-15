@@ -53,6 +53,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`pull-config.sh`](pull-config.sh) | Read-only: does `.github/pull.yml` rule every mirror a badge measures against? |
 
+## [`branches/model/`](/handbook/branches/model/README.md)
+
+| File | Purpose |
+|---|---|
+| [`delete-branch-test.sh`](delete-branch-test.sh) | Check scripts/delete-branch.sh, offline, against a bare repository built here as the remote and a stand-in for `gh api` that answers a pull request's state: ... |
+| [`delete-branch.sh`](delete-branch.sh) | Delete a branch only where a closed pull request's head in the same repository is the branch's tip, so the deletion loses nothing: GitHub keeps `refs/pull/<n... |
+
 ## [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 
 | File | Purpose |
