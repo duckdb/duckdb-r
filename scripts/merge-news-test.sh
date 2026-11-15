@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Nine things are checked:
+# version first, whichever side a section came from. Ten things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -20,6 +20,9 @@
 #   8. A heading with a date or a note after the version orders by the version.
 #   9. Without python3, the file is merged line by line, conflict markers and
 #      all, with a warning.
+#  10. A release renaming `2.0.0.9000` to `2.0.1` while the newer line adds
+#      `2.0.99.9001` merges section by section, cleanly and in order, on both
+#      sides; without python3 it stays a line merge and conflicts.
 #
 # Usage:
 #   scripts/merge-news-test.sh
@@ -134,6 +137,22 @@ out=$(PATH=$PWD/nopy "$HERE/merge-news.sh" O A B 2>&1) && st=0 || st=$?
 is "it reports the conflict" "$st" 1
 has "and says why it merged by line" "$out" "no python3"
 has "with conflict markers in place" "$(cat A)" "<<<<<<< ours"
+
+echo "== 10. a release renames its development section"
+rename_case() {
+  news 2.0.0.9000 2.0.0 > O
+  { sec 2.0.99.9001; news 2.0.0.9000 2.0.0; } > "$1"
+  { sec 2.0.1 "Changes in 2.0.0.9000."; sec 2.0.0; } > "$2"
+}
+rename_case A B
+is "it merges cleanly" "$(merge)" 0
+is "newest first, the renamed section under its new heading" "$(headings A)" "2.0.99.9001 2.0.1 2.0.0 "
+rename_case B A
+is "the sides swapped, it merges cleanly" "$(merge)" 0
+is "  and to the same headings" "$(headings A)" "2.0.99.9001 2.0.1 2.0.0 "
+rename_case A B
+out=$(PATH=$PWD/nopy "$HERE/merge-news.sh" O A B 2>&1) && st=0 || st=$?
+is "without python3 it stays a line merge and conflicts" "$st" 1
 
 echo
 echo "$pass passed, $fail failed"

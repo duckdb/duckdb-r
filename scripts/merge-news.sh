@@ -20,11 +20,16 @@
 #   * the sections are written newest version first, compared component by
 #     component as numbers, whatever side each came from.
 #
-# Where a section of the base is gone from one side, renamed there or deleted,
-# sections cannot be matched safely, so the whole file is merged line by line
-# with `git merge-file` instead, and the sections of a clean result are put in
-# order the same way. Without python3 the driver falls back to that line merge
-# alone, and says so.
+#   * a section of the base gone from one side, renamed there or deleted, and
+#     left alone on the other is gone, and a renamed one is taken under its new
+#     heading: a release renaming `2.0.0.9000` to `2.0.1` merges cleanly.
+#
+# Where a section of the base is gone from one side and edited on the other,
+# matching by heading would set the edit against nothing, so the whole file is
+# merged line by line with `git merge-file` instead, and the sections of a clean
+# result are put in order the same way. Without python3 the driver falls back to
+# that line merge alone, and says so; a renamed heading next to a new section
+# then conflicts.
 #
 # Registered by scripts/setup-git.sh as the `news` driver, which .gitattributes
 # names for NEWS.md (handbook/operations/releases/versioning/README.md).
@@ -122,10 +127,11 @@ def ordered(merged):
 
 O, A, B = (sections(read(p)) for p in (o_path, a_path, b_path))
 
-# A base section gone from one side may have been renamed there: matching by
-# heading would set the renamed section against the old one, so merge the
-# file line by line, and order a clean result.
-if any(k is not None and (k not in A or k not in B) for k in O):
+# A base section gone from one side, renamed there or deleted, and edited on
+# the other: matching by heading would drop the edit, so merge the file line by
+# line, and order a clean result. Gone and left alone, the loop below drops it.
+if any(k is not None and ((k not in A and B.get(k, O[k]) != O[k]) or (k not in B and A.get(k, O[k]) != O[k]))
+       for k in O):
     text, conflict = merge3(read(a_path), read(o_path), read(b_path))
     write(text if conflict else ordered(sections(text)))
     sys.exit(1 if conflict else 0)
