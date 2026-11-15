@@ -1,7 +1,7 @@
 # Versioning
 
 The package version — `Version:` in `DESCRIPTION`, the one place
-it lives — its components, and the tools that advance them.
+it lives — its components, what advances them, and how `NEWS.md` is kept beside it.
 The full version handling inside the release sequence is in
 [`process/`](/handbook/operations/releases/process/README.md).
 
@@ -95,7 +95,7 @@ A release's tag is written the same way, by the CRAN submission
 After a release `X.Y.Z` the branch released from moves on to `X.Y.Z.9000`, the first development version,
 in a bump that changes `DESCRIPTION` alone, there being no section to close, and takes no tag.
 
-**`NEWS.md` is kept by hand: a change users notice brings its bullet in its own pull request.**
+**`NEWS.md` is kept by hand: a change users notice brings its bullet in the pull request that makes it.**
 The bullet goes into the open section at the top of the file, headed `# duckdb (development version)`,
 and a pull request that finds no open section writes that heading above the newest version's.
 Bullets sit under the subsection headings the released sections use, `## Features` and `## Bug fixes` among them,
