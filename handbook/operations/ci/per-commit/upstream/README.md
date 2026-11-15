@@ -1,12 +1,13 @@
 # Verdicts upstream
 
 The per-commit verdicts shown in the canonical repository:
-the `each-rcc (fork)` status on the commits of an open pull request from the fork,
+the `each-rcc (fork)` status on the commits of an open pull request from the fork
+and of every series' green branch,
 and the workflow that copies it there.
 
 `each.yaml` runs in `krlmlr/duckdb-r` alone ([`branches/model/`](/handbook/branches/model/README.md)),
 so the `rcc` status its legs write lands on the fork's copy of a commit,
-and a pull request in `duckdb/duckdb-r` that carries the same commit shows nothing.
+and a pull request or a branch in `duckdb/duckdb-r` that carries the same commit shows nothing.
 [`each-mirror.yaml`](/.github/workflows/each-mirror.yaml) copies the verdicts across, hourly and on dispatch,
 by running [`scripts/each-mirror.sh`](/scripts/each-mirror.sh) in the canonical repository.
 The script's header holds the mechanism, with the watermark and every limit on a run;
@@ -25,6 +26,20 @@ because the API's list of a pull request's commits stops at 250 and a landing ca
 Each commit the store holds a record for shows that record's state,
 linked to the leg in the fork that decided it.
 A status links only to a run or a job in the fork, so a record cannot send a reviewer anywhere else.
+
+**Every green branch is covered too, because it is in no pull request.**
+`<S>-green` and `<S>-fwd-green` are pushed straight to the canonical repository
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)),
+`<S>-green` is what r-universe builds and `<S>-fwd-green` what a cutover signs off,
+so a reader of either should see each commit's verdict as a reviewer does.
+A run covers the green branch of every series [`scripts/series.yaml`](/scripts/series.yaml) declares in the canonical repository,
+and its `-fwd-green` while one exists,
+from the branch the series releases from.
+They need no author filter, because only people with write access to the canonical repository can push its branches.
+The commits of pull requests come first in a run and the green branches' after them,
+so a long green never holds up a reviewer.
+A first run over a long green covers it over several hourly runs,
+because the bounds below hold for its commits as for any other.
 
 **A stranger's pull request spends nothing.**
 Anyone can open a pull request whose head is a branch of the public fork,

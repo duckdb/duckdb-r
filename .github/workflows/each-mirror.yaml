@@ -1,10 +1,11 @@
 # Copy the per-commit verdicts of the fork onto the same commits here, as
 # commit statuses with context `each-rcc (fork)`, for the open pull requests
-# whose head is in the fork and whose author belongs to this repository, so
-# their commit lists show each commit's verdict and link to the leg that
-# decided it. It runs in the canonical repository only. How it does that, the
-# watermark and the limits on a run included, is in scripts/each-mirror.sh's
-# header; why it runs here and is bounded that way is in
+# whose head is in the fork and whose author belongs to this repository, and for
+# the green branch of every series scripts/series.yaml declares here, so their
+# commit lists show each commit's verdict and link to the leg that decided it.
+# It runs in the canonical repository only. How it does that, the watermark and
+# the limits on a run included, is in scripts/each-mirror.sh's header; why it
+# runs here, covers green and is bounded that way is in
 # handbook/operations/ci/per-commit/upstream/README.md.
 
 name: each-rcc-mirror
@@ -40,7 +41,7 @@ jobs:
 
     runs-on: ubuntu-26.04
 
-    name: "Copy the fork's verdicts onto open pull requests"
+    name: "Copy the fork's verdicts onto pull requests and green branches"
 
     # MAX_WRITES posts PAUSE seconds apart take 37.5 minutes, and BUDGET stops
     # the posts 45 minutes into the script, so the cache save after it always
@@ -48,8 +49,9 @@ jobs:
     timeout-minutes: 55
 
     steps:
-      # Commits only, and the scripts: a pull request's commits are read with
-      # `git rev-list`, which needs no trees.
+      # Commits only, and the scripts with the series declaration: the commits
+      # of a pull request or a green branch are read with `git rev-list`, which
+      # needs no trees.
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0

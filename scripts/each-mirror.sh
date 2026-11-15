@@ -2,30 +2,43 @@
 # Copy the fork's per-commit verdicts onto the same commits in the canonical
 # repository, as commit statuses with context `each-rcc (fork)`, for the open
 # pull requests whose head is in the fork and whose author belongs to the
-# canonical repository. Such a pull request's commit list then shows each
-# commit's verdict, linked to the leg in the fork that decided it.
+# canonical repository, and for the canonical green branch of every dev series.
+# Such a pull request's commit list, and a green branch's history, then show
+# each commit's verdict, linked to the leg in the fork that decided it.
 # Why it runs in the canonical repository, what it covers and why a run is
 # bounded: handbook/operations/ci/per-commit/upstream/README.md.
 #
 # **What it copies.** The open pull requests whose head is in FORK and whose
 # `author_association` is OWNER, MEMBER or COLLABORATOR; the run reports how
 # many others from FORK it left out. Their commits, read with git as
-# `<base>..refs/pull/<n>/head`. Of those, the ones the verdict store holds a
-# record for, `runs2.d/<xx>/<sha>.ndjson` on the fork's `rcc2` branch, whose
-# newest line wins if it has a `status` object: its state, its description cut
-# to GitHub's 140 characters, and its `target_url` (the leg's job) only when it
-# is exactly `https://github.com/<FORK>/actions/runs/<id>`, optionally followed
-# by `/job/<id>`; any other URL is left out.
+# `<base>..refs/pull/<n>/head`. Then the green branches: for every entry of
+# SERIES_YAML with `series`, `releases_from` and `publishes_from` fields and
+# `repo` equal to REPO, whatever its `kind`, its `publishes_from`, the series'
+# `<S>-green`, and its `<S>-fwd-green` where REPO has one, each read with git
+# as `<releases_from>..<green>`. A green that REPO does not have is skipped with
+# a notice, a `-fwd-green` silently; a SERIES_YAML that cannot be read, or
+# branches of REPO that cannot be listed, cover no green, with a warning, and
+# the pull requests are covered all the same. Such a run drops the green
+# commits' records from the watermark, so the next run reads them again and
+# confirms them without posting. Only people with write access to REPO can push
+# its branches, so a green branch needs no author filter. Pull request commits come first and green ones after, each
+# commit once, so a capped run serves reviewers first. Of those commits, the
+# ones the verdict store holds a record for, `runs2.d/<xx>/<sha>.ndjson` on the
+# fork's `rcc2` branch, whose newest line wins if it has a `status` object: its
+# state, its description cut to GitHub's 140 characters, and its `target_url`
+# (the leg's job) only when it is exactly
+# `https://github.com/<FORK>/actions/runs/<id>`, optionally followed by
+# `/job/<id>`; any other URL is left out.
 #
 # **Idempotent, and bounded per run.** A watermark file, kept between runs in
 # the Actions cache, holds `<sha> <blob>` for every record already confirmed on
 # its commit, where `<blob>` is the record's git object id. A commit is a
 # candidate only when its record is not there as it is now: new to a pull
-# request, newly judged, or judged again. A candidate's current status is read
-# before anything is written, 100 commits to one GraphQL query, and a status
-# already there with the same state and URL is confirmed and never posted
-# again. A run reads at most MAX_READS candidates; the rest wait for the next
-# run.
+# request or a green branch, newly judged, or judged again. A candidate's
+# current status is read before anything is written, 100 commits to one GraphQL
+# query, and a status already there with the same state and URL is confirmed
+# and never posted again. A run reads at most MAX_READS candidates; the rest
+# wait for the next run.
 #
 # **Paced writes.** A run posts at most MAX_WRITES statuses, PAUSE seconds
 # apart, and fewer when the token's REST budget, read with one call before the
@@ -45,6 +58,8 @@
 #   GH_TOKEN      - token with pull-requests:read and statuses:write on REPO
 #                   (required)
 #   REPO          - the canonical repository (default: $GITHUB_REPOSITORY)
+#   SERIES_YAML   - the series declaration whose green branches are covered
+#                   (default: series.yaml beside this script)
 #   FORK          - the fork whose pull requests and store are read
 #                   (default: krlmlr/duckdb-r)
 #   CONTEXT       - the status context (default: "each-rcc (fork)")
@@ -67,7 +82,8 @@
 # zero, and PAUSE a decimal number; anything else stops the run before its
 # first request.
 #
-# Runs in a clone of REPO, whose `origin` serves `refs/pull/<n>/head`.
+# Runs in a clone of REPO, whose `origin` serves `refs/pull/<n>/head` and the
+# green branches.
 
 set -euo pipefail
 
@@ -98,6 +114,7 @@ if ! [[ "${PAUSE}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
 fi
 
 here="$(cd "$(dirname "$0")" && pwd)"
+SERIES_YAML="${SERIES_YAML:-${here}/series.yaml}"
 # shellcheck source=rcc-lib.sh
 . "${here}/rcc-lib.sh"
 
@@ -133,8 +150,9 @@ if [ "${dropped}" -gt 0 ] && ! [ -s "${work}/pulls" ]; then
   echo "::warning::each-mirror: every one of the ${dropped} pull request(s) from ${FORK} was left out by its author's association"
 fi
 
-# Their commits, newest first and each once, so a capped run reads the commits
-# a reviewer is looking at before the ones below them.
+# Their commits, newest first, so a capped run reads the commits a reviewer is
+# looking at before the ones below them; the green branches' follow, and each
+# commit is kept once, where it first appears.
 : > "${work}/commits"
 pulls=0
 while IFS=$'\t' read -r number base; do
@@ -146,6 +164,44 @@ while IFS=$'\t' read -r number base; do
   git rev-list "refs/each-mirror/base/${number}..refs/each-mirror/pull/${number}" >> "${work}/commits"
   pulls=$((pulls + 1))
 done < "${work}/pulls"
+
+# The green branches: `<series> <releases_from> <publishes_from>` for every
+# series REPO publishes, read from the declaration as scripts/series-port.sh
+# reads it, and then each series' green and its forward's, newest first, below
+# the pull requests' commits.
+if ! awk -v repo="${REPO}" '
+  function flush() { if (ser != "" && rf != "" && pf != "" && rp == repo) print ser, rf, pf; ser = rf = pf = rp = "" }
+  /^[^ #]/ || /^  - / { flush() }
+  /^    series:/ { ser = $2 }
+  /^    releases_from:/ { rf = $2 }
+  /^    publishes_from:/ { pf = $2 }
+  /^    repo:/ { rp = $2 }
+  END { flush() }' "${SERIES_YAML}" > "${work}/series"; then
+  echo "::warning::each-mirror: could not read ${SERIES_YAML}; no green branch covered"
+  : > "${work}/series"
+fi
+if git ls-remote --heads origin > "${work}/ls-remote"; then
+  sed -n 's#^[0-9a-f]*\trefs/heads/##p' "${work}/ls-remote" > "${work}/heads"
+else
+  echo "::warning::each-mirror: could not list the branches of ${REPO}; no green branch covered"
+  : > "${work}/heads"
+fi
+greens=0
+while read -r series base green; do
+  for ref in "${green}" "${series}-fwd-green"; do
+    if ! grep -qxF "${ref}" "${work}/heads"; then
+      [ "${ref}" != "${green}" ] || echo "::notice::each-mirror: ${REPO} has no ${ref}; skipped"
+      continue
+    fi
+    if ! git fetch -q origin "+refs/heads/${ref}:refs/each-mirror/green/${ref}" \
+      "+refs/heads/${base}:refs/each-mirror/green-base/${ref}"; then
+      echo "::warning::each-mirror: could not fetch ${ref} or its base ${base}; skipped"
+      continue
+    fi
+    git rev-list "refs/each-mirror/green-base/${ref}..refs/each-mirror/green/${ref}" >> "${work}/commits"
+    greens=$((greens + 1))
+  done
+done < "${work}/series"
 awk '!seen[$0]++' "${work}/commits" > "${work}/commits.uniq"
 
 # ------------------------------------------------------------ the records --
@@ -159,8 +215,8 @@ tip="$(rcc_fetch_tip "${STORE_DIR}" "${RCC_BRANCH}" --filter=blob:limit=16k)" ||
   exit 1
 }
 
-# `<sha> <blob>` for every commit of an open pull request the store judged, in
-# the commits' order.
+# `<sha> <blob>` for every covered commit the store judged, in the commits'
+# order.
 git -C "${STORE_DIR}" ls-tree -r "${tip}" -- runs2.d |
   sed -n 's#^[0-7]* blob \([0-9a-f]*\)\truns2\.d/[0-9a-f][0-9a-f]/\([0-9a-f]\{40\}\)\.ndjson$#\2 \1#p' \
     > "${work}/records"
@@ -306,8 +362,9 @@ while IFS="${sep}" read -r verdict sha state url desc; do
   echo "${sha}" >> "${work}/confirmed"
 done < "${work}/plan"
 
-# The watermark: what it held for commits still in an open pull request, and
-# what this run confirmed, as the record now stands. A dry run confirms nothing.
+# The watermark: what it held for commits still in an open pull request or on a
+# green branch, and what this run confirmed, as the record now stands. A dry
+# run confirms nothing.
 if [ -z "${DRY_RUN:-}" ]; then
   awk 'FILENAME == ARGV[1] { keep[$0]; next } ($0 in keep)' "${work}/judged" "${STATE}" > "${work}/state"
   awk 'FILENAME == ARGV[1] { ok[$1]; next } ($1 in ok)' "${work}/confirmed" "${work}/candidates" >> "${work}/state"
@@ -317,6 +374,7 @@ fi
 candidates_all="$(wc -l < "${work}/candidates.all" | tr -d ' ')"
 read_now="$(wc -l < "${work}/candidates" | tr -d ' ')"
 report "each-mirror: ${pulls} pull request(s) from ${FORK}, ${dropped} left out by author association;" \
+  "${greens} green branch(es);" \
   "$(wc -l < "${work}/commits.uniq" | tr -d ' ') commit(s), $(wc -l < "${work}/judged" | tr -d ' ') judged;" \
   "${candidates_all} not confirmed yet, ${read_now} read this run;" \
   "${same} already shown, ${posted} posted, ${skipped} refused and skipped," \
