@@ -44,7 +44,7 @@ flavors:
     kind: dev
     upstream: v2.0-cyanoptera
     series: v2.0-cyanoptera
-    releases_from: main
+    releases_from: v2.0-cyanoptera
     publishes_from: v2.0-cyanoptera-green
     repo: duckdb/duckdb-r
     badges: [r-universe]
