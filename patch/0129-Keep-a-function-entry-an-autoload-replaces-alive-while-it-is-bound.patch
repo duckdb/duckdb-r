@@ -28,8 +28,8 @@ duckdb/duckdb#27950, not merged. duckdb/duckdb-r#2883.
  src/duckdb/src/catalog/catalog_set.cpp             |  8 +++++++-
  src/duckdb/src/function/function_binder.cpp        | 24 +++++++++++++++++++---
  .../include/duckdb/function/function_binder.hpp    |  5 +++++
- .../binder/tableref/bind_table_function.cpp        |  7 ++++---
- 4 files changed, 37 insertions(+), 7 deletions(-)
+ .../binder/tableref/bind_table_function.cpp        |  5 +++--
+ 4 files changed, 36 insertions(+), 6 deletions(-)
 
 diff --git a/src/duckdb/src/catalog/catalog_set.cpp b/src/duckdb/src/catalog/catalog_set.cpp
 --- a/src/duckdb/src/catalog/catalog_set.cpp
@@ -63,8 +63,8 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
 +#include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
  #include "duckdb/catalog/catalog_entry/window_function_catalog_entry.hpp"
  #include "duckdb/common/limits.hpp"
- #include "duckdb/common/type_visitor.hpp"
-@@ -1093,10 +1094,25 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
+ #include "duckdb/common/numeric_utils.hpp"
+@@ -1133,10 +1134,25 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
  	return return_type.IsComplete() ? return_type : LogicalType::SQLNULL;
  }
  
@@ -91,7 +91,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
  	// select the best matching overload (this may name positional arguments by their alias for functions that opt
  	// into implicit argument naming, e.g. struct_pack/row)
  	vector<unique_ptr<Expression>> regular_args;
-@@ -1614,9 +1630,10 @@ FunctionBinder::BindAggregateFunction(FunctionBinding binding, vector<unique_ptr
+@@ -1654,9 +1670,10 @@ FunctionBinder::BindAggregateFunction(FunctionBinding binding, vector<unique_ptr
  }
  
  unique_ptr<BoundAggregateExpression>
@@ -103,7 +103,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
  	// select the best matching overload (this may name positional arguments by their alias for functions that opt
  	// into implicit argument naming, e.g. struct_pack/row)
  	vector<unique_ptr<Expression>> regular_args;
-@@ -1711,9 +1728,10 @@ FunctionBinder::BindWindowFunction(const FunctionBinding &binding, vector<unique
+@@ -1751,9 +1768,10 @@ FunctionBinder::BindWindowFunction(const FunctionBinding &binding, vector<unique
  }
  
  unique_ptr<BoundWindowExpression>
@@ -118,7 +118,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
 diff --git a/src/duckdb/src/include/duckdb/function/function_binder.hpp b/src/duckdb/src/include/duckdb/function/function_binder.hpp
 --- a/src/duckdb/src/include/duckdb/function/function_binder.hpp
 +++ b/src/duckdb/src/include/duckdb/function/function_binder.hpp
-@@ -420,6 +420,11 @@ public:
+@@ -424,6 +424,11 @@ public:
  	//! whose type is not concrete, such as ANY, takes it as it is
  	DUCKDB_API static Value CastToParameterType(ClientContext &context, Value value, const LogicalType &parameter_type);
  
@@ -133,27 +133,17 @@ diff --git a/src/duckdb/src/include/duckdb/function/function_binder.hpp b/src/du
 diff --git a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 --- a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 +++ b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
-@@ -479,10 +479,12 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
- 	}
+@@ -521,10 +521,11 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
  
  	// selection, named-argument checking, folding and casting all happen in the function binder
-+	FunctionBinder function_binder(*this);
+ 	FunctionBinder function_binder(*this);
 +	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
- 	unique_ptr<ResolvedTableFunction> resolved;
- 	if (table_in_out) {
- 		// the arguments are the columns of the subquery
--		auto selection = FunctionBinder::SelectFunction(context, function.functions, subquery.types);
-+		auto selection = FunctionBinder::SelectFunction(context, current.functions, subquery.types);
- 		if (selection.IsSuccess()) {
- 			auto definition = selection.GetBinding().GetFunction<TableFunction>();
- 			resolved = make_uniq<ResolvedTableFunction>(BoundTableFunction(definition));
-@@ -490,8 +492,7 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
- 			error = selection.GetError();
- 		}
- 	} else {
--		FunctionBinder function_binder(*this);
--		resolved = function_binder.BindTableFunction(function.functions, positional_arguments, named_arguments, error);
-+		resolved = function_binder.BindTableFunction(current.functions, positional_arguments, named_arguments, error);
- 	}
+ 	auto resolved =
+ 	    table_in_out
+-	        ? function_binder.BindTableInOutFunction(function.functions, subquery.types, named_arguments, error)
+-	        : function_binder.BindTableFunction(function.functions, positional_arguments, named_arguments, error);
++	        ? function_binder.BindTableInOutFunction(current.functions, subquery.types, named_arguments, error)
++	        : function_binder.BindTableFunction(current.functions, positional_arguments, named_arguments, error);
  	if (!resolved) {
  		error.AddQueryLocation(ref);
+ 		error.Throw();
