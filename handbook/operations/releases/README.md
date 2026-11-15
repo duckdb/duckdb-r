@@ -8,13 +8,12 @@ that was read — each is named explicitly when it is decided,
 never computed from something adjacent
 that would be right until it silently was not.
 
-**The rules are other people's.**
-The cadence is upstream's, the acceptance criteria CRAN's,
-and the tools that write the version and the changelog
-have behaviour of their own —
+**The rules are mostly other people's.**
+The cadence is upstream's and the acceptance criteria CRAN's,
 so these leaves describe compliance rather than design,
 and each says where it read its constraint.
+The exception is the version, written by hand to this repository's own rules.
 
 * [`process/`](process/) — the release state machine
 * [`cran/`](cran/) — submission and policy
-* [`versioning/`](versioning/) — counters, fledge, NEWS
+* [`versioning/`](versioning/) — counters, bumps, tags, NEWS

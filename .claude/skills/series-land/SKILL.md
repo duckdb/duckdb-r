@@ -210,7 +210,7 @@ Committer dates are pinned to the frozen `<B>`'s, so a rebuild from the same inp
 and CI does not judge a commit twice.
 
 **The version bump is the landing's last commit.**
-[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns why it is by hand and which version `<v>` it sets:
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns how it is written and which version `<v>` it sets:
 the next one above `<B>`'s that [`scripts/landing-version.sh`](/scripts/landing-version.sh) prints,
 `2.0.99.9000` to `2.0.99.9001` on `main` and `2.0.99.9000` on `main`'s first landing,
 or the release's three components where the batch brings an upstream release.
@@ -235,12 +235,14 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   echo "$v"              # the version the subject names
   ```
 
-* **`NEWS.md`** is not the bump's: it is kept by a separate process, not by landings
-  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+* **`NEWS.md`** is not the landing's to write
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)):
+  the bump may carry a change to it and needs none.
 * **The commit**: `chore: Bump version to <v>`.
-  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits that changes only the `Version:` line and the engine record
+  `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits
+  that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`,
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
-or does not rise above `<B>`'s;
+  or does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.
 
 CI judges the bump like every other commit.
@@ -323,33 +325,7 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
 When `--status` prints `READY`, every commit has passed and `<B>` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `<B>` unjudged.
-Before lifting the freeze, close the version pull request the nightly fledge run may have opened against the frozen `main`,
-so that it does not merge the moment the freeze lifts
-([`fledge.yaml`](/.github/workflows/fledge.yaml) opens one while `NEWS.md` starts with fledge's marker line, as `main`'s did for v2.0).
-The run force-pushes the branch `fledge` and the version tag of its bump, and the tag is deleted with the branch.
-Its version is in the pull request's title, and the tag is the pull request's own when it points at the pull request's head;
-the block closes the pull request and deletes the branch in any case, and deletes the tag only when it is the pull request's own.
 Paste the blocks of this step into bash: zsh reads `$sha:r` as a modifier and, by default, `#` comments as commands.
-
-```sh
-( set -eu
-R=duckdb/duckdb-r
-gh api "repos/$R/pulls?state=open&head=duckdb:fledge" --jq '.[] | [.number, .title, .head.sha] | @tsv'
-n=<number>
-[[ $n =~ ^[0-9]+$ ]] || { echo "not a pull request number: '$n'" >&2; exit 1; }
-v=$(gh api "repos/$R/pulls/$n" --jq '.title | sub("^fledge: Bump version to "; "")')
-[[ $v =~ ^[0-9]+(\.[0-9]+){2,3}$ ]] || { echo "not a fledge version pull request: '$v'" >&2; exit 1; }
-head=$(gh api "repos/$R/pulls/$n" --jq .head.sha)
-gh api -X PATCH "repos/$R/pulls/$n" -f state=closed
-gh api -X DELETE "repos/$R/git/refs/heads/fledge"
-tag=$(git ls-remote upstream "refs/tags/v$v*" | awk -v r="refs/tags/v$v" '$2 == r || $2 == r "^{}" { t = $1 } END { print t }')   # peeled when annotated
-if [[ $head =~ ^[0-9a-f]{40}$ && $tag == "$head" ]]; then
-  gh api -X DELETE "repos/$R/git/refs/tags/v$v"
-else
-  echo "kept tag v$v, which is not the pull request's own: '$tag' vs '$head'" >&2
-fi
-)
-```
 
 Lift the freeze, push, put the freeze back, and then tag the bump.
 The block runs in a subshell that stops at the first failure, before the freeze is lifted unless `--status` printed `READY`,
@@ -377,32 +353,33 @@ The push is a plain one, so git refuses it unless it is a fast-forward.
 It needs the existing branch ruleset's admin bypass, because it is not a pull request.
 
 Then tag the bump, which is the commit `READY` named.
-fledge counts from the newest version tag
-([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)),
-and the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
-It is annotated, with the message `duckdb <v>`.
-A bump to an upstream release is tagged by the CRAN submission instead ([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).
+Every landing's bump is tagged, and a bump to an upstream release is no exception
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) names the tag);
+the freeze ruleset targets the branch only, so the tag needs no lifted freeze.
+`--status` prints `READY` again once `<B>` is the bump, and below the push the commands that tag it,
+which the block runs as printed, and only on `READY`: they tag nothing `<B>` lacks, and push no tag they did not create
+(`scripts/series-land-test.sh` runs it against a scratch repository):
 
+<!-- series-land: tag block -->
 ```sh
 ( set -eu
-S=main                                      # the serving series that landed: main, or v2.0-cyanoptera
-B=$(scripts/series-land.sh "$S" --target)   # the branch it landed onto
+S=main                                                # the serving series that landed: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)             # the branch it landed onto
 [[ $B =~ ^(main|v[0-9]+\.[0-9]+-[a-z]+)$ ]] || { echo "no branch to land onto: '$B'" >&2; exit 1; }
-git fetch upstream "$B"
-sha=$(git rev-parse "upstream/$B")          # the bump, which the fast-forward made the branch's tip
-[[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "no commit at upstream/$B: '$sha'" >&2; exit 1; }
-v=$(git show "${sha}:DESCRIPTION" | sed -n 's/^Version: //p')
-[[ $v =~ ^[0-9]+(\.[0-9]+){2,3}$ ]] || { echo "not a bump's version: '$v'" >&2; exit 1; }
-git tag -a "v$v" -m "duckdb $v" "$sha"
-git push upstream "refs/tags/v$v"
+out=$(scripts/series-land.sh "$S" --status) || true   # READY again, now that the branch is the bump
+printf '%s\n' "$out"
+grep -q '^READY' <<<"$out" || { echo "not READY" >&2; exit 1; }
+bash -c "$(sed -n '/^Then tag it on /,$s/^  //p' <<<"$out")"   # the tag commands below the push
+git tag -n3 --points-at "refs/remotes/upstream/$B"   # the tag: the subject, then NEWS.md's section for the version, if it has one
 )
 ```
 
+A `v<version>.9900` already on the remote stops the chain at the push and leaves the local tag behind:
+delete the local tag with `git tag -d`, and read the remote one before rerunning.
+
 ## 7. After the landing
 
-A nightly run between the push of `main` and the tag may have opened another fledge pull request, against the version the landing just bumped to.
-Repeat step 6's listing and cleanup first, because the freeze's deletion would let it merge.
-Then delete the freeze, so that `<B>` takes pull requests again:
+Delete the freeze, so that `<B>` takes pull requests again:
 
 ```sh
 ( set -eu

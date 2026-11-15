@@ -34,11 +34,12 @@
 #     where the difference is explained: "renumbered" accounts for a counter
 #     that restarted, and for nothing that happened to the four components
 #     above it.
-#   * `NEWS.md` -- the release paperwork a `fledge:` commit carries, and stage 4
-#     never ports a VERSION commit: `main`'s R-client counter is not a series'
-#     (.claude/skills/series-loop/SKILL.md). So the two branches hold whatever their
-#     seeds' release lines held, and the file is fledge-maintained, never edited
-#     by hand.
+#   * `NEWS.md` -- kept by a separate process, not by ports
+#     (handbook/operations/releases/versioning/README.md): stage 4 never ports
+#     a VERSION commit, `main`'s R-client counter not being a series'
+#     (.claude/skills/series-loop/SKILL.md), and every other pick keeps the
+#     series' own copy (scripts/series-port.sh). So the file is never ported,
+#     and the two branches hold whatever their seeds' release lines held.
 #   * The **vendored strand** -- `src/duckdb/`, `patch/`, `R/version.R`,
 #     `src/include/sources.mk` and the Makevars -- but **only while the two
 #     branches vendor different upstream commits**, where it is the gap itself

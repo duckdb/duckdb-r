@@ -18,7 +18,8 @@
 # The notes end with the marker `<!-- cran-submission: <package> <version> -->`,
 # by which cran-release.yaml publishes the draft once Posit's package manager serves the version.
 # The job then tags the commit as `v<version>`,
-# with the NEWS.md section as the message, like the tags fledge creates.
+# with the NEWS.md section as the message, the shape of every version tag here
+# (handbook/operations/releases/versioning/README.md).
 # An existing tag of that name is printed and then moved to this commit.
 #
 # The `cran-submission` job runs scripts/cran-submit.sh twice.
@@ -123,6 +124,8 @@ jobs:
             exit 0
           fi
 
+          # The way to proceed is the bump handbook/operations/releases/versioning/README.md describes:
+          # it sets DESCRIPTION and need not touch NEWS.md, where the separate process that keeps that file writes the version's section.
           echo "::error title=Development version::DESCRIPTION carries the version '$version', and CRAN takes release versions only: three components, such as 2.0.0. Nothing was built, tagged or uploaded."
           {
             echo "### Version: failed"
@@ -134,7 +137,8 @@ jobs:
             echo
             echo "#### How to proceed"
             echo
-            echo "- Bump \`DESCRIPTION\` to a release version, with \`fledge::bump_version(\"X.Y.Z\")\` or by hand, and dispatch this workflow on the commit that carries it."
+            echo "- Bump the version by hand, \`Version: X.Y.Z\` in \`DESCRIPTION\`, in one commit \`chore: Bump version to X.Y.Z\`, and dispatch this workflow on that commit."
+            echo "  \`NEWS.md\` must already have its section for X.Y.Z, written by the separate process that keeps that file, or the run stops before tagging."
             echo "- If submitting this version is really intended, dispatch again with \`allow-dev-version\` on: \`$rerun -f allow-dev-version=true\`."
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1
@@ -185,8 +189,10 @@ jobs:
             found && /^# / { exit }
             found { print }
           ' NEWS.md > "$message"
+          # The bump need not write the section: the separate process that keeps NEWS.md does, before the submission
+          # (handbook/operations/releases/versioning/README.md).
           if [ ! -s "$message" ]; then
-            echo "::error::NEWS.md has no section for $pkg_name $pkg_version."
+            echo "::error::NEWS.md has no section for $pkg_name $pkg_version, which the separate process that keeps NEWS.md writes before a submission."
             exit 1
           fi
           # The release carries the section without its heading, as the earlier releases do;
@@ -243,6 +249,7 @@ jobs:
           published="$(printf '%s\n' "$found" | awk -F '\t' '$1 == "published" { print $2 }')"
           draft="$(printf '%s\n' "$found" | awk -F '\t' '$1 == "draft" && !seen { print $2; seen = 1 }')"
 
+          # A new version is the bump handbook/operations/releases/versioning/README.md describes.
           if [ -n "$published" ]; then
             echo "::error title=Release $TAG is already published::The release $TAG is published at $published, and this workflow does not touch a published release. Nothing was tagged or uploaded."
             {
@@ -253,7 +260,7 @@ jobs:
               echo
               echo "#### How to resolve"
               echo
-              echo "- If $TITLE is out, a new submission needs a new version: bump \`DESCRIPTION\` and \`NEWS.md\`, and dispatch again."
+              echo "- If $TITLE is out, a new submission needs a new version: bump \`DESCRIPTION\` to it once \`NEWS.md\` has its section, written by the separate process that keeps that file, and dispatch again."
               echo "- If the published release is a mistake, open it, and save it as a draft again or delete it; then dispatch again, and this job updates the draft."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1

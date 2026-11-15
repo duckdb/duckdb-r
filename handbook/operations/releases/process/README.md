@@ -60,7 +60,7 @@ middle columns: **vendored commits enter the mainline in exactly one
 cluster (CUT), and `main`'s glue changes only in TRACK and STABILIZE.**
 The two never overlap,
 which is what keeps the release branch CRAN-releasable at all times.
-Between releases the release branch may take its line's batches by landings too, each ending on a bump of the fourth component
+Between releases the release branch may take its line's batches by landings too, each ending on a bump of the fourth component and its tag
 ([`versioning/`](/handbook/operations/releases/versioning/README.md));
 CUT's is the landing that ends on the released version.
 `main` stands outside this machine: it lands batches of upstream `main` whenever one is ready, and waits for no release
@@ -123,7 +123,7 @@ stateDiagram-v2
 | **1 VENDORED** | tag lands on `<S>-dev` | tagged vendor commit present | advancing toward the tag | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `<S>-dev` |
 | **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on the branch the series releases from, forward-port |
 | **3 PROVEN** | review ok | — | **has advanced over the tagged commit** | — | green covers the tag | red → 1 |
-| **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; `fledge` bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
+| **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
 | **5 PUBLISHED** | merged | — | — | tag `vX.Y.Z` pushed; r-universe builds; CRAN submitted (current line) | tag pushed | CRAN reject → new patch cycle |
 
 The **On failure** column is the whole of rollback:
@@ -257,12 +257,9 @@ the only rewriting is dropping that rename.
 A late tag that no re-stamp reached (step 1) ends the range at the plain vendor commit for the tag,
 and the re-stamp is made on the release branch before the bump.
 
-The package version is **not** derived from the git tag —
-set it explicitly so `DESCRIPTION` matches the upstream tag:
-
-```r
-fledge::bump_version("X.Y.Z")
-```
+The package version is **not** derived from the git tag:
+the bump sets it explicitly to `X.Y.Z`, so `DESCRIPTION` matches the upstream tag,
+in the one commit [`versioning/`](/handbook/operations/releases/versioning/README.md) describes.
 
 Then rebase the LTS branch, one rename commit on top of the release branch.
 These blocks run on a maintainer's machine and push over SSH, so they name the canonical repository by its SSH URL:
@@ -281,17 +278,23 @@ preflight before tagging (`cran/`).
 
 ### 5 PUBLISHED — tag and publish
 
-Tag the release and push; r-universe rebuilds automatically:
+Tag the release `vX.Y.Z` in the shape `versioning/` describes, and push; r-universe rebuilds automatically:
 
 ```bash
 C=git@github.com:duckdb/duckdb-r.git   # the canonical repository
 S=v1.4-andium                          # the line just released
 R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
-git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R"   # the tip as it is now, after the rebase
-v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p')
-git tag -a "v$v" -m "duckdb $v" "canonical/$R"
-git push "$C" "refs/tags/v$v"
+git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R" &&   # the tip as it is now, after the rebase
+  v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p') &&
+  { printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |
+  git tag -a "v$v" --cleanup=whitespace -F - "canonical/$R" &&
+  git push "$C" "refs/tags/v$v"
 ```
+
+From the fetch on, the block is one chain that stops at the first failure:
+a local `v<version>` left from an earlier attempt fails the tag and is never pushed,
+and what it tags is the branch's tip as just fetched, so the branch has it.
+The landing that brought the release tagged its bump under a name of its own (`versioning/`), so `vX.Y.Z` is the release's alone.
 
 For the **current** line only, submit to CRAN (`cran/`);
 the submission workflow sets the tag itself and drafts the GitHub release,
@@ -310,8 +313,8 @@ that had not been reseeded into the loop, from the released tip plus the
 flavor rename; every series runs the loop now
 ([`branches/model/`](/handbook/branches/model/README.md)).
 
-Separately, the glue source of truth (`main`) moves to its ongoing
-development version via `fledge` (`versioning/`).
+Separately, the branch released from moves on to its development version,
+`X.Y.Z.9000`, in a bump written by hand (`versioning/`).
 The vendor counter is not a release-time concern: it rises on `<S>-dev` as
 the buffer is consumed, and the one thing that re-derives it is a forward
 rebuild, which has nothing to do with a release having happened.

@@ -9,8 +9,8 @@
 #
 # This script lists the draft releases whose notes carry that marker and whose tag is
 # `v<version>`, and checks each version against the source index of P3M's CRAN snapshot
-# `latest`, the index `fledge:::release_after_cran_built_binaries()` reads with
-# `utils::available.packages(repos = "https://packagemanager.posit.co/cran/latest")`:
+# `latest`, the index
+# `utils::available.packages(repos = "https://packagemanager.posit.co/cran/latest")` reads:
 # the version is out when the index lists the package at exactly that version.
 # A version that is out is published (`gh release edit <tag> --draft=false --latest`),
 # after checking that the tag exists and points at the commit the draft targets;

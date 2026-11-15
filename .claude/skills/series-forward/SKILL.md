@@ -53,7 +53,7 @@ and it would start vendoring onto that ref while the replay is still writing it.
 
    * **Regenerate the seed** on the current base: `scripts/flavor.sh <F>` (needs `krlmlr/cpp11`),
      then a separate `chore: Add fifth version component` commit appending the counter's `.0`;
-     a preview line takes its own prefix there, and a seed on a released `main` takes fledge's first dev version.
+     a preview line takes its own prefix there, and a seed on a released `main` takes the first development version.
    * **Read the whole glue set and what the base learned, and judge it**, before the first pick:
 
      ```sh
