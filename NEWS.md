@@ -1,4 +1,6 @@
-# duckdb (development version)
+# duckdb 2.0.0.9000
+
+- Commits since 2.0.0: <https://github.com/duckdb/duckdb-r/compare/v2.0.0...main>.
 
 
 # duckdb 2.0.0
