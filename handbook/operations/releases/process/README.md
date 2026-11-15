@@ -29,8 +29,8 @@ Four refs matter here:
   r-universe builds plain `duckdb` from `main` instead ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
   `main` is no release branch: it carries upstream `main`'s engine and releases nothing
   ([`branches/model/`](/handbook/branches/model/README.md)).
-  That holds once `v2.0-cyanoptera` is cut; until then `main` is the 2.0 line's release branch
-  ([`branches/model/`](/handbook/branches/model/README.md), "Until the cut").
+  That holds fully once the v2.0 series releases from `v2.0-cyanoptera` and `main` has moved on
+  ([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
