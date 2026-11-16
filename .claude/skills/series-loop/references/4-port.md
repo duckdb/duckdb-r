@@ -5,8 +5,9 @@ the handbook leaf is [`operations/vendoring/series-loop/`](/handbook/operations/
 
 The goal is identity, not curation:
 after this stage,
-`.github/`, `scripts/` and `.claude/` on `<S>-dev`
-are byte-identical to `main`'s.
+the tooling on `<S>-dev`, `.github/`, `scripts/` and `.claude/`,
+is byte-identical to `main`'s,
+and the R side, unless the series is frozen, has taken what the branch it releases from has.
 CI reads workflows and scripts from the branch it checks,
 so this is what puts a fix into effect —
 never park a tooling change to wait for a forward.
@@ -48,11 +49,11 @@ and applies all but VENDOR and VERSION by default.
 A MIXED or OTHER commit is a *forward-port*
 in `BRANCHES.md`'s sense (invariant S4):
 `-dev` has always been vendor commits
-plus cherry-picks of `main` commits,
+plus cherry-picks of commits from the branch the series releases from,
 and the port merely batches what used to be manual —
 judged by CI like every `-dev` commit.
 Picks are whole commits, never split:
-a wholesale pick matches its `main` commit by patch-id,
+a wholesale pick matches the commit it picks by patch-id,
 so the next rebase skips it silently,
 while a tooling-only half of a MIXED commit would replay —
 at best to empty, at worst to a conflict —
@@ -61,8 +62,8 @@ and could sever a coupled change
 minting a commit whose message describes more than it contains.
 The one file a pick leaves as the series has it is `NEWS.md`.
 The notes are the release strand's, like the version,
-kept for `main`'s versions by a process of their own,
-so a pick carrying `main`'s notes meets a copy they were not written against
+kept for the versions of the branch ported from by a process of their own,
+so a pick carrying that branch's notes meets a copy they were not written against
 and conflicts on every series at once.
 So each pick is applied without committing, `NEWS.md` is restored from the series,
 and the rest is committed under the original message, author and trailer;
@@ -70,7 +71,7 @@ a pick with nothing left, because it wrote only `NEWS.md` or its content is alre
 is committed empty and named as empty,
 because its trailer is what retires it from the next run.
 VENDOR commits are listed and never auto-picked:
-`main`'s engine is not this series' engine,
+the engine of the branch ported from is not this series' engine,
 and the series' own vendoring owns that strand.
 **The subject is what decides one, never the path** —
 the same rule as everywhere else in this skill.
@@ -82,10 +83,10 @@ which is the one thing the port exists to end.
 They are ordinary commits, ported like any other.
 
 VERSION commits are listed and never auto-picked either:
-`main`'s R-client counter is not this series'.
+the R-client counter of the branch ported from is not this series'.
 A `-dev` version says which release line the series was seeded from
 and how far its own vendoring has run,
-and what `main` is at today is read from `main`
+and what that branch is at today is read from that branch
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 Here the **content** decides, not the subject:
 the commit carries nothing but release paperwork,
@@ -95,7 +96,7 @@ that one is a forward-port that happens to bump,
 ported whole like any other,
 because a pick is never half a commit.
 The notes are that strand as much as the bump is:
-a commit that writes `NEWS.md` for `main`'s next release and touches nothing else
+a commit that writes `NEWS.md` for that branch's next release and touches nothing else
 is held back on the same reasoning,
 because the series has neither the section it goes in nor the version that names it,
 and the pick's only honest resolution is the empty commit that retires it.
@@ -128,7 +129,7 @@ so port that commit by name and the reference is whole again.
 **A frozen series takes no ports by default.**
 A series seeded from a release branch keeps the R code it was seeded with —
 glue, tests, docs and version alike —
-so `main`'s development line,
+so the active lines' development,
 which belongs to another engine's R side,
 is not a backlog it is behind on.
 `scripts/series-port.sh` reads that off the lineage under the seed
@@ -166,7 +167,7 @@ on a frozen series or any other.
 What the freeze buys is that nobody has to read
 the whole development line every firing
 to find the two commits that matter.
-The bar is what the build needs, not what `main` happens to have:
+The bar is what the build needs, not what an active line happens to have:
 a fix that only tidies R code the series is content with
 is not a reason to move the series off its seed.
 

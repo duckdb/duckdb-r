@@ -261,7 +261,7 @@ Reference: [`references/3-advance.md`](references/3-advance.md).
 ### 4. Port from the branch the series releases from
 
 The goal is identity, not curation:
-after this stage, `.github/`, `scripts/` and `.claude/` on `<S>-dev` are byte-identical to `main`'s,
+after this stage, the tooling (`.github/`, `scripts/` and `.claude/`) on `<S>-dev` is byte-identical to `main`'s,
 and `<S>-build`'s tooling is synced in the same run.
 
 ```sh
