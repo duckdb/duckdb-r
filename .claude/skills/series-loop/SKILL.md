@@ -276,9 +276,10 @@ scripts/series-port.sh <S> --list           # walk a frozen series anyway
 * Each series is ported from the branch it releases from, `main` or its line's release branch; tooling always from `main`.
 * A frozen series (seeded from another release line's lineage, or declared `stale: true`) takes the tooling sync alone by default;
   what its build needs is ported by SHA.
-* A conflict stops the sequence in the kept worktree: resolve toward `main`'s intent, keeping the series' flavor where the two meet,
+* A conflict stops the sequence in the kept worktree: resolve toward the intent of the branch ported from,
+  keeping the series' flavor where the two meet,
   commit with the command the script prints, push, rerun.
-  An OTHER commit that cannot work against this engine is fixed on `main` and ported fixed.
+  An OTHER commit that cannot work against this engine is fixed on the branch the series releases from and ported fixed.
 * A live forward counterpart is ported the same way, every firing.
 * Read the diff of any sync commit that appears: what it reverts that the series needs is a finding for `main`.
 

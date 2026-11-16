@@ -10,10 +10,11 @@
 #
 #   * a firing writes one during a repair -- stage 3 says to commit it onto
 #     `<S>-build` in the same firing, and that is the half that works;
-#   * stage 4's port carries whole `main` commits onto `-dev`, `patch/` files
-#     included, so an entry born as a pull request against `main` reaches every
-#     `-dev` without any firing deciding to put it there -- and reaches no
-#     buffer at all, because `-build` takes no ports by design (stage 1).
+#   * stage 4's port carries whole commits of the branch a series releases
+#     from onto its `-dev`, `patch/` files included, so an entry born as a pull
+#     request against that branch reaches the `-dev` without any firing
+#     deciding to put it there -- and reaches no buffer at all, because
+#     `-build` takes no ports by design (stage 1).
 #
 # The second half is what this closes. The drift is quiet while upstream leaves
 # the patched file alone, because the buffer is then internally consistent and

@@ -807,11 +807,11 @@ EOF
   echo "build -> $(git rev-parse --short "$bnext")"
 fi
 
-# A port is how a `patch/` entry written against `main` reaches this series, and
-# `-dev` is not where it does anything: `vendor-one.sh` applies the *buffer's*
-# stack to every tree it regenerates. Carrying it on is part of porting, not a
-# separate errand somebody remembers -- so it runs here, on every --apply, and
-# whether or not this run had commits to pick. The carry decides by
+# A port is how a `patch/` entry written on the branch this series releases from
+# reaches it, and `-dev` is not where it does anything: `vendor-one.sh` applies
+# the *buffer's* stack to every tree it regenerates. Carrying it on is part of
+# porting, not a separate errand somebody remembers -- so it runs here, on every
+# --apply, and whether or not this run had commits to pick. The carry decides by
 # test-applying against the buffer's own tree, because a buffer runs ahead of
 # `main` and an entry that does not fit its engine would break the next vendor
 # run rather than help it. It runs after the tooling sync and fetches again, so

@@ -164,14 +164,13 @@ another file than the one the entry edits, and use `patch --dry-run`
 only to confirm the entry can live there.
 
 **The same distinction decides which branch an entry lives on.**
-A fix is series-specific when the code it answers is not on `main`,
-and an entry that wraps rather than edits will apply to `main` either
-way, so applying there is no evidence it belongs there.
-Landing one whose subject `main`'s engine does not carry adds a
-suppression with nothing to suppress —
+A fix is series-specific when the code it answers is not on the branch the series releases from,
+and an entry that wraps rather than edits will apply to that branch either way,
+so applying there is no evidence it belongs there.
+Landing one whose subject that branch's engine does not carry adds a suppression with nothing to suppress,
 against the rule that nothing is suppressed at all
-([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)) —
-and it is the series' until `main`'s engine reaches the code.
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
+and it is the series' until that branch's engine reaches the code.
 
 The buffer is where the choice is load-bearing.
 No run covers it at all

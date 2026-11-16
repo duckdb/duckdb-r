@@ -152,7 +152,7 @@ and none of the commits behind it alone.
 A change the r-universe build genuinely needs still lands —
 a `configure` fix, whatever keeps the flavor green —
 and stage 2 reaches for it the same way it mines a base series:
-if the red has already been fixed on `main`,
+if the red has already been fixed on an active line's branch,
 port that commit rather than rederive it.
 Name it, one commit at a time:
 
@@ -173,7 +173,7 @@ is not a reason to move the series off its seed.
 What stays judgement:
 
 - a conflict stops the picks in place:
-  resolve it in the kept worktree toward `main`'s intent,
+  resolve it in the kept worktree toward the intent of the branch ported from,
   keeping the series' flavor where the two meet
   (`Package:`, `@useDynLib`, `DUCKDB_PACKAGE_NAME`
   keep the series' name),
@@ -188,9 +188,9 @@ What stays judgement:
   On a series that is not frozen that is what the named SHAs left out, so never run one there:
   the tooling sync waits for the next `--apply`.
   On a frozen series the set is empty, so the bare `--apply` the script prints ports nothing and finishes the sync;
-- an OTHER commit that cannot work against this series' engine —
+- an OTHER commit that cannot work against this series' engine:
   apply an explicit subset without it,
-  fix it on `main` (a guard, a runtime seam),
+  fix it on the branch the series releases from (a guard, a runtime seam),
   and port the fixed commit instead.
 
 A live forward counterpart changes nothing here.
