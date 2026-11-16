@@ -53,6 +53,8 @@ so a mirror is at most that far behind what it copies;
 a sync can be asked for at any moment from the URL that config names —
 which is what someone who needs a mirror at the canonical tip asks for,
 rather than pushing the branch.
+Pull moves a mirror through a pull request in the fork,
+and one into a release branch's mirror starts no `rcc` run ([`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)).
 
 **A mirror is created by pushing it, not by configuring it.**
 Pull skips a rule whose base branch the fork does not have,
