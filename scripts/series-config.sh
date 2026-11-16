@@ -49,8 +49,28 @@ series_makevars=(src/Makevars src/Makevars.win)
 # run writes outside the vendor paths is restored, never committed. A failing
 # phase stops the run with exit 7. Here rconfigure.py writes everything from
 # the unpatched checkout and nothing is derived afterwards.
+#
+# The version stamped is the one upstream's own CI builds the commit as, not
+# what its generator falls back to. `git_dev_version()` writes
+# `v<release_version.txt>.0-dev<count>` on every commit, while upstream's CI
+# resolves the version with `scripts/ci/version.py`, which counts the patch tags
+# of the line: once a line has tagged `v2.0.0` it builds `v2.0.1-dev<count>` and
+# `v2.0.1-alpha<run>`, and only a tagged commit builds as its tag. A caller's
+# `DUCKDB_VERSION` wins, as it does upstream; a checkout without `version.py`
+# keeps the generator's own stamp.
+series_upstream_version() { # <upstream checkout>
+  local tag
+  tag=$(git -C "$1" describe --tags --exact-match HEAD 2>/dev/null || true)
+  case "$tag" in
+    v[0-9]*.[0-9]*.[0-9]*) echo "$tag"; return 0 ;;
+  esac
+  [ -f "$1/scripts/ci/version.py" ] || return 0
+  (cd "$1" && DUCKDB_VERSION= OVERRIDE_GIT_DESCRIBE= python3 scripts/ci/version.py)
+}
 series_generate_tree() { # <upstream checkout>
-  DUCKDB_PATH="$1" python3 scripts/rconfigure.py
+  local version=${DUCKDB_VERSION:-}
+  [ -n "$version" ] || version=$(series_upstream_version "$1")
+  DUCKDB_VERSION="$version" DUCKDB_PATH="$1" python3 scripts/rconfigure.py
 }
 series_generate_derived() { # <strand|full>
   :
