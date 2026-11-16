@@ -166,8 +166,8 @@ it found these two, and named the same two GCC 15 did.
   without waiting for a full build.
 * **On every pull request that runs `rcc`**, the `glue` scope, in the `rcc` smoke test
   ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
-  A pull request against a release branch starts no `rcc` run today
-  ([open question](https://github.com/duckdb/duckdb-r/pull/2995#issuecomment-6908829067)).
+  Which pull requests run it is
+  [`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)'s.
   The answer is the same in every matrix entry, so it runs in one.
 * **On the entry that builds from source**, the `vendored` scope —
   and it compiles nothing extra.

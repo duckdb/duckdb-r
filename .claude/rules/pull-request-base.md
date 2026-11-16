@@ -21,9 +21,8 @@ Fix the leaf first and re-derive this, never the other way around._
 - Target `main` only for a change that concerns only the line `main` previews,
   or one that changes nothing but the tooling every series takes from `main` (`series_tooling` in `scripts/series-config.sh`),
   with its generated files and the handbook pages that describe only that tooling.
-  Split a change that mixes tooling with anything else: its tooling to `main`, the rest to the release branch.
+  Split a change that mixes tooling with anything else by default: its tooling to `main`, the rest to the release branch.
 - The change reaches the newer lines by a forward merge, so it needs no second pull request,
   except a `patch/` entry, which is opened against each line whose engine needs it.
 - A landing's review and its forward merge take the bases `series-land` gives them.
 - Leave an open pull request's base alone until the maintainer changes it.
-- A pull request against a release branch starts no `rcc` run today, only the handbook check.

@@ -208,13 +208,13 @@ published as `.dev` packages.
 
 ## Source of Truth
 
-Absorbed: [`branches/model/`](/handbook/branches/model/README.md) owns which of the
-seven components `main` is the source of truth for, and the forward-port order.
+Absorbed: [`branches/model/`](/handbook/branches/model/README.md) owns which branch is
+the source of truth for each of the seven components, and the forward-port order.
 
 ## Series Invariants
 
 A **series** is one DuckDB minor line `L` together with its branches: `stable`
-(published; `main` for the current line), `lts` (LTS lines only), and the loop's
+(published; the line's release branch), `lts` (LTS lines only), and the loop's
 working refs. The following invariants hold across all branches of a series. Each
 is phrased to be **checkable** — most can be enforced by a dev-branch health
 workflow. The numbers file them here and are not a way to cite one elsewhere:
@@ -366,10 +366,10 @@ release.
 
 ### Prerelease (during STABILIZE)
 
-- **P1 — Release branches frozen.** Pre-release mutates only the branch the
-  fold-back fixes are written on and `dev` (forward-ports + vendor); `stable` and `lts`
-  stay at the previous release until CUT. A half-finished pre-release is
-  abortable with zero rollback on the release branches.
+- **P1: No landing before CUT.** Pre-release mutates only the branch the
+  fold-back fixes are written on and `dev` (forward-ports + vendor); no landing
+  or version bump reaches a release branch, `stable` or `lts`, before CUT. A
+  half-finished pre-release is abortable with zero rollback on the release branches.
 - **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an ancestor
   of the `dev` tip that will be cut; any delta added after a revdep run is
   reviewed (and re-checked if risky). What ships was tested.

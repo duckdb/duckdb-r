@@ -76,8 +76,8 @@ extends `-dev` by ≤ 100;
 advances `-green` over the verified prefix and then stops on a red above it,
 and refuses a `-green` that would not fast-forward),
 `scripts/series-port.sh <S>`
-(stage 4 — brings `<S>-dev` level with `main`:
-cherry-picks plus a tooling sync),
+(stage 4: cherry-picks from the branch the series releases from,
+plus a tooling sync from `main`),
 `scripts/r-universe-check.sh`
 (read-only — what r-universe made of every published green, stage 3),
 `scripts/series-glue.sh <S>`
@@ -258,7 +258,7 @@ scripts/r-universe-check.sh --log <id>   # the log behind one of them
 
 Reference: [`references/3-advance.md`](references/3-advance.md).
 
-### 4. Port from `main`
+### 4. Port from the branch the series releases from
 
 The goal is identity, not curation:
 after this stage, `.github/`, `scripts/` and `.claude/` on `<S>-dev` are byte-identical to `main`'s,

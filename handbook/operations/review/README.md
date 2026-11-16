@@ -40,9 +40,8 @@ What is settled:
 * A review asks no `NEWS.md` entry of a pull request
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * The author drives CI to green.
-  A pull request against a release branch starts no `rcc` run today, only the handbook check,
-  because [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) fires on pull requests to `main`
-  ([open question](https://github.com/duckdb/duckdb-r/pull/2995#issuecomment-6908829067)).
+  Which workflows a pull request starts depends on the branch it targets
+  ([`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)).
 * An agent may be asked to watch a pull request — CI, review comments,
   merge conflicts — for the length of a session.
   Nothing here is scheduled: the only scheduled agent routine in this

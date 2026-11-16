@@ -47,15 +47,15 @@ when several series release together
 
 ## Clusters
 
-| Cluster | States | Driver | Mutates `main` glue? | Vendored commits → mainline? | Loops? |
-|---------|--------|--------|----------------------|------------------------------|--------|
+| Cluster | States | Driver | Mutates the glue of the branch released from? | Vendored commits → mainline? | Loops? |
+|---------|--------|--------|-----------------------------------------------|------------------------------|--------|
 | **TRACK** | 0 | the series loop | no — forward-ports pass *through* | no | — |
 | **STABILIZE** | 0.1–0.5 | calendar / human (T−14 → tag) | **yes** (fold-back fixes are born here) | no | revdep ⇄ fold-back |
 | **CUT** | 1–5 | upstream tag, then mechanical | no | **yes — the only cluster that does** | red ⇄ fix-in-commit |
 
 The single most important property of the whole design is the pair of
 middle columns: **vendored commits enter the mainline in exactly one
-cluster (CUT), and `main`'s glue changes only in TRACK and STABILIZE.**
+cluster (CUT), and the glue of the branch a series releases from changes only in TRACK and STABILIZE.**
 The two never overlap,
 which is what keeps the release branch CRAN-releasable at all times.
 Between releases the release branch may take its line's batches by landings too, each ending on a bump of the fourth component and its tag
@@ -133,7 +133,7 @@ and no failure that discards a green commit.
 Nothing to do: this is the series loop running unattended
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 with `each.yaml` judging every new commit,
-and glue changes flowing in from `main` through the forward-port chain.
+and glue changes flowing in from the branch the series releases from through the forward-port chain.
 The trusted frontier is "what would ship if we released now."
 
 A maintainer leaves TRACK by **opening the release window**,

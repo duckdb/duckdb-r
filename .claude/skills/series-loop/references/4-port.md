@@ -1,4 +1,4 @@
-# Stage 4: port from `main`
+# Stage 4: port from the branch the series releases from
 
 *Reference for stage 4 of [`series-loop`](../SKILL.md), read when the stage has work;
 the handbook leaf is [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).*
@@ -41,7 +41,7 @@ scripts/series-port.sh <S> --apply          # cherry-pick all, sync, push
 scripts/series-port.sh <S> --apply <sha>…   # a chosen subset instead
 ```
 
-The script lists **every** commit `main` has that the series lacks,
+The script lists **every** commit the branch the series releases from has that the series lacks,
 oldest first,
 classified TOOLING / MIXED / OTHER / VENDOR / VERSION by what it touches,
 and applies all but VENDOR and VERSION by default.

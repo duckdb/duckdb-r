@@ -283,8 +283,8 @@ and the fix is reverted on `-dev`
 by a commit that looks like an ordinary vendor.
 
 **The carry decides by test-applying, never by the file list.**
-A buffer runs ahead of `main`,
-so an entry `main` needs may not fit the engine the buffer has vendored,
+A buffer runs ahead of the branch its series releases from,
+so an entry that branch needs may not fit the engine the buffer has vendored,
 and committing it there regardless breaks the next vendor run
 (`vendor-one.sh`'s `PATCH BROKEN` exit) rather than helping anything.
 Three answers, three situations:
@@ -298,7 +298,7 @@ A candidate whose files an entry the buffer has and `-dev` lacks
 also touches is a **supersession**,
 and applying both is how the next vendor run breaks.
 An entry both stacks carry in different versions is **edited**:
-`main` changed it in place and the port brought the new version to `-dev`,
+the branch the series releases from changed it in place and the port brought the new version to `-dev`,
 while the buffer's tree still carries the old version's effect.
 Test-applying the new one against that tree answers for neither version,
 and it would read as *stale*;

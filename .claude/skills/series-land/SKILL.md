@@ -528,7 +528,7 @@ and `main` moves on to preview the next line; CRAN moves to the new line with it
    checked with `--check` ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
    A retiring line moves the oldest active release branch,
    so the base [`operations/review/`](/handbook/operations/review/README.md) names as today's moves with it,
-   and so does its copy in `AGENTS.md`.
+   and so do its copies in `AGENTS.md` and `.claude/rules/pull-request-base.md`.
 3. **Land `<N>`'s series onto `<N>`**, steps 1 to 7 with `<B>` = `<N>`, ending on the bump to its first release, or short of it to `<N>`'s fourth component one up.
    Where `main` had landed past the fork point, the first pick vendors an older engine than the branch, and the build takes its strand whole.
 4. **`main` previews the next line from here**:
