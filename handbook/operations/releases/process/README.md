@@ -29,8 +29,6 @@ Four refs matter here:
   r-universe builds plain `duckdb` from `main` instead ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
   `main` is no release branch: it carries upstream `main`'s engine and releases nothing
   ([`branches/model/`](/handbook/branches/model/README.md)).
-  That holds fully once the v2.0 series releases from `v2.0-cyanoptera` and `main` has moved on
-  ([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 * **`<S>-lts`** — the release branch plus the flavor rename,
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
@@ -79,7 +77,7 @@ stateDiagram-v2
     state STABILIZE {
         Pinned : 0.1 CANDIDATE PINNED
         Revdep1 : 0.2 REVDEP-1
-        FoldBack : 0.3 FOLD-BACK (fix on main, forward-port)
+        FoldBack : 0.3 FOLD-BACK (fix on the release branch, forward-port)
         Revdep2 : 0.4 REVDEP-2 (go / no-go)
         Freeze : 0.5 GLUE FREEZE (barrier)
         Pinned --> Revdep1
@@ -148,9 +146,9 @@ The goal is to prove the release *candidate* against reverse dependencies
 **before upstream cuts the tag**,
 so that regressions can be folded back — into the glue, into `patch/`,
 or reported upstream — while there is still time.
-STABILIZE mutates only `main` (fold-back fixes)
+STABILIZE mutates only the branch the series releases from (fold-back fixes)
 and `<S>-dev` (forward-ports plus ongoing vendoring);
-the release branches stay at the previous release,
+no landing or version bump reaches a release branch before CUT,
 so the whole cluster is abortable with zero rollback.
 
 ### Preflight

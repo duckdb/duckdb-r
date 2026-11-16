@@ -155,8 +155,6 @@ v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ─�
                     the Pull app (mirrors the canonical branches into the fork)
 ```
 
-This is the layout once the v2.0 series releases from `v2.0-cyanoptera` and `main` has moved on; until then `main` still plays its row's part
-([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents a landing:
 `main` takes batches of upstream `main`, and the release branch of the line CRAN ships takes its own line's batches and releases
 ([`series-land`](/.claude/skills/series-land/SKILL.md)). Patches from `patch/` are applied to the vendored C++ code during every vendor run (see [Patch Stack](#patch-stack) below).
@@ -180,9 +178,6 @@ each with one meaning and one allowed motion
 and the root [`README.md`](/README.md)'s badges count the gaps between them.
 The `dev`/`dev-base` pair the four replaced is retired,
 its refs archived in `krlmlr/duckdb-r-old`.
-
-The table is the layout once the v2.0 series releases from `v2.0-cyanoptera` and `main` has moved on
-([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|

@@ -100,10 +100,11 @@
 # There is no `-land-build`, so the loop's discovery never mistakes the pair for
 # a series.
 #
-# **`--review` writes what a reviewer of `main` reads.** The landing's own diff
-# is the engine's, hundreds of thousands of lines; what changes for `main`'s
-# maintainers is everything else, the glue, R code and tests the series changed
-# on the way. `<L>-land-review` is that alone: the landing's base, one commit
+# **`--review` writes what a reviewer of the branch landed on reads.** The
+# landing's own diff is the engine's, hundreds of thousands of lines; what
+# changes for that branch's maintainers is everything else, the glue, R code and
+# tests the series changed on the way.
+# `<L>-land-review` is that alone: the landing's base, one commit
 # that removes every workflow, and then, for each landing commit that changes
 # anything outside the vendored strand, that change and nothing more, under the
 # upstream commit that asked for it. It is written from the pushed

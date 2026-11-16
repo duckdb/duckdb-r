@@ -59,5 +59,5 @@ searching the tree is the slower path.
 ---
 
 _The shared pages under `handbook/meta/` point to their home, [`cynkra/handbook-tools`](https://github.com/cynkra/handbook-tools);
-the rule file and the skills are carried from there unchanged,
+the prose rule file and the documentation skills are carried from there unchanged,
 and [`.handbook-source`](/.handbook-source) names the files and the state of the source this handbook was last checked against._

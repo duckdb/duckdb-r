@@ -14,10 +14,13 @@ What is settled:
   Branch from that branch and name it as the base:
   `main` is the repository's default branch, so GitHub and `gh pr create` propose it otherwise.
 * **Two kinds of change target `main` instead.**
-  One concerns only the line `main` previews, v2.1 today, such as glue or a test for an engine change only `main` vendors.
+  One concerns only the line `main` previews, such as glue or a test for an engine change only `main` vendors.
   The other changes nothing but the tooling every series takes from `main`,
   `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
-  with the files generated from it and the handbook pages that describe nothing else.
+  with the files generated from it and the handbook pages that describe only that tooling,
+  which go with it so that each branch's pages describe the tooling that branch carries.
+  A change that mixes tooling with anything else is split by default:
+  its tooling to `main`, the rest to the release branch.
 * A `patch/` entry is opened against each line whose engine needs it,
   since a forward merge keeps the newer line's engine, `patch/` included.
   A landing's review and its forward merge take the bases [`series-land`](/.claude/skills/series-land/SKILL.md) gives them,
@@ -37,6 +40,9 @@ What is settled:
 * A review asks no `NEWS.md` entry of a pull request
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * The author drives CI to green.
+  A pull request against a release branch starts no `rcc` run today, only the handbook check,
+  because [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) fires on pull requests to `main`
+  ([open question](https://github.com/duckdb/duckdb-r/pull/2995#issuecomment-6908829067)).
 * An agent may be asked to watch a pull request — CI, review comments,
   merge conflicts — for the length of a session.
   Nothing here is scheduled: the only scheduled agent routine in this

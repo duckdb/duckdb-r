@@ -18,7 +18,7 @@ Little of this is codified; what is settled:
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * Run the tests the change touches
   ([`testing/suite/`](/handbook/testing/suite/README.md));
-  the full suite can also be left to CI.
+  the full suite can also be left to CI on a pull request that runs `rcc`.
   Add a test with every bug fix.
 * Write R to the tidyverse style and design guides,
   and read the deviations before assuming a rule applies here
