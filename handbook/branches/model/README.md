@@ -237,7 +237,7 @@ a branch is made of, and the other three come from elsewhere:
 | **Glue code** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **R code and tests** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **CI/CD infrastructure** | **`main`** | forward-ported to every series |
-| **cpp11** | **`main`** | forward-ported to every series |
+| **cpp11** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | R core | external — `r-devel`, CRAN policy | monitored; fixes land on the oldest active release branch first |
 
 **At most three lines are active, and CRAN follows the middle one once there are three.**
@@ -262,11 +262,12 @@ by [`series-port.sh`](/scripts/series-port.sh), the loop's port stage
 Tooling comes from `main` for every series, no series ports from another,
 and a line declared `stale: true` in [`scripts/series.yaml`](/scripts/series.yaml) takes the tooling sync alone.
 
-**An R-side fix is written on the oldest active release branch and merged forward.**
-A fix goes to the oldest line it applies to, as a pull request against that line's release branch, `v2.0-cyanoptera` today,
+**An R-side change is written on the oldest active release branch and merged forward.**
+It starts on the oldest line it applies to, in a pull request against that line's release branch
+([`operations/review/`](/handbook/operations/review/README.md) owns which branch a pull request targets),
 and reaches every newer line by merging the older branch into the next newer one:
 `v2.0-cyanoptera` into `main` today, and with three lines `v2.0` into `v2.1` and `v2.1` into `main`.
-A fix only a newer line needs is written on that line directly,
+A change only a newer line needs is written on that line directly,
 and a fix written on a newer line first and then found to be needed on an older one is picked back with `git cherry-pick -x`.
 Tooling is `main`'s alone, and reaches a release branch only as such a pick.
 This turns the R-package convention around, where `main` is roughly what CRAN has:

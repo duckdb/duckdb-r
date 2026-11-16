@@ -18,7 +18,7 @@ and what another scope owns is counted rather than listed.
 
 * **`glue`** — everything under `src/` that is not `src/duckdb/`,
   headers included.
-  Fixed here, in a pull request against `main`.
+  Fixed here, in a pull request against the branch [`operations/review/`](/handbook/operations/review/README.md) names.
 * **`vendored`** — `src/duckdb/`, engine and its third-party trees alike.
   Fixed as a patch under [`patch/`](/patch)
   and sent upstream

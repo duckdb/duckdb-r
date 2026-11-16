@@ -111,9 +111,9 @@
 # Without its engine the R side compiles against nothing, so a check there could
 # only fail, and without workflow files a pull request starts nothing that
 # builds or tests it. It goes to the canonical repository, where it is opened as
-# a draft pull request against `main` and never merged: `main` takes the
-# landing itself. It prints the test report the build gated on, for the pull
-# request's description.
+# a draft pull request against the branch it lands on and never merged: that
+# branch takes the landing itself. It prints the test report the build gated
+# on, for the pull request's description.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
 #                       [--base <ref>] [--placed <sha>]... [--no-check-glue] [--attended]

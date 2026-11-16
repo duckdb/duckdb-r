@@ -186,9 +186,9 @@ The table is the layout once the v2.0 series releases from `v2.0-cyanoptera` and
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
-| `main`                    | `duckdb/duckdb-r` | `duckdb`         | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
+| `main`                    | `duckdb/duckdb-r` | `duckdb`         | Preview of the next line; source of truth for CI/CD        |
 | `main-dev`                | `krlmlr/duckdb-r` | `duckdb.dev`     | Vendored dev on upstream `main`; the preview line          |
-| `v2.0-cyanoptera`         | `duckdb/duckdb-r` | `duckdb`         | Release branch of the current line; CRAN releases from it  |
+| `v2.0-cyanoptera`         | `duckdb/duckdb-r` | `duckdb`         | Release branch CRAN ships from; R-side work starts here    |
 | `v2.0-cyanoptera-dev`     | `krlmlr/duckdb-r` | `duckdb.2.0.dev` | Bleeding edge on v2.0 upstream                             |
 | `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Parked baseline of the previous line                       |
 | `v1.5-variegata-lts`      |                   |                  | Does not exist, v1.5 is not an LTS                         |
