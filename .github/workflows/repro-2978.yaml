@@ -29,7 +29,8 @@ env:
   REPRO_EXIT_TIMEOUT: "90"
   REPRO_VARIANTS: >-
     no_spatial load_only st_read gdal1 gdal20 gdal20_threads1
-    gdal20_shutdown_gc gdal20_quit gdal20_quit_norunlast gdal20_pskill
+    gdal20_shutdown_gc gdal20_quit gdal20_quit_norunlast gdal20_taskkill
+    gdal20_snap gdal20_shutdown_gc_snap
 
   # The script every variant runs: Rscript repro.R <variant> [<library>]
   REPRO_R: |
@@ -86,12 +87,20 @@ env:
       invisible(gc())
       say("disconnected with shutdown = TRUE, gc() twice")
     }
+    if (grepl("_snap", variant)) {
+      # The runner snapshots the threads of this live process now, before exit starts.
+      writeLines("snap", "snap.txt")
+      say("REPRO: waiting for the snapshot")
+      while (!file.exists("snap-done.txt")) Sys.sleep(0.2)
+    }
     say("REPRO: script finished")
     # A file of its own, since stdout to a file may stay buffered while R hangs.
     writeLines("finished", "finished.txt")
     if (endsWith(variant, "_quit")) quit(save = "no")
     if (endsWith(variant, "_quit_norunlast")) q(save = "no", runLast = FALSE)
-    if (endsWith(variant, "_pskill")) tools::pskill(Sys.getpid(), tools::SIGKILL)
+    # TerminateProcess from outside, which runs no DLL detach code.
+    # tools::pskill() on its own pid does not terminate R on Windows, and R exits normally after it.
+    if (endsWith(variant, "_taskkill")) system2("taskkill", c("/F", "/PID", Sys.getpid()))
 
   # Fetches the debugging tools and writes their paths to GITHUB_ENV.
   REPRO_TOOLS_PS1: |
@@ -138,7 +147,7 @@ env:
       $p = Start-Process -FilePath $Exe -ArgumentList $Arguments -RedirectStandardOutput $Log -RedirectStandardError "$Log.err" -PassThru -NoNewWindow
       if (-not $p.WaitForExit($Seconds * 1000)) {
         Write-Host "(timed out after $Seconds s, killing $Exe)"
-        taskkill /F /T /PID $p.Id | Out-Null
+        taskkill /F /T /PID $p.Id 2>&1 | Out-Null
       }
       Get-Content $Log, "$Log.err" -ErrorAction SilentlyContinue | Write-Host
     }
@@ -170,8 +179,10 @@ env:
       }
       if ($env:REPRO_GDB) {
         Write-Host "::group::[$Label/$Name] gdb attached to the live process"
-        $gargs = "-p $Id -batch -nx -ex `"set pagination off`" -ex `"info threads`" -ex `"thread apply all bt 60`" -ex `"info sharedlibrary`" -ex detach"
-        Invoke-Bounded $env:REPRO_GDB $gargs 180 (Join-Path $Dir 'gdb.txt')
+        # Frame 7 of the hung thread is pthread_rwlock_wrlock() on winpthreads' _pthread_key_lock:
+        # print the lock's state, which says whether a reader that no longer exists still holds it.
+        $gargs = "-p $Id -batch -nx -ex `"set pagination off`" -ex `"info threads`" -ex `"thread apply all bt 60`" -ex `"thread 1`" -ex `"frame 7`" -ex `"info locals`" -ex `"p *rwlock`" -ex `"frame 8`" -ex `"info locals`" -ex `"info sharedlibrary`" -ex detach"
+        Invoke-Bounded $env:REPRO_GDB $gargs 60 (Join-Path $Dir 'gdb.txt')
         Write-Host "::endgroup::"
       }
     }
@@ -187,6 +198,19 @@ env:
       $p = Start-Process -FilePath $rscript -ArgumentList "--vanilla `"$script`" $v `"$Lib`"" -WorkingDirectory $dir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -NoNewWindow
       $null = $p.Handle
       $sw = [Diagnostics.Stopwatch]::StartNew()
+      if ($v -match '_snap') {
+        while (-not $p.HasExited -and -not (Test-Path (Join-Path $dir 'snap.txt')) -and $sw.Elapsed.TotalSeconds -lt $finishTimeout) {
+          Start-Sleep -Milliseconds 250
+        }
+        $r = @(Get-Descendants $p.Id | Where-Object Name -eq 'Rscript.exe') | Select-Object -Last 1
+        if ($r -and $env:REPRO_CDB) {
+          Write-Host "::group::[$Label/$v] snapshot of the live process before exit (cdb -pv, noninvasive)"
+          $cmds = '.reload; .echo ===THREADS===; ~*k 40; .echo ===END===; qd'
+          Invoke-Bounded $env:REPRO_CDB "-pv -p $($r.ProcessId) -c `"$cmds`"" 300 (Join-Path $dir 'snap-cdb.txt')
+          Write-Host "::endgroup::"
+        }
+        Set-Content -Path (Join-Path $dir 'snap-done.txt') -Value 'done'
+      }
       while (-not $p.HasExited -and -not (Test-Path $marker) -and $sw.Elapsed.TotalSeconds -lt $finishTimeout) {
         Start-Sleep -Milliseconds 250
       }
@@ -208,7 +232,7 @@ env:
         $leaves = @($procs | Where-Object { $id = $_.ProcessId; -not ($procs | Where-Object ParentProcessId -eq $id) })
         if (-not $leaves) { $leaves = @(Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)") }
         foreach ($l in $leaves) { Save-Stacks $l.ProcessId $dir $v }
-        taskkill /F /T /PID $p.Id | Out-Null
+        taskkill /F /T /PID $p.Id 2>&1 | Out-Null
       }
       Write-Host "::group::[$Label/$v] $verdict -- output"
       Get-Content $out, $err -ErrorAction SilentlyContinue | Write-Host
@@ -223,6 +247,7 @@ env:
     '```' | Add-Content $env:GITHUB_STEP_SUMMARY
     $summary | Add-Content $env:GITHUB_STEP_SUMMARY
     '```' | Add-Content $env:GITHUB_STEP_SUMMARY
+    exit 0
 
 jobs:
   baseline:
