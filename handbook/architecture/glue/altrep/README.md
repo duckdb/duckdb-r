@@ -48,8 +48,10 @@ Running out of memory there still leaves the guard on.
 Once an atomic column is converted, its `Length`, `Dataptr`, `Elt` and `Get_region` methods
 read the vector it converted to and take neither the guard nor cpp11's try block,
 since nothing on that path can fail and R calls some of them once per element, in `c()` and `range()` among others.
+They find that vector through its data pointer and length, which the column's wrapper stores once conversion has filled it,
+so a read costs two calls into R besides R's own dispatch.
 A freed column, or one not yet converted, takes the guarded path, which converts it or reports the error.
-A summary over a converted column still costs two to eight times what it costs over a plain vector, R's own dispatch per element
+A summary over a converted column that R reads element by element still costs up to about five and a half times what it costs over a plain vector
 ([`experiments/2026-11-17-lazy-vector-summaries/`](/experiments/2026-11-17-lazy-vector-summaries/README.md)).
 
 *To deepen: state what each ALTREP method does with an unmaterialized
