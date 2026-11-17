@@ -24,20 +24,21 @@ namespace duckdb {
 
 enum class TableFunctionBindType { STANDARD_TABLE_FUNCTION, TABLE_IN_OUT_FUNCTION, TABLE_PARAMETER_FUNCTION };
 
-static TableFunctionBindType GetTableFunctionBindType(TableFunctionCatalogEntry &table_function,
-                                                      vector<unique_ptr<ParsedExpression>> &expressions) {
-	// first check if all expressions are scalar
-	// if they are we always bind as a standard table function
-	bool all_scalar = true;
+static bool AllArgumentsScalar(const vector<unique_ptr<ParsedExpression>> &expressions) {
 	for (auto &expr : expressions) {
 		if (!expr->IsScalar()) {
-			all_scalar = false;
-			break;
+			return false;
 		}
 	}
+	return true;
+}
+
+static TableFunctionBindType GetTableFunctionBindType(const TableFunctionCatalogEntry &table_function,
+                                                      bool all_scalar) {
+	// if all expressions are scalar we always bind as a standard table function
 	if (all_scalar) {
-		for (idx_t function_idx = 0; function_idx < table_function.functions.Size(); function_idx++) {
-			const auto &function = *table_function.functions.GetFunctionByOffset(function_idx);
+		for (auto &function_ptr : table_function.functions.functions) {
+			const auto &function = *function_ptr;
 			for (auto &param : function.GetSignature().GetParameters()) {
 				if (param.GetType().id() == LogicalTypeId::TABLE) {
 					throw BinderException("Table function %s requires a subquery as its TABLE parameter",
@@ -52,8 +53,8 @@ static TableFunctionBindType GetTableFunctionBindType(TableFunctionCatalogEntry 
 	bool has_in_out_function = false;
 	bool has_standard_table_function = false;
 	bool has_table_parameter = false;
-	for (idx_t function_idx = 0; function_idx < table_function.functions.Size(); function_idx++) {
-		const auto &function = *table_function.functions.GetFunctionByOffset(function_idx);
+	for (auto &function_ptr : table_function.functions.functions) {
+		const auto &function = *function_ptr;
 		for (auto &param : function.GetSignature().GetParameters()) {
 			if (param.GetType().id() == LogicalTypeId::TABLE) {
 				has_table_parameter = true;
@@ -69,7 +70,7 @@ static TableFunctionBindType GetTableFunctionBindType(TableFunctionCatalogEntry 
 		}
 	}
 	if (has_table_parameter) {
-		if (table_function.functions.Size() != 1) {
+		if (table_function.functions.functions.size() != 1) {
 			throw InternalException(
 			    "Function \"%s\" has a TABLE parameter, and multiple function overloads - this is not supported",
 			    table_function.name);
@@ -99,7 +100,7 @@ bool Binder::BindTableFunctionParameters(TableFunctionCatalogEntry &table_functi
                                          vector<unique_ptr<Expression>> &positional_arguments,
                                          vector<pair<Identifier, unique_ptr<Expression>>> &named_arguments,
                                          BoundStatement &subquery, bool &table_in_out, ErrorData &error) {
-	auto bind_type = GetTableFunctionBindType(table_function, expressions);
+	auto bind_type = GetTableFunctionBindType(table_function, AllArgumentsScalar(expressions));
 	if (bind_type == TableFunctionBindType::TABLE_IN_OUT_FUNCTION) {
 		// bind table in-out function - its arguments are the columns of the subquery, so there is nothing to fold
 		BindTableInTableOutFunction(expressions, subquery);
@@ -471,6 +472,8 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 		children.push_back(std::move(child.GetExpressionMutable()));
 	}
 
+	// binding the arguments consumes them, so remember what decides the bind type for the check below
+	const bool all_scalar = AllArgumentsScalar(children);
 	if (!BindTableFunctionParameters(function, children, positional_arguments, named_arguments, subquery, table_in_out,
 	                                 error)) {
 		error.AddQueryLocation(ref);
@@ -480,6 +483,14 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 	// selection, named-argument checking, folding and casting all happen in the function binder
 	FunctionBinder function_binder(*this);
 	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
+	if (&current != &function &&
+	    GetTableFunctionBindType(current, all_scalar) != GetTableFunctionBindType(function, all_scalar)) {
+		// the arguments were bound for the replaced entry: an extension autoloaded while they were bound changed
+		// whether the function takes a table input or a TABLE parameter, so they no longer fit the current entry
+		throw BinderException(ref,
+		                      "Table function \"%s\" was replaced while its arguments were bound - run the query again",
+		                      current.name);
+	}
 	vector<Value> parameters;
 	named_argument_map_t named_parameters;
 	auto best_function_idx =
