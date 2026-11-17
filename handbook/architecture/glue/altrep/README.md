@@ -10,6 +10,7 @@ nothing runs until R touches the values,
 materialization is budgeted by `n_rows` and `n_cells`,
 unlimited by default ([`R/relational.R`](/R/relational.R)),
 and an execution error is stored and re-raised at every later access.
+`duckdb.materialize_callback` and the legacy message announce a data frame's first execution only.
 A scan of a table DuckDB stores, under projections of bare column references at most, with unique names and `preserve_insertion_order` on,
 is fetched column by column instead ([#2891](https://github.com/duckdb/duckdb-r/issues/2891)):
 `count(*)` gives the row count, and the first read of a column projects to it;
