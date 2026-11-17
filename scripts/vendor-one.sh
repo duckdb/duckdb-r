@@ -146,6 +146,23 @@ if [ "$(git -C "$upstream_dir" rev-parse --is-shallow-repository)" = true ]; the
   exit 6
 fi
 
+# Does the stamp $1 fall below the stamp $2? Their release numbers `X.Y.Z`
+# compare, and a stamp with a suffix, such as `-dev<count>`, falls below the
+# release it names. A stamp not spelled `[v]X.Y.Z[-...]` falls below nothing.
+stamp_below() { # <stamp> <stamp>
+  local re='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-.*)?$' i
+  local -a a b
+  [[ $1 =~ $re ]] || return 1
+  a=("${BASH_REMATCH[@]:1:4}")
+  [[ $2 =~ $re ]] || return 1
+  b=("${BASH_REMATCH[@]:1:4}")
+  for i in 0 1 2; do
+    ((10#${a[i]} < 10#${b[i]})) && return 0
+    ((10#${a[i]} > 10#${b[i]})) && return 1
+  done
+  [ -n "${a[3]}" ] && [ -z "${b[3]}" ]
+}
+
 # A clone without tags stamps a wrong version just as quietly. Ask the
 # function the generator stamps with, `series_upstream_version()` in
 # scripts/series-config.sh, so the guard and the stamp read the clone the same
@@ -166,6 +183,26 @@ if declare -F series_upstream_version >/dev/null; then
     exit 6
   fi
   echo "The upstream HEAD stamps as ${upstream_version:-what the generator writes}"
+
+  # A clone that lacks only the line's newest tag passes those checks and
+  # stamps the patch number below it, which nothing offline tells from a line
+  # that has not released yet. The strand can tell: its own stamp already names
+  # the release, so a stamp below it went backwards.
+  stamped=
+  if declare -F series_stamped_version >/dev/null; then stamped=$(series_stamped_version HEAD); fi
+  if [ -n "$upstream_version" ] && [ -n "$stamped" ] && stamp_below "$upstream_version" "$stamped"; then
+    echo ""
+    echo "=== UPSTREAM STAMP GOES BACKWARDS ==="
+    echo "$upstream_dir, cloned from $upstream_basedir, stamps its HEAD as"
+    echo "$upstream_version, below the $stamped this tree already carries."
+    echo "A clone that lacks the line's newest tag is the usual cause:"
+    echo "  git -C $upstream_basedir fetch --tags origin"
+    echo "A clone on another line than this series' is the other: check out"
+    echo "the upstream branch the series tracks in it."
+    echo "Then rerun this script."
+    rm -rf "$upstream_dir"
+    exit 6
+  fi
 fi
 
 if [ -n "$(git status --porcelain)" ]; then

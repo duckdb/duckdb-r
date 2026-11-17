@@ -16,6 +16,9 @@
 #   5. An upstream fetched without tags is refused before anything is
 #      vendored, by the configuration's own reading of the version
 #      (scripts/series-stamp-test.sh checks that reading).
+#   6. An upstream whose HEAD stamps a version below the one the strand
+#      carries is refused before anything is vendored, and one at or above it
+#      is not.
 
 set -euo pipefail
 
@@ -156,6 +159,31 @@ has "and the reason" "$(log)" "has no release tag below HEAD"
 is "the strand did not move" "$(git rev-parse HEAD)" "$TIP"
 is "the tree is clean" "$(git status --porcelain | wc -l)" 0
 is "and the clone is gone" "$([ -d duckdb ] && echo kept || echo gone)" gone
+
+echo
+echo "=== 6. an upstream stamp below the strand's is refused"
+# An upstream that resolves its version with a version.py answering what
+# answer.txt says, as a clone that lacks the line's newest tag answers a
+# patch number too low.
+UP2=$SCRATCH/upstream-resolved
+git clone -q "$UP" "$UP2"
+mkdir -p "$UP2/scripts/ci"
+echo 'import pathlib; print(pathlib.Path(__file__).with_name("answer.txt").read_text().strip())' > "$UP2/scripts/ci/version.py"
+echo v0.9.9-dev9 > "$UP2/scripts/ci/answer.txt"
+git -C "$UP2" add -A && git -C "$UP2" -c user.name=Upstream -c user.email=up@example.invalid commit -qm 'upstream: a resolver'
+run --strand --commits 1 "$UP2"; out=$(cat "$SCRATCH/exit")
+[ -z "${KEEP:-}" ] || log | tail -n 20
+is "it exits 6" "$out" "EXIT=6"
+has "naming the condition" "$(log)" "=== UPSTREAM STAMP GOES BACKWARDS ==="
+has "and both stamps" "$(log)" "v0.9.9-dev9, below the 1.0.0-dev3 this tree already carries"
+is "the strand did not move" "$(git rev-parse HEAD)" "$TIP"
+is "and the clone is gone" "$([ -d duckdb ] && echo kept || echo gone)" gone
+echo v1.0.0-dev9 > "$UP2/scripts/ci/answer.txt"
+git -C "$UP2" -c user.name=Upstream -c user.email=up@example.invalid commit -qam 'upstream: the resolver answers higher'
+run --strand --commits 1 "$UP2"; out=$(cat "$SCRATCH/exit")
+[ -z "${KEEP:-}" ] || log | tail -n 20
+is "a stamp above it passes" "$out" "EXIT=0"
+has "and is said" "$(log)" "The upstream HEAD stamps as v1.0.0-dev9"
 
 echo
 echo "$pass passed, $fail failed"

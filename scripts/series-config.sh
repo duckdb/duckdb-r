@@ -70,7 +70,9 @@ series_makevars=(src/Makevars src/Makevars.win)
 # a `version.py` that fails or answers no `-dev` version are refused, with the
 # reason on stderr. scripts/vendor-one.sh asks once before it walks and exits 6
 # on a refusal, and the generator below stops the run with exit 7
-# (handbook/operations/vendoring/troubleshooting/README.md).
+# (handbook/operations/vendoring/troubleshooting/README.md). A clone that lacks
+# only the line's newest tag looks like a line that has not released it yet;
+# vendor-one.sh catches that by comparing with the stamp the strand carries.
 series_upstream_version() { # <upstream checkout> -> the version, or empty
   local tag version resolver=
   [ ! -f "$1/scripts/ci/version.py" ] || resolver=1
