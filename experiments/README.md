@@ -158,6 +158,10 @@ This file is what names the contents, so nothing here is an orphan.
   whether `dbExistsTable()` leaves an open transaction usable on DuckDB 1.5.6 and 2.0,
   and how a relaxed policy, a second connection, a catalog lookup and the two combined answer eighteen names inside one.
   Supports [`usage/statements/`](/handbook/usage/statements/README.md).
+* [`2026-11-17-caching-null-if-not-exists/`](2026-11-17-caching-null-if-not-exists/):
+  whether the external file cache returns the null handle `FILE_FLAGS_NULL_IF_NOT_EXISTS` promises for a missing file,
+  locally and over http and S3, on engines v2.0.0 and v2.1.0-dev92210.
+  Gathered for [#2977](https://github.com/duckdb/duckdb-r/issues/2977); no leaf leans on it yet.
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
