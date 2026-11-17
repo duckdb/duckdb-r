@@ -66,7 +66,8 @@ A fix belongs on the source strand, and reaches the rc strand by realigning;
 an edit made on the rc strand is overwritten at the next realignment.
 An rc commit red where its source commit is green is a finding about the flavor,
 the one thing that differs,
-and it is fixed on `main` in the flavor tooling or in the code the flavor touches.
+and it is fixed in the flavor tooling, on `main`, or in the code the flavor touches, on the branch the series releases from
+([`operations/review/`](/handbook/operations/review/README.md)).
 
 The strand is derived, never vendored, repaired, ported or advanced on its own.
 
