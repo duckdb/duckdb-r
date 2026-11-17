@@ -115,20 +115,20 @@ env:
     break thread.c:966
     commands
       silent
-      printf "=== RDLOCK _pthread_key_lock in _pthread_cleanup_dest, thread %d, key %u, dtor %p\n", $_thread, i, _pthread_key_dest[i]
+      printf "=== RDLOCK _pthread_key_lock in _pthread_cleanup_dest, thread %d\n", $_thread
       bt 30
       continue
     end
     break thread.c:982
     commands
       silent
-      printf "=== UNLOCK _pthread_key_lock in _pthread_cleanup_dest, thread %d, key %u\n", $_thread, i
+      printf "=== UNLOCK _pthread_key_lock in _pthread_cleanup_dest, thread %d\n", $_thread
       continue
     end
     break pthread_key_delete
     commands
       silent
-      printf "=== pthread_key_delete(%u), thread %d\n", key, $_thread
+      printf "=== pthread_key_delete, thread %d\n", $_thread
       bt 30
       continue
     end
