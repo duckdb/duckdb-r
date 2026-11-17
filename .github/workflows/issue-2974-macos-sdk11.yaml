@@ -535,6 +535,10 @@ jobs:
             echo
             echo '```'
             du -sh "$CCACHE_DIR" 2>/dev/null || true
+            echo "largest ccache files (KiB):"
+            find "$CCACHE_DIR" -type f -size +4M -exec du -k {} + 2>/dev/null | sort -rn | sed -n '1,8p' || true
+            echo "largest objects (KiB):"
+            find src -name '*.o' -size +8M -exec du -k {} + 2>/dev/null | sort -rn | sed -n '1,8p' || true
             echo "objects: $(find src -name '*.o' | wc -l | tr -d ' ') files, $(find src -name '*.o' -print0 | xargs -0 du -ck 2>/dev/null | tail -n 1 | cut -f1) KiB"
             ls -l src/*.so 2>/dev/null || true
             echo
