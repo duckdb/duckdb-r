@@ -80,13 +80,17 @@ test_that("an integer64 column scans as BIGINT with `rel_from_df()`", {
 test_that("an integer64 column scans as BIGINT from a materialized ALTREP data frame", {
   skip_if_not_installed("bit64")
   con <- local_con(bigint = "integer64")
-  df <- rel_to_altrep(rel_from_sql(con, "SELECT 9007199254740993::BIGINT AS a"))
-  expect_equal(as.character(df$a), "9007199254740993")
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    "SELECT * FROM (VALUES (9007199254740993::BIGINT, 'x'), (NULL, 'y')) AS t(a, b)"
+  ))
+  expect_equal(as.character(df$a), c("9007199254740993", NA))
 
   rel <- rel_from_altrep_df(df, wrap = TRUE)
   rel_to_view(rel, "main", "v", temporary = TRUE)
 
-  res <- dbGetQuery(con, "SELECT typeof(a) AS t, a::VARCHAR AS v FROM v")
-  expect_equal(res$t, "BIGINT")
-  expect_equal(res$v, "9007199254740993")
+  res <- dbGetQuery(con, "SELECT typeof(a) AS t, a::VARCHAR AS v, b FROM v")
+  expect_equal(res$t, c("BIGINT", "BIGINT"))
+  expect_equal(res$v, c("9007199254740993", NA))
+  expect_equal(res$b, c("x", "y"))
 })

@@ -131,7 +131,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)df)));
-	// integer64 := true, as in rapi_register_df()
+	// integer64 := true: an integer64 column scans as BIGINT, as rapi_register_df() registers it
 	auto integer64 = ConstantExpression::FromValue(Value::BOOLEAN(true));
 	integer64->SetAlias(Identifier("integer64"));
 	children.push_back(std::move(integer64));
