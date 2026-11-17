@@ -1,0 +1,93 @@
+# Throwaway (duckdb/duckdb-r#3006): checks that the patched optional_idx keeps
+# upstream's layout on every toolchain. Drop before merge.
+name: abi-check-optional-idx
+
+on:
+  push:
+    branches:
+      - claude/issue-2998-valgrind-deserialize
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unix:
+    name: ${{ matrix.os }} ${{ matrix.cxx }} ${{ matrix.flags }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, cxx: g++, flags: "" }
+          - { os: ubuntu-latest, cxx: clang++, flags: "" }
+          - { os: ubuntu-latest, cxx: clang++, flags: "-stdlib=libc++" }
+          - { os: macos-latest, cxx: clang++, flags: "" }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            abi-check
+            src/duckdb/src/include
+      - if: matrix.flags == '-stdlib=libc++'
+        run: sudo apt-get update && sudo apt-get install -y libc++-dev libc++abi-dev
+      - name: Build and run
+        shell: bash
+        run: |
+          ${{ matrix.cxx }} --version
+          for o in -O0 -O2; do
+            echo "::group::${{ matrix.cxx }} ${{ matrix.flags }} $o"
+            ${{ matrix.cxx }} ${{ matrix.flags }} -std=c++17 $o -Wall -I src/duckdb/src/include abi-check/optional_idx_abi.cpp -o abi
+            ./abi
+            echo "::endgroup::"
+          done
+
+  msvc:
+    name: windows-latest MSVC
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            abi-check
+            src/duckdb/src/include
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build and run
+        shell: cmd
+        run: |
+          cl /Bv 2>&1 | findstr /C:"Version"
+          cl /nologo /std:c++17 /EHsc /Od /DDUCKDB_STATIC_BUILD /I src\duckdb\src\include abi-check\optional_idx_abi.cpp /Fe:abi_od.exe || exit /b 1
+          abi_od.exe || exit /b 1
+          cl /nologo /std:c++17 /EHsc /O2 /DDUCKDB_STATIC_BUILD /I src\duckdb\src\include abi-check\optional_idx_abi.cpp /Fe:abi_o2.exe || exit /b 1
+          abi_o2.exe || exit /b 1
+
+  mingw:
+    name: windows-latest MinGW ${{ matrix.msystem }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        msystem: [UCRT64, MINGW64]
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            abi-check
+            src/duckdb/src/include
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: false
+          pacboy: gcc:p
+      - name: Build and run
+        run: |
+          g++ --version
+          for o in -O0 -O2; do
+            echo "::group::g++ $o"
+            g++ -std=c++17 $o -Wall -D__USE_MINGW_ANSI_STDIO=1 -I src/duckdb/src/include abi-check/optional_idx_abi.cpp -o abi.exe
+            ./abi.exe
+            echo "::endgroup::"
+          done
