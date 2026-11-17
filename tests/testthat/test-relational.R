@@ -162,6 +162,12 @@ test_that("converted ALTREP columns read like plain vectors (#2890)", {
       expect_identical(mean(x), mean(p))
       expect_identical(sum(x, na.rm = TRUE), sum(p, na.rm = TRUE))
     }
+    # Still the lazy class after converting and reading, not a plain vector
+    expect_true(any(grepl(
+      "DUCKDB_ALTREP_REL_VECTOR",
+      capture.output(.Internal(inspect(x))),
+      fixed = TRUE
+    )))
   }
   expect_identical(as.list(df), plain)
 })
@@ -205,6 +211,20 @@ test_that("unconverted ALTREP columns convert on element access (#2890)", {
       expect_identical(sum(df[[col]], na.rm = TRUE), sum(p, na.rm = TRUE))
     }
   }
+})
+
+test_that("the row limit surfaces through element and region access (#2890)", {
+  con <- local_con()
+  rel <- rel_from_sql(
+    con,
+    "SELECT range / 4 AS d, 'v' || range AS s FROM range(20)"
+  )
+
+  df <- rel_to_altrep(rel, n_rows = 10)
+  expect_error(range(df$d), "more than 10 rows")
+  expect_error(df$d[[1]], "more than 10 rows")
+  expect_error(df$s[[1]], "more than 10 rows")
+  expect_false(df_is_materialized(df))
 })
 
 

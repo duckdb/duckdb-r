@@ -674,7 +674,10 @@ const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
 // The guard only changes how an error is reported, and this path raises none:
 // a freed or foreign wrapper also answers R_NilValue,
 // and the caller's slow path then reports it through AltrepVectorWrapper::Get().
-// It only reads, as DataptrOrNull() does, so a task's bind may take it too
+// It only reads, as DataptrOrNull() does, so a task's bind may take it too.
+// That bind is not free of R, though:
+// it still enters through R's DATAPTR() and Rf_length(),
+// which clear and restore R's flag for its collector around the call
 // (handbook/architecture/glue/threading/).
 static SEXP ConvertedVectorOrNil(SEXP x) {
 	SEXP ptr = R_altrep_data1(x);
@@ -726,6 +729,7 @@ static R_xlen_t VectorGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, T *out) {
 	}
 	BEGIN_CPP11
 	AltrepGuard guard;
+	// A nested access during an in-flight conversion sees the partly filled vector, as with Dataptr()
 	return CopyRegion(AltrepVectorWrapper::Get(x)->RVector(), start, size, out, sizeof(T));
 	END_CPP11_EX(0)
 }
