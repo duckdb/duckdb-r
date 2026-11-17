@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Eleven things are checked:
+# version first, whichever side a section came from. Fourteen things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -25,6 +25,12 @@
 #      sides; without python3 it stays a line merge and conflicts.
 #  11. The development section, `# duckdb (development version)`, stays above
 #      every version, and its compare link, changed on both sides, is ours.
+#  12. Ours moves the development section's link and theirs adds a line to it:
+#      the merge is clean, with our link and their line.
+#  13. Both sides change the same other line of the development section
+#      differently: a conflict.
+#  14. A heading with no version that is not `# duckdb (development version)`
+#      sorts below every version, with a warning.
 #
 # Usage:
 #   scripts/merge-news-test.sh
@@ -164,6 +170,40 @@ dev() { printf '# duckdb (development version)\n\nCommits since %s: <https://git
 is "a forward merge of both sides' landings merges cleanly" "$(merge)" 0
 is "the development section first, then newest first" "$(headings A)" "(development version) 2.0.99.9001 2.0.99.9000 2.0.1 2.0.0 "
 has "with our compare link" "$(cat A)" "compare/v2.0.99.9001...main>"
+
+echo "== 12. the link moved on ours, a line added on theirs"
+{ dev v2.0.99.9000 main; sec 2.0.99.9000; } > O
+{ dev v2.0.99.9001 main; sec 2.0.99.9001; sec 2.0.99.9000; } > A
+{ dev v2.0.99.9000 main | sed '3a\
+\
+- A bullet of theirs.'; sec 2.0.99.9000; } > B
+is "it merges cleanly" "$(merge)" 0
+has "with our link" "$(cat A)" "compare/v2.0.99.9001...main>"
+has "and their line" "$(cat A)" "- A bullet of theirs."
+is "and no other link" "$(grep -c 'Commits since' A)" 1
+
+echo "== 13. another line of the development section changed on both sides"
+{ dev v2.0.99.9000 main | sed '3a\
+\
+- Base.'; sec 2.0.99.9000; } > O
+{ dev v2.0.99.9001 main | sed '3a\
+\
+- Ours.'; sec 2.0.99.9001; sec 2.0.99.9000; } > A
+{ dev v2.0.99.9000 main | sed '3a\
+\
+- Theirs.'; sec 2.0.99.9000; } > B
+is "it conflicts" "$(merge)" 1
+has "with the conflict marked" "$(cat A)" "<<<<<<< ours"
+has "keeping their line" "$(cat A)" "- Theirs."
+
+echo "== 14. a heading with no version that is not the development section"
+news 2.0.0 > O
+{ printf '# duckdb unreleased\n\n- x\n\n\n'; news 2.0.0; } > A
+{ sec 2.0.1; news 2.0.0; } > B
+err=$("$HERE/merge-news.sh" O A B 2>&1 >/dev/null) && st=0 || st=$?
+is "it merges cleanly" "$st" 0
+is "below every version" "$(headings A)" "2.0.1 2.0.0 unreleased "
+has "with a warning" "$err" "names no version"
 
 echo
 echo "$pass passed, $fail failed"

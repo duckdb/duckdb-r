@@ -19,10 +19,13 @@
 #     `git merge-file`, and a conflict there is a conflict of the whole merge;
 #   * the sections are written newest version first, compared component by
 #     component as numbers, whatever side each came from;
-#   * a heading whose first token is no version, the development section
-#     `# duckdb (development version)`, sorts above every version, and changed
-#     on both sides it takes ours, as the `DESCRIPTION` driver keeps our
-#     `Version:`: it is the branch's own compare link.
+#   * the development section, headed exactly `# duckdb (development version)`,
+#     sorts above every version. Changed on both sides, it is merged three-way
+#     like any other, and where the conflict lies in its `Commits since ...`
+#     link line alone it takes our link, as the `DESCRIPTION` driver keeps our
+#     `Version:`: the link is the branch's own. A conflict anywhere else in it
+#     is a conflict. Any other heading whose first token is no version sorts
+#     below every version, with a warning.
 #
 #   * a section of the base gone from one side, renamed there or deleted, and
 #     left alone on the other is gone, and a renamed one is taken under its new
@@ -56,6 +59,8 @@ import tempfile
 
 o_path, a_path, b_path = sys.argv[1:4]
 HEAD = re.compile(r"^# duckdb (\S+)(\s.*)?$")
+DEV = "(development version)"
+LINK = re.compile(r"^(- )?Commits since \S+: <[^>]*>\.?$")
 
 
 def read(path):
@@ -77,7 +82,10 @@ def sections(text):
         m = HEAD.match(line.rstrip("\r\n"))
         if m:
             out[key] = "".join(buf)
-            v = m.group(1)
+            v = DEV if line.rstrip("\r\n") == "# duckdb " + DEV else m.group(1)
+            if v != DEV and not v[:1].isdigit():
+                print(f"merge-news.sh: heading {line.strip()!r} names no version, so it sorts below every version",
+                      file=sys.stderr)
             seen[v] = seen.get(v, 0) + 1
             key = v if seen[v] == 1 else (v, seen[v])
             buf = [line]
@@ -91,7 +99,7 @@ def sections(text):
 
 def is_dev(key):
     v = key if isinstance(key, str) else key[0]
-    return not v[:1].isdigit()
+    return v == DEV
 
 
 def version_key(key):
@@ -118,6 +126,21 @@ def merge3(a, o, b):
         if r.returncode < 0 or r.returncode > 127:
             sys.exit(r.returncode)
         return r.stdout, r.returncode != 0
+
+
+def merge_dev(a, o, b):
+    """The development section changed on both sides: merge three-way, and where
+    the conflict lies in the link line alone, take our link line."""
+    res, c = merge3(a, o, b)
+    ours = [l for l in a.splitlines(keepends=True) if LINK.match(l.rstrip("\r\n"))]
+    if not c or len(ours) != 1:
+        return res, c
+
+    def ours_link(t):
+        return "".join(ours[0] if LINK.match(l.rstrip("\r\n")) else l for l in (t or "").splitlines(keepends=True))
+
+    res2, c2 = merge3(a, ours_link(o), ours_link(b))
+    return (res2, c2) if not c2 else (res, c)
 
 
 def ordered(merged):
@@ -156,8 +179,9 @@ for key in list(dict.fromkeys([*A, *B, *O])):
         res = b
     elif b == o:
         res = a
-    elif key is not None and is_dev(key) and a is not None:
-        res = a
+    elif key is not None and is_dev(key) and a is not None and b is not None:
+        res, c = merge_dev(a, o, b)
+        conflict = conflict or c
     else:
         res, c = merge3(a, o, b)
         conflict = conflict or c

@@ -236,7 +236,10 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   ```
 
 * **`NEWS.md`**: add the section for `<v>` below the development section, and move that section's compare link to the tag the bump takes,
-  in the shape [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns:
+  in the shape [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns.
+  Where there is no development section yet, turn the top section into it first:
+  the heading `# duckdb (development version)` and its one link line, moved to the new tag.
+  The section for `<v>` is
   headed `# duckdb <v> (<today>)`, the italic drafted-with-AI line first, then the release notes.
   Draft them from what the batch brings:
   the upstream commits its vendor commits name, the R side the review of step 4 carries commit by commit,
@@ -266,7 +269,7 @@ eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/f
 full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
 v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
 sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
-sed -i "s/^# duckdb $v ([0-9-]*)\$/# duckdb $v ($(date +%F))/" NEWS.md
+sed -i "s/^# duckdb ${v//./\\.} ([0-9-]*)\$/# duckdb $v ($(date +%F))/" NEWS.md
 git diff DESCRIPTION NEWS.md
 git commit --amend --no-edit DESCRIPTION NEWS.md
 ```

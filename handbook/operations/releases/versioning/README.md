@@ -132,6 +132,9 @@ the heading `# duckdb (development version)` and one line without a bullet,
 which compares the branch's newest tag with the branch, `main` or the release branch.
 Each landing's bump moves the link to the tag it takes, `v<version>` or `v<version>.9900` (above),
 and the bump to `.9000` after a release moves it to the release's `v<version>`.
+Where the file has no development section yet, the first bump makes one of its top section:
+it renames the heading to `# duckdb (development version)`, keeps the one link line, moved to the bump's tag,
+and adds its own section below.
 
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
@@ -164,7 +167,7 @@ it merges the file section by section, a section being a `# duckdb <version>` he
 and writes the sections newest version first whichever side each came from, the development section above them all,
 so a forward merge interleaves the older line's `2.0.1` and `2.0.0.9001` below the newer line's `2.0.99.9001` without a conflict;
 a section both sides changed differently is merged three-way, and conflicts as any line would,
-except the development section, which keeps ours, as the `DESCRIPTION` driver keeps our `Version:`.
+and in the development section a conflict confined to the compare link keeps our link, as the `DESCRIPTION` driver keeps our `Version:`.
 The `DESCRIPTION` driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
