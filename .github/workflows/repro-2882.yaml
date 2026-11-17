@@ -200,7 +200,7 @@ env:
     writeLines(lines)
     # One machine-readable line for the verdict: failures count failed expectations and errored tests.
     counts <- if (is.null(res)) c(NA, NA) else c(sum(df$failed) + sum(df$error), sum(df$passed))
-    cat("TESTTHAT_COUNTS", label, "FAIL", counts[[1]], "PASS", counts[[2]], "\n")
+    cat(paste("TESTTHAT_COUNTS", label, "FAIL", counts[[1]], "PASS", counts[[2]]), "\n", sep = "")
     summary_file <- Sys.getenv("GITHUB_STEP_SUMMARY")
     if (nzchar(summary_file)) {
       cat(
@@ -509,7 +509,7 @@ jobs:
           )
           echo "$report"
           count() { grep -c "$2" "$t/results-$1.txt" || true; }
-          tt() { sed -n "s/^TESTTHAT_COUNTS $1 FAIL \([0-9]*\) PASS \([0-9]*\)\$/\\$2/p" "$t/testthat-$1.log" | head -n 1; }
+          tt() { sed -n "s/^TESTTHAT_COUNTS $1 FAIL \([0-9]*\) PASS \([0-9]*\)[[:space:]]*\$/\\$2/p" "$t/testthat-$1.log" | head -n 1; }
           u_fail=$(count unpatched ' FAIL$'); p_fail=$(count patched ' FAIL$'); p_all=$(count patched .)
           u_tfail=$(tt unpatched 1); p_tfail=$(tt patched 1); p_tpass=$(tt patched 2)
           verdict=pass
