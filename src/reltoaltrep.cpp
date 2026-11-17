@@ -681,6 +681,15 @@ const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
 #define RELTOALTREP_NOINLINE
 #endif
 
+// Entries into the guarded slow path of the atomic columns' Length, Dataptr, Elt and Get_region methods,
+// for tests only: a read of a converted column must never count (#2890).
+// Relaxed and atomic, since a task's bind may reach Length or Dataptr too (handbook/architecture/glue/threading/).
+static std::atomic<uint64_t> altrep_slow_path_count {0};
+
+static inline void CountSlowPath() {
+	altrep_slow_path_count.fetch_add(1, std::memory_order_relaxed);
+}
+
 // The payload of a converted column and its length, see ConvertedPayload()
 struct ConvertedView {
 	const void *payload;
@@ -721,6 +730,7 @@ static RELTOALTREP_NOINLINE T VectorEltSlow(SEXP x, R_xlen_t i) {
 	} else {
 		na = NA_INTEGER;
 	}
+	CountSlowPath();
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return static_cast<const T *>(AltrepVectorWrapper::Get(x)->Dataptr())[i];
@@ -753,6 +763,7 @@ static R_xlen_t VectorGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, T *out) {
 	if (view.payload) {
 		return CopyRegion(static_cast<const T *>(view.payload), view.length, start, size, out);
 	}
+	CountSlowPath();
 	BEGIN_CPP11
 	AltrepGuard guard;
 	// A nested access during an in-flight conversion sees the partly filled vector, as with Dataptr()
@@ -767,6 +778,7 @@ R_xlen_t RelToAltrep::VectorAtomicLength(SEXP x) {
 	if (view.payload) {
 		return view.length;
 	}
+	CountSlowPath();
 	return VectorLength(x);
 }
 
@@ -775,6 +787,7 @@ void *RelToAltrep::VectorAtomicDataptr(SEXP x, Rboolean writeable) {
 	if (view.payload) {
 		return const_cast<void *>(view.payload);
 	}
+	CountSlowPath();
 	return VectorDataptr(x, writeable);
 }
 
@@ -804,6 +817,7 @@ R_xlen_t RelToAltrep::VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size,
 
 // Out of line, since BEGIN_CPP11 reserves a buffer for the error message in the frame of the function it is in
 static RELTOALTREP_NOINLINE SEXP VectorStringEltSlow(SEXP x, R_xlen_t i) {
+	CountSlowPath();
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
@@ -1019,6 +1033,11 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	}
 
 	return wrapper->rel;
+}
+
+// Internal, for tests only: how often the atomic columns took the guarded slow path, see CountSlowPath()
+[[cpp11::register]] double rapi_altrep_slow_path_count() {
+	return static_cast<double>(altrep_slow_path_count.load(std::memory_order_relaxed));
 }
 
 [[cpp11::register]] bool rapi_df_has_query_result(SEXP df) {

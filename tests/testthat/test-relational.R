@@ -364,6 +364,68 @@ test_that("converted ALTREP columns scan from engine threads (#2890)", {
   }
 })
 
+test_that("reads of converted ALTREP columns never take the guarded path (#2890)", {
+  con <- local_con()
+  con2 <- local_con()
+  dbExecute(con2, "SET threads = 4")
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    paste(
+      "SELECT",
+      "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+      "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+      "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+      "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+      "FROM range(5000) ORDER BY range"
+    )
+  ))
+  # One guarded read per column converts it
+  for (col in names(df)) {
+    df[[col]][[1]]
+  }
+  expect_true(df_is_materialized(df))
+
+  before <- rapi_altrep_slow_path_count()
+  for (col in names(df)) {
+    x <- df[[col]]
+    x[[2]]
+    x[[5000]]
+    x[2990:3010]
+    x[!is.na(x)]
+    range(x)
+    range(x, na.rm = TRUE)
+    anyNA(x)
+    unique(x)
+    c(x, x)
+    if (col != "s") {
+      mean(x)
+      mean(x, na.rm = TRUE)
+      sum(x, na.rm = TRUE)
+    }
+  }
+  duckdb_register(con2, "lazy", df)
+  scanned <- dbGetQuery(
+    con2,
+    "SELECT count(l), sum(i), sum(d), max(s) FROM lazy"
+  )
+  duckdb_unregister(con2, "lazy")
+  expect_equal(nrow(scanned), 1L)
+  expect_identical(rapi_altrep_slow_path_count(), before)
+})
+
+test_that("reads of unconverted ALTREP columns take the guarded path (#2890)", {
+  con <- local_con()
+  df <- rel_to_altrep(rel_from_sql(
+    con,
+    "SELECT range % 2 = 0 AS l, range::INTEGER AS i, range / 4 AS d, 'v' || range AS s FROM range(10)"
+  ))
+  for (col in names(df)) {
+    before <- rapi_altrep_slow_path_count()
+    df[[col]][[1]]
+    expect_gt(rapi_altrep_slow_path_count(), before, label = col)
+  }
+})
+
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
     expr_reference("asdf")
