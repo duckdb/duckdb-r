@@ -227,6 +227,90 @@ test_that("the row limit surfaces through element and region access (#2890)", {
   expect_false(df_is_materialized(df))
 })
 
+test_that("summaries of ALTREP columns match plain vectors at the edges (#2890)", {
+  con <- local_con()
+  # Each value with any warning it raised, so that warnings must match too
+  with_warnings <- function(expr) {
+    warnings <- character()
+    value <- withCallingHandlers(
+      expr,
+      warning = function(w) {
+        warnings <<- c(warnings, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+    list(value = value, warnings = warnings)
+  }
+  ops <- list(
+    length = function(x) length(x),
+    min = function(x) min(x),
+    min_na_rm = function(x) min(x, na.rm = TRUE),
+    max = function(x) max(x),
+    max_na_rm = function(x) max(x, na.rm = TRUE),
+    range = function(x) range(x),
+    range_na_rm = function(x) range(x, na.rm = TRUE),
+    any_na = function(x) anyNA(x),
+    is_na = function(x) is.na(x),
+    unique = function(x) unique(x),
+    duplicated = function(x) duplicated(x),
+    c = function(x) c(x, x),
+    elements = function(x) lapply(seq_along(x), function(k) x[[k]]),
+    reversed = function(x) x[rev(seq_along(x))]
+  )
+  numeric_ops <- list(
+    sum = function(x) sum(x),
+    sum_na_rm = function(x) sum(x, na.rm = TRUE),
+    mean = function(x) mean(x),
+    mean_na_rm = function(x) mean(x, na.rm = TRUE)
+  )
+  queries <- c(
+    double = "SELECT * FROM (VALUES (1.5::DOUBLE), (NULL), ('NaN'::DOUBLE), ('Infinity'::DOUBLE), ('-Infinity'::DOUBLE), (-2.0)) t(x)",
+    double_no_na = "SELECT * FROM (VALUES (1.5::DOUBLE), (-2.0), (0.25)) t(x)",
+    integer = "SELECT * FROM (VALUES (3), (NULL), (-7), (3)) t(x)",
+    # The sum overflows an integer: NA with a warning
+    integer_overflow = "SELECT * FROM (VALUES (2147483647), (2147483647), (NULL)) t(x)",
+    logical = "SELECT * FROM (VALUES (true), (NULL), (false), (true)) t(x)",
+    string = "SELECT * FROM (VALUES ('b'), (NULL), ('a'), ('b')) t(x)",
+    empty_double = "SELECT 1.5::DOUBLE AS x WHERE false",
+    empty_integer = "SELECT 1 AS x WHERE false",
+    empty_logical = "SELECT true AS x WHERE false",
+    empty_string = "SELECT 'a' AS x WHERE false",
+    all_na_double = "SELECT NULL::DOUBLE AS x FROM range(3)",
+    all_na_integer = "SELECT NULL::INTEGER AS x FROM range(3)",
+    all_na_logical = "SELECT NULL::BOOLEAN AS x FROM range(3)",
+    all_na_string = "SELECT NULL::VARCHAR AS x FROM range(3)"
+  )
+
+  for (name in names(queries)) {
+    sql <- queries[[name]]
+    plain <- dbGetQuery(con, sql)$x
+    expect_false(is.null(plain))
+    col_ops <- if (is.character(plain)) ops else c(ops, numeric_ops)
+
+    # Converted once: serializing reads the whole vector, so every op reads the converted one
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    converted <- df$x
+    invisible(serialize(converted, NULL))
+    expect_true(df_is_materialized(df))
+
+    for (op in names(col_ops)) {
+      f <- col_ops[[op]]
+      expected <- with_warnings(f(plain))
+      expect_identical(
+        with_warnings(f(converted)),
+        expected,
+        label = paste(name, op, "converted")
+      )
+      # Unconverted: a fresh column, which the op converts
+      fresh <- rel_to_altrep(rel_from_sql(con, sql))$x
+      expect_identical(
+        with_warnings(f(fresh)),
+        expected,
+        label = paste(name, op, "unconverted")
+      )
+    }
+  }
+})
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
