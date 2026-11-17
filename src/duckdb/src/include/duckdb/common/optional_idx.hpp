@@ -40,6 +40,11 @@ public:
 		return *index;
 	}
 
+	//! The index if set, otherwise if_invalid
+	idx_t GetIndexOr(idx_t if_invalid) const {
+		return index.has_value() ? *index : if_invalid;
+	}
+
 	inline bool operator==(const optional_idx &rhs) const {
 		return index == rhs.index;
 	}
