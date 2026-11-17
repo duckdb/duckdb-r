@@ -1,0 +1,360 @@
+# Reproducer for https://github.com/duckdb/duckdb-r/issues/2974:
+# CRAN's r-release-macos-x86_64 compiles against the MacOSX11.3 SDK, whose
+# libc++ lacks reference_wrapper's converting constructor (LWG 2993).
+#
+# One job, three builds of the same tree:
+#   1. the unchanged tree with `make -k`, expected to fail, every error kept;
+#   2. the same tree with .github/issue-2974/lwg2993.patch applied, must pass;
+#   3. a smoke test of the installed package.
+#
+# The build tree (object files, the shared library) and ccache are cached
+# between runs. A fresh checkout gives every file a new mtime, so all tracked
+# files are set to a fixed old date and only those that differ from the commit
+# the cache was built from are touched again.
+#
+# Throwaway: drop this file and .github/issue-2974/ before any fix merges.
+on:
+  push:
+    branches:
+      - claude/issue-2974-macos-sdk11
+    paths:
+      - ".github/workflows/issue-2974-macos-sdk11.yaml"
+      - ".github/issue-2974/**"
+      - "src/**"
+
+name: issue-2974 macOS SDK 11
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sdk11:
+    runs-on: macos-15-intel
+    timeout-minutes: 300
+    env:
+      SDK_VERSION: "11.3"
+      SDK_URL: https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz
+      PATCH: .github/issue-2974/lwg2993.patch
+      CCACHE_DIR: /Users/runner/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
+      BUILD_CACHE_META: /Users/runner/build-cache-meta
+      UserNM: "true"
+      NOT_CRAN: "true"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Select the oldest Xcode on the image
+        id: xcode
+        run: |
+          echo "start_ts=$(date +%s)" >> "$GITHUB_OUTPUT"
+          ls -ld /Applications/Xcode*.app
+          dev=$(python3 - <<'EOF'
+          import glob, os, plistlib
+          apps = [a for a in glob.glob("/Applications/Xcode_*.app") if not os.path.islink(a)]
+          def ver(a):
+              with open(os.path.join(a, "Contents/Info.plist"), "rb") as f:
+                  v = plistlib.load(f)["CFBundleShortVersionString"]
+              return tuple(int(x) for x in v.split("."))
+          print(min(apps, key=ver) + "/Contents/Developer")
+          EOF
+          )
+          echo "DEVELOPER_DIR=$dev" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$dev"
+          xcodebuild -version
+          ver=$(xcodebuild -version | sed -n 's/^Xcode //p')
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "clang=$(xcrun clang++ --version | head -n 1)" >> "$GITHUB_OUTPUT"
+          echo "CLANG=$(xcrun -f clang)" >> "$GITHUB_ENV"
+          echo "CLANGXX=$(xcrun -f clang++)" >> "$GITHUB_ENV"
+
+      - name: Restore the MacOSX${{ env.SDK_VERSION }} SDK
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/sdk/MacOSX${{ env.SDK_VERSION }}.sdk
+          key: macos-sdk-phracker-${{ env.SDK_VERSION }}
+
+      - name: Download the SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/sdk
+          curl -fsSL --retry 4 -o "$RUNNER_TEMP/sdk.tar.xz" "$SDK_URL"
+          tar -xJf "$RUNNER_TEMP/sdk.tar.xz" -C ~/sdk
+          ls ~/sdk
+
+      - name: Point the compilers at the SDK
+        run: |
+          echo "SDKROOT=$HOME/sdk/MacOSX${SDK_VERSION}.sdk" >> "$GITHUB_ENV"
+          test -f "$HOME/sdk/MacOSX${SDK_VERSION}.sdk/usr/include/c++/v1/functional"
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install ccache and R dependencies
+        run: |
+          brew install ccache
+          Rscript -e 'install.packages("DBI")'
+
+      - name: Wire ccache and the SDK into ~/.R/Makevars
+        run: |
+          mkdir -p ~/.R
+          : > ~/.R/Makevars
+          for v in CC CXX CXX11 CXX14 CXX17 CXX20; do
+            cfg=$(R CMD config "$v")
+            echo "R CMD config $v: $cfg"
+            # Replace the leading compiler name by ccache, the selected
+            # Xcode's compiler and the old SDK.
+            [ -n "$cfg" ] || continue
+            new=$(printf '%s\n' "$cfg" | sed -E \
+              -e "s#^clang\+\+( |\$)#ccache $CLANGXX -isysroot $SDKROOT\1#" \
+              -e "s#^clang( |\$)#ccache $CLANG -isysroot $SDKROOT\1#")
+            echo "$v = $new" >> ~/.R/Makevars
+          done
+          for v in CXX17STD CXXFLAGS CXX17FLAGS LDFLAGS; do
+            echo "R CMD config $v: $(R CMD config "$v")"
+          done
+          cat ~/.R/Makevars
+
+      - name: Show the toolchain and where libc++ comes from
+        id: toolchain
+        run: |
+          R --version | head -n 1
+          echo "Xcode: ${{ steps.xcode.outputs.version }}"
+          echo "clang: ${{ steps.xcode.outputs.clang }}"
+          echo "CRAN (r-release-macos-x86_64): Apple clang version 14.0.3 (clang-1403.0.22.14.1), SDK MacOSX11.3.1.sdk"
+          cxx=$(R CMD config CXX17)
+          echo "--- $CLANGXX -isysroot \$SDKROOT -xc++ -std=gnu++17 -E -v -"
+          "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E -v - </dev/null 2>&1 \
+            | tee "$RUNNER_TEMP/clang-v.txt"
+          paths=$(sed -n '/search starts here:/,/End of search list/p' "$RUNNER_TEMP/clang-v.txt")
+          first_libcxx=$(printf '%s\n' "$paths" | grep 'c++/v1' | head -n 1 | sed 's/^ *//')
+          echo "first libc++ include dir: $first_libcxx"
+          case "$first_libcxx" in
+            "$SDKROOT"/usr/include/c++/v1) echo "OK: libc++ headers come from the SDK" ;;
+            *) echo "::error::libc++ headers do not come from $SDKROOT"; exit 1 ;;
+          esac
+          echo "--- header actually used for <functional>"
+          printf '#include <functional>\n' \
+            | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -fsyntax-only -H - 2>&1 | head -n 3
+          libcxx=$(printf '#include <ciso646>\nLIBCPP=_LIBCPP_VERSION\n' \
+            | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E - | sed -n 's/^LIBCPP=//p')
+          echo "_LIBCPP_VERSION: $libcxx"
+          echo "libcxx=$libcxx" >> "$GITHUB_OUTPUT"
+          echo "first_libcxx=$first_libcxx" >> "$GITHUB_OUTPUT"
+          echo "end_ts=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build tree and ccache
+        id: restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            ${{ env.BUILD_CACHE_META }}
+            src/*.o
+            src/*.so
+            src/duckdb/**/*.o
+          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            issue-2974-build-${{ runner.os }}-${{ runner.arch }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-
+
+      - name: Make make trust the restored objects
+        id: mtimes
+        run: |
+          echo "start_ts=$(date +%s)" >> "$GITHUB_OUTPUT"
+          SECONDS=0
+          # Every tracked file gets the same old mtime, older than any object.
+          git ls-files -z | xargs -0 touch -h -t 200001010000
+          old_sha=$(cat "$BUILD_CACHE_META/sha" 2>/dev/null || true)
+          echo "cache built from: ${old_sha:-<none>}, now: $GITHUB_SHA"
+          echo "cache_sha=${old_sha:-none}" >> "$GITHUB_OUTPUT"
+          if [ -z "$old_sha" ]; then
+            echo "Cold: no restored build tree."
+          elif [ "$old_sha" = "$GITHUB_SHA" ]; then
+            echo "Same commit: nothing to touch."
+          elif git fetch --depth=1 origin "$old_sha" \
+              && git diff --name-only "$old_sha" "$GITHUB_SHA" > "$RUNNER_TEMP/changed.txt"; then
+            echo "Changed since the cached commit:"
+            cat "$RUNNER_TEMP/changed.txt"
+            while IFS= read -r f; do
+              [ -e "$f" ] && touch "$f"
+            done < "$RUNNER_TEMP/changed.txt"
+            # The engine's objects depend on the unity files only, not on the
+            # sources and headers they include: any change under src/duckdb/
+            # touches all engine sources, and ccache absorbs the unchanged ones.
+            if grep -q '^src/duckdb/' "$RUNNER_TEMP/changed.txt"; then
+              echo "Engine changed: touching all engine sources."
+              find src/duckdb -name '*.cpp' -exec touch {} +
+            fi
+          else
+            echo "::warning::Cannot diff against $old_sha; touching every tracked file."
+            git ls-files -z | xargs -0 touch
+          fi
+          echo "Restored objects: $(find src -name '*.o' | wc -l)"
+          echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare ccache and the list of objects the patch affects
+        run: |
+          ccache --zero-stats
+          ccache --show-config | grep -E 'cache_dir|max_size|base_dir|sloppiness|compiler_check'
+          # Each patched engine source is compiled through its unity file
+          # (src/duckdb/ub_<dir with / as _>.cpp); remove those objects before
+          # each build so make cannot reuse an object from the other state.
+          for p in $(sed -n 's|^+++ b/||p' "$PATCH"); do
+            rel=${p#src/duckdb/}
+            echo "src/duckdb/ub_$(dirname "$rel" | tr / _).o"
+          done | sort -u > "$RUNNER_TEMP/affected-objects.txt"
+          cat "$RUNNER_TEMP/affected-objects.txt"
+
+      - name: "Build 1: unchanged tree (expected to fail), make -k"
+        id: unpatched
+        continue-on-error: true
+        run: |
+          SECONDS=0
+          trap 'echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"' EXIT
+          xargs rm -fv < "$RUNNER_TEMP/affected-objects.txt"
+          mkdir -p "$RUNNER_TEMP/lib-unpatched"
+          export MAKEFLAGS="-k -j$(sysctl -n hw.ncpu)"
+          R CMD INSTALL --no-byte-compile --no-test-load -l "$RUNNER_TEMP/lib-unpatched" . \
+            > "$RUNNER_TEMP/build-unpatched.log" 2>&1 &
+          pid=$!
+          # Keep the log visible while it runs, without a pipe that hides the status.
+          tail -f "$RUNNER_TEMP/build-unpatched.log" &
+          tailpid=$!
+          status=0
+          wait "$pid" || status=$?
+          kill "$tailpid" 2>/dev/null || true
+          echo "R CMD INSTALL exit status: $status"
+          grep -E '(error|fatal error):' "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/errors-unpatched.txt" || true
+          grep -E '^make: \*\*\* \[' "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/failed-targets-unpatched.txt" || true
+          echo "::group::error lines"
+          cat "$RUNNER_TEMP/errors-unpatched.txt" "$RUNNER_TEMP/failed-targets-unpatched.txt"
+          echo "::endgroup::"
+          exit "$status"
+
+      - name: Apply the fix
+        run: |
+          git apply --verbose "$PATCH"
+          git diff --stat
+          xargs rm -fv < "$RUNNER_TEMP/affected-objects.txt"
+
+      - name: "Build 2: with the fix (must pass)"
+        id: patched
+        run: |
+          SECONDS=0
+          trap 'echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"' EXIT
+          mkdir -p "$RUNNER_TEMP/lib-patched"
+          export MAKEFLAGS="-j$(sysctl -n hw.ncpu)"
+          R CMD INSTALL --no-byte-compile -l "$RUNNER_TEMP/lib-patched" . 2>&1 \
+            | tee "$RUNNER_TEMP/build-patched.log"
+
+      - name: Smoke test
+        id: smoke
+        run: |
+          SECONDS=0
+          trap 'echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"' EXIT
+          export R_LIBS="$RUNNER_TEMP/lib-patched"
+          Rscript -e 'library(duckdb); con <- dbConnect(duckdb()); print(dbGetQuery(con, "WITH RECURSIVE t(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM t WHERE i < 3) SELECT * FROM t"))'
+          otool -L "$RUNNER_TEMP/lib-patched/duckdb/libs/duckdb.so" | head -n 5
+          otool -l "$RUNNER_TEMP/lib-patched/duckdb/libs/duckdb.so" | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' | head -n 10
+
+      - name: Record the build state for the next run
+        if: always()
+        run: |
+          mkdir -p "$BUILD_CACHE_META"
+          echo "$GITHUB_SHA" > "$BUILD_CACHE_META/sha"
+
+      - name: Job summary
+        if: always()
+        run: |
+          s="$GITHUB_STEP_SUMMARY"
+          restore_s=$(( ${{ steps.mtimes.outputs.start_ts || 0 }} - ${{ steps.toolchain.outputs.end_ts || 0 }} ))
+          {
+            echo "## issue #2974: MacOSX${SDK_VERSION} SDK reproducer"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Runner | macos-15-intel, $(sw_vers -productVersion) |"
+            echo "| R | $(R --version | head -n 1) |"
+            echo "| Xcode | ${{ steps.xcode.outputs.version }} |"
+            echo "| clang | ${{ steps.xcode.outputs.clang }} |"
+            echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk |"
+            echo "| libc++ headers | \`${{ steps.toolchain.outputs.first_libcxx }}\`, _LIBCPP_VERSION ${{ steps.toolchain.outputs.libcxx }} |"
+            echo "| Build cache | hit: \`${{ steps.restore.outputs.cache-matched-key || 'none' }}\`, built from ${{ steps.mtimes.outputs.cache_sha }} |"
+            echo
+            echo "### Steps"
+            echo
+            echo "| Step | Outcome | Seconds |"
+            echo "|---|---|---|"
+            echo "| Restore build cache | ${{ steps.restore.outcome }} | $restore_s |"
+            echo "| Normalize mtimes | ${{ steps.mtimes.outcome }} | ${{ steps.mtimes.outputs.seconds }} |"
+            echo "| Build 1: unchanged tree (expected failure) | ${{ steps.unpatched.outcome }} | ${{ steps.unpatched.outputs.seconds }} |"
+            echo "| Build 2: with fix | ${{ steps.patched.outcome }} | ${{ steps.patched.outputs.seconds }} |"
+            echo "| Smoke test | ${{ steps.smoke.outcome }} | ${{ steps.smoke.outputs.seconds }} |"
+            echo
+            echo "### Errors of build 1"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/errors-unpatched.txt" 2>/dev/null || echo "(no log)"
+            echo
+            cat "$RUNNER_TEMP/failed-targets-unpatched.txt" 2>/dev/null || true
+            echo '```'
+            echo
+            echo "### ccache"
+            echo
+            echo '```'
+            ccache --show-stats -v 2>&1 || ccache --show-stats 2>&1 || true
+            echo '```'
+            echo
+            echo "### Cache size"
+            echo
+            echo '```'
+            du -sh "$CCACHE_DIR" 2>/dev/null || true
+            echo "objects: $(find src -name '*.o' | wc -l | tr -d ' ') files, $(find src -name '*.o' -print0 | xargs -0 du -ck 2>/dev/null | tail -n 1 | cut -f1) KiB"
+            ls -l src/*.so 2>/dev/null || true
+            echo '```'
+          } >> "$s"
+          cat "$s"
+
+      - name: Save the build tree and ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            ${{ env.BUILD_CACHE_META }}
+            src/*.o
+            src/*.so
+            src/duckdb/**/*.o
+          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-2974-build-logs
+          path: |
+            ${{ runner.temp }}/build-*.log
+            ${{ runner.temp }}/errors-unpatched.txt
+            ${{ runner.temp }}/clang-v.txt
+          retention-days: 7
+
+      - name: Require build 1 to fail
+        if: always()
+        run: |
+          if [ "${{ steps.unpatched.outcome }}" != "failure" ]; then
+            echo "::error::The unchanged tree built (or never ran): the reproducer no longer reproduces."
+            exit 1
+          fi
