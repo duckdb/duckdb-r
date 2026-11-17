@@ -13,8 +13,12 @@ report fails checks run under valgrind.
 
 optional_idx gains GetIndexOr(), which returns the index or the given
 fallback. QueryLocation now takes the index or INVALID_OFFSET and clamps
-it to INVALID_OFFSET, which GCC compiles to conditional moves rather
-than a branch on the payload. GetIndexOr() alone is not enough: an
+it to INVALID_OFFSET. Where the result is stored, as in
+Expression::Deserialize(), GCC compiles this to conditional moves
+rather than a branch on the payload. A caller that tests the new
+QueryLocation straight away can still get the branch at GCC -O2/-O3, so
+other sites may need the same treatment if valgrind reports them.
+GetIndexOr() alone is not enough: an
 `if (GetIndexOr(INVALID_OFFSET) < INVALID_OFFSET)` compiles to the same
 branch as before.
 
