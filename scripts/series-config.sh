@@ -6,9 +6,9 @@
 # Every scripts/series-*.sh that reads the engine, scripts/vendor-one.sh and
 # scripts/each-plan.sh read its names from here, through scripts/series-lib.sh
 # or scripts/vendor-lib.sh, and from nowhere else; scripts/vendor.sh, the
-# manual bulk vendoring, keeps its own copy and reads only the generator from
-# here. A repository that vendors another engine commit by commit changes this
-# file and keeps the scripts
+# manual bulk vendoring, keeps its own copy and reads only the generator and
+# the release tag from here. A repository that vendors another engine commit by
+# commit changes this file and keeps the scripts
 # (handbook/operations/vendoring/series-loop/README.md). Paths are relative to
 # the repository root, each one a directory, a file, or a shell glob over
 # either (`R/aaa-*.R`), read the same way whether a script compares it or
