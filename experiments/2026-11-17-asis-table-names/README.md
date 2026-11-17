@@ -2,13 +2,13 @@
 
 *What it measures:* where `dplyr::tbl(con, I("s.t"))` fails on duckdb 2.0, and whose code passes the `I()` on;
 which classes dbplyr hands to DBI methods in `copy_to()` and `compute()`;
-how sixteen ways of opening a table fare in `dbExistsTable()` and `tbl()` on 2.0, and seven of them on 1.4.0;
-what four changes to this package would make of the same sixteen;
+how each way of opening a table fares in `dbExistsTable()` and `tbl()` on 2.0, and the table names among them on 1.4.0;
+what candidate changes to this package would make of the same;
 and what DBI's default, RSQLite, RPostgres and odbc do with an `I()` name.
 
 *When and on what:* 2026-11-17, Linux x86_64, Ubuntu 24.04, R 4.5.3, DBI 1.3.0, dplyr 1.2.1, dbplyr 2.6.0,
 RSQLite 3.53.3, RPostgres 1.4.10, odbc 1.7.2.
-Two builds, each rendered by [`scripts/render-reprex.R`](/scripts/render-reprex.R):
+Each build is rendered by [`scripts/render-reprex.R`](/scripts/render-reprex.R):
 
 * [`v2.0-cyanoptera.md`](v2.0-cyanoptera.md), from [`asis-table-names.R`](asis-table-names.R):
   duckdb 2.0.0.9000 at 73ead8b, the tip of `v2.0-cyanoptera`, without [#3003](https://github.com/duckdb/duckdb-r/pull/3003),
@@ -66,15 +66,15 @@ so that a string naming a file or a table function can fall back to `sql(paste0(
   No test pins `tbl(con, I(...))`.
 
 The same probe is why `tbl(con, in_schema("s", "t"))` fails on both 1.4.0 and 2.0, with "Can only have a single name argument":
-a `dbplyr_schema` is a list of length two
+a `dbplyr_schema` is a list holding the schema and the table, so its `length()` is not one
 ([tidyverse/dbplyr#1333](https://github.com/tidyverse/dbplyr/issues/1333) reported it in 2023).
 
 ## What dbplyr hands to DBI
 
 dbplyr turns `I("s.t")` into a `dbplyr_table_path`, verbatim, in `as_table_path()`.
-In the record, `copy_to(con, df, I("s.c"))` reaches duckdb's `dbExistsTable()` and `dbListFields()` with `SQL` only.
+In the record, `copy_to(con, df, I("s.c"))` reaches duckdb's `dbExistsTable()` with `SQL` only.
 In the source of dbplyr 2.6.0, the DBI calls that take a table name pass `DBI::SQL()` of the path,
-in `dbplyr_write_table.DBIConnection()`, `db_table_drop_if_exists.DBIConnection()` and the Oracle methods, with two exceptions:
+in `dbplyr_write_table.DBIConnection()`, `db_table_drop_if_exists.DBIConnection()` and the Oracle methods, except:
 
 * `dbplyr_write_table.DBIConnection()` passes `table_path_name()`, the last component as a plain string,
   for a `PostgreSQLConnection`, RPostgreSQL's class.
@@ -102,10 +102,10 @@ so that a transaction that has already failed raises rather than answers `FALSE`
 ([`2026-10-14-exists-table-transaction/`](/experiments/2026-10-14-exists-table-transaction/README.md)).
 The release that carried both is squashed into 2f82664 on `main` and `v2.0-cyanoptera`, whose NEWS cites #2892, #2893 and #2896.
 
-Neither change was aimed at `I()`.
+Neither PR's description mentions `I()`; #2896 names `NA`.
 `dbQuoteIdentifier(con, I("s.t"))` fails the same way on 1.4.0; only the swallowing stopped.
 
-## Sixteen ways to open a table
+## Ways to open a table
 
 `s.t` is a table `t` in schema `s`, and the Parquet and CSV files are written from it.
 On this branch:
@@ -126,29 +126,28 @@ On this branch:
 | `fs::path()` of the Parquet path | `TRUE` | works |
 | `c(x = "s.t")` | `FALSE` | works, through the `FROM` fallback |
 | `factor("s.t")` | "argument is not a character vector" | the same error |
+| `"s.t"` with class `"foo"`, or `c("foo", "character")` | `SQL()` error, naming `"foo"` | the same error |
 | `tbl_file()` of the CSV path | | works |
 | `tbl_function()` of `read_csv('<path>')` | | works |
 
-Of the seven table names the 1.4.0 script asks about, only `I("s.t")` differs there:
+Among the table names the 1.4.0 script asks about, only `I("s.t")` differs there:
 `dbExistsTable()` answers `FALSE`, and `tbl()` works through the fallback.
 `SQL("s.t")` fails in `tbl()` on both because dbplyr treats only `I()` and its own `sql()` as verbatim;
 a DBI `SQL()` is a character vector to `as_table_path()`, and is quoted.
 
-## Workarounds
+## Spellings that open `s.t` on this branch
 
-On 2.0.0, without a change here:
+* `tbl(con, Id("s", "t"))`, which `dbExistsTable()` finds.
+* `tbl(con, "s.t")` and `tbl(con, ident_q("s.t"))`, through the `FROM` fallback, as `I()` opened it on 1.4.0.
+* `tbl(con, sql("SELECT * FROM s.t"))`, which is not probed.
 
-* `tbl(con, Id("s", "t"))`, which DBI and dbplyr both understand, and which `dbExistsTable()` finds.
-* `tbl(con, "s.t")`, which works only through the fallback, as `I()` did on 1.4.0.
-* `tbl(con, sql("SELECT * FROM s.t"))`, which skips the probe.
-
-`in_schema()` and `SQL()` do not work.
+`I()`, `in_schema()` and `SQL()` do not open it.
 
 ## Candidate changes
 
 The script applies each change as a patched copy registered for the run, with no change to `R/`.
-Rows where every change gives what the branch gives are left out;
-of those, `SQL("s.t")` fails under all four, and the other ten work under all four.
+Rows where every change gives what the branch gives are left out:
+`SQL("s.t")` fails under every change, and the rest open the table under every change.
 
 | name | (a) | (a, bare) | (b) | (c) |
 |:---|:---|:---|:---|:---|
@@ -157,6 +156,7 @@ of those, `SQL("s.t")` fails under all four, and the other ten work under all fo
 | `I()` of the quoted Parquet path | works | works | works | works |
 | `glue()` of `read_csv('<path>')` | works | "Can't query fields" | "Can't query fields" | works |
 | `factor("s.t")` | dbplyr's "must be a table source" | the same | dbplyr's "unknown specification" | as today |
+| `"s.t"` with class `"foo"`, or `c("foo", "character")` | as today | "Can't query fields" | "Can't query fields" | as today |
 
 **(a) `tbl.duckdb_connection()` probes a character `from` unless its class names a table identifier or SQL.**
 The condition is `is.character(from) && !inherits(from, c("AsIs", "dbplyr_table_path", "ident", "sql", "SQL"))`.
@@ -168,16 +168,17 @@ Those are the classes dbplyr 2.6.0 gives `I()` (`"AsIs"`), a table path (`"dbply
 * `compute(x, I("s.e"))` under (a) gives a lazy table whose `remote_table()` is `s.e`, the path dbplyr built, where today it is `FROM s.e`.
 * It fixes `in_schema()` as well.
 * The risk is classed character vectors.
-  A string subclass that names a file or a table function, `glue()` and `fs::path()` among them, is still probed and keeps the fallback,
-  but only because its class is not on the list.
+  `glue()`, `fs::path()` and a named vector are probed and open the table as they do today, because no listed class is theirs.
+  A string with an arbitrary class, `"foo"` alone or before `"character"`, fails with the `SQL()` error today and under (a) alike,
+  because duckdb's `dbQuoteIdentifier()` keeps the class.
   A class that dbplyr adds for a table identifier later is probed until it joins the list,
-  and a character subclass that inherits one of the listed classes loses the fallback.
+  and a character subclass that inherits one of the listed classes is not probed.
 * `factor("s.t")` fails before and after, with a different message.
 
 **(a, bare) probes only a bare string.**
-It is measured because it is the shortest condition, and it breaks `tbl(con, glue::glue("read_csv('{csv}')"))`, which works today:
+It breaks `tbl(con, glue::glue("read_csv('{csv}')"))`, which opens the table today:
 dbplyr quotes the call as one identifier.
-`glue()` of a plain path and `fs::path()` keep working only because DuckDB resolves a quoted path as a replacement scan.
+`glue()` of a plain path and `fs::path()` still open, because DuckDB resolves a quoted path as a replacement scan.
 
 **(b) A change in dbplyr, or probing what dbplyr would emit.**
 dbplyr needs no change: it never passes an `I()` to DBI.
@@ -185,7 +186,7 @@ The variant here probes a bare string as given and anything else as `SQL(dbplyr:
 as dbplyr's own `db_table_drop_if_exists()` does.
 
 * It costs a call into `as_table_path()`, which dbplyr 2.6.0, the floor, exports.
-* It breaks the `glue()` of `read_csv()` as (a, bare) does, and `SQL("s.t")` fails with a worse query.
+* The `glue()` of `read_csv()` fails, as under (a, bare), and `SQL("s.t")` fails with `FROM (FROM "s.t")` in the query.
 * It runs a probe whose answer no longer changes anything for a table identifier.
 
 **(c) #3003: duckdb's `dbQuoteIdentifier()` takes a character `I()` as `SQL()`.**
@@ -202,7 +203,7 @@ An `"AsIs"` object does not extend `"character"` in S4, so a method registered f
 
 * RSQLite, RPostgres and odbc have no `dbExistsTable()` method an `I()` reaches.
   RSQLite raises "unable to find an inherited method", and selecting the method for RPostgres and odbc finds none.
-* `dbQuoteIdentifier()` on all three reaches DBI's default for `x = "ANY"`, which accepts it as character
+* `dbQuoteIdentifier()` on RSQLite, RPostgres and odbc reaches DBI's default for `x = "ANY"`, which accepts it as character
   and quotes `I("s.t")` as one identifier, `"s.t"`: the opposite of `SQL()`.
 * duckdb is the one backend whose methods take any class, which is how #194 let `I()` in.
 

@@ -53,8 +53,7 @@ log_name <- function(generic) {
   })
 }
 traced <- list(
-  dbExistsTable = c("duckdb_connection", "ANY"),
-  dbListFields = c("duckdb_connection", "character")
+  dbExistsTable = c("duckdb_connection", "ANY")
 )
 for (g in names(traced)) {
   suppressMessages(trace(
@@ -103,10 +102,15 @@ specs <- list(
   `glue() read_csv()` = glue::glue("read_csv('{csv}')"),
   `fs::path() parquet` = fs::path(parquet),
   `c(x = "s.t")` = c(x = "s.t"),
-  `factor("s.t")` = factor("s.t")
+  `factor("s.t")` = factor("s.t"),
+  `structure("s.t", class = "foo")` = structure("s.t", class = "foo"),
+  `structure("s.t", class = c("foo", "character"))` = structure(
+    "s.t",
+    class = c("foo", "character")
+  )
 )
-# Each row is a function that opens the lazy table; the last two do not call
-# tbl() with a name, and are here to show that they keep working.
+# Each row is a function that opens the lazy table; tbl_file() and
+# tbl_function() do not call tbl() with a name, and show that they keep working.
 opens <- c(
   lapply(specs, function(x) function() dplyr::tbl(con, x)),
   list(
