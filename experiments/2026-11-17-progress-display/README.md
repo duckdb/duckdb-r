@@ -20,14 +20,17 @@ Each local query ran at `threads = 1` and at `threads = 4` on a table of 40,000,
 the tables and the remote file are built single-threaded under a fixed seed.
 
 * [`run.R`](run.R), rendered by [`scripts/render-reprex.R`](/scripts/render-reprex.R) into [`run.md`](run.md):
-  per run the row count, the wall time, the number of calls, and per R call a trace sampled every quarter second.
-  It also writes every call to a CSV file, which is not kept here; its header says where it goes.
+  per run the row count, the wall time and the number of calls,
+  and per R call a trace sampled every quarter second, the longest silence, the highest value below 100 and the largest rise.
+  Every value quoted below is in `run.md` or in `finish.txt`.
+  `run.R` also writes every call to a CSV file, which is not kept here; its header says where it goes.
   [`throttle_server.py`](throttle_server.py) is the throttled server.
 * [`finish.sh`](finish.sh) runs [`finish.R`](finish.R) under gdb with a breakpoint on `RProgressBarDisplay::Finish()`, then once without gdb,
   and writes [`finish.txt`](finish.txt): per scenario, the calls, the reads that got any, and under gdb the phase every `Finish()` came in.
   Its streams read chunks of 100,000 rows of a table of 10,000,000.
 
 The session info names the scratch library that held the build as `<branch build library>`.
+Values printed as 100 in "highest below 100" are just below it, and the trace rounds them to 100.0 too.
 
 *What it supports:* [`usage/interactive/`](/handbook/usage/interactive/README.md).
 
@@ -43,14 +46,12 @@ The session info names the scratch library that held the build as `<branch build
   `SELECT 1; SELECT count(*) ...; SELECT 2` passes four 100s from `Finish()`, one for each statement and one for the last one's `PREPARE`.
 * **The calls come from the R thread, whenever it runs or polls an engine task**, whether or not the value moved.
   Single-threaded, R's thread runs every task, and the calls come between task slices:
-  395 in the 2.7 s scan, 493 in the 4.2 s `GROUP BY`.
-  With four threads, R's thread polls in a loop while the workers run, and each poll calls the callback:
-  535,180 calls in the 2.7 s scan, though as few as a few hundred in runs where R's thread ran tasks itself.
-* **What the callback costs sets how many calls it gets.**
-  An earlier rendering of this record used a callback that copied its four-million-element vectors on every call, 33 ms a call:
-  its single-threaded queries ran ten times longer, and its 1 GiB stream got 7 calls where `finish.R`'s cheap callback gets thousands,
-  with and without gdb ([`finish.txt`](finish.txt)).
-  The callback in [`run.R`](run.R) now keeps its vectors in its own closure, which costs microseconds.
+  395 in the 2.77 s scan, 493 in the 4.06 s `GROUP BY`.
+  With four threads, R's thread can poll in a loop while the workers run, and each poll calls the callback:
+  548,317 calls in the four-thread scan, but 302 in the four-thread `count(*)` of the same filter.
+* **R's thread calls again as soon as the callback returns**, so what the callback costs sets how many calls it gets.
+  In the 1 GiB stream's first read, `run.R`'s callback, which stores three numbers, got 21,004 calls;
+  `finish.R`'s, which writes a line to standard output, got 7,723, and 5,343 under gdb ([`finish.txt`](finish.txt)).
 * **A materialized result is told everything inside the call that runs it.**
   `dbSendQuery()` runs the query to its end before it returns, so its `dbFetch(n = )` reads get no calls,
   and its trace is `dbGetQuery()`'s.
@@ -62,16 +63,20 @@ so it moves with execution, not only with fetches, and its speed follows the wei
 Single-threaded, through `dbGetQuery()`:
 
 * **Scan with a filter** (`hash(i::VARCHAR || 'salt') % 100 = 0`, 398,634 rows out):
-  climbs evenly from 0 to 50.0% over 2.7 s, then jumps to 100 with `Finish()`; at four threads the same, in 2.7 s too.
+  climbs evenly from 0 to 50 over 2.76 s, then jumps to 100 with `Finish()`.
   The scan never fills more than half of the sum: `EXPLAIN` in [`run.md`](run.md) estimates the filtered scan at about 1 row,
   so the scan's share is small against what does not report before the end.
-* **`GROUP BY`** (9,817,025 groups): the scan drives 0 to 78.4% over 3.7 s,
-  the next update reads 92.8, and the groups' output fills the rest, `Finish()` at 3.9 s.
-* **`ORDER BY`** (10,000,000 rows): the scan drives 0 to 16.7% over 0.8 s.
-  Then 1.02 s, 44% of the query's time, pass with no call while the sort finishes its runs;
-  the bar reappears at 33.3, and the sorted output moves it on until `Finish()` at 2.2 s.
+  Its `count(*)` alone stops at 66.67 the same way.
+  Returning its rows, the scan took as long at four threads as at one (2.75 s and 2.77 s),
+  while its `count(*)` took 0.68 s at four threads against 2.79 s at one:
+  the scan that returns rows did not spread over the workers, and R's thread polled throughout, hence its 548,317 calls.
+* **`GROUP BY`** (9,817,025 groups): the scan drives the bar evenly to 75.3 at 3.50 s,
+  the largest rise follows, 78.38 to 92.79 at 3.65 s, and `Finish()` comes at 3.77 s.
+* **`ORDER BY`** (10,000,000 rows): the scan drives 0 to 15.6 by 0.75 s.
+  Then 1.11 s, from 0.82 to 1.92 s and nearly half of the query's 2.47 s, pass with no call while the sort finishes its runs;
+  the bar reappears at 33.33, the sorted output takes it to 66.67, and `Finish()` follows at 2.35 s.
 * **Join** (40,000,000 probe rows against 10,000,000 build rows, 399,630 out):
-  0.5 s in all, climbing through 33.8 and 66.9 to 71.9% before `Finish()`.
+  0.47 s in all, 590 calls, reading 37.6 at 0.25 s and rising from 71.9 to just below 100 at the end.
 * **Streamed**, the same calls arrive spread over the reads that run the engine.
   A result that fits the streaming buffer is computed by the first read, which gets every call;
   a larger one (the `GROUP BY`'s and the `ORDER BY`'s output) keeps reporting on the reads that refill the buffer.
@@ -79,7 +84,7 @@ Single-threaded, through `dbGetQuery()`:
   In [`finish.txt`](finish.txt), with chunks of 100,000 rows, that was read 22 of 26 for a `GROUP BY`,
   read 20 of 26 for an `ORDER BY`, and read 1 of 51 for a scan under a 1 GiB buffer.
   In [`run.md`](run.md), with chunks of 1,000,000 rows, the callback's 100 came with read 10 of the `GROUP BY` and of the `ORDER BY`,
-  their last reads with rows.
+  their last reads with rows; the `ORDER BY` reads from 65.5 to 100 in that read.
   Reads after it, and reads the buffer already holds, get no call.
   No `Finish()` arrived mid-stream in any run.
 
@@ -88,19 +93,20 @@ Single-threaded, through `dbGetQuery()`:
 The remote file holds 4,000,000 rows in row groups of 100,000, 68 MB, served at 2 MB/s per response.
 
 * **The remote scan alone** (`count(*)` and `sum()` of one column):
-  single-threaded it climbs in steps of 10% about every half second to 98.0%, row groups at a time, and finishes at 4.2 s.
-  At four threads, where httpfs fetches several ranges at once, it stands at 17.6% for at least 0.75 s, jumps through 50.2 and 57.7 to 87.8,
-  stands at 97.5 for about 0.5 s, and ends with `Finish()` at 3.0 s.
+  single-threaded it climbs in steps of about 10 every half second, row groups at a time, and finishes at 4.20 s.
+  At four threads, where httpfs fetches several ranges at once, it stands at 15.1 from 0.56 s to at least 1.31 s,
+  jumps through 47.7 and 55.2 to 87.8 and 97.5, and ends with `Finish()` at 2.35 s.
 * **A heavy expression on the remote rows**, in the remote scan's own pipeline:
-  the bar is the remote source's, 0 to 30.9% in 2.3 s single-threaded, one update at 66.7, then `Finish()` at 2.4 s.
+  the bar is the remote source's, 0 to 31.8 by 2.31 s single-threaded, one update at 66.67, then `Finish()` at 2.35 s.
 * **The remote file as a join's build side, a local table of 40,000,000 rows as its probe side.**
-  The remote columns alone take 6.7 s single-threaded and 3.1 s at four threads.
-  In the join, single-threaded, the first 6.9 s move the bar from 0 to 6.9%;
-  the local probe moves it from 6.9 to 75.8% in the next 1.9 s, then `Finish()` at 8.9 s.
-  At four threads the remote part moves it in steps (1.0, 3.8, 6.6, 6.7) over 3.1 s,
-  and the local part takes it through 23.1 and 64.9 to 100 in 0.5 s.
+  The remote columns alone take 6.72 s single-threaded and 3.00 s at four threads.
+  In the join, single-threaded, the bar reads 6.9 at 6.90 s, after the remote part;
+  the local probe takes it to 75.7 by 9.06 s, and `Finish()` follows at once.
+  At four threads the remote part moves it in steps (1.0, 2.0, 3.3, 5.5, 6.0) up to 3.07 s,
+  and the local part takes it through 16.2 and 52.7 to 100 by 3.72 s.
 * **A remote aggregate followed by a local sort of its 2,754,617 groups:**
-  single-threaded the remote part drives 0 to 44.2% over 6.9 s, and the sort and its output take the rest in 0.5 s.
+  single-threaded the bar reads 41.0 at 6.83 s, after the remote part, then 0.21 s pass with no call,
+  and the sort and its output take it from 72.1 at 7.14 s to `Finish()` at 7.22 s.
 
 The split follows the estimated rows of each part's sources, not their duration:
 a slow network stretches its share of the bar in time without widening it,
@@ -113,4 +119,4 @@ A stream of a cheap scan, 5,000,000 rows read in chunks of 100,000, at four thre
 * at 976 KiB 50 of the 51 reads run the engine, and `Finish()` comes with read 50;
 * at the default 10 MiB 14 of the 51 reads run the engine in [`run.md`](run.md) and 15 in [`finish.txt`](finish.txt),
   the others get no call, and `Finish()` comes with read 44 and read 47;
-* at 1 GiB the first read computes the whole result in 0.14 s and gets every call, `Finish()` included, and the 50 reads after it get none.
+* at 1 GiB the first read computes the whole result in 0.12 s and gets every call, `Finish()` included, and the 50 reads after it get none.

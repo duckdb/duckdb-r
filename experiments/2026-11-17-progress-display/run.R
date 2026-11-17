@@ -127,14 +127,18 @@ report <- function(
     if (keep[length(keep)] != sel[length(sel)]) {
       keep <- c(keep, sel[length(sel)])
     }
-    gaps <- diff(c(span[1], t[sel], span[2]))
+    edges <- c(span[1], t[sel], span[2])
+    gaps <- diff(edges)
+    g <- which.max(gaps)
     cat(sprintf(
-      "  %-12s %s..%ss: %d calls, longest silence %ss, trace %s\n",
+      "  %-12s %s..%ss: %d calls, longest silence %ss (%s..%ss), trace %s\n",
       rec$phases[i],
       fmt(span[1]),
       fmt(span[2]),
       length(sel),
-      fmt(max(gaps)),
+      fmt(gaps[g]),
+      fmt(edges[g]),
+      fmt(edges[g + 1]),
       paste0(
         fmt(t[keep]),
         ":",
@@ -142,6 +146,28 @@ report <- function(
         collapse = " "
       )
     ))
+    # The highest value below 100 and the largest rise between two calls.
+    below <- sel[v[sel] < 100]
+    if (length(below) > 0) {
+      top <- below[which.max(v[below])]
+      rise <- if (length(below) > 1) which.max(diff(v[below])) else NA
+      cat(sprintf(
+        "  %-12s highest below 100: %s at %ss%s\n",
+        "",
+        sprintf("%.7g", v[top]),
+        fmt(t[top]),
+        if (is.na(rise)) {
+          ""
+        } else {
+          sprintf(
+            ", largest rise %s to %s at %ss",
+            sprintf("%.7g", v[below[rise]]),
+            sprintf("%.7g", v[below[rise + 1]]),
+            fmt(t[below[rise + 1]])
+          )
+        }
+      ))
+    }
   }
   if (silent > 0) {
     cat(sprintf(
@@ -295,6 +321,18 @@ for (name in names(local_queries)) {
       run(con, name, api, local_queries[[name]], threads)
     }
   }
+}
+
+# The filtered scan's count alone, to compare its speed at one and four
+# threads with the scan that returns its rows.
+scan_count <- sub(
+  "SELECT i, x",
+  "SELECT count(*)",
+  local_queries[["scan_filter"]]
+)
+cat("\nscan_filter_count: ", scan_count, "\n", sep = "")
+for (threads in c(1L, 4L)) {
+  run(con, "scan_filter_count", "get", scan_count, threads)
 }
 
 # ---- b. A remote part and a local part ---------------------------------------

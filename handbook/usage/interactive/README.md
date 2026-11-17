@@ -14,8 +14,11 @@ and [`R/progress_display.R`](/R/progress_display.R) draws it.
 The engine calls it every time R's thread runs or polls a task of a running query, whether or not the progress moved
 ([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
 Single-threaded the calls come between task slices;
-with several threads R's thread polls in a loop while the workers run, so a callback that returns at once is called without pause,
-and one that takes longer thins the calls out by its own cost.
+with several threads R's thread can poll in a loop while the workers run,
+where the engine's loops around `ExecuteTaskInternal()` go back to `WaitForTask()` on `BLOCKED` or `NO_TASKS_AVAILABLE`
+and the wait returns without blocking
+([`src/duckdb/src/main/client_context_execution.cpp`](/src/duckdb/src/main/client_context_execution.cpp)).
+A callback that returns at once is then called without pause, and one that takes longer thins the calls out by its own cost.
 A function set as `duckdb.progress_display` receives one number per call:
 the display's `Update()` passes the percentage and its `Finish()` passes 100.
 The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
@@ -51,10 +54,10 @@ The statement's own `Finish()` comes when it ends:
 inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
 and with the read that ends the query for a stream, which is the first read when the result fits the buffer.
 That a stream's `Finish()` waits for its end is observed, not guaranteed.
-`ProgressBar::Update()` takes any state a caller can observe as final, a ready chunk included,
-and `Executor::IdleState()` reports one while the result collector is blocked
-([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)),
-which the engine's `UpdateProgressInternal()` marks as not yet correct for streaming results.
+Its caller, `ClientContext::UpdateProgressInternal()`, asks `ProgressBar::Update()` for a final update on any state a caller can observe,
+a ready chunk included, and marks that as not yet correct for streaming results;
+`Executor::IdleState()` reports a ready state while the result collector is blocked
+([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)).
 If a poll before a fetch ([`src/arrow_export.cpp`](/src/arrow_export.cpp)) reached that state mid-stream,
 the display would finish then, the `Finish()` at the end would be dropped, and a line painted after it would stay.
 A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
