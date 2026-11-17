@@ -7,7 +7,7 @@ or hands it to something that does.
 ## The progress display
 
 The progress display is the engine calling back into R.
-**The engine decides what the display shows and when; the package relays every call the engine makes on R's thread to R.**
+**The engine decides what the display shows and when; the package relays every call into the display on R's thread to R.**
 The glue's display, `RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp),
 passes each `Update()` to the function `get_progress_display()` returned with the percentage,
 and each `Finish()` as an `Update()` of 100, so the function cannot tell the two apart.
@@ -15,8 +15,10 @@ It drops a call only when no function is set, or when the engine makes it on a t
 where no R code may run: a stream fetched by another thread, such as one of arrow's, reports nothing.
 An error the function raises is ignored.
 The glue sets the engine's own wait, `wait_time`, to zero in the same file,
-so the engine calls on every run or poll of a task on R's thread, whether or not the progress moved
-([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
+so the engine calls the display on every run or poll of a task on R's thread, whether or not the progress moved,
+unless a source cannot report yet
+(`ProgressBar::Update()` in [`src/duckdb/src/common/progress_bar/progress_bar.cpp`](/src/duckdb/src/common/progress_bar/progress_bar.cpp),
+[#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
 A function set as `duckdb.progress_display` receives all of these calls,
 as often as R's thread comes back to it, which a slow function thins out by its own cost.
 
@@ -42,6 +44,12 @@ What a reader of R needs from it:
 * **A statement's own `Finish()` comes when it ends**:
   inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
   and with the read that ends the query for a stream.
+  For a stream that is the rule, not a guarantee, and the record saw it broken once
+  ([section c of the record](/experiments/2026-11-17-progress-display/README.md#c-the-streaming-buffer)):
+  the engine finishes the display on any state a caller can observe,
+  and `Executor::IdleState()` reports one while the result collector is blocked
+  ([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)),
+  so a `Finish()` can come mid-stream, drop the one at the end, and leave a line painted after it.
   A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
 * **A stream goes quiet while its buffer serves the reads.**
   A read that takes chunks already buffered runs no engine work, so the engine sends no call

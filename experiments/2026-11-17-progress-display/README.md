@@ -25,8 +25,10 @@ the tables and the remote file are built single-threaded under a fixed seed.
   Every value quoted below is in `run.md` or in `finish.txt`.
   `run.R` also writes every call to a CSV file, which is not kept here; its header says where it goes.
   [`throttle_server.py`](throttle_server.py) is the throttled server.
-* [`finish.sh`](finish.sh) runs [`finish.R`](finish.R) under gdb with a breakpoint on `RProgressBarDisplay::Finish()`, then once without gdb,
-  and writes [`finish.txt`](finish.txt): per scenario, the calls, the reads that got any, and under gdb the phase every `Finish()` came in.
+* [`finish.sh`](finish.sh) runs [`finish.R`](finish.R) under gdb
+  with breakpoints on `RProgressBarDisplay::Update()` and `RProgressBarDisplay::Finish()`, then once without gdb.
+  It writes [`finish.txt`](finish.txt): per scenario, the R callback's calls and the reads that got any,
+  and under gdb the `Update()` calls, how many of them came from a thread other than R's, and the phase every `Finish()` came in.
   Its streams read chunks of 100,000 rows of a table of 10,000,000.
   It ran on the same branch after merging `v2.0-cyanoptera` at 1748e8f, whose changes leave the progress display alone.
 
@@ -50,7 +52,7 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   and an error the function raises is ignored.
   `get_progress_display()` ([`R/progress_display.R`](/R/progress_display.R)) hands a user's function over unwrapped;
   only the default display throttles.
-  Under gdb with breakpoints on `Update()` and `Finish()`, every one of 1,626 `Update()` calls across ten scenarios,
+  Under gdb with breakpoints on `Update()` and `Finish()`, every one of 1,972 `Update()` calls across eleven scenarios,
   at one and at four threads, materialized and streamed, came on R's thread and reached the R function,
   one callback per call ([`finish.txt`](finish.txt)).
   A stream read by a thread other than R's, such as one of arrow's, would have its calls dropped by that check;
@@ -73,8 +75,8 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   548,317 calls in the four-thread scan, but 302 in the four-thread `count(*)` of the same filter.
 * **R's thread calls again as soon as the callback returns**, so what the callback costs sets how many calls it gets.
   `run.R`'s callback, which stores three numbers, got 21,004 calls in the 1 GiB stream's first read;
-  `finish.R`'s, which writes a line to standard output, got 6,497 in its whole 1 GiB stream scenario,
-  and 294 under gdb, whose breakpoints make every call slower ([`finish.txt`](finish.txt)).
+  `finish.R`'s, which writes a line to standard output, got 8,448 in its whole 1 GiB stream scenario,
+  and 239 under gdb, whose breakpoints make every call slower ([`finish.txt`](finish.txt)).
 * **A materialized result is told everything inside the call that runs it.**
   `dbSendQuery()` runs the query to its end before it returns, so its `dbFetch(n = )` reads get no calls,
   and its trace is `dbGetQuery()`'s.
@@ -109,7 +111,9 @@ Single-threaded, through `dbGetQuery()`:
   In [`run.md`](run.md), with chunks of 1,000,000 rows, the callback's 100 came with read 10 of the `GROUP BY` and of the `ORDER BY`,
   their last reads with rows; the `ORDER BY` reads from 65.5 to 100 in that read.
   Reads after it, and reads the buffer already holds, get no call.
-  No `Finish()` arrived mid-stream in any run.
+  One `Finish()` came mid-stream: in [`finish.txt`](finish.txt), the four-thread scan under a 976 KiB buffer
+  finished its display with read 9 of 51, and its end brought no second `Finish()`,
+  while the same stream at one thread, and every stream in `run.md`, finished with its last read.
 
 ## b. A remote part and a local part
 
@@ -139,7 +143,8 @@ and a local part with more rows than the remote one owns more of the bar than it
 
 A stream of a cheap scan, 5,000,000 rows read in chunks of 100,000, at four threads, 51 reads with the one that returns `NULL`:
 
-* at 976 KiB 50 of the 51 reads run the engine, and `Finish()` comes with read 50;
+* at 976 KiB 50 of the 51 reads run the engine, and `Finish()` comes with read 50,
+  except in the four-thread gdb run of [`finish.txt`](finish.txt), where it came with read 9;
 * at the default 10 MiB 14 of the 51 reads run the engine in [`run.md`](run.md) and 15 in [`finish.txt`](finish.txt),
   the others get no call, and `Finish()` comes with read 44 and read 47;
 * at 1 GiB the first read computes the whole result in 0.12 s and gets every call, `Finish()` included, and the 50 reads after it get none.

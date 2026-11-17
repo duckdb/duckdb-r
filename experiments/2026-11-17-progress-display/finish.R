@@ -72,6 +72,7 @@ streamed(
 )
 
 # The same on one thread, where R's thread runs every task.
+say("=== scenario set_threads")
 where <- "set_threads"
 invisible(dbExecute(con, "SET threads = 1"))
 materialized("dbGetQuery_threads_1", "SELECT count(*) FROM t WHERE x < 0.5")
