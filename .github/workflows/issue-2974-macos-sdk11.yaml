@@ -1,8 +1,9 @@
 # Reproducer for https://github.com/duckdb/duckdb-r/issues/2974:
-# CRAN's r-release-macos-x86_64 compiles against the MacOSX11.3 SDK, whose
-# libc++ lacks reference_wrapper's converting constructor (LWG 2993).
+# CRAN's r-release-macos-x86_64 and r-oldrel-macos-arm64 compile against the
+# MacOSX11.3 SDK, whose libc++ lacks reference_wrapper's converting
+# constructor (LWG 2993). One job per architecture.
 #
-# One job, three builds of the same tree:
+# Each job runs three builds of the same tree:
 #   1. the unchanged tree with `make -k`, expected to fail, every error kept;
 #   2. the same tree with .github/issue-2974/lwg2993.patch applied, must pass;
 #   3. a smoke test of the installed package.
@@ -11,10 +12,12 @@
 # must be one that fails to compile: the verdict requires build 1 to fail on
 # exactly the unity objects of the patched files, with errors in exactly them.
 #
-# The object files are cached between runs when the verdict holds, ccache
-# whenever something was compiled. A fresh checkout gives every file a new
-# mtime, so all tracked files are set to a fixed old date and only those that
-# differ from the commit the objects were built from are touched again.
+# Each job keeps one cache entry under a fixed key, replaced on every save:
+# the SDK, ccache (capped by CCACHE_MAXSIZE) and, when the verdict holds, the
+# object files with a record of the commit, toolchain and compile flags they
+# were built with. A fresh checkout gives every file a new mtime, so all
+# tracked files are set to a fixed old date and only those that differ from
+# the recorded commit are touched again.
 #
 # Throwaway: drop this file and .github/issue-2974/ before any fix merges.
 # R CMD INSTALL prints "using SDK: NA" because `xcrun --show-sdk-version`
@@ -44,15 +47,34 @@ defaults:
 
 jobs:
   sdk11:
-    runs-on: macos-15-intel
+    name: sdk11 (${{ matrix.arch }}, R ${{ matrix.r }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CRAN r-release-macos-x86_64: Apple clang 14.0.3, MacOSX11.3.1.sdk.
+          - arch: x86_64
+            runner: macos-15-intel
+            r: release
+          # CRAN r-oldrel-macos-arm64 (R 4.5): Apple clang 14.0.3, MacOSX11.3.1.sdk.
+          - arch: arm64
+            runner: macos-15
+            r: oldrel
+    permissions:
+      contents: read
+      # Replace this job's cache entry and delete superseded ones.
+      actions: write
     env:
+      CACHE_KEY: issue-2974-${{ matrix.arch }}
       SDK_VERSION: "11.3"
       SDK_URL: https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz
       PATCH: .github/issue-2974/lwg2993.patch
       CCACHE_DIR: /Users/runner/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
-      CCACHE_MAXSIZE: 3G
+      # Per job; the whole entry (SDK, ccache, objects) stays under 1 GB.
+      CCACHE_MAXSIZE: 300M
       CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
       BUILD_CACHE_META: /Users/runner/build-cache-meta
       UserNM: "true"
@@ -64,6 +86,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Restore the SDK, ccache and the build tree
+        id: restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/sdk
+            ${{ env.CCACHE_DIR }}
+            ${{ env.BUILD_CACHE_META }}
+            src/*.o
+            src/duckdb/**/*.o
+          key: ${{ env.CACHE_KEY }}
 
       - name: Select the oldest Xcode on the image
         id: xcode
@@ -89,27 +123,19 @@ jobs:
           echo "CLANG=$(xcrun -f clang)" >> "$GITHUB_ENV"
           echo "CLANGXX=$(xcrun -f clang++)" >> "$GITHUB_ENV"
 
-      - name: Restore the MacOSX${{ env.SDK_VERSION }} SDK
-        id: sdk-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/sdk/MacOSX${{ env.SDK_VERSION }}.sdk
-          key: macos-sdk-phracker-${{ env.SDK_VERSION }}
-
-      - name: Download the SDK
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
+      - name: Download the SDK unless restored
+        id: sdk
         run: |
+          if [ -f ~/sdk/MacOSX${SDK_VERSION}.sdk/usr/include/c++/v1/functional ]; then
+            echo "SDK restored from the cache."
+            exit 0
+          fi
+          echo "downloaded=true" >> "$GITHUB_OUTPUT"
+          rm -rf ~/sdk
           mkdir -p ~/sdk
           curl -fsSL --retry 4 -o "$RUNNER_TEMP/sdk.tar.xz" "$SDK_URL"
           tar -xJf "$RUNNER_TEMP/sdk.tar.xz" -C ~/sdk
           ls ~/sdk
-
-      - name: Save the SDK
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ~/sdk/MacOSX${{ env.SDK_VERSION }}.sdk
-          key: macos-sdk-phracker-${{ env.SDK_VERSION }}
 
       - name: Point the compilers at the SDK
         run: |
@@ -118,7 +144,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: release
+          r-version: ${{ matrix.r }}
           use-public-rspm: true
 
       - name: Install ccache and R dependencies
@@ -155,7 +181,7 @@ jobs:
           echo "CRAN (r-release-macos-x86_64): Apple clang version 14.0.3 (clang-1403.0.22.14.1), SDK MacOSX11.3.1.sdk"
           cxx=$(R CMD config CXX17)
           echo "--- $CLANGXX -isysroot \$SDKROOT -xc++ -std=gnu++17 -E -v -"
-          "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E -v - </dev/null 2>&1 \
+          "$CLANGXX" -arch ${{ matrix.arch }} -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E -v - </dev/null 2>&1 \
             | tee "$RUNNER_TEMP/clang-v.txt"
           paths=$(sed -n '/search starts here:/,/End of search list/p' "$RUNNER_TEMP/clang-v.txt")
           first_libcxx=$(printf '%s\n' "$paths" | { grep 'c++/v1' || true; } | sed -n '1,1p' | sed 's/^ *//')
@@ -166,35 +192,14 @@ jobs:
           esac
           echo "--- header actually used for <functional>"
           printf '#include <functional>\n' \
-            | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -fsyntax-only -H - 2>&1 | sed -n '1,3p'
+            | "$CLANGXX" -arch ${{ matrix.arch }} -isysroot "$SDKROOT" -xc++ -std=gnu++17 -fsyntax-only -H - 2>&1 | sed -n '1,3p'
           libcxx=$(printf '#include <ciso646>\nLIBCPP=_LIBCPP_VERSION\n' \
-            | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E - | sed -n 's/^LIBCPP=//p')
+            | "$CLANGXX" -arch ${{ matrix.arch }} -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E - | sed -n 's/^LIBCPP=//p')
           echo "_LIBCPP_VERSION: $libcxx"
           echo "libcxx=$libcxx" >> "$GITHUB_OUTPUT"
           echo "first_libcxx=$first_libcxx" >> "$GITHUB_OUTPUT"
           echo "rversion=$(R --version | sed -n '1s/^R version \([^ ]*\).*/\1/p')" >> "$GITHUB_OUTPUT"
           echo "end_ts=$(date +%s)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore ccache
-        id: restore-ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: issue-2974-ccache-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            issue-2974-ccache-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-
-
-      - name: Restore the build tree
-        id: restore
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ${{ env.BUILD_CACHE_META }}
-            src/*.o
-            src/duckdb/**/*.o
-          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-
 
       - name: Make make trust the restored objects
         id: mtimes
@@ -203,6 +208,16 @@ jobs:
           SECONDS=0
           # Every tracked file gets the same old mtime, older than any object.
           git ls-files -z | xargs -0 touch -h -t 200001010000
+          # Objects from another R, Xcode or SDK version are discarded.
+          toolchain="${{ matrix.arch }} R ${{ steps.toolchain.outputs.rversion }} Xcode ${{ steps.xcode.outputs.version }} SDK $SDK_VERSION"
+          old_toolchain=$(cat "$BUILD_CACHE_META/toolchain" 2>/dev/null || true)
+          echo "toolchain: ${old_toolchain:-<none>} -> $toolchain"
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
+          if [ "$old_toolchain" != "$toolchain" ]; then
+            echo "Toolchain changed or unrecorded: discarding restored objects."
+            find src -name '*.o' -delete
+            rm -rf "$BUILD_CACHE_META"
+          fi
           old_sha=$(cat "$BUILD_CACHE_META/sha" 2>/dev/null || true)
           echo "cache built from: ${old_sha:-<none>}, now: $GITHUB_SHA"
           echo "cache_sha=${old_sha:-none}" >> "$GITHUB_OUTPUT"
@@ -374,9 +389,7 @@ jobs:
 
       - name: Record the build state for the next run
         id: record
-        if: >-
-          always() && !cancelled() && steps.verdict.outputs.ok == 'true' &&
-          (steps.verdict.outputs.recompiled != '0' || steps.restore.outputs.cache-matched-key == '')
+        if: always() && !cancelled() && steps.verdict.outputs.ok == 'true'
         run: |
           # The cache holds objects of the unchanged tree only: drop the
           # patched ones, so a later patch that loses a hunk cannot reuse them.
@@ -384,55 +397,72 @@ jobs:
           mkdir -p "$BUILD_CACHE_META"
           echo "$GITHUB_SHA" > "$BUILD_CACHE_META/sha"
           echo "${{ steps.mtimes.outputs.flags_hash }}" > "$BUILD_CACHE_META/flags"
+          echo "${{ steps.mtimes.outputs.toolchain }}" > "$BUILD_CACHE_META/toolchain"
 
-      - name: Save the build tree
-        id: save-build
-        if: always() && !cancelled() && steps.record.outcome == 'success'
+      - name: Replace this job's cache entry
+        id: replace
+        # Only after build 1 ran, and only when the entry would change.
+        if: >-
+          always() && !cancelled() && steps.unpatched.outcome != 'skipped' &&
+          (steps.restore.outputs.cache-hit != 'true' || steps.sdk.outputs.downloaded == 'true' ||
+           steps.verdict.outputs.recompiled != '0')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.record.outcome }}" != "success" ]; then
+            # The verdict failed: keep the SDK and ccache, which are
+            # content-addressed, but no objects and no record.
+            echo "Verdict failed: saving the SDK and ccache only."
+            find src -name '*.o' -delete
+            rm -rf "$BUILD_CACHE_META"
+          fi
+          ccache --cleanup
+          ccache --show-stats | grep -i 'cache size'
+          # Delete this job's entry, then this branch's entries under keys
+          # this workflow no longer uses.
+          gh cache delete "$CACHE_KEY" -R "$GITHUB_REPOSITORY" || true
+          gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --limit 100 --json key,id \
+            --jq '.[] | select(.key | test("^(issue-2974-build-|issue-2974-ccache-|macos-sdk-phracker-)")) | "\(.id) \(.key)"' \
+            | while read -r id key; do
+              echo "Deleting superseded entry $key"
+              gh cache delete "$id" -R "$GITHUB_REPOSITORY" || true
+            done
+
+      - name: Save the SDK, ccache and the build tree
+        id: save
+        if: always() && steps.replace.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: |
+            ~/sdk
+            ${{ env.CCACHE_DIR }}
             ${{ env.BUILD_CACHE_META }}
             src/*.o
             src/duckdb/**/*.o
-          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
-
-      - name: Save ccache
-        id: save-ccache
-        # Content-addressed, so safe to keep whatever the verdict.
-        if: >-
-          always() && !cancelled() && steps.unpatched.outcome != 'skipped' &&
-          steps.verdict.outputs.recompiled != '' &&
-          (steps.verdict.outputs.recompiled != '0' || steps.restore-ccache.outputs.cache-matched-key == '')
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: issue-2974-ccache-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ env.CACHE_KEY }}
 
       - name: Job summary
         if: always()
         run: |
           s="$GITHUB_STEP_SUMMARY"
-          restore_s=$(( ${{ steps.mtimes.outputs.start_ts || 0 }} - ${{ steps.toolchain.outputs.end_ts || 0 }} ))
           {
             echo "## issue #2974: MacOSX${SDK_VERSION} SDK reproducer"
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| Runner | macos-15-intel, $(sw_vers -productVersion) |"
+            echo "| Runner | ${{ matrix.runner }} (${{ matrix.arch }}), $(sw_vers -productVersion) |"
             echo "| R | $(R --version | sed -n '1,1p') |"
             echo "| Xcode | ${{ steps.xcode.outputs.version }} |"
             echo "| clang | ${{ steps.xcode.outputs.clang }} |"
-            echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk |"
+            echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk (r-release-macos-x86_64, r-oldrel-macos-arm64) |"
             echo "| Fidelity | clang ${{ steps.xcode.outputs.clang }} against the 11.3 SDK's libc++, while CRAN uses clang 14.0.3: this tests the library headers, not the compiler |"
             echo "| libc++ headers | \`${{ steps.toolchain.outputs.first_libcxx }}\`, _LIBCPP_VERSION ${{ steps.toolchain.outputs.libcxx }} |"
-            echo "| Build tree cache | hit: \`${{ steps.restore.outputs.cache-matched-key || 'none' }}\`, built from ${{ steps.mtimes.outputs.cache_sha }} |"
-            echo "| ccache cache | hit: \`${{ steps.restore-ccache.outputs.cache-matched-key || 'none' }}\` |"
+            echo "| Cache entry | \`$CACHE_KEY\`, hit: ${{ steps.restore.outputs.cache-hit || 'false' }}, objects built from ${{ steps.mtimes.outputs.cache_sha }} |"
             echo
             echo "### Steps"
             echo
             echo "| Step | Outcome | Seconds |"
             echo "|---|---|---|"
-            echo "| Restore build cache | ${{ steps.restore.outcome }} | $restore_s |"
             echo "| Normalize mtimes | ${{ steps.mtimes.outcome }} | ${{ steps.mtimes.outputs.seconds }} |"
             echo "| Build 1: unchanged tree (expected failure) | ${{ steps.unpatched.outcome }} | ${{ steps.unpatched.outputs.seconds }} |"
             echo "| Build 2: with fix | ${{ steps.patched.outcome }} | ${{ steps.patched.outputs.seconds }} |"
@@ -440,8 +470,8 @@ jobs:
             echo
             echo "Verdict holds: ${{ steps.verdict.outputs.ok || 'false' }}." \
               "Objects compiled besides the affected ones: ${{ steps.verdict.outputs.recompiled }}." \
-              "Build tree saved: ${{ steps.save-build.outcome }}." \
-              "ccache saved: ${{ steps.save-ccache.outcome }}."
+              "Cache entry saved: ${{ steps.save.outcome }}" \
+              "(objects and record: ${{ steps.record.outcome == 'success' && 'yes' || 'no' }})."
             echo
             echo "### Errors of build 1"
             echo
@@ -471,7 +501,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: issue-2974-build-logs
+          name: issue-2974-build-logs-${{ matrix.arch }}
           path: |
             ${{ runner.temp }}/build-*.log
             ${{ runner.temp }}/errors-unpatched.txt
