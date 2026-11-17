@@ -80,7 +80,7 @@ jobs:
 
       - name: Restore the MacOSX${{ env.SDK_VERSION }} SDK
         id: sdk-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/sdk/MacOSX${{ env.SDK_VERSION }}.sdk
           key: macos-sdk-phracker-${{ env.SDK_VERSION }}
@@ -92,6 +92,13 @@ jobs:
           curl -fsSL --retry 4 -o "$RUNNER_TEMP/sdk.tar.xz" "$SDK_URL"
           tar -xJf "$RUNNER_TEMP/sdk.tar.xz" -C ~/sdk
           ls ~/sdk
+
+      - name: Save the SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/sdk/MacOSX${{ env.SDK_VERSION }}.sdk
+          key: macos-sdk-phracker-${{ env.SDK_VERSION }}
 
       - name: Point the compilers at the SDK
         run: |
@@ -112,8 +119,8 @@ jobs:
         run: |
           mkdir -p ~/.R
           : > ~/.R/Makevars
-          for v in CC CXX CXX11 CXX14 CXX17 CXX20; do
-            cfg=$(R CMD config "$v")
+          for v in CC CXX CXX17 CXX20; do
+            cfg=$(R CMD config "$v" 2>/dev/null) || continue
             echo "R CMD config $v: $cfg"
             # Replace the leading compiler name by ccache, the selected
             # Xcode's compiler and the old SDK.
@@ -124,7 +131,7 @@ jobs:
             echo "$v = $new" >> ~/.R/Makevars
           done
           for v in CXX17STD CXXFLAGS CXX17FLAGS LDFLAGS; do
-            echo "R CMD config $v: $(R CMD config "$v")"
+            echo "R CMD config $v: $(R CMD config "$v" 2>&1)"
           done
           cat ~/.R/Makevars
 
