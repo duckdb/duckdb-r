@@ -214,7 +214,7 @@ jobs:
           echo "flags hash: ${old_flags_hash:-<none>} -> $flags_hash"
           echo "flags_hash=$flags_hash" >> "$GITHUB_OUTPUT"
           touch_all_sources() {
-            find src/duckdb -name '*.cpp' -exec touch {} +
+            find src/duckdb \( -name '*.cpp' -o -name '*.cc' -o -name '*.c' \) -exec touch {} +
             touch src/*.cpp
           }
           if [ -z "$old_sha" ]; then
