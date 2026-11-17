@@ -479,18 +479,19 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 
 	// selection, named-argument checking, folding and casting all happen in the function binder
 	FunctionBinder function_binder(*this);
+	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
 	vector<Value> parameters;
 	named_argument_map_t named_parameters;
 	auto best_function_idx =
-	    table_in_out ? function_binder.BindTableInOutFunction(function.name, function.functions, subquery.types, error)
-	                 : function_binder.BindFunction(function.name, function.functions, positional_arguments,
+	    table_in_out ? function_binder.BindTableInOutFunction(current.name, current.functions, subquery.types, error)
+	                 : function_binder.BindFunction(current.name, current.functions, positional_arguments,
 	                                                named_arguments, parameters, named_parameters, error);
 	if (!best_function_idx.IsValid()) {
 		error.AddQueryLocation(ref);
 		error.Throw();
 	}
 	// copied out of the set: BindTableFunctionInternal fills in the bound return types
-	BoundTableFunction table_function(function.functions.GetFunctionByOffset(best_function_idx.GetIndex()));
+	BoundTableFunction table_function(current.functions.GetFunctionByOffset(best_function_idx.GetIndex()));
 
 	vector<LogicalType> input_table_types;
 	vector<Identifier> input_table_names;

@@ -1,0 +1,181 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 17 Nov 2026 18:59:07 +0000
+Subject: [PATCH] Keep a function entry an autoload replaces alive while it is
+ bound
+
+Binding a function's arguments can autoload an extension that adds
+overloads to that very function, as `epoch(TIMESTAMPTZ) + 2.5` does
+with icu: the binder looks up `+`, binds `epoch(...)`, whose
+placeholder loads icu, and icu's ALTER_ON_CONFLICT replaces `+`, `-`
+and `age` outside a transaction. CatalogSet::AlterEntry destroyed the
+replaced entry at once, so the binder chose an overload from freed
+memory: `+` computed `-`, `-` bound as `age`, or the process crashed.
+
+A non-transactional alter of the system catalog now keeps the replaced
+version as the child of the new one, where lookups never reach it,
+and FunctionBinder::GetCurrentEntry looks an entry that has been
+replaced up again in its own schema before an overload is chosen,
+for scalar, aggregate, window, table and recursive-CTE USING KEY
+binding.
+
+Carried here until upstream takes it; upstream's attempt is
+duckdb/duckdb#27950, not merged. duckdb/duckdb-r#2883.
+---
+ src/duckdb/src/catalog/catalog_set.cpp        |  8 ++++++-
+ src/duckdb/src/function/function_binder.cpp   | 24 ++++++++++++++++---
+ .../duckdb/function/function_binder.hpp       |  5 ++++
+ .../query_node/bind_recursive_cte_node.cpp    |  3 ++-
+ .../binder/tableref/bind_table_function.cpp   |  7 +++---
+ 5 files changed, 39 insertions(+), 8 deletions(-)
+
+diff --git a/src/duckdb/src/catalog/catalog_set.cpp b/src/duckdb/src/catalog/catalog_set.cpp
+index 44c9bb700..feca6586b 100644
+--- a/src/duckdb/src/catalog/catalog_set.cpp
++++ b/src/duckdb/src/catalog/catalog_set.cpp
+@@ -385,11 +385,17 @@ bool CatalogSet::AlterEntry(CatalogTransaction transaction, const Identifier &na
+ 
+ 		DuckTransactionManager::Get(GetCatalog().GetAttached())
+ 		    .PushCatalogEntry(*transaction.transaction, new_entry->Child(), stream.GetData(), stream.GetPosition());
+-	} else {
++	} else if (!catalog.IsSystemCatalog()) {
+ 		// if we don't have a transaction this alter is non-transactional
+ 		// in that case we are able to just directly destroy the child (if there is any)
+ 		entry_to_destroy = new_entry->TakeChild();
+ 	}
++	// A non-transactional alter of the system catalog (an extension adding overloads to a function it shares with
++	// core, e.g. while autoloading) keeps the replaced version as the child of the new one instead of destroying it.
++	// Clients hold system entries without a transaction pinning them, across work that can load an extension: binding
++	// a function's arguments, or a LOAD on another connection. Lookups never reach the retained version. It costs one
++	// copy of the function set per such alter, bounded because each extension loads once, and lives until shutdown
++	// (a DROP's tombstone keeps it too).
+ 
+ 	// Update shared entry state only after the alter is installed and rollbackable.
+ 	if (new_entry->name != entry->name) {
+diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/function/function_binder.cpp
+index 2d10779e9..1fe237f40 100644
+--- a/src/duckdb/src/function/function_binder.cpp
++++ b/src/duckdb/src/function/function_binder.cpp
+@@ -3,6 +3,7 @@
+ #include "duckdb/catalog/catalog.hpp"
+ #include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
+ #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
++#include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
+ #include "duckdb/catalog/catalog_entry/window_function_catalog_entry.hpp"
+ #include "duckdb/common/limits.hpp"
+ #include "duckdb/common/type_visitor.hpp"
+@@ -901,10 +902,25 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
+ 	return return_type.IsComplete() ? return_type : LogicalType::SQLNULL;
+ }
+ 
+-unique_ptr<Expression> FunctionBinder::BindScalarFunction(const ScalarFunctionCatalogEntry &func,
++const CatalogEntry &FunctionBinder::GetCurrentEntry(const CatalogEntry &entry) {
++	if (!entry.HasParent()) {
++		// the entry is the newest version
++		return entry;
++	}
++	// look the entry up again in its own schema, without search path or autoloading
++	auto &schema = const_cast<SchemaCatalogEntry &>(entry.ParentSchema());
++	auto current = schema.GetEntry(schema.GetCatalogTransaction(context), entry.type, entry.name);
++	if (!current || current->type != entry.type) {
++		return entry;
++	}
++	return *current;
++}
++
++unique_ptr<Expression> FunctionBinder::BindScalarFunction(const ScalarFunctionCatalogEntry &func_p,
+                                                           vector<pair<Identifier, unique_ptr<Expression>>> arguments,
+                                                           ErrorData &error, bool is_operator,
+                                                           optional_ptr<Binder> binder) {
++	auto &func = GetCurrentEntry(func_p).Cast<ScalarFunctionCatalogEntry>();
+ 	// select the best matching overload (this may name positional arguments by their alias for functions that opt
+ 	// into implicit argument naming, e.g. struct_pack/row)
+ 	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
+@@ -1720,9 +1736,10 @@ FunctionBinder::BindAggregateFunction(shared_ptr<const AggregateFunction> functi
+ }
+ 
+ unique_ptr<BoundAggregateExpression>
+-FunctionBinder::BindAggregateFunction(const AggregateFunctionCatalogEntry &func,
++FunctionBinder::BindAggregateFunction(const AggregateFunctionCatalogEntry &func_p,
+                                       vector<pair<Identifier, unique_ptr<Expression>>> arguments, ErrorData &error,
+                                       unique_ptr<Expression> filter, AggregateType aggr_type) {
++	auto &func = GetCurrentEntry(func_p).Cast<AggregateFunctionCatalogEntry>();
+ 	// select the best matching overload (this may name positional arguments by their alias for functions that opt
+ 	// into implicit argument naming, e.g. struct_pack/row)
+ 	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
+@@ -1822,9 +1839,10 @@ unique_ptr<BoundWindowExpression> FunctionBinder::BindWindowFunction(const Windo
+ }
+ 
+ unique_ptr<BoundWindowExpression>
+-FunctionBinder::BindWindowFunction(const WindowFunctionCatalogEntry &func,
++FunctionBinder::BindWindowFunction(const WindowFunctionCatalogEntry &func_p,
+                                    vector<pair<Identifier, unique_ptr<Expression>>> arguments, ErrorData &error,
+                                    vector<LogicalType> &order_types, vector<LogicalType> &arg_order_types) {
++	auto &func = GetCurrentEntry(func_p).Cast<WindowFunctionCatalogEntry>();
+ 	// select the best matching overload
+ 	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
+ 	if (!best_function.IsValid()) {
+diff --git a/src/duckdb/src/include/duckdb/function/function_binder.hpp b/src/duckdb/src/include/duckdb/function/function_binder.hpp
+index 413e6ea8a..97187348b 100644
+--- a/src/duckdb/src/include/duckdb/function/function_binder.hpp
++++ b/src/duckdb/src/include/duckdb/function/function_binder.hpp
+@@ -148,6 +148,11 @@ public:
+ 	                                     vector<Value> &parameters, named_argument_map_t &named_parameters,
+ 	                                     ErrorData &error);
+ 
++	//! The current version of a function's catalog entry. Binding a function's arguments can autoload an extension
++	//! that adds overloads to that very function, which supersedes the entry looked up before the arguments were bound
++	//! (the catalog keeps the superseded entry alive): the overload is then chosen from the entry that replaced it.
++	DUCKDB_API const CatalogEntry &GetCurrentEntry(const CatalogEntry &entry);
++
+ 	DUCKDB_API unique_ptr<Expression> BindScalarFunction(const Identifier &schema, const Identifier &name,
+ 	                                                     vector<unique_ptr<Expression>> children, ErrorData &error,
+ 	                                                     bool is_operator = false,
+diff --git a/src/duckdb/src/planner/binder/query_node/bind_recursive_cte_node.cpp b/src/duckdb/src/planner/binder/query_node/bind_recursive_cte_node.cpp
+index 9ce269546..7bc3443df 100644
+--- a/src/duckdb/src/planner/binder/query_node/bind_recursive_cte_node.cpp
++++ b/src/duckdb/src/planner/binder/query_node/bind_recursive_cte_node.cpp
+@@ -117,7 +117,7 @@ BoundStatement Binder::BindNode(RecursiveCTENode &statement) {
+ 				    "It has to be either a column name as a key or a direct call to an aggregate function.",
+ 				    expr->ToString());
+ 			}
+-			auto &func = entry->Cast<AggregateFunctionCatalogEntry>();
++			auto &looked_up_func = entry->Cast<AggregateFunctionCatalogEntry>();
+ 
+ 			vector<LogicalType> aggregation_input_types;
+ 			vector<unique_ptr<Expression>> bound_children;
+@@ -152,6 +152,7 @@ BoundStatement Binder::BindNode(RecursiveCTENode &statement) {
+ 			}
+ 
+ 			// Find the best matching aggregate function
++			auto &func = function_binder.GetCurrentEntry(looked_up_func).Cast<AggregateFunctionCatalogEntry>();
+ 			auto best_function_idx =
+ 			    function_binder.BindFunction(func.name, func.functions, aggregation_input_types, error);
+ 			if (!best_function_idx.IsValid()) {
+diff --git a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
+index 0332bf655..7b61a433e 100644
+--- a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
++++ b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
+@@ -479,18 +479,19 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
+ 
+ 	// selection, named-argument checking, folding and casting all happen in the function binder
+ 	FunctionBinder function_binder(*this);
++	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
+ 	vector<Value> parameters;
+ 	named_argument_map_t named_parameters;
+ 	auto best_function_idx =
+-	    table_in_out ? function_binder.BindTableInOutFunction(function.name, function.functions, subquery.types, error)
+-	                 : function_binder.BindFunction(function.name, function.functions, positional_arguments,
++	    table_in_out ? function_binder.BindTableInOutFunction(current.name, current.functions, subquery.types, error)
++	                 : function_binder.BindFunction(current.name, current.functions, positional_arguments,
+ 	                                                named_arguments, parameters, named_parameters, error);
+ 	if (!best_function_idx.IsValid()) {
+ 		error.AddQueryLocation(ref);
+ 		error.Throw();
+ 	}
+ 	// copied out of the set: BindTableFunctionInternal fills in the bound return types
+-	BoundTableFunction table_function(function.functions.GetFunctionByOffset(best_function_idx.GetIndex()));
++	BoundTableFunction table_function(current.functions.GetFunctionByOffset(best_function_idx.GetIndex()));
+ 
+ 	vector<LogicalType> input_table_types;
+ 	vector<Identifier> input_table_names;

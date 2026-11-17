@@ -3,6 +3,7 @@
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
+#include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/window_function_catalog_entry.hpp"
 #include "duckdb/common/limits.hpp"
 #include "duckdb/common/type_visitor.hpp"
@@ -901,10 +902,25 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
 	return return_type.IsComplete() ? return_type : LogicalType::SQLNULL;
 }
 
-unique_ptr<Expression> FunctionBinder::BindScalarFunction(const ScalarFunctionCatalogEntry &func,
+const CatalogEntry &FunctionBinder::GetCurrentEntry(const CatalogEntry &entry) {
+	if (!entry.HasParent()) {
+		// the entry is the newest version
+		return entry;
+	}
+	// look the entry up again in its own schema, without search path or autoloading
+	auto &schema = const_cast<SchemaCatalogEntry &>(entry.ParentSchema());
+	auto current = schema.GetEntry(schema.GetCatalogTransaction(context), entry.type, entry.name);
+	if (!current || current->type != entry.type) {
+		return entry;
+	}
+	return *current;
+}
+
+unique_ptr<Expression> FunctionBinder::BindScalarFunction(const ScalarFunctionCatalogEntry &func_p,
                                                           vector<pair<Identifier, unique_ptr<Expression>>> arguments,
                                                           ErrorData &error, bool is_operator,
                                                           optional_ptr<Binder> binder) {
+	auto &func = GetCurrentEntry(func_p).Cast<ScalarFunctionCatalogEntry>();
 	// select the best matching overload (this may name positional arguments by their alias for functions that opt
 	// into implicit argument naming, e.g. struct_pack/row)
 	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
@@ -1720,9 +1736,10 @@ FunctionBinder::BindAggregateFunction(shared_ptr<const AggregateFunction> functi
 }
 
 unique_ptr<BoundAggregateExpression>
-FunctionBinder::BindAggregateFunction(const AggregateFunctionCatalogEntry &func,
+FunctionBinder::BindAggregateFunction(const AggregateFunctionCatalogEntry &func_p,
                                       vector<pair<Identifier, unique_ptr<Expression>>> arguments, ErrorData &error,
                                       unique_ptr<Expression> filter, AggregateType aggr_type) {
+	auto &func = GetCurrentEntry(func_p).Cast<AggregateFunctionCatalogEntry>();
 	// select the best matching overload (this may name positional arguments by their alias for functions that opt
 	// into implicit argument naming, e.g. struct_pack/row)
 	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
@@ -1822,9 +1839,10 @@ unique_ptr<BoundWindowExpression> FunctionBinder::BindWindowFunction(const Windo
 }
 
 unique_ptr<BoundWindowExpression>
-FunctionBinder::BindWindowFunction(const WindowFunctionCatalogEntry &func,
+FunctionBinder::BindWindowFunction(const WindowFunctionCatalogEntry &func_p,
                                    vector<pair<Identifier, unique_ptr<Expression>>> arguments, ErrorData &error,
                                    vector<LogicalType> &order_types, vector<LogicalType> &arg_order_types) {
+	auto &func = GetCurrentEntry(func_p).Cast<WindowFunctionCatalogEntry>();
 	// select the best matching overload
 	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
 	if (!best_function.IsValid()) {
