@@ -45,5 +45,12 @@ The allocations part way through converting a column are the exception.
 They call R directly, because protecting each one would slow down every list column.
 Running out of memory there still leaves the guard on.
 
+Once an atomic column is converted, its `Length`, `Dataptr`, `Elt` and `Get_region` methods
+read the vector it converted to and take neither the guard nor cpp11's try block,
+since nothing on that path can fail and R calls some of them once per element, in `c()` and `range()` among others.
+A freed column, or one not yet converted, takes the guarded path, which converts it or reports the error.
+A summary over a converted column still costs two to eight times what it costs over a plain vector, R's own dispatch per element
+([`experiments/2026-11-17-lazy-vector-summaries/`](/experiments/2026-11-17-lazy-vector-summaries/README.md)).
+
 *To deepen: state what each ALTREP method does with an unmaterialized
 relation, and what a duplicated one costs.*

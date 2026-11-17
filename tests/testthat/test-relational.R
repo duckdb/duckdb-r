@@ -121,6 +121,112 @@ test_that("a column whose conversion fails part way fails again on the next acce
   expect_true(rapi_df_has_query_result(df))
 })
 
+test_that("converted ALTREP columns read like plain vectors (#2890)", {
+  con <- local_con()
+  rel <- rel_from_sql(
+    con,
+    paste(
+      "SELECT",
+      "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+      "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+      "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+      "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+      "FROM range(5000) ORDER BY range"
+    )
+  )
+  df <- rel_to_altrep(rel)
+  r <- 0:4999
+  plain <- list(
+    l = ifelse(r %% 7 == 0, NA, r %% 3 == 0),
+    i = ifelse(r %% 5 == 0, NA_integer_, r %% 100L),
+    d = ifelse(r %% 11 == 0, NA_real_, r / 4),
+    s = ifelse(r %% 13 == 0, NA_character_, paste0("v", r %% 10))
+  )
+
+  for (col in names(plain)) {
+    x <- df[[col]]
+    p <- plain[[col]]
+    # Converts the column, so that what follows reads the converted vector
+    expect_identical(x[[2]], p[[2]])
+    expect_identical(x[[1]], p[[1]])
+    expect_identical(x[[5000]], p[[5000]])
+    expect_identical(x[2990:3010], p[2990:3010])
+    expect_identical(range(x, na.rm = TRUE), range(p, na.rm = TRUE))
+    expect_identical(range(x), range(p))
+    expect_true(anyNA(x))
+    expect_identical(unique(x), unique(p))
+    expect_identical(c(x, x), c(p, p))
+    expect_identical(x[!is.na(x)], p[!is.na(p)])
+    if (col != "s") {
+      expect_identical(mean(x, na.rm = TRUE), mean(p, na.rm = TRUE))
+      expect_identical(mean(x), mean(p))
+      expect_identical(sum(x, na.rm = TRUE), sum(p, na.rm = TRUE))
+    }
+    # Still the lazy class after converting and reading, not a plain vector
+    expect_true(any(grepl(
+      "DUCKDB_ALTREP_REL_VECTOR",
+      capture.output(.Internal(inspect(x))),
+      fixed = TRUE
+    )))
+  }
+  expect_identical(as.list(df), plain)
+})
+
+test_that("unconverted ALTREP columns convert on element access (#2890)", {
+  con <- local_con()
+  sql <- paste(
+    "SELECT",
+    "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+    "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+    "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+    "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+    "FROM range(5000) ORDER BY range"
+  )
+  r <- 0:4999
+  plain <- list(
+    l = ifelse(r %% 7 == 0, NA, r %% 3 == 0),
+    i = ifelse(r %% 5 == 0, NA_integer_, r %% 100L),
+    d = ifelse(r %% 11 == 0, NA_real_, r / 4),
+    s = ifelse(r %% 13 == 0, NA_character_, paste0("v", r %% 10))
+  )
+
+  for (col in names(plain)) {
+    p <- plain[[col]]
+
+    # Element access: each a fresh data frame, so the first touch converts
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    expect_false(df_is_materialized(df))
+    expect_identical(df[[col]][[3]], p[[3]])
+    expect_true(df_is_materialized(df))
+
+    # A summary reading region by region
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    expect_identical(range(df[[col]], na.rm = TRUE), range(p, na.rm = TRUE))
+
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    expect_identical(anyNA(df[[col]]), TRUE)
+
+    if (col != "s") {
+      df <- rel_to_altrep(rel_from_sql(con, sql))
+      expect_identical(sum(df[[col]], na.rm = TRUE), sum(p, na.rm = TRUE))
+    }
+  }
+})
+
+test_that("the row limit surfaces through element and region access (#2890)", {
+  con <- local_con()
+  rel <- rel_from_sql(
+    con,
+    "SELECT range / 4 AS d, 'v' || range AS s FROM range(20)"
+  )
+
+  df <- rel_to_altrep(rel, n_rows = 10)
+  expect_error(range(df$d), "more than 10 rows")
+  expect_error(df$d[[1]], "more than 10 rows")
+  expect_error(df$s[[1]], "more than 10 rows")
+  expect_false(df_is_materialized(df))
+})
+
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
