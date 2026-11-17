@@ -340,8 +340,15 @@ jobs:
           trap 'echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"' EXIT
           mkdir -p "$RUNNER_TEMP/lib-patched"
           export MAKEFLAGS="-j$(sysctl -n hw.ncpu)"
+          # ccache's own log of this build, for its hits and misses.
+          export CCACHE_LOGFILE="$RUNNER_TEMP/ccache-patched.log"
+          ccache --version | sed -n '1,1p'
           R CMD INSTALL --no-byte-compile -l "$RUNNER_TEMP/lib-patched" . 2>&1 \
             | tee "$RUNNER_TEMP/build-patched.log"
+          echo "::group::ccache log for the patched objects"
+          grep -E 'Source file:|Manifest key|Result key|Looking for result|Retrieved|Stored|Succeeded getting|Missing|Result: |Did not find|Added result' \
+            "$CCACHE_LOGFILE" | grep -v 'cpp11\|rfuns' | sed -n '1,60p' || true
+          echo "::endgroup::"
 
       - name: Smoke test
         id: smoke
@@ -558,6 +565,7 @@ jobs:
             ${{ runner.temp }}/build-*.log
             ${{ runner.temp }}/errors-unpatched.txt
             ${{ runner.temp }}/clang-v.txt
+            ${{ runner.temp }}/ccache-patched.log
           retention-days: 7
 
       - name: Require the verdict
