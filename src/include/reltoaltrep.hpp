@@ -57,6 +57,8 @@ struct AltrepRelationWrapper {
 
 	// Column-wise mode only, see ColumnWise()
 	bool column_wise = false;
+	// Set once the materialize callback and message have announced the first execution
+	bool announced = false;
 	// Set once row_count holds the result of count(*) over the relation
 	bool row_count_known = false;
 	// Cells fetched so far, counted against n_cells

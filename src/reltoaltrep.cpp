@@ -243,8 +243,11 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 		                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
 	}
 
+	// The callback and the message announce the data frame's first execution only,
+	// whether that counts its rows or fetches a column
+	auto announce = !announced;
 	auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
-	if (Rf_isFunction(materialize_callback)) {
+	if (announce && Rf_isFunction(materialize_callback)) {
 		sexp call = Rf_lang2(materialize_callback, rel_eptr);
 		// safe[], not a bare Rf_eval(): an error in the callback would
 		// otherwise long-jmp out of the ALTREP method that called us,
@@ -254,11 +257,13 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 	}
 
 	auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
-	if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
+	if (announce && Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
 	    LOGICAL_ELT(materialize_message, 0) == true) {
 		// Legacy
 		Rprintf("duckplyr: materializing\n");
 	}
+	// Set once the callback returned: one that failed announces the next attempt again
+	announced = true;
 
 	// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
 	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
