@@ -360,6 +360,11 @@ jobs:
           grep -E 'Source file:|Manifest key|Result key|Looking for result|Retrieved|Stored|Succeeded getting|Missing|Result: |Did not find|Added result' \
             "$CCACHE_LOGFILE" | grep -v 'cpp11\|rfuns' | sed -n '1,60p' || true
           echo "::endgroup::"
+          echo "::group::ccache log of each miss"
+          for pid in $(sed -n 's/^\[[^ ]* \([0-9]*\) *\] Result: cache_miss$/\1/p' "$CCACHE_LOGFILE" | sort -u); do
+            grep " $pid *\]" "$CCACHE_LOGFILE" | grep -v 'Hashing\|Inode cache' | sed -n '1,120p'
+          done || true
+          echo "::endgroup::"
 
       - name: Smoke test
         id: smoke
