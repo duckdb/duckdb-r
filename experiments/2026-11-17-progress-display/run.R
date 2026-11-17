@@ -25,35 +25,59 @@ calls_csv <- Sys.getenv("PROGRESS_CALLS_CSV", tempfile(fileext = ".csv"))
 
 # The callback receives one number: the engine's Update() passes the
 # percentage, its Finish() passes 100 (src/connection.cpp).
+# It keeps its vectors in its own closure, where `[<-` modifies them in place:
+# a callback that copies them on every call, as one that assigns into an
+# environment's member does, takes milliseconds and thins out the calls.
+now <- function() as.numeric(Sys.time())
+recorder <- local({
+  n <- 0L
+  t <- numeric(1e6)
+  v <- numeric(1e6)
+  p <- integer(1e6)
+  cur <- 0L
+  t0 <- 0
+  list(
+    reset = function(start) {
+      n <<- 0L
+      cur <<- 0L
+      t0 <<- start
+    },
+    set_phase = function(i) cur <<- i,
+    callback = function(x) {
+      n <<- n + 1L
+      if (n > length(t)) {
+        t <<- c(t, numeric(length(t)))
+        v <<- c(v, numeric(length(v)))
+        p <<- c(p, integer(length(p)))
+      }
+      t[n] <<- now() - t0
+      v[n] <<- x
+      p[n] <<- cur
+    },
+    get = function() {
+      list(n = n, t = t[seq_len(n)], v = v[seq_len(n)], p = p[seq_len(n)])
+    }
+  )
+})
 rec <- new.env()
 rec_reset <- function() {
-  rec$n <- 0L
-  rec$t <- numeric(4e6)
-  rec$v <- numeric(4e6)
-  rec$p <- integer(4e6)
   rec$phases <- character()
   rec$t0 <- now()
+  recorder$reset(rec$t0)
 }
-now <- function() as.numeric(Sys.time())
 phase <- function(name) {
   rec$phases <- c(rec$phases, name)
-  rec$cur <- length(rec$phases)
+  recorder$set_phase(length(rec$phases))
 }
-callback <- function(x) {
-  n <- rec$n + 1L
-  rec$n <- n
-  rec$t[n] <- now() - rec$t0
-  rec$v[n] <- x
-  rec$p[n] <- rec$cur
-}
-options(duckdb.progress_display = callback)
+options(duckdb.progress_display = recorder$callback)
 
 all_calls <- list()
 fmt <- function(x) formatC(x, format = "f", digits = 2)
 
 # Prints one run: per phase, the number of calls, the span of the phase,
 # and a trace of (seconds since the query started: percentage) sampled at
-# most every `step` seconds, always with the first and the last call.
+# most every `step` seconds (the first call in each step), always with the
+# first and the last call.
 report <- function(
   scenario,
   api,
@@ -63,10 +87,11 @@ report <- function(
   phase_spans,
   step = 0.25
 ) {
-  n <- rec$n
-  t <- rec$t[seq_len(n)]
-  v <- rec$v[seq_len(n)]
-  p <- rec$p[seq_len(n)]
+  got <- recorder$get()
+  n <- got$n
+  t <- got$t
+  v <- got$v
+  p <- got$p
   cat(sprintf(
     "\n## %s | %s | threads=%d | rows=%s | wall=%ss | calls=%d (of them =100: %d)\n",
     scenario,
@@ -98,10 +123,7 @@ report <- function(
       }
       next
     }
-    keep <- sel[1]
-    for (j in sel[-1]) {
-      if (t[j] - t[keep[length(keep)]] >= step) keep <- c(keep, j)
-    }
+    keep <- sel[!duplicated(floor((t[sel] - t[sel[1]]) / step))]
     if (keep[length(keep)] != sel[length(sel)]) {
       keep <- c(keep, sel[length(sel)])
     }
@@ -222,7 +244,7 @@ cat("CPU:       ", sub(".*: ", "", cpu[1]), "x", length(cpu), "\n")
 cat("default max_streaming_buffer_size:", info$buf, "\n")
 cat("times are seconds since the R call that issued the query\n")
 
-n_rows <- 10000000L
+n_rows <- 40000000L
 # One thread and a seed, so that random() gives the same tables every run.
 invisible(dbExecute(con, "SET threads = 1"))
 invisible(dbExecute(con, "SELECT setseed(0.42)"))
@@ -280,6 +302,9 @@ for (name in names(local_queries)) {
 dir <- tempfile("serve")
 dir.create(dir)
 parquet <- file.path(dir, "remote.parquet")
+# One thread and a seed again, so that the remote file is the same every run.
+invisible(dbExecute(con, "SET threads = 1"))
+invisible(dbExecute(con, "SELECT setseed(0.43)"))
 invisible(dbExecute(
   con,
   sprintf(
@@ -344,6 +369,11 @@ for (name in names(remote_queries)) {
 
 # ---- c. The streaming buffer -------------------------------------------------
 
+# The first 10,000,000 rows of t, the table finish.R streams.
+invisible(dbExecute(
+  con,
+  "CREATE TABLE s AS SELECT i, x FROM t WHERE i < 10000000"
+))
 cat(
   "\n# c. max_streaming_buffer_size, a stream of a cheap 5,000,000-row scan read in chunks of 100,000 rows\n"
 )
@@ -357,7 +387,7 @@ for (buf in c("976KiB", "10MiB", "1GiB")) {
     con,
     paste0("buffer_", buf),
     "arrow",
-    "SELECT i, x FROM t WHERE i % 2 = 0",
+    "SELECT i, x FROM s WHERE i % 2 = 0",
     4L,
     chunk = 1e5
   )

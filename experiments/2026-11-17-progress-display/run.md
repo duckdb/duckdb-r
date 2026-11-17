@@ -27,35 +27,59 @@ calls_csv <- Sys.getenv("PROGRESS_CALLS_CSV", tempfile(fileext = ".csv"))
 
 # The callback receives one number: the engine's Update() passes the
 # percentage, its Finish() passes 100 (src/connection.cpp).
+# It keeps its vectors in its own closure, where `[<-` modifies them in place:
+# a callback that copies them on every call, as one that assigns into an
+# environment's member does, takes milliseconds and thins out the calls.
+now <- function() as.numeric(Sys.time())
+recorder <- local({
+  n <- 0L
+  t <- numeric(1e6)
+  v <- numeric(1e6)
+  p <- integer(1e6)
+  cur <- 0L
+  t0 <- 0
+  list(
+    reset = function(start) {
+      n <<- 0L
+      cur <<- 0L
+      t0 <<- start
+    },
+    set_phase = function(i) cur <<- i,
+    callback = function(x) {
+      n <<- n + 1L
+      if (n > length(t)) {
+        t <<- c(t, numeric(length(t)))
+        v <<- c(v, numeric(length(v)))
+        p <<- c(p, integer(length(p)))
+      }
+      t[n] <<- now() - t0
+      v[n] <<- x
+      p[n] <<- cur
+    },
+    get = function() {
+      list(n = n, t = t[seq_len(n)], v = v[seq_len(n)], p = p[seq_len(n)])
+    }
+  )
+})
 rec <- new.env()
 rec_reset <- function() {
-  rec$n <- 0L
-  rec$t <- numeric(4e6)
-  rec$v <- numeric(4e6)
-  rec$p <- integer(4e6)
   rec$phases <- character()
   rec$t0 <- now()
+  recorder$reset(rec$t0)
 }
-now <- function() as.numeric(Sys.time())
 phase <- function(name) {
   rec$phases <- c(rec$phases, name)
-  rec$cur <- length(rec$phases)
+  recorder$set_phase(length(rec$phases))
 }
-callback <- function(x) {
-  n <- rec$n + 1L
-  rec$n <- n
-  rec$t[n] <- now() - rec$t0
-  rec$v[n] <- x
-  rec$p[n] <- rec$cur
-}
-options(duckdb.progress_display = callback)
+options(duckdb.progress_display = recorder$callback)
 
 all_calls <- list()
 fmt <- function(x) formatC(x, format = "f", digits = 2)
 
 # Prints one run: per phase, the number of calls, the span of the phase,
 # and a trace of (seconds since the query started: percentage) sampled at
-# most every `step` seconds, always with the first and the last call.
+# most every `step` seconds (the first call in each step), always with the
+# first and the last call.
 report <- function(
   scenario,
   api,
@@ -65,10 +89,11 @@ report <- function(
   phase_spans,
   step = 0.25
 ) {
-  n <- rec$n
-  t <- rec$t[seq_len(n)]
-  v <- rec$v[seq_len(n)]
-  p <- rec$p[seq_len(n)]
+  got <- recorder$get()
+  n <- got$n
+  t <- got$t
+  v <- got$v
+  p <- got$p
   cat(sprintf(
     "\n## %s | %s | threads=%d | rows=%s | wall=%ss | calls=%d (of them =100: %d)\n",
     scenario,
@@ -100,10 +125,7 @@ report <- function(
       }
       next
     }
-    keep <- sel[1]
-    for (j in sel[-1]) {
-      if (t[j] - t[keep[length(keep)]] >= step) keep <- c(keep, j)
-    }
+    keep <- sel[!duplicated(floor((t[sel] - t[sel[1]]) / step))]
     if (keep[length(keep)] != sel[length(sel)]) {
       keep <- c(keep, sel[length(sel)])
     }
@@ -212,7 +234,7 @@ info <- dbGetQuery(
 cat("# Progress display callback trace\n\n")
 #> # Progress display callback trace
 cat("date:      ", format(Sys.time(), "%Y-%m-%d %H:%M %Z"), "\n")
-#> date:       2026-11-17 19:00 UTC
+#> date:       2026-11-17 19:11 UTC
 cat("duckdb:    ", format(packageVersion("duckdb")), "\n")
 #> duckdb:     2.0.0.9000
 cat("engine:    ", info$v, "\n")
@@ -235,7 +257,7 @@ cat("default max_streaming_buffer_size:", info$buf, "\n")
 cat("times are seconds since the R call that issued the query\n")
 #> times are seconds since the R call that issued the query
 
-n_rows <- 10000000L
+n_rows <- 40000000L
 # One thread and a seed, so that random() gives the same tables every run.
 invisible(dbExecute(con, "SET threads = 1"))
 invisible(dbExecute(con, "SELECT setseed(0.42)"))
@@ -259,7 +281,7 @@ cat(sprintf(
   format(n_rows, big.mark = ","),
   format(n_rows %/% 4L, big.mark = ",")
 ))
-#> table t: 10,000,000 rows (i, k, x); table u: 2,500,000 rows (k, y)
+#> table t: 40,000,000 rows (i, k, x); table u: 10,000,000 rows (k, y)
 ```
 
 ``` r
@@ -289,7 +311,7 @@ cat(
 #> │ Projections: i, x                                │
 #> │ Filters:                                         │
 #> │ (hash((CAST(i AS VARCHAR) || 'salt')) % 100) = 0 │
-#> │ ~2 rows                                          │
+#> │ ~1 row                                           │
 #> ╰──────────────────────────────────────────────────╯
 for (name in names(local_queries)) {
   cat("\n", name, ": ", local_queries[[name]], "\n", sep = "")
@@ -302,112 +324,142 @@ for (name in names(local_queries)) {
 #> 
 #> scan_filter: SELECT i, x FROM t WHERE hash(i::VARCHAR || 'salt') % 100 = 0
 #> 
-#> ## scan_filter | get | threads=1 | rows=99,688 | wall=10.20s | calls=103 (of them =100: 2)
-#>   dbGetQuery   0.00..10.19s: 103 calls, longest silence 0.16s, trace 0.00:100.0 0.34:1.4 0.69:3.4 1.00:5.5 1.30:7.5 1.60:9.6 1.92:11.6 2.24:13.7 2.52:15.8 2.83:17.8 3.11:19.9 3.43:21.9 3.74:24.0 3.99:25.4 4.35:27.4 4.69:29.5 5.03:31.5 5.31:33.6 5.64:35.6 5.89:37.0 6.20:39.0 6.50:41.1 6.80:43.2 7.10:45.2 7.36:47.3 7.62:49.3 7.87:51.4 8.14:53.4 8.42:55.5 8.71:57.5 9.02:59.6 9.27:61.6 9.60:64.4 9.87:66.4 10.12:100.0
+#> ## scan_filter | get | threads=1 | rows=398,634 | wall=2.71s | calls=395 (of them =100: 2)
+#>   dbGetQuery   0.00..2.71s: 395 calls, longest silence 0.01s, trace 0.00:100.0 0.26:5.1 0.51:9.6 0.76:13.9 1.01:18.2 1.26:22.6 1.51:27.0 1.75:31.6 2.01:36.9 2.25:41.4 2.50:45.8 2.71:100.0
 #> 
-#> ## scan_filter | arrow | threads=1 | rows=99,688 | wall=8.57s | calls=104 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.12s, trace 0.01:100.0
-#>   read 1       0.13..8.57s: 103 calls, longest silence 0.11s, trace 0.13:0.0 0.46:2.1 0.78:4.8 1.09:7.5 1.40:10.3 1.65:12.3 1.93:14.4 2.21:16.4 2.54:19.2 2.80:21.2 3.07:23.3 3.38:25.4 3.70:28.1 4.02:30.8 4.28:32.9 4.60:35.6 4.85:37.7 5.15:40.4 5.44:43.2 5.76:45.9 6.06:48.0 6.32:50.0 6.58:52.1 6.89:54.8 7.21:57.5 7.51:60.3 7.79:63.0 8.10:65.8 8.42:66.7 8.49:100.0
+#> ## scan_filter | arrow | threads=1 | rows=398,634 | wall=2.77s | calls=396 (of them =100: 2)
+#>   open         0.00..0.01s: 1 calls, longest silence 0.01s, trace 0.01:100.0
+#>   read 1       0.01..2.77s: 395 calls, longest silence 0.03s, trace 0.01:0.0 0.26:4.2 0.51:8.6 0.76:13.6 1.02:18.1 1.26:22.5 1.51:27.0 1.76:31.3 2.02:35.7 2.26:40.1 2.52:45.3 2.74:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## scan_filter | send | threads=1 | rows=99,688 | wall=10.19s | calls=103 (of them =100: 2)
-#>   send         0.00..10.19s: 103 calls, longest silence 0.15s, trace 0.00:100.0 0.26:1.4 0.60:3.4 0.93:5.5 1.25:7.5 1.55:9.6 1.87:11.6 2.17:13.7 2.49:15.8 2.79:17.8 3.10:19.9 3.42:21.9 3.76:24.0 4.06:26.0 4.38:28.1 4.68:30.1 5.04:32.2 5.37:34.3 5.75:36.3 6.09:38.4 6.38:40.4 6.65:42.5 6.91:44.5 7.19:46.6 7.46:48.6 7.73:50.7 8.01:52.7 8.29:54.8 8.54:56.9 8.79:58.9 9.07:61.0 9.36:63.0 9.63:65.1 9.96:66.7 10.11:100.0
+#> ## scan_filter | send | threads=1 | rows=398,634 | wall=2.90s | calls=395 (of them =100: 2)
+#>   send         0.00..2.90s: 395 calls, longest silence 0.03s, trace 0.00:100.0 0.26:4.0 0.51:8.1 0.76:12.2 1.01:17.2 1.25:22.6 1.50:26.2 1.76:30.2 2.01:34.5 2.26:38.9 2.50:43.2 2.75:47.4 2.90:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## scan_filter | get | threads=4 | rows=99,688 | wall=0.95s | calls=14 (of them =100: 2)
-#>   dbGetQuery   0.00..0.95s: 14 calls, longest silence 0.10s, trace 0.00:100.0 0.26:15.2 0.57:41.4 0.83:64.9 0.89:100.0
+#> ## scan_filter | get | threads=4 | rows=398,634 | wall=2.67s | calls=535180 (of them =100: 2)
+#>   dbGetQuery   0.00..2.67s: 535180 calls, longest silence 0.00s, trace 0.00:100.0 0.25:5.4 0.50:10.9 0.75:15.5 1.00:19.9 1.25:24.9 1.50:29.5 1.75:34.0 2.00:38.4 2.25:42.9 2.50:47.1 2.66:100.0
 #> 
-#> ## scan_filter | arrow | threads=4 | rows=99,688 | wall=0.99s | calls=11 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.13s, trace 0.00:100.0
-#>   read 1       0.13..0.99s: 10 calls, longest silence 0.10s, trace 0.13:0.5 0.40:23.7 0.65:46.6 0.90:100.0
+#> ## scan_filter | arrow | threads=4 | rows=398,634 | wall=2.79s | calls=529537 (of them =100: 2)
+#>   open         0.00..0.02s: 1 calls, longest silence 0.01s, trace 0.00:100.0
+#>   read 1       0.02..2.79s: 529536 calls, longest silence 0.07s, trace 0.02:0.1 0.31:4.2 0.52:9.1 0.77:13.5 1.02:17.8 1.27:22.2 1.52:26.5 1.77:30.8 2.02:35.3 2.27:39.8 2.52:44.3 2.77:49.8 2.78:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## scan_filter | send | threads=4 | rows=99,688 | wall=0.92s | calls=10 (of them =100: 2)
-#>   send         0.00..0.92s: 10 calls, longest silence 0.11s, trace 0.00:100.0 0.31:17.7 0.58:46.0 0.85:100.0
+#> ## scan_filter | send | threads=4 | rows=398,634 | wall=2.85s | calls=395 (of them =100: 2)
+#>   send         0.00..2.85s: 395 calls, longest silence 0.02s, trace 0.00:100.0 0.25:4.5 0.51:8.5 0.76:12.7 1.01:16.6 1.26:21.3 1.51:25.2 1.75:28.6 2.00:32.7 2.25:37.6 2.50:43.2 2.75:47.9 2.85:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
 #> group_by: SELECT k, sum(x) AS s, count(*) AS n FROM t GROUP BY k
 #> 
-#> ## group_by | get | threads=1 | rows=2,454,520 | wall=11.25s | calls=130 (of them =100: 2)
-#>   dbGetQuery   0.00..11.25s: 130 calls, longest silence 0.17s, trace 0.00:100.0 0.33:1.5 0.60:3.8 0.85:6.1 1.11:8.4 1.37:10.6 1.63:12.9 1.93:15.2 2.20:17.5 2.49:19.7 2.78:22.0 3.10:24.3 3.43:26.6 3.70:28.9 3.99:31.1 4.29:33.4 4.54:35.7 4.88:38.7 5.15:41.0 5.41:43.3 5.69:45.5 5.97:47.8 6.31:50.1 6.56:52.4 6.82:54.6 7.08:56.9 7.41:60.0 7.69:62.2 7.98:64.5 8.28:66.8 8.57:69.8 8.85:72.9 9.11:91.3 9.38:92.8 9.64:94.3 9.94:95.7 10.25:97.2 10.55:98.7 10.85:100.0 11.08:100.0
+#> ## group_by | get | threads=1 | rows=9,817,025 | wall=4.23s | calls=493 (of them =100: 2)
+#>   dbGetQuery   0.00..4.23s: 493 calls, longest silence 0.35s, trace 0.00:100.0 0.25:5.4 0.50:8.7 0.76:14.3 1.05:16.1 1.26:21.5 1.51:27.2 1.76:32.6 2.00:37.8 2.26:42.7 2.50:48.5 2.76:54.2 3.01:60.2 3.26:66.4 3.50:72.3 3.75:93.2 3.88:100.0
 #> 
-#> ## group_by | arrow | threads=1 | rows=2,454,520 | wall=6.77s | calls=140 (of them =100: 2)
-#>   open         0.00..0.04s: 1 calls, longest silence 0.04s, trace 0.00:100.0
-#>   read 1       0.04..5.94s: 120 calls, longest silence 0.13s, trace 0.04:0.0 0.32:2.3 0.65:6.8 0.92:11.4 1.25:15.9 1.54:20.5 1.80:25.1 2.14:29.6 2.42:34.9 2.67:38.7 3.00:43.3 3.32:47.8 3.61:52.4 3.92:56.9 4.23:61.5 4.56:66.0 4.85:70.6 5.15:73.9 5.43:93.2 5.69:94.8 5.91:96.0
-#>   read 2       5.94..6.60s: 15 calls, longest silence 0.10s, trace 5.95:96.3 6.22:97.9 6.49:99.4 6.58:99.8
-#>   read 3       6.60..6.77s: 4 calls, longest silence 0.10s, trace 6.60:100.0 6.75:100.0
+#> ## group_by | arrow | threads=1 | rows=9,817,025 | wall=3.83s | calls=532 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..3.66s: 412 calls, longest silence 0.24s, trace 0.00:0.0 0.26:6.0 0.51:10.5 0.76:15.7 1.01:16.1 1.26:23.2 1.51:28.4 1.76:34.4 2.01:39.9 2.25:45.9 2.51:52.1 2.76:58.4 3.01:64.4 3.26:70.5 3.51:75.9 3.65:93.8
+#>   read 2       3.66..3.68s: 15 calls, longest silence 0.01s, trace 3.66:93.8 3.68:94.6
+#>   read 3       3.68..3.70s: 12 calls, longest silence 0.00s, trace 3.68:94.6 3.70:95.2
+#>   read 4       3.70..3.72s: 15 calls, longest silence 0.00s, trace 3.70:95.3 3.72:96.0
+#>   read 5       3.72..3.74s: 12 calls, longest silence 0.00s, trace 3.72:96.1 3.73:96.7
+#>   read 6       3.74..3.76s: 15 calls, longest silence 0.00s, trace 3.74:96.7 3.76:97.5
+#>   read 7       3.76..3.78s: 12 calls, longest silence 0.00s, trace 3.76:97.5 3.77:98.1
+#>   read 8       3.78..3.80s: 15 calls, longest silence 0.00s, trace 3.78:98.2 3.80:98.9
+#>   read 9       3.80..3.82s: 15 calls, longest silence 0.00s, trace 3.80:99.0 3.82:99.7
+#>   read 10      3.82..3.83s: 8 calls, longest silence 0.00s, trace 3.82:99.8 3.82:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## group_by | send | threads=1 | rows=2,454,520 | wall=6.64s | calls=130 (of them =100: 2)
-#>   send         0.00..6.45s: 130 calls, longest silence 0.14s, trace 0.00:100.0 0.30:3.0 0.60:7.6 0.91:12.1 1.18:15.2 1.46:19.7 1.76:24.3 2.04:28.9 2.34:33.4 2.63:38.0 2.92:42.5 3.23:47.1 3.51:51.6 3.82:56.2 4.14:60.7 4.44:65.3 4.77:69.8 5.09:73.9 5.36:92.8 5.66:95.0 5.94:97.6 6.20:99.8 6.33:100.0
-#>   3 further reads with no calls, 0.19s in all
+#> ## group_by | send | threads=1 | rows=9,817,025 | wall=4.32s | calls=493 (of them =100: 2)
+#>   send         0.00..3.89s: 493 calls, longest silence 0.21s, trace 0.00:100.0 0.26:5.0 0.51:8.9 0.76:15.3 1.00:17.3 1.26:23.4 1.51:29.4 1.76:35.2 2.01:41.1 2.25:46.3 2.51:52.9 2.76:59.0 3.00:65.0 3.25:71.1 3.51:77.1 3.68:100.0
+#>   10 further reads with no calls, 0.43s in all
 #> 
-#> ## group_by | get | threads=4 | rows=2,454,520 | wall=0.84s | calls=25 (of them =100: 2)
-#>   dbGetQuery   0.00..0.84s: 25 calls, longest silence 0.12s, trace 0.00:100.0 0.28:73.9 0.54:88.3 0.78:100.0
+#> ## group_by | get | threads=4 | rows=9,817,025 | wall=2.34s | calls=278281 (of them =100: 2)
+#>   dbGetQuery   0.00..2.34s: 278281 calls, longest silence 0.22s, trace 0.00:100.0 0.25:37.7 0.50:74.1 0.75:81.4 1.00:85.0 1.25:87.8 1.50:91.1 1.75:94.8 2.00:98.2 2.12:100.0
 #> 
-#> ## group_by | arrow | threads=4 | rows=2,454,520 | wall=1.43s | calls=39 (of them =100: 2)
-#>   open         0.00..0.05s: 1 calls, longest silence 0.05s, trace 0.00:100.0
-#>   read 1       0.05..0.78s: 21 calls, longest silence 0.13s, trace 0.05:0.0 0.33:79.6 0.65:84.3 0.77:87.9
-#>   read 2       0.78..1.39s: 15 calls, longest silence 0.12s, trace 0.80:88.9 1.06:93.6 1.37:99.3 1.38:99.6
-#>   read 3       1.39..1.43s: 2 calls, longest silence 0.02s, trace 1.40:100.0 1.41:100.0
+#> ## group_by | arrow | threads=4 | rows=9,817,025 | wall=2.16s | calls=17733 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.73s: 12766 calls, longest silence 0.02s, trace 0.00:0.0 0.25:38.4 0.50:78.6 0.73:81.4
+#>   read 2       0.73..0.91s: 15 calls, longest silence 0.03s, trace 0.75:81.6 0.91:83.7
+#>   read 3       0.91..1.04s: 12 calls, longest silence 0.02s, trace 0.93:83.9 1.04:85.6
+#>   read 4       1.04..1.21s: 15 calls, longest silence 0.02s, trace 1.07:85.9 1.21:88.1
+#>   read 5       1.21..1.35s: 4859 calls, longest silence 0.02s, trace 1.22:88.3 1.35:90.0
+#>   read 6       1.35..1.54s: 15 calls, longest silence 0.03s, trace 1.37:90.2 1.54:92.4
+#>   read 7       1.54..1.72s: 15 calls, longest silence 0.02s, trace 1.56:92.6 1.72:94.8
+#>   read 8       1.72..1.89s: 12 calls, longest silence 0.03s, trace 1.75:95.1 1.88:96.7
+#>   read 9       1.89..2.07s: 15 calls, longest silence 0.03s, trace 1.90:96.9 2.07:99.1
+#>   read 10      2.07..2.16s: 8 calls, longest silence 0.03s, trace 2.09:99.3 2.15:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## group_by | send | threads=4 | rows=2,454,520 | wall=0.87s | calls=24 (of them =100: 2)
-#>   send         0.00..0.77s: 24 calls, longest silence 0.12s, trace 0.00:100.0 0.26:74.7 0.52:92.9 0.71:100.0
-#>   3 further reads with no calls, 0.09s in all
+#> ## group_by | send | threads=4 | rows=9,817,025 | wall=2.67s | calls=322 (of them =100: 2)
+#>   send         0.00..2.18s: 322 calls, longest silence 0.24s, trace 0.00:100.0 0.25:52.2 0.53:80.5 0.76:83.9 1.02:86.6 1.26:89.8 1.51:93.9 1.76:97.3 1.94:100.0
+#>   10 further reads with no calls, 0.49s in all
 #> 
 #> order_by: SELECT i, x FROM t WHERE i % 4 = 0 ORDER BY x
 #> 
-#> ## order_by | get | threads=1 | rows=2,500,000 | wall=4.43s | calls=130 (of them =100: 2)
-#>   dbGetQuery   0.00..4.43s: 130 calls, longest silence 0.28s, trace 0.00:100.0 0.27:1.0 0.53:2.7 0.83:3.7 1.08:5.3 1.34:7.4 1.62:9.0 1.87:11.1 2.17:12.9 2.44:14.8 2.71:16.2 2.96:18.5 3.43:40.0 3.68:53.4 4.01:66.7 4.27:80.0 4.31:100.0
+#> ## order_by | get | threads=1 | rows=10,000,000 | wall=2.32s | calls=494 (of them =100: 2)
+#>   dbGetQuery   0.00..2.32s: 494 calls, longest silence 1.02s, trace 0.00:100.0 0.25:5.7 0.50:11.5 0.75:16.1 1.82:33.3 2.00:48.0 2.22:100.0
 #> 
-#> ## order_by | arrow | threads=1 | rows=2,500,000 | wall=4.29s | calls=136 (of them =100: 2)
-#>   open         0.00..0.02s: 1 calls, longest silence 0.02s, trace 0.00:100.0
-#>   read 1       0.02..3.85s: 122 calls, longest silence 0.21s, trace 0.02:0.0 0.34:1.9 0.59:3.9 0.86:5.6 1.12:7.8 1.39:9.5 1.71:11.7 1.96:14.0 2.22:15.6 2.48:17.7 2.77:19.3 3.02:40.0 3.36:50.0 3.62:57.4 3.84:66.3
-#>   read 2       3.85..4.29s: 13 calls, longest silence 0.10s, trace 3.86:68.0 4.11:78.5 4.27:100.0
-#>   2 further reads with no calls, 0.00s in all
+#> ## order_by | arrow | threads=1 | rows=10,000,000 | wall=2.12s | calls=520 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..1.74s: 414 calls, longest silence 0.99s, trace 0.00:0.0 0.26:6.2 0.51:12.3 1.67:33.3 1.74:38.8
+#>   read 2       1.74..1.78s: 12 calls, longest silence 0.01s, trace 1.74:39.2 1.78:42.1
+#>   read 3       1.78..1.82s: 12 calls, longest silence 0.01s, trace 1.78:42.5 1.82:45.4
+#>   read 4       1.82..1.86s: 12 calls, longest silence 0.01s, trace 1.82:45.8 1.86:48.7
+#>   read 5       1.86..1.90s: 12 calls, longest silence 0.01s, trace 1.86:49.1 1.90:52.0
+#>   read 6       1.90..1.95s: 12 calls, longest silence 0.01s, trace 1.91:52.4 1.94:55.3
+#>   read 7       1.95..2.00s: 12 calls, longest silence 0.01s, trace 1.95:55.6 1.99:58.6
+#>   read 8       2.00..2.04s: 12 calls, longest silence 0.01s, trace 2.00:58.9 2.04:61.9
+#>   read 9       2.04..2.09s: 12 calls, longest silence 0.01s, trace 2.05:62.2 2.09:65.2
+#>   read 10      2.09..2.12s: 9 calls, longest silence 0.01s, trace 2.09:65.5 2.11:100.0
+#>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## order_by | send | threads=1 | rows=2,500,000 | wall=4.06s | calls=130 (of them =100: 2)
-#>   send         0.00..3.99s: 130 calls, longest silence 0.26s, trace 0.00:100.0 0.31:2.1 0.65:4.5 0.91:6.6 1.21:8.2 1.46:10.7 1.72:12.1 2.04:14.2 2.30:16.2 2.55:17.9 2.81:19.1 3.16:40.0 3.45:50.0 3.74:70.1 3.97:100.0
-#>   3 further reads with no calls, 0.07s in all
+#> ## order_by | send | threads=1 | rows=10,000,000 | wall=2.45s | calls=494 (of them =100: 2)
+#>   send         0.00..1.94s: 494 calls, longest silence 0.91s, trace 0.00:100.0 0.25:6.6 0.50:13.5 1.53:33.3 1.75:58.4 1.84:100.0
+#>   10 further reads with no calls, 0.51s in all
 #> 
-#> ## order_by | get | threads=4 | rows=2,500,000 | wall=0.37s | calls=11 (of them =100: 2)
-#>   dbGetQuery   0.00..0.37s: 11 calls, longest silence 0.08s, trace 0.00:100.0 0.27:61.6 0.34:100.0
+#> ## order_by | get | threads=4 | rows=10,000,000 | wall=1.03s | calls=3321 (of them =100: 2)
+#>   dbGetQuery   0.00..1.03s: 3321 calls, longest silence 0.21s, trace 0.00:100.0 0.38:28.8 0.50:39.9 0.76:56.0 0.93:100.0
 #> 
-#> ## order_by | arrow | threads=4 | rows=2,500,000 | wall=1.10s | calls=30 (of them =100: 2)
-#>   open         0.00..0.04s: 1 calls, longest silence 0.04s, trace 0.00:100.0
-#>   read 1       0.04..0.70s: 18 calls, longest silence 0.12s, trace 0.04:0.0 0.31:53.8 0.64:64.4 0.69:66.3
-#>   read 2       0.70..1.09s: 11 calls, longest silence 0.10s, trace 0.71:68.0 0.97:76.9 1.08:100.0
-#>   2 further reads with no calls, 0.00s in all
+#> ## order_by | arrow | threads=4 | rows=10,000,000 | wall=1.06s | calls=16242 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.57s: 16135 calls, longest silence 0.27s, trace 0.00:0.0 0.45:28.5 0.50:35.1 0.57:38.4
+#>   read 2       0.57..0.63s: 12 calls, longest silence 0.01s, trace 0.58:38.7 0.63:41.7
+#>   read 3       0.63..0.69s: 12 calls, longest silence 0.01s, trace 0.63:42.0 0.68:45.0
+#>   read 4       0.69..0.74s: 12 calls, longest silence 0.01s, trace 0.69:45.3 0.74:48.2
+#>   read 5       0.74..0.80s: 12 calls, longest silence 0.01s, trace 0.75:48.6 0.80:51.5
+#>   read 6       0.80..0.86s: 12 calls, longest silence 0.01s, trace 0.81:51.9 0.85:54.8
+#>   read 7       0.86..0.91s: 12 calls, longest silence 0.01s, trace 0.86:55.2 0.91:58.1
+#>   read 8       0.91..0.97s: 12 calls, longest silence 0.01s, trace 0.92:58.5 0.97:61.4
+#>   read 9       0.97..1.03s: 12 calls, longest silence 0.01s, trace 0.98:61.8 1.02:64.7
+#>   read 10      1.03..1.06s: 10 calls, longest silence 0.01s, trace 1.03:65.1 1.06:100.0
+#>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## order_by | send | threads=4 | rows=2,500,000 | wall=0.46s | calls=13 (of them =100: 2)
-#>   send         0.00..0.39s: 13 calls, longest silence 0.10s, trace 0.00:100.0 0.27:70.3 0.37:100.0
-#>   3 further reads with no calls, 0.07s in all
+#> ## order_by | send | threads=4 | rows=10,000,000 | wall=1.77s | calls=115483 (of them =100: 2)
+#>   send         0.00..1.18s: 115483 calls, longest silence 0.24s, trace 0.00:100.0 0.42:28.7 0.50:37.6 0.75:52.8 0.99:100.0
+#>   10 further reads with no calls, 0.59s in all
 #> 
 #> join: SELECT t.k, x, y FROM t JOIN u ON t.k = u.k WHERE x < 0.01
 #> 
-#> ## join | get | threads=1 | rows=99,800 | wall=4.64s | calls=155 (of them =100: 2)
-#>   dbGetQuery   0.00..4.64s: 155 calls, longest silence 0.12s, trace 0.00:100.0 0.27:2.8 0.52:5.7 0.78:8.1 1.09:12.0 1.34:14.9 1.63:18.4 1.89:22.3 2.14:24.8 2.40:28.6 2.67:31.5 2.94:34.4 3.25:40.8 3.50:48.9 3.77:55.1 4.04:63.3 4.30:70.5 4.59:100.0 4.63:100.0
+#> ## join | get | threads=1 | rows=399,630 | wall=0.54s | calls=590 (of them =100: 2)
+#>   dbGetQuery   0.00..0.54s: 590 calls, longest silence 0.01s, trace 0.00:100.0 0.25:33.8 0.50:66.9 0.53:100.0
 #> 
-#> ## join | arrow | threads=1 | rows=99,800 | wall=4.34s | calls=156 (of them =100: 2)
-#>   open         0.00..0.02s: 1 calls, longest silence 0.02s, trace 0.00:100.0
-#>   read 1       0.02..4.34s: 155 calls, longest silence 0.11s, trace 0.02:0.0 0.27:2.8 0.53:5.7 0.87:9.6 1.20:13.8 1.47:17.7 1.75:20.9 2.04:24.4 2.39:28.6 2.64:32.5 2.90:35.3 3.23:44.4 3.48:55.1 3.77:61.5 4.09:72.3 4.32:100.0
+#> ## join | arrow | threads=1 | rows=399,630 | wall=0.45s | calls=591 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.45s: 590 calls, longest silence 0.01s, trace 0.00:0.0 0.25:40.1 0.44:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## join | send | threads=1 | rows=99,800 | wall=4.49s | calls=155 (of them =100: 2)
-#>   send         0.00..4.49s: 155 calls, longest silence 0.11s, trace 0.00:100.0 0.25:2.5 0.57:5.7 0.82:9.6 1.07:13.1 1.33:16.3 1.64:20.9 1.91:24.0 2.24:27.2 2.50:30.4 2.76:33.9 3.01:39.8 3.32:46.2 3.60:55.1 3.90:62.4 4.15:71.4 4.45:100.0 4.48:100.0
+#> ## join | send | threads=1 | rows=399,630 | wall=0.45s | calls=590 (of them =100: 2)
+#>   send         0.00..0.45s: 590 calls, longest silence 0.01s, trace 0.00:100.0 0.25:38.4 0.44:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## join | get | threads=4 | rows=99,800 | wall=0.21s | calls=7 (of them =100: 2)
-#>   dbGetQuery   0.00..0.21s: 7 calls, longest silence 0.08s, trace 0.00:100.0 0.20:100.0
+#> ## join | get | threads=4 | rows=399,630 | wall=0.29s | calls=397 (of them =100: 2)
+#>   dbGetQuery   0.00..0.29s: 397 calls, longest silence 0.01s, trace 0.00:100.0 0.25:65.9 0.29:100.0
 #> 
-#> ## join | arrow | threads=4 | rows=99,800 | wall=0.16s | calls=6 (of them =100: 2)
-#>   open         0.00..0.02s: 1 calls, longest silence 0.02s, trace 0.00:100.0
-#>   read 1       0.02..0.16s: 5 calls, longest silence 0.08s, trace 0.02:0.0 0.14:100.0
+#> ## join | arrow | threads=4 | rows=399,630 | wall=0.35s | calls=49732 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.35s: 49731 calls, longest silence 0.01s, trace 0.00:0.0 0.25:59.4 0.34:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## join | send | threads=4 | rows=99,800 | wall=0.23s | calls=6 (of them =100: 2)
-#>   send         0.00..0.23s: 6 calls, longest silence 0.09s, trace 0.00:100.0 0.14:100.0
+#> ## join | send | threads=4 | rows=399,630 | wall=0.35s | calls=4006 (of them =100: 2)
+#>   send         0.00..0.35s: 4006 calls, longest silence 0.00s, trace 0.00:100.0 0.25:57.5 0.35:100.0
 #>   1 further reads with no calls, 0.00s in all
 ```
 
@@ -416,6 +468,9 @@ for (name in names(local_queries)) {
 dir <- tempfile("serve")
 dir.create(dir)
 parquet <- file.path(dir, "remote.parquet")
+# One thread and a seed again, so that the remote file is the same every run.
+invisible(dbExecute(con, "SET threads = 1"))
+invisible(dbExecute(con, "SELECT setseed(0.43)"))
 invisible(dbExecute(
   con,
   sprintf(
@@ -486,101 +541,106 @@ for (name in names(remote_queries)) {
 #> 
 #> remote_only: SELECT count(*) AS n, sum(z) AS s FROM read_parquet('http://127.0.0.1:8919/remote.parquet')
 #> 
-#> ## remote_only | get | threads=1 | rows=1 | wall=5.04s | calls=117 (of them =100: 2)
-#>   dbGetQuery   0.00..5.04s: 117 calls, longest silence 0.13s, trace 0.06:100.0 0.33:0.0 0.59:0.0 0.88:10.0 1.14:15.1 1.40:20.1 1.67:25.1 1.94:32.6 2.20:40.1 2.56:45.2 2.87:52.7 3.13:60.2 3.39:65.2 3.65:70.2 3.91:77.8 4.16:82.8 4.42:87.8 4.67:95.3 4.95:100.0 5.02:100.0
+#> ## remote_only | get | threads=1 | rows=1 | wall=4.19s | calls=253 (of them =100: 2)
+#>   dbGetQuery   0.00..4.19s: 253 calls, longest silence 0.06s, trace 0.06:100.0 0.32:0.0 0.56:10.0 0.82:10.0 1.07:20.1 1.31:20.1 1.56:30.1 1.82:40.1 2.07:40.1 2.31:50.2 2.56:55.3 2.82:60.2 3.07:70.2 3.31:70.2 3.58:80.3 3.82:90.3 4.06:90.3 4.19:100.0
 #> 
-#> ## remote_only | arrow | threads=1 | rows=1 | wall=5.15s | calls=122 (of them =100: 2)
-#>   open         0.00..0.16s: 1 calls, longest silence 0.10s, trace 0.06:100.0
-#>   read 1       0.16..5.15s: 121 calls, longest silence 0.14s, trace 0.16:0.0 0.42:0.0 0.70:2.6 0.96:10.0 1.26:17.7 1.53:20.1 1.82:30.1 2.17:37.7 2.47:45.2 2.74:50.2 3.00:55.2 3.26:62.7 3.53:67.7 3.79:72.8 4.04:82.8 4.39:85.4 4.66:92.8 4.94:100.0 5.14:100.0
+#> ## remote_only | arrow | threads=1 | rows=1 | wall=4.19s | calls=253 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..4.19s: 252 calls, longest silence 0.02s, trace 0.11:0.0 0.38:0.0 0.62:10.0 0.87:10.0 1.11:20.1 1.38:30.1 1.62:30.1 1.87:40.1 2.13:40.1 2.38:50.2 2.62:60.2 2.87:60.2 3.13:70.2 3.38:72.8 3.62:80.3 3.87:90.3 4.13:90.3 4.19:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## remote_only | get | threads=4 | rows=1 | wall=3.09s | calls=60 (of them =100: 2)
-#>   dbGetQuery   0.00..3.09s: 60 calls, longest silence 0.16s, trace 0.06:100.0 0.40:0.0 0.66:10.1 0.92:12.5 1.20:12.5 1.48:12.5 1.84:52.7 2.14:80.3 2.48:92.5 2.85:92.5 3.07:100.0
+#> ## remote_only | get | threads=4 | rows=1 | wall=2.97s | calls=265 (of them =100: 2)
+#>   dbGetQuery   0.00..2.97s: 265 calls, longest silence 0.06s, trace 0.06:100.0 0.31:0.0 0.56:17.6 0.82:17.6 1.07:17.6 1.31:17.6 1.57:50.2 1.82:57.7 2.06:87.8 2.32:97.5 2.56:97.5 2.81:97.5 2.97:100.0
 #> 
-#> ## remote_only | arrow | threads=4 | rows=1 | wall=2.27s | calls=42 (of them =100: 2)
-#>   open         0.00..0.12s: 1 calls, longest silence 0.07s, trace 0.06:100.0
-#>   read 1       0.12..2.27s: 41 calls, longest silence 0.14s, trace 0.12:0.0 0.39:0.0 0.66:20.1 0.96:20.1 1.22:20.1 1.51:20.1 1.76:60.2 2.03:95.3 2.16:100.0
+#> ## remote_only | arrow | threads=4 | rows=1 | wall=2.99s | calls=184 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..2.99s: 183 calls, longest silence 0.02s, trace 0.11:0.0 0.38:0.0 0.62:15.1 0.87:15.1 1.13:15.1 1.37:15.1 1.63:50.2 1.88:55.2 2.12:75.3 2.37:75.3 2.63:75.3 2.87:75.3 2.99:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
 #> remote_heavy_expr: SELECT count(*) AS n FROM read_parquet('http://127.0.0.1:8919/remote.parquet') WHERE hash(repeat(i::VARCHAR, 40)) % 7 = 0
 #> 
-#> ## remote_heavy_expr | get | threads=1 | rows=1 | wall=3.47s | calls=66 (of them =100: 2)
-#>   dbGetQuery   0.00..3.47s: 66 calls, longest silence 0.16s, trace 0.06:100.0 0.33:0.0 0.65:3.4 0.93:6.7 1.27:10.1 1.52:13.4 1.77:15.9 2.06:19.3 2.32:21.8 2.60:26.0 2.91:29.3 3.23:32.6 3.45:100.0
+#> ## remote_heavy_expr | get | threads=1 | rows=1 | wall=2.37s | calls=144 (of them =100: 2)
+#>   dbGetQuery   0.00..2.37s: 144 calls, longest silence 0.06s, trace 0.06:100.0 0.31:0.0 0.57:5.1 0.81:9.2 1.07:13.4 1.31:16.7 1.57:20.1 1.81:23.4 2.07:26.8 2.31:30.9 2.37:100.0
 #> 
-#> ## remote_heavy_expr | arrow | threads=1 | rows=1 | wall=3.44s | calls=69 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.07s, trace 0.06:100.0
-#>   read 1       0.13..3.44s: 68 calls, longest silence 0.14s, trace 0.13:0.0 0.39:0.0 0.68:5.0 0.95:7.6 1.21:10.1 1.47:13.4 1.78:16.7 2.15:20.9 2.51:25.1 2.82:28.5 3.12:31.8 3.39:66.7 3.43:100.0
+#> ## remote_heavy_expr | arrow | threads=1 | rows=1 | wall=2.37s | calls=143 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..2.37s: 142 calls, longest silence 0.04s, trace 0.11:0.0 0.37:3.3 0.62:6.7 0.86:10.0 1.12:13.4 1.37:16.7 1.63:20.1 1.87:24.3 2.12:28.5 2.37:33.3 2.37:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## remote_heavy_expr | get | threads=4 | rows=1 | wall=1.92s | calls=34 (of them =100: 2)
-#>   dbGetQuery   0.00..1.92s: 34 calls, longest silence 0.15s, trace 0.06:100.0 0.39:5.9 0.74:5.9 0.99:5.9 1.32:5.9 1.59:19.2 1.91:100.0
+#> ## remote_heavy_expr | get | threads=4 | rows=1 | wall=1.78s | calls=166 (of them =100: 2)
+#>   dbGetQuery   0.00..1.78s: 166 calls, longest silence 0.06s, trace 0.06:100.0 0.32:0.0 0.57:5.0 0.82:5.0 1.06:5.0 1.32:5.0 1.57:19.5 1.78:100.0
 #> 
-#> ## remote_heavy_expr | arrow | threads=4 | rows=1 | wall=1.90s | calls=36 (of them =100: 2)
-#>   open         0.00..0.15s: 1 calls, longest silence 0.09s, trace 0.06:100.0
-#>   read 1       0.15..1.90s: 35 calls, longest silence 0.16s, trace 0.15:0.0 0.42:5.4 0.70:5.9 1.05:5.9 1.40:9.6 1.68:27.0 1.88:100.0
+#> ## remote_heavy_expr | arrow | threads=4 | rows=1 | wall=1.73s | calls=2186 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..1.73s: 2185 calls, longest silence 0.03s, trace 0.11:0.0 0.36:5.9 0.62:5.9 0.87:5.9 1.13:5.9 1.37:14.3 1.62:32.1 1.73:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
 #> remote_join_columns: SELECT count(*) AS n, sum(k) AS sk, sum(z) AS s FROM read_parquet('http://127.0.0.1:8919/remote.parquet')
 #> 
-#> ## remote_join_columns | get | threads=1 | rows=1 | wall=7.38s | calls=150 (of them =100: 2)
-#>   dbGetQuery   0.00..7.38s: 150 calls, longest silence 0.17s, trace 0.06:100.0 0.38:0.0 0.77:0.0 1.02:10.0 1.36:10.0 1.68:20.1 1.94:20.1 2.26:22.6 2.53:30.1 2.90:30.1 3.16:40.1 3.51:40.1 3.77:50.2 4.06:50.2 4.35:55.2 4.69:60.2 5.02:62.8 5.30:70.2 5.63:70.2 5.92:80.3 6.17:80.3 6.46:85.4 6.71:90.3 6.97:90.3 7.29:100.0 7.37:100.0
+#> ## remote_join_columns | get | threads=1 | rows=1 | wall=6.72s | calls=380 (of them =100: 2)
+#>   dbGetQuery   0.00..6.72s: 380 calls, longest silence 0.06s, trace 0.06:100.0 0.32:0.0 0.56:0.0 0.82:10.0 1.06:10.0 1.33:10.0 1.56:20.1 1.82:20.1 2.07:20.1 2.32:30.1 2.56:30.1 2.82:40.1 3.06:40.1 3.32:40.1 3.56:50.2 3.82:50.2 4.06:50.2 4.32:60.2 4.56:60.2 4.82:70.2 5.06:70.2 5.32:70.2 5.56:80.3 5.82:80.3 6.06:90.3 6.32:90.3 6.56:90.3 6.72:100.0
 #> 
-#> ## remote_join_columns | arrow | threads=1 | rows=1 | wall=7.46s | calls=156 (of them =100: 2)
-#>   open         0.00..0.16s: 1 calls, longest silence 0.10s, trace 0.06:100.0
-#>   read 1       0.16..7.46s: 155 calls, longest silence 0.18s, trace 0.16:0.0 0.43:0.0 0.72:0.0 0.97:2.6 1.24:10.0 1.50:10.0 1.79:20.1 2.17:20.1 2.45:27.6 2.70:30.1 3.03:32.7 3.29:40.1 3.62:40.1 3.92:50.2 4.19:50.2 4.50:57.8 4.77:60.2 5.06:62.7 5.36:70.2 5.72:70.2 5.97:80.3 6.29:80.3 6.56:87.8 6.83:90.3 7.16:92.9 7.42:100.0 7.44:100.0
+#> ## remote_join_columns | arrow | threads=1 | rows=1 | wall=6.72s | calls=380 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..6.72s: 379 calls, longest silence 0.02s, trace 0.11:0.0 0.38:0.0 0.62:0.0 0.86:10.0 1.13:10.0 1.37:10.0 1.62:20.1 1.87:20.1 2.12:30.1 2.36:30.1 2.63:30.1 2.88:40.1 3.13:40.1 3.37:40.1 3.62:50.2 3.86:50.2 4.12:60.2 4.36:60.2 4.63:60.2 4.88:70.2 5.13:70.2 5.37:70.2 5.62:80.3 5.86:80.3 6.12:90.3 6.36:90.3 6.63:90.3 6.72:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## remote_join_columns | get | threads=4 | rows=1 | wall=3.10s | calls=53 (of them =100: 2)
-#>   dbGetQuery   0.00..3.10s: 53 calls, longest silence 0.19s, trace 0.06:100.0 0.36:0.0 0.65:0.0 0.91:17.6 1.21:17.6 1.56:17.6 1.89:55.2 2.18:57.7 2.57:95.3 2.82:97.8 3.08:100.0
+#> ## remote_join_columns | get | threads=4 | rows=1 | wall=3.10s | calls=272 (of them =100: 2)
+#>   dbGetQuery   0.00..3.10s: 272 calls, longest silence 0.06s, trace 0.06:100.0 0.31:0.0 0.56:0.0 0.82:15.1 1.06:15.1 1.32:15.1 1.57:15.1 1.81:47.7 2.07:55.2 2.31:55.2 2.57:87.8 2.83:95.3 3.07:97.5 3.09:100.0
 #> 
-#> ## remote_join_columns | arrow | threads=4 | rows=1 | wall=3.13s | calls=57 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.07s, trace 0.06:100.0
-#>   read 1       0.13..3.13s: 56 calls, longest silence 0.15s, trace 0.13:0.0 0.41:0.0 0.71:0.0 0.97:15.1 1.23:15.1 1.49:15.1 1.82:47.7 2.11:55.2 2.37:55.2 2.63:90.3 2.91:95.3 3.12:100.0
+#> ## remote_join_columns | arrow | threads=4 | rows=1 | wall=3.49s | calls=679 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..3.49s: 678 calls, longest silence 0.02s, trace 0.11:0.0 0.38:0.0 0.62:0.0 0.88:15.1 1.12:15.1 1.37:15.1 1.63:15.1 1.88:52.7 2.12:55.2 2.38:55.2 2.62:87.8 2.88:90.3 3.13:95.0 3.37:95.0 3.48:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
 #> remote_build_local_probe: SELECT count(*) AS n, sum(x * z) AS s FROM t JOIN read_parquet('http://127.0.0.1:8919/remote.parquet') r ON t.k = r.k
 #> 
-#> ## remote_build_local_probe | get | threads=1 | rows=1 | wall=15.92s | calls=393 (of them =100: 2)
-#>   dbGetQuery   0.00..15.92s: 393 calls, longest silence 0.17s, trace 0.06:100.0 0.37:0.0 0.72:0.0 0.97:1.6 1.25:1.6 1.56:1.6 1.81:3.3 2.08:3.3 2.34:4.1 2.61:4.9 2.88:4.9 3.14:6.6 3.42:6.6 3.72:7.0 3.98:8.2 4.28:8.2 4.53:9.8 4.81:9.8 5.10:10.7 5.36:11.5 5.68:11.9 5.99:13.1 6.28:13.1 6.59:14.3 6.84:14.8 7.10:15.2 7.35:16.3 7.65:16.6 7.91:17.6 8.16:18.9 8.46:20.0 8.72:21.1 8.99:22.1 9.25:23.3 9.50:24.4 9.79:25.4 10.04:26.5 10.42:27.6 10.69:29.1 11.03:30.2 11.29:31.5 11.55:32.8 11.83:34.3 12.09:35.9 12.37:37.9 12.69:39.7 12.95:41.4 13.26:43.3 13.52:45.5 13.78:46.9 14.12:48.2 14.39:49.9 14.65:51.4 14.92:53.3 15.30:54.8 15.56:56.5 15.89:100.0 15.90:100.0
+#> ## remote_build_local_probe | get | threads=1 | rows=1 | wall=8.87s | calls=1151 (of them =100: 2)
+#>   dbGetQuery   0.00..8.87s: 1151 calls, longest silence 0.18s, trace 0.06:100.0 0.32:0.0 0.56:0.0 0.81:0.7 1.07:0.7 1.31:0.7 1.57:1.4 1.81:1.4 2.06:1.4 2.31:2.1 2.57:2.1 2.81:2.8 3.07:2.8 3.32:2.8 3.57:3.5 3.81:3.5 4.06:3.5 4.31:4.1 4.58:4.1 4.81:4.8 5.06:4.8 5.32:4.8 5.56:5.5 5.82:5.5 6.06:5.7 6.31:6.2 6.56:6.2 6.92:6.9 7.06:10.9 7.31:19.8 7.56:30.1 7.81:39.7 8.06:48.7 8.31:54.2 8.56:64.1 8.81:73.5 8.87:100.0
 #> 
-#> ## remote_build_local_probe | arrow | threads=1 | rows=1 | wall=16.08s | calls=399 (of them =100: 2)
-#>   open         0.00..0.12s: 1 calls, longest silence 0.07s, trace 0.06:100.0
-#>   read 1       0.12..16.08s: 398 calls, longest silence 0.15s, trace 0.12:0.0 0.39:0.0 0.64:0.0 0.90:0.0 1.17:1.6 1.43:1.6 1.70:2.9 1.96:3.3 2.23:3.3 2.48:4.9 2.74:4.9 3.00:4.9 3.27:6.6 3.53:6.6 3.83:7.4 4.10:8.2 4.38:8.6 4.66:9.8 4.92:9.8 5.18:10.7 5.49:11.5 5.80:11.9 6.07:13.1 6.33:13.1 6.62:14.4 6.92:14.8 7.18:15.6 7.49:16.3 7.84:17.3 8.11:18.3 8.36:19.3 8.62:20.6 8.95:21.9 9.20:23.3 9.52:24.3 9.78:25.8 10.07:26.8 10.35:27.8 10.61:28.8 10.87:29.6 11.14:30.5 11.40:31.7 11.69:32.8 11.98:34.9 12.33:36.6 12.59:38.5 12.86:40.2 13.18:41.9 13.46:43.6 13.73:45.0 13.99:46.5 14.33:48.2 14.60:50.3 14.89:52.0 15.14:53.5 15.41:55.2 15.66:56.9 16.02:100.0 16.03:100.0
+#> ## remote_build_local_probe | arrow | threads=1 | rows=1 | wall=8.90s | calls=1152 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..8.90s: 1151 calls, longest silence 0.20s, trace 0.11:0.0 0.38:0.0 0.62:0.0 0.87:0.7 1.13:0.7 1.37:0.7 1.63:1.4 1.88:1.4 2.11:2.1 2.38:2.1 2.62:2.1 2.88:2.8 3.12:2.8 3.38:2.8 3.63:3.5 3.87:3.5 4.12:4.1 4.36:4.1 4.63:4.1 4.88:4.8 5.13:4.8 5.37:4.8 5.62:5.5 5.87:5.5 6.12:6.2 6.36:6.2 6.63:6.2 6.94:6.9 7.12:11.4 7.37:19.4 7.61:29.2 7.87:38.8 8.12:48.2 8.37:57.8 8.62:65.6 8.87:74.7 8.90:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## remote_build_local_probe | get | threads=4 | rows=1 | wall=3.10s | calls=57 (of them =100: 2)
-#>   dbGetQuery   0.00..3.10s: 57 calls, longest silence 0.17s, trace 0.06:100.0 0.34:0.0 0.68:0.0 1.01:3.3 1.26:3.3 1.67:3.3 1.96:9.4 2.25:9.8 2.62:16.0 2.92:54.0 2.97:100.0
+#> ## remote_build_local_probe | get | threads=4 | rows=1 | wall=3.63s | calls=3872 (of them =100: 2)
+#>   dbGetQuery   0.00..3.63s: 3872 calls, longest silence 0.06s, trace 0.06:100.0 0.32:0.0 0.56:0.0 0.82:1.0 1.07:1.0 1.31:1.0 1.57:1.0 1.81:3.8 2.08:3.8 2.32:3.8 2.56:6.6 2.82:6.6 3.06:6.7 3.31:23.1 3.56:64.9 3.62:100.0
 #> 
-#> ## remote_build_local_probe | arrow | threads=4 | rows=1 | wall=3.58s | calls=69 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.07s, trace 0.06:100.0
-#>   read 1       0.13..3.58s: 68 calls, longest silence 0.16s, trace 0.13:0.0 0.41:0.0 0.79:1.6 1.09:2.5 1.46:2.5 1.82:2.5 2.07:9.0 2.32:9.0 2.64:10.7 2.89:15.6 3.25:26.7 3.52:57.1 3.56:100.0
+#> ## remote_build_local_probe | arrow | threads=4 | rows=1 | wall=3.63s | calls=2803 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..3.63s: 2802 calls, longest silence 0.02s, trace 0.11:0.0 0.38:0.0 0.62:0.0 0.87:1.0 1.13:1.0 1.38:1.0 1.62:1.0 1.87:3.6 2.13:3.8 2.37:3.8 2.63:6.4 2.87:6.6 3.12:6.7 3.36:30.1 3.62:73.4 3.63:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
 #> remote_then_sort: SELECT k, sum(z) AS s FROM read_parquet('http://127.0.0.1:8919/remote.parquet') GROUP BY k ORDER BY s
 #> 
-#> ## remote_then_sort | get | threads=1 | rows=2,754,617 | wall=9.89s | calls=206 (of them =100: 2)
-#>   dbGetQuery   0.00..9.89s: 206 calls, longest silence 0.36s, trace 0.06:100.0 0.35:0.0 0.67:0.0 0.92:3.4 1.18:4.4 1.47:4.4 1.74:8.9 2.07:8.9 2.34:12.2 2.67:13.3 3.02:15.5 3.31:17.7 3.67:18.8 3.92:22.2 4.27:22.2 4.54:26.6 4.84:26.6 5.11:28.9 5.36:31.0 5.65:31.0 5.94:35.5 6.21:35.5 6.46:36.6 6.79:39.9 7.04:39.9 7.40:44.2 7.65:54.5 7.91:55.9 8.17:57.4 8.74:72.1 8.99:77.4 9.29:85.8 9.56:94.3 9.79:100.0
+#> ## remote_then_sort | get | threads=1 | rows=2,754,617 | wall=7.44s | calls=423 (of them =100: 2)
+#>   dbGetQuery   0.00..7.44s: 423 calls, longest silence 0.28s, trace 0.06:100.0 0.31:0.0 0.56:0.0 0.82:4.4 1.06:4.4 1.31:4.4 1.56:8.9 1.82:8.9 2.06:8.9 2.33:13.3 2.57:13.3 2.81:16.6 3.07:17.7 3.31:17.7 3.57:22.2 3.81:22.2 4.06:22.2 4.32:26.6 4.56:26.6 4.82:26.6 5.07:31.0 5.31:31.0 5.57:35.5 5.82:35.5 6.06:35.5 6.31:39.9 6.57:39.9 6.82:39.9 7.31:72.1 7.41:100.0
 #> 
-#> ## remote_then_sort | arrow | threads=1 | rows=2,754,617 | wall=9.82s | calls=209 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.07s, trace 0.06:100.0
-#>   read 1       0.13..9.30s: 191 calls, longest silence 0.27s, trace 0.13:0.0 0.46:0.0 0.80:0.0 1.10:4.4 1.40:4.4 1.67:7.8 2.01:8.9 2.33:12.2 2.65:13.3 2.98:15.5 3.25:17.7 3.63:18.8 3.97:22.2 4.29:23.3 4.59:26.6 4.93:26.6 5.18:31.0 5.51:31.0 5.77:33.3 6.04:35.5 6.38:36.6 6.67:39.9 7.03:39.9 7.33:44.2 7.58:54.7 7.84:55.9 8.09:57.4 8.56:72.1 8.88:78.4 9.14:85.4 9.29:88.8
-#>   read 2       9.30..9.66s: 12 calls, longest silence 0.09s, trace 9.31:89.8 9.57:98.6 9.65:98.8
-#>   read 3       9.66..9.82s: 5 calls, longest silence 0.08s, trace 9.67:99.8 9.73:100.0
+#> ## remote_then_sort | arrow | threads=1 | rows=2,754,617 | wall=7.35s | calls=425 (of them =100: 2)
+#>   open         0.00..0.12s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.12..7.30s: 407 calls, longest silence 0.25s, trace 0.12:0.0 0.38:0.0 0.63:0.0 0.87:4.4 1.14:4.4 1.38:4.4 1.62:8.9 1.88:8.9 2.12:10.0 2.39:13.3 2.63:13.3 2.87:17.7 3.14:17.7 3.38:17.7 3.63:22.2 3.87:22.2 4.14:22.2 4.38:26.6 4.62:26.6 4.89:31.0 5.13:31.0 5.37:31.0 5.63:35.5 5.87:35.5 6.12:35.5 6.37:39.9 6.64:39.9 6.88:42.1 7.24:72.1 7.30:88.8
+#>   read 2       7.30..7.34s: 12 calls, longest silence 0.01s, trace 7.31:89.8 7.34:98.8
+#>   read 3       7.34..7.35s: 5 calls, longest silence 0.01s, trace 7.35:99.8 7.35:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
-#> ## remote_then_sort | get | threads=4 | rows=2,754,617 | wall=3.07s | calls=60 (of them =100: 2)
-#>   dbGetQuery   0.00..3.07s: 60 calls, longest silence 0.16s, trace 0.06:100.0 0.38:0.0 0.65:0.0 0.93:8.9 1.23:8.9 1.49:8.9 1.75:8.9 2.02:25.5 2.32:26.6 2.67:54.4 2.92:94.5 2.95:100.0
+#> ## remote_then_sort | get | threads=4 | rows=2,754,617 | wall=3.46s | calls=21198 (of them =100: 2)
+#>   dbGetQuery   0.00..3.46s: 21198 calls, longest silence 0.07s, trace 0.06:100.0 0.31:0.0 0.56:0.0 0.81:6.6 1.07:6.6 1.31:6.6 1.58:6.6 1.81:10.2 2.07:24.4 2.31:24.4 2.57:42.1 2.81:42.1 3.08:43.1 3.31:75.8 3.42:100.0
 #> 
-#> ## remote_then_sort | arrow | threads=4 | rows=2,754,617 | wall=4.41s | calls=89 (of them =100: 2)
-#>   open         0.00..0.13s: 1 calls, longest silence 0.08s, trace 0.06:100.0
-#>   read 1       0.13..3.85s: 73 calls, longest silence 0.14s, trace 0.13:0.0 0.41:0.0 0.77:0.0 1.04:6.6 1.40:6.6 1.72:6.6 2.09:24.4 2.44:24.4 2.70:41.0 3.03:42.1 3.35:73.3 3.62:83.1 3.83:88.8
-#>   read 2       3.85..4.26s: 12 calls, longest silence 0.10s, trace 3.86:89.8 4.11:96.5 4.25:98.8
-#>   read 3       4.26..4.41s: 3 calls, longest silence 0.09s, trace 4.27:99.8 4.32:100.0
+#> ## remote_then_sort | arrow | threads=4 | rows=2,754,617 | wall=3.45s | calls=11678 (of them =100: 2)
+#>   open         0.00..0.11s: 1 calls, longest silence 0.06s, trace 0.06:100.0
+#>   read 1       0.11..3.38s: 11659 calls, longest silence 0.08s, trace 0.11:0.0 0.38:0.0 0.62:0.0 0.87:6.6 1.13:6.6 1.37:6.6 1.62:6.6 1.87:21.1 2.12:24.4 2.36:24.4 2.63:38.8 2.88:42.1 3.13:46.8 3.37:84.3 3.38:86.6
+#>   read 2       3.38..3.43s: 12 calls, longest silence 0.01s, trace 3.38:87.7 3.42:96.7
+#>   read 3       3.43..3.45s: 6 calls, longest silence 0.01s, trace 3.43:97.7 3.44:100.0
 #>   1 further reads with no calls, 0.00s in all
 ```
 
 ``` r
 
+# The first 10,000,000 rows of t, the table finish.R streams.
+invisible(dbExecute(
+  con,
+  "CREATE TABLE s AS SELECT i, x FROM t WHERE i < 10000000"
+))
 cat(
   "\n# c. max_streaming_buffer_size, a stream of a cheap 5,000,000-row scan read in chunks of 100,000 rows\n"
 )
@@ -596,7 +656,7 @@ for (buf in c("976KiB", "10MiB", "1GiB")) {
     con,
     paste0("buffer_", buf),
     "arrow",
-    "SELECT i, x FROM t WHERE i % 2 = 0",
+    "SELECT i, x FROM s WHERE i % 2 = 0",
     4L,
     chunk = 1e5
   )
@@ -604,87 +664,86 @@ for (buf in c("976KiB", "10MiB", "1GiB")) {
 #> 
 #> max_streaming_buffer_size = 976KiB 
 #> 
-#> ## buffer_976KiB | arrow | threads=4 | rows=5,000,000 | wall=5.01s | calls=159 (of them =100: 2)
-#>   open         0.00..0.02s: 1 calls, longest silence 0.01s, trace 0.00:100.0
-#>   read 1       0.02..0.07s: 4 calls, longest silence 0.01s, trace 0.02:0.0 0.06:2.1
-#>   read 2       0.07..0.19s: 3 calls, longest silence 0.08s, trace 0.07:2.5 0.17:3.4
-#>   read 3       0.19..0.32s: 3 calls, longest silence 0.10s, trace 0.20:3.8 0.30:4.7
-#>   read 4       0.32..0.37s: 3 calls, longest silence 0.02s, trace 0.32:5.1 0.36:5.9
-#>   read 5       0.37..0.50s: 3 calls, longest silence 0.09s, trace 0.38:6.3 0.49:7.2
-#>   read 6       0.50..0.55s: 3 calls, longest silence 0.02s, trace 0.50:7.6 0.53:8.5
-#>   read 7       0.55..0.69s: 4 calls, longest silence 0.09s, trace 0.55:8.9 0.67:10.2
-#>   read 8       0.69..0.83s: 3 calls, longest silence 0.08s, trace 0.69:10.6 0.74:11.4
-#>   read 9       0.83..0.87s: 3 calls, longest silence 0.01s, trace 0.83:11.9 0.85:12.7
-#>   read 10      0.87..0.98s: 3 calls, longest silence 0.08s, trace 0.87:13.1 0.90:14.0
-#>   read 11      0.98..1.02s: 3 calls, longest silence 0.01s, trace 0.98:14.4 1.01:15.2
-#>   read 12      1.02..1.13s: 3 calls, longest silence 0.08s, trace 1.02:15.7 1.05:16.5
-#>   read 13      1.13..1.17s: 3 calls, longest silence 0.01s, trace 1.13:16.9 1.15:17.8
-#>   read 14      1.17..1.30s: 4 calls, longest silence 0.09s, trace 1.17:17.8 1.29:19.5
-#>   read 15      1.30..1.36s: 3 calls, longest silence 0.02s, trace 1.30:19.9 1.34:20.7
-#>   read 16      1.36..1.48s: 3 calls, longest silence 0.09s, trace 1.36:21.2 1.46:22.0
-#>   read 17      1.48..1.52s: 3 calls, longest silence 0.02s, trace 1.48:22.4 1.51:23.3
-#>   read 18      1.52..1.64s: 3 calls, longest silence 0.09s, trace 1.52:23.7 1.55:24.5
-#>   read 19      1.64..1.73s: 3 calls, longest silence 0.03s, trace 1.64:25.0 1.70:25.8
-#>   read 20      1.73..1.90s: 4 calls, longest silence 0.12s, trace 1.73:26.2 1.88:27.5
-#>   read 21      1.90..1.94s: 3 calls, longest silence 0.02s, trace 1.90:27.9 1.93:28.8
-#>   read 22      1.94..2.09s: 3 calls, longest silence 0.11s, trace 1.95:29.2 1.98:30.1
-#>   read 23      2.09..2.17s: 3 calls, longest silence 0.04s, trace 2.09:30.5 2.16:31.3
-#>   read 24      2.17..2.32s: 3 calls, longest silence 0.10s, trace 2.17:31.7 2.22:32.6
-#>   read 25      2.32..2.36s: 3 calls, longest silence 0.01s, trace 2.32:33.0 2.34:33.9
-#>   read 26      2.36..2.49s: 3 calls, longest silence 0.08s, trace 2.36:34.3 2.45:35.1
-#>   read 27      2.49..2.58s: 4 calls, longest silence 0.03s, trace 2.49:35.6 2.56:36.8
-#>   read 28      2.58..2.70s: 3 calls, longest silence 0.09s, trace 2.58:37.2 2.69:38.1
-#>   read 29      2.70..2.75s: 3 calls, longest silence 0.02s, trace 2.70:38.5 2.73:39.4
-#>   read 30      2.75..2.89s: 3 calls, longest silence 0.09s, trace 2.75:39.8 2.85:40.6
-#>   read 31      2.89..2.95s: 3 calls, longest silence 0.03s, trace 2.89:41.1 2.93:41.9
-#>   read 32      2.95..3.09s: 3 calls, longest silence 0.11s, trace 2.95:42.3 3.07:43.2
-#>   read 33      3.09..3.14s: 3 calls, longest silence 0.02s, trace 3.09:43.6 3.12:44.4
-#>   read 34      3.14..3.34s: 4 calls, longest silence 0.12s, trace 3.14:44.9 3.32:46.1
-#>   read 35      3.34..3.39s: 3 calls, longest silence 0.02s, trace 3.34:46.6 3.38:47.4
-#>   read 36      3.39..3.54s: 3 calls, longest silence 0.11s, trace 3.39:47.8 3.52:48.7
-#>   read 37      3.54..3.68s: 3 calls, longest silence 0.09s, trace 3.54:49.1 3.58:49.9
-#>   read 38      3.68..3.75s: 3 calls, longest silence 0.03s, trace 3.68:50.4 3.73:51.2
-#>   read 39      3.75..3.92s: 3 calls, longest silence 0.10s, trace 3.75:51.6 3.82:52.5
-#>   read 40      3.92..4.01s: 4 calls, longest silence 0.03s, trace 3.92:52.9 3.98:54.2
-#>   read 41      4.01..4.13s: 3 calls, longest silence 0.09s, trace 4.01:54.6 4.12:55.4
-#>   read 42      4.13..4.18s: 3 calls, longest silence 0.02s, trace 4.13:55.9 4.16:56.7
-#>   read 43      4.18..4.30s: 3 calls, longest silence 0.09s, trace 4.18:57.1 4.28:58.0
-#>   read 44      4.30..4.38s: 3 calls, longest silence 0.04s, trace 4.30:58.4 4.35:59.3
-#>   read 45      4.38..4.50s: 3 calls, longest silence 0.09s, trace 4.38:59.7 4.49:60.5
-#>   read 46      4.50..4.55s: 3 calls, longest silence 0.02s, trace 4.50:60.9 4.53:61.8
-#>   read 47      4.55..4.74s: 4 calls, longest silence 0.11s, trace 4.55:62.2 4.69:63.1
-#>   read 48      4.74..4.80s: 3 calls, longest silence 0.03s, trace 4.74:63.9 4.79:64.8
-#>   read 49      4.80..4.96s: 3 calls, longest silence 0.12s, trace 4.81:65.2 4.95:66.0
-#>   read 50      4.96..5.01s: 3 calls, longest silence 0.02s, trace 4.96:66.5 5.00:100.0
+#> ## buffer_976KiB | arrow | threads=4 | rows=5,000,000 | wall=0.15s | calls=3451 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.01s: 2263 calls, longest silence 0.00s, trace 0.00:0.0 0.01:1.8
+#>   read 2       0.01..0.02s: 3 calls, longest silence 0.00s, trace 0.02:2.3 0.02:3.1
+#>   read 3       0.02..0.02s: 350 calls, longest silence 0.00s, trace 0.02:3.1 0.02:4.8
+#>   read 4       0.02..0.02s: 3 calls, longest silence 0.00s, trace 0.02:5.3 0.02:6.1
+#>   read 5       0.02..0.03s: 3 calls, longest silence 0.00s, trace 0.03:6.5 0.03:7.4
+#>   read 6       0.03..0.03s: 3 calls, longest silence 0.00s, trace 0.03:7.8 0.03:8.7
+#>   read 7       0.03..0.03s: 3 calls, longest silence 0.00s, trace 0.03:9.1 0.03:9.9
+#>   read 8       0.03..0.04s: 3 calls, longest silence 0.00s, trace 0.03:10.3 0.04:11.2
+#>   read 9       0.04..0.04s: 3 calls, longest silence 0.00s, trace 0.04:11.6 0.04:12.5
+#>   read 10      0.04..0.04s: 4 calls, longest silence 0.00s, trace 0.04:12.9 0.04:14.2
+#>   read 11      0.04..0.05s: 3 calls, longest silence 0.00s, trace 0.04:14.6 0.05:15.4
+#>   read 12      0.05..0.05s: 3 calls, longest silence 0.00s, trace 0.05:15.9 0.05:16.7
+#>   read 13      0.05..0.05s: 402 calls, longest silence 0.00s, trace 0.05:16.7 0.05:18.2
+#>   read 14      0.05..0.06s: 3 calls, longest silence 0.00s, trace 0.05:18.6 0.06:19.5
+#>   read 15      0.06..0.06s: 3 calls, longest silence 0.00s, trace 0.06:19.9 0.06:20.7
+#>   read 16      0.06..0.06s: 3 calls, longest silence 0.00s, trace 0.06:21.1 0.06:22.0
+#>   read 17      0.06..0.06s: 3 calls, longest silence 0.00s, trace 0.06:22.4 0.06:23.3
+#>   read 18      0.06..0.07s: 3 calls, longest silence 0.00s, trace 0.06:23.7 0.07:24.5
+#>   read 19      0.07..0.07s: 3 calls, longest silence 0.00s, trace 0.07:25.0 0.07:25.8
+#>   read 20      0.07..0.07s: 133 calls, longest silence 0.00s, trace 0.07:26.2 0.07:27.5
+#>   read 21      0.07..0.08s: 3 calls, longest silence 0.00s, trace 0.07:27.9 0.08:28.8
+#>   read 22      0.08..0.08s: 3 calls, longest silence 0.00s, trace 0.08:29.2 0.08:30.1
+#>   read 23      0.08..0.08s: 3 calls, longest silence 0.00s, trace 0.08:30.5 0.08:31.3
+#>   read 24      0.08..0.08s: 3 calls, longest silence 0.00s, trace 0.08:31.8 0.08:32.6
+#>   read 25      0.08..0.09s: 3 calls, longest silence 0.00s, trace 0.09:33.0 0.09:33.9
+#>   read 26      0.09..0.09s: 3 calls, longest silence 0.00s, trace 0.09:34.3 0.09:35.1
+#>   read 27      0.09..0.09s: 4 calls, longest silence 0.00s, trace 0.09:35.6 0.09:36.8
+#>   read 28      0.09..0.10s: 3 calls, longest silence 0.00s, trace 0.09:37.3 0.10:38.1
+#>   read 29      0.10..0.10s: 3 calls, longest silence 0.00s, trace 0.10:38.5 0.10:39.4
+#>   read 30      0.10..0.10s: 161 calls, longest silence 0.00s, trace 0.10:39.8 0.10:40.7
+#>   read 31      0.10..0.10s: 3 calls, longest silence 0.00s, trace 0.10:41.1 0.10:41.9
+#>   read 32      0.10..0.11s: 3 calls, longest silence 0.00s, trace 0.10:42.4 0.11:43.2
+#>   read 33      0.11..0.11s: 3 calls, longest silence 0.00s, trace 0.11:43.6 0.11:44.5
+#>   read 34      0.11..0.11s: 4 calls, longest silence 0.00s, trace 0.11:44.9 0.11:46.2
+#>   read 35      0.11..0.11s: 3 calls, longest silence 0.00s, trace 0.11:46.6 0.11:47.4
+#>   read 36      0.11..0.12s: 3 calls, longest silence 0.00s, trace 0.11:47.9 0.12:48.7
+#>   read 37      0.12..0.12s: 3 calls, longest silence 0.00s, trace 0.12:49.1 0.12:50.0
+#>   read 38      0.12..0.12s: 3 calls, longest silence 0.00s, trace 0.12:50.4 0.12:51.3
+#>   read 39      0.12..0.12s: 3 calls, longest silence 0.00s, trace 0.12:51.7 0.12:52.5
+#>   read 40      0.12..0.13s: 3 calls, longest silence 0.00s, trace 0.12:52.9 0.13:53.8
+#>   read 41      0.13..0.13s: 4 calls, longest silence 0.00s, trace 0.13:54.2 0.13:55.5
+#>   read 42      0.13..0.13s: 3 calls, longest silence 0.00s, trace 0.13:55.9 0.13:56.8
+#>   read 43      0.13..0.13s: 3 calls, longest silence 0.00s, trace 0.13:57.2 0.13:58.0
+#>   read 44      0.13..0.14s: 3 calls, longest silence 0.00s, trace 0.13:58.4 0.14:59.3
+#>   read 45      0.14..0.14s: 3 calls, longest silence 0.00s, trace 0.14:59.7 0.14:60.6
+#>   read 46      0.14..0.14s: 3 calls, longest silence 0.00s, trace 0.14:61.0 0.14:61.8
+#>   read 47      0.14..0.14s: 3 calls, longest silence 0.00s, trace 0.14:62.3 0.14:63.1
+#>   read 48      0.14..0.15s: 4 calls, longest silence 0.00s, trace 0.14:63.5 0.15:64.8
+#>   read 49      0.15..0.15s: 3 calls, longest silence 0.00s, trace 0.15:65.2 0.15:66.1
+#>   read 50      0.15..0.15s: 4 calls, longest silence 0.00s, trace 0.15:66.5 0.15:100.0
 #>   1 further reads with no calls, 0.00s in all
 #> 
 #> max_streaming_buffer_size = 10MiB 
 #> 
-#> ## buffer_10MiB | arrow | threads=4 | rows=5,000,000 | wall=3.38s | calls=90 (of them =100: 2)
-#>   open         0.00..0.04s: 1 calls, longest silence 0.03s, trace 0.00:100.0
-#>   read 1       0.04..0.07s: 1 calls, longest silence 0.03s, trace 0.04:0.0
-#>   read 4       0.07..0.30s: 7 calls, longest silence 0.09s, trace 0.07:9.4 0.29:13.1
-#>   read 7       0.31..0.51s: 7 calls, longest silence 0.10s, trace 0.31:13.8 0.49:17.5
-#>   read 10      0.51..0.76s: 7 calls, longest silence 0.11s, trace 0.51:18.2 0.74:21.9
-#>   read 14      0.76..1.05s: 7 calls, longest silence 0.12s, trace 0.76:22.6 0.93:26.3
-#>   read 17      1.05..1.31s: 7 calls, longest silence 0.11s, trace 1.05:27.0 1.29:30.7
-#>   read 20      1.32..1.54s: 7 calls, longest silence 0.10s, trace 1.32:31.3 1.51:35.0
-#>   read 24      1.54..1.57s: 1 calls, longest silence 0.03s, trace 1.54:35.0
-#>   read 27      1.57..1.89s: 7 calls, longest silence 0.12s, trace 1.57:40.1 1.87:43.8
-#>   read 30      1.90..2.23s: 7 calls, longest silence 0.11s, trace 1.90:44.5 2.11:48.2
-#>   read 33      2.23..2.46s: 7 calls, longest silence 0.12s, trace 2.23:48.9 2.44:52.6
-#>   read 37      2.46..2.69s: 7 calls, longest silence 0.11s, trace 2.47:53.2 2.68:57.0
-#>   read 40      2.70..2.91s: 7 calls, longest silence 0.11s, trace 2.70:57.6 2.90:61.3
-#>   read 43      2.92..3.18s: 7 calls, longest silence 0.12s, trace 2.92:62.0 3.16:65.7
-#>   read 47      3.19..3.37s: 3 calls, longest silence 0.12s, trace 3.19:66.4 3.35:100.0
-#>   36 further reads with no calls, 0.04s in all
+#> ## buffer_10MiB | arrow | threads=4 | rows=5,000,000 | wall=0.14s | calls=3726 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.02s: 3630 calls, longest silence 0.00s, trace 0.00:0.0 0.02:10.1
+#>   read 5       0.02..0.03s: 7 calls, longest silence 0.00s, trace 0.02:10.8 0.03:14.5
+#>   read 8       0.03..0.04s: 7 calls, longest silence 0.00s, trace 0.03:15.1 0.04:18.9
+#>   read 11      0.04..0.04s: 7 calls, longest silence 0.00s, trace 0.04:19.5 0.04:23.2
+#>   read 15      0.05..0.05s: 7 calls, longest silence 0.00s, trace 0.05:23.9 0.05:27.6
+#>   read 18      0.06..0.06s: 7 calls, longest silence 0.00s, trace 0.06:28.3 0.06:32.0
+#>   read 21      0.06..0.07s: 7 calls, longest silence 0.00s, trace 0.07:32.7 0.07:36.4
+#>   read 25      0.07..0.08s: 7 calls, longest silence 0.00s, trace 0.07:37.1 0.08:40.8
+#>   read 28      0.08..0.09s: 7 calls, longest silence 0.00s, trace 0.08:41.4 0.09:45.2
+#>   read 31      0.09..0.10s: 7 calls, longest silence 0.00s, trace 0.09:45.8 0.10:49.5
+#>   read 34      0.10..0.11s: 7 calls, longest silence 0.00s, trace 0.10:50.2 0.11:53.9
+#>   read 38      0.11..0.12s: 7 calls, longest silence 0.00s, trace 0.11:54.6 0.12:58.3
+#>   read 41      0.12..0.12s: 7 calls, longest silence 0.00s, trace 0.12:59.0 0.12:62.7
+#>   read 44      0.13..0.13s: 11 calls, longest silence 0.00s, trace 0.13:63.4 0.13:100.0
+#>   37 further reads with no calls, 0.03s in all
 #> 
 #> max_streaming_buffer_size = 1GiB 
 #> 
-#> ## buffer_1GiB | arrow | threads=4 | rows=5,000,000 | wall=0.24s | calls=7 (of them =100: 2)
-#>   open         0.00..0.03s: 1 calls, longest silence 0.03s, trace 0.00:100.0
-#>   read 1       0.03..0.20s: 6 calls, longest silence 0.08s, trace 0.03:0.0 0.19:100.0
-#>   50 further reads with no calls, 0.04s in all
+#> ## buffer_1GiB | arrow | threads=4 | rows=5,000,000 | wall=0.17s | calls=27922 (of them =100: 2)
+#>   open         0.00..0.00s: 1 calls, longest silence 0.00s, trace 0.00:100.0
+#>   read 1       0.00..0.14s: 27921 calls, longest silence 0.00s, trace 0.00:0.0 0.14:100.0
+#>   50 further reads with no calls, 0.03s in all
 invisible(dbExecute(con, "RESET max_streaming_buffer_size"))
 
 system(sprintf("pkill -f 'throttle_server.py .* %d'", port))

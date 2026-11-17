@@ -6,12 +6,15 @@
 
 suppressPackageStartupMessages(library(duckdb))
 con <- dbConnect(duckdb(shared_home = FALSE))
-invisible(dbExecute(con, "SET threads = 4"))
+# One thread and a seed, so that random() gives the same table every run.
+invisible(dbExecute(con, "SET threads = 1"))
+invisible(dbExecute(con, "SELECT setseed(0.42)"))
 invisible(dbExecute(
   con,
   "CREATE TABLE t AS
    SELECT i, hash(i) % 2500000 AS k, random() AS x FROM range(10000000) r(i)"
 ))
+invisible(dbExecute(con, "SET threads = 4"))
 where <- ""
 say <- function(x) {
   cat(x, "\n")

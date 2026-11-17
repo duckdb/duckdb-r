@@ -11,9 +11,11 @@ The C++ side holds the symbol it invokes
 (`get_progress_display_sym` in
 [`src/include/rapi.hpp`](/src/include/rapi.hpp)),
 and [`R/progress_display.R`](/R/progress_display.R) draws it.
-The engine calls it every time R's thread runs or polls a task of a running query, whether or not the progress moved,
-up to thousands of times in a query of a few seconds
+The engine calls it every time R's thread runs or polls a task of a running query, whether or not the progress moved
 ([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
+Single-threaded the calls come between task slices;
+with several threads R's thread polls in a loop while the workers run, so a callback that returns at once is called without pause,
+and one that takes longer thins the calls out by its own cost.
 A function set as `duckdb.progress_display` receives one number per call:
 the display's `Update()` passes the percentage and its `Finish()` passes 100.
 The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
@@ -39,24 +41,30 @@ So a large local query reports its execution, not only its fetches, but the bar 
   until `Finish()` takes it to 100.
 
 **When a query is done.**
-A statement passed to `dbGetQuery()`, `dbExecute()` or `dbGetQueryArrow()` is prepared with `ClientContext::Prepare()`,
+Every DBI call that sends SQL (`dbGetQuery()`, `dbExecute()`, `dbSendQuery()`, `dbSendStatement()`, `dbGetQueryArrow()`)
+prepares the last statement of its string with `ClientContext::Prepare()`,
 which runs a `PREPARE` as a query of its own, so the statement's calls open with that query's `Finish()`, a 100, before its own run from 0.
-Only the last statement of a string goes that way;
-the ones before it run through `Connection::Query()` in [`src/statement.cpp`](/src/statement.cpp),
-and every statement has its own display and `Finish()`, so a multi-statement string passes a 100 per statement.
+The statements before the last run through `Connection::Query()` in [`src/statement.cpp`](/src/statement.cpp) without a `PREPARE`,
+and every statement has its own display and `Finish()`,
+so a multi-statement string passes a 100 per statement and one more for the last statement's `PREPARE`.
 The statement's own `Finish()` comes when it ends:
 inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
 and with the read that ends the query for a stream, which is the first read when the result fits the buffer.
-That a stream's `Finish()` waits for its end is observed, not guaranteed:
-the poll [`src/arrow_export.cpp`](/src/arrow_export.cpp) runs before a fetch could see a ready chunk and finish the display then,
+That a stream's `Finish()` waits for its end is observed, not guaranteed.
+`ProgressBar::Update()` takes any state a caller can observe as final, a ready chunk included,
+and `Executor::IdleState()` reports one while the result collector is blocked
+([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)),
 which the engine's `UpdateProgressInternal()` marks as not yet correct for streaming results.
+If a poll before a fetch ([`src/arrow_export.cpp`](/src/arrow_export.cpp)) reached that state mid-stream,
+the display would finish then, the `Finish()` at the end would be dropped, and a line painted after it would stay.
 A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
 
 **Why a stream goes quiet.**
 A stream read takes chunks already buffered without running the engine
 (`BufferedData::Participate()` in [`src/duckdb/src/main/buffered_data/buffered_data.cpp`](/src/duckdb/src/main/buffered_data/buffered_data.cpp)),
 and the engine computes ahead until the buffer holds `max_streaming_buffer_size`.
-A new connection starts at 10 MiB (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)),
+A new connection starts at 10 MiB
+(`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)),
 and `RESET` sets the smaller of 10 MiB and the available memory
 (`ClientConfig::SetDefaultStreamingBufferSize()` in [`src/duckdb/src/main/client_config.cpp`](/src/duckdb/src/main/client_config.cpp)).
 A result that fits the buffer is computed by the first read, which gets every call, and the reads after it get none.
