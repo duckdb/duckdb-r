@@ -209,13 +209,12 @@ vendored_sha() {
   echo "$sha"
 }
 
-# The tag upstream put on a commit, empty when it has none: `git describe
-# --tags` answers a bare tag name only at a tagged commit, and appends
-# `-<n>-g<sha>` everywhere else.
+# The release tag upstream put on a commit, empty when it has none, read as
+# the stamp reads it (`series_release_tag()` in scripts/series-config.sh): a
+# tag the stamp ignores would re-stamp a commit with an identical tree, and the
+# empty commit would stop every run.
 exact_tag() { # <upstream commit>
-  local d
-  d=$(git -C "$upstream_dir" describe --tags "$1" 2>/dev/null) || return 0
-  case "$d" in *-*) ;; *) echo "$d" ;; esac
+  series_release_tag "$upstream_dir" "$1"
 }
 
 commits_vendored=0

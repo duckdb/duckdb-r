@@ -58,9 +58,10 @@ series_makevars=(src/Makevars src/Makevars.win)
 # of the line: once a line has tagged `v2.0.0` it builds `v2.0.1-dev<count>` and
 # `v2.0.1-alpha<run>`. A release is dispatched with its tag as the version, so
 # a commit tagged `vX.Y.Z` is stamped as that tag. A caller's `DUCKDB_VERSION`,
-# else its `OVERRIDE_GIT_DESCRIBE`, wins, in the order upstream reads them; a
+# else its `OVERRIDE_GIT_DESCRIBE`, wins, in the order upstream reads them. A
 # checkout without `version.py`, a line older than v2.0, keeps the generator's
-# own stamp, and this answers empty.
+# own stamp, and this answers empty for it: its `package_build` reads
+# `OVERRIDE_GIT_DESCRIBE` alone, so only that one spares the checks below.
 #
 # The tags and the count come from the clone, and a clone that cannot supply
 # them gets a wrong version rather than an error: `version.py` finds no patch
@@ -71,10 +72,14 @@ series_makevars=(src/Makevars src/Makevars.win)
 # on a refusal, and the generator below stops the run with exit 7
 # (handbook/operations/vendoring/troubleshooting/README.md).
 series_upstream_version() { # <upstream checkout> -> the version, or empty
-  local tag version
-  if [ -n "${DUCKDB_VERSION:-}${OVERRIDE_GIT_DESCRIBE:-}" ]; then
+  local tag version resolver=
+  [ ! -f "$1/scripts/ci/version.py" ] || resolver=1
+  if [ -n "$resolver" ] && [ -n "${DUCKDB_VERSION:-}${OVERRIDE_GIT_DESCRIBE:-}" ]; then
     echo "${DUCKDB_VERSION:-${OVERRIDE_GIT_DESCRIBE:-}}"
     return 0
+  fi
+  if [ -z "$resolver" ] && [ -n "${OVERRIDE_GIT_DESCRIBE:-}" ]; then
+    return 0 # the older line's generator reads it itself
   fi
   if [ "$(git -C "$1" rev-parse --is-shallow-repository)" != false ]; then
     echo "Error: $1 is shallow or no clone, so it cannot count upstream's commits" >&2
@@ -84,13 +89,12 @@ series_upstream_version() { # <upstream checkout> -> the version, or empty
     echo "Error: $1 has no release tag below HEAD; was it fetched without tags?" >&2
     return 1
   fi
-  tag=$(git -C "$1" tag --points-at HEAD --list "$series_tag_glob" |
-    grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1) || true
+  tag=$(series_release_tag "$1" HEAD)
   if [ -n "$tag" ]; then
     echo "$tag"
     return 0
   fi
-  [ -f "$1/scripts/ci/version.py" ] || return 0
+  [ -n "$resolver" ] || return 0
   version=$(cd "$1" && python3 scripts/ci/version.py) || {
     echo "Error: scripts/ci/version.py failed in $1" >&2
     return 1
@@ -100,6 +104,14 @@ series_upstream_version() { # <upstream checkout> -> the version, or empty
     return 1
   }
   echo "$version"
+}
+# The release tag upstream put on a commit, empty when it has none: a tag
+# spelled `vX.Y.Z`, and no other, both for the stamp above and for the commits
+# scripts/vendor-one.sh and scripts/vendor.sh mark as a release. A commit
+# carries one release tag.
+series_release_tag() { # <upstream checkout> <commit> -> the tag, or empty
+  git -C "$1" tag --points-at "$2" --list "$series_tag_glob" |
+    grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1 || true
 }
 series_generate_tree() { # <upstream checkout>
   local version

@@ -122,9 +122,11 @@ for commit in $original; do
     fi
   done
 
-  # Always vendor tags
-  if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
-    message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
+  # Always vendor tags: a release tag as the stamp reads it
+  # (scripts/series-config.sh).
+  tag=$(series_release_tag "$upstream_dir" "$commit")
+  if [ -n "$tag" ]; then
+    message="vendor: Update vendored sources (tag ${tag}) to ${repo_org}/${repo_name}@$commit"
     is_tag=true
     break
   fi

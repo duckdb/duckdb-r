@@ -11,7 +11,8 @@
 #      empty stack the next run and the staging survive.
 #   3. A tagged upstream commit carries its marker, and the walk stops there.
 #   4. An upstream commit that changes nothing under the vendor paths but the
-#      stamp is skipped, and the run ends with the tree as it found it.
+#      stamp is skipped, and the run ends with the tree as it found it; a tag
+#      that names no release does not make it one.
 #   5. An upstream fetched without tags is refused before anything is
 #      vendored, by the configuration's own reading of the version
 #      (scripts/series-stamp-test.sh checks that reading).
@@ -135,6 +136,7 @@ is "the subject names the tag" "$(git log -1 --format=%s HEAD)" "vendor: Update 
 echo
 echo "=== 4. a commit that changes nothing under the vendor paths is skipped"
 TIP=$(git rev-parse HEAD)
+git -C "$UP" tag nightly
 run --strand --commits 1 "$UP"; out=$(cat "$SCRATCH/exit")
 [ -z "${KEEP:-}" ] || log | tail -n 20
 is "it exits 0" "$out" "EXIT=0"

@@ -15,7 +15,8 @@
 #      answers, and a tag that names no release is not read as one.
 #   3. A caller's DUCKDB_VERSION, else its OVERRIDE_GIT_DESCRIBE, wins.
 #   4. A checkout without version.py, a line older than v2.0, answers empty,
-#      and the generator keeps its own stamp.
+#      and the generator keeps its own stamp; its generator reads only
+#      OVERRIDE_GIT_DESCRIBE, so only that one spares a tagless clone of it.
 #   5. A version.py that fails, or answers no `-dev` version, stops the
 #      generator before it writes, also where errexit is off, as it is under
 #      the `||` scripts/vendor-one.sh and scripts/vendor.sh call it with.
@@ -79,6 +80,7 @@ RELEASE=$(commit 'upstream: release 2.0.0')
 git -C "$UP" tag v2.0.0
 AFTER=$(commit 'upstream: a fix after the release')
 git -C "$UP" tag nightly
+git -C "$UP" tag v2.0.1-rc1
 echo 2.x > "$UP/scripts/ci/release_version.txt"
 BROKEN=$(commit 'upstream: a release version version.py cannot read')
 echo 2.0 > "$UP/scripts/ci/release_version.txt"
@@ -122,6 +124,8 @@ is "the tagged commit is its tag" "$(version "$UP")" v2.0.0
 is "and the generator is handed it" "$(generate "$UP")" "0 v2.0.0"
 at "$AFTER"
 has "a tag that names no release is not read as one" "$(version "$UP")" -dev
+is "nor is one that names a release otherwise" "$(series_release_tag "$UP" "$AFTER")" ""
+is "while the release tag is" "$(series_release_tag "$UP" "$RELEASE")" v2.0.0
 
 echo
 echo "=== 3. a caller's version wins"
@@ -138,6 +142,11 @@ echo "=== 4. a line without version.py keeps the generator's own stamp"
 at "$OLD"
 is "it answers empty" "$(version "$UP")" ""
 is "and the generator is handed no version" "$(generate "$UP")" "0 "
+git -c advice.detachedHead=false clone -q --no-tags "$UP" "$SCRATCH/tagless-old"
+git -C "$SCRATCH/tagless-old" checkout -q --detach "$OLD"
+has "DUCKDB_VERSION, which it never reads, spares no tagless clone" \
+  "$(DUCKDB_VERSION=v1.9.1-dev1 version "$SCRATCH/tagless-old")" "has no release tag below HEAD"
+is "OVERRIDE_GIT_DESCRIBE, which it reads, does" "$(OVERRIDE_GIT_DESCRIBE=v1.9.1 version "$SCRATCH/tagless-old")" ""
 
 echo
 echo "=== 5. a version.py that cannot answer stops the generator"
@@ -151,11 +160,11 @@ is "and the generator writes nothing" "$(generate "$UP")" "1 nothing"
 
 echo
 echo "=== 6. a clone that cannot name the version is refused"
-git clone -q --no-tags "$UP" "$SCRATCH/tagless"
+git -c advice.detachedHead=false clone -q --no-tags "$UP" "$SCRATCH/tagless"
 git -C "$SCRATCH/tagless" checkout -q --detach "$AFTER"
 has "a clone without tags" "$(version "$SCRATCH/tagless")" "has no release tag below HEAD"
 is "and the generator writes nothing" "$(generate "$SCRATCH/tagless")" "1 nothing"
-git clone -q --depth 1 "file://$UP" "$SCRATCH/shallow"
+git -c advice.detachedHead=false clone -q --depth 1 "file://$UP" "$SCRATCH/shallow"
 has "a shallow clone" "$(version "$SCRATCH/shallow")" "is shallow"
 is "and the generator writes nothing" "$(generate "$SCRATCH/shallow")" "1 nothing"
 
