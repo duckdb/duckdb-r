@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 17 Nov 2026 14:00:00 +0100
+Subject: [PATCH] Unwrap the references looked up in reference-keyed containers
+
+PipelineIsRepeatable() looks up a reference<PhysicalOperator> in a
+reference_set_t<const PhysicalOperator>, and
+FilterCombiner::AddBoundComparisonFilter() indexes an expression_map_t by a
+reference<Expression>. Both rely on std::reference_wrapper<T> converting to
+std::reference_wrapper<const T>, which needs the converting constructor of
+LWG 2993. The libc++ of the macOS 11 SDK predates it, so the vendored engine
+does not compile there (#2974). Passing the referent with .get() lets the
+wrapper be built from a plain const reference, which every standard library
+accepts.
+
+Confirmed on the MacOSX11.3 SDK:
+https://github.com/duckdb/duckdb-r/actions/runs/44091749629
+
+Carried here until upstream takes it; not proposed upstream yet.
+---
+diff --git a/src/duckdb/src/execution/operator/set/physical_recursive_cte_runtime.cpp b/src/duckdb/src/execution/operator/set/physical_recursive_cte_runtime.cpp
+--- a/src/duckdb/src/execution/operator/set/physical_recursive_cte_runtime.cpp
++++ b/src/duckdb/src/execution/operator/set/physical_recursive_cte_runtime.cpp
+@@ -551,7 +551,7 @@
+ 		return false;
+ 	}
+ 	for (auto &op : pipeline.GetIntermediateOperators()) {
+-		if (non_repeatable_operators.find(op) != non_repeatable_operators.end()) {
++		if (non_repeatable_operators.find(op.get()) != non_repeatable_operators.end()) {
+ 			return false;
+ 		}
+ 	}
+diff --git a/src/duckdb/src/optimizer/filter_combiner.cpp b/src/duckdb/src/optimizer/filter_combiner.cpp
+--- a/src/duckdb/src/optimizer/filter_combiner.cpp
++++ b/src/duckdb/src/optimizer/filter_combiner.cpp
+@@ -1174,7 +1174,7 @@
+ 		auto &right_bucket = equivalence_map.find(right_equivalence_set)->second;
+ 		for (auto &right_expr : right_bucket) {
+ 			// rewrite the equivalence set mapping for this node
+-			equivalence_set_map[right_expr] = left_equivalence_set;
++			equivalence_set_map[right_expr.get()] = left_equivalence_set;
+ 			// add the node to the left bucket
+ 			left_bucket.push_back(right_expr);
+ 		}
