@@ -7,10 +7,14 @@
 #   2. the same tree with .github/issue-2974/lwg2993.patch applied, must pass;
 #   3. a smoke test of the installed package.
 #
-# The build tree (object files, the shared library) and ccache are cached
-# between runs. A fresh checkout gives every file a new mtime, so all tracked
-# files are set to a fixed old date and only those that differ from the commit
-# the cache was built from are touched again.
+# The patch may touch only src/duckdb/src/**/*.cpp, and every file it changes
+# must be one that fails to compile: the verdict requires build 1 to fail on
+# exactly the unity objects of the patched files, with errors in exactly them.
+#
+# The object files are cached between runs when the verdict holds, ccache
+# whenever something was compiled. A fresh checkout gives every file a new
+# mtime, so all tracked files are set to a fixed old date and only those that
+# differ from the commit the objects were built from are touched again.
 #
 # Throwaway: drop this file and .github/issue-2974/ before any fix merges.
 # R CMD INSTALL prints "using SDK: NA" because `xcrun --show-sdk-version`
@@ -154,7 +158,7 @@ jobs:
           "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E -v - </dev/null 2>&1 \
             | tee "$RUNNER_TEMP/clang-v.txt"
           paths=$(sed -n '/search starts here:/,/End of search list/p' "$RUNNER_TEMP/clang-v.txt")
-          first_libcxx=$(printf '%s\n' "$paths" | grep 'c++/v1' | sed -n '1,1p' | sed 's/^ *//')
+          first_libcxx=$(printf '%s\n' "$paths" | { grep 'c++/v1' || true; } | sed -n '1,1p' | sed 's/^ *//')
           echo "first libc++ include dir: $first_libcxx"
           case "$first_libcxx" in
             "$SDKROOT"/usr/include/c++/v1) echo "OK: libc++ headers come from the SDK" ;;
@@ -171,15 +175,22 @@ jobs:
           echo "rversion=$(R --version | sed -n '1s/^R version \([^ ]*\).*/\1/p')" >> "$GITHUB_OUTPUT"
           echo "end_ts=$(date +%s)" >> "$GITHUB_OUTPUT"
 
-      - name: Restore the build tree and ccache
+      - name: Restore ccache
+        id: restore-ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: issue-2974-ccache-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            issue-2974-ccache-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-
+
+      - name: Restore the build tree
         id: restore
         uses: actions/cache/restore@v4
         with:
           path: |
-            ${{ env.CCACHE_DIR }}
             ${{ env.BUILD_CACHE_META }}
             src/*.o
-            src/*.so
             src/duckdb/**/*.o
           key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
@@ -207,11 +218,17 @@ jobs:
               [ -e "$f" ] && touch "$f"
             done < "$RUNNER_TEMP/changed.txt"
             # The engine's objects depend on the unity files only, not on the
-            # sources and headers they include: any change under src/duckdb/
-            # touches all engine sources, and ccache absorbs the unchanged ones.
+            # sources and headers they include, and the glue's .dd files leave
+            # out duckdb/ and include/ headers: any change there touches all
+            # sources that may include it, and ccache absorbs unchanged ones.
             if grep -q '^src/duckdb/' "$RUNNER_TEMP/changed.txt"; then
-              echo "Engine changed: touching all engine sources."
+              echo "Engine changed: touching all engine and glue sources."
               find src/duckdb -name '*.cpp' -exec touch {} +
+              touch src/*.cpp
+            fi
+            if grep -Eq '^src/include/|^src/[^/]*\.h' "$RUNNER_TEMP/changed.txt"; then
+              echo "Glue headers changed: touching all glue sources."
+              touch src/*.cpp
             fi
           else
             echo "::warning::Cannot diff against $old_sha; touching every tracked file."
@@ -253,7 +270,9 @@ jobs:
           wait "$pid" || status=$?
           kill "$tailpid" 2>/dev/null || true
           echo "R CMD INSTALL exit status: $status"
-          grep -E '(error|fatal error):' "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/errors-unpatched.txt" || true
+          # Located compiler errors, plus unlocated ones from the driver or linker.
+          grep -E '^[^: ]+:[0-9]+:[0-9]+: (fatal )?error:|^(ld|clang[^ :]*|error):' \
+            "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/errors-unpatched.txt" || true
           grep -E '^make: \*\*\* \[' "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/failed-targets-unpatched.txt" || true
           echo "::group::error lines"
           cat "$RUNNER_TEMP/errors-unpatched.txt" "$RUNNER_TEMP/failed-targets-unpatched.txt"
@@ -330,7 +349,7 @@ jobs:
       - name: Record the build state for the next run
         id: record
         if: >-
-          always() && steps.verdict.outputs.ok == 'true' &&
+          always() && !cancelled() && steps.verdict.outputs.ok == 'true' &&
           (steps.verdict.outputs.recompiled != '0' || steps.restore.outputs.cache-matched-key == '')
         run: |
           # The cache holds objects of the unchanged tree only: drop the
@@ -338,6 +357,28 @@ jobs:
           xargs rm -fv < "$RUNNER_TEMP/affected-objects.txt"
           mkdir -p "$BUILD_CACHE_META"
           echo "$GITHUB_SHA" > "$BUILD_CACHE_META/sha"
+
+      - name: Save the build tree
+        id: save-build
+        if: always() && !cancelled() && steps.record.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.BUILD_CACHE_META }}
+            src/*.o
+            src/duckdb/**/*.o
+          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Save ccache
+        id: save-ccache
+        # Content-addressed, so safe to keep whatever the verdict.
+        if: >-
+          always() && !cancelled() && steps.verdict.outputs.recompiled != '' &&
+          (steps.verdict.outputs.recompiled != '0' || steps.restore-ccache.outputs.cache-matched-key == '')
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: issue-2974-ccache-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Job summary
         if: always()
@@ -356,7 +397,8 @@ jobs:
             echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk |"
             echo "| Fidelity | clang ${{ steps.xcode.outputs.clang }} against the 11.3 SDK's libc++, while CRAN uses clang 14.0.3: this tests the library headers, not the compiler |"
             echo "| libc++ headers | \`${{ steps.toolchain.outputs.first_libcxx }}\`, _LIBCPP_VERSION ${{ steps.toolchain.outputs.libcxx }} |"
-            echo "| Build cache | hit: \`${{ steps.restore.outputs.cache-matched-key || 'none' }}\`, built from ${{ steps.mtimes.outputs.cache_sha }} |"
+            echo "| Build tree cache | hit: \`${{ steps.restore.outputs.cache-matched-key || 'none' }}\`, built from ${{ steps.mtimes.outputs.cache_sha }} |"
+            echo "| ccache cache | hit: \`${{ steps.restore-ccache.outputs.cache-matched-key || 'none' }}\` |"
             echo
             echo "### Steps"
             echo
@@ -370,7 +412,8 @@ jobs:
             echo
             echo "Verdict holds: ${{ steps.verdict.outputs.ok || 'false' }}." \
               "Objects compiled besides the affected ones: ${{ steps.verdict.outputs.recompiled }}." \
-              "Build cache saved: ${{ steps.record.outcome == 'success' && 'yes' || 'no' }}."
+              "Build tree saved: ${{ steps.save-build.outcome }}." \
+              "ccache saved: ${{ steps.save-ccache.outcome }}."
             echo
             echo "### Errors of build 1"
             echo
@@ -395,18 +438,6 @@ jobs:
             echo '```'
           } >> "$s"
           cat "$s"
-
-      - name: Save the build tree and ccache
-        if: always() && steps.record.outcome == 'success'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ${{ env.CCACHE_DIR }}
-            ${{ env.BUILD_CACHE_META }}
-            src/*.o
-            src/*.so
-            src/duckdb/**/*.o
-          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload build logs
         if: always()
