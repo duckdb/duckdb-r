@@ -381,14 +381,19 @@ struct AltrepVectorWrapper {
 		return rel->RowCount();
 	}
 
+	// Names and types come from the relation, which knows them without executing
+	const vector<ColumnDefinition> &Columns() {
+		return rel->rel->Columns();
+	}
+
 	const string &Name() {
-		auto res = rel->GetQueryResult();
+		auto &columns = Columns();
 
 		if (parent_column_index.empty()) {
-			return res->GetNames()[column_index].GetIdentifierName();
+			return columns[column_index].Name().GetIdentifierName();
 		}
 
-		auto child_type = res->GetTypes()[parent_column_index[0]];
+		auto child_type = columns[parent_column_index[0]].Type();
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
@@ -397,14 +402,14 @@ struct AltrepVectorWrapper {
 	}
 
 	string FullName() {
-		auto res = rel->GetQueryResult();
+		auto &columns = Columns();
 
 		if (parent_column_index.empty()) {
-			return res->GetNames()[column_index].GetIdentifierName();
+			return columns[column_index].Name().GetIdentifierName();
 		}
 
-		string res_name = res->GetNames()[parent_column_index[0]].GetIdentifierName();
-		auto child_type = res->GetTypes()[parent_column_index[0]];
+		string res_name = columns[parent_column_index[0]].Name().GetIdentifierName();
+		auto child_type = columns[parent_column_index[0]].Type();
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			res_name += "$" + StructType::GetChildName(child_type, parent_column_index[i]);
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
@@ -414,13 +419,13 @@ struct AltrepVectorWrapper {
 	}
 
 	const LogicalType &Type() {
-		auto res = rel->GetQueryResult();
+		auto &columns = Columns();
 
 		if (parent_column_index.empty()) {
-			return res->GetTypes()[column_index];
+			return columns[column_index].Type();
 		}
 
-		auto child_type = res->GetTypes()[parent_column_index[0]];
+		auto child_type = columns[parent_column_index[0]].Type();
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
