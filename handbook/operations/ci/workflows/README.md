@@ -13,8 +13,8 @@ so editing one here puts the copy out of step,
 and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
-Five are authored here and have no counterpart in the template:
-`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml` and `cran-release.yaml`.
+Authored here, with no counterpart in the template, are
+`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml`, `cran-release.yaml` and `pull-request-base.yaml`.
 A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 One file of the core set is left out, and a sync must not bring it back:
 the template's `fledge.yaml`, because this repository writes its version by hand and keeps `NEWS.md` apart
@@ -44,6 +44,11 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
 | [`handbook.yaml`](/.github/workflows/handbook.yaml) | PR; dispatch | the handbook checks, and the carried files against their source ([`meta/local/`](/handbook/meta/local/README.md)) |
+| [`pull-request-base.yaml`](/.github/workflows/pull-request-base.yaml) | PR to `main`, opened, reopened, edited, pushed to, labelled or unlabelled | fails a pull request that belongs on the oldest active release branch, by the rule [`review/`](/handbook/operations/review/README.md) owns; what lets one stay on `main` is [`scripts/pull-request-base.sh`](/scripts/pull-request-base.sh)'s header; canonical repository only |
+
+**`pull-request-base` blocks a merge only once a ruleset names it a required check.**
+Until then its failure is a red check on the pull request and nothing more,
+and making it required is a repository setting, not a file here.
 
 **The composite actions these workflows call are not in this repository.**
 They live in
