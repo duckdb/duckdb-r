@@ -118,7 +118,7 @@ and the [nested](https://duckdb.org/docs/current/sql/data_types/overview) ones:
 
 ## Geometry
 
-The [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) type, its coordinate reference system (CRS),
+The [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) and `GEOGRAPHY` types, their coordinate reference system (CRS),
 and the `spatial` extension's own types:
 
 * **`GEOMETRY`** reads as WKB.
@@ -128,6 +128,10 @@ and the `spatial` extension's own types:
   the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview)
   ([`extensions/`](/handbook/usage/extensions/README.md)).
   Arrow carries the column as GeoArrow WKB with its CRS, in both directions ([`arrow-types/`](/handbook/usage/arrow-types/README.md)).
+* **`GEOGRAPHY`**, WKB with spherical edges, reads as `GEOMETRY` does,
+  and with `geometry = "wk"` its `wk_wkb` also carries `geodesic = TRUE`, which `wk::wk_is_geodesic()` reports.
+  Its WKT writes it through `field.types`, as `GEOMETRY`'s does.
+  The type is core since DuckDB 2.1 ([duckdb/duckdb#28092](https://github.com/duckdb/duckdb/pull/28092)).
 * **WKT writes `GEOMETRY`.**
   A `character` column of WKT, as `sf::st_as_text()` makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
   and appends to one with `dbAppendTable()`, because the cast from `VARCHAR` parses WKT.
@@ -202,7 +206,7 @@ and the `spatial` extension's own types:
   on x86_64, the `DATE` 5877642-06-23 (BC), an `INTERVAL` of -106751991 days, and a `TIMESTAMP` no cast to `VARCHAR` accepts,
   because only `NA` is taken for missing ([`src/types.cpp`](/src/types.cpp)).
 * A `POSIXct` stored as integer writes, binds and creates `INTEGER`, not `TIMESTAMP`, and reads back as `integer`.
-* `TIME`, `TIMETZ`, `GEOMETRY` and `VARIANT` do not write back as themselves from the value R reads.
+* `TIME`, `TIMETZ`, `GEOMETRY`, `GEOGRAPHY` and `VARIANT` do not write back as themselves from the value R reads.
   `difftime` and `hms` write `INTERVAL`, which does not cast to `TIME`,
   so `field.types`, `dbAppendTable()` and a parameter all fail with that cast error.
   The list a `VARIANT` reads as writes as a `LIST` inside the variant.

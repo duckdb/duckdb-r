@@ -115,6 +115,40 @@ test_that("test_all_types()'s geometry reads as the WKB of the engine's WKT", {
   expect_null(res$geometry[[3]])
 })
 
+test_that("geography columns read as WKB, like geometry", {
+  con <- local_con()
+
+  res <- dbGetQuery(
+    con,
+    "SELECT * FROM (VALUES (1, 'POINT (1 2)'::GEOGRAPHY), (2, NULL)) t(id, geog) ORDER BY id"
+  )
+
+  expect_true(is.list(res$geog))
+  expect_identical(
+    res$geog[[1]],
+    dbGetQuery(con, "SELECT 'POINT (1 2)'::GEOMETRY AS g")$g[[1]]
+  )
+  expect_null(res$geog[[2]])
+})
+
+test_that("geometry = 'wk' reads geography as geodesic wk_wkb objects", {
+  skip_if_not_installed("wk")
+
+  con <- local_con(geometry = "wk")
+
+  res <- dbGetQuery(
+    con,
+    "SELECT 'POINT (1 2)'::GEOGRAPHY AS geog, 'POINT (1 2)'::GEOMETRY AS geom"
+  )
+
+  expect_s3_class(res$geog, "wk_wkb")
+  expect_true(wk::wk_is_geodesic(res$geog))
+  expect_false(wk::wk_is_geodesic(res$geom))
+  coords <- wk::wk_coords(res$geog)
+  expect_equal(coords$x, 1)
+  expect_equal(coords$y, 2)
+})
+
 test_that("invalid geometry option is rejected", {
   expect_error(local_con(geometry = "invalid"), "geometry")
 })
