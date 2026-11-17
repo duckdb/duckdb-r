@@ -49,7 +49,8 @@ into lazy tables;
 The table-name classes are those of `I()`, a dbplyr table path, `dbplyr::ident()`, `dbplyr::sql()` and `DBI::SQL()`;
 a `from` with one of them, or one that is not character, such as `dbplyr::in_schema()`, `dbplyr::in_catalog()` or `DBI::Id()`,
 goes to dbplyr unprobed
-([#2973](https://github.com/duckdb/duckdb-r/issues/2973)).
+([#2973](https://github.com/duckdb/duckdb-r/issues/2973),
+[`experiments/2026-11-17-asis-table-names/`](/experiments/2026-11-17-asis-table-names/README.md)).
 
 **`slice_sample()` is the one verb the backend implements.**
 dbplyr numbers the rows in a window ordered by `RANDOM()`,
@@ -78,11 +79,6 @@ these are the boundaries users keep hitting:
   A caller who wants the clause anyway can render the pipeline and wrap it,
   and register that as their own `distinct()` method
   ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
-* `tbl(con, I("schema.table"))` and `tbl(con, in_schema("schema", "table"))` fail,
-  because the backend's own `tbl()` asks `dbExistsTable()` about the name before dbplyr sees it.
-  `Id("schema", "table")` works
-  ([#2973](https://github.com/duckdb/duckdb-r/issues/2973),
-  [`experiments/2026-11-17-asis-table-names/`](/experiments/2026-11-17-asis-table-names/README.md)).
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
