@@ -9,6 +9,11 @@ dbQuoteIdentifier__duckdb_connection <- function(conn, x, ...) {
   if (any(is.na(x))) {
     abort("Cannot pass NA to dbQuoteIdentifier()")
   }
+  # A name wrapped in I() is already SQL, such as a qualified "schema.table",
+  # and passes through unquoted, as dbplyr treats it (#2973).
+  if (inherits(x, "AsIs") && is.character(x)) {
+    return(SQL(as.character(x), names = names(x)))
+  }
 
   x <- enc2utf8(x)
   needs_escape <- !grepl("^[a-zA-Z_][a-zA-Z0-9_]*$", x) |
