@@ -148,7 +148,13 @@ engine() { git show "$1:src/duckdb/src/function/table/version/pragma_version.cpp
 for e in "$(engine "upstream/$B")" "$(engine "origin/$S-rc-dev")"; do   # the previous landing's, then this one's
   gh api "repos/duckdb/duckdb/commits/$e" --jq '[.sha, .commit.committer.date[0:10]] | @tsv'
 done
+curl -fsS "https://duckdb-staging.duckdb.org/$(engine "origin/$S-rc-dev")/latest_alpha_version.txt"   # its alpha
 ```
+
+**The batch ends on an engine upstream built as an alpha**, so that the bump can stamp it (step 3).
+The last command prints that alpha's version, and fails where upstream has built none of the engine;
+wait for one before building
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
 ## 3. Build the landing
 
@@ -235,12 +241,18 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   echo "$v"              # the version the subject names
   ```
 
+* **The alpha stamp**, which `INSTALL` needs to find the engine's extensions
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+  In the kept worktree, `scripts/series-land.sh "$S" --stamp-alpha` writes and stages it,
+  and refuses where upstream built no alpha of the engine or published it with a gap.
+
 * **`NEWS.md`** is not the landing's to write
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)):
   the bump may carry a change to it and needs none.
 * **The commit**: `chore: Bump version to <v>`.
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits
-  that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`,
+  that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`
+  and the alpha stamp exactly as `--stamp-alpha` writes it,
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
   or does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.

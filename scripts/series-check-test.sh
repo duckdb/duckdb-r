@@ -242,6 +242,7 @@ for e in bbbb222 bbbb223 bbbb224; do
   git commit -qam "vendor: Update vendored sources to duckdb/duckdb@$e"
 done
 echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
+mkdir -p R; echo 'duckdb_version <- "9.9.0-alpha1"' > R/version.R
 git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
 printf 'Version: 9.9.0.9001\nImports: DBI (>= 1.2)\n' > DESCRIPTION
 git add -A; git commit -qm 'fix: Require DBI >= 1.2'
@@ -263,7 +264,7 @@ has "a DESCRIPTION change beyond the version is R-side" "$out" "$(git rev-parse 
 has "and so is an ordinary fix" "$out" "$(git rev-parse --short "$C") fix: C, written on the release branch"
 hasnt "a version-only change under another subject is paperwork" "$out" "Increment version number"
 hasnt "vendor commits are not listed one by one" "$out" "bbbb22"
-hasnt "nor a bump that is only paperwork" "$out" "Bump version to 9.9.0.9001"
+hasnt "nor a bump that is only paperwork, its alpha stamp included" "$out" "Bump version to 9.9.0.9001"
 git push -q -f origin cmain:main rel:rel
 has "without a canonical remote it reads the fork's mirrors" \
   "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 8 commit(s)"

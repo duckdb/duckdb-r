@@ -29,7 +29,9 @@
 #      A landing is ready only on its hand-written version bump, which may
 #      change nothing but NEWS.md, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
-#      commit vendors, with nothing above it, whatever NEWS.md holds; a rebuild
+#      commit vendors, with nothing above it, whatever NEWS.md holds, and the
+#      alpha stamp exactly as --stamp-alpha writes it, which refuses an engine
+#      with no alpha or one with a gap in its extensions; a rebuild
 #      drops a bump added to the kept worktree. Step 6's tag block, read off
 #      the series-land skill, runs the tag commands printed with the
 #      fast-forward only on READY; run once `main` has the bump, they tag it
@@ -571,6 +573,94 @@ git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
 status_of "$(git rev-parse HEAD)"
 is "a merge commit is refused" "$st" 1
 git checkout -q -f main; git branch -q -D side
+
+echo "== the bump carries the alpha stamp of the engine it ends on"
+status_of "$BUMP"
+has "a bump without the stamp is ready, with a note that it carries none" "$out" "Note: the bump carries no alpha stamp"
+# `curl` answers upstream's per-commit pointer from $NET/pointer-<sha10>, absent
+# for a 404, and every extension but those listed in $NET/missing.
+NET=$SCRATCH/net
+mkdir -p "$SCRATCH/bin" "$NET"
+: > "$NET/missing"
+cat > "$SCRATCH/bin/curl" <<'EOF'
+#!/bin/bash
+out=/dev/null url=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift 2 ;;
+    -w | -m) shift 2 ;;
+    http*) url=$1; shift ;;
+    *) shift ;;
+  esac
+done
+case "$url" in
+  https://duckdb-staging.duckdb.org/*/latest_alpha_version.txt)
+    p=${url#https://duckdb-staging.duckdb.org/}; p=$NET/pointer-${p%%/*}
+    if [ -f "$p" ]; then cp "$p" "$out"; echo 200; else echo 404; fi ;;
+  https://extensions.duckdb.org/*)
+    if grep -qxF "${url#https://extensions.duckdb.org/}" "$NET/missing"; then echo 404; else echo 200; fi ;;
+  *) echo 500 ;;
+esac
+EOF
+chmod +x "$SCRATCH/bin/curl"
+export NET
+stamp() { out=$(PATH="$SCRATCH/bin:$PATH" scripts/series-land.sh v2.0-x --stamp-alpha 2>&1) && st=0 || st=$?; }
+# A vendor commit above the landing's last, of an engine upstream built as an
+# alpha, -dev stamped in the three files the stamp rewrites, as the real tree is.
+ALPHA=abcdef0123
+PRAGMA=src/duckdb/src/function/table/version/pragma_version.cpp
+LOADER=src/duckdb/generated_extension_loader_package_build.cpp
+probe
+printf '#define DUCKDB_PATCH_VERSION "0-dev7"\n#define DUCKDB_VERSION "v2.0.0-dev7"\n#define DUCKDB_SOURCE_ID "%s"\n' "$ALPHA" > "$PRAGMA"
+printf '\tdescriptor->api_version = "%s";\n\tdescriptor->api_version = "v1.2.0";\n' "$ALPHA" > "$LOADER"
+echo 'duckdb_version <- "2.0.0-dev7"' > R/version.R
+commit "vendor: Update vendored sources to duckdb/duckdb@${ALPHA}000000000000000000000000000000"
+AV=$(git rev-parse HEAD)
+passed "$AV"
+read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+git -C "$KWT" checkout -q --detach "$AV"
+
+stamp
+is "an engine upstream built no alpha of is refused" "$st" 1
+has "  and says the batch must end on one" "$out" "upstream built no alpha of duckdb/duckdb@$ALPHA"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
+echo v2.0.0-alpha77/osx_arm64/icu.duckdb_extension.gz > "$NET/missing"
+stamp
+is "an alpha with a gap in its extensions is refused" "$st" 1
+has "  and names the gap" "$out" "v2.0.0-alpha77 has no icu for osx_arm64"
+is "  and the kept worktree is untouched" "$(git -C "$KWT" status --porcelain)" ""
+: > "$NET/missing"
+# Run from the kept worktree, as step 3 runs it.
+out=$(cd "$KWT" && PATH="$SCRATCH/bin:$PATH" "$WORK/scripts/series-land.sh" v2.0-x --stamp-alpha 2>&1) && st=0 || st=$?
+is "the alpha is stamped into the kept worktree" "$st" 0
+is "  in the three files it rewrites" "$(git -C "$KWT" diff --cached --name-only | tr '\n' ' ')" "R/version.R $LOADER $PRAGMA "
+has "  DUCKDB_VERSION is the alpha" "$(cat "$KWT/$PRAGMA")" '#define DUCKDB_VERSION "v2.0.0-alpha77"'
+has "  DUCKDB_SOURCE_ID stays the commit" "$(cat "$KWT/$PRAGMA")" "#define DUCKDB_SOURCE_ID \"$ALPHA\""
+(cd "$KWT" && write_bump 1.99.99.9001 "${ALPHA}000000000000000000000000000000" &&
+  git -c user.name=Test -c user.email=t@example.invalid commit -qam "$bump_msg")
+SB=$(git -C "$KWT" rev-parse HEAD)
+stamp
+has "a rerun on the stamped bump has nothing to do" "$out" "is stamped as v2.0.0-alpha77 already"
+status_of "$SB"
+has "the bump that carries the stamp is ready" "$out" "READY: every commit has passed"
+hasnt "  with no note" "$out" "carries no alpha stamp"
+git -C "$KWT" checkout -q --detach "$TIP"
+
+stamped() { git checkout -q -f -B probe "$AV"; git checkout -q "$SB" -- .; }
+stamped; sed -i "s/^#define DUCKDB_SOURCE_ID .*/#define DUCKDB_SOURCE_ID \"1234567890\"/" "$PRAGMA"
+refused "a stamp that changes the engine's commit is refused" "it differs from the stamp of $ALPHA as v2.0.0-alpha77 in $PRAGMA"
+stamped; sed -i "s/v2.0.0-alpha77/v2.0.0-alpha78/" "$LOADER"
+refused "a stamp naming another alpha in one file is refused" "differs from the stamp of $ALPHA as v2.0.0-alpha77 in $LOADER"
+stamped; git checkout -q "$AV" -- R/version.R
+refused "a stamp that leaves a file unstamped is refused" "in R/version.R"
+stamped; echo 'engine changed' > src/duckdb/engine.cpp
+refused "a stamp with an edit beside it is refused" "outside an alpha stamp: src/duckdb/engine.cpp"
+stamped; sed -i 's/v2.0.0-alpha77/v2.0.0-rc1/' "$PRAGMA" "$LOADER" R/version.R
+refused "a version that is no alpha is refused" "a malformed alpha stamp: DUCKDB_VERSION is 'v2.0.0-rc1'"
+stamped; sed -i 's/v2.0.0-alpha77/v2.1.0-alpha77/' "$PRAGMA" "$LOADER" R/version.R
+refused "an alpha of another release is refused" "which is no v2.1.0-dev version"
+probe; write_bump 1.99.99.9001; printf '#define DUCKDB_VERSION "v2.0.0-alpha77"\n#define DUCKDB_SOURCE_ID "dddd444"\n' > "$PRAGMA"
+refused "a stamp on an engine with no ten-digit commit is refused" "not ten hex digits"
 
 echo "== and it never stands alone"
 GA=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
