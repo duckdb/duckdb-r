@@ -13,6 +13,8 @@
 # the cache was built from are touched again.
 #
 # Throwaway: drop this file and .github/issue-2974/ before any fix merges.
+# R CMD INSTALL prints "using SDK: NA" because `xcrun --show-sdk-version`
+# fails with SDKROOT set to a path; the compile lines carry -isysroot.
 on:
   push:
     branches:
