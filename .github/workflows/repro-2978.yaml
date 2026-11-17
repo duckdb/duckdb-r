@@ -1,0 +1,437 @@
+# Reproducer for https://github.com/duckdb/duckdb-r/issues/2978:
+# on Windows, R does not exit after the spatial extension wrote GeoJSON through GDAL.
+#
+# Temporary: this file lives in its own commits and is dropped before a fix merges.
+# It runs on a push to its own branch only.
+#
+# Two jobs run the same variants, each under a hard timeout once the script says it finished:
+# `baseline` against the CRAN binary (and 1.5.6 from a P3M snapshot for contrast),
+# `source` against `R CMD INSTALL` of this checkout with the Rtools toolchain, as CRAN builds it.
+# A variant that does not exit in time is reported as HANG,
+# and its process is dumped and its threads printed (procdump, cdb, gdb) before it is killed.
+# The jobs pass either way; the verdicts are in the log and the job summary.
+#
+# Put `[skip-src]` in the head commit's message to skip the source build while iterating.
+
+on:
+  push:
+    branches:
+      - claude/issue-2978-windows-gdal-hang
+
+name: repro-2978
+
+permissions:
+  contents: read
+
+env:
+  # Seconds a variant may take to print its finish marker, and to exit after it.
+  REPRO_FINISH_TIMEOUT: "600"
+  REPRO_EXIT_TIMEOUT: "90"
+  REPRO_VARIANTS: >-
+    no_spatial load_only st_read gdal1 gdal20 gdal20_threads1
+    gdal20_shutdown_gc gdal20_quit gdal20_quit_norunlast gdal20_pskill
+
+  # The script every variant runs: Rscript repro.R <variant> [<library>]
+  REPRO_R: |
+    args <- commandArgs(trailingOnly = TRUE)
+    variant <- args[[1]]
+    lib <- if (length(args) >= 2 && nzchar(args[[2]])) args[[2]] else NULL
+    say <- function(...) {
+      cat(format(Sys.time(), "%H:%M:%OS3"), ..., "\n")
+      flush(stdout())
+    }
+    if (!is.null(lib)) .libPaths(c(lib, .libPaths()))
+    suppressPackageStartupMessages({
+      library(DBI)
+      library(duckdb)
+    })
+    say("REPRO: variant", variant, "pid", Sys.getpid())
+    say("REPRO: duckdb", format(packageVersion("duckdb")), "from", find.package("duckdb"))
+    say("REPRO:", R.version.string)
+    con <- dbConnect(duckdb())
+    ex <- function(sql) {
+      say("SQL:", sql)
+      dbExecute(con, sql)
+    }
+    gq <- function(sql) {
+      say("SQL:", sql)
+      print(dbGetQuery(con, sql))
+    }
+    gq("PRAGMA version")
+    gq("PRAGMA platform")
+    if (variant != "no_spatial") {
+      ex("INSTALL spatial")
+      ex("LOAD spatial")
+      gq("SELECT extension_name, loaded, installed, extension_version, install_path FROM duckdb_extensions() WHERE extension_name = 'spatial'")
+    }
+    if (grepl("threads1", variant)) ex("SET threads = 1")
+    n_copy <- if (variant == "gdal1") 1L else if (startsWith(variant, "gdal20")) 20L else 0L
+    if (n_copy > 0) {
+      tryCatch(ex("SET geometry_always_xy = true"), error = function(e) say("no geometry_always_xy:", conditionMessage(e)))
+      for (i in seq_len(n_copy)) {
+        dbExecute(con, sprintf("COPY (SELECT ST_Point(1, 0) AS geom) TO 'out_%d.geojson' (FORMAT GDAL, DRIVER 'GeoJSON')", i))
+      }
+      say("COPY done:", n_copy, "files:", length(list.files(pattern = "geojson$")))
+    }
+    if (variant == "st_read") {
+      writeLines('{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"a":1},"geometry":{"type":"Point","coordinates":[1,0]}}]}', "in.geojson")
+      for (i in 1:20) res <- dbGetQuery(con, "SELECT * FROM ST_Read('in.geojson')")
+      print(res)
+    }
+    if (variant %in% c("no_spatial", "load_only")) gq("SELECT 42 AS answer")
+    if (grepl("shutdown_gc", variant)) {
+      dbDisconnect(con, shutdown = TRUE)
+      rm(con)
+      invisible(gc())
+      invisible(gc())
+      say("disconnected with shutdown = TRUE, gc() twice")
+    }
+    say("REPRO: script finished")
+    # A file of its own, since stdout to a file may stay buffered while R hangs.
+    writeLines("finished", "finished.txt")
+    if (endsWith(variant, "_quit")) quit(save = "no")
+    if (endsWith(variant, "_quit_norunlast")) q(save = "no", runLast = FALSE)
+    if (endsWith(variant, "_pskill")) tools::pskill(Sys.getpid(), tools::SIGKILL)
+
+  # Fetches the debugging tools and writes their paths to GITHUB_ENV.
+  REPRO_TOOLS_PS1: |
+    $ErrorActionPreference = 'Continue'
+    $t = Join-Path $env:RUNNER_TEMP 'tools'
+    New-Item -ItemType Directory -Force $t | Out-Null
+    Invoke-WebRequest -Uri https://download.sysinternals.com/files/Procdump.zip -OutFile "$t\procdump.zip"
+    Expand-Archive "$t\procdump.zip" -DestinationPath "$t\procdump" -Force
+    "REPRO_PROCDUMP=$t\procdump\procdump64.exe" | Add-Content $env:GITHUB_ENV
+    $cdb = @(
+      "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe",
+      "$env:ProgramFiles\Windows Kits\10\Debuggers\x64\cdb.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $cdb) {
+      $cdb = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits" -Recurse -Filter cdb.exe -ErrorAction SilentlyContinue |
+        Where-Object FullName -match 'x64' | Select-Object -First 1 -ExpandProperty FullName
+    }
+    Write-Host "cdb: $cdb"
+    if ($cdb) { "REPRO_CDB=$cdb" | Add-Content $env:GITHUB_ENV }
+    $gdb = Get-ChildItem C:\rtools*, C:\msys64\ucrt64\bin -Recurse -Filter gdb.exe -ErrorAction SilentlyContinue |
+      Select-Object -First 1 -ExpandProperty FullName
+    if (-not $gdb -and (Test-Path C:\msys64\usr\bin\pacman.exe)) {
+      & C:\msys64\usr\bin\pacman.exe -Sy --noconfirm --needed mingw-w64-ucrt-x86_64-gdb | Select-Object -Last 3
+      if (Test-Path C:\msys64\ucrt64\bin\gdb.exe) { $gdb = 'C:\msys64\ucrt64\bin\gdb.exe' }
+    }
+    Write-Host "gdb: $gdb"
+    if ($gdb) { "REPRO_GDB=$gdb" | Add-Content $env:GITHUB_ENV }
+    Set-Content -Path (Join-Path $env:RUNNER_TEMP 'repro.R') -Value $env:REPRO_R
+    Set-Content -Path (Join-Path $env:RUNNER_TEMP 'run-variants.ps1') -Value $env:REPRO_RUN_PS1
+
+  # Runs the variants: run-variants.ps1 <label> <library or ''> <variant>...
+  REPRO_RUN_PS1: |
+    param([string]$Label, [string]$Lib, [string[]]$Variants)
+    $ErrorActionPreference = 'Continue'
+    $root = Join-Path $env:RUNNER_TEMP "repro-$Label"
+    New-Item -ItemType Directory -Force $root | Out-Null
+    $script = Join-Path $env:RUNNER_TEMP 'repro.R'
+    $rscript = (Get-Command Rscript.exe).Source
+    $finishTimeout = [int]$env:REPRO_FINISH_TIMEOUT
+    $exitTimeout = [int]$env:REPRO_EXIT_TIMEOUT
+    $env:_NT_SYMBOL_PATH = "srv*$env:RUNNER_TEMP\symcache*https://msdl.microsoft.com/download/symbols"
+
+    function Invoke-Bounded([string]$Exe, [string]$Arguments, [int]$Seconds, [string]$Log) {
+      $p = Start-Process -FilePath $Exe -ArgumentList $Arguments -RedirectStandardOutput $Log -RedirectStandardError "$Log.err" -PassThru -NoNewWindow
+      if (-not $p.WaitForExit($Seconds * 1000)) {
+        Write-Host "(timed out after $Seconds s, killing $Exe)"
+        taskkill /F /T /PID $p.Id | Out-Null
+      }
+      Get-Content $Log, "$Log.err" -ErrorAction SilentlyContinue | Write-Host
+    }
+
+    function Get-Descendants([int]$Id) {
+      foreach ($k in @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$Id")) {
+        $k
+        Get-Descendants $k.ProcessId
+      }
+    }
+
+    function Save-Stacks([int]$Id, [string]$Dir, [string]$Name) {
+      Write-Host "::group::[$Label/$Name] threads and modules of pid $Id (Get-Process)"
+      try {
+        $gp = Get-Process -Id $Id
+        $gp.Threads | Format-Table Id, ThreadState, WaitReason, TotalProcessorTime, @{ n = 'StartAddress'; e = { '0x{0:X}' -f [int64]$_.StartAddress } } -AutoSize | Out-String -Width 300 | Write-Host
+        $gp.Modules | Sort-Object { [int64]$_.BaseAddress } | Format-Table @{ n = 'Base'; e = { '0x{0:X}' -f [int64]$_.BaseAddress } }, ModuleMemorySize, ModuleName, FileName -AutoSize | Out-String -Width 400 | Write-Host
+      } catch { Write-Host "Get-Process failed: $_" }
+      Write-Host "::endgroup::"
+      $dmp = Join-Path $Dir "$Name-$Id.dmp"
+      Write-Host "::group::[$Label/$Name] procdump -ma"
+      Invoke-Bounded $env:REPRO_PROCDUMP "-accepteula -ma $Id `"$dmp`"" 180 (Join-Path $Dir 'procdump.txt')
+      Write-Host "::endgroup::"
+      if ($env:REPRO_CDB -and (Test-Path $dmp)) {
+        Write-Host "::group::[$Label/$Name] cdb on the dump: all thread stacks, modules, locks"
+        $cmds = '.reload; .echo ===THREADS===; ~*k 60; .echo ===MODULES===; lm; .echo ===LOCKS===; !locks; .echo ===END===; q'
+        Invoke-Bounded $env:REPRO_CDB "-z `"$dmp`" -c `"$cmds`"" 600 (Join-Path $Dir 'cdb.txt')
+        Write-Host "::endgroup::"
+      }
+      if ($env:REPRO_GDB) {
+        Write-Host "::group::[$Label/$Name] gdb attached to the live process"
+        $gargs = "-p $Id -batch -nx -ex `"set pagination off`" -ex `"info threads`" -ex `"thread apply all bt 60`" -ex `"info sharedlibrary`" -ex detach"
+        Invoke-Bounded $env:REPRO_GDB $gargs 180 (Join-Path $Dir 'gdb.txt')
+        Write-Host "::endgroup::"
+      }
+    }
+
+    $summary = @()
+    foreach ($v in $Variants) {
+      $dir = Join-Path $root $v
+      New-Item -ItemType Directory -Force $dir | Out-Null
+      $out = Join-Path $dir 'stdout.txt'
+      $err = Join-Path $dir 'stderr.txt'
+      $marker = Join-Path $dir 'finished.txt'
+      Write-Host "=== [$Label/$v] start $(Get-Date -Format o)"
+      $p = Start-Process -FilePath $rscript -ArgumentList "--vanilla `"$script`" $v `"$Lib`"" -WorkingDirectory $dir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -NoNewWindow
+      $null = $p.Handle
+      $sw = [Diagnostics.Stopwatch]::StartNew()
+      while (-not $p.HasExited -and -not (Test-Path $marker) -and $sw.Elapsed.TotalSeconds -lt $finishTimeout) {
+        Start-Sleep -Milliseconds 250
+      }
+      $finished = Test-Path $marker
+      $tFinish = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+      $sw2 = [Diagnostics.Stopwatch]::StartNew()
+      $exited = $p.WaitForExit($exitTimeout * 1000)
+      $tExit = [math]::Round($sw2.Elapsed.TotalSeconds, 1)
+      if ($exited) {
+        $code = $p.ExitCode
+        $verdict = if ($finished) { 'OK' } else { 'FAILED' }
+      } else {
+        $code = ''
+        $verdict = if ($finished) { 'HANG' } else { 'STUCK' }
+        $procs = @(Get-Descendants $p.Id)
+        Write-Host "[$Label/$v] $verdict; process tree under Rscript pid $($p.Id):"
+        $procs | Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize | Out-String -Width 400 | Write-Host
+        # The leaves are the processes that hang; Rscript only waits on them.
+        $leaves = @($procs | Where-Object { $id = $_.ProcessId; -not ($procs | Where-Object ParentProcessId -eq $id) })
+        if (-not $leaves) { $leaves = @(Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)") }
+        foreach ($l in $leaves) { Save-Stacks $l.ProcessId $dir $v }
+        taskkill /F /T /PID $p.Id | Out-Null
+      }
+      Write-Host "::group::[$Label/$v] $verdict -- output"
+      Get-Content $out, $err -ErrorAction SilentlyContinue | Write-Host
+      Write-Host "::endgroup::"
+      $line = "{0,-8} {1,-24} {2,-7} finish={3,6}s exit-wait={4,5}s code={5}" -f $Label, $v, $verdict, $tFinish, $tExit, $code
+      Write-Host "=== $line"
+      $summary += $line
+    }
+    Write-Host "=== Summary"
+    $summary | Write-Host
+    "### $Label" | Add-Content $env:GITHUB_STEP_SUMMARY
+    '```' | Add-Content $env:GITHUB_STEP_SUMMARY
+    $summary | Add-Content $env:GITHUB_STEP_SUMMARY
+    '```' | Add-Content $env:GITHUB_STEP_SUMMARY
+
+jobs:
+  baseline:
+    name: CRAN binaries
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+
+      - name: Install duckdb 2.0.0 from CRAN, and 1.5.6 from a P3M snapshot
+        shell: Rscript {0}
+        run: |
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          install.packages(c("DBI", "duckdb"), type = "binary")
+          print(packageVersion("duckdb"))
+          stopifnot(packageVersion("duckdb") == "2.0.0")
+          lib156 <- file.path(Sys.getenv("RUNNER_TEMP"), "lib156")
+          dir.create(lib156)
+          install.packages("duckdb", lib = lib156, type = "binary", repos = "https://packagemanager.posit.co/cran/2026-10-20")
+          print(packageVersion("duckdb", lib.loc = lib156))
+          print(sessionInfo())
+
+      - name: Fetch the debugging tools
+        shell: pwsh
+        run: Invoke-Expression $env:REPRO_TOOLS_PS1
+
+      - name: Run the variants against duckdb 2.0.0
+        shell: pwsh
+        run: |
+          & "$env:RUNNER_TEMP\run-variants.ps1" cran200 '' ($env:REPRO_VARIANTS -split '\s+')
+
+      - name: Run the variants against duckdb 1.5.6
+        shell: pwsh
+        run: |
+          & "$env:RUNNER_TEMP\run-variants.ps1" cran156 "$env:RUNNER_TEMP\lib156" @('load_only', 'gdal20', 'gdal20_shutdown_gc')
+
+      - name: Upload logs and the dumps of gdal20
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-2978-baseline
+          retention-days: 3
+          path: |
+            ${{ runner.temp }}/repro-*/**/*.txt
+            ${{ runner.temp }}/repro-*/gdal20/*.dmp
+
+  source:
+    name: Source build
+    if: ${{ !contains(github.event.head_commit.message, '[skip-src]') }}
+    runs-on: windows-latest
+    timeout-minutes: 240
+
+    env:
+      MAKEFLAGS: -j4
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
+      CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
+      CCACHE_MAXSIZE: 3G
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+
+      - name: Install the dependencies
+        shell: Rscript {0}
+        run: |
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          install.packages("DBI", type = "binary")
+
+      - name: Install ccache and wrap the compilers with it
+        shell: bash
+        run: |
+          ## -- Install ccache and wrap the compilers with it --
+          t="$(cygpath -u "$RUNNER_TEMP")/ccache-bin"
+          mkdir -p "$t"
+          curl -sSfL -o "$t/ccache.zip" https://github.com/ccache/ccache/releases/download/v4.11.3/ccache-4.11.3-windows-x86_64.zip
+          unzip -q -j -o "$t/ccache.zip" '*/ccache.exe' -d "$t"
+          cygpath -w "$t" | tee -a "$GITHUB_PATH"
+          export PATH="$t:$PATH"
+          ccache --version | head -n 1
+          mkdir -p ~/.R
+          {
+            echo "CC=ccache $(R CMD config CC)"
+            echo "CXX=ccache $(R CMD config CXX)"
+            echo "CXX17=ccache $(R CMD config CXX17)"
+          } | tee ~/.R/Makevars.win
+          cxx="$(R CMD config CXX17)"
+          echo "R=$(Rscript -e 'cat(format(getRversion()))')" | tee -a "$GITHUB_ENV"
+          echo "GCC=$($cxx --version | head -n 1 | sed -r 's/[^A-Za-z0-9.]+/-/g')" | tee -a "$GITHUB_ENV"
+          echo "CCACHE_DIR=$(cygpath -w "$RUNNER_TEMP")\\ccache" | tee -a "$GITHUB_ENV"
+          # The tracked content of src/, computed before the build writes anything there.
+          echo "SRC_KEY=$(git ls-files -s src | sha256sum | cut -c1-16)" | tee -a "$GITHUB_ENV"
+
+      # Both caches are keyed on the content of src/, so a run whose sources did not change
+      # restores an exact hit and saves nothing, and a changed tree restores the newest entry by prefix.
+      - name: Restore ccache
+        id: ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: repro-2978-ccache-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
+          restore-keys: repro-2978-ccache-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-
+
+      - name: Restore object files
+        id: objects
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/**/*.o
+            src/.repro-manifest.txt
+          key: repro-2978-objects-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
+          restore-keys: repro-2978-objects-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-
+
+      - name: Make restored objects current for unchanged sources only
+        shell: bash
+        run: |
+          ## -- Make restored objects current for unchanged sources only --
+          # The checkout gives every source a fresh mtime, newer than any restored object.
+          # Age all tracked sources under src/ to 2000-01-01, so the restored objects count as current,
+          # then give a fresh mtime to each file whose blob differs from the manifest the objects were built from.
+          # make cannot see every dependency (the engine's unity files include sources it does not list),
+          # so a change it would miss deletes the objects it may affect, and ccache rebuilds them.
+          set -euo pipefail
+          git ls-files -s src | sort -k4 > "$RUNNER_TEMP/manifest.now"
+          n_obj=$(find src -name '*.o' | wc -l)
+          echo "restored objects: $n_obj"
+          if [ ! -f src/.repro-manifest.txt ]; then
+            echo "no manifest: cold build"
+            find src -name '*.o' -delete
+            exit 0
+          fi
+          git ls-files -z src | xargs -0 touch -d '2000-01-01 00:00:00'
+          changed=$(diff <(awk '{print $2, $4}' src/.repro-manifest.txt) <(awk '{print $2, $4}' "$RUNNER_TEMP/manifest.now") | sed -n 's/^> [0-9a-f]* //p' || true)
+          echo "changed since the objects were built:"
+          echo "${changed:-(none)}"
+          all_engine=0
+          all_glue=0
+          for f in $changed; do
+            [ -f "$f" ] && touch "$f"
+            case "$f" in
+              src/Makevars*|src/include/*.mk) all_engine=1; all_glue=1 ;;
+              src/duckdb/*.cpp|src/duckdb/*.c|src/duckdb/*.cc)
+                rel="${f#src/duckdb/}"
+                for ub in $(grep -l -F "$rel" src/duckdb/ub_*.cpp || true); do rm -fv "${ub%.cpp}.o"; done
+                ;;
+              src/duckdb/*) all_engine=1 ;;
+              src/*.cpp|src/*.dd) ;;
+              *) all_glue=1 ;;
+            esac
+          done
+          if [ "$all_engine" = 1 ]; then echo "deleting all engine objects"; find src/duckdb -name '*.o' -delete; fi
+          if [ "$all_glue" = 1 ]; then echo "deleting all glue objects"; rm -fv src/*.o; fi
+
+      - name: Build and install the package from this checkout
+        shell: bash
+        run: |
+          ## -- Build and install the package from this checkout --
+          ccache --zero-stats
+          mkdir -p "$RUNNER_TEMP/lib"
+          start=$(date +%s)
+          R CMD INSTALL --library="$RUNNER_TEMP/lib" --no-byte-compile . 2>&1 | tee "$RUNNER_TEMP/install.log" | grep -v -E '^(ccache )?(g\+\+|gcc) ' || true
+          echo "R CMD INSTALL took $(( $(date +%s) - start )) s"
+          grep -c -E '^ccache (g\+\+|gcc) ' "$RUNNER_TEMP/install.log" | sed 's/^/compiler invocations: /' || true
+          ccache -s
+          test -f "$RUNNER_TEMP/lib/duckdb/libs/x64/duckdb.dll"
+          git ls-files -s src | sort -k4 > src/.repro-manifest.txt
+          echo "object files: $(find src -name '*.o' | wc -l), $(du -sh src --exclude='*.cpp' | cut -f1) under src/ without sources"
+          du -sh "$CCACHE_DIR"
+
+      - name: Save ccache
+        if: always() && steps.ccache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: repro-2978-ccache-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
+
+      - name: Save object files
+        if: always() && steps.objects.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            src/**/*.o
+            src/.repro-manifest.txt
+          key: repro-2978-objects-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
+
+      - name: Fetch the debugging tools
+        shell: pwsh
+        run: Invoke-Expression $env:REPRO_TOOLS_PS1
+
+      - name: Run the variants against the source build
+        shell: pwsh
+        run: |
+          & "$env:RUNNER_TEMP\run-variants.ps1" source "$env:RUNNER_TEMP\lib" ($env:REPRO_VARIANTS -split '\s+')
+
+      - name: Upload logs and the dumps of gdal20
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-2978-source
+          retention-days: 3
+          path: |
+            ${{ runner.temp }}/install.log
+            ${{ runner.temp }}/repro-*/**/*.txt
+            ${{ runner.temp }}/repro-*/gdal20/*.dmp
