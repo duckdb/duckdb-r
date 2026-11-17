@@ -30,8 +30,8 @@ Materializing runs the frame's query on the frame's own connection,
 which cannot start a query while it is binding the scan, so the bind would wait forever or fail.
 `TouchColumns()` in [`src/scan.cpp`](/src/scan.cpp) therefore refuses such a frame instead of touching it,
 when reading one of the columns it scans would still run a query and the connection binding the scan is its own,
-with an error that says to materialize the frame first.
-The check is per vector: a frame fetched column by column passes once the columns the scan reads are converted, even while others are pending.
+with an error that says to read its columns first.
+The check is per vector: a frame fetched column by column passes once the columns the scan reads are fetched, even while others are pending.
 Another connection scans it, the query running on the frame's own connection, and so does its own once the query has run.
 
 Raising an R error from inside an ALTREP method

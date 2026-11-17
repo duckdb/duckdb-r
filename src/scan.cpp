@@ -157,8 +157,8 @@ static SEXP TouchColumns(void *data_p) {
 		if (ALTREP(x) && RelToAltrep::QueriesOn(x, data.context)) {
 			Rf_errorcall(R_NilValue, "%s",
 			             "A lazy data frame can't be scanned on its own connection before its query has run: the "
-			             "connection is busy with this query. Materialize the data frame first, for instance with "
-			             "`nrow()`, or use `rel_from_altrep_df()` to reach its relation.");
+			             "connection is busy with this query. Materialize the data frame first by reading its columns, "
+			             "or use `rel_from_altrep_df()` to reach its relation.");
 		}
 		return TouchVector(x);
 	};

@@ -1643,11 +1643,11 @@
     Code
       writeLines(out$rel)
     Output
-      {"exception_type":"Invalid Input","exception_message":"A lazy data frame can't be scanned on its own connection before its query has run: the connection is busy with this query. Materialize the data frame first, for instance with `nrow()`, or use `rel_from_altrep_df()` to reach its relation."}
+      {"exception_type":"Invalid Input","exception_message":"A lazy data frame can't be scanned on its own connection before its query has run: the connection is busy with this query. Materialize the data frame first by reading its columns, or use `rel_from_altrep_df()` to reach its relation."}
     Code
       writeLines(out$scan)
     Output
-      Invalid Input Error: A lazy data frame can't be scanned on its own connection before its query has run: the connection is busy with this query. Materialize the data frame first, for instance with `nrow()`, or use `rel_from_altrep_df()` to reach its relation.
+      Invalid Input Error: A lazy data frame can't be scanned on its own connection before its query has run: the connection is busy with this query. Materialize the data frame first by reading its columns, or use `rel_from_altrep_df()` to reach its relation.
       i Context: rapi_prepare
       i Error type: INVALID_INPUT
 
