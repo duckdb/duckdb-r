@@ -4,28 +4,36 @@
 test_that("a table scan fetches only the column that is read", {
   con <- local_con()
   dbWriteTable(con, "t", data.frame(a = 1:10, b = letters[1:10], c = 10:1 / 2))
-  calls <- 0
-  rlang::local_options(duckdb.materialize_callback = function(rel) {
-    calls <<- calls + 1
-  })
+  # The queries the data frame ran, from the engine's query log
+  dbExecute(con, "CALL enable_logging('QueryLog')")
+  queries <- function() {
+    sql <- dbGetQuery(
+      con,
+      "SELECT message FROM duckdb_logs WHERE type = 'QueryLog'"
+    )$message
+    sql[grepl("FROM memory\\.main\\.", sql)]
+  }
+  calls <- function() length(queries())
 
   df <- rel_to_altrep(rel_from_table(con, "t"))
-  expect_equal(calls, 0)
+  expect_equal(calls(), 0)
 
   # One query counts the rows, one fetches the column
   expect_equal(df$b, letters[1:10])
-  expect_equal(calls, 2)
+  expect_equal(calls(), 2)
+  expect_match(queries()[[1]], "count_star()", fixed = TRUE)
+  expect_match(queries()[[2]], "^SELECT b AS b FROM memory\\.main\\.t$")
   expect_false(df_is_materialized(df))
   expect_false(rapi_df_has_query_result(df))
 
   # A converted column runs nothing, another column runs its own query
   expect_equal(df$b, letters[1:10])
-  expect_equal(calls, 2)
+  expect_equal(calls(), 2)
   expect_equal(df$c, 10:1 / 2)
-  expect_equal(calls, 3)
+  expect_equal(calls(), 3)
 
   expect_equal(df, dbReadTable(con, "t"))
-  expect_equal(calls, 4)
+  expect_equal(calls(), 4)
   # Every column is converted now
   expect_true(df_is_materialized(df))
 })
@@ -33,10 +41,16 @@ test_that("a table scan fetches only the column that is read", {
 test_that("a projection of column references over a table scan is fetched column-wise", {
   con <- local_con()
   dbWriteTable(con, "t", data.frame(a = 1:10, b = letters[1:10], c = 10:1 / 2))
-  calls <- 0
-  rlang::local_options(duckdb.materialize_callback = function(rel) {
-    calls <<- calls + 1
-  })
+  # The queries the data frame ran, from the engine's query log
+  dbExecute(con, "CALL enable_logging('QueryLog')")
+  queries <- function() {
+    sql <- dbGetQuery(
+      con,
+      "SELECT message FROM duckdb_logs WHERE type = 'QueryLog'"
+    )$message
+    sql[grepl("FROM memory\\.main\\.", sql)]
+  }
+  calls <- function() length(queries())
 
   rel <- rel_project(
     rel_from_table(con, "t"),
@@ -45,9 +59,9 @@ test_that("a projection of column references over a table scan is fetched column
   df <- rel_to_altrep(rel)
 
   expect_equal(df$x, 1:10)
-  expect_equal(calls, 2)
+  expect_equal(calls(), 2)
   expect_equal(df$c, 10:1 / 2)
-  expect_equal(calls, 3)
+  expect_equal(calls(), 3)
   expect_true(df_is_materialized(df))
   expect_equal(df, data.frame(c = 10:1 / 2, x = 1:10))
 })
@@ -55,21 +69,27 @@ test_that("a projection of column references over a table scan is fetched column
 test_that("nrow() of a table scan fetches no column", {
   con <- local_con()
   dbWriteTable(con, "t", data.frame(a = 1:10, b = letters[1:10]))
-  calls <- 0
-  rlang::local_options(duckdb.materialize_callback = function(rel) {
-    calls <<- calls + 1
-  })
+  # The queries the data frame ran, from the engine's query log
+  dbExecute(con, "CALL enable_logging('QueryLog')")
+  queries <- function() {
+    sql <- dbGetQuery(
+      con,
+      "SELECT message FROM duckdb_logs WHERE type = 'QueryLog'"
+    )$message
+    sql[grepl("FROM memory\\.main\\.", sql)]
+  }
+  calls <- function() length(queries())
 
   df <- rel_to_altrep(rel_from_table(con, "t"))
   expect_equal(nrow(df), 10)
   expect_equal(length(df$a), 10)
-  expect_equal(calls, 1)
+  expect_equal(calls(), 1)
   expect_false(df_is_materialized(df))
   expect_false(rapi_df_has_query_result(df))
 
   # The row count is cached, the column is fetched by its own query
   expect_equal(df$a, 1:10)
-  expect_equal(calls, 2)
+  expect_equal(calls(), 2)
 })
 
 test_that("a relation that is not a plain table scan materializes as a whole", {
@@ -158,18 +178,24 @@ test_that("a struct column is fetched once for all of its fields", {
     con,
     "CREATE TABLE t AS SELECT {'x': range::INTEGER, 'y': range::DOUBLE} AS s, range::INTEGER AS a FROM range(10)"
   )
-  calls <- 0
-  rlang::local_options(duckdb.materialize_callback = function(rel) {
-    calls <<- calls + 1
-  })
+  # The queries the data frame ran, from the engine's query log
+  dbExecute(con, "CALL enable_logging('QueryLog')")
+  queries <- function() {
+    sql <- dbGetQuery(
+      con,
+      "SELECT message FROM duckdb_logs WHERE type = 'QueryLog'"
+    )$message
+    sql[grepl("FROM memory\\.main\\.", sql)]
+  }
+  calls <- function() length(queries())
 
   df <- rel_to_altrep(rel_from_table(con, "t"))
   expect_equal(df$s$x, 0:9)
-  expect_equal(calls, 2)
+  expect_equal(calls(), 2)
   # The struct column is held until its last field is converted
   expect_true(rapi_df_has_query_result(df))
   expect_equal(df$s$y, as.double(0:9))
-  expect_equal(calls, 2)
+  expect_equal(calls(), 2)
   expect_false(rapi_df_has_query_result(df))
   expect_false(df_is_materialized(df))
 })
@@ -305,10 +331,16 @@ test_that("a temporary table is fetched column-wise", {
 test_that("a converted column keeps its values and runs no query after a later fetch fails", {
   con <- local_con()
   dbWriteTable(con, "t", data.frame(a = 1:10, b = letters[1:10]))
-  calls <- 0
-  rlang::local_options(duckdb.materialize_callback = function(rel) {
-    calls <<- calls + 1
-  })
+  # The queries the data frame ran, from the engine's query log
+  dbExecute(con, "CALL enable_logging('QueryLog')")
+  queries <- function() {
+    sql <- dbGetQuery(
+      con,
+      "SELECT message FROM duckdb_logs WHERE type = 'QueryLog'"
+    )$message
+    sql[grepl("FROM memory\\.main\\.", sql)]
+  }
+  calls <- function() length(queries())
 
   # A changed table fails the later fetch
   changed <- rel_to_altrep(rel_from_table(con, "t"))
@@ -317,9 +349,9 @@ test_that("a converted column keeps its values and runs no query after a later f
   expect_equal(a, 1:10)
   dbExecute(con, "INSERT INTO t VALUES (11, 'k')")
   expect_error(changed$b[[1]], "table changed")
-  n <- calls
+  n <- calls()
   expect_identical(changed$a, a)
-  expect_equal(calls, n)
+  expect_equal(calls(), n)
 
   # An exhausted cell budget fails the later fetch
   budget <- rel_to_altrep(rel_from_table(con, "t"), n_cells = 15)
@@ -327,7 +359,31 @@ test_that("a converted column keeps its values and runs no query after a later f
   a <- budget$a[seq_len(11)]
   expect_equal(a, 1:11)
   expect_error(budget$b[[1]], "more than 4 rows")
-  n <- calls
+  n <- calls()
   expect_identical(budget$a, a)
-  expect_equal(calls, n)
+  expect_equal(calls(), n)
+})
+
+test_that("the materialize callback announces a column-wise data frame once", {
+  con <- local_con()
+  dbWriteTable(con, "t", data.frame(a = 1:3, b = 4:6, c = 7:9))
+  calls <- 0
+  rlang::local_options(duckdb.materialize_callback = function(rel) {
+    calls <<- calls + 1
+  })
+
+  df <- rel_to_altrep(rel_from_table(con, "t"))
+  expect_equal(calls, 0)
+  expect_equal(nrow(df), 3)
+  expect_equal(calls, 1)
+  expect_equal(df$a, 1:3)
+  expect_equal(df$b, 4:6)
+  expect_equal(df$c, 7:9)
+  expect_equal(calls, 1)
+
+  # The first read of a column announces the data frame too, without nrow() first
+  df2 <- rel_to_altrep(rel_from_table(con, "t"))
+  expect_equal(df2$c[[1]], 7)
+  expect_equal(df2$a, 1:3)
+  expect_equal(calls, 2)
 })
