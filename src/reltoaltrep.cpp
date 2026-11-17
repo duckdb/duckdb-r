@@ -16,10 +16,12 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+#include <algorithm>
 #include <cinttypes>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <type_traits>
 
 // Handbook: handbook/usage/memory/reading/README.md
 // (what materialization allocates on either side, and when it is freed)
@@ -487,6 +489,12 @@ struct AltrepVectorWrapper {
 	// Once it is set, transformed_vector must never be reassigned:
 	// ConvertedVectorOrNil() reads it without a guard and hands out pointers into it.
 	std::atomic<bool> converted {false};
+	// The payload and length of transformed_vector, filled by ConvertedPayload() on the first read after conversion,
+	// so that a read per element costs two calls into R instead of six (#2890).
+	// Stable once filled, because transformed_vector is never reassigned once converted and R never moves a vector.
+	// The length is stored before the payload, which publishes it.
+	std::atomic<const void *> converted_payload {nullptr};
+	std::atomic<R_xlen_t> converted_length {0};
 };
 
 Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
@@ -693,9 +701,68 @@ static SEXP ConvertedVectorOrNil(SEXP x) {
 	return wrapper->transformed_vector;
 }
 
+#if defined(__GNUC__) || defined(__clang__)
+#define RELTOALTREP_NOINLINE __attribute__((noinline))
+#else
+#define RELTOALTREP_NOINLINE
+#endif
+
+// The payload of a converted column and its length, see ConvertedPayload()
+struct ConvertedView {
+	const void *payload;
+	R_xlen_t length;
+};
+
+// Fills the wrapper's cache of the converted payload, see ConvertedPayload().
+// Out of line, so that the path R takes once per element stays short.
+static RELTOALTREP_NOINLINE ConvertedView FillConvertedPayload(SEXP x, AltrepVectorWrapper *wrapper) {
+	SEXP converted = ConvertedVectorOrNil(x);
+	if (converted == R_NilValue) {
+		return {nullptr, 0};
+	}
+	// An ALTREP vector's payload is its class's to hand out, and may move or allocate: not cached
+	if (ALTREP(converted)) {
+		return {nullptr, 0};
+	}
+	ConvertedView view {DATAPTR_RO(converted), Rf_xlength(converted)};
+	if (!view.payload) {
+		return {nullptr, 0};
+	}
+	wrapper->converted_length.store(view.length, std::memory_order_relaxed);
+	wrapper->converted_payload.store(view.payload, std::memory_order_release);
+	return view;
+}
+
+// The payload of a converted column and its length, or a null payload if it is not converted yet or freed.
+// The cheapest path ConvertedVectorOrNil() allows, for the methods R calls once per element:
+// c() asks for the length and the data pointer of every element it copies, mean() of an integer
+// and anyNA() of a logical or string ask for each element, and unique() of a string for each several times.
+// data1 is always the external pointer rapi_rel_to_altrep_impl() set, since these classes have no Unserialize method,
+// and an address cleared by a finalizer or a release answers null here, which sends the caller to the slow path.
+// Only reads, allocates nothing and raises nothing, so neither the guard nor a task's bind is a concern
+// (handbook/architecture/glue/threading/): two threads filling the cache store the same values.
+static inline ConvertedView ConvertedPayload(SEXP x) {
+	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(R_altrep_data1(x)));
+	if (!wrapper) {
+		return {nullptr, 0};
+	}
+	const void *payload = wrapper->converted_payload.load(std::memory_order_acquire);
+	if (payload) {
+		return {payload, wrapper->converted_length.load(std::memory_order_relaxed)};
+	}
+	return FillConvertedPayload(x, wrapper);
+}
+
 // Converts the column first if needed, so it runs on R's thread only, like Dataptr()
+// NA_LOGICAL is NA_INTEGER, so an int answers either
 template <class T>
-static T VectorEltSlow(SEXP x, R_xlen_t i, T na) {
+static RELTOALTREP_NOINLINE T VectorEltSlow(SEXP x, R_xlen_t i) {
+	T na;
+	if constexpr (std::is_same<T, double>::value) {
+		na = NA_REAL;
+	} else {
+		na = NA_INTEGER;
+	}
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return static_cast<const T *>(AltrepVectorWrapper::Get(x)->Dataptr())[i];
@@ -703,12 +770,12 @@ static T VectorEltSlow(SEXP x, R_xlen_t i, T na) {
 }
 
 template <class T>
-static T VectorElt(SEXP x, R_xlen_t i, T na) {
-	SEXP converted = ConvertedVectorOrNil(x);
-	if (converted != R_NilValue) {
-		return static_cast<const T *>(DATAPTR_RO(converted))[i];
+static T VectorElt(SEXP x, R_xlen_t i) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return static_cast<const T *>(view.payload)[i];
 	}
-	return VectorEltSlow<T>(x, i, na);
+	return VectorEltSlow<T>(x, i);
 }
 
 static R_xlen_t CopyRegion(SEXP converted, R_xlen_t start, R_xlen_t size, void *out, size_t elt_size) {
@@ -725,9 +792,14 @@ static R_xlen_t CopyRegion(SEXP converted, R_xlen_t start, R_xlen_t size, void *
 
 template <class T>
 static R_xlen_t VectorGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, T *out) {
-	SEXP converted = ConvertedVectorOrNil(x);
-	if (converted != R_NilValue) {
-		return CopyRegion(converted, start, size, out, sizeof(T));
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		R_xlen_t n = std::min(view.length - start, size);
+		if (n <= 0) {
+			return 0;
+		}
+		memcpy(out, static_cast<const T *>(view.payload) + start, n * sizeof(T));
+		return n;
 	}
 	BEGIN_CPP11
 	AltrepGuard guard;
@@ -738,31 +810,31 @@ static R_xlen_t VectorGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, T *out) {
 
 // c() asks for the length and the data pointer once per element it copies (RealAnswer() and friends, R's bind.c)
 R_xlen_t RelToAltrep::VectorAtomicLength(SEXP x) {
-	SEXP converted = ConvertedVectorOrNil(x);
-	if (converted != R_NilValue) {
-		return Rf_xlength(converted);
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return view.length;
 	}
 	return VectorLength(x);
 }
 
 void *RelToAltrep::VectorAtomicDataptr(SEXP x, Rboolean writeable) {
-	SEXP converted = ConvertedVectorOrNil(x);
-	if (converted != R_NilValue) {
-		return const_cast<void *>(DATAPTR_RO(converted));
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return const_cast<void *>(view.payload);
 	}
 	return VectorDataptr(x, writeable);
 }
 
 int RelToAltrep::VectorLogicalElt(SEXP x, R_xlen_t i) {
-	return VectorElt<int>(x, i, NA_LOGICAL);
+	return VectorElt<int>(x, i);
 }
 
 int RelToAltrep::VectorIntegerElt(SEXP x, R_xlen_t i) {
-	return VectorElt<int>(x, i, NA_INTEGER);
+	return VectorElt<int>(x, i);
 }
 
 double RelToAltrep::VectorRealElt(SEXP x, R_xlen_t i) {
-	return VectorElt<double>(x, i, NA_REAL);
+	return VectorElt<double>(x, i);
 }
 
 R_xlen_t RelToAltrep::VectorLogicalGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out) {
@@ -777,15 +849,20 @@ R_xlen_t RelToAltrep::VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size,
 	return VectorGetRegion<double>(x, start, size, out);
 }
 
-SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
-	SEXP converted = ConvertedVectorOrNil(x);
-	if (converted != R_NilValue) {
-		return STRING_ELT(converted, i);
-	}
+// Out of line, since BEGIN_CPP11 reserves a buffer for the error message in the frame of the function it is in
+static RELTOALTREP_NOINLINE SEXP VectorStringEltSlow(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
+}
+
+SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return static_cast<const SEXP *>(view.payload)[i];
+	}
+	return VectorStringEltSlow(x, i);
 }
 
 #if defined(R_HAS_ALTLIST)
