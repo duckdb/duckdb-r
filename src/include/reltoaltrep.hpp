@@ -16,9 +16,6 @@ struct AltrepRelationWrapper {
 
 	bool Materialized() const;
 
-	// Whether GetQueryResult() would run the query now, rather than return a result or an error it already has
-	bool QueryPending() const;
-
 	QueryResult *GetQueryResult();
 
 	void Materialize();
@@ -118,7 +115,8 @@ struct RelToAltrep {
 	static R_xlen_t VectorIntegerGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out);
 	static R_xlen_t VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, double *out);
 
-	// Whether reading `x` would run a lazy data frame's query on `context`; reads pointers only
+	// Whether reading `x` would run a query of its lazy data frame on `context` now, per vector;
+	// on R's thread only, and runs no R code
 	static bool QueriesOn(SEXP x, duckdb::ClientContext &context);
 
 	static R_altrep_class_t rownames_class;

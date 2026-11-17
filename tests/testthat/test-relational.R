@@ -2641,3 +2641,64 @@ test_that("a lazy data frame scanned on its own connection before its query ran 
   expect_equal(out$from_sibling, 0:9)
   expect_equal(out$own_after_run, 45L)
 })
+
+test_that("a lazy data frame read column by column is refused on its own connection only for a column not yet fetched (#2889, #2891)", {
+  skip_if_not_installed("callr")
+
+  # A lazy data frame over a stored table fetches each column by a query of its own.
+  # Scanning it on its own connection is refused while a column it scans would still run that query,
+  # and allowed once the columns it scans are converted, even while others are pending.
+  # The subprocess and its timeout make a hang a failure here rather than a suite that stops.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      message_of <- function(code) {
+        tryCatch(
+          {
+            code
+            "no error"
+          },
+          error = conditionMessage
+        )
+      }
+
+      con <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      DBI::dbWriteTable(con, "t", data.frame(a = 1:3, b = c("x", "y", "z")))
+      df <- ns$rel_to_altrep(ns$rel_from_table(con, "t"))
+
+      # Converts `a` alone; `b` stays pending
+      sum_a <- sum(df$a)
+
+      converted <- message_of(
+        values <- as.data.frame(ns$rel_to_altrep(ns$rel_from_df(con, df["a"])))
+      )
+      pending <- message_of(ns$rel_from_df(con, df["b"]))
+      both <- message_of(ns$rel_from_df(con, df))
+
+      list(
+        sum_a = sum_a,
+        converted = converted,
+        # Plain copies: a lazy vector would be read after the connection closed
+        values = if (converted == "no error") values$a[1:3],
+        pending = pending,
+        both = both,
+        still_lazy = !ns$df_is_materialized(df),
+        b = df$b[1:3]
+      )
+    },
+    list(pkg = pkg),
+    timeout = 60
+  )
+
+  expect_equal(out$sum_a, 6L)
+  expect_equal(out$converted, "no error")
+  expect_equal(out$values, 1:3)
+  expect_match(out$pending, "on its own connection before its query has run")
+  expect_match(out$both, "on its own connection before its query has run")
+  expect_true(out$still_lazy)
+  # The refusals left the pending column fetchable
+  expect_equal(out$b, c("x", "y", "z"))
+})

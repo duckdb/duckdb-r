@@ -160,11 +160,6 @@ bool AltrepRelationWrapper::Materialized() const {
 	return materialized;
 }
 
-bool AltrepRelationWrapper::QueryPending() const {
-	// The checks GetQueryResult() makes before it runs the query
-	return mat_error.empty() && !materialized && n_cells != 0;
-}
-
 idx_t AltrepRelationWrapper::RowCount() {
 	if (column_wise) {
 		// Once counted, the row count stays valid for the columns already converted,
@@ -1130,7 +1125,8 @@ bool RelToAltrep::QueriesOn(SEXP x, ClientContext &context) {
 		return false;
 	}
 	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(ptr));
-	if (!wrapper || !wrapper->rel->QueryPending()) {
+	// Per vector: a column-wise frame queries for a column not yet fetched, not for one already converted
+	if (!wrapper || !wrapper->WouldQuery()) {
 		return false;
 	}
 	return wrapper->rel->rel->context->TryGetContext().get() == &context;
