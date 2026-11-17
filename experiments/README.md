@@ -158,6 +158,10 @@ This file is what names the contents, so nothing here is an orphan.
   whether `dbExistsTable()` leaves an open transaction usable on DuckDB 1.5.6 and 2.0,
   and how a relaxed policy, a second connection, a catalog lookup and the two combined answer eighteen names inside one.
   Supports [`usage/statements/`](/handbook/usage/statements/README.md).
+* [`2026-11-17-asis-table-names/`](2026-11-17-asis-table-names/):
+  where `tbl(con, I("schema.table"))` fails on 2.0 and whose code passes the `I()` on,
+  what dbplyr hands to DBI, nine ways of naming a table on 2.0 and 1.4.0, and four ways to accept `I()`.
+  Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
