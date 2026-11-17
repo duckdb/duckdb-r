@@ -301,3 +301,33 @@ test_that("a temporary table is fetched column-wise", {
   expect_equal(df$a, 0:2)
   expect_false(df_is_materialized(df))
 })
+
+test_that("a converted column keeps its values and runs no query after a later fetch fails", {
+  con <- local_con()
+  dbWriteTable(con, "t", data.frame(a = 1:10, b = letters[1:10]))
+  calls <- 0
+  rlang::local_options(duckdb.materialize_callback = function(rel) {
+    calls <<- calls + 1
+  })
+
+  # A changed table fails the later fetch
+  changed <- rel_to_altrep(rel_from_table(con, "t"))
+  # Reading the values converts the column
+  a <- changed$a[seq_len(10)]
+  expect_equal(a, 1:10)
+  dbExecute(con, "INSERT INTO t VALUES (11, 'k')")
+  expect_error(changed$b[[1]], "table changed")
+  n <- calls
+  expect_identical(changed$a, a)
+  expect_equal(calls, n)
+
+  # An exhausted cell budget fails the later fetch
+  budget <- rel_to_altrep(rel_from_table(con, "t"), n_cells = 15)
+  # The table has eleven rows now, so fifteen cells leave four after column `a`
+  a <- budget$a[seq_len(11)]
+  expect_equal(a, 1:11)
+  expect_error(budget$b[[1]], "more than 4 rows")
+  n <- calls
+  expect_identical(budget$a, a)
+  expect_equal(calls, n)
+})
