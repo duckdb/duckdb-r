@@ -159,11 +159,11 @@ idx_t AltrepRelationWrapper::RowCount() {
 	return row_count;
 }
 
-void AltrepRelationWrapper::RegisterAltrepColumn() {
+void AltrepRelationWrapper::RegisterAltrepColumn(idx_t column_index) {
 	++altrep_columns;
 }
 
-void AltrepRelationWrapper::MarkColumnAsTransformed() {
+void AltrepRelationWrapper::MarkColumnAsTransformed(idx_t column_index) {
 	// Keep track of how many of the ALTREP columns have been transformed
 	// to their R representation
 	D_ASSERT(transformed_columns < altrep_columns);
@@ -381,6 +381,11 @@ struct AltrepVectorWrapper {
 		return rel->RowCount();
 	}
 
+	// The top-level column of the relation that holds this vector
+	idx_t TopLevelIndex() const {
+		return parent_column_index.empty() ? column_index : parent_column_index[0];
+	}
+
 	// Names and types come from the relation, which knows them without executing
 	const vector<ColumnDefinition> &Columns() {
 		return rel->rel->Columns();
@@ -475,7 +480,7 @@ struct AltrepVectorWrapper {
 			converted_length.store(Rf_xlength(transformed_vector), std::memory_order_relaxed);
 			converted_payload.store(DATAPTR_RO(transformed_vector), std::memory_order_release);
 
-			rel->MarkColumnAsTransformed();
+			rel->MarkColumnAsTransformed(TopLevelIndex());
 		}
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
@@ -959,7 +964,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 
 			// Register the vector so that the relation wrapper knows
 			// when all ALTREP columns have been transformed
-			relation_wrapper->RegisterAltrepColumn();
+			relation_wrapper->RegisterAltrepColumn(parent_col_idx.empty() ? col_idx : parent_col_idx[0]);
 			vector_sexp =
 			    R_new_altrep(LogicalTypeToAltrepType(col_type, col_name.GetIdentifierName()), ptr, R_NilValue);
 			duckdb_r_decorate(col_type, vector_sexp, convert_opts);

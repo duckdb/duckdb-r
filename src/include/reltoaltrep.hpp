@@ -21,8 +21,8 @@ struct AltrepRelationWrapper {
 
 	idx_t RowCount();
 
-	void RegisterAltrepColumn();
-	void MarkColumnAsTransformed();
+	void RegisterAltrepColumn(idx_t column_index);
+	void MarkColumnAsTransformed(idx_t column_index);
 
 	const size_t n_rows;
 	const size_t n_cells;
