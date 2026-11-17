@@ -290,7 +290,18 @@ if [ -n "$stamp_alpha" ]; then
   t=$(series_alpha_stamp_tree "$head" "$sha10" "$version")
   if ! git -C "$wt" diff --quiet HEAD -- "${series_alpha_stamped[@]}" &&
     ! git -C "$wt" diff --quiet "$t" -- "${series_alpha_stamped[@]}"; then
-    echo "Error: $wt has changes to the stamped files other than the stamp; commit or drop them first" >&2
+    # A stamp written before upstream's pointer moved is a stamp all the same,
+    # and dropping it is all a rerun needs.
+    held=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "$wt/$series_engine_file" 2>/dev/null || true)
+    if [[ $held =~ $series_alpha_version_re ]] &&
+      ht=$(series_alpha_stamp_tree "$head" "$sha10" "$held" 2>/dev/null) &&
+      git -C "$wt" diff --quiet "$ht" -- "${series_alpha_stamped[@]}"; then
+      mapfile -t changed < <(git -C "$wt" diff --name-only HEAD -- "${series_alpha_stamped[@]}")
+      echo "Error: $wt holds a different stamp, $held, where upstream's alpha of $sha10 is $version now;" >&2
+      echo "  drop it with \`git -C $wt checkout HEAD -- ${changed[*]}\` and stamp again" >&2
+    else
+      echo "Error: $wt has changes to the stamped files other than the stamp; commit or drop them first" >&2
+    fi
     exit 1
   fi
   mapfile -t changed < <(git diff --name-only "$head" "$t")
@@ -513,7 +524,9 @@ out_of_place() { # <tip>
 # Is the alpha <tip>'s bump stamps the one upstream's pointer names for the
 # engine under it now? is_bump holds the stamp to its engine offline; this reads
 # the pointer, so that no stamp lands that --stamp-alpha would not write. A bump
-# without a stamp passes; a pointer that cannot be read does not. Prints why not.
+# without a stamp passes; a pointer that cannot be read does not. Asked only while
+# the landing is pending: once the branch is the bump, the stamp has landed, and
+# the tag needs no pointer. Prints why not.
 stamp_confirmed() { # <tip>
   local v sha10 p rest err st=0
   [ -n "$(git diff --name-only "$1~1" "$1" -- "$series_engine_file")" ] || return 0
@@ -593,7 +606,7 @@ if [ -n "$status" ]; then
       echo "NOT READY: $L-land-dev does not end on the version bump;" \
         "add it (.claude/skills/series-land/SKILL.md, step 3)"
       exit 1
-    elif ! why=$(stamp_confirmed "$dev"); then
+    elif [ "$main" != "$dev" ] && ! why=$(stamp_confirmed "$dev"); then
       echo "NOT READY: $why"
       exit 1
     else

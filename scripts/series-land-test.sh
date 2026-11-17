@@ -31,9 +31,11 @@
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
 #      commit vendors, with nothing above it, whatever NEWS.md holds, and the
 #      alpha stamp of its parent's engine, READY only while upstream's pointer
-#      names that alpha and not when the pointer cannot be read. --stamp-alpha
+#      names that alpha and not when the pointer cannot be read, until the
+#      branch is the bump, which needs the pointer no longer. --stamp-alpha
 #      refuses an engine with no alpha or one with a gap in its extensions,
-#      succeeds again on its own stamp, warns on an engine not the source's, and
+#      and names the stamp a worktree holds of an alpha the pointer has moved
+#      past, with the checkout that drops it; it succeeds again on its own stamp, warns on an engine not the source's, and
 #      writes nothing for a release engine, whose bump needs no stamp; a rebuild
 #      drops a bump added to the kept worktree. Step 6's tag block, read off
 #      the series-land skill, runs the tag commands printed with the
@@ -651,6 +653,12 @@ stamp
 is "an edit to a stamped file beside the stamp is refused" "$st" 1
 has "  and says so" "$out" "has changes to the stamped files other than the stamp"
 git -C "$KWT" checkout -q -- "$LOADER"
+echo v2.0.0-alpha78 > "$NET/pointer-$ALPHA"
+stamp
+is "a stamp of an alpha upstream's pointer has since moved past is refused" "$st" 1
+has "  and named" "$out" "holds a different stamp, v2.0.0-alpha77, where upstream's alpha of $ALPHA is v2.0.0-alpha78 now"
+has "  with the checkout that drops it" "$out" "checkout HEAD -- R/version.R $LOADER $PRAGMA"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
 (cd "$KWT" && write_bump 1.99.99.9001 "${ALPHA}000000000000000000000000000000" &&
   git -c user.name=Test -c user.email=t@example.invalid commit -qam "$bump_msg")
 SB=$(git -C "$KWT" rev-parse HEAD)
@@ -673,6 +681,20 @@ status_of "$SB"
 is "a stamp whose pointer cannot be read is not ready" "$st" 1
 has "  and says why" "$out" "NOT READY: the bump's stamp v2.0.0-alpha77 is unconfirmed: could not read the alpha of $ALPHA"
 rm "$NET/down"
+landed "$SB"
+echo v2.0.0-alpha78 > "$NET/pointer-$ALPHA"
+status_of "$SB"
+has "once main is the stamped bump, a pointer moved past it leaves it ready" "$out" "READY: every commit has passed"
+: > "$NET/down"
+status_of "$SB"
+has "  and so does a pointer that cannot be read" "$out" "READY: every commit has passed"
+is "  and run as printed, the tag block tags it" "$(PATH="$STUB:$PATH" tag_as_printed v1.99.99.9001)" \
+  "$SB"$'\n''duckdb 1.99.99.9001'
+rm "$NET/down"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
+git tag -d v1.99.99.9001 >/dev/null
+git push -q upstream :refs/tags/v1.99.99.9001
+unlanded
 git -C "$KWT" checkout -q --detach "$TIP"
 
 stamped() { git checkout -q -f -B probe "$AV"; git checkout -q "$SB" -- .; }

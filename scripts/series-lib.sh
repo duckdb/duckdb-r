@@ -377,13 +377,42 @@ series_alpha_wanted() { # <commit>
 }
 
 # Does <commit> change nothing in the stamped files but the lines a stamp
-# rewrites? What lets a bump carry the stamp as paperwork (scripts/series-port.sh,
-# scripts/series-check.sh) without hiding an edit to the engine beside it.
+# rewrites, each replaced by one line of its kind that names an alpha? What lets
+# a bump carry the stamp as paperwork (scripts/series-port.sh,
+# scripts/series-check.sh) without hiding an edit to the engine beside it, a
+# line deleted or added, or a `-dev` stamped again.
 series_alpha_stamp_lines_only() { # <commit>
-  [ -z "$(git diff -U0 "$1~1" "$1" -- "${series_alpha_stamped[@]}" | grep -E '^[-+]' |
-    grep -vE '^(\+\+\+|---) ' |
-    grep -vE '^[-+](#define DUCKDB_(PATCH_)?VERSION "[^"]*"|[[:space:]]*descriptor->api_version = "[^"]*";|duckdb_version <- "[^"]*")$' ||
-    true)" ]
+  local line file='' kind value alpha=${series_alpha_version_re#^v}
+  local -A n=()
+  alpha=${alpha%$}
+  while IFS= read -r line; do
+    case "$line" in
+      '+++ '*) file=${line#+++ }; continue ;;
+      '--- '*) continue ;;
+      [-+]*) ;;
+      *) continue ;;
+    esac
+    if [[ ${line:1} =~ ^\#define\ DUCKDB_VERSION\ \"([^\"]*)\"$ ]]; then
+      kind=version value=${BASH_REMATCH[1]#v}
+    elif [[ ${line:1} =~ ^\#define\ DUCKDB_PATCH_VERSION\ \"([^\"]*)\"$ ]]; then
+      kind=patch value=0.0.${BASH_REMATCH[1]}
+    elif [[ ${line:1} =~ ^[[:space:]]*descriptor-\>api_version\ =\ \"([^\"]*)\"\;$ ]]; then
+      kind=api value=${BASH_REMATCH[1]#v}
+    elif [[ ${line:1} =~ ^duckdb_version\ \<-\ \"([^\"]*)\"$ ]]; then
+      kind=r value=${BASH_REMATCH[1]}
+    else
+      return 1
+    fi
+    if [ "${line:0:1}" = + ]; then
+      [[ $value =~ ^$alpha$ ]] || return 1
+      n[$file:$kind]=$((${n[$file:$kind]:-0} + 1))
+    else
+      n[$file:$kind]=$((${n[$file:$kind]:-0} - 1))
+    fi
+  done < <(git diff -U0 "$1~1" "$1" -- "${series_alpha_stamped[@]}")
+  for kind in "${n[@]}"; do
+    [ "$kind" = 0 ] || return 1
+  done
 }
 
 # Upstream writes a pointer only once the build has deployed its extensions, so

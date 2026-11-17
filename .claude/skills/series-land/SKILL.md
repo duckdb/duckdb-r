@@ -258,7 +258,8 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
   or does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it,
-  and on a stamped bump only while upstream's pointer names the alpha it stamps, which a pointer it cannot read does not confirm.
+  and on a stamped bump, until `<B>` is the bump, only while upstream's pointer names the alpha it stamps,
+  which a pointer it cannot read does not confirm.
 
 CI judges the bump like every other commit.
 A rebuild drops it, so after one, add it again.

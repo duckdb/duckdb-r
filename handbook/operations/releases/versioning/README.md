@@ -164,7 +164,8 @@ The stamp is the alpha strand's, `series_alpha_stamp_tree` in [`scripts/series-l
 the version in the engine file, the C++ `api_version` of the linked extensions, and `R/version.R`, with `DUCKDB_SOURCE_ID` left the commit.
 `scripts/series-land.sh` accepts a bump whose changes to those files are exactly that stamp of its parent,
 for the version its engine file names and the parent's `DUCKDB_SOURCE_ID`, and refuses any other change to them;
-`--status` reads the pointer again and is not `READY` until it names the version stamped.
+`--status` reads the pointer again and is not `READY` until it names the version stamped;
+once the branch is the bump, the stamp has landed, and `--status` no longer reads it.
 A bump on a `-dev` engine without the stamp is still accepted, and `--status` notes it.
 No port or forward merge carries the stamp, which a series and a newer line write for their own engines.
 

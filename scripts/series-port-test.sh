@@ -110,6 +110,7 @@ scripts/setup-git.sh >/dev/null
 printf 'Package: duckdb\nVersion: 1.0.0\n' > DESCRIPTION
 echo 'workflow' > .github/ci.yml
 echo 'foo <- function() 1' > R/foo.R
+echo 'duckdb_version <- "1.0.1-dev3"' > R/version.R
 git add -A
 git commit -qm 'chore: The base both lineages share'
 git branch fork-point
