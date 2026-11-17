@@ -11,22 +11,6 @@ static inline bool IsPathSeparator(char c) {
 	return c == '/' || c == '\\';
 }
 
-#if defined(_WIN32)
-// Windows accepts either separator in a UNC prefix: "\\server\share", "//server/share" and "\\?\UNC\" alike
-static bool StartsWithAnySeparator(const string &input, const string &prefix) {
-	if (input.size() < prefix.size()) {
-		return false;
-	}
-	for (size_t i = 0; i < prefix.size(); i++) {
-		const bool match = IsPathSeparator(prefix[i]) ? IsPathSeparator(input[i]) : input[i] == prefix[i];
-		if (!match) {
-			return false;
-		}
-	}
-	return true;
-}
-#endif
-
 // Appends "normal" segments, ignores ".", and consumes trailing segment via "..", popping "<segment>/.."
 static void MaybeAppendSegment(vector<string> &segments, string::const_iterator begin, string::const_iterator end) {
 	if (end == begin || (end == begin + 1 && *begin == '.')) {
@@ -333,6 +317,20 @@ size_t Path::ParseFileSchemes(const string &input, Path &parsed) {
 }
 
 #if defined(_WIN32)
+// Windows accepts either separator in a UNC prefix: "\\server\share", "//server/share" and "\\?\UNC\" alike
+bool Path::StartsWithAnySeparator(const string &input, const string &prefix) {
+	if (input.size() < prefix.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < prefix.size(); i++) {
+		const bool match = IsPathSeparator(prefix[i]) ? IsPathSeparator(input[i]) : input[i] == prefix[i];
+		if (!match) {
+			return false;
+		}
+	}
+	return true;
+}
+
 //
 // UNC Scheme as we handle it:
 // - scheme = "\\"
