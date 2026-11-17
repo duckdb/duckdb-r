@@ -206,6 +206,17 @@ jobs:
           old_sha=$(cat "$BUILD_CACHE_META/sha" 2>/dev/null || true)
           echo "cache built from: ${old_sha:-<none>}, now: $GITHUB_SHA"
           echo "cache_sha=${old_sha:-none}" >> "$GITHUB_OUTPUT"
+          # Compile flags: the Makevars this workflow writes and the tracked
+          # Makevars and make fragments. Their hash is stored with the SHA.
+          flags_hash=$(cat ~/.R/Makevars $(git ls-files 'src/Makevars*' 'src/include/*.mk') \
+            | shasum -a 256 | cut -d ' ' -f 1)
+          old_flags_hash=$(cat "$BUILD_CACHE_META/flags" 2>/dev/null || true)
+          echo "flags hash: ${old_flags_hash:-<none>} -> $flags_hash"
+          echo "flags_hash=$flags_hash" >> "$GITHUB_OUTPUT"
+          touch_all_sources() {
+            find src/duckdb -name '*.cpp' -exec touch {} +
+            touch src/*.cpp
+          }
           if [ -z "$old_sha" ]; then
             echo "Cold: no restored build tree."
           elif [ "$old_sha" = "$GITHUB_SHA" ]; then
@@ -218,21 +229,21 @@ jobs:
               [ -e "$f" ] && touch "$f"
             done < "$RUNNER_TEMP/changed.txt"
             # The engine's objects depend on the unity files only, not on the
-            # sources and headers they include, and the glue's .dd files leave
-            # out duckdb/ and include/ headers: any change there touches all
-            # sources that may include it, and ccache absorbs unchanged ones.
-            if grep -q '^src/duckdb/' "$RUNNER_TEMP/changed.txt"; then
-              echo "Engine changed: touching all engine and glue sources."
-              find src/duckdb -name '*.cpp' -exec touch {} +
-              touch src/*.cpp
-            fi
-            if grep -Eq '^src/include/|^src/[^/]*\.h' "$RUNNER_TEMP/changed.txt"; then
-              echo "Glue headers changed: touching all glue sources."
-              touch src/*.cpp
+            # sources and headers they include, and the glue's .dd files drop
+            # absolute, duckdb/ and ../ paths: a change under src/duckdb/, or
+            # to the Makevars and make fragments, touches all sources, and
+            # ccache absorbs the unchanged ones.
+            if grep -Eq '^src/duckdb/|^src/Makevars|^src/include/.*\.mk$' "$RUNNER_TEMP/changed.txt"; then
+              echo "Engine or build files changed: touching all engine and glue sources."
+              touch_all_sources
             fi
           else
             echo "::warning::Cannot diff against $old_sha; touching every tracked file."
             git ls-files -z | xargs -0 touch
+          fi
+          if [ -n "$old_sha" ] && [ "$old_flags_hash" != "$flags_hash" ]; then
+            echo "Compile flags changed or unrecorded: touching all engine and glue sources."
+            touch_all_sources
           fi
           echo "Restored objects: $(find src -name '*.o' | wc -l)"
           echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"
@@ -244,10 +255,25 @@ jobs:
           # Each patched engine source is compiled through its unity file
           # (src/duckdb/ub_<dir with / as _>.cpp); remove those objects before
           # each build so make cannot reuse an object from the other state.
+          : > "$RUNNER_TEMP/affected-objects.txt"
           for p in $(sed -n 's|^+++ b/||p' "$PATCH"); do
+            if ! printf '%s\n' "$p" | grep -Eq '^src/duckdb/src/.*\.cpp$'; then
+              echo "::error::$PATCH changes $p; only src/duckdb/src/**/*.cpp is supported"
+              exit 1
+            fi
             rel=${p#src/duckdb/}
-            echo "src/duckdb/ub_$(dirname "$rel" | tr / _).o"
-          done | sort -u > "$RUNNER_TEMP/affected-objects.txt"
+            obj="duckdb/ub_$(dirname "$rel" | tr / _).o"
+            if ! tr ' ' '\n' < src/include/sources.mk | grep -qxF "$obj"; then
+              echo "::error::$p maps to $obj, which src/include/sources.mk does not list"
+              exit 1
+            fi
+            echo "src/$obj" >> "$RUNNER_TEMP/affected-objects.txt"
+          done
+          sort -u -o "$RUNNER_TEMP/affected-objects.txt" "$RUNNER_TEMP/affected-objects.txt"
+          if [ ! -s "$RUNNER_TEMP/affected-objects.txt" ]; then
+            echo "::error::$PATCH changes no file"
+            exit 1
+          fi
           cat "$RUNNER_TEMP/affected-objects.txt"
           touch "$RUNNER_TEMP/build-start.marker"
 
@@ -271,7 +297,7 @@ jobs:
           kill "$tailpid" 2>/dev/null || true
           echo "R CMD INSTALL exit status: $status"
           # Located compiler errors, plus unlocated ones from the driver or linker.
-          grep -E '^[^: ]+:[0-9]+:[0-9]+: (fatal )?error:|^(ld|clang[^ :]*|error):' \
+          grep -E '^[^: ]+:[0-9]+:[0-9]+: (fatal )?error:|^(ld|clang[^ :]*): (fatal )?error:|^ld: error|^error:|^ccache: error:' \
             "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/errors-unpatched.txt" || true
           grep -E '^make: \*\*\* \[' "$RUNNER_TEMP/build-unpatched.log" | sort -u > "$RUNNER_TEMP/failed-targets-unpatched.txt" || true
           echo "::group::error lines"
@@ -357,6 +383,7 @@ jobs:
           xargs rm -fv < "$RUNNER_TEMP/affected-objects.txt"
           mkdir -p "$BUILD_CACHE_META"
           echo "$GITHUB_SHA" > "$BUILD_CACHE_META/sha"
+          echo "${{ steps.mtimes.outputs.flags_hash }}" > "$BUILD_CACHE_META/flags"
 
       - name: Save the build tree
         id: save-build
@@ -373,7 +400,8 @@ jobs:
         id: save-ccache
         # Content-addressed, so safe to keep whatever the verdict.
         if: >-
-          always() && !cancelled() && steps.verdict.outputs.recompiled != '' &&
+          always() && !cancelled() && steps.unpatched.outcome != 'skipped' &&
+          steps.verdict.outputs.recompiled != '' &&
           (steps.verdict.outputs.recompiled != '0' || steps.restore-ccache.outputs.cache-matched-key == '')
         uses: actions/cache/save@v4
         with:
