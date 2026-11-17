@@ -2,8 +2,8 @@ From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Subject: [PATCH] Compare the decimal precision to the maximum width as signed
 
-The Parquet schema element's precision is an int32_t, and DecimalType::MaxWidth()
-returns an unsigned width, so -Wsign-compare flags the comparison. The width is
+The Parquet schema element's precision is an int32_t, and Decimal::MAX_WIDTH_INT128
+is an unsigned width, so -Wsign-compare flags the comparison. The width is
 cast to int32_t, which holds it exactly.
 
 Carried here until upstream takes it; not proposed upstream yet.
@@ -12,12 +12,12 @@ Carried here until upstream takes it; not proposed upstream yet.
 diff --git a/src/duckdb/extension/parquet/parquet_reader.cpp b/src/duckdb/extension/parquet/parquet_reader.cpp
 --- a/src/duckdb/extension/parquet/parquet_reader.cpp
 +++ b/src/duckdb/extension/parquet/parquet_reader.cpp
-@@ -580,7 +580,7 @@ LogicalType ParquetReader::DeriveLogicalType(const SchemaElement &s_ele, const P
+@@ -584,7 +584,7 @@
  				throw IOException("Invalid DECIMAL precision %d and scale %d", s_ele.precision, s_ele.scale);
  			}
  			schema.type_scale = NumericCast<uint32_t>(s_ele.scale);
--			if (s_ele.precision > DecimalType::MaxWidth()) {
-+			if (s_ele.precision > static_cast<int32_t>(DecimalType::MaxWidth())) {
+-			if (s_ele.precision > Decimal::MAX_WIDTH_INT128) {
++			if (s_ele.precision > static_cast<int32_t>(Decimal::MAX_WIDTH_INT128)) {
+ 				// precisions above 38 become wide (BIGNUM-backed) decimals, other physical types fall back to DOUBLE
  				schema.type_info = ParquetExtraTypeInfo::DECIMAL_BYTE_ARRAY;
- 				return LogicalType::DOUBLE;
- 			}
+ 				if (s_ele.type == Type::BYTE_ARRAY || s_ele.type == Type::FIXED_LEN_BYTE_ARRAY) {
