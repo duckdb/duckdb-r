@@ -111,7 +111,7 @@ A column of the value's type writes it through \code{field.types}.
 }
 
 \section{Geometry}{
-The \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETRY}} type, its coordinate reference system (CRS),
+The \href{https://duckdb.org/docs/current/sql/data_types/geometry}{\code{GEOMETRY}} and \code{GEOGRAPHY} types, their coordinate reference system (CRS),
 and the \code{spatial} extension's own types:
 \itemize{
 \item \strong{\code{GEOMETRY}} reads as WKB.
@@ -120,6 +120,10 @@ with \code{geometry = "wk"}, as \code{wk_wkb}, carrying the column's CRS as an a
 The type is core since DuckDB 1.5, so reading one needs no extension;
 the geometry functions are the \href{https://duckdb.org/docs/current/core_extensions/spatial/overview}{\code{spatial} extension's}.
 Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see \link{duckdb_types_arrow}).
+\item \strong{\code{GEOGRAPHY}}, WKB with spherical edges, reads as \code{GEOMETRY} does,
+and with \code{geometry = "wk"} its \code{wk_wkb} also carries \code{geodesic = TRUE}, which \code{\link[wk:wk_is_geodesic]{wk::wk_is_geodesic()}} reports.
+Its WKT writes it through \code{field.types}, as \code{GEOMETRY}'s does.
+The type is core since DuckDB 2.1 (\href{https://github.com/duckdb/duckdb/pull/28092}{duckdb/duckdb#28092}).
 \item \strong{WKT writes \code{GEOMETRY}.}
 A \code{character} column of WKT, as \code{\link[sf:st_as_text]{sf::st_as_text()}} makes it, writes a \code{GEOMETRY} column with \code{field.types = c(geom = "GEOMETRY")}
 and appends to one with \code{dbAppendTable()}, because the cast from \code{VARCHAR} parses WKT.

@@ -142,10 +142,11 @@ Instead an error is generated.
 If \code{"matrix"} is selected, arrays are returned as a column matrix.
 Each array is one row in the matrix.}
 
-\item{geometry}{How geometry columns should be returned.
+\item{geometry}{How \code{GEOMETRY} and \code{GEOGRAPHY} columns should be returned.
 There are two options: \code{"blob"} and \code{"wk"}.
-If \code{"blob"} is selected, geometry columns are returned as a list of raw vectors containing WKB data.
-If \code{"wk"} is selected, geometry columns are returned as \pkg{wk} \code{wk_wkb} vectors.
+If \code{"blob"} is selected, these columns are returned as a list of raw vectors containing WKB data.
+If \code{"wk"} is selected, these columns are returned as \pkg{wk} \code{wk_wkb} vectors,
+marked geodesic for \code{GEOGRAPHY}.
 Use \code{\link[wk:wk_handle]{wk::wk_handle()}} or \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} to convert to other geometry formats.}
 
 \item{map}{How \code{MAP} columns should be returned.

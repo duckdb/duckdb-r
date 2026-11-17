@@ -34,10 +34,11 @@
 #'   Instead an error is generated.
 #'   If `"matrix"` is selected, arrays are returned as a column matrix.
 #'   Each array is one row in the matrix.
-#' @param geometry How geometry columns should be returned.
+#' @param geometry How `GEOMETRY` and `GEOGRAPHY` columns should be returned.
 #'   There are two options: `"blob"` and `"wk"`.
-#'   If `"blob"` is selected, geometry columns are returned as a list of raw vectors containing WKB data.
-#'   If `"wk"` is selected, geometry columns are returned as \pkg{wk} `wk_wkb` vectors.
+#'   If `"blob"` is selected, these columns are returned as a list of raw vectors containing WKB data.
+#'   If `"wk"` is selected, these columns are returned as \pkg{wk} `wk_wkb` vectors,
+#'   marked geodesic for `GEOGRAPHY`.
 #'   Use [wk::wk_handle()] or [sf::st_as_sfc()] to convert to other geometry formats.
 #' @param map How `MAP` columns should be returned.
 #'   There are two options: `"data.frame"` and `"list_of"`.

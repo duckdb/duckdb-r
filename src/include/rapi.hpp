@@ -484,6 +484,7 @@ struct RStrings {
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
 	SEXP crs_sym;
+	SEXP geodesic_sym;
 
 	static const RStrings &get() {
 		// On demand

@@ -109,7 +109,7 @@
 #'
 #' # Geometry
 #'
-#' The [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) type, its coordinate reference system (CRS),
+#' The [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry) and `GEOGRAPHY` types, their coordinate reference system (CRS),
 #' and the `spatial` extension's own types:
 #'
 #' * **`GEOMETRY`** reads as WKB.
@@ -118,6 +118,10 @@
 #'   The type is core since DuckDB 1.5, so reading one needs no extension;
 #'   the geometry functions are the [`spatial` extension's](https://duckdb.org/docs/current/core_extensions/spatial/overview).
 #'   Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see [duckdb_types_arrow]).
+#' * **`GEOGRAPHY`**, WKB with spherical edges, reads as `GEOMETRY` does,
+#'   and with `geometry = "wk"` its `wk_wkb` also carries `geodesic = TRUE`, which [wk::wk_is_geodesic()] reports.
+#'   Its WKT writes it through `field.types`, as `GEOMETRY`'s does.
+#'   The type is core since DuckDB 2.1 ([duckdb/duckdb#28092](https://github.com/duckdb/duckdb/pull/28092)).
 #' * **WKT writes `GEOMETRY`.**
 #'   A `character` column of WKT, as [sf::st_as_text()] makes it, writes a `GEOMETRY` column with `field.types = c(geom = "GEOMETRY")`
 #'   and appends to one with `dbAppendTable()`, because the cast from `VARCHAR` parses WKT.

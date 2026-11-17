@@ -147,6 +147,7 @@ RStrings::RStrings() {
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 	crs_sym = Rf_install("crs");
+	geodesic_sym = Rf_install("geodesic");
 	ptype_sym = Rf_install("ptype");
 }
 
@@ -373,6 +374,7 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	case LogicalTypeId::MAP:
 	case LogicalTypeId::BLOB:
 	case LogicalTypeId::GEOMETRY:
+	case LogicalTypeId::GEOGRAPHY:
 		return VECTOR_ELT(dest, 0);
 	default:
 		return dest;
