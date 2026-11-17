@@ -74,8 +74,10 @@ these are the boundaries users keep hitting:
   and register that as their own `distinct()` method
   ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
 * `tbl(con, I("schema.table"))` and `tbl(con, in_schema("schema", "table"))` fail,
-  because the backend's own `tbl()` asks `dbExistsTable()` about the name before dbplyr sees it, and `Id("schema", "table")` works
-  ([#2973](https://github.com/duckdb/duckdb-r/issues/2973), [`experiments/2026-11-17-asis-table-names/`](/experiments/2026-11-17-asis-table-names/README.md)).
+  because the backend's own `tbl()` asks `dbExistsTable()` about the name before dbplyr sees it.
+  `Id("schema", "table")` works
+  ([#2973](https://github.com/duckdb/duckdb-r/issues/2973),
+  [`experiments/2026-11-17-asis-table-names/`](/experiments/2026-11-17-asis-table-names/README.md)).
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,

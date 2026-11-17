@@ -160,7 +160,7 @@ This file is what names the contents, so nothing here is an orphan.
   Supports [`usage/statements/`](/handbook/usage/statements/README.md).
 * [`2026-11-17-asis-table-names/`](2026-11-17-asis-table-names/):
   where `tbl(con, I("schema.table"))` fails on 2.0 and whose code passes the `I()` on,
-  what dbplyr hands to DBI, nine ways of naming a table on 2.0 and 1.4.0, and four ways to accept `I()`.
+  what dbplyr hands to DBI, sixteen ways of opening a table on 2.0 and seven on 1.4.0, and four candidate changes.
   Supports [`usage/integrations/`](/handbook/usage/integrations/README.md).
 
 Adding one: create the directory, name it for the date and the topic,

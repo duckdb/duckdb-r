@@ -11,6 +11,8 @@ dbExecute(con, "CREATE SCHEMA s")
 dbExecute(con, "CREATE TABLE s.t AS SELECT 1 AS a")
 parquet <- tempfile(fileext = ".parquet")
 dbExecute(con, paste0("COPY s.t TO '", parquet, "'"))
+csv <- tempfile(fileext = ".csv")
+dbExecute(con, paste0("COPY s.t TO '", csv, "'"))
 
 # ---- 1. The stack from dplyr::tbl() ------------------------------------------
 cnd <- rlang::catch_cnd(withCallingHandlers(
@@ -52,8 +54,6 @@ log_name <- function(generic) {
 }
 traced <- list(
   dbExistsTable = c("duckdb_connection", "ANY"),
-  dbWriteTable = c("duckdb_connection", "character", "data.frame"),
-  dbRemoveTable = c("duckdb_connection", "character"),
   dbListFields = c("duckdb_connection", "character")
 )
 for (g in names(traced)) {
@@ -88,7 +88,7 @@ for (g in names(traced)) {
   ))
 }
 
-# ---- 3. Every way to name s.t, and each option -------------------------------
+# ---- 3. Every way to name s.t, and each change --------------------------------
 specs <- list(
   `I("s.t")` = I("s.t"),
   `SQL("s.t")` = SQL("s.t"),
@@ -98,7 +98,23 @@ specs <- list(
   `"s.t"` = "s.t",
   `sql("SELECT * FROM s.t")` = dbplyr::sql("SELECT * FROM s.t"),
   `parquet path` = parquet,
-  `I(quoted parquet path)` = I(paste0("'", parquet, "'"))
+  `I(quoted parquet path)` = I(paste0("'", parquet, "'")),
+  `glue() csv path` = glue::glue("{csv}"),
+  `glue() read_csv()` = glue::glue("read_csv('{csv}')"),
+  `fs::path() parquet` = fs::path(parquet),
+  `c(x = "s.t")` = c(x = "s.t"),
+  `factor("s.t")` = factor("s.t")
+)
+# Each row is a function that opens the lazy table; the last two do not call
+# tbl() with a name, and are here to show that they keep working.
+opens <- c(
+  lapply(specs, function(x) function() dplyr::tbl(con, x)),
+  list(
+    `tbl_file(csv)` = function() tbl_file(con, csv),
+    `tbl_function(read_csv())` = function() {
+      tbl_function(con, paste0("read_csv('", csv, "')"))
+    }
+  )
 )
 
 outcome <- function(expr) {
@@ -118,28 +134,56 @@ outcome <- function(expr) {
 }
 
 grid <- function() {
-  vapply(specs, function(x) outcome(dplyr::tbl(con, x)), character(1))
+  vapply(opens, function(open) outcome(open()), character(1))
 }
 
-exists <- vapply(
-  specs,
-  function(x) outcome(dbExistsTable(con, x)),
-  character(1)
+exists <- c(
+  vapply(specs, function(x) outcome(dbExistsTable(con, x)), character(1)),
+  `tbl_file(csv)` = "",
+  `tbl_function(read_csv())` = ""
 )
 as_is <- grid()
 
-# (a) duckdb's tbl() probes only a bare string, the one form whose meaning it
-# extends to replacement scans, and leaves every table identifier dbplyr knows,
-# I(), in_schema(), Id(), ident_q() and sql() among them, to dbplyr unprobed.
-tbl_option_a <- function(src, from, ..., cache = FALSE) {
-  if (rlang::is_bare_character(from) && !DBI::dbExistsTable(src, from)) {
-    from <- dbplyr::sql(paste0("FROM ", from))
+# A tbl() method with the probe condition given, registered for the run.
+tbl_probing <- function(probe_if) {
+  function(src, from, ..., cache = FALSE) {
+    if (probe_if(from) && !DBI::dbExistsTable(src, from)) {
+      from <- dbplyr::sql(paste0("FROM ", from))
+    }
+    if (cache) {
+      DBI::dbExecute(src, "PRAGMA enable_object_cache")
+    }
+    NextMethod("tbl")
   }
-  if (cache) {
-    DBI::dbExecute(src, "PRAGMA enable_object_cache")
-  }
-  NextMethod("tbl")
 }
+use_tbl <- function(method) {
+  registerS3method(
+    "tbl",
+    "duckdb_connection",
+    method,
+    envir = asNamespace("dplyr")
+  )
+}
+
+# (a) duckdb's tbl() probes any character vector except the classes dbplyr
+# and DBI use for a table identifier or for SQL: I(), a table path, ident()
+# and ident_q(), dbplyr's sql() and DBI's SQL(). in_schema(), in_catalog()
+# and Id() are not character vectors, and go to dbplyr unprobed.
+identifier_classes <- c("AsIs", "dbplyr_table_path", "ident", "sql", "SQL")
+use_tbl(tbl_probing(function(from) {
+  is.character(from) && !inherits(from, identifier_classes)
+}))
+option_a <- grid()
+
+# With (a), compute() keeps the table path dbplyr built.
+computed_a <- dplyr::compute(copied, I("s.e"), temporary = FALSE)
+dbplyr::remote_table(computed_a)
+
+# (a, bare) probing only a bare string breaks the classed strings that name a
+# file or a table function, glue() and fs::path() among them.
+use_tbl(tbl_probing(rlang::is_bare_character))
+option_a_bare <- grid()
+
 # (b) duckdb's tbl() probes what dbplyr would emit, as dbplyr's own
 # db_table_drop_if_exists() does: SQL() of dbplyr::as_table_path().
 tbl_option_b <- function(src, from, ..., cache = FALSE) {
@@ -158,27 +202,9 @@ tbl_option_b <- function(src, from, ..., cache = FALSE) {
   }
   NextMethod("tbl")
 }
-
-registerS3method(
-  "tbl",
-  "duckdb_connection",
-  tbl_option_a,
-  envir = asNamespace("dplyr")
-)
-option_a <- grid()
-registerS3method(
-  "tbl",
-  "duckdb_connection",
-  tbl_option_b,
-  envir = asNamespace("dplyr")
-)
+use_tbl(tbl_option_b)
 option_b <- grid()
-registerS3method(
-  "tbl",
-  "duckdb_connection",
-  tbl.duckdb_connection,
-  envir = asNamespace("dplyr")
-)
+use_tbl(tbl.duckdb_connection)
 
 # (c) #3003: duckdb's dbQuoteIdentifier() takes a character I() as SQL().
 setMethod(
@@ -186,18 +212,13 @@ setMethod(
   c("duckdb_connection", "AsIs"),
   function(conn, x, ...) SQL(unclass(x))
 )
-exists_c <- vapply(
-  specs,
-  function(x) outcome(dbExistsTable(con, x)),
-  character(1)
-)
 option_c <- grid()
 removeMethod("dbQuoteIdentifier", c("duckdb_connection", "AsIs"))
 
 knitr::kable(
   row.names = FALSE,
   data.frame(
-    name = paste0("`", names(specs), "`"),
+    name = paste0("`", names(opens), "`"),
     dbExistsTable = exists,
     tbl = as_is,
     check.names = FALSE
@@ -206,11 +227,11 @@ knitr::kable(
 knitr::kable(
   row.names = FALSE,
   data.frame(
-    name = paste0("`", names(specs), "`"),
-    `(a) tbl` = option_a,
-    `(b) tbl` = option_b,
-    `(c) dbExistsTable` = exists_c,
-    `(c) tbl` = option_c,
+    name = paste0("`", names(opens), "`"),
+    `(a)` = option_a,
+    `(a, bare)` = option_a_bare,
+    `(b)` = option_b,
+    `(c)` = option_c,
     check.names = FALSE
   )
 )
