@@ -11,7 +11,9 @@
 # and its process is dumped and its threads printed (procdump, cdb, gdb) before it is killed.
 # The jobs pass either way; the verdicts are in the log and the job summary.
 #
-# Put `[skip-src]` in the head commit's message to skip the source build while iterating.
+# Put `[skip-src]` or `[skip-base]` in the head commit's message to skip that job while iterating.
+# A variant ending in `_gdb` runs under gdb, where a fault stops it instead of being swallowed,
+# so its verdict is FAULT rather than HANG.
 
 on:
   push:
@@ -266,6 +268,8 @@ env:
       if ($exited) {
         $code = $p.ExitCode
         $verdict = if ($finished) { 'OK' } else { 'FAILED' }
+        # Under gdb, a fault ends the batch, and gdb kills R and exits 0: say what happened instead.
+        if ($v -like '*_gdb' -and (Select-String -Path $out -Pattern 'received signal' -Quiet)) { $verdict = 'FAULT' }
       } else {
         $code = ''
         $verdict = if ($finished) { 'HANG' } else { 'STUCK' }
@@ -299,6 +303,7 @@ env:
 jobs:
   baseline:
     name: CRAN binaries
+    if: ${{ !contains(github.event.head_commit.message, '[skip-base]') }}
     runs-on: windows-latest
     timeout-minutes: 90
 
