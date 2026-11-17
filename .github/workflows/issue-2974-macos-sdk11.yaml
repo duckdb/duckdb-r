@@ -58,10 +58,12 @@ jobs:
           - arch: x86_64
             runner: macos-15-intel
             r: release
+            cran: r-release-macos-x86_64
           # CRAN r-oldrel-macos-arm64 (R 4.5): Apple clang 14.0.3, MacOSX11.3.1.sdk.
           - arch: arm64
             runner: macos-15
             r: oldrel
+            cran: r-oldrel-macos-arm64
     permissions:
       contents: read
       # Replace this job's cache entry and delete superseded ones.
@@ -74,7 +76,9 @@ jobs:
       CCACHE_DIR: /Users/runner/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       # Per job; the whole entry (SDK, ccache, objects) stays under 1 GB.
-      CCACHE_MAXSIZE: 300M
+      # ccache splits the cap over 16 directories, and a unity object larger
+      # than its share is evicted at once: 300M lost the patched arm64 ones.
+      CCACHE_MAXSIZE: 400M
       CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
       BUILD_CACHE_META: /Users/runner/build-cache-meta
       UserNM: "true"
@@ -126,7 +130,8 @@ jobs:
       - name: Download the SDK unless restored
         id: sdk
         run: |
-          if [ -f ~/sdk/MacOSX${SDK_VERSION}.sdk/usr/include/c++/v1/functional ]; then
+          if [ -f ~/sdk/MacOSX${SDK_VERSION}.sdk/usr/include/c++/v1/functional ] \
+              && [ "$(cat ~/sdk/url 2>/dev/null || true)" = "$SDK_URL" ]; then
             echo "SDK restored from the cache."
             exit 0
           fi
@@ -135,6 +140,7 @@ jobs:
           mkdir -p ~/sdk
           curl -fsSL --retry 4 -o "$RUNNER_TEMP/sdk.tar.xz" "$SDK_URL"
           tar -xJf "$RUNNER_TEMP/sdk.tar.xz" -C ~/sdk
+          echo "$SDK_URL" > ~/sdk/url
           ls ~/sdk
 
       - name: Point the compilers at the SDK
@@ -149,7 +155,7 @@ jobs:
 
       - name: Install ccache and R dependencies
         run: |
-          brew install ccache
+          brew install ccache zstd
           Rscript -e 'install.packages("DBI")'
 
       - name: Wire ccache and the SDK into ~/.R/Makevars
@@ -178,7 +184,7 @@ jobs:
           R --version | sed -n '1,1p'
           echo "Xcode: ${{ steps.xcode.outputs.version }}"
           echo "clang: ${{ steps.xcode.outputs.clang }}"
-          echo "CRAN (r-release-macos-x86_64): Apple clang version 14.0.3 (clang-1403.0.22.14.1), SDK MacOSX11.3.1.sdk"
+          echo "CRAN (${{ matrix.cran }}): Apple clang version 14.0.3 (clang-1403.0.22.14.1), SDK MacOSX11.3.1.sdk"
           cxx=$(R CMD config CXX17)
           echo "--- $CLANGXX -isysroot \$SDKROOT -xc++ -std=gnu++17 -E -v -"
           "$CLANGXX" -arch ${{ matrix.arch }} -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E -v - </dev/null 2>&1 \
@@ -209,7 +215,7 @@ jobs:
           # Every tracked file gets the same old mtime, older than any object.
           git ls-files -z | xargs -0 touch -h -t 200001010000
           # Objects from another R, Xcode or SDK version are discarded.
-          toolchain="${{ matrix.arch }} R ${{ steps.toolchain.outputs.rversion }} Xcode ${{ steps.xcode.outputs.version }} SDK $SDK_VERSION"
+          toolchain="${{ matrix.arch }} R ${{ steps.toolchain.outputs.rversion }} Xcode ${{ steps.xcode.outputs.version }} SDK $SDK_VERSION $(printf '%s' "$SDK_URL" | shasum -a 256 | cut -c1-12)"
           old_toolchain=$(cat "$BUILD_CACHE_META/toolchain" 2>/dev/null || true)
           echo "toolchain: ${old_toolchain:-<none>} -> $toolchain"
           echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
@@ -389,7 +395,11 @@ jobs:
 
       - name: Record the build state for the next run
         id: record
-        if: always() && !cancelled() && steps.verdict.outputs.ok == 'true'
+        # Build 1 compiled the unchanged tree, so its objects are current for
+        # this commit whatever the verdict.
+        if: >-
+          always() && !cancelled() &&
+          (steps.unpatched.outcome == 'success' || steps.unpatched.outcome == 'failure')
         run: |
           # The cache holds objects of the unchanged tree only: drop the
           # patched ones, so a later patch that loses a hunk cannot reuse them.
@@ -409,24 +419,42 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          echo "start_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           if [ "${{ steps.record.outcome }}" != "success" ]; then
-            # The verdict failed: keep the SDK and ccache, which are
-            # content-addressed, but no objects and no record.
-            echo "Verdict failed: saving the SDK and ccache only."
+            echo "No build record: saving the SDK and ccache only."
             find src -name '*.o' -delete
             rm -rf "$BUILD_CACHE_META"
           fi
           ccache --cleanup
           ccache --show-stats | grep -i 'cache size'
-          # Delete this job's entry, then this branch's entries under keys
-          # this workflow no longer uses.
-          gh cache delete "$CACHE_KEY" -R "$GITHUB_REPOSITORY" || true
-          gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --limit 100 --json key,id \
-            --jq '.[] | select(.key | test("^(issue-2974-build-|issue-2974-ccache-|macos-sdk-phracker-)")) | "\(.id) \(.key)"' \
+          # Size guard: the entry as the action would store it, a zstd tar of
+          # the same paths. Above the limit, the objects stay out of it.
+          limit=950000000
+          measure() {
+            { find ~/sdk "$CCACHE_DIR" "$BUILD_CACHE_META" -type f 2>/dev/null || true
+              find src -name '*.o' -type f; } \
+              | tar -cf - -T - 2>/dev/null | zstd -T0 -3 -q -c | wc -c | tr -d ' '
+          }
+          size=$(measure)
+          echo "estimated entry size: $size bytes (limit $limit)"
+          if [ "$size" -gt "$limit" ]; then
+            echo "::warning::Cache entry would be $size bytes, over $limit: saving the SDK and ccache only."
+            echo "oversize=$size" >> "$GITHUB_OUTPUT"
+            find src -name '*.o' -delete
+            rm -rf "$BUILD_CACHE_META"
+            size=$(measure)
+            echo "estimated entry size without objects: $size bytes"
+          fi
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+          # First this branch's entries under keys this workflow no longer
+          # uses, then this job's own entry, which the next step saves anew.
+          { gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --limit 100 --json key,id \
+              --jq '.[] | select(.key | test("^(issue-2974-build-|issue-2974-ccache-|macos-sdk-phracker-)")) | "\(.id) \(.key)"' \
             | while read -r id key; do
-              echo "Deleting superseded entry $key"
-              gh cache delete "$id" -R "$GITHUB_REPOSITORY" || true
-            done
+                echo "Deleting superseded entry $key"
+                gh cache delete "$id" -R "$GITHUB_REPOSITORY" || true
+              done; } || true
+          gh cache delete "$CACHE_KEY" -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" || true
 
       - name: Save the SDK, ccache and the build tree
         id: save
@@ -456,7 +484,7 @@ jobs:
             echo "| R | $(R --version | sed -n '1,1p') |"
             echo "| Xcode | ${{ steps.xcode.outputs.version }} |"
             echo "| clang | ${{ steps.xcode.outputs.clang }} |"
-            echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk (r-release-macos-x86_64, r-oldrel-macos-arm64) |"
+            echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk (${{ matrix.cran }}) |"
             echo "| Fidelity | clang ${{ steps.xcode.outputs.clang }} against the 11.3 SDK's libc++, while CRAN uses clang 14.0.3: this tests the library headers, not the compiler |"
             echo "| libc++ headers | \`${{ steps.toolchain.outputs.first_libcxx }}\`, _LIBCPP_VERSION ${{ steps.toolchain.outputs.libcxx }} |"
             echo "| Cache entry | \`$CACHE_KEY\`, hit: ${{ steps.restore.outputs.cache-hit || 'false' }}, objects built from ${{ steps.mtimes.outputs.cache_sha }} |"
@@ -472,8 +500,21 @@ jobs:
             echo
             echo "Verdict holds: ${{ steps.verdict.outputs.ok || 'false' }}." \
               "Objects compiled besides the affected ones: ${{ steps.verdict.outputs.recompiled }}." \
-              "Cache entry saved: ${{ steps.save.outcome }}" \
-              "(objects and record: ${{ steps.record.outcome == 'success' && 'yes' || 'no' }})."
+              "Build record written: ${{ steps.record.outcome == 'success' && 'yes' || 'no' }}."
+            if [ -n "${{ steps.replace.outputs.oversize }}" ]; then
+              echo
+              echo "**Warning:** the entry would have been ${{ steps.replace.outputs.oversize }} bytes; objects were left out."
+            fi
+            # Saved means an entry under this key created after the replace step began.
+            saved=$(gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "$CACHE_KEY" --limit 10 \
+              --json key,createdAt,sizeInBytes \
+              --jq '.[] | select(.key == env.CACHE_KEY and .createdAt >= "${{ steps.replace.outputs.start_ts || '9999' }}") | "\(.sizeInBytes)"' 2>/dev/null || true)
+            echo
+            if [ -n "$saved" ]; then
+              echo "Cache entry \`$CACHE_KEY\` saved: $saved bytes (estimated ${{ steps.replace.outputs.size }})."
+            else
+              echo "Cache entry \`$CACHE_KEY\` not saved in this run (save step: ${{ steps.save.outcome }})."
+            fi
             echo
             echo "### Errors of build 1"
             echo
