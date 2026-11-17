@@ -151,7 +151,7 @@ A forward merge of an older release branch into a newer line is the one merge wh
 so the driver keeps the newer line's `Version:` verbatim and the older line's `2.0.x` never reaches it
 ([`branches/model/`](/handbook/branches/model/README.md)).
 
-**A landing ends on an engine upstream built as an alpha, and its bump stamps that build.**
+**A landing that ends on a `-dev` engine ends on one upstream built as an alpha, and its bump stamps that build.**
 Upstream publishes extensions under an alpha's version only, `v2.1.0-alpha55959`,
 and a `-dev` stamp looks them up under the commit, so without the stamp `INSTALL` finds nothing on the branch landed on.
 Which commits upstream built so is a pointer per commit:
@@ -159,11 +159,13 @@ Which commits upstream built so is a pointer per commit:
 `scripts/series-land.sh <S> --stamp-alpha` reads it for the engine the kept build ends on,
 probes the extensions as [`series-alpha`](/.claude/skills/series-alpha/SKILL.md) does, and refuses where there is no alpha or a gap;
 otherwise it writes the stamp into the kept worktree, for the bump to carry.
+An engine that is an upstream release is the build upstream published extensions for, and `--stamp-alpha` writes nothing for it.
 The stamp is the alpha strand's, `series_alpha_stamp_tree` in [`scripts/series-lib.sh`](/scripts/series-lib.sh):
 the version in the engine file, the C++ `api_version` of the linked extensions, and `R/version.R`, with `DUCKDB_SOURCE_ID` left the commit.
 `scripts/series-land.sh` accepts a bump whose changes to those files are exactly that stamp of its parent,
-for the version its engine file names and the parent's `DUCKDB_SOURCE_ID`, and refuses any other change to them.
-A bump without the stamp is still accepted, and `--status` notes it.
+for the version its engine file names and the parent's `DUCKDB_SOURCE_ID`, and refuses any other change to them;
+`--status` reads the pointer again and is not `READY` until it names the version stamped.
+A bump on a `-dev` engine without the stamp is still accepted, and `--status` notes it.
 No port or forward merge carries the stamp, which a series and a newer line write for their own engines.
 
 **A preview line carries the prefix of the line it previews**,

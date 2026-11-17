@@ -361,6 +361,31 @@ series_http() { # <url> <file> -> the HTTP status, with the body in <file>
   curl -sS -L -m 60 -o "$2" -w '%{http_code}' "$1"
 }
 
+# Does <commit> stamp a development engine, the kind an alpha build replaces?
+# A release's stamp is the build upstream published extensions for, and needs
+# none; a tree that stamps nothing is asked as a development one, so that the
+# step needing an alpha says what is missing.
+series_alpha_wanted() { # <commit>
+  local v
+  v=$(series_stamped_version "$1")
+  [ -n "$v" ] || return 0
+  if declare -F series_release_of_stamp >/dev/null; then
+    [ -n "$(series_release_of_stamp "$v")" ]
+  else
+    [[ $v == *-dev* ]]
+  fi
+}
+
+# Does <commit> change nothing in the stamped files but the lines a stamp
+# rewrites? What lets a bump carry the stamp as paperwork (scripts/series-port.sh,
+# scripts/series-check.sh) without hiding an edit to the engine beside it.
+series_alpha_stamp_lines_only() { # <commit>
+  [ -z "$(git diff -U0 "$1~1" "$1" -- "${series_alpha_stamped[@]}" | grep -E '^[-+]' |
+    grep -vE '^(\+\+\+|---) ' |
+    grep -vE '^[-+](#define DUCKDB_(PATCH_)?VERSION "[^"]*"|[[:space:]]*descriptor->api_version = "[^"]*";|duckdb_version <- "[^"]*")$' ||
+    true)" ]
+}
+
 # Upstream writes a pointer only once the build has deployed its extensions, so
 # a gap is upstream's, and nothing is stamped until it is understood.
 series_alpha_probe() { # <version>: fails naming the first extension missing
@@ -368,7 +393,7 @@ series_alpha_probe() { # <version>: fails naming the first extension missing
   for p in $series_alpha_platforms; do
     for e in $series_alpha_probes; do
       status=$(curl -sS -I -m 60 -o /dev/null -w '%{http_code}' \
-        "$series_alpha_extensions/$1/$p/$e.duckdb_extension.gz") || return 1
+        "$series_alpha_extensions/$1/$p/$e.duckdb_extension.gz") || return $?
       [ "$status" = 200 ] ||
         { echo "Error: $1 has no $e for $p (HTTP $status); not stamping it" >&2; return 1; }
     done

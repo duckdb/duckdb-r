@@ -372,7 +372,8 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 # **A landing's bump may carry the alpha stamp** (series_alpha_stamped,
 # scripts/series-lib.sh), which series-land.sh holds to the engine under it.
 # The series stamps its own engine, so the stamp is the release strand's too,
-# and only beside a moved `Version:`.
+# and only beside a moved `Version:` and where it rewrites the stamp's lines
+# alone (series_alpha_stamp_lines_only).
 #
 # **A commit that leaves DESCRIPTION alone is paperwork without a bump.** Notes
 # written into NEWS.md for `main`'s next release are the release strand's just
@@ -392,7 +393,7 @@ version_bump() { # <sha>
     touched=1
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
   [ -n "$touched" ] || return 1
-  [ -z "$stamp" ] || [ -n "$desc" ] || return 1
+  [ -z "$stamp" ] || { [ -n "$desc" ] && series_alpha_stamp_lines_only "$1"; } || return 1
   if [ -n "$desc" ]; then
     before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
     after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)

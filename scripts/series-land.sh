@@ -130,7 +130,7 @@
 #   --target prints that branch and nothing else, for a command block to read.
 #   --stamp-alpha writes the alpha stamp of the engine the kept build ends on
 #   into its worktree, for the version bump to carry, and refuses where
-#   upstream built no alpha of that engine.
+#   upstream built no alpha of that engine; a release engine needs none.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
@@ -213,59 +213,92 @@ fi
 
 # --- --stamp-alpha: the stamp the version bump carries ---------------------------
 
-# A landing ends on an engine upstream built as an alpha, and its bump stamps
-# that build, so that `INSTALL` finds the extensions published for it
-# (handbook/operations/releases/versioning/README.md). Upstream writes
+# A landing that ends on a development engine ends on one upstream built as an
+# alpha, and its bump stamps that build, so that `INSTALL` finds the extensions
+# published for it (handbook/operations/releases/versioning/README.md); a
+# release engine is that build already and needs none. Upstream writes
 # `<sha10>/latest_alpha_version.txt` on its staging host for each commit it
-# built so; the stamp is series-alpha.sh's (series_alpha_stamp_tree). It is
-# written into the kept worktree, staged, and committed with the bump. Run from
-# that worktree or from the clone that built it.
+# built so.
+alpha_pointer() { # <sha10> -> the version it names; 2 where upstream built no alpha
+  local body st version
+  body=$(mktemp) || return 1
+  if ! st=$(series_http "$series_alpha_staging/$1/latest_alpha_version.txt" "$body"); then
+    rm -f "$body"
+    echo "Error: could not read the alpha of $1 from $series_alpha_staging" >&2
+    return 1
+  fi
+  version=$(tr -d '[:space:]' <"$body")
+  rm -f "$body"
+  case "$st" in
+    200) ;;
+    403 | 404) return 2 ;;
+    *) echo "Error: reading the alpha of $1 from $series_alpha_staging answered HTTP $st" >&2; return 1 ;;
+  esac
+  # The pointer holds the version; a `<sha10>/` in front of it names the commit.
+  case "$version" in
+    */*) [ "${version%%/*}" = "$1" ] ||
+      { echo "Error: the alpha pointer of $1 names another commit: $version" >&2; return 1; }
+      version=${version#*/} ;;
+  esac
+  [[ $version =~ $series_alpha_version_re ]] ||
+    { echo "Error: the alpha pointer of $1 holds '$version', not vX.Y.Z-alphaN" >&2; return 1; }
+  echo "$version"
+}
+
+# The stamp is series-alpha.sh's (series_alpha_stamp_tree). It is written into
+# the kept worktree, staged, and committed with the bump; a worktree that holds
+# it already is left as it is. Run from that worktree or from the clone that
+# built it.
 if [ -n "$stamp_alpha" ]; then
   kept=$STATE
   [ -f "$kept" ] || kept="$(git rev-parse --git-common-dir)/series-land-$L"
   [ -f "$kept" ] || { echo "Error: no kept build of $L to stamp; build it first" >&2; exit 1; }
-  read -r wt _ < "$kept"
+  read -r wt _ src _ < "$kept"
   [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
   head=$(git -C "$wt" rev-parse HEAD)
-  sha10=$(series_engine_of "$head")
-  [[ $sha10 =~ ^[0-9a-f]{10}$ ]] ||
-    { echo "Error: $(git rev-parse --short "$head") records engine '$sha10', not ten hex digits" >&2; exit 1; }
   cur=$(git show "$head:$series_engine_file" | sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p')
   if [[ $cur =~ $series_alpha_version_re ]]; then
     echo "$L: $(git rev-parse --short "$head") is stamped as $cur already"
     exit 0
   fi
-  git -C "$wt" diff --quiet HEAD -- "${series_alpha_stamped[@]}" ||
-    { echo "Error: $wt has changes to the stamped files; commit or drop them first" >&2; exit 1; }
-  body=$(mktemp)
-  trap 'rm -f "$body"' EXIT
-  st=$(series_http "$series_alpha_staging/$sha10/latest_alpha_version.txt" "$body")
+  if ! series_alpha_wanted "$head"; then
+    echo "$L: $(git rev-parse --short "$head") is stamped as $(series_stamped_version "$head"), a release," \
+      "which needs no alpha stamp"
+    exit 0
+  fi
+  sha10=$(series_engine_of "$head")
+  [[ $sha10 =~ ^[0-9a-f]{10}$ ]] ||
+    { echo "Error: $(git rev-parse --short "$head") records engine '$sha10', not ten hex digits" >&2; exit 1; }
+  # A stopped build's worktree ends below the source's engine, which is the one
+  # the landing is meant to end on.
+  if [ -n "${src:-}" ] && git cat-file -e "$src^{commit}" 2>/dev/null &&
+    [ "$(series_engine_of "$src")" != "$sha10" ]; then
+    echo "Warning: $(git rev-parse --short "$head") vendors $sha10, not $(series_engine_of "$src")," \
+      "the engine of the source it builds up to; a stopped build is stamped as it stands" >&2
+  fi
+  st=0
+  version=$(alpha_pointer "$sha10") || st=$?
   case "$st" in
-    200) ;;
-    403 | 404)
+    0) ;;
+    2)
       echo "Error: upstream built no alpha of $series_upstream_repo@$sha10, the engine the landing ends on;" >&2
       echo "  end the batch on one that has an alpha (handbook/operations/releases/versioning/README.md)" >&2
       exit 1 ;;
-    *) echo "Error: reading the alpha of $sha10 from $series_alpha_staging answered HTTP $st" >&2; exit 1 ;;
+    *) exit 1 ;;
   esac
-  version=$(tr -d '[:space:]' <"$body")
-  # The pointer holds the version; a `<sha10>/` in front of it names the commit.
-  case "$version" in
-    */*) [ "${version%%/*}" = "$sha10" ] ||
-      { echo "Error: the alpha pointer of $sha10 names another commit: $version" >&2; exit 1; }
-      version=${version#*/} ;;
-  esac
-  [[ $version =~ $series_alpha_version_re ]] ||
-    { echo "Error: the alpha pointer of $sha10 holds '$version', not vX.Y.Z-alphaN" >&2; exit 1; }
   series_alpha_probe "$version"
   t=$(series_alpha_stamp_tree "$head" "$sha10" "$version")
+  if ! git -C "$wt" diff --quiet HEAD -- "${series_alpha_stamped[@]}" &&
+    ! git -C "$wt" diff --quiet "$t" -- "${series_alpha_stamped[@]}"; then
+    echo "Error: $wt has changes to the stamped files other than the stamp; commit or drop them first" >&2
+    exit 1
+  fi
   mapfile -t changed < <(git diff --name-only "$head" "$t")
   git -C "$wt" checkout "$t" -- "${changed[@]}"
   echo "$L: stamped $series_upstream_repo@$sha10 as $version in $wt: ${changed[*]}"
   echo "  Commit it with the version bump (.claude/skills/series-land/SKILL.md, step 3)."
   exit 0
 fi
-
 
 # The landing stands on the canonical `main` and on nothing else: a mirror that
 # has not caught up is an older `main`, and a landing built on it cannot
@@ -477,6 +510,30 @@ out_of_place() { # <tip>
 
 # --- --status: what CI has decided, and green over the passed prefix ----------
 
+# Is the alpha <tip>'s bump stamps the one upstream's pointer names for the
+# engine under it now? is_bump holds the stamp to its engine offline; this reads
+# the pointer, so that no stamp lands that --stamp-alpha would not write. A bump
+# without a stamp passes; a pointer that cannot be read does not. Prints why not.
+stamp_confirmed() { # <tip>
+  local v sha10 p rest err st=0
+  [ -n "$(git diff --name-only "$1~1" "$1" -- "$series_engine_file")" ] || return 0
+  v=$(git show "$1:$series_engine_file" | sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p')
+  sha10=$(series_engine_of "$1~1")
+  err=$(mktemp) || { echo "could not make a temporary file to read the alpha pointer"; return 1; }
+  p=$(alpha_pointer "$sha10" 2>"$err") || st=$?
+  case "$st" in
+    0) rm -f "$err" ;;
+    2) rm -f "$err"
+      echo "the bump stamps $v, but upstream names no alpha of $sha10 now"; return 1 ;;
+    *) p=$(grep -m 1 '^Error: ' "$err" || true)
+      rest=$(grep -v '^Error: ' "$err" | tr '\n' ' ' || true)
+      rm -f "$err"
+      echo "the bump's stamp $v is unconfirmed: ${p#Error: }${rest:+ (${rest% })}"; return 1 ;;
+  esac
+  [ "$p" = "$v" ] ||
+    { echo "the bump stamps $v, but upstream's newest alpha of $sha10 is $p; stamp it again with --stamp-alpha"; return 1; }
+}
+
 rcc=${RCC_BRANCH:-rcc2}
 
 # One record per commit; the same helper as scripts/series-advance.sh and
@@ -536,11 +593,14 @@ if [ -n "$status" ]; then
       echo "NOT READY: $L-land-dev does not end on the version bump;" \
         "add it (.claude/skills/series-land/SKILL.md, step 3)"
       exit 1
+    elif ! why=$(stamp_confirmed "$dev"); then
+      echo "NOT READY: $why"
+      exit 1
     else
       echo "READY: every commit has passed, and $onto ($(git rev-parse --short "$main")) fast-forwards to it:"
       echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/$onto"
       tag_commands "$(git rev-parse "$dev")"
-      [ -n "$(git diff --name-only "$dev~1" "$dev" -- "$series_engine_file")" ] ||
+      ! series_alpha_wanted "$dev" ||
         echo "Note: the bump carries no alpha stamp, so INSTALL finds no extensions on $onto;" \
           "--stamp-alpha writes it (.claude/skills/series-land/SKILL.md, step 3)"
     fi

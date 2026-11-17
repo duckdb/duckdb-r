@@ -917,13 +917,15 @@ fi
 # the version and the engine record. A DESCRIPTION change to anything else, a
 # dependency say, is package content the newer line may want. A bump's alpha
 # stamp (series_alpha_stamped, scripts/series-lib.sh) is the older line's engine,
-# which a forward merge never takes, so it is paperwork beside a moved version.
+# which a forward merge never takes, so it is paperwork beside a moved version
+# where it rewrites the stamp's lines alone (series_alpha_stamp_lines_only).
 paperwork() { # <commit>
   local other
   other=$(git diff-tree --no-commit-id --name-only -r "$1" |
     grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)
   if [ -n "$other" ]; then
     [ -z "$(grep -vxF -f <(printf '%s\n' "${series_alpha_stamped[@]}") <<<"$other" || true)" ] &&
+      series_alpha_stamp_lines_only "$1" &&
       git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -q '^+Version:' || return 1
   fi
   [ -z "$(git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' |

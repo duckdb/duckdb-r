@@ -254,20 +254,25 @@ git add -A; git commit -qm 'chore: Bump version to 9.9.0.9003'
 SYNC=$(git rev-parse HEAD)
 echo 'fix c' > c.R; git add -A; git commit -qm 'fix: C, written on the release branch'
 C=$(git rev-parse HEAD)
+printf 'Version: 9.9.0.9004\nImports: DBI (>= 1.2)\n' > DESCRIPTION
+printf 'duckdb_version <- "9.9.0-alpha2"\nduckdb_extra <- TRUE\n' > R/version.R
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9004'
+EXTRA=$(git rev-parse HEAD)
 git push -q canon rel
 git checkout -q main
 out=$(fwd)
-has "it counts what is not yet merged forward" "$out" "rel has 8 commit(s) not yet merged forward into main:"
-has "vendor commits and paperwork by number, the R side listed" "$out" "3 vendor, 2 release paperwork, 3 R-side"
+has "it counts what is not yet merged forward" "$out" "rel has 9 commit(s) not yet merged forward into main:"
+has "vendor commits and paperwork by number, the R side listed" "$out" "3 vendor, 2 release paperwork, 4 R-side"
 has "a bump that also carries R-side files is listed" "$out" "$(git rev-parse --short "$SYNC") chore: Bump version to 9.9.0.9003"
 has "a DESCRIPTION change beyond the version is R-side" "$out" "$(git rev-parse --short "$DBI") fix: Require DBI >= 1.2"
 has "and so is an ordinary fix" "$out" "$(git rev-parse --short "$C") fix: C, written on the release branch"
 hasnt "a version-only change under another subject is paperwork" "$out" "Increment version number"
 hasnt "vendor commits are not listed one by one" "$out" "bbbb22"
 hasnt "nor a bump that is only paperwork, its alpha stamp included" "$out" "Bump version to 9.9.0.9001"
+has "a bump whose stamp file changes beyond the stamp is listed" "$out" "$(git rev-parse --short "$EXTRA") chore: Bump version to 9.9.0.9004"
 git push -q -f origin cmain:main rel:rel
 has "without a canonical remote it reads the fork's mirrors" \
-  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 8 commit(s)"
+  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 9 commit(s)"
 
 # The forward merge, keeping main's engine.
 git checkout -q cmain
