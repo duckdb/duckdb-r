@@ -46,7 +46,8 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
 * **What the bar shows and when is the engine's behavior, and out of this package's scope.**
   The engine weighs the percentage by estimated rows, not time, and decides when to update and when to finish
   ([a](#a-large-local-queries), [b](#b-a-remote-part-and-a-local-part)).
-* **The package relays every call the engine makes on R's thread.**
+* **The package relays every call made on R's thread; calls from arrow's thread pool are dropped
+  ([#3034](https://github.com/duckdb/duckdb-r/issues/3034)).**
   In the glue, `RProgressBarDisplay::Update()` ([`src/connection.cpp`](/src/connection.cpp)) calls the R function on every call,
   and `Finish()` calls `Update(100)`; it returns early only when no function is set or when called off R's thread,
   and an error the function raises is ignored.
@@ -55,8 +56,25 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   Under gdb with breakpoints on `Update()` and `Finish()`, every one of 1,972 `Update()` calls across eleven scenarios,
   at one and at four threads, materialized and streamed, came on R's thread and reached the R function,
   one callback per call ([`finish.txt`](finish.txt)).
-  A stream read by a thread other than R's, such as one of arrow's, would have its calls dropped by that check;
-  no scenario here reads one that way.
+  No scenario here reads a stream off R's thread.
+  One that does is [#3034](https://github.com/duckdb/duckdb-r/issues/3034):
+  a stream handed to `arrow::as_record_batch_reader()` and read by arrow's thread pool, as `write_dataset()` or `collect()` on the reader do,
+  runs the engine on an arrow thread, and the check drops all of those calls, `Finish()` included,
+  so none of about 14,500 reached R there.
+  `$get_next()`, `as_arrow_table()` and `write_parquet()` read on R's thread and deliver every call.
+* **A stream's display can finish before the stream ends, which is the engine's behavior, recorded here and not fixed.**
+  `Executor::IdleState()` reports a ready state while the result collector is blocked
+  ([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)),
+  and `ClientContext::UpdateProgressInternal()` passes any observable state as final,
+  under the engine's own note that this is not correct for streaming results
+  ([`src/duckdb/src/main/client_context_execution.cpp`](/src/duckdb/src/main/client_context_execution.cpp)).
+  In [`finish.txt`](finish.txt) the four-thread scan under a 976 KiB buffer finished its display with read 9 of 51
+  and brought no `Finish()` at its end.
+  In R the default display is then cleared early, later updates paint it again, and no final `Finish()` clears it, so a stale line stays.
+  It is rare and depends on timing: the same stream at one thread, and every stream in `run.md`, finished with its last read.
+  The probe for #3034 saw it more often: a stream of 30,000,000 rows under a 16 KiB buffer
+  got its `Finish()` part-way, at 5 to 8% or at 64%, and none at the end,
+  so even a reader on R's thread can end below 100; its `write_parquet()` ended at 99.997.
 
 ## What every query is told
 
@@ -111,9 +129,8 @@ Single-threaded, through `dbGetQuery()`:
   In [`run.md`](run.md), with chunks of 1,000,000 rows, the callback's 100 came with read 10 of the `GROUP BY` and of the `ORDER BY`,
   their last reads with rows; the `ORDER BY` reads from 65.5 to 100 in that read.
   Reads after it, and reads the buffer already holds, get no call.
-  One `Finish()` came mid-stream: in [`finish.txt`](finish.txt), the four-thread scan under a 976 KiB buffer
-  finished its display with read 9 of 51, and its end brought no second `Finish()`,
-  while the same stream at one thread, and every stream in `run.md`, finished with its last read.
+  One `Finish()` came mid-stream, at read 9 of 51 of the four-thread 976 KiB scan in [`finish.txt`](finish.txt);
+  the [conclusions](#conclusions) give its cause.
 
 ## b. A remote part and a local part
 

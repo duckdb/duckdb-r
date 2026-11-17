@@ -7,12 +7,15 @@ or hands it to something that does.
 ## The progress display
 
 The progress display is the engine calling back into R.
-**The engine decides what the display shows and when; the package relays every call into the display on R's thread to R.**
+**The engine decides what the display shows and when; the package relays to R every call into the display made on R's thread.**
 The glue's display, `RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp),
 passes each `Update()` to the function `get_progress_display()` returned with the percentage,
 and each `Finish()` as an `Update()` of 100, so the function cannot tell the two apart.
-It drops a call only when no function is set, or when the engine makes it on a thread other than R's,
-where no R code may run: a stream fetched by another thread, such as one of arrow's, reports nothing.
+It drops a call when no function is set, and when the engine makes it on a thread other than R's, where no R code may run.
+A stream that arrow's thread pool reads, as `write_dataset()` or `collect()` on `arrow::as_record_batch_reader()` do,
+runs the engine on arrow's threads, so none of its calls reaches R, `Finish()` included
+([#3034](https://github.com/duckdb/duckdb-r/issues/3034));
+`$get_next()`, `as_arrow_table()` and `write_parquet()` read on R's thread and deliver every call.
 An error the function raises is ignored.
 The glue sets the engine's own wait, `wait_time`, to zero in the same file,
 so the engine calls the display on every run or poll of a task on R's thread, whether or not the progress moved,
@@ -53,7 +56,8 @@ What a reader of R needs from it:
   A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
 * **A stream goes quiet while its buffer serves the reads.**
   A read that takes chunks already buffered runs no engine work, so the engine sends no call
-  (`BufferedData::Participate()` in [`src/duckdb/src/main/buffered_data/buffered_data.cpp`](/src/duckdb/src/main/buffered_data/buffered_data.cpp)).
+  (`BufferedData::Participate()` in
+  [`src/duckdb/src/main/buffered_data/buffered_data.cpp`](/src/duckdb/src/main/buffered_data/buffered_data.cpp)).
   The engine computes ahead until the buffer holds `max_streaming_buffer_size`:
   10 MiB on a new connection
   (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)),
