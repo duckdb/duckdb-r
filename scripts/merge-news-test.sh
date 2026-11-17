@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Fourteen things are checked:
+# version first, whichever side a section came from. Sixteen things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -30,7 +30,11 @@
 #  13. Both sides change the same other line of the development section
 #      differently: a conflict.
 #  14. A heading with no version that is not `# duckdb (development version)`
-#      sorts below every version, with a warning.
+#      sorts below every version, with a warning, given once.
+#  15. Ours moves the development section's link and theirs deletes it: a
+#      conflict, not our link lost.
+#  16. A CRLF file comes out CRLF, the development section merged three-way
+#      included.
 #
 # Usage:
 #   scripts/merge-news-test.sh
@@ -204,6 +208,26 @@ err=$("$HERE/merge-news.sh" O A B 2>&1 >/dev/null) && st=0 || st=$?
 is "it merges cleanly" "$st" 0
 is "below every version" "$(headings A)" "2.0.1 2.0.0 unreleased "
 has "with a warning" "$err" "names no version"
+is "  given once" "$(grep -c 'names no version' <<<"$err")" 1
+
+echo "== 15. ours moves the development section's link, theirs deletes it"
+{ dev v2.0.99.9000 main; sec 2.0.99.9000; } > O
+{ dev v2.0.99.9001 main; sec 2.0.99.9001; sec 2.0.99.9000; } > A
+{ printf '# duckdb (development version)\n\n- A bullet of theirs.\n\n\n'; sec 2.0.99.9000; } > B
+is "it conflicts" "$(merge)" 1
+has "keeping our link" "$(cat A)" "compare/v2.0.99.9001...main>"
+has "and their line" "$(cat A)" "- A bullet of theirs."
+
+echo "== 16. a CRLF file keeps its line endings"
+crlf() { sed 's/$/\r/'; }
+{ dev v2.0.99.9000 main; sec 2.0.99.9000; } | crlf > O
+{ dev v2.0.99.9001 main; sec 2.0.99.9001; sec 2.0.99.9000; } | crlf > A
+{ dev v2.0.99.9000 main | sed '3a\
+\
+- A bullet of theirs.'; sec 2.0.99.9000; } | crlf > B
+is "it merges cleanly" "$(merge)" 0
+has "with their line" "$(cat A)" "- A bullet of theirs."
+is "and no line without CR" "$(grep -vc $'\r$' A || true)" 0
 
 echo
 echo "$pass passed, $fail failed"

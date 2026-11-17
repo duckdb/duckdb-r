@@ -164,7 +164,8 @@ and with its vendor counter back, and `series-land.sh` refuses it until it is st
 A forward merge meets the driver like any merge, so the newer line keeps its own record.
 `NEWS.md` has a merge driver of its own, [`scripts/merge-news.sh`](/scripts/merge-news.sh), registered with the other by `scripts/setup-git.sh`:
 it merges the file section by section, a section being a `# duckdb <version>` heading and its body,
-and writes the sections newest version first whichever side each came from, the development section above them all,
+and writes the sections newest version first whichever side each came from, the development section above them all
+and any other heading without a version below them all, with a warning,
 so a forward merge interleaves the older line's `2.0.1` and `2.0.0.9001` below the newer line's `2.0.99.9001` without a conflict;
 a section both sides changed differently is merged three-way, and conflicts as any line would,
 and in the development section a conflict confined to the compare link keeps our link, as the `DESCRIPTION` driver keeps our `Version:`.

@@ -22,9 +22,10 @@
 #   * the development section, headed exactly `# duckdb (development version)`,
 #     sorts above every version. Changed on both sides, it is merged three-way
 #     like any other, and where the conflict lies in its `Commits since ...`
-#     link line alone it takes our link, as the `DESCRIPTION` driver keeps our
-#     `Version:`: the link is the branch's own. A conflict anywhere else in it
-#     is a conflict. Any other heading whose first token is no version sorts
+#     link line alone, one such line on every side, it takes our link, as the
+#     `DESCRIPTION` driver keeps our `Version:`: the link is the branch's own.
+#     A conflict anywhere else in it, or a link deleted on one side, is a
+#     conflict. Any other heading whose first token is no version sorts
 #     below every version, with a warning.
 #
 #   * a section of the base gone from one side, renamed there or deleted, and
@@ -61,6 +62,7 @@ o_path, a_path, b_path = sys.argv[1:4]
 HEAD = re.compile(r"^# duckdb (\S+)(\s.*)?$")
 DEV = "(development version)"
 LINK = re.compile(r"^(- )?Commits since \S+: <[^>]*>\.?$")
+warned = set()
 
 
 def read(path):
@@ -83,7 +85,8 @@ def sections(text):
         if m:
             out[key] = "".join(buf)
             v = DEV if line.rstrip("\r\n") == "# duckdb " + DEV else m.group(1)
-            if v != DEV and not v[:1].isdigit():
+            if v != DEV and not v[:1].isdigit() and line.strip() not in warned:
+                warned.add(line.strip())
                 print(f"merge-news.sh: heading {line.strip()!r} names no version, so it sorts below every version",
                       file=sys.stderr)
             seen[v] = seen.get(v, 0) + 1
@@ -122,18 +125,25 @@ def merge3(a, o, b):
                 f.write(t or "")
             paths.append(p)
         r = subprocess.run(["git", "merge-file", "-p", "-L", "ours", "-L", "base", "-L", "theirs", *paths],
-                           capture_output=True, text=True)
+                           capture_output=True)
         if r.returncode < 0 or r.returncode > 127:
             sys.exit(r.returncode)
-        return r.stdout, r.returncode != 0
+        # Bytes, not text=True, so a CRLF file keeps its line endings.
+        return r.stdout.decode("utf-8"), r.returncode != 0
 
 
 def merge_dev(a, o, b):
     """The development section changed on both sides: merge three-way, and where
-    the conflict lies in the link line alone, take our link line."""
+    the conflict lies in the link line alone, take our link line. Only when
+    each side, and the base where there is one, has exactly one link line: a
+    link deleted on theirs would otherwise delete ours."""
     res, c = merge3(a, o, b)
-    ours = [l for l in a.splitlines(keepends=True) if LINK.match(l.rstrip("\r\n"))]
-    if not c or len(ours) != 1:
+
+    def links(t):
+        return [l for l in (t or "").splitlines(keepends=True) if LINK.match(l.rstrip("\r\n"))]
+
+    ours = links(a)
+    if not c or len(ours) != 1 or len(links(b)) != 1 or (o is not None and len(links(o)) != 1):
         return res, c
 
     def ours_link(t):
@@ -146,15 +156,17 @@ def merge_dev(a, o, b):
 def ordered(merged):
     keys = sorted((k for k in merged if k is not None), key=version_key, reverse=True)
     order = ([None] if None in merged else []) + keys
+    # The line ending the file uses, so a CRLF file stays CRLF.
+    nl = "\r\n" if any("\r\n" in t for t in merged.values()) else "\n"
     out = []
     for i, key in enumerate(order):
         t = merged[key]
         if not t.endswith("\n"):
-            t += "\n"
+            t += nl
         # A section that moved off the end still needs the blank lines before
         # the next heading that the file uses between sections.
-        if i < len(order) - 1 and key is not None and not t.endswith("\n\n"):
-            t += "\n\n"
+        if i < len(order) - 1 and key is not None and not t.endswith(nl + nl):
+            t += nl + nl
         out.append(t)
     return "".join(out)
 
