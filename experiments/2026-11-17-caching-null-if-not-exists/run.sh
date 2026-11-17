@@ -29,14 +29,24 @@ command -v ccache > /dev/null && cxx="ccache g++"
 
 checkout() { # <dir> <commit>
   [ -d "$1" ] && return 0
-  git -C "$repo" fetch -q origin main main-green
-  git -C "$repo" worktree add -q --detach "$1" "$2"
+  git -C "$repo" fetch -q origin main main-green || { echo "fetch failed" >&2; exit 1; }
+  git -C "$repo" worktree add -q --detach "$1" "$2" || { echo "cannot check out $2" >&2; exit 1; }
+}
+
+wait_for_port() { # <port>
+  for _ in $(seq 1 30); do
+    curl -s -o /dev/null "http://127.0.0.1:$1/" && return 0
+    sleep 1
+  done
+  echo "nothing listens on port $1" >&2
+  exit 1
 }
 
 # v2.0: the prebuilt library of that release, with the vendored headers.
 checkout "$work/src-v2.0" "$v20_commit"
 if [ ! -f "$work/v2.0/lib/libduckdb.so" ]; then
-  "$work/src-v2.0/scripts/install-libduckdb.sh" --prefix "$work/v2.0" > /dev/null
+  "$work/src-v2.0/scripts/install-libduckdb.sh" --prefix "$work/v2.0" > /dev/null || exit 1
+  [ -f "$work/v2.0/lib/libduckdb.so" ] || { echo "no prebuilt libduckdb for v2.0.0" >&2; exit 1; }
 fi
 
 # v2.1: no prebuilt exists for a -dev build, so the vendored engine is compiled
@@ -54,14 +64,15 @@ $cxx -std=c++17 -O1 -w -I"$work/src-v2.1/src/duckdb/src/include" "$here/repro.cp
 # A plain HTTP server and a moto S3 server, both serving nothing at the path asked.
 mkdir -p "$work/www" "$work/ext"
 if [ ! -x "$work/venv/bin/moto_server" ]; then
-  python3 -m venv "$work/venv" && "$work/venv/bin/pip" install -q 'moto[server]' || exit 1
+  python3 -m venv "$work/venv" && "$work/venv/bin/pip" install -q 'moto[server]==5.2.5' || exit 1
 fi
 python3 -m http.server 8765 --bind 127.0.0.1 --directory "$work/www" > "$work/http.log" 2>&1 &
 http_pid=$!
 "$work/venv/bin/moto_server" -p 5555 > "$work/moto.log" 2>&1 &
 moto_pid=$!
 trap 'kill $http_pid $moto_pid 2> /dev/null' EXIT
-sleep 3
+wait_for_port 8765
+wait_for_port 5555
 curl -sf -X PUT http://127.0.0.1:5555/bucket > /dev/null || exit 1
 
 ext="SET extension_directory = '$work/ext'"

@@ -1,0 +1,83 @@
+work directory: <work>
+--- v2.0, local, none
+engine: v2.0.0 d54cbbe3df
+open: <work>/www/missing.bin, caching mode none
+OpenFile returned: null handle
+exit status: 0
+--- v2.0, local, always
+engine: v2.0.0 d54cbbe3df
+open: <work>/www/missing.bin, caching mode always
+OpenFile threw: INTERNAL Error: Attempted to dereference shared_ptr that is NULL!
+exit status: 1
+--- v2.0, local, remote
+engine: v2.0.0 d54cbbe3df
+open: <work>/www/missing.bin, caching mode remote
+OpenFile returned: null handle
+exit status: 0
+--- v2.0, http, none
+engine: v2.0.0 d54cbbe3df
+loaded: httpfs 77392a7207
+open: http://127.0.0.1:8765/missing.bin, caching mode none
+OpenFile returned: null handle
+exit status: 0
+--- v2.0, s3, none
+engine: v2.0.0 d54cbbe3df
+loaded: httpfs 77392a7207
+open: s3://bucket/missing.bin, caching mode none
+OpenFile returned: null handle
+exit status: 0
+--- v2.0, http, remote
+engine: v2.0.0 d54cbbe3df
+loaded: httpfs 77392a7207
+open: http://127.0.0.1:8765/missing.bin, caching mode remote
+OpenFile threw: INTERNAL Error: Attempted to dereference shared_ptr that is NULL!
+exit status: 1
+--- v2.0, s3, remote
+engine: v2.0.0 d54cbbe3df
+loaded: httpfs 77392a7207
+open: s3://bucket/missing.bin, caching mode remote
+OpenFile threw: INTERNAL Error: Attempted to dereference shared_ptr that is NULL!
+exit status: 1
+--- v2.1, local, none
+engine: v2.1.0-dev92210 09456f1ce0
+open: <work>/www/missing.bin, caching mode none
+OpenFile returned: null handle
+exit status: 0
+--- v2.1, local, always
+engine: v2.1.0-dev92210 09456f1ce0
+open: <work>/www/missing.bin, caching mode always
+OpenFile threw: INTERNAL Error: Attempted to dereference shared_ptr that is NULL!
+exit status: 1
+--- v2.1, local, remote
+engine: v2.1.0-dev92210 09456f1ce0
+open: <work>/www/missing.bin, caching mode remote
+OpenFile returned: null handle
+exit status: 0
+--- v2.1, http, none
+engine: v2.1.0-dev92210 09456f1ce0
+setup failed: INSTALL httpfs: HTTP Error: Failed to download extension "httpfs" at URL "http://extensions.duckdb.org/09456f1ce0/linux_amd64/httpfs.duckdb_extension.gz" (HTTP 404)
+Extension "httpfs" is an existing extension.
+
+For more info, visit https://duckdb.org/docs/current/extensions/troubleshooting?version=09456f1ce0&platform=linux_amd64&extension=httpfs
+exit status: 1
+--- v2.1, s3, none
+engine: v2.1.0-dev92210 09456f1ce0
+setup failed: INSTALL httpfs: HTTP Error: Failed to download extension "httpfs" at URL "http://extensions.duckdb.org/09456f1ce0/linux_amd64/httpfs.duckdb_extension.gz" (HTTP 404)
+Extension "httpfs" is an existing extension.
+
+For more info, visit https://duckdb.org/docs/current/extensions/troubleshooting?version=09456f1ce0&platform=linux_amd64&extension=httpfs
+exit status: 1
+--- v2.1, http, remote
+engine: v2.1.0-dev92210 09456f1ce0
+setup failed: INSTALL httpfs: HTTP Error: Failed to download extension "httpfs" at URL "http://extensions.duckdb.org/09456f1ce0/linux_amd64/httpfs.duckdb_extension.gz" (HTTP 404)
+Extension "httpfs" is an existing extension.
+
+For more info, visit https://duckdb.org/docs/current/extensions/troubleshooting?version=09456f1ce0&platform=linux_amd64&extension=httpfs
+exit status: 1
+--- v2.1, s3, remote
+engine: v2.1.0-dev92210 09456f1ce0
+setup failed: INSTALL httpfs: HTTP Error: Failed to download extension "httpfs" at URL "http://extensions.duckdb.org/09456f1ce0/linux_amd64/httpfs.duckdb_extension.gz" (HTTP 404)
+Extension "httpfs" is an existing extension.
+
+For more info, visit https://duckdb.org/docs/current/extensions/troubleshooting?version=09456f1ce0&platform=linux_amd64&extension=httpfs
+exit status: 1

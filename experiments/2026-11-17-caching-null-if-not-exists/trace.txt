@@ -1,0 +1,35 @@
+--- v2.0, local, always, with REPRO_TRACE=1: the first line, then each stack frame's function, innermost first
+engine: v2.0.0 d54cbbe3df
+OpenFile threw: INTERNAL Error: Attempted to dereference shared_ptr that is NULL!
+duckdb::Exception::Exception
+duckdb::InternalException::InternalException
+duckdb::ThrowNullSharedPtrDereference
+duckdb::CachingFileHandle::GetFileHandle
+duckdb::CachingFileHandle::CachingFileHandle
+duckdb::make_uniq<duckdb::CachingFileHandle, ...>
+duckdb::CachingFileSystemWrapper::OpenFileExtended
+duckdb::CachingFileSystemWrapper::OpenFile
+duckdb::VirtualFileSystem::OpenFileExtended
+duckdb::FileSystem::OpenFile
+duckdb::OpenerFileSystem::OpenFileExtended
+duckdb::FileSystem::OpenFile
+duckdb::ClientContext::RunFunctionInTransactionInternal
+duckdb::ClientContext::RunFunctionInTransaction
+--- v2.1, local, always, with REPRO_TRACE=1: the first line, then each stack frame's function, innermost first
+engine: v2.1.0-dev92210 09456f1ce0
+OpenFile threw: INTERNAL Error: Attempted to dereference shared_ptr that is NULL!
+duckdb::Exception::ToJSON
+duckdb::Exception::Exception
+duckdb::InternalException::InternalException
+duckdb::ThrowNullSharedPtrDereference
+duckdb::CachingFileHandle::GetFileHandle
+duckdb::CachingFileHandle::CachingFileHandle
+duckdb::CachingFileSystem::OpenFile
+duckdb::CachingFileSystemWrapper::OpenFileExtended
+duckdb::CachingFileSystemWrapper::OpenFile
+duckdb::VirtualFileSystem::OpenFileExtended
+duckdb::FileSystem::OpenFile
+duckdb::OpenerFileSystem::OpenFileExtended
+duckdb::FileSystem::OpenFile
+duckdb::ClientContext::RunFunctionInTransactionInternal
+duckdb::ClientContext::RunFunctionInTransaction

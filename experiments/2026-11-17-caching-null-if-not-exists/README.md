@@ -5,13 +5,15 @@ for a file that does not exist, when the flags also ask for the external file ca
 Each run opens a missing local file, a missing `http://` path and a missing `s3://` path,
 under `NO_CACHING`, `CACHE_REMOTE_ONLY` and, for the local file, `ALWAYS_CACHE`.
 
-*When and on what:* 2026-11-17, Linux x86_64 with 4 cores, Ubuntu 24.04, g++ through ccache, Python 3 with moto 5.2.5.
+*When and on what:* 2026-11-17, Linux x86_64 with 4 cores, Ubuntu 24.04, g++ through ccache, Python 3 with moto 5.2.5,
+which [`run.sh`](run.sh) pins.
 Two engines, each named by the version and source_id it reports at run time:
 
 * v2.0.0, source_id `d54cbbe3df`: upstream's prebuilt `libduckdb` of that release,
   installed by [`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh) from `main` at 73ead8b,
   and compiled against the headers vendored there.
-  httpfs `77392a7207`, installed by `INSTALL httpfs`.
+  httpfs `77392a7207`, which is what `INSTALL httpfs` fetched for v2.0.0 that day;
+  the script does not pin it, so a rerun gets whatever upstream serves for v2.0.0 then.
 * v2.1.0-dev92210, source_id `09456f1ce0`: the engine vendored on `main-green` at 8edee523,
   compiled into a shared library by [`engine.mk`](engine.mk) with the flags the package's `src/Makevars` passes it,
   at `-O1 -DNDEBUG`.
@@ -48,9 +50,10 @@ Verdicts:
 * **v2.1.0-dev92210 (`09456f1ce0`): reproduces** with the local file; the remote variants were not run.
 
 The local file under `ALWAYS_CACHE` is the minimal reproducer: it needs no server and no extension.
-On both engines the call fails inside `OpenFile()` itself, not on first use, with the default `validate_external_file_cache`.
+On both engines the call fails inside `OpenFile()` itself, not on first use.
 
-From the run on v2.0, `<work>` standing for the scratch directory:
+From the run on v2.0, `<work>` standing for the scratch directory;
+[`transcript.txt`](transcript.txt) is the whole run, both engines and every variant:
 
 ```
 --- v2.0, local, none
@@ -121,33 +124,53 @@ Both servers logged a `HEAD /…/missing.bin` answered with 404, so the remote v
 
 ## Where the null comes from
 
-The engine's stack trace for the failure is the same on both engines, read innermost first:
-`ThrowNullSharedPtrDereference`, `CachingFileHandle::GetFileHandle`, the `CachingFileHandle` constructor,
-`CachingFileSystemWrapper::OpenFileExtended`, `VirtualFileSystem::OpenFileExtended`.
+The engine appends a stack trace to the internal error, which `repro.cpp` prints whole when `REPRO_TRACE` is set.
+[`trace.txt`](trace.txt) keeps each frame's function for the local file under `ALWAYS_CACHE`, on both engines.
+Both run, innermost first, through `ThrowNullSharedPtrDereference`, `CachingFileHandle::GetFileHandle`,
+the `CachingFileHandle` constructor, `CachingFileSystemWrapper::OpenFileExtended` and `VirtualFileSystem::OpenFileExtended`.
 Line numbers are v2.0's, with v2.1's in parentheses, under `src/duckdb/src/`:
 
-* `common/virtual_file_system.cpp` L192 (L233): any caching mode other than `NO_CACHING` routes the open through a `CachingFileSystemWrapper`.
-  The check for a null handle, L200 (L241), comes after the wrapper has returned, so it only helps when the wrapper can return null.
+* `common/virtual_file_system.cpp` L192 (L233):
+  any caching mode other than `NO_CACHING` routes the open through a `CachingFileSystemWrapper`.
+  The check for a null handle, L200 (L241), comes after the wrapper has returned,
+  so it only helps when the wrapper can return null.
 * `storage/external_file_cache/caching_file_system_wrapper.cpp` L140 to L142 (unchanged): when `ShouldUseCache(path)` holds,
   which is always under `ALWAYS_CACHE` and for a remote path under `CACHE_REMOTE_ONLY`,
   it wraps `caching_file_system.OpenFile(path, flags, opener)` in a `CachingFileHandleWrapper` unconditionally;
   nothing on that branch can return null.
 * `storage/external_file_cache/caching_file_system.cpp`, the `CachingFileHandle` constructor at L285 (L307):
-  with the cache disabled, or with validation on (`validate_external_file_cache` defaults to `VALIDATE_ALL`), it calls `GetFileHandle()` at once.
-  Otherwise it defers that call until a read or a metadata query needs the file, so the same failure then arrives on first use instead.
-* `CachingFileHandle::GetFileHandle()`, L327 (L349): `file_system.OpenFile(path, flags | FILE_FLAGS_PARALLEL_ACCESS, opener)` honours the flag,
+  it calls `GetFileHandle()` at once when the cache is disabled,
+  when validation is on (`validate_external_file_cache` defaults to `VALIDATE_ALL`),
+  or, L299 to L307 (L321 to L329), when the path has no cached blocks.
+  A missing file never has cached blocks, so with validation off it still fails inside `OpenFile()`.
+  Only a path whose blocks are already cached defers the call until a read or a metadata query needs the file,
+  which this record does not run.
+* `CachingFileHandle::GetFileHandle()`, L327 (L349):
+  `file_system.OpenFile(path, flags | FILE_FLAGS_PARALLEL_ACCESS, opener)` honours the flag,
   and the local file system or httpfs returns null for the missing file.
-  L329 (L351) then calls `GetValidationInfo(file_system, *file_handle)`, and dereferencing the null `shared_ptr` throws the internal error.
+  L329 (L351) then calls `GetValidationInfo(file_system, *file_handle)`,
+  and dereferencing the null `shared_ptr` throws the internal error.
 
-What v2.1 changes against v2.0 in `storage/external_file_cache/` and `common/virtual_file_system.cpp`
-is the compression lookup in the virtual file system, how uncached read buffers are allocated,
-and new block-level queries on `CachingFileHandle`.
-None of it touches `OpenFileExtended()`, the constructor or `GetFileHandle()`,
-which is what the local run on v2.1 confirms.
+What v2.1 changes against v2.0 in `storage/external_file_cache/` and `common/virtual_file_system.cpp`:
+
+* `common/virtual_file_system.cpp`: how a compression is found from a file's name;
+  `VirtualFileSystem::OpenFileExtended()` now tells that lookup whether the file is opened for writing,
+  at L248 to L252, after the check for a null handle.
+* `caching_file_system.cpp`: how uncached read buffers are allocated,
+  and new queries on `CachingFileHandle` for cached blocks and cached ranges.
+* `external_file_cache.cpp`: a cached file's memory, which reserves block metadata as blocks are added and dropped
+  instead of estimating it for the whole file,
+  which small blocks a read may absorb into a larger one, now limited to given ranges,
+  and whether a range is available in memory or in a temporary file.
+
+None of it touches `CachingFileSystemWrapper::OpenFileExtended()`, the `CachingFileHandle` constructor or `GetFileHandle()`,
+and the local run on v2.1 fails the same way.
 
 ## Replicating
 
-From a clone of this repository, `experiments/2026-11-17-caching-null-if-not-exists/run.sh [WORK]`.
+From a clone of this repository, `experiments/2026-11-17-caching-null-if-not-exists/run.sh [WORK]`,
+which prints what `transcript.txt` holds.
+`trace.txt` comes from `REPRO_TRACE=1 <work>/repro-<version> <work>/www/missing.bin always`, cut to each frame's function.
 It adds two detached worktrees, one per engine commit, to the clone;
 remove them with `git worktree remove` when done.
 The v2.1 engine takes about eight minutes on 4 cores with a cold ccache.

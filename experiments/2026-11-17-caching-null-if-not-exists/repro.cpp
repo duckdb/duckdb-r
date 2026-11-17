@@ -10,24 +10,32 @@
 #include "duckdb/common/file_system.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 using namespace duckdb;
 
-// The first line of an error, without the stack trace a debug build appends.
+// The first line of an error, or with REPRO_TRACE set, the whole of it,
+// including the stack trace the engine appends to an internal error.
 static string FirstLine(std::exception &ex) {
 	auto message = ErrorData(ex).Message();
+	if (getenv("REPRO_TRACE")) {
+		return message;
+	}
 	return message.substr(0, message.find('\n'));
 }
 
-static CachingMode ParseMode(const char *mode) {
+static bool ParseMode(const char *mode, CachingMode &result) {
 	if (strcmp(mode, "always") == 0) {
-		return CachingMode::ALWAYS_CACHE;
+		result = CachingMode::ALWAYS_CACHE;
+	} else if (strcmp(mode, "remote") == 0) {
+		result = CachingMode::CACHE_REMOTE_ONLY;
+	} else if (strcmp(mode, "none") == 0) {
+		result = CachingMode::NO_CACHING;
+	} else {
+		return false;
 	}
-	if (strcmp(mode, "remote") == 0) {
-		return CachingMode::CACHE_REMOTE_ONLY;
-	}
-	return CachingMode::NO_CACHING;
+	return true;
 }
 
 int main(int argc, char **argv) {
@@ -37,6 +45,11 @@ int main(int argc, char **argv) {
 	}
 	const string path = argv[1];
 	const char *mode = argv[2];
+	CachingMode caching_mode;
+	if (!ParseMode(mode, caching_mode)) {
+		fprintf(stderr, "unknown caching mode: %s\n", mode);
+		return 2;
+	}
 	printf("engine: %s %s\n", DuckDB::LibraryVersion(), DuckDB::SourceID());
 
 	DuckDB db(nullptr);
@@ -59,7 +72,7 @@ int main(int argc, char **argv) {
 
 	FileOpenFlags flags(FileFlags::FILE_FLAGS_READ | FileFlags::FILE_FLAGS_DIRECT_IO |
 	                    FileFlags::FILE_FLAGS_NULL_IF_NOT_EXISTS);
-	flags.SetCachingMode(ParseMode(mode));
+	flags.SetCachingMode(caching_mode);
 	printf("open: %s, caching mode %s\n", path.c_str(), mode);
 
 	int status = 0;
