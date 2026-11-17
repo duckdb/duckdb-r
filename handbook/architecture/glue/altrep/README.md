@@ -51,9 +51,11 @@ since nothing on that path can fail and R calls some of them once per element, i
 They find that vector through its data pointer and length, which the column's wrapper stores once conversion has filled it,
 so a read costs two calls into R besides R's own dispatch.
 A freed column, or one not yet converted, takes the guarded path, which converts it or reports the error.
-Each entry into that path counts in a relaxed atomic counter, which the internal `rapi_altrep_slow_path_count()` reads,
+Each entry into that converting slow path from `Length`, `Dataptr`, `Elt` or `Get_region` counts in a relaxed atomic counter,
+which the internal `rapi_altrep_slow_path_count()` reads,
 so [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pins that no read of a converted column takes it,
 a scan by a connection with several threads included.
+`DataptrOrNull`, which enters the guard too and which a scan's bind calls, is not counted.
 A summary over a converted column that R reads element by element still costs up to about five and a half times what it costs over a plain vector
 ([`experiments/2026-11-17-lazy-vector-summaries/`](/experiments/2026-11-17-lazy-vector-summaries/README.md)).
 

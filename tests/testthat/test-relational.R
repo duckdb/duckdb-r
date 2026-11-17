@@ -364,7 +364,7 @@ test_that("converted ALTREP columns scan from engine threads (#2890)", {
   }
 })
 
-test_that("reads of converted ALTREP columns never take the guarded path (#2890)", {
+test_that("reads of converted ALTREP columns never take the converting slow path (#2890)", {
   con <- local_con()
   con2 <- local_con()
   dbExecute(con2, "SET threads = 4")
@@ -379,7 +379,7 @@ test_that("reads of converted ALTREP columns never take the guarded path (#2890)
       "FROM range(5000) ORDER BY range"
     )
   ))
-  # One guarded read per column converts it
+  # One read per column takes the converting slow path and converts it
   for (col in names(df)) {
     df[[col]][[1]]
   }
@@ -413,13 +413,12 @@ test_that("reads of converted ALTREP columns never take the guarded path (#2890)
   expect_identical(rapi_altrep_slow_path_count(), before)
 })
 
-test_that("reads of unconverted ALTREP columns take the guarded path (#2890)", {
+test_that("reads of unconverted ALTREP columns take the converting slow path (#2890)", {
   con <- local_con()
-  df <- rel_to_altrep(rel_from_sql(
-    con,
-    "SELECT range % 2 = 0 AS l, range::INTEGER AS i, range / 4 AS d, 'v' || range AS s FROM range(10)"
-  ))
-  for (col in names(df)) {
+  sql <- "SELECT range % 2 = 0 AS l, range::INTEGER AS i, range / 4 AS d, 'v' || range AS s FROM range(10)"
+  for (col in c("l", "i", "d", "s")) {
+    # A fresh data frame per column, so that no column is converted beforehand
+    df <- rel_to_altrep(rel_from_sql(con, sql))
     before <- rapi_altrep_slow_path_count()
     df[[col]][[1]]
     expect_gt(rapi_altrep_slow_path_count(), before, label = col)

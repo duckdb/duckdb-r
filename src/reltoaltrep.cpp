@@ -681,8 +681,9 @@ const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
 #define RELTOALTREP_NOINLINE
 #endif
 
-// Entries into the guarded slow path of the atomic columns' Length, Dataptr, Elt and Get_region methods,
+// Entries into the converting slow path of the atomic columns' Length, Dataptr, Elt and Get_region methods,
 // for tests only: a read of a converted column must never count (#2890).
+// VectorDataptrOrNull() is not counted, although it enters the guard too and a scan's bind calls it.
 // Relaxed and atomic, since a task's bind may reach Length or Dataptr too (handbook/architecture/glue/threading/).
 static std::atomic<uint64_t> altrep_slow_path_count {0};
 
@@ -1035,7 +1036,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	return wrapper->rel;
 }
 
-// Internal, for tests only: how often the atomic columns took the guarded slow path, see CountSlowPath()
+// Internal, for tests only: how often the atomic columns took the converting slow path, see CountSlowPath()
 [[cpp11::register]] double rapi_altrep_slow_path_count() {
 	return static_cast<double>(altrep_slow_path_count.load(std::memory_order_relaxed));
 }
