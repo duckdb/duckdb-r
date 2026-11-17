@@ -720,7 +720,9 @@ static RELTOALTREP_NOINLINE ConvertedView FillConvertedPayload(SEXP x, AltrepVec
 	if (converted == R_NilValue) {
 		return {nullptr, 0};
 	}
-	// An ALTREP vector's payload is its class's to hand out, and may move or allocate: not cached
+	// An ALTREP vector's payload is its class's to hand out, and may move or allocate: not cached.
+	// Such a vector, or one with a null DATAPTR, is deliberately never cached, so every read of it
+	// takes the guarded slow path; duckdb_r_allocate() returns plain vectors today.
 	if (ALTREP(converted)) {
 		return {nullptr, 0};
 	}
@@ -778,15 +780,14 @@ static T VectorElt(SEXP x, R_xlen_t i) {
 	return VectorEltSlow<T>(x, i);
 }
 
-static R_xlen_t CopyRegion(SEXP converted, R_xlen_t start, R_xlen_t size, void *out, size_t elt_size) {
-	R_xlen_t n = Rf_xlength(converted) - start;
-	if (n > size) {
-		n = size;
-	}
+// Copies up to size elements from start of a payload of the given length, answers how many it copied
+template <class T>
+static R_xlen_t CopyRegion(const T *payload, R_xlen_t length, R_xlen_t start, R_xlen_t size, T *out) {
+	R_xlen_t n = std::min(length - start, size);
 	if (n <= 0) {
 		return 0;
 	}
-	memcpy(out, static_cast<const char *>(DATAPTR_RO(converted)) + start * elt_size, n * elt_size);
+	memcpy(out, payload + start, n * sizeof(T));
 	return n;
 }
 
@@ -794,17 +795,13 @@ template <class T>
 static R_xlen_t VectorGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, T *out) {
 	auto view = ConvertedPayload(x);
 	if (view.payload) {
-		R_xlen_t n = std::min(view.length - start, size);
-		if (n <= 0) {
-			return 0;
-		}
-		memcpy(out, static_cast<const T *>(view.payload) + start, n * sizeof(T));
-		return n;
+		return CopyRegion(static_cast<const T *>(view.payload), view.length, start, size, out);
 	}
 	BEGIN_CPP11
 	AltrepGuard guard;
 	// A nested access during an in-flight conversion sees the partly filled vector, as with Dataptr()
-	return CopyRegion(AltrepVectorWrapper::Get(x)->RVector(), start, size, out, sizeof(T));
+	SEXP converted = AltrepVectorWrapper::Get(x)->RVector();
+	return CopyRegion(static_cast<const T *>(DATAPTR_RO(converted)), Rf_xlength(converted), start, size, out);
 	END_CPP11_EX(0)
 }
 

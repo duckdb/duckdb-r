@@ -312,6 +312,58 @@ test_that("summaries of ALTREP columns match plain vectors at the edges (#2890)"
   }
 })
 
+test_that("converted ALTREP columns scan from engine threads (#2890)", {
+  con <- local_con()
+  con2 <- local_con()
+  dbExecute(con2, "SET threads = 4")
+  sql <- paste(
+    "SELECT",
+    "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+    "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+    "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+    "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+    "FROM range(N_ROWS) ORDER BY range"
+  )
+  agg <- paste(
+    "SELECT count(*) AS n, count(l) AS nl, sum(l::INTEGER) AS sl,",
+    "count(i) AS ni, sum(i) AS si, count(d) AS nd, sum(d) AS sd,",
+    "count(s) AS ns, max(s) AS ms FROM lazy"
+  )
+
+  for (n in c(3000L, 0L)) {
+    plain <- dbGetQuery(con, sub("N_ROWS", n, sql, fixed = TRUE))
+    duckdb_register(con2, "plain", plain)
+    expected <- dbGetQuery(
+      con2,
+      sub("FROM lazy", "FROM plain", agg, fixed = TRUE)
+    )
+
+    check <- function(df) {
+      duckdb_register(con2, "lazy", df)
+      on.exit(duckdb_unregister(con2, "lazy"))
+      expect_equal(dbGetQuery(con2, "SELECT * FROM lazy"), plain)
+      expect_equal(dbGetQuery(con2, agg), expected)
+    }
+
+    df <- rel_to_altrep(rel_from_sql(con, sub("N_ROWS", n, sql, fixed = TRUE)))
+    # Materialized but with no element read from R yet: the scan fills the payload cache
+    expect_equal(nrow(df), n)
+    expect_true(df_is_materialized(df))
+    check(df)
+
+    # After reads from R the cache is filled, and the scan takes the cached path
+    for (col in names(plain)) {
+      expect_identical(
+        df[[col]][seq_len(min(n, 3L))],
+        plain[[col]][seq_len(min(n, 3L))]
+      )
+      expect_identical(anyNA(df[[col]]), n > 0)
+    }
+    check(df)
+    duckdb_unregister(con2, "plain")
+  }
+})
+
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
     expr_reference("asdf")
