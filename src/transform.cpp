@@ -79,6 +79,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 		return STRSXP;
 	case LogicalTypeId::BLOB:
 	case LogicalTypeId::GEOMETRY:
+	case LogicalTypeId::GEOGRAPHY:
 		return VECSXP;
 	case LogicalTypeId::ENUM:
 		return INTSXP;
@@ -262,11 +263,16 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		}
 		break;
 	case LogicalTypeId::GEOMETRY:
+	case LogicalTypeId::GEOGRAPHY:
 		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
 			SET_CLASS(dest, RStrings::get().wk_wkb_wk_vctr_str);
 			if (GeoType::HasCRS(type)) {
 				auto &crs = GeoType::GetCRS(type);
 				Rf_setAttrib(dest, RStrings::get().crs_sym, Rf_mkString(crs.GetDefinition().c_str()));
+			}
+			// GEOGRAPHY is WKB with spherical edges, which wk marks as geodesic
+			if (type.id() == LogicalTypeId::GEOGRAPHY) {
+				Rf_setAttrib(dest, RStrings::get().geodesic_sym, Rf_ScalarLogical(TRUE));
 			}
 		}
 		break;
@@ -778,7 +784,8 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 	}
 
 	case LogicalTypeId::BLOB:
-	case LogicalTypeId::GEOMETRY: {
+	case LogicalTypeId::GEOMETRY:
+	case LogicalTypeId::GEOGRAPHY: {
 		auto src_ptr = FlatVector::GetData<string_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
 		for (size_t row_idx = 0; row_idx < n; row_idx++) {
