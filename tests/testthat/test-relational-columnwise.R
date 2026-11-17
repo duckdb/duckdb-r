@@ -426,3 +426,26 @@ test_that("summaries of a column-wise column fetch it once and then read the con
   expect_equal(length(queries()), 3)
   expect_false(df_is_materialized(df))
 })
+
+test_that("a refused attempt does not use up the announcement", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+  dbWriteTable(con, "t", data.frame(x = 1:3, y = 4:6))
+  calls <- 0
+  rlang::local_options(duckdb.materialize_callback = function(rel) {
+    calls <<- calls + 1
+  })
+
+  # Column-wise, and as a whole
+  for (rel in list(rel_from_table(con, "t"), rel_from_sql(con, "FROM t"))) {
+    calls <- 0
+    df <- rel_to_altrep(rel)
+    # Refused before anything executes: the scan's bind runs under a query of the frame's own connection
+    expect_error(
+      dbGetQuery(con, "FROM df"),
+      "connection that is running the query"
+    )
+    expect_equal(calls, 0)
+    expect_equal(sum(df$x), 6)
+    expect_equal(calls, 1)
+  }
+})

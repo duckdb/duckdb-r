@@ -243,8 +243,19 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 		                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
 	}
 
+	// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
+	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
+	// any open result of its connection is ended: ending one takes that lock too.
+	// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
+	auto &context = *rel->context->GetContext();
+	if (ScopedInterruptHandler::IsActiveFor(context)) {
+		rapi_error_with_context("GetQueryResult",
+		                        "Cannot materialize a relation of the connection that is running the query.");
+	}
+
 	// The callback and the message announce the data frame's first execution only,
-	// whether that counts its rows or fetches a column
+	// whether that counts its rows or fetches a column.
+	// Every refusal comes before, so that they announce only an attempt that executes.
 	auto announce = !announced;
 	auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
 	if (announce && Rf_isFunction(materialize_callback)) {
@@ -265,15 +276,6 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 	// Set once the callback returned: one that failed announces the next attempt again
 	announced = true;
 
-	// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
-	// any open result of its connection is ended: ending one takes that lock too.
-	// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
-	auto &context = *rel->context->GetContext();
-	if (ScopedInterruptHandler::IsActiveFor(context)) {
-		rapi_error_with_context("GetQueryResult",
-		                        "Cannot materialize a relation of the connection that is running the query.");
-	}
 	EndOpenResults(context);
 	duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
 	if (!ScopedInterruptHandler::IsActive()) {
@@ -642,7 +644,8 @@ struct AltrepVectorWrapper {
 		return parent_column_index.empty() ? column_index : parent_column_index[0];
 	}
 
-	// Whether reading this vector would execute a query now
+	// Whether reading this vector would execute a query now.
+	// On R's thread only, which alone changes the state it reads: the stored error and the held column results.
 	bool WouldQuery() const {
 		if (converted_payload.load(std::memory_order_acquire)) {
 			return false;
