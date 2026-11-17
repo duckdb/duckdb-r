@@ -160,7 +160,7 @@ What v2.1 changes against v2.0 in `storage/external_file_cache/` and `common/vir
   and new queries on `CachingFileHandle` for cached blocks and cached ranges.
 * `external_file_cache.cpp`: a cached file's memory, which reserves block metadata as blocks are added and dropped
   instead of estimating it for the whole file,
-  which small blocks a read may absorb into a larger one, now limited to given ranges,
+  which small blocks a read may absorb into a larger one, now also larger ones within given ranges,
   and whether a range is available in memory or in a temporary file.
 
 None of it touches `CachingFileSystemWrapper::OpenFileExtended()`, the `CachingFileHandle` constructor or `GetFileHandle()`,
@@ -169,7 +169,7 @@ and the local run on v2.1 fails the same way.
 ## Replicating
 
 From a clone of this repository, `experiments/2026-11-17-caching-null-if-not-exists/run.sh [WORK]`,
-which prints what `transcript.txt` holds.
+which prints what `transcript.txt` holds, with the scratch directory spelled out where the transcript writes `<work>`.
 `trace.txt` comes from `REPRO_TRACE=1 <work>/repro-<version> <work>/www/missing.bin always`, cut to each frame's function.
 It adds two detached worktrees, one per engine commit, to the clone;
 remove them with `git worktree remove` when done.
