@@ -1,6 +1,6 @@
 test_that("an operator binds correctly while its argument autoloads icu (#2883)", {
   dir <- local_icu_installed_dir()
-  con <- local_icu_autoload_con(dir)
+  con <- local_con(drv = icu_autoload_drv(dir))
 
   sql <- "SELECT epoch(TIMESTAMPTZ '2001-09-09 01:46:40+00') + 2.5 AS x"
 
@@ -14,7 +14,7 @@ test_that("an operator binds correctly while its argument autoloads icu (#2883)"
 
 test_that("subtraction binds correctly while its argument autoloads icu (#2883)", {
   dir <- local_icu_installed_dir()
-  con <- local_icu_autoload_con(dir)
+  con <- local_con(drv = icu_autoload_drv(dir))
 
   expect_false(icu_loaded(con))
   # Failed with a binder error naming `age` when bound against the freed entry.
@@ -31,7 +31,7 @@ test_that("subtraction binds correctly while its argument autoloads icu (#2883)"
 
 test_that("an operator over an aggregate binds correctly while icu autoloads (#2883)", {
   dir <- local_icu_installed_dir()
-  con <- local_icu_autoload_con(dir)
+  con <- local_con(drv = icu_autoload_drv(dir))
 
   expect_false(icu_loaded(con))
   expect_equal(
