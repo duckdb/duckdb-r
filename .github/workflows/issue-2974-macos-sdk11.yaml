@@ -80,6 +80,9 @@ jobs:
       # ccache splits the cap over 16 directories, and a unity object larger
       # than its share is evicted at once: 300M lost the patched arm64 ones.
       CCACHE_MAXSIZE: 400M
+      # Saved ccache is trimmed below the cap, so that the next run's first
+      # stores do not trigger a cleanup that evicts its manifests.
+      CCACHE_SAVE_SIZE: 340M
       CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
       BUILD_CACHE_META: /Users/runner/build-cache-meta
       UserNM: "true"
@@ -271,8 +274,15 @@ jobs:
           echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"
 
       - name: Prepare ccache and the list of objects the patch affects
+        id: prepare
         run: |
           ccache --zero-stats
+          # A restored ccache above the save size gets trimmed and saved again.
+          kib=$(ccache --print-stats | awk '$1 == "cache_size_kibibyte" { print $2 }')
+          echo "restored ccache: ${kib:-0} KiB"
+          if [ "${kib:-0}" -gt $(( ${CCACHE_SAVE_SIZE%M} * 1024 )) ]; then
+            echo "ccache_over=true" >> "$GITHUB_OUTPUT"
+          fi
           ccache --show-config | grep -E 'cache_dir|max_size|base_dir|sloppiness|compiler_check'
           # Each patched engine source is compiled through its unity file
           # (src/duckdb/ub_<dir with / as _>.cpp); remove those objects before
@@ -423,7 +433,7 @@ jobs:
         if: >-
           always() && !cancelled() && steps.unpatched.outcome != 'skipped' &&
           (steps.restore.outputs.cache-hit != 'true' || steps.sdk.outputs.downloaded == 'true' ||
-           steps.verdict.outputs.recompiled != '0')
+           steps.verdict.outputs.recompiled != '0' || steps.prepare.outputs.ccache_over == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -433,7 +443,7 @@ jobs:
             find src -name '*.o' -delete
             rm -rf "$BUILD_CACHE_META"
           fi
-          ccache --cleanup
+          CCACHE_MAXSIZE="$CCACHE_SAVE_SIZE" ccache --cleanup
           ccache --show-stats | grep -i 'cache size'
           # Size guard: the entry as the action would store it, a zstd tar of
           # the same paths. Above the limit, the objects stay out of it.
