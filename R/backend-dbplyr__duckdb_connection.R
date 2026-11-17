@@ -684,7 +684,11 @@ slice_sample.tbl_duckdb_connection <- function(
 # @param from Table or parquet/csv -files to be registered
 # @param cache Enable object cache for parquet files
 tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
-  if (!inherits(from, "sql") && !DBI::dbExistsTable(src, from)) {
+  # Probes only a string dbplyr would quote, so a missing table can be a replacement scan;
+  # its own table names go to dbplyr unprobed (usage/integrations/, #2973).
+  probe <- is.character(from) &&
+    !inherits(from, c("AsIs", "dbplyr_table_path", "ident", "sql", "SQL"))
+  if (probe && !DBI::dbExistsTable(src, from)) {
     from <- dbplyr::sql(paste0("FROM ", from))
   }
   if (cache) {
