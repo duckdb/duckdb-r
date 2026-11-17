@@ -329,6 +329,8 @@ test_that("a temporary table is fetched column-wise", {
 })
 
 test_that("a converted column keeps its values and runs no query after a later fetch fails", {
+  # transformed_vector is never reassigned once converted_payload is published,
+  # which the summary methods rely on when they read the payload unguarded
   con <- local_con()
   dbWriteTable(con, "t", data.frame(a = 1:10, b = letters[1:10]))
   # The queries the data frame ran, from the engine's query log
@@ -386,4 +388,41 @@ test_that("the materialize callback announces a column-wise data frame once", {
   expect_equal(df2$c[[1]], 7)
   expect_equal(df2$a, 1:3)
   expect_equal(calls, 2)
+})
+
+test_that("summaries of a column-wise column fetch it once and then read the converted vector", {
+  con <- local_con()
+  dbWriteTable(
+    con,
+    "t",
+    data.frame(x = c(2.5, NA, 1, 4), n = c(3L, 1L, NA, 2L), s = letters[1:4])
+  )
+  dbExecute(con, "CALL enable_logging('QueryLog')")
+  queries <- function() {
+    sql <- dbGetQuery(
+      con,
+      "SELECT message FROM duckdb_logs WHERE type = 'QueryLog'"
+    )$message
+    sql[grepl("FROM memory\\.main\\.", sql)]
+  }
+
+  df <- rel_to_altrep(rel_from_table(con, "t"))
+  # The length needs the row count only
+  expect_equal(length(df$x), 4)
+  expect_equal(length(queries()), 1)
+
+  expect_equal(mean(df$x, na.rm = TRUE), 2.5)
+  expect_equal(length(queries()), 2)
+  expect_match(queries()[[2]], "^SELECT x AS x FROM ")
+  expect_equal(range(df$x, na.rm = TRUE), c(1, 4))
+  expect_true(anyNA(df$x))
+  expect_equal(sum(df$x, na.rm = TRUE), 7.5)
+  expect_equal(df$x[[3]], 1)
+  expect_equal(length(df$x), 4)
+  expect_equal(length(queries()), 2)
+
+  expect_equal(range(df$n, na.rm = TRUE), c(1L, 3L))
+  expect_true(anyNA(df$n))
+  expect_equal(length(queries()), 3)
+  expect_false(df_is_materialized(df))
 })
