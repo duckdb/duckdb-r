@@ -460,7 +460,9 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 			drop_partial.release();
-			converted.store(true, std::memory_order_release);
+			// Published only now that the vector is filled, the length first, see converted_payload
+			converted_length.store(Rf_xlength(transformed_vector), std::memory_order_relaxed);
+			converted_payload.store(DATAPTR_RO(transformed_vector), std::memory_order_release);
 
 			rel->MarkColumnAsTransformed();
 		}
@@ -469,10 +471,7 @@ struct AltrepVectorWrapper {
 
 	// What Dataptr() returns once the column is converted, without converting it
 	const void *DataptrOrNull() {
-		if (!converted.load(std::memory_order_acquire)) {
-			return nullptr;
-		}
-		return DATAPTR_RO(transformed_vector);
+		return converted_payload.load(std::memory_order_acquire);
 	}
 
 	SEXP RVector() {
@@ -484,15 +483,14 @@ struct AltrepVectorWrapper {
 	idx_t column_index;
 	std::vector<idx_t> parent_column_index;
 	cpp11::sexp transformed_vector;
-	// Set once transformed_vector is filled, which Dataptr() sets before it fills it.
-	// Atomic: a bind on an engine thread reads it while R's thread may be converting (src/scan.cpp).
-	// Once it is set, transformed_vector must never be reassigned:
-	// ConvertedVectorOrNil() reads it without a guard and hands out pointers into it.
-	std::atomic<bool> converted {false};
-	// The payload and length of transformed_vector, filled by ConvertedPayload() on the first read after conversion,
+	// The payload and length of transformed_vector, which Dataptr() stores on R's thread once it has filled it,
 	// so that a read per element costs two calls into R instead of six (#2890).
-	// Stable once filled, because transformed_vector is never reassigned once converted and R never moves a vector.
-	// The length is stored before the payload, which publishes it.
+	// A non-null payload is what marks the column converted, and the length is stored before it.
+	// Atomic: a bind on an engine thread reads it while R's thread may be converting (src/scan.cpp).
+	// Stable once stored, because R never moves a vector and transformed_vector must then never be reassigned:
+	// ConvertedPayload() reads it without a guard and hands out pointers into it.
+	// duckdb_r_allocate() returns plain vectors, whose payload is never null, also at length zero;
+	// were it null, the column would only keep taking the guarded slow path.
 	std::atomic<const void *> converted_payload {nullptr};
 	std::atomic<R_xlen_t> converted_length {0};
 };
@@ -677,30 +675,6 @@ const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
 	END_CPP11
 }
 
-// The converted vector of a column, or R_NilValue if it is not converted yet.
-// Throws nothing, allocates nothing and calls into R for nothing that can fail,
-// so the Length, Dataptr, Elt and Get_region methods below take it without BEGIN_CPP11 or an AltrepGuard,
-// which R may call once per element and which cost more than the element being read (#2890).
-// The guard only changes how an error is reported, and this path raises none:
-// a freed or foreign wrapper also answers R_NilValue,
-// and the caller's slow path then reports it through AltrepVectorWrapper::Get().
-// It only reads, as DataptrOrNull() does, so a task's bind may take it too.
-// That bind is not free of R, though:
-// it still enters through R's DATAPTR() and Rf_length(),
-// which clear and restore R's flag for its collector around the call
-// (handbook/architecture/glue/threading/).
-static SEXP ConvertedVectorOrNil(SEXP x) {
-	SEXP ptr = R_altrep_data1(x);
-	if (TYPEOF(ptr) != EXTPTRSXP) {
-		return R_NilValue;
-	}
-	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(ptr));
-	if (!wrapper || !wrapper->converted.load(std::memory_order_acquire)) {
-		return R_NilValue;
-	}
-	return wrapper->transformed_vector;
-}
-
 #if defined(__GNUC__) || defined(__clang__)
 #define RELTOALTREP_NOINLINE __attribute__((noinline))
 #else
@@ -713,46 +687,28 @@ struct ConvertedView {
 	R_xlen_t length;
 };
 
-// Fills the wrapper's cache of the converted payload, see ConvertedPayload().
-// Out of line, so that the path R takes once per element stays short.
-static RELTOALTREP_NOINLINE ConvertedView FillConvertedPayload(SEXP x, AltrepVectorWrapper *wrapper) {
-	SEXP converted = ConvertedVectorOrNil(x);
-	if (converted == R_NilValue) {
-		return {nullptr, 0};
-	}
-	// An ALTREP vector's payload is its class's to hand out, and may move or allocate: not cached.
-	// Such a vector, or one with a null DATAPTR, is deliberately never cached, so every read of it
-	// takes the guarded slow path; duckdb_r_allocate() returns plain vectors today.
-	if (ALTREP(converted)) {
-		return {nullptr, 0};
-	}
-	ConvertedView view {DATAPTR_RO(converted), Rf_xlength(converted)};
-	if (!view.payload) {
-		return {nullptr, 0};
-	}
-	wrapper->converted_length.store(view.length, std::memory_order_relaxed);
-	wrapper->converted_payload.store(view.payload, std::memory_order_release);
-	return view;
-}
-
 // The payload of a converted column and its length, or a null payload if it is not converted yet or freed.
-// The cheapest path ConvertedVectorOrNil() allows, for the methods R calls once per element:
+// Throws nothing, allocates nothing and calls into R for nothing that can fail,
+// so the Length, Dataptr, Elt and Get_region methods below take it without BEGIN_CPP11 or an AltrepGuard,
+// which cost more than the element being read (#2890), and R calls some of them once per element:
 // c() asks for the length and the data pointer of every element it copies, mean() of an integer
 // and anyNA() of a logical or string ask for each element, and unique() of a string for each several times.
 // data1 is always the external pointer rapi_rel_to_altrep_impl() set, since these classes have no Unserialize method,
-// and an address cleared by a finalizer or a release answers null here, which sends the caller to the slow path.
-// Only reads, allocates nothing and raises nothing, so neither the guard nor a task's bind is a concern
-// (handbook/architecture/glue/threading/): two threads filling the cache store the same values.
+// and an address cleared by a finalizer or a release answers null here, which sends the caller to the slow path,
+// which reports it through AltrepVectorWrapper::Get().
+// It only reads what Dataptr() stored, as DataptrOrNull() does, so a task's bind may take it too.
+// That bind is not free of R, though: it still enters through R's DATAPTR() and Rf_length(),
+// which clear and restore R's flag for its collector around the call (handbook/architecture/glue/threading/).
 static inline ConvertedView ConvertedPayload(SEXP x) {
 	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(R_altrep_data1(x)));
 	if (!wrapper) {
 		return {nullptr, 0};
 	}
 	const void *payload = wrapper->converted_payload.load(std::memory_order_acquire);
-	if (payload) {
-		return {payload, wrapper->converted_length.load(std::memory_order_relaxed)};
+	if (!payload) {
+		return {nullptr, 0};
 	}
-	return FillConvertedPayload(x, wrapper);
+	return {payload, wrapper->converted_length.load(std::memory_order_relaxed)};
 }
 
 // Converts the column first if needed, so it runs on R's thread only, like Dataptr()
