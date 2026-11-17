@@ -11,7 +11,8 @@
 #
 # The server drains whole batches into that answer until it holds at least
 # this many rows, and leaves the rest of the result to FETCH requests.
-# It and the batch size `local_quack_server()` sets are read by the server only;
+# The server alone reads this setting
+# and the batch size that `local_quack_server()` sets;
 # the client does not ask for a count of its own when it reads.
 quack_inline_rows <- 2048L
 
@@ -20,8 +21,11 @@ quack_inline_rows <- 2048L
 # Beyond the conditions every downloaded extension is subject to,
 # the download itself can fail (no network, an extension not built for this
 # release or platform), and that is not what the tests calling this are about.
-# Unlike the platform canary of handbook/testing/suite/, which pins whether DuckDB publishes for a platform,
-# these tests are about Quack, so a missing or unreachable download skips rather than fails.
+# This is an exception to the platform canary of
+# handbook/testing/suite/README.md, which pins whether DuckDB publishes
+# for a platform:
+# these tests are about Quack,
+# so a missing or unreachable download skips rather than fails.
 # Any other failure, LOAD included, is an error.
 # INSTALL uses the engine's own HTTP client, which `http_timeout` (an httpfs
 # setting) does not reach, so an offline run waits for its default timeout.
@@ -30,7 +34,13 @@ skip_if_no_quack <- function(con) {
   tryCatch(
     dbExecute(con, "INSTALL quack"),
     error = function(e) {
-      if (!grepl("Failed to download extension", conditionMessage(e))) {
+      if (
+        !grepl(
+          "Failed to download extension",
+          conditionMessage(e),
+          fixed = TRUE
+        )
+      ) {
         stop(e)
       }
       skip(paste0("quack extension unavailable: ", conditionMessage(e)))
@@ -70,7 +80,11 @@ local_quack_server <- function(.local_envir = parent.frame()) {
       # Only the listening socket is outside the test's control;
       # any other error, a bad parameter included, fails the test.
       if (
-        !grepl("Failed to bind DuckDB Quack RPC server", conditionMessage(e))
+        !grepl(
+          "Failed to bind DuckDB Quack RPC server",
+          conditionMessage(e),
+          fixed = TRUE
+        )
       ) {
         stop(e)
       }
