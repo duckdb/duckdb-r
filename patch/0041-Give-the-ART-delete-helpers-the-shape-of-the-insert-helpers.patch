@@ -63,18 +63,18 @@ diff --git a/src/duckdb/src/execution/index/art/base_leaf.cpp b/src/duckdb/src/e
  }
  
  //===--------------------------------------------------------------------===//
-@@ -72,8 +69,9 @@
- void Node7Leaf::DeleteByte(ART &art, NodePtr &node_ptr, NodePtr &parent_ptr, const uint8_t byte, const ARTKey &row_id) {
+@@ -73,8 +70,9 @@
+                            const ARTKey &row_id) {
  	idx_t remainder;
  	{
--		auto n7_handle = DeleteByteInternal(art, node_ptr, byte);
-+		NodeHandle n7_handle(art, node_ptr);
+-		auto n7_handle = DeleteByteInternal(art, node_ptr_handle.Get(), byte);
++		NodeHandle n7_handle(art, node_ptr_handle.Get());
  		auto &n7 = n7_handle.Get<Node7Leaf>();
 +		DeleteByteInternal(n7, byte);
  
  		if (n7.count != 1) {
  			return;
-@@ -135,8 +133,9 @@
+@@ -138,8 +136,9 @@
  
  void Node15Leaf::DeleteByte(ART &art, NodePtr &node_ptr, const uint8_t byte) {
  	{
@@ -109,18 +109,18 @@ diff --git a/src/duckdb/src/execution/index/art/base_node.cpp b/src/duckdb/src/e
  }
  
  //===--------------------------------------------------------------------===//
-@@ -80,8 +75,9 @@
+@@ -81,8 +76,9 @@
  	uint8_t remaining_byte;
  
  	{
--		auto handle = DeleteChildInternal(art, node_ptr, byte);
-+		NodeHandle handle(art, node_ptr);
+-		auto handle = DeleteChildInternal(art, node_ptr_handle.Get(), byte);
++		NodeHandle handle(art, node_ptr_handle.Get());
  		auto &n = handle.Get<Node4>();
 +		DeleteChildInternal(art, n, byte);
  
  		if (n.count != 1) {
  			return;
-@@ -139,8 +135,9 @@
+@@ -141,8 +137,9 @@
  
  void Node16::DeleteChild(ART &art, NodePtr &node_ptr, const uint8_t byte) {
  	{
