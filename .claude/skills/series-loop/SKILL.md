@@ -360,7 +360,8 @@ A firing that had to work around a bug in the tooling owes `main` a PR before it
 
 * If an open PR already covers the cause, add this firing's evidence to it; never merge one yourself.
 * Work around by hand first, finish the firing, then write the PR; a workaround that cannot be done by hand is a finding, and the firing stops.
-* One PR per cause, small, against `main`, with the run, the commit and the log line as evidence.
+* One PR per cause, small, against `main`, with the run, the commit and the log line as evidence:
+  the loop runs `main`'s copy, so [`operations/review/`](/handbook/operations/review/README.md) gives such a fix that base.
 * Not a tooling PR: anything the *same firing done again* would not hit, such as a red vendored tree, a settled flake, a drifted snapshot.
 
 Reference: [`references/7-tooling-prs.md`](references/7-tooling-prs.md).
