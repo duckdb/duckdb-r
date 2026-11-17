@@ -443,6 +443,8 @@ jobs:
 
       - name: Job summary
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           s="$GITHUB_STEP_SUMMARY"
           {
@@ -493,6 +495,10 @@ jobs:
             du -sh "$CCACHE_DIR" 2>/dev/null || true
             echo "objects: $(find src -name '*.o' | wc -l | tr -d ' ') files, $(find src -name '*.o' -print0 | xargs -0 du -ck 2>/dev/null | tail -n 1 | cut -f1) KiB"
             ls -l src/*.so 2>/dev/null || true
+            echo
+            echo "This branch's cache entries:"
+            gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --limit 100 \
+              --json key,sizeInBytes --jq '.[] | "\(.key)\t\(.sizeInBytes)"' 2>&1 || true
             echo '```'
           } >> "$s"
           cat "$s"
