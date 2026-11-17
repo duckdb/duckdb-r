@@ -1,24 +1,13 @@
-# Windows network (UNC) paths, which DuckDB must accept under every spelling R
-# hands out: `\\server\share\x`, `//server/share/x`, and the mixed
-# `\\server/share/x`. The administrative share `\\localhost\C$` stands in for a
-# network drive, so these run on any Windows machine that exposes it (#2882).
+# Windows network (UNC) paths,
+# which DuckDB must accept under every spelling R hands out (#2882).
+# `local_unc_tempdir()` and `unc_spellings()` in `helper-unc.R`
+# provide the directory and the spellings.
 
 test_that("a database on a UNC path opens there under every spelling (#2882)", {
-  skip_on_cran()
-  skip_if_not(.Platform$OS.type == "windows", "UNC paths are Windows-only")
-  dir <- normalizePath(withr::local_tempdir(), winslash = "\\")
-  unc <- paste0("\\\\localhost\\", substr(dir, 1, 1), "$", substring(dir, 3))
-  skip_if_not(dir.exists(unc), "the administrative share is not reachable")
+  paths <- local_unc_tempdir()
 
-  slashed <- chartr("\\", "/", substring(unc, 3))
-  spellings <- list(
-    backslash = paste0(unc, "\\backslash.duckdb"),
-    slash = paste0("//", slashed, "/slash.duckdb"),
-    mixed = paste0("\\\\", slashed, "/mixed.duckdb")
-  )
-
-  for (name in names(spellings)) {
-    path <- spellings[[name]]
+  for (name in c("backslash", "slash", "mixed", "filepath")) {
+    path <- unc_spellings(paths$unc, paste0(name, ".duckdb"))[[name]]
 
     # The key keeps the server and share rather than rooting them on a drive.
     expect_match(
@@ -28,63 +17,66 @@ test_that("a database on a UNC path opens there under every spelling (#2882)", {
       info = name
     )
 
-    con <- tryCatch(dbConnect(duckdb(path)), error = identity)
-    expect_s4_class(con, "duckdb_connection")
-    if (!inherits(con, "error")) {
-      dbDisconnect(con, shutdown = TRUE)
+    # The driver is shut down before the next spelling,
+    # so no file stays locked when the directory is removed.
+    err <- tryCatch(
+      local({
+        drv <- duckdb(path)
+        withr::defer(duckdb_shutdown(drv))
+        dbDisconnect(dbConnect(drv))
+        NULL
+      }),
+      error = identity
+    )
+    if (is.null(err)) {
+      succeed()
+    } else {
+      fail(paste0(name, ": ", conditionMessage(err)))
     }
     expect_true(
-      file.exists(file.path(dir, paste0(name, ".duckdb"))),
+      file.exists(file.path(paths$dir, paste0(name, ".duckdb"))),
       info = name
     )
   }
 })
 
 test_that("a recursive glob below a UNC path finds files under every spelling (#2882)", {
-  skip_on_cran()
-  skip_if_not(.Platform$OS.type == "windows", "UNC paths are Windows-only")
-  dir <- normalizePath(withr::local_tempdir(), winslash = "\\")
-  unc <- paste0("\\\\localhost\\", substr(dir, 1, 1), "$", substring(dir, 3))
-  skip_if_not(dir.exists(unc), "the administrative share is not reachable")
+  paths <- local_unc_tempdir()
 
   con <- dbConnect(duckdb())
   withr::defer(dbDisconnect(con, shutdown = TRUE))
 
   # One file at each of two depths, written through the local path.
-  dir.create(file.path(dir, "a", "b"), recursive = TRUE)
+  dir.create(file.path(paths$dir, "a", "b"), recursive = TRUE)
   for (format in c("csv", "parquet")) {
     dbExecute(
       con,
       sprintf(
-        "COPY (SELECT 1 AS x) TO '%s' (FORMAT %s)",
-        file.path(dir, "a", paste0("one.", format)),
+        "COPY (SELECT 1 AS x) TO %s (FORMAT %s)",
+        dbQuoteString(con, file.path(paths$dir, "a", paste0("one.", format))),
         format
       )
     )
     dbExecute(
       con,
       sprintf(
-        "COPY (SELECT 2 AS x) TO '%s' (FORMAT %s)",
-        file.path(dir, "a", "b", paste0("two.", format)),
+        "COPY (SELECT 2 AS x) TO %s (FORMAT %s)",
+        dbQuoteString(
+          con,
+          file.path(paths$dir, "a", "b", paste0("two.", format))
+        ),
         format
       )
     )
   }
 
-  slashed <- chartr("\\", "/", substring(unc, 3))
-  spellings <- list(
-    backslash = paste0(unc, "\\**\\*."),
-    slash = paste0("//", slashed, "/**/*."),
-    mixed = paste0("\\\\", slashed, "/**/*.")
-  )
-
-  for (name in names(spellings)) {
-    for (format in c("csv", "parquet")) {
+  for (format in c("csv", "parquet")) {
+    spellings <- unc_spellings(paths$unc, "**", paste0("*.", format))
+    for (name in names(spellings)) {
       sql <- sprintf(
-        "SELECT sum(x) AS s FROM read_%s('%s%s')",
+        "SELECT sum(x) AS s FROM read_%s(%s)",
         format,
-        spellings[[name]],
-        format
+        dbQuoteString(con, spellings[[name]])
       )
       # No file found is an error, which must count as a failure, not a skip.
       res <- tryCatch(dbGetQuery(con, sql)$s, error = conditionMessage)
