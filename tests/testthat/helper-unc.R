@@ -8,16 +8,16 @@
 #
 # Returns a list with the local `dir` and the `unc` path to the same directory,
 # both with backslashes;
-# the directory is removed when `.env` exits.
+# the directory is removed when `.local_envir` exits.
 # Skips off Windows, and where the share is not reachable,
 # except on GitHub Actions:
 # the share is known reachable on its Windows runners,
 # so there a skip would only hide the tests,
 # and an unreachable share is an error instead.
-local_unc_tempdir <- function(.env = parent.frame()) {
+local_unc_tempdir <- function(.local_envir = parent.frame()) {
   skip_if_not(.Platform$OS.type == "windows", "UNC paths are Windows-only")
   dir <- normalizePath(
-    withr::local_tempdir(.local_envir = .env),
+    withr::local_tempdir(.local_envir = .local_envir),
     winslash = "\\"
   )
   unc <- paste0("\\\\localhost\\", substr(dir, 1, 1), "$", substring(dir, 3))

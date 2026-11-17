@@ -9,9 +9,14 @@ test_that("a database on a UNC path opens there under every spelling (#2882)", {
   for (name in c("backslash", "slash", "mixed", "filepath")) {
     path <- unc_spellings(paths$unc, paste0(name, ".duckdb"))[[name]]
 
-    # The key keeps the server and share rather than rooting them on a drive.
+    # The key keeps the server and share rather than rooting them on a drive;
+    # an engine error counts as a failure for this spelling only.
+    key <- tryCatch(
+      path_normalize(path),
+      error = function(e) paste("error:", conditionMessage(e))
+    )
     expect_match(
-      chartr("\\", "/", path_normalize(path)),
+      chartr("\\", "/", key),
       "^//localhost/",
       ignore.case = TRUE,
       info = name
@@ -43,8 +48,7 @@ test_that("a database on a UNC path opens there under every spelling (#2882)", {
 test_that("a recursive glob below a UNC path finds files under every spelling (#2882)", {
   paths <- local_unc_tempdir()
 
-  con <- dbConnect(duckdb())
-  withr::defer(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # One file at each of two depths, written through the local path.
   dir.create(file.path(paths$dir, "a", "b"), recursive = TRUE)
