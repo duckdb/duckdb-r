@@ -100,10 +100,11 @@
 # There is no `-land-build`, so the loop's discovery never mistakes the pair for
 # a series.
 #
-# **`--review` writes what a reviewer of `main` reads.** The landing's own diff
-# is the engine's, hundreds of thousands of lines; what changes for `main`'s
-# maintainers is everything else, the glue, R code and tests the series changed
-# on the way. `<L>-land-review` is that alone: the landing's base, one commit
+# **`--review` writes what a reviewer of the branch landed on reads.** The
+# landing's own diff is the engine's, hundreds of thousands of lines; what
+# changes for that branch's maintainers is everything else, the glue, R code and
+# tests the series changed on the way.
+# `<L>-land-review` is that alone: the landing's base, one commit
 # that removes every workflow, and then, for each landing commit that changes
 # anything outside the vendored strand, that change and nothing more, under the
 # upstream commit that asked for it. It is written from the pushed
@@ -111,9 +112,9 @@
 # Without its engine the R side compiles against nothing, so a check there could
 # only fail, and without workflow files a pull request starts nothing that
 # builds or tests it. It goes to the canonical repository, where it is opened as
-# a draft pull request against `main` and never merged: `main` takes the
-# landing itself. It prints the test report the build gated on, for the pull
-# request's description.
+# a draft pull request against the branch it lands on and never merged: that
+# branch takes the landing itself. It prints the test report the build gated
+# on, for the pull request's description.
 #
 # Usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--push]
 #                       [--base <ref>] [--placed <sha>]... [--no-check-glue] [--attended]

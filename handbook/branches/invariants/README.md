@@ -48,10 +48,10 @@ The families, in one breath:
   built, the replay takes `<S>-dev`'s commits themselves, so the two
   agree there by construction, except where the replay kept a test the
   base had stopped and says so.
-* **Prerelease** — while a release stabilises, only `main` and the dev
-  branches move, so an unfinished release is abandoned by walking away;
+* **Prerelease**: while a release stabilises, only the branch the series releases from,
+  by its fold-back fixes, and the dev branches move, so an unfinished release is abandoned by walking away;
   what ships is an ancestor of what was revdep-tested;
-  a fold-back fix reaches `main` before any series;
+  a fold-back fix reaches the branch the series releases from before any series;
   and at the glue freeze every releasing series carries identical glue.
 
 Read every statement as a claim about **trees, not ancestry**:

@@ -16,9 +16,12 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+#include <algorithm>
 #include <cinttypes>
 #include <cmath>
 #include <cstddef>
+#include <cstring>
+#include <type_traits>
 
 // Handbook: handbook/usage/memory/reading/README.md
 // (what materialization allocates on either side, and when it is freed)
@@ -65,18 +68,18 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altrep_Inspect_method(string_class, RelInspect);
 
 	R_set_altrep_Length_method(rownames_class, RownamesLength);
-	R_set_altrep_Length_method(logical_class, VectorLength);
-	R_set_altrep_Length_method(int_class, VectorLength);
-	R_set_altrep_Length_method(real_class, VectorLength);
-	R_set_altrep_Length_method(string_class, VectorLength);
+	R_set_altrep_Length_method(logical_class, VectorAtomicLength);
+	R_set_altrep_Length_method(int_class, VectorAtomicLength);
+	R_set_altrep_Length_method(real_class, VectorAtomicLength);
+	R_set_altrep_Length_method(string_class, VectorAtomicLength);
 
 	R_set_altrep_Duplicate_method(rownames_class, RownamesDuplicate);
 
 	R_set_altvec_Dataptr_method(rownames_class, RownamesDataptr);
-	R_set_altvec_Dataptr_method(logical_class, VectorDataptr);
-	R_set_altvec_Dataptr_method(int_class, VectorDataptr);
-	R_set_altvec_Dataptr_method(real_class, VectorDataptr);
-	R_set_altvec_Dataptr_method(string_class, VectorDataptr);
+	R_set_altvec_Dataptr_method(logical_class, VectorAtomicDataptr);
+	R_set_altvec_Dataptr_method(int_class, VectorAtomicDataptr);
+	R_set_altvec_Dataptr_method(real_class, VectorAtomicDataptr);
+	R_set_altvec_Dataptr_method(string_class, VectorAtomicDataptr);
 
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
 	R_set_altvec_Dataptr_or_null_method(logical_class, VectorDataptrOrNull);
@@ -93,6 +96,15 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altinteger_Max_method(rownames_class, RownamesMax);
 
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
+
+	// Summaries such as range(), mean() and anyNA() read element by element or region by region,
+	// so these read straight from the converted vector (#2890)
+	R_set_altlogical_Elt_method(logical_class, VectorLogicalElt);
+	R_set_altinteger_Elt_method(int_class, VectorIntegerElt);
+	R_set_altreal_Elt_method(real_class, VectorRealElt);
+	R_set_altlogical_Get_region_method(logical_class, VectorLogicalGetRegion);
+	R_set_altinteger_Get_region_method(int_class, VectorIntegerGetRegion);
+	R_set_altreal_Get_region_method(real_class, VectorRealGetRegion);
 
 #if defined(R_HAS_ALTLIST)
 	list_class = R_make_altlist_class("reltoaltrep_list_class", DUCKDB_PACKAGE_NAME, dll);
@@ -448,7 +460,9 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 			drop_partial.release();
-			converted.store(true, std::memory_order_release);
+			// Published only now that the vector is filled, the length first, see converted_payload
+			converted_length.store(Rf_xlength(transformed_vector), std::memory_order_relaxed);
+			converted_payload.store(DATAPTR_RO(transformed_vector), std::memory_order_release);
 
 			rel->MarkColumnAsTransformed();
 		}
@@ -457,10 +471,7 @@ struct AltrepVectorWrapper {
 
 	// What Dataptr() returns once the column is converted, without converting it
 	const void *DataptrOrNull() {
-		if (!converted.load(std::memory_order_acquire)) {
-			return nullptr;
-		}
-		return DATAPTR_RO(transformed_vector);
+		return converted_payload.load(std::memory_order_acquire);
 	}
 
 	SEXP RVector() {
@@ -472,9 +483,16 @@ struct AltrepVectorWrapper {
 	idx_t column_index;
 	std::vector<idx_t> parent_column_index;
 	cpp11::sexp transformed_vector;
-	// Set once transformed_vector is filled, which Dataptr() sets before it fills it.
+	// The payload and length of transformed_vector, which Dataptr() stores on R's thread once it has filled it,
+	// so that a read per element costs two calls into R instead of six (#2890).
+	// A non-null payload is what marks the column converted, and the length is stored before it.
 	// Atomic: a bind on an engine thread reads it while R's thread may be converting (src/scan.cpp).
-	std::atomic<bool> converted {false};
+	// Stable once stored, because R never moves a vector and transformed_vector must then never be reassigned:
+	// ConvertedPayload() reads it without a guard and hands out pointers into it.
+	// duckdb_r_allocate() returns plain vectors, whose payload is never null, also at length zero;
+	// were it null, the column would only keep taking the guarded slow path.
+	std::atomic<const void *> converted_payload {nullptr};
+	std::atomic<R_xlen_t> converted_length {0};
 };
 
 Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
@@ -657,11 +675,147 @@ const void *RelToAltrep::VectorDataptrOrNull(SEXP x) {
 	END_CPP11
 }
 
-SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
+#if defined(__GNUC__) || defined(__clang__)
+#define RELTOALTREP_NOINLINE __attribute__((noinline))
+#else
+#define RELTOALTREP_NOINLINE
+#endif
+
+// The payload of a converted column and its length, see ConvertedPayload()
+struct ConvertedView {
+	const void *payload;
+	R_xlen_t length;
+};
+
+// The payload of a converted column and its length, or a null payload if it is not converted yet or freed.
+// Throws nothing, allocates nothing and calls into R for nothing that can fail,
+// so the Length, Dataptr, Elt and Get_region methods below take it without BEGIN_CPP11 or an AltrepGuard,
+// which cost more than the element being read (#2890), and R calls some of them once per element:
+// c() asks for the length and the data pointer of every element it copies, mean() of an integer
+// and anyNA() of a logical or string ask for each element, and unique() of a string for each several times.
+// data1 is always the external pointer rapi_rel_to_altrep_impl() set, since these classes have no Unserialize method,
+// and an address cleared by a finalizer or a release answers null here, which sends the caller to the slow path,
+// which reports it through AltrepVectorWrapper::Get().
+// It only reads what Dataptr() stored, as DataptrOrNull() does, so a task's bind may take it too.
+// That bind is not free of R, though: it still enters through R's DATAPTR() and Rf_length(),
+// which clear and restore R's flag for its collector around the call (handbook/architecture/glue/threading/).
+static inline ConvertedView ConvertedPayload(SEXP x) {
+	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(R_altrep_data1(x)));
+	if (!wrapper) {
+		return {nullptr, 0};
+	}
+	const void *payload = wrapper->converted_payload.load(std::memory_order_acquire);
+	if (!payload) {
+		return {nullptr, 0};
+	}
+	return {payload, wrapper->converted_length.load(std::memory_order_relaxed)};
+}
+
+// Converts the column first if needed, so it runs on R's thread only, like Dataptr()
+// NA_LOGICAL is NA_INTEGER, so an int answers either
+template <class T>
+static RELTOALTREP_NOINLINE T VectorEltSlow(SEXP x, R_xlen_t i) {
+	T na;
+	if constexpr (std::is_same<T, double>::value) {
+		na = NA_REAL;
+	} else {
+		na = NA_INTEGER;
+	}
+	BEGIN_CPP11
+	AltrepGuard guard;
+	return static_cast<const T *>(AltrepVectorWrapper::Get(x)->Dataptr())[i];
+	END_CPP11_EX(na)
+}
+
+template <class T>
+static T VectorElt(SEXP x, R_xlen_t i) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return static_cast<const T *>(view.payload)[i];
+	}
+	return VectorEltSlow<T>(x, i);
+}
+
+// Copies up to size elements from start of a payload of the given length, answers how many it copied
+template <class T>
+static R_xlen_t CopyRegion(const T *payload, R_xlen_t length, R_xlen_t start, R_xlen_t size, T *out) {
+	R_xlen_t n = std::min(length - start, size);
+	if (n <= 0) {
+		return 0;
+	}
+	memcpy(out, payload + start, n * sizeof(T));
+	return n;
+}
+
+template <class T>
+static R_xlen_t VectorGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, T *out) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return CopyRegion(static_cast<const T *>(view.payload), view.length, start, size, out);
+	}
+	BEGIN_CPP11
+	AltrepGuard guard;
+	// A nested access during an in-flight conversion sees the partly filled vector, as with Dataptr()
+	SEXP converted = AltrepVectorWrapper::Get(x)->RVector();
+	return CopyRegion(static_cast<const T *>(DATAPTR_RO(converted)), Rf_xlength(converted), start, size, out);
+	END_CPP11_EX(0)
+}
+
+// c() asks for the length and the data pointer once per element it copies (RealAnswer() and friends, R's bind.c)
+R_xlen_t RelToAltrep::VectorAtomicLength(SEXP x) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return view.length;
+	}
+	return VectorLength(x);
+}
+
+void *RelToAltrep::VectorAtomicDataptr(SEXP x, Rboolean writeable) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return const_cast<void *>(view.payload);
+	}
+	return VectorDataptr(x, writeable);
+}
+
+int RelToAltrep::VectorLogicalElt(SEXP x, R_xlen_t i) {
+	return VectorElt<int>(x, i);
+}
+
+int RelToAltrep::VectorIntegerElt(SEXP x, R_xlen_t i) {
+	return VectorElt<int>(x, i);
+}
+
+double RelToAltrep::VectorRealElt(SEXP x, R_xlen_t i) {
+	return VectorElt<double>(x, i);
+}
+
+R_xlen_t RelToAltrep::VectorLogicalGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out) {
+	return VectorGetRegion<int>(x, start, size, out);
+}
+
+R_xlen_t RelToAltrep::VectorIntegerGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out) {
+	return VectorGetRegion<int>(x, start, size, out);
+}
+
+R_xlen_t RelToAltrep::VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, double *out) {
+	return VectorGetRegion<double>(x, start, size, out);
+}
+
+// Out of line, since BEGIN_CPP11 reserves a buffer for the error message in the frame of the function it is in
+static RELTOALTREP_NOINLINE SEXP VectorStringEltSlow(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
 	AltrepGuard guard;
 	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
+}
+
+SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
+	auto view = ConvertedPayload(x);
+	if (view.payload) {
+		return static_cast<const SEXP *>(view.payload)[i];
+	}
+	return VectorStringEltSlow(x, i);
 }
 
 #if defined(R_HAS_ALTLIST)
