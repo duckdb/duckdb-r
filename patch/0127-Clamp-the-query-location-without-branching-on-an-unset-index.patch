@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 17 Nov 2026 22:00:00 +0000
+Subject: [PATCH] Clamp the query location without branching on an unset index
+
+optional_idx wraps std::optional<idx_t>, whose payload stays
+indeterminate while the optional is empty. QueryLocation's constructor
+tested `idx.IsValid() && idx.GetIndex() < INVALID_OFFSET`, and GCC 13
+at -O2 branches on the payload comparison before it tests the flag, so
+valgrind reports a conditional jump on an uninitialised value in
+Expression::Deserialize(). The result is right either way, but the
+report fails checks run under valgrind.
+
+QueryLocation now takes the index, or INVALID_OFFSET when it is unset,
+and clamps it to INVALID_OFFSET. Where the result is stored, as in
+Expression::Deserialize(), GCC compiles this to conditional moves
+rather than a branch on the payload. A caller that tests the new
+QueryLocation straight away can still get the branch at GCC -O2/-O3, so
+other sites may need the same treatment if valgrind reports them.
+The clamp is what matters: an `if (index < INVALID_OFFSET)` on the same
+index compiles to the same branch as before.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/include/duckdb/common/query_location.hpp | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/query_location.hpp b/src/duckdb/src/include/duckdb/common/query_location.hpp
+index f9a32f796a..f60d4cef9c 100644
+--- a/src/duckdb/src/include/duckdb/common/query_location.hpp
++++ b/src/duckdb/src/include/duckdb/common/query_location.hpp
+@@ -35,9 +35,8 @@ struct QueryLocation {
+ 	//! yields an invalid QueryLocation. Intended mainly for extensions and the few core sites that only have an
+ 	//! offset (casts, raw parser byte positions, legacy deserialization); prefer threading a real QueryLocation.
+ 	QueryLocation(optional_idx idx) { // NOLINT: allow implicit conversion from optional_idx
+-		if (idx.IsValid() && idx.GetIndex() < INVALID_OFFSET) {
+-			offset = static_cast<uint32_t>(idx.GetIndex());
+-		}
++		auto index = idx.IsValid() ? idx.GetIndex() : idx_t(INVALID_OFFSET);
++		offset = static_cast<uint32_t>(index < INVALID_OFFSET ? index : INVALID_OFFSET);
+ 	}
+ 
+ 	static QueryLocation Invalid() {
