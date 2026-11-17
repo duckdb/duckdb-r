@@ -449,3 +449,17 @@ test_that("a refused attempt does not use up the announcement", {
     expect_equal(calls, 1)
   }
 })
+
+test_that("the legacy materialize message prints once per data frame", {
+  con <- local_con()
+  dbWriteTable(con, "t", data.frame(a = 1:3, b = 4:6))
+  rlang::local_options(duckdb.materialize_message = TRUE)
+
+  df <- rel_to_altrep(rel_from_table(con, "t"))
+  out <- capture.output({
+    nrow(df)
+    sum(df$a)
+    sum(df$b)
+  })
+  expect_equal(sum(out == "duckplyr: materializing"), 1)
+})

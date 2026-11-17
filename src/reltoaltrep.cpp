@@ -247,8 +247,7 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
 	// any open result of its connection is ended: ending one takes that lock too.
 	// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
-	auto &context = *rel->context->GetContext();
-	if (ScopedInterruptHandler::IsActiveFor(context)) {
+	if (ScopedInterruptHandler::IsActiveFor(*rel->context->GetContext())) {
 		rapi_error_with_context("GetQueryResult",
 		                        "Cannot materialize a relation of the connection that is running the query.");
 	}
@@ -275,6 +274,9 @@ void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
 	}
 	// Set once the callback returned: one that failed announces the next attempt again
 	announced = true;
+
+	// Taken after the callback, which may have closed the connection
+	auto &context = *rel->context->GetContext();
 
 	EndOpenResults(context);
 	duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
