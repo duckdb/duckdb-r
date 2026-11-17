@@ -154,6 +154,7 @@ private:
 	static size_t ParseFileSchemes(const string &input, Path &parsed);
 #if defined(_WIN32)
 	static size_t ParseUNCScheme(const string &input, Path &parsed);
+	static bool StartsWithAnySeparator(const string &input, const string &prefix);
 #endif
 };
 
