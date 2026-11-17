@@ -12,6 +12,9 @@
 #   3. A tagged upstream commit carries its marker, and the walk stops there.
 #   4. An upstream commit that changes nothing under the vendor paths but the
 #      stamp is skipped, and the run ends with the tree as it found it.
+#   5. An upstream fetched without tags is refused before anything is
+#      vendored, by the configuration's own reading of the version
+#      (scripts/series-stamp-test.sh checks that reading).
 
 set -euo pipefail
 
@@ -139,6 +142,18 @@ has "with nothing to vendor" "$(log)" "No changes found. Done."
 is "the strand did not move" "$(git rev-parse HEAD)" "$TIP"
 is "the tree is clean" "$(git status --porcelain | wc -l)" 0
 is "the base scan still reads the strand" "$(git log -1 --format=%s | grep -c "@$U2")" 1
+
+echo
+echo "=== 5. an upstream fetched without tags is refused"
+git clone -q --no-tags "$UP" "$SCRATCH/tagless"
+run --strand --commits 1 "$SCRATCH/tagless"; out=$(cat "$SCRATCH/exit")
+[ -z "${KEEP:-}" ] || log | tail -n 20
+is "it exits 6" "$out" "EXIT=6"
+has "naming the condition" "$(log)" "=== NO VERSION IN THE UPSTREAM CLONE ==="
+has "and the reason" "$(log)" "has no release tag below HEAD"
+is "the strand did not move" "$(git rev-parse HEAD)" "$TIP"
+is "the tree is clean" "$(git status --porcelain | wc -l)" 0
+is "and the clone is gone" "$([ -d duckdb ] && echo kept || echo gone)" gone
 
 echo
 echo "$pass passed, $fail failed"
