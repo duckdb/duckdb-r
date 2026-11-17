@@ -1,0 +1,80 @@
+# FINISH marks a call to RProgressBarDisplay::Finish(); the callback line after it is the 100 it passes.
+# Lines before the first === come from the setup statements.
+
+## Every FINISH, with the line before and after it
+1:FINISH
+2:FINISH
+3:FINISH
+4:FINISH
+5:FINISH
+6:FINISH
+7:FINISH
+8:FINISH
+9-=== dbGetQuery() 
+10:FINISH
+11-callback dbGetQuery 100.0000
+--
+50-callback dbGetQuery 100.0000
+51:FINISH
+52-callback dbGetQuery 100.0000
+53-=== dbGetQueryArrow(), then $get_next() until NULL 
+54:FINISH
+55-callback open 100.0000
+--
+798-callback read 50 66.6667
+799:FINISH
+800-callback read 50 100.0000
+
+## Callbacks per phase
+41 callback dbGetQuery 
+1 callback open 
+3 callback read 1 
+3 callback read 2 
+3 callback read 3 
+3 callback read 4 
+46 callback read 5 
+3 callback read 6 
+3 callback read 7 
+4 callback read 8 
+3 callback read 9 
+3 callback read 10 
+3 callback read 11 
+3 callback read 12 
+52 callback read 13 
+3 callback read 14 
+3 callback read 15 
+132 callback read 16 
+3 callback read 17 
+38 callback read 18 
+3 callback read 19 
+3 callback read 20 
+38 callback read 21 
+3 callback read 22 
+4 callback read 23 
+3 callback read 24 
+33 callback read 25 
+33 callback read 26 
+3 callback read 27 
+3 callback read 28 
+101 callback read 29 
+4 callback read 30 
+3 callback read 31 
+3 callback read 32 
+3 callback read 33 
+3 callback read 34 
+3 callback read 35 
+3 callback read 36 
+35 callback read 37 
+3 callback read 38 
+74 callback read 39 
+3 callback read 40 
+3 callback read 41 
+3 callback read 42 
+3 callback read 43 
+3 callback read 44 
+3 callback read 45 
+42 callback read 46 
+3 callback read 47 
+3 callback read 48 
+3 callback read 49 
+3 callback read 50 

@@ -1,0 +1,351 @@
+# Records every call the engine makes to the progress callback, per query
+# phase, for local queries read whole or streamed, for a query with a slow
+# remote part and a slow local part, and for a stream under different
+# streaming buffer sizes.
+#
+# Usage, from the repository root, with the duckdb under test first on the
+# library path:
+#   PROGRESS_EXPERIMENT_DIR=$PWD/experiments/2026-11-17-progress-display \
+#     Rscript scripts/render-reprex.R \
+#     experiments/2026-11-17-progress-display/run.R run
+#
+# Needs: duckdb, nanoarrow, python3, and DuckDB's extension repository for
+# httpfs. Renders run.md, and writes calls.csv (every call, consecutive calls
+# with the same phase and percentage collapsed into one row) beside itself.
+#
+# Handbook: handbook/usage/interactive/README.md
+
+suppressPackageStartupMessages(library(duckdb))
+
+here <- Sys.getenv("PROGRESS_EXPERIMENT_DIR", getwd())
+calls_csv <- file.path(here, "calls.csv")
+
+# ---- Recording ---------------------------------------------------------------
+
+# The callback receives one number: the engine's Update() passes the
+# percentage, its Finish() passes 100 (src/connection.cpp).
+rec <- new.env()
+rec_reset <- function() {
+  rec$n <- 0L
+  rec$t <- numeric(4e6)
+  rec$v <- numeric(4e6)
+  rec$p <- integer(4e6)
+  rec$phases <- character()
+  rec$t0 <- now()
+}
+now <- function() as.numeric(Sys.time())
+phase <- function(name) {
+  rec$phases <- c(rec$phases, name)
+  rec$cur <- length(rec$phases)
+}
+callback <- function(x) {
+  n <- rec$n + 1L
+  rec$n <- n
+  rec$t[n] <- now() - rec$t0
+  rec$v[n] <- x
+  rec$p[n] <- rec$cur
+}
+options(duckdb.progress_display = callback)
+
+all_calls <- list()
+fmt <- function(x) formatC(x, format = "f", digits = 2)
+
+# Prints one run: per phase, the number of calls, the span of the phase,
+# and a trace of (seconds since the query started: percentage) sampled at
+# most every `step` seconds, always with the first and the last call.
+report <- function(
+  scenario,
+  api,
+  threads,
+  rows,
+  wall,
+  phase_spans,
+  step = 0.25
+) {
+  n <- rec$n
+  t <- rec$t[seq_len(n)]
+  v <- rec$v[seq_len(n)]
+  p <- rec$p[seq_len(n)]
+  cat(sprintf(
+    "\n## %s | %s | threads=%d | rows=%s | wall=%ss | calls=%d (of them =100: %d)\n",
+    scenario,
+    api,
+    threads,
+    format(rows, big.mark = ",", scientific = FALSE),
+    fmt(wall),
+    n,
+    sum(v >= 100)
+  ))
+  silent <- 0L
+  silent_time <- 0
+  for (i in seq_along(rec$phases)) {
+    span <- phase_spans[[i]]
+    sel <- which(p == i)
+    if (length(sel) == 0) {
+      silent <- silent + 1L
+      silent_time <- silent_time + (span[2] - span[1])
+      if (
+        !startsWith(rec$phases[i], "read ") &&
+          !startsWith(rec$phases[i], "fetch ")
+      ) {
+        cat(sprintf(
+          "  %-12s %s..%ss: no calls\n",
+          rec$phases[i],
+          fmt(span[1]),
+          fmt(span[2])
+        ))
+      }
+      next
+    }
+    keep <- sel[1]
+    for (j in sel[-1]) {
+      if (t[j] - t[keep[length(keep)]] >= step) keep <- c(keep, j)
+    }
+    if (keep[length(keep)] != sel[length(sel)]) {
+      keep <- c(keep, sel[length(sel)])
+    }
+    gaps <- diff(c(span[1], t[sel], span[2]))
+    cat(sprintf(
+      "  %-12s %s..%ss: %d calls, longest silence %ss, trace %s\n",
+      rec$phases[i],
+      fmt(span[1]),
+      fmt(span[2]),
+      length(sel),
+      fmt(max(gaps)),
+      paste0(
+        fmt(t[keep]),
+        ":",
+        formatC(v[keep], format = "f", digits = 1),
+        collapse = " "
+      )
+    ))
+  }
+  if (silent > 0) {
+    cat(sprintf(
+      "  %d further reads with no calls, %ss in all\n",
+      silent,
+      fmt(silent_time)
+    ))
+  }
+  # Run-length encode consecutive calls with the same phase and percentage.
+  if (n > 0) {
+    key <- paste(p, v)
+    brk <- c(TRUE, key[-1] != key[-n])
+    grp <- cumsum(brk)
+    all_calls[[length(all_calls) + 1L]] <<- data.frame(
+      scenario = scenario,
+      api = api,
+      threads = threads,
+      phase = rec$phases[p[brk]],
+      t_first = round(tapply(t, grp, min), 4),
+      t_last = round(tapply(t, grp, max), 4),
+      n = as.integer(tabulate(grp)),
+      pct = v[brk]
+    )
+  }
+}
+
+# Runs `sql` through one API and reports it.
+#   get:   dbGetQuery()
+#   arrow: dbGetQueryArrow() then $get_next() until it returns NULL
+#   send:  dbSendQuery() then dbFetch(n = ) until done
+run <- function(con, scenario, api, sql, threads, chunk = 1e6) {
+  dbExecute(con, sprintf("SET threads = %d", threads))
+  invisible(gc())
+  spans <- list()
+  mark <- function(name) {
+    if (length(spans)) {
+      spans[[length(spans)]][2] <<- now() - rec$t0
+    }
+    phase(name)
+    spans[[length(spans) + 1L]] <<- c(now() - rec$t0, NA)
+  }
+  rec_reset()
+  rows <- 0
+  if (api == "get") {
+    mark("dbGetQuery")
+    rows <- nrow(dbGetQuery(con, sql))
+  } else if (api == "arrow") {
+    mark("open")
+    stream <- dbGetQueryArrow(con, sql, chunk_size = chunk)
+    k <- 0L
+    repeat {
+      k <- k + 1L
+      mark(paste("read", k))
+      batch <- stream$get_next()
+      if (is.null(batch)) {
+        break
+      }
+      rows <- rows + batch$length
+    }
+    stream$release()
+  } else if (api == "send") {
+    mark("send")
+    res <- dbSendQuery(con, sql)
+    k <- 0L
+    repeat {
+      k <- k + 1L
+      mark(paste("fetch", k))
+      rows <- rows + nrow(dbFetch(res, n = chunk))
+      if (dbHasCompleted(res)) break
+    }
+    dbClearResult(res)
+  }
+  mark("end")
+  wall <- spans[[length(spans)]][1]
+  rec$phases <- rec$phases[-length(rec$phases)]
+  spans <- spans[-length(spans)]
+  report(scenario, api, threads, rows, wall, spans)
+}
+
+# ---- Setup -------------------------------------------------------------------
+
+con <- dbConnect(duckdb(shared_home = FALSE))
+info <- dbGetQuery(
+  con,
+  "SELECT version() AS v, current_setting('max_streaming_buffer_size') AS buf"
+)
+cat("# Progress display callback trace\n\n")
+cat("date:      ", format(Sys.time(), "%Y-%m-%d %H:%M %Z"), "\n")
+cat("duckdb:    ", format(packageVersion("duckdb")), "\n")
+cat("engine:    ", info$v, "\n")
+cat("R:         ", R.version.string, "\n")
+cat("nanoarrow: ", format(packageVersion("nanoarrow")), "\n")
+cat(
+  "OS:        ",
+  paste(Sys.info()[c("sysname", "release", "machine")], collapse = " "),
+  "\n"
+)
+cpu <- grep("^model name", readLines("/proc/cpuinfo"), value = TRUE)
+cat("CPU:       ", sub(".*: ", "", cpu[1]), "x", length(cpu), "\n")
+cat("default max_streaming_buffer_size:", info$buf, "\n")
+cat("times are seconds since the R call that issued the query\n")
+
+n_rows <- 10000000L
+invisible(dbExecute(
+  con,
+  sprintf(
+    "CREATE TABLE t AS SELECT i, hash(i) %% %d AS k, random() AS x FROM range(%d) r(i)",
+    n_rows %/% 4L,
+    n_rows
+  )
+))
+invisible(dbExecute(
+  con,
+  sprintf(
+    "CREATE TABLE u AS SELECT i AS k, random() AS y FROM range(%d) r(i)",
+    n_rows %/% 4L
+  )
+))
+cat(sprintf(
+  "table t: %s rows (i, k, x); table u: %s rows (k, y)\n",
+  format(n_rows, big.mark = ","),
+  format(n_rows %/% 4L, big.mark = ",")
+))
+
+# ---- a. Large local queries --------------------------------------------------
+
+local_queries <- c(
+  scan_filter = "SELECT i, x FROM t WHERE hash(i::VARCHAR || 'salt') % 100 = 0",
+  group_by = "SELECT k, sum(x) AS s, count(*) AS n FROM t GROUP BY k",
+  order_by = "SELECT i, x FROM t WHERE i % 4 = 0 ORDER BY x",
+  join = "SELECT t.k, x, y FROM t JOIN u ON t.k = u.k WHERE x < 0.01"
+)
+
+cat("\n# a. Large local queries\n")
+for (name in names(local_queries)) {
+  cat("\n", name, ": ", local_queries[[name]], "\n", sep = "")
+  for (threads in c(1L, 4L)) {
+    for (api in c("get", "arrow", "send")) {
+      run(con, name, api, local_queries[[name]], threads)
+    }
+  }
+}
+
+# ---- b. A remote part and a local part ---------------------------------------
+
+dir <- tempfile("serve")
+dir.create(dir)
+parquet <- file.path(dir, "remote.parquet")
+invisible(dbExecute(
+  con,
+  sprintf(
+    "COPY (SELECT i, hash(i) %% 5000000 AS k, random() AS z FROM range(4000000) r(i))
+   TO '%s' (FORMAT parquet, ROW_GROUP_SIZE 100000)",
+    parquet
+  )
+))
+rate <- 2000000L
+port <- 8919L
+system2(
+  "python3",
+  c(
+    "-I",
+    shQuote(file.path(here, "throttle_server.py")),
+    shQuote(dir),
+    port,
+    rate
+  ),
+  wait = FALSE
+)
+Sys.sleep(1)
+url <- sprintf("http://127.0.0.1:%d/remote.parquet", port)
+invisible(dbExecute(con, "INSTALL httpfs"))
+invisible(dbExecute(con, "LOAD httpfs"))
+# Every query fetches the file again rather than from the engine's cache.
+invisible(dbExecute(con, "SET enable_external_file_cache = false"))
+cat(sprintf(
+  "\n# b. Remote and local\n\nremote file: %s, %s bytes, 4,000,000 rows in row groups of 100,000, served at %s bytes/s\n",
+  url,
+  format(file.size(parquet), big.mark = ","),
+  format(rate, big.mark = ",")
+))
+
+remote_queries <- c(
+  # The remote scan alone.
+  remote_only = "SELECT count(*) AS n, sum(z) AS s FROM read_parquet('%s')",
+  # The remote scan feeds a heavy expression in the same pipeline.
+  remote_heavy_expr = "SELECT count(*) AS n FROM read_parquet('%s') WHERE hash(repeat(i::VARCHAR, 40)) %% 7 = 0",
+  # The remote columns the join below reads, alone, to time the remote part.
+  remote_join_columns = "SELECT count(*) AS n, sum(k) AS sk, sum(z) AS s FROM read_parquet('%s')",
+  # The remote file is the join's build side, the local table its probe side:
+  # two pipelines, the remote one first.
+  remote_build_local_probe = "SELECT count(*) AS n, sum(x * z) AS s FROM t JOIN read_parquet('%s') r ON t.k = r.k",
+  # The remote scan feeds an aggregate, then a large local sort of the groups.
+  remote_then_sort = "SELECT k, sum(z) AS s FROM read_parquet('%s') GROUP BY k ORDER BY s"
+)
+for (name in names(remote_queries)) {
+  sql <- sprintf(remote_queries[[name]], url)
+  cat("\n", name, ": ", sql, "\n", sep = "")
+  for (threads in c(1L, 4L)) {
+    for (api in c("get", "arrow")) {
+      run(con, name, api, sql, threads)
+    }
+  }
+}
+
+# ---- c. The streaming buffer -------------------------------------------------
+
+cat(
+  "\n# c. max_streaming_buffer_size, a stream of a cheap 5,000,000-row scan read in chunks of 100,000 rows\n"
+)
+for (buf in c("976KiB", "10MiB", "1GiB")) {
+  invisible(dbExecute(
+    con,
+    sprintf("SET max_streaming_buffer_size = '%s'", buf)
+  ))
+  cat("\nmax_streaming_buffer_size =", buf, "\n")
+  run(
+    con,
+    paste0("buffer_", buf),
+    "arrow",
+    "SELECT i, x FROM t WHERE i % 2 = 0",
+    4L,
+    chunk = 1e5
+  )
+}
+invisible(dbExecute(con, "RESET max_streaming_buffer_size"))
+
+system(sprintf("pkill -f 'throttle_server.py .* %d'", port))
+write.csv(do.call(rbind, all_calls), calls_csv, row.names = FALSE)
+dbDisconnect(con)

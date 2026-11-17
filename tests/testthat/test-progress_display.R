@@ -95,6 +95,8 @@ test_that("a progress callback outlives a collection between the reads of a stre
   )
   con <- local_con()
   dbExecute(con, "CREATE TABLE t AS SELECT i FROM range(1000000) t(i)")
+  # Room for the whole result, about 4 MB, whatever the default.
+  dbExecute(con, "SET max_streaming_buffer_size = '64MiB'")
 
   # getOption() hands the display a copy of the callback that nothing else
   # refers to, and the display is built here, where the query is submitted.
@@ -111,8 +113,9 @@ test_that("a progress callback outlives a collection between the reads of a stre
   }
   calls <- 0L
 
-  # The engine reports progress on a stream's first read, which runs the query,
-  # and on no read after it, so only that read can show the callback survived.
+  # A read runs the engine only when the buffer is short, so the first read
+  # computes a result that fits the buffer and is the only read that reports
+  # progress. Handbook: handbook/usage/interactive/README.md
   rows <- 0
   batch <- stream$get_next()
   expect_gt(calls, 0L)

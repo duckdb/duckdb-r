@@ -11,19 +11,58 @@ The C++ side holds the symbol it invokes
 (`get_progress_display_sym` in
 [`src/include/rapi.hpp`](/src/include/rapi.hpp)),
 and [`R/progress_display.R`](/R/progress_display.R) draws it.
-The engine calls it every time it polls a running query, whether or not the progress moved,
-thousands of times in a query of a few seconds
+The engine calls it every time R's thread runs or polls a task of a running query, whether or not the progress moved,
+from tens of times a second up to thousands of times in a query of a few seconds
 ([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
+A function set as `duckdb.progress_display` receives one number per call:
+the display's `Update()` passes the percentage and its `Finish()` passes 100.
 The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
 Throttling is left to the R side.
 A query paints nothing in its first half second, so a fast query never paints, and at most one line every half second after that.
 Completion bypasses the throttle, so a painted line is cleared when its query completes.
-Completion is the engine's call to the display's `Finish()`, which never comes for a query that fails or is interrupted,
-and comes with a streamed Arrow result's first chunk, before the reads that report further progress.
-Either way the last line painted stays until the next query starts.
 Its display is built by `get_progress_display()`, which clears the line, if nothing was printed after it, and restarts the throttle.
 The display keeps one state for the session, not one per query.
 A query that starts while another connection's stream is still being read clears that stream's line and restarts its throttle too.
+
+**What the percentage measures.**
+`Executor::GetPipelinesProgress()` sums the query's pipelines,
+each one's source progress scaled to its source's estimated row count
+(`Pipeline::GetDetailedProgress()` in [`src/duckdb/src/parallel/pipeline.cpp`](/src/duckdb/src/parallel/pipeline.cpp)),
+and a pipeline that has not started counts as none of its rows.
+While a pipeline's source cannot report, `ProgressBar::Update()` skips the call
+([`src/duckdb/src/common/progress_bar/progress_bar.cpp`](/src/duckdb/src/common/progress_bar/progress_bar.cpp)).
+So a large local query reports its execution, not only its fetches, but the bar moves with estimated rows rather than time:
+
+* a scan moves the bar evenly, and the work after it shows as a jump;
+* a sort goes silent while it finishes its runs, and its scan, most of the query's time, may own a fifth of the bar;
+* a filter the optimizer estimates at a few rows leaves the bar short of the end, at two thirds or one third,
+  until `Finish()` takes it to 100.
+
+**When a query is done.**
+The glue prepares every statement with `ClientContext::Prepare()`, which runs a `PREPARE` as a query of its own,
+so each query's calls open with that query's `Finish()`, a 100, before its own run from 0.
+The query's own `Finish()` comes when the query ends:
+inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
+and with the read that ends the query for a stream, never with its first chunk.
+A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
+
+**Why a stream goes quiet.**
+A stream read takes chunks already buffered without running the engine
+(`BufferedData::Participate()` in [`src/duckdb/src/main/buffered_data/buffered_data.cpp`](/src/duckdb/src/main/buffered_data/buffered_data.cpp)),
+and the engine computes ahead until the buffer holds `max_streaming_buffer_size`,
+10 MiB by default (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)).
+A result that fits the buffer, or one whose expensive part runs before its first row, such as a sort or an aggregate,
+is computed by the first read, which gets every call, and the reads after it get none.
+A larger result reports on the reads that refill the buffer, one read in three or four for chunks of 100,000 rows of two columns.
+`SET max_streaming_buffer_size` to a smaller value spreads the calls over more reads.
+
+**A remote part and a local part** share the bar by their sources' estimated rows, not by their duration.
+A slow remote scan stretches its share in time without widening it,
+and with several threads its progress moves in steps, standing still for a second at a time while ranges download.
+The local part after it then moves the bar quickly, and a final jump to 100 is common.
+
+The measurements behind this section, per query shape, thread count and buffer size, are in
+[`experiments/2026-11-17-progress-display/`](/experiments/2026-11-17-progress-display/README.md).
 
 ## Interrupting a query
 
