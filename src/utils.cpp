@@ -1,3 +1,4 @@
+// Touched to measure a one-file rebuild in the #2978 reproducer; reverted next.
 #include "duckdb/common/adbc/adbc-init.hpp"
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/local_file_system.hpp"
