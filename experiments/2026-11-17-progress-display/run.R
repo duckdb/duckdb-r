@@ -10,15 +10,16 @@
 #     experiments/2026-11-17-progress-display/run.R run
 #
 # Needs: duckdb, nanoarrow, python3, and DuckDB's extension repository for
-# httpfs. Renders run.md, and writes calls.csv (every call, consecutive calls
-# with the same phase and percentage collapsed into one row) beside itself.
+# httpfs. Renders run.md. Every call goes to the CSV file PROGRESS_CALLS_CSV
+# names, consecutive calls with the same phase and percentage collapsed into
+# one row, or to a temporary file if it names none.
 #
 # Handbook: handbook/usage/interactive/README.md
 
 suppressPackageStartupMessages(library(duckdb))
 
 here <- Sys.getenv("PROGRESS_EXPERIMENT_DIR", getwd())
-calls_csv <- file.path(here, "calls.csv")
+calls_csv <- Sys.getenv("PROGRESS_CALLS_CSV", tempfile(fileext = ".csv"))
 
 # ---- Recording ---------------------------------------------------------------
 
@@ -222,6 +223,9 @@ cat("default max_streaming_buffer_size:", info$buf, "\n")
 cat("times are seconds since the R call that issued the query\n")
 
 n_rows <- 10000000L
+# One thread and a seed, so that random() gives the same tables every run.
+invisible(dbExecute(con, "SET threads = 1"))
+invisible(dbExecute(con, "SELECT setseed(0.42)"))
 invisible(dbExecute(
   con,
   sprintf(
@@ -253,6 +257,15 @@ local_queries <- c(
 )
 
 cat("\n# a. Large local queries\n")
+# The optimizer's row estimate for the filtered scan, which weighs its share.
+cat(
+  grep(
+    "Filters|rows",
+    dbGetQuery(con, paste("EXPLAIN", local_queries[["scan_filter"]]))[[2]],
+    value = TRUE
+  ),
+  sep = "\n"
+)
 for (name in names(local_queries)) {
   cat("\n", name, ": ", local_queries[[name]], "\n", sep = "")
   for (threads in c(1L, 4L)) {
@@ -292,6 +305,11 @@ Sys.sleep(1)
 url <- sprintf("http://127.0.0.1:%d/remote.parquet", port)
 invisible(dbExecute(con, "INSTALL httpfs"))
 invisible(dbExecute(con, "LOAD httpfs"))
+print(dbGetQuery(
+  con,
+  "SELECT extension_name, extension_version, install_mode
+   FROM duckdb_extensions() WHERE extension_name = 'httpfs'"
+))
 # Every query fetches the file again rather than from the engine's cache.
 invisible(dbExecute(con, "SET enable_external_file_cache = false"))
 cat(sprintf(
@@ -348,4 +366,5 @@ invisible(dbExecute(con, "RESET max_streaming_buffer_size"))
 
 system(sprintf("pkill -f 'throttle_server.py .* %d'", port))
 write.csv(do.call(rbind, all_calls), calls_csv, row.names = FALSE)
+cat("every call written to", basename(calls_csv), "\n")
 dbDisconnect(con)

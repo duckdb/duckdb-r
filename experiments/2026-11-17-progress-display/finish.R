@@ -6,38 +6,65 @@
 
 suppressPackageStartupMessages(library(duckdb))
 con <- dbConnect(duckdb(shared_home = FALSE))
+invisible(dbExecute(con, "SET threads = 4"))
 invisible(dbExecute(
   con,
-  "CREATE TABLE t AS SELECT i, random() AS x FROM range(10000000) r(i)"
+  "CREATE TABLE t AS
+   SELECT i, hash(i) % 2500000 AS k, random() AS x FROM range(10000000) r(i)"
 ))
-invisible(dbExecute(con, "SET threads = 4"))
-invisible(dbExecute(con, "SET max_streaming_buffer_size = '976KiB'"))
 where <- ""
-options(duckdb.progress_display = function(x) {
-  cat(sprintf("callback %s %.4f\n", where, x))
-  flush(stdout())
-})
 say <- function(x) {
   cat(x, "\n")
   flush(stdout())
 }
+options(duckdb.progress_display = function(x) {
+  cat(sprintf("callback %s %.4f\n", where, x))
+  flush(stdout())
+})
 
-say("=== dbGetQuery()")
-where <- "dbGetQuery"
-invisible(dbGetQuery(con, "SELECT count(*) FROM t WHERE x < 0.5"))
-
-say("=== dbGetQueryArrow(), then $get_next() until NULL")
-where <- "open"
-s <- dbGetQueryArrow(
-  con,
-  "SELECT i, x FROM t WHERE i % 2 = 0",
-  chunk_size = 100000
-)
-k <- 0
-repeat {
-  k <- k + 1
-  where <- paste("read", k)
-  b <- s$get_next()
-  if (is.null(b)) break
+materialized <- function(name, sql) {
+  say(paste("=== scenario", name))
+  where <<- "call"
+  invisible(dbGetQuery(con, sql))
 }
+
+streamed <- function(name, sql, buffer) {
+  say(paste("=== scenario", name))
+  where <<- "set_buffer"
+  invisible(dbExecute(
+    con,
+    sprintf("SET max_streaming_buffer_size = '%s'", buffer)
+  ))
+  where <<- "open"
+  s <- dbGetQueryArrow(con, sql, chunk_size = 100000)
+  k <- 0
+  repeat {
+    k <- k + 1
+    where <<- paste0("read_", k)
+    b <- s$get_next()
+    if (is.null(b)) break
+  }
+  s$release()
+  say(paste("=== reads", k))
+}
+
+materialized("dbGetQuery", "SELECT count(*) FROM t WHERE x < 0.5")
+materialized(
+  "dbGetQuery_three_statements",
+  "SELECT 1; SELECT count(*) FROM t WHERE x < 0.5; SELECT 2"
+)
+scan <- "SELECT i, x FROM t WHERE i % 2 = 0"
+streamed("stream_scan_976KiB", scan, "976KiB")
+streamed("stream_scan_10MiB", scan, "10MiB")
+streamed("stream_scan_1GiB", scan, "1GiB")
+streamed(
+  "stream_group_by_10MiB",
+  "SELECT k, sum(x) AS s, count(*) AS n FROM t GROUP BY k",
+  "10MiB"
+)
+streamed(
+  "stream_order_by_10MiB",
+  "SELECT i, x FROM t WHERE i % 4 = 0 ORDER BY x",
+  "10MiB"
+)
 say("=== done")

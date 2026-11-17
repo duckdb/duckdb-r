@@ -1,10 +1,11 @@
 #!/bin/sh
 # Runs finish.R under gdb with a breakpoint on RProgressBarDisplay::Finish()
-# that prints FINISH, and writes finish.txt beside itself: every FINISH with
-# the callback lines around it, and a count of the callbacks per phase.
+# that prints FINISH, and writes finish.txt beside itself: per scenario, the
+# calls, the reads that got any, and the phase of every Finish().
 #
-# Usage, with the duckdb under test first on the library path:
-#   experiments/2026-11-17-progress-display/finish.sh
+# Usage, with the library that holds the duckdb under test named in R_LIBS,
+# which R reads also when gdb starts it:
+#   R_LIBS=/path/to/library experiments/2026-11-17-progress-display/finish.sh
 #
 # Needs: gdb, R with duckdb and nanoarrow.
 # Handbook: handbook/usage/interactive/README.md
@@ -32,14 +33,24 @@ EOF
 R -d "gdb -batch -x $gdbcmds" --vanilla --no-echo -f "$here/finish.R" 2>&1 |
   grep -E '^(FINISH|=== |callback )' >"$raw"
 
-{
-  echo "# FINISH marks a call to RProgressBarDisplay::Finish(); the callback line after it is the 100 it passes."
-  echo "# Lines before the first === come from the setup statements."
-  echo
-  echo "## Every FINISH, with the line before and after it"
-  grep -n -B1 -A1 '^FINISH' "$raw" || true
-  echo
-  echo "## Callbacks per phase"
-  awk '/^callback /{ $NF=""; n[$0]++ } END { for (k in n) print n[k], k }' "$raw" |
-    sort -k3,3 -k4,4n
-} >"$here/finish.txt"
+awk '
+  /^=== scenario / { sc = $3; order[++n] = sc; next }
+  /^=== reads / { reads[sc] = $3; next }
+  /^FINISH/ { pending = 1; next }
+  /^callback / {
+    calls[sc]++
+    if (!((sc, $2) in seen)) { seen[sc, $2] = 1; if ($2 ~ /^read_/) withcalls[sc]++ }
+    if (pending) { fin[sc] = fin[sc] " " $2; pending = 0 }
+  }
+  END {
+    print "# Per scenario: callbacks, reads with any callback (of all reads), and the phase each Finish() came in."
+    print "# set_buffer is the SET before a stream, open is dbGetQueryArrow(), read_<k> the k-th $get_next(), call the dbGetQuery() call."
+    print "# A statement run through dbGetQuery() or dbExecute() gets two, the first for the PREPARE the glue runs."
+    print ""
+    for (i = 1; i <= n; i++) {
+      sc = order[i]
+      r = (sc in reads) ? sprintf(", reads with calls %d of %d", withcalls[sc], reads[sc]) : ""
+      printf "%s: %d callbacks%s, Finish() in:%s\n", sc, calls[sc], r, fin[sc]
+    }
+  }
+' "$raw" >"$here/finish.txt"

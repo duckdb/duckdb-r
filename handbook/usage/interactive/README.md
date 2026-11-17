@@ -12,7 +12,7 @@ The C++ side holds the symbol it invokes
 [`src/include/rapi.hpp`](/src/include/rapi.hpp)),
 and [`R/progress_display.R`](/R/progress_display.R) draws it.
 The engine calls it every time R's thread runs or polls a task of a running query, whether or not the progress moved,
-from tens of times a second up to thousands of times in a query of a few seconds
+up to thousands of times in a query of a few seconds
 ([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
 A function set as `duckdb.progress_display` receives one number per call:
 the display's `Update()` passes the percentage and its `Finish()` passes 100.
@@ -34,34 +34,42 @@ While a pipeline's source cannot report, `ProgressBar::Update()` skips the call
 So a large local query reports its execution, not only its fetches, but the bar moves with estimated rows rather than time:
 
 * a scan moves the bar evenly, and the work after it shows as a jump;
-* a sort goes silent while it finishes its runs, and its scan, most of the query's time, may own a fifth of the bar;
-* a filter the optimizer estimates at a few rows leaves the bar short of the end, at two thirds or one third,
+* a sort goes silent while it finishes its runs, and its scan owns only the share its estimated rows give it, whatever its duration;
+* a filter the optimizer estimates at a few rows shrinks its scan's weight, so the bar stops short of the end
   until `Finish()` takes it to 100.
 
 **When a query is done.**
-The glue prepares every statement with `ClientContext::Prepare()`, which runs a `PREPARE` as a query of its own,
-so each query's calls open with that query's `Finish()`, a 100, before its own run from 0.
-The query's own `Finish()` comes when the query ends:
+A statement passed to `dbGetQuery()`, `dbExecute()` or `dbGetQueryArrow()` is prepared with `ClientContext::Prepare()`,
+which runs a `PREPARE` as a query of its own, so the statement's calls open with that query's `Finish()`, a 100, before its own run from 0.
+Only the last statement of a string goes that way;
+the ones before it run through `Connection::Query()` in [`src/statement.cpp`](/src/statement.cpp),
+and every statement has its own display and `Finish()`, so a multi-statement string passes a 100 per statement.
+The statement's own `Finish()` comes when it ends:
 inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
-and with the read that ends the query for a stream, never with its first chunk.
+and with the read that ends the query for a stream, which is the first read when the result fits the buffer.
+That a stream's `Finish()` waits for its end is observed, not guaranteed:
+the poll [`src/arrow_export.cpp`](/src/arrow_export.cpp) runs before a fetch could see a ready chunk and finish the display then,
+which the engine's `UpdateProgressInternal()` marks as not yet correct for streaming results.
 A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
 
 **Why a stream goes quiet.**
 A stream read takes chunks already buffered without running the engine
 (`BufferedData::Participate()` in [`src/duckdb/src/main/buffered_data/buffered_data.cpp`](/src/duckdb/src/main/buffered_data/buffered_data.cpp)),
-and the engine computes ahead until the buffer holds `max_streaming_buffer_size`,
-10 MiB by default (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)).
-A result that fits the buffer, or one whose expensive part runs before its first row, such as a sort or an aggregate,
-is computed by the first read, which gets every call, and the reads after it get none.
-A larger result reports on the reads that refill the buffer, one read in three or four for chunks of 100,000 rows of two columns.
-`SET max_streaming_buffer_size` to a smaller value spreads the calls over more reads.
+and the engine computes ahead until the buffer holds `max_streaming_buffer_size`.
+A new connection starts at 10 MiB (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)),
+and `RESET` sets the smaller of 10 MiB and the available memory
+(`ClientConfig::SetDefaultStreamingBufferSize()` in [`src/duckdb/src/main/client_config.cpp`](/src/duckdb/src/main/client_config.cpp)).
+A result that fits the buffer is computed by the first read, which gets every call, and the reads after it get none.
+A query whose expensive part runs before its first row, such as a sort or an aggregate, runs that part in the first read too,
+and only the reads that refill the buffer with its output report after it.
+A larger buffer leaves fewer reads that run the engine, and a smaller one spreads the calls over more of them.
 
 **A remote part and a local part** share the bar by their sources' estimated rows, not by their duration.
 A slow remote scan stretches its share in time without widening it,
-and with several threads its progress moves in steps, standing still for a second at a time while ranges download.
+and with several threads its progress moves in steps, standing still while the ranges it fetches at once download.
 The local part after it then moves the bar quickly, and a final jump to 100 is common.
 
-The measurements behind this section, per query shape, thread count and buffer size, are in
+The measurements behind this section, with the percentages and read counts per query shape, thread count and buffer size, are in
 [`experiments/2026-11-17-progress-display/`](/experiments/2026-11-17-progress-display/README.md).
 
 ## Interrupting a query
