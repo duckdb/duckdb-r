@@ -1,7 +1,7 @@
 # Reproducer for https://github.com/duckdb/duckdb-r/issues/2882:
 # on Windows, DuckDB mishandles network (UNC) paths such as `\\server\share\x`.
 #
-# Temporary: this file lives in its own commits and is dropped before a fix merges.
+# Temporary: this file and `.github/issue-2882/` live in their own commits and are dropped before a fix merges.
 # It runs on a push to its own branch only.
 #
 # Both jobs use the administrative share `\\localhost\C$` as a stand-in for a network drive,
@@ -10,8 +10,13 @@
 # Each check prints one `RESULT <spelling> <check> OK|FAIL <detail>` line;
 # then `tests/testthat/test-unc-path.R` runs against the same installation.
 # `baseline` runs against the CRAN binary (and 1.5.5 and 1.5.6 from P3M snapshots for contrast),
-# `source` against `R CMD INSTALL` of this checkout with the Rtools toolchain, as CRAN builds it.
-# The jobs pass either way, unless the build itself fails; the verdicts are in the log and the job summary.
+# `source` builds this checkout with `R CMD INSTALL` and the Rtools toolchain, as CRAN builds it, twice:
+# build 1 from the unchanged tree (label `unpatched`), whose objects and ccache are saved right after it,
+# then build 2 with `.github/issue-2882/unc-path.patch` applied in the build tree (label `patched`),
+# rebuilding only the unity objects of the patched engine sources; no commit changes `src/duckdb/`.
+# `baseline` passes either way, unless the install fails; its verdicts are in the log and the job summary.
+# `source` ends with a verdict and fails unless the unpatched build fails a check or a test
+# and the patched build fails none.
 #
 # Put `[skip-src]` or `[skip-base]` in the head commit's message to skip that job while iterating.
 
@@ -193,6 +198,9 @@ env:
     }
     cat("=== TESTTHAT", label, "\n")
     writeLines(lines)
+    # One machine-readable line for the verdict: failures count failed expectations and errored tests.
+    counts <- if (is.null(res)) c(NA, NA) else c(sum(df$failed) + sum(df$error), sum(df$passed))
+    cat("TESTTHAT_COUNTS", label, "FAIL", counts[[1]], "PASS", counts[[2]], "\n")
     summary_file <- Sys.getenv("GITHUB_STEP_SUMMARY")
     if (nzchar(summary_file)) {
       cat(
@@ -266,11 +274,43 @@ jobs:
       CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
       CCACHE_MAXSIZE: 3G
+      PATCH: .github/issue-2882/unc-path.patch
 
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Check the patch and list the objects it affects
+        shell: bash
+        run: |
+          ## -- Check the patch and list the objects it affects --
+          # The patch is read from the commit, not the working tree, so its line endings are LF.
+          # Each patched engine source is compiled through its unity file (src/duckdb/ub_<dir with / as _>.cpp),
+          # whose object is deleted before build 2.
+          set -euo pipefail
+          git cat-file blob "HEAD:$PATCH" > "$RUNNER_TEMP/engine.patch"
+          : > "$RUNNER_TEMP/affected-objects.txt"
+          for p in $(sed -n 's|^+++ b/||p' "$RUNNER_TEMP/engine.patch"); do
+            if ! printf '%s\n' "$p" | grep -Eq '^src/duckdb/src/.*\.cpp$'; then
+              echo "::error::$PATCH changes $p; only src/duckdb/src/**/*.cpp is supported"
+              exit 1
+            fi
+            rel=${p#src/duckdb/}
+            obj="duckdb/ub_$(dirname "$rel" | tr / _).o"
+            if ! tr -d '\r' < src/include/sources.mk | tr ' ' '\n' | grep -qxF "$obj"; then
+              echo "::error::$p maps to $obj, which src/include/sources.mk does not list"
+              exit 1
+            fi
+            echo "src/$obj" >> "$RUNNER_TEMP/affected-objects.txt"
+          done
+          sort -u -o "$RUNNER_TEMP/affected-objects.txt" "$RUNNER_TEMP/affected-objects.txt"
+          if [ ! -s "$RUNNER_TEMP/affected-objects.txt" ]; then
+            echo "::error::$PATCH changes no file"
+            exit 1
+          fi
+          git apply --check --cached --verbose "$RUNNER_TEMP/engine.patch"
+          cat "$RUNNER_TEMP/affected-objects.txt"
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -366,10 +406,11 @@ jobs:
           if [ "$all_engine" = 1 ]; then echo "deleting all engine objects"; find src/duckdb -name '*.o' -delete; fi
           if [ "$all_glue" = 1 ]; then echo "deleting all glue objects"; rm -fv src/*.o; fi
 
-      - name: Build and install the package from this checkout
+
+      - name: "Build 1: install the unchanged tree"
         shell: bash
         run: |
-          ## -- Build and install the package from this checkout --
+          ## -- Build 1: install the unchanged tree --
           ccache --zero-stats
           mkdir -p "$RUNNER_TEMP/lib"
           start=$(date +%s)
@@ -382,6 +423,7 @@ jobs:
           echo "object files: $(find src -name '*.o' | wc -l), $(du -sh src --exclude='*.cpp' | cut -f1) under src/ without sources"
           du -sh "$CCACHE_DIR"
 
+      # Saved before the patch is applied, so both caches hold the unchanged tree that SRC_KEY names.
       - name: Save ccache
         if: always() && steps.ccache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -404,12 +446,90 @@ jobs:
           Set-Content -Path (Join-Path $env:RUNNER_TEMP 'repro.R') -Value $env:REPRO_R
           Set-Content -Path (Join-Path $env:RUNNER_TEMP 'repro-test.R') -Value $env:REPRO_TEST_R
 
-      - name: Run the checks against the source build
+      - name: Run the checks and test-unc-path.R against the unpatched build
         shell: bash
         run: |
-          Rscript "$(cygpath -u "$RUNNER_TEMP")/repro.R" source "$RUNNER_TEMP\\lib" || echo "::warning::checks exited with $?"
+          ## -- Run the checks and test-unc-path.R against the unpatched build --
+          t="$(cygpath -u "$RUNNER_TEMP")"
+          Rscript "$t/repro.R" unpatched "$RUNNER_TEMP\\lib" 2>&1 | tee "$t/checks-unpatched.log" || echo "::warning::checks exited with $?"
+          Rscript "$t/repro-test.R" unpatched "$RUNNER_TEMP\\lib" 2>&1 | tee "$t/testthat-unpatched.log" || echo "::warning::testthat exited with $?"
 
-      - name: Run test-unc-path.R against the source build
+      - name: Apply the engine patch
         shell: bash
         run: |
-          Rscript "$(cygpath -u "$RUNNER_TEMP")/repro-test.R" source "$RUNNER_TEMP\\lib" || echo "::warning::testthat exited with $?"
+          ## -- Apply the engine patch --
+          # Applied to the index from the LF blob, then written out by git,
+          # so the patched file gets the same line endings as the rest of the checkout.
+          set -euo pipefail
+          git apply --cached --verbose "$RUNNER_TEMP/engine.patch"
+          git diff --cached --name-only | tee "$RUNNER_TEMP/patched-files.txt"
+          xargs git checkout-index -f -- < "$RUNNER_TEMP/patched-files.txt"
+          git diff --cached --stat
+          # make cannot see that a unity object includes the patched source, so delete those objects.
+          xargs rm -fv < "$RUNNER_TEMP/affected-objects.txt"
+
+      - name: "Build 2: install the patched tree"
+        shell: bash
+        run: |
+          ## -- Build 2: install the patched tree --
+          ccache --zero-stats
+          mkdir -p "$RUNNER_TEMP/lib-patched"
+          start=$(date +%s)
+          R CMD INSTALL --library="$RUNNER_TEMP/lib-patched" --no-byte-compile . 2>&1 | tee "$RUNNER_TEMP/install-patched.log" | grep -v -E '^(ccache )?(g\+\+|gcc) ' || true
+          echo "R CMD INSTALL took $(( $(date +%s) - start )) s"
+          grep -c -E '^ccache (g\+\+|gcc) ' "$RUNNER_TEMP/install-patched.log" | sed 's/^/compiler invocations: /' || true
+          ccache -s
+          test -f "$RUNNER_TEMP/lib-patched/duckdb/libs/x64/duckdb.dll"
+
+      - name: Run the checks and test-unc-path.R against the patched build
+        shell: bash
+        run: |
+          ## -- Run the checks and test-unc-path.R against the patched build --
+          t="$(cygpath -u "$RUNNER_TEMP")"
+          Rscript "$t/repro.R" patched "$RUNNER_TEMP\\lib-patched" 2>&1 | tee "$t/checks-patched.log" || echo "::warning::checks exited with $?"
+          Rscript "$t/repro-test.R" patched "$RUNNER_TEMP\\lib-patched" 2>&1 | tee "$t/testthat-patched.log" || echo "::warning::testthat exited with $?"
+
+      # Red then green: the unpatched build must fail a check or a test, the patched build none.
+      - name: Verdict
+        if: always()
+        shell: bash
+        run: |
+          ## -- Verdict --
+          t="$(cygpath -u "$RUNNER_TEMP")"
+          for l in unpatched patched; do
+            touch "$t/checks-$l.log" "$t/testthat-$l.log"
+            grep '^RESULT ' "$t/checks-$l.log" | awk '{print $2 "/" $3, $4}' > "$t/results-$l.txt" || true
+          done
+          report=$(
+            echo "check                     unpatched  patched"
+            LC_ALL=C join -a1 -a2 -e '-' -o 0,1.2,2.2 <(LC_ALL=C sort "$t/results-unpatched.txt") <(LC_ALL=C sort "$t/results-patched.txt") \
+              | awk '{printf "%-25s %-10s %s\n", $1, $2, $3}'
+            echo
+            grep -h '^TESTTHAT_COUNTS ' "$t/testthat-unpatched.log" "$t/testthat-patched.log" || echo "no testthat counts"
+          )
+          echo "$report"
+          count() { grep -c "$2" "$t/results-$1.txt" || true; }
+          tt() { sed -n "s/^TESTTHAT_COUNTS $1 FAIL \([0-9]*\) PASS \([0-9]*\)\$/\\$2/p" "$t/testthat-$1.log" | head -n 1; }
+          u_fail=$(count unpatched ' FAIL$'); p_fail=$(count patched ' FAIL$'); p_all=$(count patched .)
+          u_tfail=$(tt unpatched 1); p_tfail=$(tt patched 1); p_tpass=$(tt patched 2)
+          verdict=pass
+          reasons=()
+          if [ "$p_all" -eq 0 ]; then verdict=fail; reasons+=("patched: no RESULT lines"); fi
+          if [ "$p_fail" -ne 0 ]; then verdict=fail; reasons+=("patched: $p_fail RESULT FAIL"); fi
+          if [ -z "$p_tfail" ] || [ "$p_tfail" -ne 0 ] || [ "${p_tpass:-0}" -eq 0 ]; then
+            verdict=fail; reasons+=("patched: testthat FAIL ${p_tfail:-?} PASS ${p_tpass:-?}")
+          fi
+          if [ "$u_fail" -eq 0 ] && [ "${u_tfail:-0}" -eq 0 ]; then
+            verdict=fail; reasons+=("unpatched: no RESULT FAIL and no testthat failure, the reproducer no longer reproduces")
+          fi
+          {
+            echo "### Verdict: $verdict"
+            echo
+            echo '```'
+            echo "$report"
+            echo '```'
+            for r in "${reasons[@]}"; do echo "- $r"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "VERDICT $verdict"
+          for r in "${reasons[@]}"; do echo "::error::$r"; done
+          [ "$verdict" = pass ]
