@@ -1,8 +1,11 @@
 #!/bin/sh
-# Runs finish.R under gdb with a breakpoint on RProgressBarDisplay::Finish()
-# that prints FINISH, then once more without gdb, and writes finish.txt
-# beside itself: per scenario and run, the calls, the reads that got any, and
-# under gdb the phase of every Finish().
+# Runs finish.R under gdb with breakpoints on RProgressBarDisplay::Update()
+# and ::Finish() that print UPDATE with gdb's thread number and FINISH, then
+# once more without gdb, and writes finish.txt beside itself: per scenario and
+# run, the R callback's calls, the reads that got any, and under gdb the
+# engine's calls into the display, how many came from a thread other than
+# R's (gdb's thread 1), and the phase of every Finish(). Finish() calls
+# Update(100), so every Finish() is counted as an Update() too.
 #
 # Usage, with the library that holds the duckdb under test named in R_LIBS,
 # which R reads also when gdb starts it:
@@ -29,11 +32,17 @@ silent
 printf "FINISH\n"
 continue
 end
+break RProgressBarDisplay::Update
+commands
+silent
+printf "UPDATE %d\n", $_thread
+continue
+end
 run
 EOF
 
 R -d "gdb -batch -x $gdbcmds" --vanilla --no-echo -f "$here/finish.R" 2>&1 |
-  grep -E '^(FINISH|=== |callback )' >"$raw"
+  grep -E '^(FINISH|UPDATE|=== |callback )' >"$raw"
 R --vanilla --no-echo -f "$here/finish.R" 2>&1 |
   grep -E '^(=== |callback )' >"$plain"
 
@@ -42,6 +51,7 @@ summarize() {
   /^=== scenario / { sc = $3; order[++n] = sc; next }
   /^=== reads / { reads[sc] = $3; next }
   /^FINISH/ { pending = 1; next }
+  /^UPDATE / { if (sc != "") { updates[sc]++; if ($2 != 1) offthread[sc]++ }; next }
   /^callback / {
     calls[sc]++
     if (!((sc, $2) in seen)) { seen[sc, $2] = 1; if ($2 ~ /^read_/) withcalls[sc]++ }
@@ -52,7 +62,8 @@ summarize() {
       sc = order[i]
       r = (sc in reads) ? sprintf(", reads with calls %d of %d", withcalls[sc], reads[sc]) : ""
       f = (sc in fin) ? ", Finish() in:" fin[sc] : ""
-      printf "%s: %d callbacks%s%s\n", sc, calls[sc], r, f
+      u = (sc in updates) ? sprintf(", %d Update() calls (%d off R'"'"'s thread)", updates[sc], offthread[sc] + 0) : ""
+      printf "%s: %d callbacks%s%s%s\n", sc, calls[sc], u, r, f
     }
   }
 ' "$1"
@@ -63,7 +74,7 @@ summarize() {
   echo "# set_buffer is the SET before a stream, open is dbGetQueryArrow(), read_<k> the k-th \$get_next(), call the dbGetQuery() call."
   echo "# A statement run through dbGetQuery() or dbExecute() gets two, the first for the PREPARE the glue runs."
   echo
-  echo "## Under gdb, with a breakpoint on Finish()"
+  echo "## Under gdb, with breakpoints on Update() and Finish()"
   echo
   summarize "$raw"
   echo

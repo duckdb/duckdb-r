@@ -70,4 +70,15 @@ streamed(
   "SELECT i, x FROM t WHERE i % 4 = 0 ORDER BY x",
   "10MiB"
 )
+
+# The same on one thread, where R's thread runs every task.
+where <- "set_threads"
+invisible(dbExecute(con, "SET threads = 1"))
+materialized("dbGetQuery_threads_1", "SELECT count(*) FROM t WHERE x < 0.5")
+streamed("stream_scan_976KiB_threads_1", scan, "976KiB")
+streamed(
+  "stream_group_by_10MiB_threads_1",
+  "SELECT k, sum(x) AS s, count(*) AS n FROM t GROUP BY k",
+  "10MiB"
+)
 say("=== done")

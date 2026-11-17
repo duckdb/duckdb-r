@@ -10,7 +10,7 @@ For queries with a slow remote part, a Parquet file read through httpfs from a l
 and a slow local part.
 For one stream under three values of `max_streaming_buffer_size`.
 And which of the calls are the display's `Finish()` rather than an `Update()`, which the callback cannot tell apart,
-since both pass it 100.
+since both pass it 100, and whether every call the engine makes reaches the R function.
 Asked on [#3012](https://github.com/duckdb/duckdb-r/pull/3012), after [#2967](https://github.com/duckdb/duckdb-r/issues/2967).
 
 *When and on what:* 2026-11-17, Linux x86_64 on an Intel Xeon at 2.10 GHz with 4 cores, R 4.5.3, nanoarrow 0.9.0,
@@ -28,11 +28,33 @@ the tables and the remote file are built single-threaded under a fixed seed.
 * [`finish.sh`](finish.sh) runs [`finish.R`](finish.R) under gdb with a breakpoint on `RProgressBarDisplay::Finish()`, then once without gdb,
   and writes [`finish.txt`](finish.txt): per scenario, the calls, the reads that got any, and under gdb the phase every `Finish()` came in.
   Its streams read chunks of 100,000 rows of a table of 10,000,000.
+  It ran on the same branch after merging `v2.0-cyanoptera` at 1748e8f, whose changes leave the progress display alone.
 
 The session info names the scratch library that held the build as `<branch build library>`.
 Values printed as 100 in "highest below 100" are just below it, and the trace rounds them to 100.0 too.
 
 *What it supports:* [`usage/interactive/`](/handbook/usage/interactive/README.md).
+
+## Conclusions
+
+* **#2967 looked like a bug because the bar was expected to move on the later reads of a stream and did not.**
+  The cause is the engine's streaming buffer: a read the buffer serves runs no engine work, so the engine sends no call.
+  Under a buffer too small for the result, every read that runs the engine reports ([c](#c-the-streaming-buffer)),
+  which a test in [`tests/testthat/test-progress_display.R`](/tests/testthat/test-progress_display.R) holds to.
+* **What the bar shows and when is the engine's behavior, and out of this package's scope.**
+  The engine weighs the percentage by estimated rows, not time, and decides when to update and when to finish
+  ([a](#a-large-local-queries), [b](#b-a-remote-part-and-a-local-part)).
+* **The package relays every call the engine makes on R's thread.**
+  In the glue, `RProgressBarDisplay::Update()` ([`src/connection.cpp`](/src/connection.cpp)) calls the R function on every call,
+  and `Finish()` calls `Update(100)`; it returns early only when no function is set or when called off R's thread,
+  and an error the function raises is ignored.
+  `get_progress_display()` ([`R/progress_display.R`](/R/progress_display.R)) hands a user's function over unwrapped;
+  only the default display throttles.
+  Under gdb with breakpoints on `Update()` and `Finish()`, every one of 1,626 `Update()` calls across ten scenarios,
+  at one and at four threads, materialized and streamed, came on R's thread and reached the R function,
+  one callback per call ([`finish.txt`](finish.txt)).
+  A stream read by a thread other than R's, such as one of arrow's, would have its calls dropped by that check;
+  no scenario here reads one that way.
 
 ## What every query is told
 
@@ -50,8 +72,9 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   With four threads, R's thread can poll in a loop while the workers run, and each poll calls the callback:
   548,317 calls in the four-thread scan, but 302 in the four-thread `count(*)` of the same filter.
 * **R's thread calls again as soon as the callback returns**, so what the callback costs sets how many calls it gets.
-  In the 1 GiB stream's first read, `run.R`'s callback, which stores three numbers, got 21,004 calls;
-  `finish.R`'s, which writes a line to standard output, got 7,723, and 5,343 under gdb ([`finish.txt`](finish.txt)).
+  `run.R`'s callback, which stores three numbers, got 21,004 calls in the 1 GiB stream's first read;
+  `finish.R`'s, which writes a line to standard output, got 6,497 in its whole 1 GiB stream scenario,
+  and 294 under gdb, whose breakpoints make every call slower ([`finish.txt`](finish.txt)).
 * **A materialized result is told everything inside the call that runs it.**
   `dbSendQuery()` runs the query to its end before it returns, so its `dbFetch(n = )` reads get no calls,
   and its trace is `dbGetQuery()`'s.
