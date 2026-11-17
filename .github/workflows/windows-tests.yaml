@@ -1,5 +1,5 @@
-# Runs the test files a pull request into a release branch adds or changes,
-# against a Windows source build of the package.
+# Runs the test files a pull request adds or changes, against a Windows source build of the package,
+# for pull requests into release branches (`v*`) and pull requests stacked on them.
 #
 # Why: R-CMD-check.yaml runs on pull requests into main/master only,
 # so tests in a pull request into a release branch (`v*`) never run before they merge.
@@ -38,9 +38,12 @@ on:
   push:
     branches:
       - "v*"
+  # Every pull request but those into main and master, which rcc covers:
+  # a stacked pull request into another branch runs too, so its own tests show.
   pull_request:
-    branches:
-      - "v*"
+    branches-ignore:
+      - main
+      - master
 
 name: windows-tests
 
