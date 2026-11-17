@@ -4,6 +4,8 @@
 
 #include "duckdb/main/query_result.hpp"
 
+#include <functional>
+
 namespace duckdb {
 
 struct AltrepRelationWrapper {
@@ -19,8 +21,8 @@ struct AltrepRelationWrapper {
 
 	idx_t RowCount();
 
-	void RegisterAltrepColumn();
-	void MarkColumnAsTransformed();
+	void RegisterAltrepColumn(idx_t column_index);
+	void MarkColumnAsTransformed(idx_t column_index);
 
 	const size_t n_rows;
 	const size_t n_cells;
@@ -41,6 +43,10 @@ struct AltrepRelationWrapper {
 	idx_t altrep_columns = 0;
 	// Number of ALTREP vectors already transformed to their R representation
 	idx_t transformed_columns = 0;
+
+private:
+	// Every execution goes through here: the checks, the options and the engine state it needs
+	void Execute(const std::function<void()> &run);
 };
 
 } // namespace duckdb
