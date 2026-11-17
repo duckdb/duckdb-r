@@ -80,9 +80,8 @@ AsyncResult DirectFileReader::Scan(ClientContext &context, GlobalTableFunctionSt
 			return SourceResultType::FINISHED;
 		}
 	} else {
-		// At least verify that the file exist
-		// The globbing behavior in remote filesystems can lead to files being listed that do not actually exist
-		// Pass the OpenFileInfo so that metadata from the listing can spare a request
+		// A remote path the glob returned without full listing metadata is checked for existence;
+		// a listing entry that carries it is taken from the listing, as the remote metadata branch does
 		if (is_remote && !fs.GetStatsIfExists(file)) {
 			done.store(true, std::memory_order_relaxed);
 			return SourceResultType::FINISHED;
