@@ -484,6 +484,8 @@ struct AltrepVectorWrapper {
 	cpp11::sexp transformed_vector;
 	// Set once transformed_vector is filled, which Dataptr() sets before it fills it.
 	// Atomic: a bind on an engine thread reads it while R's thread may be converting (src/scan.cpp).
+	// Once it is set, transformed_vector must never be reassigned:
+	// ConvertedVectorOrNil() reads it without a guard and hands out pointers into it.
 	std::atomic<bool> converted {false};
 };
 
