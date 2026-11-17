@@ -192,76 +192,82 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 			                        "Internal error: the materialized result has already been released.");
 		}
 
-		if (n_cells == 0) {
-			rapi_error_with_context("GetQueryResult",
-			                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
-		}
-
-		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
-		if (Rf_isFunction(materialize_callback)) {
-			sexp call = Rf_lang2(materialize_callback, rel_eptr);
-			// safe[], not a bare Rf_eval(): an error in the callback would
-			// otherwise long-jmp out of the ALTREP method that called us,
-			// skipping ~AltrepGuard() and leaving the guard stuck on for the
-			// rest of the session. Matches RProgressBarDisplay::Update().
-			cpp11::safe[Rf_eval](call, R_BaseEnv);
-		}
-
-		auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
-		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
-		    LOGICAL_ELT(materialize_message, 0) == true) {
-			// Legacy
-			Rprintf("duckplyr: materializing\n");
-		}
-
-		// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-		// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
-		// any open result of its connection is ended: ending one takes that lock too.
-		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
-		auto &context = *rel->context->GetContext();
-		if (ScopedInterruptHandler::IsActiveFor(context)) {
-			rapi_error_with_context("GetQueryResult",
-			                        "Cannot materialize a relation of the connection that is running the query.");
-		}
-		EndOpenResults(context);
-		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
-		if (!ScopedInterruptHandler::IsActive()) {
-			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
-		}
-
-		// We need to temporarily allow a deeper execution stack
-		// https://github.com/duckdb/duckdb-r/issues/101
-		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
-		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
-		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
-		                                                              Value::UBIGINT(old_depth * 2));
-		duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
-			client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
-			                                           Value::UBIGINT(old_depth));
-		});
-
-		Materialize();
-
-		if (!mat_error.empty()) {
-			rapi_error_with_context("GetQueryResult", mat_error);
-		}
-
-		// FIXME: Use std::experimental::scope_exit
-		auto current_depth = Settings::Get<MaxExpressionDepthSetting>(context);
-		if (current_depth != old_depth * 2) {
-			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
-			        current_depth);
-		}
-		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
-		reset_max_expression_depth.release();
-
-		if (signal_handler) {
-			signal_handler->HandleInterrupt();
-			signal_handler->Disable();
-		}
+		Execute([&]() { Materialize(); });
 	}
 	D_ASSERT(mat_result);
 	return mat_result.get();
+}
+
+// Every execution of the relation goes through here:
+// the checks and options that apply before it runs, and the engine state it needs while it runs.
+// `run` executes and stores its outcome; an error it stores in mat_error is raised.
+void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
+	if (n_cells == 0) {
+		rapi_error_with_context("GetQueryResult",
+		                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
+	}
+
+	auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
+	if (Rf_isFunction(materialize_callback)) {
+		sexp call = Rf_lang2(materialize_callback, rel_eptr);
+		// safe[], not a bare Rf_eval(): an error in the callback would
+		// otherwise long-jmp out of the ALTREP method that called us,
+		// skipping ~AltrepGuard() and leaving the guard stuck on for the
+		// rest of the session. Matches RProgressBarDisplay::Update().
+		cpp11::safe[Rf_eval](call, R_BaseEnv);
+	}
+
+	auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
+	if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
+	    LOGICAL_ELT(materialize_message, 0) == true) {
+		// Legacy
+		Rprintf("duckplyr: materializing\n");
+	}
+
+	// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
+	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
+	// any open result of its connection is ended: ending one takes that lock too.
+	// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
+	auto &context = *rel->context->GetContext();
+	if (ScopedInterruptHandler::IsActiveFor(context)) {
+		rapi_error_with_context("GetQueryResult",
+		                        "Cannot materialize a relation of the connection that is running the query.");
+	}
+	EndOpenResults(context);
+	duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
+	if (!ScopedInterruptHandler::IsActive()) {
+		signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
+	}
+
+	// We need to temporarily allow a deeper execution stack
+	// https://github.com/duckdb/duckdb-r/issues/101
+	auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+	auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
+	client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
+	                                                              Value::UBIGINT(old_depth * 2));
+	duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
+		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
+	});
+
+	run();
+
+	if (!mat_error.empty()) {
+		rapi_error_with_context("GetQueryResult", mat_error);
+	}
+
+	// FIXME: Use std::experimental::scope_exit
+	auto current_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+	if (current_depth != old_depth * 2) {
+		Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
+		        current_depth);
+	}
+	client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
+	reset_max_expression_depth.release();
+
+	if (signal_handler) {
+		signal_handler->HandleInterrupt();
+		signal_handler->Disable();
+	}
 }
 
 void AltrepRelationWrapper::Materialize() {
