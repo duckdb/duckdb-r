@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
-Date: Tue, 17 Nov 2026 22:06:52 +0000
+Date: Tue, 17 Nov 2026 22:18:42 +0000
 Subject: [PATCH] Re-check a table function's bind type against the entry an
  autoload replaced
 
@@ -14,11 +14,11 @@ instead of binding them inconsistently.
 Completes 0129 for duckdb/duckdb-r#2883; carried until upstream takes
 a fix.
 ---
- .../binder/tableref/bind_table_function.cpp   | 37 ++++++++++++-------
- 1 file changed, 24 insertions(+), 13 deletions(-)
+ .../binder/tableref/bind_table_function.cpp   | 62 +++++++++++++++----
+ 1 file changed, 49 insertions(+), 13 deletions(-)
 
 diff --git a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
-index 7b61a433e..15842a666 100644
+index 7b61a433e..67bf09b70 100644
 --- a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 +++ b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 @@ -24,20 +24,21 @@ namespace duckdb {
@@ -72,7 +72,40 @@ index 7b61a433e..15842a666 100644
  			throw InternalException(
  			    "Function \"%s\" has a TABLE parameter, and multiple function overloads - this is not supported",
  			    table_function.name);
-@@ -99,7 +100,7 @@ bool Binder::BindTableFunctionParameters(TableFunctionCatalogEntry &table_functi
+@@ -83,6 +84,32 @@ static TableFunctionBindType GetTableFunctionBindType(TableFunctionCatalogEntry
+ 	                           : TableFunctionBindType::STANDARD_TABLE_FUNCTION;
+ }
+ 
++//! Whether the entry that replaced a table function's entry while its arguments were bound would have bound them
++//! differently. The replaced entry's bind type was already computed without error, so it does not throw: any error
++//! deriving the current entry's bind type (short of one that invalidates the database) counts as a change.
++static bool TableFunctionBindTypeChanged(const TableFunctionCatalogEntry &replaced,
++                                         const TableFunctionCatalogEntry &current, bool all_scalar) {
++	auto bind_type = GetTableFunctionBindType(replaced, all_scalar);
++	try {
++		if (GetTableFunctionBindType(current, all_scalar) != bind_type) {
++			return true;
++		}
++	} catch (std::exception &ex) {
++		ErrorData error(ex);
++		if (Exception::InvalidatesDatabase(error.Type())) {
++			throw;
++		}
++		return true;
++	}
++	if (bind_type == TableFunctionBindType::TABLE_PARAMETER_FUNCTION) {
++		// both have a single overload: the arguments were checked against the replaced one's positional parameters
++		auto &replaced_signature = replaced.functions.GetFunctionByOffset(0)->GetSignature();
++		auto &current_signature = current.functions.GetFunctionByOffset(0)->GetSignature();
++		return replaced_signature.GetPositionalParameterCount() != current_signature.GetPositionalParameterCount();
++	}
++	return false;
++}
++
+ void Binder::BindTableInTableOutFunction(vector<unique_ptr<ParsedExpression>> &expressions, BoundStatement &subquery) {
+ 	auto binder = Binder::CreateBinder(this->context, this);
+ 	// generate a subquery and bind that (i.e. UNNEST([1,2,3]) becomes UNNEST((SELECT [1,2,3]))
+@@ -99,7 +126,7 @@ bool Binder::BindTableFunctionParameters(TableFunctionCatalogEntry &table_functi
                                           vector<unique_ptr<Expression>> &positional_arguments,
                                           vector<pair<Identifier, unique_ptr<Expression>>> &named_arguments,
                                           BoundStatement &subquery, bool &table_in_out, ErrorData &error) {
@@ -81,7 +114,7 @@ index 7b61a433e..15842a666 100644
  	if (bind_type == TableFunctionBindType::TABLE_IN_OUT_FUNCTION) {
  		// bind table in-out function - its arguments are the columns of the subquery, so there is nothing to fold
  		BindTableInTableOutFunction(expressions, subquery);
-@@ -471,6 +472,8 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
+@@ -471,6 +498,8 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
  		children.push_back(std::move(child.GetExpressionMutable()));
  	}
  
@@ -90,12 +123,11 @@ index 7b61a433e..15842a666 100644
  	if (!BindTableFunctionParameters(function, children, positional_arguments, named_arguments, subquery, table_in_out,
  	                                 error)) {
  		error.AddQueryLocation(ref);
-@@ -480,6 +483,14 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
+@@ -480,6 +509,13 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
  	// selection, named-argument checking, folding and casting all happen in the function binder
  	FunctionBinder function_binder(*this);
  	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
-+	if (&current != &function &&
-+	    GetTableFunctionBindType(current, all_scalar) != GetTableFunctionBindType(function, all_scalar)) {
++	if (&current != &function && TableFunctionBindTypeChanged(function, current, all_scalar)) {
 +		// the arguments were bound for the replaced entry: an extension autoloaded while they were bound changed
 +		// whether the function takes a table input or a TABLE parameter, so they no longer fit the current entry
 +		throw BinderException(ref,

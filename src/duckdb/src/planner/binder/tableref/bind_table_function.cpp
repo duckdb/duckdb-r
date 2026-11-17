@@ -84,6 +84,32 @@ static TableFunctionBindType GetTableFunctionBindType(const TableFunctionCatalog
 	                           : TableFunctionBindType::STANDARD_TABLE_FUNCTION;
 }
 
+//! Whether the entry that replaced a table function's entry while its arguments were bound would have bound them
+//! differently. The replaced entry's bind type was already computed without error, so it does not throw: any error
+//! deriving the current entry's bind type (short of one that invalidates the database) counts as a change.
+static bool TableFunctionBindTypeChanged(const TableFunctionCatalogEntry &replaced,
+                                         const TableFunctionCatalogEntry &current, bool all_scalar) {
+	auto bind_type = GetTableFunctionBindType(replaced, all_scalar);
+	try {
+		if (GetTableFunctionBindType(current, all_scalar) != bind_type) {
+			return true;
+		}
+	} catch (std::exception &ex) {
+		ErrorData error(ex);
+		if (Exception::InvalidatesDatabase(error.Type())) {
+			throw;
+		}
+		return true;
+	}
+	if (bind_type == TableFunctionBindType::TABLE_PARAMETER_FUNCTION) {
+		// both have a single overload: the arguments were checked against the replaced one's positional parameters
+		auto &replaced_signature = replaced.functions.GetFunctionByOffset(0)->GetSignature();
+		auto &current_signature = current.functions.GetFunctionByOffset(0)->GetSignature();
+		return replaced_signature.GetPositionalParameterCount() != current_signature.GetPositionalParameterCount();
+	}
+	return false;
+}
+
 void Binder::BindTableInTableOutFunction(vector<unique_ptr<ParsedExpression>> &expressions, BoundStatement &subquery) {
 	auto binder = Binder::CreateBinder(this->context, this);
 	// generate a subquery and bind that (i.e. UNNEST([1,2,3]) becomes UNNEST((SELECT [1,2,3]))
@@ -483,8 +509,7 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 	// selection, named-argument checking, folding and casting all happen in the function binder
 	FunctionBinder function_binder(*this);
 	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
-	if (&current != &function &&
-	    GetTableFunctionBindType(current, all_scalar) != GetTableFunctionBindType(function, all_scalar)) {
+	if (&current != &function && TableFunctionBindTypeChanged(function, current, all_scalar)) {
 		// the arguments were bound for the replaced entry: an extension autoloaded while they were bound changed
 		// whether the function takes a table input or a TABLE parameter, so they no longer fit the current entry
 		throw BinderException(ref,
