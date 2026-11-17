@@ -45,6 +45,11 @@ the query
 `tbl_file()` and `tbl_function()` turn files and table functions
 into lazy tables;
 `simulate_duckdb()` renders SQL without a connection.
+`tbl()` asks `dbExistsTable()` about a character `from` without a table-name class, and reads one that names no table as a replacement scan.
+The table-name classes are those of `I()`, a dbplyr table path, `dbplyr::ident()`, `dbplyr::sql()` and `DBI::SQL()`;
+a `from` with one of them, or one that is not character, such as `dbplyr::in_schema()`, `dbplyr::in_catalog()` or `DBI::Id()`,
+goes to dbplyr unprobed
+([#2973](https://github.com/duckdb/duckdb-r/issues/2973)).
 
 **`slice_sample()` is the one verb the backend implements.**
 dbplyr numbers the rows in a window ordered by `RANDOM()`,
