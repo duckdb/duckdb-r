@@ -33,6 +33,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    # -eo pipefail, so a pipe into tee reports the build's own status.
+    shell: bash
+
 jobs:
   sdk11:
     runs-on: macos-15-intel
@@ -76,7 +81,7 @@ jobs:
           xcodebuild -version
           ver=$(xcodebuild -version | sed -n 's/^Xcode //p')
           echo "version=$ver" >> "$GITHUB_OUTPUT"
-          echo "clang=$(xcrun clang++ --version | head -n 1)" >> "$GITHUB_OUTPUT"
+          echo "clang=$(xcrun clang++ --version | sed -n '1,1p')" >> "$GITHUB_OUTPUT"
           echo "CLANG=$(xcrun -f clang)" >> "$GITHUB_ENV"
           echo "CLANGXX=$(xcrun -f clang++)" >> "$GITHUB_ENV"
 
@@ -140,7 +145,7 @@ jobs:
       - name: Show the toolchain and where libc++ comes from
         id: toolchain
         run: |
-          R --version | head -n 1
+          R --version | sed -n '1,1p'
           echo "Xcode: ${{ steps.xcode.outputs.version }}"
           echo "clang: ${{ steps.xcode.outputs.clang }}"
           echo "CRAN (r-release-macos-x86_64): Apple clang version 14.0.3 (clang-1403.0.22.14.1), SDK MacOSX11.3.1.sdk"
@@ -149,7 +154,7 @@ jobs:
           "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E -v - </dev/null 2>&1 \
             | tee "$RUNNER_TEMP/clang-v.txt"
           paths=$(sed -n '/search starts here:/,/End of search list/p' "$RUNNER_TEMP/clang-v.txt")
-          first_libcxx=$(printf '%s\n' "$paths" | grep 'c++/v1' | head -n 1 | sed 's/^ *//')
+          first_libcxx=$(printf '%s\n' "$paths" | grep 'c++/v1' | sed -n '1,1p' | sed 's/^ *//')
           echo "first libc++ include dir: $first_libcxx"
           case "$first_libcxx" in
             "$SDKROOT"/usr/include/c++/v1) echo "OK: libc++ headers come from the SDK" ;;
@@ -157,12 +162,13 @@ jobs:
           esac
           echo "--- header actually used for <functional>"
           printf '#include <functional>\n' \
-            | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -fsyntax-only -H - 2>&1 | head -n 3
+            | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -fsyntax-only -H - 2>&1 | sed -n '1,3p'
           libcxx=$(printf '#include <ciso646>\nLIBCPP=_LIBCPP_VERSION\n' \
             | "$CLANGXX" -arch x86_64 -isysroot "$SDKROOT" -xc++ -std=gnu++17 -E - | sed -n 's/^LIBCPP=//p')
           echo "_LIBCPP_VERSION: $libcxx"
           echo "libcxx=$libcxx" >> "$GITHUB_OUTPUT"
           echo "first_libcxx=$first_libcxx" >> "$GITHUB_OUTPUT"
+          echo "rversion=$(R --version | sed -n '1s/^R version \([^ ]*\).*/\1/p')" >> "$GITHUB_OUTPUT"
           echo "end_ts=$(date +%s)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the build tree and ccache
@@ -175,9 +181,9 @@ jobs:
             src/*.o
             src/*.so
             src/duckdb/**/*.o
-          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            issue-2974-build-${{ runner.os }}-${{ runner.arch }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-
+            issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-
 
       - name: Make make trust the restored objects
         id: mtimes
@@ -226,6 +232,7 @@ jobs:
             echo "src/duckdb/ub_$(dirname "$rel" | tr / _).o"
           done | sort -u > "$RUNNER_TEMP/affected-objects.txt"
           cat "$RUNNER_TEMP/affected-objects.txt"
+          touch "$RUNNER_TEMP/build-start.marker"
 
       - name: "Build 1: unchanged tree (expected to fail), make -k"
         id: unpatched
@@ -276,12 +283,59 @@ jobs:
           trap 'echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"' EXIT
           export R_LIBS="$RUNNER_TEMP/lib-patched"
           Rscript -e 'library(duckdb); con <- dbConnect(duckdb()); print(dbGetQuery(con, "WITH RECURSIVE t(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM t WHERE i < 3) SELECT * FROM t"))'
-          otool -L "$RUNNER_TEMP/lib-patched/duckdb/libs/duckdb.so" | head -n 5
-          otool -l "$RUNNER_TEMP/lib-patched/duckdb/libs/duckdb.so" | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' | head -n 10
+          otool -L "$RUNNER_TEMP/lib-patched/duckdb/libs/duckdb.so" | sed -n '1,5p'
+          otool -l "$RUNNER_TEMP/lib-patched/duckdb/libs/duckdb.so" | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' | sed -n '1,10p'
 
-      - name: Record the build state for the next run
+      - name: Check the verdict
+        id: verdict
         if: always()
         run: |
+          # Build 1 must fail on exactly the objects the patch affects, with
+          # errors in exactly the patched sources; build 2 and the smoke test
+          # must pass.
+          ok=true
+          touch "$RUNNER_TEMP/errors-unpatched.txt" "$RUNNER_TEMP/failed-targets-unpatched.txt" \
+            "$RUNNER_TEMP/affected-objects.txt"
+          sed -n 's|^+++ b/src/||p' "$PATCH" | sort -u > "$RUNNER_TEMP/want-error-files.txt"
+          sed -E -n 's/^([^:]+):[0-9]+:[0-9]+: (fatal )?error:.*/\1/p' \
+            "$RUNNER_TEMP/errors-unpatched.txt" 2>/dev/null | sort -u > "$RUNNER_TEMP/got-error-files.txt"
+          # Errors without a file:line:col location count as unexpected files.
+          grep -Ev '^[^:]+:[0-9]+:[0-9]+: (fatal )?error:' "$RUNNER_TEMP/errors-unpatched.txt" 2>/dev/null \
+            | sed 's/^/<no location> /' >> "$RUNNER_TEMP/got-error-files.txt" || true
+          sed -E -n 's/^make: \*\*\* \[([^]]+)\].*/src\/\1/p' \
+            "$RUNNER_TEMP/failed-targets-unpatched.txt" 2>/dev/null | sort -u > "$RUNNER_TEMP/got-targets.txt"
+          check() {
+            if [ "$2" != "$3" ]; then
+              echo "::error::$1 differs from the expectation"
+              ok=false
+            fi
+          }
+          check "build 1 outcome" "${{ steps.unpatched.outcome }}" failure
+          check "build 2 outcome" "${{ steps.patched.outcome }}" success
+          check "smoke test outcome" "${{ steps.smoke.outcome }}" success
+          echo "--- failed targets of build 1: expected vs actual"
+          diff "$RUNNER_TEMP/affected-objects.txt" "$RUNNER_TEMP/got-targets.txt" \
+            && echo "(identical)" || { echo "::error::failed targets of build 1 are not the affected objects"; ok=false; }
+          echo "--- files with error: lines in build 1: expected vs actual"
+          diff "$RUNNER_TEMP/want-error-files.txt" "$RUNNER_TEMP/got-error-files.txt" \
+            && echo "(identical)" || { echo "::error::errors of build 1 are not exactly in the patched files"; ok=false; }
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          # Anything compiled in this run besides the affected objects?
+          new=$(find src -name '*.o' -newer "$RUNNER_TEMP/build-start.marker" 2>/dev/null \
+            | { grep -vxF -f "$RUNNER_TEMP/affected-objects.txt" || true; } | wc -l | tr -d ' ')
+          echo "objects compiled besides the affected ones: $new"
+          echo "recompiled=$new" >> "$GITHUB_OUTPUT"
+          echo "verdict ok: $ok"
+
+      - name: Record the build state for the next run
+        id: record
+        if: >-
+          always() && steps.verdict.outputs.ok == 'true' &&
+          (steps.verdict.outputs.recompiled != '0' || steps.restore.outputs.cache-matched-key == '')
+        run: |
+          # The cache holds objects of the unchanged tree only: drop the
+          # patched ones, so a later patch that loses a hunk cannot reuse them.
+          xargs rm -fv < "$RUNNER_TEMP/affected-objects.txt"
           mkdir -p "$BUILD_CACHE_META"
           echo "$GITHUB_SHA" > "$BUILD_CACHE_META/sha"
 
@@ -296,10 +350,11 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| Runner | macos-15-intel, $(sw_vers -productVersion) |"
-            echo "| R | $(R --version | head -n 1) |"
+            echo "| R | $(R --version | sed -n '1,1p') |"
             echo "| Xcode | ${{ steps.xcode.outputs.version }} |"
             echo "| clang | ${{ steps.xcode.outputs.clang }} |"
             echo "| CRAN clang | Apple clang version 14.0.3 (clang-1403.0.22.14.1), MacOSX11.3.1.sdk |"
+            echo "| Fidelity | clang ${{ steps.xcode.outputs.clang }} against the 11.3 SDK's libc++, while CRAN uses clang 14.0.3: this tests the library headers, not the compiler |"
             echo "| libc++ headers | \`${{ steps.toolchain.outputs.first_libcxx }}\`, _LIBCPP_VERSION ${{ steps.toolchain.outputs.libcxx }} |"
             echo "| Build cache | hit: \`${{ steps.restore.outputs.cache-matched-key || 'none' }}\`, built from ${{ steps.mtimes.outputs.cache_sha }} |"
             echo
@@ -312,6 +367,10 @@ jobs:
             echo "| Build 1: unchanged tree (expected failure) | ${{ steps.unpatched.outcome }} | ${{ steps.unpatched.outputs.seconds }} |"
             echo "| Build 2: with fix | ${{ steps.patched.outcome }} | ${{ steps.patched.outputs.seconds }} |"
             echo "| Smoke test | ${{ steps.smoke.outcome }} | ${{ steps.smoke.outputs.seconds }} |"
+            echo
+            echo "Verdict holds: ${{ steps.verdict.outputs.ok || 'false' }}." \
+              "Objects compiled besides the affected ones: ${{ steps.verdict.outputs.recompiled }}." \
+              "Build cache saved: ${{ steps.record.outcome == 'success' && 'yes' || 'no' }}."
             echo
             echo "### Errors of build 1"
             echo
@@ -338,7 +397,7 @@ jobs:
           cat "$s"
 
       - name: Save the build tree and ccache
-        if: always()
+        if: always() && steps.record.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -347,7 +406,7 @@ jobs:
             src/*.o
             src/*.so
             src/duckdb/**/*.o
-          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: issue-2974-build-${{ runner.os }}-${{ runner.arch }}-r${{ steps.toolchain.outputs.rversion }}-xcode${{ steps.xcode.outputs.version }}-sdk${{ env.SDK_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload build logs
         if: always()
@@ -360,10 +419,10 @@ jobs:
             ${{ runner.temp }}/clang-v.txt
           retention-days: 7
 
-      - name: Require build 1 to fail
+      - name: Require the verdict
         if: always()
         run: |
-          if [ "${{ steps.unpatched.outcome }}" != "failure" ]; then
-            echo "::error::The unchanged tree built (or never ran): the reproducer no longer reproduces."
+          if [ "${{ steps.verdict.outputs.ok }}" != "true" ]; then
+            echo "::error::Verdict failed: see the step \"Check the verdict\" for the comparison."
             exit 1
           fi
