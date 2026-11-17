@@ -79,3 +79,13 @@ test_that("a locked configuration does not keep the policy from relaxing", {
   expect_false(dbExistsTable(con, "nope"))
   expect_identical(dbReadTable(con, "t"), data.frame(a = 1))
 })
+
+test_that("a qualified name wrapped in I() is looked up as is (#2973)", {
+  con <- local_con()
+
+  dbExecute(con, "CREATE SCHEMA s")
+  dbExecute(con, "CREATE TABLE s.t AS SELECT 1 AS x")
+
+  expect_true(dbExistsTable(con, I("s.t")))
+  expect_false(dbExistsTable(con, I("s.nope")))
+})

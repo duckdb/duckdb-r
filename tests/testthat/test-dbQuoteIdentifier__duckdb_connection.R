@@ -23,3 +23,10 @@ test_that("preserves expected DBI behaviour", {
     SQL('"SELECT".b')
   )
 })
+
+test_that("passes a name wrapped in I() through unquoted, as dbplyr does (#2973)", {
+  con <- local_con()
+
+  expect_equal(dbQuoteIdentifier(con, I("s.t")), SQL("s.t"))
+  expect_equal(dbQuoteIdentifier(con, I(c(a = "s.t"))), SQL("s.t", names = "a"))
+})

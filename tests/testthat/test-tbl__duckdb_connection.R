@@ -213,3 +213,16 @@ test_that("tbl_file() errors on erroneous paths and unapplicable wildcard use", 
 if (rlang::is_installed("dbplyr")) {
   rm(`%>%`)
 }
+
+test_that("dplyr::tbl() takes a qualified name wrapped in I() (#2973)", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+
+  dbExecute(con, "CREATE SCHEMA s")
+  dbExecute(con, "CREATE TABLE s.t AS SELECT 1 AS x")
+
+  tab <- dplyr::tbl(con, I("s.t"))
+  expect_s3_class(tab, "tbl_duckdb_connection")
+  expect_equal(dplyr::collect(tab), tibble::tibble(x = 1L))
+})
