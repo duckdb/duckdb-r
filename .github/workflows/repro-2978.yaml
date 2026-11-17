@@ -30,7 +30,7 @@ env:
   REPRO_VARIANTS: >-
     no_spatial load_only st_read gdal1 gdal20 gdal20_threads1
     gdal20_shutdown_gc gdal20_quit gdal20_quit_norunlast gdal20_taskkill
-    gdal20_snap gdal20_shutdown_gc_snap
+    gdal20_snap gdal20_shutdown_gc_snap gdal20_threads2 gdal20_gdb
 
   # The script every variant runs: Rscript repro.R <variant> [<library>]
   REPRO_R: |
@@ -102,6 +102,41 @@ env:
     # tools::pskill() on its own pid does not terminate R on Windows, and R exits normally after it.
     if (endsWith(variant, "_taskkill")) system2("taskkill", c("/F", "/PID", Sys.getpid()))
 
+  # The variants ending in _gdb run R under gdb with this script.
+  # Lines 966 and 982 of winpthreads v9 thread.c are the read lock and unlock of _pthread_key_lock
+  # in _pthread_cleanup_dest(), around the call of a key's destructor; the extension carries their line info.
+  REPRO_GDB_SCRIPT: |
+    set pagination off
+    set confirm off
+    set breakpoint pending on
+    set print thread-events on
+    handle SIGSEGV stop print
+    handle SIGILL stop print
+    break thread.c:966
+    commands
+      silent
+      printf "=== RDLOCK _pthread_key_lock in _pthread_cleanup_dest, thread %d, key %u, dtor %p\n", $_thread, i, _pthread_key_dest[i]
+      bt 30
+      continue
+    end
+    break thread.c:982
+    commands
+      silent
+      printf "=== UNLOCK _pthread_key_lock in _pthread_cleanup_dest, thread %d, key %u\n", $_thread, i
+      continue
+    end
+    break pthread_key_delete
+    commands
+      silent
+      printf "=== pthread_key_delete(%u), thread %d\n", key, $_thread
+      bt 30
+      continue
+    end
+    run
+    bt 40
+    info threads
+    thread apply all bt 30
+
   # Fetches the debugging tools and writes their paths to GITHUB_ENV.
   REPRO_TOOLS_PS1: |
     $ErrorActionPreference = 'Continue'
@@ -130,6 +165,7 @@ env:
     if ($gdb) { "REPRO_GDB=$gdb" | Add-Content $env:GITHUB_ENV }
     Set-Content -Path (Join-Path $env:RUNNER_TEMP 'repro.R') -Value $env:REPRO_R
     Set-Content -Path (Join-Path $env:RUNNER_TEMP 'run-variants.ps1') -Value $env:REPRO_RUN_PS1
+    Set-Content -Path (Join-Path $env:RUNNER_TEMP 'repro.gdb') -Value $env:REPRO_GDB_SCRIPT
 
   # Runs the variants: run-variants.ps1 <label> <library or ''> <variant>...
   REPRO_RUN_PS1: |
@@ -195,7 +231,15 @@ env:
       $err = Join-Path $dir 'stderr.txt'
       $marker = Join-Path $dir 'finished.txt'
       Write-Host "=== [$Label/$v] start $(Get-Date -Format o)"
-      $p = Start-Process -FilePath $rscript -ArgumentList "--vanilla `"$script`" $v `"$Lib`"" -WorkingDirectory $dir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -NoNewWindow
+      if ($v -like '*_gdb') {
+        # R itself runs in bin\x64\Rscript.exe; bin\Rscript.exe only starts it.
+        $rx64 = Join-Path (Split-Path $rscript) 'x64\Rscript.exe'
+        if (-not (Test-Path $rx64)) { $rx64 = $rscript }
+        $gdbScript = Join-Path $env:RUNNER_TEMP 'repro.gdb'
+        $p = Start-Process -FilePath $env:REPRO_GDB -ArgumentList "-batch -nx -x `"$gdbScript`" --args `"$rx64`" --vanilla `"$script`" $v `"$Lib`"" -WorkingDirectory $dir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -NoNewWindow
+      } else {
+        $p = Start-Process -FilePath $rscript -ArgumentList "--vanilla `"$script`" $v `"$Lib`"" -WorkingDirectory $dir -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -NoNewWindow
+      }
       $null = $p.Handle
       $sw = [Diagnostics.Stopwatch]::StartNew()
       if ($v -match '_snap') {
@@ -231,7 +275,10 @@ env:
         # The leaves are the processes that hang; Rscript only waits on them.
         $leaves = @($procs | Where-Object { $id = $_.ProcessId; -not ($procs | Where-Object ParentProcessId -eq $id) })
         if (-not $leaves) { $leaves = @(Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)") }
-        foreach ($l in $leaves) { Save-Stacks $l.ProcessId $dir $v }
+        # Under gdb, the breakpoint log in the output is the evidence, and nothing else can attach.
+        if ($v -notlike '*_gdb') {
+          foreach ($l in $leaves) { Save-Stacks $l.ProcessId $dir $v }
+        }
         taskkill /F /T /PID $p.Id 2>&1 | Out-Null
       }
       Write-Host "::group::[$Label/$v] $verdict -- output"
@@ -253,7 +300,7 @@ jobs:
   baseline:
     name: CRAN binaries
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - uses: r-lib/actions/setup-r@v2
