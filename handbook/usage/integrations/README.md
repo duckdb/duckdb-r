@@ -46,6 +46,13 @@ the query
 into lazy tables;
 `simulate_duckdb()` renders SQL without a connection.
 
+**A table name wrapped in `I()` is SQL, as dbplyr means it.**
+`dbQuoteIdentifier()` passes `I("schema.table")` through unquoted, like `SQL()`,
+so `dbExistsTable()` looks it up as written and `tbl()` opens it as a table
+([#2973](https://github.com/duckdb/duckdb-r/issues/2973)).
+Like `SQL()`, it is spliced in verbatim, so it is no place for untrusted input.
+The methods registered for a `character` name, such as `dbReadTable()` and `dbWriteTable()`, have no method for it.
+
 **`slice_sample()` is the one verb the backend implements.**
 dbplyr numbers the rows in a window ordered by `RANDOM()`,
 and DuckDB 2.0 refuses a volatile window key by design
