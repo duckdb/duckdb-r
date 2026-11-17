@@ -76,7 +76,7 @@ In the record, `copy_to(con, df, I("s.c"))` reaches duckdb's `dbExistsTable()` w
 In the source of dbplyr 2.6.0, the DBI calls that take a table name pass `DBI::SQL()` of the path,
 in `dbplyr_write_table.DBIConnection()`, `db_table_drop_if_exists.DBIConnection()` and the Oracle methods, except:
 
-* `dbplyr_write_table.DBIConnection()` passes `table_path_name()`, the last component as a plain string,
+* `dbplyr_write_table.DBIConnection()` passes `table_path_name()`, the table name without its schema, as a plain string,
   for a `PostgreSQLConnection`, RPostgreSQL's class.
 * `local_db_table()`, a test helper, passes its `name` to `dbRemoveTable()` as given.
 
@@ -100,9 +100,9 @@ The DBI specification asks for an error
 [#2893](https://github.com/duckdb/duckdb-r/pull/2893), merged the same day, narrowed the same `tryCatch()` further,
 so that a transaction that has already failed raises rather than answers `FALSE`
 ([`2026-10-14-exists-table-transaction/`](/experiments/2026-10-14-exists-table-transaction/README.md)).
-The release that carried both is squashed into 2f82664 on `main` and `v2.0-cyanoptera`, whose NEWS cites #2892, #2893 and #2896.
+The release that carried #2893 and #2896 is squashed into 2f82664 on `main` and `v2.0-cyanoptera`, whose NEWS cites #2892, #2893 and #2896.
 
-Neither PR's description mentions `I()`; #2896 names `NA`.
+The descriptions of #2893 and #2896 do not mention `I()` or `AsIs`; #2896's names `dbExistsTable(con, NA)`.
 `dbQuoteIdentifier(con, I("s.t"))` fails the same way on 1.4.0; only the swallowing stopped.
 
 ## Ways to open a table
@@ -167,7 +167,7 @@ Those are the classes dbplyr 2.6.0 gives `I()` (`"AsIs"`), a table path (`"dbply
 
 * `compute(x, I("s.e"))` under (a) gives a lazy table whose `remote_table()` is `s.e`, the path dbplyr built, where today it is `FROM s.e`.
 * It fixes `in_schema()` as well.
-* The risk is classed character vectors.
+* Classed character vectors are still probed.
   `glue()`, `fs::path()` and a named vector are probed and open the table as they do today, because no listed class is theirs.
   A string with an arbitrary class, `"foo"` alone or before `"character"`, fails with the `SQL()` error today and under (a) alike,
   because duckdb's `dbQuoteIdentifier()` keeps the class.
@@ -187,7 +187,7 @@ as dbplyr's own `db_table_drop_if_exists()` does.
 
 * It costs a call into `as_table_path()`, which dbplyr 2.6.0, the floor, exports.
 * The `glue()` of `read_csv()` fails, as under (a, bare), and `SQL("s.t")` fails with `FROM (FROM "s.t")` in the query.
-* It runs a probe whose answer no longer changes anything for a table identifier.
+* For a table identifier, it still runs the probe, and the probe's answer does not change the result.
 
 **(c) #3003: duckdb's `dbQuoteIdentifier()` takes a character `I()` as `SQL()`.**
 
