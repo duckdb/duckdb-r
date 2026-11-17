@@ -3,7 +3,7 @@ From: Claude <noreply@anthropic.com>
 Subject: [PATCH] Compare the requested scale to the maximum width as signed
 
 The requested scale is an int32_t, read from a constant argument, and
-Decimal::MAX_WIDTH_DECIMAL is unsigned, so -Wsign-compare flags the comparison.
+Decimal::MAX_WIDTH_INT128 is unsigned, so -Wsign-compare flags the comparison.
 The width is cast to int32_t, which holds it exactly, after the negative case
 has been ruled out by the same condition.
 
@@ -13,12 +13,12 @@ Carried here until upstream takes it; not proposed upstream yet.
 diff --git a/src/duckdb/src/function/scalar/operator/decimal_division.cpp b/src/duckdb/src/function/scalar/operator/decimal_division.cpp
 --- a/src/duckdb/src/function/scalar/operator/decimal_division.cpp
 +++ b/src/duckdb/src/function/scalar/operator/decimal_division.cpp
-@@ -178,7 +178,7 @@ static void DecimalDivisionResolveTypes(ResolveScalarFunctionTypesInput &input)
+@@ -241,7 +241,7 @@
  	if (input.GetArgumentCount() == 3) {
  		auto scale_val = input.GetNonNullConstant(2);
  		auto scale_i = scale_val.GetValue<int32_t>();
--		if (scale_i < 0 || scale_i > Decimal::MAX_WIDTH_DECIMAL) {
-+		if (scale_i < 0 || scale_i > static_cast<int32_t>(Decimal::MAX_WIDTH_DECIMAL)) {
+-		if (scale_i < 0 || scale_i > Decimal::MAX_WIDTH_INT128) {
++		if (scale_i < 0 || scale_i > static_cast<int32_t>(Decimal::MAX_WIDTH_INT128)) {
  			throw InvalidInputException("decimal_division: scale must be between 0 and %d, got %d",
- 			                            Decimal::MAX_WIDTH_DECIMAL, scale_i);
+ 			                            Decimal::MAX_WIDTH_INT128, scale_i);
  		}
