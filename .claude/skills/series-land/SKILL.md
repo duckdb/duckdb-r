@@ -406,9 +406,6 @@ Then the series:
 
 After a landing on a release branch, and after any fix merged into it, the branch is merged forward into the next newer line,
 `main` today ([`branches/model/`](/handbook/branches/model/README.md) owns the rule).
-This applies once the v2.0 series releases from `v2.0-cyanoptera` ([#2991](https://github.com/duckdb/duckdb-r/pull/2991));
-until then its `--target` is `main`, and the blocks below say there is nothing to merge forward
-([`branches/model/`](/handbook/branches/model/README.md), "Until the switch").
 A landing on `main` itself skips this step.
 List what the merge brings: FORWARD-PORT counts the vendor commits and version bumps and lists each R-side commit:
 
@@ -529,6 +526,9 @@ and `main` moves on to preview the next line; CRAN moves to the new line with it
    and a line that retires then is declared `stale: true`;
    then `.github/pull.yml` from `scripts/pull-config.sh` and the tables from `scripts/series-table.R`,
    checked with `--check` ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
+   A retiring line moves the oldest active release branch,
+   so the base [`operations/review/`](/handbook/operations/review/README.md) names as today's moves with it,
+   and so do its copies in `AGENTS.md` and `.claude/rules/pull-request-base.md`.
 3. **Land `<N>`'s series onto `<N>`**, steps 1 to 7 with `<B>` = `<N>`, ending on the bump to its first release, or short of it to `<N>`'s fourth component one up.
    Where `main` had landed past the fork point, the first pick vendors an older engine than the branch, and the build takes its strand whole.
 4. **`main` previews the next line from here**:

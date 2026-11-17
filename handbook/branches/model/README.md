@@ -23,18 +23,6 @@ the line CRAN ships has a branch of its own, named as upstream names it, `v2.0-c
 Plain `duckdb` on r-universe is built from `main` all the same, by decision, so r-universe shows the next line and CRAN the current one:
 that is why the flavor table names `main` as where `duckdb` is published from
 ([`flavors/`](/handbook/branches/flavors/README.md)).
-**Until the switch, part of the layout before it holds.**
-`v2.0-cyanoptera` exists in `duckdb/duckdb-r`, cut from `main` at `e913ab08fd`.
-The rest of the layout takes effect once `scripts/series.yaml` names it as the v2.0 series' `releases_from`
-([#2991](https://github.com/duckdb/duckdb-r/pull/2991)).
-Until then the v2.0 series still releases from `main`:
-`scripts/series-port.sh` ports `main`'s R side into it, `scripts/series-land.sh --target` names `main` for it, and it seeds on `main`;
-and `main` still carries the 2.0 engine at `2.0.0.9000`, so it takes no landing of upstream `main` and no forward merge yet.
-`main` stays at `2.0.0.9000` until the first landing of its own series, whose bump is `2.0.99.9000`
-([`versioning/`](/handbook/operations/releases/versioning/README.md)).
-FORWARD-PORT in `scripts/series-check.sh` already reads `v2.0-cyanoptera`, the CRAN row's `upstream`,
-so it lists what lands there before the v2.0 series releases from it.
-The pages describing the two-branch layout link here for that.
 `krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
 network, not a copy that shares its name — used for CI/CD
 so the per-commit builds do not consume
@@ -237,7 +225,7 @@ a branch is made of, and the other three come from elsewhere:
 | **Glue code** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **R code and tests** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **CI/CD infrastructure** | **`main`** | forward-ported to every series |
-| **cpp11** | **`main`** | forward-ported to every series |
+| **cpp11** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | R core | external — `r-devel`, CRAN policy | monitored; fixes land on the oldest active release branch first |
 
 **At most three lines are active, and CRAN follows the middle one once there are three.**
@@ -262,11 +250,12 @@ by [`series-port.sh`](/scripts/series-port.sh), the loop's port stage
 Tooling comes from `main` for every series, no series ports from another,
 and a line declared `stale: true` in [`scripts/series.yaml`](/scripts/series.yaml) takes the tooling sync alone.
 
-**An R-side fix is written on the oldest active release branch and merged forward.**
-A fix goes to the oldest line it applies to, as a pull request against that line's release branch, `v2.0-cyanoptera` today,
+**An R-side change is written on the oldest active release branch and merged forward.**
+It starts on the oldest line it applies to, in a pull request against that line's release branch
+([`operations/review/`](/handbook/operations/review/README.md) owns which branch a pull request targets),
 and reaches every newer line by merging the older branch into the next newer one:
 `v2.0-cyanoptera` into `main` today, and with three lines `v2.0` into `v2.1` and `v2.1` into `main`.
-A fix only a newer line needs is written on that line directly,
+A change only a newer line needs is written on that line directly,
 and a fix written on a newer line first and then found to be needed on an older one is picked back with `git cherry-pick -x`.
 Tooling is `main`'s alone, and reaches a release branch only as such a pick.
 This turns the R-package convention around, where `main` is roughly what CRAN has:
