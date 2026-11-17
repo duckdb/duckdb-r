@@ -2338,7 +2338,8 @@ test_that("a lazy data frame scanned on its own connection before its query ran 
         )
       }
 
-      con <- DBI::dbConnect(ns$duckdb(environment_scan = TRUE))
+      drv <- ns$duckdb(environment_scan = TRUE)
+      con <- DBI::dbConnect(drv)
       on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
       other <- DBI::dbConnect(ns$duckdb())
       on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
@@ -2362,6 +2363,13 @@ test_that("a lazy data frame scanned on its own connection before its query ran 
         ns$rel_to_altrep(ns$rel_from_df(other, lazy()))$i
       )
 
+      # So does a second connection to the frame's own database
+      sibling <- DBI::dbConnect(drv)
+      from_sibling <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(sibling, lazy()))$i
+      )
+      DBI::dbDisconnect(sibling)
+
       # Once the query has run, touching the frame converts and queries nothing
       nrow(df)
       own_after_run <- DBI::dbGetQuery(
@@ -2374,6 +2382,7 @@ test_that("a lazy data frame scanned on its own connection before its query ran 
         scan = scan,
         after = after,
         from_other = from_other,
+        from_sibling = from_sibling,
         own_after_run = own_after_run
       )
     },
@@ -2387,5 +2396,6 @@ test_that("a lazy data frame scanned on its own connection before its query ran 
   })
   expect_equal(out$after, 42)
   expect_equal(out$from_other, 0:9)
+  expect_equal(out$from_sibling, 0:9)
   expect_equal(out$own_after_run, 45L)
 })
