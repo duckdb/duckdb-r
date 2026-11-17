@@ -19,15 +19,18 @@ Fix the leaf first and re-derive this, never the other way around._
   and every `releases_from` other than `main` on a row not declared `stale: true`.
 - Name the base explicitly: `main` is the repository's default branch, so GitHub and `gh pr create` propose it otherwise.
 - Target `main` only for a change that concerns only the line `main` previews,
-  or one that changes nothing but tooling that runs from `main`'s copy,
+  or one that changes nothing but tooling that takes effect from `main`'s copy alone,
   with its generated files and the handbook pages that describe only that tooling.
-  That is the series scripts and skills, which the loop syncs to every series,
-  and the scheduled, `workflow_run` and `pull_request_target` workflows, which GitHub runs from the default branch.
-  Such a change reaches a release branch as a pick only where that branch's own copy needs it too.
+  Such tooling reaches a release branch as a pick only where that branch turns out to need it.
   Split a change that mixes such tooling with anything else by default: its tooling to `main`, the rest to the release branch.
 - Where tooling takes effect decides its target, not that it is tooling.
-  A change to how a release branch itself is built or checked, such as the `pull_request` and `push` triggers in `R-CMD-check.yaml`,
-  which run from the branch they fire on, targets that release branch and reaches `main` by the forward merge.
+  `main`'s copy is the tooling the series loop runs and the series refs run, which the port stage syncs from `main`,
+  and what GitHub runs on a `schedule`, `workflow_run` or `pull_request_target` trigger.
+  A release branch's own copy runs on a `push`, `workflow_dispatch` or `merge_group` run on that branch
+  and on a `pull_request` into it, merged with the pull request, and so do the scripts these call, the handbook check among them.
+  Tooling that takes effect there, even if from `main`'s copy as well, such as the `pull_request` triggers in `R-CMD-check.yaml`,
+  targets that release branch and reaches `main` by the forward merge.
+  A change to a file `cynkra/cynkratemplate` owns goes to the template too.
 - The change reaches the newer lines by a forward merge, so it needs no second pull request,
   except a `patch/` entry, which is opened against each line whose engine needs it.
 - A landing's review and its forward merge take the bases `series-land` gives them.
