@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Sixteen things are checked:
+# version first, whichever side a section came from. Seventeen things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -35,6 +35,8 @@
 #      conflict, not our link lost.
 #  16. A CRLF file comes out CRLF, the development section merged three-way
 #      included.
+#  17. An LF file that takes one CRLF line from theirs in another section
+#      gets no blank lines, CR or not, added after its LF sections.
 #
 # Usage:
 #   scripts/merge-news-test.sh
@@ -228,6 +230,14 @@ crlf() { sed 's/$/\r/'; }
 is "it merges cleanly" "$(merge)" 0
 has "with their line" "$(cat A)" "- A bullet of theirs."
 is "and no line without CR" "$(grep -vc $'\r$' A || true)" 0
+
+echo "== 17. an LF file takes one CRLF line from theirs"
+sec 2.0.99.9000 > O
+news 2.0.99.9001 2.0.99.9000 > A
+printf '# duckdb 2.0.99.9000\n\n- Changes in 2.0.99.9000.\n- Theirs.\r\n\n\n' > B
+is "it merges cleanly" "$(merge)" 0
+is "with no blank lines added" "$(sed -n 6p A)" "# duckdb 2.0.99.9000"
+is "  and no CR line but theirs" "$(grep -c $'\r$' A || true)" 1
 
 echo
 echo "$pass passed, $fail failed"

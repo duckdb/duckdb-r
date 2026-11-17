@@ -156,7 +156,8 @@ def merge_dev(a, o, b):
 def ordered(merged):
     keys = sorted((k for k in merged if k is not None), key=version_key, reverse=True)
     order = ([None] if None in merged else []) + keys
-    # The line ending the file uses, so a CRLF file stays CRLF.
+    # The line ending the file uses, so a CRLF file stays CRLF, for a last
+    # line that has none.
     nl = "\r\n" if any("\r\n" in t for t in merged.values()) else "\n"
     out = []
     for i, key in enumerate(order):
@@ -164,9 +165,12 @@ def ordered(merged):
         if not t.endswith("\n"):
             t += nl
         # A section that moved off the end still needs the blank lines before
-        # the next heading that the file uses between sections.
-        if i < len(order) - 1 and key is not None and not t.endswith(nl + nl):
-            t += nl + nl
+        # the next heading that the file uses between sections, in the line
+        # ending of the section's own last line: a file with CRLF lines in
+        # some sections only gets no CR padding after its LF ones.
+        if i < len(order) - 1 and key is not None and not t.endswith(("\n\n", "\r\n\r\n")):
+            own = "\r\n" if t.endswith("\r\n") else "\n"
+            t += own + own
         out.append(t)
     return "".join(out)
 
