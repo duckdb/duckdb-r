@@ -350,7 +350,8 @@ jobs:
           trap 'echo "seconds=$SECONDS" >> "$GITHUB_OUTPUT"' EXIT
           mkdir -p "$RUNNER_TEMP/lib-patched"
           export MAKEFLAGS="-j$(sysctl -n hw.ncpu)"
-          # ccache's own log of this build, for its hits and misses.
+          # ccache's own log of this build, for the hits and misses of the
+          # patched objects.
           export CCACHE_LOGFILE="$RUNNER_TEMP/ccache-patched.log"
           ccache --version | sed -n '1,1p'
           R CMD INSTALL --no-byte-compile -l "$RUNNER_TEMP/lib-patched" . 2>&1 \
