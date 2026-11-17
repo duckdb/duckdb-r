@@ -18,7 +18,8 @@ Each build is rendered by [`scripts/render-reprex.R`](/scripts/render-reprex.R):
   installed into a scratch library of its own from Posit's snapshot of CRAN for 2025-10-15.
   The session info's path to that library was replaced by hand with `<duckdb 1.4.0 library>`; nothing else in the file was edited.
 
-*What it supports:* the sentence on which names `tbl()` probes, in the dbplyr section of [`usage/integrations/`](/handbook/usage/integrations/README.md),
+*What it supports:* the sentence on which names `tbl()` probes,
+in the dbplyr section of [`usage/integrations/`](/handbook/usage/integrations/README.md),
 and [#2973](https://github.com/duckdb/duckdb-r/issues/2973).
 
 ## The stack
