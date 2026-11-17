@@ -19,7 +19,7 @@
 #   On a push to a release branch, it builds and checks that the package loads, and runs no tests:
 #   that run exists to fill the cache the pull requests restore.
 #
-# Triggers: a push runs on release branches only, `v<major>.<minor>-<name>` with exactly one hyphen,
+# Triggers: a push runs on release branches only, `v<major>.<minor>-<name>`, and on no `v` branch with two or more hyphens,
 # such as v2.0-cyanoptera or v1.5-variegata.
 # The `!v*-*-*` pattern excludes the series refs that move automatically,
 # such as v2.0-cyanoptera-green, v2.0-cyanoptera-dev, v1.4-andium-lts or v1.5-variegata-before-land-20261018,
@@ -274,6 +274,7 @@ jobs:
       # Saved on push only, see the header.
       - name: Measure the cache entry
         if: github.event_name == 'push' && steps.cache.outputs.cache-hit != 'true'
+        continue-on-error: true
         shell: bash
         run: |
           ## -- Measure the cache entry --
@@ -319,6 +320,11 @@ jobs:
           key="$CACHE_PREFIX$SRC_KEY"
           if ! old=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?key=$CACHE_PREFIX&ref=$GITHUB_REF&per_page=100" --jq '.actions_caches[].key'); then
             echo "::warning::Could not list the cache entries of $GITHUB_REF; older entries stay until GitHub evicts them."
+            exit 0
+          fi
+          # The save only warns when it fails, so delete nothing unless the new entry is listed.
+          if ! printf '%s\n' "$old" | grep -q -x -F -- "$key"; then
+            echo "::warning::The new entry $key is not listed on $GITHUB_REF; keeping the older entries."
             exit 0
           fi
           old=$(printf '%s\n' "$old" | grep -v -x -F -- "$key" | sort -u || true)
