@@ -265,15 +265,19 @@ test_that("dplyr::tbl() opens a DBI::Id() table", {
   expect_equal(dplyr::collect(tab)$x, 1)
 })
 
-test_that("dplyr::tbl() keeps the FROM fallback for a glue() string", {
+test_that("dplyr::tbl() keeps the FROM fallback for a classed string", {
   skip_if_not_installed("dbplyr")
-  skip_if_not_installed("glue")
 
   con <- local_con()
   csv <- withr::local_tempfile(fileext = ".csv")
   utils::write.csv(data.frame(x = 1), csv, row.names = FALSE)
 
-  tab <- dplyr::tbl(con, glue::glue("read_csv('{csv}')"))
+  # The class glue::glue() gives its result, built without the package.
+  from <- structure(
+    paste0("read_csv('", csv, "')"),
+    class = c("glue", "character")
+  )
+  tab <- dplyr::tbl(con, from)
   expect_equal(dplyr::collect(tab)$x, 1)
 })
 

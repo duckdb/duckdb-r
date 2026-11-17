@@ -684,8 +684,8 @@ slice_sample.tbl_duckdb_connection <- function(
 # @param from Table or parquet/csv -files to be registered
 # @param cache Enable object cache for parquet files
 tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
-  # Probes only a string dbplyr would quote, so a missing table can be a replacement scan;
-  # its own table names go to dbplyr unprobed (usage/integrations/, #2973).
+  # Probes a character `from` without a table-name class, so a missing table can be a replacement scan;
+  # anything else goes to dbplyr unprobed (handbook/usage/integrations/README.md, #2973).
   probe <- is.character(from) &&
     !inherits(from, c("AsIs", "dbplyr_table_path", "ident", "sql", "SQL"))
   if (probe && !DBI::dbExistsTable(src, from)) {
