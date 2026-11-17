@@ -489,7 +489,7 @@ jobs:
           Rscript "$t/repro.R" patched "$RUNNER_TEMP\\lib-patched" 2>&1 | tee "$t/checks-patched.log" || echo "::warning::checks exited with $?"
           Rscript "$t/repro-test.R" patched "$RUNNER_TEMP\\lib-patched" 2>&1 | tee "$t/testthat-patched.log" || echo "::warning::testthat exited with $?"
 
-      # Red then green: the unpatched build must fail a check or a test, the patched build none.
+      # Red then green: the unpatched build must fail exactly the expected checks and tests, the patched build none.
       - name: Verdict
         if: always()
         shell: bash
@@ -519,8 +519,14 @@ jobs:
           if [ -z "$p_tfail" ] || [ "$p_tfail" -ne 0 ] || [ "${p_tpass:-0}" -eq 0 ]; then
             verdict=fail; reasons+=("patched: testthat FAIL ${p_tfail:-?} PASS ${p_tpass:-?}")
           fi
-          if [ "$u_fail" -eq 0 ] && [ "${u_tfail:-0}" -eq 0 ]; then
-            verdict=fail; reasons+=("unpatched: no RESULT FAIL and no testthat failure, the reproducer no longer reproduces")
+          # The unchanged tree must fail exactly the checks #2882 reports on 2.0, and test-unc-path.R accordingly.
+          expected="mixed/dbdir mixed/glob_csv mixed/glob_parquet mixed/normalize slash/glob_csv slash/glob_parquet"
+          u_failed=$(awk '$2 == "FAIL" {print $1}' "$t/results-unpatched.txt" | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')
+          if [ "$u_failed" != "$expected" ]; then
+            verdict=fail; reasons+=("unpatched: failed [$u_failed], expected [$expected]")
+          fi
+          if [ -z "$u_tfail" ] || [ "$u_tfail" -ne 7 ]; then
+            verdict=fail; reasons+=("unpatched: testthat FAIL ${u_tfail:-?}, expected 7")
           fi
           {
             echo "### Verdict: $verdict"
