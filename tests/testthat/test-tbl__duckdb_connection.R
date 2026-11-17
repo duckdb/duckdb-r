@@ -210,6 +210,88 @@ test_that("tbl_file() errors on erroneous paths and unapplicable wildcard use", 
   expect_error(tbl_file(con, "data/bogus*.parquet"))
 })
 
+test_that("dplyr::tbl() opens an I() schema-qualified table name (#2973)", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  DBI::dbExecute(con, "CREATE SCHEMA s")
+  DBI::dbWriteTable(con, DBI::Id(schema = "s", table = "t"), data.frame(x = 1))
+
+  tab <- dplyr::tbl(con, I("s.t"))
+  expect_s3_class(tab, "tbl_duckdb_connection")
+  expect_equal(dplyr::collect(tab)$x, 1)
+})
+
+test_that("dplyr::tbl() opens a dbplyr::in_schema() table (#2973)", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  DBI::dbExecute(con, "CREATE SCHEMA s")
+  DBI::dbWriteTable(con, DBI::Id(schema = "s", table = "t"), data.frame(x = 1))
+
+  tab <- dplyr::tbl(con, dbplyr::in_schema("s", "t"))
+  expect_s3_class(tab, "tbl_duckdb_connection")
+  expect_equal(dplyr::collect(tab)$x, 1)
+})
+
+test_that("compute() to an I() name points at the table it created (#2973)", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  DBI::dbExecute(con, "CREATE SCHEMA s")
+  DBI::dbWriteTable(con, DBI::Id(schema = "s", table = "t"), data.frame(x = 1))
+
+  tab <- dplyr::compute(
+    dplyr::tbl(con, DBI::Id("s", "t")),
+    name = I("s.e"),
+    temporary = FALSE
+  )
+  expect_true(DBI::dbExistsTable(con, DBI::Id(schema = "s", table = "e")))
+  expect_equal(
+    as.character(dbplyr::remote_table(tab)),
+    "s.e"
+  )
+  expect_equal(dplyr::collect(tab)$x, 1)
+})
+
+test_that("dplyr::tbl() opens a DBI::Id() table", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  DBI::dbExecute(con, "CREATE SCHEMA s")
+  DBI::dbWriteTable(con, DBI::Id(schema = "s", table = "t"), data.frame(x = 1))
+
+  tab <- dplyr::tbl(con, DBI::Id("s", "t"))
+  expect_equal(dplyr::collect(tab)$x, 1)
+})
+
+test_that("dplyr::tbl() keeps the FROM fallback for a classed string", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(data.frame(x = 1), csv, row.names = FALSE)
+
+  # The class glue::glue() gives its result, built without the package.
+  from <- structure(
+    paste0("read_csv('", csv, "')"),
+    class = c("glue", "character")
+  )
+  tab <- dplyr::tbl(con, from)
+  expect_equal(dplyr::collect(tab)$x, 1)
+})
+
+test_that("dplyr::tbl() opens a plain file path", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(data.frame(x = 1), csv, row.names = FALSE)
+
+  tab <- dplyr::tbl(con, csv)
+  expect_equal(dplyr::collect(tab)$x, 1)
+})
+
 if (rlang::is_installed("dbplyr")) {
   rm(`%>%`)
 }
