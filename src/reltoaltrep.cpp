@@ -196,6 +196,12 @@ void AltrepRelationWrapper::MarkColumnAsTransformed(idx_t column_index) {
 		if (--pending_vectors[column_index] == 0) {
 			column_results.erase(column_index);
 		}
+		// Once every column is converted, the data frame is materialized as in whole-relation mode:
+		// a relation built from it scans what R holds rather than the table, which may have changed since
+		if (transformed_columns == altrep_columns) {
+			D_ASSERT(column_results.empty());
+			materialized = true;
+		}
 		return;
 	}
 	// Once all columns have been transformed, the data lives in R vectors,
