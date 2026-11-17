@@ -43,14 +43,18 @@ The failure classes, and what each needs:
   so this says `./configure` failed and nothing was compiled.
   It is a local setup problem: run `./configure` and read its output.
   The vendor commit is not implicated, and amending it fixes nothing.
-* **The generator failed** (`GENERATOR FAILED`, exit 7, in `vendor-one.sh` and `series-vendor.sh` alike):
+* **The generator failed** (`GENERATOR FAILED`, exit 7, in `vendor-one.sh`, `series-vendor.sh` and `vendor.sh` alike):
   regenerating the tree or deriving from the patched tree stopped before any commit,
   and `series-vendor.sh` undoes the pick it was regenerating for.
+  The reason is printed above the banner, a failing `scripts/ci/version.py` in the upstream checkout among them.
   Fix what the generator reads and rerun.
 * **The upstream clone cannot name a version** (`SHALLOW UPSTREAM CLONE` or
   `NO VERSION IN THE UPSTREAM CLONE`, exit 6):
-  a shallow or tagless clone would stamp a `DUCKDB_VERSION` no extension repository serves,
-  so `vendor-one.sh` refuses before it vendors anything.
+  a shallow clone, or one with no release tag below its `HEAD`, would stamp a `DUCKDB_VERSION` no extension repository serves,
+  so `vendor-one.sh` refuses before it vendors anything, and `vendor.sh` stops at the generator instead
+  ([`scripts/series-config.sh`](/scripts/series-config.sh)).
+  A clone that lacks only the line's newest tag looks like a line that has not released it yet,
+  so it passes and stamps a patch number too low.
   Fetch the history and the tags into the source clone, as the banner prints, and rerun.
 * **The clone is on the wrong line** (`WRONG UPSTREAM LINE`, exit 5):
   the buffer's last vendored commit is not on the first-parent line of the clone's `HEAD`.

@@ -11,6 +11,11 @@ set -o pipefail
 
 cd "$(dirname "$0")"/..
 
+# The generator and the version it stamps, shared with scripts/vendor-one.sh;
+# the rest this script keeps a copy of.
+# shellcheck source=series-config.sh
+. scripts/series-config.sh
+
 project=duckdb
 vendor_base_dir=src/duckdb
 vendor_dir=${vendor_base_dir}
@@ -80,7 +85,14 @@ for commit in $original; do
   # command over ~3550 files stays cheap. Files upstream dropped still go -- they
   # are in the tree that was moved aside, and never come back from it.
   echo "R: configure"
-  DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
+  series_generate_tree "$upstream_dir" || {
+    echo ""
+    echo "=== GENERATOR FAILED regenerating the tree for upstream ${commit} ==="
+    echo "Nothing was committed; the regenerated files, if any, are in the working tree."
+    echo "Fix the generator's input, 'git checkout -- . && git clean -fd', and rerun this script."
+    [ "$upstream_basedir" = "$upstream_dir" ] || rm -rf "$upstream_dir"
+    exit 7
+  }
 
   # `--reverse` needs `--forward` beside it: on its own it prompts
   # ("Unreversed patch detected!  Ignore -R? [n]") and hangs a run whose

@@ -119,22 +119,19 @@ fi
 # against.
 git -C "$upstream_dir" config core.abbrev 10
 
-# The version stamp comes from the same clone, and a clone without versioning
-# tags stamps a placeholder instead of failing. Upstream's
-# `package_build.get_git_describe()` -- which rconfigure.py reaches through
-# `build_package()` -- catches the `git describe` failure and answers
-# `v0.0.0-0-gdeadbeeff`, so `DUCKDB_VERSION` becomes `v0.0.0` and the tree
-# builds, installs and passes the glue gate. What it does not do is load an
-# extension: every download then asks
-# extensions.duckdb.org/v0.0.0/<platform>/<name>.duckdb_extension.gz and gets
-# an HTTP 404, which surfaces a whole CI cycle later as a test failure that
-# looks like the engine's.
+# The version stamp comes from the same clone, and a clone that cannot name the
+# version stamps a wrong one instead of failing. The tree then builds, installs
+# and passes the glue gate. What it does not do is load an extension: every
+# download asks extensions.duckdb.org/<version>/<platform>/<name>.duckdb_extension.gz
+# for a version upstream never published, such as `v0.0.0` from a tagless
+# clone of a line older than v2.0, or a patch number too low from one of a line
+# released since, and gets an HTTP 404, which surfaces a whole CI cycle later
+# as a test failure that looks like the engine's.
 #
-# A shallow clone is the condition the placeholder below was only ever a proxy
-# for, and it is the half that still holds on every branch: refuse it directly.
-# The clone is the tree the version is read from, so ask it rather than the
-# source -- `git clone` of a shallow repository is shallow, and CI checks
-# upstream out in `$upstream_dir` itself.
+# A shallow clone answers neither the tags nor the commit count: refuse it
+# directly. The clone is the tree the version is read from, so ask it rather
+# than the source: `git clone` of a shallow repository is shallow, and CI
+# checks upstream out in `$upstream_dir` itself.
 if [ "$(git -C "$upstream_dir" rev-parse --is-shallow-repository)" = true ]; then
   echo ""
   echo "=== SHALLOW UPSTREAM CLONE ==="
@@ -149,41 +146,26 @@ if [ "$(git -C "$upstream_dir" rev-parse --is-shallow-repository)" = true ]; the
   exit 6
 fi
 
-# Ask upstream's own resolver rather than reimplementing its tag match, which
-# depends on MAIN_BRANCH_VERSIONING and is upstream's to change.
-#
-# Upstream keeps the resolver under two names: `get_git_describe()` on the
-# release branches, and `git_dev_version()` on `main`, which stopped describing
-# tags at all and composes `scripts/ci/release_version.txt` with the commit
-# count instead. Importing one name by itself made the probe raise on `main`
-# and answer empty, so the guard below stopped guarding the busiest series --
-# silently, behind a warning that fired on every vendor run.
-#
-# The probe is still allowed to fail -- upstream owns that file and may move it
-# again -- and says so rather than refusing, because only the placeholder is
-# evidence.
-upstream_describe=$(cd "$upstream_dir" && python3 -c \
-  'import sys; sys.path.insert(0, "scripts"); import package_build
-for name in ("get_git_describe", "git_dev_version"):
-    fn = getattr(package_build, name, None)
-    if fn is not None:
-        print(fn())
-        break' \
-  2>/dev/null) || upstream_describe=
-if [ -z "$upstream_describe" ]; then
-  echo "Warning: could not read the version $upstream_dir would stamp" >&2
-fi
-if [ "$upstream_describe" = "v0.0.0-0-gdeadbeeff" ]; then
-  echo ""
-  echo "=== NO VERSION IN THE UPSTREAM CLONE ==="
-  echo "$upstream_dir, cloned from $upstream_basedir, has no versioning tag that"
-  echo "'git describe' can reach, so every commit vendored from it would carry"
-  echo "DUCKDB_VERSION \"v0.0.0\" and fail to install any extension."
-  echo "A clone fetched without tags is the usual cause:"
-  echo "  git -C $upstream_basedir fetch --tags origin"
-  echo "Then rerun this script."
-  rm -rf "$upstream_dir"
-  exit 6
+# A clone without tags stamps a wrong version just as quietly. Ask the
+# function the generator stamps with, `series_upstream_version()` in
+# scripts/series-config.sh, so the guard and the stamp read the clone the same
+# way and cannot disagree; it says on stderr why it refuses. A configuration
+# that defines none leaves the stamp to its generator alone.
+if declare -F series_upstream_version >/dev/null; then
+  if ! upstream_version=$(series_upstream_version "$upstream_dir"); then
+    echo ""
+    echo "=== NO VERSION IN THE UPSTREAM CLONE ==="
+    echo "$upstream_dir, cloned from $upstream_basedir, cannot name the version"
+    echo "upstream builds its HEAD as, for the reason above, so every commit"
+    echo "vendored from it would carry a DUCKDB_VERSION no extension repository"
+    echo "has a directory for."
+    echo "A clone fetched without tags is the usual cause:"
+    echo "  git -C $upstream_basedir fetch --tags origin"
+    echo "Then rerun this script."
+    rm -rf "$upstream_dir"
+    exit 6
+  fi
+  echo "The upstream HEAD stamps as ${upstream_version:-what the generator writes}"
 fi
 
 if [ -n "$(git status --porcelain)" ]; then
