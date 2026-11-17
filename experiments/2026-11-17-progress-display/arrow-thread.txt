@@ -1,0 +1,180 @@
+# gdb breakpoints on RProgressBarDisplay::Update/Finish and RArrowArrayStreamWrapper::GetNext
+# worktree build (claude/issue-2967-arrow-progress, libduckdb v2.0.0), arrow 26.0.1
+# query: SELECT i, i*2 AS j FROM range(30000000) t(i) WHERE i % 3 = 0, max_streaming_buffer_size=16KiB, via dbGetQueryArrow()
+# script: arrow-thread.R, run once per mode under R -d gdb with DLIB naming the build library; tid=1 is R's thread. Finish calls Update(100), so each Finish also shows as one Update.
+== get_next
+calls after dbGetQueryArrow: 1 
+MODE get_next rows 1e+07 R callback calls 14520 last 100 
+-- totals by event and thread
+      6 Finish tid=1
+     11 GetNext tid=1
+  14524 Update tid=1
+-- sequence (runs collapsed)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1457 x Update tid=1 (pct=0..pct=10)
+  1457 x Update tid=1 (pct=10..pct=20)
+  1454 x Update tid=1 (pct=20..pct=30)
+  1462 x Update tid=1 (pct=30..pct=40)
+  1463 x Update tid=1 (pct=40..pct=50)
+  1383 x Update tid=1 (pct=50..pct=60)
+  607 x Update tid=1 (pct=60..pct=64)
+  1 x Finish tid=1 (..)
+  854 x Update tid=1 (pct=100..pct=70)
+  1461 x Update tid=1 (pct=70..pct=80)
+  1459 x Update tid=1 (pct=80..pct=90)
+  1462 x Update tid=1 (pct=90..pct=100)
+== as_arrow_table
+calls after dbGetQueryArrow: 1 
+MODE as_arrow_table rows 10000000 R callback calls 14595 last 100 
+-- totals by event and thread
+      6 Finish tid=1
+     11 GetNext tid=1
+  14599 Update tid=1
+-- sequence (runs collapsed)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1459 x Update tid=1 (pct=0..pct=10)
+  1460 x Update tid=1 (pct=10..pct=20)
+  1458 x Update tid=1 (pct=20..pct=30)
+  1463 x Update tid=1 (pct=30..pct=40)
+  1461 x Update tid=1 (pct=40..pct=50)
+  1456 x Update tid=1 (pct=50..pct=60)
+  1459 x Update tid=1 (pct=60..pct=70)
+  1461 x Update tid=1 (pct=70..pct=80)
+  1456 x Update tid=1 (pct=80..pct=90)
+  1460 x Update tid=1 (pct=90..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+== write_parquet
+calls after dbGetQueryArrow: 1 
+MODE write_parquet rows 10000000 R callback calls 14591 last 99.99701 
+-- totals by event and thread
+      6 Finish tid=1
+     11 GetNext tid=1
+  14595 Update tid=1
+-- sequence (runs collapsed)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1151 x Update tid=1 (pct=0..pct=8)
+  1 x Finish tid=1 (..)
+  310 x Update tid=1 (pct=100..pct=10)
+  1459 x Update tid=1 (pct=10..pct=20)
+  1458 x Update tid=1 (pct=20..pct=30)
+  1463 x Update tid=1 (pct=30..pct=40)
+  1460 x Update tid=1 (pct=40..pct=50)
+  1454 x Update tid=1 (pct=50..pct=60)
+  1459 x Update tid=1 (pct=60..pct=70)
+  1464 x Update tid=1 (pct=70..pct=80)
+  1449 x Update tid=1 (pct=80..pct=90)
+  1463 x Update tid=1 (pct=90..pct=100)
+== write_dataset
+calls after dbGetQueryArrow: 1 
+MODE write_dataset rows 10000000 R callback calls 1 last 100 
+-- totals by event and thread
+      5 Finish tid=1
+      1 Finish tid=28
+     11 GetNext tid=28
+      5 Update tid=1
+  14532 Update tid=28
+-- sequence (runs collapsed)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x GetNext tid=28 (..)
+  719 x Update tid=28 (pct=0..pct=5)
+  1 x Finish tid=28 (..)
+  729 x Update tid=28 (pct=100..pct=10)
+  1 x GetNext tid=28 (..)
+  1447 x Update tid=28 (pct=10..pct=20)
+  1 x GetNext tid=28 (..)
+  1444 x Update tid=28 (pct=20..pct=30)
+  1 x GetNext tid=28 (..)
+  1457 x Update tid=28 (pct=30..pct=40)
+  1 x GetNext tid=28 (..)
+  1444 x Update tid=28 (pct=40..pct=50)
+  1 x GetNext tid=28 (..)
+  1462 x Update tid=28 (pct=50..pct=60)
+  1 x GetNext tid=28 (..)
+  1445 x Update tid=28 (pct=60..pct=70)
+  1 x GetNext tid=28 (..)
+  1460 x Update tid=28 (pct=70..pct=80)
+  1 x GetNext tid=28 (..)
+  1463 x Update tid=28 (pct=80..pct=90)
+  1 x GetNext tid=28 (..)
+  1462 x Update tid=28 (pct=90..pct=100)
+  1 x GetNext tid=28 (..)
+== collect
+calls after dbGetQueryArrow: 1 
+MODE collect rows 10000000 R callback calls 1 last 100 
+-- totals by event and thread
+      5 Finish tid=1
+      1 Finish tid=28
+     11 GetNext tid=28
+      5 Update tid=1
+  14538 Update tid=28
+-- sequence (runs collapsed)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x Finish tid=1 (..)
+  1 x Update tid=1 (pct=100..pct=100)
+  1 x GetNext tid=28 (..)
+  814 x Update tid=28 (pct=0..pct=6)
+  1 x Finish tid=28 (..)
+  640 x Update tid=28 (pct=100..pct=10)
+  1 x GetNext tid=28 (..)
+  1444 x Update tid=28 (pct=10..pct=20)
+  1 x GetNext tid=28 (..)
+  1452 x Update tid=28 (pct=20..pct=30)
+  1 x GetNext tid=28 (..)
+  1452 x Update tid=28 (pct=30..pct=40)
+  1 x GetNext tid=28 (..)
+  1448 x Update tid=28 (pct=40..pct=50)
+  1 x GetNext tid=28 (..)
+  1457 x Update tid=28 (pct=50..pct=60)
+  1 x GetNext tid=28 (..)
+  1457 x Update tid=28 (pct=60..pct=70)
+  1 x GetNext tid=28 (..)
+  1458 x Update tid=28 (pct=70..pct=80)
+  1 x GetNext tid=28 (..)
+  1458 x Update tid=28 (pct=80..pct=90)
+  1 x GetNext tid=28 (..)
+  1458 x Update tid=28 (pct=90..pct=100)
+  1 x GetNext tid=28 (..)

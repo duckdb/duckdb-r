@@ -22,7 +22,7 @@ the tables and the remote file are built single-threaded under a fixed seed.
 * [`run.R`](run.R), rendered by [`scripts/render-reprex.R`](/scripts/render-reprex.R) into [`run.md`](run.md):
   per run the row count, the wall time and the number of calls,
   and per R call a trace sampled every quarter second, the longest silence, the highest value below 100 and the largest rise.
-  Every value quoted below is in `run.md` or in `finish.txt`.
+  Every value quoted below is in `run.md`, `finish.txt` or `arrow-thread.txt`.
   `run.R` also writes every call to a CSV file, which is not kept here; its header says where it goes.
   [`throttle_server.py`](throttle_server.py) is the throttled server.
 * [`finish.sh`](finish.sh) runs [`finish.R`](finish.R) under gdb
@@ -31,6 +31,12 @@ the tables and the remote file are built single-threaded under a fixed seed.
   and under gdb the `Update()` calls, how many of them came from a thread other than R's, and the phase every `Finish()` came in.
   Its streams read chunks of 100,000 rows of a table of 10,000,000.
   It ran on the same branch after merging `v2.0-cyanoptera` at 1748e8f, whose changes leave the progress display alone.
+* [`arrow-thread.R`](arrow-thread.R) reads a stream of 10,000,000 rows under a 16 KiB buffer through one route per run,
+  `$get_next()`, `as_arrow_table()`, `write_parquet()`, `write_dataset()` or `collect()`, the last four on arrow's record batch reader,
+  under gdb with breakpoints on `RProgressBarDisplay::Update()`, `RProgressBarDisplay::Finish()` and `RArrowArrayStreamWrapper::GetNext()`
+  and `DLIB` naming the build library.
+  [`arrow-thread.txt`](arrow-thread.txt) holds, per route, the R callback's calls, the breakpoint counts per event and thread,
+  and their sequence with consecutive runs collapsed; arrow was 26.0.1.
 
 The session info names the scratch library that held the build as `<branch build library>`.
 Values printed as 100 in "highest below 100" are just below it, and the trace rounds them to 100.0 too.
@@ -58,9 +64,11 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   one callback per call ([`finish.txt`](finish.txt)).
   No scenario here reads a stream off R's thread.
   One that does is [#3034](https://github.com/duckdb/duckdb-r/issues/3034):
-  a stream handed to `arrow::as_record_batch_reader()` and read by arrow's thread pool, as `write_dataset()` or `collect()` on the reader do,
-  runs the engine on an arrow thread, and the check drops all of those calls, `Finish()` included,
-  so none of about 14,500 reached R there.
+  a stream handed to `arrow::as_record_batch_reader()` and read by arrow's thread pool,
+  as `write_dataset()` or `collect()` on the reader do,
+  runs the engine on an arrow thread, and the check drops all of those calls, `Finish()` included:
+  14,532 and 14,538 `Update()` calls on arrow's thread, and the R callback got only the one call it had before the first read
+  ([`arrow-thread.txt`](arrow-thread.txt)).
   `$get_next()`, `as_arrow_table()` and `write_parquet()` read on R's thread and deliver every call.
 * **A stream's display can finish before the stream ends, which is the engine's behavior, recorded here and not fixed.**
   `Executor::IdleState()` reports a ready state while the result collector is blocked
@@ -69,12 +77,13 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   under the engine's own note that this is not correct for streaming results
   ([`src/duckdb/src/main/client_context_execution.cpp`](/src/duckdb/src/main/client_context_execution.cpp)).
   In [`finish.txt`](finish.txt) the four-thread scan under a 976 KiB buffer finished its display with read 9 of 51
-  and brought no `Finish()` at its end.
+  and brought no `Finish()` at its end, under gdb, whose breakpoints change the timing.
   In R the default display is then cleared early, later updates paint it again, and no final `Finish()` clears it, so a stale line stays.
   It is rare and depends on timing: the same stream at one thread, and every stream in `run.md`, finished with its last read.
-  The probe for #3034 saw it more often: a stream of 30,000,000 rows under a 16 KiB buffer
-  got its `Finish()` part-way, at 5 to 8% or at 64%, and none at the end,
-  so even a reader on R's thread can end below 100; its `write_parquet()` ended at 99.997.
+  The probe for #3034, also under gdb, saw it more often ([`arrow-thread.txt`](arrow-thread.txt)):
+  its stream got its `Finish()` after updates up to 64 through `$get_next()`, up to 8 through `write_parquet()`,
+  and up to 5 and 6 on arrow's thread, and none at the end, while `as_arrow_table()` finished at the end.
+  So even a reader on R's thread can end below 100: the last value `write_parquet()` passed was 99.99701.
 
 ## What every query is told
 
@@ -129,7 +138,8 @@ Single-threaded, through `dbGetQuery()`:
   In [`run.md`](run.md), with chunks of 1,000,000 rows, the callback's 100 came with read 10 of the `GROUP BY` and of the `ORDER BY`,
   their last reads with rows; the `ORDER BY` reads from 65.5 to 100 in that read.
   Reads after it, and reads the buffer already holds, get no call.
-  One `Finish()` came mid-stream, at read 9 of 51 of the four-thread 976 KiB scan in [`finish.txt`](finish.txt);
+  One `Finish()` came mid-stream, at read 9 of 51 of the four-thread 976 KiB scan in [`finish.txt`](finish.txt),
+  under gdb, whose breakpoints change the timing;
   the [conclusions](#conclusions) give its cause.
 
 ## b. A remote part and a local part
@@ -161,7 +171,7 @@ and a local part with more rows than the remote one owns more of the bar than it
 A stream of a cheap scan, 5,000,000 rows read in chunks of 100,000, at four threads, 51 reads with the one that returns `NULL`:
 
 * at 976 KiB 50 of the 51 reads run the engine, and `Finish()` comes with read 50,
-  except in the four-thread gdb run of [`finish.txt`](finish.txt), where it came with read 9;
+  except in the four-thread run of [`finish.txt`](finish.txt) under gdb, whose breakpoints change the timing, where it came with read 9;
 * at the default 10 MiB 14 of the 51 reads run the engine in [`run.md`](run.md) and 15 in [`finish.txt`](finish.txt),
   the others get no call, and `Finish()` comes with read 44 and read 47;
 * at 1 GiB the first read computes the whole result in 0.12 s and gets every call, `Finish()` included, and the 50 reads after it get none.
