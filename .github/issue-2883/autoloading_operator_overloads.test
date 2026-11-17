@@ -1,0 +1,79 @@
+# name: test/extension/autoloading_operator_overloads.test
+# description: An extension autoloaded while binding an argument adds overloads to the function being bound
+# group: [extension]
+
+# icu must be loadable but not linked in: only then does binding epoch(TIMESTAMPTZ) autoload it mid-bind
+require-env LOCAL_EXTENSION_REPO
+
+require icu
+
+statement ok
+set extension_directory='{TEST_DIR}/autoloading_operator_overloads'
+
+statement ok
+set autoinstall_known_extensions=true
+
+statement ok
+set autoload_known_extensions=true
+
+# the + entry is replaced by icu while its argument binds; it used to be freed and its memory reused (here: by -)
+query I
+SELECT epoch(TIMESTAMPTZ '2001-09-09 01:46:40+00') + 2.5
+----
+1000000002.5
+
+restart
+
+statement ok
+set extension_directory='{TEST_DIR}/autoloading_operator_overloads'
+
+statement ok
+set autoload_known_extensions=true
+
+# - used to bind as age
+query I
+SELECT epoch(TIMESTAMPTZ '2001-09-09 01:46:40+00') - 2.5
+----
+999999997.5
+
+restart
+
+statement ok
+set extension_directory='{TEST_DIR}/autoloading_operator_overloads'
+
+statement ok
+set autoload_known_extensions=true
+
+# the enclosing + needs an overload that only the autoloaded extension provides
+query I
+SELECT (date_trunc('day', TIMESTAMPTZ '2001-09-09 01:46:40+00') + INTERVAL 1 DAY) = TIMESTAMPTZ '2001-09-10 00:00:00+00'
+----
+true
+
+restart
+
+statement ok
+set extension_directory='{TEST_DIR}/autoloading_operator_overloads'
+
+statement ok
+set autoload_known_extensions=true
+
+# aggregate around the autoloading argument
+query I
+SELECT sum(epoch(TIMESTAMPTZ '2001-09-09 01:46:40+00')) + 1 FROM range(2)
+----
+2000000001.0
+
+restart
+
+statement ok
+set extension_directory='{TEST_DIR}/autoloading_operator_overloads'
+
+statement ok
+set autoload_known_extensions=true
+
+# table function whose parameter autoloads the extension
+query I
+SELECT count(*) FROM range(epoch(TIMESTAMPTZ '1970-01-01 00:00:02+00')::BIGINT)
+----
+2
