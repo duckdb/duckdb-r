@@ -11,7 +11,7 @@
 #
 # The server drains whole batches into that answer until it holds at least
 # this many rows, and leaves the rest of the result to FETCH requests.
-# Both settings below are read by the server only;
+# It and the batch size `local_quack_server()` sets are read by the server only;
 # the client does not ask for a count of its own when it reads.
 quack_inline_rows <- 2048L
 
@@ -20,6 +20,8 @@ quack_inline_rows <- 2048L
 # Beyond the conditions every downloaded extension is subject to,
 # the download itself can fail (no network, an extension not built for this
 # release or platform), and that is not what the tests calling this are about.
+# Unlike the platform canary of handbook/testing/suite/, which pins whether DuckDB publishes for a platform,
+# these tests are about Quack, so a missing or unreachable download skips rather than fails.
 # Any other failure, LOAD included, is an error.
 # INSTALL uses the engine's own HTTP client, which `http_timeout` (an httpfs
 # setting) does not reach, so an offline run waits for its default timeout.
@@ -65,6 +67,13 @@ local_quack_server <- function(.local_envir = parent.frame()) {
       params = list(token)
     )$listen_uri,
     error = function(e) {
+      # Only the listening socket is outside the test's control;
+      # any other error, a bad parameter included, fails the test.
+      if (
+        !grepl("Failed to bind DuckDB Quack RPC server", conditionMessage(e))
+      ) {
+        stop(e)
+      }
       skip(paste0("cannot start a Quack server: ", conditionMessage(e)))
     }
   )
