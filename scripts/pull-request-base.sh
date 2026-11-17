@@ -1,26 +1,25 @@
 #!/bin/bash
 # Fail a pull request to `main` that belongs on the oldest active release
-# branch, by the rule handbook/operations/review/README.md owns: a change
-# targets that branch and reaches `main` by a forward merge, unless it concerns
-# only the line `main` previews or changes nothing but the tooling every series
-# takes from `main`.
+# branch, by the rule handbook/branches/model/README.md states: a fix is written
+# on the oldest active release branch and reaches `main` by a forward merge.
 #
-# .github/workflows/pull-request-base.yaml runs it on the pull requests to
-# `main` in the canonical repository, with what GitHub's API says about the
-# pull request and its files; what the guard is for:
-# handbook/operations/ci/workflows/README.md.
+# .github/workflows/pull-request-base.yaml runs it on every pull request in the
+# canonical repository, from `main`'s copy, with what GitHub's API says about
+# the pull request and its files; what lets a pull request stay on `main`, and
+# when the label is owed: handbook/operations/ci/workflows/README.md.
 #
 # **It passes** a pull request whose base is not `main`, and one to `main`
-# that meets one of four conditions, decided by `belongs_on_main` below:
-#   - its head is a forward merge's, `forward/<branch>-<version>`
-#     (.claude/skills/series-land/SKILL.md);
-#   - its head is a landing's review, `<line>-land-review` with or without a
-#     suffix (scripts/series-land.sh);
-#   - it carries the label `next-line-only`, for a change that concerns only
-#     the line `main` previews, or tooling together with the handbook pages
-#     that describe it;
+# that meets one of these conditions, decided by `belongs_on_main` below:
+#   - its head is a branch of the same repository, and a forward merge's,
+#     `forward/<branch>-<version>` (.claude/skills/series-land/SKILL.md), or a
+#     landing's review, `<line>-land-review` or `<line>-land-review-<suffix>`
+#     (scripts/series-land.sh);
+#   - it carries the label `next-line-only`;
 #   - every file it changes, and every old path of a file it renames, lies
-#     under `series_tooling` (scripts/series-config.sh).
+#     under `series_tooling` (scripts/series-config.sh), except
+#     `.github/README.md`, which the port leaves out of the tooling because it is
+#     generated from the flavored `README.Rmd` (scripts/series-port.sh);
+#   - it changes no file at all.
 # It passes too where the declaration names no active release branch
 # (`series_release_branches`, scripts/series-lib.sh), since `main` is then the
 # only base there is.
@@ -57,7 +56,7 @@ SERIES_YAML="${SERIES_YAML:-${here}/series.yaml}"
 . "${here}/series-lib.sh"
 
 label=next-line-only
-leaf=handbook/operations/review/README.md
+leaf=handbook/branches/model/README.md
 
 report() {
   echo "$*"
@@ -82,25 +81,35 @@ field() { # <jq filter> -> its raw value from the pull request
 }
 number=$(field .number)
 base_ref=$(field .base.ref)
+base_repo=$(field .base.repo.full_name)
 head_ref=$(field .head.ref)
+# Empty for a fork that was deleted since.
+head_repo=$(field '.head.repo.full_name // ""')
 counted=$(field .changed_files)
 labels=$(field '[.labels[].name] | join("\n")')
 # A rename counts at both paths: moving a file into the tooling moves it out of somewhere else.
 changed=$(jq -r '.[] | .filename, (.previous_filename // empty)' "${files}" 2>/dev/null) ||
   usage "'${files}' does not hold the files API's output"
 listed=$(jq -n '[inputs[]] | length' "${files}")
-outside=$(grep -vE "$(series_tooling_re)" <<<"${changed}" || true)
+# The tooling as the port takes it: `.github/README.md` is outside (scripts/series-port.sh).
+outside=$({ grep -vE "$(series_tooling_re)" <<<"${changed}" || true; } && { grep -xF .github/README.md <<<"${changed}" || true; })
 
 # Why the pull request may stay on `main`, empty when it may not: the one place
-# the four conditions are decided.
+# the conditions are decided.
 belongs_on_main() {
-  case "${head_ref}" in
-    forward/*) echo "its head ${head_ref} is a forward merge's"; return ;;
-    *-land-review*) echo "its head ${head_ref} is a landing's review"; return ;;
-  esac
+  if [ "${head_repo}" = "${base_repo}" ]; then
+    case "${head_ref}" in
+      forward/*) echo "its head ${head_ref} is a forward merge's"; return ;;
+      *-land-review | *-land-review-*) echo "its head ${head_ref} is a landing's review"; return ;;
+    esac
+  fi
   if grep -qxF "${label}" <<<"${labels}"; then
     echo "it carries the label ${label}"
-  elif [ "${listed}" -ge "${counted}" ] && [ -z "${outside}" ]; then
+  elif [ "${listed}" -lt "${counted}" ]; then
+    return
+  elif [ -z "${changed}" ]; then
+    echo "it changes no file"
+  elif [ -z "${outside}" ]; then
     echo "it changes nothing but the tooling (${series_tooling[*]})"
   fi
 }
@@ -139,5 +148,5 @@ report "${found}"
 report "Either:
   - retarget it to ${oldest}, with Edit beside the title, after rebasing its branch onto ${oldest} if it started from main;
   - split it: the tooling in a pull request to main, the rest in one to ${oldest};
-  - or, if it concerns only the line main previews, or is tooling with the handbook pages that describe it, add the label ${label}."
+  - or add the label ${label}, if it concerns only the line main previews, or is tooling with the handbook pages that describe it (handbook/operations/ci/workflows/README.md)."
 exit 1

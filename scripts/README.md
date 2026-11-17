@@ -133,7 +133,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | File | Purpose |
 |---|---|
 | [`pull-request-base-test.sh`](pull-request-base-test.sh) | Check scripts/pull-request-base.sh, offline, against pull requests and file lists written here in the shape GitHub's API gives them, and declarations written... |
-| [`pull-request-base.sh`](pull-request-base.sh) | Fail a pull request to `main` that belongs on the oldest active release branch, by the rule handbook/operations/review/README.md owns: a change targets that ... |
+| [`pull-request-base.sh`](pull-request-base.sh) | Fail a pull request to `main` that belongs on the oldest active release branch, by the rule handbook/branches/model/README.md states: a fix is written on the... |
 
 ## [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)
 

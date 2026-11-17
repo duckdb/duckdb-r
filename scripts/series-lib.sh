@@ -214,8 +214,9 @@ series_tooling_re() {
 # scripts/series.yaml, read on stdin: the CRAN flavor's `upstream`, the line it
 # ships, and every `releases_from` other than `main` on a row not declared
 # `stale: true`, each named as upstream names its line, and never `main`.
-# Whether the canonical repository has cut each one yet is the caller's to ask
-# (scripts/series-check.sh, scripts/pull-request-base.sh).
+# Whether the canonical repository has cut each one yet is not asked here:
+# scripts/series-check.sh asks it, and scripts/pull-request-base.sh takes the
+# oldest without asking, since a line declared before it is cut is the newest.
 series_release_branches() { # < series.yaml -> one branch per line
   awk '
   function val(v) { gsub(/["'"'"']/, "", v); return v }

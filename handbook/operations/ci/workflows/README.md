@@ -44,11 +44,28 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
 | [`handbook.yaml`](/.github/workflows/handbook.yaml) | PR; dispatch | the handbook checks, and the carried files against their source ([`meta/local/`](/handbook/meta/local/README.md)) |
-| [`pull-request-base.yaml`](/.github/workflows/pull-request-base.yaml) | PR to `main`, opened, reopened, edited, pushed to, labelled or unlabelled | fails a pull request that belongs on the oldest active release branch, by the rule [`review/`](/handbook/operations/review/README.md) owns; what lets one stay on `main` is [`scripts/pull-request-base.sh`](/scripts/pull-request-base.sh)'s header; canonical repository only |
+| [`pull-request-base.yaml`](/.github/workflows/pull-request-base.yaml) | `pull_request_target` to `main`, opened, reopened, edited, pushed to, labelled or unlabelled, and any change of base | fails a pull request to `main` that belongs on the oldest active release branch; canonical repository only |
 
-**`pull-request-base` blocks a merge only once a ruleset names it a required check.**
-Until then its failure is a red check on the pull request and nothing more,
-and making it required is a repository setting, not a file here.
+**`pull-request-base` holds pull requests to `main` to the rule that a fix starts on the oldest active release branch**
+([`branches/model/`](/handbook/branches/model/README.md)).
+It runs [`scripts/pull-request-base.sh`](/scripts/pull-request-base.sh) from `main`'s copy, never the pull request's,
+and fails unless one of these holds:
+
+* the head is a branch of this repository named as a forward merge, `forward/*`,
+  or as a landing's review, `<line>-land-review` with or without a `-<suffix>`
+  ([`series-land`](/.claude/skills/series-land/SKILL.md));
+* every file changed lies under `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+  except `.github/README.md`, which the port leaves out of the tooling as well;
+* the pull request carries the label `next-line-only`.
+
+The label is for a change that concerns only the line `main` previews,
+and for two kinds the file list cannot tell apart from a misplaced one:
+a tooling change that also edits the handbook pages describing that tooling,
+and a re-vendor of cpp11 while the model's component table gives cpp11 to `main`.
+A failure names the release branch and says how to go on: retarget, split the tooling out, or add the label.
+Retargeting away from `main` runs the guard again, and it passes.
+It blocks a merge only once a ruleset names it a required check,
+which is a repository setting, not a file here.
 
 **The composite actions these workflows call are not in this repository.**
 They live in

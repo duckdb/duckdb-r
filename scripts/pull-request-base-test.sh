@@ -4,23 +4,25 @@
 # written beside them: no network, no fixtures on disk.
 #
 # The claim the script makes is that it fails a pull request to `main` unless
-# its head is a forward merge's or a landing review's, it carries the label
-# `next-line-only`, or it changes nothing but the tooling, and that the failure
-# names the oldest active release branch the declaration gives.
-# Seven things are checked.
+# its head is a forward merge's or a landing review's in the same repository,
+# it carries the label `next-line-only`, or it changes nothing but the tooling,
+# and that the failure names the oldest active release branch the declaration
+# gives. Seven things are checked.
 #
 #   1. Anything but two readable files holding the API's JSON is a usage
 #      error, exit 2.
 #   2. A pull request to another base passes, whatever it changes.
 #   3. A forward merge's head and a landing review's head pass, a review's
-#      iteration suffix included; a head that only resembles one does not.
+#      iteration suffix included; a head that only resembles one does not,
+#      nor either one from another repository or from a fork deleted since.
 #   4. The label `next-line-only` passes a pull request, and another label,
 #      one that only contains it among them, does not.
 #   5. A pull request that changes nothing but the tooling passes, across
 #      pages; a path that only starts like a tooling directory, and a file
-#      renamed out of somewhere else into the tooling, do not count as tooling,
-#      and a file list shorter than the pull request's count is never read as
-#      tooling-only.
+#      renamed out of somewhere else into the tooling, and `.github/README.md`,
+#      which the port leaves out, do not count as tooling; a file list shorter
+#      than the pull request's count is never read as tooling-only, and a pull
+#      request that changes no file passes as one that changes none.
 #   6. A failure names the oldest active release branch, by version and past
 #      a stale row, lists ten files and counts the rest, and says so in the
 #      step summary and an error annotation, with exit 1; with no active
@@ -81,13 +83,17 @@ flavors:
 YAML
 export SERIES_YAML=$SCRATCH/series.yaml GITHUB_STEP_SUMMARY=$SCRATCH/summary
 
-# The pull request: <base> <head> <changed files> [<label>...].
+# The pull request in test/repo: <base> <head> <changed files> [<label>...].
+# HEAD_REPO names the head's repository, `null` for a fork deleted since.
 pull() {
   local base=$1 head=$2 counted=$3
   shift 3
-  jq -n --arg base "$base" --arg head "$head" --argjson n "$counted" '$ARGS.positional as $l |
-    {number: 42, base: {ref: $base}, head: {ref: $head}, changed_files: $n, labels: [$l[] | {name: .}]}' \
-    --args "$@" > "$SCRATCH/pull.json"
+  jq -n --arg base "$base" --arg head "$head" --argjson n "$counted" --arg repo "${HEAD_REPO:-test/repo}" \
+    '$ARGS.positional as $l | {
+      number: 42, base: {ref: $base, repo: {full_name: "test/repo"}},
+      head: {ref: $head, repo: (if $repo == "null" then null else {full_name: $repo} end)},
+      changed_files: $n, labels: [$l[] | {name: .}]
+    }' --args "$@" > "$SCRATCH/pull.json"
 }
 # Its files, one page per argument, each page's paths separated by spaces; `old>new` is a rename.
 files() {
@@ -139,6 +145,18 @@ pull main fix/forward/x 2
 has "a head that only contains forward/ does not pass" "$(run)" "EXIT=1"
 pull main land-reviewer 2
 has "nor one that only resembles a review" "$(run)" "EXIT=1"
+pull main v9.10-b-land-reviewer 2
+has "nor one that only starts like a review" "$(run)" "EXIT=1"
+pull main v9.10-b-land-review/x 2
+has "nor one that continues past it without a dash" "$(run)" "EXIT=1"
+HEAD_REPO=someone/fork pull main forward/v9.9-a-1.2.3 2
+has "a forward merge's head from a fork does not pass" "$(run)" "EXIT=1"
+HEAD_REPO=someone/fork pull main v9.10-b-land-review 2
+has "nor a landing review's" "$(run)" "EXIT=1"
+HEAD_REPO=null pull main forward/v9.9-a-1.2.3 2
+out=$(run)
+has "nor one from a fork deleted since" "$out" "EXIT=1"
+has "which is not a usage error" "$out" "belongs on v9.9-a"
 
 echo "=== 4. the label"
 pull main fix 2 bug next-line-only
@@ -166,6 +184,16 @@ files "R/a.R>scripts/a.R"
 out=$(run)
 has "a file renamed into the tooling counts at its old path" "$out" '  - `R/a.R`'
 has "and fails" "$out" "EXIT=1"
+pull main fix 2
+files ".github/README.md scripts/a.sh"
+out=$(run)
+has ".github/README.md is not tooling" "$out" '  - `.github/README.md`'
+has "and fails" "$out" "EXIT=1"
+pull main fix 0
+files ""
+out=$(run)
+has "a pull request that changes no file passes" "$out" "#42 may target main: it changes no file."
+lacks "and is not called tooling" "$out" "nothing but the tooling"
 pull main fix 3
 files "scripts/a.sh scripts/b.sh"
 out=$(run)
@@ -179,7 +207,7 @@ files "R/01.R R/02.R R/03.R R/04.R R/05.R R/06.R" "R/07.R R/08.R R/09.R R/10.R R
 : > "$GITHUB_STEP_SUMMARY"
 out=$(run)
 has "names the oldest active release branch" "$out" \
-  "#42 targets main, but belongs on v9.9-a, the oldest active release branch (handbook/operations/review/README.md)."
+  "#42 targets main, but belongs on v9.9-a, the oldest active release branch (handbook/branches/model/README.md)."
 has "counts the files outside the tooling" "$out" "It changes 11 file(s) outside the tooling"
 has "lists the tenth" "$out" '  - `R/10.R`'
 lacks "and not the eleventh" "$out" '`R/11.R`'
