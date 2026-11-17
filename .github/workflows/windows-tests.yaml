@@ -7,27 +7,42 @@
 # such as the network (UNC) path tests of #2882 in tests/testthat/test-unc-path.R.
 #
 # What:
-# - `select` (Ubuntu, cheap) lists the test files the pull request adds or changes,
+# - `select` (Ubuntu, cheap) lists the test files the pull request adds, changes or renames,
 #   `tests/testthat/test-*.R` in the diff of the merge commit against its base parent,
-#   which equals `git diff --diff-filter=AM origin/<base>...<head>`.
+#   which equals `git diff --diff-filter=AMR origin/<base>...<head>`.
 #   With no such file, the expensive Windows job is skipped on a pull request.
+#   A pull request that changes src/ but no test file therefore runs no Windows build here;
+#   rcc on main catches a compile break once the change lands there.
 # - `windows` builds this checkout with `R CMD INSTALL` and the Rtools toolchain, as CRAN builds it,
-#   then runs each selected file with testthat::test_file() against the installed package;
-#   any failure fails the job.
+#   then runs every selected file with testthat::test_file() against the installed package,
+#   and fails after the last one if any of them failed, listing which.
 #   On a push to a release branch, it builds and checks that the package loads, and runs no tests:
-#   that run exists to fill the caches the pull requests restore.
+#   that run exists to fill the cache the pull requests restore.
 #
-# Caching: ccache and the object files under src/ are cached,
-# both keyed on the tracked content of src/ (SRC_KEY), the R version and the compiler version.
+# Triggers: a push runs on release branches only, `v<major>.<minor>-<name>` with exactly one hyphen,
+# such as v2.0-cyanoptera or v1.5-variegata.
+# The `!v*-*-*` pattern excludes the series refs that move automatically,
+# such as v2.0-cyanoptera-green, v2.0-cyanoptera-dev, v1.4-andium-lts or v1.5-variegata-before-land-20261018,
+# so they neither spend a Windows build nor add cache entries.
+#
+# Caching: one cache entry holds the ccache directory, the object files under src/
+# and the manifest of the sources they were built from.
+# Its key is `windows-tests-<os>-R<version>-<gcc>-` (CACHE_PREFIX) followed by a hash of the tracked content of src/ (SRC_KEY).
 # A run restores the exact key or, failing that, the newest entry by prefix.
+# ccache is capped at 1G (CCACHE_MAXSIZE), which keeps an entry, objects included, well under 2 GB.
 # Restored objects are made current only for sources whose blobs match the manifest they were built from;
 # a changed source gets a fresh mtime, and a changed engine source deletes the unity objects that include it,
 # so make and ccache rebuild only what changed.
 # A change to src/Makevars* or src/include/*.mk, an R or compiler upgrade,
-# or a change to the key prefix invalidates the caches.
-# Caches are saved on push only: a pull request restores what the release branch saved.
+# or a change to the key prefix invalidates the cache.
+# The cache is saved on push only: a pull request restores what the release branch saved,
+# and adds no entry of its own.
 # A save from a pull_request run would be scoped to refs/pull/<n>/merge anyway,
 # which no other pull request and no branch can restore.
+# After a save, older entries with the same prefix on the same branch are deleted,
+# so each release branch keeps one entry per R and compiler version, and the main CI caches are not evicted.
+# Limitation: a pull request stacked on a branch that is not a release branch can restore only from its base ref
+# or from the default branch, and neither saves here, so it builds cold (about 27 min).
 #
 # Timings from the #2882 reproducer (windows-latest, -j4):
 # cold `R CMD INSTALL` 1581 s, warm with no change in src/ about 120 s,
@@ -36,8 +51,10 @@
 
 on:
   push:
+    # Later patterns win: every `v*` branch, then not those with two or more hyphens.
     branches:
       - "v*"
+      - "!v*-*-*"
   # Every pull request but those into main and master, which rcc covers:
   # a stacked pull request into another branch runs too, so its own tests show.
   pull_request:
@@ -61,6 +78,7 @@ jobs:
     timeout-minutes: 10
 
     outputs:
+      # Newline-separated paths, empty when nothing is selected.
       files: ${{ steps.select.outputs.files }}
 
     steps:
@@ -77,17 +95,32 @@ jobs:
           ## -- List the test files the pull request adds or changes --
           set -euo pipefail
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            echo "Push to $GITHUB_REF_NAME: no tests selected, the build fills the caches."
+            echo "Push to $GITHUB_REF_NAME: no tests selected, the build fills the cache."
             echo "files=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          files=$(git diff --name-only --diff-filter=AM HEAD^1 HEAD -- 'tests/testthat/test-*.R' | tr '\n' ' ' | sed 's/ $//')
-          if [ -z "$files" ]; then
+          # -z keeps any file name intact; a renamed and edited file counts under its new name.
+          git diff -z --name-only --diff-filter=AMR HEAD^1 HEAD -- 'tests/testthat/test-*.R' > "$RUNNER_TEMP/files.z"
+          files=()
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              *$'\n'*) echo "::warning::Skipping a test file whose name contains a newline: ${f@Q}" ;;
+              *) files+=("$f") ;;
+            esac
+          done < "$RUNNER_TEMP/files.z"
+          if [ "${#files[@]}" -eq 0 ]; then
             echo "No test file added or changed against $GITHUB_BASE_REF: the Windows build is skipped."
-          else
-            echo "Selected: $files"
+            echo "files=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "Selected:"
+          printf '  %s\n' "${files[@]}"
+          delim="files_$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+          {
+            echo "files<<$delim"
+            printf '%s\n' "${files[@]}"
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
 
   windows:
     name: Windows source build
@@ -96,12 +129,19 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 120
 
+    # actions: write lets a push run delete the cache entries its save supersedes.
+    # A pull_request run never deletes; from a fork its token is read-only anyway.
+    permissions:
+      contents: read
+      actions: write
+
     env:
       MAKEFLAGS: -j4
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros
-      CCACHE_MAXSIZE: 3G
+      CCACHE_MAXSIZE: 1G
+      # Newline-separated paths from the select job.
       TEST_FILES: ${{ needs.select.outputs.files }}
 
     steps:
@@ -138,32 +178,26 @@ jobs:
             echo "CXX17=ccache $(R CMD config CXX17)"
           } | tee ~/.R/Makevars.win
           cxx="$(R CMD config CXX17)"
-          echo "R=$(Rscript -e 'cat(format(getRversion()))')" | tee -a "$GITHUB_ENV"
-          echo "GCC=$($cxx --version | head -n 1 | sed -r 's/[^A-Za-z0-9.]+/-/g')" | tee -a "$GITHUB_ENV"
+          r_version="$(Rscript -e 'cat(format(getRversion()))')"
+          gcc_version="$($cxx --version | head -n 1 | sed -r 's/[^A-Za-z0-9.]+/-/g')"
           echo "CCACHE_DIR=$(cygpath -w "$RUNNER_TEMP")\\ccache" | tee -a "$GITHUB_ENV"
+          echo "CACHE_PREFIX=windows-tests-$RUNNER_OS-R$r_version-$gcc_version-" | tee -a "$GITHUB_ENV"
           # The tracked content of src/, computed before the build writes anything there.
           echo "SRC_KEY=$(git ls-files -s src | sha256sum | cut -c1-16)" | tee -a "$GITHUB_ENV"
 
-      # Both caches are keyed on the content of src/, so a run whose sources did not change
+      # One entry, keyed on the content of src/: a run whose sources did not change
       # restores an exact hit and saves nothing, and a changed tree restores the newest entry by prefix.
-      # A pull request restores the entries its base branch saved.
-      - name: Restore ccache
-        id: ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: windows-tests-ccache-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
-          restore-keys: windows-tests-ccache-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-
-
-      - name: Restore object files
-        id: objects
-        uses: actions/cache/restore@v4
+      # A pull request restores the entry its base branch saved.
+      - name: Restore the build cache
+        id: cache
+        uses: actions/cache/restore@v5
         with:
           path: |
+            ${{ env.CCACHE_DIR }}
             src/**/*.o
             src/.windows-tests-manifest.txt
-          key: windows-tests-objects-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
-          restore-keys: windows-tests-objects-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-
+          key: ${{ env.CACHE_PREFIX }}${{ env.SRC_KEY }}
+          restore-keys: ${{ env.CACHE_PREFIX }}
 
       - name: Make restored objects current for unchanged sources only
         shell: bash
@@ -174,9 +208,10 @@ jobs:
           # then give a fresh mtime to each file whose blob differs from the manifest the objects were built from.
           # make cannot see every dependency (the engine's unity files include sources it does not list),
           # so a change it would miss deletes the objects it may affect, and ccache rebuilds them.
+          # The manifest has one `<blob>TAB<path>` line per tracked file, so a path may contain spaces.
           set -euo pipefail
           manifest=src/.windows-tests-manifest.txt
-          git ls-files -s src | sort -k4 > "$RUNNER_TEMP/manifest.now"
+          git -c core.quotePath=false ls-files -s src | awk -F '\t' '{ split($1, a, " "); print a[2] "\t" $2 }' | LC_ALL=C sort -t "$(printf '\t')" -k2 > "$RUNNER_TEMP/manifest.now"
           n_obj=$(find src -name '*.o' | wc -l)
           echo "restored objects: $n_obj"
           if [ ! -f "$manifest" ]; then
@@ -185,24 +220,24 @@ jobs:
             exit 0
           fi
           git ls-files -z src | xargs -0 touch -d '2000-01-01 00:00:00'
-          changed=$(diff <(awk '{print $2, $4}' "$manifest") <(awk '{print $2, $4}' "$RUNNER_TEMP/manifest.now") | sed -n 's/^> [0-9a-f]* //p' || true)
+          diff "$manifest" "$RUNNER_TEMP/manifest.now" | sed -n 's/^> [0-9a-f]*\t//p' > "$RUNNER_TEMP/changed.txt" || true
           echo "changed since the objects were built:"
-          echo "${changed:-(none)}"
+          if [ -s "$RUNNER_TEMP/changed.txt" ]; then cat "$RUNNER_TEMP/changed.txt"; else echo "(none)"; fi
           all_engine=0
           all_glue=0
-          for f in $changed; do
+          while IFS= read -r f; do
             [ -f "$f" ] && touch "$f"
             case "$f" in
               src/Makevars*|src/include/*.mk) all_engine=1; all_glue=1 ;;
               src/duckdb/*.cpp|src/duckdb/*.c|src/duckdb/*.cc)
                 rel="${f#src/duckdb/}"
-                for ub in $(grep -l -F "$rel" src/duckdb/ub_*.cpp || true); do rm -fv "${ub%.cpp}.o"; done
+                grep -l -F -- "$rel" src/duckdb/ub_*.cpp 2>/dev/null | while IFS= read -r ub; do rm -fv "${ub%.cpp}.o"; done || true
                 ;;
               src/duckdb/*) all_engine=1 ;;
               src/*.cpp|src/*.dd) ;;
               *) all_glue=1 ;;
             esac
-          done
+          done < "$RUNNER_TEMP/changed.txt"
           if [ "$all_engine" = 1 ]; then echo "deleting all engine objects"; find src/duckdb -name '*.o' -delete; fi
           if [ "$all_glue" = 1 ]; then echo "deleting all glue objects"; rm -fv src/*.o; fi
 
@@ -218,33 +253,84 @@ jobs:
           R CMD INSTALL --library="$RUNNER_TEMP/lib" --no-byte-compile . > "$RUNNER_TEMP/install.log" 2>&1 || status=$?
           grep -v -E '^(ccache )?(g\+\+|gcc) ' "$RUNNER_TEMP/install.log" || true
           echo "R CMD INSTALL took $(( $(date +%s) - start )) s"
-          grep -c -E '^ccache (g\+\+|gcc) ' "$RUNNER_TEMP/install.log" | sed 's/^/compiler invocations: /' || true
+          compiled=$(grep -c -E '^(ccache )?(g\+\+|gcc) .* -c ' "$RUNNER_TEMP/install.log" || true)
+          echo "compiler invocations: $compiled"
           ccache -s
           if [ "$status" -ne 0 ]; then
             echo "::error::R CMD INSTALL exited with $status"
             exit "$status"
           fi
           test -f "$RUNNER_TEMP/lib/duckdb/libs/x64/duckdb.dll"
-          git ls-files -s src | sort -k4 > src/.windows-tests-manifest.txt
+          # Sanity check: a build that compiled anything must have gone through ccache.
+          cacheable=$(ccache --print-stats | awk -F '\t' '$1 == "direct_cache_hit" || $1 == "preprocessed_cache_hit" || $1 == "cache_miss" { n += $2 } END { print n + 0 }')
+          echo "ccache cacheable calls: $cacheable"
+          if [ "${compiled:-0}" -gt 0 ] && [ "$cacheable" -eq 0 ]; then
+            echo "::error::The build compiled $compiled files, but ccache saw no cacheable call: the compilers are not wrapped with ccache (check ~/.R/Makevars.win), so the cache would stay empty."
+            exit 1
+          fi
+          git -c core.quotePath=false ls-files -s src | awk -F '\t' '{ split($1, a, " "); print a[2] "\t" $2 }' | LC_ALL=C sort -t "$(printf '\t')" -k2 > src/.windows-tests-manifest.txt
           echo "object files: $(find src -name '*.o' | wc -l)"
-          du -sh "$CCACHE_DIR"
 
       # Saved on push only, see the header.
-      - name: Save ccache
-        if: github.event_name == 'push' && steps.ccache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: windows-tests-ccache-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
+      - name: Measure the cache entry
+        if: github.event_name == 'push' && steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          ## -- Measure the cache entry --
+          set -euo pipefail
+          ccdir="$(cygpath -u "$CCACHE_DIR")"
+          ccache_size=$(du -sh "$ccdir" | cut -f1)
+          objects_size=$(find src -name '*.o' -print0 | du -ch --files0-from=- | tail -n 1 | cut -f1)
+          total_size=$({ printf '%s\0' "$ccdir" src/.windows-tests-manifest.txt; find src -name '*.o' -print0; } | du -sch --files0-from=- | tail -n 1 | cut -f1)
+          echo "cache entry $CACHE_PREFIX$SRC_KEY before compression: ccache $ccache_size, objects $objects_size, total $total_size"
+          {
+            echo "### windows-tests cache"
+            echo
+            echo "Saving \`$CACHE_PREFIX$SRC_KEY\` for \`$GITHUB_REF\`."
+            echo
+            echo "| Part | Size before compression |"
+            echo "|------|------|"
+            echo "| ccache | $ccache_size |"
+            echo "| object files | $objects_size |"
+            echo "| total | $total_size |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Save object files
-        if: github.event_name == 'push' && steps.objects.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+      - name: Save the build cache
+        id: save
+        if: github.event_name == 'push' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
         with:
           path: |
+            ${{ env.CCACHE_DIR }}
             src/**/*.o
             src/.windows-tests-manifest.txt
-          key: windows-tests-objects-${{ runner.os }}-R${{ env.R }}-${{ env.GCC }}-${{ env.SRC_KEY }}
+          key: ${{ env.CACHE_PREFIX }}${{ env.SRC_KEY }}
+
+      # Keeps one entry per prefix on this branch; a failure here only warns.
+      - name: Delete the cache entries this save supersedes
+        if: github.event_name == 'push' && steps.save.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ## -- Delete the cache entries this save supersedes --
+          set -uo pipefail
+          key="$CACHE_PREFIX$SRC_KEY"
+          if ! old=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?key=$CACHE_PREFIX&ref=$GITHUB_REF&per_page=100" --jq '.actions_caches[].key'); then
+            echo "::warning::Could not list the cache entries of $GITHUB_REF; older entries stay until GitHub evicts them."
+            exit 0
+          fi
+          old=$(printf '%s\n' "$old" | grep -v -x -F -- "$key" | sort -u || true)
+          if [ -z "$old" ]; then
+            echo "No older entry with prefix $CACHE_PREFIX on $GITHUB_REF."
+            exit 0
+          fi
+          while IFS= read -r k; do
+            echo "deleting $k on $GITHUB_REF"
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches?key=$k&ref=$GITHUB_REF" > /dev/null ||
+              echo "::warning::Could not delete the cache entry $k on $GITHUB_REF."
+          done <<< "$old"
 
       - name: Check that the package loads
         shell: Rscript {0}
@@ -267,21 +353,42 @@ jobs:
           .libPaths(c(file.path(Sys.getenv("RUNNER_TEMP"), "lib"), .libPaths()))
           library(testthat)
           cat("duckdb", format(packageVersion("duckdb")), "from", find.package("duckdb"), "\n")
-          files <- strsplit(Sys.getenv("TEST_FILES"), " ", fixed = TRUE)[[1]]
+          files <- strsplit(Sys.getenv("TEST_FILES"), "\n", fixed = TRUE)[[1]]
+          files <- files[nzchar(files)]
           # Helpers and setup files under tests/testthat are sourced by test_file();
           # load_package = "installed" runs the tests in the namespace of the installed package.
-          # stop_on_failure = TRUE turns any failure into an error, which fails the step.
+          # stop_on_failure = TRUE turns any failure into an error, which is recorded here,
+          # so every file runs before the step fails.
+          failed <- character()
           for (f in files) {
             cat("::group::", f, "\n", sep = "")
-            test_file(
-              f,
-              package = "duckdb",
-              load_package = "installed",
-              reporter = "progress",
-              stop_on_failure = TRUE
+            ok <- tryCatch(
+              {
+                test_file(
+                  f,
+                  package = "duckdb",
+                  load_package = "installed",
+                  reporter = "progress",
+                  stop_on_failure = TRUE
+                )
+                TRUE
+              },
+              error = function(e) {
+                cat("Error: ", conditionMessage(e), "\n", sep = "")
+                FALSE
+              }
             )
             cat("::endgroup::\n")
+            if (!ok) {
+              cat("::error::", f, " failed\n", sep = "")
+              failed <- c(failed, f)
+            }
           }
+          if (length(failed) > 0) {
+            cat("Failed test files:\n", paste0("  ", failed, "\n"), sep = "")
+            quit(status = 1)
+          }
+          cat("All", length(files), "selected test files passed.\n")
 
       - name: No test file to run
         if: env.TEST_FILES == ''
