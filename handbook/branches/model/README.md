@@ -257,7 +257,8 @@ and reaches every newer line by merging the older branch into the next newer one
 `v2.0-cyanoptera` into `main` today, and with three lines `v2.0` into `v2.1` and `v2.1` into `main`.
 A change only a newer line needs is written on that line directly,
 and a fix written on a newer line first and then found to be needed on an older one is picked back with `git cherry-pick -x`.
-Tooling is `main`'s alone, and reaches a release branch only as such a pick.
+Tooling that runs from `main`'s copy, such as the loop's, is written on `main` and reaches a release branch only as such a pick.
+A change to how a release branch itself is built or checked starts on that branch and is merged forward like an R-side change.
 This turns the R-package convention around, where `main` is roughly what CRAN has:
 here `main` is the newest line, and CRAN's is an older release branch.
 It is deliberate: a fix written once on the oldest line and merged forward is built and checked once per line,

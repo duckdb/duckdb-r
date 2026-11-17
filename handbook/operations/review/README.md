@@ -15,12 +15,21 @@ What is settled:
   `main` is the repository's default branch, so GitHub and `gh pr create` propose it otherwise.
 * **Two kinds of change target `main` instead.**
   One concerns only the line `main` previews, such as glue or a test for an engine change only `main` vendors.
-  The other changes nothing but the tooling every series takes from `main`,
-  `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+  The other changes nothing but tooling that runs from `main`'s copy,
   with the files generated from it and the handbook pages that describe only that tooling,
   which go with it so that each branch's pages describe the tooling that branch carries.
-  A change that mixes tooling with anything else is split by default:
+  It reaches a release branch as a pick only where that branch's own copy needs the change too.
+  A change that mixes such tooling with anything else is split by default:
   its tooling to `main`, the rest to the release branch.
+* **Where tooling takes effect decides its target, not that it is tooling.**
+  The series loop runs `main`'s copy of the series scripts and skills,
+  and its port stage makes every series' tooling, `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+  byte-identical to `main`'s, so a workflow firing on a series ref runs `main`'s copy too.
+  GitHub runs `main`'s copy of a scheduled, `workflow_run` or `pull_request_target` workflow, since `main` is the default branch
+  ([events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)).
+  A `pull_request` or `push` trigger runs from the branch it fires on instead,
+  so a change to how a release branch itself is built or checked, such as those triggers in `R-CMD-check.yaml`,
+  targets that release branch like any other change and reaches `main` by the forward merge.
 * A `patch/` entry is opened against each line whose engine needs it,
   since a forward merge keeps the newer line's engine, `patch/` included.
   A landing's review and its forward merge take the bases [`series-land`](/.claude/skills/series-land/SKILL.md) gives them,

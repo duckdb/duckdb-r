@@ -19,9 +19,15 @@ Fix the leaf first and re-derive this, never the other way around._
   and every `releases_from` other than `main` on a row not declared `stale: true`.
 - Name the base explicitly: `main` is the repository's default branch, so GitHub and `gh pr create` propose it otherwise.
 - Target `main` only for a change that concerns only the line `main` previews,
-  or one that changes nothing but the tooling every series takes from `main` (`series_tooling` in `scripts/series-config.sh`),
+  or one that changes nothing but tooling that runs from `main`'s copy,
   with its generated files and the handbook pages that describe only that tooling.
-  Split a change that mixes tooling with anything else by default: its tooling to `main`, the rest to the release branch.
+  That is the series scripts and skills, which the loop syncs to every series,
+  and the scheduled, `workflow_run` and `pull_request_target` workflows, which GitHub runs from the default branch.
+  Such a change reaches a release branch as a pick only where that branch's own copy needs it too.
+  Split a change that mixes such tooling with anything else by default: its tooling to `main`, the rest to the release branch.
+- Where tooling takes effect decides its target, not that it is tooling.
+  A change to how a release branch itself is built or checked, such as the `pull_request` and `push` triggers in `R-CMD-check.yaml`,
+  which run from the branch they fire on, targets that release branch and reaches `main` by the forward merge.
 - The change reaches the newer lines by a forward merge, so it needs no second pull request,
   except a `patch/` entry, which is opened against each line whose engine needs it.
 - A landing's review and its forward merge take the bases `series-land` gives them.
