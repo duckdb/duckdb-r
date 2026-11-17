@@ -40,7 +40,7 @@ The following series are only available in the package archives:
 <!-- flavors:end -->
 
 Plain `duckdb` is the one flavor whose two channels differ once the line CRAN ships has a branch of its own
-([`model/`](/handbook/branches/model/README.md), "Until the switch"):
+([`model/`](/handbook/branches/model/README.md)):
 r-universe builds it from `main`, so it shows the next line, `2.0.99.…`,
 while CRAN gets the current line's releases, cut from `v2.0-cyanoptera`
 ([`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)).

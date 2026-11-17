@@ -159,6 +159,11 @@ This file is what names the contents, so nothing here is an orphan.
   and how a relaxed policy, a second connection, a catalog lookup and the two combined answer eighteen names inside one.
   Supports [`usage/statements/`](/handbook/usage/statements/README.md).
 
+* [`2026-11-17-lazy-vector-summaries/`](2026-11-17-lazy-vector-summaries/):
+  what `range()`, `mean()`, `anyNA()`, `unique()` and `c()` cost on a converted column of `rel_to_altrep()` against a plain vector,
+  before and after #2890 gave the atomic classes per-element methods that skip the guard.
+  Supports [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md).
+
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
 and link it from the leaf that relies on it.
