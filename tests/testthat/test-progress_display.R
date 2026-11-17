@@ -126,6 +126,46 @@ test_that("a progress callback outlives a collection between the reads of a stre
   expect_equal(rows, 500000)
 })
 
+test_that("a progress callback outlives a collection and is called by the later reads of a stream", {
+  skip_if_not_installed("nanoarrow")
+
+  calls <- 0L
+  rlang::local_options(
+    duckdb.progress_display = function(x) calls <<- calls + 1L
+  )
+  con <- local_con()
+  dbExecute(con, "CREATE TABLE t AS SELECT i FROM range(1000000) t(i)")
+  # Far below one chunk of 10,000 rows, about 80 KB, so that every read after
+  # the first finds the buffer short and runs the engine.
+  # Handbook: handbook/usage/interactive/README.md
+  dbExecute(con, "SET max_streaming_buffer_size = '16KiB'")
+
+  # getOption() hands the display a copy of the callback that nothing else
+  # refers to, and the display is built here, where the query is submitted.
+  stream <- dbGetQueryArrow(
+    con,
+    "SELECT i FROM t WHERE i % 2 = 0",
+    chunk_size = 10000
+  )
+  batch <- stream$get_next()
+  rows <- batch$length
+
+  # Collect, and reuse the cells a collected callback would have left behind.
+  for (pass in 1:5) {
+    invisible(gc())
+    garbage <- lapply(1:200000, function(i) list(i))
+  }
+  calls <- 0L
+
+  # The engine reports from every read that runs it, and the package must
+  # relay each report to the callback, the reports of later reads included.
+  while (!is.null(batch <- stream$get_next())) {
+    rows <- rows + batch$length
+  }
+  expect_gt(calls, 0L)
+  expect_equal(rows, 500000)
+})
+
 # Drives duckdb_progress_display() on a clock the test sets.
 # The function it returns calls the display with progress `x` at `time`,
 # in seconds, and returns what that call printed: "" for nothing.
