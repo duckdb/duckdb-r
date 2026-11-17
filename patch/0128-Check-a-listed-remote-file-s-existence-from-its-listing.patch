@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 17 Nov 2026 19:14:53 +0000
+Subject: [PATCH] Check a listed remote file's existence from its listing
+
+When read_blob() or read_text() needs neither the content nor the
+metadata of a remote file, DirectFileReader::Scan() checked that the file
+exists with FileExists(file.path). The bare path drops the metadata the
+glob's listing put into the OpenFileInfo, so httpfs sent one HEAD request
+per file: selecting only filename from a glob over 500 objects took 500
+requests, while selecting last_modified as well took none, because that
+branch opens the file from the OpenFileInfo. The check now calls
+GetStatsIfExists() with the OpenFileInfo. Where the listing carries
+last_modified, etag and file_size, httpfs answers from it without a
+request; where a store omits any of them, httpfs still sends a HEAD, so
+the check is never more expensive than before, but not always free. A
+literal path that does not exist still yields no rows, and local files
+are not checked, as before.
+
+The error behaviour changes. FileExists() turned every error into false,
+so the file was skipped; GetStatsIfExists() turns only a missing file
+into no row, so a 403, a 5xx or a credentials error now raises, as it
+already does when size or last_modified is selected.
+
+Opening the file with FILE_FLAGS_NULL_IF_NOT_EXISTS under
+CACHE_REMOTE_ONLY, as the metadata branch does, is not an option: the
+caching wrapper dereferences the null handle and fails with an internal
+error.
+
+Carried here until upstream takes it; upstream issue to be filed by the
+maintainer, see duckdb/duckdb-r#2977.
+
+---
+ src/duckdb/src/function/table/direct_file_reader.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/duckdb/src/function/table/direct_file_reader.cpp b/src/duckdb/src/function/table/direct_file_reader.cpp
+index c84fdc485e..2b7e801c9e 100644
+--- a/src/duckdb/src/function/table/direct_file_reader.cpp
++++ b/src/duckdb/src/function/table/direct_file_reader.cpp
+@@ -80,9 +80,9 @@ AsyncResult DirectFileReader::Scan(ClientContext &context, GlobalTableFunctionSt
+ 			return SourceResultType::FINISHED;
+ 		}
+ 	} else {
+-		// At least verify that the file exist
+-		// The globbing behavior in remote filesystems can lead to files being listed that do not actually exist
+-		if (is_remote && !fs.FileExists(file.path)) {
++		// A remote path the glob returned without full listing metadata is checked for existence;
++		// a listing entry that carries it is taken from the listing, as the remote metadata branch does
++		if (is_remote && !fs.GetStatsIfExists(file)) {
+ 			done.store(true, std::memory_order_relaxed);
+ 			return SourceResultType::FINISHED;
+ 		}
