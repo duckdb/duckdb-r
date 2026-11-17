@@ -47,12 +47,13 @@ What a reader of R needs from it:
 * **A statement's own `Finish()` comes when it ends**:
   inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
   and with the read that ends the query for a stream.
-  For a stream that is the rule, not a guarantee, and the record saw it broken once
+  For a stream that is the rule, not a guarantee, and the record saw it broken under gdb
   ([section c of the record](/experiments/2026-11-17-progress-display/README.md#c-the-streaming-buffer)):
   the engine finishes the display on any state a caller can observe,
   and `Executor::IdleState()` reports one while the result collector is blocked
   ([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)),
-  so a `Finish()` can come mid-stream, drop the one at the end, and leave a line painted after it.
+  so a `Finish()` can come mid-stream and drop the one at the end,
+  leaving a line painted after it unless a later update reaches 100.
   A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
 * **A stream goes quiet while its buffer serves the reads.**
   A read that takes chunks already buffered runs no engine work, so the engine sends no call

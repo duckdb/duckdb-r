@@ -2,12 +2,9 @@
 # as_arrow_table, write_parquet, write_dataset or collect), and prints how
 # many calls the progress callback got and the last value it saw.
 #
-# Run once per mode under gdb, with DLIB naming the library that holds the
-# duckdb under test and breakpoints on RProgressBarDisplay::Update,
-# RProgressBarDisplay::Finish and RArrowArrayStreamWrapper::GetNext that print
-# the event, gdb's thread number and Update's percentage:
-#   DLIB=/path/to/library R -d gdb --vanilla -f arrow-thread.R --args get_next
-# The breakpoint counts per event and thread are in arrow-thread.txt.
+# arrow-thread.sh runs it once per mode under gdb, with DLIB naming the
+# library that holds the duckdb under test, and writes arrow-thread.txt.
+# Needs nanoarrow, arrow and dplyr (the collect mode uses dplyr).
 #
 # Handbook: handbook/usage/interactive/README.md
 

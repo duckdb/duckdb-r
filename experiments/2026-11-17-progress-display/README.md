@@ -31,8 +31,10 @@ the tables and the remote file are built single-threaded under a fixed seed.
   and under gdb the `Update()` calls, how many of them came from a thread other than R's, and the phase every `Finish()` came in.
   Its streams read chunks of 100,000 rows of a table of 10,000,000.
   It ran on the same branch after merging `v2.0-cyanoptera` at 1748e8f, whose changes leave the progress display alone.
-* [`arrow-thread.R`](arrow-thread.R) reads a stream of 10,000,000 rows under a 16 KiB buffer through one route per run,
-  `$get_next()`, `as_arrow_table()`, `write_parquet()`, `write_dataset()` or `collect()`, the last four on arrow's record batch reader,
+* [`arrow-thread.sh`](arrow-thread.sh) runs [`arrow-thread.R`](arrow-thread.R) once per route,
+  each reading a stream of 10,000,000 rows under a 16 KiB buffer,
+  through `$get_next()`, `as_arrow_table()`, `write_parquet()`, `write_dataset()` or `collect()`,
+  the last four on arrow's record batch reader,
   under gdb with breakpoints on `RProgressBarDisplay::Update()`, `RProgressBarDisplay::Finish()` and `RArrowArrayStreamWrapper::GetNext()`
   and `DLIB` naming the build library.
   [`arrow-thread.txt`](arrow-thread.txt) holds, per route, the R callback's calls, the breakpoint counts per event and thread,
@@ -67,7 +69,7 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   a stream handed to `arrow::as_record_batch_reader()` and read by arrow's thread pool,
   as `write_dataset()` or `collect()` on the reader do,
   runs the engine on an arrow thread, and the check drops all of those calls, `Finish()` included:
-  14,532 and 14,538 `Update()` calls on arrow's thread, and the R callback got only the one call it had before the first read
+  14,184 and 14,159 `Update()` calls on arrow's thread, and the R callback got only the one call it had before the first read
   ([`arrow-thread.txt`](arrow-thread.txt)).
   `$get_next()`, `as_arrow_table()` and `write_parquet()` read on R's thread and deliver every call.
 * **A stream's display can finish before the stream ends, which is the engine's behavior, recorded here and not fixed.**
@@ -78,12 +80,13 @@ Values printed as 100 in "highest below 100" are just below it, and the trace ro
   ([`src/duckdb/src/main/client_context_execution.cpp`](/src/duckdb/src/main/client_context_execution.cpp)).
   In [`finish.txt`](finish.txt) the four-thread scan under a 976 KiB buffer finished its display with read 9 of 51
   and brought no `Finish()` at its end, under gdb, whose breakpoints change the timing.
-  In R the default display is then cleared early, later updates paint it again, and no final `Finish()` clears it, so a stale line stays.
-  It is rare and depends on timing: the same stream at one thread, and every stream in `run.md`, finished with its last read.
-  The probe for #3034, also under gdb, saw it more often ([`arrow-thread.txt`](arrow-thread.txt)):
-  its stream got its `Finish()` after updates up to 64 through `$get_next()`, up to 8 through `write_parquet()`,
-  and up to 5 and 6 on arrow's thread, and none at the end, while `as_arrow_table()` finished at the end.
-  So even a reader on R's thread can end below 100: the last value `write_parquet()` passed was 99.99701.
+  In R the default display is then cleared early and painted again by later updates,
+  and no final `Finish()` clears it, so its line stays unless a later update reaches 100.
+  It depends on timing: the same stream at one thread, and every stream in `run.md`, finished with its last read.
+  The probe for #3034, also under gdb, saw it on every route ([`arrow-thread.txt`](arrow-thread.txt)):
+  each stream got its `Finish()` before its updates passed 0.5, after 0.150187 through `$get_next()`,
+  0.08192 through `as_arrow_table()` and 0.43008 through `write_parquet()`, and none at its end;
+  there the last update of the routes on R's thread passed 100, which clears the line.
 
 ## What every query is told
 
