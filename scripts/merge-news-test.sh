@@ -3,7 +3,7 @@
 # in a repository built here.
 #
 # The claim is that NEWS.md merges section by section and comes out newest
-# version first, whichever side a section came from. Ten things are checked:
+# version first, whichever side a section came from. Eleven things are checked:
 #
 #   1. A forward merge: the release branch adds `2.0.0.9001` and `2.0.1`, the
 #      newer line `2.0.99.9001`; the result runs 2.0.99.9001, 2.0.99.9000,
@@ -23,6 +23,8 @@
 #  10. A release renaming `2.0.0.9000` to `2.0.1` while the newer line adds
 #      `2.0.99.9001` merges section by section, cleanly and in order, on both
 #      sides; without python3 it stays a line merge and conflicts.
+#  11. The development section, `# duckdb (development version)`, stays above
+#      every version, and its compare link, changed on both sides, is ours.
 #
 # Usage:
 #   scripts/merge-news-test.sh
@@ -153,6 +155,15 @@ is "  and to the same headings" "$(headings A)" "2.0.99.9001 2.0.1 2.0.0 "
 rename_case A B
 out=$(PATH=$PWD/nopy "$HERE/merge-news.sh" O A B 2>&1) && st=0 || st=$?
 is "without python3 it stays a line merge and conflicts" "$st" 1
+
+echo "== 11. the development section stays on top, and ours"
+dev() { printf '# duckdb (development version)\n\nCommits since %s: <https://github.com/duckdb/duckdb-r/compare/%s...%s>.\n\n\n' "$1" "$1" "$2"; }
+{ dev v2.0.99.9000 main; sec 2.0.99.9000; sec 2.0.0; } > O
+{ dev v2.0.99.9001 main; sec 2.0.99.9001; sec 2.0.99.9000; sec 2.0.0; } > A
+{ dev v2.0.1 v2.0-x; sec 2.0.1; sec 2.0.99.9000; sec 2.0.0; } > B
+is "a forward merge of both sides' landings merges cleanly" "$(merge)" 0
+is "the development section first, then newest first" "$(headings A)" "(development version) 2.0.99.9001 2.0.99.9000 2.0.1 2.0.0 "
+has "with our compare link" "$(cat A)" "compare/v2.0.99.9001...main>"
 
 echo
 echo "$pass passed, $fail failed"

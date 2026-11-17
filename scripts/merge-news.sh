@@ -18,7 +18,11 @@
 #   * a section changed on both sides differently is merged three-way with
 #     `git merge-file`, and a conflict there is a conflict of the whole merge;
 #   * the sections are written newest version first, compared component by
-#     component as numbers, whatever side each came from.
+#     component as numbers, whatever side each came from;
+#   * a heading whose first token is no version, the development section
+#     `# duckdb (development version)`, sorts above every version, and changed
+#     on both sides it takes ours, as the `DESCRIPTION` driver keeps our
+#     `Version:`: it is the branch's own compare link.
 #
 #   * a section of the base gone from one side, renamed there or deleted, and
 #     left alone on the other is gone, and a renamed one is taken under its new
@@ -85,8 +89,15 @@ def sections(text):
     return out
 
 
+def is_dev(key):
+    v = key if isinstance(key, str) else key[0]
+    return not v[:1].isdigit()
+
+
 def version_key(key):
     v, n = (key, 1) if isinstance(key, str) else key
+    if is_dev(key):
+        return ([(1, 0, v)], -n)
     parts = []
     for p in re.split(r"[.-]", v):
         parts.append((0, int(p), "") if p.isdigit() else (-1, 0, p))
@@ -144,6 +155,8 @@ for key in list(dict.fromkeys([*A, *B, *O])):
     elif a == o:
         res = b
     elif b == o:
+        res = a
+    elif key is not None and is_dev(key) and a is not None:
         res = a
     else:
         res, c = merge3(a, o, b)
