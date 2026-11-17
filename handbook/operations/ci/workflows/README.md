@@ -51,19 +51,21 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 It runs [`scripts/pull-request-base.sh`](/scripts/pull-request-base.sh) from `main`'s copy, never the pull request's,
 and fails unless one of these holds:
 
+* the base is not `main`, as after a retarget, which runs the guard again;
 * the head is a branch of this repository named as a forward merge, `forward/*`,
   or as a landing's review, `<line>-land-review` with or without a `-<suffix>`
   ([`series-land`](/.claude/skills/series-land/SKILL.md));
-* every file changed lies under `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+* every file changed, and the old path of every file renamed, lies under `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
   except `.github/README.md`, which the port leaves out of the tooling as well;
-* the pull request carries the label `next-line-only`.
+* the pull request changes no file;
+* the pull request carries the label `next-line-only`;
+* [`scripts/series.yaml`](/scripts/series.yaml) declares no active release branch, so `main` is the only base there is.
 
 The label is for a change that concerns only the line `main` previews,
 and for two kinds the file list cannot tell apart from a misplaced one:
 a tooling change that also edits the handbook pages describing that tooling,
 and a re-vendor of cpp11 while the model's component table gives cpp11 to `main`.
-A failure names the release branch and says how to go on: retarget, split the tooling out, or add the label.
-Retargeting away from `main` runs the guard again, and it passes.
+A failure names the oldest active release branch and says how to go on: retarget, split the tooling out, or add the label.
 It blocks a merge only once a ruleset names it a required check,
 which is a repository setting, not a file here.
 

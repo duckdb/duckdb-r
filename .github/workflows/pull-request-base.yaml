@@ -31,16 +31,18 @@ permissions:
   contents: read
   pull-requests: read
 
-# A burst of events on one pull request leaves the newest run.
-concurrency:
-  group: pull-request-base-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   base:
     if: >-
       github.repository == 'duckdb/duckdb-r' &&
       (github.event.pull_request.base.ref == 'main' || github.event.changes.base)
+
+    # A burst of events on one pull request leaves the newest run. Set on the
+    # job, not the workflow, so a run whose job is skipped cannot cancel one
+    # that checks.
+    concurrency:
+      group: pull-request-base-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
 
     runs-on: ubuntu-26.04
 

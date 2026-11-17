@@ -5,29 +5,19 @@
 #
 # .github/workflows/pull-request-base.yaml runs it on every pull request in the
 # canonical repository, from `main`'s copy, with what GitHub's API says about
-# the pull request and its files; what lets a pull request stay on `main`, and
-# when the label is owed: handbook/operations/ci/workflows/README.md.
+# the pull request and its files.
 #
-# **It passes** a pull request whose base is not `main`, and one to `main`
-# that meets one of these conditions, decided by `belongs_on_main` below:
-#   - its head is a branch of the same repository, and a forward merge's,
-#     `forward/<branch>-<version>` (.claude/skills/series-land/SKILL.md), or a
-#     landing's review, `<line>-land-review` or `<line>-land-review-<suffix>`
-#     (scripts/series-land.sh);
-#   - it carries the label `next-line-only`;
-#   - every file it changes, and every old path of a file it renames, lies
-#     under `series_tooling` (scripts/series-config.sh), except
-#     `.github/README.md`, which the port leaves out of the tooling because it is
-#     generated from the flavored `README.Rmd` (scripts/series-port.sh);
-#   - it changes no file at all.
-# It passes too where the declaration names no active release branch
-# (`series_release_branches`, scripts/series-lib.sh), since `main` is then the
-# only base there is.
+# **What lets a pull request stay on `main`** is listed on
+# handbook/operations/ci/workflows/README.md, with when the label
+# `next-line-only` is owed. `belongs_on_main` below decides the conditions that
+# read the pull request, after the base; the declaration is read last, for the
+# oldest active release branch (`series_release_branches`,
+# scripts/series-lib.sh).
 #
-# **It fails** every other pull request to `main`, naming the oldest active
-# release branch and the three ways on: retarget it, split the tooling out, or
-# add the label. The reason goes to stdout, to the step summary and, as one
-# line, to an error annotation on the run.
+# **It fails** every other pull request to `main`, naming that branch and the
+# three ways on: retarget it, split the tooling out, or add the label. The
+# reason goes to stdout, to the step summary and, as one line, to an error
+# annotation on the run.
 #
 # A file list shorter than the count of changed files the pull request reports
 # is never read as tooling-only: GitHub lists 3000 files at most, and the
