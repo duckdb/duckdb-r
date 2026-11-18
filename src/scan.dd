@@ -1,6 +1,7 @@
 scan.o: \
   include/convert.hpp \
   include/rapi.hpp \
+  include/reltoaltrep.hpp \
   include/typesr.hpp \
   scan.cpp \
   vendor/cpp11.hpp \

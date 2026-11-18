@@ -4,6 +4,9 @@
 
 #include "duckdb/main/query_result.hpp"
 
+#include <functional>
+#include <unordered_map>
+
 namespace duckdb {
 
 struct AltrepRelationWrapper {
@@ -19,8 +22,17 @@ struct AltrepRelationWrapper {
 
 	idx_t RowCount();
 
-	void RegisterAltrepColumn();
-	void MarkColumnAsTransformed();
+	// Column-wise mode (#2891): the relation reads a stored table,
+	// so every execution returns the same rows in the same order,
+	// and a column is fetched by a query of its own when it is first read.
+	bool ColumnWise() const;
+	// The engine result that holds top-level column `column_index`, and the position of the column in it
+	QueryResult *GetColumnResult(idx_t column_index, idx_t &result_index);
+	// Whether reading top-level column `column_index` would execute a query now
+	bool ColumnQueryPending(idx_t column_index) const;
+
+	void RegisterAltrepColumn(idx_t column_index);
+	void MarkColumnAsTransformed(idx_t column_index);
 
 	const size_t n_rows;
 	const size_t n_cells;
@@ -35,13 +47,39 @@ struct AltrepRelationWrapper {
 	// True once the relation has been materialized,
 	// remains true after the materialized result has been released
 	bool materialized = false;
-	// Row count of the materialized result, valid once materialized is true
+	// Row count of the materialized result, valid once materialized is true,
+	// or in column-wise mode once row_count_known is true
 	idx_t row_count = 0;
 	// Number of ALTREP vectors backed by this relation
 	idx_t altrep_columns = 0;
 	// Number of ALTREP vectors already transformed to their R representation
 	idx_t transformed_columns = 0;
+
+	// Column-wise mode only, see ColumnWise()
+	bool column_wise = false;
+	// Set once the materialize callback and message have announced the first execution
+	bool announced = false;
+	// Set once row_count holds the result of count(*) over the relation
+	bool row_count_known = false;
+	// Cells fetched so far, counted against n_cells
+	idx_t fetched_cells = 0;
+	// The result of each top-level column fetched and not yet converted by every ALTREP vector it backs
+	std::unordered_map<idx_t, duckdb::unique_ptr<QueryResult>> column_results;
+	// Per top-level column, the number of ALTREP vectors it backs that are not yet converted
+	std::unordered_map<idx_t, idx_t> pending_vectors;
+
+private:
+	// Every execution goes through here: the checks, the options and the engine state it needs
+	void Execute(const std::function<void()> &run);
+	// Runs `run`, storing an exception it throws in mat_error
+	void StoreErrors(const std::function<void()> &run);
+	void CountRows();
+	void FetchColumn(idx_t column_index);
 };
+
+// Whether `rel` is a plain scan of a table stored by DuckDB,
+// possibly under projections of bare column references
+bool IsStoredTableScan(Relation &rel);
 
 } // namespace duckdb
 
@@ -76,6 +114,10 @@ struct RelToAltrep {
 	static R_xlen_t VectorLogicalGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out);
 	static R_xlen_t VectorIntegerGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out);
 	static R_xlen_t VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, double *out);
+
+	// Whether reading `x` would run a query of its lazy data frame on `context` now, per vector;
+	// on R's thread only, and runs no R code
+	static bool QueriesOn(SEXP x, duckdb::ClientContext &context);
 
 	static R_altrep_class_t rownames_class;
 	static R_altrep_class_t logical_class;

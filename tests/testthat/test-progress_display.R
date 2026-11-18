@@ -89,39 +89,27 @@ test_that("a handle collected while the display is created does not deadlock", {
 test_that("a progress callback outlives a collection between the reads of a stream", {
   skip_if_not_installed("nanoarrow")
 
-  calls <- 0L
-  rlang::local_options(
-    duckdb.progress_display = function(x) calls <<- calls + 1L
-  )
-  con <- local_con()
-  dbExecute(con, "CREATE TABLE t AS SELECT i FROM range(1000000) t(i)")
+  # Room for the whole result, about 4 MB, whatever the default: a read runs
+  # the engine only when the buffer is short, so the first read computes the
+  # whole result and is the only read that reports progress.
+  # Handbook: handbook/usage/interactive/README.md
+  res <- progress_stream_calls("64MiB", before = 0L)
+  expect_gt(res$calls[[1]], 0L)
+  expect_equal(res$rows, 500000)
+})
 
-  # getOption() hands the display a copy of the callback that nothing else
-  # refers to, and the display is built here, where the query is submitted.
-  stream <- dbGetQueryArrow(
-    con,
-    "SELECT i FROM t WHERE i % 2 = 0",
-    chunk_size = 10000
-  )
+test_that("a progress callback outlives a collection and is called by the later reads of a stream", {
+  skip_if_not_installed("nanoarrow")
 
-  # Collect, and reuse the cells a collected callback would have left behind.
-  for (pass in 1:5) {
-    invisible(gc())
-    garbage <- lapply(1:200000, function(i) list(i))
-  }
-  calls <- 0L
-
-  # The query runs from its submission on, and which read reports progress
-  # depends on how far it got meanwhile; the last one always does, when the
-  # query finishes, so the callback must have run by the end of the stream.
-  rows <- 0
-  batch <- stream$get_next()
-  while (!is.null(batch)) {
-    rows <- rows + batch$length
-    batch <- stream$get_next()
-  }
-  expect_gt(calls, 0L)
-  expect_equal(rows, 500000)
+  # Far below one batch, which takes about ten of the engine's chunks, so
+  # that every read after the first finds the buffer short and runs the
+  # engine. The engine reports from every read that runs it, and the package
+  # must relay each report, those of later reads included: most reads before
+  # the last get calls, not only the read that ends the query.
+  res <- progress_stream_calls("16KiB", before = 1L)
+  reads_with_data <- head(res$calls, -2L)
+  expect_gte(sum(reads_with_data > 0L), 40L)
+  expect_equal(res$rows, 500000)
 })
 
 # Drives duckdb_progress_display() on a clock the test sets.
