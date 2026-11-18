@@ -40,12 +40,12 @@ stage 3 asks whether green is an ancestor of dev,
 and every one of those meets the graft boundary
 and answers wrong or refuses.
 Tags are not optional either:
-`vendor-one.sh` reads `git describe --tags` for the version it stamps.
-A clone that cannot reach a versioning tag used to stamp `v0.0.0`
-and vendor on without a word,
-which reaches CI as a test failure looking like the engine's —
-every extension download 404s on `extensions.duckdb.org/v0.0.0/`.
-The script now refuses such a clone before it vendors anything;
+the version `vendor-one.sh` stamps counts the line's release tags in the clone
+(`series_upstream_version()` in [`scripts/series-config.sh`](/scripts/series-config.sh)).
+A clone without them stamps a version upstream never published,
+which reaches CI as a test failure looking like the engine's,
+since every extension download 404s.
+The script refuses a shallow or tagless clone, and one whose stamp falls below the tree's, before it vendors anything;
 treat that refusal as the answer and fetch the tags.
 
 **Establish how this firing reads results, once.**
