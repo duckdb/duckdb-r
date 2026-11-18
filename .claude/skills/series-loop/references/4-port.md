@@ -1,12 +1,13 @@
-# Stage 4: port from `main`
+# Stage 4: port from the branch the series releases from
 
 *Reference for stage 4 of [`series-loop`](../SKILL.md), read when the stage has work;
 the handbook leaf is [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).*
 
 The goal is identity, not curation:
 after this stage,
-`.github/`, `scripts/` and `.claude/` on `<S>-dev`
-are byte-identical to `main`'s.
+the tooling on `<S>-dev`, `.github/`, `scripts/` and `.claude/`,
+is byte-identical to `main`'s,
+and the R side, unless the series is frozen, has taken what the branch it releases from has.
 CI reads workflows and scripts from the branch it checks,
 so this is what puts a fix into effect —
 never park a tooling change to wait for a forward.
@@ -41,18 +42,18 @@ scripts/series-port.sh <S> --apply          # cherry-pick all, sync, push
 scripts/series-port.sh <S> --apply <sha>…   # a chosen subset instead
 ```
 
-The script lists **every** commit `main` has that the series lacks,
+The script lists **every** commit the branch the series releases from has that the series lacks,
 oldest first,
 classified TOOLING / MIXED / OTHER / VENDOR / VERSION by what it touches,
 and applies all but VENDOR and VERSION by default.
 A MIXED or OTHER commit is a *forward-port*
 in `BRANCHES.md`'s sense (invariant S4):
 `-dev` has always been vendor commits
-plus cherry-picks of `main` commits,
+plus cherry-picks of commits from the branch the series releases from,
 and the port merely batches what used to be manual —
 judged by CI like every `-dev` commit.
 Picks are whole commits, never split:
-a wholesale pick matches its `main` commit by patch-id,
+a wholesale pick matches the commit it picks by patch-id,
 so the next rebase skips it silently,
 while a tooling-only half of a MIXED commit would replay —
 at best to empty, at worst to a conflict —
@@ -61,8 +62,8 @@ and could sever a coupled change
 minting a commit whose message describes more than it contains.
 The one file a pick leaves as the series has it is `NEWS.md`.
 The notes are the release strand's, like the version,
-kept for `main`'s versions by a process of their own,
-so a pick carrying `main`'s notes meets a copy they were not written against
+kept for the versions of the branch ported from by a process of their own,
+so a pick carrying that branch's notes meets a copy they were not written against
 and conflicts on every series at once.
 So each pick is applied without committing, `NEWS.md` is restored from the series,
 and the rest is committed under the original message, author and trailer;
@@ -70,7 +71,7 @@ a pick with nothing left, because it wrote only `NEWS.md` or its content is alre
 is committed empty and named as empty,
 because its trailer is what retires it from the next run.
 VENDOR commits are listed and never auto-picked:
-`main`'s engine is not this series' engine,
+the engine of the branch ported from is not this series' engine,
 and the series' own vendoring owns that strand.
 **The subject is what decides one, never the path** —
 the same rule as everywhere else in this skill.
@@ -82,10 +83,10 @@ which is the one thing the port exists to end.
 They are ordinary commits, ported like any other.
 
 VERSION commits are listed and never auto-picked either:
-`main`'s R-client counter is not this series'.
+the R-client counter of the branch ported from is not this series'.
 A `-dev` version says which release line the series was seeded from
 and how far its own vendoring has run,
-and what `main` is at today is read from `main`
+and what that branch is at today is read from that branch
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 Here the **content** decides, not the subject:
 the commit carries nothing but release paperwork,
@@ -95,7 +96,7 @@ that one is a forward-port that happens to bump,
 ported whole like any other,
 because a pick is never half a commit.
 The notes are that strand as much as the bump is:
-a commit that writes `NEWS.md` for `main`'s next release and touches nothing else
+a commit that writes `NEWS.md` for that branch's next release and touches nothing else
 is held back on the same reasoning,
 because the series has neither the section it goes in nor the version that names it,
 and the pick's only honest resolution is the empty commit that retires it.
@@ -128,7 +129,7 @@ so port that commit by name and the reference is whole again.
 **A frozen series takes no ports by default.**
 A series seeded from a release branch keeps the R code it was seeded with —
 glue, tests, docs and version alike —
-so `main`'s development line,
+so the active lines' development,
 which belongs to another engine's R side,
 is not a backlog it is behind on.
 `scripts/series-port.sh` reads that off the lineage under the seed
@@ -152,7 +153,7 @@ and none of the commits behind it alone.
 A change the r-universe build genuinely needs still lands —
 a `configure` fix, whatever keeps the flavor green —
 and stage 2 reaches for it the same way it mines a base series:
-if the red has already been fixed on `main`,
+if the red has already been fixed on an active line's branch,
 port that commit rather than rederive it.
 Name it, one commit at a time:
 
@@ -166,14 +167,14 @@ on a frozen series or any other.
 What the freeze buys is that nobody has to read
 the whole development line every firing
 to find the two commits that matter.
-The bar is what the build needs, not what `main` happens to have:
+The bar is what the build needs, not what an active line happens to have:
 a fix that only tidies R code the series is content with
 is not a reason to move the series off its seed.
 
 What stays judgement:
 
 - a conflict stops the picks in place:
-  resolve it in the kept worktree toward `main`'s intent,
+  resolve it in the kept worktree toward the intent of the branch ported from,
   keeping the series' flavor where the two meet
   (`Package:`, `@useDynLib`, `DUCKDB_PACKAGE_NAME`
   keep the series' name),
@@ -188,9 +189,9 @@ What stays judgement:
   On a series that is not frozen that is what the named SHAs left out, so never run one there:
   the tooling sync waits for the next `--apply`.
   On a frozen series the set is empty, so the bare `--apply` the script prints ports nothing and finishes the sync;
-- an OTHER commit that cannot work against this series' engine —
+- an OTHER commit that cannot work against this series' engine:
   apply an explicit subset without it,
-  fix it on `main` (a guard, a runtime seam),
+  fix it on the branch the series releases from (a guard, a runtime seam),
   and port the fixed commit instead.
 
 A live forward counterpart changes nothing here.

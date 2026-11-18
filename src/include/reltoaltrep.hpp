@@ -68,6 +68,14 @@ struct RelToAltrep {
 	static Rboolean RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int));
 
 	static SEXP VectorStringElt(SEXP x, R_xlen_t i);
+	static R_xlen_t VectorAtomicLength(SEXP x);
+	static void *VectorAtomicDataptr(SEXP x, Rboolean writeable);
+	static int VectorLogicalElt(SEXP x, R_xlen_t i);
+	static int VectorIntegerElt(SEXP x, R_xlen_t i);
+	static double VectorRealElt(SEXP x, R_xlen_t i);
+	static R_xlen_t VectorLogicalGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out);
+	static R_xlen_t VectorIntegerGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out);
+	static R_xlen_t VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, double *out);
 
 	static R_altrep_class_t rownames_class;
 	static R_altrep_class_t logical_class;
