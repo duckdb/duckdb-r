@@ -88,6 +88,12 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
+	// The conversion options of the connection running the query,
+	// read before this scan runs R code, which could reset them.
+	auto convert_opts = db_wrapper->env_convert_opts;
+	const bool experimental = convert_opts && convert_opts->experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
+	const bool map_list_of = convert_opts && convert_opts->map == ConvertOpts::MapShape::LIST_OF;
+
 	// The binder holds the client context lock across this, and looking the name
 	// up forces a promise -- arbitrary R code, and with it a garbage collection.
 	RCallbackScope callback_scope;
@@ -131,10 +137,17 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(ConstantExpression::FromValue(Value::POINTER((uintptr_t)df)));
+	auto add_named_parameter = [&children](const char *name, bool value) {
+		auto parameter = ConstantExpression::FromValue(Value::BOOLEAN(value));
+		parameter->SetAlias(Identifier(name));
+		children.push_back(std::move(parameter));
+	};
 	// integer64 := true: an integer64 column scans as BIGINT, as rapi_register_df() registers it
-	auto integer64 = ConstantExpression::FromValue(Value::BOOLEAN(true));
-	integer64->SetAlias(Identifier("integer64"));
-	children.push_back(std::move(integer64));
+	add_named_parameter("integer64", true);
+	// experimental and map_list_of follow the connection's conversion options, as in rapi_register_df();
+	// dbConnect() always sets experimental to false
+	add_named_parameter("experimental", experimental);
+	add_named_parameter("map_list_of", map_list_of);
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 
 	// Signal that this table reference depends on external state (the R data

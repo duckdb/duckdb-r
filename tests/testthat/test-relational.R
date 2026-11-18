@@ -2555,3 +2555,33 @@ test_that("a NULL window argument is left out, as it is for a NULL constant", {
   out <- rel_to_altrep(rel_project(rel, list(expr_reference("x"), lag)))
   expect_equal(as.data.frame(out)$l, c(NA, 1L, 2L))
 })
+
+test_that("rel_from_df() types columns as `duckdb_register()` does (#3018)", {
+  skip_if_not_installed("vctrs")
+  sql <- function(from) {
+    paste0(
+      "SELECT typeof(id) AS id, typeof(s) AS s, typeof(m) AS m FROM ",
+      from,
+      " LIMIT 1"
+    )
+  }
+  df <- data.frame(id = 1:2, s = c("a", "b"))
+  df$m <- list(list(a = 1, b = 2), list(c = 3))
+
+  for (map in c("data.frame", "list_of")) {
+    con <- local_con(map = map)
+    duckdb_register(con, "reg", df)
+    rel_to_view(rel_from_df(con, df), "main", "v", temporary = TRUE)
+    expect_equal(dbGetQuery(con, sql("v")), dbGetQuery(con, sql("reg")))
+  }
+})
+
+test_that("rel_from_df() scans strings as VARCHAR with `experimental = TRUE`", {
+  con <- local_con()
+  rel <- rel_from_df(con, data.frame(s = "a"), experimental = TRUE)
+  rel_to_view(rel, "main", "v", temporary = TRUE)
+  expect_equal(
+    dbGetQuery(con, "SELECT typeof(s) AS t, upper(s) AS u FROM v"),
+    data.frame(t = "VARCHAR", u = "A")
+  )
+})
