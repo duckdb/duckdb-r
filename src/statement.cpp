@@ -174,9 +174,11 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	D_ASSERT(conn->db->env == R_NilValue);
 	conn->db->env = (SEXP)env;
+	conn->db->env_convert_opts = &conn->convert_opts;
 	conn->db->registered_dfs = Rf_cons(R_NilValue, R_NilValue);
 	duckdb_httplib::detail::scope_exit reset_db_env([&]() {
 		conn->db->env = R_NilValue;
+		conn->db->env_convert_opts = nullptr;
 		conn->db->registered_dfs = R_NilValue;
 	});
 

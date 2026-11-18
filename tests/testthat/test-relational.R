@@ -121,6 +121,248 @@ test_that("a column whose conversion fails part way fails again on the next acce
   expect_true(rapi_df_has_query_result(df))
 })
 
+test_that("converted ALTREP columns read like plain vectors (#2890)", {
+  con <- local_con()
+  rel <- rel_from_sql(
+    con,
+    paste(
+      "SELECT",
+      "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+      "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+      "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+      "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+      "FROM range(5000) ORDER BY range"
+    )
+  )
+  df <- rel_to_altrep(rel)
+  r <- 0:4999
+  plain <- list(
+    l = ifelse(r %% 7 == 0, NA, r %% 3 == 0),
+    i = ifelse(r %% 5 == 0, NA_integer_, r %% 100L),
+    d = ifelse(r %% 11 == 0, NA_real_, r / 4),
+    s = ifelse(r %% 13 == 0, NA_character_, paste0("v", r %% 10))
+  )
+
+  for (col in names(plain)) {
+    x <- df[[col]]
+    p <- plain[[col]]
+    # Converts the column, so that what follows reads the converted vector
+    expect_identical(x[[2]], p[[2]])
+    expect_identical(x[[1]], p[[1]])
+    expect_identical(x[[5000]], p[[5000]])
+    expect_identical(x[2990:3010], p[2990:3010])
+    expect_identical(range(x, na.rm = TRUE), range(p, na.rm = TRUE))
+    expect_identical(range(x), range(p))
+    expect_true(anyNA(x))
+    expect_identical(unique(x), unique(p))
+    expect_identical(c(x, x), c(p, p))
+    expect_identical(x[!is.na(x)], p[!is.na(p)])
+    if (col != "s") {
+      expect_identical(mean(x, na.rm = TRUE), mean(p, na.rm = TRUE))
+      expect_identical(mean(x), mean(p))
+      expect_identical(sum(x, na.rm = TRUE), sum(p, na.rm = TRUE))
+    }
+    # Still the lazy class after converting and reading, not a plain vector
+    expect_true(any(grepl(
+      "DUCKDB_ALTREP_REL_VECTOR",
+      capture.output(.Internal(inspect(x))),
+      fixed = TRUE
+    )))
+  }
+  expect_identical(as.list(df), plain)
+})
+
+test_that("unconverted ALTREP columns convert on element access (#2890)", {
+  con <- local_con()
+  sql <- paste(
+    "SELECT",
+    "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+    "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+    "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+    "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+    "FROM range(5000) ORDER BY range"
+  )
+  r <- 0:4999
+  plain <- list(
+    l = ifelse(r %% 7 == 0, NA, r %% 3 == 0),
+    i = ifelse(r %% 5 == 0, NA_integer_, r %% 100L),
+    d = ifelse(r %% 11 == 0, NA_real_, r / 4),
+    s = ifelse(r %% 13 == 0, NA_character_, paste0("v", r %% 10))
+  )
+
+  for (col in names(plain)) {
+    p <- plain[[col]]
+
+    # Element access: each a fresh data frame, so the first touch converts
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    expect_false(df_is_materialized(df))
+    expect_identical(df[[col]][[3]], p[[3]])
+    expect_true(df_is_materialized(df))
+
+    # A summary reading region by region
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    expect_identical(range(df[[col]], na.rm = TRUE), range(p, na.rm = TRUE))
+
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    expect_identical(anyNA(df[[col]]), TRUE)
+
+    if (col != "s") {
+      df <- rel_to_altrep(rel_from_sql(con, sql))
+      expect_identical(sum(df[[col]], na.rm = TRUE), sum(p, na.rm = TRUE))
+    }
+  }
+})
+
+test_that("the row limit surfaces through element and region access (#2890)", {
+  con <- local_con()
+  rel <- rel_from_sql(
+    con,
+    "SELECT range / 4 AS d, 'v' || range AS s FROM range(20)"
+  )
+
+  df <- rel_to_altrep(rel, n_rows = 10)
+  expect_error(range(df$d), "more than 10 rows")
+  expect_error(df$d[[1]], "more than 10 rows")
+  expect_error(df$s[[1]], "more than 10 rows")
+  expect_false(df_is_materialized(df))
+})
+
+test_that("summaries of ALTREP columns match plain vectors at the edges (#2890)", {
+  con <- local_con()
+  # Each value with any warning it raised, so that warnings must match too
+  with_warnings <- function(expr) {
+    warnings <- character()
+    value <- withCallingHandlers(
+      expr,
+      warning = function(w) {
+        warnings <<- c(warnings, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+    list(value = value, warnings = warnings)
+  }
+  ops <- list(
+    length = function(x) length(x),
+    min = function(x) min(x),
+    min_na_rm = function(x) min(x, na.rm = TRUE),
+    max = function(x) max(x),
+    max_na_rm = function(x) max(x, na.rm = TRUE),
+    range = function(x) range(x),
+    range_na_rm = function(x) range(x, na.rm = TRUE),
+    any_na = function(x) anyNA(x),
+    is_na = function(x) is.na(x),
+    unique = function(x) unique(x),
+    duplicated = function(x) duplicated(x),
+    c = function(x) c(x, x),
+    elements = function(x) lapply(seq_along(x), function(k) x[[k]]),
+    reversed = function(x) x[rev(seq_along(x))]
+  )
+  numeric_ops <- list(
+    sum = function(x) sum(x),
+    sum_na_rm = function(x) sum(x, na.rm = TRUE),
+    mean = function(x) mean(x),
+    mean_na_rm = function(x) mean(x, na.rm = TRUE)
+  )
+  queries <- c(
+    double = "SELECT * FROM (VALUES (1.5::DOUBLE), (NULL), ('NaN'::DOUBLE), ('Infinity'::DOUBLE), ('-Infinity'::DOUBLE), (-2.0)) t(x)",
+    double_no_na = "SELECT * FROM (VALUES (1.5::DOUBLE), (-2.0), (0.25)) t(x)",
+    integer = "SELECT * FROM (VALUES (3), (NULL), (-7), (3)) t(x)",
+    # The sum overflows an integer: NA with a warning
+    integer_overflow = "SELECT * FROM (VALUES (2147483647), (2147483647), (NULL)) t(x)",
+    logical = "SELECT * FROM (VALUES (true), (NULL), (false), (true)) t(x)",
+    string = "SELECT * FROM (VALUES ('b'), (NULL), ('a'), ('b')) t(x)",
+    empty_double = "SELECT 1.5::DOUBLE AS x WHERE false",
+    empty_integer = "SELECT 1 AS x WHERE false",
+    empty_logical = "SELECT true AS x WHERE false",
+    empty_string = "SELECT 'a' AS x WHERE false",
+    all_na_double = "SELECT NULL::DOUBLE AS x FROM range(3)",
+    all_na_integer = "SELECT NULL::INTEGER AS x FROM range(3)",
+    all_na_logical = "SELECT NULL::BOOLEAN AS x FROM range(3)",
+    all_na_string = "SELECT NULL::VARCHAR AS x FROM range(3)"
+  )
+
+  for (name in names(queries)) {
+    sql <- queries[[name]]
+    plain <- dbGetQuery(con, sql)$x
+    expect_false(is.null(plain))
+    col_ops <- if (is.character(plain)) ops else c(ops, numeric_ops)
+
+    # Converted once: serializing reads the whole vector, so every op reads the converted one
+    df <- rel_to_altrep(rel_from_sql(con, sql))
+    converted <- df$x
+    invisible(serialize(converted, NULL))
+    expect_true(df_is_materialized(df))
+
+    for (op in names(col_ops)) {
+      f <- col_ops[[op]]
+      expected <- with_warnings(f(plain))
+      expect_identical(
+        with_warnings(f(converted)),
+        expected,
+        label = paste(name, op, "converted")
+      )
+      # Unconverted: a fresh column, which the op converts
+      fresh <- rel_to_altrep(rel_from_sql(con, sql))$x
+      expect_identical(
+        with_warnings(f(fresh)),
+        expected,
+        label = paste(name, op, "unconverted")
+      )
+    }
+  }
+})
+
+test_that("converted ALTREP columns scan from engine threads (#2890)", {
+  con <- local_con()
+  con2 <- local_con()
+  dbExecute(con2, "SET threads = 4")
+  sql <- paste(
+    "SELECT",
+    "CASE WHEN range % 7 = 0 THEN NULL ELSE range % 3 = 0 END AS l,",
+    "CASE WHEN range % 5 = 0 THEN NULL ELSE (range % 100)::INTEGER END AS i,",
+    "CASE WHEN range % 11 = 0 THEN NULL ELSE range / 4 END AS d,",
+    "CASE WHEN range % 13 = 0 THEN NULL ELSE 'v' || (range % 10) END AS s",
+    "FROM range(N_ROWS) ORDER BY range"
+  )
+  agg <- paste(
+    "SELECT count(*) AS n, count(l) AS nl, sum(l::INTEGER) AS sl,",
+    "count(i) AS ni, sum(i) AS si, count(d) AS nd, sum(d) AS sd,",
+    "count(s) AS ns, max(s) AS ms FROM lazy"
+  )
+
+  for (n in c(3000L, 0L)) {
+    plain <- dbGetQuery(con, sub("N_ROWS", n, sql, fixed = TRUE))
+    duckdb_register(con2, "plain", plain)
+    expected <- dbGetQuery(
+      con2,
+      sub("FROM lazy", "FROM plain", agg, fixed = TRUE)
+    )
+
+    check <- function(df) {
+      duckdb_register(con2, "lazy", df)
+      on.exit(duckdb_unregister(con2, "lazy"))
+      expect_equal(dbGetQuery(con2, "SELECT * FROM lazy"), plain)
+      expect_equal(dbGetQuery(con2, agg), expected)
+    }
+
+    df <- rel_to_altrep(rel_from_sql(con, sub("N_ROWS", n, sql, fixed = TRUE)))
+    # Materialized but with no element read from R yet: the scan fills the payload cache
+    expect_equal(nrow(df), n)
+    expect_true(df_is_materialized(df))
+    check(df)
+
+    # After reads from R the cache is filled, and the scan takes the cached path
+    for (col in names(plain)) {
+      expect_identical(
+        df[[col]][seq_len(min(n, 3L))],
+        plain[[col]][seq_len(min(n, 3L))]
+      )
+      expect_identical(anyNA(df[[col]]), n > 0)
+    }
+    check(df)
+    duckdb_unregister(con2, "plain")
+  }
+})
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({
@@ -1903,7 +2145,7 @@ test_that("an ALTREP data frame scanned under a query leaves no connection busy"
   )
 
   expect_equal(result$t, 1:3)
-  expect_match(result$same, "connection that is running the query")
+  expect_match(result$same, "on its own connection before its query has run")
   expect_match(result$disabled, "Materialization is disabled")
   expect_equal(result$a, 1)
   expect_equal(result$b, 2)
@@ -2312,4 +2554,181 @@ test_that("a NULL window argument is left out, as it is for a NULL constant", {
   expr_set_alias(lag, "l")
   out <- rel_to_altrep(rel_project(rel, list(expr_reference("x"), lag)))
   expect_equal(as.data.frame(out)$l, c(NA, 1L, 2L))
+})
+
+test_that("a lazy data frame scanned on its own connection before its query ran is refused, not hung", {
+  skip_if_not_installed("callr")
+
+  # Touching the frame in bind would start its query on the connection binding the scan.
+  # rel_from_df() waited forever there, and the environment scan failed with an internal
+  # error that left the connection unusable; the subprocess and its timeout make a regression
+  # a failure here rather than a suite that stops.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      # The messages are formatted here, and the snapshot must not depend on the platform's bullets
+      options(cli.unicode = FALSE)
+      ns <- asNamespace(pkg)
+      message_of <- function(code) {
+        tryCatch(
+          {
+            code
+            "no error"
+          },
+          error = conditionMessage
+        )
+      }
+
+      drv <- ns$duckdb(environment_scan = TRUE)
+      con <- DBI::dbConnect(drv)
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      other <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
+      lazy <- function() {
+        ns$rel_to_altrep(ns$rel_from_sql(
+          con,
+          "SELECT range AS i FROM range(10)"
+        ))
+      }
+
+      df <- lazy()
+      rel <- message_of(ns$rel_from_df(con, df))
+      scan <- message_of(DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      ))
+      after <- DBI::dbGetQuery(con, "SELECT 42 AS answer")$answer
+
+      # Another connection runs the frame's query on its own connection, which is free
+      from_other <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(other, lazy()))$i
+      )
+
+      # So does a second connection to the frame's own database
+      sibling <- DBI::dbConnect(drv)
+      from_sibling <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(sibling, lazy()))$i
+      )
+      DBI::dbDisconnect(sibling)
+
+      # Once the query has run, touching the frame converts and queries nothing
+      nrow(df)
+      own_after_run <- DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      )$s
+
+      list(
+        rel = rel,
+        scan = scan,
+        after = after,
+        from_other = from_other,
+        from_sibling = from_sibling,
+        own_after_run = own_after_run
+      )
+    },
+    list(pkg = pkg),
+    timeout = 60
+  )
+
+  expect_snapshot({
+    writeLines(out$rel)
+    writeLines(out$scan)
+  })
+  expect_equal(out$after, 42)
+  expect_equal(out$from_other, 0:9)
+  expect_equal(out$from_sibling, 0:9)
+  expect_equal(out$own_after_run, 45L)
+})
+
+test_that("a lazy data frame read column by column is refused on its own connection only for a column not yet fetched (#2889, #2891)", {
+  skip_if_not_installed("callr")
+
+  # A lazy data frame over a stored table fetches each column by a query of its own.
+  # Scanning it on its own connection is refused while a column it scans would still run that query,
+  # and allowed once the columns it scans are converted, even while others are pending.
+  # The subprocess and its timeout make a hang a failure here rather than a suite that stops.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      message_of <- function(code) {
+        tryCatch(
+          {
+            code
+            "no error"
+          },
+          error = conditionMessage
+        )
+      }
+
+      con <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      DBI::dbWriteTable(con, "t", data.frame(a = 1:3, b = c("x", "y", "z")))
+      df <- ns$rel_to_altrep(ns$rel_from_table(con, "t"))
+
+      # Converts `a` alone; `b` stays pending
+      sum_a <- sum(df$a)
+
+      converted <- message_of(
+        values <- as.data.frame(ns$rel_to_altrep(ns$rel_from_df(con, df["a"])))
+      )
+      pending <- message_of(ns$rel_from_df(con, df["b"]))
+      both <- message_of(ns$rel_from_df(con, df))
+
+      list(
+        sum_a = sum_a,
+        converted = converted,
+        # Plain copies: a lazy vector would be read after the connection closed
+        values = if (converted == "no error") values$a[1:3],
+        pending = pending,
+        both = both,
+        still_lazy = !ns$df_is_materialized(df),
+        b = df$b[1:3]
+      )
+    },
+    list(pkg = pkg),
+    timeout = 60
+  )
+
+  expect_equal(out$sum_a, 6L)
+  expect_equal(out$converted, "no error")
+  expect_equal(out$values, 1:3)
+  expect_match(out$pending, "on its own connection before its query has run")
+  expect_match(out$both, "on its own connection before its query has run")
+  expect_true(out$still_lazy)
+  # The refusals left the pending column fetchable
+  expect_equal(out$b, c("x", "y", "z"))
+})
+
+test_that("rel_from_df() types columns as `duckdb_register()` does (#3018)", {
+  skip_if_not_installed("vctrs")
+  sql <- function(from) {
+    paste0(
+      "SELECT typeof(id) AS id, typeof(s) AS s, typeof(m) AS m FROM ",
+      from,
+      " LIMIT 1"
+    )
+  }
+  df <- data.frame(id = 1:2, s = c("a", "b"))
+  df$m <- list(list(a = 1, b = 2), list(c = 3))
+
+  for (map in c("data.frame", "list_of")) {
+    con <- local_con(map = map)
+    duckdb_register(con, "reg", df)
+    rel_to_view(rel_from_df(con, df), "main", "v", temporary = TRUE)
+    expect_equal(dbGetQuery(con, sql("v")), dbGetQuery(con, sql("reg")))
+  }
+})
+
+test_that("rel_from_df() scans strings as VARCHAR with `experimental = TRUE`", {
+  con <- local_con()
+  rel <- rel_from_df(con, data.frame(s = "a"), experimental = TRUE)
+  rel_to_view(rel, "main", "v", temporary = TRUE)
+  expect_equal(
+    dbGetQuery(con, "SELECT typeof(s) AS t, upper(s) AS u FROM v"),
+    data.frame(t = "VARCHAR", u = "A")
+  )
 })

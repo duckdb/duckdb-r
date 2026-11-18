@@ -10,6 +10,13 @@ nothing runs until R touches the values,
 materialization is budgeted by `n_rows` and `n_cells`,
 unlimited by default ([`R/relational.R`](/R/relational.R)),
 and an execution error is stored and re-raised at every later access.
+`duckdb.materialize_callback` and the legacy message announce a data frame's first execution only.
+A scan of a table DuckDB stores, under projections of bare column references at most, with unique names and `preserve_insertion_order` on,
+is fetched column by column instead ([#2891](https://github.com/duckdb/duckdb-r/issues/2891)):
+`count(*)` gives the row count, and the first read of a column projects to it;
+the frame counts as materialized once every column is converted.
+The table must not change after the data frame is created: a renamed, dropped or retyped column or a new row count fails the fetch,
+while a column dropped and added again with its name and type, or rows replaced in equal number, go unnoticed.
 What materializing allocates, and when the engine's copy of the result
 is released after conversion, is
 [`usage/memory/reading/`](/handbook/usage/memory/reading/README.md)'s.
@@ -17,6 +24,15 @@ Touching is R's to do:
 every method that can materialize runs on R's thread and nowhere else,
 which is [`threading/`](/handbook/architecture/glue/threading/README.md)'s
 to hold.
+
+A scan's bind touches every column of the data frame it scans, which materializes a lazy one.
+Materializing runs the frame's query on the frame's own connection,
+which cannot start a query while it is binding the scan, so the bind would wait forever or fail.
+`TouchColumns()` in [`src/scan.cpp`](/src/scan.cpp) therefore refuses such a frame instead of touching it,
+when reading one of the columns it scans would still run a query and the connection binding the scan is its own,
+with an error that says to read its columns first.
+The check is per vector: a frame fetched column by column passes once the columns the scan reads are fetched, even while others are pending.
+Another connection scans it, the query running on the frame's own connection, and so does its own once the query has run.
 
 Raising an R error from inside an ALTREP method
 is the known weak point:
@@ -44,6 +60,15 @@ or a long-jmp leaves the guard on for the rest of the session.
 The allocations part way through converting a column are the exception.
 They call R directly, because protecting each one would slow down every list column.
 Running out of memory there still leaves the guard on.
+
+Once an atomic column is converted, its `Length`, `Dataptr`, `Elt` and `Get_region` methods
+read the vector it converted to and take neither the guard nor cpp11's try block,
+since nothing on that path can fail and R calls some of them once per element, in `c()` and `range()` among others.
+They find that vector through its data pointer and length, which the column's wrapper stores once conversion has filled it,
+so a read costs two calls into R besides R's own dispatch.
+A freed column, or one not yet converted, takes the guarded path, which converts it or reports the error.
+A summary over a converted column that R reads element by element still costs up to about five and a half times what it costs over a plain vector
+([`experiments/2026-11-17-lazy-vector-summaries/`](/experiments/2026-11-17-lazy-vector-summaries/README.md)).
 
 *To deepen: state what each ALTREP method does with an unmaterialized
 relation, and what a duplicated one costs.*

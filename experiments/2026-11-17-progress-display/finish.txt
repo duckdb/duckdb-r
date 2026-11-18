@@ -1,0 +1,31 @@
+# Per scenario: callbacks, reads with any callback (of all reads), and the phase each Finish() came in.
+# set_buffer is the SET before a stream, open is dbGetQueryArrow(), read_<k> the k-th $get_next(), call the dbGetQuery() call.
+# A statement run through dbGetQuery() or dbExecute() gets two, the first for the PREPARE the glue runs.
+
+## Under gdb, with breakpoints on Update() and Finish()
+
+dbGetQuery: 8 callbacks, 8 Update() calls (0 off R's thread), Finish() in: call call
+dbGetQuery_three_statements: 12 callbacks, 12 Update() calls (0 off R's thread), Finish() in: call call call call
+stream_scan_976KiB: 224 callbacks, 224 Update() calls (0 off R's thread), reads with calls 50 of 51, Finish() in: set_buffer set_buffer open read_9
+stream_scan_10MiB: 168 callbacks, 168 Update() calls (0 off R's thread), reads with calls 15 of 51, Finish() in: set_buffer set_buffer open read_47
+stream_scan_1GiB: 239 callbacks, 239 Update() calls (0 off R's thread), reads with calls 1 of 51, Finish() in: set_buffer set_buffer open read_1
+stream_group_by_10MiB: 757 callbacks, 757 Update() calls (0 off R's thread), reads with calls 11 of 26, Finish() in: set_buffer set_buffer open read_22
+stream_order_by_10MiB: 146 callbacks, 146 Update() calls (0 off R's thread), reads with calls 7 of 26, Finish() in: set_buffer set_buffer open read_20
+set_threads: 3 callbacks, 3 Update() calls (0 off R's thread), Finish() in: set_threads set_threads
+dbGetQuery_threads_1: 107 callbacks, 107 Update() calls (0 off R's thread), Finish() in: call call
+stream_scan_976KiB_threads_1: 166 callbacks, 166 Update() calls (0 off R's thread), reads with calls 50 of 51, Finish() in: set_buffer set_buffer open read_50
+stream_group_by_10MiB_threads_1: 142 callbacks, 142 Update() calls (0 off R's thread), reads with calls 11 of 26, Finish() in: set_buffer set_buffer open read_22
+
+## Without gdb
+
+dbGetQuery: 20 callbacks
+dbGetQuery_three_statements: 78 callbacks
+stream_scan_976KiB: 4290 callbacks, reads with calls 50 of 51
+stream_scan_10MiB: 1555 callbacks, reads with calls 15 of 51
+stream_scan_1GiB: 8448 callbacks, reads with calls 1 of 51
+stream_group_by_10MiB: 10554 callbacks, reads with calls 11 of 26
+stream_order_by_10MiB: 5926 callbacks, reads with calls 7 of 26
+set_threads: 2 callbacks
+dbGetQuery_threads_1: 107 callbacks
+stream_scan_976KiB_threads_1: 166 callbacks, reads with calls 50 of 51
+stream_group_by_10MiB_threads_1: 142 callbacks, reads with calls 11 of 26

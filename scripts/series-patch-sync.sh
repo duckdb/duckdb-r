@@ -10,10 +10,11 @@
 #
 #   * a firing writes one during a repair -- stage 3 says to commit it onto
 #     `<S>-build` in the same firing, and that is the half that works;
-#   * stage 4's port carries whole `main` commits onto `-dev`, `patch/` files
-#     included, so an entry born as a pull request against `main` reaches every
-#     `-dev` without any firing deciding to put it there -- and reaches no
-#     buffer at all, because `-build` takes no ports by design (stage 1).
+#   * stage 4's port carries whole commits of the branch a series releases
+#     from onto its `-dev`, `patch/` files included, so an entry born as a pull
+#     request against that branch reaches the `-dev` without any firing
+#     deciding to put it there -- and reaches no buffer at all, because
+#     `-build` takes no ports by design (stage 1).
 #
 # The second half is what this closes. The drift is quiet while upstream leaves
 # the patched file alone, because the buffer is then internally consistent and
@@ -22,8 +23,9 @@
 # ordinary vendor.
 #
 # **What carries is decided by test-applying, never by the file list.** A buffer
-# runs ahead of `main`, so an entry that `main` needs may not fit the engine the
-# buffer has vendored, and committing it there regardless would break the next
+# runs ahead of the branch its series releases from, so an entry that branch
+# needs may not fit the engine the buffer has vendored, and committing it there
+# regardless would break the next
 # vendor run outright (`vendor-one.sh`'s `PATCH BROKEN` exit) rather than help
 # anything. Each candidate is applied against the buffer's own tree first, and
 # the three answers are three different situations:
@@ -36,9 +38,10 @@
 #              it reaches the buffer if and when the code it answers does.
 #
 # A candidate is any entry `-dev` has and the buffer does not have at all. One
-# both carry in different versions is **edited**, and never a candidate: `main`
-# changed it in place -- widened it to cover more, or re-rooted it after upstream
-# moved -- and the port brought the new version to `-dev` while the buffer kept
+# both carry in different versions is **edited**, and never a candidate: the
+# branch the series releases from changed it in place -- widened it to cover
+# more, or re-rooted it after upstream moved -- and the port brought the new
+# version to `-dev` while the buffer kept
 # the old, under the same name. `0009-Remove-stderr-for-zstd` is the standing
 # example. A name-only comparison calls those two stacks level, so both are read
 # by blob; but the buffer's tree already carries the old version's effect, and
@@ -55,10 +58,11 @@
 # vendor run breaks, so those are reported and never carried.
 #
 # Entries the buffer has and `-dev` does not are the series' own, written by a
-# repair against an engine `main` has not reached. They are listed for the sake
-# of the other direction of this question -- one that applies to `main`'s tree
-# today belongs on `main`, where stage 4 spreads it by itself
-# (.claude/skills/series-loop/SKILL.md stage 3) -- and never removed here.
+# repair against an engine the branch the series releases from has not reached.
+# They are listed for the sake of the other direction of this question -- one
+# that applies to that branch's tree today belongs on it, and stage 4 brings it
+# to the series by itself (.claude/skills/series-loop/SKILL.md stage 3) -- and
+# never removed here.
 #
 # Usage: series-patch-sync.sh <series> [--apply] [--remote <name>]
 #   Without --apply it reports and writes nothing.
@@ -109,10 +113,11 @@ build_only=$(comm -13 \
   <(git ls-tree --name-only "$dev" patch/ | sort) \
   <(git ls-tree --name-only "$build" patch/ | sort))
 
-# An entry can drift without either side gaining or losing a name: `main` edits
-# one in place and the port brings the new version to `-dev` while the buffer
-# keeps the old. The entries both sides have are compared by blob, and one that
-# differs is `edited` -- reported beside the candidates, never among them (above).
+# An entry can drift without either side gaining or losing a name: the branch
+# the series releases from edits one in place and the port brings the new
+# version to `-dev` while the buffer keeps the old. The entries both sides have
+# are compared by blob, and one that differs is `edited` -- reported beside the
+# candidates, never among them (above).
 both=$(comm -12 \
   <(git ls-tree --name-only "$dev" patch/ | sort) \
   <(git ls-tree --name-only "$build" patch/ | sort))
