@@ -4,6 +4,7 @@
 #include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "rapi.hpp"
+#include "reltoaltrep.hpp"
 #include "typesr.hpp"
 
 // Handbook: handbook/architecture/glue/threading/README.md
@@ -84,7 +85,8 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 // reaches inside those runs on a task thread, where the R API is out of bounds.
 // Deliberately covers more than the scan reads; the leaf says why.
 // Stops at the first vector `visit` returns false for, and returns false then.
-static bool WalkColumn(SEXP coldata, bool (*visit)(SEXP)) {
+template <class VISIT>
+static bool WalkColumn(SEXP coldata, VISIT &&visit) {
 	switch (TYPEOF(coldata)) {
 	case LGLSXP:
 	case INTSXP:
@@ -142,14 +144,26 @@ static bool IsInMemory(SEXP x) {
 }
 
 struct TouchColumnsData {
+	ClientContext &context;
 	SEXP df;
 	string error;
 };
 
 static SEXP TouchColumns(void *data_p) {
-	auto df = static_cast<TouchColumnsData *>(data_p)->df;
-	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(df); col_idx++) {
-		WalkColumn(VECTOR_ELT(df, col_idx), TouchVector);
+	auto &data = *static_cast<TouchColumnsData *>(data_p);
+	auto touch = [&](SEXP x) {
+		// A lazy data frame of the connection binding this scan would start its query on that busy connection;
+		// the R error returns to TouchColumnsOrThrow()'s handler (handbook/architecture/glue/altrep/README.md)
+		if (ALTREP(x) && RelToAltrep::QueriesOn(x, data.context)) {
+			Rf_errorcall(R_NilValue, "%s",
+			             "A lazy data frame can't be scanned on its own connection before its query has run: the "
+			             "connection is busy with this query. Materialize the data frame first by reading its columns, "
+			             "or use `rel_from_altrep_df()` to reach its relation.");
+		}
+		return TouchVector(x);
+	};
+	for (R_xlen_t col_idx = 0; col_idx < Rf_xlength(data.df); col_idx++) {
+		WalkColumn(VECTOR_ELT(data.df, col_idx), touch);
 	}
 	return R_NilValue;
 }
@@ -169,8 +183,8 @@ static SEXP TouchColumnsError(SEXP cond, void *data_p) {
 // That error must not long-jump across the binder's frames: their destructors would not run,
 // and the client context lock and the interrupt handler would stay held for the rest of the session.
 // So it is caught here and rethrown as an exception, and so is any other jump, which is dropped.
-static void TouchColumnsOrThrow(SEXP df) {
-	TouchColumnsData data {df, string()};
+static void TouchColumnsOrThrow(ClientContext &context, SEXP df) {
+	TouchColumnsData data {context, df, string()};
 	try {
 		cpp11::unwind_protect([&]() { R_tryCatchError(TouchColumns, &data, TouchColumnsError, &data); });
 	} catch (cpp11::unwind_exception &) {
@@ -690,7 +704,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	// Touch the columns on R's thread only, the one thread that may run R code.
 	// A task binds on any thread, and there reads only what is in memory already.
 	if (OnRThread()) {
-		TouchColumnsOrThrow(df);
+		TouchColumnsOrThrow(context, df);
 	} else {
 		for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 			if (!WalkColumn(VECTOR_ELT(df, col_idx), IsInMemory)) {

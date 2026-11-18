@@ -8,9 +8,9 @@ description: Cut and keep aligned the alpha strand of a series, `<S>-alpha` and 
 *Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md),
 what this routine is, and when it runs.*
 
-A series stamps its engine `-dev`, `v2.0.0-dev87878` for `v2.0-cyanoptera`,
+A series stamps its engine `-dev`, `v2.0.1-dev89655` for `v2.0-cyanoptera`,
 and the engine looks up the extensions of a `-dev` build under its commit hash, where upstream publishes nothing.
-Upstream also dispatches builds by hand, about daily, named `v2.0.0-alpha<run number>`,
+Upstream also dispatches builds by hand, about daily, named `v2.0.1-alpha<run number>`,
 and publishes the extensions of one that passes under that version.
 `<S>-alpha` is the newest `<S>-green` commit carrying the engine of such a build, stamped with its version,
 so that `INSTALL` and autoloading reach those extensions.

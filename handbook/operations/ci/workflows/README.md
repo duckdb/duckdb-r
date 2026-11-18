@@ -13,8 +13,8 @@ so editing one here puts the copy out of step,
 and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
-Five are authored here and have no counterpart in the template:
-`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml` and `cran-release.yaml`.
+Authored here, with no counterpart in the template, are
+`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml`, `cran-release.yaml` and `pull-request-base.yaml`.
 A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 One file of the core set is left out, and a sync must not bring it back:
 the template's `fledge.yaml`, because this repository writes its version and its `NEWS.md` section by hand, in a landing's bump
@@ -25,7 +25,7 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 
 | Workflow | Fires on | Does |
 |---|---|---|
-| [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) | push and PR to the main branches and `cran-*`; daily cron; merge queue; dispatch | the `rcc` check across the matrix ([`matrix/`](/handbook/operations/ci/matrix/README.md)) |
+| [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) | push to the main branches and `cran-*`; PR to the main and release branches; daily cron; merge queue; dispatch | the `rcc` check across the matrix ([`matrix/`](/handbook/operations/ci/matrix/README.md)) |
 | [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags | the check against r-universe dev builds of each dependency, one job per dependency |
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
@@ -44,6 +44,44 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 | [`revdep.yaml`](/.github/workflows/revdep.yaml) | push to `revdep*` | one old-vs-new `rcmdcheck` per reverse dependency ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
 | [`handbook.yaml`](/.github/workflows/handbook.yaml) | PR; dispatch | the handbook checks, and the carried files against their source ([`meta/local/`](/handbook/meta/local/README.md)) |
+| [`pull-request-base.yaml`](/.github/workflows/pull-request-base.yaml) | `pull_request_target` to `main`, opened, reopened, edited, pushed to, labelled or unlabelled, and any change of base | fails a pull request to `main` that belongs on the oldest active release branch; canonical repository only |
+
+**`pull-request-base` holds pull requests to `main` to the rule that a fix starts on the oldest active release branch**
+([`branches/model/`](/handbook/branches/model/README.md)).
+It runs [`scripts/pull-request-base.sh`](/scripts/pull-request-base.sh) from `main`'s copy, never the pull request's,
+and fails unless one of these holds:
+
+* the base is not `main`, as after a retarget, which runs the guard again;
+* the head is a branch of this repository named as a forward merge, `forward/*`,
+  or as a landing's review, `<line>-land-review` with or without a `-<suffix>`
+  ([`series-land`](/.claude/skills/series-land/SKILL.md));
+* every file changed, and the old path of every file renamed, lies under `series_tooling` in [`scripts/series-config.sh`](/scripts/series-config.sh),
+  except `.github/README.md`, which the port leaves out of the tooling as well;
+* the pull request changes no file;
+* the pull request carries the label `next-line-only`;
+* [`scripts/series.yaml`](/scripts/series.yaml) declares no active release branch, so `main` is the only base there is.
+
+The label is for a change that concerns only the line `main` previews,
+and for two kinds the file list cannot tell apart from a misplaced one:
+a tooling change that also edits the handbook pages describing that tooling,
+and a re-vendor of cpp11 while the model's component table gives cpp11 to `main`.
+A failure names the oldest active release branch and says how to go on: retarget, split the tooling out, or add the label.
+It blocks a merge only once a ruleset names it a required check,
+which is a repository setting, not a file here.
+
+**A pull request against a release branch is checked like one against `main`.**
+`R-CMD-check.yaml` names the release branches by one pattern, `v[0-9]+.[0-9]+-[a-z]+`, which GitHub matches against the whole name.
+So `v2.0-cyanoptera` matches, and the series refs named after it, such as `v2.0-cyanoptera-dev` or `v1.4-andium-build`, do not.
+The full match keeps the series refs, which carry a copy of this file, out of `rcc`'s reach
+([`branches/model/`](/handbook/branches/model/README.md)).
+The other workflows that serve a pull request filter no base branch, so they take a release branch's pull requests as they are.
+
+**In a fork, `rcc` skips a pull request against a release branch.**
+The fork's mirror of a release branch takes pull requests nobody needs checked there:
+the Pull app's at every sync ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)), and one that pins a branch before its deletion.
+`rcc-smoke` skips them by a job-level condition, and every job that needs it skips with it, so none starts a full run.
+[`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) reports such a run as a passing `rcc`
+once [cynkra/cynkratemplate#163](https://github.com/cynkra/cynkratemplate/pull/163) has taught its status action that a skipped run is no failure.
 
 **The composite actions these workflows call are not in this repository.**
 They live in

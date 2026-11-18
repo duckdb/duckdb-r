@@ -43,14 +43,19 @@ The failure classes, and what each needs:
   so this says `./configure` failed and nothing was compiled.
   It is a local setup problem: run `./configure` and read its output.
   The vendor commit is not implicated, and amending it fixes nothing.
-* **The generator failed** (`GENERATOR FAILED`, exit 7, in `vendor-one.sh` and `series-vendor.sh` alike):
+* **The generator failed** (`GENERATOR FAILED`, exit 7, in `vendor-one.sh`, `series-vendor.sh` and `vendor.sh` alike):
   regenerating the tree or deriving from the patched tree stopped before any commit,
   and `series-vendor.sh` undoes the pick it was regenerating for.
+  The reason is printed above the banner, a failing `scripts/ci/version.py` in the upstream checkout among them.
   Fix what the generator reads and rerun.
-* **The upstream clone cannot name a version** (`SHALLOW UPSTREAM CLONE` or
-  `NO VERSION IN THE UPSTREAM CLONE`, exit 6):
-  a shallow or tagless clone would stamp a `DUCKDB_VERSION` no extension repository serves,
-  so `vendor-one.sh` refuses before it vendors anything.
+* **The upstream clone cannot name a version** (`SHALLOW UPSTREAM CLONE`, `NO VERSION IN THE UPSTREAM CLONE`
+  or `UPSTREAM STAMP GOES BACKWARDS`, exit 6):
+  a shallow clone, or one with no release tag below its `HEAD`, would stamp a `DUCKDB_VERSION` no extension repository serves,
+  so `vendor-one.sh` refuses before it vendors anything, and `vendor.sh` stops at the generator instead
+  ([`scripts/series-config.sh`](/scripts/series-config.sh)).
+  A clone that lacks only the line's newest tag stamps a patch number too low,
+  which `vendor-one.sh` reads as a stamp below the one the tree already carries, as it does a clone on another line.
+  A tag the clone lacks on a commit the walk has yet to reach goes unseen, which is why every run fetches tags first.
   Fetch the history and the tags into the source clone, as the banner prints, and rerun.
 * **The clone is on the wrong line** (`WRONG UPSTREAM LINE`, exit 5):
   the buffer's last vendored commit is not on the first-parent line of the clone's `HEAD`.
@@ -164,14 +169,13 @@ another file than the one the entry edits, and use `patch --dry-run`
 only to confirm the entry can live there.
 
 **The same distinction decides which branch an entry lives on.**
-A fix is series-specific when the code it answers is not on `main`,
-and an entry that wraps rather than edits will apply to `main` either
-way, so applying there is no evidence it belongs there.
-Landing one whose subject `main`'s engine does not carry adds a
-suppression with nothing to suppress —
+A fix is series-specific when the code it answers is not on the branch the series releases from,
+and an entry that wraps rather than edits will apply to that branch either way,
+so applying there is no evidence it belongs there.
+Landing one whose subject that branch's engine does not carry adds a suppression with nothing to suppress,
 against the rule that nothing is suppressed at all
-([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)) —
-and it is the series' until `main`'s engine reaches the code.
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
+and it is the series' until that branch's engine reaches the code.
 
 The buffer is where the choice is load-bearing.
 No run covers it at all

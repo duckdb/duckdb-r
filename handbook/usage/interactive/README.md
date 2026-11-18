@@ -7,23 +7,65 @@ or hands it to something that does.
 ## The progress display
 
 The progress display is the engine calling back into R.
-The C++ side holds the symbol it invokes
-(`get_progress_display_sym` in
-[`src/include/rapi.hpp`](/src/include/rapi.hpp)),
-and [`R/progress_display.R`](/R/progress_display.R) draws it.
-The engine calls it every time it polls a running query, whether or not the progress moved,
-thousands of times in a query of a few seconds
-([#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
-The glue sets the engine's own wait, `wait_time`, to zero in [`src/connection.cpp`](/src/connection.cpp).
-Throttling is left to the R side.
+**The engine decides what the display shows and when; the package relays to R every call into the display made on R's thread.**
+The glue's display, `RProgressBarDisplay` in [`src/connection.cpp`](/src/connection.cpp),
+passes each `Update()` to the function `get_progress_display()` returned with the percentage,
+and each `Finish()` as an `Update()` of 100, so the function cannot tell the two apart.
+It drops a call when no function is set, and when the engine makes it on a thread other than R's, where no R code may run.
+A stream that arrow's thread pool reads, as `write_dataset()` or `collect()` on `arrow::as_record_batch_reader()` do,
+runs the engine on arrow's threads, so none of its calls reaches R, `Finish()` included
+([#3034](https://github.com/duckdb/duckdb-r/issues/3034));
+`$get_next()`, `as_arrow_table()` and `write_parquet()` read on R's thread and deliver every call.
+An error the function raises is ignored.
+The glue sets the engine's own wait, `wait_time`, to zero in the same file,
+so the engine calls the display on every run or poll of a task on R's thread, whether or not the progress moved,
+unless a source cannot report yet
+(`ProgressBar::Update()` in [`src/duckdb/src/common/progress_bar/progress_bar.cpp`](/src/duckdb/src/common/progress_bar/progress_bar.cpp),
+[#2748](https://github.com/duckdb/duckdb-r/issues/2748)).
+A function set as `duckdb.progress_display` receives all of these calls,
+as often as R's thread comes back to it, which a slow function thins out by its own cost.
+
+Throttling is left to the default display, `duckdb_progress_display()` in [`R/progress_display.R`](/R/progress_display.R).
 A query paints nothing in its first half second, so a fast query never paints, and at most one line every half second after that.
 Completion bypasses the throttle, so a painted line is cleared when its query completes.
-Completion is the engine's call to the display's `Finish()`, which never comes for a query that fails or is interrupted,
-and comes with a streamed Arrow result's first chunk, before the reads that report further progress.
-Either way the last line painted stays until the next query starts.
 Its display is built by `get_progress_display()`, which clears the line, if nothing was printed after it, and restarts the throttle.
 The display keeps one state for the session, not one per query.
 A query that starts while another connection's stream is still being read clears that stream's line and restarts its throttle too.
+
+What the engine reports, measured per query shape, thread count and buffer size, is in
+[`experiments/2026-11-17-progress-display/`](/experiments/2026-11-17-progress-display/README.md).
+What a reader of R needs from it:
+
+* **The percentage follows execution, weighted by estimated rows, not time.**
+  It sums each pipeline's source progress scaled to the source's estimated row count
+  (`Pipeline::GetDetailedProgress()` in [`src/duckdb/src/parallel/pipeline.cpp`](/src/duckdb/src/parallel/pipeline.cpp)),
+  so it can stand still through a sort's merge, jump at the end, or stop short of 100 until `Finish()`,
+  and a slow remote part owns only its rows' share of the bar.
+* **Every statement a DBI call sends opens with a 100.**
+  The glue prepares the last statement of a string with `ClientContext::Prepare()`, which runs a `PREPARE` as a query of its own,
+  and every statement, the `PREPARE` included, finishes its own display ([`src/statement.cpp`](/src/statement.cpp)).
+* **A statement's own `Finish()` comes when it ends**:
+  inside the call for a materialized result, `dbSendQuery()` included, whose `dbFetch()` reads then get no call,
+  and with the read that ends the query for a stream.
+  For a stream that is the rule, not a guarantee, and the record saw it broken under gdb
+  ([section c of the record](/experiments/2026-11-17-progress-display/README.md#c-the-streaming-buffer)):
+  the engine finishes the display on any state a caller can observe,
+  and `Executor::IdleState()` reports one while the result collector is blocked
+  ([`src/duckdb/src/parallel/executor.cpp`](/src/duckdb/src/parallel/executor.cpp)),
+  so a `Finish()` can come mid-stream and drop the one at the end,
+  leaving a line painted after it unless a later update reaches 100.
+  A query that fails or is interrupted never gets its `Finish()`, and the last line painted stays until the next query starts.
+* **A stream goes quiet while its buffer serves the reads.**
+  A read that takes chunks already buffered runs no engine work, so the engine sends no call
+  (`BufferedData::Participate()` in
+  [`src/duckdb/src/main/buffered_data/buffered_data.cpp`](/src/duckdb/src/main/buffered_data/buffered_data.cpp)).
+  The engine computes ahead until the buffer holds `max_streaming_buffer_size`:
+  10 MiB on a new connection
+  (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)),
+  the smaller of 10 MiB and the available memory after `RESET`
+  (`ClientConfig::SetDefaultStreamingBufferSize()` in [`src/duckdb/src/main/client_config.cpp`](/src/duckdb/src/main/client_config.cpp)).
+  A result that fits the buffer, or the expensive part of a sort or an aggregate, is computed by the first read,
+  and a smaller buffer spreads the calls over more reads.
 
 ## Interrupting a query
 

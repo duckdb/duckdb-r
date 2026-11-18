@@ -1,5 +1,6 @@
 #!/bin/bash
-# Bring a series' -dev branch level with `main` — stage 4 of the series loop
+# Bring a series' -dev branch level with the branch it releases from, and its
+# tooling with `main`: stage 4 of the series loop
 # (.claude/skills/series-loop/SKILL.md).
 #
 # The goal is identity, not curation: after a successful --apply, the tooling
@@ -28,10 +29,10 @@
 # on every firing. The skip reads the subject written below, in series-advance.sh
 # and series-check.sh alike, so a change to it is a change to all three.
 #
-# The script lists EVERY commit on `main` since the series' base that has no
-# patch-id equivalent on <S>-dev (`git cherry`), oldest first, classified by
-# what it touches: TOOLING (only tooling paths), MIXED (tooling and more),
-# OTHER (no tooling), VENDOR, VERSION.
+# The script lists EVERY commit on the branch the series releases from since the
+# series' base that has no patch-id equivalent on <S>-dev (`git cherry`), oldest
+# first, classified by what it touches: TOOLING (only tooling paths), MIXED
+# (tooling and more), OTHER (no tooling), VENDOR, VERSION.
 # --apply cherry-picks everything except VENDOR and VERSION — a MIXED or OTHER
 # commit is a forward-port like any other, judged by CI like every -dev commit —
 # or exactly the SHAs given, for when judgement says a commit cannot work
@@ -807,13 +808,14 @@ EOF
   echo "build -> $(git rev-parse --short "$bnext")"
 fi
 
-# A port is how a `patch/` entry written against `main` reaches this series, and
-# `-dev` is not where it does anything: `vendor-one.sh` applies the *buffer's*
-# stack to every tree it regenerates. Carrying it on is part of porting, not a
-# separate errand somebody remembers -- so it runs here, on every --apply, and
-# whether or not this run had commits to pick. The carry decides by
+# A port is how a `patch/` entry written on the branch this series releases from
+# reaches it, and `-dev` is not where it does anything: `vendor-one.sh` applies
+# the *buffer's* stack to every tree it regenerates. Carrying it on is part of
+# porting, not a separate errand somebody remembers -- so it runs here, on every
+# --apply, and whether or not this run had commits to pick. The carry decides by
 # test-applying against the buffer's own tree, because a buffer runs ahead of
-# `main` and an entry that does not fit its engine would break the next vendor
-# run rather than help it. It runs after the tooling sync and fetches again, so
-# it builds on the buffer tip that sync pushed.
+# the branch its series releases from, and an entry that does not fit its
+# engine would break the next vendor run rather than help it. It runs after the
+# tooling sync and fetches again, so it builds on the buffer tip that sync
+# pushed.
 "$(dirname "$0")/series-patch-sync.sh" "$S" --apply --remote "$remote"
