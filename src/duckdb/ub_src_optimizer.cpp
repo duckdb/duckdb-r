@@ -130,6 +130,8 @@
 
 #include "src/optimizer/unnest_rewriter.cpp"
 
+#include "src/optimizer/window_fusion.cpp"
+
 #include "src/optimizer/window_join_pushdown.cpp"
 
 #include "src/optimizer/window_self_join.cpp"
