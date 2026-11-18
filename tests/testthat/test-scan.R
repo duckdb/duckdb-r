@@ -150,3 +150,41 @@ test_that("Data frames scan survives garbage collection", {
   withr::defer(dbClearResult(res))
   expect_equal(dbFetch(res), data.frame(a = 1))
 })
+
+test_that("Data frame scan types columns as `duckdb_register()` does (#3018)", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+  df <- data.frame(id = 1:2, s = c("a", "b"))
+  df$m <- list(list(a = 1, b = 2), list(c = 3))
+  duckdb_register(con, "reg", df)
+
+  sql <- function(from) {
+    paste0(
+      "SELECT typeof(id) AS id, typeof(s) AS s, typeof(m) AS m FROM ",
+      from,
+      " LIMIT 1"
+    )
+  }
+  expect_equal(dbGetQuery(con, sql("df")), dbGetQuery(con, sql("reg")))
+  expect_equal(dbGetQuery(con, sql("df"))$m, "DOUBLE[][]")
+})
+
+test_that("Data frame scan honors `map = \"list_of\"` as `duckdb_register()` does (#3018)", {
+  skip_if_not_installed("vctrs")
+  con <- local_con(drv = duckdb(environment_scan = TRUE), map = "list_of")
+  df <- data.frame(id = 1:2, s = c("a", "b"))
+  df$m <- list(list(a = 1, b = 2), list(c = 3))
+  duckdb_register(con, "reg", df)
+
+  sql <- function(from) {
+    paste0(
+      "SELECT typeof(id) AS id, typeof(s) AS s, typeof(m) AS m FROM ",
+      from,
+      " LIMIT 1"
+    )
+  }
+  expect_equal(dbGetQuery(con, sql("df")), dbGetQuery(con, sql("reg")))
+  expect_equal(
+    dbGetQuery(con, sql("df"))$m,
+    "STRUCT(\"key\" VARCHAR, \"value\" DOUBLE)[]"
+  )
+})

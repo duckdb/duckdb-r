@@ -25,7 +25,7 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 
 | Workflow | Fires on | Does |
 |---|---|---|
-| [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) | push and PR to the main branches and `cran-*`; daily cron; merge queue; dispatch | the `rcc` check across the matrix ([`matrix/`](/handbook/operations/ci/matrix/README.md)) |
+| [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) | push to the main branches and `cran-*`; PR to the main and release branches; daily cron; merge queue; dispatch | the `rcc` check across the matrix ([`matrix/`](/handbook/operations/ci/matrix/README.md)) |
 | [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags | the check against r-universe dev builds of each dependency, one job per dependency |
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
@@ -68,6 +68,20 @@ and a re-vendor of cpp11 while the model's component table gives cpp11 to `main`
 A failure names the oldest active release branch and says how to go on: retarget, split the tooling out, or add the label.
 It blocks a merge only once a ruleset names it a required check,
 which is a repository setting, not a file here.
+
+**A pull request against a release branch is checked like one against `main`.**
+`R-CMD-check.yaml` names the release branches by one pattern, `v[0-9]+.[0-9]+-[a-z]+`, which GitHub matches against the whole name.
+So `v2.0-cyanoptera` matches, and the series refs named after it, such as `v2.0-cyanoptera-dev` or `v1.4-andium-build`, do not.
+The full match keeps the series refs, which carry a copy of this file, out of `rcc`'s reach
+([`branches/model/`](/handbook/branches/model/README.md)).
+The other workflows that serve a pull request filter no base branch, so they take a release branch's pull requests as they are.
+
+**In a fork, `rcc` skips a pull request against a release branch.**
+The fork's mirror of a release branch takes pull requests nobody needs checked there:
+the Pull app's at every sync ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)), and one that pins a branch before its deletion.
+`rcc-smoke` skips them by a job-level condition, and every job that needs it skips with it, so none starts a full run.
+[`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) reports such a run as a passing `rcc`
+once [cynkra/cynkratemplate#163](https://github.com/cynkra/cynkratemplate/pull/163) has taught its status action that a skipped run is no failure.
 
 **The composite actions these workflows call are not in this repository.**
 They live in

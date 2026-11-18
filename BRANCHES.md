@@ -181,7 +181,7 @@ its refs archived in `krlmlr/duckdb-r-old`.
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
-| `main`                    | `duckdb/duckdb-r` | `duckdb`         | Preview of the next line; source of truth for CI/CD        |
+| `main`                    | `duckdb/duckdb-r` | `duckdb`         | Preview of the next line; the tooling every series runs    |
 | `main-dev`                | `krlmlr/duckdb-r` | `duckdb.dev`     | Vendored dev on upstream `main`; the preview line          |
 | `v2.0-cyanoptera`         | `duckdb/duckdb-r` | `duckdb`         | Release branch CRAN ships from; R-side work starts here    |
 | `v2.0-cyanoptera-dev`     | `krlmlr/duckdb-r` | `duckdb.2.0.dev` | Bleeding edge on v2.0 upstream                             |
