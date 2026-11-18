@@ -30,8 +30,10 @@ say so in the report and stop —
 that is a finding, not a licence to self-merge.
 
 **One PR per cause, small, against `main`.**
-`main` is the source of truth for `.github/`, `scripts/` and `.claude/`;
-a series never keeps its own fork of the tooling.
+The loop and every series ref run `main`'s copy of `.github/`, `scripts/` and `.claude/`,
+which makes `main` the base [`operations/review/`](/handbook/operations/review/README.md) gives such a fix;
+a release branch whose own copy needs it too takes it as a pick once it has merged,
+and a series never keeps its own fork of the tooling.
 Two bugs in one firing are two PRs,
 because they will be reviewed —
 and merged, or not — independently.

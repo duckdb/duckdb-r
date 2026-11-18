@@ -2145,7 +2145,7 @@ test_that("an ALTREP data frame scanned under a query leaves no connection busy"
   )
 
   expect_equal(result$t, 1:3)
-  expect_match(result$same, "connection that is running the query")
+  expect_match(result$same, "on its own connection before its query has run")
   expect_match(result$disabled, "Materialization is disabled")
   expect_equal(result$a, 1)
   expect_equal(result$b, 2)
@@ -2554,4 +2554,181 @@ test_that("a NULL window argument is left out, as it is for a NULL constant", {
   expr_set_alias(lag, "l")
   out <- rel_to_altrep(rel_project(rel, list(expr_reference("x"), lag)))
   expect_equal(as.data.frame(out)$l, c(NA, 1L, 2L))
+})
+
+test_that("a lazy data frame scanned on its own connection before its query ran is refused, not hung", {
+  skip_if_not_installed("callr")
+
+  # Touching the frame in bind would start its query on the connection binding the scan.
+  # rel_from_df() waited forever there, and the environment scan failed with an internal
+  # error that left the connection unusable; the subprocess and its timeout make a regression
+  # a failure here rather than a suite that stops.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      # The messages are formatted here, and the snapshot must not depend on the platform's bullets
+      options(cli.unicode = FALSE)
+      ns <- asNamespace(pkg)
+      message_of <- function(code) {
+        tryCatch(
+          {
+            code
+            "no error"
+          },
+          error = conditionMessage
+        )
+      }
+
+      drv <- ns$duckdb(environment_scan = TRUE)
+      con <- DBI::dbConnect(drv)
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      other <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(other, shutdown = TRUE), add = TRUE)
+      lazy <- function() {
+        ns$rel_to_altrep(ns$rel_from_sql(
+          con,
+          "SELECT range AS i FROM range(10)"
+        ))
+      }
+
+      df <- lazy()
+      rel <- message_of(ns$rel_from_df(con, df))
+      scan <- message_of(DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      ))
+      after <- DBI::dbGetQuery(con, "SELECT 42 AS answer")$answer
+
+      # Another connection runs the frame's query on its own connection, which is free
+      from_other <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(other, lazy()))$i
+      )
+
+      # So does a second connection to the frame's own database
+      sibling <- DBI::dbConnect(drv)
+      from_sibling <- as.integer(
+        ns$rel_to_altrep(ns$rel_from_df(sibling, lazy()))$i
+      )
+      DBI::dbDisconnect(sibling)
+
+      # Once the query has run, touching the frame converts and queries nothing
+      nrow(df)
+      own_after_run <- DBI::dbGetQuery(
+        con,
+        "SELECT sum(i)::INTEGER AS s FROM df"
+      )$s
+
+      list(
+        rel = rel,
+        scan = scan,
+        after = after,
+        from_other = from_other,
+        from_sibling = from_sibling,
+        own_after_run = own_after_run
+      )
+    },
+    list(pkg = pkg),
+    timeout = 60
+  )
+
+  expect_snapshot({
+    writeLines(out$rel)
+    writeLines(out$scan)
+  })
+  expect_equal(out$after, 42)
+  expect_equal(out$from_other, 0:9)
+  expect_equal(out$from_sibling, 0:9)
+  expect_equal(out$own_after_run, 45L)
+})
+
+test_that("a lazy data frame read column by column is refused on its own connection only for a column not yet fetched (#2889, #2891)", {
+  skip_if_not_installed("callr")
+
+  # A lazy data frame over a stored table fetches each column by a query of its own.
+  # Scanning it on its own connection is refused while a column it scans would still run that query,
+  # and allowed once the columns it scans are converted, even while others are pending.
+  # The subprocess and its timeout make a hang a failure here rather than a suite that stops.
+  pkg <- get_package_name()
+
+  out <- callr::r(
+    function(pkg) {
+      ns <- asNamespace(pkg)
+      message_of <- function(code) {
+        tryCatch(
+          {
+            code
+            "no error"
+          },
+          error = conditionMessage
+        )
+      }
+
+      con <- DBI::dbConnect(ns$duckdb())
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      DBI::dbWriteTable(con, "t", data.frame(a = 1:3, b = c("x", "y", "z")))
+      df <- ns$rel_to_altrep(ns$rel_from_table(con, "t"))
+
+      # Converts `a` alone; `b` stays pending
+      sum_a <- sum(df$a)
+
+      converted <- message_of(
+        values <- as.data.frame(ns$rel_to_altrep(ns$rel_from_df(con, df["a"])))
+      )
+      pending <- message_of(ns$rel_from_df(con, df["b"]))
+      both <- message_of(ns$rel_from_df(con, df))
+
+      list(
+        sum_a = sum_a,
+        converted = converted,
+        # Plain copies: a lazy vector would be read after the connection closed
+        values = if (converted == "no error") values$a[1:3],
+        pending = pending,
+        both = both,
+        still_lazy = !ns$df_is_materialized(df),
+        b = df$b[1:3]
+      )
+    },
+    list(pkg = pkg),
+    timeout = 60
+  )
+
+  expect_equal(out$sum_a, 6L)
+  expect_equal(out$converted, "no error")
+  expect_equal(out$values, 1:3)
+  expect_match(out$pending, "on its own connection before its query has run")
+  expect_match(out$both, "on its own connection before its query has run")
+  expect_true(out$still_lazy)
+  # The refusals left the pending column fetchable
+  expect_equal(out$b, c("x", "y", "z"))
+})
+
+test_that("rel_from_df() types columns as `duckdb_register()` does (#3018)", {
+  skip_if_not_installed("vctrs")
+  sql <- function(from) {
+    paste0(
+      "SELECT typeof(id) AS id, typeof(s) AS s, typeof(m) AS m FROM ",
+      from,
+      " LIMIT 1"
+    )
+  }
+  df <- data.frame(id = 1:2, s = c("a", "b"))
+  df$m <- list(list(a = 1, b = 2), list(c = 3))
+
+  for (map in c("data.frame", "list_of")) {
+    con <- local_con(map = map)
+    duckdb_register(con, "reg", df)
+    rel_to_view(rel_from_df(con, df), "main", "v", temporary = TRUE)
+    expect_equal(dbGetQuery(con, sql("v")), dbGetQuery(con, sql("reg")))
+  }
+})
+
+test_that("rel_from_df() scans strings as VARCHAR with `experimental = TRUE`", {
+  con <- local_con()
+  rel <- rel_from_df(con, data.frame(s = "a"), experimental = TRUE)
+  rel_to_view(rel, "main", "v", temporary = TRUE)
+  expect_equal(
+    dbGetQuery(con, "SELECT typeof(s) AS t, upper(s) AS u FROM v"),
+    data.frame(t = "VARCHAR", u = "A")
+  )
 })

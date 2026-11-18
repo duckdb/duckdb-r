@@ -6,10 +6,18 @@
 #include "cpp11/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
 #include "duckdb/common/vector/struct_vector.hpp"
+#include "duckdb/catalog/catalog.hpp"
+#include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/client_config.hpp"
+#include "duckdb/main/database_manager.hpp"
 #include "duckdb/main/query_result.hpp"
+#include "duckdb/main/relation/aggregate_relation.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
+#include "duckdb/main/relation/projection_relation.hpp"
+#include "duckdb/main/relation/table_relation.hpp"
 #include "duckdb/main/settings.hpp"
+#include "duckdb/parser/expression/columnref_expression.hpp"
+#include "duckdb/parser/expression/function_expression.hpp"
 #include "fmt/format.h"
 #include "httplib.hpp"
 #include "rapi.hpp"
@@ -153,21 +161,49 @@ bool AltrepRelationWrapper::Materialized() const {
 }
 
 idx_t AltrepRelationWrapper::RowCount() {
+	if (column_wise) {
+		// Once counted, the row count stays valid for the columns already converted,
+		// even after a later fetch failed
+		if (row_count_known) {
+			return row_count;
+		}
+		if (!mat_error.empty()) {
+			rapi_error_with_context("GetQueryResult", mat_error);
+		}
+		Execute([&]() { StoreErrors([&]() { CountRows(); }); });
+		return row_count;
+	}
 	if (!materialized) {
 		return GetQueryResult()->RowCount();
 	}
 	return row_count;
 }
 
-void AltrepRelationWrapper::RegisterAltrepColumn() {
+void AltrepRelationWrapper::RegisterAltrepColumn(idx_t column_index) {
 	++altrep_columns;
+	++pending_vectors[column_index];
 }
 
-void AltrepRelationWrapper::MarkColumnAsTransformed() {
+void AltrepRelationWrapper::MarkColumnAsTransformed(idx_t column_index) {
 	// Keep track of how many of the ALTREP columns have been transformed
 	// to their R representation
 	D_ASSERT(transformed_columns < altrep_columns);
 	++transformed_columns;
+	if (column_wise) {
+		// A column's result is released once every ALTREP vector it backs is converted:
+		// one for a plain column, one per leaf for a struct column
+		D_ASSERT(pending_vectors[column_index] > 0);
+		if (--pending_vectors[column_index] == 0) {
+			column_results.erase(column_index);
+		}
+		// Once every column is converted, the data frame is materialized as in whole-relation mode:
+		// a relation built from it scans what R holds rather than the table, which may have changed since
+		if (transformed_columns == altrep_columns) {
+			D_ASSERT(column_results.empty());
+			materialized = true;
+		}
+		return;
+	}
 	// Once all columns have been transformed, the data lives in R vectors,
 	// so the materialized result is released to free the memory early.
 	// Consumers that only need metadata keep working:
@@ -192,76 +228,91 @@ QueryResult *AltrepRelationWrapper::GetQueryResult() {
 			                        "Internal error: the materialized result has already been released.");
 		}
 
-		if (n_cells == 0) {
-			rapi_error_with_context("GetQueryResult",
-			                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
-		}
-
-		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
-		if (Rf_isFunction(materialize_callback)) {
-			sexp call = Rf_lang2(materialize_callback, rel_eptr);
-			// safe[], not a bare Rf_eval(): an error in the callback would
-			// otherwise long-jmp out of the ALTREP method that called us,
-			// skipping ~AltrepGuard() and leaving the guard stuck on for the
-			// rest of the session. Matches RProgressBarDisplay::Update().
-			cpp11::safe[Rf_eval](call, R_BaseEnv);
-		}
-
-		auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
-		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
-		    LOGICAL_ELT(materialize_message, 0) == true) {
-			// Legacy
-			Rprintf("duckplyr: materializing\n");
-		}
-
-		// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
-		// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
-		// any open result of its connection is ended: ending one takes that lock too.
-		// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
-		auto &context = *rel->context->GetContext();
-		if (ScopedInterruptHandler::IsActiveFor(context)) {
-			rapi_error_with_context("GetQueryResult",
-			                        "Cannot materialize a relation of the connection that is running the query.");
-		}
-		EndOpenResults(context);
-		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
-		if (!ScopedInterruptHandler::IsActive()) {
-			signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
-		}
-
-		// We need to temporarily allow a deeper execution stack
-		// https://github.com/duckdb/duckdb-r/issues/101
-		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
-		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
-		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
-		                                                              Value::UBIGINT(old_depth * 2));
-		duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
-			client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
-			                                           Value::UBIGINT(old_depth));
-		});
-
-		Materialize();
-
-		if (!mat_error.empty()) {
-			rapi_error_with_context("GetQueryResult", mat_error);
-		}
-
-		// FIXME: Use std::experimental::scope_exit
-		auto current_depth = Settings::Get<MaxExpressionDepthSetting>(context);
-		if (current_depth != old_depth * 2) {
-			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
-			        current_depth);
-		}
-		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
-		reset_max_expression_depth.release();
-
-		if (signal_handler) {
-			signal_handler->HandleInterrupt();
-			signal_handler->Disable();
-		}
+		Execute([&]() { Materialize(); });
 	}
 	D_ASSERT(mat_result);
 	return mat_result.get();
+}
+
+// Every execution of the relation goes through here:
+// the checks and options that apply before it runs, and the engine state it needs while it runs.
+// `run` executes and stores its outcome; an error it stores in mat_error is raised.
+void AltrepRelationWrapper::Execute(const std::function<void()> &run) {
+	if (n_cells == 0) {
+		rapi_error_with_context("GetQueryResult",
+		                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
+	}
+
+	// A running query reaches here when its bind scans this data frame (src/scan.cpp), and it holds the handler.
+	// A query of the same connection would wait for the lock that query holds, so it fails instead, and before
+	// any open result of its connection is ended: ending one takes that lock too.
+	// One of another connection runs nested, and leaves the interrupt to the outer query's handler.
+	if (ScopedInterruptHandler::IsActiveFor(*rel->context->GetContext())) {
+		rapi_error_with_context("GetQueryResult",
+		                        "Cannot materialize a relation of the connection that is running the query.");
+	}
+
+	// The callback and the message announce the data frame's first execution only,
+	// whether that counts its rows or fetches a column.
+	// Every refusal comes before, so that they announce only an attempt that executes.
+	auto announce = !announced;
+	auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
+	if (announce && Rf_isFunction(materialize_callback)) {
+		sexp call = Rf_lang2(materialize_callback, rel_eptr);
+		// safe[], not a bare Rf_eval(): an error in the callback would
+		// otherwise long-jmp out of the ALTREP method that called us,
+		// skipping ~AltrepGuard() and leaving the guard stuck on for the
+		// rest of the session. Matches RProgressBarDisplay::Update().
+		cpp11::safe[Rf_eval](call, R_BaseEnv);
+	}
+
+	auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
+	if (announce && Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
+	    LOGICAL_ELT(materialize_message, 0) == true) {
+		// Legacy
+		Rprintf("duckplyr: materializing\n");
+	}
+	// Set once the callback returned: one that failed announces the next attempt again
+	announced = true;
+
+	// Taken after the callback, which may have closed the connection
+	auto &context = *rel->context->GetContext();
+
+	EndOpenResults(context);
+	duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
+	if (!ScopedInterruptHandler::IsActive()) {
+		signal_handler = make_uniq<ScopedInterruptHandler>(rel->context->GetContext());
+	}
+
+	// We need to temporarily allow a deeper execution stack
+	// https://github.com/duckdb/duckdb-r/issues/101
+	auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+	auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
+	client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
+	                                                              Value::UBIGINT(old_depth * 2));
+	duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
+		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
+	});
+
+	run();
+
+	if (!mat_error.empty()) {
+		rapi_error_with_context("GetQueryResult", mat_error);
+	}
+
+	// FIXME: Use std::experimental::scope_exit
+	auto current_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+	if (current_depth != old_depth * 2) {
+		Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
+		        current_depth);
+	}
+	client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
+	reset_max_expression_depth.release();
+
+	if (signal_handler) {
+		signal_handler->HandleInterrupt();
+		signal_handler->Disable();
+	}
 }
 
 void AltrepRelationWrapper::Materialize() {
@@ -305,6 +356,221 @@ void AltrepRelationWrapper::Materialize() {
 	row_count = local_res->RowCount();
 	materialized = true;
 	mat_result = std::move(local_res);
+}
+
+bool AltrepRelationWrapper::ColumnWise() const {
+	return column_wise;
+}
+
+bool AltrepRelationWrapper::ColumnQueryPending(idx_t column_index) const {
+	return mat_error.empty() && n_cells != 0 && column_results.find(column_index) == column_results.end();
+}
+
+QueryResult *AltrepRelationWrapper::GetColumnResult(idx_t column_index, idx_t &result_index) {
+	D_ASSERT(column_wise);
+	// One query per top-level column: the result holds that column alone
+	result_index = 0;
+	// A result already held stays readable, even after another column's fetch failed
+	auto it = column_results.find(column_index);
+	if (it == column_results.end()) {
+		if (!mat_error.empty()) {
+			rapi_error_with_context("GetQueryResult", mat_error);
+		}
+		// The row count comes first, in the same execution: the column is checked against it
+		Execute([&]() {
+			StoreErrors([&]() {
+				if (!row_count_known) {
+					CountRows();
+					if (!mat_error.empty()) {
+						return;
+					}
+				}
+				FetchColumn(column_index);
+			});
+		});
+		it = column_results.find(column_index);
+	}
+	D_ASSERT(it != column_results.end());
+	return it->second.get();
+}
+
+// Building a relation binds it, which throws where executing one returns an error result:
+// either is stored, worded as Materialize() words an error result
+void AltrepRelationWrapper::StoreErrors(const std::function<void()> &run) {
+	try {
+		run();
+	} catch (std::exception &e) {
+		ErrorData error(e);
+		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", error.Message());
+	}
+}
+
+void AltrepRelationWrapper::CountRows() {
+	vector<duckdb::unique_ptr<ParsedExpression>> aggregates;
+	aggregates.push_back(
+	    make_uniq<FunctionExpression>(Identifier("count_star"), vector<duckdb::unique_ptr<ParsedExpression>>()));
+	auto count_rel = make_shared_ptr<AggregateRelation>(rel, std::move(aggregates));
+
+	auto res = count_rel->Execute();
+	if (res->HasError()) {
+		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", res->GetError().c_str());
+		return;
+	}
+
+	idx_t count = 0;
+	for (auto &chunk : res->Collection().Chunks()) {
+		count = chunk.GetValue(0, 0).GetValue<int64_t>();
+		break;
+	}
+
+	if (n_rows < MAX_SIZE_T && count > n_rows) {
+		mat_error = duckdb_fmt::format(
+		    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
+		    n_rows);
+		return;
+	}
+
+	row_count = count;
+	row_count_known = true;
+}
+
+void AltrepRelationWrapper::FetchColumn(idx_t column_index) {
+	D_ASSERT(row_count_known);
+
+	// The cell budget counts the cells of every column fetched so far
+	if (n_cells < MAX_SIZE_T && row_count > n_cells - fetched_cells) {
+		mat_error = duckdb_fmt::format(
+		    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
+		    n_cells - fetched_cells);
+		return;
+	}
+
+	// The columns line up with those of earlier fetches only if the table still has the columns,
+	// by position, name and type, that the data frame was created with.
+	// A rename, a swap of names, a drop or a type change fails here, before anything is read.
+	// Not detected: a column dropped and added again with the same name and type,
+	// or rows updated, or deleted and inserted, in equal number (the row count is checked below).
+	auto &columns = rel->Columns();
+	vector<ColumnDefinition> current;
+	try {
+		rel->context->GetContext()->TryBindRelation(*rel, current);
+	} catch (std::exception &e) {
+		ErrorData error(e);
+		auto &message = error.RawMessage();
+		if (error.Type() != ExceptionType::CATALOG && error.Type() != ExceptionType::BINDER) {
+			// Not about the table, such as an aborted transaction
+			mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", error.Message());
+			return;
+		}
+		auto ends_sentence =
+		    !message.empty() && (message.back() == '.' || message.back() == '?' || message.back() == '!');
+		mat_error = duckdb_fmt::format("The table changed while the lazy data frame was read: {}{} "
+		                               "Use `collect()` or `as_tibble()` to read all columns at once.",
+		                               message, ends_sentence ? "" : ".");
+		return;
+	}
+	for (idx_t i = 0; i < columns.size(); i++) {
+		if (i >= current.size() || !(current[i].Name() == columns[i].Name()) ||
+		    current[i].Type() != columns[i].Type()) {
+			mat_error = duckdb_fmt::format(
+			    "The table changed while the lazy data frame was read: column `{}` ({}) is now {}. "
+			    "Use `collect()` or `as_tibble()` to read all columns at once.",
+			    columns[i].Name().GetIdentifierName(), columns[i].Type().ToString(),
+			    i >= current.size() ? string("missing")
+			                        : duckdb_fmt::format("`{}` ({})", current[i].Name().GetIdentifierName(),
+			                                             current[i].Type().ToString()));
+			return;
+		}
+	}
+
+	// A dropped or renamed column has failed the check above; by name, with the type check below,
+	// guards only against another connection changing the table between that bind and this query.
+	// The optimizer pushes the projection into the table scan
+	auto &column = columns[column_index];
+	vector<duckdb::unique_ptr<ParsedExpression>> expressions;
+	expressions.push_back(make_uniq<ColumnRefExpression>(column.Name()));
+	vector<Identifier> aliases;
+	aliases.push_back(column.Name());
+	auto column_rel = make_shared_ptr<ProjectionRelation>(rel, std::move(expressions), std::move(aliases));
+
+	auto res = column_rel->Execute();
+	if (res->HasError()) {
+		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", res->GetError().c_str());
+		return;
+	}
+
+	// The R vector is allocated for the type the column had when the data frame was created
+	if (res->GetTypes().size() != 1 || res->GetTypes()[0] != column.Type()) {
+		mat_error = duckdb_fmt::format(
+		    "The table changed while the lazy data frame was read: column `{}` is now {}, expected {}. "
+		    "Use `collect()` or `as_tibble()` to read all columns at once.",
+		    column.Name().GetIdentifierName(), res->GetTypes().empty() ? "missing" : res->GetTypes()[0].ToString(),
+		    column.Type().ToString());
+		return;
+	}
+
+	// Columns fetched by separate queries line up only if the table did not change in between
+	auto column_rows = res->RowCount();
+	if (column_rows != row_count) {
+		mat_error = duckdb_fmt::format(
+		    "The table changed while the lazy data frame was read: column `{}` has {} rows, expected {}. "
+		    "Use `collect()` or `as_tibble()` to read all columns at once.",
+		    rel->Columns()[column_index].Name().GetIdentifierName(), column_rows, row_count);
+		return;
+	}
+
+	fetched_cells += row_count;
+	column_results[column_index] = std::move(res);
+}
+
+// A column is fetched by its name, which must therefore pick out one column
+static bool HasUniqueColumnNames(Relation &rel) {
+	identifier_set_t names;
+	for (auto &column : rel.Columns()) {
+		if (!names.insert(column.Name()).second) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool duckdb::IsStoredTableScan(Relation &rel) {
+	switch (rel.type) {
+	case RelationType::PROJECTION_RELATION: {
+		// Bare column references only: anything computed could differ between executions
+		auto &projection = rel.Cast<ProjectionRelation>();
+		for (auto &expression : projection.expressions) {
+			if (expression->GetExpressionClass() != ExpressionClass::COLUMN_REF) {
+				return false;
+			}
+		}
+		return IsStoredTableScan(*projection.child);
+	}
+	case RelationType::TABLE_RELATION: {
+		auto &table = rel.Cast<TableRelation>();
+		// A generated column is an expression too
+		for (auto &column : table.description->columns) {
+			if (column.Generated()) {
+				return false;
+			}
+		}
+		// A table stored by DuckDB, which scans in insertion order;
+		// a table of another catalog, such as a remote database's, makes no such promise
+		auto &context = *rel.context->GetContext();
+		if (!Settings::Get<PreserveInsertionOrderSetting>(context)) {
+			return false;
+		}
+		// The temporary catalog belongs to the connection and is always DuckDB's own
+		auto &catalog_name = table.description->qualified_name.Catalog();
+		if (catalog_name == TEMP_CATALOG) {
+			return true;
+		}
+		auto db = DatabaseManager::Get(context).GetDatabase(catalog_name);
+		return db && db->GetCatalog().IsDuckCatalog();
+	}
+	default:
+		return false;
+	}
 }
 
 struct AltrepRownamesWrapper {
@@ -375,14 +641,36 @@ struct AltrepVectorWrapper {
 		return rel->RowCount();
 	}
 
+	// The top-level column of the relation that holds this vector
+	idx_t TopLevelIndex() const {
+		return parent_column_index.empty() ? column_index : parent_column_index[0];
+	}
+
+	// Whether reading this vector would execute a query now.
+	// On R's thread only, which alone changes the state it reads: the stored error and the held column results.
+	bool WouldQuery() const {
+		if (converted_payload.load(std::memory_order_acquire)) {
+			return false;
+		}
+		if (rel->ColumnWise()) {
+			return rel->ColumnQueryPending(TopLevelIndex());
+		}
+		return rel->mat_error.empty() && rel->n_cells != 0 && !rel->Materialized();
+	}
+
+	// Names and types come from the relation, which knows them without executing
+	const vector<ColumnDefinition> &Columns() {
+		return rel->rel->Columns();
+	}
+
 	const string &Name() {
-		auto res = rel->GetQueryResult();
+		auto &columns = Columns();
 
 		if (parent_column_index.empty()) {
-			return res->GetNames()[column_index].GetIdentifierName();
+			return columns[column_index].Name().GetIdentifierName();
 		}
 
-		auto child_type = res->GetTypes()[parent_column_index[0]];
+		auto child_type = columns[parent_column_index[0]].Type();
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
@@ -391,14 +679,14 @@ struct AltrepVectorWrapper {
 	}
 
 	string FullName() {
-		auto res = rel->GetQueryResult();
+		auto &columns = Columns();
 
 		if (parent_column_index.empty()) {
-			return res->GetNames()[column_index].GetIdentifierName();
+			return columns[column_index].Name().GetIdentifierName();
 		}
 
-		string res_name = res->GetNames()[parent_column_index[0]].GetIdentifierName();
-		auto child_type = res->GetTypes()[parent_column_index[0]];
+		string res_name = columns[parent_column_index[0]].Name().GetIdentifierName();
+		auto child_type = columns[parent_column_index[0]].Type();
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			res_name += "$" + StructType::GetChildName(child_type, parent_column_index[i]);
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
@@ -408,13 +696,13 @@ struct AltrepVectorWrapper {
 	}
 
 	const LogicalType &Type() {
-		auto res = rel->GetQueryResult();
+		auto &columns = Columns();
 
 		if (parent_column_index.empty()) {
-			return res->GetTypes()[column_index];
+			return columns[column_index].Type();
 		}
 
-		auto child_type = res->GetTypes()[parent_column_index[0]];
+		auto child_type = columns[parent_column_index[0]].Type();
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
@@ -422,6 +710,12 @@ struct AltrepVectorWrapper {
 	}
 
 	ColumnDataChunkIterationHelper Chunks() {
+		if (rel->ColumnWise()) {
+			idx_t result_index;
+			auto res = rel->GetColumnResult(TopLevelIndex(), result_index);
+			return res->Collection().Chunks({result_index});
+		}
+
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
@@ -448,6 +742,12 @@ struct AltrepVectorWrapper {
 		if (transformed_vector.data() == R_NilValue) {
 			const auto &convert_opts = rel->rel_eptr->convert_opts;
 
+			if (rel->ColumnWise()) {
+				// Count the rows and fetch the column in one execution, before allocating its R vector
+				idx_t result_index;
+				rel->GetColumnResult(TopLevelIndex(), result_index);
+			}
+
 			transformed_vector = AllocateAltrepColumn(Type(), RowCount(), Name(), convert_opts);
 			// A conversion that throws part way leaves the vector partly filled:
 			// drop it, so that the next access converts again instead of returning it.
@@ -464,7 +764,7 @@ struct AltrepVectorWrapper {
 			converted_length.store(Rf_xlength(transformed_vector), std::memory_order_relaxed);
 			converted_payload.store(DATAPTR_RO(transformed_vector), std::memory_order_release);
 
-			rel->MarkColumnAsTransformed();
+			rel->MarkColumnAsTransformed(TopLevelIndex());
 		}
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
@@ -818,6 +1118,20 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	return VectorStringEltSlow(x, i);
 }
 
+bool RelToAltrep::QueriesOn(SEXP x, ClientContext &context) {
+	// Another package's ALTREP vector, or R's own, carries no duckdb_vector tag
+	auto ptr = R_altrep_data1(x);
+	if (TYPEOF(ptr) != EXTPTRSXP || R_ExternalPtrTag(ptr) != RStrings::get().duckdb_vector_sym) {
+		return false;
+	}
+	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(ptr));
+	// Per vector: a column-wise frame queries for a column not yet fetched, not for one already converted
+	if (!wrapper || !wrapper->WouldQuery()) {
+		return false;
+	}
+	return wrapper->rel->rel->context->TryGetContext().get() == &context;
+}
+
 #if defined(R_HAS_ALTLIST)
 R_xlen_t RelToAltrep::StructLength(SEXP x) {
 	BEGIN_CPP11
@@ -889,6 +1203,9 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	auto ncols = drel->Columns().size();
 
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
+	// A relation that reads a stored table is fetched column by column (#2891);
+	// every other relation is materialized as a whole on first access
+	relation_wrapper->column_wise = drel->context && HasUniqueColumnNames(*drel) && IsStoredTableScan(*drel);
 
 	// Row names
 	cpp11::sexp row_names_sexp = RelToAltrep::MakeRowNamesSexp(relation_wrapper);
@@ -948,7 +1265,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 
 			// Register the vector so that the relation wrapper knows
 			// when all ALTREP columns have been transformed
-			relation_wrapper->RegisterAltrepColumn();
+			relation_wrapper->RegisterAltrepColumn(parent_col_idx.empty() ? col_idx : parent_col_idx[0]);
 			vector_sexp =
 			    R_new_altrep(LogicalTypeToAltrepType(col_type, col_name.GetIdentifierName()), ptr, R_NilValue);
 			duckdb_r_decorate(col_type, vector_sexp, convert_opts);
@@ -1023,10 +1340,10 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 
 [[cpp11::register]] bool rapi_df_has_query_result(SEXP df) {
 	// Internal introspection for tests:
-	// TRUE while the materialized result is held,
+	// TRUE while the materialized result, or in column-wise mode the result of a fetched column, is held,
 	// FALSE before materialization and after the result has been released
 	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, true, true);
-	return (bool)wrapper->mat_result;
+	return (bool)wrapper->mat_result || !wrapper->column_results.empty();
 }
 
 [[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {

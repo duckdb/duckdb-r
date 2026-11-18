@@ -61,12 +61,6 @@
 
 - `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
 
-## Known issues
-
-- The progress display stops after the first batch of a result read as an Arrow stream
-  (`dbSendQueryArrow()` or `dbGetQueryArrow()`, then `$get_next()`).
-  The engine reports progress while it computes the first batch and treats the query as finished from then on (#2967).
-
 
 # duckdb 1.5.6
 
