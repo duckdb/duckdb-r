@@ -61,6 +61,8 @@ copied from the upstream checkout's `logo/` —
 all committed, all corrected at the generator.
 That set is the mechanical path set a vendor commit may touch,
 and the generator is its list.
+The version `rconfigure.py` stamps is the one upstream's CI builds the commit as, or its tag where it has one,
+resolved by `series_generate_tree()` in [`scripts/series-config.sh`](/scripts/series-config.sh), which both scripts call.
 
 The logos are the one thing in that set that is not a source,
 and they are there because the package shows them:

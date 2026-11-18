@@ -198,6 +198,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with the branch it releases from, and its tooling with `main`: stage 4 of the series loop (.claude/skills/series-loop/SKILL... |
 | [`series-prune.sh`](series-prune.sh) | Read-only: what a cutover left behind, and the commands that remove it, for a human to run. |
 | [`series-rc.sh`](series-rc.sh) | Derive the release-candidate strand of a series: `<S>-rc-dev`, the package without its flavor, commit for commit (.claude/skills/series-rc/SKILL.md). |
+| [`series-stamp-test.sh`](series-stamp-test.sh) | Check the version vendoring stamps the engine with, offline: series_upstream_version() and series_generate_tree() in scripts/series-config.sh, against a synt... |
 | [`series-tests-test.sh`](series-tests-test.sh) | Check how scripts/series-tests.sh reads a tree's tests against `main`'s, offline, against a synthetic repository built here: no network, no fixtures. |
 | [`series-tests.sh`](series-tests.sh) | Which of `main`'s tests does a tree stop running, and which does it change? |
 | [`series-vendor-test.sh`](series-vendor-test.sh) | Check scripts/series-vendor.sh offline, against a synthetic series built here: no network, no fixtures on disk. |

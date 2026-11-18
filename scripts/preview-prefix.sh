@@ -22,8 +22,8 @@
 #
 # **A line a released version already names is not a preview line**, whatever
 # branch the series tracks, so it is owed no prefix and reports none: the seed
-# took its version from `main` and keeps it. `v1.5-variegata` and `v1.4-andium`
-# are the two in that state today.
+# took its version from `main` and keeps it. `v2.0-cyanoptera`, `v1.5-variegata`
+# and `v1.4-andium` are in that state today.
 #
 # Run it on the two `-build`/`-dev` strands of each; `-green` is fast-forward
 # only and takes the stamp when the loop advances over it.

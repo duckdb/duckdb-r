@@ -268,7 +268,8 @@ and [`scripts/vendor-lib.sh`](/scripts/vendor-lib.sh) the glue gate;
 [`scripts/series-lib-test.sh`](/scripts/series-lib-test.sh) checks the helpers against whatever the configuration says.
 A series that carries no flavor has no rc strand, and `series-land.sh --source <ref>` builds its landing up to that ref as it stands.
 Two exit statuses follow from the split: a glue gate that could not run exits 8 in `vendor-one.sh` and `series-forward-build.sh` alike,
-and a generator that fails before the commit exits 7, which this repository's generator never does
+and a generator that fails before the commit exits 7.
+This repository's generator fails where the upstream checkout cannot name its version or supply its logos
 ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).
 
 **A firing also reports the series that does not exist.**
