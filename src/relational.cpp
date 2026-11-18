@@ -302,6 +302,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 
 	named_parameter_map_t other_params;
+	other_params["integer64"] = Value::BOOLEAN(true);
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
 	auto rel =
