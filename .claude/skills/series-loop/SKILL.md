@@ -76,8 +76,8 @@ extends `-dev` by ≤ 100;
 advances `-green` over the verified prefix and then stops on a red above it,
 and refuses a `-green` that would not fast-forward),
 `scripts/series-port.sh <S>`
-(stage 4 — brings `<S>-dev` level with `main`:
-cherry-picks plus a tooling sync),
+(stage 4: cherry-picks from the branch the series releases from,
+plus a tooling sync from `main`),
 `scripts/r-universe-check.sh`
 (read-only — what r-universe made of every published green, stage 3),
 `scripts/series-glue.sh <S>`
@@ -258,10 +258,10 @@ scripts/r-universe-check.sh --log <id>   # the log behind one of them
 
 Reference: [`references/3-advance.md`](references/3-advance.md).
 
-### 4. Port from `main`
+### 4. Port from the branch the series releases from
 
 The goal is identity, not curation:
-after this stage, `.github/`, `scripts/` and `.claude/` on `<S>-dev` are byte-identical to `main`'s,
+after this stage, the tooling (`.github/`, `scripts/` and `.claude/`) on `<S>-dev` is byte-identical to `main`'s,
 and `<S>-build`'s tooling is synced in the same run.
 
 ```sh
@@ -276,9 +276,10 @@ scripts/series-port.sh <S> --list           # walk a frozen series anyway
 * Each series is ported from the branch it releases from, `main` or its line's release branch; tooling always from `main`.
 * A frozen series (seeded from another release line's lineage, or declared `stale: true`) takes the tooling sync alone by default;
   what its build needs is ported by SHA.
-* A conflict stops the sequence in the kept worktree: resolve toward `main`'s intent, keeping the series' flavor where the two meet,
+* A conflict stops the sequence in the kept worktree: resolve toward the intent of the branch ported from,
+  keeping the series' flavor where the two meet,
   commit with the command the script prints, push, rerun.
-  An OTHER commit that cannot work against this engine is fixed on `main` and ported fixed.
+  An OTHER commit that cannot work against this engine is fixed on the branch the series releases from and ported fixed.
 * A live forward counterpart is ported the same way, every firing.
 * Read the diff of any sync commit that appears: what it reverts that the series needs is a finding for `main`.
 

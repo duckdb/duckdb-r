@@ -3,19 +3,22 @@
 Making a change, from branch to merged pull request.
 Little of this is codified; what is settled:
 
-* Branch from `main`, open the pull request against `main`;
-  it merges without a merge commit
+* Branch from the branch the pull request targets, and open it there:
+  for most changes a release branch, not `main`.
+  [`operations/review/`](/handbook/operations/review/README.md) names the branch,
+  and owns the review side too: what gets checked, and who drives CI.
+  The pull request merges without a merge commit
   ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
 * Write the pull request title as a
   [Conventional Commit](https://www.conventionalcommits.org),
   phrased to be read:
-  it is what squashes onto `main`.
+  it is what squashes onto the branch it targets.
   The commit messages inside the branch are discarded.
 * Write no `NEWS.md` entry for the change
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * Run the tests the change touches
   ([`testing/suite/`](/handbook/testing/suite/README.md));
-  the full suite can also be left to CI.
+  the full suite can also be left to CI on a pull request that runs `rcc`.
   Add a test with every bug fix.
 * Write R to the tidyverse style and design guides,
   and read the deviations before assuming a rule applies here
@@ -41,9 +44,6 @@ Little of this is codified; what is settled:
   `gsed` first, then `sed` — and refuses to run when neither is GNU,
   rather than writing every expression to what the two agree on
   ([`scripts/flavor.sh`](/scripts/flavor.sh)).
-
-The review side — what gets checked, who drives CI — is
-[`operations/review/`](/handbook/operations/review/README.md).
 
 *To deepen: write the path from lived practice,
 including how a contributor without push access gets CI green.*
