@@ -219,15 +219,16 @@ test_that("a CTE referenced twice is inlined (#2998)", {
 
 test_that("a file database reloads its views, macros and defaults (#2998)", {
   path <- withr::local_tempfile(fileext = ".duckdb")
-  con <- dbConnect(duckdb(), path)
-  dbExecute(con, "CREATE TABLE t (id INTEGER, px DOUBLE DEFAULT 1 + 1)")
-  dbExecute(con, "INSERT INTO t (id) VALUES (1), (2)")
-  dbExecute(
-    con,
-    "CREATE VIEW v AS SELECT id, CASE WHEN id > 1 THEN px END AS h FROM t"
-  )
-  dbExecute(con, "CREATE MACRO m(a, b := 2) AS a + b")
-  dbDisconnect(con, shutdown = TRUE)
+  local({
+    con <- local_con(path)
+    dbExecute(con, "CREATE TABLE t (id INTEGER, px DOUBLE DEFAULT 1 + 1)")
+    dbExecute(con, "INSERT INTO t (id) VALUES (1), (2)")
+    dbExecute(
+      con,
+      "CREATE VIEW v AS SELECT id, CASE WHEN id > 1 THEN px END AS h FROM t"
+    )
+    dbExecute(con, "CREATE MACRO m(a, b := 2) AS a + b")
+  })
 
   # Reopening reads the stored expressions back
   con <- local_con(path)
@@ -239,10 +240,11 @@ test_that("a file database reloads its views, macros and defaults (#2998)", {
 
 test_that("a file database is checkpointed (#2998)", {
   path <- withr::local_tempfile(fileext = ".duckdb")
-  con <- dbConnect(duckdb(), path)
-  dbExecute(con, "CREATE TABLE t AS SELECT range AS i FROM range(3)")
-  dbExecute(con, "CHECKPOINT")
-  dbDisconnect(con, shutdown = TRUE)
+  local({
+    con <- local_con(path)
+    dbExecute(con, "CREATE TABLE t AS SELECT range AS i FROM range(3)")
+    dbExecute(con, "CHECKPOINT")
+  })
 
   con <- local_con(path)
   expect_equal(dbGetQuery(con, "SELECT i FROM t ORDER BY i")$i, c(0, 1, 2))
