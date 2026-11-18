@@ -148,14 +148,15 @@ test_that("a table that changes between column fetches fails", {
   expect_equal(df$a, 1:10)
 })
 
-test_that("a column-wise fetch refuses the connection that is running the query", {
+test_that("a column-wise frame is refused on its own connection, and read under another's query", {
   con <- local_con()
   dbWriteTable(con, "t", data.frame(a = 1:3, b = c("x", "y", "z")))
   df <- rel_to_altrep(rel_from_table(con, "t"))
 
+  # The scan's bind refuses the frame before touching it (#2889)
   expect_error(
     duckdb_register(con, "u", df),
-    "connection that is running the query"
+    "on its own connection before its query has run"
   )
   expect_false(df_is_materialized(df))
 
@@ -442,7 +443,7 @@ test_that("a refused attempt does not use up the announcement", {
     # Refused before anything executes: the scan's bind runs under a query of the frame's own connection
     expect_error(
       dbGetQuery(con, "FROM df"),
-      "connection that is running the query"
+      "on its own connection before its query has run"
     )
     expect_equal(calls, 0)
     expect_equal(sum(df$x), 6)

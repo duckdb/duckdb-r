@@ -115,6 +115,10 @@ struct RelToAltrep {
 	static R_xlen_t VectorIntegerGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out);
 	static R_xlen_t VectorRealGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, double *out);
 
+	// Whether reading `x` would run a query of its lazy data frame on `context` now, per vector;
+	// on R's thread only, and runs no R code
+	static bool QueriesOn(SEXP x, duckdb::ClientContext &context);
+
 	static R_altrep_class_t rownames_class;
 	static R_altrep_class_t logical_class;
 	static R_altrep_class_t int_class;

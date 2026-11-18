@@ -1118,6 +1118,20 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	return VectorStringEltSlow(x, i);
 }
 
+bool RelToAltrep::QueriesOn(SEXP x, ClientContext &context) {
+	// Another package's ALTREP vector, or R's own, carries no duckdb_vector tag
+	auto ptr = R_altrep_data1(x);
+	if (TYPEOF(ptr) != EXTPTRSXP || R_ExternalPtrTag(ptr) != RStrings::get().duckdb_vector_sym) {
+		return false;
+	}
+	auto wrapper = static_cast<AltrepVectorWrapper *>(R_ExternalPtrAddr(ptr));
+	// Per vector: a column-wise frame queries for a column not yet fetched, not for one already converted
+	if (!wrapper || !wrapper->WouldQuery()) {
+		return false;
+	}
+	return wrapper->rel->rel->context->TryGetContext().get() == &context;
+}
+
 #if defined(R_HAS_ALTLIST)
 R_xlen_t RelToAltrep::StructLength(SEXP x) {
 	BEGIN_CPP11
