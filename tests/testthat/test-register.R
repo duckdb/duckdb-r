@@ -151,3 +151,31 @@ test_that("a registered relation's list column is refused on a thread other than
   res <- lapply(1:20, function(i) sort(dbGetQuery(con, sql)$a))
   expect_equal(res, rep(list(c(1L, 1L, 2L, 2L)), 20))
 })
+
+test_that("a window query over a registered data frame is planned (#2998)", {
+  con <- local_con()
+  duckdb_register(
+    con,
+    "t",
+    data.frame(id = 1:3, g = c("a", "b", "a"), px = c(1.5, 2, 3))
+  )
+
+  # The window self-join optimizer copies the plan of a view by serializing it;
+  # in a -O2 GCC build, R CMD check --use-valgrind reported an uninitialised
+  # read in QueryLocation until
+  # patch/0127-Clamp-the-query-location-without-branching-on-an-unset-index.patch
+  # (https://github.com/duckdb/duckdb-r/issues/2998)
+  res <- dbGetQuery(
+    con,
+    "SELECT id, sum(px) OVER (PARTITION BY g) s FROM t ORDER BY id"
+  )
+  expect_equal(res, data.frame(id = 1:3, s = c(4.5, 2, 4.5)))
+
+  dbExecute(con, "CREATE TABLE u AS SELECT * FROM t")
+  dbExecute(con, "CREATE VIEW v AS SELECT * FROM u")
+  res <- dbGetQuery(
+    con,
+    "SELECT id, sum(px) OVER (PARTITION BY g) s FROM v ORDER BY id"
+  )
+  expect_equal(res, data.frame(id = 1:3, s = c(4.5, 2, 4.5)))
+})
