@@ -38,6 +38,8 @@
 
 #include "src/optimizer/disjunctive_join_rewriter.cpp"
 
+#include "src/optimizer/distinctness.cpp"
+
 #include "src/optimizer/duplicate_eliminated_domain_optimizer.cpp"
 
 #include "src/optimizer/empty_result_pullup.cpp"
@@ -93,6 +95,8 @@
 #include "src/optimizer/remote_pushdown_optimizer.cpp"
 
 #include "src/optimizer/remove_duplicate_groups.cpp"
+
+#include "src/optimizer/remove_redundant_distinct.cpp"
 
 #include "src/optimizer/remove_redundant_order.cpp"
 
