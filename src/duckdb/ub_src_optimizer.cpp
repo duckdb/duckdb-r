@@ -120,6 +120,8 @@
 
 #include "src/optimizer/self_join_aggregate.cpp"
 
+#include "src/optimizer/set_operation_aggregate.cpp"
+
 #include "src/optimizer/statistics_propagator.cpp"
 
 #include "src/optimizer/topn_optimizer.cpp"
