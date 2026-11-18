@@ -35,9 +35,8 @@ struct QueryLocation {
 	//! yields an invalid QueryLocation. Intended mainly for extensions and the few core sites that only have an
 	//! offset (casts, raw parser byte positions, legacy deserialization); prefer threading a real QueryLocation.
 	QueryLocation(optional_idx idx) { // NOLINT: allow implicit conversion from optional_idx
-		if (idx.IsValid() && idx.GetIndex() < INVALID_OFFSET) {
-			offset = static_cast<uint32_t>(idx.GetIndex());
-		}
+		auto index = idx.IsValid() ? idx.GetIndex() : idx_t(INVALID_OFFSET);
+		offset = static_cast<uint32_t>(index < INVALID_OFFSET ? index : INVALID_OFFSET);
 	}
 
 	static QueryLocation Invalid() {

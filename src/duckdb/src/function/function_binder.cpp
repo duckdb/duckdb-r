@@ -1175,7 +1175,7 @@ const CatalogEntry &FunctionBinder::GetCurrentEntry(const CatalogEntry &entry) {
 		return entry;
 	}
 	// look the entry up again in its own schema, without search path or autoloading
-	auto &schema = const_cast<SchemaCatalogEntry &>(entry.ParentSchema());
+	auto &schema = entry.Cast<StandardEntry>().schema;
 	auto current = schema.GetEntry(schema.GetCatalogTransaction(context), entry.type, entry.name);
 	if (!current || current->type != entry.type) {
 		return entry;

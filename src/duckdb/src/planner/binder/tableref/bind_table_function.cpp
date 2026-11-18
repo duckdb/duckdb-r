@@ -504,7 +504,7 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 		return query;
 	}
 	D_ASSERT(func_catalog.type == CatalogType::TABLE_FUNCTION_ENTRY);
-	auto &function = func_catalog.Cast<TableFunctionCatalogEntry>();
+	auto &looked_up_function = func_catalog.Cast<TableFunctionCatalogEntry>();
 
 	// bind the input parameters to the function - they are folded to constants after the overload is chosen
 	vector<unique_ptr<Expression>> positional_arguments;
@@ -513,19 +513,19 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 	bool table_in_out = false;
 	ErrorData error;
 
-	if (!BindTableFunctionParameters(function, fexpr.GetArgumentsMutable(), positional_arguments, named_arguments,
-	                                 subquery, table_in_out, error)) {
+	if (!BindTableFunctionParameters(looked_up_function, fexpr.GetArgumentsMutable(), positional_arguments,
+	                                 named_arguments, subquery, table_in_out, error)) {
 		error.AddQueryLocation(ref);
 		error.Throw();
 	}
 
 	// selection, named-argument checking, folding and casting all happen in the function binder
 	FunctionBinder function_binder(*this);
-	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
+	auto &function = function_binder.GetCurrentEntry(looked_up_function).Cast<TableFunctionCatalogEntry>();
 	auto resolved =
 	    table_in_out
-	        ? function_binder.BindTableInOutFunction(current.functions, subquery.types, named_arguments, error)
-	        : function_binder.BindTableFunction(current.functions, positional_arguments, named_arguments, error);
+	        ? function_binder.BindTableInOutFunction(function.functions, subquery.types, named_arguments, error)
+	        : function_binder.BindTableFunction(function.functions, positional_arguments, named_arguments, error);
 	if (!resolved) {
 		error.AddQueryLocation(ref);
 		error.Throw();

@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 17 Nov 2026 22:00:00 +0000
+Subject: [PATCH] Avoid branching on the payload of an unset optional_idx
+
+optional_idx wraps std::optional<idx_t>, whose payload stays
+indeterminate while the optional is empty. GCC 13 at -O2 compiles
+`x.IsValid() && x.GetIndex() < bound` to a comparison of the payload
+first and a test of the flag second, so valgrind reports a conditional
+jump on an uninitialised value whenever x is unset. The result is right
+either way, but the report fails checks run under valgrind.
+
+Two sites are reached in practice:
+
+- QueryLocation's constructor from optional_idx, inlined into
+  Expression::Deserialize() (a plan copied for the window self-join or
+  for an inlined CTE) and ParsedExpression::Deserialize() (a file
+  database that reloads its views, macros and column defaults, or the
+  commit of an ALTER of a column's type).
+  It now takes the index, or INVALID_OFFSET when it is unset, and
+  clamps it to INVALID_OFFSET.
+- RowGroupCollection::GetCheckpointTask(), on every checkpoint of a
+  file database whose writer has no row group count. It now compares
+  against the count, or the largest idx_t when it is unset.
+
+Each selects a defined value before the comparison, which GCC compiles
+to conditional moves on the flag rather than a branch on the payload.
+The select is what matters: an `if` that tests the flag and the payload
+together compiles to the same branch as before.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/include/duckdb/common/query_location.hpp | 5 ++---
+ src/duckdb/src/storage/table/row_group_collection.cpp   | 4 +++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/query_location.hpp b/src/duckdb/src/include/duckdb/common/query_location.hpp
+index f9a32f796..f60d4cef9 100644
+--- a/src/duckdb/src/include/duckdb/common/query_location.hpp
++++ b/src/duckdb/src/include/duckdb/common/query_location.hpp
+@@ -35,9 +35,8 @@ struct QueryLocation {
+ 	//! yields an invalid QueryLocation. Intended mainly for extensions and the few core sites that only have an
+ 	//! offset (casts, raw parser byte positions, legacy deserialization); prefer threading a real QueryLocation.
+ 	QueryLocation(optional_idx idx) { // NOLINT: allow implicit conversion from optional_idx
+-		if (idx.IsValid() && idx.GetIndex() < INVALID_OFFSET) {
+-			offset = static_cast<uint32_t>(idx.GetIndex());
+-		}
++		auto index = idx.IsValid() ? idx.GetIndex() : idx_t(INVALID_OFFSET);
++		offset = static_cast<uint32_t>(index < INVALID_OFFSET ? index : INVALID_OFFSET);
+ 	}
+ 
+ 	static QueryLocation Invalid() {
+diff --git a/src/duckdb/src/storage/table/row_group_collection.cpp b/src/duckdb/src/storage/table/row_group_collection.cpp
+index 8d3d37f57..087175cb7 100644
+--- a/src/duckdb/src/storage/table/row_group_collection.cpp
++++ b/src/duckdb/src/storage/table/row_group_collection.cpp
+@@ -1718,7 +1718,9 @@ bool RowGroupCollection::ScheduleVacuumTasks(CollectionCheckpointState &checkpoi
+ unique_ptr<CheckpointTask> RowGroupCollection::GetCheckpointTask(CollectionCheckpointState &checkpoint_state,
+                                                                  idx_t segment_idx) {
+ 	auto row_group_count = checkpoint_state.writer.GetRowGroupCount();
+-	if (row_group_count.IsValid() && segment_idx >= row_group_count.GetIndex()) {
++	// Select the bound first rather than branch on the payload of an unset count, which is uninitialised
++	auto row_group_bound = row_group_count.IsValid() ? row_group_count.GetIndex() : NumericLimits<idx_t>::Maximum();
++	if (segment_idx >= row_group_bound) {
+ 		// this row group was appended AFTER the checkpoint was started - we should not be checkpointing it
+ 		return nullptr;
+ 	}

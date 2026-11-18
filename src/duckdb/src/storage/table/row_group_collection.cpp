@@ -1771,7 +1771,9 @@ bool RowGroupCollection::ScheduleVacuumTasks(CollectionCheckpointState &checkpoi
 unique_ptr<CheckpointTask> RowGroupCollection::GetCheckpointTask(CollectionCheckpointState &checkpoint_state,
                                                                  idx_t segment_idx) {
 	auto row_group_count = checkpoint_state.writer.GetRowGroupCount();
-	if (row_group_count.IsValid() && segment_idx >= row_group_count.GetIndex()) {
+	// Select the bound first rather than branch on the payload of an unset count, which is uninitialised
+	auto row_group_bound = row_group_count.IsValid() ? row_group_count.GetIndex() : NumericLimits<idx_t>::Maximum();
+	if (segment_idx >= row_group_bound) {
 		// this row group was appended AFTER the checkpoint was started - we should not be checkpointing it
 		return nullptr;
 	}
