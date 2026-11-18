@@ -34,6 +34,8 @@
 
 #include "src/optimizer/cte_runtime_filter_pushdown.cpp"
 
+#include "src/optimizer/cte_semi_join_filter_transfer.cpp"
+
 #include "src/optimizer/deliminator.cpp"
 
 #include "src/optimizer/disjunctive_join_rewriter.cpp"
