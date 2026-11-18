@@ -6,8 +6,9 @@
 # Every scripts/series-*.sh that reads the engine, scripts/vendor-one.sh and
 # scripts/each-plan.sh read its names from here, through scripts/series-lib.sh
 # or scripts/vendor-lib.sh, and from nowhere else; scripts/vendor.sh, the
-# manual bulk vendoring, keeps its own copy. A repository that vendors another
-# engine commit by commit changes this file and keeps the scripts
+# manual bulk vendoring, keeps its own copy and reads only the generator and
+# the release tag from here. A repository that vendors another engine commit by
+# commit changes this file and keeps the scripts
 # (handbook/operations/vendoring/series-loop/README.md). Paths are relative to
 # the repository root, each one a directory, a file, or a shell glob over
 # either (`R/aaa-*.R`), read the same way whether a script compares it or
@@ -49,8 +50,75 @@ series_makevars=(src/Makevars src/Makevars.win)
 # run writes outside the vendor paths is restored, never committed. A failing
 # phase stops the run with exit 7. Here rconfigure.py writes everything from
 # the unpatched checkout and nothing is derived afterwards.
+#
+# The version stamped is the one upstream's own CI builds the commit as, not
+# what its generator falls back to. `git_dev_version()` writes
+# `v<release_version.txt>.0-dev<count>` on every commit, while upstream's CI
+# resolves the version with `scripts/ci/version.py`, which counts the patch tags
+# of the line: once a line has tagged `v2.0.0` it builds `v2.0.1-dev<count>` and
+# `v2.0.1-alpha<run>`. A release is dispatched with its tag as the version, so
+# a commit tagged `vX.Y.Z` is stamped as that tag. A caller's `DUCKDB_VERSION`,
+# else its `OVERRIDE_GIT_DESCRIBE`, wins, in the order upstream reads them. A
+# checkout without `version.py`, a line older than v2.0, keeps the generator's
+# own stamp, and this answers empty for it: its `package_build` reads
+# `OVERRIDE_GIT_DESCRIBE` alone, so only that one spares the checks below.
+#
+# The tags and the count come from the clone, and a clone that cannot supply
+# them gets a wrong version rather than an error: `version.py` finds no patch
+# tag in a clone fetched without tags, and counts only the commits a shallow
+# clone holds. So a shallow clone, a clone with no release tag below HEAD, and
+# a `version.py` that fails or answers no `-dev` version are refused, with the
+# reason on stderr. scripts/vendor-one.sh asks once before it walks and exits 6
+# on a refusal, and the generator below stops the run with exit 7
+# (handbook/operations/vendoring/troubleshooting/README.md). A clone that lacks
+# only the line's newest tag looks like a line that has not released it yet;
+# vendor-one.sh catches that by comparing with the stamp the strand carries.
+series_upstream_version() { # <upstream checkout> -> the version, or empty
+  local tag version resolver=
+  [ ! -f "$1/scripts/ci/version.py" ] || resolver=1
+  if [ -n "$resolver" ] && [ -n "${DUCKDB_VERSION:-}${OVERRIDE_GIT_DESCRIBE:-}" ]; then
+    echo "${DUCKDB_VERSION:-${OVERRIDE_GIT_DESCRIBE:-}}"
+    return 0
+  fi
+  if [ -z "$resolver" ] && [ -n "${OVERRIDE_GIT_DESCRIBE:-}" ]; then
+    return 0 # the older line's generator reads it itself
+  fi
+  if [ "$(git -C "$1" rev-parse --is-shallow-repository)" != false ]; then
+    echo "Error: $1 is shallow or no clone, so it cannot count upstream's commits" >&2
+    return 1
+  fi
+  if [ -z "$(git -C "$1" tag --merged HEAD --list "$series_tag_glob")" ]; then
+    echo "Error: $1 has no release tag below HEAD; was it fetched without tags?" >&2
+    return 1
+  fi
+  tag=$(series_release_tag "$1" HEAD)
+  if [ -n "$tag" ]; then
+    echo "$tag"
+    return 0
+  fi
+  [ -n "$resolver" ] || return 0
+  version=$(cd "$1" && python3 scripts/ci/version.py) || {
+    echo "Error: scripts/ci/version.py failed in $1" >&2
+    return 1
+  }
+  [[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+-dev[1-9][0-9]*$ ]] || {
+    echo "Error: scripts/ci/version.py in $1 answered '$version', no -dev version" >&2
+    return 1
+  }
+  echo "$version"
+}
+# The release tag upstream put on a commit, empty when it has none: a tag
+# spelled `vX.Y.Z`, and no other, both for the stamp above and for the commits
+# scripts/vendor-one.sh and scripts/vendor.sh mark as a release. A commit
+# carries one release tag.
+series_release_tag() { # <upstream checkout> <commit> -> the tag, or empty
+  git -C "$1" tag --points-at "$2" --list "$series_tag_glob" |
+    grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1 || true
+}
 series_generate_tree() { # <upstream checkout>
-  DUCKDB_PATH="$1" python3 scripts/rconfigure.py
+  local version
+  version=$(series_upstream_version "$1") || return 1
+  DUCKDB_VERSION="$version" DUCKDB_PATH="$1" python3 scripts/rconfigure.py
 }
 series_generate_derived() { # <strand|full>
   :

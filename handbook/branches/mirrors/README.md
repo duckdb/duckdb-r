@@ -42,9 +42,9 @@ a mirror is carried because a badge measures against it,
 so the badge table in the root [`README.md`](/README.md) says what the rules
 must be, and [`scripts/pull-config.sh`](/scripts/pull-config.sh) holds the two
 against each other.
-It is authored here, in the canonical repository,
-because CI/CD infrastructure has its source of truth on `main`,
-and read from the fork's default branch, which is a mirror of that `main`.
+It is authored here, in the canonical repository, on `main`:
+the app reads it from the fork's default branch, which is a mirror of that `main`,
+so it takes effect from `main`'s copy alone.
 
 **A mirror moves on the app's schedule, not on ours.**
 Pull syncs a repository every six hours,
@@ -53,6 +53,8 @@ so a mirror is at most that far behind what it copies;
 a sync can be asked for at any moment from the URL that config names —
 which is what someone who needs a mirror at the canonical tip asks for,
 rather than pushing the branch.
+Pull moves a mirror through a pull request in the fork,
+and one into a release branch's mirror starts no `rcc` run ([`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)).
 
 **A mirror is created by pushing it, not by configuring it.**
 Pull skips a rule whose base branch the fork does not have,

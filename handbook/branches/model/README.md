@@ -224,7 +224,7 @@ a branch is made of, and the other three come from elsewhere:
 | Flavor | per branch, via [`flavor.sh`](/scripts/flavor.sh) | applied mechanically on top of the baseline |
 | **Glue code** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | **R code and tests** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
-| **CI/CD infrastructure** | **`main`** | forward-ported to every series |
+| **CI/CD infrastructure** | **where it takes effect: `main`, or the oldest active release branch, merged forward to `main`** ([`operations/review/`](/handbook/operations/review/README.md)) | forward-ported to every series from `main` |
 | **cpp11** | **the oldest active release branch, merged forward to `main`** | ported to each series from the branch it releases from |
 | R core | external — `r-devel`, CRAN policy | monitored; fixes land on the oldest active release branch first |
 
@@ -257,7 +257,7 @@ and reaches every newer line by merging the older branch into the next newer one
 `v2.0-cyanoptera` into `main` today, and with three lines `v2.0` into `v2.1` and `v2.1` into `main`.
 A change only a newer line needs is written on that line directly,
 and a fix written on a newer line first and then found to be needed on an older one is picked back with `git cherry-pick -x`.
-Tooling is `main`'s alone, and reaches a release branch only as such a pick.
+Tooling starts on `main` or on a release branch by where it takes effect, as `operations/review/` decides.
 This turns the R-package convention around, where `main` is roughly what CRAN has:
 here `main` is the newest line, and CRAN's is an older release branch.
 It is deliberate: a fix written once on the oldest line and merged forward is built and checked once per line,
