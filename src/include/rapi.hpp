@@ -122,6 +122,8 @@ struct DBWrapper {
 	mutex lock;
 	cpp11::sexp env;
 	cpp11::sexp registered_dfs;
+	// The conversion options of the connection that set `env`, for the environment scan
+	const ConvertOpts *env_convert_opts = nullptr;
 	bool allow_extensions = true;
 };
 
