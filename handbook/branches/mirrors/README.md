@@ -42,9 +42,9 @@ a mirror is carried because a badge measures against it,
 so the badge table in the root [`README.md`](/README.md) says what the rules
 must be, and [`scripts/pull-config.sh`](/scripts/pull-config.sh) holds the two
 against each other.
-It is authored here, in the canonical repository,
-because CI/CD infrastructure has its source of truth on `main`,
-and read from the fork's default branch, which is a mirror of that `main`.
+It is authored here, in the canonical repository, on `main`:
+the app reads it from the fork's default branch, which is a mirror of that `main`,
+so it takes effect from `main`'s copy alone.
 
 **A mirror moves on the app's schedule, not on ours.**
 Pull syncs a repository every six hours,
