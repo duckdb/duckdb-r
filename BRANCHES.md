@@ -416,7 +416,8 @@ Gaps in the numbering are normal — they indicate patches that were previously 
 When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to `duckdb/duckdb` so it can be retired eventually.
 
 A patch that comes from a bug-fix pull request enters a series, its `-vendor` strand, `-build` and `-dev`,
-only once that pull request is approved; until then the series does not carry it,
+only once that duckdb-r pull request is approved, like any other change the vendoring loop picks up;
+until then the series does not carry it,
 because a patch revised during review costs a re-judged CI commit per revision on every series.
 A patch the vendoring loop writes itself to clear a red, such as the vendored-warnings gate or an R CMD check finding,
 is folded in at once, because it gates green.
