@@ -908,10 +908,7 @@ const CatalogEntry &FunctionBinder::GetCurrentEntry(const CatalogEntry &entry) {
 		return entry;
 	}
 	// look the entry up again in its own schema, without search path or autoloading
-	// the cast is safe: a schema is never created const (make_uniq<DuckSchemaEntry>, and StandardEntry holds a
-	// non-const SchemaCatalogEntry &schema), the lookup's only mutation is creating a default entry under the catalog
-	// set's lock, as every lookup does, and GetEntry is non-const only because LookupEntry is
-	auto &schema = const_cast<SchemaCatalogEntry &>(entry.ParentSchema());
+	auto &schema = entry.Cast<StandardEntry>().schema;
 	auto current = schema.GetEntry(schema.GetCatalogTransaction(context), entry.type, entry.name);
 	if (!current || current->type != entry.type) {
 		return entry;

@@ -22,12 +22,12 @@ binding.
 Carried here until upstream takes it; upstream's attempt is
 duckdb/duckdb#27950, not merged. duckdb/duckdb-r#2883.
 ---
- src/duckdb/src/catalog/catalog_set.cpp        |  8 +++++-
- src/duckdb/src/function/function_binder.cpp   | 27 ++++++++++++++++---
+ src/duckdb/src/catalog/catalog_set.cpp        |  8 ++++++-
+ src/duckdb/src/function/function_binder.cpp   | 24 ++++++++++++++++---
  .../duckdb/function/function_binder.hpp       |  5 ++++
  .../query_node/bind_recursive_cte_node.cpp    |  3 ++-
- .../binder/tableref/bind_table_function.cpp   |  7 ++---
- 5 files changed, 42 insertions(+), 8 deletions(-)
+ .../binder/tableref/bind_table_function.cpp   |  7 +++---
+ 5 files changed, 39 insertions(+), 8 deletions(-)
 
 diff --git a/src/duckdb/src/catalog/catalog_set.cpp b/src/duckdb/src/catalog/catalog_set.cpp
 index 44c9bb700..feca6586b 100644
@@ -53,7 +53,7 @@ index 44c9bb700..feca6586b 100644
  	// Update shared entry state only after the alter is installed and rollbackable.
  	if (new_entry->name != entry->name) {
 diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/function/function_binder.cpp
-index 2d10779e9..762f45f7a 100644
+index 2d10779e9..e884228a0 100644
 --- a/src/duckdb/src/function/function_binder.cpp
 +++ b/src/duckdb/src/function/function_binder.cpp
 @@ -3,6 +3,7 @@
@@ -64,7 +64,7 @@ index 2d10779e9..762f45f7a 100644
  #include "duckdb/catalog/catalog_entry/window_function_catalog_entry.hpp"
  #include "duckdb/common/limits.hpp"
  #include "duckdb/common/type_visitor.hpp"
-@@ -901,10 +902,28 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
+@@ -901,10 +902,25 @@ static LogicalType NullReturnType(const LogicalType &return_type) {
  	return return_type.IsComplete() ? return_type : LogicalType::SQLNULL;
  }
  
@@ -75,10 +75,7 @@ index 2d10779e9..762f45f7a 100644
 +		return entry;
 +	}
 +	// look the entry up again in its own schema, without search path or autoloading
-+	// the cast is safe: a schema is never created const (make_uniq<DuckSchemaEntry>, and StandardEntry holds a
-+	// non-const SchemaCatalogEntry &schema), the lookup's only mutation is creating a default entry under the catalog
-+	// set's lock, as every lookup does, and GetEntry is non-const only because LookupEntry is
-+	auto &schema = const_cast<SchemaCatalogEntry &>(entry.ParentSchema());
++	auto &schema = entry.Cast<StandardEntry>().schema;
 +	auto current = schema.GetEntry(schema.GetCatalogTransaction(context), entry.type, entry.name);
 +	if (!current || current->type != entry.type) {
 +		return entry;
@@ -94,7 +91,7 @@ index 2d10779e9..762f45f7a 100644
  	// select the best matching overload (this may name positional arguments by their alias for functions that opt
  	// into implicit argument naming, e.g. struct_pack/row)
  	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
-@@ -1720,9 +1739,10 @@ FunctionBinder::BindAggregateFunction(shared_ptr<const AggregateFunction> functi
+@@ -1720,9 +1736,10 @@ FunctionBinder::BindAggregateFunction(shared_ptr<const AggregateFunction> functi
  }
  
  unique_ptr<BoundAggregateExpression>
@@ -106,7 +103,7 @@ index 2d10779e9..762f45f7a 100644
  	// select the best matching overload (this may name positional arguments by their alias for functions that opt
  	// into implicit argument naming, e.g. struct_pack/row)
  	auto best_function = BindFunctionFromArguments(func.name, func.functions, arguments, error);
-@@ -1822,9 +1842,10 @@ unique_ptr<BoundWindowExpression> FunctionBinder::BindWindowFunction(const Windo
+@@ -1822,9 +1839,10 @@ unique_ptr<BoundWindowExpression> FunctionBinder::BindWindowFunction(const Windo
  }
  
  unique_ptr<BoundWindowExpression>
