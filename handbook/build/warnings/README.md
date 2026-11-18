@@ -18,7 +18,7 @@ and what another scope owns is counted rather than listed.
 
 * **`glue`** — everything under `src/` that is not `src/duckdb/`,
   headers included.
-  Fixed here, in a pull request against `main`.
+  Fixed here, in a pull request against the branch [`operations/review/`](/handbook/operations/review/README.md) names.
 * **`vendored`** — `src/duckdb/`, engine and its third-party trees alike.
   Fixed as a patch under [`patch/`](/patch)
   and sent upstream
@@ -164,8 +164,10 @@ it found these two, and named the same two GCC 15 did.
   `scripts/warnings.sh <scope> --all` also lists what other scopes own,
   which is how you read the vendored tree's own warnings
   without waiting for a full build.
-* **On every pull request**, the `glue` scope, in the `rcc` smoke test
+* **On every pull request that runs `rcc`**, the `glue` scope, in the `rcc` smoke test
   ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+  Which pull requests run it is
+  [`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)'s.
   The answer is the same in every matrix entry, so it runs in one.
 * **On the entry that builds from source**, the `vendored` scope —
   and it compiles nothing extra.

@@ -210,6 +210,29 @@ series_tooling_re() {
   printf '^(%s)' "$re"
 }
 
+# The active release branches, oldest first by version, from a declaration,
+# scripts/series.yaml, read on stdin: the CRAN flavor's `upstream`, the line it
+# ships, and every `releases_from` other than `main` on a row not declared
+# `stale: true`, each named as upstream names its line, and never `main`.
+# Whether the canonical repository has cut each one yet is not asked here:
+# scripts/series-check.sh asks it, and scripts/pull-request-base.sh takes the
+# oldest without asking, since a line declared before it is cut is the newest.
+series_release_branches() { # < series.yaml -> one branch per line
+  awk '
+  function val(v) { gsub(/["'"'"']/, "", v); return v }
+  function flush() {
+    if (k == "CRAN" && up != "") print up
+    if (rf != "" && rf != "main" && st != "true") print rf
+    k = ""; up = ""; rf = ""; st = ""
+  }
+  /^  - / { flush() }
+  /^    kind:/ { k = val($2) }
+  /^    upstream:/ { up = val($2) }
+  /^    releases_from:/ { rf = val($2) }
+  /^    stale:/ { st = val($2) }
+  END { flush() }' | { grep -v '^main$' || true; } | sort -u -V
+}
+
 # The GitHub repository a remote names, `owner/repo`, for `gh api`; empty for a
 # remote that is not on GitHub. `git config remote.<name>.github <owner>/<repo>`
 # comes first, so a remote whose URL names no repository can still name one: a

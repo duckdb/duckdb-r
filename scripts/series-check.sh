@@ -867,27 +867,14 @@ fi
 
 # --- FORWARD-PORT: what is not yet merged forward ------------------------------
 #
-# The active release branches are the CRAN flavor's `upstream`, the line it
-# ships, and every `releases_from` other than `main` on a row not declared
-# `stale: true`, each named here as upstream names its line; a name the
-# canonical repository has no branch for, a line not cut yet, is left out. They
-# are taken oldest first, by version, each followed by the next newer one and the
-# newest by `main`, and the walk covers `<newer>..<older>`, merges skipped. The
+# The active release branches are the ones the declaration names
+# (series_release_branches, scripts/series-lib.sh); a name the canonical
+# repository has no branch for, a line not cut yet, is left out. They are taken
+# oldest first, by version, each followed by the next newer one and the newest
+# by `main`, and the walk covers `<newer>..<older>`, merges skipped. The
 # canonical repository is read first and the fork's mirrors second; with neither
 # carrying both branches of a pair the block says it could not read them.
-fp_lines=$(declaration 2>/dev/null | awk '
-  function val(v) { gsub(/["'"'"']/, "", v); return v }
-  function flush() {
-    if (k == "CRAN" && up != "") print up
-    if (rf != "" && rf != "main" && st != "true") print rf
-    k = ""; up = ""; rf = ""; st = ""
-  }
-  /^  - / { flush() }
-  /^    kind:/ { k = val($2) }
-  /^    upstream:/ { up = val($2) }
-  /^    releases_from:/ { rf = val($2) }
-  /^    stale:/ { st = val($2) }
-  END { flush() }' | grep -v '^main$' | sort -u -V || true)
+fp_lines=$(declaration 2>/dev/null | series_release_branches || true)
 fp_refs() { # <branch> -> its tip, canonical first, mirror second; empty when neither
   local b=$1 r
   for r in ${canonical:+"$canonical"} "$remote"; do

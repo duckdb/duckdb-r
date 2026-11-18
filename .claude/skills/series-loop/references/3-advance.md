@@ -121,7 +121,8 @@ so a firing reads the consequence of an earlier firing's push.
 That is why this is a read and never a gate —
 nothing here holds stage 3's fast-forward.
 The mainline `duckdb` package is built from `duckdb/duckdb-r`, not a series:
-a red there is upstream's, and reaches this repository as a PR to `main`.
+a red there is upstream's, and reaches this repository as a pull request
+against the branch [`operations/review/`](/handbook/operations/review/README.md) names.
 
 **A platform DuckDB publishes no extensions for is not a finding.**
 The extension install test downloads,
@@ -237,24 +238,24 @@ and to any local build that does not add the flag by hand.
 Adding it is how another platform's warning is reproduced;
 recording it is what stops the result reading as the gate's view.
 
-**A fix belongs where its code lives, which is not always `main`.**
-A fix that is not series-specific belongs on `main`,
-where stage 4 spreads it to every series by itself —
+**A fix belongs where its code lives, which is not always the branch the series releases from.**
+A fix that is not series-specific is a pull request against the branch `operations/review/` names,
+and stage 4 brings it to the series from the branch it releases from, after a forward merge where that is a newer line;
 but a `patch/` entry is only portable when the tree it patches is.
-`main` carries the engine `main` has vendored,
+The branch a series releases from carries the engine it has landed,
 and a series buffer runs ahead of it,
 so a patch written against the newer engine
-applies in neither direction on `main`'s tree —
+applies in neither direction on that branch's tree:
 `vendor-one.sh`'s `PATCH BROKEN` exit.
 Landing it there breaks the next vendor run
 instead of helping any series.
-Check that the code exists on `main` before routing a fix through it;
+Check that the code exists on that branch before routing a fix through it;
 where it does not, the fix is series-specific by engine version,
 belongs on `<S>-dev` and `<S>-build`,
-and reaches `main` when `main`'s engine reaches the code.
+and reaches that branch when its engine reaches the code.
 
 **A `patch/` entry has to reach the buffer too.**
-Stage 4 ports `main` onto `<S>-dev` and stops there;
+Stage 4 ports the branch the series releases from onto `<S>-dev` and stops there;
 `<S>-build` carries no ports by design (stage 1).
 But `vendor-one.sh` applies the **strand's** `patch/*.patch`
 to each tree it regenerates,
@@ -265,10 +266,10 @@ arrives broken again on exactly the platform the patch was for.
 Commit it onto `<S>-build` as well, in the same firing.
 
 **The entry a firing did not write is carried by stage 4, not by hand.**
-Stage 4's port brings whole `main` commits onto `-dev`,
+Stage 4's port brings whole commits of the branch a series releases from onto its `-dev`,
 `patch/` files included,
-so an entry born as a pull request against `main`
-reaches every `-dev` without any firing deciding to put it there —
+so an entry born as a pull request against that branch
+reaches the `-dev` without any firing deciding to put it there,
 and used to reach no buffer at all.
 `scripts/series-port.sh --apply` now closes that as part of porting,
 through `scripts/series-patch-sync.sh <S>`,
@@ -282,8 +283,8 @@ and the fix is reverted on `-dev`
 by a commit that looks like an ordinary vendor.
 
 **The carry decides by test-applying, never by the file list.**
-A buffer runs ahead of `main`,
-so an entry `main` needs may not fit the engine the buffer has vendored,
+A buffer runs ahead of the branch its series releases from,
+so an entry that branch needs may not fit the engine the buffer has vendored,
 and committing it there regardless breaks the next vendor run
 (`vendor-one.sh`'s `PATCH BROKEN` exit) rather than helping anything.
 Three answers, three situations:
@@ -297,7 +298,7 @@ A candidate whose files an entry the buffer has and `-dev` lacks
 also touches is a **supersession**,
 and applying both is how the next vendor run breaks.
 An entry both stacks carry in different versions is **edited**:
-`main` changed it in place and the port brought the new version to `-dev`,
+the branch the series releases from changed it in place and the port brought the new version to `-dev`,
 while the buffer's tree still carries the old version's effect.
 Test-applying the new one against that tree answers for neither version,
 and it would read as *stale*;
