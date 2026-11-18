@@ -38,6 +38,8 @@
 
 #include "src/parallel/scan_read_ahead.cpp"
 
+#include "src/parallel/sharded_counter.cpp"
+
 #include "src/parallel/task_executor.cpp"
 
 #include "src/parallel/task_notifier.cpp"
