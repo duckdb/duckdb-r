@@ -159,14 +159,10 @@ v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ─�
                     the Pull app (mirrors the canonical branches into the fork)
 ```
 
-This is the layout once the v2.0 series releases from `v2.0-cyanoptera`
-and `main` has moved on; until then `main` still plays its row’s part
-([`branches/model/`](https://r.duckdb.org/handbook/branches/model/README.md),
-“Until the switch”). The arrow from upstream to the CI/CD fork
-represents automated vendoring; the arrow from the fork to the canonical
-repo represents a landing: `main` takes batches of upstream `main`, and
-the release branch of the line CRAN ships takes its own line’s batches
-and releases
+The arrow from upstream to the CI/CD fork represents automated
+vendoring; the arrow from the fork to the canonical repo represents a
+landing: `main` takes batches of upstream `main`, and the release branch
+of the line CRAN ships takes its own line’s batches and releases
 ([`series-land`](https://r.duckdb.org/.claude/skills/series-land/SKILL.md)).
 Patches from `patch/` are applied to the vendored C++ code during every
 vendor run (see [Patch Stack](#patch-stack) below).
@@ -192,16 +188,11 @@ refs, each with one meaning and one allowed motion
 count the gaps between them. The `dev`/`dev-base` pair the four replaced
 is retired, its refs archived in `krlmlr/duckdb-r-old`.
 
-The table is the layout once the v2.0 series releases from
-`v2.0-cyanoptera` and `main` has moved on
-([`branches/model/`](https://r.duckdb.org/handbook/branches/model/README.md),
-“Until the switch”).
-
 | Branch | Repo | `Package:` | Purpose |
 |----|----|----|----|
-| `main` | `duckdb/duckdb-r` | `duckdb` | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
+| `main` | `duckdb/duckdb-r` | `duckdb` | Preview of the next line; source of truth for CI/CD |
 | `main-dev` | `krlmlr/duckdb-r` | `duckdb.dev` | Vendored dev on upstream `main`; the preview line |
-| `v2.0-cyanoptera` | `duckdb/duckdb-r` | `duckdb` | Release branch of the current line; CRAN releases from it |
+| `v2.0-cyanoptera` | `duckdb/duckdb-r` | `duckdb` | Release branch CRAN ships from; R-side work starts here |
 | `v2.0-cyanoptera-dev` | `krlmlr/duckdb-r` | `duckdb.2.0.dev` | Bleeding edge on v2.0 upstream |
 | `v1.5-variegata` | `duckdb/duckdb-r` | `duckdb` | Parked baseline of the previous line |
 | `v1.5-variegata-lts` |  |  | Does not exist, v1.5 is not an LTS |
@@ -231,17 +222,17 @@ corresponding bleeding-edge upstream branches and are published as
 
 Absorbed:
 [`branches/model/`](https://r.duckdb.org/handbook/branches/model/README.md)
-owns which of the seven components `main` is the source of truth for,
-and the forward-port order.
+owns which branch is the source of truth for each of the seven
+components, and the forward-port order.
 
 ## Series Invariants
 
 A **series** is one DuckDB minor line `L` together with its branches:
-`stable` (published; `main` for the current line), `lts` (LTS lines
-only), and the loop’s working refs. The following invariants hold across
-all branches of a series. Each is phrased to be **checkable** — most can
-be enforced by a dev-branch health workflow. The numbers file them here
-and are not a way to cite one elsewhere: the release FSM in
+`stable` (published; the line’s release branch), `lts` (LTS lines only),
+and the loop’s working refs. The following invariants hold across all
+branches of a series. Each is phrased to be **checkable** — most can be
+enforced by a dev-branch health workflow. The numbers file them here and
+are not a way to cite one elsewhere: the release FSM in
 [`operations/releases/process/`](https://r.duckdb.org/handbook/operations/releases/process/README.md)
 must preserve them at every step, and says what it depends on rather
 than naming a number.
@@ -403,11 +394,11 @@ amortized into every patch release.
 
 ### Prerelease (during STABILIZE)
 
-- **P1 — Release branches frozen.** Pre-release mutates only the branch
-  the fold-back fixes are written on and `dev` (forward-ports + vendor);
-  `stable` and `lts` stay at the previous release until CUT. A
-  half-finished pre-release is abortable with zero rollback on the
-  release branches.
+- **P1: No landing before CUT.** Pre-release mutates only the branch the
+  fold-back fixes are written on and `dev` (forward-ports + vendor); no
+  landing or version bump reaches a release branch, `stable` or `lts`,
+  before CUT. A half-finished pre-release is abortable with zero
+  rollback on the release branches.
 - **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an
   ancestor of the `dev` tip that will be cut; any delta added after a
   revdep run is reviewed (and re-checked if risky). What ships was

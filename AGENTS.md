@@ -55,12 +55,19 @@ slower path.
   backreferences the node it serves. In Claude Code the prose rules load
   on their own when you touch a file carrying prose; run `/docs:check`
   after touching documentation.
+- Open a pull request against the oldest active release branch the
+  change applies to, `v2.0-cyanoptera` today, never `main` by habit, and
+  name the base explicitly, since `main` is the default
+  ([`operations/review/`](https://r.duckdb.org/handbook/operations/review/README.md)
+  says which changes target `main`). In Claude Code this rule loads in
+  every session.
 
 ------------------------------------------------------------------------
 
 *The shared pages under `handbook/meta/` point to their home,
 [`cynkra/handbook-tools`](https://github.com/cynkra/handbook-tools); the
-rule file and the skills are carried from there unchanged, and
+prose rule file and the documentation skills are carried from there
+unchanged, and
 [`.handbook-source`](https://r.duckdb.org/.handbook-source) names the
 files and the state of the source this handbook was last checked
 against.*
