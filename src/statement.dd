@@ -1,6 +1,7 @@
 statement.o: \
   include/convert.hpp \
   include/rapi.hpp \
+  include/rrelation.hpp \
   include/signal.hpp \
   include/typesr.hpp \
   statement.cpp \

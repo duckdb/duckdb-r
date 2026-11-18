@@ -1,20 +1,20 @@
-#include "duckdb/main/relation.hpp"
 #include "rapi.hpp"
 #include "reltoaltrep.hpp"
+#include "rrelation.hpp"
 #include <exception>
 
 namespace duckdb {
 
-class AltrepDataFrameRelation final : public Relation {
+class AltrepDataFrameRelation final : public RRelation {
 public:
-	AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::list df,
+	AltrepDataFrameRelation(duckdb::shared_ptr<RRelation> p, cpp11::list df,
 	                        duckdb::shared_ptr<AltrepRelationWrapper> altrep);
 
 	cpp11::list dataframe;
 	duckdb::shared_ptr<AltrepRelationWrapper> altrep;
-	duckdb::shared_ptr<Relation> parent;
+	duckdb::shared_ptr<RRelation> parent;
 
-	shared_ptr<Relation> table_function_relation;
+	shared_ptr<RRelation> table_function_relation;
 	vector<ColumnDefinition> columns;
 
 public:
@@ -27,9 +27,9 @@ public:
 	void BuildTableRelation();
 
 private:
-	Relation &GetTableRelation();
+	RRelation &GetTableRelation();
 
-	Relation &GetParent();
+	RRelation &GetParent();
 };
 
 class RebuildRelationException : public std::runtime_error {

@@ -22,13 +22,14 @@ The wrappers are [`src/include/rapi.hpp`](/src/include/rapi.hpp)'s.
   The legacy `arrow = TRUE` route keeps them in the engine instead, a materialized `QueryResult` behind an `RQueryResult`.
   `duckdb_result_arrow` wraps an `RStatement` too, and an `RQueryResult`: one submitted `QueryResult`,
   and the Arrow stream the glue drains from it once fetching starts.
-* A relation wraps `RelationWrapper`: one `Relation` ([`altrep/`](/handbook/architecture/glue/altrep/README.md)).
+* A relation wraps `RelationWrapper`: one `RRelation`, the glue's own node of a query tree,
+  which composes the engine's parser nodes ([`src/include/rrelation.hpp`](/src/include/rrelation.hpp), [`altrep/`](/handbook/architecture/glue/altrep/README.md)).
 
 A prepared statement holds the context it was made on only through a `weak_ptr`.
 An `RQueryResult` holds the context its statement ran on through a `shared_ptr`, taken at execute time,
 and so does the Arrow stream over it.
 A context holds its instance, which is the lifetime fact everything below turns on.
-A relation holds its context only through a `weak_ptr`, `ClientContextWrapper` in the vendored engine.
+A relation holds its context only through a `weak_ptr`, the `context` member of `RRelation`.
 After `dbDisconnect()` it fails with "Connection has already been closed", unless something else still holds that context.
 
 **What a context scopes.**

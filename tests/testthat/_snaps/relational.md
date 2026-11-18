@@ -161,13 +161,6 @@
 ---
 
     Code
-      writeLines(rel_explain_df(proj, "analyze")[[2]])
-    Output
-      Query profiling is disabled. Use 'PRAGMA enable_profiling;' to enable profiling!
-
----
-
-    Code
       writeLines(rel_explain_df(proj, "standard", "json")[[2]])
     Output
       [
@@ -181,15 +174,6 @@
               }
           }
       ]
-
----
-
-    Code
-      writeLines(rel_explain_df(proj, "analyze", "json")[[2]])
-    Output
-      {
-          "result": "disabled"
-      }
 
 ---
 

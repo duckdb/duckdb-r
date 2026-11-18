@@ -1,14 +1,12 @@
 #include "altrepdataframe_relation.hpp"
 
-#include "duckdb/main/relation/table_function_relation.hpp"
-
 namespace duckdb {
 
-AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::list df,
+AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<RRelation> p, cpp11::list df,
                                                  duckdb::shared_ptr<AltrepRelationWrapper> altrep_)
-    : Relation(p->context, RelationType::EXTENSION_RELATION), dataframe(df), altrep(std::move(altrep_)),
+    : RRelation(p->context, RRelationKind::EXTENSION_RELATION), dataframe(df), altrep(std::move(altrep_)),
       parent(std::move(p)) {
-	TryBindRelation(columns);
+	BindColumns(columns);
 }
 
 const vector<ColumnDefinition> &AltrepDataFrameRelation::Columns() {
@@ -29,9 +27,8 @@ unique_ptr<QueryNode> AltrepDataFrameRelation::GetQueryNode() {
 	return GetParent().GetQueryNode();
 }
 
-Relation &AltrepDataFrameRelation::GetParent() {
+RRelation &AltrepDataFrameRelation::GetParent() {
 	if (altrep->Materialized()) {
-		// here context mutex locked
 		return GetTableRelation();
 	} else {
 		return *parent;
@@ -44,14 +41,14 @@ void AltrepDataFrameRelation::BuildTableRelation() {
 
 		named_parameter_map_t other_params;
 
-		// Can't do an alias here and need auto_init = false
-		// to avoid a recursive lock
-		table_function_relation = make_shared_ptr<TableFunctionRelation>(context->GetContext(), "r_dataframe_scan",
-		                                                                 params, other_params, nullptr, false);
+		// Left unbound: rendering can happen in R code that runs while this connection's context lock is held, such
+		// as a materialize callback under a scan, where a bind would wait for that lock forever.
+		table_function_relation = make_shared_ptr<RTableFunctionRelation>(GetContext(), Identifier("r_dataframe_scan"),
+		                                                                  params, other_params, false);
 	}
 }
 
-Relation &AltrepDataFrameRelation::GetTableRelation() {
+RRelation &AltrepDataFrameRelation::GetTableRelation() {
 	if (!table_function_relation) {
 		BuildTableRelation();
 	}

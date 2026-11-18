@@ -4,6 +4,7 @@ altrepdataframe_relation.o: \
   include/convert.hpp \
   include/rapi.hpp \
   include/reltoaltrep.hpp \
+  include/rrelation.hpp \
   vendor/cpp11.hpp \
   vendor/cpp11/R.hpp \
   vendor/cpp11/altrep.hpp \

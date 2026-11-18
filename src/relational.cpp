@@ -3,15 +3,6 @@
 #include "duckdb/common/enums/joinref_type.hpp"
 #include "duckdb/common/identifier.hpp"
 #include "duckdb/main/profiler/profiler_print_format.hpp"
-#include "duckdb/main/relation/aggregate_relation.hpp"
-#include "duckdb/main/relation/cross_product_relation.hpp"
-#include "duckdb/main/relation/distinct_relation.hpp"
-#include "duckdb/main/relation/filter_relation.hpp"
-#include "duckdb/main/relation/join_relation.hpp"
-#include "duckdb/main/relation/limit_relation.hpp"
-#include "duckdb/main/relation/order_relation.hpp"
-#include "duckdb/main/relation/projection_relation.hpp"
-#include "duckdb/main/relation/setop_relation.hpp"
 #include "duckdb/parser/expression/cast_expression.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
@@ -20,9 +11,12 @@
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/operator_expression.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
+#include "duckdb/parser/query_node.hpp"
+#include "duckdb/parser/statement/select_statement.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
 #include "reltoaltrep.hpp"
+#include "rrelation.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
 
@@ -304,8 +298,10 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	named_parameter_map_t other_params;
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
-	auto rel =
-	    con->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)(SEXP)df)}, other_params)->Alias(alias);
+	auto scan =
+	    make_shared_ptr<RTableFunctionRelation>(con->conn->context, Identifier("r_dataframe_scan"),
+	                                            vector<Value> {Value::POINTER((uintptr_t)(SEXP)df)}, other_params);
+	auto rel = make_shared_ptr<RSubqueryRelation>(std::move(scan), alias);
 
 	cpp11::writable::list prot = {df};
 
@@ -317,10 +313,10 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	cpp11::sexp out;
 
 	{
-		EndOpenResults(*rel->rel->context->GetContext());
-		ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+		EndOpenResults(*rel->rel->GetContext());
+		ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-		auto res = rel->rel->Execute();
+		auto res = RRunRelation(*rel->rel);
 
 		signal_handler.HandleInterrupt();
 
@@ -334,10 +330,10 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 // DuckDB Relations: questioning
 
 [[cpp11::register]] SEXP rapi_rel_sql(duckdb::rel_extptr_t rel, std::string sql) {
-	EndOpenResults(*rel->rel->context->GetContext());
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	EndOpenResults(*rel->rel->GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-	auto res = rel->rel->Query("_", sql);
+	auto res = RRelationQuery(*rel->rel, Identifier("_"), sql);
 
 	signal_handler.HandleInterrupt();
 
@@ -365,7 +361,8 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 [[cpp11::register]] SEXP rapi_rel_set_alias(duckdb::rel_extptr_t rel, std::string alias) {
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias), rel->convert_opts);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot,
+	                                           make_shared_ptr<RSubqueryRelation>(rel->rel, alias), rel->convert_opts);
 }
 
 //
@@ -385,7 +382,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		}
 		filter_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(filters));
 	}
-	auto res = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
+	auto res = make_shared_ptr<RFilterRelation>(rel->rel, std::move(filter_expr));
 
 	cpp11::writable::list prot = {rel};
 
@@ -406,7 +403,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		projections.push_back(std::move(dexpr));
 	}
 
-	auto res = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
+	auto res = make_shared_ptr<RProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
 	cpp11::writable::list prot = {rel};
 
@@ -436,7 +433,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		aggr_idx++;
 	}
 
-	auto res = make_shared_ptr<AggregateRelation>(rel->rel, std::move(res_aggregates), std::move(res_groups));
+	auto res = make_shared_ptr<RAggregateRelation>(rel->rel, std::move(res_aggregates), std::move(res_groups));
 
 	cpp11::writable::list prot = {rel};
 
@@ -458,7 +455,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		res_orders.emplace_back(order_type, null_type, expr->Copy());
 	}
 
-	auto res = make_shared_ptr<OrderRelation>(rel->rel, std::move(res_orders));
+	auto res = make_shared_ptr<ROrderRelation>(rel->rel, std::move(res_orders));
 
 	cpp11::writable::list prot = {rel};
 
@@ -599,7 +596,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 			warning("Using `rel_join(join_ref_type = \"cross\")`");
 			ref_type = JoinRefType::CROSS;
 		}
-		auto res = make_shared_ptr<CrossProductRelation>(left->rel, right->rel, ref_type);
+		auto res = make_shared_ptr<RCrossProductRelation>(left->rel, right->rel, ref_type);
 		auto rel = make_external_prot<RelationWrapper>("duckdb_relation", prot, res, left->convert_opts);
 		// if the user described filters, apply them on top of the cross product relation
 		if (conds.size() > 0) {
@@ -618,12 +615,12 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		cond = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(cond_args));
 	}
 
-	auto res = make_shared_ptr<JoinRelation>(left->rel, right->rel, std::move(cond), join_type, ref_type);
+	auto res = make_shared_ptr<RJoinRelation>(left->rel, right->rel, std::move(cond), join_type, ref_type);
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, left->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_union_all(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
-	auto res = make_shared_ptr<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::UNION);
+	auto res = make_shared_ptr<RSetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::UNION);
 	res->setop_all = true;
 
 	cpp11::writable::list prot = {rel_a, rel_b};
@@ -635,7 +632,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0),
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<RLimitRelation>(rel->rel, n, 0),
 	                                           rel->convert_opts);
 }
 
@@ -643,12 +640,12 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel),
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<RDistinctRelation>(rel->rel),
 	                                           rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_intersect(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
-	auto res = make_shared_ptr<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::INTERSECT);
+	auto res = make_shared_ptr<RSetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::INTERSECT);
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
@@ -656,7 +653,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_diff(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
-	auto res = make_shared_ptr<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::EXCEPT);
+	auto res = make_shared_ptr<RSetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::EXCEPT);
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
@@ -666,9 +663,9 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 [[cpp11::register]] SEXP rapi_rel_set_symdiff(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
 	// symdiff implemented using the equation below
 	// A symdiff B = (A except B) UNION (B except A)
-	auto a_except_b = make_shared_ptr<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::EXCEPT);
-	auto b_except_a = make_shared_ptr<SetOpRelation>(rel_b->rel, rel_a->rel, SetOperationType::EXCEPT);
-	auto symdiff = make_shared_ptr<SetOpRelation>(a_except_b, b_except_a, SetOperationType::UNION);
+	auto a_except_b = make_shared_ptr<RSetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::EXCEPT);
+	auto b_except_a = make_shared_ptr<RSetOpRelation>(rel_b->rel, rel_a->rel, SetOperationType::EXCEPT);
+	auto symdiff = make_shared_ptr<RSetOpRelation>(a_except_b, b_except_a, SetOperationType::UNION);
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
@@ -683,24 +680,26 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		stop("rel_from_sql: Invalid connection");
 	}
 
-	// Expose `env` to the environment scan replacement during the initial
-	// bind that happens inside RelationFromQuery(). Any data frame found
-	// there is appended to `registered_dfs`; we then attach that list to the
-	// relation's protection list so the SEXPs survive for the lifetime of
-	// the relation. EnvironmentScanReplacement marks the returned table
-	// reference as an external dependency, which causes QueryRelation::Bind()
-	// to wrap the query in a CTE that bakes in the data frame pointer, so
-	// subsequent binds (e.g. during materialization) do not need to look up
-	// the data frame from the environment again.
+	// Expose `env` to the environment scan replacement during the bind below. Any data frame found there is
+	// appended to `registered_dfs`; we then attach that list to the relation's protection list so the SEXPs
+	// survive for the lifetime of the relation. For this connection the scan also records the table reference it
+	// built, which is pinned in a common table expression, so later binds do not look the data frame up again.
 	D_ASSERT(con->db->env == R_NilValue);
+	identifier_map_t<unique_ptr<TableRef>> scanned_refs;
 	con->db->env = (SEXP)env;
 	con->db->registered_dfs = Rf_cons(R_NilValue, R_NilValue);
+	con->db->env_scan_refs = &scanned_refs;
+	con->db->env_scan_context = con->conn->context.get();
 	duckdb_httplib::detail::scope_exit reset_db_env([&]() {
 		con->db->env = R_NilValue;
 		con->db->registered_dfs = R_NilValue;
+		con->db->env_scan_refs = nullptr;
+		con->db->env_scan_context = nullptr;
 	});
 
-	auto rel = con->conn->RelationFromQuery(sql);
+	auto select_stmt = RQueryRelation::ParseStatement(*con->conn->context, sql, "Expected a single SELECT statement");
+	auto rel = make_shared_ptr<RQueryRelation>(con->conn->context, std::move(select_stmt), "queryrelation");
+	rel->PinTableRefs(scanned_refs);
 	cpp11::writable::list prot = {con->db->registered_dfs};
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), con->convert_opts);
 }
@@ -710,7 +709,13 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
 	}
-	auto rel = con->conn->Table(Identifier(schema_name), Identifier(table_name));
+	auto table_info = con->conn->TableInfo(Identifier(schema_name), Identifier(table_name));
+	if (!table_info) {
+		throw CatalogException("Table %s does not exist!",
+		                       QualifiedName(Identifier(), Identifier(schema_name), Identifier(table_name))
+		                           .ToString(QualifiedNameToStringMode::HIDE_DEFAULT_SCHEMA));
+	}
+	auto rel = make_shared_ptr<RTableRelation>(con->conn->context, std::move(table_info));
 	cpp11::writable::list prot = {};
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), con->convert_opts);
 }
@@ -745,7 +750,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		named_parameter_idx++;
 	}
 
-	auto rel = con->conn->TableFunction(function_name, std::move(positional_parameters), std::move(named_parameters));
+	auto rel = make_shared_ptr<RTableFunctionRelation>(con->conn->context, Identifier(function_name),
+	                                                   std::move(positional_parameters), std::move(named_parameters));
 	return make_external<RelationWrapper>("duckdb_relation", std::move(rel), con->convert_opts);
 }
 
@@ -767,53 +773,53 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	// Format names are resolved by the renderer registry, which is keyed on the
 	// lowercase name; rel_explain_df() passes them uppercase.
 	auto print_format = ProfilerPrintFormat(StringUtil::Lower(format));
-	EndOpenResults(*rel->rel->context->GetContext());
-	return result_to_df(rel->rel->Explain(type_enum, print_format));
+	EndOpenResults(*rel->rel->GetContext());
+	return result_to_df(RRelationExplain(*rel->rel, type_enum, print_format));
 }
 
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
-	EndOpenResults(*rel->rel->context->GetContext());
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	EndOpenResults(*rel->rel->GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
+	RRelationWriteParquet(*rel->rel, file_name, ListToVectorOfValue(options_sexps));
 
 	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_to_csv(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
-	EndOpenResults(*rel->rel->context->GetContext());
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	EndOpenResults(*rel->rel->GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
+	RRelationWriteCSV(*rel->rel, file_name, ListToVectorOfValue(options_sexps));
 
 	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name,
                                            bool temporary) {
-	EndOpenResults(*rel->rel->context->GetContext());
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	EndOpenResults(*rel->rel->GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-	rel->rel->Create(Identifier(schema_name), Identifier(table_name), temporary);
+	RRelationCreateTable(*rel->rel, Identifier(schema_name), Identifier(table_name), temporary);
 
 	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name,
                                           bool temporary) {
-	EndOpenResults(*rel->rel->context->GetContext());
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	EndOpenResults(*rel->rel->GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-	rel->rel->CreateView(Identifier(schema_name), Identifier(view_name), false, temporary);
+	RRelationCreateView(*rel->rel, Identifier(schema_name), Identifier(view_name), false, temporary);
 
 	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {
-	EndOpenResults(*rel->rel->context->GetContext());
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	EndOpenResults(*rel->rel->GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->GetContext());
 
-	rel->rel->Insert(Identifier(schema_name), Identifier(table_name));
+	RRelationInsert(*rel->rel, Identifier(schema_name), Identifier(table_name));
 
 	signal_handler.HandleInterrupt();
 }

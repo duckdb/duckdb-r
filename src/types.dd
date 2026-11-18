@@ -1,6 +1,7 @@
 types.o: \
   include/convert.hpp \
   include/rapi.hpp \
+  include/rrelation.hpp \
   include/typesr.hpp \
   types.cpp \
   vendor/cpp11.hpp \

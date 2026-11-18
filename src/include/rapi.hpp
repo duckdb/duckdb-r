@@ -21,6 +21,7 @@
 #include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 
 #include "convert.hpp"
+#include "rrelation.hpp"
 
 #include <atomic>
 
@@ -122,6 +123,10 @@ struct DBWrapper {
 	mutex lock;
 	cpp11::sexp env;
 	cpp11::sexp registered_dfs;
+	//! Where the environment scan records the table references it builds for `env_scan_context`, while that
+	//! connection makes a relation from SQL text
+	identifier_map_t<unique_ptr<TableRef>> *env_scan_refs = nullptr;
+	ClientContext *env_scan_context = nullptr;
 	bool allow_extensions = true;
 };
 
@@ -262,10 +267,10 @@ typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts_)
+	RelationWrapper(duckdb::shared_ptr<RRelation> rel_p, ConvertOpts convert_opts_)
 	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts_)) {
 	}
-	duckdb::shared_ptr<Relation> rel;
+	duckdb::shared_ptr<RRelation> rel;
 	const ConvertOpts convert_opts;
 };
 
