@@ -128,6 +128,13 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`each-mirror-test.sh`](each-mirror-test.sh) | Check scripts/each-mirror.sh, offline, against a synthetic canonical repository, a synthetic store and a stand-in for `gh api` built here: no network, no fix... |
 | [`each-mirror.sh`](each-mirror.sh) | Copy the fork's per-commit verdicts onto the same commits in the canonical repository, as commit statuses with context `each-rcc (fork)`, for the open pull r... |
 
+## [`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)
+
+| File | Purpose |
+|---|---|
+| [`pull-request-base-test.sh`](pull-request-base-test.sh) | Check scripts/pull-request-base.sh, offline, against pull requests and file lists written here in the shape GitHub's API gives them, and declarations written... |
+| [`pull-request-base.sh`](pull-request-base.sh) | Fail a pull request to `main` that belongs on the oldest active release branch, by the rule handbook/branches/model/README.md states: a fix is written on the... |
+
 ## [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md)
 
 | File | Purpose |
