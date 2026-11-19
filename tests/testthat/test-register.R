@@ -128,26 +128,23 @@ test_that("a registered relation's list column is refused on a thread other than
 
   con <- local_con()
   con_rel <- local_con()
-  dbExecute(con, "SET threads = 4")
   df <- rel_to_altrep(rel_from_sql(
     con_rel,
     "SELECT * FROM (VALUES (1, [1, 2]), (2, [3])) t(a, l)"
   ))
   duckdb_register(con, "r", df)
-  sql <- "SELECT a FROM r JOIN pragma_table_info('r') m ON true"
 
-  # A list column of rel_to_altrep() is an ALTREP list, which only R reads;
-  # the loop ends at the first query whose task binds the view off R's thread
-  expect_error(
-    for (i in 1:200) {
-      dbGetQuery(con, sql)
-    },
-    "column \"l\" .* off R's thread",
-    class = "duckdb_error"
+  # A list column of rel_to_altrep() is an ALTREP list, which only R reads.
+  # Which thread takes a task is up to the scheduler, so the query is run on
+  # a thread of its own, where it binds the view off R's thread every time.
+  expect_match(
+    query_off_r_thread(con, "SELECT a FROM r"),
+    "column \"l\" .* off R's thread"
   )
 
   # With no worker of its own, the engine runs every task on R's thread
   dbExecute(con, "SET threads = 1")
+  sql <- "SELECT a FROM r JOIN pragma_table_info('r') m ON true"
   res <- lapply(1:20, function(i) sort(dbGetQuery(con, sql)$a))
   expect_equal(res, rep(list(c(1L, 1L, 2L, 2L)), 20))
 })

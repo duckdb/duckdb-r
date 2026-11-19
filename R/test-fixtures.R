@@ -22,3 +22,18 @@ local_con <- function(..., drv = duckdb()) {
   withr::defer_parent(dbDisconnect(con, shutdown = TRUE))
   con
 }
+
+#' Run a query off R's thread
+#'
+#' Runs `sql` on `con` on a thread of its own, while R's thread only waits for it,
+#' so the query binds, and runs, off R's thread every time (#2962).
+#' Test-only: the engine otherwise binds a task on whichever thread takes it.
+#'
+#' @param con A DuckDB connection
+#' @param sql A query
+#'
+#' @return The error message, or `NA` when the query succeeded
+#' @noRd
+query_off_r_thread <- function(con, sql) {
+  rethrow_rapi_query_off_r_thread(con@conn_ref, sql)
+}

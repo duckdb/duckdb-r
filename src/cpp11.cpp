@@ -81,6 +81,13 @@ extern "C" SEXP _duckdb_rapi_connection_in_transaction(SEXP conn) {
   END_CPP11
 }
 // connection.cpp
+SEXP rapi_query_off_r_thread(duckdb::conn_eptr_t conn, std::string sql);
+extern "C" SEXP _duckdb_rapi_query_off_r_thread(SEXP conn, SEXP sql) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_query_off_r_thread(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(conn), cpp11::as_cpp<cpp11::decay_t<std::string>>(sql)));
+  END_CPP11
+}
+// connection.cpp
 std::string rapi_connection_set_invalidation_policy(duckdb::conn_eptr_t conn, std::string policy);
 extern "C" SEXP _duckdb_rapi_connection_set_invalidation_policy(SEXP conn, SEXP policy) {
   BEGIN_CPP11
@@ -563,6 +570,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_lock",                               (DL_FUNC) &_duckdb_rapi_lock,                                1},
     {"_duckdb_rapi_prepare",                            (DL_FUNC) &_duckdb_rapi_prepare,                             3},
     {"_duckdb_rapi_ptr_to_str",                         (DL_FUNC) &_duckdb_rapi_ptr_to_str,                          1},
+    {"_duckdb_rapi_query_off_r_thread",                 (DL_FUNC) &_duckdb_rapi_query_off_r_thread,                  2},
     {"_duckdb_rapi_record_batch",                       (DL_FUNC) &_duckdb_rapi_record_batch,                        2},
     {"_duckdb_rapi_register_arrow",                     (DL_FUNC) &_duckdb_rapi_register_arrow,                      4},
     {"_duckdb_rapi_register_df",                        (DL_FUNC) &_duckdb_rapi_register_df,                         5},
