@@ -1,6 +1,15 @@
-# duckdb 2.0.0.9000
+# duckdb (development version)
 
-- Commits since 2.0.0: <https://github.com/duckdb/duckdb-r/compare/v2.0.0...main>.
+Commits since v2.0.0.9001: <https://github.com/duckdb/duckdb-r/compare/v2.0.0.9001...v2.0-cyanoptera>.
+
+
+# duckdb 2.0.0.9001 (2026-11-19)
+
+_Drafted with AI from the vendored upstream commits and the R-side changes, not reviewed by a maintainer._
+
+## Features
+
+- Update to DuckDB v2.0.1-alpha56598, a preview of v2.0.1 with the fixes the v2.0 line has gained since v2.0.0.
 
 
 # duckdb 2.0.0
