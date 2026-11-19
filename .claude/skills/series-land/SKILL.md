@@ -148,7 +148,14 @@ engine() { git show "$1:src/duckdb/src/function/table/version/pragma_version.cpp
 for e in "$(engine "upstream/$B")" "$(engine "origin/$S-rc-dev")"; do   # the previous landing's, then this one's
   gh api "repos/duckdb/duckdb/commits/$e" --jq '[.sha, .commit.committer.date[0:10]] | @tsv'
 done
+curl -fsS "https://duckdb-staging.duckdb.org/$(engine "origin/$S-rc-dev")/latest_alpha_version.txt"   # its alpha
 ```
+
+**A batch that ends on a `-dev` engine ends on one upstream built as an alpha**, so that the bump can stamp it (step 3).
+The last command prints that alpha's version, and fails where upstream has built none of the engine;
+for a `-dev` engine, wait for one before building.
+An engine that is an upstream release needs no alpha, and the command's failure there means nothing
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
 ## 3. Build the landing
 
@@ -235,6 +242,12 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   echo "$v"              # the version the subject names
   ```
 
+* **The alpha stamp**, which `INSTALL` needs to find the engine's extensions
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+  In the kept worktree, `scripts/series-land.sh "$S" --stamp-alpha` writes and stages it,
+  and refuses where upstream built no alpha of the engine or published it with a gap;
+  on a release engine it says the release needs none, and writes nothing.
+
 * **`NEWS.md`**: add the section for `<v>` below the development section, and move that section's compare link to the tag the bump takes,
   in the shape [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns.
   Where there is no development section yet, turn the top section into it first:
@@ -253,9 +266,12 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits
   that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`,
   whose content it does not read,
+  and the alpha stamp of its parent's engine for a well-formed alpha of the right release,
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
   or does not rise above `<B>`'s;
-  `--status` prints `READY` only on a landing that ends on it.
+  `--status` prints `READY` only on a landing that ends on it,
+  and on a stamped bump, until `<B>` is the bump, only while upstream's pointer names the alpha it stamps,
+  which a pointer it cannot read does not confirm.
 
 CI judges the bump like every other commit.
 A rebuild drops it, so after one, add it again.

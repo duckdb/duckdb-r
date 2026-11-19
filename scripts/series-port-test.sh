@@ -110,6 +110,7 @@ scripts/setup-git.sh >/dev/null
 printf 'Package: duckdb\nVersion: 1.0.0\n' > DESCRIPTION
 echo 'workflow' > .github/ci.yml
 echo 'foo <- function() 1' > R/foo.R
+echo 'duckdb_version <- "1.0.1-dev3"' > R/version.R
 git add -A
 git commit -qm 'chore: The base both lineages share'
 git branch fork-point
@@ -170,6 +171,20 @@ printf 'Package: duckdb\nVersion: 1.0.1.9000\nImports: DBI\n' > DESCRIPTION
 git add -A
 git commit -qm 'chore: Declare the dependency the package gained'
 
+printf 'Package: duckdb\nVersion: 1.0.1.9001\nImports: DBI\n' > DESCRIPTION
+echo 'duckdb_version <- "1.0.1-alpha5"' > R/version.R
+git add -A
+git commit -qm 'chore: Bump version to 1.0.1.9001'
+
+echo 'duckdb_version <- "1.0.1-alpha6"' > R/version.R
+git add -A
+git commit -qm 'chore: Restamp the engine by hand'
+
+printf 'Package: duckdb\nVersion: 1.0.1.9002\nImports: DBI\n' > DESCRIPTION
+printf 'duckdb_version <- "1.0.1-alpha7"\nduckdb_extra <- TRUE\n' > R/version.R
+git add -A
+git commit -qm 'chore: Bump version to 1.0.1.9002 beside an edit to the stamp file'
+
 git push -q origin main s-dev
 git push -q upstream main
 
@@ -213,6 +228,9 @@ is "so are notes written without a bump" \
   'Bullets for what merged since the last bump' VERSION
 is "a DESCRIPTION edit that is not a bump is package content" \
   'Declare the dependency the package gained' OTHER
+is "a bump that carries the alpha stamp is release paperwork" 'Bump version to 1.0.1.9001' VERSION
+is "a stamp without a bump is not" 'Restamp the engine by hand' OTHER
+is "nor a bump whose stamp file changes beyond the stamp" 'beside an edit to the stamp file' OTHER
 
 echo
 echo "series-port.sh: which \`main\` answers"
