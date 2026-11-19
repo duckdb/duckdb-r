@@ -457,7 +457,7 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 		return query;
 	}
 	D_ASSERT(func_catalog.type == CatalogType::TABLE_FUNCTION_ENTRY);
-	auto &function = func_catalog.Cast<TableFunctionCatalogEntry>();
+	auto &looked_up_function = func_catalog.Cast<TableFunctionCatalogEntry>();
 
 	// bind the input parameters to the function - they are folded to constants after the overload is chosen
 	vector<unique_ptr<Expression>> positional_arguments;
@@ -471,14 +471,15 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
 		children.push_back(std::move(child.GetExpressionMutable()));
 	}
 
-	if (!BindTableFunctionParameters(function, children, positional_arguments, named_arguments, subquery, table_in_out,
-	                                 error)) {
+	if (!BindTableFunctionParameters(looked_up_function, children, positional_arguments, named_arguments, subquery,
+	                                 table_in_out, error)) {
 		error.AddQueryLocation(ref);
 		error.Throw();
 	}
 
 	// selection, named-argument checking, folding and casting all happen in the function binder
 	FunctionBinder function_binder(*this);
+	auto &function = function_binder.GetCurrentEntry(looked_up_function).Cast<TableFunctionCatalogEntry>();
 	vector<Value> parameters;
 	named_argument_map_t named_parameters;
 	auto best_function_idx =

@@ -213,12 +213,11 @@ and the `spatial` extension's own types:
   and so is a matrix parameter.
 * A `NULL` array read with `array = "matrix"` and a `NULL` struct both read as a row of `NA`,
   and cannot be told from an array or a struct of `NULL`s.
-* A matrix column that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) writes as that class's scalar type,
-  never as an `ARRAY`.
-  Anywhere but first, it keeps only its first column, and nothing warns;
-  as the first column, it writes a row per value and reads every other column past its end, which can crash R.
-  As a parameter it binds a row per value
-  ([`experiments/2026-09-28-matrix-limits/`](/experiments/2026-09-28-matrix-limits/README.md)).
+* A matrix that also carries a class (`Date`, `POSIXct`, `difftime`, `hms` or `factor`) is refused as a column and as a parameter,
+  and an array of more than two dimensions as a column, unless either holds one value per row,
+  pinned by [`tests/testthat/test-array.R`](/tests/testthat/test-array.R).
+  As a parameter, that array binds a row per value and loses its shape, and in a list cell either kind flattens to its values.
+  `dbDataType()`, and so `dbCreateTable()`, types a classed matrix as its class's scalar type.
 * `MAP` does not write from its text through `field.types` or `dbAppendTable()`,
   which wrap a `MAP` column in `map_from_entries()`, and that takes a list of structs, not text;
   the list it reads as does not bind as a `MAP` parameter.
