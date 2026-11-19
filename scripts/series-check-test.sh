@@ -23,7 +23,8 @@
 #   9. FORWARD-PORT counts the commits of each active release branch not
 #      yet merged forward into the next newer line, the newest into `main`:
 #      vendor commits and release paperwork by number, each R-side commit
-#      listed; none once the branch is merged forward. Nothing before a branch
+#      listed, a bump among them whose alpha stamp is not one alpha line for
+#      each stamp line it replaces; none once the branch is merged forward. Nothing before a branch
 #      is cut or for a stale line, a quoted declaration reads the same, three
 #      lines chain oldest to newest, and a branch it cannot read, without a
 #      canonical remote or with no merge base, is reported as missing data.
@@ -228,6 +229,11 @@ fwd() { UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical canon 2>&1 |
 is() { if [ "$2" = "$3" ]; then ok "$1"; else no "$1"; echo "         actual: $2"; echo "       expected: $3"; fi; }
 git checkout -q -b cmain main
 printf 'flavors:\n  - flavor: duckdb\n    kind: CRAN\n    upstream: "rel"\n    publishes_from: main\n  - flavor: duckdb.old.dev\n    kind: dev\n    series: old\n    releases_from: old\n    stale: true\n' > scripts/series.yaml
+# The `-dev` stamp an alpha stamp replaces, in the engine file and the R side.
+PRAGMA=src/duckdb/src/function/table/version/pragma_version.cpp
+mkdir -p "$(dirname "$PRAGMA")" R
+echo '#define DUCKDB_VERSION "v9.9.0-dev1"' > "$PRAGMA"
+echo 'duckdb_version <- "9.9.0-dev1"' > R/version.R
 git add -A; git commit -qm 'chore: Declare the flavors'
 git push -q canon cmain:main
 is "nothing before the line's branch is cut, and nothing for a stale line" "$(fwd)" ""
@@ -242,6 +248,7 @@ for e in bbbb222 bbbb223 bbbb224; do
   git commit -qam "vendor: Update vendored sources to duckdb/duckdb@$e"
 done
 echo 'Version: 9.9.0.9001' > DESCRIPTION; echo '# duckdb 9.9.0.9001' > NEWS.md
+echo 'duckdb_version <- "9.9.0-alpha1"' > R/version.R
 git add -A; git commit -qm 'chore: Bump version to 9.9.0.9001'
 printf 'Version: 9.9.0.9001\nImports: DBI (>= 1.2)\n' > DESCRIPTION
 git add -A; git commit -qm 'fix: Require DBI >= 1.2'
@@ -253,20 +260,42 @@ git add -A; git commit -qm 'chore: Bump version to 9.9.0.9003'
 SYNC=$(git rev-parse HEAD)
 echo 'fix c' > c.R; git add -A; git commit -qm 'fix: C, written on the release branch'
 C=$(git rev-parse HEAD)
+printf 'Version: 9.9.0.9004\nImports: DBI (>= 1.2)\n' > DESCRIPTION
+printf 'duckdb_version <- "9.9.0-alpha2"\nduckdb_extra <- TRUE\n' > R/version.R
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9004'
+EXTRA=$(git rev-parse HEAD)
+# Beside a moved version: a `-dev` stamped again, a stamp line added beside the
+# one it replaces, and one deleted. None is an alpha stamp.
+printf 'Version: 9.9.0.9005\nImports: DBI (>= 1.2)\n' > DESCRIPTION
+sed -i 's/v9.9.0-dev1/v9.9.0-dev2/' "$PRAGMA"
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9005'
+RESTAMP=$(git rev-parse HEAD)
+printf 'Version: 9.9.0.9006\nImports: DBI (>= 1.2)\n' > DESCRIPTION
+echo '#define DUCKDB_VERSION "v9.9.0-alpha3"' >> "$PRAGMA"
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9006'
+DUP=$(git rev-parse HEAD)
+printf 'Version: 9.9.0.9007\nImports: DBI (>= 1.2)\n' > DESCRIPTION
+sed -i '/v9.9.0-dev2/d' "$PRAGMA"
+git add -A; git commit -qm 'chore: Bump version to 9.9.0.9007'
+DEL=$(git rev-parse HEAD)
 git push -q canon rel
 git checkout -q main
 out=$(fwd)
-has "it counts what is not yet merged forward" "$out" "rel has 8 commit(s) not yet merged forward into main:"
-has "vendor commits and paperwork by number, the R side listed" "$out" "3 vendor, 2 release paperwork, 3 R-side"
+has "it counts what is not yet merged forward" "$out" "rel has 12 commit(s) not yet merged forward into main:"
+has "vendor commits and paperwork by number, the R side listed" "$out" "3 vendor, 2 release paperwork, 7 R-side"
 has "a bump that also carries R-side files is listed" "$out" "$(git rev-parse --short "$SYNC") chore: Bump version to 9.9.0.9003"
 has "a DESCRIPTION change beyond the version is R-side" "$out" "$(git rev-parse --short "$DBI") fix: Require DBI >= 1.2"
 has "and so is an ordinary fix" "$out" "$(git rev-parse --short "$C") fix: C, written on the release branch"
 hasnt "a version-only change under another subject is paperwork" "$out" "Increment version number"
 hasnt "vendor commits are not listed one by one" "$out" "bbbb22"
-hasnt "nor a bump that is only paperwork" "$out" "Bump version to 9.9.0.9001"
+hasnt "nor a bump that is only paperwork, its alpha stamp included" "$out" "Bump version to 9.9.0.9001"
+has "a bump whose stamp file changes beyond the stamp is listed" "$out" "$(git rev-parse --short "$EXTRA") chore: Bump version to 9.9.0.9004"
+has "so is one that stamps a -dev again" "$out" "$(git rev-parse --short "$RESTAMP") chore: Bump version to 9.9.0.9005"
+has "or adds a DUCKDB_VERSION beside the one it replaces" "$out" "$(git rev-parse --short "$DUP") chore: Bump version to 9.9.0.9006"
+has "or deletes one" "$out" "$(git rev-parse --short "$DEL") chore: Bump version to 9.9.0.9007"
 git push -q -f origin cmain:main rel:rel
 has "without a canonical remote it reads the fork's mirrors" \
-  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 8 commit(s)"
+  "$(UPSTREAM_URL=$UP scripts/series-check.sh v9.9-x --canonical '' 2>&1 | sed -n '/^FORWARD-PORT/,$p')" "rel has 12 commit(s)"
 
 # The forward merge, keeping main's engine.
 git checkout -q cmain

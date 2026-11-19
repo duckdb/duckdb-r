@@ -356,3 +356,155 @@ series_keep_engine() {
   done <<<"$added"
   git diff --quiet HEAD -- "${paths[@]}" && git diff --cached --quiet HEAD -- "${paths[@]}"
 }
+
+# --- the alpha stamp ------------------------------------------------------------
+#
+# Upstream names a build it dispatches by hand `vX.Y.Z-alpha<run number>` and
+# publishes extensions under that name, which a `-dev` stamp never finds. These
+# read which build an engine has and stamp a tree as that build, for
+# scripts/series-alpha.sh and for a landing's version bump (scripts/series-land.sh,
+# handbook/operations/releases/versioning/README.md).
+
+# Where upstream writes its alpha pointers and publishes the extensions, and what
+# a stamp is probed for: the platforms R packages are built for, and two
+# extensions the test suite installs. Read by the scripts that source this file.
+# shellcheck disable=SC2034
+series_alpha_staging=https://duckdb-staging.duckdb.org
+series_alpha_extensions=https://extensions.duckdb.org
+series_alpha_platforms='linux_amd64 linux_arm64 osx_amd64 osx_arm64 windows_amd64_mingw'
+series_alpha_probes='icu httpfs'
+# shellcheck disable=SC2034
+series_alpha_version_re='^v[0-9]+\.[0-9]+\.[0-9]+-alpha[0-9]+$'
+# The files a stamp rewrites, the extension loader only where the tree has one.
+series_alpha_loader=$series_vendor_dir/generated_extension_loader_package_build.cpp
+# shellcheck disable=SC2034
+series_alpha_stamped=("$series_engine_file" "$series_stamp_file" "$series_alpha_loader")
+
+series_http() { # <url> <file> -> the HTTP status, with the body in <file>
+  curl -sS -L -m 60 -o "$2" -w '%{http_code}' "$1"
+}
+
+# Does <commit> stamp a development engine, the kind an alpha build replaces?
+# A release's stamp is the build upstream published extensions for, and needs
+# none; a tree that stamps nothing is asked as a development one, so that the
+# step needing an alpha says what is missing.
+series_alpha_wanted() { # <commit>
+  local v
+  v=$(series_stamped_version "$1")
+  [ -n "$v" ] || return 0
+  if declare -F series_release_of_stamp >/dev/null; then
+    [ -n "$(series_release_of_stamp "$v")" ]
+  else
+    [[ $v == *-dev* ]]
+  fi
+}
+
+# Does <commit> change nothing in the stamped files but the lines a stamp
+# rewrites, each replaced by one line of its kind that names an alpha? What lets
+# a bump carry the stamp as paperwork (scripts/series-port.sh,
+# scripts/series-check.sh) without hiding an edit to the engine beside it, a
+# line deleted or added, or a `-dev` stamped again.
+series_alpha_stamp_lines_only() { # <commit>
+  local line file='' kind value alpha=${series_alpha_version_re#^v}
+  local -A n=()
+  alpha=${alpha%$}
+  while IFS= read -r line; do
+    case "$line" in
+      '+++ '*) file=${line#+++ }; continue ;;
+      '--- '*) continue ;;
+      [-+]*) ;;
+      *) continue ;;
+    esac
+    if [[ ${line:1} =~ ^\#define\ DUCKDB_VERSION\ \"([^\"]*)\"$ ]]; then
+      kind=version value=${BASH_REMATCH[1]#v}
+    elif [[ ${line:1} =~ ^\#define\ DUCKDB_PATCH_VERSION\ \"([^\"]*)\"$ ]]; then
+      kind=patch value=0.0.${BASH_REMATCH[1]}
+    elif [[ ${line:1} =~ ^[[:space:]]*descriptor-\>api_version\ =\ \"([^\"]*)\"\;$ ]]; then
+      kind=api value=${BASH_REMATCH[1]#v}
+    elif [[ ${line:1} =~ ^duckdb_version\ \<-\ \"([^\"]*)\"$ ]]; then
+      kind=r value=${BASH_REMATCH[1]}
+    else
+      return 1
+    fi
+    if [ "${line:0:1}" = + ]; then
+      [[ $value =~ ^$alpha$ ]] || return 1
+      n[$file:$kind]=$((${n[$file:$kind]:-0} + 1))
+    else
+      n[$file:$kind]=$((${n[$file:$kind]:-0} - 1))
+    fi
+  done < <(git diff -U0 "$1~1" "$1" -- "${series_alpha_stamped[@]}")
+  for kind in "${n[@]}"; do
+    [ "$kind" = 0 ] || return 1
+  done
+}
+
+# Upstream writes a pointer only once the build has deployed its extensions, so
+# a gap is upstream's, and nothing is stamped until it is understood.
+series_alpha_probe() { # <version>: fails naming the first extension missing
+  local p e status
+  for p in $series_alpha_platforms; do
+    for e in $series_alpha_probes; do
+      status=$(curl -sS -I -m 60 -o /dev/null -w '%{http_code}' \
+        "$series_alpha_extensions/$1/$p/$e.duckdb_extension.gz") || return $?
+      [ "$status" = 200 ] ||
+        { echo "Error: $1 has no $e for $p (HTTP $status); not stamping it" >&2; return 1; }
+    done
+  done
+}
+
+# Stage <path> of <commit>, edited by <sed script>, in <index>; fails when the
+# edit changed nothing.
+series_alpha_edit_() { # <index> <commit> <path> <sed script>
+  local before after
+  before=$(git rev-parse "$2:$3") &&
+    after=$(git show "$2:$3" | sed -e "$4" | git hash-object -w --stdin) || return 1
+  [ "$before" != "$after" ] ||
+    { echo "Error: the stamp changed nothing in $3 of $(git rev-parse --short "$2")" >&2; return 1; }
+  GIT_INDEX_FILE=$1 git update-index --cacheinfo "100644,$after,$3"
+}
+
+# The tree of <commit> stamped as upstream's alpha build <version> of its engine
+# <sha10>: what upstream's build derives from the version, as
+# `DUCKDB_VERSION=<version>` would have written it. `DUCKDB_VERSION` and
+# `DUCKDB_PATCH_VERSION` in the engine file, the C++ `api_version` of the linked
+# extensions, which is the commit under a `-dev` stamp and the version under a
+# release one, and the R-side stamp file; `DUCKDB_SOURCE_ID` stays the commit.
+# Fails, saying why, where <commit> stamps no `-dev` of <version>'s release or
+# an edit changes nothing. Every step checks its own status, because a caller
+# that tests the result turns `set -e` off in here.
+series_alpha_stamp_tree() { # <commit> <sha10> <version> -> tree
+  local c=$1 sha10=$2 version=$3 release suffix dev devn patch short idx t
+  local loader=$series_alpha_loader
+  release=${version%-*}  # v2.0.0
+  suffix=${version##*-}  # alpha46057
+  short=$(git rev-parse --short "$c") || return 1
+  dev=$(git show "$c:$series_engine_file" | sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p') || return 1
+  case "$dev" in
+    "$release-dev"[0-9]*) ;;
+    *) echo "Error: $short stamps $dev, which is no $release-dev version" >&2; return 1 ;;
+  esac
+  devn=${dev##*-}       # dev87149
+  patch=${release##*.}  # 0
+  idx=$(mktemp -d) || return 1
+  idx=$idx/index
+  if GIT_INDEX_FILE=$idx git read-tree "$c" &&
+    series_alpha_edit_ "$idx" "$c" "$series_engine_file" \
+      "s/^#define DUCKDB_VERSION \"$dev\"\$/#define DUCKDB_VERSION \"$version\"/;
+      s/^#define DUCKDB_PATCH_VERSION \"$patch-$devn\"\$/#define DUCKDB_PATCH_VERSION \"$patch-$suffix\"/" &&
+    series_alpha_edit_ "$idx" "$c" "$series_stamp_file" \
+      "s/^duckdb_version <- \"${dev#v}\"\$/duckdb_version <- \"${version#v}\"/" &&
+    { ! git cat-file -e "$c:$loader" 2>/dev/null ||
+      series_alpha_edit_ "$idx" "$c" "$loader" "s/api_version = \"$sha10\";/api_version = \"$version\";/"; } &&
+    t=$(GIT_INDEX_FILE=$idx git write-tree); then
+    rm -rf "${idx%/index}"
+  else
+    rm -rf "${idx%/index}"
+    return 1
+  fi
+  if git grep -q -F -e "$devn" "$t" -- "$series_vendor_dir" "$series_stamp_file"; then
+    echo "Error: the stamp left $devn behind:" >&2
+    git grep -n -F -e "$devn" "$t" -- "$series_vendor_dir" "$series_stamp_file" >&2
+    return 1
+  fi
+  echo "$t"
+}
