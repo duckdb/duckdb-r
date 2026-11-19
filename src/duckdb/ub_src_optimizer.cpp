@@ -68,6 +68,10 @@
 
 #include "src/optimizer/join_filter_pushdown_optimizer.cpp"
 
+#include "src/optimizer/join_simplification.cpp"
+
+#include "src/optimizer/join_to_semi_join.cpp"
+
 #include "src/optimizer/late_materialization.cpp"
 
 #include "src/optimizer/late_materialization_helper.cpp"
@@ -79,8 +83,6 @@
 #include "src/optimizer/multi_stage_aggregate_rewriter.cpp"
 
 #include "src/optimizer/optimizer.cpp"
-
-#include "src/optimizer/outer_join_simplification.cpp"
 
 #include "src/optimizer/partial_aggregate_pushdown.cpp"
 
