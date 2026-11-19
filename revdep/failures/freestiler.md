@@ -1,4 +1,4 @@
-# freestiler (0.2.0)
+# freestiler (0.3.0)
 
 * GitHub mirror: <https://github.com/cran/freestiler>
 
@@ -17,24 +17,24 @@ Run `revdepcheck::revdep_details(, "freestiler")` for more info
 ### Devel
 
 ```
-* installing *source* package ‘freestiler’ ...
-** this is package ‘freestiler’ version ‘0.2.0’
-** package ‘freestiler’ successfully unpacked and MD5 sums checked
-** using staged installation
-Using cargo 1.98.1 (797e8a9bc 2026-08-05)
-Using rustc 1.98.1 (48a229cea 2026-09-01)
-Enabling GeoParquet feature.
-Enabling DuckDB feature.
-Writing `src/Makevars`.
-`tools/config.R` has finished.
+[... 42 earlier lines omitted; the full 00install.out is in the check artifact ...]
+   Compiling num-traits v0.2.19
+   Compiling crossbeam-epoch v0.9.21
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.14
+   Compiling cc v1.5.1
+   Compiling pkg-config v0.3.34
+   Compiling crossbeam-deque v0.8.8
+   Compiling zstd-sys v2.1.0+zstd.1.5.7
+   Compiling ident_case v1.0.1
 ...
-if [ -d ./vendor ]; then \
-	find ./vendor -type f \( -name '._*' -o -name '.DS_Store' \) -delete; \
-fi
-export CARGO_HOME=/revdepx/out/freestiler.Rcheck/00_pkg_src/freestiler/src/.cargo && \
-export PATH="/revdepx/out/freestiler.Rcheck/R_check_bin:/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/revdepx/out/home/.cargo/bin" && \
-RUSTFLAGS=" --print=native-static-libs" cargo build  --features geoparquet,duckdb --lib --release --manifest-path=./rust/Cargo.toml --target-dir ./rust/target 
-error: the package 'freestiler' does not contain these features: duckdb, geoparquet
+   8 | #[cfg(any(feature = "geoparquet", feature = "duckdb"))]
+     |          -------------------------------------------- the item is gated here
+   9 | pub mod file_input;
+     |         ^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `freestiler` (lib) due to 7 previous errors
 make: *** [Makevars:28: rust/target/release/libfreestiler.a] Error 101
 ERROR: compilation failed for package ‘freestiler’
 * removing ‘/revdepx/out/freestiler.Rcheck/freestiler’
@@ -44,24 +44,24 @@ ERROR: compilation failed for package ‘freestiler’
 ### CRAN
 
 ```
-* installing *source* package ‘freestiler’ ...
-** this is package ‘freestiler’ version ‘0.2.0’
-** package ‘freestiler’ successfully unpacked and MD5 sums checked
-** using staged installation
-Using cargo 1.98.1 (797e8a9bc 2026-08-05)
-Using rustc 1.98.1 (48a229cea 2026-09-01)
-Enabling GeoParquet feature.
-Enabling DuckDB feature.
-Writing `src/Makevars`.
-`tools/config.R` has finished.
+[... 42 earlier lines omitted; the full 00install.out is in the check artifact ...]
+   Compiling jobserver v0.1.32
+   Compiling shlex v2.0.1
+   Compiling crossbeam-epoch v0.9.21
+   Compiling find-msvc-tools v0.1.14
+   Compiling cc v1.5.1
+   Compiling pkg-config v0.3.34
+   Compiling crossbeam-deque v0.8.8
+   Compiling zstd-sys v2.1.0+zstd.1.5.7
+   Compiling ident_case v1.0.1
 ...
-if [ -d ./vendor ]; then \
-	find ./vendor -type f \( -name '._*' -o -name '.DS_Store' \) -delete; \
-fi
-export CARGO_HOME=/revdepx/out/freestiler.Rcheck/00_pkg_src/freestiler/src/.cargo && \
-export PATH="/revdepx/out/freestiler.Rcheck/R_check_bin:/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/revdepx/out/home/.cargo/bin" && \
-RUSTFLAGS=" --print=native-static-libs" cargo build  --features geoparquet,duckdb --lib --release --manifest-path=./rust/Cargo.toml --target-dir ./rust/target 
-error: the package 'freestiler' does not contain these features: duckdb, geoparquet
+   8 | #[cfg(any(feature = "geoparquet", feature = "duckdb"))]
+     |          -------------------------------------------- the item is gated here
+   9 | pub mod file_input;
+     |         ^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `freestiler` (lib) due to 7 previous errors
 make: *** [Makevars:28: rust/target/release/libfreestiler.a] Error 101
 ERROR: compilation failed for package ‘freestiler’
 * removing ‘/revdepx/out/freestiler.Rcheck/freestiler’
