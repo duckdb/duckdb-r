@@ -1,9 +1,13 @@
 
-# duckdb
+# duckdb.2.0.dev
 
 [DuckDB](https://duckdb.org/) is an in-process SQL OLAP database management system.
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
+
+This package is the `duckdb.2.0.dev` flavor of those bindings,
+and is only available from r-universe.
+The `Flavors` section below says which upstream series it tracks.
 
 ## Goals and non-goals
 
@@ -35,32 +39,6 @@ It is explicitly not trying to:
   The test suite and the runnable examples are too heavy for the check farm,
   so they run on GitHub Actions and r-universe, and elsewhere only when `DUCKDB_R_RUN_TESTS` asks for them.
 
-## Installation from CRAN
-
-This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
-
-``` r
-install.packages("duckdb")
-```
-
-For Linux or older R versions, installing the package from source may take up to an hour.
-Consider the [Posit Public Package Manager](https://p3m.dev/) or [r-universe](https://duckdb.r-universe.dev) for binary installs (see the next sections).
-
-## Installation from the Posit Public Package Manager
-
-This repository serves binary builds of CRAN packages for a wide variety of platforms.
-Follow setup instructions from <https://p3m.dev/client/#/repos/cran/setup>.
-For example, to install the ManyLinux version of duckdb that is likely to work on your Linux, use:
-
-``` r
-install.packages("duckdb", repos = sprintf(
-  "https://p3m.dev/cran/latest/bin/linux/manylinux_2_28-%s/%s", R.version["arch"], substr(getRversion(), 1, 3)
-))
-```
-
-To check the availability of binaries for your platform,
-navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
-
 ## Installation from r-universe
 
 This repository serves development versions.
@@ -68,19 +46,10 @@ Binaries are available for recent versions of R and for some platforms.
 Review <https://docs.r-universe.dev/install/binaries.html> for configuring installation of binary packages on Linux.
 
 ``` r
-install.packages("duckdb", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
+install.packages("duckdb.2.0.dev", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
 ```
 
 Installing the package from source may take up to an hour.
-
-## Installation from GitHub
-
-``` r
-# install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
-pak::pak("duckdb/duckdb-r")
-```
-
-Installing the package from GitHub may take up to an hour.
 
 ## Flavors
 
