@@ -1,3 +1,5 @@
+#include "src/execution/operator/join/join_filter_pushdown.cpp"
+
 #include "src/execution/operator/join/outer_join_marker.cpp"
 
 #include "src/execution/operator/join/physical_asof_join.cpp"
