@@ -108,17 +108,6 @@ CRAN release: 2026-10-23
   [`dbFetch()`](https://dbi.r-dbi.org/reference/dbFetch.html) still
   returns its rows.
 
-### Known issues
-
-- The progress display stops after the first batch of a result read as
-  an Arrow stream
-  ([`dbSendQueryArrow()`](https://dbi.r-dbi.org/reference/dbSendQueryArrow.html)
-  or
-  [`dbGetQueryArrow()`](https://dbi.r-dbi.org/reference/dbGetQueryArrow.html),
-  then `$get_next()`). The engine reports progress while it computes the
-  first batch and treats the query as finished from then on
-  ([\#2967](https://github.com/duckdb/duckdb-r/issues/2967)).
-
 ## duckdb 1.5.6
 
 CRAN release: 2026-09-29

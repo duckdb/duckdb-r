@@ -73,10 +73,6 @@
 <li><p>A query that scans an Arrow stream on the stream’s own connection fails with the invalidation error rather than waiting for good.</p></li>
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBind()</a></code> on a <code><a href="https://dbi.r-dbi.org/reference/dbSendQuery.html" class="external-link">dbSendQuery()</a></code> result after <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> fails with “Attempting to execute a prepared statement after its connection was closed!” rather than running the statement again; <code><a href="https://dbi.r-dbi.org/reference/dbFetch.html" class="external-link">dbFetch()</a></code> still returns its rows.</p></li>
 </ul></div>
-<div class="section level3">
-<h3 id="known-issues-2-0-0">Known issues<a class="anchor" aria-label="anchor" href="#known-issues-2-0-0"></a></h3>
-<ul><li>The progress display stops after the first batch of a result read as an Arrow stream (<code><a href="https://dbi.r-dbi.org/reference/dbSendQueryArrow.html" class="external-link">dbSendQueryArrow()</a></code> or <code><a href="https://dbi.r-dbi.org/reference/dbGetQueryArrow.html" class="external-link">dbGetQueryArrow()</a></code>, then <code>$get_next()</code>). The engine reports progress while it computes the first batch and treats the query as finished from then on (<a href="https://github.com/duckdb/duckdb-r/issues/2967" class="external-link">#2967</a>).</li>
-</ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.6" id="duckdb-156">duckdb 1.5.6<a class="anchor" aria-label="anchor" href="#duckdb-156"></a></h2><p class="text-muted">CRAN release: 2026-09-29</p>
