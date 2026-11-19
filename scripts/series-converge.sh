@@ -34,7 +34,7 @@
 #     where the difference is explained: "renumbered" accounts for a counter
 #     that restarted, and for nothing that happened to the four components
 #     above it.
-#   * `NEWS.md` -- kept by a separate process, not by ports
+#   * `NEWS.md` -- written by landings' bumps, not by ports
 #     (handbook/operations/releases/versioning/README.md): stage 4 never ports
 #     a VERSION commit, `main`'s R-client counter not being a series'
 #     (.claude/skills/series-loop/SKILL.md), and every other pick keeps the

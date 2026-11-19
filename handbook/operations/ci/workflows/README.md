@@ -17,7 +17,7 @@ Authored here, with no counterpart in the template, are
 `each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml`, `cran-release.yaml` and `pull-request-base.yaml`.
 A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 One file of the core set is left out, and a sync must not bring it back:
-the template's `fledge.yaml`, because this repository writes its version by hand and keeps `NEWS.md` apart
+the template's `fledge.yaml`, because this repository writes its version and its `NEWS.md` section by hand, in a landing's bump
 ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 Three more are not in the template yet:
 `winbuilder.yaml`, `release-gate.yaml` and `cran-submission.yaml` are copied from igraph/rigraph,
