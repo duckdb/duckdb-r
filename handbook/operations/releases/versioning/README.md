@@ -1,7 +1,7 @@
 # Versioning
 
-The package version — `Version:` in `DESCRIPTION`, the one place
-it lives — its components, what advances them, the tags that mark them, and who keeps `NEWS.md` beside it.
+The package version (`Version:` in `DESCRIPTION`, the one place it lives):
+its components, what advances them, the tags that mark them, and the `NEWS.md` section a landing writes beside it.
 The full version handling inside the release sequence is in
 [`process/`](/handbook/operations/releases/process/README.md).
 
@@ -83,7 +83,7 @@ and the counter is read back from `HEAD` at each step,
 which is what makes the replay restartable after a conflict.
 
 **A version bump is written by hand, as one commit named `chore: Bump version to <version>`.**
-It sets `Version:` in `DESCRIPTION`, and touches no other file but `NEWS.md`, which it need not touch at all.
+It sets `Version:` in `DESCRIPTION`, and touches no other file but `NEWS.md`.
 A released version is the bare three-component prefix, matching the upstream tag,
 set explicitly and never derived from git.
 A release's tag follows `DESCRIPTION`, and the landing of a release is the exception:
@@ -96,7 +96,8 @@ in a bump that takes no tag.
 **Every landing's bump takes the annotated tag `v<version>`, `v2.0.99.9001`, in the canonical repository,
 and a bump to a release's three components takes `v<version>.9900`, `v2.1.0.9900`.**
 Its message is the subject `duckdb <version>`, or `duckdb <version>.9900` with that tag,
-then the section `NEWS.md` has for `<version>`, and nothing more where it has none,
+then the section `NEWS.md` has for `<version>`, its heading matched up to the version so that a date after it is left out,
+and nothing more where it has none,
 the shape the `v1.5.6.90xx` tags have.
 `scripts/series-land.sh --status` prints the commands once the landing is ready,
 and [`series-land`](/.claude/skills/series-land/SKILL.md), step 6, runs them as printed.
@@ -107,11 +108,33 @@ so the landing's tag and the release's never clash.
 A development version never takes `.9900` as its fourth component, which counts landings up from `.9000`,
 so its `v<version>` tag never clashes with a landing's `v<version>.9900` either.
 
-**`NEWS.md` is kept by a separate process, not by pull requests, ports or landings.**
-A port keeps the series' copy ([`series-loop`](/.claude/skills/series-loop/references/4-port.md)),
-a landing's bump is recognized by its subject and its `DESCRIPTION` change, whether or not it touches `NEWS.md`
+**A landing's bump writes the section of `NEWS.md` for its version**, as the maintainer's release process does
+(<https://github.com/krlmlr/r-pkg-maintain>).
+Pull requests and ports write none: a port keeps the series' copy ([`series-loop`](/.claude/skills/series-loop/references/4-port.md)).
+The section goes right below the development section, headed `# duckdb <version> (YYYY-MM-DD)`,
+dated the day the bump is written and dated again whenever the bump is stamped again.
+Its first line is
+`_Drafted with AI from the vendored upstream commits and the R-side changes, not reviewed by a maintainer._`,
+and release notes follow for what in the batch a user would notice,
+written as a release section is: one bullet per change, duplicates merged, chores, CI and tooling syncs left out,
+grouped and ordered as the [tidyverse style guide](https://style.tidyverse.org/news.html) has it, breaking changes first.
+A substantial change may carry a short example.
+An engine update is a bullet naming the engine range,
+with a link to upstream's compare view, `https://github.com/duckdb/duckdb/compare/<previous engine>...<new engine>`.
+A batch with nothing worth a note gets the single bullet `- Internal changes only.`
+A landing's bump is still recognized by its subject and its `DESCRIPTION` change alone, whatever it does to `NEWS.md`
 ([`scripts/series-land.sh`](/scripts/series-land.sh)),
 and a tag copies the version's section only where the file has one.
+
+**Between landings, `NEWS.md` opens on a development section:**
+the heading `# duckdb (development version)` and one line without a bullet,
+`Commits since v2.0.99.9001: <https://github.com/duckdb/duckdb-r/compare/v2.0.99.9001...main>.`,
+which compares the branch's newest tag with the branch, `main` or the release branch.
+Each landing's bump moves the link to the tag it takes, `v<version>` or `v<version>.9900` (above),
+and the bump to `.9000` after a release moves it to the release's `v<version>`.
+Where the file has no development section yet, the first bump makes one of its top section:
+it renames the heading to `# duckdb (development version)`, keeps the one link line, moved to the bump's tag,
+and adds its own section below.
 
 **A landing without an upstream release takes the fourth component one up; one with a release takes the release.**
 `main` lands a batch of upstream `main` whenever one is ready, and no release names it,
@@ -141,9 +164,11 @@ and with its vendor counter back, and `series-land.sh` refuses it until it is st
 A forward merge meets the driver like any merge, so the newer line keeps its own record.
 `NEWS.md` has a merge driver of its own, [`scripts/merge-news.sh`](/scripts/merge-news.sh), registered with the other by `scripts/setup-git.sh`:
 it merges the file section by section, a section being a `# duckdb <version>` heading and its body,
-and writes the sections newest version first whichever side each came from,
+and writes the sections newest version first whichever side each came from, the development section above them all
+and any other heading without a version below them all, with a warning,
 so a forward merge interleaves the older line's `2.0.1` and `2.0.0.9001` below the newer line's `2.0.99.9001` without a conflict;
-a section both sides changed differently is merged three-way, and conflicts as any line would.
+a section both sides changed differently is merged three-way, and conflicts as any line would,
+and in the development section a conflict confined to the compare link keeps our link, as the `DESCRIPTION` driver keeps our `Version:`.
 The `DESCRIPTION` driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
