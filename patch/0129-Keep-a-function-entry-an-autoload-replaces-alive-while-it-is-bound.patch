@@ -25,13 +25,14 @@ BindAggregateFunction, so it needs no change of its own.
 Carried here until upstream takes it; upstream's attempt is
 duckdb/duckdb#27950, not merged. duckdb/duckdb-r#2883.
 ---
- src/duckdb/src/catalog/catalog_set.cpp             |  8 +++++++-
- src/duckdb/src/function/function_binder.cpp        | 24 +++++++++++++++++++---
- .../include/duckdb/function/function_binder.hpp    |  5 +++++
- .../binder/tableref/bind_table_function.cpp        |  5 +++--
- 4 files changed, 36 insertions(+), 6 deletions(-)
+ src/duckdb/src/catalog/catalog_set.cpp        |  8 ++++++-
+ src/duckdb/src/function/function_binder.cpp   | 24 ++++++++++++++++---
+ .../duckdb/function/function_binder.hpp       |  5 ++++
+ .../binder/tableref/bind_table_function.cpp   |  7 +++---
+ 4 files changed, 37 insertions(+), 7 deletions(-)
 
 diff --git a/src/duckdb/src/catalog/catalog_set.cpp b/src/duckdb/src/catalog/catalog_set.cpp
+index 1e7757323..3efb900ca 100644
 --- a/src/duckdb/src/catalog/catalog_set.cpp
 +++ b/src/duckdb/src/catalog/catalog_set.cpp
 @@ -385,11 +385,17 @@ bool CatalogSet::AlterEntry(CatalogTransaction transaction, const Identifier &na
@@ -54,6 +55,7 @@ diff --git a/src/duckdb/src/catalog/catalog_set.cpp b/src/duckdb/src/catalog/cat
  	// Update shared entry state only after the alter is installed and rollbackable.
  	if (new_entry->name != entry->name) {
 diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/function/function_binder.cpp
+index 1214c720a..b73b79f9d 100644
 --- a/src/duckdb/src/function/function_binder.cpp
 +++ b/src/duckdb/src/function/function_binder.cpp
 @@ -4,6 +4,7 @@
@@ -75,7 +77,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
 +		return entry;
 +	}
 +	// look the entry up again in its own schema, without search path or autoloading
-+	auto &schema = const_cast<SchemaCatalogEntry &>(entry.ParentSchema());
++	auto &schema = entry.Cast<StandardEntry>().schema;
 +	auto current = schema.GetEntry(schema.GetCatalogTransaction(context), entry.type, entry.name);
 +	if (!current || current->type != entry.type) {
 +		return entry;
@@ -117,6 +119,7 @@ diff --git a/src/duckdb/src/function/function_binder.cpp b/src/duckdb/src/functi
  	vector<unique_ptr<Expression>> regular_args;
  	vector<pair<Identifier, unique_ptr<Expression>>> keyword_args;
 diff --git a/src/duckdb/src/include/duckdb/function/function_binder.hpp b/src/duckdb/src/include/duckdb/function/function_binder.hpp
+index d88395327..1fcf34454 100644
 --- a/src/duckdb/src/include/duckdb/function/function_binder.hpp
 +++ b/src/duckdb/src/include/duckdb/function/function_binder.hpp
 @@ -434,6 +434,11 @@ public:
@@ -132,19 +135,33 @@ diff --git a/src/duckdb/src/include/duckdb/function/function_binder.hpp b/src/du
  	BindScalarFunction(const Identifier &schema, const Identifier &name, vector<unique_ptr<Expression>> children,
  	                   ErrorData &error, bool is_operator = false, optional_ptr<Binder> binder = nullptr,
 diff --git a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
+index 9094868b6..e6c42da5a 100644
 --- a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
 +++ b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
-@@ -521,10 +521,11 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
+@@ -504,7 +504,7 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
+ 		return query;
+ 	}
+ 	D_ASSERT(func_catalog.type == CatalogType::TABLE_FUNCTION_ENTRY);
+-	auto &function = func_catalog.Cast<TableFunctionCatalogEntry>();
++	auto &looked_up_function = func_catalog.Cast<TableFunctionCatalogEntry>();
+ 
+ 	// bind the input parameters to the function - they are folded to constants after the overload is chosen
+ 	vector<unique_ptr<Expression>> positional_arguments;
+@@ -513,14 +513,15 @@ BoundStatement Binder::Bind(TableFunctionRef &ref) {
+ 	bool table_in_out = false;
+ 	ErrorData error;
+ 
+-	if (!BindTableFunctionParameters(function, fexpr.GetArgumentsMutable(), positional_arguments, named_arguments,
+-	                                 subquery, table_in_out, error)) {
++	if (!BindTableFunctionParameters(looked_up_function, fexpr.GetArgumentsMutable(), positional_arguments,
++	                                 named_arguments, subquery, table_in_out, error)) {
+ 		error.AddQueryLocation(ref);
+ 		error.Throw();
+ 	}
  
  	// selection, named-argument checking, folding and casting all happen in the function binder
  	FunctionBinder function_binder(*this);
-+	auto &current = function_binder.GetCurrentEntry(function).Cast<TableFunctionCatalogEntry>();
++	auto &function = function_binder.GetCurrentEntry(looked_up_function).Cast<TableFunctionCatalogEntry>();
  	auto resolved =
  	    table_in_out
--	        ? function_binder.BindTableInOutFunction(function.functions, subquery.types, named_arguments, error)
--	        : function_binder.BindTableFunction(function.functions, positional_arguments, named_arguments, error);
-+	        ? function_binder.BindTableInOutFunction(current.functions, subquery.types, named_arguments, error)
-+	        : function_binder.BindTableFunction(current.functions, positional_arguments, named_arguments, error);
- 	if (!resolved) {
- 		error.AddQueryLocation(ref);
- 		error.Throw();
+ 	        ? function_binder.BindTableInOutFunction(function.functions, subquery.types, named_arguments, error)
