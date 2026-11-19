@@ -151,3 +151,113 @@ test_that("a registered relation's list column is refused on a thread other than
   res <- lapply(1:20, function(i) sort(dbGetQuery(con, sql)$a))
   expect_equal(res, rep(list(c(1L, 1L, 2L, 2L)), 20))
 })
+
+test_that("a window query over a registered data frame is planned (#2998)", {
+  con <- local_con()
+  duckdb_register(
+    con,
+    "t",
+    data.frame(id = 1:3, g = c("a", "b", "a"), px = c(1.5, 2, 3))
+  )
+
+  # The window self-join optimizer copies the plan of a view by serializing it;
+  # in a -O2 GCC build, R CMD check --use-valgrind reported an uninitialised
+  # read in QueryLocation until
+  # patch/0127-Avoid-branching-on-the-payload-of-an-unset-optional_idx.patch
+  # (https://github.com/duckdb/duckdb-r/issues/2998)
+  res <- dbGetQuery(
+    con,
+    "SELECT id, sum(px) OVER (PARTITION BY g) s FROM t ORDER BY id"
+  )
+  expect_equal(res, data.frame(id = 1:3, s = c(4.5, 2, 4.5)))
+
+  dbExecute(con, "CREATE TABLE u AS SELECT * FROM t")
+  dbExecute(con, "CREATE VIEW v AS SELECT * FROM u")
+  res <- dbGetQuery(
+    con,
+    "SELECT id, sum(px) OVER (PARTITION BY g) s FROM v ORDER BY id"
+  )
+  expect_equal(res, data.frame(id = 1:3, s = c(4.5, 2, 4.5)))
+})
+
+# In each test below, on an -O2 GCC build, R CMD check --use-valgrind reported
+# a branch on the payload of an unset optional_idx until
+# patch/0127-Avoid-branching-on-the-payload-of-an-unset-optional_idx.patch
+# (https://github.com/duckdb/duckdb-r/issues/2998)
+
+test_that("a window query over a filtered table is planned (#2998)", {
+  con <- local_con()
+  dbExecute(
+    con,
+    "CREATE TABLE t AS FROM (VALUES (1, 'a', 1.5), (2, 'b', 2), (3, 'a', 3)) v(id, g, px)"
+  )
+
+  # A filter on a parameter is pushed into the scan the optimizer copies
+  res <- dbGetQuery(
+    con,
+    "SELECT id, sum(px) OVER (PARTITION BY g) s FROM t WHERE id > ? ORDER BY id",
+    params = list(0L)
+  )
+  expect_equal(res, data.frame(id = 1:3, s = c(4.5, 2, 4.5)))
+})
+
+test_that("a CTE referenced twice is inlined (#2998)", {
+  con <- local_con()
+  dbExecute(
+    con,
+    "CREATE TABLE t AS FROM (VALUES (1, 1.5), (2, 2), (3, 3)) v(id, px)"
+  )
+
+  # Each reference gets a copy of the CTE's plan
+  res <- dbGetQuery(
+    con,
+    "WITH c AS NOT MATERIALIZED (SELECT id, px + 1 AS y FROM t)
+     SELECT a.id, a.y + b.y AS y FROM c a JOIN c b USING (id) ORDER BY id"
+  )
+  expect_equal(res, data.frame(id = 1:3, y = c(5, 6, 8)))
+})
+
+test_that("a file database reloads its views, macros and defaults (#2998)", {
+  path <- withr::local_tempfile(fileext = ".duckdb")
+  local({
+    con <- local_con(path)
+    dbExecute(con, "CREATE TABLE t (id INTEGER, px DOUBLE DEFAULT 1 + 1)")
+    dbExecute(con, "INSERT INTO t (id) VALUES (1), (2)")
+    dbExecute(
+      con,
+      "CREATE VIEW v AS SELECT id, CASE WHEN id > 1 THEN px END AS h FROM t"
+    )
+    dbExecute(con, "CREATE MACRO m(a, b := 2) AS a + b")
+  })
+
+  # Reopening reads the stored expressions back
+  con <- local_con(path)
+  expect_equal(
+    dbGetQuery(con, "SELECT id, h, m(id) AS m FROM v ORDER BY id"),
+    data.frame(id = 1:2, h = c(NA, 2), m = c(3, 4))
+  )
+})
+
+test_that("a file database is checkpointed (#2998)", {
+  path <- withr::local_tempfile(fileext = ".duckdb")
+  local({
+    con <- local_con(path)
+    dbExecute(con, "CREATE TABLE t AS SELECT range AS i FROM range(3)")
+    dbExecute(con, "CHECKPOINT")
+  })
+
+  con <- local_con(path)
+  expect_equal(dbGetQuery(con, "SELECT i FROM t ORDER BY i")$i, c(0, 1, 2))
+})
+
+test_that("a column changes its type (#2998)", {
+  con <- local_con()
+  dbExecute(con, "CREATE TABLE t AS SELECT range::INTEGER AS i FROM range(3)")
+
+  # The commit reads back the ALTER with the cast it implies
+  dbExecute(con, "ALTER TABLE t ALTER i TYPE VARCHAR")
+  expect_equal(
+    dbGetQuery(con, "SELECT i FROM t ORDER BY i")$i,
+    c("0", "1", "2")
+  )
+})
