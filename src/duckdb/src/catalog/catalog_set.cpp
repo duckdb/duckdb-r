@@ -385,11 +385,17 @@ bool CatalogSet::AlterEntry(CatalogTransaction transaction, const Identifier &na
 
 		DuckTransactionManager::Get(GetCatalog().GetAttached())
 		    .PushCatalogEntry(*transaction.transaction, new_entry->Child(), stream.GetData(), stream.GetPosition());
-	} else {
+	} else if (!catalog.IsSystemCatalog()) {
 		// if we don't have a transaction this alter is non-transactional
 		// in that case we are able to just directly destroy the child (if there is any)
 		entry_to_destroy = new_entry->TakeChild();
 	}
+	// A non-transactional alter of the system catalog (an extension adding overloads to a function it shares with
+	// core, e.g. while autoloading) keeps the replaced version as the child of the new one instead of destroying it.
+	// Clients hold system entries without a transaction pinning them, across work that can load an extension: binding
+	// a function's arguments, or a LOAD on another connection. Lookups never reach the retained version. It costs one
+	// copy of the function set per such alter, bounded because each extension loads once, and lives until shutdown
+	// (a DROP's tombstone keeps it too).
 
 	// Update shared entry state only after the alter is installed and rollbackable.
 	if (new_entry->name != entry->name) {
