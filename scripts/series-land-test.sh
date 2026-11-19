@@ -29,7 +29,14 @@
 #      A landing is ready only on its hand-written version bump, which may
 #      change nothing but NEWS.md, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
-#      commit vendors, with nothing above it, whatever NEWS.md holds; a rebuild
+#      commit vendors, with nothing above it, whatever NEWS.md holds, and the
+#      alpha stamp of its parent's engine, READY only while upstream's pointer
+#      names that alpha and not when the pointer cannot be read, until the
+#      branch is the bump, which needs the pointer no longer. --stamp-alpha
+#      refuses an engine with no alpha or one with a gap in its extensions,
+#      and names the stamp a worktree holds of an alpha the pointer has moved
+#      past, with the checkout that drops it; it succeeds again on its own stamp, warns on an engine not the source's, and
+#      writes nothing for a release engine, whose bump needs no stamp; a rebuild
 #      drops a bump added to the kept worktree. Step 6's tag block, read off
 #      the series-land skill, runs the tag commands printed with the
 #      fast-forward only on READY; run once `main` has the bump, they tag it
@@ -395,7 +402,7 @@ unlanded() { git push -q -f upstream "$M:refs/heads/main"; }
 status_of() { # <sha>: put it at the tip of land-dev, passed, and ask
   dev_at "$1"
   git cat-file -e "rcc2:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || passed "$1"
-  out=$(scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
+  out=$(PATH="${STUB:+$STUB:}$PATH" scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
   [ -z "${KEEP:-}" ] || echo "$out"
 }
 refused() { # <label>: the probe in the working tree is committed under the bump's subject
@@ -573,6 +580,162 @@ git checkout -q -f probe; git merge -q --no-ff side -m "$bump_msg"
 status_of "$(git rev-parse HEAD)"
 is "a merge commit is refused" "$st" 1
 git checkout -q -f main; git branch -q -D side
+
+echo "== the bump carries the alpha stamp of the engine it ends on"
+status_of "$BUMP"
+has "a bump without the stamp is ready, with a note that it carries none" "$out" "Note: the bump carries no alpha stamp"
+# `curl` answers upstream's per-commit pointer from $NET/pointer-<sha10>, absent
+# for a 404, and every extension but those listed in $NET/missing; with
+# $NET/down it reaches nothing.
+NET=$SCRATCH/net
+mkdir -p "$SCRATCH/bin" "$NET"
+: > "$NET/missing"
+cat > "$SCRATCH/bin/curl" <<'EOF'
+#!/bin/bash
+[ ! -f "$NET/down" ] || { echo 000; echo "curl: (6) Could not resolve host" >&2; exit 6; }
+out=/dev/null url=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift 2 ;;
+    -w | -m) shift 2 ;;
+    http*) url=$1; shift ;;
+    *) shift ;;
+  esac
+done
+case "$url" in
+  https://duckdb-staging.duckdb.org/*/latest_alpha_version.txt)
+    p=${url#https://duckdb-staging.duckdb.org/}; p=$NET/pointer-${p%%/*}
+    if [ -f "$p" ]; then cp "$p" "$out"; echo 200; else echo 404; fi ;;
+  https://extensions.duckdb.org/*)
+    if grep -qxF "${url#https://extensions.duckdb.org/}" "$NET/missing"; then echo 404; else echo 200; fi ;;
+  *) echo 500 ;;
+esac
+EOF
+chmod +x "$SCRATCH/bin/curl"
+export NET
+STUB=$SCRATCH/bin
+stamp() { out=$(PATH="$SCRATCH/bin:$PATH" scripts/series-land.sh v2.0-x --stamp-alpha 2>&1) && st=0 || st=$?; }
+# A vendor commit above the landing's last, of an engine upstream built as an
+# alpha, -dev stamped in the three files the stamp rewrites, as the real tree is.
+ALPHA=abcdef0123
+PRAGMA=src/duckdb/src/function/table/version/pragma_version.cpp
+LOADER=src/duckdb/generated_extension_loader_package_build.cpp
+probe
+printf '#define DUCKDB_PATCH_VERSION "0-dev7"\n#define DUCKDB_VERSION "v2.0.0-dev7"\n#define DUCKDB_SOURCE_ID "%s"\n' "$ALPHA" > "$PRAGMA"
+printf '\tdescriptor->api_version = "%s";\n\tdescriptor->api_version = "v1.2.0";\n' "$ALPHA" > "$LOADER"
+echo 'duckdb_version <- "2.0.0-dev7"' > R/version.R
+commit "vendor: Update vendored sources to duckdb/duckdb@${ALPHA}000000000000000000000000000000"
+AV=$(git rev-parse HEAD)
+passed "$AV"
+read -r KWT _ < "$(git rev-parse --git-dir)/series-land-v2.0-x"
+git -C "$KWT" checkout -q --detach "$AV"
+
+stamp
+is "an engine upstream built no alpha of is refused" "$st" 1
+has "  and says the batch must end on one" "$out" "upstream built no alpha of duckdb/duckdb@$ALPHA"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
+echo v2.0.0-alpha77/osx_arm64/icu.duckdb_extension.gz > "$NET/missing"
+stamp
+is "an alpha with a gap in its extensions is refused" "$st" 1
+has "  and names the gap" "$out" "v2.0.0-alpha77 has no icu for osx_arm64"
+is "  and the kept worktree is untouched" "$(git -C "$KWT" status --porcelain)" ""
+: > "$NET/missing"
+# Run from the kept worktree, as step 3 runs it.
+out=$(cd "$KWT" && PATH="$SCRATCH/bin:$PATH" "$WORK/scripts/series-land.sh" v2.0-x --stamp-alpha 2>&1) && st=0 || st=$?
+is "the alpha is stamped into the kept worktree" "$st" 0
+has "  with a warning that it is not the engine of the source" "$out" "vendors $ALPHA, not dddd444"
+is "  in the three files it rewrites" "$(git -C "$KWT" diff --cached --name-only | tr '\n' ' ')" "R/version.R $LOADER $PRAGMA "
+has "  DUCKDB_VERSION is the alpha" "$(cat "$KWT/$PRAGMA")" '#define DUCKDB_VERSION "v2.0.0-alpha77"'
+has "  DUCKDB_SOURCE_ID stays the commit" "$(cat "$KWT/$PRAGMA")" "#define DUCKDB_SOURCE_ID \"$ALPHA\""
+stamp
+is "stamped again before the commit, it succeeds" "$st" 0
+is "  and the stamp stays staged" "$(git -C "$KWT" diff --cached --name-only | tr '\n' ' ')" "R/version.R $LOADER $PRAGMA "
+echo '// beside the stamp' >> "$KWT/$LOADER"
+stamp
+is "an edit to a stamped file beside the stamp is refused" "$st" 1
+has "  and says so" "$out" "has changes to the stamped files other than the stamp"
+git -C "$KWT" checkout -q -- "$LOADER"
+echo v2.0.0-alpha78 > "$NET/pointer-$ALPHA"
+stamp
+is "a stamp of an alpha upstream's pointer has since moved past is refused" "$st" 1
+has "  and named" "$out" "holds a different stamp, v2.0.0-alpha77, where upstream's alpha of $ALPHA is v2.0.0-alpha78 now"
+has "  with the checkout that drops it" "$out" "checkout HEAD -- R/version.R $LOADER $PRAGMA"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
+(cd "$KWT" && write_bump 1.99.99.9001 "${ALPHA}000000000000000000000000000000" &&
+  git -c user.name=Test -c user.email=t@example.invalid commit -qam "$bump_msg")
+SB=$(git -C "$KWT" rev-parse HEAD)
+stamp
+has "a rerun on the stamped bump has nothing to do" "$out" "is stamped as v2.0.0-alpha77 already"
+status_of "$SB"
+has "the bump that carries the stamp is ready" "$out" "READY: every commit has passed"
+hasnt "  with no note" "$out" "carries no alpha stamp"
+echo v2.0.0-alpha78 > "$NET/pointer-$ALPHA"
+status_of "$SB"
+is "a stamp upstream's pointer has moved past is not ready" "$st" 1
+has "  and names the newer alpha" "$out" "NOT READY: the bump stamps v2.0.0-alpha77, but upstream's newest alpha of $ALPHA is v2.0.0-alpha78"
+rm "$NET/pointer-$ALPHA"
+status_of "$SB"
+is "a stamp upstream names no alpha for is not ready" "$st" 1
+has "  and says so" "$out" "upstream names no alpha of $ALPHA now"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
+: > "$NET/down"
+status_of "$SB"
+is "a stamp whose pointer cannot be read is not ready" "$st" 1
+has "  and says why" "$out" "NOT READY: the bump's stamp v2.0.0-alpha77 is unconfirmed: could not read the alpha of $ALPHA"
+rm "$NET/down"
+landed "$SB"
+echo v2.0.0-alpha78 > "$NET/pointer-$ALPHA"
+status_of "$SB"
+has "once main is the stamped bump, a pointer moved past it leaves it ready" "$out" "READY: every commit has passed"
+: > "$NET/down"
+status_of "$SB"
+has "  and so does a pointer that cannot be read" "$out" "READY: every commit has passed"
+is "  and run as printed, the tag block tags it" "$(PATH="$STUB:$PATH" tag_as_printed v1.99.99.9001)" \
+  "$SB"$'\n''duckdb 1.99.99.9001'
+rm "$NET/down"
+echo v2.0.0-alpha77 > "$NET/pointer-$ALPHA"
+git tag -d v1.99.99.9001 >/dev/null
+git push -q upstream :refs/tags/v1.99.99.9001
+unlanded
+git -C "$KWT" checkout -q --detach "$TIP"
+
+stamped() { git checkout -q -f -B probe "$AV"; git checkout -q "$SB" -- .; }
+stamped; sed -i "s/^#define DUCKDB_SOURCE_ID .*/#define DUCKDB_SOURCE_ID \"1234567890\"/" "$PRAGMA"
+refused "a stamp that changes the engine's commit is refused" "it differs from the stamp of $ALPHA as v2.0.0-alpha77 in $PRAGMA"
+stamped; sed -i "s/v2.0.0-alpha77/v2.0.0-alpha78/" "$LOADER"
+refused "a stamp naming another alpha in one file is refused" "differs from the stamp of $ALPHA as v2.0.0-alpha77 in $LOADER"
+stamped; git checkout -q "$AV" -- R/version.R
+refused "a stamp that leaves a file unstamped is refused" "in R/version.R"
+stamped; echo 'engine changed' > src/duckdb/engine.cpp
+refused "a stamp with an edit beside it is refused" "outside an alpha stamp: src/duckdb/engine.cpp"
+stamped; sed -i 's/v2.0.0-alpha77/v2.0.0-rc1/' "$PRAGMA" "$LOADER" R/version.R
+refused "a version that is no alpha is refused" "a malformed alpha stamp: DUCKDB_VERSION is 'v2.0.0-rc1'"
+stamped; sed -i 's/v2.0.0-alpha77/v2.1.0-alpha77/' "$PRAGMA" "$LOADER" R/version.R
+refused "an alpha of another release is refused" "which is no v2.1.0-dev version"
+probe; write_bump 1.99.99.9001; printf '#define DUCKDB_VERSION "v2.0.0-alpha77"\n#define DUCKDB_SOURCE_ID "dddd444"\n' > "$PRAGMA"
+refused "a stamp on an engine with no ten-digit commit is refused" "not ten hex digits"
+
+echo "== a release engine needs no alpha stamp"
+RELENG=fedcba9876
+probe
+printf '#define DUCKDB_PATCH_VERSION "1"\n#define DUCKDB_VERSION "v2.0.1"\n#define DUCKDB_SOURCE_ID "%s"\n' "$RELENG" > "$PRAGMA"
+echo 'duckdb_version <- "2.0.1"' > R/version.R
+commit "vendor: Update vendored sources to duckdb/duckdb@${RELENG}000000000000000000000000000000"
+RV=$(git rev-parse HEAD)
+passed "$RV"
+git -C "$KWT" checkout -q --detach "$RV"
+stamp
+is "--stamp-alpha on a release engine succeeds" "$st" 0
+has "  and says a release needs no stamp" "$out" "is stamped as 2.0.1, a release, which needs no alpha stamp"
+is "  and leaves the kept worktree alone" "$(git -C "$KWT" status --porcelain)" ""
+git -C "$KWT" checkout -q --detach "$TIP"
+git checkout -q -f -B probe "$RV"
+write_bump 1.99.99.9001 "${RELENG}000000000000000000000000000000"
+commit "$bump_msg"
+status_of "$(git rev-parse HEAD)"
+has "a bump over a release engine is ready" "$out" "READY: every commit has passed"
+hasnt "  with no note about an alpha stamp" "$out" "carries no alpha stamp"
+git checkout -q -f main
 
 echo "== and it never stands alone"
 GA=$(git ls-remote origin refs/heads/v2.0-x-land-green | cut -f1)
