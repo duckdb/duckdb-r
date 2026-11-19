@@ -164,6 +164,10 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 		} catch (std::exception &ex) {
 			failed = true;
 			message = ErrorData(ex).Message();
+		} catch (...) {
+			// An exception escaping a std::thread would terminate R
+			failed = true;
+			message = "unknown error";
 		}
 	});
 	worker.join();
