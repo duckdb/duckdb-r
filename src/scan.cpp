@@ -721,6 +721,11 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 		names.push_back(Identifier(string(df_names[col_idx])));
 
 		auto coldata = df[col_idx];
+		// Refused before the row count below is taken from the first column
+		auto error = RApiTypes::ArrayColumnError(coldata, string(df_names[col_idx]));
+		if (!error.empty()) {
+			throw InvalidInputException(error);
+		}
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 
 		bool is_named_list_map = false;

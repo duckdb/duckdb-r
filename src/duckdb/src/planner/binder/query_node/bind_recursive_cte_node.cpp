@@ -117,7 +117,7 @@ BoundStatement Binder::BindNode(RecursiveCTENode &statement) {
 				    "It has to be either a column name as a key or a direct call to an aggregate function.",
 				    expr->ToString());
 			}
-			auto &func = entry->Cast<AggregateFunctionCatalogEntry>();
+			auto &looked_up_func = entry->Cast<AggregateFunctionCatalogEntry>();
 
 			vector<LogicalType> aggregation_input_types;
 			vector<unique_ptr<Expression>> bound_children;
@@ -152,6 +152,7 @@ BoundStatement Binder::BindNode(RecursiveCTENode &statement) {
 			}
 
 			// Find the best matching aggregate function
+			auto &func = function_binder.GetCurrentEntry(looked_up_func).Cast<AggregateFunctionCatalogEntry>();
 			auto best_function_idx =
 			    function_binder.BindFunction(func.name, func.functions, aggregation_input_types, error);
 			if (!best_function_idx.IsValid()) {

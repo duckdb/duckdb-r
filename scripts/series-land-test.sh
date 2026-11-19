@@ -33,13 +33,14 @@
 #      drops a bump added to the kept worktree. Step 6's tag block, read off
 #      the series-land skill, runs the tag commands printed with the
 #      fast-forward only on READY; run once `main` has the bump, they tag it
-#      `duckdb <version>`, with NEWS.md's section for it below where there is
-#      one; run before that, even with a tag named like the branch at the bump,
-#      or over a stale local tag of that name, they fail and send nothing. On a
-#      landing not READY the block stops before them. A release's version is
-#      tagged `v<version>.9900`, `duckdb <version>.9900` with the version's
-#      section, and never `v<version>`, the release's own: that tag on another
-#      commit does not stop it, and a stale local tag of the new name does.
+#      `duckdb <version>`, with NEWS.md's section for it below where there is,
+#      its heading bare or dated; run before that, even with a tag named like
+#      the branch at the bump, or over a stale local tag of that name, they
+#      fail and send nothing. On a landing not READY the block stops before
+#      them. A release's version is tagged `v<version>.9900`,
+#      `duckdb <version>.9900` with the version's section, and never
+#      `v<version>`, the release's own: that tag on another commit does not
+#      stop it, and a stale local tag of the new name does.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -366,8 +367,8 @@ passed() { # <sha>
 }
 bump_msg='chore: Bump version to 1.99.99.9001 with hand-written release notes'
 ENGINE_FULL=dddd444000000000000000000000000000000000
-# DESCRIPTION alone: NEWS.md is kept by a process of its own, and a bump need
-# not touch it.
+# DESCRIPTION alone: a landing's bump writes the version's NEWS.md section,
+# but the script does not read that file, so a bump without it is accepted.
 write_bump() { # <version> [<engine record>]
   sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $1\nConfig\/duckdb\/upstream: ${2-$ENGINE_FULL}/" DESCRIPTION
 }
@@ -444,14 +445,15 @@ git tag -d v1.99.99.9001 >/dev/null
 git push -q upstream :refs/tags/v1.99.99.9001
 unlanded
 probe; write_bump 1.99.99.9001
-{ printf '# duckdb 1.99.99.9001\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+{ printf '# duckdb (development version)\n\nCommits since v1.99.99.9001: <https://example.invalid>.\n\n\n'
+  printf '# duckdb 1.99.99.9001 (2026-11-17)\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
 mv NEWS.md.new NEWS.md
 commit "$bump_msg"
 NEWS_BUMP=$(git rev-parse HEAD)
 status_of "$NEWS_BUMP"
 has "a bump that writes the version's section is ready too" "$out" "READY: every commit has passed"
 landed "$NEWS_BUMP"
-is "and its tag carries the section below the subject" "$(tag_as_printed v1.99.99.9001)" \
+is "and its tag carries the section, its heading dated, below the subject" "$(tag_as_printed v1.99.99.9001)" \
   "$NEWS_BUMP"$'\n''duckdb 1.99.99.9001'$'\n\n''## Features'$'\n\n''- Something for users.'
 git push -q upstream :refs/tags/v1.99.99.9001
 unlanded
