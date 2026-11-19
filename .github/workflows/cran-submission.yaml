@@ -125,7 +125,7 @@ jobs:
           fi
 
           # The way to proceed is the bump handbook/operations/releases/versioning/README.md describes:
-          # it sets DESCRIPTION and need not touch NEWS.md, where the separate process that keeps that file writes the version's section.
+          # it sets DESCRIPTION, and a landing's bump writes the version's section of NEWS.md.
           echo "::error title=Development version::DESCRIPTION carries the version '$version', and CRAN takes release versions only: three components, such as 2.0.0. Nothing was built, tagged or uploaded."
           {
             echo "### Version: failed"
@@ -138,7 +138,7 @@ jobs:
             echo "#### How to proceed"
             echo
             echo "- Bump the version by hand, \`Version: X.Y.Z\` in \`DESCRIPTION\`, in one commit \`chore: Bump version to X.Y.Z\`, and dispatch this workflow on that commit."
-            echo "  \`NEWS.md\` must already have its section for X.Y.Z, written by the separate process that keeps that file, or the run stops before tagging."
+            echo "  \`NEWS.md\` must already have its section for X.Y.Z, which the landing's bump writes, or the run stops before tagging."
             echo "- If submitting this version is really intended, dispatch again with \`allow-dev-version\` on: \`$rerun -f allow-dev-version=true\`."
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1
@@ -183,16 +183,16 @@ jobs:
           tag="v$pkg_version"
 
           message="$RUNNER_TEMP/tag-message.md"
-          # The section from the version's heading to the next one, without the leading "# ".
+          # The section from the version's heading, bare or followed by a space and a date, to the next one,
+          # its first line the heading without the leading "# " and the date.
           awk -v heading="# $pkg_name $pkg_version" '
-            $0 == heading { found = 1; print substr($0, 3); next }
+            index($0, heading) == 1 && ($0 == heading || substr($0, length(heading) + 1, 1) == " ") { found = 1; print substr(heading, 3); next }
             found && /^# / { exit }
             found { print }
           ' NEWS.md > "$message"
-          # The bump need not write the section: the separate process that keeps NEWS.md does, before the submission
-          # (handbook/operations/releases/versioning/README.md).
+          # The landing's bump to the release writes the section (handbook/operations/releases/versioning/README.md).
           if [ ! -s "$message" ]; then
-            echo "::error::NEWS.md has no section for $pkg_name $pkg_version, which the separate process that keeps NEWS.md writes before a submission."
+            echo "::error::NEWS.md has no section for $pkg_name $pkg_version, which the landing's bump to the release writes."
             exit 1
           fi
           # The release carries the section without its heading, as the earlier releases do;
@@ -260,7 +260,7 @@ jobs:
               echo
               echo "#### How to resolve"
               echo
-              echo "- If $TITLE is out, a new submission needs a new version: bump \`DESCRIPTION\` to it once \`NEWS.md\` has its section, written by the separate process that keeps that file, and dispatch again."
+              echo "- If $TITLE is out, a new submission needs a new version: bump \`DESCRIPTION\` to it with its section in \`NEWS.md\`, and dispatch again."
               echo "- If the published release is a mistake, open it, and save it as a draft again or delete it; then dispatch again, and this job updates the draft."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1

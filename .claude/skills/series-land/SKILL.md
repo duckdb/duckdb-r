@@ -235,12 +235,24 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   echo "$v"              # the version the subject names
   ```
 
-* **`NEWS.md`** is not the landing's to write
-  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)):
-  the bump may carry a change to it and needs none.
+* **`NEWS.md`**: add the section for `<v>` below the development section, and move that section's compare link to the tag the bump takes,
+  in the shape [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns.
+  Where there is no development section yet, turn the top section into it first:
+  the heading `# duckdb (development version)` and its one link line, moved to the new tag.
+  The section for `<v>` is
+  headed `# duckdb <v> (<today>)`, the italic drafted-with-AI line first, then the release notes.
+  Draft them from what the batch brings:
+  the upstream commits its vendor commits name, the R side the review of step 4 carries commit by commit,
+  and the engine range read off in step 2 for the engine bullet:
+
+  ```sh
+  git log --first-parent --reverse --format=%s "upstream/$B..HEAD"   # the vendor commits, each naming the upstream commit it vendors
+  git diff --stat "upstream/$B" HEAD -- . ':(exclude)src/duckdb' ':(exclude)DESCRIPTION'   # the R side, the glue included
+  ```
 * **The commit**: `chore: Bump version to <v>`.
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits
   that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`,
+  whose content it does not read,
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
   or does not rise above `<B>`'s;
   `--status` prints `READY` only on a landing that ends on it.
@@ -250,15 +262,16 @@ A rebuild drops it, so after one, add it again.
 A bump replayed by a fold or a rebase over a changed `DESCRIPTION` meets the merge driver,
 which takes the vendor counter back into its version and keeps the engine record of the commit it lands on,
 and `--status` then refuses it.
-Stamp it again from its subject and the vendored tree, in the kept worktree with the bump checked out:
+Stamp it again from its subject and the vendored tree, and date its `NEWS.md` section again, in the kept worktree with the bump checked out:
 
 ```sh
 eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
 full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
 v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
 sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
-git diff DESCRIPTION
-git commit --amend --no-edit DESCRIPTION
+sed -i "s/^# duckdb ${v//./\\.} ([0-9-]*)\$/# duckdb $v ($(date +%F))/" NEWS.md
+git diff DESCRIPTION NEWS.md
+git commit --amend --no-edit DESCRIPTION NEWS.md
 ```
 
 ## 4. Open the R side for review

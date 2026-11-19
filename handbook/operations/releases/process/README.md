@@ -284,7 +284,7 @@ S=v1.4-andium                          # the line just released
 R=$S-lts                               # the branch the release is tagged on: "$S" where the line has no -lts branch
 git fetch "$C" "+refs/heads/$R:refs/remotes/canonical/$R" &&   # the tip as it is now, after the rebase
   v=$(git show "canonical/$R:DESCRIPTION" | sed -n 's/^Version: //p') &&
-  { printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" '$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |
+  { printf 'duckdb %s\n\n' "$v"; git show "canonical/$R:NEWS.md" | awk -v h="# duckdb $v" 'index($0, h) == 1 && ($0 == h || substr($0, length(h) + 1, 1) == " ") {f = 1; next} /^# duckdb / {f = 0} f'; } |
   git tag -a "v$v" --cleanup=whitespace -F - "canonical/$R" &&
   git push "$C" "refs/tags/v$v"
 ```
