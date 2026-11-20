@@ -332,7 +332,19 @@ The fixes then go onto the series, and the landing is built from it as above.
 ## 5. Let CI judge every commit
 
 Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-land-dev`.
-Read and advance it with
+Open the landing's pull request from the fork along with it, never to be merged by a button, which would write commits the landing does not have:
+
+```sh
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+gh pr create --repo duckdb/duckdb-r --base "$B" --head "krlmlr:$S-land-dev" \
+  --title "Land $S onto $B" --body "Closed as merged by the fast-forward of $B, never merged here."
+```
+
+It shows each commit's verdict as `each-rcc (fork)`, copied while the pull request is open
+([`ci/per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)),
+and the fast-forward in step 6 closes it as merged.
+Read and advance the build with
 
 ```sh
 S=main   # the serving series that lands: main, or v2.0-cyanoptera
@@ -354,6 +366,21 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
 When `--status` prints `READY`, every commit has passed and `<B>` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `<B>` unjudged.
+Push it only once the landing's pull request shows `each-rcc (fork)` success on every commit,
+because `READY` reads the fork, and the copy covers a commit only while its pull request is open:
+pushed first, the landing's commits would sit on `<B>` with no verdict shown there.
+
+```sh
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto
+git fetch upstream "$B" && git fetch origin "$S-land-dev"
+for c in $(git rev-list "upstream/$B..origin/$S-land-dev"); do   # the commit that is not shown passing, if any
+  s=$(gh api "repos/duckdb/duckdb-r/commits/$c/status" --jq '[.statuses[] | select(.context == "each-rcc (fork)") | .state][0] // "none"')
+  [ "$s" = success ] || echo "$c $s"
+done
+```
+
+The copy runs hourly, and a dispatch of [`each-mirror.yaml`](/.github/workflows/each-mirror.yaml) runs it at once.
 Paste the blocks of this step into bash: zsh reads `$sha:r` as a modifier and, by default, `#` comments as commands.
 
 Lift the freeze, push, put the freeze back, and then tag the bump.
@@ -423,12 +450,15 @@ gh api -X DELETE "repos/duckdb/duckdb-r/rulesets/$id"
 
 Then the series:
 
-* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork,
+* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork, once the landing's pull request shows as merged,
+  and any other `<L>-land-*` ref the landing made there,
   `<L>-land-review` in the canonical repository with its draft pull request closed,
   and the kept worktree with `scripts/series-land.sh <S> --abort`.
 * **Forward the series onto the new `<B>` when its drift is worth it**
   ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
   The new seed already vendors what the landing vendored, so the forward replays only what came after, and opens on no rewind.
+  It also carries every commit `<B>` took since the series was seeded,
+  so those the series has not ported yet wait for the forward rather than being ported.
   Until then the next landing is built from the same series, and replays only what this one did not land.
 
 ## 8. Merge the release branch forward
@@ -443,7 +473,8 @@ git fetch upstream main
 scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
-The merge keeps the newer line's engine, the vendored strand and the Makevars generated from it,
+The merge is `-s ours` for the engine alone and an ordinary merge for the rest.
+It keeps the newer line's engine, the vendored strand and the Makevars generated from it,
 the registered `DESCRIPTION` merge driver keeps its version and engine record,
 and the `NEWS.md` merge driver merges the two changelogs by version section, newest first;
 `scripts/setup-git.sh` registers both, and the block runs it first.
