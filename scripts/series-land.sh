@@ -502,10 +502,7 @@ out_of_place() { # <tip>
   local c subj why seen='' bump=''
   while IFS=$'\t' read -r c subj; do
     [ -z "$bump" ] || { echo "$c $subj"; return; }
-    # shellcheck disable=SC2254
-    case "$subj" in
-      vendor:* | $series_vendor_glob) seen=1; continue ;;
-    esac
+    if series_is_vendor "$subj"; then seen=1; continue; fi
     [ -n "$seen" ] || continue
     case "$subj" in "$bump_subject"*) ;; *) echo "$c $subj"; return ;; esac
     why=$(is_bump "$c") || { echo "$c $subj ($why)"; return; }

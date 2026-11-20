@@ -6,24 +6,31 @@
 # Every scripts/series-*.sh that reads the engine, scripts/vendor-one.sh and
 # scripts/each-plan.sh read its names from here, through scripts/series-lib.sh
 # or scripts/vendor-lib.sh, and from nowhere else; scripts/vendor.sh, the
-# manual bulk vendoring, keeps its own copy and reads only the generator and
-# the release tag from here. A repository that vendors another engine commit by
-# commit changes this file and keeps the scripts
-# (handbook/operations/vendoring/series-loop/README.md). Paths are relative to
-# the repository root, each one a directory, a file, or a shell glob over
-# either (`R/aaa-*.R`), read the same way whether a script compares it or
-# hands it to git as a pathspec.
+# manual bulk vendoring, keeps its own copy and reads only the generator, the
+# release tag and the older vendor subjects from here. A repository that
+# vendors another engine commit by commit changes this file and keeps the
+# scripts (handbook/operations/vendoring/series-loop/README.md). Paths are
+# relative to the repository root, each one a directory, a file, or a shell
+# glob over either (`R/aaa-*.R`), read the same way whether a script compares
+# it or hands it to git as a pathspec.
 
-# The upstream repository, as a vendor subject names it: `vendor: Update
-# vendored sources to <owner>/<repo>@<sha>`. The three spellings of the marker
-# follow from it and are kept in step by hand, because bash has no one syntax
-# that serves `case`, `grep -E` and `sed -r` alike. A repository whose history
-# names more than one owner for the same upstream writes a pattern that accepts
-# each.
+# The upstream repository, as a vendor subject names it:
+# `vendor: Update vendored sources to <owner>/<repo>@<sha>`.
+# The patterns below spell that marker out and are kept in step with it by hand:
+# an ERE, a `sed -r` command that captures the SHA,
+# and the subjects vendor commits carried before the `vendor:` prefix.
+# A repository whose history names more than one owner for the same upstream
+# writes patterns that accept each.
 series_upstream_repo=duckdb/duckdb
-series_vendor_glob='*duckdb/duckdb@[0-9a-f]*'
 series_marker_ere='duckdb/duckdb@[0-9a-f]+'
 series_sha_sed='s|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p'
+
+# The subjects vendor commits carried before vendor-one.sh wrote the `vendor:` prefix,
+# as an ERE anchored at the start of the subject, or empty for a history without any.
+# The marker alone marks nothing:
+# a fix names the engine it was made against, and a revert the commit it reverts.
+# Brackets escape the parentheses, so that `awk -v` reads the pattern unchanged.
+series_vendor_legacy_ere='^(chore: )?Update vendored sources ([(]tag [^)]+[)] )?to duckdb/duckdb@[0-9a-f]+'
 
 # The vendored tree, and the pathspec that narrows a walk for vendor commits.
 # The two are one directory here because the version stamp a vendor commit

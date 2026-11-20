@@ -164,7 +164,7 @@ if [ "$mode" = forward ]; then
   engine=$(series_engine_of "$seed")
   anchor=''
   if [ -n "$engine" ]; then
-    anchor=$(git log --format='%H %s' "$vseed..$vendor_ref" | grep -m 1 -F "@$engine" | cut -d' ' -f1 || true)
+    anchor=$(series_vendor_log "$engine" "$vseed..$vendor_ref" | head -n 1 | cut -d' ' -f1 || true)
   fi
   wt=$(mktemp -d "${TMPDIR:-/tmp}/series-vendor-$S-XXXXXX")
   git worktree add --detach -q "$wt" "$seed"

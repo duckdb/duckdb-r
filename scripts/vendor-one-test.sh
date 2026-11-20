@@ -7,6 +7,8 @@
 #      its upstream SHA, with the regenerated tree, the patch stack applied, what
 #      the derived phase wrote, and nothing else: no counter, no byproduct the
 #      generator left outside the vendor paths, and a clean tree afterwards.
+#      The base is the newest vendor commit's, and fixes above it whose subjects
+#      name upstream commits neither move it nor make it a late tag.
 #   2. A patch whose change upstream took is retired in that commit, leaving an
 #      empty stack the next run and the staging survive.
 #   3. A tagged upstream commit carries its marker, and the walk stops there.
@@ -95,9 +97,18 @@ echo 'SOURCES=a.txt ' > src/include/sources.mk
 printf -- '--- a/src/duckdb/src/a.txt\n+++ b/src/duckdb/src/a.txt\n@@ -1 +1 @@\n-hello\n+hello patched\n' > patch/0001-hello.patch
 echo 'glue' > src/glue.cpp
 git add -A
-# The foot carries the tag's marker, so the first run re-stamps nothing.
+# The foot's vendor commit carries the tag's marker, so the first run re-stamps nothing.
 git commit -qm "vendor: Update vendored sources (tag v1.0.0) to duckdb/duckdb@$U0"
 git tag v1.0.0
+# Two fixes in the vendored tree above it name upstream commits and vendor nothing:
+# the re-stamp check reads past the older, which names the tagged commit without its tag,
+# and the base scan past the newer, which names a commit the strand has not vendored.
+echo 'a fix' > src/duckdb/fix.txt
+git add -A
+git commit -qm "fix(patch): Regenerate a patch against the engine at duckdb/duckdb@$U0"
+echo 'a fix, again' > src/duckdb/fix.txt
+git add -A
+git commit -qm "fix(patch): Ready a patch for duckdb/duckdb@$U1"
 FOOT=$(git rev-parse HEAD)
 
 runs=0

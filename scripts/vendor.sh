@@ -11,8 +11,9 @@ set -o pipefail
 
 cd "$(dirname "$0")"/..
 
-# The generator, the version it stamps and the release tag, shared with
-# scripts/vendor-one.sh; the rest this script keeps a copy of.
+# The generator, the version it stamps, the release tag
+# and the older vendor subjects the base scan accepts, shared with scripts/vendor-one.sh;
+# the rest this script keeps a copy of.
 # shellcheck source=series-config.sh
 . scripts/series-config.sh
 
@@ -57,14 +58,16 @@ fi
 # The upstream SHA the branch has vendored. Answering empty is not an option:
 # an empty base makes the message body below read `${base}..${commit}` with a
 # missing left side, which git resolves to the clone's HEAD and which writes a
-# changelog nobody chose. The same rule, and the same bound, as vendored_sha()
-# in scripts/series-advance.sh; scripts/vendor-one.sh has its own copy.
+# changelog nobody chose. The same rule, and the same bound, as
+# series_vendored_sha() in scripts/series-lib.sh; scripts/vendor-one.sh has its
+# own copy.
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee >(cat >&2))
-base=$(sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' <<<"$subjects" | head -n 1)
+base=$({ grep -E "^vendor:${series_vendor_legacy_ere:+|$series_vendor_legacy_ere}" <<<"$subjects" || true; } |
+  sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 if [ -z "$base" ]; then
   n=$(grep -c . <<<"$subjects" || true)
-  echo "Error: no ${repo_org}/${repo_name}@ subject among the newest $n ${vendor_dir} commit(s)" >&2
+  echo "Error: no ${repo_org}/${repo_name}@ vendor subject among the newest $n ${vendor_dir} commit(s)" >&2
   if [ "$n" -ge "${base_scan_depth}" ]; then
     echo "  the scan is bounded at ${base_scan_depth}; if that is genuinely too shallow, raise BASE_SCAN_DEPTH" >&2
   fi

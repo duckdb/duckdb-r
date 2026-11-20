@@ -256,7 +256,8 @@ a script reads the tree the caller is in.
 
 **A second repository configures the engine and keeps the scripts.**
 The engine's names live in one file, [`scripts/series-config.sh`](/scripts/series-config.sh), and the scripts read them from nowhere else:
-the upstream repository as a vendor subject names it, the vendored tree and the directory a base scan walks,
+the upstream repository as a vendor subject names it and the older forms that subject took,
+the vendored tree and the directory a base scan walks,
 the vendored strand, the generator that regenerates it from an upstream checkout,
 what a vendor-strand commit carries and what the buffer regenerates after a pick,
 what vendoring regenerates, the tooling stage 4 ports, the glue and the probe files its compile lines are read off,
