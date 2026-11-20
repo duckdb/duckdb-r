@@ -26,6 +26,8 @@
 #      first one it has not, and prints the fast-forward once every one passed.
 #      --review writes the landing's R side alone onto `main`, one commit per
 #      landing commit that changes it, with every workflow removed first.
+#      A fix above the vendor commits is out of place, though its subject names
+#      the engine it was made against.
 #      A landing is ready only on its hand-written version bump, which may
 #      change nothing but NEWS.md, the Version: line and the
 #      Config/duckdb/upstream: line, the full SHA of the engine the last vendor
@@ -558,6 +560,9 @@ refused_empty() { git commit -q --allow-empty -m "$bump_msg"; status_of "$(git r
 refused_empty
 probe; printf '# duckdb 1.99.99.9001\n\n- Something.\n' > NEWS.md
 refused "a NEWS-only commit is refused"
+probe; mkdir -p patch; echo 'a regenerated patch' > patch/0001-fix.patch
+BSUBJ='fix(patch): Regenerate patch/0001 against the engine at duckdb/duckdb@dddd444' \
+  refused "a fix that names the engine it was made against is no vendor commit, and is refused"
 probe; write_bump 1.99.99.8999
 refused "a lowered version is refused" "does not raise the version"
 probe; write_bump 1.99.99.9001.1

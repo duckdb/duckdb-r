@@ -195,11 +195,6 @@ fi
 tooling=("${series_tooling[@]}" ':(exclude).github/README.md')
 paths_re=$(series_tooling_re)
 flavored_docs_re='^\.github/README\.md$'
-# A vendor commit is one whose subject says it vendored: the `vendor:` prefix
-# vendor-one.sh writes, or the `<owner>/<repo>@<sha>` reference that carries the
-# upstream commit as machine-readable state. Same rule as every other reader of
-# the strand — see the header on why the path is not the rule.
-vendor_subject_re="^vendor:|$series_marker_ere"
 
 # scripts/flavor.sh's first commit, and so the foot of every seed
 # (series-open step 2, series-forward step 1).
@@ -405,7 +400,8 @@ version_bump() { # <sha>
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   local f t='' o=''
-  if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
+  # The subject decides, as series_is_vendor() reads it for every reader of the strand.
+  if series_is_vendor "$(git log -1 --format=%s "$1")"; then echo VENDOR; return; fi
   if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do
     if [[ "$f" =~ $paths_re && ! "$f" =~ $flavored_docs_re ]]; then t=1; else o=1; fi

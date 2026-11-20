@@ -232,10 +232,10 @@ glue_failures=/tmp/vendor-one-glue-failures.txt
 vendored_sha() {
   local subjects sha n
   subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}" | tee >(cat >&2))
-  sha=$(sed -rn "$series_sha_sed" <<<"$subjects" | head -n 1)
+  sha=$({ grep -E "$series_vendor_ere" <<<"$subjects" || true; } | sed -rn "$series_sha_sed" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
-    echo "Error: no ${repo_org}/${repo_name}@ subject among the newest $n" \
+    echo "Error: no ${repo_org}/${repo_name}@ vendor subject among the newest $n" \
       "${series_scan_dir} commit(s) of $(git rev-parse --abbrev-ref HEAD)" >&2
     if [ "$n" -ge "${base_scan_depth}" ]; then
       echo "  the scan is bounded at ${base_scan_depth}; if that is genuinely too" \
@@ -278,7 +278,7 @@ while [ $commits_vendored -lt $num_commits ]; do
   late_tag=$(exact_tag "$base")
   if [ -n "$late_tag" ]; then
     subjects=$(git log -n "${base_scan_depth}" --format="%s" -- "${series_scan_dir}")
-    case "$(grep -m 1 -F -- "@${base}" <<<"$subjects" || true)" in
+    case "$({ grep -E "$series_vendor_ere" <<<"$subjects" || true; } | grep -m 1 -F -- "@${base}" || true)" in
       *"(tag ${late_tag})"*) ;;
       *) restamp=$late_tag ;;
     esac
