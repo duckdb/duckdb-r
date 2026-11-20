@@ -134,6 +134,10 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 }
 
 [[cpp11::register]] void rapi_disconnect(duckdb::conn_eptr_t conn) {
+	// An object parked during the last R callback holds its client context, and with it the database:
+	// destroy it before letting go of the connection, or the file stays open (#2934).
+	// A no-op inside a callback, as everywhere: a finalizer may disconnect there.
+	RCallbackScope::Drain();
 	auto conn_wrapper = conn.release();
 	if (conn_wrapper) {
 		delete conn_wrapper;
