@@ -50,9 +50,6 @@ test_that("an aborted transaction is an error, not a missing table", {
 })
 
 test_that("asking keeps a policy the transaction was given", {
-  # DuckDB 1.x has no policy to give; once main vendors 2.0, the skip goes
-  # (https://github.com/duckdb/duckdb-r/issues/2895).
-  skip_if(numeric_version(sub("-.*", "", get_duckdb_version())) < "2.0.0")
   con <- local_con()
 
   dbBegin(con)
