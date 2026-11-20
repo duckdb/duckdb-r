@@ -471,7 +471,7 @@ late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
     tag=$(series_tag_of_release "$v")
     sha=$(awk -v t="$tag" '$2 == t { print $1; exit }' <<<"$tags")
     [ -n "$sha" ] || return 0
-    lines=$(git log --format='%H %s' "$1" | grep -F "@$sha" || true)
+    lines=$(series_vendor_log "$sha" "$1" || true)
     [ -n "$lines" ] || return 0
     if grep -qF "(tag $tag)" <<<"$lines"; then return 0; fi
     echo "$tag $sha $(head -n 1 <<<"$lines" | cut -d' ' -f1)"
@@ -479,10 +479,10 @@ late_tag() { # <build> -> "<tag> <upstream sha> <buffer commit>", empty if none
   fi
   # The tags sorted, so an abbreviated SHA that is a prefix of two tagged
   # commits meets the same one on every run.
-  awk -F'\t' -v ere="$series_marker_ere" '
+  awk -F'\t' -v vendor="$series_vendor_ere" -v ere="$series_marker_ere" '
     FNR == NR { if (split($0, a, " ") >= 2) { n++; sha[n] = a[1]; tag[n] = a[2] } next }
     {
-      if (!match($2, ere)) next
+      if ($2 !~ vendor || !match($2, ere)) next
       m = substr($2, RSTART, RLENGTH); sub(/^.*@/, "", m)
       for (i = 1; i <= n; i++) {
         if (index(sha[i], m) != 1) continue
@@ -575,9 +575,10 @@ for S in "${series[@]}"; do
       # must not answer for the forward chain. A base green that vendors nothing
       # asks for no coverage, exactly as in series-cutover.sh.
       base_up=$(series_vendored_sha "$remote/$base-green")
-      # Collected, not piped into grep: `grep -q` leaves early, and under
-      # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
-      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- "$series_scan_dir" || true)
+      # The vendor subjects, collected rather than piped into `grep -q`:
+      # it leaves early, and under `pipefail` the SIGPIPE it hands its writer would read as a failed test.
+      # `grep -E` reads its input whole, so `git log` may feed it.
+      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- "$series_scan_dir" | grep -E "$series_vendor_ere" || true)
       if [ -z "$base_up" ] || grep -qF "@$base_up" <<<"$fwd_vendored"; then
         cutover=$base
       fi
@@ -749,7 +750,7 @@ for S in "${series[@]}"; do
       echo "            It is the buffer's newest vendor commit, so stage 1 re-stamps it;"
       echo "            fetch the upstream clone's tags first (scripts/vendor-one.sh)."
     else
-      above=$(git log --format=%s "$lt_commit..$build" -- "$series_scan_dir" | grep -cE "$series_marker_ere" || true)
+      above=$(git log --format=%s "$lt_commit..$build" -- "$series_scan_dir" | grep -cE "$series_vendor_ere" || true)
       echo "            $above vendor commit(s) sit above it, so no run re-stamps it by itself:"
       echo "            scripts/VENDORING.md, \"A tag upstream pushed late\"."
     fi
@@ -867,27 +868,14 @@ fi
 
 # --- FORWARD-PORT: what is not yet merged forward ------------------------------
 #
-# The active release branches are the CRAN flavor's `upstream`, the line it
-# ships, and every `releases_from` other than `main` on a row not declared
-# `stale: true`, each named here as upstream names its line; a name the
-# canonical repository has no branch for, a line not cut yet, is left out. They
-# are taken oldest first, by version, each followed by the next newer one and the
-# newest by `main`, and the walk covers `<newer>..<older>`, merges skipped. The
+# The active release branches are the ones the declaration names
+# (series_release_branches, scripts/series-lib.sh); a name the canonical
+# repository has no branch for, a line not cut yet, is left out. They are taken
+# oldest first, by version, each followed by the next newer one and the newest
+# by `main`, and the walk covers `<newer>..<older>`, merges skipped. The
 # canonical repository is read first and the fork's mirrors second; with neither
 # carrying both branches of a pair the block says it could not read them.
-fp_lines=$(declaration 2>/dev/null | awk '
-  function val(v) { gsub(/["'"'"']/, "", v); return v }
-  function flush() {
-    if (k == "CRAN" && up != "") print up
-    if (rf != "" && rf != "main" && st != "true") print rf
-    k = ""; up = ""; rf = ""; st = ""
-  }
-  /^  - / { flush() }
-  /^    kind:/ { k = val($2) }
-  /^    upstream:/ { up = val($2) }
-  /^    releases_from:/ { rf = val($2) }
-  /^    stale:/ { st = val($2) }
-  END { flush() }' | grep -v '^main$' | sort -u -V || true)
+fp_lines=$(declaration 2>/dev/null | series_release_branches || true)
 fp_refs() { # <branch> -> its tip, canonical first, mirror second; empty when neither
   local b=$1 r
   for r in ${canonical:+"$canonical"} "$remote"; do
@@ -915,10 +903,19 @@ if [ -n "$fp_lines" ]; then
 fi
 # Release paperwork: notes and submission records, and in DESCRIPTION nothing but
 # the version and the engine record. A DESCRIPTION change to anything else, a
-# dependency say, is package content the newer line may want.
+# dependency say, is package content the newer line may want. A bump's alpha
+# stamp (series_alpha_stamped, scripts/series-lib.sh) is the older line's engine,
+# which a forward merge never takes, so it is paperwork beside a moved version
+# where it rewrites the stamp's lines alone (series_alpha_stamp_lines_only).
 paperwork() { # <commit>
-  [ -z "$(git diff-tree --no-commit-id --name-only -r "$1" |
-    grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)" ] || return 1
+  local other
+  other=$(git diff-tree --no-commit-id --name-only -r "$1" |
+    grep -vE '^(DESCRIPTION|NEWS\.md|cran-comments\.md|CRAN-SUBMISSION)$' || true)
+  if [ -n "$other" ]; then
+    [ -z "$(grep -vxF -f <(printf '%s\n' "${series_alpha_stamped[@]}") <<<"$other" || true)" ] &&
+      series_alpha_stamp_lines_only "$1" &&
+      git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -q '^+Version:' || return 1
+  fi
   [ -z "$(git diff "$1~1" "$1" -U0 -- DESCRIPTION | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' |
     grep -vE '^[-+](Version|Config/duckdb/upstream):' || true)" ]
 }

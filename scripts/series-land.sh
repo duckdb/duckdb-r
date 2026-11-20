@@ -122,12 +122,16 @@
 #        series-land.sh <S> --review [--landing <ref>] [--suffix <s>] [--remote <name>]
 #                       [--canonical <name>] [--push]
 #        series-land.sh <S> --target [--canonical <name>]
+#        series-land.sh <S> --stamp-alpha
 #        series-land.sh <S> --abort
 #   <S> is the serving series whose rc strand lands, `v2.0-cyanoptera` for
 #   `v2.0-cyanoptera-rc-dev`, never a `-fwd` series; the refs are named for it,
 #   `v2.0-cyanoptera-land-*`, on --remote. The branch landed on is its
 #   `releases_from`, read with `main` from --canonical.
 #   --target prints that branch and nothing else, for a command block to read.
+#   --stamp-alpha writes the alpha stamp of the engine the kept build ends on
+#   into its worktree, for the version bump to carry, and refuses where
+#   upstream built no alpha of that engine; a release engine needs none.
 #   Nothing is written to a remote without --push. A stopped build resumes when
 #   rerun, from the worktree it kept; --abort discards that worktree.
 #   --review pushes `<L>-land-review<s>` to --canonical, from `<L>-land-dev` on
@@ -148,12 +152,12 @@ shopt -s inherit_errexit
 # shellcheck source=series-lib.sh
 . "$(dirname "$0")/series-lib.sh"
 
-usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --target | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
+usage='usage: series-land.sh <S> [--remote <name>] [--canonical <name>] [--status | --review | --target | --stamp-alpha | --abort] [--push] [--base <ref>] [--source <ref>] [--landing <ref>] [--suffix <s>] [--placed <sha>]... [--no-check-glue] [--attended]'
 argerr() { echo "$usage" >&2; exit 2; }
 
 remote=${SERIES_REMOTE:-origin}
 canonical=${SERIES_CANONICAL-upstream}
-push='' status='' target='' review='' abort='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
+push='' status='' target='' review='' abort='' stamp_alpha='' attended='' base_arg='' source_arg='' landing_arg='' suffix=''
 fwd_args=()
 args=()
 while [ $# -gt 0 ]; do
@@ -172,13 +176,14 @@ while [ $# -gt 0 ]; do
     --review) review=1; shift ;;
     --abort) abort=1; shift ;;
     --target) target=1; shift ;;
+    --stamp-alpha) stamp_alpha=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) argerr ;;
     *) args+=("$1"); shift ;;
   esac
 done
 [ ${#args[@]} -eq 1 ] || argerr
-[ $((${status:-0} + ${review:-0} + ${abort:-0} + ${target:-0})) -le 1 ] || argerr
+[ $((${status:-0} + ${review:-0} + ${abort:-0} + ${target:-0} + ${stamp_alpha:-0})) -le 1 ] || argerr
 S=${args[0]}
 case "$S" in
   *-rc | *-land) echo "Error: $S is a derived strand; name the series it comes from" >&2; exit 2 ;;
@@ -207,6 +212,105 @@ if [ -n "$abort" ]; then
   exit 0
 fi
 
+# --- --stamp-alpha: the stamp the version bump carries ---------------------------
+
+# A landing that ends on a development engine ends on one upstream built as an
+# alpha, and its bump stamps that build, so that `INSTALL` finds the extensions
+# published for it (handbook/operations/releases/versioning/README.md); a
+# release engine is that build already and needs none. Upstream writes
+# `<sha10>/latest_alpha_version.txt` on its staging host for each commit it
+# built so.
+alpha_pointer() { # <sha10> -> the version it names; 2 where upstream built no alpha
+  local body st version
+  body=$(mktemp) || return 1
+  if ! st=$(series_http "$series_alpha_staging/$1/latest_alpha_version.txt" "$body"); then
+    rm -f "$body"
+    echo "Error: could not read the alpha of $1 from $series_alpha_staging" >&2
+    return 1
+  fi
+  version=$(tr -d '[:space:]' <"$body")
+  rm -f "$body"
+  case "$st" in
+    200) ;;
+    403 | 404) return 2 ;;
+    *) echo "Error: reading the alpha of $1 from $series_alpha_staging answered HTTP $st" >&2; return 1 ;;
+  esac
+  # The pointer holds the version; a `<sha10>/` in front of it names the commit.
+  case "$version" in
+    */*) [ "${version%%/*}" = "$1" ] ||
+      { echo "Error: the alpha pointer of $1 names another commit: $version" >&2; return 1; }
+      version=${version#*/} ;;
+  esac
+  [[ $version =~ $series_alpha_version_re ]] ||
+    { echo "Error: the alpha pointer of $1 holds '$version', not vX.Y.Z-alphaN" >&2; return 1; }
+  echo "$version"
+}
+
+# The stamp is series-alpha.sh's (series_alpha_stamp_tree). It is written into
+# the kept worktree, staged, and committed with the bump; a worktree that holds
+# it already is left as it is. Run from that worktree or from the clone that
+# built it.
+if [ -n "$stamp_alpha" ]; then
+  kept=$STATE
+  [ -f "$kept" ] || kept="$(git rev-parse --git-common-dir)/series-land-$L"
+  [ -f "$kept" ] || { echo "Error: no kept build of $L to stamp; build it first" >&2; exit 1; }
+  read -r wt _ src _ < "$kept"
+  [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone; rerun with --abort" >&2; exit 1; }
+  head=$(git -C "$wt" rev-parse HEAD)
+  cur=$(git show "$head:$series_engine_file" | sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p')
+  if [[ $cur =~ $series_alpha_version_re ]]; then
+    echo "$L: $(git rev-parse --short "$head") is stamped as $cur already"
+    exit 0
+  fi
+  if ! series_alpha_wanted "$head"; then
+    echo "$L: $(git rev-parse --short "$head") is stamped as $(series_stamped_version "$head"), a release," \
+      "which needs no alpha stamp"
+    exit 0
+  fi
+  sha10=$(series_engine_of "$head")
+  [[ $sha10 =~ ^[0-9a-f]{10}$ ]] ||
+    { echo "Error: $(git rev-parse --short "$head") records engine '$sha10', not ten hex digits" >&2; exit 1; }
+  # A stopped build's worktree ends below the source's engine, which is the one
+  # the landing is meant to end on.
+  if [ -n "${src:-}" ] && git cat-file -e "$src^{commit}" 2>/dev/null &&
+    [ "$(series_engine_of "$src")" != "$sha10" ]; then
+    echo "Warning: $(git rev-parse --short "$head") vendors $sha10, not $(series_engine_of "$src")," \
+      "the engine of the source it builds up to; a stopped build is stamped as it stands" >&2
+  fi
+  st=0
+  version=$(alpha_pointer "$sha10") || st=$?
+  case "$st" in
+    0) ;;
+    2)
+      echo "Error: upstream built no alpha of $series_upstream_repo@$sha10, the engine the landing ends on;" >&2
+      echo "  end the batch on one that has an alpha (handbook/operations/releases/versioning/README.md)" >&2
+      exit 1 ;;
+    *) exit 1 ;;
+  esac
+  series_alpha_probe "$version"
+  t=$(series_alpha_stamp_tree "$head" "$sha10" "$version")
+  if ! git -C "$wt" diff --quiet HEAD -- "${series_alpha_stamped[@]}" &&
+    ! git -C "$wt" diff --quiet "$t" -- "${series_alpha_stamped[@]}"; then
+    # A stamp written before upstream's pointer moved is a stamp all the same,
+    # and dropping it is all a rerun needs.
+    held=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "$wt/$series_engine_file" 2>/dev/null || true)
+    if [[ $held =~ $series_alpha_version_re ]] &&
+      ht=$(series_alpha_stamp_tree "$head" "$sha10" "$held" 2>/dev/null) &&
+      git -C "$wt" diff --quiet "$ht" -- "${series_alpha_stamped[@]}"; then
+      mapfile -t changed < <(git -C "$wt" diff --name-only HEAD -- "${series_alpha_stamped[@]}")
+      echo "Error: $wt holds a different stamp, $held, where upstream's alpha of $sha10 is $version now;" >&2
+      echo "  drop it with \`git -C $wt checkout HEAD -- ${changed[*]}\` and stamp again" >&2
+    else
+      echo "Error: $wt has changes to the stamped files other than the stamp; commit or drop them first" >&2
+    fi
+    exit 1
+  fi
+  mapfile -t changed < <(git diff --name-only "$head" "$t")
+  git -C "$wt" checkout "$t" -- "${changed[@]}"
+  echo "$L: stamped $series_upstream_repo@$sha10 as $version in $wt: ${changed[*]}"
+  echo "  Commit it with the version bump (.claude/skills/series-land/SKILL.md, step 3)."
+  exit 0
+fi
 
 # The landing stands on the canonical `main` and on nothing else: a mirror that
 # has not caught up is an older `main`, and a landing built on it cannot
@@ -268,9 +372,11 @@ bump_subject='chore: Bump version to '
 # The DESCRIPTION lines the bump writes (handbook/operations/releases/versioning/README.md).
 bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
 # Is <commit> the hand-written version bump? Not a merge; it changes
-# `DESCRIPTION` and nothing else but `NEWS.md`, which it need not touch and
-# whose layout is not read, because a separate process keeps that file
-# (handbook/operations/releases/versioning/README.md); in `DESCRIPTION` only
+# `DESCRIPTION` and nothing else but `NEWS.md`, where a landing's bump writes
+# the version's section but whose layout is not read here
+# (handbook/operations/releases/versioning/README.md), and the alpha stamp,
+# which it may carry exactly as series_alpha_stamp_tree writes it on the parent
+# for the version its engine file names (alpha_stamp_reason); in `DESCRIPTION` only
 # its one `Version:` line, which has at most four components, rises and is the
 # version the subject names, and its one `Config/duckdb/upstream:` line, the
 # full SHA of the engine the landing's last vendor commit vendors.
@@ -278,8 +384,9 @@ bump_fields_re='^\(Version\|Config/duckdb/upstream\):'
 is_bump() { # <commit>
   local c=$1 old new subj
   ! git rev-parse -q --verify "$c^2" >/dev/null || { echo "a merge commit"; return 1; }
-  [ -z "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ] ||
-    { echo "changes more than NEWS.md and DESCRIPTION"; return 1; }
+  if [ -n "$(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')" ]; then
+    alpha_stamp_reason "$c" || return 1
+  fi
   [ "$(git show "$c~1:DESCRIPTION" | grep -v "$bump_fields_re")" = "$(git show "$c:DESCRIPTION" | grep -v "$bump_fields_re")" ] ||
     { echo "changes DESCRIPTION beyond Version: and Config/duckdb/upstream:"; return 1; }
   # shellcheck disable=SC2015
@@ -327,11 +434,40 @@ is_bump() { # <commit>
     { echo "the subject does not name version $new"; return 1; }
 }
 
+# Do <commit>'s changes outside `NEWS.md` and `DESCRIPTION` stamp its parent's
+# engine as an alpha, and nothing more? The version is read from the stamped
+# engine file, and the stamp recomputed from the parent for it and for the
+# parent's `DUCKDB_SOURCE_ID`, offline; anything else differing is refused.
+# Prints why not.
+alpha_stamp_reason() { # <commit>
+  local c=$1 f v sha10 t err
+  while IFS= read -r f; do
+    case " ${series_alpha_stamped[*]} " in *" $f "*) ;; *)
+      echo "changes more than NEWS.md and DESCRIPTION outside an alpha stamp: $f"; return 1 ;;
+    esac
+  done < <(git diff --name-only "$c~1" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION')
+  v=$(git show "$c:$series_engine_file" | sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p')
+  [[ $v =~ $series_alpha_version_re ]] ||
+    { echo "a malformed alpha stamp: DUCKDB_VERSION is '$v', not vX.Y.Z-alphaN"; return 1; }
+  sha10=$(series_engine_of "$c~1")
+  [[ $sha10 =~ ^[0-9a-f]{10}$ ]] ||
+    { echo "a malformed alpha stamp: the engine under it is '$sha10', not ten hex digits"; return 1; }
+  if ! t=$(series_alpha_stamp_tree "$c~1" "$sha10" "$v" 2>&1); then
+    err=${t//$'\n'/ }
+    echo "a malformed alpha stamp: ${err#Error: }"
+    return 1
+  fi
+  f=$(git diff --name-only "$t" "$c" -- . ':(exclude)NEWS.md' ':(exclude)DESCRIPTION' | tr '\n' ' ')
+  [ -z "$f" ] ||
+    { echo "a malformed alpha stamp: it differs from the stamp of $sha10 as $v in ${f% }"; return 1; }
+}
+
 # The commands that tag <bump> once the branch has it: the annotated tag
 # `v<version>`, or `v<version>.9900` where <version> is a release, which takes
 # `v<version>` itself when it is published; its message the subject
 # `duckdb <version>`, or `duckdb <version>.9900` with that tag, then the section
-# NEWS.md has for <version>, if it has one, read the way the release process
+# NEWS.md has for <version>, if it has one, its heading `# duckdb <version>`
+# alone or followed by a space and a date, read the way the release process
 # reads it (handbook/operations/releases/versioning/README.md). They are one
 # chain, each command run only if the one before succeeded, so pasted as
 # printed they stop at the first failure and exit with it: they tag nothing the
@@ -351,7 +487,7 @@ tag_commands() { # <bump>
     "Then tag it on $canonical once $onto has it, with NEWS.md's section for $v below the subject if there is one:" \
     "  git fetch -q $canonical +refs/heads/$onto:refs/remotes/$canonical/$onto &&" \
     "    { git merge-base --is-ancestor $1 refs/remotes/$canonical/$onto || { echo 'Not tagged: $onto on $canonical does not have $1.' >&2; false; }; } &&" \
-    "    { printf 'duckdb %s\n\n' $t; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
+    "    { printf 'duckdb %s\n\n' $t; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' 'index(\$0, h) == 1 && (\$0 == h || substr(\$0, length(h) + 1, 1) == \" \") {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
     "    git tag -a v$t --cleanup=whitespace -F - $1 &&" \
     "    git push $canonical refs/tags/v$t"
 }
@@ -366,10 +502,7 @@ out_of_place() { # <tip>
   local c subj why seen='' bump=''
   while IFS=$'\t' read -r c subj; do
     [ -z "$bump" ] || { echo "$c $subj"; return; }
-    # shellcheck disable=SC2254
-    case "$subj" in
-      vendor:* | $series_vendor_glob) seen=1; continue ;;
-    esac
+    if series_is_vendor "$subj"; then seen=1; continue; fi
     [ -n "$seen" ] || continue
     case "$subj" in "$bump_subject"*) ;; *) echo "$c $subj"; return ;; esac
     why=$(is_bump "$c") || { echo "$c $subj ($why)"; return; }
@@ -386,6 +519,32 @@ out_of_place() { # <tip>
 }
 
 # --- --status: what CI has decided, and green over the passed prefix ----------
+
+# Is the alpha <tip>'s bump stamps the one upstream's pointer names for the
+# engine under it now? is_bump holds the stamp to its engine offline; this reads
+# the pointer, so that no stamp lands that --stamp-alpha would not write. A bump
+# without a stamp passes; a pointer that cannot be read does not. Asked only while
+# the landing is pending: once the branch is the bump, the stamp has landed, and
+# the tag needs no pointer. Prints why not.
+stamp_confirmed() { # <tip>
+  local v sha10 p rest err st=0
+  [ -n "$(git diff --name-only "$1~1" "$1" -- "$series_engine_file")" ] || return 0
+  v=$(git show "$1:$series_engine_file" | sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p')
+  sha10=$(series_engine_of "$1~1")
+  err=$(mktemp) || { echo "could not make a temporary file to read the alpha pointer"; return 1; }
+  p=$(alpha_pointer "$sha10" 2>"$err") || st=$?
+  case "$st" in
+    0) rm -f "$err" ;;
+    2) rm -f "$err"
+      echo "the bump stamps $v, but upstream names no alpha of $sha10 now"; return 1 ;;
+    *) p=$(grep -m 1 '^Error: ' "$err" || true)
+      rest=$(grep -v '^Error: ' "$err" | tr '\n' ' ' || true)
+      rm -f "$err"
+      echo "the bump's stamp $v is unconfirmed: ${p#Error: }${rest:+ (${rest% })}"; return 1 ;;
+  esac
+  [ "$p" = "$v" ] ||
+    { echo "the bump stamps $v, but upstream's newest alpha of $sha10 is $p; stamp it again with --stamp-alpha"; return 1; }
+}
 
 rcc=${RCC_BRANCH:-rcc2}
 
@@ -446,10 +605,16 @@ if [ -n "$status" ]; then
       echo "NOT READY: $L-land-dev does not end on the version bump;" \
         "add it (.claude/skills/series-land/SKILL.md, step 3)"
       exit 1
+    elif [ "$main" != "$dev" ] && ! why=$(stamp_confirmed "$dev"); then
+      echo "NOT READY: $why"
+      exit 1
     else
       echo "READY: every commit has passed, and $onto ($(git rev-parse --short "$main")) fast-forwards to it:"
       echo "  git push $canonical $(git rev-parse "$dev"):refs/heads/$onto"
       tag_commands "$(git rev-parse "$dev")"
+      ! series_alpha_wanted "$dev" ||
+        echo "Note: the bump carries no alpha stamp, so INSTALL finds no extensions on $onto;" \
+          "--stamp-alpha writes it (.claude/skills/series-land/SKILL.md, step 3)"
     fi
   fi
   exit 0

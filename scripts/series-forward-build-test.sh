@@ -8,7 +8,8 @@
 # before they travel. Ten things are checked.
 #
 #   1. A non-vendor commit of the buffer's own, a `patch/` entry, refuses the
-#      run before anything is replayed, and names the command that places it;
+#      run before anything is replayed, and names the command that places it,
+#      though its subject names the engine it was made against;
 #      a port of a commit `main` carries and a tooling sync are placed by
 #      themselves and never named.
 #   2. The old `-dev`'s vendor commits are replayed with the fixes folded into
@@ -63,7 +64,8 @@ hasnt() { case "$2" in *"$3"*) no "$1"; echo "     unexpected: $3" ;; *) ok "$1"
 # the glue each needed; its `-dev` consumes three of them, folds a test fix into
 # the first and deletes a test there, as a rewind did, gates another, ports
 # `main`'s fix and syncs the tooling, and its buffer carries a `patch/` entry of
-# its own. The forward seeds on `main`'s tip and replays `-dev`, then the buffer.
+# its own, whose subject names the engine below it. The forward seeds on
+# `main`'s tip and replays `-dev`, then the buffer.
 
 WORK=$SCRATCH/work
 git init -q -b main "$WORK"
@@ -145,7 +147,7 @@ vendor cccc333 1.99.99-dev2 2
 echo 'glue 4, adapted to dddd444' > src/glue.cpp
 vendor dddd444 1.99.99-dev3 3
 echo 'a patch the buffer needs' > patch/0001-fix.patch
-commit 'chore(patch): Add 0001-fix.patch'
+commit 'fix(patch): Add 0001-fix.patch against the engine at duckdb/duckdb@dddd444'
 PATCH=$(git rev-parse HEAD)
 echo 'tool v2' > scripts/tool.sh
 commit 'chore(series): Sync buffer tooling with main'
@@ -199,7 +201,7 @@ git checkout -q --detach fwd-seed
 out=$(fwd s-dev "$B" --buffer s-build)
 [ -z "${KEEP:-}" ] || echo "$out"
 has "the run refuses" "$out" "EXIT=1"
-has "naming the patch entry" "$out" "$(git rev-parse --short "$PATCH")  chore(patch): Add 0001-fix.patch"
+has "naming the patch entry" "$out" "$(git rev-parse --short "$PATCH")  fix(patch): Add 0001-fix.patch against the engine"
 has "as the only stranded commit" "$out" "1 commit(s) in $B..s-dev vendor nothing"
 hasnt "the port is placed by its trailer" "$out" "fix: An R-side fix on main"
 hasnt "the -dev sync by its subject" "$out" "Sync tooling with main"
@@ -334,9 +336,9 @@ git branch -f fwd-vendor v2.0-x-fwd-vendor
 is "five commits: one per vendor commit of -build, and its patch entry" "$(git rev-list --count "$NEWSEED..fwd-vendor")" 5
 same=0; differ=0
 for c in $(git rev-list --reverse "$NEWSEED..fwd-vendor"); do
-  sha=$(git log -1 --format=%s "$c" | sed -n 's/.*@//p')
+  sha=$(git log -1 --format=%s "$c" | sed -n 's/^vendor: .*@//p')
   [ -n "$sha" ] || continue
-  twin=$(git log --format=%H --grep="@$sha" "$NEWSEED..fwd-build")
+  twin=$(git log --format=%H --grep="^vendor: .*@$sha" "$NEWSEED..fwd-build")
   if git diff --quiet "$c" "$twin" -- src/duckdb R/version.R; then same=$((same + 1)); else differ=$((differ + 1)); fi
 done
 is "the vendored strand is the same as -fwd-build's at every twin" "$same/$differ" "4/0"

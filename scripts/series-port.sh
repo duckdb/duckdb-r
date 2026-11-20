@@ -195,11 +195,6 @@ fi
 tooling=("${series_tooling[@]}" ':(exclude).github/README.md')
 paths_re=$(series_tooling_re)
 flavored_docs_re='^\.github/README\.md$'
-# A vendor commit is one whose subject says it vendored: the `vendor:` prefix
-# vendor-one.sh writes, or the `<owner>/<repo>@<sha>` reference that carries the
-# upstream commit as machine-readable state. Same rule as every other reader of
-# the strand — see the header on why the path is not the rule.
-vendor_subject_re="^vendor:|$series_marker_ere"
 
 # scripts/flavor.sh's first commit, and so the foot of every seed
 # (series-open step 2, series-forward step 1).
@@ -370,6 +365,12 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 #     DESCRIPTION also carries the dependency list, so a commit that edits it
 #     without moving the version is package content and ported like any other.
 #
+# **A landing's bump may carry the alpha stamp** (series_alpha_stamped,
+# scripts/series-lib.sh), which series-land.sh holds to the engine under it.
+# The series stamps its own engine, so the stamp is the release strand's too,
+# and only beside a moved `Version:` and where it rewrites the stamp's lines
+# alone (series_alpha_stamp_lines_only).
+#
 # **A commit that leaves DESCRIPTION alone is paperwork without a bump.** Notes
 # written into NEWS.md for `main`'s next release are the release strand's just
 # as the bumps are, and the series has neither the section they go in nor
@@ -380,13 +381,15 @@ bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
 # series' NEWS.md now, so such a commit would come out empty, and named by hand
 # it is committed empty; the class still lists it for what it is.
 version_bump() { # <sha>
-  local before after f touched= desc=
+  local before after f touched='' desc='' stamp=''
   while IFS= read -r f; do
+    case " ${series_alpha_stamped[*]} " in *" $f "*) stamp=1; continue ;; esac
     [[ "$f" =~ $bump_paths_re ]] || return 1
     case "$f" in DESCRIPTION) desc=1 ;; esac
     touched=1
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
   [ -n "$touched" ] || return 1
+  [ -z "$stamp" ] || { [ -n "$desc" ] && series_alpha_stamp_lines_only "$1"; } || return 1
   if [ -n "$desc" ]; then
     before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
     after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
@@ -397,7 +400,8 @@ version_bump() { # <sha>
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   local f t='' o=''
-  if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
+  # The subject decides, as series_is_vendor() reads it for every reader of the strand.
+  if series_is_vendor "$(git log -1 --format=%s "$1")"; then echo VENDOR; return; fi
   if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do
     if [[ "$f" =~ $paths_re && ! "$f" =~ $flavored_docs_re ]]; then t=1; else o=1; fi

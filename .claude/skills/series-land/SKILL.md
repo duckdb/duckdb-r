@@ -148,7 +148,14 @@ engine() { git show "$1:src/duckdb/src/function/table/version/pragma_version.cpp
 for e in "$(engine "upstream/$B")" "$(engine "origin/$S-rc-dev")"; do   # the previous landing's, then this one's
   gh api "repos/duckdb/duckdb/commits/$e" --jq '[.sha, .commit.committer.date[0:10]] | @tsv'
 done
+curl -fsS "https://duckdb-staging.duckdb.org/$(engine "origin/$S-rc-dev")/latest_alpha_version.txt"   # its alpha
 ```
+
+**A batch that ends on a `-dev` engine ends on one upstream built as an alpha**, so that the bump can stamp it (step 3).
+The last command prints that alpha's version, and fails where upstream has built none of the engine;
+for a `-dev` engine, wait for one before building.
+An engine that is an upstream release needs no alpha, and the command's failure there means nothing
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
 ## 3. Build the landing
 
@@ -235,30 +242,52 @@ once it is pushed, add the bump in its kept worktree and push it onto `<L>-land-
   echo "$v"              # the version the subject names
   ```
 
-* **`NEWS.md`** is not the landing's to write
-  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)):
-  the bump may carry a change to it and needs none.
+* **The alpha stamp**, which `INSTALL` needs to find the engine's extensions
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+  In the kept worktree, `scripts/series-land.sh "$S" --stamp-alpha` writes and stages it,
+  and refuses where upstream built no alpha of the engine or published it with a gap;
+  on a release engine it says the release needs none, and writes nothing.
+
+* **`NEWS.md`**: add the section for `<v>` below the development section, and move that section's compare link to the tag the bump takes,
+  in the shape [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) owns.
+  Where there is no development section yet, turn the top section into it first:
+  the heading `# duckdb (development version)` and its one link line, moved to the new tag.
+  The section for `<v>` is
+  headed `# duckdb <v> (<today>)`, the italic drafted-with-AI line first, then the release notes.
+  Draft them from what the batch brings:
+  the upstream commits its vendor commits name, the R side the review of step 4 carries commit by commit,
+  and the engine range read off in step 2 for the engine bullet:
+
+  ```sh
+  git log --first-parent --reverse --format=%s "upstream/$B..HEAD"   # the vendor commits, each naming the upstream commit it vendors
+  git diff --stat "upstream/$B" HEAD -- . ':(exclude)src/duckdb' ':(exclude)DESCRIPTION'   # the R side, the glue included
+  ```
 * **The commit**: `chore: Bump version to <v>`.
   `scripts/series-land.sh` accepts that subject as the one commit above the vendor commits
   that changes no line of `DESCRIPTION` but the `Version:` line and the engine record, and no other file but `NEWS.md`,
+  whose content it does not read,
+  and the alpha stamp of its parent's engine for a well-formed alpha of the right release,
   with nothing above it, and refuses one whose version keeps a fifth component, falls below the series' first four,
   or does not rise above `<B>`'s;
-  `--status` prints `READY` only on a landing that ends on it.
+  `--status` prints `READY` only on a landing that ends on it,
+  and on a stamped bump, until `<B>` is the bump, only while upstream's pointer names the alpha it stamps,
+  which a pointer it cannot read does not confirm.
 
 CI judges the bump like every other commit.
 A rebuild drops it, so after one, add it again.
 A bump replayed by a fold or a rebase over a changed `DESCRIPTION` meets the merge driver,
 which takes the vendor counter back into its version and keeps the engine record of the commit it lands on,
 and `--status` then refuses it.
-Stamp it again from its subject and the vendored tree, in the kept worktree with the bump checked out:
+Stamp it again from its subject and the vendored tree, and date its `NEWS.md` section again, in the kept worktree with the bump checked out:
 
 ```sh
 eng=$(sed -rn 's/^#define DUCKDB_SOURCE_ID "([0-9a-f]+)"$/\1/p' src/duckdb/src/function/table/version/pragma_version.cpp)
 full=$(gh api "repos/duckdb/duckdb/commits/$eng" --jq .sha)
 v=$(git log -1 --format=%s | sed -n 's/^chore: Bump version to \([^ ]*\).*/\1/p')
 sed -i "/^Config\/duckdb\/upstream:/d; s/^Version: .*/Version: $v\nConfig\/duckdb\/upstream: $full/" DESCRIPTION
-git diff DESCRIPTION
-git commit --amend --no-edit DESCRIPTION
+sed -i "s/^# duckdb ${v//./\\.} ([0-9-]*)\$/# duckdb $v ($(date +%F))/" NEWS.md
+git diff DESCRIPTION NEWS.md
+git commit --amend --no-edit DESCRIPTION NEWS.md
 ```
 
 ## 4. Open the R side for review
@@ -303,7 +332,19 @@ The fixes then go onto the series, and the landing is built from it as above.
 ## 5. Let CI judge every commit
 
 Pushing `<L>-land-dev` starts the per-commit build over `<L>-land-green..<L>-land-dev`.
-Read and advance it with
+Open the landing's pull request from the fork along with it, never to be merged by a button, which would write commits the landing does not have:
+
+```sh
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto, its releases_from
+gh pr create --repo duckdb/duckdb-r --base "$B" --head "krlmlr:$S-land-dev" \
+  --title "Land $S onto $B" --body "Closed as merged by the fast-forward of $B, never merged here."
+```
+
+It shows each commit's verdict as `each-rcc (fork)`, copied while the pull request is open
+([`ci/per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)),
+and the fast-forward in step 6 closes it as merged.
+Read and advance the build with
 
 ```sh
 S=main   # the serving series that lands: main, or v2.0-cyanoptera
@@ -325,6 +366,21 @@ A red is repaired as stage 2 repairs one ([`series-loop`](/.claude/skills/series
 When `--status` prints `READY`, every commit has passed and `<B>` is still the commit the landing stands on.
 Push the SHA that line names, not whatever the branch holds by then,
 so a repair pushed in between cannot reach `<B>` unjudged.
+Push it only once the landing's pull request shows `each-rcc (fork)` success on every commit,
+because `READY` reads the fork, and the copy covers a commit only while its pull request is open:
+pushed first, the landing's commits would sit on `<B>` with no verdict shown there.
+
+```sh
+S=main                                      # the serving series that lands: main, or v2.0-cyanoptera
+B=$(scripts/series-land.sh "$S" --target)   # the branch it lands onto
+git fetch upstream "$B" && git fetch origin "$S-land-dev"
+for c in $(git rev-list "upstream/$B..origin/$S-land-dev"); do   # the commit that is not shown passing, if any
+  s=$(gh api "repos/duckdb/duckdb-r/commits/$c/status" --jq '[.statuses[] | select(.context == "each-rcc (fork)") | .state][0] // "none"')
+  [ "$s" = success ] || echo "$c $s"
+done
+```
+
+The copy runs hourly, and a dispatch of [`each-mirror.yaml`](/.github/workflows/each-mirror.yaml) runs it at once.
 Paste the blocks of this step into bash: zsh reads `$sha:r` as a modifier and, by default, `#` comments as commands.
 
 Lift the freeze, push, put the freeze back, and then tag the bump.
@@ -394,12 +450,15 @@ gh api -X DELETE "repos/duckdb/duckdb-r/rulesets/$id"
 
 Then the series:
 
-* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork,
+* **Delete the landing**: `<L>-land-dev` and `<L>-land-green` on the fork, once the landing's pull request shows as merged,
+  and any other `<L>-land-*` ref the landing made there,
   `<L>-land-review` in the canonical repository with its draft pull request closed,
   and the kept worktree with `scripts/series-land.sh <S> --abort`.
 * **Forward the series onto the new `<B>` when its drift is worth it**
   ([`series-forward`](/.claude/skills/series-forward/SKILL.md)).
   The new seed already vendors what the landing vendored, so the forward replays only what came after, and opens on no rewind.
+  It also carries every commit `<B>` took since the series was seeded,
+  so those the series has not ported yet wait for the forward rather than being ported.
   Until then the next landing is built from the same series, and replays only what this one did not land.
 
 ## 8. Merge the release branch forward
@@ -414,7 +473,8 @@ git fetch upstream main
 scripts/series-check.sh --canonical upstream 2>&1 | sed -n '/^FORWARD-PORT/,$p'
 ```
 
-The merge keeps the newer line's engine, the vendored strand and the Makevars generated from it,
+The merge is `-s ours` for the engine alone and an ordinary merge for the rest.
+It keeps the newer line's engine, the vendored strand and the Makevars generated from it,
 the registered `DESCRIPTION` merge driver keeps its version and engine record,
 and the `NEWS.md` merge driver merges the two changelogs by version section, newest first;
 `scripts/setup-git.sh` registers both, and the block runs it first.

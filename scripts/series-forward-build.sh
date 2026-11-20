@@ -424,15 +424,13 @@ graft_source() {
   local e=$1 base c subj seed='' f='' inside=''
   base=$(git merge-base "$GRAFT_FROM" HEAD) || return 0
   while IFS=$'\t' read -r c subj; do
-    # shellcheck disable=SC2254
-    case "$subj" in
-      vendor:* | $series_vendor_glob)
-        [ -n "$seed" ] || seed=$(git rev-parse "$c~1")
-        [ -n "$inside" ] && break
-        [[ "$(upstream_sha "$c")" == "$e"* ]] && { f=$c; inside=1; }
-        ;;
-      *) [ -n "$inside" ] && f=$c ;;
-    esac
+    if series_is_vendor "$subj"; then
+      [ -n "$seed" ] || seed=$(git rev-parse "$c~1")
+      [ -n "$inside" ] && break
+      [[ "$(upstream_sha "$c")" == "$e"* ]] && { f=$c; inside=1; }
+    else
+      [ -n "$inside" ] && f=$c
+    fi
   done < <(git log --reverse --first-parent --format='%H%x09%s' "$base..$GRAFT_FROM")
   if [ -n "$f" ]; then echo "$f $seed"; fi
 }
@@ -508,13 +506,13 @@ walk() {
   git log --reverse --format='%H%x09%s' "$OLDBASE..$OLD"
   [ -n "$BUFFER" ] || return 0
   local subj top anchor
-  subj=$(git log --format=%s "$OLDBASE..$OLD" | grep -m 1 -E "$series_marker_ere" || true)
+  subj=$(git log --format=%s "$OLDBASE..$OLD" | grep -E "$series_vendor_ere" | grep -m 1 -E "$series_marker_ere" || true)
   top=$(series_sha_of "$subj")
   if [ -z "$top" ]; then
     git log --reverse --format='%H%x09%s' "$OLDBASE..$BUFFER"
     return 0
   fi
-  anchor=$(git log --format='%H %s' "$BUFFER" | grep -m 1 -F "@$top" | cut -d' ' -f1 || true)
+  anchor=$(series_vendor_log "$top" "$BUFFER" | head -n 1 | cut -d' ' -f1 || true)
   if [ -z "$anchor" ]; then
     echo "Error: no commit of $BUFFER vendors $(series_marker_of "$subj"), the newest commit $OLD vendors;" >&2
     echo "  mirror the fold onto the buffer first (.claude/skills/series-loop/SKILL.md, stage 2)" >&2
@@ -530,28 +528,24 @@ OWN=()
 seen_vendor=
 foot=''
 while IFS=$'\t' read -r c subj; do
-  # shellcheck disable=SC2254
-  case "$subj" in
-    vendor:* | $series_vendor_glob)
-      [ -n "$seen_vendor" ] || foot=$(git rev-parse "$c~1")
-      seen_vendor=1
-      if [ -n "$base_engine" ] && [[ "$(upstream_sha "$c")" == "$base_engine"* ]]; then
-        PICKS=()
-        continue
-      fi
-      case "$DONE" in *" $(upstream_key "$c") "*) continue ;; esac
-      PICKS+=("$c")
-      ;;
-    *)
-      # Below the first vendor commit is the old seed, which is regenerated
-      # rather than replayed. Above it, a non-vendor commit is the strand's own
-      # work, and the replay has no place to put it.
-      [ -n "$seen_vendor" ] || continue
-      placed "$c" && continue
-      placed_by_rule "$c" "$subj" && continue
-      OWN+=("$c")
-      ;;
-  esac
+  if series_is_vendor "$subj"; then
+    [ -n "$seen_vendor" ] || foot=$(git rev-parse "$c~1")
+    seen_vendor=1
+    if [ -n "$base_engine" ] && [[ "$(upstream_sha "$c")" == "$base_engine"* ]]; then
+      PICKS=()
+      continue
+    fi
+    case "$DONE" in *" $(upstream_key "$c") "*) continue ;; esac
+    PICKS+=("$c")
+  else
+    # Below the first vendor commit is the old seed, which is regenerated
+    # rather than replayed. Above it, a non-vendor commit is the strand's own
+    # work, and the replay has no place to put it.
+    [ -n "$seen_vendor" ] || continue
+    placed "$c" && continue
+    placed_by_rule "$c" "$subj" && continue
+    OWN+=("$c")
+  fi
 done < "$walked"
 rm -f "$walked"
 

@@ -135,6 +135,10 @@ groups <- list(
     globs = c("series.yaml", "series-table.R")
   ),
   list(
+    owner = "handbook/operations/ci/workflows",
+    globs = c("pull-request-base.sh", "pull-request-base-test.sh")
+  ),
+  list(
     owner = "handbook/operations/ci/per-commit/selection",
     globs = c("rcc-decided.sh")
   ),
