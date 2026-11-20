@@ -141,6 +141,10 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 }
 
 [[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
+	// An object parked during the last R callback holds its client context, and with it the database:
+	// destroy it before shutting the database down, or the file stays open (#2934).
+	// A no-op inside a callback, as everywhere: a finalizer may shut down there.
+	RCallbackScope::Drain();
 	auto db_wrapper = dbsexp.release();
 	if (db_wrapper) {
 		db_wrapper->reset();
