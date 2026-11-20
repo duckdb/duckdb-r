@@ -2,18 +2,72 @@
 
 ## duckdb (development version)
 
-Commits since v2.0.0.9001:
-<https://github.com/duckdb/duckdb-r/compare/v2.0.0.9001...main>.
+Commits since v2.0.1.9900:
+<https://github.com/duckdb/duckdb-r/compare/v2.0.1.9900...main>.
 
-## duckdb 2.0.0.9001 (2026-11-19)
-
-*Drafted with AI from the vendored upstream commits and the R-side
-changes, not reviewed by a maintainer.*
+## duckdb 2.0.1 (2026-11-20)
 
 ### Features
 
-- Update to DuckDB v2.0.1-alpha56598, a preview of v2.0.1 with the fixes
-  the v2.0 line has gained since v2.0.0.
+- Update to DuckDB v2.0.1, see
+  <https://github.com/duckdb/duckdb/releases/tag/v2.0.1> for details.
+
+- A lazy data frame from `rel_to_altrep()` over a stored table fetches
+  only the columns that are read, instead of materializing the whole
+  relation on first access
+  ([\#2891](https://github.com/duckdb/duckdb-r/issues/2891),
+  [\#3010](https://github.com/duckdb/duckdb-r/issues/3010)).
+
+- Summaries of lazy vectors, once materialized or converted, no longer
+  convert the data again
+  ([\#2890](https://github.com/duckdb/duckdb-r/issues/2890),
+  [\#3013](https://github.com/duckdb/duckdb-r/issues/3013),
+  [\#3023](https://github.com/duckdb/duckdb-r/issues/3023)).
+
+- The environment scan honors `map = "list_of"` and `experimental`
+  ([\#3018](https://github.com/duckdb/duckdb-r/issues/3018),
+  [\#3040](https://github.com/duckdb/duckdb-r/issues/3040)), and
+  processes `integer64` columns as `BIGINT`
+  ([\#3015](https://github.com/duckdb/duckdb-r/issues/3015)).
+
+### Bug fixes
+
+- [`tbl()`](https://dplyr.tidyverse.org/reference/tbl.html) leaves
+  [`I()`](https://rdrr.io/r/base/AsIs.html), `in_schema()` and other
+  dbplyr table names to dbplyr
+  ([\#2973](https://github.com/duckdb/duckdb-r/issues/2973),
+  [\#3029](https://github.com/duckdb/duckdb-r/issues/3029)).
+
+- Windows UNC paths spelled with forward slashes are recognized
+  ([\#2882](https://github.com/duckdb/duckdb-r/issues/2882),
+  [\#3027](https://github.com/duckdb/duckdb-r/issues/3027)).
+
+- The package builds with the macOS 11 SDK again
+  ([\#2974](https://github.com/duckdb/duckdb-r/issues/2974),
+  [\#3033](https://github.com/duckdb/duckdb-r/issues/3033)).
+
+- [`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+  and shutdown release query results and Arrow streams freed during an R
+  callback, so the database file is no longer held open afterwards
+  ([\#2934](https://github.com/duckdb/duckdb-r/issues/2934),
+  [\#3058](https://github.com/duckdb/duckdb-r/issues/3058)).
+
+- An operator whose argument autoloads an extension binds against the
+  live catalog entry: `epoch(TIMESTAMPTZ ...) + 2.5` in a fresh session
+  no longer computes a subtraction
+  ([\#2883](https://github.com/duckdb/duckdb-r/issues/2883),
+  [\#3011](https://github.com/duckdb/duckdb-r/issues/3011)).
+
+- [`dbWriteTable()`](https://dbi.r-dbi.org/reference/dbWriteTable.html),
+  [`duckdb_register()`](https://r.duckdb.org/reference/duckdb_register.md)
+  and query parameters refuse a classed matrix or an array of more than
+  two dimensions as a column, instead of misreading it
+  ([\#3014](https://github.com/duckdb/duckdb-r/issues/3014)).
+
+- Scanning a lazy data frame on its own connection before its query has
+  run raises an error instead of hanging
+  ([\#2889](https://github.com/duckdb/duckdb-r/issues/2889),
+  [\#3016](https://github.com/duckdb/duckdb-r/issues/3016)).
 
 ## duckdb 2.0.0
 

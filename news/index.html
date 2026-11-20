@@ -39,14 +39,26 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="duckdb-development-version">duckdb (development version)<a class="anchor" aria-label="anchor" href="#duckdb-development-version"></a></h2>
-<p>Commits since v2.0.0.9001: <a href="https://github.com/duckdb/duckdb-r/compare/v2.0.0.9001...main" class="external-link uri">https://github.com/duckdb/duckdb-r/compare/v2.0.0.9001...main</a>.</p>
+<p>Commits since v2.0.1.9900: <a href="https://github.com/duckdb/duckdb-r/compare/v2.0.1.9900...main" class="external-link uri">https://github.com/duckdb/duckdb-r/compare/v2.0.1.9900...main</a>.</p>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="2.0.0.9001" id="duckdb-2009001-2026-11-19">duckdb 2.0.0.9001 (2026-11-19)<a class="anchor" aria-label="anchor" href="#duckdb-2009001-2026-11-19"></a></h2>
-<p><em>Drafted with AI from the vendored upstream commits and the R-side changes, not reviewed by a maintainer.</em></p>
+<h2 class="pkg-version" data-toc-text="2.0.1" id="duckdb-201-2026-11-20">duckdb 2.0.1 (2026-11-20)<a class="anchor" aria-label="anchor" href="#duckdb-201-2026-11-20"></a></h2>
 <div class="section level3">
-<h3 id="features-2-0-0-9001">Features<a class="anchor" aria-label="anchor" href="#features-2-0-0-9001"></a></h3>
-<ul><li>Update to DuckDB v2.0.1-alpha56598, a preview of v2.0.1 with the fixes the v2.0 line has gained since v2.0.0.</li>
+<h3 id="features-2-0-1">Features<a class="anchor" aria-label="anchor" href="#features-2-0-1"></a></h3>
+<ul><li><p>Update to DuckDB v2.0.1, see <a href="https://github.com/duckdb/duckdb/releases/tag/v2.0.1" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v2.0.1</a> for details.</p></li>
+<li><p>A lazy data frame from <code>rel_to_altrep()</code> over a stored table fetches only the columns that are read, instead of materializing the whole relation on first access (<a href="https://github.com/duckdb/duckdb-r/issues/2891" class="external-link">#2891</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3010" class="external-link">#3010</a>).</p></li>
+<li><p>Summaries of lazy vectors, once materialized or converted, no longer convert the data again (<a href="https://github.com/duckdb/duckdb-r/issues/2890" class="external-link">#2890</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3013" class="external-link">#3013</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3023" class="external-link">#3023</a>).</p></li>
+<li><p>The environment scan honors <code>map = "list_of"</code> and <code>experimental</code> (<a href="https://github.com/duckdb/duckdb-r/issues/3018" class="external-link">#3018</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3040" class="external-link">#3040</a>), and processes <code>integer64</code> columns as <code>BIGINT</code> (<a href="https://github.com/duckdb/duckdb-r/issues/3015" class="external-link">#3015</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-2-0-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-2-0-1"></a></h3>
+<ul><li><p><code><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl()</a></code> leaves <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code>, <code>in_schema()</code> and other dbplyr table names to dbplyr (<a href="https://github.com/duckdb/duckdb-r/issues/2973" class="external-link">#2973</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3029" class="external-link">#3029</a>).</p></li>
+<li><p>Windows UNC paths spelled with forward slashes are recognized (<a href="https://github.com/duckdb/duckdb-r/issues/2882" class="external-link">#2882</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3027" class="external-link">#3027</a>).</p></li>
+<li><p>The package builds with the macOS 11 SDK again (<a href="https://github.com/duckdb/duckdb-r/issues/2974" class="external-link">#2974</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3033" class="external-link">#3033</a>).</p></li>
+<li><p><code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> and shutdown release query results and Arrow streams freed during an R callback, so the database file is no longer held open afterwards (<a href="https://github.com/duckdb/duckdb-r/issues/2934" class="external-link">#2934</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3058" class="external-link">#3058</a>).</p></li>
+<li><p>An operator whose argument autoloads an extension binds against the live catalog entry: <code>epoch(TIMESTAMPTZ ...) + 2.5</code> in a fresh session no longer computes a subtraction (<a href="https://github.com/duckdb/duckdb-r/issues/2883" class="external-link">#2883</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3011" class="external-link">#3011</a>).</p></li>
+<li><p><code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code>, <code><a href="../reference/duckdb_register.html">duckdb_register()</a></code> and query parameters refuse a classed matrix or an array of more than two dimensions as a column, instead of misreading it (<a href="https://github.com/duckdb/duckdb-r/issues/3014" class="external-link">#3014</a>).</p></li>
+<li><p>Scanning a lazy data frame on its own connection before its query has run raises an error instead of hanging (<a href="https://github.com/duckdb/duckdb-r/issues/2889" class="external-link">#2889</a>, <a href="https://github.com/duckdb/duckdb-r/issues/3016" class="external-link">#3016</a>).</p></li>
 </ul></div>
 </div>
     <div class="section level2">
