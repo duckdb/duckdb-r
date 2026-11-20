@@ -307,7 +307,6 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 
 	named_parameter_map_t other_params;
-	other_params["integer64"] = Value::BOOLEAN(true);
 	// `experimental` is left out, unlike in rapi_register_df(): its strings scan as r_string,
 	// which no string function or comparison takes without a cast,
 	// and duckplyr's experimental mode has scanned them as VARCHAR since #1092.
