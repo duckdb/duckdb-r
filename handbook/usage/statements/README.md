@@ -90,8 +90,7 @@ because the engine's own splitter, `ExtractStatements()`, expands every `PRAGMA`
 where 1.x left a transaction usable after a catalog, binder or parser error,
 so after a misspelt table name inside `dbBegin()` every later statement in the transaction fails.
 `dbExistsTable()` asks by binding `SELECT * FROM` the name, which is how it finds a file path that a replacement scan resolves.
-Inside a transaction, on an engine with the policy,
-it relaxes the transaction's policy for that one statement and puts the transaction's own policy back afterwards,
+Inside a transaction, it relaxes the transaction's policy for that one statement and puts the transaction's own policy back afterwards,
 so `dbWriteTable()`, `duckdb_read_csv()` and dplyr's `copy_to()` work inside a transaction
 ([#2892](https://github.com/duckdb/duckdb-r/issues/2892)).
 It sets the policy as `BEGIN` does rather than through `SET`, so `lock_configuration` does not refuse it.

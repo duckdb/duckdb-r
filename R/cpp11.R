@@ -40,6 +40,10 @@ rapi_connection_in_transaction <- function(conn) {
   .Call(`_duckdb_rapi_connection_in_transaction`, conn)
 }
 
+rapi_query_off_r_thread <- function(conn, sql) {
+  .Call(`_duckdb_rapi_query_off_r_thread`, conn, sql)
+}
+
 rapi_connection_set_invalidation_policy <- function(conn, policy) {
   .Call(`_duckdb_rapi_connection_set_invalidation_policy`, conn, policy)
 }
