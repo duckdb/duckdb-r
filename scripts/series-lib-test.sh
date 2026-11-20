@@ -6,17 +6,22 @@
 # the engine through these helpers and nothing else.
 #
 # What is checked:
-#   1. The vendor predicate: a `vendor:` subject, a bare marker, an ordinary one.
-#   2. The SHA a subject names, and the twin key with its `+tag` suffix.
+#   1. The vendor predicate: a `vendor:` subject and the older forms vendor
+#      subjects took vendor; an ordinary one, and one that names an upstream
+#      commit without vendoring it, a fix or a revert, do not.
+#   2. The SHA a subject names, and the twin key with its `+tag` suffix, which
+#      a subject that only names an upstream commit has none of.
 #   3. The release a stamp precedes, and the version ordering the suite's
 #      `engine_before()` makes.
 #   4. The strand, the regenerated files, the carry filter and the tooling
 #      expression, read from the configured paths rather than from literals.
 #   5. On a repository: the seed, whether a green stands above it, which ref
 #      tells a forward swapped in, the base scan past a non-vendor commit in
-#      the scan directory, its bound, the `-build` equivalent of a re-stamped
-#      commit, and the engine and the stamp read off a tree; the second parent of
-#      a merge that keeps the engine never answers the base scan.
+#      the scan directory, one that names an engine among them, its bound, the
+#      lookup of a vendor commit by SHA past that one, the `-build` equivalent
+#      of a re-stamped commit, and the engine and the stamp read off a tree;
+#      the second parent of a merge that keeps the engine never answers the
+#      base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches: the
 #      dispatch of the deletion workflow, with no pull request for a forward's
@@ -70,17 +75,35 @@ later_snapshot=1.4.0-dev124
 # answers no to, as `engine_before()` in the suite reads this engine's versions.
 before=("$snapshot $release" "$snapshot 1.5.0" "$snapshot $later_snapshot")
 not_before=("$snapshot 1.3.9" "$release 1.5.0" "main 1.5.0")
+# The subjects vendor commits carried before the `vendor:` prefix, for the
+# marker <owner>/<repo>@<sha>, as the configuration's `series_vendor_legacy_ere`
+# accepts them; none for a history without any.
+legacy_subjects() { # <marker>
+  printf '%s\n' "Update vendored sources to $1" "chore: Update vendored sources to $1" \
+    "chore: Update vendored sources (tag v1.2.3) to $1" "chore: Update vendored sources to $1 (#42)"
+}
 
 repo=$series_upstream_repo
 sha=0123456789abcdef
 v="vendor: Update vendored sources to $repo@$sha"
 vt="vendor: Update vendored sources (tag $(series_tag_of_release 1.2.3)) to $repo@$sha"
 
+# A fix made against an engine names it, as `-dev` commits do, and vendors nothing.
+fix_subject="fix(patch): Regenerate patch/0129 against the engine at $repo@${sha:0:10}"
+
 echo "--- 1. the vendor predicate"
 yes "a vendor: subject vendors" series_is_vendor "$v"
-yes "a bare marker vendors" series_is_vendor "chore: bump to $repo@$sha"
+yes "so does a re-stamp" series_is_vendor "$vt"
+yes "and a squash merge's" series_is_vendor "$v (#603)"
+while IFS= read -r s; do
+  yes "an older vendor subject vendors: $s" series_is_vendor "$s"
+  not "  and its revert does not" series_is_vendor "Revert \"$s\""
+done < <(legacy_subjects "$repo@$sha")
 not "an ordinary subject does not" series_is_vendor "fix: the glue reads two"
 not "the repository name alone does not" series_is_vendor "docs: $repo is upstream"
+not "a fix that names the engine it was made against does not" series_is_vendor "$fix_subject"
+not "nor a chore: that names an upstream commit" series_is_vendor "chore: bump to $repo@$sha"
+not "nor the revert of a vendor commit" series_is_vendor "Revert \"$v\""
 
 echo "--- 2. the SHA and the twin key"
 is "the SHA a subject names" "$(series_sha_of "$v")" "$sha"
@@ -88,6 +111,8 @@ is "none for an ordinary subject" "$(series_sha_of "fix: the glue")" ""
 is "the twin key" "$(series_twin_key "$v")" "$sha"
 is "the twin key of a re-stamp" "$(series_twin_key "$vt")" "$sha+tag"
 is "no key for an ordinary subject" "$(series_twin_key "fix: the glue")" ""
+is "the SHA a fix names" "$(series_sha_of "$fix_subject")" "${sha:0:10}"
+is "but no key for it, since it vendors nothing" "$(series_twin_key "$fix_subject")" ""
 is "the marker, as the subject spells it" "$(series_marker_of "$vt")" "$repo@$sha"
 is "one marker for a subject naming two" "$(series_marker_of "$v, after $repo@abc")" "$repo@$sha"
 
@@ -152,6 +177,8 @@ engine_tree bbbbbbbbbb "$later_snapshot"
 v2=$(c "vendor: Update vendored sources to $repo@bbbbbbbbbb")
 echo 'c' > "$series_scan_dir/a"
 fix=$(c "fix: a patch applied in the vendored tree")
+echo 'd' > "$series_scan_dir/a"
+named=$(c "fix(patch): Regenerate a patch against the engine at $repo@aaaaaaaaaa")
 is "the seed" "$(series_seed_of HEAD)" "$seed"
 is "no seed below it" "$(series_seed_of "$seed~1")" ""
 is "a green above its seed stands on it" "$(series_green_seeded "$v1" HEAD && echo yes)" yes
@@ -166,7 +193,10 @@ is "or not, whatever the series' green reaches" "$(swapped "$seed~1" HEAD HEAD "
 is "so does no green" "$(swapped '' HEAD HEAD HEAD)" "dev, swapped in"
 is "a green with no -dev answers alone" "$(swapped "$seed~1" '' "$seed~1" "$seed~1")" "green, swapped in"
 is "and with neither, whatever is named for it is litter" "$(swapped '' '' "$seed~1" "$seed~1")" "none, swapped in"
-is "the base scan looks past a non-vendor commit in the scan directory" "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
+is "the base scan looks past non-vendor commits in the scan directory, one naming an engine" \
+  "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
+is "the lookup by SHA finds the commit vendoring it, not the fix naming it" \
+  "$(series_vendor_log aaaaaaaaaa HEAD | cut -d' ' -f1)" "$v1"
 is "and says so when the bound is reached" \
   "$(base_scan_depth=1 series_vendored_sha HEAD 2>&1 >/dev/null | head -n 1)" \
   "vendored_sha: 1 $series_scan_dir commits on HEAD, none of them vendoring;"
@@ -181,6 +211,7 @@ v2t=$(c "vendor: Update vendored sources (tag $tag) to $repo@bbbbbbbbbb")
 is "the equivalent of a plain vendor commit is the plain one" "$(series_build_equivalent HEAD build bbbbbbbbbb)" "$v2"
 is "and of a re-stamp the re-stamp" "$(series_build_equivalent HEAD HEAD bbbbbbbbbb)" "$v2t"
 is "the fix is not a vendor commit" "$(series_is_vendor "$(git log -1 --format=%s "$fix")" && echo yes || echo no)" no
+is "nor is the one naming an engine" "$(series_is_vendor "$(git log -1 --format=%s "$named")" && echo yes || echo no)" no
 # A forward merge: a release branch's newer vendor commit merged keeping the
 # first parent's engine, so the base scan never reads the second's.
 git checkout -q -b rel
