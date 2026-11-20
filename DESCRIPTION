@@ -1,6 +1,6 @@
 Package: duckdb.2.0.dev
 Title: DBI Package for the DuckDB Database Management System
-Version: 2.0.0.9001.4
+Version: 2.0.0.9001.5
 Config/duckdb/upstream: bfd838c07d2b84be03c6e1da3d2e0f47f2e0ff7d
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
