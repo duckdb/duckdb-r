@@ -575,8 +575,9 @@ for S in "${series[@]}"; do
       # must not answer for the forward chain. A base green that vendors nothing
       # asks for no coverage, exactly as in series-cutover.sh.
       base_up=$(series_vendored_sha "$remote/$base-green")
-      # Collected, not piped into grep: `grep -q` leaves early, and under
-      # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
+      # The vendor subjects, collected rather than piped into `grep -q`:
+      # it leaves early, and under `pipefail` the SIGPIPE it hands its writer would read as a failed test.
+      # `grep -E` reads its input whole, so `git log` may feed it.
       fwd_vendored=$(git log --format=%s "$remote/main..$green" -- "$series_scan_dir" | grep -E "$series_vendor_ere" || true)
       if [ -z "$base_up" ] || grep -qF "@$base_up" <<<"$fwd_vendored"; then
         cutover=$base

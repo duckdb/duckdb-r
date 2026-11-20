@@ -11,8 +11,9 @@ set -o pipefail
 
 cd "$(dirname "$0")"/..
 
-# The generator, the version it stamps and the release tag, shared with
-# scripts/vendor-one.sh; the rest this script keeps a copy of.
+# The generator, the version it stamps, the release tag
+# and the older vendor subjects the base scan accepts, shared with scripts/vendor-one.sh;
+# the rest this script keeps a copy of.
 # shellcheck source=series-config.sh
 . scripts/series-config.sh
 

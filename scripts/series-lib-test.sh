@@ -18,9 +18,10 @@
 #   5. On a repository: the seed, whether a green stands above it, which ref
 #      tells a forward swapped in, the base scan past a non-vendor commit in
 #      the scan directory, one that names an engine among them, its bound, the
-#      `-build` equivalent of a re-stamped
-#      commit, and the engine and the stamp read off a tree; the second parent of
-#      a merge that keeps the engine never answers the base scan.
+#      lookup of a vendor commit by SHA past that one, the `-build` equivalent
+#      of a re-stamped commit, and the engine and the stamp read off a tree;
+#      the second parent of a merge that keeps the engine never answers the
+#      base scan.
 #   6. The GitHub repository a remote names, whatever user, token or port its
 #      URL carries, and the command that deletes one of its branches: the
 #      dispatch of the deletion workflow, with no pull request for a forward's
@@ -194,6 +195,8 @@ is "a green with no -dev answers alone" "$(swapped "$seed~1" '' "$seed~1" "$seed
 is "and with neither, whatever is named for it is litter" "$(swapped '' '' "$seed~1" "$seed~1")" "none, swapped in"
 is "the base scan looks past non-vendor commits in the scan directory, one naming an engine" \
   "$(series_vendored_sha HEAD 2>/dev/null)" "bbbbbbbbbb"
+is "the lookup by SHA finds the commit vendoring it, not the fix naming it" \
+  "$(series_vendor_log aaaaaaaaaa HEAD | cut -d' ' -f1)" "$v1"
 is "and says so when the bound is reached" \
   "$(base_scan_depth=1 series_vendored_sha HEAD 2>&1 >/dev/null | head -n 1)" \
   "vendored_sha: 1 $series_scan_dir commits on HEAD, none of them vendoring;"
