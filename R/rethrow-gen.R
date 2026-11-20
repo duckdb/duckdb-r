@@ -90,6 +90,15 @@ rethrow_rapi_connection_in_transaction <- function(conn, call = parent.frame(2))
   )
 }
 
+rethrow_rapi_query_off_r_thread <- function(conn, sql, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_query_off_r_thread(conn, sql),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_connection_set_invalidation_policy <- function(conn, policy, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_connection_set_invalidation_policy(conn, policy),
@@ -659,6 +668,7 @@ rethrow_restore <- function() {
   rethrow_rapi_connect <<- rapi_connect
   rethrow_rapi_disconnect <<- rapi_disconnect
   rethrow_rapi_connection_in_transaction <<- rapi_connection_in_transaction
+  rethrow_rapi_query_off_r_thread <<- rapi_query_off_r_thread
   rethrow_rapi_connection_set_invalidation_policy <<- rapi_connection_set_invalidation_policy
   rethrow_rapi_connection_valid <<- rapi_connection_valid
   rethrow_rapi_startup <<- rapi_startup

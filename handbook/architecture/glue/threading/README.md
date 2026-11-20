@@ -54,6 +54,9 @@ so R's compact sequences and deferred strings are in memory by the time a task b
 and so is an atomic column of `rel_to_altrep()`, whose class reports the vector it converted to.
 A list column of one is an ALTREP list, which a task refuses,
 and [`tests/testthat/test-register.R`](/tests/testthat/test-register.R) pins both.
+Which thread takes a task is the scheduler's choice, so the test of the refusal does not leave it to a task:
+`rapi_query_off_r_thread()` ([`src/connection.cpp`](/src/connection.cpp)), test-only and unexported,
+runs a query on a thread of its own while R's thread only waits, and so binds off R's thread every time.
 The error suggests `SET threads = 1`, since the scheduler then has no worker of its own and a query from R runs every task on R's thread.
 A task's bind still calls R's C API, though.
 It takes each payload with `DATAPTR()` or `DATAPTR_RO()`, which for an ALTREP vector dispatch its class's `Dataptr` method
