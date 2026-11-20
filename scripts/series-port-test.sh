@@ -9,7 +9,8 @@
 # content, a forward merge among them, is offered as one port of its change.
 # What is checked:
 #
-#   1. An ordinary `main` commit the series lacks is offered.
+#   1. An ordinary `main` commit the series lacks is offered, and so is a fix
+#      whose subject names the engine it was made against, which vendors nothing.
 #   2. A commit that reached `main` only through an ancestry-only merge is not.
 #   3. Nor is the ancestry-only merge itself.
 #   4. A real merge is not an ancestry-only one: it changed main's tree, so
@@ -129,6 +130,12 @@ echo 'foo <- function() 2' > R/foo.R
 git add -A
 git commit -qm 'fix: An ordinary commit the series lacks'
 
+# A fix whose subject names the engine it was made against, which vendors nothing.
+mkdir -p patch
+echo 'a patch made against the engine' > patch/0001-fix.patch
+git add -A
+git commit -qm 'fix(patch): Regenerate a patch against the engine at duckdb/duckdb@0123456789'
+
 # A lineage from another era, merged for its ancestry alone: `-s ours` keeps
 # main's tree, so nothing of it is in the package `main` builds.
 git checkout -q -b old-line fork-point
@@ -219,6 +226,9 @@ is() { # <name> <subject text> <expected class>
   got=$(klass "$1" "$2")
   if [ "$got" = "$3" ]; then ok "$1"; else no "$1"; echo "       $3 expected, got ${got:-nothing}"; fi
 }
+
+is "a fix that names an engine is package content, no vendor commit" \
+  'Regenerate a patch against the engine' OTHER
 
 echo
 echo "series-port.sh: what the release strand covers"

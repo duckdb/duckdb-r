@@ -144,9 +144,10 @@ rewinds() { # <commit>: does it vendor an engine older than <base>'s?
   [ -n "$e" ] && [ -n "$base_engine" ] && engine_before "$e" "$base_engine"
 }
 label() { # <commit> -> "<short> <upstream SHA or subject>, <engine>[, a rewind]"
-  local s up sha e r=''
+  local s up='' sha e r=''
   s=$(git log -1 --format=%s "$1")
-  up=$(series_marker_of "$s")
+  # A vendor commit by its upstream SHA; any other by its subject, even one naming an engine.
+  if series_is_vendor "$s"; then up=$(series_marker_of "$s"); fi
   [ -z "$up" ] || { sha=${up##*@}; up="${up%@*}@${sha:0:10}"; }
   e=$(commit_engine "$1")
   if rewinds "$1"; then r=', a rewind'; fi

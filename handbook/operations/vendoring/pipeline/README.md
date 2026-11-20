@@ -15,7 +15,7 @@ version component, and syntax-checks the glue against the fresh
 headers, the *glue gate*, stopping at the first break.
 Both refuse a dirty tree,
 and both recover the base by scanning recent `src/duckdb/` commits
-for a `duckdb/duckdb@<sha>` subject —
+for a vendor subject's `duckdb/duckdb@<sha>` —
 refusing, rather than guessing, when the scan comes up empty.
 A candidate is worth a commit when it is an exact tag or changes
 more than one file under `src/duckdb/`
@@ -143,6 +143,9 @@ so the marker is part of what pairs a `-dev` commit with its `-build` twin
 all recover *where is this branch in upstream history* by parsing `duckdb/duckdb@<sha>` out of that line.
 So it is not prose: do not reword it,
 and do not squash vendor commits without keeping the newest SHA in the subject.
+The prefix makes a commit a vendor commit, and so do the older forms of this subject
+that [`scripts/series-config.sh`](/scripts/series-config.sh) names.
+The marker alone does not: a fix may name the engine it was made against, and it vendors nothing.
 
 *To deepen: absorb `scripts/VENDORING.md`'s remaining sections —
 vendoring by hand, creating a patch, and the commit-by-commit loop

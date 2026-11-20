@@ -13,13 +13,23 @@
 # so raising it raises every answer at once.
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 
-# Does a subject say its commit vendored? The `vendor:` prefix vendor-one.sh
-# writes, or the `<owner>/<repo>@<sha>` marker that carries the upstream commit
-# as machine-readable state. The subject decides, never the path.
+# Does a subject say its commit vendored?
+# The `vendor:` prefix vendor-one.sh writes, or an older vendor subject the configuration names,
+# and never the `<owner>/<repo>@<sha>` marker alone, which a fix made against an engine carries too.
+# The subject decides, never the path.
+# `series_vendor_ere` is the same rule as one ERE, for `grep -E` and `awk` over many subjects.
+series_vendor_ere="^vendor:${series_vendor_legacy_ere:+|$series_vendor_legacy_ere}"
 series_is_vendor() { # <subject>
-  # shellcheck disable=SC2254
-  case "$1" in vendor:* | $series_vendor_glob) return 0 ;; esac
-  return 1
+  [[ $1 =~ $series_vendor_ere ]]
+}
+
+# The `<commit> <subject>` of each vendor commit whose subject names <sha>, as `git log <arguments>` walks them:
+# the lookup by upstream SHA, which a fix naming the same engine never answers.
+series_vendor_log() { # <sha> <arguments...>
+  local sha=$1
+  shift
+  git log --format='%H%x09%s' "$@" |
+    awk -F'\t' -v vendor="$series_vendor_ere" -v at="@$sha" '$2 ~ vendor && index($2, at) { print $1 " " $2 }'
 }
 
 # The upstream SHA a subject names, empty when it names none.
@@ -27,15 +37,16 @@ series_sha_of() { # <subject>
   sed -rn "$series_sha_sed" <<<"$1"
 }
 
-# The upstream SHA a ref has vendored. The pathspec narrows the walk, the
-# subject decides: commits that touch the scan directory without vendoring are
-# ordinary, so look past them, `base_scan_depth` deep. Empty is the answer
-# being absent, not a wrong answer: callers refuse on it, and the reason is on
-# stderr for a human to act on.
+# The upstream SHA a ref has vendored.
+# The pathspec narrows the walk, and the subject decides, as `series_is_vendor` reads it:
+# commits that touch the scan directory without vendoring are ordinary, whatever upstream commit they name,
+# so look past them, `base_scan_depth` deep.
+# Empty is the answer being absent, not a wrong answer:
+# callers refuse on it, and the reason is on stderr for a human to act on.
 series_vendored_sha() { # <ref> -> sha, empty when none
   local subjects sha n
   subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- "$series_scan_dir" || true)
-  sha=$(sed -rn "$series_sha_sed" <<<"$subjects" | head -n 1)
+  sha=$({ grep -E "$series_vendor_ere" <<<"$subjects" || true; } | sed -rn "$series_sha_sed" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
     if [ "$n" -ge "$base_scan_depth" ]; then
@@ -58,8 +69,8 @@ series_vendored_sha() { # <ref> -> sha, empty when none
 series_build_equivalent() { # <build> <ref> <sha> -> commit, empty if none
   local subjects newest lines match
   subjects=$(git log -n "$base_scan_depth" --format=%s "$2" -- "$series_scan_dir" || true)
-  newest=$(grep -m 1 -F "@$3" <<<"$subjects" || true)
-  lines=$(git log --format='%H %s' "$1" | grep -F "@$3" || true)
+  newest=$({ grep -E "$series_vendor_ere" <<<"$subjects" || true; } | grep -m 1 -F "@$3" || true)
+  lines=$(series_vendor_log "$3" "$1" || true)
   case "$newest" in
     *"(tag "*) match=$(grep -m 1 -F '(tag ' <<<"$lines" || true) ;;
     *) match=$(grep -m 1 -v -F '(tag ' <<<"$lines" || true) ;;
@@ -73,6 +84,7 @@ series_build_equivalent() { # <build> <ref> <sha> -> commit, empty if none
 # the plain one (scripts/series-advance.sh, scripts/series-forward-build.sh).
 series_twin_key() { # <subject> -> key, empty when the subject vendors nothing
   local sha
+  series_is_vendor "$1" || return 0
   sha=$(series_sha_of "$1")
   [ -n "$sha" ] || return 0
   case "$1" in

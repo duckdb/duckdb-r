@@ -95,7 +95,13 @@ case "$what" in
     ;;
 esac
 
-upstream_sha() { series_sha_of "$(git log -1 --format=%s "$1")"; }
+# The upstream SHA a vendor commit vendors, and nothing for any other commit,
+# whose subject is printed below the header anyway.
+upstream_sha() {
+  local s
+  s=$(git log -1 --format=%s "$1")
+  if series_is_vendor "$s"; then series_sha_of "$s"; fi
+}
 
 mapfile -t commits < <(git log --reverse --format=%H "$range" -- "${GLUE[@]}")
 

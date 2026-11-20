@@ -28,7 +28,7 @@ git log --oneline --grep="^vendor:" -5     # the last vendor commits
 The failure classes, and what each needs:
 
 * **The script refuses to start** — dirty tree; commit or stash.
-* **The base scan comes up empty** — no `duckdb/duckdb@` subject
+* **The base scan comes up empty** — no vendor subject
   within `BASE_SCAN_DEPTH` (20, in both vendor scripts);
   they refuse rather than guess a range.
   Usually a reworded vendor subject.
