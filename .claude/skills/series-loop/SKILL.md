@@ -252,7 +252,7 @@ scripts/r-universe-check.sh --log <id>   # the log behind one of them
   ```
 
 * What a fix may be is the handbook's rule ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)):
-  a `patch/` entry is a prototype of an upstream change, a fix must cost Linux nothing and say which flags reproduced it,
+  a `patch/` entry is a prototype of an upstream change that enters a series when [Patch Stack](/BRANCHES.md#patch-stack) says, a fix must cost Linux nothing and say which flags reproduced it,
   it belongs where its code lives (not always `main`), and it has to reach the buffer too.
   `series-port.sh --apply` carries entries onto the buffer by test-applying; `series-check.sh`'s `PATCH DRIFT` line is the backstop.
 

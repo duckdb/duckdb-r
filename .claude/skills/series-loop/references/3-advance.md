@@ -210,6 +210,7 @@ So write it as the diff you would send to `duckdb/duckdb`,
 and keep the vendored code free of commentary about us:
 the reasoning goes in the commit message,
 which the patch header carries upstream with it.
+When it may enter a series is [Patch Stack](/BRANCHES.md#patch-stack)'s rule.
 
 **A fix must cost Linux nothing.**
 The only gate that will judge it is Linux on one R version,
