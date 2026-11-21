@@ -248,6 +248,10 @@ rapi_rel_to_altrep <- function(rel, n_rows, n_cells) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, n_rows, n_cells)
 }
 
+rapi_altrep_slow_path_count <- function() {
+  .Call(`_duckdb_rapi_altrep_slow_path_count`)
+}
+
 rapi_df_has_query_result <- function(df) {
   .Call(`_duckdb_rapi_df_has_query_result`, df)
 }

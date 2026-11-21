@@ -457,6 +457,13 @@ extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel, SEXP n_rows, SEXP n_cells) 
   END_CPP11
 }
 // reltoaltrep.cpp
+double rapi_altrep_slow_path_count();
+extern "C" SEXP _duckdb_rapi_altrep_slow_path_count() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_altrep_slow_path_count());
+  END_CPP11
+}
+// reltoaltrep.cpp
 bool rapi_df_has_query_result(SEXP df);
 extern "C" SEXP _duckdb_rapi_df_has_query_result(SEXP df) {
   BEGIN_CPP11
@@ -539,6 +546,7 @@ extern "C" SEXP _duckdb_rapi_load_rfuns(SEXP dual) {
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_adbc_init_func",                     (DL_FUNC) &_duckdb_rapi_adbc_init_func,                      0},
+    {"_duckdb_rapi_altrep_slow_path_count",             (DL_FUNC) &_duckdb_rapi_altrep_slow_path_count,              0},
     {"_duckdb_rapi_arrow_empty_array",                  (DL_FUNC) &_duckdb_rapi_arrow_empty_array,                   2},
     {"_duckdb_rapi_arrow_schema",                       (DL_FUNC) &_duckdb_rapi_arrow_schema,                        2},
     {"_duckdb_rapi_bind",                               (DL_FUNC) &_duckdb_rapi_bind,                                3},
