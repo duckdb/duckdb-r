@@ -478,9 +478,9 @@ It keeps the newer line's engine, the vendored strand and the Makevars generated
 the registered `DESCRIPTION` merge driver keeps its version and engine record,
 and the `NEWS.md` merge driver merges the two changelogs by version section, newest first;
 `scripts/setup-git.sh` registers both, and the block runs it first.
-git runs a driver only where both sides changed the file, and takes the release branch's copy where the newer line left it alone,
-so after the merge [`scripts/series-merge-forward.sh`](/scripts/series-merge-forward.sh) runs both drivers again on the three sides and stages what they write.
-It also keeps the newer line's development section across a release, and points its compare link at the newer line, from the newest tag.
+git skips a driver where the newer line left the file alone, so after the merge
+[`scripts/series-merge-forward.sh`](/scripts/series-merge-forward.sh) runs both again
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md) has what it writes).
 Anything else that conflicts is resolved as the R side needs; `git status` names it before the commit
 (`tests/testthat/test-series-land-skill.R` runs the block against a scratch repository):
 
@@ -501,7 +501,8 @@ else
   git switch -C "forward/$B-$v" "upstream/$N"
   git merge --no-commit --no-ff "upstream/$B"
   if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
-    scripts/series-merge-forward.sh "$N"              # DESCRIPTION and NEWS.md as the drivers mean them
+    scripts/series-merge-forward.sh "$N" ||           # DESCRIPTION and NEWS.md as the drivers mean them
+      echo "DESCRIPTION and NEWS.md are not finished: see above, and merge them by hand before the commit" >&2
     series_keep_engine && echo "the engine is $N's"   # the vendored strand and its Makevars, as $N has them
     git status --short
   else

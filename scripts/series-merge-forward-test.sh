@@ -23,7 +23,11 @@
 #      with markers, for the hand to resolve.
 #   5. A second run changes nothing.
 #   6. Without a merge in progress, it refuses and changes nothing.
-#   7. It is what the skill's step 8 runs after `git merge`.
+#   7. It is what the skill's step 8 runs after `git merge`, and a failure
+#      there is reported.
+#   8. The link starts at the highest version the release branch reaches,
+#      where a lower tag is closer to its tip.
+#   9. A conflict resolved by hand and staged survives a second run.
 #
 # Usage:
 #   scripts/series-merge-forward-test.sh
@@ -175,6 +179,16 @@ is "DESCRIPTION stays unmerged" "$(git diff --name-only --diff-filter=U)" DESCRI
 has "  with markers" "$(cat DESCRIPTION)" "<<<<<<< ours"
 has "  and says so" "$out" "conflict"
 
+echo "== 9. a conflict resolved by hand survives a second run"
+desc 2.0.0.9001 "" "methods, stats, utils" > DESCRIPTION
+git add DESCRIPTION
+out=$(run) && st=0 || st=$?
+is "it succeeds" "$st" 0
+has "  saying it leaves the file alone" "$out" "resolved by hand"
+is "nothing is unmerged" "$(git diff --name-only --diff-filter=U)" ""
+is "the resolution stays staged" "$(git show :DESCRIPTION)" "$(desc 2.0.0.9001 "" "methods, stats, utils")"
+is "  and in the working tree" "$(cat DESCRIPTION)" "$(desc 2.0.0.9001 "" "methods, stats, utils")"
+
 echo "== 6. no merge in progress"
 git merge --abort
 before=$(git rev-parse HEAD; git status --porcelain)
@@ -185,7 +199,31 @@ is "  and changes nothing" "$(git rev-parse HEAD; git status --porcelain)" "$bef
 
 echo "== 7. the skill's step 8 runs it"
 block=$(sed -n '/^## 8\./,/^## /p' "$HERE/../.claude/skills/series-land/SKILL.md")
-has "after the merge" "$block" 'scripts/series-merge-forward.sh "$N"'
+has "after the merge" "$block" 'scripts/series-merge-forward.sh "$N" ||'
+has "  and reports a failure" "$block" "are not finished"
+
+echo "== 8. a lower tag closer to the release branch's tip"
+repo closest
+desc 2.0.0.9001 > DESCRIPTION
+{ dev v2.0.0.9001 v2.0-cyanoptera; sec 2.0.0.9001; sec 2.0.0; } > NEWS.md
+commit base
+git tag -a -m 'duckdb 2.0.0.9001' v2.0.0.9001
+git switch -q -c rel
+desc 2.0.1 > DESCRIPTION
+{ sec 2.0.1; sec 2.0.0; } > NEWS.md
+commit 'chore: Bump version to 2.0.1'
+git tag -a -m 'duckdb 2.0.1.9900' v2.0.1.9900
+{ sec "2.0.1 (2026-11-21)"; sec 2.0.0; } > NEWS.md
+commit 'chore: Set the 2.0.1 release date'
+git tag -a -m 'duckdb 2.0.1' v2.0.1
+git switch -q main
+{ dev v2.0.0.9001 main; sec 2.0.0.9001; sec 2.0.0; } > NEWS.md
+commit 'main: its own link'
+merge
+is "git describe would name the closer tag" "$(git describe --tags --abbrev=0 MERGE_HEAD)" v2.0.1
+run >/dev/null && st=0 || st=$?
+is "it succeeds" "$st" 0
+is "the link starts at the highest version" "$(link)" "Commits since v2.0.1.9900: <$URL/v2.0.1.9900...main>."
 
 echo
 echo "$pass passed, $fail failed"

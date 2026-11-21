@@ -25,16 +25,19 @@
 #   * the development section's link compares the branch's newest tag with the
 #     branch (handbook/operations/releases/versioning/README.md). After the
 #     merge it names the newer line given as the argument, and starts at the
-#     newer, by version, of the tag it names and the newest tag theirs carries.
+#     highest version among the tag it names and the tags theirs reaches,
+#     which need not be the tag closest to theirs.
 #
 # A file the driver leaves conflicted is written with its markers and left
-# unmerged in the index, the three sides as stages 1 to 3, for the hand.
+# unmerged in the index, the three sides as stages 1 to 3, for the hand, and
+# recorded with the merge's MERGE_HEAD in the git directory, so that a second
+# run leaves a file already resolved by hand as it is.
 #
 # Usage:
 #   scripts/series-merge-forward.sh <newer line>
 #
-# Exits 1 without a merge in progress, or on an ambiguous merge base, before
-# changing anything; a conflict left for the hand is no failure.
+# Exits 1 without a merge in progress, or with more than one merge base,
+# before changing anything; a conflict left for the hand is no failure.
 set -euo pipefail
 
 [ $# -eq 1 ] || { echo "usage: series-merge-forward.sh <newer line>" >&2; exit 2; }
@@ -108,13 +111,25 @@ unmerge() {
   } | git update-index --index-info
 }
 
-theirs_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' MERGE_HEAD 2>/dev/null || true)
+theirs_tag=$(git tag --merged MERGE_HEAD --list 'v[0-9]*' | sort -V | tail -n 1)
+
+# The files an earlier run of this merge left conflicted, one `<MERGE_HEAD>
+# <path>` per line; those of another merge are dropped.
+STATE=$(git rev-parse --git-path series-merge-forward)
+head=$(git rev-parse MERGE_HEAD)
+left=$(grep -s "^$head " "$STATE" || true)
+: > "$STATE"
 
 for path in DESCRIPTION NEWS.md; do
   case $path in
     DESCRIPTION) driver=$HERE/merge-version.sh ;;
     NEWS.md) driver=$HERE/merge-news.sh ;;
   esac
+  if grep -qxF "$head $path" <<<"$left" && [ -z "$(git ls-files -u -- "$path")" ]; then
+    echo "$path: resolved by hand since the last run, left as it is"
+    echo "$head $path" >> "$STATE"
+    continue
+  fi
   missing=
   for side in O:$BASE A:HEAD B:MERGE_HEAD; do
     git show "${side#*:}:$path" > "$T/${side%%:*}" 2>/dev/null || missing=1
@@ -138,6 +153,7 @@ for path in DESCRIPTION NEWS.md; do
     [ "$st" -eq 1 ] || { echo "$path: scripts/${driver##*/} failed with status $st" >&2; exit 1; }
     cat "$T/A" > "$path"
     unmerge "$path"
+    echo "$head $path" >> "$STATE"
     echo "$path: a conflict scripts/${driver##*/} leaves for the hand: resolve it, and git add"
   fi
 done

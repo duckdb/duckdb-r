@@ -175,7 +175,7 @@ and in the development section a conflict confined to the compare link keeps our
 A release drops the development section on its branch while the newer line has moved its link,
 so `series-merge-forward.sh` keeps the newer line's development section through the merge,
 and the release's history merges by section below it as the release branch has it, an interim section it dropped dropped too.
-It then points the link at the newer line, from the newer by version of the tag the link names and the newest tag the release branch carries.
+It then points the link at the newer line, from the highest version among the tag the link names and the tags the release branch reaches.
 The `DESCRIPTION` driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.
