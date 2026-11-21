@@ -36,6 +36,11 @@ and any class beyond the built-in ones in the default strict mode
 pinned in
 [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R)
 and [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R)).
+The environment scan follows the connection's `map` since [#3040](https://github.com/duckdb/duckdb-r/pull/3040)
+and scans an `integer64` column as `BIGINT` since [#3015](https://github.com/duckdb/duckdb-r/pull/3015).
+`rel_from_df()` does neither, and the relation over a materialized ALTREP data frame does not scan `integer64` as `BIGINT`:
+duckplyr aims at compatibility with R, and enabling these there waits for more tests that show it holds
+([#3067](https://github.com/duckdb/duckdb-r/pull/3067), [#3069](https://github.com/duckdb/duckdb-r/pull/3069)).
 Factors lift and come back as factors.
 duckplyr surfaces these refusals as errors on an explicit
 `as_duckdb_tibble()`, not as silent fallbacks.

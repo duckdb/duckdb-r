@@ -46,6 +46,7 @@ void AltrepDataFrameRelation::BuildTableRelation() {
 	if (!table_function_relation) {
 		vector<Value> params = {Value::POINTER((uintptr_t)(SEXP)dataframe)};
 
+		// Without `integer64`, as in rel_from_df() (handbook/usage/relational/README.md)
 		named_parameter_map_t other_params;
 
 		// Can't do an alias here and need auto_init = false
