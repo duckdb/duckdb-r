@@ -32,7 +32,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Scanning a lazy data frame on its own connection before its query has run raises an error instead of hanging (#2889, #3016).
 
 
-# duckdb 2.0.0
+# duckdb 2.0.0 (2026-10-23)
 
 ## Breaking changes
 
@@ -91,7 +91,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - `dbBind()` on a `dbSendQuery()` result after `dbDisconnect()` fails with "Attempting to execute a prepared statement after its connection was closed!" rather than running the statement again; `dbFetch()` still returns its rows.
 
 
-# duckdb 1.5.6
+# duckdb 1.5.6 (2026-09-29)
 
 ## Features
 
@@ -220,7 +220,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - The README states the package's goals and non-goals (#2731).
 
 
-# duckdb 1.5.5
+# duckdb 1.5.5 (2026-07-25)
 
 ## Features
 
@@ -249,21 +249,21 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Document database-instance caching and driver reuse (#2399).
 
 
-# duckdb 1.5.4.3
+# duckdb 1.5.4.3 (2026-07-10)
 
 ## Bug fixes
 
 - Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
 
 
-# duckdb 1.5.4.2
+# duckdb 1.5.4.2 (2026-06-29)
 
 ## Bug fixes
 
 - Fix shared on-disk storage path on Windows (#2385).
 
 
-# duckdb 1.5.4.1
+# duckdb 1.5.4.1 (2026-06-28)
 
 ## Features
 
@@ -302,7 +302,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Ci: Harden `format-suggest` against `pull_request_target` pwn requests (#93).
 
 
-# duckdb 1.5.4
+# duckdb 1.5.4 (2026-06-19)
 
 ## Features
 
@@ -331,7 +331,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Add comprehensive test coverage for `MAP` type reading (#2342).
 
 
-# duckdb 1.5.3
+# duckdb 1.5.3 (2026-06-02)
 
 ## Features
 
@@ -358,7 +358,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Add comprehensive test coverage for `MAP` type reading (#2342).
 
 
-# duckdb 1.5.2
+# duckdb 1.5.2 (2026-04-13)
 
 ## Bug fixes
 
@@ -385,7 +385,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Rework arrow tests, prepare for compatibility with dbplyr 2.6.0 (#2300).
 
 
-# duckdb 1.5.1
+# duckdb 1.5.1 (2026-03-26)
 
 ## Bug fixes
 
@@ -402,7 +402,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Use `gtar` when available to suppress Apple extended attribute warnings on Linux (#2227, #2228).
 
 
-# duckdb 1.5.0
+# duckdb 1.5.0 (2026-03-14)
 
 ## Features
 
@@ -423,7 +423,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (#2034).
 
 
-# duckdb 1.4.4
+# duckdb 1.4.4 (2026-01-28)
 
 ## Features
 
@@ -440,7 +440,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Add alternative installation method to README (@szarnyasg, #1819).
 
 
-# duckdb 1.4.3
+# duckdb 1.4.3 (2025-12-10)
 
 ## Features
 
@@ -461,12 +461,12 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Remove redundant R version checks from tests (#1815, #1816).
 
 
-# duckdb 1.4.2
+# duckdb 1.4.2 (2025-11-17)
 
 - Update to DuckDB v1.4.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
 
 
-# duckdb 1.4.1
+# duckdb 1.4.1 (2025-10-16)
 
 - Update to DuckDB v1.4.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.1> for details.
 
@@ -485,7 +485,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Ensure be able to install duckdb extensions on release version (@eitsupi, #1586).
 
 
-# duckdb 1.4.0
+# duckdb 1.4.0 (2025-09-18)
 
 - Update to DuckDB v1.4.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.0> for details.
 
@@ -504,7 +504,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Extensions can be installed again.
 
 
-# duckdb 1.3.3
+# duckdb 1.3.3 (2025-09-10)
 
 - Update to the current v1.3-ossivalis branch, see <https://github.com/duckdb/duckdb/tree/v1.3-ossivalis> for details.
 
@@ -539,14 +539,14 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Add `local_con()` test fixture for cleaner DuckDB connection management (#1476).
 
 
-# duckdb 1.3.2
+# duckdb 1.3.2 (2025-07-09)
 
 ## Features
 
 - Update to duckdb v1.3.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.2> for details.
 
 
-# duckdb 1.3.1
+# duckdb 1.3.1 (2025-06-23)
 
 ## Features
 
@@ -559,7 +559,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Fix multiarch build on R 4.1 for Windows.
 
 
-# duckdb 1.3.0
+# duckdb 1.3.0 (2025-06-02)
 
 ## Features
 
@@ -578,7 +578,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Skip timing tests on CRAN.
 
 
-# duckdb 1.2.2
+# duckdb 1.2.2 (2025-04-29)
 
 ## Features
 
@@ -615,7 +615,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Tweak README.
 
 
-# duckdb 1.2.1
+# duckdb 1.2.1 (2025-03-14)
 
 ## Features
 
@@ -642,7 +642,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Avoid calls to non-API R functions.
 
 
-# duckdb 1.2.0
+# duckdb 1.2.0 (2025-02-21)
 
 ## Breaking changes
 
@@ -669,7 +669,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Fix translation for `add_days()` and `add_years()` clock functions (#976, @IoannaNika).
 
 
-# duckdb 1.1.3-2
+# duckdb 1.1.3-2 (2025-01-24)
 
 ## Bug fixes
 
@@ -692,7 +692,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Sync tests.
 
 
-# duckdb 1.1.3-1
+# duckdb 1.1.3-1 (2024-12-08)
 
 ## Features
 
@@ -715,7 +715,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Mention `xz` requirement in `DESCRIPTION`.
 
 
-# duckdb 1.1.3
+# duckdb 1.1.3 (2024-11-21)
 
 ## Features
 
@@ -738,7 +738,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Keep `cleanup` files to accommodate different build scenarios (#536).
 
 
-# duckdb 1.1.2
+# duckdb 1.1.2 (2024-10-30)
 
 ## Features
 
@@ -769,7 +769,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - `rfuns` extension: Fix signedness.
 
 
-# duckdb 1.1.1
+# duckdb 1.1.1 (2024-10-16)
 
 ## Features
 
@@ -788,7 +788,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Remove warnings for uninitialized variables.
 
 
-# duckdb 1.1.0
+# duckdb 1.1.0 (2024-09-25)
 
 ## Features
 
@@ -797,14 +797,14 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Upgrade vendored cpp11 to 0.5.0.
 
 
-# duckdb 1.0.0-2
+# duckdb 1.0.0-2 (2024-07-19)
 
 ## Features
 
 - Reduce the package installation size on macOS (#185).
 
 
-# duckdb 1.0.0-1
+# duckdb 1.0.0-1 (2024-07-10)
 
 ## Bug fixes
 
@@ -813,14 +813,14 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Support `dplyr::tbl(conn, I(...))`.
 
 
-# duckdb 1.0.0
+# duckdb 1.0.0 (2024-06-13)
 
 ## Bug fixes
 
 - Update to duckdb v1.0.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.0.0> for details.
 
 
-# duckdb 0.10.3
+# duckdb 0.10.3 (2024-06-05)
 
 ## Features
 
@@ -836,7 +836,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Correct usage of `win_current_group()` instead of `win_current_order()` in SQL translation (@lschneiderbauer, #173, #175).
 
 
-# duckdb 0.10.2
+# duckdb 0.10.2 (2024-05-01)
 
 ## Features
 
@@ -853,7 +853,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Avoid `R CMD check` warning regarding `SETLENGTH()` and `SET_TRUELENGTH()` (#145).
 
 
-# duckdb 0.10.1
+# duckdb 0.10.1 (2024-04-02)
 
 ## Features
 
@@ -877,7 +877,7 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 - Add rhub2 workflow.
 
 
-# duckdb 0.10.0
+# duckdb 0.10.0 (2024-03-13)
 
 ## Bug fixes
 
@@ -921,24 +921,24 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 
 - Tweak tests for compatibility with v0.10.0 (#84).
 
-# duckdb 0.9.2-1
+# duckdb 0.9.2-1 (2023-11-28)
 
 - Fix compiler warning on R-devel (#45).
 
 
-# duckdb 0.9.2
+# duckdb 0.9.2 (2023-11-17)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.9.2>.
 
 - Add dbplyr translation for `prod()` (#40, @m-muecke).
 
 
-# duckdb 0.9.1-1
+# duckdb 0.9.1-1 (2023-10-30)
 
 - Fix LTO checks on CRAN.
 
 
-# duckdb 0.9.1
+# duckdb 0.9.1 (2023-10-13)
 
 - See blog post at <https://duckdb.org/2023/09/26/announcing-duckdb-090.html>.
 
@@ -950,65 +950,65 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 
 - Full support of lists and structs in R (duckdb/duckdb#8503, @krlmlr).
 
-# duckdb 0.8.1-3
+# duckdb 0.8.1-3 (2023-09-01)
 
 - Internal changes to support the duckplyr package.
 
-# duckdb 0.8.1-2
+# duckdb 0.8.1-2 (2023-08-25)
 
 - Compatibility with dbplyr.
 
 - Internal changes to support the duckplyr package.
 
-# duckdb 0.8.1-1
+# duckdb 0.8.1-1 (2023-07-17)
 
 - Fix CRAN checks.
 
-# duckdb 0.8.1
+# duckdb 0.8.1 (2023-06-16)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.8.1>.
 
-# duckdb 0.8.0
+# duckdb 0.8.0 (2023-05-23)
 
 - See blog post at <https://duckdb.org/2023/05/17/announcing-duckdb-080.html>.
 
-# duckdb 0.7.1-1
+# duckdb 0.7.1-1 (2023-03-01)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.7.1>.
 
-# duckdb 0.7.0
+# duckdb 0.7.0 (2023-02-14)
 
 - See blog post at <https://duckdb.org/2023/02/13/announcing-duckdb-070.html>.
 
-# duckdb 0.6.2
+# duckdb 0.6.2 (2023-01-16)
 
 - New `duckdb_prepare_substrait_json()`.
 
-# duckdb 0.6.1
+# duckdb 0.6.1 (2022-12-08)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.6.1>.
 
-# duckdb 0.6.0
+# duckdb 0.6.0 (2022-11-25)
 
 - See blog post at <https://duckdb.org/2022/11/14/announcing-duckdb-060.html>.
 
-# duckdb 0.5.1
+# duckdb 0.5.1 (2022-09-20)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.5.1>.
 
-# duckdb 0.5.0
+# duckdb 0.5.0 (2022-09-05)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.5.0>.
 
-# duckdb 0.4.0
+# duckdb 0.4.0 (2022-06-21)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.4.0>.
 
-# duckdb 0.3.4-1
+# duckdb 0.3.4-1 (2022-06-13)
 
 - Minor changes for CRAN compatibility.
 
-# duckdb 0.3.4
+# duckdb 0.3.4 (2022-06-05)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.4>.
 
@@ -1016,21 +1016,21 @@ Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.99
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.3>.
 
-# duckdb 0.3.2
+# duckdb 0.3.2 (2022-02-07)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.2>.
 
-# duckdb 0.3.1
+# duckdb 0.3.1 (2021-11-16)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.1>.
 
-# duckdb 0.3.0
+# duckdb 0.3.0 (2021-10-08)
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.0>.
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.2.9>.
 
-# duckdb 0.2.8
+# duckdb 0.2.8 (2021-08-02)
 
 This preview release of DuckDB is named "Ceruttii" after a [long-extinct relative of the present-day Harleqin Duck](https://en.wikipedia.org/wiki/Harlequin_duck#Taxonomy) (Histrionicus Ceruttii).
 Binary builds are listed below. Feedback is very welcome.
@@ -1062,7 +1062,7 @@ Note: Again, this release introduces a backwards-incompatible change to the on-d
 
 
 
-# duckdb 0.2.7
+# duckdb 0.2.7 (2021-06-14)
 
 This preview release of DuckDB is named "Mollissima" after the Common Eider (Somateria mollissima).
  Binary builds are listed below. Feedback is very welcome.
@@ -1101,7 +1101,7 @@ Engine
 
 
 
-# duckdb 0.2.6
+# duckdb 0.2.6 (2021-05-09)
 
 This preview release of DuckDB is named "Jamaicensis" after the [blue-billed Ruddy Duck (Oxyura jamaicensis)](https://en.wikipedia.org/wiki/Ruddy_duck). Binary builds are listed below. Feedback is very welcome.
 
@@ -1142,7 +1142,7 @@ APIs
 
 
 
-# duckdb 0.2.5
+# duckdb 0.2.5 (2021-03-16)
 
 This preview release of DuckDB is named "Falcata" after the Falcated Duck (Mareca falcata). Binary builds are listed below. Feedback is very welcome.
 
@@ -1176,7 +1176,7 @@ APIs:
 
 
 
-# duckdb 0.2.4
+# duckdb 0.2.4 (2021-02-02)
 
 This preview release of DuckDB is named "Jubata" after the [Australian Wood Duck](https://en.wikipedia.org/wiki/Australian_wood_duck) (Chenonetta jubata). Binary builds are listed below. Feedback is very welcome.
 
@@ -1210,7 +1210,7 @@ Parquet
 
 
 
-# duckdb 0.2.3
+# duckdb 0.2.3 (2020-12-12)
 
 This preview release of DuckDB is named "Serrator" after the Red-breasted merganser (Mergus serrator). Binary builds are listed below. Feedback is very welcome.
 
@@ -1252,7 +1252,7 @@ Parquet Reader:
 
 
 
-# duckdb 0.2.2
+# duckdb 0.2.2 (2020-11-03)
 
 This is a preview release of DuckDB.
 Starting from this release, releases get named as well. Names are chosen from species of ducks (of course). We start with "Clypeata".
@@ -1288,7 +1288,7 @@ Client
  - #893: Support for Arrow NULL columns
 
 
-# duckdb 0.2.1
+# duckdb 0.2.1 (2020-09-10)
 
 This is a preview release of DuckDB. Binary builds are listed below. Feedback is very welcome. Major changes:
 
