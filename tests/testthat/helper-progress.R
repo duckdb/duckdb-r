@@ -11,6 +11,12 @@ progress_stream_calls <- function(buffer, before) {
   )
   con <- local_con()
   dbExecute(con, "CREATE TABLE t AS SELECT i FROM range(1000000) t(i)")
+  # One thread, so that only the reads run the engine: since
+  # duckdb/duckdb@18e49b34a9 (#28761) a prepared execution, as
+  # dbGetQueryArrow() submits it, streams from its submission on, and with
+  # more threads the engine can finish the query before the first read.
+  # The setting dies with the database local_con() creates for this call.
+  dbExecute(con, "SET threads = 1")
   dbExecute(con, sprintf("SET max_streaming_buffer_size = '%s'", buffer))
 
   # getOption() hands the display a copy of the callback that nothing else

@@ -64,8 +64,10 @@ What a reader of R needs from it:
   (`ClientConfig` in [`src/duckdb/src/include/duckdb/main/client_config.hpp`](/src/duckdb/src/include/duckdb/main/client_config.hpp)),
   the smaller of 10 MiB and the available memory after `RESET`
   (`ClientConfig::SetDefaultStreamingBufferSize()` in [`src/duckdb/src/main/client_config.cpp`](/src/duckdb/src/main/client_config.cpp)).
-  A result that fits the buffer, or the expensive part of a sort or an aggregate, is computed by the first read,
+  A result that fits the buffer, or the expensive part of a sort or an aggregate, is computed by the first read at the latest,
   and a smaller buffer spreads the calls over more reads.
+  An engine with [duckdb/duckdb#28761](https://github.com/duckdb/duckdb/pull/28761) starts a query at its submission,
+  and with more than one thread it can compute ahead of the reads, which then send few calls or none.
 
 ## Interrupting a query
 
