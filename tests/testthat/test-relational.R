@@ -2704,7 +2704,7 @@ test_that("a lazy data frame read column by column is refused on its own connect
   expect_equal(out$b, c("x", "y", "z"))
 })
 
-test_that("rel_from_df() types columns as `duckdb_register()` does (#3018)", {
+test_that("rel_from_df() types columns as `duckdb_register()` does by default, whatever the connection's `map` (#3018, #3069)", {
   skip_if_not_installed("vctrs")
   sql <- function(from) {
     paste0(
@@ -2716,11 +2716,14 @@ test_that("rel_from_df() types columns as `duckdb_register()` does (#3018)", {
   df <- data.frame(id = 1:2, s = c("a", "b"))
   df$m <- list(list(a = 1, b = 2), list(c = 3))
 
+  con <- local_con()
+  duckdb_register(con, "reg", df)
+  expected <- dbGetQuery(con, sql("reg"))
+
   for (map in c("data.frame", "list_of")) {
     con <- local_con(map = map)
-    duckdb_register(con, "reg", df)
     rel_to_view(rel_from_df(con, df), "main", "v", temporary = TRUE)
-    expect_equal(dbGetQuery(con, sql("v")), dbGetQuery(con, sql("reg")))
+    expect_equal(dbGetQuery(con, sql("v")), expected)
   }
 })
 
