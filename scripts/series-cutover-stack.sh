@@ -32,7 +32,9 @@
 # The replay spans `main` from the old series' base to the forward's base,
 # each the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
 # and the flavor commits scripts/flavor.sh writes below it, read on `<S>-dev` and on `<S>-fwd-dev`;
-# a `-dev` with no seed takes its merge base with the fork's `main`.
+# a `-dev` with no seed takes its merge base with the fork's copy of the branch the series releases from,
+# its `releases_from` in the fork's `main`'s scripts/series.yaml,
+# and with the fork's `main` where that says `main` or nothing, or where the fork lacks the branch.
 # Where the old base is an ancestor of the forward's base,
 # `main`'s first-parent commits in the span are cherry-picked onto the old tip one by one, with `-x`,
 # a merge against its first parent.
@@ -321,8 +323,18 @@ else
     local seed c
     seed=$(series_seed_of "$1")
     if [ -z "$seed" ]; then
+      # The branch the series releases from, as scripts/series-cutover.sh reviews against, read in the fork.
       git fetch -q "$remote" "+refs/heads/main:refs/remotes/$remote/main" || return 0
-      git merge-base "$1" "refs/remotes/$remote/main" || true
+      local on=main rf
+      rf=$({ git show "refs/remotes/$remote/main:scripts/series.yaml" 2>/dev/null || true; } | series_releases_from "$S")
+      if [ -n "$rf" ] && [ "$rf" != main ]; then
+        if git fetch -q "$remote" "+refs/heads/$rf:refs/remotes/$remote/$rf" 2>/dev/null; then
+          on=$rf
+        else
+          echo "Warning: '$remote' has no $rf, the branch $S releases from; $(short "$1") takes its base from main" >&2
+        fi
+      fi
+      git merge-base "$1" "refs/remotes/$remote/$on" || true
       return 0
     fi
     c=$(git rev-parse -q --verify "$seed^") || return 0

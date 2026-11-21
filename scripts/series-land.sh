@@ -321,23 +321,15 @@ if [ -z "$canonical" ] || ! git remote get-url "$canonical" >/dev/null 2>&1; the
   exit 1
 fi
 # The branch landed on is the series' `releases_from` in the canonical `main`'s
-# scripts/series.yaml, quotes and all read bare. `main`'s own series needs no
-# row; any other series without one, or a row without `releases_from`, is
-# refused rather than landed on `main` by default, since a misspelt name would
-# otherwise land a release line there.
+# scripts/series.yaml, as series_releases_from (scripts/series-lib.sh) reads it.
+# `main`'s own series needs no row; any other series without one, or a row
+# without `releases_from`, is refused rather than landed on `main` by default,
+# since a misspelt name would otherwise land a release line there.
 git fetch -q "$canonical" main
-row=$({ git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true; } |
-  awk -v s="$S" '
-    function val(v) { gsub(/["'"'"']/, "", v); return v }
-    function flush() { if (ser == s) print "row " rf; ser = ""; rf = "" }
-    /^  - / { flush() }
-    /^    series:/ { ser = val($2) }
-    /^    releases_from:/ { rf = val($2) }
-    END { flush() }' | head -n 1)
-onto=${row#row }
-onto=${onto# }
+yaml=$(git show "refs/remotes/$canonical/main:scripts/series.yaml" 2>/dev/null || true)
+onto=$(series_releases_from "$S" <<<"$yaml")
 if [ -z "$onto" ]; then
-  if [ "$S" = main ] && [ -z "$row" ]; then
+  if [ "$S" = main ] && ! awk '/^    series:/ { gsub(/["'"'"']/, "", $2); if ($2 == "main") f = 1 } END { exit !f }' <<<"$yaml"; then
     onto=main
   else
     echo "Error: $canonical's main declares no releases_from for the series $S in scripts/series.yaml;" >&2
