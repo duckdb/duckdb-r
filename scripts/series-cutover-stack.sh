@@ -319,21 +319,27 @@ else
 
   # The base a series stands on: the commit under its seed and the flavor commits below that, as scripts/flavor.sh names them.
   flavor_re='^chore: Update (flavor patch|version) to '
-  base_of() { # <-dev tip> -> commit, empty when none
-    local seed c
-    seed=$(series_seed_of "$1")
-    if [ -z "$seed" ]; then
-      # The branch the series releases from, as scripts/series-cutover.sh reviews against, read in the fork.
-      git fetch -q "$remote" "+refs/heads/main:refs/remotes/$remote/main" || return 0
-      local on=main rf
+  # A `-dev` without a seed takes its base from the branch the series releases from,
+  # as scripts/series-cutover.sh reviews against, read in the fork; resolved once, and only where a seed is missing.
+  on=''
+  if [ -z "$(series_seed_of "${HEAD_OF[$S-dev]}")" ] || [ -z "$(series_seed_of "${HEAD_OF[$S-fwd-dev]}")" ]; then
+    if git fetch -q "$remote" "+refs/heads/main:refs/remotes/$remote/main"; then
+      on=main
       rf=$({ git show "refs/remotes/$remote/main:scripts/series.yaml" 2>/dev/null || true; } | series_releases_from "$S")
       if [ -n "$rf" ] && [ "$rf" != main ]; then
         if git fetch -q "$remote" "+refs/heads/$rf:refs/remotes/$remote/$rf" 2>/dev/null; then
           on=$rf
         else
-          echo "Warning: '$remote' has no $rf, the branch $S releases from; $(short "$1") takes its base from main" >&2
+          echo "Warning: could not fetch $rf, the branch $S releases from, from '$remote'; a -dev without a seed takes its base from main" >&2
         fi
       fi
+    fi
+  fi
+  base_of() { # <-dev tip> -> commit, empty when none
+    local seed c
+    seed=$(series_seed_of "$1")
+    if [ -z "$seed" ]; then
+      [ -n "$on" ] || return 0
       git merge-base "$1" "refs/remotes/$remote/$on" || true
       return 0
     fi
