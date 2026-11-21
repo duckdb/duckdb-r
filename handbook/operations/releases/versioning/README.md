@@ -161,7 +161,10 @@ The merge driver resolves it as it resolves `Version:`:
 ours, always, so a pick, a port or a cutover's replay never rewrites the engine a branch records, and a field changed near it merges cleanly.
 A bump that is itself replayed over a changed `DESCRIPTION`, by a fold or a rebase, therefore arrives with the record of the commit it lands on,
 and with its vendor counter back, and `series-land.sh` refuses it until it is stamped again ([`series-land`](/.claude/skills/series-land/SKILL.md), step 3).
-A forward merge meets the driver like any merge, so the newer line keeps its own record.
+A forward merge keeps the newer line's record too, though git runs a merge driver only where both sides changed the file
+and otherwise takes the changed side's copy as it stands:
+[`scripts/series-merge-forward.sh`](/scripts/series-merge-forward.sh) runs both drivers again on the merge's three sides
+before the merge is committed ([`series-land`](/.claude/skills/series-land/SKILL.md), step 8).
 `NEWS.md` has a merge driver of its own, [`scripts/merge-news.sh`](/scripts/merge-news.sh), registered with the other by `scripts/setup-git.sh`:
 it merges the file section by section, a section being a `# duckdb <version>` heading and its body,
 and writes the sections newest version first whichever side each came from, the development section above them all
@@ -169,6 +172,10 @@ and any other heading without a version below them all, with a warning,
 so a forward merge interleaves the older line's `2.0.1` and `2.0.0.9001` below the newer line's `2.0.99.9001` without a conflict;
 a section both sides changed differently is merged three-way, and conflicts as any line would,
 and in the development section a conflict confined to the compare link keeps our link, as the `DESCRIPTION` driver keeps our `Version:`.
+A release drops the development section on its branch while the newer line has moved its link,
+so `series-merge-forward.sh` keeps the newer line's development section through the merge,
+and the release's history merges by section below it as the release branch has it, an interim section it dropped dropped too.
+It then points the link at the newer line, from the newer by version of the tag the link names and the newest tag the release branch carries.
 The `DESCRIPTION` driver keeps working across these bumps:
 `main`'s commits and the series' share the three-component prefix,
 so a port or a replay meeting a bump takes the higher fourth component, and the counters only ever rise.

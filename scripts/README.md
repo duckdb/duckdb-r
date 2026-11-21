@@ -199,6 +199,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-learned.sh`](series-learned.sh) | What a series' `-dev` learned beyond its buffer: for every vendor commit, the fix the loop folded into it that its `-build` twin does not carry. |
 | [`series-lib-test.sh`](series-lib-test.sh) | Check scripts/series-lib.sh against scripts/series-config.sh, offline: the vendor predicate, the markers, the version ordering, the path filters, and the wal... |
 | [`series-lib.sh`](series-lib.sh) | The helpers every series script shares, reading scripts/series-config.sh: which commit vendors, what it vendors, where a walk starts. |
+| [`series-merge-forward-test.sh`](series-merge-forward-test.sh) | Check scripts/series-merge-forward.sh offline, against a release branch and a newer line built here: no network, no fixtures on disk. |
+| [`series-merge-forward.sh`](series-merge-forward.sh) | Finish `DESCRIPTION` and `NEWS.md` of a forward merge in progress, a release branch merged into a newer line (.claude/skills/series-land/SKILL.md, step 8), a... |
 | [`series-patch-sync-test.sh`](series-patch-sync-test.sh) | Check scripts/series-patch-sync.sh offline, against a synthetic series built here: no network, no fixtures on disk. |
 | [`series-patch-sync.sh`](series-patch-sync.sh) | Carry `patch/` entries from `<S>-dev` onto `<S>-vendor`, the strand the buffer is derived from, the way stage 5 carries tests and glue onto a forward series;... |
 | [`series-port-test.sh`](series-port-test.sh) | Check which commits stage 4 offers, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
