@@ -41,7 +41,8 @@
 #  10. Nothing read a terminal: the wrapper every run went through gives neither stdin nor a controlling terminal,
 #      and no build or worktree is left behind.
 #  11. A series with no seed, whose `releases_from` in the fork's `main`'s scripts/series.yaml is a release branch,
-#      stands on its merge base with that branch, not with `main`, so `1-main` replays what that branch gained.
+#      stands on its merge base with that branch, not with `main`, so `1-main` replays what that branch gained;
+#      without the branch in the fork, it stands on its merge base with `main`, and the run says so once.
 #      It runs before the last two, which read every run.
 #
 # Usage:
@@ -640,6 +641,16 @@ is "1-main replays the commit the release branch gained between the two bases" \
   "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" "feat: Add rel2() on the release line"
 is "and so carries it" "$(git show "$T1:R/rel2.R")" 'rel2 <- function() 2'
 hasnt "not main's own change" "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" "Release v4.4-w from"
+# Without the branch in the fork, both bases fall back to `main`, said once.
+git push -q origin :refs/heads/v4.4-w-rel 2>/dev/null
+out=$(run "$STACK" v4.4-w vendor)
+is "without the branch in the fork, it builds and pushes" "$(status "$out")" 0
+is "saying once that it could not fetch the branch" "$(grep -c "could not fetch v4.4-w-rel" <<<"$out")" 1
+has "and that the base is main's" "$out" \
+  "Warning: could not fetch v4.4-w-rel, the branch v4.4-w releases from, from 'origin'; a -dev without a seed takes its base from main"
+fetch
+is "1-main then replays nothing, both bases being on main" "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" \
+  "chore(cutover): Replay nothing of main's onto v4.4-w-vendor"
 
 echo "=== 9. nothing called gh"
 is "the failing gh is the one on PATH" "$(command -v gh)" "$BIN/gh"
