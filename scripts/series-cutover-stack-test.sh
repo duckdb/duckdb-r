@@ -244,7 +244,7 @@ git commit -qm 'fix: Patch the vendored sources in place'
 HOTFIX=$(git rev-parse HEAD)
 series v5.5-v "$FWD_MAIN" duckdb.5.5 'two (main)' 2 '' 0
 series v5.5-v-fwd "$HOTFIX" duckdb.5.5 'two (main)' 3 '' 1
-# `v3.3-t` stands on BINDINGS, which has the generated bindings, and its forward on BINDING, which adds one to them.
+# `v1.1-r` stands on BINDINGS, which has the generated bindings, and its forward on BINDING, which adds one to them.
 git checkout -q --detach "$FWD_MAIN"
 tick
 # Each change apart from the lines the flavor renames, so that both picks are clean.
@@ -263,15 +263,15 @@ sed -i -e 's|^// c$|&\nextern "C" SEXP _duckdb_rapi_query_off_r_thread(SEXP x) {
 git add -A
 git commit -qm 'feat: Add rapi_query_off_r_thread()'
 BINDING=$(git rev-parse HEAD)
-series v3.3-t "$BINDINGS" duckdb.3.3 'two (main)' 2 '' 0
-series v3.3-t-fwd "$BINDING" duckdb.3.3 'two (main)' 3 '' 1
+series v1.1-r "$BINDINGS" duckdb.1.1 'two (main)' 2 '' 0
+series v1.1-r-fwd "$BINDING" duckdb.1.1 'two (main)' 3 '' 1
 # `v2.2-s` the same, on BINDINGS as it stood before its history was replaced, so that the binding comes by the merge.
 tick
 series v2.2-s "$(git commit-tree "$BINDINGS^{tree}" -m 'main, before its history was replaced')" duckdb.2.2 'two (main)' 2 '' 0
 series v2.2-s-fwd "$BINDING" duckdb.2.2 'two (main)' 3 '' 1
 git checkout -q main
 unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
-git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 'refs/heads/v3.3-t*' 'refs/heads/v2.2-s*' 2>/dev/null
+git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 'refs/heads/v1.1-r*' 'refs/heads/v2.2-s*' 2>/dev/null
 for b in $(git for-each-ref --format='%(refname:short)' 'refs/heads/v*'); do git branch -q -D "$b"; done
 git branch -q -D side
 
@@ -366,18 +366,18 @@ has "1-main leaves that commit out" "$(section cutover/v5.5-v/vendor/1-main "$ou
 has "and the 2-engine summary names it" "$(section cutover/v5.5-v/vendor/2-engine "$out")" \
   "$(printf 'which `1-main` replays without them or leaves out:\n\n%s' "$hotfix_line")"
 
-out=$(run "$STACK" v3.3-t vendor)
+out=$(run "$STACK" v1.1-r vendor)
 is "a span that adds a binding builds" "$(status "$out")" 0
 fetch
-T1=origin/cutover/v3.3-t/vendor/1-main
+T1=origin/cutover/v1.1-r/vendor/1-main
 is "the binding it adds comes with the flavor, beside the old one" "$(git show "$T1:R/cpp11.R" | grep -o '_duckdb[a-z0-9_]*' | tr '\n' ' ')" \
-  "_duckdb_3_3_rapi_connect _duckdb_3_3_rapi_query_off_r_thread "
+  "_duckdb_1_1_rapi_connect _duckdb_1_1_rapi_query_off_r_thread "
 is "in both bindings, the init function kept" "$(git show "$T1:src/cpp11.cpp" | grep -o '[A-Za-z_]*duckdb[a-z0-9_]*' | sort -u | tr '\n' ' ')" \
-  "R_init_duckdb_3_3 _duckdb_3_3_rapi_connect _duckdb_3_3_rapi_query_off_r_thread "
-is "as the forward has them" "$(git diff --name-only "$T1" origin/v3.3-t-fwd-vendor -- R/cpp11.R src/cpp11.cpp)" ""
+  "R_init_duckdb_1_1 _duckdb_1_1_rapi_connect _duckdb_1_1_rapi_query_off_r_thread "
+is "as the forward has them" "$(git diff --name-only "$T1" origin/v1.1-r-fwd-vendor -- R/cpp11.R src/cpp11.cpp)" ""
 has "the pick says so" "$(git log -1 --format=%B "$T1")" \
-  'Its bindings in R/cpp11.R src/cpp11.cpp are spelled with the flavor of `v3.3-t-vendor`'
-has "and so does the summary" "$(section cutover/v3.3-t/vendor/1-main "$out")" \
+  'Its bindings in R/cpp11.R src/cpp11.cpp are spelled with the flavor of `v1.1-r-vendor`'
+has "and so does the summary" "$(section cutover/v1.1-r/vendor/1-main "$out")" \
   "$(printf -- '- `%s` feat: Add rapi_query_off_r_thread(): R/cpp11.R src/cpp11.cpp' "$(git rev-parse --short=10 "$BINDING")")"
 
 echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
