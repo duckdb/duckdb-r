@@ -77,3 +77,6 @@ reference:
     session's temporary directory unless you opt in.
   contents:
   - duckdb_storage
+
+news:
+  cran_dates: false
