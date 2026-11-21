@@ -15,6 +15,8 @@
 #      its summary naming that commit; `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`;
 #      the summary, the --summary file and the pull requests to open.
 #      A commit of `main` that changes the engine alone is left out of `1-main`, and the `2-engine` summary names it.
+#      Where the old tip has the engine part of a commit of `main` already, the stack has no `2-engine`,
+#      and its summary does not name one.
 #   2. A conflict on `-dev` stops the build with the worktree kept and nothing pushed;
 #      a plain rerun refuses beside it, --abort from the kept worktree discards it,
 #      and a resolution finishes with --continue. A commit the strand already carries is recorded as present.
@@ -78,6 +80,8 @@ holds() { # <what> <command...>: ok when the command succeeds
 # Its forward stands on FWD_MAIN and vendors u1 to u3, its green at u2.
 # `v8.8-y` is the same on a `main` whose history was replaced, so its base is no ancestor of FWD_MAIN.
 # `v5.5-v` stands on FWD_MAIN, and its forward on HOTFIX, one commit past it that changes the engine alone.
+# `v3.3-t` stands on FWD_MAIN, and its forward on ENGFIX, one commit past it that changes the engine and `R/`;
+# its vendor strand carries the engine part of ENGFIX already, so the two engines agree.
 
 FORK=$SCRATCH/fork.git
 WORK=$SCRATCH/work
@@ -239,9 +243,24 @@ git commit -qm 'fix: Patch the vendored sources in place'
 HOTFIX=$(git rev-parse HEAD)
 series v5.5-v "$FWD_MAIN" duckdb.5.5 'two (main)' 2 '' 0
 series v5.5-v-fwd "$HOTFIX" duckdb.5.5 'two (main)' 3 '' 1
+git checkout -q --detach "$FWD_MAIN"
+tick
+echo 'engfix' > src/duckdb/engfix.cpp
+echo 'engfix <- function() 1' > R/engfix.R
+git add -A
+git commit -qm 'fix: Patch the engine and its R side'
+ENGFIX=$(git rev-parse HEAD)
+series v3.3-t "$FWD_MAIN" duckdb.3.3 'two (main)' 2 '' 0
+series v3.3-t-fwd "$ENGFIX" duckdb.3.3 'two (main)' 2 '' 0
+git checkout -q --detach v3.3-t-vendor
+tick
+echo 'engfix' > src/duckdb/engfix.cpp
+git add -A
+git commit -qm 'fix: Carry the engine part of the fix'
+git branch -f v3.3-t-vendor HEAD
 git checkout -q main
 unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
-git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 2>/dev/null
+git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 'refs/heads/v3.3-t*' 2>/dev/null
 for b in $(git for-each-ref --format='%(refname:short)' 'refs/heads/v*'); do git branch -q -D "$b"; done
 git branch -q -D side
 
@@ -335,6 +354,15 @@ has "1-main leaves that commit out" "$(section cutover/v5.5-v/vendor/1-main "$ou
   "$(printf 'Engine changes only, left out because this layer keeps the engine of `v5.5-v-vendor`:\n\n%s' "$hotfix_line")"
 has "and the 2-engine summary names it" "$(section cutover/v5.5-v/vendor/2-engine "$out")" \
   "$(printf 'which `1-main` replays without them or leaves out:\n\n%s' "$hotfix_line")"
+has "1-main names the 2-engine that shows the engine paths it replays without" "$(section "$c/vendor/1-main" "$(cat "$SCRATCH/vendor.md")")" \
+  'Replayed without their engine paths, which `2-engine` shows as the forward has them:'
+out=$(run "$STACK" v3.3-t vendor --summary "$SCRATCH/no-engine.md")
+is "a span whose engines agree builds" "$(status "$out")" 0
+is "with no 2-engine" "$(stack v3.3-t/vendor | awk '{ sub(".*/", "", $2); print $2 }' | tr '\n' ' ')" "1-main 3-fwd 4-old "
+engfix_line=$(printf -- '- `%s` fix: Patch the engine and its R side' "$(git rev-parse --short=10 "$ENGFIX")")
+has "1-main replays its commit without its engine paths" "$(section cutover/v3.3-t/vendor/1-main "$out")" \
+  "$(printf 'Replayed without their engine paths, which `v3.3-t-vendor` already has as the forward has them:\n\n%s' "$engfix_line")"
+hasnt "and its summary names no 2-engine" "$(cat "$SCRATCH/no-engine.md")" 2-engine
 
 echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
 out=$(run "$STACK" v9.9-x dev)
