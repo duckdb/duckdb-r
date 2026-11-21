@@ -1,6 +1,6 @@
 # Changelog
 
-## duckdb 2.0.1 (2026-11-20)
+## duckdb 2.0.1 (2026-11-21)
 
 ### Features
 
