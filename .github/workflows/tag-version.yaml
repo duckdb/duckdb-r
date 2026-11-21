@@ -1,0 +1,83 @@
+# Tags a development version as `v<version>`, by hand, with an annotated message in fledge's shape
+# (handbook/operations/releases/versioning/README.md).
+# It runs only when started by hand: from the Actions tab, or with
+# `gh workflow run tag-version.yaml --repo duckdb/duckdb-r --ref <branch> [-f commit=<sha>] [-f version=<version>] [-f dry-run=true]`.
+#
+# scripts/tag-version.sh does the work and says what it does on the run's summary page;
+# its header describes the message, the version it takes and what it refuses,
+# and scripts/tag-version-test.sh checks it offline.
+# A release version is cran-submission.yaml's to tag, and this workflow refuses one.
+#
+# A tag pushed with the workflow's token starts no workflow, so the job then dispatches rcc dev on it,
+# which a tag pushed by hand starts by its `push: tags` trigger.
+#
+# The input `dry-run` computes and reports the tag and its message, and writes nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "The commit to tag, on main or a release branch: a SHA, branch or tag; empty for the tip of the ref the run is dispatched on"
+        type: string
+        default: ""
+      version:
+        description: "The version; empty for DESCRIPTION's at that commit, or that version with .9900 where it is a release's"
+        type: string
+        default: ""
+      dry-run:
+        description: "Dry run: report the tag and its message, but create and push nothing"
+        type: boolean
+        default: false
+
+name: Tag version
+
+permissions: {}
+
+jobs:
+  tag:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+
+    name: "Tag the version"
+
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Tag the commit
+        id: tag
+        env:
+          COMMIT: ${{ inputs.commit }}
+          VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          GH_TOKEN: ${{ github.token }}
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          # The token reaches git as an environment-only config entry, never written to .git/config.
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.$GITHUB_SERVER_URL/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
+
+          args=(--remote origin)
+          [ -z "$VERSION" ] || args+=(--version "$VERSION")
+          [ "$DRY_RUN" != true ] || args+=(--dry-run)
+          scripts/tag-version.sh "${args[@]}" -- "${COMMIT:-HEAD}"
+        shell: bash
+
+      - name: Start rcc dev on the tag
+        if: steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run R-CMD-check-dev.yaml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          echo "- Started rcc dev on \`$TAG\`." >>"$GITHUB_STEP_SUMMARY"
+        shell: bash

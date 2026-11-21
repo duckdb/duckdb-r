@@ -153,6 +153,8 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`landing-version.sh`](landing-version.sh) | Print the version a landing's hand-written bump sets, short of an upstream release. |
 | [`preview-prefix-test.sh`](preview-prefix-test.sh) | Check scripts/preview-prefix.sh, offline, in a repository built here. |
 | [`preview-prefix.sh`](preview-prefix.sh) | Stamp a preview line's version prefix onto the strand checked out here: the prefix of the line it *previews*, not the one it was seeded from (handbook/operat... |
+| [`tag-version-test.sh`](tag-version-test.sh) | Check scripts/tag-version.sh offline, against scratch repositories and a local bare remote. |
+| [`tag-version.sh`](tag-version.sh) | Tag a commit as `v<version>`, annotated with a message in fledge's shape; run by .github/workflows/tag-version.yaml. |
 
 ## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 

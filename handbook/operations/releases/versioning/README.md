@@ -101,6 +101,9 @@ and nothing more where it has none,
 the shape the `v1.5.6.90xx` tags have.
 `scripts/series-land.sh --status` prints the commands once the landing is ready,
 and [`series-land`](/.claude/skills/series-land/SKILL.md), step 6, runs them as printed.
+[`.github/workflows/tag-version.yaml`](/.github/workflows/tag-version.yaml) writes the same tag when dispatched, for a session that cannot push one,
+except that where `NEWS.md` has no section its message goes on with the first-parent subjects since the previous version tag,
+merge commits and version bumps left out, grouped by conventional-commit type as fledge groups them; [`scripts/tag-version.sh`](/scripts/tag-version.sh) says what it refuses.
 The release takes `v<version>` itself when it is published, in the same shape,
 by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md))
 or by hand on a line that does not ship to CRAN ([`process/`](/handbook/operations/releases/process/README.md), step 5),

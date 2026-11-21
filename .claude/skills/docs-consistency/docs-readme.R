@@ -124,7 +124,7 @@ groups <- list(
   ),
   list(
     owner = "handbook/operations/releases/versioning",
-    globs = c("preview-prefix*", "landing-version*")
+    globs = c("preview-prefix*", "landing-version*", "tag-version*")
   ),
   list(
     owner = "handbook/operations/releases/cran",
