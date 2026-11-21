@@ -602,7 +602,7 @@ has "saying nothing was pushed" "$out" "cannot write the summary to $SCRATCH/no/
 is "and nothing is" "$(stack v9.9-x/build)" ""
 
 echo "=== 11. no seed, released from a release branch: the base is on that branch"
-# `v3.3-t-rel` leaves `main` at OLD_MAIN and gains two commits; the series stands on the first, its forward on the second,
+# `v4.4-w-rel` leaves `main` at OLD_MAIN and gains two commits; the series stands on the first, its forward on the second,
 # neither with a seed, and the fork's `main` declares that the series releases from that branch.
 git checkout -q --detach "$OLD_MAIN"
 tick
@@ -625,21 +625,21 @@ git checkout -q main
 git fetch -q origin main
 git checkout -q --detach origin/main
 tick
-printf 'flavors:\n  - flavor: duckdb.3.3.dev\n    kind: dev\n    series: v3.3-t\n    releases_from: "v3.3-t-rel"\n' > scripts/series.yaml
+printf 'flavors:\n  - flavor: duckdb.4.4.dev\n    kind: dev\n    series: v4.4-w\n    releases_from: "v4.4-w-rel"\n' > scripts/series.yaml
 git add scripts/series.yaml
-git commit -qm 'chore: Release v3.3-t from v3.3-t-rel'
-git push -q -f origin "HEAD:refs/heads/main" "$REL1:refs/heads/v3.3-t-rel" \
-  "$told:refs/heads/v3.3-t-dev" "$told:refs/heads/v3.3-t-vendor" \
-  "$tfwd:refs/heads/v3.3-t-fwd-dev" "$tfwd:refs/heads/v3.3-t-fwd-vendor" 2>/dev/null
+git commit -qm 'chore: Release v4.4-w from v4.4-w-rel'
+git push -q -f origin "HEAD:refs/heads/main" "$REL1:refs/heads/v4.4-w-rel" \
+  "$told:refs/heads/v4.4-w-dev" "$told:refs/heads/v4.4-w-vendor" \
+  "$tfwd:refs/heads/v4.4-w-fwd-dev" "$tfwd:refs/heads/v4.4-w-fwd-vendor" 2>/dev/null
 git checkout -q main
-out=$(run "$STACK" v3.3-t vendor)
+out=$(run "$STACK" v4.4-w vendor)
 is "it builds and pushes" "$(status "$out")" 0
 fetch
-T1=origin/cutover/v3.3-t/vendor/1-main
+T1=origin/cutover/v4.4-w/vendor/1-main
 is "1-main replays the commit the release branch gained between the two bases" \
-  "$(git log --format=%s "origin/v3.3-t-vendor..$T1")" "feat: Add rel2() on the release line"
+  "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" "feat: Add rel2() on the release line"
 is "and so carries it" "$(git show "$T1:R/rel2.R")" 'rel2 <- function() 2'
-hasnt "not main's own change" "$(git log --format=%s "origin/v3.3-t-vendor..$T1")" "Release v3.3-t from"
+hasnt "not main's own change" "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" "Release v4.4-w from"
 
 echo "=== 9. nothing called gh"
 is "the failing gh is the one on PATH" "$(command -v gh)" "$BIN/gh"
