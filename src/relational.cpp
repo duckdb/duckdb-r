@@ -310,6 +310,8 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	// `experimental` is left out, unlike in rapi_register_df(): its strings scan as r_string,
 	// which no string function or comparison takes without a cast,
 	// and duckplyr's experimental mode has scanned them as VARCHAR since #1092.
+	// `integer64` is left out too, so an integer64 column does not scan as BIGINT here
+	// (handbook/usage/relational/README.md).
 	other_params["map_list_of"] = Value::BOOLEAN(convert_opts.map == ConvertOpts::MapShape::LIST_OF);
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
