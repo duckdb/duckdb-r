@@ -97,10 +97,13 @@ in a bump that takes no tag.
 and a bump to a release's three components takes `v<version>.9900`, `v2.1.0.9900`.**
 Its message is the subject `duckdb <version>`, or `duckdb <version>.9900` with that tag,
 then the section `NEWS.md` has for `<version>`, its heading matched up to the version so that a date after it is left out,
-and nothing more where it has none,
 the shape the `v1.5.6.90xx` tags have.
+Where `NEWS.md` has no section for it, the message is the first-parent subjects since the previous version tag,
+merge commits and version bumps left out, grouped by conventional-commit type as fledge groups them into `NEWS.md`.
 `scripts/series-land.sh --status` prints the commands once the landing is ready,
 and [`series-land`](/.claude/skills/series-land/SKILL.md), step 6, runs them as printed.
+[`.github/workflows/tag-version.yaml`](/.github/workflows/tag-version.yaml) writes the same tag when dispatched,
+for a session that cannot push one; [`scripts/tag-version.sh`](/scripts/tag-version.sh) says what it refuses.
 The release takes `v<version>` itself when it is published, in the same shape,
 by the CRAN submission ([`cran/`](/handbook/operations/releases/cran/README.md))
 or by hand on a line that does not ship to CRAN ([`process/`](/handbook/operations/releases/process/README.md), step 5),
