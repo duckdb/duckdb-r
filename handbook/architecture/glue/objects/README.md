@@ -21,7 +21,7 @@ The wrappers are [`src/include/rapi.hpp`](/src/include/rapi.hpp)'s.
   with the rows themselves in R, materialized at send time.
   The legacy `arrow = TRUE` route keeps them in the engine instead, a materialized `QueryResult` behind an `RQueryResult`.
   `duckdb_result_arrow` wraps an `RStatement` too, and an `RQueryResult`: one submitted `QueryResult`,
-  and the Arrow stream the glue drains from it once fetching starts.
+  and the Arrow stream the glue builds from it once fetching starts, which fetches the result's chunks as reads ask for them.
 * A relation wraps `RelationWrapper`: one `Relation` ([`altrep/`](/handbook/architecture/glue/altrep/README.md)).
 
 A prepared statement holds the context it was made on only through a `weak_ptr`.
