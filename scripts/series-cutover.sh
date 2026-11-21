@@ -2,8 +2,8 @@
 # Replace a series with its forward counterpart in one atomic swap,
 # once every tip the swap moves a ref off is pinned by a pull request's head in the fork.
 #
-# A forward series <S>-fwd-* is the same series rebuilt on a newer `main`
-# (.claude/skills/series-forward/SKILL.md).
+# A forward series <S>-fwd-* is the same series rebuilt on a newer tip of the branch it releases from,
+# `main` or a release branch (.claude/skills/series-forward/SKILL.md).
 # Once its green covers at least the upstream commits the old green covered,
 # this script swaps the series refs in one atomic push,
 # so consumers of <S>-green never observe a half-replaced series.
@@ -467,7 +467,7 @@ fi
 # `<S>-green` is what r-universe publishes (handbook/branches/mirrors/README.md),
 # so its version is the one consumers are offered,
 # and the replay's renumbering starts the fifth component well below what the base series accumulated.
-# Usually the fourth component covers it, because the forward is seeded on a newer `main` whose version has moved on;
+# Usually the fourth component covers it, because the forward is seeded on a newer tip of the branch it releases from, whose version has moved on;
 # where it does not, r-universe has nothing to offer as an upgrade until the new chain's counter climbs past the old one's.
 # That is a cost rather than a corruption, and whether it is worth paying is a judgement,
 # so this names it, and the decision taken on the --prepare report weighs it.
