@@ -26,7 +26,7 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 | Workflow | Fires on | Does |
 |---|---|---|
 | [`R-CMD-check.yaml`](/.github/workflows/R-CMD-check.yaml) | push to the main branches and `cran-*`; PR to the main and release branches; daily cron; merge queue; dispatch | the `rcc` check across the matrix ([`matrix/`](/handbook/operations/ci/matrix/README.md)) |
-| [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags | the check against r-universe dev builds of each dependency, one job per dependency |
+| [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags; dispatch, by `tag-version.yaml` on the tag it pushes | the check against r-universe dev builds of each dependency, one job per dependency |
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
 | [`each-mirror.yaml`](/.github/workflows/each-mirror.yaml) | hourly cron; dispatch | the fork's verdicts copied onto open pull requests from the fork and onto every declared series' green branch ([`per-commit/upstream/`](/handbook/operations/ci/per-commit/upstream/README.md)); canonical repository only |

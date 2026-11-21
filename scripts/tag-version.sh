@@ -32,8 +32,9 @@ dry_run=
 commit=
 while [ $# -gt 0 ]; do
   case "$1" in
-    --remote) remote=$2; shift 2 ;;
-    --version) version=$2; shift 2 ;;
+    --remote | --version) [ $# -ge 2 ] || { echo "$1 needs a value" >&2; exit 2; }
+      if [ "$1" = --remote ]; then remote=$2; else version=$2; fi
+      shift 2 ;;
     --dry-run) dry_run=1; shift ;;
     --) shift; [ $# -eq 1 ] || { echo "one commit after --, please" >&2; exit 2; }; commit=$1; shift ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
@@ -57,8 +58,12 @@ refuse() {
   exit 1
 }
 
-git fetch -q "$remote" "+refs/heads/*:refs/remotes/$remote/*" "+refs/tags/*:refs/tags/*"
-sha=$(git rev-parse --verify -q "refs/remotes/$remote/$commit^{commit}" || git rev-parse --verify -q "$commit^{commit}") ||
+git fetch -q --prune "$remote" "+refs/heads/*:refs/remotes/$remote/*"
+git fetch -q "$remote" "+refs/tags/*:refs/tags/*"
+# A branch name means the remote's branch, fetched just now; HEAD and anything else resolve here.
+sha=
+[ "$commit" = HEAD ] || sha=$(git rev-parse --verify -q "refs/remotes/$remote/$commit^{commit}") || true
+[ -n "$sha" ] || sha=$(git rev-parse --verify -q "$commit^{commit}") ||
   refuse "\`$commit\` is not a commit here." "Pass a branch name, a tag or a full commit SHA of the repository."
 branches=$(git for-each-ref --contains "$sha" --format='%(refname:lstrip=3)' "refs/remotes/$remote/")
 branches=$(grep -E '^(main|v[0-9]+\.[0-9]+-[a-z]+)$' <<<"$branches" || true)
@@ -66,10 +71,10 @@ branches=$(grep -E '^(main|v[0-9]+\.[0-9]+-[a-z]+)$' <<<"$branches" || true)
   refuse "Commit \`${sha:0:10}\` lies neither on \`main\` nor on a release branch of \`$remote\`." \
     "Tag a commit that \`main\` or a release branch holds, such as its tip after a landing."
 
-desc=$(git show "$sha:DESCRIPTION") ||
+desc=$(git show "$sha:DESCRIPTION" | tr -d '\r') ||
   refuse "Commit \`${sha:0:10}\` has no DESCRIPTION." "Tag a commit of the package."
-package=$(sed -n 's/^Package: *//p' <<<"$desc")
-desc_version=$(sed -n 's/^Version: *//p' <<<"$desc")
+package=$(sed -n 's/^Package: *//p' <<<"$desc" | sed 's/[[:space:]]*$//')
+desc_version=$(sed -n 's/^Version: *//p' <<<"$desc" | sed 's/[[:space:]]*$//')
 expected=$desc_version
 [[ ! $desc_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || expected=$desc_version.9900
 [ -n "$version" ] || version=$expected
@@ -86,7 +91,10 @@ expected=$desc_version
 
 tag="v$version"
 # The remote decides, so that a tag deleted there and still in a local clone does not count.
-if existing=$(git ls-remote "$remote" "refs/tags/$tag^{}" "refs/tags/$tag" | awk 'NR == 1 || /\^\{\}$/ {s = $1} END {print s}') && [ -n "$existing" ]; then
+remote_tags=$(git ls-remote "$remote" "refs/tags/$tag^{}" "refs/tags/$tag") ||
+  refuse "\`$remote\` did not answer whether \`$tag\` exists." "Dispatch again; if it keeps failing, check that the remote is reachable."
+existing=$(awk 'NR == 1 || /\^\{\}$/ {s = $1} END {print s}' <<<"$remote_tags")
+if [ -n "$existing" ]; then
   refuse "The tag \`$tag\` exists already, on \`${existing:0:10}\`." \
     "If it is the right tag, there is nothing to do." \
     "If it is wrong, delete it first, after reading it: \`git push $remote :refs/tags/$tag\`, then dispatch again."
@@ -126,8 +134,11 @@ normalize() {
   printf '%s' "$d"
 }
 
-# The highest version tag the commit's parents reach, through forward merges too, and never one on the commit itself.
-previous=$(git tag --merged "$sha^" --list 'v[0-9]*' --sort=-v:refname 2>/dev/null | grep -E '^v[0-9]+(\.[0-9]+)+$' | head -n 1) || previous=
+# The highest version tag the commit's parents reach, through forward merges too, and never one on the commit itself;
+# a landing's `vX.Y.Z.9900` ranks as the release X.Y.Z it lands, below the `X.Y.Z.90xx` that follow it.
+previous=$(git tag --merged "$sha^" --list 'v[0-9]*' 2>/dev/null | grep -E '^v[0-9]+(\.[0-9]+)+$' |
+  awk '{k = substr($0, 2); if (k ~ /^[0-9]+\.[0-9]+\.[0-9]+\.9900$/) sub(/\.9900$/, "", k); print k "\t" $0}' |
+  sort -t "$(printf '\t')" -k1,1Vr | sed -n 1p | cut -f2) || previous=
 range=$sha
 [ -z "$previous" ] || range="$previous..$sha"
 

@@ -10,6 +10,7 @@
 #      the one DESCRIPTION gives are refused, each with a "How to resolve" section in the step summary.
 #   5. A dry run writes no tag; a real run pushes an annotated tag with the message.
 #   6. A commit with nothing but a version bump since the previous tag says so.
+#   7. The previous tag is the highest version the parents reach, a landing's `.9900` ranked as its release.
 #
 # Usage:
 #   scripts/tag-version-test.sh
@@ -67,7 +68,7 @@ git merge -q --no-ff -m "Merge pull request #1 from side" side
 describe 2.0.0.9001
 git add DESCRIPTION
 commit "chore: Bump version to 2.0.0.9001"
-git push -q origin main side
+git push -q origin main side v2.0.0.9000
 
 run() { GITHUB_STEP_SUMMARY="$SCRATCH/summary" "$HERE/tag-version.sh" "$@" 2>&1; }
 
@@ -217,6 +218,25 @@ is "same as previous" "$msg" "duckdb 2.0.1.9000
 
 - Same as previous version."
 has "a local tag the remote lacks does not count" "$out" "Tag v2.0.1.9000 on"
+git remote set-head -q origin main 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+out=$(run --dry-run HEAD)
+has "HEAD is the commit checked out, not the remote's" "$out" "Tag v2.0.1.9000 on $(git rev-parse --short=10 HEAD)"
+
+echo "6. the previous tag after the landing of a release"
+run v2.1-next >/dev/null
+commit "feat: Something later"
+describe 2.0.1.9001
+git add DESCRIPTION
+commit "chore: Bump version to 2.0.1.9001"
+git push -q origin v2.1-next
+: >"$SCRATCH/summary"
+out=$(run --dry-run v2.1-next)
+has "a .90xx tag ranks above the landing's .9900" "$(cat "$SCRATCH/summary")" "- Previous version tag: \`v2.0.1.9000\`"
+is "only what came since" "$(sed -n 's/^  | //p' <<<"$out")" "duckdb 2.0.1.9001
+
+## Features
+
+- Something later."
 
 echo
 echo "$pass passed, $fail failed"
