@@ -25,6 +25,11 @@
 //! Only the 'else' condition is supposed to check the assertions
 #include <assert.h>
 #define D_ASSERT assert
+//! assert() checks its condition whenever NDEBUG is not defined, so the
+//! assert-only code that D_ASSERT_IS_ENABLED guards has to be compiled here too
+#ifndef NDEBUG
+#define D_ASSERT_IS_ENABLED
+#endif
 namespace duckdb {
 DUCKDB_API void DuckDBAssertInternal(bool condition, const char *condition_name, const char *file, int linenr);
 }
