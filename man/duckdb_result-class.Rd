@@ -86,6 +86,15 @@ special values.}
 Methods for accessing result sets for queries on DuckDB connections.
 Implements \link[DBI:DBIResult-class]{DBIResult}.
 }
+\details{
+\code{dbBind()} does not execute the statement:
+execution happens at the first use of the result,
+in \code{dbFetch()} or \code{dbGetRowsAffected()}.
+Consequently, binding parameters and then clearing the result
+without using it does not execute the statement.
+The flows in the DBI specification always use the result
+after binding.
+}
 \section{Slots}{
 
 \describe{
