@@ -33,13 +33,15 @@
 #      drops a bump added to the kept worktree. Step 6's tag block, read off
 #      the series-land skill, runs the tag commands printed with the
 #      fast-forward only on READY; run once `main` has the bump, they tag it
-#      `duckdb <version>`, with NEWS.md's section for it below where there is
-#      one; run before that, even with a tag named like the branch at the bump,
-#      or over a stale local tag of that name, they fail and send nothing. On a
-#      landing not READY the block stops before them. A release's version is
-#      tagged `v<version>.9900`, `duckdb <version>.9900` with the version's
-#      section, and never `v<version>`, the release's own: that tag on another
-#      commit does not stop it, and a stale local tag of the new name does.
+#      `duckdb <version>`, with NEWS.md's section for it below where there is,
+#      its heading bare or dated; run before that, even with a tag named like
+#      the branch at the bump, or over a stale local tag of that name, they
+#      fail and send nothing. On a landing not READY the block stops before
+#      them. A release's version is tagged `v<version>.9900`,
+#      `duckdb <version>.9900` with the version's section, and never
+#      `v<version>`, the release's own: that tag on another commit does not
+#      stop it, and a stale local tag of the new name does. The section is the
+#      version's own, never that of a newer version it prefixes, 2.0.10 for 2.0.1.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -444,14 +446,15 @@ git tag -d v1.99.99.9001 >/dev/null
 git push -q upstream :refs/tags/v1.99.99.9001
 unlanded
 probe; write_bump 1.99.99.9001
-{ printf '# duckdb 1.99.99.9001\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+{ printf '# duckdb (development version)\n\nCommits since v1.99.99.9001: <https://example.invalid>.\n\n\n'
+  printf '# duckdb 1.99.99.9001 (2026-11-17)\n\n## Features\n\n- Something for users.\n\n\n'; cat NEWS.md; } > NEWS.md.new
 mv NEWS.md.new NEWS.md
 commit "$bump_msg"
 NEWS_BUMP=$(git rev-parse HEAD)
 status_of "$NEWS_BUMP"
 has "a bump that writes the version's section is ready too" "$out" "READY: every commit has passed"
 landed "$NEWS_BUMP"
-is "and its tag carries the section below the subject" "$(tag_as_printed v1.99.99.9001)" \
+is "and its tag carries the section, its heading dated, below the subject" "$(tag_as_printed v1.99.99.9001)" \
   "$NEWS_BUMP"$'\n''duckdb 1.99.99.9001'$'\n\n''## Features'$'\n\n''- Something for users.'
 git push -q upstream :refs/tags/v1.99.99.9001
 unlanded
@@ -491,6 +494,21 @@ is "run as printed over a stale local tag of that name, they send nothing and fa
   "$(tag_as_printed v2.0.0.9900)" "the tag block failed"$'\n'"upstream is unchanged"
 git tag -d v2.0.0 v2.0.0.9900 >/dev/null
 git push -q upstream :refs/tags/v2.0.0
+unlanded
+git checkout -q -f main
+# A newer version that starts with this one, 2.0.10 above 2.0.1: its section is not the release's.
+probe; write_bump 2.0.1
+{ printf '# duckdb 2.0.10 (2026-12-01)\n\n- Not this one.\n\n\n# duckdb 2.0.1 (2026-11-21)\n\n- The fix.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
+commit 'chore: Bump version to 2.0.1'
+REL1=$(git rev-parse HEAD)
+status_of "$REL1"
+has "a bump to 2.0.1 is ready" "$out" "READY: every commit has passed"
+landed "$REL1"
+is "its tag carries 2.0.1's section, never that of 2.0.10" "$(tag_as_printed v2.0.1.9900)" \
+  "$REL1"$'\n''duckdb 2.0.1.9900'$'\n\n''- The fix.'
+git tag -d v2.0.1.9900 >/dev/null
+git push -q upstream :refs/tags/v2.0.1.9900
 unlanded
 git checkout -q -f main
 dev_at "$BUMP"
