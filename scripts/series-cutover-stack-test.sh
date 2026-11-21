@@ -361,7 +361,7 @@ is "a span whose engines agree builds" "$(status "$out")" 0
 is "with no 2-engine" "$(stack v3.3-t/vendor | awk '{ sub(".*/", "", $2); print $2 }' | tr '\n' ' ')" "1-main 3-fwd 4-old "
 engfix_line=$(printf -- '- `%s` fix: Patch the engine and its R side' "$(git rev-parse --short=10 "$ENGFIX")")
 has "1-main replays its commit without its engine paths" "$(section cutover/v3.3-t/vendor/1-main "$out")" \
-  "$(printf 'Replayed without their engine paths, which `v3.3-t-vendor` already has as the forward has them:\n\n%s' "$engfix_line")"
+  "$(printf 'Replayed without their engine paths, which `v3.3-t-vendor` already has, as the forward does:\n\n%s' "$engfix_line")"
 hasnt "and its summary names no 2-engine" "$(cat "$SCRATCH/no-engine.md")" 2-engine
 
 echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
