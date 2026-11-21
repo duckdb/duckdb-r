@@ -205,3 +205,18 @@ runs:
         }
         writeLines("Both halves of the cpp11 binding carry this flavor's prefix.")
       shell: Rscript {0}
+
+    # Must happen after R is installed...
+    - name: Define R CMD check error condition
+      # Allow WARNINGs from abort()
+      run: |
+        cat('RCMDCHECK_ERROR_ON="error"\n', file = Sys.getenv("GITHUB_ENV"), append = TRUE)
+      shell: Rscript {0}
+
+    # With re2 poisoned, run the suite as R-hub's runs do, without the tests
+    # behind `TEST_RE2` (tests/testthat/helper-skip.R): whatever still reaches
+    # re2 is what #121 is about.
+    - name: Skip the tests that reach re2
+      run: |
+        echo 'DUCKDB_R_TEST_RE2=false' | tee -a "$GITHUB_ENV"
+      shell: bash
