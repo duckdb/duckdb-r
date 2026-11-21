@@ -7,7 +7,7 @@
 #' @slot stmt_lst internal list describing the prepared statement (names,
 #'   types, ...).
 #' @slot env environment holding the result's mutable fetch state.
-#' @slot arrow whether the result is fetched via Arrow.
+#' @slot arrow `r lifecycle::badge("deprecated")` whether the result is fetched via Arrow.
 #' @slot query_result external pointer to the underlying materialized query result.
 #' @aliases duckdb_result
 #' @keywords internal
@@ -157,6 +157,12 @@ is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
 }
 
 #' @rdname duckdb_result-class
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#' `duckdb_fetch_arrow()` and `duckdb_fetch_record_batch()` fetch a result
+#' of the deprecated `dbSendQuery(arrow = TRUE)`.
+#' Use [DBI::dbSendQueryArrow()] with [DBI::dbFetchArrow()]
+#' or [DBI::dbFetchArrowChunk()] instead.
 #' @param res Query result to be converted to an Arrow Table
 #' @param chunk_size The chunk size
 #' @export
