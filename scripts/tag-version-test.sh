@@ -55,6 +55,7 @@ commit "fix: Release parked objects on dbDisconnect() (#3058)"
 commit "feat: fetch only the columns read (#3010)"
 commit "fix(patch): Keep a function entry alive (#3011)"
 commit "fix(api): handle f(x): y"
+commit 'fix(win\paths): Normalize drive letters'
 commit "feat!: drop the legacy scan"
 commit "docs: Explain the progress display (#3012)"
 commit "Tidy up"
@@ -79,6 +80,10 @@ expected='duckdb 2.0.0.9001
 ## Bug fixes
 
 - Release parked objects on dbDisconnect() (#3058).
+
+### win\paths
+
+- Normalize drive letters.
 
 ### api
 
@@ -163,7 +168,11 @@ has "names the version" "$out" "\`2.0.1.9900\` from DESCRIPTION's \`2.0.1\`"
 has "summary resolves" "$(cat "$SCRATCH/summary")" "### How to resolve"
 if out=$(run --version 2.0.1 main); then no "a release version passed in is refused"; else ok "a release version passed in is refused"; fi
 has "names the CRAN submission" "$out" "cran-submission.yaml"
+git tag -a v2.0.1 -m "duckdb 2.0.1" main
+git push -q origin v2.0.1
+: >"$SCRATCH/summary"
 out=$(run main)
+has "the release's own tag is not the previous one" "$(cat "$SCRATCH/summary")" "- Previous version tag: \`v2.0.0.9000\`"
 has "the landing of a release is tagged" "$out" "Pushed v2.0.1.9900."
 is "the tag is annotated" "$(git cat-file -t v2.0.1.9900)" "tag"
 is "it is on the remote" "$(git ls-remote "$SCRATCH/remote.git" refs/tags/v2.0.1.9900^{} | cut -f1)" "$(git rev-parse main)"
@@ -199,6 +208,7 @@ describe 2.0.1.9000
 git add DESCRIPTION
 commit "chore: Bump version to 2.0.1.9000"
 git push -q origin v2.1-next
+git tag v2.0.1.9000 v2.1-next
 out=$(run --dry-run v2.1-next)
 msg=$(sed -n 's/^  | //p' <<<"$out")
 is "same as previous" "$msg" "duckdb 2.0.1.9000
@@ -206,6 +216,7 @@ is "same as previous" "$msg" "duckdb 2.0.1.9000
 ## Uncategorized
 
 - Same as previous version."
+has "a local tag the remote lacks does not count" "$out" "Tag v2.0.1.9000 on"
 
 echo
 echo "$pass passed, $fail failed"

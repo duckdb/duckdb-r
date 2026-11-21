@@ -5,7 +5,7 @@
 # The message is the subject `<package> <version>`, a blank line, and then
 #   - the section NEWS.md has for the version at that commit, matched up to the version
 #     so that a date after it is left out, where it has one, or
-#   - the commits since the previous version tag the commit reaches, grouped as fledge
+#   - the commits since the highest version tag the parents of the commit reach, grouped as fledge
 #     groups them into NEWS sections: first-parent subjects, merge commits and version bumps
 #     left out, a conventional-commit type mapped to its section ("fix" to "Bug fixes", ...),
 #     a scope as a `###` heading under its section, a `!` repeated under "Breaking changes",
@@ -58,7 +58,7 @@ refuse() {
 }
 
 git fetch -q "$remote" "+refs/heads/*:refs/remotes/$remote/*" "+refs/tags/*:refs/tags/*"
-sha=$(git rev-parse --verify -q "$commit^{commit}" || git rev-parse --verify -q "refs/remotes/$remote/$commit^{commit}") ||
+sha=$(git rev-parse --verify -q "refs/remotes/$remote/$commit^{commit}" || git rev-parse --verify -q "$commit^{commit}") ||
   refuse "\`$commit\` is not a commit here." "Pass a branch name, a tag or a full commit SHA of the repository."
 branches=$(git for-each-ref --contains "$sha" --format='%(refname:lstrip=3)' "refs/remotes/$remote/")
 branches=$(grep -E '^(main|v[0-9]+\.[0-9]+-[a-z]+)$' <<<"$branches" || true)
@@ -85,7 +85,8 @@ expected=$desc_version
     "Leave the version empty to take \`$expected\`, or pick the commit whose DESCRIPTION carries the version."
 
 tag="v$version"
-if existing=$(git rev-parse -q --verify "refs/tags/$tag^{commit}"); then
+# The remote decides, so that a tag deleted there and still in a local clone does not count.
+if existing=$(git ls-remote "$remote" "refs/tags/$tag^{}" "refs/tags/$tag" | awk 'NR == 1 || /\^\{\}$/ {s = $1} END {print s}') && [ -n "$existing" ]; then
   refuse "The tag \`$tag\` exists already, on \`${existing:0:10}\`." \
     "If it is the right tag, there is nothing to do." \
     "If it is wrong, delete it first, after reading it: \`git push $remote :refs/tags/$tag\`, then dispatch again."
@@ -125,7 +126,8 @@ normalize() {
   printf '%s' "$d"
 }
 
-previous=$(git describe --first-parent --tags --abbrev=0 --match 'v[0-9]*' "$sha" 2>/dev/null) || previous=
+# The highest version tag the commit's parents reach, through forward merges too, and never one on the commit itself.
+previous=$(git tag --merged "$sha^" --list 'v[0-9]*' --sort=-v:refname 2>/dev/null | grep -E '^v[0-9]+(\.[0-9]+)+$' | head -n 1) || previous=
 range=$sha
 [ -z "$previous" ] || range="$previous..$sha"
 
@@ -156,11 +158,11 @@ done < <(git log --first-parent --no-merges --format=%s "$range")
 section_block() {
   local s=$1 scope
   printf '## %s\n\n' "$s"
-  awk -F'\t' -v s="$s" '$1 == s && $2 == "" {print "- " $3 "\n"}' "$entries"
+  S=$s awk -F'\t' '$1 == ENVIRON["S"] && $2 == "" {print "- " $3 "\n"}' "$entries"
   while IFS= read -r scope; do
     printf '### %s\n\n' "$scope"
-    awk -F'\t' -v s="$s" -v c="$scope" '$1 == s && $2 == c {print "- " $3 "\n"}' "$entries"
-  done < <(awk -F'\t' -v s="$s" '$1 == s && $2 != "" && !seen[$2]++ {print $2}' "$entries")
+    S=$s C=$scope awk -F'\t' '$1 == ENVIRON["S"] && $2 == ENVIRON["C"] {print "- " $3 "\n"}' "$entries"
+  done < <(S=$s awk -F'\t' '$1 == ENVIRON["S"] && $2 != "" && !seen[$2]++ {print $2}' "$entries")
 }
 
 log_body() {
@@ -211,6 +213,8 @@ if [ -n "$dry_run" ]; then
   exit 0
 fi
 
-git tag -a "$tag" --cleanup=whitespace -F "$message" "$sha"
+# -f replaces a stale local tag the remote no longer has; the remote was checked above.
+git tag -f -a "$tag" --cleanup=whitespace -F "$message" "$sha"
 git push "$remote" "refs/tags/$tag"
 echo "Pushed $tag."
+[ -z "${GITHUB_OUTPUT:-}" ] || echo "tag=$tag" >>"$GITHUB_OUTPUT"

@@ -8,6 +8,9 @@
 # and scripts/tag-version-test.sh checks it offline.
 # A release version is cran-submission.yaml's to tag, and this workflow refuses one.
 #
+# A tag pushed with the workflow's token starts no workflow, so the job then dispatches rcc dev on it,
+# which a tag pushed by hand starts by its `push: tags` trigger.
+#
 # The input `dry-run` computes and reports the tag and its message, and writes nothing.
 on:
   workflow_dispatch:
@@ -27,10 +30,6 @@ on:
 
 name: Tag version
 
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
-
 permissions: {}
 
 jobs:
@@ -41,6 +40,7 @@ jobs:
     name: "Tag the version"
 
     permissions:
+      actions: write
       contents: write
 
     steps:
@@ -50,6 +50,7 @@ jobs:
           persist-credentials: false
 
       - name: Tag the commit
+        id: tag
         env:
           COMMIT: ${{ inputs.commit }}
           VERSION: ${{ inputs.version }}
@@ -69,4 +70,14 @@ jobs:
           [ -z "$VERSION" ] || args+=(--version "$VERSION")
           [ "$DRY_RUN" != true ] || args+=(--dry-run)
           scripts/tag-version.sh "${args[@]}" -- "${COMMIT:-HEAD}"
+        shell: bash
+
+      - name: Start rcc dev on the tag
+        if: steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run R-CMD-check-dev.yaml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          echo "- Started rcc dev on \`$TAG\`." >>"$GITHUB_STEP_SUMMARY"
         shell: bash
