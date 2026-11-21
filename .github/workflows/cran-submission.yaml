@@ -183,9 +183,10 @@ jobs:
           tag="v$pkg_version"
 
           message="$RUNNER_TEMP/tag-message.md"
-          # The section from the version's heading to the next one, without the leading "# ".
+          # The section from the version's heading, bare or followed by a space and a date, to the next one,
+          # its first line the heading without the leading "# " and the date.
           awk -v heading="# $pkg_name $pkg_version" '
-            $0 == heading { found = 1; print substr($0, 3); next }
+            index($0, heading) == 1 && ($0 == heading || substr($0, length(heading) + 1, 1) == " ") { found = 1; print substr(heading, 3); next }
             found && /^# / { exit }
             found { print }
           ' NEWS.md > "$message"

@@ -331,7 +331,8 @@ is_bump() { # <commit>
 # `v<version>`, or `v<version>.9900` where <version> is a release, which takes
 # `v<version>` itself when it is published; its message the subject
 # `duckdb <version>`, or `duckdb <version>.9900` with that tag, then the section
-# NEWS.md has for <version>, if it has one, read the way the release process
+# NEWS.md has for <version>, if it has one, its heading `# duckdb <version>`
+# alone or followed by a space and a date, read the way the release process
 # reads it (handbook/operations/releases/versioning/README.md). They are one
 # chain, each command run only if the one before succeeded, so pasted as
 # printed they stop at the first failure and exit with it: they tag nothing the
@@ -351,7 +352,7 @@ tag_commands() { # <bump>
     "Then tag it on $canonical once $onto has it, with NEWS.md's section for $v below the subject if there is one:" \
     "  git fetch -q $canonical +refs/heads/$onto:refs/remotes/$canonical/$onto &&" \
     "    { git merge-base --is-ancestor $1 refs/remotes/$canonical/$onto || { echo 'Not tagged: $onto on $canonical does not have $1.' >&2; false; }; } &&" \
-    "    { printf 'duckdb %s\n\n' $t; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' '\$0 == h {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
+    "    { printf 'duckdb %s\n\n' $t; git show $1:NEWS.md 2>/dev/null | awk -v h='# duckdb $v' 'index(\$0, h) == 1 && (\$0 == h || substr(\$0, length(h) + 1, 1) == \" \") {f = 1; next} /^# duckdb / {f = 0} f'; } |" \
     "    git tag -a v$t --cleanup=whitespace -F - $1 &&" \
     "    git push $canonical refs/tags/v$t"
 }
