@@ -2,9 +2,9 @@
 # Plan the sharded per-commit `rcc` build for the checked-out branch.
 #
 # Selects the undecided commits -- on a series branch those in
-# `<S>-green..HEAD` with no verdict on the `rcc2` branch, elsewhere the
-# first-parent history on or after $SINCE without one -- and
-# partitions them into contiguous, cost-balanced shards (see
+# `<S>-green..HEAD` with no verdict on the `rcc2` branch, on an rc strand those
+# above its seed, elsewhere the first-parent history on or after $SINCE without
+# one -- and partitions them into contiguous, cost-balanced shards (see
 # `scripts/each-partition.py`, which also decides how many shards are worth
 # paying for).
 # One shard becomes one matrix leg in `.github/workflows/each.yaml`, and one

@@ -2,8 +2,10 @@
 #
 # On a series branch (`<S>-dev` with a sibling `<S>-green`), only commits in
 #   `<S>-green..HEAD` are considered -- the series loop's world; nothing is built
-#   when green is not an ancestor of HEAD. On branches without a green sibling,
-#   the first-parent history since $SINCE is scanned. Either way, a commit is
+#   when green is not an ancestor of HEAD. On an rc strand (`<S>-rc-dev`), which
+#   has no green, the commits above its own seed are
+#   (.claude/skills/series-rc/SKILL.md). On other branches without a green
+#   sibling, the first-parent history since $SINCE is scanned. Either way, a commit is
 #   built only if it is undecided, oldest first, and gets a verdict of its own.
 #   Rebasing and force-pushing a commit past the boundary still re-triggers it.
 #
