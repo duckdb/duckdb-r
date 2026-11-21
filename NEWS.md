@@ -1,6 +1,23 @@
 # duckdb (development version)
 
-Commits since v2.0.1.9900: <https://github.com/duckdb/duckdb-r/compare/v2.0.1.9900...main>.
+Commits since v2.0.99.9000: <https://github.com/duckdb/duckdb-r/compare/v2.0.99.9000...main>.
+
+
+# duckdb 2.0.99.9000 (2026-11-21)
+
+_Drafted with AI from the vendored upstream commits and the R-side changes, not reviewed by a maintainer._
+
+## Features
+
+- Update to DuckDB v2.1.0-alpha56621, upstream `main` from v2.0.0 on, see <https://github.com/duckdb/duckdb/compare/v2.0.0...bc04be044b0d84075aa6d63fc11d5dfaa6e9aaa8> for details.
+
+- `GEOGRAPHY` columns read as WKB, as `GEOMETRY` columns do; with `geometry = "wk"` they read as `wk_wkb` vectors marked geodesic (duckdb/duckdb#28092).
+
+## Bug fixes
+
+- Query results that hold constant or dictionary vectors convert to R correctly (duckdb/duckdb#27380).
+
+- The progress bar is switched on through DuckDB's generic settings, and stays off where the system disabled it (duckdb/duckdb#28571).
 
 
 # duckdb 2.0.1 (2026-11-20)
