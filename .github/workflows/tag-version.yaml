@@ -13,11 +13,11 @@ on:
   workflow_dispatch:
     inputs:
       commit:
-        description: "The commit to tag: a SHA, branch or tag; empty for the tip of the ref the run is dispatched on"
+        description: "The commit to tag, on main or a release branch: a SHA, branch or tag; empty for the tip of the ref the run is dispatched on"
         type: string
         default: ""
       version:
-        description: "The version; empty for DESCRIPTION's at that commit, or DESCRIPTION's with .9900 for the landing of a release"
+        description: "The version; empty for DESCRIPTION's at that commit, or that version with .9900 where it is a release's"
         type: string
         default: ""
       dry-run:
@@ -68,5 +68,5 @@ jobs:
           args=(--remote origin)
           [ -z "$VERSION" ] || args+=(--version "$VERSION")
           [ "$DRY_RUN" != true ] || args+=(--dry-run)
-          scripts/tag-version.sh "${args[@]}" "${COMMIT:-HEAD}"
+          scripts/tag-version.sh "${args[@]}" -- "${COMMIT:-HEAD}"
         shell: bash

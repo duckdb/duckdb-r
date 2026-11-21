@@ -14,7 +14,7 @@ and a change belongs in the template instead.
 A file's own first line records what it was derived from,
 which is the part of this a reader can check from the tree.
 Authored here, with no counterpart in the template, are
-`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml`, `cran-release.yaml` and `pull-request-base.yaml`.
+`each.yaml`, `each-mirror.yaml`, `delete-branch.yaml`, `handbook.yaml`, `cran-release.yaml`, `pull-request-base.yaml` and `tag-version.yaml`.
 A sync that mirrors the template's set must leave them alone, and `custom/` below with them.
 One file of the core set is left out, and a sync must not bring it back:
 the template's `fledge.yaml`, because this repository writes its version and its `NEWS.md` section by hand, in a landing's bump
@@ -38,6 +38,7 @@ as a trial for [cynkra/cynkratemplate#147](https://github.com/cynkra/cynkratempl
 | [`winbuilder.yaml`](/.github/workflows/winbuilder.yaml) | push to `cran-*` that changes this file; dispatch | uploads the tarball to WinBuilder ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
 | [`release-gate.yaml`](/.github/workflows/release-gate.yaml) | push to `cran-*`; dispatch | the mechanical release checks of cynkra/cynkratemplate#147 |
 | [`cran-submission.yaml`](/.github/workflows/cran-submission.yaml) | dispatch only, with the inputs `dry-run` and `allow-dev-version` | checks the version, drafts the GitHub release, tags `vX.Y.Z`, builds a zopfli tarball and uploads it to CRAN ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
+| [`tag-version.yaml`](/.github/workflows/tag-version.yaml) | dispatch only, with the inputs `commit`, `version` and `dry-run` | tags a development version `v<version>` on `main` or a release branch, for a session that cannot push a tag ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)) |
 | [`cran-release.yaml`](/.github/workflows/cran-release.yaml) | nightly cron; dispatch, with the input `dry-run` | publishes the drafted release once Posit's package manager serves the version ([`releases/cran/`](/handbook/operations/releases/cran/README.md)) |
 | [`revdep4.yaml`](/.github/workflows/revdep4.yaml) | dispatch | **the reverse-dependency route** ([`testing/revdep/`](/handbook/testing/revdep/README.md)): each package's two halves sequentially, per-package containers, a work queue across packages |
 | [`revdep2.yaml`](/.github/workflows/revdep2.yaml) | dispatch | revdep4's predecessor, both halves at once on one host ([`testing/revdep/`](/handbook/testing/revdep/README.md)) |

@@ -11,13 +11,14 @@
 #     a scope as a `###` heading under its section, a `!` repeated under "Breaking changes",
 #     anything else under "Uncategorized".
 #
-# The version is DESCRIPTION's at that commit unless given. A release version, three
-# components, is refused: .github/workflows/cran-submission.yaml tags a release. A given
-# version must be DESCRIPTION's or, for the landing of a release, DESCRIPTION's with `.9900`.
-# The commit must lie on a branch of the remote, and the tag must not exist there yet.
+# The version is DESCRIPTION's at that commit, or, where that is a release's three components,
+# the landing's `<version>.9900`, as scripts/series-land.sh tags a landing. A release version is
+# refused: .github/workflows/cran-submission.yaml tags a release. A given version must be the one
+# this would pick. The commit must lie on `main` or a release branch of the remote,
+# `v<major>.<minor>-<name>`, and the tag must not exist there yet.
 #
 # Usage:
-#   scripts/tag-version.sh [--remote <name>] [--version <version>] [--dry-run] <commit>
+#   scripts/tag-version.sh [--remote <name>] [--version <version>] [--dry-run] [--] <commit>
 #
 # Without --dry-run the tag is created and pushed to the remote; with it, nothing is written.
 # A summary goes to $GITHUB_STEP_SUMMARY when set. Exit status 1 refuses, with a reason
@@ -34,6 +35,7 @@ while [ $# -gt 0 ]; do
     --remote) remote=$2; shift 2 ;;
     --version) version=$2; shift 2 ;;
     --dry-run) dry_run=1; shift ;;
+    --) shift; [ $# -eq 1 ] || { echo "one commit after --, please" >&2; exit 2; }; commit=$1; shift ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
     *) [ -z "$commit" ] || { echo "only one commit, please" >&2; exit 2; }; commit=$1; shift ;;
   esac
@@ -59,26 +61,28 @@ git fetch -q "$remote" "+refs/heads/*:refs/remotes/$remote/*" "+refs/tags/*:refs
 sha=$(git rev-parse --verify -q "$commit^{commit}" || git rev-parse --verify -q "refs/remotes/$remote/$commit^{commit}") ||
   refuse "\`$commit\` is not a commit here." "Pass a branch name, a tag or a full commit SHA of the repository."
 branches=$(git for-each-ref --contains "$sha" --format='%(refname:lstrip=3)' "refs/remotes/$remote/")
-branches=$(grep -v '^HEAD$' <<<"$branches" || true)
+branches=$(grep -E '^(main|v[0-9]+\.[0-9]+-[a-z]+)$' <<<"$branches" || true)
 [ -n "$branches" ] ||
-  refuse "Commit \`${sha:0:10}\` lies on no branch of \`$remote\`." \
-    "Tag a commit that a branch holds, such as the tip of \`main\` or of a release branch after its landing."
+  refuse "Commit \`${sha:0:10}\` lies neither on \`main\` nor on a release branch of \`$remote\`." \
+    "Tag a commit that \`main\` or a release branch holds, such as its tip after a landing."
 
 desc=$(git show "$sha:DESCRIPTION") ||
   refuse "Commit \`${sha:0:10}\` has no DESCRIPTION." "Tag a commit of the package."
 package=$(sed -n 's/^Package: *//p' <<<"$desc")
 desc_version=$(sed -n 's/^Version: *//p' <<<"$desc")
-[ -n "$version" ] || version=$desc_version
+expected=$desc_version
+[[ ! $desc_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || expected=$desc_version.9900
+[ -n "$version" ] || version=$expected
 
 [[ $version =~ ^[0-9]+(\.[0-9]+)+$ ]] ||
   refuse "\`$version\` is not a version." "Pass the version as dot-separated numbers, such as 2.0.99.9001."
 [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] &&
   refuse "\`$version\` is a release version, which this workflow does not tag." \
     "A release is tagged by the CRAN submission (.github/workflows/cran-submission.yaml)." \
-    "For the landing of a release, pass the version \`$version.9900\`."
-[ "$version" = "$desc_version" ] || [ "$version" = "$desc_version.9900" ] ||
-  refuse "\`$version\` is neither DESCRIPTION's version at \`${sha:0:10}\`, \`$desc_version\`, nor that version with \`.9900\`." \
-    "Leave the version empty to take DESCRIPTION's, or pick the commit whose DESCRIPTION carries it."
+    "For the landing of a release, leave the version empty to take \`$version.9900\`."
+[ "$version" = "$expected" ] ||
+  refuse "\`$version\` is not the version for \`${sha:0:10}\`, \`$expected\` from DESCRIPTION's \`$desc_version\`." \
+    "Leave the version empty to take \`$expected\`, or pick the commit whose DESCRIPTION carries the version."
 
 tag="v$version"
 if existing=$(git rev-parse -q --verify "refs/tags/$tag^{commit}"); then
@@ -91,7 +95,7 @@ fi
 
 news_version=$desc_version
 news=$(git show "$sha:NEWS.md" 2>/dev/null |
-  awk -v h="# $package $news_version" 'index($0, h) == 1 && ($0 == h || substr($0, length(h) + 1, 1) == " ") {f = 1; next} /^# / {f = 0} f' |
+  awk -v h="# $package $news_version" -v p="# $package " 'index($0, h) == 1 && ($0 == h || substr($0, length(h) + 1, 1) == " ") {f = 1; next} index($0, p) == 1 {f = 0} f' |
   sed -e '/./,$!d' | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}') || news=
 
 # <section name> for a conventional-commit type, as fledge maps it
@@ -121,18 +125,20 @@ normalize() {
   printf '%s' "$d"
 }
 
-previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$sha" 2>/dev/null) || previous=
+previous=$(git describe --first-parent --tags --abbrev=0 --match 'v[0-9]*' "$sha" 2>/dev/null) || previous=
 range=$sha
 [ -z "$previous" ] || range="$previous..$sha"
 
 entries=$(mktemp)
 trap 'rm -f "$entries"' EXIT
 count=0
+# type, optional (scope), optional !, colon, description: fledge's header, the scope without a ")"
+header='^([A-Za-z]+)(\(([^)]*)\))?(!?):[[:space:]](.*)$'
 while IFS= read -r subject; do
   [ -n "$subject" ] || continue
   count=$((count + 1))
   case "$subject" in "chore: Bump version to "* | "fledge: "*) continue ;; esac
-  if [[ $subject =~ ^([A-Za-z]*)(\((.*)\))?(!?):[[:space:]](.*)$ ]]; then
+  if [[ $subject =~ $header ]]; then
     section=$(section_of "${BASH_REMATCH[1]}")
     scope=${BASH_REMATCH[3]}
     breaking=${BASH_REMATCH[4]}
@@ -198,7 +204,7 @@ heading="Tagged"
 [ -z "$dry_run" ] || heading="Dry run: would tag"
 summary "## $heading \`$tag\`" "" \
   "- Commit: \`$sha\`" "- On: $on" \
-  "- Previous version tag: \`${previous:-none}\`" "- Message from $source:" "" '```' "$(cat "$message")" '```'
+  "- Previous version tag: \`${previous:-none}\`" "- Message from $source:" "" '``````' "$(cat "$message")" '``````'
 
 if [ -n "$dry_run" ]; then
   echo "Dry run: nothing tagged or pushed."
