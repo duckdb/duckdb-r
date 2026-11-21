@@ -40,7 +40,8 @@
 #      them. A release's version is tagged `v<version>.9900`,
 #      `duckdb <version>.9900` with the version's section, and never
 #      `v<version>`, the release's own: that tag on another commit does not
-#      stop it, and a stale local tag of the new name does.
+#      stop it, and a stale local tag of the new name does. The section is the
+#      version's own, never that of a newer version it prefixes, 2.0.10 for 2.0.1.
 #  10. A resolution rerere replays wrongly is named when the check fails, and
 #      an attended rebuild stops there so it can be forgotten and redone. A
 #      kept build follows the rc strand when the series moves on.
@@ -493,6 +494,21 @@ is "run as printed over a stale local tag of that name, they send nothing and fa
   "$(tag_as_printed v2.0.0.9900)" "the tag block failed"$'\n'"upstream is unchanged"
 git tag -d v2.0.0 v2.0.0.9900 >/dev/null
 git push -q upstream :refs/tags/v2.0.0
+unlanded
+git checkout -q -f main
+# A newer version that starts with this one, 2.0.10 above 2.0.1: its section is not the release's.
+probe; write_bump 2.0.1
+{ printf '# duckdb 2.0.10 (2026-12-01)\n\n- Not this one.\n\n\n# duckdb 2.0.1 (2026-11-21)\n\n- The fix.\n\n\n'; cat NEWS.md; } > NEWS.md.new
+mv NEWS.md.new NEWS.md
+commit 'chore: Bump version to 2.0.1'
+REL1=$(git rev-parse HEAD)
+status_of "$REL1"
+has "a bump to 2.0.1 is ready" "$out" "READY: every commit has passed"
+landed "$REL1"
+is "its tag carries 2.0.1's section, never that of 2.0.10" "$(tag_as_printed v2.0.1.9900)" \
+  "$REL1"$'\n''duckdb 2.0.1.9900'$'\n\n''- The fix.'
+git tag -d v2.0.1.9900 >/dev/null
+git push -q upstream :refs/tags/v2.0.1.9900
 unlanded
 git checkout -q -f main
 dev_at "$BUMP"

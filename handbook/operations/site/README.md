@@ -51,8 +51,9 @@ Such a page is a secondary document of the leaf it digests and carries that leaf
 `?duckdb_memory` digests [`usage/memory/`](/handbook/usage/memory/README.md).
 
 **The changelog's dates are `NEWS.md`'s own.**
-The heading of every version CRAN published carries its publication date, `# duckdb 2.0.0 (2026-10-23)`,
-so `news.cran_dates` is off in [`_pkgdown.yml`](/_pkgdown.yml):
+A release's heading carries the date its own commit writes before CRAN publishes it, `# duckdb 2.0.1 (2026-11-20)`.
+An older heading carries the date CRAN published that version, or its tag's date where CRAN never did, and the earliest carry none.
+So `news.cran_dates` is off in [`_pkgdown.yml`](/_pkgdown.yml):
 pkgdown would otherwise look the dates up on CRAN while building and show a second one under each heading.
 
 *To deepen: state where the deploy branch is served from.*
