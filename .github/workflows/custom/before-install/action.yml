@@ -13,6 +13,11 @@ runs:
     - name: Define R CMD check error condition
       run: |
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
+        # The CRAN incoming checks, which check-r-package turns off unless set,
+        # so that the tarball size NOTE (above 5 MB) shows up here as on CRAN.
+        # Offline: the remote part asks CRAN and would make CI depend on it.
+        echo '_R_CHECK_CRAN_INCOMING_=true' | tee -a $GITHUB_ENV
+        echo '_R_CHECK_CRAN_INCOMING_REMOTE_=false' | tee -a $GITHUB_ENV
       shell: bash
 
     # Ubuntu 26.04 moved the legacy System V-style time zones (e.g. PST8PDT)
