@@ -59,9 +59,10 @@
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace, and nothing to pin.
 #
-# The review is everything the forward changed against current `main` outside the engine:
+# The review is everything the forward changed outside the engine against the current tip of the branch
+# the series releases from, its `releases_from` in `main`'s scripts/series.yaml, `main` for `main`'s own series:
 # the R side, `src/` outside `src/duckdb/`, the tests and the patch stack.
-# The forward's seed is a recent `main`, so that diff is the series' own work.
+# The forward's seed is a recent tip of that branch, so that diff is the series' own work.
 #
 # Usage: series-cutover.sh <series> [--remote <name>] [--canonical <name>]
 #                          [--upstream <path>] [--out <dir>]
@@ -215,7 +216,8 @@ pull_heads=$(git ls-remote "$remote" 'refs/pull/*/head') || {
   pulls_why="the pull request heads of $remote could not be listed (above), so no stack reads as a pin"
 }
 
-# `main` for the review is the canonical repository's; the fork's mirror may lag by a cycle
+# `main`, whose scripts/series.yaml names the branch the review is against, is the canonical repository's;
+# the fork's mirror may lag by a cycle
 # (handbook/branches/mirrors/README.md). The two greens there are what the pins, the move and the cleanup read.
 # The repository is read once, and only what that read listed is fetched:
 # a tracking ref an earlier fetch left is dropped where the read did not list it,
@@ -503,11 +505,32 @@ else
   done
 fi
 
-# The review: what the forward changed against today's `main`, engine aside.
+# The review: what the forward changed against the branch the series releases from, engine aside.
 # The stat here, the diff in --out, for the review that the decision is taken on.
 # The exclusions are the files vendoring and the version bookkeeping regenerate,
 # which a convergence read excludes for the same reason.
+#
+# That branch is the series' `releases_from` in `main`'s scripts/series.yaml, read from the `main` read above,
+# as scripts/series-port.sh reads it; `main` where it says `main` or nothing.
+# A release branch is read from the canonical repository, else from the fork's mirror of it;
+# where neither holds it, the review falls back to `main` and says so,
+# since the review is reported and never what --confirm refuses on.
 echo
+base_name=main base_ref=$main_ref
+rf=$({ git show "$main_ref:scripts/series.yaml" 2>/dev/null || true; } | series_releases_from "$S")
+if [ -n "$rf" ] && [ "$rf" != main ]; then
+  if [ -n "$canon_read" ] &&
+    git fetch -q "$canonical" "+refs/heads/$rf:refs/remotes/$canonical/$rf" 2>/dev/null; then
+    base_name=$rf base_ref="refs/remotes/$canonical/$rf"
+  elif git rev-parse -q --verify "refs/remotes/$remote/$rf" >/dev/null; then
+    [ -z "$canonical" ] ||
+      echo "Warning: could not read $rf from $canonical; reviewing against the mirror $remote/$rf, which may lag a cycle."
+    base_name=$rf base_ref="refs/remotes/$remote/$rf"
+  else
+    echo "Warning: could not read $rf, the branch $S releases from, from ${canonical:+$canonical or }$remote; reviewing against main."
+    echo "  The review then also shows what $rf and main differ by."
+  fi
+fi
 [ -n "$out" ] || out=$(mktemp -d "${TMPDIR:-/tmp}/series-cutover-$S-XXXXXX")
 mkdir -p "$out"
 excludes=(':(exclude)DESCRIPTION' ':(exclude)NEWS.md' ':(exclude)README.Rmd' ':(exclude)README.md'
@@ -516,10 +539,10 @@ for x in "$series_vendor_dir" "${series_regenerated[@]}" "${series_regenerated_d
   excludes+=(":(exclude)$x")
 done
 new_green_ref="refs/remotes/$remote/$S-fwd-green"
-echo "review: what $S-fwd-green changes against main $(git rev-parse --short "$main_ref"), outside the engine"
-git diff --stat=100 "$main_ref" "$new_green_ref" -- . "${excludes[@]}" | sed 's/^/  /'
-git diff "$main_ref" "$new_green_ref" -- . "${excludes[@]}" > "$out/review.diff"
-git diff --stat=100 "$main_ref" "$new_green_ref" -- . "${excludes[@]}" > "$out/review.stat"
+echo "review: what $S-fwd-green changes against $base_name $(git rev-parse --short "$base_ref"), outside the engine"
+git diff --stat=100 "$base_ref" "$new_green_ref" -- . "${excludes[@]}" | sed 's/^/  /'
+git diff "$base_ref" "$new_green_ref" -- . "${excludes[@]}" > "$out/review.diff"
+git diff --stat=100 "$base_ref" "$new_green_ref" -- . "${excludes[@]}" > "$out/review.stat"
 echo "  full diff: $out/review.diff"
 echo
 
