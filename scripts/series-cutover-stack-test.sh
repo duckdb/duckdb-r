@@ -15,6 +15,9 @@
 #      its summary naming that commit; `3-fwd` empty, `4-old` the old tree; the old tip under `1-main`;
 #      the summary, the --summary file and the pull requests to open.
 #      A commit of `main` that changes the engine alone is left out of `1-main`, and the `2-engine` summary names it.
+#      A commit of `main` that adds a binding to `R/cpp11.R` and `src/cpp11.cpp`, picked cleanly,
+#      has it spelled with the old tip's flavor, as the forward has it, and says so;
+#      so does one next to a flavored binding, whose pick conflicts and is resolved by hand in `main`'s spelling.
 #   2. A conflict on `-dev` stops the build with the worktree kept and nothing pushed;
 #      a plain rerun refuses beside it, --abort from the kept worktree discards it,
 #      and a resolution finishes with --continue. A commit the strand already carries is recorded as present.
@@ -32,6 +35,7 @@
 #   7. Where the old base is not an ancestor of the forward's, `1-main` is one three-way merge,
 #      which keeps the old engine and takes `main`'s patch stack, and a conflict there stops and resumes the same way;
 #      the `2-engine` summary says it carries the engine side of the changes that merge leaves out.
+#      A binding the merge brings is spelled with the old tip's flavor too.
 #   8. Usage errors exit 2; a missing forward, a series on its forward's lineage as after the swap,
 #      read on `-dev` by the forward's seed, whatever was folded above it since,
 #      and a summary file that cannot be written refuse with 1 and push nothing.
@@ -195,6 +199,8 @@ seed() { # <base> <flavor>: the two flavor commits and the seed on <base>
   git add -A
   git commit -qm "chore: Update flavor patch to $2"
   sed -i "s/^Package: .*/Package: $2/" DESCRIPTION
+  # The bindings, as cpp11::cpp_register() regenerates them under the flavor.
+  for f in R/cpp11.R src/cpp11.cpp; do [ ! -f "$f" ] || sed -i -e "s/_duckdb_/_${2//./_}_/g" -e "s/R_init_duckdb(/R_init_${2//./_}(/" "$f"; done
   git commit -qam "chore: Update version to $2"
   sed -i 's/^Version: \(.*\)$/Version: \1.0/' DESCRIPTION
   git commit -qam 'chore: Add fifth version component'
@@ -239,9 +245,43 @@ git commit -qm 'fix: Patch the vendored sources in place'
 HOTFIX=$(git rev-parse HEAD)
 series v5.5-v "$FWD_MAIN" duckdb.5.5 'two (main)' 2 '' 0
 series v5.5-v-fwd "$HOTFIX" duckdb.5.5 'two (main)' 3 '' 1
+# `v1.1-r` stands on BINDINGS, which has the generated bindings, and its forward on BINDING, which adds one to them.
+git checkout -q --detach "$FWD_MAIN"
+tick
+# Each change apart from the lines the flavor renames, so that both picks are clean.
+printf 'rapi_connect <- function(x) {\n  .Call(`_duckdb_rapi_connect`, x)\n}\n# a\n# b\n# c\n' > R/cpp11.R
+printf '%s\n' 'extern "C" SEXP _duckdb_rapi_connect(SEXP x) {}' '// a' '// b' '// c' \
+  'static const R_CallMethodDef CallEntries[] = {' '    {"_duckdb_rapi_connect", (DL_FUNC) &_duckdb_rapi_connect, 1},' \
+  '// d' '// e' '// f' '    {NULL, NULL, 0}' '};' '// g' '// h' '// i' \
+  'extern "C" attribute_visible void R_init_duckdb(DllInfo* dll){}' > src/cpp11.cpp
+git add -A
+git commit -qm 'feat: Add the bindings'
+BINDINGS=$(git rev-parse HEAD)
+tick
+printf 'rapi_query_off_r_thread <- function(x) {\n  .Call(`_duckdb_rapi_query_off_r_thread`, x)\n}\n' >> R/cpp11.R
+sed -i -e 's|^// c$|&\nextern "C" SEXP _duckdb_rapi_query_off_r_thread(SEXP x) {}|' \
+  -e 's|^// f$|&\n    {"_duckdb_rapi_query_off_r_thread", (DL_FUNC) \&_duckdb_rapi_query_off_r_thread, 1},|' src/cpp11.cpp
+git add -A
+git commit -qm 'feat: Add rapi_query_off_r_thread()'
+BINDING=$(git rev-parse HEAD)
+series v1.1-r "$BINDINGS" duckdb.1.1 'two (main)' 2 '' 0
+series v1.1-r-fwd "$BINDING" duckdb.1.1 'two (main)' 3 '' 1
+# `v2.2-s` the same, on BINDINGS as it stood before its history was replaced, so that the binding comes by the merge.
+tick
+series v2.2-s "$(git commit-tree "$BINDINGS^{tree}" -m 'main, before its history was replaced')" duckdb.2.2 'two (main)' 2 '' 0
+series v2.2-s-fwd "$BINDING" duckdb.2.2 'two (main)' 3 '' 1
+# `v0.9-q` stands on BINDINGS too, and its forward on NEIGHBOR, which adds a binding next to a flavored one,
+# as in the real file, so that the pick conflicts.
+git checkout -q --detach "$BINDINGS"
+tick
+sed -i 's|^  .Call(`_duckdb_rapi_connect`, x)$|&\n  .Call(`_duckdb_rapi_neighbor`, x)|' R/cpp11.R
+git commit -qam 'feat: Add rapi_neighbor()'
+NEIGHBOR=$(git rev-parse HEAD)
+series v0.9-q "$BINDINGS" duckdb.0.9 'two (main)' 2 '' 0
+series v0.9-q-fwd "$NEIGHBOR" duckdb.0.9 'two (main)' 3 '' 1
 git checkout -q main
 unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
-git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 2>/dev/null
+git push -q origin main 'refs/heads/v9.9-x*' 'refs/heads/v8.8-y*' 'refs/heads/v6.6-w*' 'refs/heads/v5.5-v*' 'refs/heads/v1.1-r*' 'refs/heads/v2.2-s*' 'refs/heads/v0.9-q*' 2>/dev/null
 for b in $(git for-each-ref --format='%(refname:short)' 'refs/heads/v*'); do git branch -q -D "$b"; done
 git branch -q -D side
 
@@ -335,6 +375,35 @@ has "1-main leaves that commit out" "$(section cutover/v5.5-v/vendor/1-main "$ou
   "$(printf 'Engine changes only, left out because this layer keeps the engine of `v5.5-v-vendor`:\n\n%s' "$hotfix_line")"
 has "and the 2-engine summary names it" "$(section cutover/v5.5-v/vendor/2-engine "$out")" \
   "$(printf 'which `1-main` replays without them or leaves out:\n\n%s' "$hotfix_line")"
+
+out=$(run "$STACK" v1.1-r vendor)
+is "a span that adds a binding builds" "$(status "$out")" 0
+fetch
+T1=origin/cutover/v1.1-r/vendor/1-main
+is "the binding it adds comes with the flavor, beside the old one" "$(git show "$T1:R/cpp11.R" | grep -o '_duckdb[a-z0-9_]*' | tr '\n' ' ')" \
+  "_duckdb_1_1_rapi_connect _duckdb_1_1_rapi_query_off_r_thread "
+is "in both bindings, the init function kept" "$(git show "$T1:src/cpp11.cpp" | grep -o '[A-Za-z_]*duckdb[a-z0-9_]*' | sort -u | tr '\n' ' ')" \
+  "R_init_duckdb_1_1 _duckdb_1_1_rapi_connect _duckdb_1_1_rapi_query_off_r_thread "
+is "as the forward has them" "$(git diff --name-only "$T1" origin/v1.1-r-fwd-vendor -- R/cpp11.R src/cpp11.cpp)" ""
+has "the pick says so" "$(git log -1 --format=%B "$T1")" \
+  'Its bindings in R/cpp11.R src/cpp11.cpp are spelled with the flavor of `v1.1-r-vendor`'
+has "and so does the summary" "$(section cutover/v1.1-r/vendor/1-main "$out")" \
+  "$(printf -- '- `%s` feat: Add rapi_query_off_r_thread(): R/cpp11.R src/cpp11.cpp' "$(git rev-parse --short=10 "$BINDING")")"
+
+out=$(run "$STACK" v0.9-q vendor)
+is "a binding added next to a flavored one conflicts" "$(status "$out")" 3
+has "on R/cpp11.R" "$out" "  R/cpp11.R"
+wt=$(sed -n 's/^  cd //p' <<<"$out")
+# Resolved as a hand would, taking the new line as main spells it.
+printf 'rapi_connect <- function(x) {\n  .Call(`_duckdb_0_9_rapi_connect`, x)\n  .Call(`_duckdb_rapi_neighbor`, x)\n}\n# a\n# b\n# c\n' > "$wt/R/cpp11.R"
+git -C "$wt" add R/cpp11.R
+out=$(run "$STACK" v0.9-q vendor --continue)
+is "and --continue finishes it" "$(status "$out")" 0
+fetch
+is "with the binding spelled with the flavor, as the forward has it" \
+  "$(git diff "origin/cutover/v0.9-q/vendor/1-main" origin/v0.9-q-fwd-vendor -- R/cpp11.R)" ""
+has "which the pick says" "$(git log -1 --format=%B origin/cutover/v0.9-q/vendor/1-main)" \
+  'Its bindings in R/cpp11.R are spelled with the flavor of `v0.9-q-vendor`'
 
 echo "=== 2. a conflict on -dev: stop, refuse beside it, --abort from the worktree, --continue"
 out=$(run "$STACK" v9.9-x dev)
@@ -531,6 +600,14 @@ is "and --continue finishes it" "$(status "$out")" 0
 fetch
 has "the merge names the resolution" "$(git log -1 --format=%B origin/cutover/v8.8-y/dev/1-main)" "Conflicts resolved: R/foo.R."
 is "which 3-fwd agrees with" "$(git diff "origin/cutover/v8.8-y/dev/2-engine" "origin/cutover/v8.8-y/dev/3-fwd" -- R/foo.R)" ""
+
+out=$(run "$STACK" v2.2-s vendor)
+is "a merge that adds a binding builds" "$(status "$out")" 0
+fetch
+is "with the binding spelled with the flavor, as the forward has it" \
+  "$(git diff --name-only origin/cutover/v2.2-s/vendor/1-main origin/v2.2-s-fwd-vendor -- R/cpp11.R src/cpp11.cpp)" ""
+has "and says so" "$(git log -1 --format=%B origin/cutover/v2.2-s/vendor/1-main)" \
+  'Its bindings in R/cpp11.R src/cpp11.cpp are spelled with the flavor of v2.2-s-vendor'
 
 echo "=== 8. usage and refusals"
 is "a strand that is none of the four" "$(status "$(run "$STACK" v9.9-x build-base)")" 2

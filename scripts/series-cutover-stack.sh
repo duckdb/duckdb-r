@@ -42,6 +42,11 @@
 # A vendor commit leaves out its DESCRIPTION too, where vendoring stamps the counter,
 # which a carry leaves out for the same reason (`series_carry_filter`, scripts/series-lib.sh).
 # A commit that carries nothing else is recorded as vendoring only, or as an engine change only.
+# A pick or merge that changes the generated bindings, `R/cpp11.R` and `src/cpp11.cpp`,
+# has their symbol prefix spelled with the old tip's flavor, `_duckdb_dev_` for `duckdb.dev`,
+# as `cpp11::cpp_register()` writes it under that flavor (scripts/flavor.sh, scripts/reflavor.sh):
+# a binding `main` adds comes in `main`'s spelling, `_duckdb_`, and a clean pick would keep it.
+# The commit and the summary name the files so spelled.
 # A commit whose change the old strand already has, as the same patch or as a pick that changes nothing,
 # is recorded as present.
 # Where the old base is not an ancestor of the forward's, the layer is one commit, labeled as such:
@@ -247,6 +252,26 @@ clear_merge_state() {
   for f in MERGE_MSG AUTO_MERGE; do rm -f "$(git -C "$wt" rev-parse --git-path "$f")"; done
 }
 
+# The generated bindings, whose symbol prefix a step that changes them spells with the old tip's flavor (see the header):
+# what regenerating them would write, without R and the cpp11 fork.
+bindings=(R/cpp11.R src/cpp11.cpp)
+respell_bindings() { # -> the paths of the bindings respelled, staged in the worktree
+  local f head
+  [ "$bind_to" != "$bind_from" ] || return 0
+  head=$(git -C "$wt" rev-parse HEAD)
+  for f in "${bindings[@]}"; do
+    [ -f "$wt/$f" ] || continue
+    ! git -C "$wt" diff --cached --quiet "$head" -- "$f" || continue
+    # The flavored names spelled as `main`'s first, so that every name, old or new, comes out flavored once.
+    sed -E -e "s/(^|[^A-Za-z0-9_])$bind_to/\1$bind_from/g" -e "s/(^|[^A-Za-z0-9_])$bind_from/\1$bind_to/g" \
+      "$wt/$f" > "$tmp/respelled"
+    ! cmp -s "$tmp/respelled" "$wt/$f" || continue
+    cat "$tmp/respelled" > "$wt/$f"
+    git -C "$wt" add -- "$f"
+    echo "$f"
+  done
+}
+
 # --- the build, or the stopped one resumed ------------------------------------
 
 stopped='' stopped_left='' stopped_kind='' stopped_paths=''
@@ -389,6 +414,12 @@ else
   save_vars
 fi
 
+# The prefix of the bindings in `main`'s spelling and in the old tip's, which is the same where the old tip is unflavored.
+bind_from=_${series_package}_
+bind_to=$(git show "$old:DESCRIPTION" | sed -n 's/^Package: //p')
+bind_to=_${bind_to//./_}_
+[ "$bind_to" != __ ] || bind_to=$bind_from
+
 stop() { # <commit or `merge`> <left out> <pick|merge> <conflicted paths>
   stopped=$1 stopped_left=$2 stopped_kind=$3 stopped_paths=$4
   : > "$STATE/todo"
@@ -418,9 +449,10 @@ stop() { # <commit or `merge`> <left out> <pick|merge> <conflicted paths>
 # <left out> is `v` for a vendor commit without its engine paths and DESCRIPTION, `e` for another without its engine paths,
 # and empty for a whole one; <paths> are the conflicts it stopped on, resolved by hand or by rerere.
 commit_pick() { # <commit> <left out> <paths>
-  local c=$1 head tree body msg=$tmp/msg new an ae ad cd
+  local c=$1 head tree body msg=$tmp/msg new an ae ad cd respelled
   head=$(git -C "$wt" rev-parse HEAD)
   [ -z "$3" ] || git -C "$wt" rerere >/dev/null 2>&1 || true
+  respelled=$(respell_bindings)
   tree=$(git -C "$wt" write-tree)
   if [ "$tree" = "$(git rev-parse "$head^{tree}")" ]; then
     git -C "$wt" reset -q --hard "$head"
@@ -436,6 +468,9 @@ commit_pick() { # <commit> <left out> <paths>
       e) printf 'Its engine paths are left out: this layer keeps the engine of `%s`.\n\n' "$S-$X" ;;
     esac
     [ -z "$3" ] || printf 'Conflicts resolved replaying it onto `%s`: %s.\n\n' "$S-$X" "$3"
+    [ -z "$respelled" ] ||
+      printf 'Its bindings in %s are spelled with the flavor of `%s`, as `cpp11::cpp_register()` writes them there.\n\n' \
+        "${respelled//$'\n'/ }" "$S-$X"
     printf '(cherry picked from commit %s)\n' "$c"
   } > "$msg"
   {
@@ -450,12 +485,14 @@ commit_pick() { # <commit> <left out> <paths>
   git -C "$wt" update-ref HEAD "$new"
   clear_merge_state
   record "pick${2:+-$2}" "$c"
+  [ -z "$respelled" ] || record respelled "$c" "${respelled//$'\n'/ }"
 }
 
 commit_merge() { # <paths>
-  local head tree new msg=$tmp/msg
+  local head tree new msg=$tmp/msg respelled
   head=$(git -C "$wt" rev-parse HEAD)
   [ -z "$1" ] || git -C "$wt" rerere >/dev/null 2>&1 || true
+  respelled=$(respell_bindings)
   tree=$(git -C "$wt" write-tree)
   {
     printf 'chore(cutover): Replay main'"'"'s changes onto %s as one three-way merge\n\n' "$S-$X"
@@ -466,12 +503,16 @@ commit_merge() { # <paths>
     printf 'with the engine paths of the forward'"'"'s base read from the old base,\n'
     printf 'so that this layer keeps the engine of %s.\n' "$S-$X"
     [ -z "$1" ] || printf '\nConflicts resolved: %s.\n' "$1"
+    [ -z "$respelled" ] ||
+      printf '\nIts bindings in %s are spelled with the flavor of %s, as cpp11::cpp_register() writes them there.\n' \
+        "${respelled//$'\n'/ }" "$S-$X"
   } > "$msg"
   new=$(layer_commit "$tree" "$head" "$msg")
   git -C "$wt" update-ref HEAD "$new"
   git -C "$wt" reset -q --hard "$new"
   clear_merge_state
   record merge "$new"
+  [ -z "$respelled" ] || record respelled merge "${respelled//$'\n'/ }"
 }
 
 finish() { # <commit or `merge`> <left out> <pick|merge> <paths>
@@ -710,6 +751,7 @@ section() { # <layer>
         listed pick-e 'Replayed without their engine paths, which `2-engine` shows as the forward has them:'
       fi
       listed resolved 'Conflicts resolved:'
+      listed respelled 'Bindings respelled with the flavor of `'"$S-$X"'`, as `cpp11::cpp_register()` writes them there:'
       ;;
     2-engine)
       if same_engine "$old_engine" "$fwd_engine"; then
