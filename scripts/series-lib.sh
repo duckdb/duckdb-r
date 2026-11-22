@@ -245,6 +245,20 @@ series_release_branches() { # < series.yaml -> one branch per line
   END { flush() }' | { grep -v '^main$' || true; } | sort -u -V
 }
 
+# The branch a series releases from, its row's `releases_from` in a
+# declaration, scripts/series.yaml, read on stdin, quotes and all read bare;
+# empty where no row names the series or its row declares none.
+# A forward `<S>-fwd` is read as `<S>`, whose row it shares.
+series_releases_from() { # <series> < series.yaml -> the branch, or empty
+  awk -v s="${1%-fwd}" '
+  function val(v) { gsub(/["'"'"']/, "", v); return v }
+  function flush() { if (ser == s && rf != "" && !done) { print rf; done = 1 } ser = ""; rf = "" }
+  /^  - / { flush() }
+  /^    series:/ { ser = val($2) }
+  /^    releases_from:/ { rf = val($2) }
+  END { flush() }'
+}
+
 # The GitHub repository a remote names, `owner/repo`, for `gh api`; empty for a
 # remote that is not on GitHub. `git config remote.<name>.github <owner>/<repo>`
 # comes first, so a remote whose URL names no repository can still name one: a

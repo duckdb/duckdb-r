@@ -11,7 +11,7 @@
 # deletes what the forward leaves behind in both repositories, and prints an undo that works;
 # and that it lists what a refused deletion leaves, keeping a forward ref that moved meanwhile.
 # scripts/series-prune.sh offers only cutover litter, and runs nothing.
-# Eighteen things are checked.
+# Nineteen things are checked.
 #
 #   1. Without --confirm and without --prepare the cutover is a usage error, exit 2,
 #      before anything is read, and names both.
@@ -60,6 +60,8 @@
 #  17. A canonical forward green that lags the fork's is undone to its own tip.
 #  18. A refused deletion whose remote cannot be read back is reported as in a state the run does not know,
 #      not as moved, with the line that reads each ref, and the run exits 9.
+#  19. A series whose `releases_from` in `main`'s scripts/series.yaml is a release branch is reviewed against that branch,
+#      read from the canonical repository, else from the fork's mirror, else against `main`, each said so.
 # Every run of the cutover has its stdin closed, and none of them calls `gh`, which the last check reads.
 #
 # Usage:
@@ -1036,6 +1038,49 @@ hasnt "nor as litter" "$out" "cutover litter in origin"
 is "the last line says the swap stands" "$(grep -v '^EXIT=' <<<"$out" | tail -n 1)" \
   "SWAPPED, LEFT BEHIND: v9.9-x is cut over; dispatch the workflow lines above, and hand the rest to a maintainer."
 has "exit 9" "$out" "EXIT=9"
+
+echo
+echo "=== 19. a series that releases from a release branch is reviewed against that branch, not main"
+restore
+# The canonical `main` declares that v9.9-x releases from v9.9-x-rel, a branch that carries a file `main` lacks.
+git checkout -q --detach "$MAIN"
+echo 'rel <- function() 3' > R/rel.R
+commit 'feat: Add rel() on the release line'
+REL=$(git rev-parse HEAD)
+git checkout -q --detach "$MAIN"
+sed -i 's/releases_from: main/releases_from: "v9.9-x-rel"/' scripts/series.yaml
+commit 'chore: Release v9.9-x from v9.9-x-rel'
+DECL=$(git rev-parse HEAD)
+git checkout -q main
+git push -q upstream "$REL:refs/heads/v9.9-x-rel" "$DECL:refs/heads/main"
+OUT=$SCRATCH/prepare-rel
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "the run finishes" "$out" "EXIT=0"
+has "the review is against the release branch in the canonical repository" "$out" \
+  "review: what v9.9-x-fwd-green changes against v9.9-x-rel ${REL:0:7}, outside the engine"
+has "so it shows what the release branch has and the forward lacks" "$(cat "$OUT/review.stat")" "R/rel.R"
+hasnt "and not what only main changed" "$(cat "$OUT/review.stat")" "scripts/series.yaml"
+# The canonical repository without the branch: the fork's mirror of it, said so.
+git push -q upstream :refs/heads/v9.9-x-rel
+git push -q origin "$REL:refs/heads/v9.9-x-rel"
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "without it in the canonical repository, the run finishes" "$out" "EXIT=0"
+has "it falls back to the fork's mirror, and says so" "$out" \
+  "could not read v9.9-x-rel from upstream; reviewing against the mirror origin/v9.9-x-rel"
+has "and reviews against it" "$out" \
+  "review: what v9.9-x-fwd-green changes against v9.9-x-rel ${REL:0:7}, outside the engine"
+# Neither: `main`, said so.
+git push -q origin :refs/heads/v9.9-x-rel
+out=$(run scripts/series-cutover.sh v9.9-x --prepare --out "$OUT")
+[ -z "${KEEP:-}" ] || echo "$out"
+has "without it anywhere, the run finishes" "$out" "EXIT=0"
+has "it says the branch could not be read" "$out" \
+  "could not read v9.9-x-rel, the branch v9.9-x releases from, from upstream or origin; reviewing against main"
+has "and reviews against main" "$out" "review: what v9.9-x-fwd-green changes against main ${DECL:0:7}, outside the engine"
+git push -q -f upstream "$MAIN:refs/heads/main"
+git fetch -q --prune upstream
 
 echo
 is "no run called gh" "$(cat "$GH_LOG")" ""
