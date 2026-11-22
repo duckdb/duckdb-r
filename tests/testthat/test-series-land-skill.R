@@ -2,7 +2,10 @@
 # branch and pushes to it, so it must stop before touching anything unless
 # `--status` printed READY, and put the freeze back whatever the push did
 # (.claude/skills/series-land/SKILL.md).
-# The block is read off the skill by the marker above it and run with bash in a
+# Its forward-merge block, in step 8, merges a release branch into the newer
+# line, and must leave `DESCRIPTION` and `NEWS.md` as the merge drivers mean
+# them even where git runs no driver, and the engine the newer line's.
+# Each block is read off the skill by the marker above it and run with bash in a
 # scratch repository, `scripts/series-land.sh` and `gh` stubbed.
 #
 # The skill lives in the checkout, so this runs from one and skips under
@@ -193,4 +196,111 @@ test_that("the fast-forward block puts the freeze back when the push is refused"
   expect_true(
     grep("enforcement=disabled", log) < grep("enforcement=active", log)
   )
+})
+
+# A scratch checkout whose `upstream` is a bare repository with `main` and the
+# release branch `v2.0-cyanoptera`, the scripts the forward-merge block runs
+# copied from this checkout, and a `scripts/series-land.sh` that names the
+# release branch. `main` leaves `DESCRIPTION` and `NEWS.md` alone since the
+# merge base, so git runs no driver on them (duckdb/duckdb-r#3056), and each
+# side vendors its own engine.
+local_forward <- function(env = parent.frame()) {
+  dir <- withr::local_tempdir(.local_envir = env)
+  withr::local_dir(dir, .local_envir = env)
+  scripts <- file.path(
+    root,
+    "scripts",
+    c(
+      "setup-git.sh",
+      "merge-version.sh",
+      "merge-news.sh",
+      "series-merge-forward.sh",
+      "series-lib.sh",
+      "series-config.sh"
+    )
+  )
+  dir.create(file.path(dir, "scripts"))
+  file.copy(scripts, file.path(dir, "scripts"))
+  sh(
+    "set -e
+    url=https://github.com/duckdb/duckdb-r/compare
+    git init -q --bare -b main upstream.git
+    git init -q -b main work
+    cd work
+    git config user.name Test
+    git config user.email test@example.invalid
+    git config commit.gpgsign false
+    mkdir -p scripts src/duckdb
+    cp ../scripts/* scripts/
+    printf '#!/bin/bash\\necho v2.0-cyanoptera\\n' > scripts/series-land.sh
+    chmod +x scripts/*.sh
+    printf 'DESCRIPTION merge=ours-version\\nNEWS.md merge=news\\n' > .gitattributes
+    printf 'Package: duckdb\\nVersion: 2.0.0.9000\\n' > DESCRIPTION
+    printf '# duckdb 2.0.0\\n\\n- The release.\\n' > NEWS.md
+    echo base > src/duckdb/engine
+    echo base > R.R
+    git add -A
+    git commit -qm base
+    git switch -q -c v2.0-cyanoptera
+    echo v2.0 > src/duckdb/engine
+    git commit -qam 'vendor: Update vendored sources to duckdb/duckdb@1111111'
+    printf 'Package: duckdb\\nVersion: 2.0.0.9001\\nConfig/duckdb/upstream: 1111111\\n' > DESCRIPTION
+    printf '# duckdb (development version)\\n\\nCommits since v2.0.0.9001: <%s/v2.0.0.9001...v2.0-cyanoptera>.\\n\\n\\n# duckdb 2.0.0.9001\\n\\n- The landing.\\n\\n\\n# duckdb 2.0.0\\n\\n- The release.\\n' \"$url\" > NEWS.md
+    git commit -qam 'chore: Bump version to 2.0.0.9001'
+    git tag -a -m 'duckdb 2.0.0.9001' v2.0.0.9001
+    git switch -q main
+    echo main > src/duckdb/engine
+    echo main > R.R
+    git commit -qam 'main moves on'
+    git remote add upstream ../upstream.git
+    git push -q upstream main v2.0-cyanoptera v2.0.0.9001"
+  )
+  withr::local_dir(file.path(dir, "work"), .local_envir = env)
+  writeLines(
+    skill_block(skill, "<!-- series-land: forward-merge block -->"),
+    file.path(dir, "block.sh")
+  )
+  dir
+}
+
+test_that("the forward-merge block applies the merge drivers where git runs none", {
+  skip_if_not(
+    file.exists(skill),
+    "Not running from a checkout of the package source."
+  )
+  skip_if(
+    Sys.which("git") == "" || Sys.which("bash") == "",
+    "git or bash is not available."
+  )
+  dir <- local_forward()
+
+  out <- run_block(dir)
+  expect_identical(attr(out, "status"), 0L)
+  expect_identical(
+    as.character(sh(
+      "git rev-parse -q --verify MERGE_HEAD >/dev/null && echo merging"
+    )),
+    "merging"
+  )
+  expect_identical(
+    as.character(sh("git diff --name-only --diff-filter=U")),
+    character()
+  )
+
+  description <- sh("git show :DESCRIPTION")
+  expect_true("Version: 2.0.0.9001" %in% description)
+  expect_false(any(grepl("^Config/duckdb/upstream:", description)))
+
+  news <- sh("git show :NEWS.md")
+  expect_identical(
+    sub("^# duckdb ", "", grep("^# duckdb ", news, value = TRUE)),
+    c("(development version)", "2.0.0.9001", "2.0.0")
+  )
+  expect_true(
+    "Commits since v2.0.0.9001: <https://github.com/duckdb/duckdb-r/compare/v2.0.0.9001...main>." %in%
+      news
+  )
+
+  expect_identical(as.character(sh("git show :src/duckdb/engine")), "main")
+  expect_identical(as.character(sh("git show :R.R")), "main")
 })
