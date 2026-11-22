@@ -168,6 +168,11 @@ This file is what names the contents, so nothing here is an orphan.
   before and after #2890 gave the atomic classes per-element methods that skip the guard.
   Supports [`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md).
 
+* [`2026-11-22-each-timing-refit/`](2026-11-22-each-timing-refit/):
+  how long each of 670 commits of one landing took in `each-rcc`, against the planner's cost model,
+  and the constants that fit it.
+  Supports [`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md).
+
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
 and link it from the leaf that relies on it.

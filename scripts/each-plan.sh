@@ -59,16 +59,19 @@
 #                         fewest-legs plan, to shorten wall clock
 #                         (default: 1.5; 1.0 disables rebalancing)
 #   SETUP_MINUTES       - per-leg checkout, R and dependency install (default: 5)
-#   FULL_BUILD_MINUTES  - a build on an empty ccache (default: 40)
+#   FULL_BUILD_MINUTES  - a build on an empty ccache (default: 48)
 #   FLOOR_MINUTES       - per-commit floor: link, install, R CMD check, gates
-#                         (default: 6)
+#                         (default: 9.2)
 #   OBJECT_SECONDS      - marginal cost of recompiling one unity object
-#                         (default: 9.7)
+#                         (default: 10)
 #
-# The four constants are fitted to the 29 commits of runs 30406932093
-# (main-fwd-dev, 24 commits over two legs) and 30422580063
-# (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
-# builds; see handbook/operations/ci/per-commit/planning/README.md. Every leg still records
+# FULL, FLOOR and OBJECT_SECONDS are fitted to the 670 commits recorded by run
+# 44932694459 (main-land-dev, 41 legs) and its follow-up 44932760627,
+# RMSE 4.5 min (the constants before, fitted to 29 commits of runs
+# 30406932093 and 30422580063, give 6.3 on the same records and under-predict
+# by 4.1 min a commit); SETUP is what those jobs spent outside the build loop.
+# See handbook/operations/ci/per-commit/planning/README.md and
+# experiments/2026-11-22-each-timing-refit/. Every leg still records
 # duration_seconds per commit, in the record it publishes and in its
 # `each-logs-*` artifact, so the fit can be redone from a wider range at any
 # time.
@@ -86,9 +89,9 @@ MAX_PARALLEL="${MAX_PARALLEL:-8}"
 MAX_COMMITS="${MAX_COMMITS:-0}"
 SPLIT_FACTOR="${SPLIT_FACTOR:-1.5}"
 SETUP_MINUTES="${SETUP_MINUTES:-5}"
-FULL_BUILD_MINUTES="${FULL_BUILD_MINUTES:-40}"
-FLOOR_MINUTES="${FLOOR_MINUTES:-6}"
-OBJECT_SECONDS="${OBJECT_SECONDS:-9.7}"
+FULL_BUILD_MINUTES="${FULL_BUILD_MINUTES:-48}"
+FLOOR_MINUTES="${FLOOR_MINUTES:-9.2}"
+OBJECT_SECONDS="${OBJECT_SECONDS:-10}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=series-lib.sh

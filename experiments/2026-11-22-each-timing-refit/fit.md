@@ -1,0 +1,283 @@
+``` r
+# Refits the per-commit cost model of scripts/each-partition.py to data.tsv,
+# and replays the plan of run 44932694459 under the old and the new constants.
+# Handbook: handbook/operations/ci/per-commit/planning/README.md
+
+d <- read.delim("data.tsv")
+m <- d[!is.na(d$minutes), ]
+m$cold <- m$pos == 1
+table(run = m$run, cold = m$cold)
+#>              cold
+#> run           FALSE TRUE
+#>   44932694459   571   41
+#>   44932760627    38   20
+
+# The model: the first commit of a leg pays FULL, every later one
+# FLOOR + OBJECT_SECONDS * objects, capped at FULL.
+predict_minutes <- function(p, objects, cold) {
+  ifelse(
+    cold,
+    p[["full"]],
+    pmin(p[["floor"]] + p[["objsec"]] * objects / 60, p[["full"]])
+  )
+}
+rmse <- function(p, x) {
+  sqrt(mean((x$minutes - predict_minutes(p, x$objects, x$cold))^2))
+}
+bias <- function(p, x) mean(x$minutes - predict_minutes(p, x$objects, x$cold))
+
+old <- c(full = 40, floor = 6, objsec = 9.7)
+sse <- function(v) {
+  sum(
+    (m$minutes -
+      predict_minutes(
+        c(full = v[1], floor = v[2], objsec = v[3]),
+        m$objects,
+        m$cold
+      ))^2
+  )
+}
+fit <- optim(c(40, 6, 9.7), sse)
+round(setNames(fit$par, names(old)), 2)
+#>   full  floor objsec 
+#>  47.73   9.32   9.99
+new <- c(full = 48, floor = 9.2, objsec = 10)
+
+# Old against new, over all records, the warm ones and the cold ones.
+sapply(list(old = old, new = new), function(p) {
+  c(
+    rmse_all = rmse(p, m),
+    rmse_warm = rmse(p, m[!m$cold, ]),
+    rmse_cold = rmse(p, m[m$cold, ]),
+    bias_all = bias(p, m)
+  )
+}) |>
+  round(2)
+#>             old  new
+#> rmse_all   6.29 4.49
+#> rmse_warm  5.61 4.20
+#> rmse_cold 10.97 6.74
+#> bias_all   4.12 0.06
+
+# Cold builds: flat, and independent of what the commit changed.
+summary(m$minutes[m$cold])
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>   34.95   43.92   46.03   48.68   56.30   62.02
+cor(m$minutes[m$cold], m$objects[m$cold])
+#> [1] -0.036268
+
+# Warm builds by invalidated objects: measured mean against both models.
+w <- m[!m$cold, ]
+w$bin <- cut(w$objects, c(-1, 2, 5, 20, 40, 80, 160, 230, Inf))
+do.call(
+  rbind,
+  lapply(split(w, w$bin), function(x) {
+    data.frame(
+      n = nrow(x),
+      measured = mean(x$minutes),
+      p10 = unname(quantile(x$minutes, 0.1)),
+      p90 = unname(quantile(x$minutes, 0.9)),
+      old = mean(predict_minutes(old, x$objects, FALSE)),
+      new = mean(predict_minutes(new, x$objects, FALSE))
+    )
+  })
+) |>
+  round(1)
+#>             n measured  p10  p90  old  new
+#> (-1,2]    104      9.2  7.8 10.8  6.3  9.5
+#> (2,5]     250      9.5  7.6 11.4  6.5  9.7
+#> (5,20]     83     11.3  8.6 14.8  7.9 11.2
+#> (20,40]    34     15.9 12.4 18.5 10.4 13.7
+#> (40,80]    31     21.3 17.0 25.9 13.9 17.4
+#> (80,160]   19     33.3 26.5 43.5 30.9 34.9
+#> (160,230]  54     40.7 30.3 52.4 40.0 45.9
+#> (230,Inf]  34     46.0 39.7 54.3 40.0 48.0
+
+# A separate cap for warm builds, below the cold build, buys almost nothing.
+sse4 <- function(v) {
+  sum(
+    (m$minutes -
+      ifelse(m$cold, v[1], pmin(v[2] + v[3] * m$objects / 60, v[4])))^2
+  )
+}
+fit4 <- optim(c(48, 9, 10, 46), sse4)
+round(
+  c(
+    setNames(fit4$par, c("full", "floor", "objsec", "warm_cap")),
+    rmse = sqrt(fit4$value / nrow(m))
+  ),
+  2
+)
+#>     full    floor   objsec warm_cap     rmse 
+#>    48.68     9.31    10.04    46.02     4.46
+
+# Job overhead outside the build loop, on the legs that built every commit
+# they started (a leg that killed a commit at its deadline spent the rest of
+# the job in that commit): setup, and the steps after the loop.
+jobs <- read.delim("jobs.tsv")
+jobs$shard <- as.integer(sub("shard (\\d+) .*", "\\1", jobs$job))
+jobs$job_minutes <- as.numeric(difftime(
+  as.POSIXct(jobs$completed, "UTC", format = "%Y-%m-%dT%H:%M:%SZ"),
+  as.POSIXct(jobs$started, "UTC", format = "%Y-%m-%dT%H:%M:%SZ"),
+  units = "mins"
+))
+r1 <- d[d$run == 44932694459, ]
+built <- aggregate(minutes ~ shard, r1, sum)
+jobs <- merge(jobs, built)
+jobs$outside <- jobs$job_minutes - jobs$minutes
+summary(jobs$outside[jobs$outside < 10])
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>   2.673   4.312   5.180   4.993   5.772   6.913
+max(jobs$job_minutes)
+#> [1] 306.0667
+
+# Replay: plan run 1's 822 commits with a set of constants, then run every leg
+# through the deadline logic of scripts/each-shard.sh on the measured times.
+# A commit measured warm keeps that time wherever it lands warm; a cold one
+# keeps its own cold time if it has one, else the mean cold build; a commit
+# without a record takes the new model's estimate.
+warm_minutes <- setNames(m$minutes[!m$cold], m$sha[!m$cold])
+cold_minutes <- setNames(m$minutes[m$cold], m$sha[m$cold])
+actual <- function(sha, objects, first) {
+  if (first) {
+    return(
+      if (sha %in% names(cold_minutes)) {
+        cold_minutes[[sha]]
+      } else {
+        mean(cold_minutes)
+      }
+    )
+  }
+  if (sha %in% names(warm_minutes)) {
+    return(warm_minutes[[sha]])
+  }
+  predict_minutes(new, objects, FALSE)
+}
+leg <- function(commits, deadline = 300) {
+  t <- 0
+  last <- 0
+  built <- 0
+  for (k in seq_len(nrow(commits))) {
+    remaining <- deadline - t
+    if (k > 1 && remaining <= last) {
+      break
+    }
+    a <- actual(commits$sha[k], commits$objects[k], k == 1)
+    if (k > 1 && a > remaining) {
+      break
+    }
+    t <- t + a
+    last <- a
+    built <- built + 1
+  }
+  c(commits = nrow(commits), built = built, planned = commits$planned[1])
+}
+items <- r1[order(r1$shard, r1$pos), c("sha", "objects")]
+replay <- function(p) {
+  args <- c(
+    "../../scripts/each-partition.py",
+    "--budget",
+    300,
+    "--setup",
+    5,
+    "--full",
+    p[["full"]],
+    "--floor",
+    p[["floor"]],
+    "--object-seconds",
+    p[["objsec"]],
+    "--max-parallel",
+    20,
+    "--split-factor",
+    1.5
+  )
+  plan <- jsonlite::fromJSON(system2(
+    "python3",
+    args,
+    input = paste(items$sha, items$objects),
+    stdout = TRUE
+  ))
+  legs <- t(sapply(seq_along(plan$shards$commits), function(i) {
+    leg(cbind(plan$shards$commits[[i]], planned = plan$shards$build_minutes[i]))
+  }))
+  c(
+    legs = nrow(legs),
+    complete = sum(legs[, "built"] == legs[, "commits"]),
+    built = sum(legs[, "built"]),
+    longest_planned = max(legs[, "planned"]),
+    makespan = plan$split$after$makespan_minutes,
+    runner = plan$split$after$runner_minutes
+  )
+}
+sapply(list(old = old, new = new), replay)
+#>                     old     new
+#> legs               41.0    61.0
+#> complete            3.0    56.0
+#> built             615.0   816.0
+#> longest_planned   295.8   265.9
+#> makespan          599.1   801.6
+#> runner          11591.2 15467.5
+
+# What run 1 actually did, to check the replay of the old plan against.
+c(
+  legs = length(unique(r1$shard)),
+  built = sum(!is.na(r1$minutes)),
+  complete = sum(tapply(!is.na(r1$minutes), r1$shard, all))
+)
+#>     legs    built complete 
+#>       41      612        3
+```
+
+<sup>Created on 2026-11-22 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+
+<details style="margin-bottom:10px;">
+
+<summary>
+
+Session info
+</summary>
+
+``` r
+sessioninfo::session_info()
+#> ─ Session info ───────────────────────────────────────────────────────────────
+#>  setting  value
+#>  version  R version 4.5.3 (2026-03-11)
+#>  os       Ubuntu 24.04.5 LTS
+#>  system   x86_64, linux-gnu
+#>  ui       X11
+#>  language (EN)
+#>  collate  C.UTF-8
+#>  ctype    C.UTF-8
+#>  tz       Etc/UTC
+#>  date     2026-11-22
+#>  pandoc   3.10.2 @ /usr/local/bin/ (via rmarkdown)
+#>  quarto   1.10.19 @ /usr/local/bin/quarto
+#> 
+#> ─ Packages ───────────────────────────────────────────────────────────────────
+#>  package     * version date (UTC) lib source
+#>  cli           3.6.6   2026-04-09 [1] RSPM
+#>  digest        0.6.39  2025-11-19 [1] RSPM
+#>  evaluate      1.0.5   2025-08-27 [1] RSPM
+#>  fastmap       1.2.0   2024-05-15 [1] RSPM
+#>  fs            2.1.0   2026-04-18 [1] RSPM
+#>  glue          1.8.1   2026-04-17 [1] RSPM
+#>  htmltools     0.5.9   2025-12-04 [1] RSPM
+#>  jsonlite      2.0.0   2025-03-27 [1] RSPM
+#>  knitr         1.52    2026-09-06 [1] RSPM
+#>  lifecycle     1.0.5   2026-01-08 [1] RSPM
+#>  otel          0.3.0   2026-11-07 [1] RSPM
+#>  reprex        2.1.1   2024-07-06 [1] RSPM
+#>  rlang         1.3.0   2026-07-05 [1] RSPM
+#>  rmarkdown     2.32    2026-09-01 [1] RSPM
+#>  sessioninfo   1.2.4   2026-06-04 [1] RSPM
+#>  withr         3.0.3   2026-06-19 [1] RSPM
+#>  xfun          0.62    2026-10-16 [1] RSPM
+#>  yaml          2.3.12  2025-12-10 [1] RSPM
+#> 
+#>  [1] /root/R/x86_64-pc-linux-gnu-library/4.5
+#>  [2] /opt/R/4.5.3/lib/R/library
+#> 
+#> ──────────────────────────────────────────────────────────────────────────────
+```
+
+</details>

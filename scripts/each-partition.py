@@ -68,11 +68,11 @@ def parse_args(argv):
                    help="leg deadline in minutes, excluding job setup")
     p.add_argument("--setup", type=float, default=5.0,
                    help="per-leg checkout, R and dependency install")
-    p.add_argument("--full", type=float, default=40.0,
+    p.add_argument("--full", type=float, default=48.0,
                    help="a build on an empty ccache -- all of sources.mk")
-    p.add_argument("--floor", type=float, default=6.0,
+    p.add_argument("--floor", type=float, default=9.2,
                    help="per-commit link, install, check and gates")
-    p.add_argument("--object-seconds", type=float, default=9.7,
+    p.add_argument("--object-seconds", type=float, default=10.0,
                    help="marginal cost of recompiling one unity object")
     p.add_argument("--max-shards", type=int, default=250)
     p.add_argument("--max-parallel", type=int, default=20)
