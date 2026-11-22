@@ -14,8 +14,8 @@
 # so the leg holding the oldest slice is the one queued first.
 #
 # Why shards instead of one dispatch per commit:
-#   * a leg pays the ~4 min R/dependency setup once for ~20 commits, not once
-#     per commit;
+#   * a leg pays the R/dependency setup (SETUP_MINUTES) once for every commit
+#     that fits its deadline, not once per commit;
 #   * consecutive commits in a leg share the runner's local ccache, where a
 #     typical adjacent vendor commit is ~98% cached (plan/superseded/vendoring-loop.md, A.2);
 #   * the whole batch is one workflow run: one thing to cancel, one set of logs.

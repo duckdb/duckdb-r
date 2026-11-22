@@ -31,8 +31,14 @@ head2=a1a93d5beeff524ebad216187270b539a537357d
 # By SHA, not by `main-land-dev`, which the landing deletes; the commits stay
 # reachable from the branch it landed on, which is the fallback.
 git -C "${repo}" fetch -q origin rcc2
-git -C "${repo}" fetch -q origin "${head1}" "${head2}" 2>/dev/null \
+git -C "${repo}" fetch -q origin "${head1}" "${head2}" \
   || git -C "${repo}" fetch -q origin main
+for sha in "${head1}" "${head2}"; do
+  if ! git -C "${repo}" cat-file -e "${sha}^{commit}" 2>/dev/null; then
+    echo "collect.sh: commit ${sha} is not reachable from origin, by SHA or from main" >&2
+    exit 1
+  fi
+done
 git -C "${repo}" worktree add -q --detach "${work}/tip" "${head1}"
 tip="${work}/tip"
 
