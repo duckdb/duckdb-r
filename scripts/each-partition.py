@@ -70,7 +70,7 @@ def parse_args(argv):
                    help="per-leg checkout, R and dependency install")
     p.add_argument("--full", type=float, default=48.0,
                    help="a build on an empty ccache -- all of sources.mk")
-    p.add_argument("--floor", type=float, default=9.2,
+    p.add_argument("--floor", type=float, default=9.3,
                    help="per-commit link, install, check and gates")
     p.add_argument("--object-seconds", type=float, default=10.0,
                    help="marginal cost of recompiling one unity object")
@@ -89,7 +89,7 @@ WORTH_IT_MINUTES = 1.0
 # Deadlines pass 2 tries, spread over `(0, --budget]`. Neighbouring deadlines
 # usually cut in the same places and collapse to one plan, so this is a
 # resolution knob and not a work multiplier: on the 300-minute default it steps
-# by ~0.6 min, well under the ~6 min the cheapest single commit weighs.
+# by ~0.6 min, well under the ~9 min the cheapest single commit weighs.
 DEADLINE_SAMPLES = 512
 
 

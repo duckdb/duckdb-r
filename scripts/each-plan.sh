@@ -61,7 +61,7 @@
 #   SETUP_MINUTES       - per-leg checkout, R and dependency install (default: 5)
 #   FULL_BUILD_MINUTES  - a build on an empty ccache (default: 48)
 #   FLOOR_MINUTES       - per-commit floor: link, install, R CMD check, gates
-#                         (default: 9.2)
+#                         (default: 9.3)
 #   OBJECT_SECONDS      - marginal cost of recompiling one unity object
 #                         (default: 10)
 #
@@ -90,7 +90,7 @@ MAX_COMMITS="${MAX_COMMITS:-0}"
 SPLIT_FACTOR="${SPLIT_FACTOR:-1.5}"
 SETUP_MINUTES="${SETUP_MINUTES:-5}"
 FULL_BUILD_MINUTES="${FULL_BUILD_MINUTES:-48}"
-FLOOR_MINUTES="${FLOOR_MINUTES:-9.2}"
+FLOOR_MINUTES="${FLOOR_MINUTES:-9.3}"
 OBJECT_SECONDS="${OBJECT_SECONDS:-10}"
 
 here="$(cd "$(dirname "$0")" && pwd)"

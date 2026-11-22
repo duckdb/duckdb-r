@@ -41,7 +41,8 @@ behaviour back.
 
 ## Reading a failure without opening the log
 
-A leg is one job for up to ~20 commits and up to five hours of output.
+A leg is one job for as many commits as fit its deadline
+([`planning/`](/handbook/operations/ci/per-commit/planning/README.md)), up to five hours of output.
 The leg's job summary says which commit went red and why.
 The result table names the stages that failed —
 a commit's cell reads `failure (check, pkgdown)`, not just `failure` —

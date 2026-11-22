@@ -20,7 +20,7 @@ Four constants, each measuring one thing:
 |---|---|---|
 | `SETUP_MINUTES` | 5 | checkout, `install/action.yml`, `style` — paid once per leg |
 | `FULL_BUILD_MINUTES` | 48 | a build on an empty ccache: every object of `src/include/sources.mk` |
-| `FLOOR_MINUTES` | 9.2 | one commit with nothing to recompile: link, install, `R CMD check`, the gates |
+| `FLOOR_MINUTES` | 9.3 | one commit with nothing to recompile: link, install, `R CMD check`, the gates |
 | `OBJECT_SECONDS` | 10 | marginal cost of recompiling one unity object |
 
 The **first** commit of a leg pays `FULL` rather than its own weight,
@@ -33,7 +33,7 @@ building the world.
 itself against, since its deadline starts after setup;
 `estimate_minutes` is what the job takes.
 
-`FULL`, `FLOOR` and `OBJECT_SECONDS` are fitted by least squares to the 670 commits recorded by run
+`FULL`, `FLOOR` and `OBJECT_SECONDS` are fitted by least squares, and rounded, to the 670 commits recorded by run
 [44932694459](https://github.com/krlmlr/duckdb-r/actions/runs/44932694459)
 (`main-land-dev`, 41 legs, 612 commits built)
 and its follow-up [44932760627](https://github.com/krlmlr/duckdb-r/actions/runs/44932760627)
@@ -43,18 +43,18 @@ and its follow-up [44932760627](https://github.com/krlmlr/duckdb-r/actions/runs/
 
 | objects | commits | measured mean | 10th to 90th percentile | predicted |
 |---|---|---|---|---|
-| 0 to 2 | 104 | 9.2 | 7.8 to 10.8 | 9.5 |
-| 3 to 5 | 250 | 9.5 | 7.6 to 11.4 | 9.7 |
-| 6 to 20 | 83 | 11.3 | 8.6 to 14.8 | 11.2 |
-| 21 to 40 | 34 | 15.9 | 12.4 to 18.5 | 13.7 |
-| 41 to 80 | 31 | 21.3 | 17.0 to 25.9 | 17.4 |
-| 81 to 160 | 19 | 33.3 | 26.5 to 43.5 | 34.9 |
-| 161 to 230 | 54 | 40.7 | 30.3 to 52.4 | 45.9 |
+| 0 to 2 | 104 | 9.2 | 7.8 to 10.8 | 9.6 |
+| 3 to 5 | 250 | 9.5 | 7.6 to 11.4 | 9.8 |
+| 6 to 20 | 83 | 11.3 | 8.6 to 14.8 | 11.3 |
+| 21 to 40 | 34 | 15.9 | 12.4 to 18.5 | 13.8 |
+| 41 to 80 | 31 | 21.3 | 17.0 to 25.9 | 17.5 |
+| 81 to 160 | 19 | 33.3 | 26.5 to 43.5 | 35.0 |
+| 161 to 230 | 54 | 40.7 | 30.3 to 52.4 | 46.0 |
 | over 230 | 34 | 46.0 | 39.7 to 54.3 | 48.0 (capped) |
 
 The 61 cold builds came in at 35 to 62 minutes, mean 48.7,
-and are independent of what their commit changed (correlation −0.04), as the model says;
-`FULL` is their mean, rounded down.
+and are independent of what their commit changed (correlation −0.04), as the model says.
+The fit puts `FULL` at 47.7, and the planner takes 48.
 A separate cap for warm builds would sit at 46 minutes and lower the RMSE by 0.03,
 so the model keeps one.
 `SETUP` is what the jobs spent outside the build loop, 2.7 to 6.9 minutes, median 5.2,
@@ -67,14 +67,14 @@ and [30422580063](https://github.com/krlmlr/duckdb-r/actions/runs/30422580063)
 and give an RMSE of 6.3 on the same 670 records,
 under-predicting by 4.1 minutes a commit.
 Run 44932694459 packed 40 of its 41 legs to the 300-minute deadline, at 256 to 296 planned build minutes,
-and their commits add up to 267 to 428 minutes, median 368,
-counting the refitted estimate for each commit no leg reached.
+and their commits add up to 266.7 to 428.2 minutes, median 367.3,
+counting the mean cold build or the refitted estimate for each commit no leg reached in its place.
 Only 3 legs built every commit they were given,
 and 210 of the 822 planned commits were left to the follow-up.
 Replanned with the refitted constants and replayed against the measured times
 through [`each-shard.sh`](/scripts/each-shard.sh)'s deadline logic,
 the same 822 commits take 61 legs, 56 of which build every commit, and 816 commits are built,
-for 1.33 times the runner minutes.
+for 1.34 times the runner minutes.
 The replay is in sample, so it is the best case;
 the record, its data and the scripts that fit and replay it are
 [`experiments/2026-11-22-each-timing-refit/`](/experiments/2026-11-22-each-timing-refit/README.md).
@@ -103,7 +103,7 @@ runner-minutes to serve as the cost baseline.
 It is a poor answer for wall clock at every size, and for a small batch it is
 the *worst* answer.
 The default leg deadline is 300 minutes, a leg's first commit pays the
-cold build and every cheap commit after it ~9.5,
+cold build and every cheap commit after it ~10,
 so 45 commits take two legs, and the branch tip waits five hours for a
 verdict that 20 legs would deliver in about an hour.
 This is the common case, not the corner case:
@@ -301,8 +301,8 @@ Three properties of the cost model are worth knowing before trusting a plan:
   one, and the model charges the same `OBJECT_SECONDS` for both.
   The fit absorbs this on average — a wide-header commit reaches mostly `ub_*`
   objects and a narrow one mostly leaves — but it is why the residuals go one
-  way at 41 to 80 objects (21.3 measured against 17.4 predicted)
-  and the other at 161 to 230 (40.7 against 45.9).
+  way at 41 to 80 objects (21.3 measured against 17.5 predicted)
+  and the other at 161 to 230 (40.7 against 46.0).
   Weighting each object by its translation unit's size would remove the bias;
   `each-cost.py` already has the graph it would need.
 * **The fit is one landing's vendor commits**, on one engine line.

@@ -27,6 +27,8 @@ Both runs planned with `FULL` 40, `FLOOR` 6, `OBJECT_SECONDS` 9.7 and `SETUP` 5.
   run, shard, position in the shard, commit, invalidated objects, and minutes (empty where the commit has no record).
   The recomputed plans match the job names of both runs shard for shard,
   in commit count and in estimate.
+  The committed `data.tsv` is the snapshot the planner's constants were fitted to;
+  re-running `collect.sh` picks up the records published since and changes it.
 * [`jobs.tsv`](jobs.tsv) is the start and end of every leg of run 44932694459, from the Actions API.
 * [`fit.R`](fit.R) fits the model, compares it with the constants before,
   and replays run 44932694459's commits through the planner and the deadline logic of
@@ -36,7 +38,7 @@ Both runs planned with `FULL` 40, `FLOOR` 6, `OBJECT_SECONDS` 9.7 and `SETUP` 5.
 ## Findings
 
 Least squares over the 670 records gives `FULL` 47.7, `FLOOR` 9.3 and `OBJECT_SECONDS` 10.0;
-the planner takes 48, 9.2 and 10.
+the planner takes 48, 9.3 and 10.
 The RMSE falls from 6.3 to 4.5 minutes, and the mean error from 4.1 minutes a commit to zero.
 The constants before under-predict every kind of commit:
 a commit with nothing much to recompile by 3 minutes, a cold build by 9.
@@ -60,7 +62,7 @@ and a wide commit after a cheap one does not fit.
 Replanned and replayed against the measured times,
 the old constants reproduce the run: 41 legs, 3 of which build every commit, 615 commits built against 612 measured.
 The refitted ones give 61 legs, 56 of which build every commit, and 816 of 822 commits built,
-for 1.33 times the runner minutes.
+for 1.34 times the runner minutes.
 That replay reuses the data the constants were fitted to, so it is the best case.
 
 ## Replicating

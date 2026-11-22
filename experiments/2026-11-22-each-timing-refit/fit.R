@@ -1,5 +1,8 @@
 # Refits the per-commit cost model of scripts/each-partition.py to data.tsv,
 # and replays the plan of run 44932694459 under the old and the new constants.
+# The committed data.tsv is the snapshot the planner's constants were fitted
+# to; re-running collect.sh picks up later records and changes it, and with it
+# every number below.
 # Handbook: handbook/operations/ci/per-commit/planning/README.md
 
 d <- read.delim("data.tsv")
@@ -34,7 +37,7 @@ sse <- function(v) {
 }
 fit <- optim(c(40, 6, 9.7), sse)
 round(setNames(fit$par, names(old)), 2)
-new <- c(full = 48, floor = 9.2, objsec = 10)
+new <- c(full = 48, floor = 9.3, objsec = 10)
 
 # Old against new, over all records, the warm ones and the cold ones.
 sapply(list(old = old, new = new), function(p) {
@@ -188,3 +191,14 @@ c(
   built = sum(!is.na(r1$minutes)),
   complete = sum(tapply(!is.na(r1$minutes), r1$shard, all))
 )
+
+# Run 1's legs packed to the deadline: what the old constants planned for each,
+# and what its commits add up to, measured where a record exists and taken
+# from `actual()` where none does.
+r1$planned <- predict_minutes(old, r1$objects, r1$pos == 1)
+r1$actual <- mapply(actual, r1$sha, r1$objects, r1$pos == 1)
+per_leg <- aggregate(cbind(planned, actual) ~ shard, r1, sum)
+packed <- per_leg[per_leg$planned > 250, ]
+nrow(packed)
+round(rbind(planned = range(packed$planned), actual = range(packed$actual)), 1)
+round(median(packed$actual), 1)

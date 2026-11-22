@@ -1,6 +1,9 @@
 ``` r
 # Refits the per-commit cost model of scripts/each-partition.py to data.tsv,
 # and replays the plan of run 44932694459 under the old and the new constants.
+# The committed data.tsv is the snapshot the planner's constants were fitted
+# to; re-running collect.sh picks up later records and changes it, and with it
+# every number below.
 # Handbook: handbook/operations/ci/per-commit/planning/README.md
 
 d <- read.delim("data.tsv")
@@ -41,7 +44,7 @@ fit <- optim(c(40, 6, 9.7), sse)
 round(setNames(fit$par, names(old)), 2)
 #>   full  floor objsec 
 #>  47.73   9.32   9.99
-new <- c(full = 48, floor = 9.2, objsec = 10)
+new <- c(full = 48, floor = 9.3, objsec = 10)
 
 # Old against new, over all records, the warm ones and the cold ones.
 sapply(list(old = old, new = new), function(p) {
@@ -53,11 +56,11 @@ sapply(list(old = old, new = new), function(p) {
   )
 }) |>
   round(2)
-#>             old  new
-#> rmse_all   6.29 4.49
-#> rmse_warm  5.61 4.20
-#> rmse_cold 10.97 6.74
-#> bias_all   4.12 0.06
+#>             old   new
+#> rmse_all   6.29  4.49
+#> rmse_warm  5.61  4.20
+#> rmse_cold 10.97  6.74
+#> bias_all   4.12 -0.03
 
 # Cold builds: flat, and independent of what the commit changed.
 summary(m$minutes[m$cold])
@@ -84,13 +87,13 @@ do.call(
 ) |>
   round(1)
 #>             n measured  p10  p90  old  new
-#> (-1,2]    104      9.2  7.8 10.8  6.3  9.5
-#> (2,5]     250      9.5  7.6 11.4  6.5  9.7
-#> (5,20]     83     11.3  8.6 14.8  7.9 11.2
-#> (20,40]    34     15.9 12.4 18.5 10.4 13.7
-#> (40,80]    31     21.3 17.0 25.9 13.9 17.4
-#> (80,160]   19     33.3 26.5 43.5 30.9 34.9
-#> (160,230]  54     40.7 30.3 52.4 40.0 45.9
+#> (-1,2]    104      9.2  7.8 10.8  6.3  9.6
+#> (2,5]     250      9.5  7.6 11.4  6.5  9.8
+#> (5,20]     83     11.3  8.6 14.8  7.9 11.3
+#> (20,40]    34     15.9 12.4 18.5 10.4 13.8
+#> (40,80]    31     21.3 17.0 25.9 13.9 17.5
+#> (80,160]   19     33.3 26.5 43.5 30.9 35.0
+#> (160,230]  54     40.7 30.3 52.4 40.0 46.0
 #> (230,Inf]  34     46.0 39.7 54.3 40.0 48.0
 
 # A separate cap for warm builds, below the cold build, buys almost nothing.
@@ -214,9 +217,9 @@ sapply(list(old = old, new = new), replay)
 #> legs               41.0    61.0
 #> complete            3.0    56.0
 #> built             615.0   816.0
-#> longest_planned   295.8   265.9
-#> makespan          599.1   801.6
-#> runner          11591.2 15467.5
+#> longest_planned   295.8   267.6
+#> makespan          599.1   802.8
+#> runner          11591.2 15534.0
 
 # What run 1 actually did, to check the replay of the old plan against.
 c(
@@ -226,6 +229,22 @@ c(
 )
 #>     legs    built complete 
 #>       41      612        3
+
+# Run 1's legs packed to the deadline: what the old constants planned for each,
+# and what its commits add up to, measured where a record exists and taken
+# from `actual()` where none does.
+r1$planned <- predict_minutes(old, r1$objects, r1$pos == 1)
+r1$actual <- mapply(actual, r1$sha, r1$objects, r1$pos == 1)
+per_leg <- aggregate(cbind(planned, actual) ~ shard, r1, sum)
+packed <- per_leg[per_leg$planned > 250, ]
+nrow(packed)
+#> [1] 40
+round(rbind(planned = range(packed$planned), actual = range(packed$actual)), 1)
+#>          [,1]  [,2]
+#> planned 256.2 295.8
+#> actual  266.7 428.2
+round(median(packed$actual), 1)
+#> [1] 367.3
 ```
 
 <sup>Created on 2026-11-22 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>

@@ -28,7 +28,11 @@ base=8a776546a172a7d30ff2ca98aa2f4d2c426ea64d  # main-land-green when run1 plann
 head1=5405e828f060337d257cbd47f7152d9a2ac24f16
 head2=a1a93d5beeff524ebad216187270b539a537357d
 
-git -C "${repo}" fetch -q origin rcc2 main-land-dev
+# By SHA, not by `main-land-dev`, which the landing deletes; the commits stay
+# reachable from the branch it landed on, which is the fallback.
+git -C "${repo}" fetch -q origin rcc2
+git -C "${repo}" fetch -q origin "${head1}" "${head2}" 2>/dev/null \
+  || git -C "${repo}" fetch -q origin main
 git -C "${repo}" worktree add -q --detach "${work}/tip" "${head1}"
 tip="${work}/tip"
 
