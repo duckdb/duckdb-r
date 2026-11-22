@@ -19,7 +19,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.99.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Connect to a DuckDB database instance</h1>
-      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-2.0.1/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/cran-2.0.1/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/cran-2.0.1/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
       <div class="d-none name"><code>duckdb.Rd</code></div>
     </div>
 
@@ -219,10 +219,11 @@ Each array is one row in the matrix.</p></dd>
 
 
 <dt id="arg-geometry">geometry<a class="anchor" aria-label="anchor" href="#arg-geometry"></a></dt>
-<dd><p>How geometry columns should be returned.
+<dd><p>How <code>GEOMETRY</code> and <code>GEOGRAPHY</code> columns should be returned.
 There are two options: <code>"blob"</code> and <code>"wk"</code>.
-If <code>"blob"</code> is selected, geometry columns are returned as a list of raw vectors containing WKB data.
-If <code>"wk"</code> is selected, geometry columns are returned as <span class="pkg">wk</span> <code>wk_wkb</code> vectors.
+If <code>"blob"</code> is selected, these columns are returned as a list of raw vectors containing WKB data.
+If <code>"wk"</code> is selected, these columns are returned as <span class="pkg">wk</span> <code>wk_wkb</code> vectors,
+marked geodesic for <code>GEOGRAPHY</code>.
 Use <code><a href="https://paleolimbot.github.io/wk/reference/wk_handle.html" class="external-link">wk::wk_handle()</a></code> or <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> to convert to other geometry formats.</p></dd>
 
 

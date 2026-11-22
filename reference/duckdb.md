@@ -191,10 +191,11 @@ dbDisconnect(conn, ..., shutdown = TRUE)
 
 - geometry:
 
-  How geometry columns should be returned. There are two options:
-  `"blob"` and `"wk"`. If `"blob"` is selected, geometry columns are
-  returned as a list of raw vectors containing WKB data. If `"wk"` is
-  selected, geometry columns are returned as wk `wk_wkb` vectors. Use
+  How `GEOMETRY` and `GEOGRAPHY` columns should be returned. There are
+  two options: `"blob"` and `"wk"`. If `"blob"` is selected, these
+  columns are returned as a list of raw vectors containing WKB data. If
+  `"wk"` is selected, these columns are returned as wk `wk_wkb` vectors,
+  marked geodesic for `GEOGRAPHY`. Use
   [`wk::wk_handle()`](https://paleolimbot.github.io/wk/reference/wk_handle.html)
   or
   [`sf::st_as_sfc()`](https://r-spatial.github.io/sf/reference/st_as_sfc.html)

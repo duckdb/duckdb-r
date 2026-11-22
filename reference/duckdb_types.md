@@ -189,8 +189,8 @@ and the
 
 The
 [`GEOMETRY`](https://duckdb.org/docs/current/sql/data_types/geometry)
-type, its coordinate reference system (CRS), and the `spatial`
-extension's own types:
+and `GEOGRAPHY` types, their coordinate reference system (CRS), and the
+`spatial` extension's own types:
 
 - **`GEOMETRY`** reads as WKB. With `geometry = "blob"`, the default, it
   reads as a list of raw vectors; with `geometry = "wk"`, as `wk_wkb`,
@@ -203,6 +203,14 @@ extension's own types:
   Arrow carries the column as GeoArrow WKB with its CRS, in both
   directions (see
   [duckdb_types_arrow](https://r.duckdb.org/reference/duckdb_types_arrow.md)).
+
+- **`GEOGRAPHY`**, WKB with spherical edges, reads as `GEOMETRY` does,
+  and with `geometry = "wk"` its `wk_wkb` also carries
+  `geodesic = TRUE`, which
+  [`wk::wk_is_geodesic()`](https://paleolimbot.github.io/wk/reference/wk_is_geodesic.html)
+  reports. Its WKT writes it through `field.types`, as `GEOMETRY`'s
+  does. The type is core since DuckDB 2.1
+  ([duckdb/duckdb#28092](https://github.com/duckdb/duckdb/pull/28092)).
 
 - **WKT writes `GEOMETRY`.** A `character` column of WKT, as
   [`sf::st_as_text()`](https://r-spatial.github.io/sf/reference/st_as_text.html)

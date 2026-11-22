@@ -11,7 +11,7 @@ See duckdb_types_arrow for a description of the conversion via Arrow."><meta pro
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.99.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@ See duckdb_types_arrow for a description of the conversion via Arrow."><meta pro
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>DuckDB data types in R</h1>
-      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-2.0.1/R/duckdb_types.R" class="external-link"><code>R/duckdb_types.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/duckdb_types.R" class="external-link"><code>R/duckdb_types.R</code></a></small>
       <div class="d-none name"><code>duckdb_types.Rd</code></div>
     </div>
 
@@ -140,13 +140,17 @@ A column of the value's type writes it through <code>field.types</code>.</p></li
 </ul></div>
     <div class="section level2">
     <h2 id="geometry">Geometry<a class="anchor" aria-label="anchor" href="#geometry"></a></h2>
-    <p>The <a href="https://duckdb.org/docs/current/sql/data_types/geometry" class="external-link"><code>GEOMETRY</code></a> type, its coordinate reference system (CRS),
+    <p>The <a href="https://duckdb.org/docs/current/sql/data_types/geometry" class="external-link"><code>GEOMETRY</code></a> and <code>GEOGRAPHY</code> types, their coordinate reference system (CRS),
 and the <code>spatial</code> extension's own types:</p><ul><li><p><strong><code>GEOMETRY</code></strong> reads as WKB.
 With <code>geometry = "blob"</code>, the default, it reads as a list of raw vectors;
 with <code>geometry = "wk"</code>, as <code>wk_wkb</code>, carrying the column's CRS as an attribute, which <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> converts onward, CRS included.
 The type is core since DuckDB 1.5, so reading one needs no extension;
 the geometry functions are the <a href="https://duckdb.org/docs/current/core_extensions/spatial/overview" class="external-link"><code>spatial</code> extension's</a>.
 Arrow carries the column as GeoArrow WKB with its CRS, in both directions (see <a href="duckdb_types_arrow.html">duckdb_types_arrow</a>).</p></li>
+<li><p><strong><code>GEOGRAPHY</code></strong>, WKB with spherical edges, reads as <code>GEOMETRY</code> does,
+and with <code>geometry = "wk"</code> its <code>wk_wkb</code> also carries <code>geodesic = TRUE</code>, which <code><a href="https://paleolimbot.github.io/wk/reference/wk_is_geodesic.html" class="external-link">wk::wk_is_geodesic()</a></code> reports.
+Its WKT writes it through <code>field.types</code>, as <code>GEOMETRY</code>'s does.
+The type is core since DuckDB 2.1 (<a href="https://github.com/duckdb/duckdb/pull/28092" class="external-link">duckdb/duckdb#28092</a>).</p></li>
 <li><p><strong>WKT writes <code>GEOMETRY</code>.</strong>
 A <code>character</code> column of WKT, as <code><a href="https://r-spatial.github.io/sf/reference/st_as_text.html" class="external-link">sf::st_as_text()</a></code> makes it, writes a <code>GEOMETRY</code> column with <code>field.types = c(geom = "GEOMETRY")</code>
 and appends to one with <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code>, because the cast from <code>VARCHAR</code> parses WKT.
