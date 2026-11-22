@@ -77,6 +77,7 @@
 # Then the script prints a summary per layer, written to be the body of the layer's pull request:
 # what was replayed, what was recorded as present, as vendoring only or as an engine change only,
 # which conflicts were resolved, which commits of `main` `2-engine` carries the engine paths of, and the diff stat.
+# Only a stack with a `2-engine` names that layer, apart from the steps that retire a stale one; in one without, the old tip's engine is already the forward's, and `1-main` says so.
 # Last come the pull requests to open, with repository, base, head and title,
 # in the order the session links them into one GitHub stack.
 # The calls that link them are the skill's, since only the pull requests' numbers fill them in.
@@ -707,7 +708,11 @@ section() { # <layer>
         listed vendor "Vendoring only, left out because this layer keeps the engine of \`$S-$X\`:"
         listed engine "Engine changes only, left out because this layer keeps the engine of \`$S-$X\`:"
         listed pick-v 'Vendor commits replayed without their engine paths and `DESCRIPTION`:'
-        listed pick-e 'Replayed without their engine paths, which `2-engine` shows as the forward has them:'
+        if [ -n "${SHA[2-engine]:-}" ]; then
+          listed pick-e 'Replayed without their engine paths, which `2-engine` shows as the forward has them:'
+        else
+          listed pick-e "Replayed without their engine paths, which \`$S-$X\` already has, as the forward does:"
+        fi
       fi
       listed resolved 'Conflicts resolved:'
       ;;
