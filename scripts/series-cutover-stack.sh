@@ -32,7 +32,9 @@
 # The replay spans `main` from the old series' base to the forward's base,
 # each the commit under the seed (`series_seed_subject`, scripts/series-config.sh)
 # and the flavor commits scripts/flavor.sh writes below it, read on `<S>-dev` and on `<S>-fwd-dev`;
-# a `-dev` with no seed takes its merge base with the fork's `main`.
+# a `-dev` with no seed takes its merge base with the fork's copy of the branch the series releases from,
+# its `releases_from` in the fork's `main`'s scripts/series.yaml,
+# and with the fork's `main` where that says `main` or nothing, or where the fork lacks the branch.
 # Where the old base is an ancestor of the forward's base,
 # `main`'s first-parent commits in the span are cherry-picked onto the old tip one by one, with `-x`,
 # a merge against its first parent.
@@ -317,12 +319,28 @@ else
 
   # The base a series stands on: the commit under its seed and the flavor commits below that, as scripts/flavor.sh names them.
   flavor_re='^chore: Update (flavor patch|version) to '
+  # A `-dev` without a seed takes its base from the branch the series releases from,
+  # as scripts/series-cutover.sh reviews against, read in the fork; resolved once, and only where a seed is missing.
+  on=''
+  if [ -z "$(series_seed_of "${HEAD_OF[$S-dev]}")" ] || [ -z "$(series_seed_of "${HEAD_OF[$S-fwd-dev]}")" ]; then
+    if git fetch -q "$remote" "+refs/heads/main:refs/remotes/$remote/main"; then
+      on=main
+      rf=$({ git show "refs/remotes/$remote/main:scripts/series.yaml" 2>/dev/null || true; } | series_releases_from "$S")
+      if [ -n "$rf" ] && [ "$rf" != main ]; then
+        if git fetch -q "$remote" "+refs/heads/$rf:refs/remotes/$remote/$rf" 2>/dev/null; then
+          on=$rf
+        else
+          echo "Warning: could not fetch $rf, the branch $S releases from, from '$remote'; a -dev without a seed takes its base from main" >&2
+        fi
+      fi
+    fi
+  fi
   base_of() { # <-dev tip> -> commit, empty when none
     local seed c
     seed=$(series_seed_of "$1")
     if [ -z "$seed" ]; then
-      git fetch -q "$remote" "+refs/heads/main:refs/remotes/$remote/main" || return 0
-      git merge-base "$1" "refs/remotes/$remote/main" || true
+      [ -n "$on" ] || return 0
+      git merge-base "$1" "refs/remotes/$remote/$on" || true
       return 0
     fi
     c=$(git rev-parse -q --verify "$seed^") || return 0

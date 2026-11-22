@@ -68,7 +68,8 @@
 #      scripts/series.yaml: the build stands on its tip, --status prints its
 #      fast-forward, --review targets it, and the version bump has to rise
 #      above that branch's version too. A `-fwd` series is refused, and so is
-#      one series.yaml does not declare, except `main`'s own; a bump with no
+#      one series.yaml does not declare, except `main`'s own, which is refused
+#      too once its row is there without `releases_from`; a bump with no
 #      vendor commit under it is not a landing; and without a canonical remote
 #      the script says so itself.
 #
@@ -1081,6 +1082,18 @@ is "a series series.yaml does not declare is refused" "$st" 1
 has "  naming it" "$out" "declares no releases_from for the series v9.9-none"
 out=$(scripts/series-land.sh main --status 2>&1) || true
 hasnt "main's own series needs no row" "$out" "declares no releases_from"
+# A row for `main` that leaves `releases_from` out is refused like any other.
+CANON=$(git ls-remote upstream refs/heads/main | cut -f1)
+git checkout -q -f -B canonmain "$CANON"
+printf '  - flavor: duckdb.dev\n    kind: dev\n    series: "main"\n' >> scripts/series.yaml
+commit 'chore: Declare main without releases_from'
+git push -q upstream canonmain:main
+git checkout -q -f main
+out=$(scripts/series-land.sh main --status 2>&1) && st=0 || st=$?
+is "a row for main without releases_from is refused" "$st" 1
+has "  naming it" "$out" "declares no releases_from for the series main"
+git push -q -f upstream "$CANON:refs/heads/main"
+git branch -q -D canonmain
 out=$(SERIES_CANONICAL='' scripts/series-land.sh v2.0-x --status 2>&1) && st=0 || st=$?
 is "without a canonical remote it stops" "$st" 1
 has "  with its own error" "$out" "Error: no canonical remote"

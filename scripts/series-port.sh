@@ -279,7 +279,7 @@ row_field() { # <series> <field> -> the value, empty when undeclared
       index($0, "    " f ":") == 1 { x = val($2) }
       END { if (ser == s) print x }'
 }
-rf=$(row_field "${S%-fwd}" releases_from | head -n 1)
+rf=$({ git show "$main:scripts/series.yaml" 2>/dev/null || true; } | series_releases_from "$S")
 stale=$(row_field "${S%-fwd}" stale | head -n 1)
 src=$main src_name=main
 if [ -n "$rf" ] && [ "$rf" != main ]; then

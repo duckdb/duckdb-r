@@ -5,7 +5,7 @@
 #
 # The claim is that the script builds the review stack of a strand as its header says,
 # pushes it leased and atomically, stops on a conflict and resumes, and writes the same SHAs from the same inputs.
-# Ten things are checked.
+# Eleven things are checked.
 #
 #   1. The commit-by-commit replay onto the vendor strand: each first-parent commit of `main` picked with `-x`,
 #      a merge against its first parent, its author and dates kept, a version bump through the DESCRIPTION merge driver;
@@ -40,6 +40,10 @@
 #   9. Nothing called `gh`.
 #  10. Nothing read a terminal: the wrapper every run went through gives neither stdin nor a controlling terminal,
 #      and no build or worktree is left behind.
+#  11. A series with no seed, whose `releases_from` in the fork's `main`'s scripts/series.yaml is a release branch,
+#      stands on its merge base with that branch, not with `main`, so `1-main` replays what that branch gained;
+#      without the branch in the fork, it stands on its merge base with `main`, and the run says so once.
+#      It runs before the last two, which read every run.
 #
 # Usage:
 #   scripts/series-cutover-stack-test.sh
@@ -597,6 +601,56 @@ out=$(run "$STACK" v9.9-x build --summary "$SCRATCH/no/such/dir/build.md")
 is "a summary file that cannot be written refuses" "$(status "$out")" 1
 has "saying nothing was pushed" "$out" "cannot write the summary to $SCRATCH/no/such/dir/build.md, so nothing was pushed"
 is "and nothing is" "$(stack v9.9-x/build)" ""
+
+echo "=== 11. no seed, released from a release branch: the base is on that branch"
+# `v4.4-w-rel` leaves `main` at OLD_MAIN and gains two commits; the series stands on the first, its forward on the second,
+# neither with a seed, and the fork's `main` declares that the series releases from that branch.
+git checkout -q --detach "$OLD_MAIN"
+tick
+echo 'rel <- function() 1' > R/rel.R
+git add -A
+git commit -qm 'feat: Add rel() on the release line'
+REL0=$(git rev-parse HEAD)
+tick
+echo 'rel2 <- function() 2' > R/rel2.R
+git add -A
+git commit -qm 'feat: Add rel2() on the release line'
+REL1=$(git rev-parse HEAD)
+vend "${u[1]}"
+vend "${u[2]}"
+tfwd=$(git rev-parse HEAD)
+git checkout -q --detach "$REL0"
+vend "${u[1]}"
+told=$(git rev-parse HEAD)
+git checkout -q main
+git fetch -q origin main
+git checkout -q --detach origin/main
+tick
+printf 'flavors:\n  - flavor: duckdb.4.4.dev\n    kind: dev\n    series: v4.4-w\n    releases_from: "v4.4-w-rel"\n' > scripts/series.yaml
+git add scripts/series.yaml
+git commit -qm 'chore: Release v4.4-w from v4.4-w-rel'
+git push -q -f origin "HEAD:refs/heads/main" "$REL1:refs/heads/v4.4-w-rel" \
+  "$told:refs/heads/v4.4-w-dev" "$told:refs/heads/v4.4-w-vendor" \
+  "$tfwd:refs/heads/v4.4-w-fwd-dev" "$tfwd:refs/heads/v4.4-w-fwd-vendor" 2>/dev/null
+git checkout -q main
+out=$(run "$STACK" v4.4-w vendor)
+is "it builds and pushes" "$(status "$out")" 0
+fetch
+T1=origin/cutover/v4.4-w/vendor/1-main
+is "1-main replays the commit the release branch gained between the two bases" \
+  "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" "feat: Add rel2() on the release line"
+is "and so carries it" "$(git show "$T1:R/rel2.R")" 'rel2 <- function() 2'
+hasnt "not main's own change" "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" "Release v4.4-w from"
+# Without the branch in the fork, both bases fall back to `main`, said once.
+git push -q origin :refs/heads/v4.4-w-rel 2>/dev/null
+out=$(run "$STACK" v4.4-w vendor)
+is "without the branch in the fork, it builds and pushes" "$(status "$out")" 0
+is "saying once that it could not fetch the branch" "$(grep -c "could not fetch v4.4-w-rel" <<<"$out")" 1
+has "and that the base is main's" "$out" \
+  "Warning: could not fetch v4.4-w-rel, the branch v4.4-w releases from, from 'origin'; a -dev without a seed takes its base from main"
+fetch
+is "1-main then replays nothing, both bases being on main" "$(git log --format=%s "origin/v4.4-w-vendor..$T1")" \
+  "chore(cutover): Replay nothing of main's onto v4.4-w-vendor"
 
 echo "=== 9. nothing called gh"
 is "the failing gh is the one on PATH" "$(command -v gh)" "$BIN/gh"
