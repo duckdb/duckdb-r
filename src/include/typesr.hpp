@@ -145,7 +145,7 @@ struct RIntegralType {
 };
 
 template <class T>
-static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
+static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint32_t scale) {
 	auto src_ptr = FlatVector::GetData<T>(src_vec);
 	auto &mask = FlatVector::Validity(src_vec);
 	double division = std::pow((uint64_t)10, (uint64_t)scale);
@@ -157,6 +157,9 @@ static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_p
 
 template <>
 double RIntegralType::DoubleCast<>(hugeint_t val);
+
+// A DECIMAL wider than 38 digits stores its unscaled value as a BIGNUM
+void RWideDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint32_t scale);
 
 struct RDoubleType {
 	static bool IsNull(double val);

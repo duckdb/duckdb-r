@@ -181,6 +181,7 @@ and the `spatial` extension's own types:
   and under `bigint = "integer64"` so does the `BIGINT` minimum, which is `integer64`'s `NA`.
 * `HUGEINT`, `UHUGEINT` and `DECIMAL` past a double's 15 to 17 significant digits,
   and `BIGINT` and `UBIGINT` past 2^53, read as rounded doubles;
+  a `DECIMAL` wider than 38 digits reads as the nearest double, and as `Inf` or `-Inf` past the range of one;
   under `bigint = "integer64"`, a `UBIGINT` of 2^63 reads as `NA`, and one past it wraps to a negative number.
 * A string holding a NUL byte is refused on the way out, pinned by [`tests/testthat/test-null_byte.R`](/tests/testthat/test-null_byte.R).
 * UTF-8 is required, strictly.

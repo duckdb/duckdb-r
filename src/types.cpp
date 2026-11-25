@@ -1,3 +1,4 @@
+#include "duckdb/common/types/bignum_decimal.hpp"
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/hugeint.hpp"
 #include "duckdb/common/types/interval.hpp"
@@ -572,6 +573,16 @@ bool RBooleanType::Convert(int val) {
 template <>
 double RIntegralType::DoubleCast<>(hugeint_t val) {
 	return Hugeint::Cast<double>(val);
+}
+
+void duckdb::RWideDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint32_t scale) {
+	auto src_ptr = FlatVector::GetData<bignum_t>(src_vec);
+	auto &mask = FlatVector::Validity(src_vec);
+	for (size_t row_idx = 0; row_idx < count; row_idx++) {
+		// the nearest double, rounded once from the decimal digits; infinite past the range of a double
+		dest_ptr[row_idx] =
+		    !mask.RowIsValid(row_idx) ? NA_REAL : DecimalHelper<bignum_t>::ToDouble(src_ptr[row_idx], scale);
+	}
 }
 
 string_t RStringSexpType::Convert(SEXP val) {

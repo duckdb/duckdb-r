@@ -26,6 +26,7 @@ Where nanoarrow falls back to the storage of one, the entries below say so.
 \item \code{arrow_large_buffer_size = true} gives strings, binary data and lists 64-bit offsets,
 as \code{large_string}, \code{large_binary} and \code{large_list}, which both readers convert as they convert the others.
 \item \code{arrow_output_version}, \code{'1.0'} by default, gates the newer layouts.
+From \code{'1.1'}, a \code{DECIMAL} wider than 38 digits exports as \code{decimal256}; with \code{'1.0'} its export fails and names the setting.
 From \code{'1.4'}, binary data exports as \code{binary_view},
 and \code{produce_arrow_string_view = true} and \code{arrow_output_list_view = true} take effect, as \code{string_view} and \code{list_view};
 with an older version those two change nothing.
@@ -67,6 +68,8 @@ Their text reads them exactly (see \link{duckdb_types}).
 nanoarrow reads its storage bytes as a \code{blob}.
 \item \strong{\code{DECIMAL(width, scale)}} exports as \code{decimal128(width, scale)}, or narrower from output version 1.5,
 and both read it as \code{numeric}; its rounding is a \href{https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations}{limitation}.
+A width past 38 exports as \code{decimal256(width, scale)} from output version 1.1, up to the 76 digits \code{decimal256} holds;
+a wider one has no Arrow type, and its export fails.
 \item \strong{\code{FLOAT}, \code{DOUBLE}} export as \code{float} and \code{double}, and read as \code{numeric}.
 }
 }
@@ -134,7 +137,7 @@ Each Arrow type lands as one DuckDB type when DuckDB scans it:
 \itemize{
 \item \strong{\code{bool}, \code{int8} to \code{int64}, \code{uint8} to \code{uint64}, \code{float}, \code{double}} land as \code{BOOLEAN}, the integer type of the same width and sign,
 \code{FLOAT} and \code{DOUBLE}.
-\item \strong{\code{decimal32}, \code{decimal64}, \code{decimal128}} land as \code{DECIMAL} of the same width and scale.
+\item \strong{\code{decimal32}, \code{decimal64}, \code{decimal128}, \code{decimal256}} land as \code{DECIMAL} of the same width and scale.
 \item \strong{\code{string}, \code{large_string}, \code{string_view}} land as \code{VARCHAR},
 and \strong{\code{binary}, \code{large_binary}, \code{binary_view}, \code{fixed_size_binary}} as \code{BLOB}.
 \item \strong{\code{date32}, \code{date64}} land as \code{DATE}.
