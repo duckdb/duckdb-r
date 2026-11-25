@@ -650,6 +650,10 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		case PhysicalType::INT128:
 			RDecimalCastLoop<hugeint_t>(src_vec, n, dest_ptr, dec_scale);
 			break;
+		case PhysicalType::VARCHAR:
+			// wider than 38 digits
+			RWideDecimalCastLoop(src_vec, n, dest_ptr, dec_scale);
+			break;
 		default:
 			throw NotImplementedException("Unimplemented internal type for DECIMAL");
 		}

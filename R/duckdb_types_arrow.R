@@ -28,6 +28,7 @@
 #' * `arrow_large_buffer_size = true` gives strings, binary data and lists 64-bit offsets,
 #'   as `large_string`, `large_binary` and `large_list`, which both readers convert as they convert the others.
 #' * `arrow_output_version`, `'1.0'` by default, gates the newer layouts.
+#'   From `'1.1'`, a `DECIMAL` wider than 38 digits exports as `decimal256`; with `'1.0'` its export fails and names the setting.
 #'   From `'1.4'`, binary data exports as `binary_view`,
 #'   and `produce_arrow_string_view = true` and `arrow_output_list_view = true` take effect, as `string_view` and `list_view`;
 #'   with an older version those two change nothing.
@@ -68,6 +69,8 @@
 #'   nanoarrow reads its storage bytes as a `blob`.
 #' * **`DECIMAL(width, scale)`** exports as `decimal128(width, scale)`, or narrower from output version 1.5,
 #'   and both read it as `numeric`; its rounding is a [limitation](https://github.com/duckdb/duckdb-r/blob/main/handbook/usage/arrow-types/README.md#limitations).
+#'   A width past 38 exports as `decimal256(width, scale)` from output version 1.1, up to the 76 digits `decimal256` holds;
+#'   a wider one has no Arrow type, and its export fails.
 #' * **`FLOAT`, `DOUBLE`** export as `float` and `double`, and read as `numeric`.
 #'
 #' ## Text and binary
@@ -125,7 +128,7 @@
 #'
 #' * **`bool`, `int8` to `int64`, `uint8` to `uint64`, `float`, `double`** land as `BOOLEAN`, the integer type of the same width and sign,
 #'   `FLOAT` and `DOUBLE`.
-#' * **`decimal32`, `decimal64`, `decimal128`** land as `DECIMAL` of the same width and scale.
+#' * **`decimal32`, `decimal64`, `decimal128`, `decimal256`** land as `DECIMAL` of the same width and scale.
 #' * **`string`, `large_string`, `string_view`** land as `VARCHAR`,
 #'   and **`binary`, `large_binary`, `binary_view`, `fixed_size_binary`** as `BLOB`.
 #' * **`date32`, `date64`** land as `DATE`.
