@@ -1,3 +1,8 @@
+# duckdb (development version)
+
+Commits since v2.0.1: <https://github.com/duckdb/duckdb-r/compare/v2.0.1...v2.0-cyanoptera>.
+
+
 # duckdb 2.0.1 (2026-11-23)
 
 ## Features
