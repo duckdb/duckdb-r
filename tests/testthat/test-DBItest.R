@@ -154,6 +154,9 @@ if (rlang::is_installed("DBItest")) {
         "arrow_write_table_arrow_roundtrip_factor",
         "arrow_write_table_arrow_roundtrip_blob",
         "arrow_write_table_arrow_roundtrip_timestamp",
+        # 1.8.3.x
+        "arrow_read_table_arrow_64_bit",
+        "arrow_send_query_schema_stable",
         NULL
       )
     },

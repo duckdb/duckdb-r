@@ -24,7 +24,7 @@ if (rlang::is_installed("DBItest")) {
     # dblog::dblog(drv),
     list(debug = FALSE),
     tweaks = DBItest::tweaks(
-      dbitest_version = "1.8.3",
+      dbitest_version = "1.8.3.6",
       omit_blob_tests = FALSE,
       temporary_tables = FALSE,
       placeholder_pattern = "?",
